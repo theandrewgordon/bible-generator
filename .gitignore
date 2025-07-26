@@ -1,3 +1,19 @@
-# .gitignore
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
 .env
 secret.env
+
+# Output folders
+output/
+worksheets/
+
+# PDF and logs
+*.pdf
+*.log
+
+# Fonts (if large or licensed separately)
+fonts/
