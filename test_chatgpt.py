@@ -16,7 +16,7 @@ version = "NLT"
 output_dir = "output"
 os.makedirs(output_dir, exist_ok=True)
 
-def request_verse_data(verse_ref):
+def request_verse_data(verse_ref, version="esv"):
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",

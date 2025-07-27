@@ -9,9 +9,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 
+# Register fonts
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
 pdfmetrics.registerFont(TTFont('LearningCurve', 'fonts/LearningCurveDashed-w4DP.ttf'))
 
+# Styles and layout constants
 LIGHT_GRAY = 0.95
 line_spacing = 22
 styles = getSampleStyleSheet()
@@ -78,7 +80,6 @@ def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
 
     return y - box_height - 10
 
-
 def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
     line_height = line_spacing + 6
     box_height = lines_count * line_height + 2 * padding + 20
@@ -96,13 +97,14 @@ def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
         ty -= line_height
     return y - box_height - 10
 
-def generate_pdf(data, pdf_path, use_cursive=False):
+def generate_pdf(data, pdf_path):
     width, height = letter
     margin = 0.75 * inch
     usable_width = width - 2 * margin
     y = height - margin - 10
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
 
+    # Load brand assets
     logo_path = "faith_sparks_logo.png"
     qr_path = "faithsparks_qr.png"
     logo_size = 50
@@ -111,29 +113,37 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     if os.path.exists(qr_path):
         c.drawImage(qr_path, width - margin - logo_size, y - logo_size, width=logo_size, height=logo_size)
 
+    # Title
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2, y - 12, "Bible Copywork Worksheet")
     y -= logo_size + 10
 
+    # Reference line
     verse_display = f"{data['verse']} ({data['version'].upper()})"
     c.setFont("Helvetica-Bold", 14 if len(verse_display) < 25 else 12)
     c.drawCentredString(width / 2, y, verse_display)
     y -= 20
 
-    # Draw full verse
+    # Full verse box
     y = draw_paragraph_box(c, "Verse:", data["fullVerse"], margin, y, usable_width)
 
-    # Use fullVerse for traceable if it's 26 words or fewer
+    # Traceable text logic
     full = data.get("fullVerse", "")
     trace = data.get("traceableVerse", full)
     if len(full.split()) <= 26:
         trace = full
 
+    # Cursive toggle (from JSON payload)
+    use_cursive = data.get("cursive", False)
     y = draw_tracing_box(c, "Trace it:", trace, margin, y, usable_width, use_cursive=use_cursive)
 
+    # Handwriting section
     y = draw_handwriting_box(c, "Now write it yourself:", margin, y, usable_width, data["handwritingLines"])
+
+    # Reflection
     y = draw_paragraph_box(c, "Think about this:", data["reflectionQuestion"], margin, y, usable_width)
 
+    # Coloring section
     available_height = y - (0.75 * inch)
     box_h = min(available_height, 2.5 * inch)
     box_w = 4.5 * inch
@@ -143,15 +153,17 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     c.setLineWidth(1.25)
     c.roundRect(margin + label_w + gap, y - box_h, box_w, box_h, radius=8)
 
+    # Border + Footer
     c.setStrokeGray(0.8)
     c.setLineWidth(0.5)
     c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
+
     verse_code = data["verse"].upper().replace(":", "_").replace(" ", "_") + f"_{data['version'].upper()}"
     c.setFillColor(black)
     c.drawRightString(width - margin, 0.32 * inch, f"FS-{verse_code}")
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
     c.drawCentredString(width / 2, 0.23 * inch, "© 2025 Faith Sparks Printables · For personal use only")
+
     c.save()
     print(f"✅ Final worksheet saved to: {pdf_path}")
-

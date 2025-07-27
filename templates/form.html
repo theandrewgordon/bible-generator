@@ -1,14 +1,32 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Generate Your Own Worksheet</title>
+    <title>Generate Your Own Bible Copywork Worksheet</title>
   </head>
   <body>
     <h1>Generate Your Own Bible Copywork Worksheet</h1>
-    <form action="/generate" method="POST">
-      <label>Enter Bible Verse (e.g., John 3:16):</label><br />
-      <input type="text" name="verse" required />
-      <br /><br />
+    <form method="POST" action="/generate">
+      <label for="verse">Enter Bible Verse (e.g., John 3:16):</label><br />
+      <input type="text" id="verse" name="verse" required /><br /><br />
+
+      <label for="version">Select Bible Version:</label><br />
+      <select name="version" id="version" required>
+        <option value="niv">New International Version (NIV)</option>
+        <option value="kjv">King James Version (KJV)</option>
+        <option value="nlt">New Living Translation (NLT)</option>
+        <option value="esv" selected>English Standard Version (ESV)</option>
+        <option value="nkjv">New King James Version (NKJV)</option>
+        <option value="csb">Christian Standard Bible (CSB)</option>
+        <option value="rv">Reina Valera (RV)</option>
+        <option value="nirv">New International Reader’s Version (NIrV)</option>
+        <option value="message">The Message</option>
+        <option value="nasb">New American Standard Bible (NASB)</option></select
+      ><br /><br />
+
+      <label>
+        <input type="checkbox" name="cursive" /> Use cursive handwriting </label
+      ><br /><br />
+
       <button type="submit">Generate Worksheet</button>
     </form>
   </body>
