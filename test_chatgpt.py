@@ -27,19 +27,24 @@ def request_verse_data(verse_ref, version="esv"):
                     "content": f"""
 Return valid JSON with:
 - "verse": the reference
-- "fullVerse": the full Bible verse (from the {version.upper()}), without the reference text, Capiitalize first letter, Guarantee full verse.
-- "traceableVerse": If fullVerse has 26 words or fewer, the full Bible verse (from the {version.upper()}), without the reference text, Capiitalize first letter. Otherwise, return a meaningful excerpt (under 27 words). Capiitalize first letter,
+- "fullVerse": the full Bible verse (from the {version.upper()}), without the reference text. Capitalize first letter. Guarantee complete verse.
+- "traceableVerse": 
+    If fullVerse has 26 words or fewer, return it exactly.
+    If fullVerse has more than 26 words, choose the **most important, memorable, self-contained part** of the verse that a child could copy and learn from (limit to under 27 words). Do not simply chop off the beginning or end. It should preserve the key meaning and spiritual message.
+
 - "handwritingLines": 3
 - "reflectionQuestion": one simple life-application question
 - "imageIdea": a coloring prompt based on the verse (e.g. a shepherd, cross, prayer hands, etc.)
 - "version": "{version.lower()}"
 
 Formatting rules:
-- If the verse has quotes inside the verse (not surrounding it), don't remove them but dont add them outside verse, if you add a quote, must open and close quote, always use Unicode directional quotes: \\u201c \\u201d for double quotes, \\u2018 \\u2019 for single quotes.
-- Do NOT use ASCII straight quotes (" or ')
-- Do NOT add spaces before punctuation
-- Capitalize all pronouns that refer to God/Jesus (e.g., He, His, Him), example: ("but God shows His love", "And we know that for those who love God all things work together for good, for those who are called according to His purpose.", "We love because He first loved us.")
-- Return JSON only. No explanations.
+- If the verse has quotes **inside** (not wrapping the whole thing), preserve them, using Unicode directional quotes: \\u201c \\u201d and \\u2018 \\u2019
+- Do NOT wrap the whole verse in quotes
+- Do NOT use ASCII straight quotes
+- Do NOT insert spaces before punctuation
+- Capitalize all pronouns referring to God or Jesus (e.g., He, His, Him)
+- Return only JSON. No explanation.
+
 Verse: {verse_ref}
 """
                 }
@@ -49,6 +54,7 @@ Verse: {verse_ref}
     except Exception as e:
         print(f"⚠️  Request error: {e}")
         return None
+
 
 def parse_and_clean_json(content):
     return json.loads(content)
