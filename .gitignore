@@ -14,6 +14,3 @@ worksheets/
 # PDF and logs
 *.pdf
 *.log
-
-# Fonts (if large or licensed separately)
-fonts/

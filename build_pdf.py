@@ -10,6 +10,7 @@ from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
+pdfmetrics.registerFont(TTFont('LearningCurve', 'fonts/LearningCurveDashed-w4DP.ttf'))
 
 LIGHT_GRAY = 0.95
 line_spacing = 22
@@ -52,22 +53,31 @@ def draw_paragraph_box(c, title, content, x, y, width, padding=10):
     para.drawOn(c, x + padding, y - padding - para_height - 10)
     return y - box_height - 10
 
-def draw_tracing_box(c, title, text, x, y, width):
-    font = 'KGPrimaryDots'
+def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
+    font = 'LearningCurve' if use_cursive else 'KGPrimaryDots'
     font_size = 30
     padding = 10
     text = capitalize_first_letter(text)
     lines = wrap_text_lines(text, font, font_size, width - 40)
-    box_height = len(lines) * (font_size + 4) + 2 * padding + 20
+    box_height = len(lines) * (font_size + 10) + 2 * padding + 20
     c.roundRect(x, y - box_height, width, box_height, radius=8, fill=0)
+
     c.setFont("Helvetica-Bold", 12)
     c.drawString(x + padding, y - padding - 2, title)
+
     c.setFont(font, font_size)
     ty = y - padding - 30
+
     for line in lines:
         c.drawString(x + padding, ty, line)
-        ty -= font_size + 4
+        if use_cursive:
+            underline_y = ty - 5
+            c.setLineWidth(1)
+            c.line(x + padding, underline_y, x + width - padding, underline_y)
+        ty -= font_size + 10
+
     return y - box_height - 10
+
 
 def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
     line_height = line_spacing + 6
@@ -86,7 +96,7 @@ def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
         ty -= line_height
     return y - box_height - 10
 
-def generate_pdf(data, pdf_path):
+def generate_pdf(data, pdf_path, use_cursive=False):
     width, height = letter
     margin = 0.75 * inch
     usable_width = width - 2 * margin
@@ -110,17 +120,19 @@ def generate_pdf(data, pdf_path):
     c.drawCentredString(width / 2, y, verse_display)
     y -= 20
 
+    # Draw full verse
     y = draw_paragraph_box(c, "Verse:", data["fullVerse"], margin, y, usable_width)
 
-    # Use fullVerse if 27 words or fewer, else traceableVerse
-    trace_text = data["fullVerse"]
-    if len(trace_text.split()) > 27:
-        trace_text = data.get("traceableVerse", trace_text)
-    y = draw_tracing_box(c, "Trace it:", trace_text, margin, y, usable_width)
+    # Use fullVerse for traceable if it's 26 words or fewer
+    full = data.get("fullVerse", "")
+    trace = data.get("traceableVerse", full)
+    if len(full.split()) <= 26:
+        trace = full
+
+    y = draw_tracing_box(c, "Trace it:", trace, margin, y, usable_width, use_cursive=use_cursive)
 
     y = draw_handwriting_box(c, "Now write it yourself:", margin, y, usable_width, data["handwritingLines"])
     y = draw_paragraph_box(c, "Think about this:", data["reflectionQuestion"], margin, y, usable_width)
-
 
     available_height = y - (0.75 * inch)
     box_h = min(available_height, 2.5 * inch)
@@ -142,3 +154,4 @@ def generate_pdf(data, pdf_path):
     c.drawCentredString(width / 2, 0.23 * inch, "© 2025 Faith Sparks Printables · For personal use only")
     c.save()
     print(f"✅ Final worksheet saved to: {pdf_path}")
+
