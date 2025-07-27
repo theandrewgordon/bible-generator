@@ -6,27 +6,30 @@ from build_pdf import generate_pdf
 
 app = Flask(__name__)
 
+os.makedirs("output", exist_ok=True)
+
 @app.route('/')
 def home():
     return render_template("form.html")  # Basic form for user to input verse
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    verse = request.form['verse']
-    version = "esv"
-    slug = verse.lower().replace(":", "_").replace(" ", "_")
-    json_path = f"output/{slug}_{version}.json"
-    pdf_path = f"output/{slug}_{version}.pdf"
+    try:
+        verse = request.form['verse']
+        content = request_verse_data(verse)
+        data = parse_and_clean_json(content)
 
-    # Get and save JSON
-    content = request_verse_data(verse)
-    data = parse_and_clean_json(content)
-    save_json_to_file(data, json_path)
+        version = data.get("version", "esv").lower()
+        slug = verse.lower().replace(":", "_").replace(" ", "_")
+        json_path = f"output/{slug}_{version}.json"
+        pdf_path = f"output/{slug}_{version}.pdf"
 
-    # Generate PDF
-    generate_pdf(data, pdf_path)
+        save_json_to_file(data, json_path)
+        generate_pdf(data, pdf_path)
 
-    return send_file(pdf_path, as_attachment=True)
+        return send_file(pdf_path, as_attachment=True)
+    except Exception as e:
+        return f"<h1>500 Internal Server Error</h1><p>{str(e)}</p>", 500
 
 if __name__ == '__main__':
     app.run(debug=True)

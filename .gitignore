@@ -8,8 +8,6 @@ __pycache__/
 secret.env
 
 # Output folders
-output/
-worksheets/
 
 # PDF and logs
 *.pdf
