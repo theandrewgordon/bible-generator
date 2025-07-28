@@ -43,31 +43,44 @@ def home():
 def generate():
     try:
         verse_input = request.form.get('verse', '').strip()
-        fallback_version = request.form.get('version', 'nlt').strip().lower()
+        version = request.form.get('version', '').strip().lower()
         use_cursive = 'cursive' in request.form
 
         if not verse_input:
-            return "<h1>400 Bad Request</h1><p>Verse input is required.</p>", 400
-        if len(verse_input) > 200:
-            return "<h1>400 Bad Request</h1><p>Verse input too long.</p>", 400
+            return "<h1>400 Bad Request</h1><p>Verse is required.</p>", 400
+
+        # Split version if embedded in verse (auto-detect)
+        if version == "auto":
+            if "(" in verse_input and ")" in verse_input:
+                verse_input, detected_version = verse_input.rsplit("(", 1)
+                version = detected_version.replace(")", "").strip().lower()
 
         verses = [v.strip() for v in verse_input.split(",") if v.strip()]
         final_pdf = None
 
-        for verse_entry in verses:
-            version, clean_verse = extract_version_from_text(verse_entry, fallback_version)
-            content = request_verse_data(clean_verse, version=version)
+        for verse in verses:
+            content = request_verse_data(verse, version=version)
             if not content:
-                continue  # Skip failed verse
+                print(f"❌ No content for: {verse}")
+                continue
 
-            data = parse_and_clean_json(content)
+            try:
+                data = parse_and_clean_json(content)
+            except Exception as json_error:
+                print(f"❌ JSON error for {verse}: {json_error}")
+                continue
+
+            if not data or 'verse' not in data:
+                print(f"❌ Incomplete data for {verse}: {data}")
+                continue
+
             data['version'] = version
             data['cursive'] = use_cursive
 
-            slug = normalize_slug(clean_verse)
+            slug = normalize_slug(verse)
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}.pdf"
-            final_pdf = pdf_path  # Used if single verse
+            final_pdf = pdf_path
 
             save_json_to_file(data, json_path)
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
@@ -80,7 +93,10 @@ def generate():
             return send_file("output/worksheets_bundle.zip", as_attachment=True)
 
     except Exception as e:
-        return f"<h1>500 Internal Server Error</h1><p>{str(e)}</p>", 500
+        import traceback
+        traceback.print_exc()
+        return f"<h1>500 Internal Server Error</h1><pre>{str(e)}</pre>", 500
+
 
 @app.route('/preview')
 def preview():
