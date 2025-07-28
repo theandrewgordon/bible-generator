@@ -2,91 +2,135 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Generate Your Own Bible Copywork Worksheet</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <title>Generate Bible Worksheet</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
       rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Inter:400,600&display=swap"
     />
     <style>
       body {
         font-family: "Inter", sans-serif;
-        max-width: 600px;
-        margin: 40px auto;
-        padding: 20px;
-        color: #222;
-        background-color: #fafafa;
+        margin: 0;
+        padding: 0;
+        background: #f5f5f5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
+
+      header {
+        width: 100%;
+        background-color: #ffffff;
+        display: flex;
+        align-items: center;
+        padding: 10px 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      header img {
+        height: 48px;
+      }
+
+      .container {
+        background-color: #ffffff;
+        padding: 30px;
+        margin-top: 40px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+      }
+
       h1 {
-        font-weight: 600;
-        font-size: 1.8em;
-        margin-bottom: 0.5em;
+        text-align: center;
+        margin-bottom: 20px;
       }
+
       label {
-        font-weight: 500;
+        font-weight: 600;
         display: block;
-        margin-top: 1.2em;
+        margin-bottom: 8px;
       }
+
       input[type="text"],
       select {
-        font-size: 1em;
-        padding: 0.5em;
         width: 100%;
-        box-sizing: border-box;
-        margin-top: 0.4em;
+        padding: 10px;
+        margin-bottom: 20px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
       }
+
       button {
-        margin-top: 1.5em;
-        font-size: 1em;
-        padding: 0.7em 1.5em;
-        background-color: #2e7d32;
+        width: 100%;
+        padding: 12px;
+        background-color: #2b6cb0;
         color: white;
         border: none;
+        border-radius: 6px;
+        font-size: 16px;
         cursor: pointer;
-        border-radius: 4px;
       }
+
       button:hover {
-        background-color: #1b5e20;
+        background-color: #2c5282;
       }
-      .checkbox {
-        margin-top: 1em;
+
+      .spinner {
+        display: none;
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      .spinner img {
+        width: 48px;
       }
     </style>
   </head>
   <body>
-    <h1>Generate Your Own Bible Copywork Worksheet</h1>
+    <header>
+      <img src="/static/faith_sparks_logo.png" alt="Faith Sparks Logo" />
+    </header>
 
-    <form action="/generate" method="post" onsubmit="showLoading()">
-      <label for="verse">Enter Bible Verse (e.g., John 3:16):</label>
-      <input type="text" id="verse" name="verse" required />
+    <div class="container">
+      <h1>Generate Your Own Worksheet</h1>
+      <form method="POST" action="/generate" onsubmit="showSpinner()">
+        <label for="verse">Bible Verse (e.g. John 3:16)</label>
+        <input type="text" name="verse" required />
 
-      <label for="version">Select Bible Version:</label>
-      <select name="version" id="version">
-        <option value="niv">New International Version (NIV)</option>
-        <option value="kjv">King James Version (KJV)</option>
-        <option value="nlt">New Living Translation (NLT)</option>
-        <option value="esv" selected>English Standard Version (ESV)</option>
-        <option value="nkjv">New King James Version (NKJV)</option>
-        <option value="csb">Christian Standard Bible (CSB)</option>
-        <option value="rv">Reina Valera (RV)</option>
-        <option value="nirv">New International Reader’s Version (NIrV)</option>
-        <option value="message">The Message (Message)</option>
-        <option value="nasb">New American Standard Bible (NASB)</option>
-      </select>
+        <label for="version">Bible Version</label>
+        <select name="version" required>
+          <option value="esv">English Standard Version (ESV)</option>
+          <option value="niv">New International Version (NIV)</option>
+          <option value="kjv">King James Version (KJV)</option>
+          <option value="nkjv">New King James Version (NKJV)</option>
+          <option value="nlt">New Living Translation (NLT)</option>
+          <option value="csb">Christian Standard Bible (CSB)</option>
+          <option value="nasb">New American Standard Bible (NASB)</option>
+          <option value="nirv">
+            New International Reader’s Version (NIrV)
+          </option>
+          <option value="message">The Message</option>
+          <option value="rv">Reina Valera (RV)</option>
+        </select>
 
-      <div class="checkbox">
         <label>
-          <input type="checkbox" name="cursive" checked />
-          Use cursive handwriting
+          <input type="checkbox" name="cursive" />
+          Use cursive tracing font
         </label>
-      </div>
 
-      <button type="submit">Generate Worksheet</button>
-    </form>
+        <button type="submit">Generate Worksheet</button>
+
+        <div class="spinner" id="spinner">
+          <img src="/static/spinner.gif" alt="Loading..." />
+          <p>Generating your worksheet...</p>
+        </div>
+      </form>
+    </div>
 
     <script>
-      function showLoading() {
-        document.querySelector("button").innerText = "Generating...";
+      function showSpinner() {
+        document.getElementById("spinner").style.display = "block";
       }
     </script>
   </body>
