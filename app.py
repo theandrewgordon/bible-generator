@@ -60,19 +60,33 @@ def generate():
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
         update_zip_bundle()  # ✅ Refresh the ZIP with any new PDFs
-        return send_file(pdf_path, as_attachment=True)
-
+        # Auto return logic
+        if len(verses) == 1:
+            return send_file(pdf_path, as_attachment=True)
+        else:
+            return send_file("output/worksheets_bundle.zip", as_attachment=True)
+        
     except Exception as e:
         return f"<h1>500 Internal Server Error</h1><p>{str(e)}</p>", 500
 
 @app.route('/preview')
 def preview():
-    verse = request.args.get('verse')
-    if not verse:
+    verse_input = request.args.get('verse')
+    version = request.args.get('version', 'nlt')
+    if not verse_input:
         return "", 400
-    content = request_verse_data(verse)
-    data = parse_and_clean_json(content)
-    return data.get("fullVerse", "")
+
+    verses = [v.strip() for v in verse_input.split(",") if v.strip()]
+    previews = []
+    for verse in verses:
+        content = request_verse_data(verse, version=version)
+        data = parse_and_clean_json(content)
+        full = data.get("fullVerse", "")
+        if full:
+            previews.append(f"<strong>{verse}</strong>: {full}")
+
+    return "<br><br>".join(previews)
+
 
 @app.route('/download_all')
 def download_all():
