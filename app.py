@@ -39,5 +39,14 @@ def generate():
     except Exception as e:
         return f"<h1>500 Internal Server Error</h1><p>{str(e)}</p>", 500
 
+@app.route('/preview')
+def preview():
+    verse = request.args.get('verse')
+    if not verse:
+        return "", 400
+    content = request_verse_data(verse)
+    data = parse_and_clean_json(content)
+    return data.get("fullVerse", "")
+
 if __name__ == '__main__':
     app.run(debug=True)
