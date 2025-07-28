@@ -3,9 +3,13 @@ import os
 import json
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file
 from build_pdf import generate_pdf
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 os.makedirs("output", exist_ok=True)
+
+def normalize_slug(text):
+    return text.lower().replace(":", "_").replace("–", "_").replace("—", "_").replace(" ", "_")
 
 @app.route('/')
 def home():
@@ -14,25 +18,31 @@ def home():
 @app.route('/generate', methods=['POST'])
 def generate():
     try:
-        verse = request.form['verse'].strip()
-        version = request.form['version'].strip().lower()
-        use_cursive = 'cursive' in request.form  # checkbox is only in form if checked
+        verse = request.form.get('verse', '').strip()
+        version = request.form.get('version', '').strip().lower()
+        use_cursive = 'cursive' in request.form
 
-        # Pass version to GPT
+        # Basic input validation
+        if not verse or not version:
+            return "<h1>400 Bad Request</h1><p>Verse and version are required.</p>", 400
+        if len(verse) > 100 or len(version) > 10:
+            return "<h1>400 Bad Request</h1><p>Input too long.</p>", 400
+
+        # Request GPT-generated data
         content = request_verse_data(verse, version=version)
         if not content:
             return "<h1>500 Internal Server Error</h1><p>Failed to retrieve verse data.</p>", 500
 
         data = parse_and_clean_json(content)
-        data['version'] = version  # make sure it's aligned
-        data['cursive'] = use_cursive  # pass into PDF generator
+        data['version'] = version
+        data['cursive'] = use_cursive
 
-        slug = verse.lower().replace(":", "_").replace(" ", "_")
+        slug = normalize_slug(verse)
         json_path = f"output/{slug}_{version}.json"
         pdf_path = f"output/{slug}_{version}.pdf"
 
         save_json_to_file(data, json_path)
-        generate_pdf(data, pdf_path)
+        generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
         return send_file(pdf_path, as_attachment=True)
 
