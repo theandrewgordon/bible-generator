@@ -19,8 +19,7 @@ def normalize_slug(text):
 
 def extract_version_from_text(verse_text, fallback_version):
     """
-    Detects version from input like: 'John 3:16 (KJV)'.
-    Returns tuple: (version, cleaned_verse_text)
+    Detect version from 'John 3:16 (ESV)' → ('esv', 'John 3:16')
     """
     match = re.search(r'\((\w{2,6})\)$', verse_text.strip())
     if match:
@@ -28,7 +27,6 @@ def extract_version_from_text(verse_text, fallback_version):
     return fallback_version.lower(), verse_text.strip()
 
 def update_zip_bundle():
-    """Create or update worksheets_bundle.zip from all PDFs in /output."""
     zip_path = "output/worksheets_bundle.zip"
     with ZipFile(zip_path, "w") as zf:
         for filename in os.listdir("output"):
@@ -43,22 +41,19 @@ def home():
 def generate():
     try:
         verse_input = request.form.get('verse', '').strip()
-        version = request.form.get('version', '').strip().lower()
+        selected_version = request.form.get('version', '').strip().lower()
         use_cursive = 'cursive' in request.form
 
         if not verse_input:
             return "<h1>400 Bad Request</h1><p>Verse is required.</p>", 400
 
-        # Split version if embedded in verse (auto-detect)
-        if version == "auto":
-            if "(" in verse_input and ")" in verse_input:
-                verse_input, detected_version = verse_input.rsplit("(", 1)
-                version = detected_version.replace(")", "").strip().lower()
-
         verses = [v.strip() for v in verse_input.split(",") if v.strip()]
         final_pdf = None
 
-        for verse in verses:
+        for verse_entry in verses:
+            # Detect version from verse input, fallback to select box value
+            version, verse = extract_version_from_text(verse_entry, selected_version)
+
             content = request_verse_data(verse, version=version)
             if not content:
                 print(f"❌ No content for: {verse}")
@@ -74,7 +69,8 @@ def generate():
                 print(f"❌ Incomplete data for {verse}: {data}")
                 continue
 
-            data['version'] = version
+            # Auto-fill actual version into metadata and filename
+            data['version'] = version.upper()
             data['cursive'] = use_cursive
 
             slug = normalize_slug(verse)
@@ -97,7 +93,6 @@ def generate():
         traceback.print_exc()
         return f"<h1>500 Internal Server Error</h1><pre>{str(e)}</pre>", 500
 
-
 @app.route('/preview')
 def preview():
     verse_input = request.args.get('verse', '').strip()
@@ -113,7 +108,7 @@ def preview():
         data = parse_and_clean_json(content)
         full = data.get("fullVerse", "")
         if full:
-            html = f"<strong>{clean_verse}</strong>: {full}"
+            html = f"<strong>{clean_verse}</strong> ({version.upper()}): {full}"
             previews.append(html)
 
     return "<br><br>".join(previews)
