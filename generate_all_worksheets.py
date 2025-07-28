@@ -2,6 +2,8 @@ import os
 import json
 from pathlib import Path
 from build_pdf import generate_pdf
+import zipfile
+
 
 input_dir = Path("output")
 output_dir = Path("worksheets")
@@ -46,5 +48,14 @@ def main():
     for json_file in input_dir.glob("*.json"):
         process_file(json_file)
 
+
+def bundle_all_pdfs():
+    zip_path = output_dir / "worksheets_bundle.zip"
+    with zipfile.ZipFile(zip_path, "w") as zipf:
+        for pdf_file in output_dir.glob("*.pdf"):
+            zipf.write(pdf_file, pdf_file.name)
+    print(f"✅ All PDFs zipped to: {zip_path}")
+
 if __name__ == "__main__":
     main()
+    bundle_all_pdfs()

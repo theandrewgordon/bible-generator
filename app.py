@@ -48,5 +48,12 @@ def preview():
     data = parse_and_clean_json(content)
     return data.get("fullVerse", "")
 
+@app.route('/download_all')
+def download_all():
+    zip_path = "output/worksheets_bundle.zip"
+    if os.path.exists(zip_path):
+        return send_file(zip_path, as_attachment=True)
+    return "<p>No bundle found.</p>", 404
+
 if __name__ == '__main__':
     app.run(debug=True)

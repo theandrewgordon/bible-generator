@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 from build_pdf import generate_pdf
+from zipfile import ZipFile
 
 # Load environment and initialize OpenAI client
 load_dotenv("secret.env")
@@ -116,6 +117,12 @@ def process_verse(verse_ref):
     except Exception as e:
         print(f"❌ Failed processing {verse_ref}: {e}")
 
+def update_zip_bundle():
+    zip_path = "output/worksheets_bundle.zip"
+    with ZipFile(zip_path, "w") as zf:
+        for pdf in os.listdir("worksheets"):
+            if pdf.endswith(".pdf"):
+                zf.write(f"worksheets/{pdf}", pdf)
 def main():
     for verse in verses:
         process_verse(verse)

@@ -97,7 +97,7 @@ def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
         ty -= line_height
     return y - box_height - 10
 
-def generate_pdf(data, pdf_path):
+def generate_pdf(data, pdf_path, use_cursive=False):
     width, height = letter
     margin = 0.75 * inch
     usable_width = width - 2 * margin
@@ -134,7 +134,7 @@ def generate_pdf(data, pdf_path):
         trace = full
 
     # Cursive toggle (from JSON payload)
-    use_cursive = data.get("cursive", False)
+# use_cursive now comes from function param instead of inside the data
     y = draw_tracing_box(c, "Trace it:", trace, margin, y, usable_width, use_cursive=use_cursive)
 
     # Handwriting section
