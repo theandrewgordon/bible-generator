@@ -3,7 +3,6 @@ import os
 import json
 from zipfile import ZipFile
 from werkzeug.utils import secure_filename
-
 from verse_helpers import (
     request_verse_data,
     parse_and_clean_json,
@@ -41,12 +40,13 @@ def generate():
         if len(verse_input) > 200 or len(version) > 10:
             return "<h1>400 Bad Request</h1><p>Input too long.</p>", 400
 
-        # Support multiple comma-separated verses
         verses = [v.strip() for v in verse_input.split(",") if v.strip()]
+        final_pdf = None
+
         for verse in verses:
             content = request_verse_data(verse, version=version)
             if not content:
-                continue  # Skip if GPT fails
+                continue  # Skip failed verse
 
             data = parse_and_clean_json(content)
             data['version'] = version
@@ -55,24 +55,25 @@ def generate():
             slug = normalize_slug(verse)
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}.pdf"
+            final_pdf = pdf_path  # Will be used if single verse
 
             save_json_to_file(data, json_path)
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
-        update_zip_bundle()  # ✅ Refresh the ZIP with any new PDFs
-        # Auto return logic
-        if len(verses) == 1:
-            return send_file(pdf_path, as_attachment=True)
+        update_zip_bundle()
+
+        if len(verses) == 1 and final_pdf:
+            return send_file(final_pdf, as_attachment=True)
         else:
             return send_file("output/worksheets_bundle.zip", as_attachment=True)
-        
+
     except Exception as e:
         return f"<h1>500 Internal Server Error</h1><p>{str(e)}</p>", 500
 
 @app.route('/preview')
 def preview():
-    verse_input = request.args.get('verse')
-    version = request.args.get('version', 'nlt')
+    verse_input = request.args.get('verse', '').strip()
+    version = request.args.get('version', 'nlt').strip().lower()
     if not verse_input:
         return "", 400
 
@@ -83,10 +84,10 @@ def preview():
         data = parse_and_clean_json(content)
         full = data.get("fullVerse", "")
         if full:
-            previews.append(f"<strong>{verse}</strong>: {full}")
+            html = f"<strong>{verse}</strong>: {full}"
+            previews.append(html)
 
     return "<br><br>".join(previews)
-
 
 @app.route('/download_all')
 def download_all():
