@@ -1,15 +1,16 @@
 from flask import Flask, request, send_file, render_template
 import os
-import json
-from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file
+from zipfile import ZipFile
+from verse_helpers import (
+    request_verse_data,
+    parse_and_clean_json,
+    save_json_to_file,
+    normalize_slug
+)
 from build_pdf import generate_pdf
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 os.makedirs("output", exist_ok=True)
-
-def normalize_slug(text):
-    return text.lower().replace(":", "_").replace("–", "_").replace("—", "_").replace(" ", "_")
 
 @app.route('/')
 def home():
@@ -18,33 +19,49 @@ def home():
 @app.route('/generate', methods=['POST'])
 def generate():
     try:
-        verse = request.form.get('verse', '').strip()
+        verse_input = request.form.get('verse', '').strip()
         version = request.form.get('version', '').strip().lower()
         use_cursive = 'cursive' in request.form
 
         # Basic input validation
-        if not verse or not version:
+        if not verse_input or not version:
             return "<h1>400 Bad Request</h1><p>Verse and version are required.</p>", 400
-        if len(verse) > 100 or len(version) > 10:
+        if len(verse_input) > 200 or len(version) > 10:
             return "<h1>400 Bad Request</h1><p>Input too long.</p>", 400
 
-        # Request GPT-generated data
-        content = request_verse_data(verse, version=version)
-        if not content:
-            return "<h1>500 Internal Server Error</h1><p>Failed to retrieve verse data.</p>", 500
+        verses = [v.strip() for v in verse_input.split(',') if v.strip()]
+        generated_files = []
 
-        data = parse_and_clean_json(content)
-        data['version'] = version
-        data['cursive'] = use_cursive
+        for verse in verses:
+            content = request_verse_data(verse, version=version)
+            if not content:
+                continue
 
-        slug = normalize_slug(verse)
-        json_path = f"output/{slug}_{version}.json"
-        pdf_path = f"output/{slug}_{version}.pdf"
+            data = parse_and_clean_json(content)
+            data['version'] = version
+            data['cursive'] = use_cursive
 
-        save_json_to_file(data, json_path)
-        generate_pdf(data, pdf_path, use_cursive=use_cursive)
+            slug = normalize_slug(verse)
+            json_path = f"output/{slug}_{version}.json"
+            pdf_path = f"output/{slug}_{version}.pdf"
 
-        return send_file(pdf_path, as_attachment=True)
+            save_json_to_file(data, json_path)
+            generate_pdf(data, pdf_path, use_cursive=use_cursive)
+            generated_files.append(pdf_path)
+
+        if not generated_files:
+            return "<h1>500 Error</h1><p>All verse lookups failed.</p>", 500
+
+        # ZIP if more than one file
+        if len(generated_files) > 1:
+            zip_path = "output/generated_bundle.zip"
+            with ZipFile(zip_path, "w") as zf:
+                for f in generated_files:
+                    zf.write(f, os.path.basename(f))
+            return send_file(zip_path, as_attachment=True)
+
+        # Return single PDF
+        return send_file(generated_files[0], as_attachment=True)
 
     except Exception as e:
         return f"<h1>500 Internal Server Error</h1><p>{str(e)}</p>", 500
