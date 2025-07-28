@@ -1,6 +1,7 @@
 from flask import Flask, request, send_file, render_template
 import os
 import json
+import re
 from zipfile import ZipFile
 from werkzeug.utils import secure_filename
 from verse_helpers import (
@@ -15,6 +16,16 @@ os.makedirs("output", exist_ok=True)
 
 def normalize_slug(text):
     return text.lower().replace(":", "_").replace("–", "_").replace("—", "_").replace(" ", "_")
+
+def extract_version_from_text(verse_text, fallback_version):
+    """
+    Detects version from input like: 'John 3:16 (KJV)'.
+    Returns tuple: (version, cleaned_verse_text)
+    """
+    match = re.search(r'\((\w{2,6})\)$', verse_text.strip())
+    if match:
+        return match.group(1).lower(), verse_text[:match.start()].strip()
+    return fallback_version.lower(), verse_text.strip()
 
 def update_zip_bundle():
     """Create or update worksheets_bundle.zip from all PDFs in /output."""
@@ -32,19 +43,20 @@ def home():
 def generate():
     try:
         verse_input = request.form.get('verse', '').strip()
-        version = request.form.get('version', '').strip().lower()
+        fallback_version = request.form.get('version', 'nlt').strip().lower()
         use_cursive = 'cursive' in request.form
 
-        if not verse_input or not version:
-            return "<h1>400 Bad Request</h1><p>Verse and version are required.</p>", 400
-        if len(verse_input) > 200 or len(version) > 10:
-            return "<h1>400 Bad Request</h1><p>Input too long.</p>", 400
+        if not verse_input:
+            return "<h1>400 Bad Request</h1><p>Verse input is required.</p>", 400
+        if len(verse_input) > 200:
+            return "<h1>400 Bad Request</h1><p>Verse input too long.</p>", 400
 
         verses = [v.strip() for v in verse_input.split(",") if v.strip()]
         final_pdf = None
 
-        for verse in verses:
-            content = request_verse_data(verse, version=version)
+        for verse_entry in verses:
+            version, clean_verse = extract_version_from_text(verse_entry, fallback_version)
+            content = request_verse_data(clean_verse, version=version)
             if not content:
                 continue  # Skip failed verse
 
@@ -52,10 +64,10 @@ def generate():
             data['version'] = version
             data['cursive'] = use_cursive
 
-            slug = normalize_slug(verse)
+            slug = normalize_slug(clean_verse)
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}.pdf"
-            final_pdf = pdf_path  # Will be used if single verse
+            final_pdf = pdf_path  # Used if single verse
 
             save_json_to_file(data, json_path)
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
@@ -73,18 +85,19 @@ def generate():
 @app.route('/preview')
 def preview():
     verse_input = request.args.get('verse', '').strip()
-    version = request.args.get('version', 'nlt').strip().lower()
+    fallback_version = request.args.get('version', 'nlt').strip().lower()
     if not verse_input:
         return "", 400
 
     verses = [v.strip() for v in verse_input.split(",") if v.strip()]
     previews = []
-    for verse in verses:
-        content = request_verse_data(verse, version=version)
+    for verse_entry in verses:
+        version, clean_verse = extract_version_from_text(verse_entry, fallback_version)
+        content = request_verse_data(clean_verse, version=version)
         data = parse_and_clean_json(content)
         full = data.get("fullVerse", "")
         if full:
-            html = f"<strong>{verse}</strong>: {full}"
+            html = f"<strong>{clean_verse}</strong>: {full}"
             previews.append(html)
 
     return "<br><br>".join(previews)
