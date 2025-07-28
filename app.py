@@ -1,7 +1,7 @@
 from flask import Flask, request, send_file, render_template
 import os
 import json
-from test_chatgpt import request_verse_data, parse_and_clean_json, save_json_to_file
+from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file
 from build_pdf import generate_pdf
 
 app = Flask(__name__)
