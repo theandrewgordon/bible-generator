@@ -6,6 +6,8 @@ __pycache__/
 # Environment
 .env
 secret.env
+firebase-creds.json
+
 
 # Output folders
 

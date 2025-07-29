@@ -2,6 +2,8 @@ from flask import Flask, request, send_file, render_template
 import os
 import json
 import re
+import firebase_admin
+from firebase_admin import credentials, firestore
 from zipfile import ZipFile
 from werkzeug.utils import secure_filename
 from verse_helpers import (
@@ -10,6 +12,11 @@ from verse_helpers import (
     save_json_to_file,
 )
 from build_pdf import generate_pdf
+
+# Initialize Firebase
+cred = credentials.Certificate("firebase-creds.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()  # 🔥 Firestore client
 
 app = Flask(__name__)
 os.makedirs("output", exist_ok=True)
@@ -32,11 +39,11 @@ def update_zip_bundle():
 
 @app.route('/')
 def home():
-    return render_template("index.html")  # This shows your landing page
+    return render_template("index.html")
 
 @app.route('/generate', methods=['GET'])
 def generate_form():
-    return render_template("generate.html")  # This renders your form page
+    return render_template("generate.html")
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -85,6 +92,20 @@ def generate():
 
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
+            # 🔥 Firestore logging
+            try:
+                db.collection("worksheets").add({
+                    "email": "anonymous",  # replace with real user email later
+                    "verse": verse,
+                    "version": version.upper(),
+                    "filename": os.path.basename(pdf_path),
+                    "timestamp": firestore.SERVER_TIMESTAMP,
+                    "cursive": use_cursive
+                })
+                print(f"📥 Logged worksheet to Firestore: {verse} ({version.upper()})")
+            except Exception as firestore_error:
+                print(f"⚠️ Failed to log to Firestore: {firestore_error}")
+
         update_zip_bundle()
 
         if len(verses) == 1 and final_pdf:
@@ -96,7 +117,6 @@ def generate():
         import traceback
         traceback.print_exc()
         return f"<h1>500 Internal Server Error</h1><pre>{str(e)}</pre>", 500
-
 
 @app.route('/preview')
 def preview():
