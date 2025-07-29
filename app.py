@@ -51,34 +51,39 @@ def generate():
         final_pdf = None
 
         for verse_entry in verses:
-            # Detect version from verse input, fallback to select box value
             version, verse = extract_version_from_text(verse_entry, selected_version)
-
-            content = request_verse_data(verse, version=version)
-            if not content:
-                print(f"❌ No content for: {verse}")
-                continue
-
-            try:
-                data = parse_and_clean_json(content)
-            except Exception as json_error:
-                print(f"❌ JSON error for {verse}: {json_error}")
-                continue
-
-            if not data or 'verse' not in data:
-                print(f"❌ Incomplete data for {verse}: {data}")
-                continue
-
-            # Auto-fill actual version into metadata and filename
-            data['version'] = version.upper()
-            data['cursive'] = use_cursive
-
             slug = normalize_slug(verse)
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}.pdf"
             final_pdf = pdf_path
 
-            save_json_to_file(data, json_path)
+            # ✅ Cache check
+            if os.path.exists(json_path):
+                print(f"✅ Using cached JSON for {verse} ({version})")
+                with open(json_path, "r") as f:
+                    data = json.load(f)
+            else:
+                print(f"🔁 No cache for {verse} ({version}) — calling OpenAI")
+                content = request_verse_data(verse, version=version)
+                if not content:
+                    print(f"❌ No content for: {verse}")
+                    continue
+
+                try:
+                    data = parse_and_clean_json(content)
+                except Exception as json_error:
+                    print(f"❌ JSON error for {verse}: {json_error}")
+                    continue
+
+                if not data or 'verse' not in data:
+                    print(f"❌ Incomplete data for {verse}: {data}")
+                    continue
+
+                data['version'] = version.upper()
+                data['cursive'] = use_cursive
+                save_json_to_file(data, json_path)
+
+            # Always regenerate PDF (can also be cached if needed)
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
         update_zip_bundle()
@@ -92,6 +97,7 @@ def generate():
         import traceback
         traceback.print_exc()
         return f"<h1>500 Internal Server Error</h1><pre>{str(e)}</pre>", 500
+
 
 @app.route('/preview')
 def preview():
