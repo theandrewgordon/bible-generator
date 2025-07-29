@@ -1,0 +1,43 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="/templates/theme.css" />
+    <script src="/templates/darkmode.js" defer></script>
+    <meta charset="UTF-8" />
+    <title>{% block title %}Faith Sparks{% endblock %}</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <style>
+      body.dark-mode {
+        background-color: #111;
+        color: #f0f0f0;
+      }
+      .dark-mode input,
+      .dark-mode select,
+      .dark-mode textarea {
+        background-color: #222;
+        color: #f0f0f0;
+      }
+      .dark-toggle {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+      }
+    </style>
+  </head>
+  <body class="{{ 'dark-mode' if request.cookies.get('dark') == '1' else '' }}">
+    <button class="dark-toggle" onclick="toggleDark()">🌓</button>
+
+    {% block content %}{% endblock %}
+
+    <script>
+      function toggleDark() {
+        const dark = document.body.classList.toggle("dark-mode") ? "1" : "0";
+        document.cookie = `dark=${dark}; path=/`;
+      }
+    </script>
+  </body>
+</html>
