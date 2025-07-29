@@ -32,6 +32,20 @@
         height: 40px;
         max-width: 100%;
       }
+      nav {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+      }
+      nav a {
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+        transition: opacity 0.2s ease;
+      }
+      nav a:hover {
+        opacity: 0.8;
+      }
       .button {
         background: #2b6cb0;
         color: white;
@@ -89,6 +103,9 @@
         alt="Faith Sparks Printables Logo"
       />
       <nav>
+        <a href="/">🏠 Home</a>
+        <a href="/generate">📝 Generate</a>
+        <a href="/about">ℹ️ About</a>
         <a
           href="/generate"
           class="button"

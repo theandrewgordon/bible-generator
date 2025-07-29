@@ -27,6 +27,20 @@
       header img {
         height: 40px;
       }
+      nav {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+      }
+      nav a {
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+        transition: opacity 0.2s ease;
+      }
+      nav a:hover {
+        opacity: 0.8;
+      }
       .container {
         max-width: 720px;
         margin: 60px auto;
@@ -53,6 +67,15 @@
         color: #718096;
         font-size: 0.9em;
       }
+      @media (max-width: 600px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        nav {
+          margin-top: 12px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -62,9 +85,9 @@
         alt="Faith Sparks Printables Logo"
       />
       <nav>
-        <a href="/generate" style="color: white; font-weight: bold"
-          >📝 Generator</a
-        >
+        <a href="/">🏠 Home</a>
+        <a href="/generate">📝 Generate</a>
+        <a href="/about">ℹ️ About</a>
       </nav>
     </header>
 

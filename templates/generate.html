@@ -42,6 +42,23 @@
         height: 48px;
       }
 
+      nav {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+      }
+
+      nav a {
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 600;
+        transition: opacity 0.2s ease;
+      }
+
+      nav a:hover {
+        opacity: 0.8;
+      }
+
       .toggle-btn {
         background: none;
         border: none;
@@ -157,11 +174,28 @@
       body.dark .advanced {
         background: #3a3a3a;
       }
+
+      @media (max-width: 600px) {
+        header > div {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        nav {
+          margin-top: 12px;
+        }
+      }
     </style>
   </head>
   <body>
     <header>
-      <img src="/static/faith_sparks_logo.png" alt="Faith Sparks Logo" />
+      <div style="display: flex; align-items: center; gap: 24px">
+        <img src="/static/faith_sparks_logo.png" alt="Faith Sparks Logo" />
+        <nav>
+          <a href="/">🏠 Home</a>
+          <a href="/generate">📝 Generate</a>
+          <a href="/about">ℹ️ About</a>
+        </nav>
+      </div>
       <button class="toggle-btn" onclick="toggleDarkMode()">
         🌙 Toggle Dark Mode
       </button>
