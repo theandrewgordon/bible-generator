@@ -13,10 +13,19 @@ from verse_helpers import (
 )
 from build_pdf import generate_pdf
 
-# Initialize Firebase
-cred = credentials.Certificate("firebase-creds.json")
-firebase_admin.initialize_app(cred)
-db = firestore.client()  # 🔥 Firestore client
+# Initialize Firebase from environment variable
+creds_str = os.environ.get("FIREBASE_CREDS_JSON")
+if creds_str:
+    creds_dict = json.loads(creds_str)
+    with open("/tmp/firebase-creds.json", "w") as f:
+        json.dump(creds_dict, f)
+
+    cred = credentials.Certificate("/tmp/firebase-creds.json")
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+else:
+    print("⚠️ No FIREBASE_CREDS_JSON set — skipping Firestore init")
+    db = None
 
 app = Flask(__name__)
 os.makedirs("output", exist_ok=True)
@@ -93,18 +102,19 @@ def generate():
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
             # 🔥 Firestore logging
-            try:
-                db.collection("worksheets").add({
-                    "email": "anonymous",  # replace with real user email later
-                    "verse": verse,
-                    "version": version.upper(),
-                    "filename": os.path.basename(pdf_path),
-                    "timestamp": firestore.SERVER_TIMESTAMP,
-                    "cursive": use_cursive
-                })
-                print(f"📥 Logged worksheet to Firestore: {verse} ({version.upper()})")
-            except Exception as firestore_error:
-                print(f"⚠️ Failed to log to Firestore: {firestore_error}")
+            if db:  # Only log if Firestore is initialized
+                try:
+                    db.collection("worksheets").add({
+                        "email": "anonymous",  # replace with real user email later
+                        "verse": verse,
+                        "version": version.upper(),
+                        "filename": os.path.basename(pdf_path),
+                        "timestamp": firestore.SERVER_TIMESTAMP,
+                        "cursive": use_cursive
+                    })
+                    print(f"📥 Logged worksheet to Firestore: {verse} ({version.upper()})")
+                except Exception as firestore_error:
+                    print(f"⚠️ Failed to log to Firestore: {firestore_error}")
 
         update_zip_bundle()
 
