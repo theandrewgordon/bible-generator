@@ -32,7 +32,11 @@ def update_zip_bundle():
 
 @app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template("index.html")  # This shows your landing page
+
+@app.route('/generate', methods=['GET'])
+def generate_form():
+    return render_template("generate.html")  # This renders your form page
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -92,6 +96,7 @@ def generate():
         import traceback
         traceback.print_exc()
         return f"<h1>500 Internal Server Error</h1><pre>{str(e)}</pre>", 500
+
 
 @app.route('/preview')
 def preview():
