@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Faith Sparks Printables</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f7fafc;
+        color: #1a202c;
+        margin: 0;
+        padding: 0;
+        line-height: 1.6;
+      }
+      header {
+        background: #2b6cb0;
+        padding: 16px 24px;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header img {
+        height: 40px;
+        max-width: 100%;
+      }
+      .button {
+        background: #2b6cb0;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: bold;
+        display: inline-block;
+        transition: background 0.2s ease;
+      }
+      .button:hover {
+        background: #2c5282;
+      }
+      .container {
+        max-width: 720px;
+        margin: 60px auto;
+        padding: 32px 24px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        text-align: center;
+      }
+      h1 {
+        font-size: 2em;
+        margin-bottom: 16px;
+      }
+      p {
+        font-size: 1.15em;
+        margin-bottom: 28px;
+      }
+      footer {
+        text-align: center;
+        margin: 48px 0 24px;
+        color: #718096;
+        font-size: 0.9em;
+      }
+      @media (max-width: 600px) {
+        .container {
+          margin: 40px 16px;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        header nav {
+          margin-top: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img
+        src="/static/faith_sparks_logo.png"
+        alt="Faith Sparks Printables Logo"
+      />
+      <nav>
+        <a
+          href="/generate"
+          class="button"
+          aria-label="Generate Bible Worksheets"
+          >📝 Generate Worksheets</a
+        >
+      </nav>
+    </header>
+
+    <main class="container">
+      <h1>Welcome to Faith Sparks Printables</h1>
+      <p>
+        Empowering families, homeschoolers, and churches with engaging,
+        faith-based Bible learning tools — created in seconds with the help of
+        AI.
+      </p>
+      <a
+        href="/generate"
+        class="button"
+        aria-label="Start Generating Worksheets"
+        >✨ Start Generating Worksheets</a
+      >
+    </main>
+
+    <footer>&copy; 2025 Faith Sparks Printables. All rights reserved.</footer>
+  </body>
+</html>

@@ -18,9 +18,6 @@ def normalize_slug(text):
     return text.lower().replace(":", "_").replace("–", "_").replace("—", "_").replace(" ", "_")
 
 def extract_version_from_text(verse_text, fallback_version):
-    """
-    Detect version from 'John 3:16 (ESV)' → ('esv', 'John 3:16')
-    """
     match = re.search(r'\((\w{2,6})\)$', verse_text.strip())
     if match:
         return match.group(1).lower(), verse_text[:match.start()].strip()
@@ -35,7 +32,7 @@ def update_zip_bundle():
 
 @app.route('/')
 def home():
-    return render_template("form.html")
+    return render_template("generate.html")
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -57,7 +54,6 @@ def generate():
             pdf_path = f"output/{slug}_{version}.pdf"
             final_pdf = pdf_path
 
-            # ✅ Cache check
             if os.path.exists(json_path):
                 print(f"✅ Using cached JSON for {verse} ({version})")
                 with open(json_path, "r") as f:
@@ -83,7 +79,6 @@ def generate():
                 data['cursive'] = use_cursive
                 save_json_to_file(data, json_path)
 
-            # Always regenerate PDF (can also be cached if needed)
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
         update_zip_bundle()
@@ -97,7 +92,6 @@ def generate():
         import traceback
         traceback.print_exc()
         return f"<h1>500 Internal Server Error</h1><pre>{str(e)}</pre>", 500
-
 
 @app.route('/preview')
 def preview():
@@ -125,6 +119,14 @@ def download_all():
     if os.path.exists(zip_path):
         return send_file(zip_path, as_attachment=True)
     return "<p>No bundle found.</p>", 404
+
+@app.route('/about')
+def about():
+    return render_template("about.html")
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("404.html"), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
