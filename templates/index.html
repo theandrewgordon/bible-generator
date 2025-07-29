@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" href="/static/theme.css" />
-    <script defer src="/static/darkmode.js"></script>
+    <link rel="stylesheet" href="/templates/theme.css" />
+    <script src="/templates/darkmode.js" defer></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Faith Sparks Printables</title>
@@ -30,42 +30,24 @@
         align-items: center;
         justify-content: space-between;
       }
-
       header img {
         height: 40px;
+        max-width: 100%;
       }
-
       nav {
         display: flex;
         gap: 24px;
         align-items: center;
       }
-
-      nav a,
-      .toggle-btn {
+      nav a {
         color: white;
         text-decoration: none;
         font-weight: 600;
-        background: none;
-        border: none;
-        cursor: pointer;
+        transition: opacity 0.2s ease;
       }
-
-      nav a:hover,
-      .toggle-btn:hover {
+      nav a:hover {
         opacity: 0.8;
       }
-
-      .container {
-        max-width: 720px;
-        margin: 60px auto;
-        padding: 32px 24px;
-        background: var(--box);
-        border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-        text-align: center;
-      }
-
       .button {
         background: #2b6cb0;
         color: white;
@@ -74,27 +56,43 @@
         text-decoration: none;
         font-weight: bold;
         display: inline-block;
-        margin-top: 24px;
+        transition: background 0.2s ease;
       }
-
       .button:hover {
         background: #2c5282;
       }
-
+      .container {
+        max-width: 720px;
+        margin: 60px auto;
+        padding: 32px 24px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        text-align: center;
+      }
+      h1 {
+        font-size: 2em;
+        margin-bottom: 16px;
+      }
+      p {
+        font-size: 1.15em;
+        margin-bottom: 28px;
+      }
       footer {
         text-align: center;
         margin: 48px 0 24px;
         color: #718096;
         font-size: 0.9em;
       }
-
       @media (max-width: 600px) {
+        .container {
+          margin: 40px 16px;
+        }
         header {
           flex-direction: column;
           align-items: flex-start;
         }
-
-        nav {
+        header nav {
           margin-top: 12px;
         }
       }
@@ -110,10 +108,14 @@
         <a href="/">🏠 Home</a>
         <a href="/generate">📝 Generate</a>
         <a href="/about">ℹ️ About</a>
-        <button class="toggle-btn" onclick="toggleDarkMode()">
-          🌙 Toggle Dark Mode
-        </button>
+        <a
+          href="/generate"
+          class="button"
+          aria-label="Generate Bible Worksheets"
+          >📝 Generate Worksheets</a
+        >
       </nav>
+      <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
     </header>
 
     <main class="container">
@@ -123,7 +125,12 @@
         faith-based Bible learning tools — created in seconds with the help of
         AI.
       </p>
-      <a href="/generate" class="button">✨ Start Generating Worksheets</a>
+      <a
+        href="/generate"
+        class="button"
+        aria-label="Start Generating Worksheets"
+        >✨ Start Generating Worksheets</a
+      >
     </main>
 
     <footer>&copy; 2025 Faith Sparks Printables. All rights reserved.</footer>
