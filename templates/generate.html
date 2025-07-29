@@ -5,7 +5,7 @@
     <script defer src="/static/darkmode.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Generate Bible Worksheet</title>
+    <title>Generate Bible Worksheet | Faith Sparks Printables</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
       rel="stylesheet"
@@ -32,16 +32,16 @@
       }
 
       header {
+        background: #2b6cb0;
+        padding: 16px 24px;
+        color: white;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        background: var(--box);
-        padding: 12px 20px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        justify-content: space-between;
       }
 
       header img {
-        height: 48px;
+        height: 40px;
       }
 
       nav {
@@ -50,23 +50,19 @@
         align-items: center;
       }
 
-      nav a {
-        color: var(--text);
+      nav a,
+      .toggle-btn {
+        color: white;
         text-decoration: none;
         font-weight: 600;
-        transition: opacity 0.2s ease;
-      }
-
-      nav a:hover {
-        opacity: 0.8;
-      }
-
-      .toggle-btn {
         background: none;
         border: none;
-        color: var(--text);
-        font-weight: 600;
         cursor: pointer;
+      }
+
+      nav a:hover,
+      .toggle-btn:hover {
+        opacity: 0.8;
       }
 
       .container {
@@ -190,17 +186,18 @@
   </head>
   <body>
     <header>
-      <div style="display: flex; align-items: center; gap: 24px">
-        <img src="/static/faith_sparks_logo.png" alt="Faith Sparks Logo" />
-        <nav>
-          <a href="/">🏠 Home</a>
-          <a href="/generate">📝 Generate</a>
-          <a href="/about">ℹ️ About</a>
-        </nav>
-      </div>
-      <button class="toggle-btn" onclick="toggleDarkMode()">
-        🌙 Toggle Dark Mode
-      </button>
+      <img
+        src="/static/faith_sparks_logo.png"
+        alt="Faith Sparks Printables Logo"
+      />
+      <nav>
+        <a href="/">🏠 Home</a>
+        <a href="/generate">📝 Generate</a>
+        <a href="/about">ℹ️ About</a>
+        <button class="toggle-btn" onclick="toggleDarkMode()">
+          🌙 Toggle Dark Mode
+        </button>
+      </nav>
     </header>
 
     <div class="container">
@@ -263,14 +260,6 @@
     <a href="/download_all" class="footer-link">⬇ Download All Worksheets</a>
 
     <script>
-      function toggleDarkMode() {
-        document.body.classList.toggle("dark");
-        localStorage.setItem(
-          "theme",
-          document.body.classList.contains("dark") ? "dark" : "light"
-        );
-      }
-
       function showSpinner() {
         document.getElementById("spinner").style.display = "block";
         document.getElementById("download-msg").style.display = "block";

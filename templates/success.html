@@ -4,8 +4,57 @@
     <link rel="stylesheet" href="/static/theme.css" />
     <script defer src="/static/darkmode.js"></script>
     <meta charset="UTF-8" />
-    <title>Worksheet Ready</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Worksheet Ready | Faith Sparks Printables</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
+      header {
+        background: #2b6cb0;
+        padding: 16px 24px;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      header img {
+        height: 40px;
+      }
+
+      nav {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+      }
+
+      nav a,
+      .toggle-btn {
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+        background: none;
+        border: none;
+        cursor: pointer;
+      }
+
+      nav a:hover,
+      .toggle-btn:hover {
+        opacity: 0.8;
+      }
+
+      .container {
+        max-width: 720px;
+        margin: 60px auto;
+        padding: 32px 24px;
+        background: var(--box);
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        text-align: center;
+      }
+
       body {
         font-family: "Inter", sans-serif;
         text-align: center;
@@ -37,15 +86,43 @@
       .btn.secondary:hover {
         background: var(--secondary-dark);
       }
+
+      @media (max-width: 600px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        nav {
+          margin-top: 12px;
+        }
+      }
     </style>
   </head>
   <body>
-    <h1>✅ Your worksheet is ready!</h1>
-    <p>You can download it below or go back to create another.</p>
-    <a class="btn" href="{{ url_for('download', filename=filename) }}"
-      >📥 Download Again</a
-    >
-    <br /><br />
-    <a href="/" class="btn secondary">🔁 Make Another Worksheet</a>
+    <header>
+      <img
+        src="/static/faith_sparks_logo.png"
+        alt="Faith Sparks Printables Logo"
+      />
+      <nav>
+        <a href="/">🏠 Home</a>
+        <a href="/generate">📝 Generate</a>
+        <a href="/about">ℹ️ About</a>
+        <button class="toggle-btn" onclick="toggleDarkMode()">
+          🌙 Toggle Dark Mode
+        </button>
+      </nav>
+    </header>
+
+    <main class="container">
+      <h1>✅ Your worksheet is ready!</h1>
+      <p>You can download it below or go back to create another.</p>
+      <a class="btn" href="{{ url_for('download', filename=filename) }}"
+        >📥 Download Again</a
+      >
+      <br /><br />
+      <a href="/" class="btn secondary">🔁 Make Another Worksheet</a>
+    </main>
   </body>
 </html>

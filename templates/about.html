@@ -4,8 +4,8 @@
     <link rel="stylesheet" href="/static/theme.css" />
     <script defer src="/static/darkmode.js"></script>
     <meta charset="UTF-8" />
-    <title>About | Faith Sparks Printables</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About | Faith Sparks Printables</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
       rel="stylesheet"
@@ -34,22 +34,26 @@
         gap: 24px;
         align-items: center;
       }
-      nav a {
+      nav a,
+      .toggle-btn {
         color: white;
         text-decoration: none;
         font-weight: 600;
-        transition: opacity 0.2s ease;
+        background: none;
+        border: none;
+        cursor: pointer;
       }
-      nav a:hover {
+      nav a:hover,
+      .toggle-btn:hover {
         opacity: 0.8;
       }
       .container {
         max-width: 720px;
         margin: 60px auto;
-        padding: 24px;
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        padding: 32px 24px;
+        background: var(--box);
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
       }
       h1 {
         font-size: 2em;
@@ -70,11 +74,6 @@
         font-size: 0.9em;
       }
       .toggle-btn {
-        background: none;
-        border: none;
-        color: white;
-        font-weight: 600;
-        cursor: pointer;
         padding: 8px;
       }
       @media (max-width: 600px) {
