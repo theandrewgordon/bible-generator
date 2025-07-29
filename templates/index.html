@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" href="/templates/theme.css" />
-    <script src="/templates/darkmode.js" defer></script>
+    <link rel="stylesheet" href="/static/theme.css" />
+    <script defer src="/static/darkmode.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Faith Sparks Printables</title>
@@ -84,6 +84,14 @@
         color: #718096;
         font-size: 0.9em;
       }
+      .toggle-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 8px;
+      }
       @media (max-width: 600px) {
         .container {
           margin: 40px 16px;
@@ -108,14 +116,10 @@
         <a href="/">🏠 Home</a>
         <a href="/generate">📝 Generate</a>
         <a href="/about">ℹ️ About</a>
-        <a
-          href="/generate"
-          class="button"
-          aria-label="Generate Bible Worksheets"
-          >📝 Generate Worksheets</a
-        >
+        <button class="toggle-btn" onclick="toggleDarkMode()">
+          🌙 Toggle Dark Mode
+        </button>
       </nav>
-      <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
     </header>
 
     <main class="container">

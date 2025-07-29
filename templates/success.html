@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" href="/templates/theme.css" />
-    <script src="/templates/darkmode.js" defer></script>
+    <link rel="stylesheet" href="/static/theme.css" />
+    <script defer src="/static/darkmode.js"></script>
     <meta charset="UTF-8" />
     <title>Worksheet Ready</title>
     <style>
@@ -10,21 +10,32 @@
         font-family: "Inter", sans-serif;
         text-align: center;
         padding: 60px;
+        background: var(--bg);
+        color: var(--text);
       }
 
       .btn {
         display: inline-block;
         padding: 12px 20px;
-        background-color: #2b6cb0;
+        background-color: var(--primary);
         color: white;
         border: none;
         border-radius: 6px;
         font-size: 16px;
         text-decoration: none;
+        transition: background 0.2s ease;
       }
 
       .btn:hover {
-        background-color: #2c5282;
+        background-color: var(--primary-dark);
+      }
+
+      .btn.secondary {
+        background: var(--secondary);
+      }
+
+      .btn.secondary:hover {
+        background: var(--secondary-dark);
       }
     </style>
   </head>
@@ -35,8 +46,6 @@
       >📥 Download Again</a
     >
     <br /><br />
-    <a href="/" class="btn" style="background: #4a5568"
-      >🔁 Make Another Worksheet</a
-    >
+    <a href="/" class="btn secondary">🔁 Make Another Worksheet</a>
   </body>
 </html>
