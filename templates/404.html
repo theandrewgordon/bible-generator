@@ -49,6 +49,12 @@
   <body>
     <h1>404</h1>
     <p>Oops! That page doesn’t exist.</p>
-    <a href="/">Return to Home</a>
+    <a href="/" class="button">Return to Home</a>
+
+    <script>
+      if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+      }
+    </script>
   </body>
 </html>

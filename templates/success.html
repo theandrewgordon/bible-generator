@@ -47,5 +47,11 @@
     >
     <br /><br />
     <a href="/" class="btn secondary">🔁 Make Another Worksheet</a>
+
+    <script>
+      if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+      }
+    </script>
   </body>
 </html>
