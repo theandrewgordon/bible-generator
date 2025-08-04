@@ -23,7 +23,9 @@ google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
     redirect_to="index",
+    scope=["profile", "email"],  # <-- add email here
 )
+
 app.register_blueprint(google_bp, url_prefix="/login")
 
 # --- Firebase Firestore ---
@@ -68,8 +70,10 @@ def index():
         resp = google.get("/oauth2/v1/userinfo")
         if resp.ok:
             user_info = resp.json()
-            session["user_email"] = user_info["email"]
+            session["user_email"] = user_info.get("email", "unknown@example.com")  # <-- avoid crash
+
     return render_template("index.html", user_info=user_info)
+
 
 @app.route("/logout")
 def logout():
