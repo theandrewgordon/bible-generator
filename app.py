@@ -11,6 +11,7 @@ from verse_helpers import (
     save_json_to_file,
 )
 from build_pdf import generate_pdf
+print("🔐 Google Client ID:", os.environ.get("GOOGLE_OAUTH_CLIENT_ID"))
 
 # --- Flask Setup ---
 app = Flask(__name__)
