@@ -3,6 +3,9 @@ from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re
 import firebase_admin
+import os
+print("GOOGLE CLIENT ID:", os.getenv("GOOGLE_OAUTH_CLIENT_ID"))
+print("GOOGLE CLIENT SECRET:", os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"))
 from firebase_admin import credentials, firestore
 from zipfile import ZipFile
 from verse_helpers import (
