@@ -1,11 +1,10 @@
-from flask import Flask, request, send_file, render_template
-import os
-import json
-import re
+from flask import Flask, render_template, request, send_file, redirect, url_for, session
+from flask_dance.contrib.google import make_google_blueprint, google
+from flask_session import Session
+import os, json, re
 import firebase_admin
 from firebase_admin import credentials, firestore
 from zipfile import ZipFile
-from werkzeug.utils import secure_filename
 from verse_helpers import (
     request_verse_data,
     parse_and_clean_json,
@@ -13,7 +12,21 @@ from verse_helpers import (
 )
 from build_pdf import generate_pdf
 
-# Initialize Firebase from environment variable
+# --- Flask Setup ---
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
+
+# --- Google Auth Setup ---
+google_bp = make_google_blueprint(
+    client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
+    redirect_to="index",
+)
+app.register_blueprint(google_bp, url_prefix="/login")
+
+# --- Firebase Firestore ---
 creds_str = os.environ.get("FIREBASE_CREDS_JSON")
 if creds_str:
     creds_dict = json.loads(creds_str)
@@ -27,7 +40,7 @@ else:
     print("⚠️ No FIREBASE_CREDS_JSON set — skipping Firestore init")
     db = None
 
-app = Flask(__name__)
+# --- Helpers ---
 os.makedirs("output", exist_ok=True)
 
 def normalize_slug(text):
@@ -46,16 +59,28 @@ def update_zip_bundle():
             if filename.endswith(".pdf"):
                 zf.write(os.path.join("output", filename), filename)
 
-@app.route('/')
-def home():
-    return render_template("index.html")
+# --- Routes ---
 
-@app.route('/generate', methods=['GET'])
-def generate_form():
-    return render_template("generate.html")
+@app.route("/")
+def index():
+    user_info = None
+    if google.authorized:
+        resp = google.get("/oauth2/v1/userinfo")
+        if resp.ok:
+            user_info = resp.json()
+            session["user_email"] = user_info["email"]
+    return render_template("index.html", user_info=user_info)
 
-@app.route('/generate', methods=['POST'])
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("index"))
+
+@app.route("/generate", methods=["GET", "POST"])
 def generate():
+    if request.method == "GET":
+        return render_template("generate.html")
+
     try:
         verse_input = request.form.get('verse', '').strip()
         selected_version = request.form.get('version', '').strip().lower()
@@ -75,16 +100,12 @@ def generate():
             final_pdf = pdf_path
 
             if os.path.exists(json_path):
-                print(f"✅ Using cached JSON for {verse} ({version})")
                 with open(json_path, "r") as f:
                     data = json.load(f)
             else:
-                print(f"🔁 No cache for {verse} ({version}) — calling OpenAI")
                 content = request_verse_data(verse, version=version)
                 if not content:
-                    print(f"❌ No content for: {verse}")
                     continue
-
                 try:
                     data = parse_and_clean_json(content)
                 except Exception as json_error:
@@ -92,7 +113,6 @@ def generate():
                     continue
 
                 if not data or 'verse' not in data:
-                    print(f"❌ Incomplete data for {verse}: {data}")
                     continue
 
                 data['version'] = version.upper()
@@ -101,20 +121,19 @@ def generate():
 
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
-            # 🔥 Firestore logging
-            if db:  # Only log if Firestore is initialized
+            # Firestore logging
+            if db:
                 try:
                     db.collection("worksheets").add({
-                        "email": "anonymous",  # replace with real user email later
+                        "email": session.get("user_email", "anonymous"),
                         "verse": verse,
                         "version": version.upper(),
                         "filename": os.path.basename(pdf_path),
                         "timestamp": firestore.SERVER_TIMESTAMP,
                         "cursive": use_cursive
                     })
-                    print(f"📥 Logged worksheet to Firestore: {verse} ({version.upper()})")
                 except Exception as firestore_error:
-                    print(f"⚠️ Failed to log to Firestore: {firestore_error}")
+                    print(f"⚠️ Firestore error: {firestore_error}")
 
         update_zip_bundle()
 
@@ -128,17 +147,24 @@ def generate():
         traceback.print_exc()
         return f"<h1>500 Internal Server Error</h1><pre>{str(e)}</pre>", 500
 
-@app.route('/preview')
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+@app.route("/success")
+def success():
+    return render_template("success.html")
+
+@app.route("/preview")
 def preview():
     verse_input = request.args.get('verse', '').strip()
     fallback_version = request.args.get('version', 'nlt').strip().lower()
     if not verse_input:
         return "", 400
 
-    verses = [v.strip() for v in verse_input.split(",") if v.strip()]
     previews = []
-    for verse_entry in verses:
-        version, clean_verse = extract_version_from_text(verse_entry, fallback_version)
+    for verse_entry in verse_input.split(","):
+        version, clean_verse = extract_version_from_text(verse_entry.strip(), fallback_version)
         content = request_verse_data(clean_verse, version=version)
         data = parse_and_clean_json(content)
         full = data.get("fullVerse", "")
@@ -148,20 +174,16 @@ def preview():
 
     return "<br><br>".join(previews)
 
-@app.route('/download_all')
+@app.route("/download_all")
 def download_all():
     zip_path = "output/worksheets_bundle.zip"
     if os.path.exists(zip_path):
         return send_file(zip_path, as_attachment=True)
     return "<p>No bundle found.</p>", 404
 
-@app.route('/about')
-def about():
-    return render_template("about.html")
-
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
