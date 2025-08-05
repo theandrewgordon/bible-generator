@@ -18,7 +18,15 @@ google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
     redirect_to="index",
-    scope=["openid", "email", "profile"]
+    scope=[
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "openid",
+    ],
+    authorization_url_params={
+        "access_type": "offline",
+        "prompt": "consent",
+    }
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
