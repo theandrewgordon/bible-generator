@@ -8,6 +8,18 @@ body {
   padding: 0;
 }
 
+.nav-right a,
+a.nav-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.nav-right a:hover,
+a.nav-link:hover {
+  color: var(--primary);
+}
+
 .container {
   max-width: 800px;
   margin: 0 auto;
