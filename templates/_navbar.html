@@ -3,12 +3,13 @@
   <nav>
     <a href="/">🏠 Home</a>
     <a href="/generate">📝 Generate</a>
+    <a href="/history">📚 History</a>
     <a href="/about">ℹ️ About</a>
     {% if user_info %}
-      <span style="color: white;">👤 {{ user_info.email }}</span>
-      <a href="/logout">🚪 Logout</a>
+    <span style="color: white">👤 {{ user_info.email.split('@')[0] }}</span>
+    <a href="/logout">🚪 Logout</a>
     {% else %}
-      <a href="{{ url_for('google.login') }}">🔐 Login</a>
+    <a href="{{ url_for('google.login') }}">🔐 Login</a>
     {% endif %}
   </nav>
 </header>

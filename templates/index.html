@@ -84,6 +84,16 @@
         color: #718096;
         font-size: 0.9em;
       }
+      .history-link {
+        color: white;
+        text-decoration: underline;
+        opacity: 0.9;
+      }
+
+      .history-link:hover {
+        opacity: 1;
+      }
+
       @media (max-width: 600px) {
         .container {
           margin: 40px 16px;
@@ -107,15 +117,25 @@
       <nav>
         <a href="/">🏠 Home</a>
         <a href="/generate">📝 Generate</a>
+        <a href="/history">📚 History</a>
         <a href="/about">ℹ️ About</a>
-        <a
-          href="/generate"
-          class="button"
-          aria-label="Generate Bible Worksheets"
-          >📝 Generate Worksheets</a
+        {% if user_info %}
+        <span style="color: white">Welcome, {{ user_info["email"] }}</span>
+        <a href="{{ url_for('logout') }}" class="button">Logout</a>
+        <p>
+          <a href="{{ url_for('history') }}" class="history-link"
+            >View My Worksheet History</a
+          >
+        </p>
+        {% else %}
+        <a href="{{ url_for('google.login') }}" class="button"
+          >Login with Google</a
         >
+        {% endif %}
+        <button class="toggle-btn" onclick="toggleDarkMode()">
+          🌙 Toggle Dark Mode
+        </button>
       </nav>
-      <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
     </header>
 
     <main class="container">

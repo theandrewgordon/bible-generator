@@ -31,6 +31,13 @@
   <body class="{{ 'dark-mode' if request.cookies.get('dark') == '1' else '' }}">
     <button class="dark-toggle" onclick="toggleDark()">🌓</button>
 
+    <nav>
+      <a href="/">🏠 Home</a>
+      <a href="/generate">📝 Generate</a>
+      <a href="/history">📚 History</a>
+      <a href="/about">ℹ️ About</a>
+    </nav>
+
     {% block content %}{% endblock %}
 
     <script>

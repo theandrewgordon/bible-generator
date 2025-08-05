@@ -65,6 +65,16 @@ def update_zip_bundle():
             if filename.endswith(".pdf"):
                 zf.write(os.path.join("output", filename), filename)
 
+# --- Auth Decorator ---
+def login_required(func):
+    from functools import wraps
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not google.authorized:
+            return redirect(url_for("google.login"))
+        return func(*args, **kwargs)
+    return wrapper
+
 # --- Routes ---
 
 @app.route("/")
@@ -85,6 +95,7 @@ def logout():
     return redirect(url_for("index"))
 
 @app.route("/generate", methods=["GET", "POST"])
+@login_required
 def generate():
     if request.method == "GET":
         return render_template("generate.html")
@@ -145,15 +156,12 @@ def generate():
 
         update_zip_bundle()
 
-        if len(verses) == 1 and final_pdf:
-            if len(verses) == 1 and final_pdf and os.path.exists(final_pdf):
-                return send_file(final_pdf, as_attachment=True)
-            elif len(verses) > 1 and os.path.exists("output/worksheets_bundle.zip"):
-                return send_file("output/worksheets_bundle.zip", as_attachment=True)
-            else:
-                return "<h1>500 Error</h1><p>Could not generate requested file(s). Please try again or check your input.</p>", 500
-        else:
+        if len(verses) == 1 and final_pdf and os.path.exists(final_pdf):
+            return send_file(final_pdf, as_attachment=True)
+        elif len(verses) > 1 and os.path.exists("output/worksheets_bundle.zip"):
             return send_file("output/worksheets_bundle.zip", as_attachment=True)
+        else:
+            return "<h1>500 Error</h1><p>Could not generate requested file(s). Please try again or check your input.</p>", 500
 
     except Exception as e:
         import traceback
@@ -188,11 +196,50 @@ def preview():
     return "<br><br>".join(previews)
 
 @app.route("/download_all")
+@login_required
 def download_all():
     zip_path = "output/worksheets_bundle.zip"
     if os.path.exists(zip_path):
         return send_file(zip_path, as_attachment=True)
     return "<p>No bundle found.</p>", 404
+
+@app.route("/history")
+@login_required
+def history():
+    if not db:
+        return "<h1>Firestore is not configured.</h1>", 500
+
+    user_email = session.get("user_email")
+    if not user_email:
+        return redirect(url_for("index"))
+
+    try:
+        results = db.collection("worksheets")\
+            .where("email", "==", user_email)\
+            .order_by("timestamp", direction=firestore.Query.DESCENDING)\
+            .limit(20)\
+            .stream()
+
+        history = [{
+            "verse": doc.to_dict().get("verse"),
+            "version": doc.to_dict().get("version"),
+            "filename": doc.to_dict().get("filename"),
+            "timestamp": doc.to_dict().get("timestamp")
+        } for doc in results]
+
+        return render_template("history.html", history=history, email=user_email)
+
+    except Exception as e:
+        print(f"⚠️ Firestore history error: {e}")
+        return "<h1>Unable to fetch history.</h1>", 500
+
+@app.route("/download/<filename>")
+@login_required
+def download_file(filename):
+    file_path = os.path.join("output", filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    return "<h1>404 Not Found</h1><p>File no longer exists.</p>", 404
 
 @app.errorhandler(404)
 def not_found(e):
