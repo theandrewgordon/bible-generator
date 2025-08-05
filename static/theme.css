@@ -67,6 +67,7 @@ button.toggle-btn {
   background-color: var(--primary-dark);
 }
 
+/* Dark theme variables */
 .dark {
   --background: #1a202c;
   --text: #f7fafc;
@@ -76,6 +77,7 @@ button.toggle-btn {
   --primary-dark: #63b3ed;
 }
 
+/* Light theme variables */
 :root {
   --background: #ffffff;
   --text: #2d3748;
@@ -84,6 +86,8 @@ button.toggle-btn {
   --primary: #3182ce;
   --primary-dark: #2b6cb0;
 }
+
+/* Toast Notifications */
 #toast-container {
   position: fixed;
   top: 20px;
@@ -121,4 +125,27 @@ button.toggle-btn {
     opacity: 0;
     display: none;
   }
+}
+
+/* General label and checkbox label color fix */
+label,
+input[type="checkbox"] + label,
+.checkbox-label {
+  color: var(--text);
+}
+
+/* Cursive badge */
+.cursive-badge {
+  background-color: #f6ad55;
+  color: white;
+  font-size: 0.75em;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+body.dark .cursive-badge {
+  background-color: #dd6b20;
 }

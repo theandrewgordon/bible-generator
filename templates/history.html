@@ -69,7 +69,7 @@ Printables{% endblock %} {% block content %}
         gap: 16px;
       "
     >
-      <div style="flex: 1">
+      <div style="flex: 1; display: flex; align-items: center">
         <input
           type="checkbox"
           name="selected_files"
@@ -77,13 +77,25 @@ Printables{% endblock %} {% block content %}
           class="select-checkbox"
           style="margin-right: 12px"
         />
-        <strong>{{ item.verse }} ({{ item.version }})</strong><br />
-        <span class="history-meta" style="color: #666; font-size: 0.95em">
-          {{ item.timestamp.strftime('%B %d, %Y at %I:%M %p') if item.timestamp
-          else 'Date unknown' }}
-        </span>
+        <div
+          style="
+            background-color: #f1f5f9;
+            padding: 8px 12px;
+            border-radius: 6px;
+            flex-grow: 1;
+          "
+        >
+          <strong style="color: #1a202c">
+            {{ item.verse }} ({{ item.version }}) {% if item.cursive %}
+            <span class="cursive-badge">✍️ Cursive</span>
+            {% endif %} </strong
+          ><br />
+          <span class="history-meta" style="color: #666; font-size: 0.95em">
+            {{ item.timestamp.strftime('%B %d, %Y at %I:%M %p') if
+            item.timestamp else 'Date unknown' }}
+          </span>
+        </div>
       </div>
-
       <div class="actions" style="flex-shrink: 0">
         <a
           href="{{ url_for('download_file', filename=item.filename) }}"
@@ -128,14 +140,17 @@ Printables{% endblock %} {% block content %}
 <script>
   function filterHistory() {
     const query = document.getElementById("searchInput").value.toLowerCase();
-    const version = document.getElementById("versionFilter").value;
+    const version = document
+      .getElementById("versionFilter")
+      .value.toLowerCase();
     const entries = document.querySelectorAll(".history-entry");
 
     entries.forEach((entry) => {
-      const verse = entry.dataset.verse;
-      const vers = entry.dataset.version;
+      const verse = entry.dataset.verse || "";
+      const vers = entry.dataset.version || "";
       const match =
-        (!query || verse.includes(query)) && (!version || vers === version);
+        (!query || verse.includes(query) || vers.includes(query)) &&
+        (!version || vers === version);
       entry.style.display = match ? "flex" : "none";
     });
   }
@@ -180,7 +195,21 @@ Printables{% endblock %} {% block content %}
     background: #c53030;
   }
 
-  /* Dark mode support */
+  .cursive-badge {
+    background-color: #f6ad55;
+    color: white;
+    font-size: 0.75em;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  body.dark .cursive-badge {
+    background-color: #dd6b20;
+  }
+
   body.dark .button.delete {
     background: #9b2c2c;
   }
