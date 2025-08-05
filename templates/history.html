@@ -40,18 +40,51 @@ Printables{% endblock %} {% block content %}
 </div>
 
 {% if history %}
-<div id="historyList">
-  {% for item in history %}
-  <div
-    class="history-entry"
-    data-verse="{{ item.verse | lower }}"
-    data-version="{{ item.version }}"
+<div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px">
+  <label
+    ><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
+    Select All</label
   >
-    <h3>{{ item.verse }} ({{ item.version }})</h3>
-    <div class="history-meta">
-      {{ item.timestamp.strftime('%B %d, %Y at %I:%M %p') if item.timestamp else
-      'Date unknown' }}
-      <div class="actions">
+  <button onclick="deleteSelected()" class="button delete">
+    🗑️ Delete Selected
+  </button>
+</div>
+
+<form id="bulkDeleteForm" method="POST" action="/delete_bulk">
+  <div id="historyList">
+    {% for item in history %}
+    <div
+      class="history-entry"
+      data-verse="{{ item.verse | lower }}"
+      data-version="{{ item.version }}"
+      style="
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        padding: 16px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      "
+    >
+      <div style="flex: 1">
+        <input
+          type="checkbox"
+          name="selected_files"
+          value="{{ item.filename }}"
+          class="select-checkbox"
+          style="margin-right: 12px"
+        />
+        <strong>{{ item.verse }} ({{ item.version }})</strong><br />
+        <span class="history-meta" style="color: #666; font-size: 0.95em">
+          {{ item.timestamp.strftime('%B %d, %Y at %I:%M %p') if item.timestamp
+          else 'Date unknown' }}
+        </span>
+      </div>
+
+      <div class="actions" style="flex-shrink: 0">
         <a
           href="{{ url_for('download_file', filename=item.filename) }}"
           class="button"
@@ -61,14 +94,14 @@ Printables{% endblock %} {% block content %}
           href="{{ url_for('delete_worksheet', filename=item.filename) }}"
           class="button delete"
           onclick="return confirm('Are you sure you want to delete this worksheet?')"
+          >🗑️ Delete</a
         >
-          🗑️ Delete
-        </a>
       </div>
     </div>
+    {% endfor %}
   </div>
-  {% endfor %}
-</div>
+</form>
+
 {% else %}
 <div
   class="empty-state"
@@ -103,19 +136,40 @@ Printables{% endblock %} {% block content %}
       const vers = entry.dataset.version;
       const match =
         (!query || verse.includes(query)) && (!version || vers === version);
-      entry.style.display = match ? "block" : "none";
+      entry.style.display = match ? "flex" : "none";
     });
+  }
+
+  function toggleSelectAll(source) {
+    const checkboxes = document.querySelectorAll(".select-checkbox");
+    checkboxes.forEach((cb) => (cb.checked = source.checked));
+  }
+
+  function deleteSelected() {
+    const form = document.getElementById("bulkDeleteForm");
+    const selected = form.querySelectorAll(".select-checkbox:checked");
+    if (selected.length === 0) {
+      alert("No worksheets selected.");
+      return;
+    }
+    if (
+      confirm(
+        `Are you sure you want to delete ${selected.length} worksheet(s)?`
+      )
+    ) {
+      form.submit();
+    }
   }
 
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark");
   }
 </script>
+
 <style>
   .actions {
     display: flex;
     gap: 8px;
-    margin-top: 8px;
   }
 
   .button.delete {

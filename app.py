@@ -4,6 +4,7 @@ from flask_session import Session
 import os, json, re
 import firebase_admin
 import os
+from flask import flash
 from firebase_admin import credentials, firestore
 from zipfile import ZipFile
 from verse_helpers import (
@@ -233,6 +234,57 @@ def about():
 def success():
     return render_template("success.html")
 
+@app.route("/delete_bulk", methods=["POST"])
+@login_required
+def delete_bulk():
+    if not db:
+        return "Firestore not configured", 500
+
+    user_email = session.get("user_email")
+    if not user_email:
+        return redirect(url_for("index"))
+
+    try:
+        selected_files = request.form.getlist("selected_files")
+        if not selected_files:
+            flash("No worksheets selected for deletion.", "warning")
+            return redirect(url_for("history"))
+
+        deleted = 0
+        for filename in selected_files:
+            results = db.collection("worksheets")\
+                .where("email", "==", user_email)\
+                .where("filename", "==", filename)\
+                .limit(1)\
+                .stream()
+
+            doc = next(results, None)
+            if doc:
+                doc_data = doc.to_dict()
+
+                # Archive instead of delete
+                db.collection("worksheet_archive").add({
+                    **doc_data,
+                    "deleted_at": firestore.SERVER_TIMESTAMP
+                })
+
+                doc.reference.delete()
+                deleted += 1
+
+            file_path = os.path.join("output", filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+        update_zip_bundle()
+        flash(f"✅ {deleted} worksheet(s) deleted.", "success")
+        return redirect(url_for("history"))
+
+    except Exception as e:
+        print(f"⚠️ Bulk delete error: {e}")
+        flash("⚠️ Error during bulk deletion.", "error")
+        return redirect(url_for("history"))
+
+
 @app.route("/preview")
 def preview():
     verse_input = request.args.get('verse', '').strip()
@@ -259,6 +311,48 @@ def download_all():
     if os.path.exists(zip_path):
         return send_file(zip_path, as_attachment=True)
     return "<p>No bundle found.</p>", 404
+
+@app.route("/delete_bulk", methods=["POST"])
+@login_required
+def delete_bulk():
+    if not db:
+        return "Firestore not configured", 500
+
+    user_email = session.get("user_email")
+    if not user_email:
+        return redirect(url_for("index"))
+
+    selected_files = request.form.getlist("selected_files")
+    if not selected_files:
+        return redirect(url_for("history"))
+
+    deleted = 0
+    for filename in selected_files:
+        try:
+            # Delete physical file
+            file_path = os.path.join("output", filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+            # Delete Firestore record
+            query = db.collection("worksheets")\
+                .where("email", "==", user_email)\
+                .where("filename", "==", filename)\
+                .limit(1)\
+                .stream()
+            doc = next(query, None)
+            if doc:
+                doc.reference.delete()
+                deleted += 1
+
+        except Exception as e:
+            print(f"⚠️ Bulk delete error for {filename}: {e}")
+
+    print(f"✅ Deleted {deleted} worksheet(s)")
+    update_zip_bundle()
+
+    return redirect(url_for("history"))
+
 
 @app.route("/history")
 @login_required

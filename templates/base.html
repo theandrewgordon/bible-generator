@@ -1,4 +1,3 @@
-<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -11,88 +10,19 @@
     />
     <link rel="stylesheet" href="/static/theme.css" />
     <script defer src="/static/darkmode.js"></script>
-    <style>
-      :root {
-        --bg: #f5f5f5;
-        --text: #1a202c;
-        --box: #ffffff;
-      }
-
-      body {
-        font-family: "Inter", sans-serif;
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        transition: background 0.3s, color 0.3s;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-
-      body.dark {
-        --bg: #1a202c;
-        --text: #f5f5f5;
-        --box: #2d3748;
-      }
-
-      header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: var(--box);
-        padding: 12px 20px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      }
-
-      header img {
-        height: 48px;
-      }
-
-      nav {
-        display: flex;
-        gap: 24px;
-        align-items: center;
-      }
-
-      nav a {
-        color: var(--text);
-        text-decoration: none;
-        font-weight: 600;
-        transition: opacity 0.2s ease;
-      }
-
-      nav a:hover {
-        opacity: 0.8;
-      }
-
-      .toggle-btn {
-        background: none;
-        border: none;
-        color: var(--text);
-        font-weight: 600;
-        cursor: pointer;
-      }
-
-      .container {
-        background: var(--box);
-        padding: 30px;
-        margin: 40px auto;
-        max-width: 800px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        flex: 1;
-      }
-
-      footer {
-        text-align: center;
-        font-size: 0.9em;
-        color: #a0aec0;
-        margin: 40px auto 20px;
-      }
-    </style>
   </head>
   <body>
     {% include "_navbar.html" %}
+
+    <!-- Toast Notifications -->
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div id="toast-container">
+      {% for category, message in messages %}
+      <div class="toast toast-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
 
     <main class="container">{% block content %}{% endblock %}</main>
 
