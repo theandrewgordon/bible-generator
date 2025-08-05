@@ -60,7 +60,7 @@ def extract_version_from_text(verse_text, fallback_version):
     else:
         version = fallback_version
         verse = verse_text.strip()
-    return version, verse
+    return version, verse.title()
 
 def update_zip_bundle():
     zip_path = "output/worksheets_bundle.zip"
