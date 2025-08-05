@@ -40,34 +40,29 @@ Printables{% endblock %} {% block content %}
 </div>
 
 {% if history %}
-<div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px">
-  <label
-    ><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
-    Select All</label
-  >
-  <button onclick="deleteSelected()" class="button delete">
-    🗑️ Delete Selected
-  </button>
-</div>
-
 <form id="bulkDeleteForm" method="POST" action="/delete_bulk">
+  <div
+    style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px"
+  >
+    <label
+      ><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
+      Select All</label
+    >
+    <button
+      type="submit"
+      class="button delete"
+      onclick="return deleteSelected()"
+    >
+      🗑️ Delete Selected
+    </button>
+  </div>
+
   <div id="historyList">
     {% for item in history %}
     <div
       class="history-entry"
       data-verse="{{ item.verse | lower }}"
-      data-version="{{ item.version }}"
-      style="
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        padding: 16px;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-      "
+      data-version="{{ item.version | lower }}"
     >
       <div style="flex: 1; display: flex; align-items: center">
         <input
@@ -87,7 +82,19 @@ Printables{% endblock %} {% block content %}
         >
           <strong style="color: #1a202c">
             {{ item.verse }} ({{ item.version }}) {% if item.cursive %}
-            <span class="cursive-badge">✍️ Cursive</span>
+            <span
+              class="tag"
+              style="
+                background: #ecc94b;
+                color: #000;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 0.8em;
+                margin-left: 4px;
+              "
+            >
+              ✍️ Cursive
+            </span>
             {% endif %} </strong
           ><br />
           <span class="history-meta" style="color: #666; font-size: 0.95em">
@@ -96,6 +103,7 @@ Printables{% endblock %} {% block content %}
           </span>
         </div>
       </div>
+
       <div class="actions" style="flex-shrink: 0">
         <a
           href="{{ url_for('download_file', filename=item.filename) }}"
@@ -124,7 +132,6 @@ Printables{% endblock %} {% block content %}
     href="/generate"
     class="button"
     style="
-      display: inline-block;
       background: #2b6cb0;
       color: white;
       padding: 12px 24px;
@@ -132,9 +139,8 @@ Printables{% endblock %} {% block content %}
       font-weight: bold;
       text-decoration: none;
     "
+    >Create a Worksheet</a
   >
-    Create a Worksheet
-  </a>
 </div>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
@@ -161,19 +167,14 @@ Printables{% endblock %} {% block content %}
   }
 
   function deleteSelected() {
-    const form = document.getElementById("bulkDeleteForm");
-    const selected = form.querySelectorAll(".select-checkbox:checked");
+    const selected = document.querySelectorAll(".select-checkbox:checked");
     if (selected.length === 0) {
       alert("No worksheets selected.");
-      return;
+      return false;
     }
-    if (
-      confirm(
-        `Are you sure you want to delete ${selected.length} worksheet(s)?`
-      )
-    ) {
-      form.submit();
-    }
+    return confirm(
+      `Are you sure you want to delete ${selected.length} worksheet(s)?`
+    );
   }
 
   if (localStorage.getItem("theme") === "dark") {
@@ -186,34 +187,19 @@ Printables{% endblock %} {% block content %}
     display: flex;
     gap: 8px;
   }
-
   .button.delete {
     background: #e53e3e;
   }
-
   .button.delete:hover {
     background: #c53030;
   }
-
-  .cursive-badge {
-    background-color: #f6ad55;
-    color: white;
-    font-size: 0.75em;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 6px;
-    margin-left: 6px;
-    vertical-align: middle;
+  .tag {
+    font-weight: 500;
   }
-
-  body.dark .cursive-badge {
-    background-color: #dd6b20;
-  }
-
+  /* Dark mode overrides */
   body.dark .button.delete {
     background: #9b2c2c;
   }
-
   body.dark .button.delete:hover {
     background: #822727;
   }

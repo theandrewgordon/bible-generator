@@ -149,3 +149,21 @@ input[type="checkbox"] + label,
 body.dark .cursive-badge {
   background-color: #dd6b20;
 }
+
+body.dark input[type="checkbox"] + label,
+body.dark .checkbox-label,
+body.dark label {
+  color: #f7fafc; /* Light text for dark mode */
+}
+.checkbox-label {
+  color: var(--text);
+}
+
+body.dark .checkbox-label {
+  color: #f7fafc;
+}
+.dark .checkbox-label,
+.dark input[type="checkbox"] + label,
+.dark label {
+  color: #f7fafc;
+}

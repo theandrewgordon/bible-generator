@@ -18,13 +18,9 @@ google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
     redirect_to="index",
-    scope=[
-        "https://www.googleapis.com/auth/userinfo.email",
-        "https://www.googleapis.com/auth/userinfo.profile",
-        "openid",
-    ]
+    scope=["https://www.googleapis.com/auth/userinfo.email",
+           "https://www.googleapis.com/auth/userinfo.profile", "openid"]
 )
-
 app.register_blueprint(google_bp, url_prefix="/login")
 
 # --- Firebase ---
@@ -125,16 +121,16 @@ def generate():
 
         for v in verses:
             version, verse = extract_version_from_text(v, selected_version or "esv")
+            actual_version = version.upper()
             slug = normalize_slug(verse)
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
-
             last_pdf = pdf_path
 
-            # Check dedup
+            # Dedup check
             existing = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
                 .where(filter=firestore.FieldFilter("verse", "==", verse))\
-                .where(filter=firestore.FieldFilter("version", "==", version.upper()))\
+                .where(filter=firestore.FieldFilter("version", "==", actual_version))\
                 .where(filter=firestore.FieldFilter("cursive", "==", use_cursive))\
                 .limit(1).stream() if db else []
             doc = next(existing, None)
@@ -151,11 +147,11 @@ def generate():
                 if not content:
                     continue
                 data = parse_and_clean_json(content)
-                data.update({"version": version.upper(), "cursive": use_cursive})
+                data.update({"version": actual_version, "cursive": use_cursive})
                 if db:
                     db.collection("verse_cache").document(f"{slug}_{version}").set({
                         "verse": verse,
-                        "version": version.upper(),
+                        "version": actual_version,
                         "slug": f"{slug}_{version}",
                         "data": data,
                         "timestamp": firestore.SERVER_TIMESTAMP
@@ -168,7 +164,7 @@ def generate():
                 db.collection("worksheets").add({
                     "email": user_email,
                     "verse": verse,
-                    "version": version.upper(),
+                    "version": actual_version,
                     "filename": os.path.basename(pdf_path),
                     "timestamp": firestore.SERVER_TIMESTAMP,
                     "cursive": use_cursive
@@ -218,8 +214,7 @@ def delete_worksheet(filename):
         .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
     doc = next(docs, None)
     if doc:
-        doc_data = doc.to_dict()
-        db.collection("worksheet_archive").add({**doc_data, "deleted_at": firestore.SERVER_TIMESTAMP})
+        db.collection("worksheet_archive").add({**doc.to_dict(), "deleted_at": firestore.SERVER_TIMESTAMP})
         doc.reference.delete()
         path = os.path.join("output", filename)
         if os.path.exists(path):

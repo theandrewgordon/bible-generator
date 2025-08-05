@@ -24,7 +24,7 @@ Sparks Printables{% endblock %} {% block content %}
     style="
       display: none;
       font-size: 0.95em;
-      background: #edf2f7;
+      background: var(--box);
       padding: 10px;
       border-radius: 6px;
       margin-top: -10px;
@@ -57,14 +57,14 @@ Sparks Printables{% endblock %} {% block content %}
       style="
         padding: 12px;
         border-radius: 6px;
-        background: #f0f0f0;
+        background: var(--box);
         margin-bottom: 20px;
       "
     >
-      <label>
-        <input type="checkbox" name="cursive" />
-        Use cursive tracing font
-      </label>
+      <input type="checkbox" id="cursive" name="cursive" />
+      <label for="cursive" class="checkbox-label"
+        >Use cursive tracing font</label
+      >
     </div>
   </details>
 
@@ -133,7 +133,7 @@ Sparks Printables{% endblock %} {% block content %}
 
   function showSpinner() {
     document.getElementById("spinner").style.display = "block";
-    document.getElementById("download-msg").style.display = "block";
+    document.getElementById("download-msg").style.display = "none";
   }
 
   function fetchPreview() {
