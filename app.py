@@ -146,7 +146,12 @@ def generate():
         update_zip_bundle()
 
         if len(verses) == 1 and final_pdf:
-            return send_file(final_pdf, as_attachment=True)
+            if len(verses) == 1 and final_pdf and os.path.exists(final_pdf):
+                return send_file(final_pdf, as_attachment=True)
+            elif len(verses) > 1 and os.path.exists("output/worksheets_bundle.zip"):
+                return send_file("output/worksheets_bundle.zip", as_attachment=True)
+            else:
+                return "<h1>500 Error</h1><p>Could not generate requested file(s). Please try again or check your input.</p>", 500
         else:
             return send_file("output/worksheets_bundle.zip", as_attachment=True)
 
