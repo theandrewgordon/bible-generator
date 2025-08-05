@@ -234,6 +234,34 @@ def about():
 def success():
     return render_template("success.html")
 
+
+@app.route("/preview")
+def preview():
+    verse_input = request.args.get('verse', '').strip()
+    fallback_version = request.args.get('version', 'nlt').strip().lower()
+    if not verse_input:
+        return "", 400
+
+    previews = []
+    for verse_entry in verse_input.split(","):
+        version, clean_verse = extract_version_from_text(verse_entry.strip(), fallback_version)
+        content = request_verse_data(clean_verse, version=version)
+        data = parse_and_clean_json(content)
+        full = data.get("fullVerse", "")
+        if full:
+            html = f"<strong>{clean_verse}</strong> ({version.upper()}): {full}"
+            previews.append(html)
+
+    return "<br><br>".join(previews)
+
+@app.route("/download_all")
+@login_required
+def download_all():
+    zip_path = "output/worksheets_bundle.zip"
+    if os.path.exists(zip_path):
+        return send_file(zip_path, as_attachment=True)
+    return "<p>No bundle found.</p>", 404
+
 @app.route("/delete_bulk", methods=["POST"])
 @login_required
 def delete_bulk():
@@ -284,74 +312,6 @@ def delete_bulk():
         flash("⚠️ Error during bulk deletion.", "error")
         return redirect(url_for("history"))
 
-
-@app.route("/preview")
-def preview():
-    verse_input = request.args.get('verse', '').strip()
-    fallback_version = request.args.get('version', 'nlt').strip().lower()
-    if not verse_input:
-        return "", 400
-
-    previews = []
-    for verse_entry in verse_input.split(","):
-        version, clean_verse = extract_version_from_text(verse_entry.strip(), fallback_version)
-        content = request_verse_data(clean_verse, version=version)
-        data = parse_and_clean_json(content)
-        full = data.get("fullVerse", "")
-        if full:
-            html = f"<strong>{clean_verse}</strong> ({version.upper()}): {full}"
-            previews.append(html)
-
-    return "<br><br>".join(previews)
-
-@app.route("/download_all")
-@login_required
-def download_all():
-    zip_path = "output/worksheets_bundle.zip"
-    if os.path.exists(zip_path):
-        return send_file(zip_path, as_attachment=True)
-    return "<p>No bundle found.</p>", 404
-
-@app.route("/delete_bulk", methods=["POST"])
-@login_required
-def delete_bulk():
-    if not db:
-        return "Firestore not configured", 500
-
-    user_email = session.get("user_email")
-    if not user_email:
-        return redirect(url_for("index"))
-
-    selected_files = request.form.getlist("selected_files")
-    if not selected_files:
-        return redirect(url_for("history"))
-
-    deleted = 0
-    for filename in selected_files:
-        try:
-            # Delete physical file
-            file_path = os.path.join("output", filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-
-            # Delete Firestore record
-            query = db.collection("worksheets")\
-                .where("email", "==", user_email)\
-                .where("filename", "==", filename)\
-                .limit(1)\
-                .stream()
-            doc = next(query, None)
-            if doc:
-                doc.reference.delete()
-                deleted += 1
-
-        except Exception as e:
-            print(f"⚠️ Bulk delete error for {filename}: {e}")
-
-    print(f"✅ Deleted {deleted} worksheet(s)")
-    update_zip_bundle()
-
-    return redirect(url_for("history"))
 
 
 @app.route("/history")
