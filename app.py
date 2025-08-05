@@ -99,7 +99,8 @@ def generate():
 
     try:
         verse_input = request.form.get('verse', '').strip()
-        selected_version = request.form.get('version', '').strip().lower()
+        raw_version = request.form.get('version', '').strip()
+        selected_version = "" if raw_version.lower() == "auto" else raw_version.lower()
         use_cursive = 'cursive' in request.form
         user_email = session.get("user_email", "anonymous")
 
@@ -131,7 +132,7 @@ def generate():
                     if existing_doc:
                         existing_filename = existing_doc.to_dict().get("filename")
                         if existing_filename and os.path.exists(os.path.join("output", existing_filename)):
-                            print(f"📎 Found existing worksheet for {verse} ({version.upper()})")
+                            print(f"📎 Found existing worksheet for {verse} ({version.upper() if version else 'ESV'})")
                             final_pdf = os.path.join("output", existing_filename)
                             continue
                 except Exception as e:
