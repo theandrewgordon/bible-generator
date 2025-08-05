@@ -101,6 +101,7 @@ def generate():
         verse_input = request.form.get('verse', '').strip()
         selected_version = request.form.get('version', '').strip().lower()
         use_cursive = 'cursive' in request.form
+        user_email = session.get("user_email", "anonymous")
 
         if not verse_input:
             return "<h1>400 Bad Request</h1><p>Verse is required.</p>", 400
@@ -114,6 +115,27 @@ def generate():
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}.pdf"
             final_pdf = pdf_path
+
+            # Check for existing worksheet
+            if db:
+                try:
+                    existing = db.collection("worksheets")\
+                        .where("email", "==", user_email)\
+                        .where("verse", "==", verse)\
+                        .where("version", "==", version.upper())\
+                        .where("cursive", "==", use_cursive)\
+                        .limit(1)\
+                        .stream()
+                    
+                    existing_doc = next(existing, None)
+                    if existing_doc:
+                        existing_filename = existing_doc.to_dict().get("filename")
+                        if existing_filename and os.path.exists(os.path.join("output", existing_filename)):
+                            print(f"📎 Found existing worksheet for {verse} ({version.upper()})")
+                            final_pdf = os.path.join("output", existing_filename)
+                            continue
+                except Exception as e:
+                    print(f"⚠️ Deduplication check failed: {e}")
 
             # Try Firestore cache first
             cache_doc = None
