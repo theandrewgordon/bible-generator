@@ -1,57 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <link rel="stylesheet" href="/static/theme.css" />
-    <script defer src="/static/darkmode.js"></script>
-    <meta charset="UTF-8" />
-    <title>Worksheet Ready</title>
-    <style>
-      body {
-        font-family: "Inter", sans-serif;
-        text-align: center;
-        padding: 60px;
-        background: var(--bg);
-        color: var(--text);
-      }
+{% extends "base.html" %} {% block title %}Worksheet Ready | Faith Sparks
+Printables{% endblock %} {% block content %}
+<h1 style="text-align: center">✅ Your worksheet is ready!</h1>
+<p style="text-align: center; font-size: 1.1em; margin-bottom: 32px">
+  You can download it below or go back to create another.
+</p>
 
-      .btn {
-        display: inline-block;
-        padding: 12px 20px;
-        background-color: var(--primary);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 16px;
-        text-decoration: none;
-        transition: background 0.2s ease;
-      }
-
-      .btn:hover {
-        background-color: var(--primary-dark);
-      }
-
-      .btn.secondary {
-        background: var(--secondary);
-      }
-
-      .btn.secondary:hover {
-        background: var(--secondary-dark);
-      }
-    </style>
-  </head>
-  <body>
-    <h1>✅ Your worksheet is ready!</h1>
-    <p>You can download it below or go back to create another.</p>
-    <a class="btn" href="{{ url_for('download', filename=filename) }}"
-      >📥 Download Again</a
-    >
-    <br /><br />
-    <a href="/" class="btn secondary">🔁 Make Another Worksheet</a>
-
-    <script>
-      if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-      }
-    </script>
-  </body>
-</html>
+<div style="text-align: center">
+  <a
+    href="{{ url_for('download', filename=filename) }}"
+    style="
+      display: inline-block;
+      background: #2b6cb0;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: bold;
+      text-decoration: none;
+      margin-bottom: 16px;
+    "
+  >
+    📥 Download Again
+  </a>
+  <br />
+  <a
+    href="/generate"
+    style="
+      display: inline-block;
+      background: #4a5568;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      text-decoration: none;
+    "
+  >
+    🔁 Make Another Worksheet
+  </a>
+</div>
+{% endblock %}

@@ -1,164 +1,123 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <link rel="stylesheet" href="/static/theme.css" />
-    <script defer src="/static/darkmode.js"></script>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Worksheet History | Faith Sparks Printables</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      header img {
-        height: 48px;
-      }
+{% extends "base.html" %} {% block title %}Worksheet History | Faith Sparks
+Printables{% endblock %} {% block content %}
+<h1>🗂 Worksheet History</h1>
+<p>Logged in as: <strong>{{ email }}</strong></p>
 
-      .container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 24px;
-      }
+<div
+  class="filter-bar"
+  style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px"
+>
+  <input
+    type="text"
+    id="searchInput"
+    placeholder="Search by verse or version..."
+    onkeyup="filterHistory()"
+    style="
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1em;
+      flex: 1;
+      min-width: 200px;
+    "
+  />
+  <select
+    id="versionFilter"
+    onchange="filterHistory()"
+    style="
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1em;
+      min-width: 200px;
+    "
+  >
+    <option value="">All Versions</option>
+    {% for item in history|map(attribute='version')|unique %}
+    <option value="{{ item }}">{{ item }}</option>
+    {% endfor %}
+  </select>
+</div>
 
-      .filter-bar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-bottom: 24px;
-      }
-
-      .filter-bar input,
-      .filter-bar select {
-        padding: 8px 12px;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        font-size: 1em;
-        flex: 1;
-        min-width: 200px;
-      }
-
-      .history-entry {
-        padding: 16px;
-        background: var(--box);
-        border-radius: 8px;
-        margin-bottom: 12px;
-      }
-
-      .history-entry h3 {
-        margin: 0;
-        font-size: 1.1em;
-        color: var(--primary);
-      }
-
-      .history-meta {
+{% if history %}
+<div id="historyList">
+  {% for item in history %}
+  <div
+    class="history-entry"
+    data-verse="{{ item.verse | lower }}"
+    data-version="{{ item.version }}"
+    style="
+      padding: 16px;
+      background: var(--box);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border, #e2e8f0);
+    "
+  >
+    <h3 style="margin: 0; font-size: 1.1em; color: var(--text)">
+      {{ item.verse }} ({{ item.version }})
+    </h3>
+    <div
+      class="history-meta"
+      style="
         font-size: 0.9em;
         margin-top: 4px;
-        color: var(--text-secondary);
-      }
+        color: var(--text-secondary, #718096);
+      "
+    >
+      Generated {{ item.timestamp.strftime('%b %d, %Y at %I:%M %p') if
+      item.timestamp else 'Unknown' }}
+      <a
+        class="download-link"
+        href="/download/{{ item.filename }}"
+        style="margin-left: 12px; font-weight: bold; color: #2b6cb0"
+      >
+        📥 Download
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div
+  class="empty-state"
+  style="text-align: center; padding: 60px 0; color: #999"
+>
+  <p>No worksheets yet. Generate one to see history here!</p>
+  <a
+    href="/generate"
+    class="button"
+    style="
+      display: inline-block;
+      background: #2b6cb0;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: bold;
+      text-decoration: none;
+    "
+  >
+    Create a Worksheet
+  </a>
+</div>
+{% endif %} {% endblock %} {% block extra_scripts %}
+<script>
+  function filterHistory() {
+    const query = document.getElementById("searchInput").value.toLowerCase();
+    const version = document.getElementById("versionFilter").value;
+    const entries = document.querySelectorAll(".history-entry");
 
-      .download-link {
-        margin-left: 12px;
-        font-weight: bold;
-      }
+    entries.forEach((entry) => {
+      const verse = entry.dataset.verse;
+      const vers = entry.dataset.version;
+      const match =
+        (!query || verse.includes(query)) && (!version || vers === version);
+      entry.style.display = match ? "block" : "none";
+    });
+  }
 
-      .empty-state {
-        text-align: center;
-        padding: 60px 0;
-        color: #999;
-      }
-
-      @media (max-width: 600px) {
-        .filter-bar {
-          flex-direction: column;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <img
-        src="/static/faith_sparks_logo.png"
-        alt="Faith Sparks Printables Logo"
-      />
-      <nav>
-        <a href="/">🏠 Home</a>
-        <a href="/generate">📝 Generate</a>
-        <a href="/about">ℹ️ About</a>
-        <button class="toggle-btn" onclick="toggleDarkMode()">
-          🌙 Toggle Dark Mode
-        </button>
-      </nav>
-    </header>
-
-    <main class="container">
-      <h1>🗂 Worksheet History</h1>
-      <p>Logged in as: <strong>{{ email }}</strong></p>
-
-      <div class="filter-bar">
-        <input
-          type="text"
-          id="searchInput"
-          placeholder="Search by verse or version..."
-          onkeyup="filterHistory()"
-        />
-        <select id="versionFilter" onchange="filterHistory()">
-          <option value="">All Versions</option>
-          {% for item in history|map(attribute='version')|unique %}
-          <option value="{{ item }}">{{ item }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      {% if history %}
-      <div id="historyList">
-        {% for item in history %}
-        <div
-          class="history-entry"
-          data-verse="{{ item.verse | lower }}"
-          data-version="{{ item.version }}"
-        >
-          <h3>{{ item.verse }} ({{ item.version }})</h3>
-          <div class="history-meta">
-            Generated {{ item.timestamp.strftime('%b %d, %Y at %I:%M %p') if
-            item.timestamp else 'Unknown' }}
-            <a class="download-link" href="/download/{{ item.filename }}"
-              >📥 Download</a
-            >
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="empty-state">
-        <p>No worksheets yet. Generate one to see history here!</p>
-        <a href="/generate" class="button">Create a Worksheet</a>
-      </div>
-      {% endif %}
-
-      <a href="{{ url_for('index') }}" class="back-link">← Back to Home</a>
-    </main>
-
-    <script>
-      function filterHistory() {
-        const query = document
-          .getElementById("searchInput")
-          .value.toLowerCase();
-        const version = document.getElementById("versionFilter").value;
-        const entries = document.querySelectorAll(".history-entry");
-
-        entries.forEach((entry) => {
-          const verse = entry.dataset.verse;
-          const vers = entry.dataset.version;
-          const match =
-            (!query || verse.includes(query)) && (!version || vers === version);
-          entry.style.display = match ? "block" : "none";
-        });
-      }
-
-      if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-      }
-    </script>
-  </body>
-</html>
+  if (localStorage.getItem("theme") === "dark") {
+    document.body.classList.add("dark");
+  }
+</script>
+{% endblock %}

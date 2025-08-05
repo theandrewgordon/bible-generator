@@ -4,8 +4,6 @@ from flask_session import Session
 import os, json, re
 import firebase_admin
 import os
-print("GOOGLE CLIENT ID:", os.getenv("GOOGLE_OAUTH_CLIENT_ID"))
-print("GOOGLE CLIENT SECRET:", os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"))
 from firebase_admin import credentials, firestore
 from zipfile import ZipFile
 from verse_helpers import (
@@ -14,7 +12,6 @@ from verse_helpers import (
     save_json_to_file,
 )
 from build_pdf import generate_pdf
-print("🔐 Google Client ID:", os.environ.get("GOOGLE_OAUTH_CLIENT_ID"))
 
 # --- Flask Setup ---
 app = Flask(__name__)

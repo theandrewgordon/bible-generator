@@ -1,164 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <link rel="stylesheet" href="/static/theme.css" />
-    <script defer src="/static/darkmode.js"></script>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Faith Sparks Printables</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        font-family: "Inter", sans-serif;
-        background-color: #f7fafc;
-        color: #1a202c;
-        margin: 0;
-        padding: 0;
-        line-height: 1.6;
-      }
-      header {
-        background: #2b6cb0;
-        padding: 16px 24px;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      header img {
-        height: 40px;
-        max-width: 100%;
-      }
-      nav {
-        display: flex;
-        gap: 24px;
-        align-items: center;
-      }
-      nav a {
-        color: white;
-        text-decoration: none;
-        font-weight: 600;
-        transition: opacity 0.2s ease;
-      }
-      nav a:hover {
-        opacity: 0.8;
-      }
-      .button {
-        background: #2b6cb0;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: bold;
-        display: inline-block;
-        transition: background 0.2s ease;
-      }
-      .button:hover {
-        background: #2c5282;
-      }
-      .container {
-        max-width: 720px;
-        margin: 60px auto;
-        padding: 32px 24px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-        text-align: center;
-      }
-      h1 {
-        font-size: 2em;
-        margin-bottom: 16px;
-      }
-      p {
-        font-size: 1.15em;
-        margin-bottom: 28px;
-      }
-      footer {
-        text-align: center;
-        margin: 48px 0 24px;
-        color: #718096;
-        font-size: 0.9em;
-      }
-      .history-link {
-        color: white;
-        text-decoration: underline;
-        opacity: 0.9;
-      }
-
-      .history-link:hover {
-        opacity: 1;
-      }
-
-      @media (max-width: 600px) {
-        .container {
-          margin: 40px 16px;
-        }
-        header {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-        header nav {
-          margin-top: 12px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <img
-        src="/static/faith_sparks_logo.png"
-        alt="Faith Sparks Printables Logo"
-      />
-      <nav>
-        <a href="/">🏠 Home</a>
-        <a href="/generate">📝 Generate</a>
-        <a href="/history">📚 History</a>
-        <a href="/about">ℹ️ About</a>
-        {% if user_info %}
-        <span style="color: white">Welcome, {{ user_info["email"] }}</span>
-        <a href="{{ url_for('logout') }}" class="button">Logout</a>
-        <p>
-          <a href="{{ url_for('history') }}" class="history-link"
-            >View My Worksheet History</a
-          >
-        </p>
-        {% else %}
-        <a href="{{ url_for('google.login') }}" class="button"
-          >Login with Google</a
-        >
-        {% endif %}
-        <button class="toggle-btn" onclick="toggleDarkMode()">
-          🌙 Toggle Dark Mode
-        </button>
-      </nav>
-    </header>
-
-    <main class="container">
-      <h1>Welcome to Faith Sparks Printables</h1>
-      <p>
-        Empowering families, homeschoolers, and churches with engaging,
-        faith-based Bible learning tools — created in seconds with the help of
-        AI.
-      </p>
-      <a
-        href="/generate"
-        class="button"
-        aria-label="Start Generating Worksheets"
-        >✨ Start Generating Worksheets</a
-      >
-    </main>
-
-    <footer>&copy; 2025 Faith Sparks Printables. All rights reserved.</footer>
-
-    <script>
-      if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-      }
-    </script>
-  </body>
-</html>
+{% extends "base.html" %} {% block title %}Home | Faith Sparks Printables{%
+endblock %} {% block content %} {% if user_info %}
+<h1 style="text-align: center">
+  Welcome, {{ user_info["email"].split("@")[0] }} 👋
+</h1>
+<p style="text-align: center; font-size: 1.1em; margin-bottom: 32px">
+  Ready to create your next Bible worksheet?
+</p>
+<div style="text-align: center">
+  <a
+    href="/generate"
+    style="
+      display: inline-block;
+      background: #2b6cb0;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: bold;
+      text-decoration: none;
+    "
+  >
+    ✍️ Generate a Worksheet
+  </a>
+</div>
+{% else %}
+<h1 style="text-align: center">Welcome to Faith Sparks Printables</h1>
+<p style="text-align: center; font-size: 1.1em; margin-bottom: 32px">
+  Sign in with Google to create and track your printable Bible worksheets.
+</p>
+<div style="text-align: center">
+  <a
+    href="{{ url_for('google.login') }}"
+    style="
+      display: inline-block;
+      background: #2b6cb0;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: bold;
+      text-decoration: none;
+    "
+  >
+    🔐 Login with Google
+  </a>
+</div>
+{% endif %} {% endblock %}

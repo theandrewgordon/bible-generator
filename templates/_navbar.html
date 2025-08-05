@@ -1,15 +1,25 @@
 <header>
-  <img src="/static/faith_sparks_logo.png" alt="Logo" />
-  <nav>
-    <a href="/">🏠 Home</a>
-    <a href="/generate">📝 Generate</a>
-    <a href="/history">📚 History</a>
-    <a href="/about">ℹ️ About</a>
+  <div style="display: flex; align-items: center; gap: 24px">
+    <img
+      src="/static/faith_sparks_logo.png"
+      alt="Faith Sparks Logo"
+      style="height: 48px"
+    />
+    <nav>
+      <a href="/">🏠 Home</a>
+      <a href="/generate">📝 Generate</a>
+      <a href="/history">📚 History</a>
+      <a href="/about">ℹ️ About</a>
+    </nav>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px">
     {% if user_info %}
-    <span style="color: white">👤 {{ user_info.email.split('@')[0] }}</span>
-    <a href="/logout">🚪 Logout</a>
+    <span style="font-weight: 600">👤 {{ user_info.email.split('@')[0] }}</span>
+    <a href="/logout" style="color: #e53e3e">🚪 Logout</a>
     {% else %}
     <a href="{{ url_for('google.login') }}">🔐 Login</a>
     {% endif %}
-  </nav>
+    <button class="toggle-btn" onclick="toggleDarkMode()">🌙</button>
+  </div>
 </header>

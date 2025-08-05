@@ -1,308 +1,166 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <link rel="stylesheet" href="/static/theme.css" />
-    <script src="/static/darkmode.js" defer></script>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Generate Bible Worksheet</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        font-family: "Inter", sans-serif;
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        transition: background 0.3s, color 0.3s;
-      }
+{% extends "base.html" %} {% block title %}Generate Bible Worksheet | Faith
+Sparks Printables{% endblock %} {% block content %}
+<h1 style="text-align: center">Create Your Worksheet</h1>
+<form method="POST" action="/generate" onsubmit="showSpinner()">
+  <label for="verse">Bible Verse (e.g. John 3:16 or John 3:16 (KJV))</label>
+  <input
+    type="text"
+    name="verse"
+    id="verse"
+    required
+    onblur="fetchPreview()"
+    autocomplete="off"
+    style="
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    "
+  />
 
-      :root {
-        --bg: #f5f5f5;
-        --text: #1a202c;
-        --box: #ffffff;
-      }
+  <div
+    id="preview"
+    style="
+      display: none;
+      font-size: 0.95em;
+      background: #edf2f7;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: -10px;
+      margin-bottom: 20px;
+    "
+  ></div>
 
-      body.dark {
-        --bg: #1a202c;
-        --text: #f5f5f5;
-        --box: #2d3748;
-      }
+  <label for="version">Bible Version</label>
+  <select
+    name="version"
+    id="version"
+    style="
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    "
+  >
+    <option value="auto" selected>Auto-detect from input</option>
+    <option value="esv">English Standard Version (ESV)</option>
+    <option value="kjv">King James Version (KJV)</option>
+  </select>
 
-      header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: var(--box);
-        padding: 12px 20px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      }
-
-      header img {
-        height: 48px;
-      }
-
-      nav {
-        display: flex;
-        gap: 24px;
-        align-items: center;
-      }
-
-      nav a {
-        color: var(--text);
-        text-decoration: none;
-        font-weight: 600;
-        transition: opacity 0.2s ease;
-      }
-
-      nav a:hover {
-        opacity: 0.8;
-      }
-
-      .toggle-btn {
-        background: none;
-        border: none;
-        color: var(--text);
-        font-weight: 600;
-        cursor: pointer;
-      }
-
-      .container {
-        background: var(--box);
-        padding: 30px;
-        margin: 40px auto;
-        max-width: 500px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      }
-
-      h1 {
-        text-align: center;
-        margin-bottom: 20px;
-      }
-
-      label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-      }
-
-      input[type="text"],
-      select {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 20px;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        background: var(--bg);
-        color: var(--text);
-      }
-
-      input[type="checkbox"] {
-        margin-right: 8px;
-      }
-
-      button {
-        width: 100%;
-        padding: 12px;
-        background: #2b6cb0;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 16px;
-        cursor: pointer;
-      }
-
-      .spinner {
-        display: none;
-        text-align: center;
-        margin-top: 20px;
-      }
-
-      .spinner img {
-        width: 48px;
-      }
-
-      #preview {
-        font-size: 0.95em;
-        background: #edf2f7;
-        padding: 10px;
-        border-radius: 6px;
-        margin-top: -10px;
-        margin-bottom: 20px;
-        display: none;
-      }
-
-      body.dark #preview {
-        background: #4a5568;
-      }
-
-      .download-message {
-        text-align: center;
-        font-size: 0.9em;
-        margin-top: 16px;
-        color: #2f855a;
-        display: none;
-      }
-
-      .footer-link {
-        display: block;
-        text-align: center;
-        margin: 20px auto;
-        text-decoration: none;
-        font-weight: bold;
-        color: #2b6cb0;
-      }
-
-      body.dark .footer-link {
-        color: #90cdf4;
-      }
-
-      details summary {
-        cursor: pointer;
-        font-weight: 600;
-        margin-bottom: 10px;
-      }
-
-      .advanced {
+  <details>
+    <summary style="cursor: pointer; font-weight: 600; margin-bottom: 10px">
+      ⚙️ Advanced Options
+    </summary>
+    <div
+      style="
         padding: 12px;
         border-radius: 6px;
         background: #f0f0f0;
         margin-bottom: 20px;
-      }
-
-      body.dark .advanced {
-        background: #3a3a3a;
-      }
-
-      @media (max-width: 600px) {
-        header > div {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-        nav {
-          margin-top: 12px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div style="display: flex; align-items: center; gap: 24px">
-        <img src="/static/faith_sparks_logo.png" alt="Faith Sparks Logo" />
-        <nav>
-          <a href="/">🏠 Home</a>
-          <a href="/generate">📝 Generate</a>
-          <a href="/history">📚 History</a>
-          <a href="/about">ℹ️ About</a>
-        </nav>
-      </div>
-      <button class="toggle-btn" onclick="toggleDarkMode()">
-        🌙 Toggle Dark Mode
-      </button>
-    </header>
-
-    <div class="container">
-      <h1>Create Your Worksheet</h1>
-      <form method="POST" action="/generate" onsubmit="showSpinner()">
-        <label for="verse"
-          >Bible Verse (e.g. John 3:16 or John 3:16 (KJV))</label
-        >
-        <input
-          type="text"
-          name="verse"
-          id="verse"
-          required
-          onblur="fetchPreview()"
-          autocomplete="off"
-        />
-        <div id="preview"></div>
-
-        <label for="version">Bible Version</label>
-        <select name="version" id="version">
-          <option value="auto" selected>Auto-detect from input</option>
-          <option value="esv">English Standard Version (ESV)</option>
-          <option value="niv">New International Version (NIV)</option>
-          <option value="kjv">King James Version (KJV)</option>
-          <option value="nkjv">New King James Version (NKJV)</option>
-          <option value="nlt">New Living Translation (NLT)</option>
-          <option value="csb">Christian Standard Bible (CSB)</option>
-          <option value="nasb">New American Standard Bible (NASB)</option>
-          <option value="nirv">
-            New International Reader’s Version (NIrV)
-          </option>
-          <option value="message">The Message</option>
-          <option value="rv">Reina Valera (RV)</option>
-        </select>
-
-        <details>
-          <summary>⚙️ Advanced Options</summary>
-          <div class="advanced">
-            <label>
-              <input type="checkbox" name="cursive" />
-              Use cursive tracing font
-            </label>
-          </div>
-        </details>
-
-        <button type="submit">Generate Worksheet</button>
-
-        <div class="spinner" id="spinner">
-          <img src="/static/spinner.gif" alt="Loading..." />
-          <p>Generating your worksheet...</p>
-        </div>
-
-        <div class="download-message" id="download-msg">
-          ✅ Your worksheet has been generated!
-        </div>
-      </form>
+      "
+    >
+      <label>
+        <input type="checkbox" name="cursive" />
+        Use cursive tracing font
+      </label>
     </div>
+  </details>
 
-    <a href="/download_all" class="footer-link">⬇ Download All Worksheets</a>
+  <button
+    type="submit"
+    style="
+      width: 100%;
+      padding: 12px;
+      background: #2b6cb0;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    "
+  >
+    Generate Worksheet
+  </button>
 
-    <script>
-      function toggleDarkMode() {
-        document.body.classList.toggle("dark");
-        localStorage.setItem(
-          "theme",
-          document.body.classList.contains("dark") ? "dark" : "light"
-        );
-      }
+  <div
+    class="spinner"
+    id="spinner"
+    style="display: none; text-align: center; margin-top: 20px"
+  >
+    <img src="/static/spinner.gif" alt="Loading..." style="width: 48px" />
+    <p>Generating your worksheet...</p>
+  </div>
 
-      function showSpinner() {
-        document.getElementById("spinner").style.display = "block";
-        document.getElementById("download-msg").style.display = "block";
-      }
+  <div
+    class="download-message"
+    id="download-msg"
+    style="
+      text-align: center;
+      font-size: 0.9em;
+      margin-top: 16px;
+      color: #2f855a;
+      display: none;
+    "
+  >
+    ✅ Your worksheet has been generated!
+  </div>
+</form>
 
-      function fetchPreview() {
-        const verse = document.getElementById("verse").value;
-        const version = document.getElementById("version").value;
-        const preview = document.getElementById("preview");
+<a
+  href="/download_all"
+  style="
+    display: block;
+    text-align: center;
+    margin: 20px auto;
+    text-decoration: none;
+    font-weight: bold;
+    color: #2b6cb0;
+  "
+>
+  ⬇ Download All Worksheets
+</a>
+{% endblock %} {% block extra_scripts %}
+<script>
+  function toggleDarkMode() {
+    document.body.classList.toggle("dark");
+    localStorage.setItem(
+      "theme",
+      document.body.classList.contains("dark") ? "dark" : "light"
+    );
+  }
 
-        if (verse.length < 4) return;
+  function showSpinner() {
+    document.getElementById("spinner").style.display = "block";
+    document.getElementById("download-msg").style.display = "block";
+  }
 
-        const params = new URLSearchParams({ verse });
-        if (version && version !== "auto") params.append("version", version);
+  function fetchPreview() {
+    const verse = document.getElementById("verse").value;
+    const version = document.getElementById("version").value;
+    const preview = document.getElementById("preview");
 
-        fetch(`/preview?${params.toString()}`)
-          .then((res) => (res.ok ? res.text() : ""))
-          .then((text) => {
-            if (text) {
-              preview.style.display = "block";
-              preview.innerHTML = text;
-            }
-          })
-          .catch(() => {
-            preview.style.display = "none";
-          });
-      }
+    if (verse.length < 4) return;
 
-      // On load: apply dark mode if previously selected
-      if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-      }
-    </script>
-  </body>
-</html>
+    const params = new URLSearchParams({ verse });
+    if (version && version !== "auto") params.append("version", version);
+
+    fetch(`/preview?${params.toString()}`)
+      .then((res) => (res.ok ? res.text() : ""))
+      .then((text) => {
+        if (text) {
+          preview.style.display = "block";
+          preview.innerHTML = text;
+        }
+      })
+      .catch(() => {
+        preview.style.display = "none";
+      });
+  }
+
+  if (localStorage.getItem("theme") === "dark") {
+    document.body.classList.add("dark");
+  }
+</script>
+{% endblock %}

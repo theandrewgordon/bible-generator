@@ -1,125 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <link rel="stylesheet" href="/static/theme.css" />
-    <script src="/static/darkmode.js" defer></script>
-    <meta charset="UTF-8" />
-    <title>About | Faith Sparks Printables</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        font-family: "Inter", sans-serif;
-        background-color: #f7fafc;
-        color: #1a202c;
-        margin: 0;
-        padding: 0;
-      }
-      header {
-        background: #2b6cb0;
-        padding: 16px 24px;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      header img {
-        height: 40px;
-      }
-      nav {
-        display: flex;
-        gap: 24px;
-        align-items: center;
-      }
-      nav a {
-        color: white;
-        text-decoration: none;
-        font-weight: 600;
-        transition: opacity 0.2s ease;
-      }
-      nav a:hover {
-        opacity: 0.8;
-      }
-      .container {
-        max-width: 720px;
-        margin: 60px auto;
-        padding: 24px;
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-      }
-      h1 {
-        font-size: 2em;
-        margin-bottom: 16px;
-      }
-      p {
-        font-size: 1.1em;
-        margin-bottom: 20px;
-      }
-      a {
-        color: #2b6cb0;
-        text-decoration: underline;
-      }
-      footer {
-        text-align: center;
-        margin: 48px 0 24px;
-        color: #718096;
-        font-size: 0.9em;
-      }
-      @media (max-width: 600px) {
-        header {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-        nav {
-          margin-top: 12px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <img
-        src="/static/faith_sparks_logo.png"
-        alt="Faith Sparks Printables Logo"
-      />
-      <nav>
-        <a href="/">🏠 Home</a>
-        <a href="/generate">📝 Generate</a>
-        <a href="/history">📚 History</a>
-        <a href="/about">ℹ️ About</a>
-      </nav>
-    </header>
-
-    <main class="container">
-      <h1>About Faith Sparks Printables</h1>
-      <p>
-        Faith Sparks Printables is dedicated to creating beautiful, faith-filled
-        resources for families, homeschoolers, and churches. Our tools are
-        designed to make learning Scripture engaging, fun, and spiritually
-        formative.
-      </p>
-      <p>
-        Powered by the latest AI technology, our printable worksheets help
-        children reflect on God’s Word through copywork, journaling, and
-        coloring — tailored for all ages.
-      </p>
-      <p>
-        Whether you're a homeschool parent, Sunday school teacher, or just
-        someone who loves God's Word, we're here to help you spark faith at home
-        and beyond.
-      </p>
-    </main>
-
-    <footer>&copy; 2025 Faith Sparks Printables. All rights reserved.</footer>
-
-    <script>
-      if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-      }
-    </script>
-  </body>
-</html>
+{% extends "base.html" %} {% block title %}About | Faith Sparks Printables{%
+endblock %} {% block content %}
+<h1>About Faith Sparks Printables</h1>
+<p>
+  Faith Sparks Printables is dedicated to creating beautiful, faith-filled
+  resources for families, homeschoolers, and churches. Our tools are designed to
+  make learning Scripture engaging, fun, and spiritually formative.
+</p>
+<p>
+  Powered by the latest AI technology, our printable worksheets help children
+  reflect on God’s Word through copywork, journaling, and coloring — tailored
+  for all ages.
+</p>
+<p>
+  Whether you're a homeschool parent, Sunday school teacher, or just someone who
+  loves God's Word, we're here to help you spark faith at home and beyond.
+</p>
+{% endblock %}
