@@ -119,9 +119,10 @@ def generate():
 
         for verse_entry in verses:
             version, verse = extract_version_from_text(verse_entry, selected_version or "esv")
+            normalized_verse = verse.title()
             if version == "auto":
                 version = "esv"
-            slug = normalize_slug(verse)
+            slug = normalize_slug(normalized_verse)
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}.pdf"
             final_pdf = pdf_path
@@ -131,7 +132,7 @@ def generate():
                 try:
                     existing = db.collection("worksheets")\
                         .where("email", "==", user_email)\
-                        .where("verse", "==", verse)\
+                        .where("verse", "==", normalized_verse)\
                         .where("version", "==", version.upper())\
                         .where("cursive", "==", use_cursive)\
                         .limit(1)\
@@ -201,7 +202,7 @@ def generate():
                 try:
                     db.collection("worksheets").add({
                         "email": session.get("user_email", "anonymous"),
-                        "verse": verse,
+                        "verse": normalized_verse,
                         "version": version.upper(),
                         "filename": os.path.basename(pdf_path),
                         "timestamp": firestore.SERVER_TIMESTAMP,
