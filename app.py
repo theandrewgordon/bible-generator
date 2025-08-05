@@ -22,12 +22,9 @@ google_bp = make_google_blueprint(
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
         "openid",
-    ],
-    authorization_url_params={
-        "access_type": "offline",
-        "prompt": "consent",
-    }
+    ]
 )
+
 app.register_blueprint(google_bp, url_prefix="/login")
 
 # --- Firebase ---
