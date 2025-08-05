@@ -50,10 +50,17 @@ def normalize_slug(text):
     return text.lower().replace(":", "_").replace("–", "_").replace("—", "_").replace(" ", "_")
 
 def extract_version_from_text(verse_text, fallback_version):
+    fallback_version = fallback_version.lower() if fallback_version and fallback_version != "auto" else "esv"
     match = re.search(r'\((\w{2,6})\)$', verse_text.strip())
     if match:
-        return match.group(1).lower(), verse_text[:match.start()].strip()
-    return fallback_version.lower(), verse_text.strip()
+        version = match.group(1).lower()
+        verse = verse_text[:match.start()].strip()
+        if version == "auto":
+            version = fallback_version
+    else:
+        version = fallback_version
+        verse = verse_text.strip()
+    return version, verse
 
 def update_zip_bundle():
     zip_path = "output/worksheets_bundle.zip"
@@ -111,7 +118,9 @@ def generate():
         final_pdf = None
 
         for verse_entry in verses:
-            version, verse = extract_version_from_text(verse_entry, selected_version)
+            version, verse = extract_version_from_text(verse_entry, selected_version or "esv")
+            if version == "auto":
+                version = "esv"
             slug = normalize_slug(verse)
             json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}.pdf"
