@@ -118,10 +118,21 @@ def generate():
             pdf_path = f"output/{slug}_{version}.pdf"
             final_pdf = pdf_path
 
-            if os.path.exists(json_path):
-                with open(json_path, "r") as f:
-                    data = json.load(f)
-            else:
+            # Try Firestore cache first
+            cache_doc = None
+            if db:
+                try:
+                    cache_doc = db.collection("verse_cache").document(f"{slug}_{version}").get()
+                    if cache_doc.exists:
+                        print(f"✅ Cache hit for {slug}_{version}")
+                        data = cache_doc.to_dict()["data"]
+                    else:
+                        print(f"🕵️ Cache miss for {slug}_{version}")
+                except Exception as e:
+                    print(f"⚠️ Firestore cache lookup error: {e}")
+
+            # If not found in cache, fetch and store
+            if not cache_doc or not cache_doc.exists:
                 content = request_verse_data(verse, version=version)
                 if not content:
                     continue
@@ -136,6 +147,22 @@ def generate():
 
                 data['version'] = version.upper()
                 data['cursive'] = use_cursive
+
+                # Save to Firestore cache
+                if db:
+                    try:
+                        db.collection("verse_cache").document(f"{slug}_{version}").set({
+                            "verse": verse,
+                            "version": version.upper(),
+                            "slug": f"{slug}_{version}",
+                            "data": data,
+                            "timestamp": firestore.SERVER_TIMESTAMP
+                        })
+                        print(f"✅ Saved to cache: {slug}_{version}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to write cache for {slug}_{version}: {e}")
+
+                # Still save locally if needed
                 save_json_to_file(data, json_path)
 
             generate_pdf(data, pdf_path, use_cursive=use_cursive)

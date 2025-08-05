@@ -1,27 +1,161 @@
-<!-- templates/history.html -->
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <link rel="stylesheet" href="/static/theme.css" />
+    <script defer src="/static/darkmode.js"></script>
     <meta charset="UTF-8" />
-    <title>Worksheet History</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Worksheet History | Faith Sparks Printables</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      .history-list {
+        list-style: none;
+        padding: 0;
+      }
+
+      .history-item {
+        padding: 16px;
+        margin-bottom: 12px;
+        background: var(--box);
+        border-radius: 8px;
+      }
+
+      .history-verse {
+        font-weight: 600;
+        color: var(--primary);
+      }
+
+      .history-meta {
+        font-size: 0.9em;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 48px 0;
+        color: var(--text-secondary);
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 24px;
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      .back-link:hover {
+        text-decoration: underline;
+      }
+
+      .filters {
+        margin: 20px 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .filters input,
+      .filters select {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+    </style>
   </head>
   <body>
-    <h1>📚 Your Worksheet History</h1>
-    <p>Logged in as: <strong>{{ email }}</strong></p>
+    <header>
+      <img
+        src="/static/faith_sparks_logo.png"
+        alt="Faith Sparks Printables Logo"
+      />
+      <nav>
+        <a href="/">🏠 Home</a>
+        <a href="/generate">📝 Generate</a>
+        <a href="/about">ℹ️ About</a>
+        <button class="toggle-btn" onclick="toggleDarkMode()">
+          🌙 Toggle Dark Mode
+        </button>
+      </nav>
+    </header>
 
-    <ul>
-      {% for item in history %}
-      <li>
-        {{ item.timestamp }} — {{ item.verse }} ({{ item.version }}) [<a
-          href="{{ url_for('download_file', filename=item.filename) }}"
-          >Download</a
-        >]
-      </li>
+    <main class="container">
+      <h1>📚 Worksheet History</h1>
+      <p class="history-meta">Logged in as: <strong>{{ email }}</strong></p>
+
+      <div class="filters">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by verse or version..."
+        />
+        <select id="versionFilter">
+          <option value="">All Versions</option>
+          {% for item in history|map(attribute='version')|unique %}
+          <option value="{{ item }}">{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if history %}
+      <ul class="history-list" id="historyList">
+        {% for item in history %}
+        <li
+          class="history-item"
+          data-verse="{{ item.verse }}"
+          data-version="{{ item.version }}"
+        >
+          <div class="history-verse">{{ item.verse }} ({{ item.version }})</div>
+          <div class="history-meta">
+            Generated {{ item.timestamp.strftime('%b %d, %Y at %I:%M %p') if
+            item.timestamp else 'Date unknown' }} —
+            <a href="/download/{{ item.filename }}" class="button"
+              >📥 Download</a
+            >
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
       {% else %}
-      <li>No worksheet history found.</li>
-      {% endfor %}
-    </ul>
+      <div class="empty-state">
+        <p>No worksheets generated yet.</p>
+        <a href="/generate" class="button">Generate Your First Worksheet</a>
+      </div>
+      {% endif %}
 
-    <p><a href="/">← Back to Home</a></p>
+      <a href="{{ url_for('index') }}" class="back-link">← Back to Home</a>
+    </main>
+
+    <script>
+      if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+      }
+
+      const searchInput = document.getElementById("searchInput");
+      const versionFilter = document.getElementById("versionFilter");
+      const historyList = document.getElementById("historyList");
+
+      function filterHistory() {
+        const search = searchInput.value.toLowerCase();
+        const version = versionFilter.value.toLowerCase();
+
+        for (const item of historyList.children) {
+          const verse = item.dataset.verse.toLowerCase();
+          const ver = item.dataset.version.toLowerCase();
+
+          const matchesSearch = verse.includes(search) || ver.includes(search);
+          const matchesVersion = !version || ver === version;
+
+          item.style.display =
+            matchesSearch && matchesVersion ? "block" : "none";
+        }
+      }
+
+      searchInput.addEventListener("input", filterHistory);
+      versionFilter.addEventListener("change", filterHistory);
+    </script>
   </body>
 </html>
