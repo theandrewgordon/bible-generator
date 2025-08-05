@@ -298,6 +298,45 @@ def download_file(filename):
         return send_file(file_path, as_attachment=True)
     return "<h1>404 Not Found</h1><p>File no longer exists.</p>", 404
 
+@app.route("/delete/<filename>")
+@login_required
+def delete_worksheet(filename):
+    if not db:
+        return "Firestore not configured", 500
+        
+    user_email = session.get("user_email")
+    if not user_email:
+        return redirect(url_for("index"))
+
+    try:
+        # Find the Firestore document
+        results = db.collection("worksheets")\
+            .where("email", "==", user_email)\
+            .where("filename", "==", filename)\
+            .limit(1)\
+            .stream()
+        
+        doc = next(results, None)
+        if not doc:
+            return "Worksheet not found", 404
+
+        # Delete the physical file
+        file_path = os.path.join("output", filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+        # Delete the Firestore record
+        doc.reference.delete()
+        
+        # Regenerate zip bundle without this file
+        update_zip_bundle()
+        
+        return redirect(url_for("history"))
+
+    except Exception as e:
+        print(f"⚠️ Delete error: {e}")
+        return "Error deleting worksheet", 500
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404

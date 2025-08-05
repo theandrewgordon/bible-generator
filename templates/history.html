@@ -46,34 +46,25 @@ Printables{% endblock %} {% block content %}
     class="history-entry"
     data-verse="{{ item.verse | lower }}"
     data-version="{{ item.version }}"
-    style="
-      padding: 16px;
-      background: var(--box);
-      border-radius: 8px;
-      margin-bottom: 12px;
-      border: 1px solid var(--border, #e2e8f0);
-    "
   >
-    <h3 style="margin: 0; font-size: 1.1em; color: var(--text)">
-      {{ item.verse }} ({{ item.version }})
-    </h3>
-    <div
-      class="history-meta"
-      style="
-        font-size: 0.9em;
-        margin-top: 4px;
-        color: var(--text-secondary, #718096);
-      "
-    >
-      Generated {{ item.timestamp.strftime('%b %d, %Y at %I:%M %p') if
-      item.timestamp else 'Unknown' }}
-      <a
-        class="download-link"
-        href="/download/{{ item.filename }}"
-        style="margin-left: 12px; font-weight: bold; color: #2b6cb0"
-      >
-        📥 Download
-      </a>
+    <h3>{{ item.verse }} ({{ item.version }})</h3>
+    <div class="history-meta">
+      {{ item.timestamp.strftime('%B %d, %Y at %I:%M %p') if item.timestamp else
+      'Date unknown' }}
+      <div class="actions">
+        <a
+          href="{{ url_for('download_file', filename=item.filename) }}"
+          class="button"
+          >📥 Download</a
+        >
+        <a
+          href="{{ url_for('delete_worksheet', filename=item.filename) }}"
+          class="button delete"
+          onclick="return confirm('Are you sure you want to delete this worksheet?')"
+        >
+          🗑️ Delete
+        </a>
+      </div>
     </div>
   </div>
   {% endfor %}
@@ -120,4 +111,28 @@ Printables{% endblock %} {% block content %}
     document.body.classList.add("dark");
   }
 </script>
+<style>
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .button.delete {
+    background: #e53e3e;
+  }
+
+  .button.delete:hover {
+    background: #c53030;
+  }
+
+  /* Dark mode support */
+  body.dark .button.delete {
+    background: #9b2c2c;
+  }
+
+  body.dark .button.delete:hover {
+    background: #822727;
+  }
+</style>
 {% endblock %}
