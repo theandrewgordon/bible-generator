@@ -3,10 +3,7 @@ Printables{% endblock %} {% block content %}
 <h1>🗂 Worksheet History</h1>
 <p>Logged in as: <strong>{{ email }}</strong></p>
 
-<div
-  class="filter-bar"
-  style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px"
->
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px">
   <input
     type="text"
     id="searchInput"
@@ -63,6 +60,12 @@ Printables{% endblock %} {% block content %}
       class="history-entry"
       data-verse="{{ item.verse | lower }}"
       data-version="{{ item.version | lower }}"
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      "
     >
       <div style="flex: 1; display: flex; align-items: center">
         <input
@@ -74,13 +77,13 @@ Printables{% endblock %} {% block content %}
         />
         <div
           style="
-            background-color: #f1f5f9;
+            background-color: var(--box);
             padding: 8px 12px;
             border-radius: 6px;
             flex-grow: 1;
           "
         >
-          <strong style="color: #1a202c">
+          <strong style="color: var(--text)">
             {{ item.verse }} ({{ item.version }}) {% if item.cursive %}
             <span
               class="tag"
@@ -92,19 +95,18 @@ Printables{% endblock %} {% block content %}
                 font-size: 0.8em;
                 margin-left: 4px;
               "
+              >✍️ Cursive</span
             >
-              ✍️ Cursive
-            </span>
             {% endif %} </strong
           ><br />
-          <span class="history-meta" style="color: #666; font-size: 0.95em">
+          <span style="color: var(--text-secondary); font-size: 0.95em">
             {{ item.timestamp.strftime('%B %d, %Y at %I:%M %p') if
             item.timestamp else 'Date unknown' }}
           </span>
         </div>
       </div>
 
-      <div class="actions" style="flex-shrink: 0">
+      <div style="display: flex; gap: 8px; flex-shrink: 0">
         <a
           href="{{ url_for('download_file', filename=item.filename) }}"
           class="button"
@@ -121,12 +123,8 @@ Printables{% endblock %} {% block content %}
     {% endfor %}
   </div>
 </form>
-
 {% else %}
-<div
-  class="empty-state"
-  style="text-align: center; padding: 60px 0; color: #999"
->
+<div style="text-align: center; padding: 60px 0; color: #999">
   <p>No worksheets yet. Generate one to see history here!</p>
   <a
     href="/generate"
@@ -145,10 +143,14 @@ Printables{% endblock %} {% block content %}
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
   function filterHistory() {
-    const query = document.getElementById("searchInput").value.toLowerCase();
+    const query = document
+      .getElementById("searchInput")
+      .value.toLowerCase()
+      .trim();
     const version = document
       .getElementById("versionFilter")
-      .value.toLowerCase();
+      .value.toLowerCase()
+      .trim();
     const entries = document.querySelectorAll(".history-entry");
 
     entries.forEach((entry) => {
@@ -183,10 +185,6 @@ Printables{% endblock %} {% block content %}
 </script>
 
 <style>
-  .actions {
-    display: flex;
-    gap: 8px;
-  }
   .button.delete {
     background: #e53e3e;
   }
@@ -196,7 +194,6 @@ Printables{% endblock %} {% block content %}
   .tag {
     font-weight: 500;
   }
-  /* Dark mode overrides */
   body.dark .button.delete {
     background: #9b2c2c;
   }
