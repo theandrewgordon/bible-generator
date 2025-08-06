@@ -1,11 +1,13 @@
-<header>
-  <div style="display: flex; align-items: center; gap: 24px">
-    <img
-      src="/static/faith_sparks_logo.png"
-      alt="Faith Sparks Logo"
-      style="height: 48px"
-    />
-    <nav>
+<header class="main-header">
+  <div class="logo-nav">
+    <a href="/" class="logo">
+      <img
+        src="/static/faith_sparks_logo.png"
+        alt="Faith Sparks Logo"
+        style="height: 48px"
+      />
+    </a>
+    <nav class="nav-links">
       <a href="/">🏠 Home</a>
       <a href="/generate">📝 Generate</a>
       <a href="/history">📚 History</a>
@@ -13,13 +15,95 @@
     </nav>
   </div>
 
-  <div style="display: flex; align-items: center; gap: 12px">
+  <div class="auth-theme">
     {% if user_info %}
-    <span style="font-weight: 600">👤 {{ user_info.email.split('@')[0] }}</span>
-    <a href="/logout" style="color: #e53e3e">🚪 Logout</a>
+    <span class="user-name">👤 {{ user_info.email.split('@')[0] }}</span>
+    <a href="/logout" class="auth-link logout">🚪 Logout</a>
     {% else %}
-    <a href="{{ url_for('google.login') }}">🔐 Login</a>
+    <a href="{{ url_for('google.login') }}" class="auth-link">🔐 Login</a>
     {% endif %}
-    <button class="toggle-btn" onclick="toggleDarkMode()">🌙</button>
+    <button class="theme-toggle" onclick="toggleDarkMode()">🌙</button>
   </div>
+
+  <style>
+    .main-header {
+      background: var(--primary);
+      padding: 16px 24px;
+      color: white;
+    }
+
+    .logo-nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 16px;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .auth-theme {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-name {
+      color: white;
+      font-weight: 600;
+    }
+
+    .auth-link {
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .auth-link.logout {
+      color: #fecaca;
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    @media (max-width: 600px) {
+      .main-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .logo-nav {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .nav-links {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .auth-theme {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+  </style>
 </header>

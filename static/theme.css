@@ -25,9 +25,15 @@ a.nav-link:hover {
   margin: 0 auto;
   padding: 2rem;
 }
-
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   background-color: var(--box);
@@ -35,11 +41,19 @@ header {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 nav a {
   margin-right: 1rem;
   text-decoration: none;
   color: var(--primary);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 nav a:hover {
@@ -61,6 +75,7 @@ button.toggle-btn {
   text-decoration: none;
   border-radius: 4px;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .button:hover {
@@ -134,6 +149,22 @@ input[type="checkbox"] + label,
   color: var(--text);
 }
 
+body.dark label,
+body.dark .checkbox-label,
+body.dark input[type="checkbox"] + label {
+  color: #f7fafc;
+}
+
+.checkbox-label {
+  color: var(--text);
+}
+
+.dark .checkbox-label,
+.dark input[type="checkbox"] + label,
+.dark label {
+  color: #f7fafc;
+}
+
 /* Cursive badge */
 .cursive-badge {
   background-color: #f6ad55;
@@ -145,25 +176,88 @@ input[type="checkbox"] + label,
   margin-left: 6px;
   vertical-align: middle;
 }
-
 body.dark .cursive-badge {
   background-color: #dd6b20;
 }
 
-body.dark input[type="checkbox"] + label,
-body.dark .checkbox-label,
-body.dark label {
-  color: #f7fafc; /* Light text for dark mode */
-}
-.checkbox-label {
-  color: var(--text);
+/* History entry layout tweaks for mobile */
+.history-entry {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-body.dark .checkbox-label {
-  color: #f7fafc;
+.history-entry input[type="checkbox"] {
+  flex-shrink: 0;
+  margin-top: 4px;
 }
-.dark .checkbox-label,
-.dark input[type="checkbox"] + label,
-.dark label {
-  color: #f7fafc;
+
+.history-entry .actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .history-entry {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .history-entry .actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .button {
+    width: 100%;
+    text-align: center;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  nav a {
+    display: block;
+    margin: 0.5rem 0;
+  }
+
+  .container {
+    padding: 1rem;
+  }
+
+  form input,
+  form select,
+  form button {
+    font-size: 1em;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+/* Adjust h1 sizing on mobile */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.75rem;
+  }
+}
+
+/* Fix for advanced options box on mobile dark mode */
+details > div {
+  background: var(--box);
+  color: var(--text);
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 8px;
 }

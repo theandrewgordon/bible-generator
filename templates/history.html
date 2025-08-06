@@ -143,19 +143,15 @@ Printables{% endblock %} {% block content %}
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
   function filterHistory() {
-    const query = document
-      .getElementById("searchInput")
-      .value.toLowerCase()
-      .trim();
+    const query = document.getElementById("searchInput").value.toLowerCase();
     const version = document
       .getElementById("versionFilter")
-      .value.toLowerCase()
-      .trim();
+      .value.toLowerCase();
     const entries = document.querySelectorAll(".history-entry");
 
     entries.forEach((entry) => {
-      const verse = entry.dataset.verse || "";
-      const vers = entry.dataset.version || "";
+      const verse = (entry.dataset.verse || "").toLowerCase();
+      const vers = (entry.dataset.version || "").toLowerCase();
       const match =
         (!query || verse.includes(query) || vers.includes(query)) &&
         (!version || vers === version);
