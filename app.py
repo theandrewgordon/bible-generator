@@ -48,12 +48,15 @@ def normalize_slug(text):
     return re.sub(r'[\s:–—]', '_', text.lower())
 
 def extract_version_from_text(text, fallback_version):
+    fallback_version = fallback_version.lower()
+    if fallback_version == "auto":
+        fallback_version = "esv"  # force fallback here
     match = re.search(r'\((\w{2,6})\)$', text.strip())
     if match:
         version = match.group(1).lower()
         verse = text[:match.start()].strip()
     else:
-        version = fallback_version.lower()
+        version = fallback_version
         verse = text.strip()
     return version or "esv", verse.title()
 
