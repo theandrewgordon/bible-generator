@@ -41,10 +41,10 @@ Printables{% endblock %} {% block content %}
   <div
     style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px"
   >
-    <label
-      ><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
-      Select All</label
-    >
+    <label>
+      <input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
+      Select All
+    </label>
     <button
       type="submit"
       class="button delete"
@@ -95,8 +95,9 @@ Printables{% endblock %} {% block content %}
                 font-size: 0.8em;
                 margin-left: 4px;
               "
-              >✍️ Cursive</span
             >
+              ✍️ Cursive
+            </span>
             {% endif %} </strong
           ><br />
           <span style="color: var(--text-secondary); font-size: 0.95em">
@@ -111,6 +112,11 @@ Printables{% endblock %} {% block content %}
           href="{{ url_for('download_file', filename=item.filename) }}"
           class="button"
           >📥 Download</a
+        >
+        <a
+          href="{{ url_for('regenerate', filename=item.filename) }}"
+          class="button"
+          >🔁 Regenerate</a
         >
         <a
           href="{{ url_for('delete_worksheet', filename=item.filename) }}"

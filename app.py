@@ -13,7 +13,6 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# --- Google OAuth ---
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
@@ -23,7 +22,6 @@ google_bp = make_google_blueprint(
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
-# --- Firebase ---
 creds_str = os.environ.get("FIREBASE_CREDS_JSON")
 if creds_str:
     with open("/tmp/firebase-creds.json", "w") as f:
@@ -34,7 +32,6 @@ else:
     db = None
     print("⚠️ Firestore not initialized")
 
-# --- Utilities ---
 def login_required(func):
     from functools import wraps
     @wraps(func)
@@ -48,9 +45,9 @@ def normalize_slug(text):
     return re.sub(r'[\s:–—]', '_', text.lower())
 
 def extract_version_from_text(text, fallback_version):
-    fallback_version = fallback_version.lower()
+    fallback_version = (fallback_version or "esv").lower()
     if fallback_version == "auto":
-        fallback_version = "esv"  # force fallback here
+        fallback_version = "esv"
     match = re.search(r'\((\w{2,6})\)$', text.strip())
     if match:
         version = match.group(1).lower()
@@ -58,7 +55,7 @@ def extract_version_from_text(text, fallback_version):
     else:
         version = fallback_version
         verse = text.strip()
-    return version or "esv", verse.title()
+    return version, verse.title()
 
 def update_zip_bundle():
     with ZipFile("output/worksheets_bundle.zip", "w") as zf:
@@ -68,7 +65,6 @@ def update_zip_bundle():
 
 os.makedirs("output", exist_ok=True)
 
-# --- Routes ---
 @app.route("/")
 def index():
     if google.authorized:
@@ -86,17 +82,12 @@ def logout():
 def about():
     return render_template("about.html")
 
-@app.route("/success")
-def success():
-    return render_template("success.html")
-
 @app.route("/preview")
 def preview():
     verse_input = request.args.get('verse', '').strip()
-    fallback = request.args.get('version', 'nlt').lower()
+    fallback = request.args.get('version', 'auto').lower()
     if not verse_input:
         return "", 400
-
     previews = []
     for verse_entry in verse_input.split(","):
         version, verse = extract_version_from_text(verse_entry, fallback)
@@ -126,11 +117,9 @@ def generate():
             version, verse = extract_version_from_text(v, selected_version or "esv")
             actual_version = version.upper()
             slug = normalize_slug(verse)
-            json_path = f"output/{slug}_{version}.json"
             pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
             last_pdf = pdf_path
 
-            # Dedup check
             existing = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
                 .where(filter=firestore.FieldFilter("verse", "==", verse))\
                 .where(filter=firestore.FieldFilter("version", "==", actual_version))\
@@ -141,7 +130,6 @@ def generate():
                 last_pdf = os.path.join("output", doc.to_dict().get("filename"))
                 continue
 
-            # Cache check
             cached = db.collection("verse_cache").document(f"{slug}_{version}").get() if db else None
             if cached and cached.exists:
                 data = cached.to_dict()["data"]
@@ -159,10 +147,9 @@ def generate():
                         "data": data,
                         "timestamp": firestore.SERVER_TIMESTAMP
                     })
-                save_json_to_file(data, json_path)
+                save_json_to_file(data, f"output/{slug}_{version}.json")
 
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
-
             if db:
                 db.collection("worksheets").add({
                     "email": user_email,
@@ -176,9 +163,10 @@ def generate():
         update_zip_bundle()
         if len(verses) == 1 and os.path.exists(last_pdf):
             return send_file(last_pdf, as_attachment=True)
-        if len(verses) > 1 and os.path.exists("output/worksheets_bundle.zip"):
+        elif os.path.exists("output/worksheets_bundle.zip"):
             return send_file("output/worksheets_bundle.zip", as_attachment=True)
         return "No file generated", 500
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -194,6 +182,35 @@ def history():
         .order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).stream()
     history = [doc.to_dict() for doc in results]
     return render_template("history.html", history=history, email=user_email)
+
+@app.route("/regenerate/<filename>")
+@login_required
+def regenerate(filename):
+    if not db:
+        return "Firestore not configured", 500
+    user_email = session.get("user_email")
+
+    docs = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
+        .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
+    doc = next(docs, None)
+    if not doc:
+        return "Original data not found", 404
+
+    meta = doc.to_dict()
+    version = meta["version"].lower()
+    verse = meta["verse"]
+    use_cursive = meta.get("cursive", False)
+    slug = normalize_slug(verse)
+    pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
+
+    content = request_verse_data(verse, version)
+    if not content:
+        return "Verse fetch failed", 500
+    data = parse_and_clean_json(content)
+    data.update({"version": version.upper(), "cursive": use_cursive})
+    generate_pdf(data, pdf_path, use_cursive=use_cursive)
+    flash(f"✅ Regenerated {verse} ({version.upper()})", "success")
+    return redirect(url_for("history"))
 
 @app.route("/download/<filename>")
 @login_required
