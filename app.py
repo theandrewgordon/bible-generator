@@ -100,6 +100,7 @@ def generate():
     try:
         verse_input = request.form.get('verse', '').strip()
         custom_text = request.form.get('custom_text', '').strip()
+        custom_title = request.form.get('custom_title', '').strip()
         selected_version = request.form.get('version', 'esv').strip().lower()
         use_cursive = request.form.get('cursive') == "on"
         is_custom = bool(custom_text)
@@ -130,7 +131,7 @@ def generate():
 
         if is_custom:
             safe = ai_validate_custom_text(custom_text)
-            label = "Custom Text (User Submitted)"
+            label = custom_title or "Custom Text (User Submitted)"
             if not safe:
                 label += " ⚠️ Unverified"
             items_to_generate.append({
@@ -140,6 +141,9 @@ def generate():
                 "is_custom": True,
                 "text": custom_text
             })
+
+
+
 
         last_pdf = None
         for item in items_to_generate:

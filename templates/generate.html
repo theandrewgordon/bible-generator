@@ -30,6 +30,13 @@ endblock %} {% block content %}
       style="display: none; width: 100%; margin-top: 8px; padding: 10px"
       rows="4"
     ></textarea>
+    <input
+      type="text"
+      id="customTitle"
+      name="custom_title"
+      placeholder="Optional: Add a short title for this worksheet (e.g., 'The Lord is My Shepherd')"
+      style="display: none; width: 100%; margin-top: 8px; padding: 8px"
+    />
     <p
       id="customModeNote"
       style="
@@ -171,6 +178,9 @@ endblock %} {% block content %}
     customTextArea.style.display = show ? "block" : "none";
     customNote.style.display = show ? "block" : "none";
     termsWrapper.style.display = show ? "block" : "none";
+    document.getElementById("customTitle").style.display = show
+      ? "block"
+      : "none";
   });
 
   // Restore from local storage
