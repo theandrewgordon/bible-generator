@@ -109,15 +109,18 @@ endblock %} {% block content %}
   const customNote = document.getElementById("customModeNote");
   const termsWrapper = document.getElementById("termsWrapper");
   const agreeTerms = document.getElementById("agreeTerms");
+  const customTitle = document.getElementById("customTitle");
 
   function clearForm() {
     tagList.innerHTML = "";
     verseInput.value = "";
     customTextArea.value = "";
+    customTitle.value = "";
     customMode.checked = false;
     customTextArea.style.display = "none";
     customNote.style.display = "none";
     termsWrapper.style.display = "none";
+    customTitle.style.display = "none";
     agreeTerms.checked = false;
     localStorage.removeItem("recentVerses");
   }
@@ -178,13 +181,17 @@ endblock %} {% block content %}
     customTextArea.style.display = show ? "block" : "none";
     customNote.style.display = show ? "block" : "none";
     termsWrapper.style.display = show ? "block" : "none";
-    document.getElementById("customTitle").style.display = show
-      ? "block"
-      : "none";
+    customTitle.style.display = show ? "block" : "none";
   });
 
   // Restore from local storage
   window.addEventListener("DOMContentLoaded", () => {
+    const clearFlag = {{ clear_storage | tojson | default("false") }};
+    if (clearFlag) {
+      clearForm();
+      return;
+    }
+
     const recent = localStorage.getItem("recentVerses");
     if (recent) recent.split(",").forEach((v) => addTag(v.trim()));
 

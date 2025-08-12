@@ -78,6 +78,7 @@ def update_zip_bundle():
 os.makedirs("output", exist_ok=True)
 
 # --- Routes ---
+# --- Routes ---
 @app.route("/")
 def index():
     return render_template("index.html", user_info=session.get("user_info"))
@@ -95,7 +96,13 @@ def about():
 @login_required
 def generate():
     if request.method == "GET":
-        return render_template("generate.html", prefill_verse=request.args.get("verse", "").strip())
+        # Pass clear_storage flag from session and reset it
+        clear_storage = session.pop("clear_storage", False)
+        return render_template(
+            "generate.html",
+            prefill_verse=request.args.get("verse", "").strip(),
+            clear_storage=clear_storage
+        )
 
     try:
         verse_input = request.form.get('verse', '').strip()
@@ -115,9 +122,7 @@ def generate():
 
         verse_input = ", ".join(tag_list)  # Normalize input
 
-
         items_to_generate = []
-
         if verse_input:
             for v in [v.strip() for v in verse_input.split(",") if v.strip()]:
                 version, verse = extract_version_from_text(v, selected_version)
@@ -141,9 +146,6 @@ def generate():
                 "is_custom": True,
                 "text": custom_text
             })
-
-
-
 
         last_pdf = None
         for item in items_to_generate:
@@ -212,6 +214,9 @@ def generate():
 
         update_zip_bundle()
 
+        # ✅ Set flag to clear localStorage after redirect
+        session["clear_storage"] = True
+
         if len(items_to_generate) == 1 and os.path.exists(last_pdf):
             return send_file(last_pdf, as_attachment=True)
         elif len(items_to_generate) > 1 and os.path.exists("output/worksheets_bundle.zip"):
@@ -223,6 +228,7 @@ def generate():
         import traceback
         traceback.print_exc()
         return f"Server error: {e}", 500
+
 
 @app.route("/history")
 @login_required
