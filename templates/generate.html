@@ -100,115 +100,117 @@ endblock %} {% block content %}
 </form>
 
 <script>
-  const verseInput = document.getElementById("verseInput");
-  const tagList = document.getElementById("tagList");
-  const versionSelect = document.getElementById("versionSelect");
-  const cursiveToggle = document.getElementById("cursiveToggle");
-  const customMode = document.getElementById("customMode");
-  const customTextArea = document.getElementById("customTextArea");
-  const customNote = document.getElementById("customModeNote");
-  const termsWrapper = document.getElementById("termsWrapper");
-  const agreeTerms = document.getElementById("agreeTerms");
-  const customTitle = document.getElementById("customTitle");
+    const verseInput = document.getElementById("verseInput");
+    const tagList = document.getElementById("tagList");
+    const versionSelect = document.getElementById("versionSelect");
+    const cursiveToggle = document.getElementById("cursiveToggle");
+    const customMode = document.getElementById("customMode");
+    const customTextArea = document.getElementById("customTextArea");
+    const customNote = document.getElementById("customModeNote");
+    const termsWrapper = document.getElementById("termsWrapper");
+    const agreeTerms = document.getElementById("agreeTerms");
+    const customTitle = document.getElementById("customTitle");
 
-  function clearForm() {
-    tagList.innerHTML = "";
-    verseInput.value = "";
-    customTextArea.value = "";
-    customTitle.value = "";
-    customMode.checked = false;
-    customTextArea.style.display = "none";
-    customNote.style.display = "none";
-    termsWrapper.style.display = "none";
-    customTitle.style.display = "none";
-    agreeTerms.checked = false;
-    localStorage.removeItem("recentVerses");
-  }
+    function clearForm() {
+      tagList.innerHTML = "";
+      verseInput.value = "";
+      customTextArea.value = "";
+      customTitle.value = "";
+      customMode.checked = false;
+      customTextArea.style.display = "none";
+      customNote.style.display = "none";
+      termsWrapper.style.display = "none";
+      customTitle.style.display = "none";
+      agreeTerms.checked = false;
+      localStorage.removeItem("recentVerses");
+    }
 
-  // Tag input behavior
-  verseInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
+    // Tag input behavior
+  verseInput.addEventListener("keyup", (e) => {
+    const delimiters = [",", "Enter"];
+    if (delimiters.includes(e.key)) {
       const val = verseInput.value.trim();
-      if (val) {
+      if (val !== "") {
         addTag(val);
         verseInput.value = "";
       }
-    }
-  });
-
-  function addTag(text) {
-    const span = document.createElement("span");
-    span.className = "tag";
-    span.textContent = text;
-    const removeBtn = document.createElement("button");
-    removeBtn.textContent = "✖";
-    removeBtn.onclick = () => span.remove();
-    span.appendChild(removeBtn);
-    tagList.appendChild(span);
-  }
-
-  // On submit, compile tags into hidden input
-  document.getElementById("worksheetForm").addEventListener("submit", (e) => {
-    const tags = [...tagList.querySelectorAll(".tag")].map((el) =>
-      el.textContent.replace("✖", "").trim()
-    );
-
-    const customText = customTextArea.value.trim();
-    const allowSubmit = tags.length > 0 || customText.length > 0;
-
-    if (!allowSubmit) {
       e.preventDefault();
-      alert("Please enter at least one verse or custom text.");
-      return false;
-    }
-
-    if (tags.length > 0) {
-      verseInput.value = tags.join(", ");
-      localStorage.setItem("recentVerses", verseInput.value);
-    }
-
-    if (customMode.checked && !agreeTerms.checked) {
-      e.preventDefault();
-      alert("You must agree to the terms to submit custom content.");
-      return false;
     }
   });
 
-  // Show/hide custom input
-  customMode.addEventListener("change", () => {
-    const show = customMode.checked;
-    customTextArea.style.display = show ? "block" : "none";
-    customNote.style.display = show ? "block" : "none";
-    termsWrapper.style.display = show ? "block" : "none";
-    customTitle.style.display = show ? "block" : "none";
-  });
 
-  // Restore from local storage
-  window.addEventListener("DOMContentLoaded", () => {
-    const clearFlag = {{ clear_storage | tojson | default("false") }};
-    if (clearFlag) {
-      clearForm();
-      return;
+    function addTag(text) {
+      const span = document.createElement("span");
+      span.className = "tag";
+      span.textContent = text;
+      const removeBtn = document.createElement("button");
+      removeBtn.textContent = "✖";
+      removeBtn.onclick = () => span.remove();
+      span.appendChild(removeBtn);
+      tagList.appendChild(span);
     }
 
-    const recent = localStorage.getItem("recentVerses");
-    if (recent) recent.split(",").forEach((v) => addTag(v.trim()));
+    // On submit, compile tags into hidden input
+    document.getElementById("worksheetForm").addEventListener("submit", (e) => {
+      const tags = [...tagList.querySelectorAll(".tag")].map((el) =>
+        el.textContent.replace("✖", "").trim()
+      );
 
-    const storedVersion = localStorage.getItem("preferredVersion");
-    if (storedVersion) versionSelect.value = storedVersion;
+      const customText = customTextArea.value.trim();
+      const allowSubmit = tags.length > 0 || customText.length > 0;
 
-    const useCursive = localStorage.getItem("useCursive") === "true";
-    cursiveToggle.checked = useCursive;
-  });
+      if (!allowSubmit) {
+        e.preventDefault();
+        alert("Please enter at least one verse or custom text.");
+        return false;
+      }
 
-  versionSelect.addEventListener("change", () => {
-    localStorage.setItem("preferredVersion", versionSelect.value);
-  });
+      if (tags.length > 0) {
+        verseInput.value = tags.join(", ");
+        localStorage.setItem("recentVerses", verseInput.value);
+      }
 
-  cursiveToggle.addEventListener("change", () => {
-    localStorage.setItem("useCursive", cursiveToggle.checked);
-  });
+      if (customMode.checked && !agreeTerms.checked) {
+        e.preventDefault();
+        alert("You must agree to the terms to submit custom content.");
+        return false;
+      }
+    });
+
+    // Show/hide custom input
+    customMode.addEventListener("change", () => {
+      const show = customMode.checked;
+      customTextArea.style.display = show ? "block" : "none";
+      customNote.style.display = show ? "block" : "none";
+      termsWrapper.style.display = show ? "block" : "none";
+      customTitle.style.display = show ? "block" : "none";
+    });
+
+    // Restore from local storage
+    window.addEventListener("DOMContentLoaded", () => {
+      const clearFlag = {{ clear_storage | tojson | default("false") }};
+      if (clearFlag) {
+        clearForm();
+        return;
+      }
+
+      const recent = localStorage.getItem("recentVerses");
+      if (recent) recent.split(",").forEach((v) => addTag(v.trim()));
+
+      const storedVersion = localStorage.getItem("preferredVersion");
+      if (storedVersion) versionSelect.value = storedVersion;
+
+      const useCursive = localStorage.getItem("useCursive") === "true";
+      cursiveToggle.checked = useCursive;
+    });
+
+    versionSelect.addEventListener("change", () => {
+      localStorage.setItem("preferredVersion", versionSelect.value);
+    });
+
+    cursiveToggle.addEventListener("change", () => {
+      localStorage.setItem("useCursive", cursiveToggle.checked);
+    });
 </script>
 
 <style>
