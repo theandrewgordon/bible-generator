@@ -261,3 +261,11 @@ details > div {
   border-radius: 6px;
   margin-top: 8px;
 }
+
+#tagsContainer span {
+  background: var(--box);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85em;
+}

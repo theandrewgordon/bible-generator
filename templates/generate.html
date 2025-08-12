@@ -1,47 +1,62 @@
 {% extends "base.html" %} {% block title %}Generate Bible Worksheet | Faith
 Sparks Printables{% endblock %} {% block content %}
 <h1 style="text-align: center">Create Your Worksheet</h1>
-<form method="POST" action="/generate" onsubmit="showSpinner()">
-  <label for="verse">Bible Verse (e.g. John 3:16 or John 3:16 (KJV))</label>
+
+<form
+  method="POST"
+  action="/generate"
+  onsubmit="return handleSubmit()"
+  style="max-width: 100%"
+>
+  <label for="verse">Bible Verse(s)</label>
   <input
     type="text"
-    name="verse"
-    id="verse"
-    required
-    onblur="fetchPreview()"
+    id="verseInput"
+    placeholder="e.g. John 3:16 or Gen 1:1 (KJV)"
     autocomplete="off"
     style="
       width: 100%;
       padding: 10px;
-      margin-bottom: 20px;
       border-radius: 6px;
       border: 1px solid #ccc;
+      margin-bottom: 8px;
     "
   />
 
   <div
-    id="preview"
+    id="tagsContainer"
+    style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px"
+  ></div>
+  <input type="hidden" name="verse" id="verseHidden" />
+
+  <div
     style="
-      display: none;
-      font-size: 0.95em;
-      background: var(--box);
-      padding: 10px;
-      border-radius: 6px;
-      margin-top: -10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 20px;
     "
-  ></div>
+  >
+    <label for="version" style="font-weight: 600">Bible Version</label>
+    <button
+      type="button"
+      onclick="clearVerses()"
+      class="button delete"
+      style="padding: 6px 12px; font-size: 0.9em"
+    >
+      Clear
+    </button>
+  </div>
 
-  <label for="version">Bible Version</label>
   <select
     name="version"
     id="version"
     style="
       width: 100%;
       padding: 10px;
-      margin-bottom: 20px;
       border-radius: 6px;
       border: 1px solid #ccc;
+      margin-bottom: 20px;
     "
   >
     <option value="auto" selected>Auto-detect from input</option>
@@ -49,101 +64,115 @@ Sparks Printables{% endblock %} {% block content %}
     <option value="kjv">King James Version (KJV)</option>
   </select>
 
-  <details>
-    <summary style="cursor: pointer; font-weight: 600; margin-bottom: 10px">
+  <details style="margin-bottom: 20px">
+    <summary style="cursor: pointer; font-weight: 600">
       ⚙️ Advanced Options
     </summary>
     <div
       style="
         padding: 12px;
+        background: #f0f0f0;
         border-radius: 6px;
-        background: var(--box);
-        margin-bottom: 20px;
+        margin-top: 8px;
       "
     >
-      <input type="checkbox" id="cursive" name="cursive" />
-      <label for="cursive" class="checkbox-label"
-        >Use cursive tracing font</label
-      >
+      <label class="checkbox-label">
+        <input type="checkbox" name="cursive" />
+        Use cursive tracing font
+      </label>
     </div>
   </details>
 
-  <button
-    type="submit"
+  <div
+    id="preview"
     style="
-      width: 100%;
+      display: none;
+      background: var(--box);
       padding: 12px;
-      background: #2b6cb0;
-      color: white;
-      border: none;
       border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
+      margin-bottom: 20px;
     "
-  >
+  ></div>
+
+  <button type="submit" class="button" style="width: 100%">
     Generate Worksheet
   </button>
 
-  <div
-    class="spinner"
-    id="spinner"
-    style="display: none; text-align: center; margin-top: 20px"
-  >
+  <div id="spinner" style="display: none; text-align: center; margin-top: 20px">
     <img src="/static/spinner.gif" alt="Loading..." style="width: 48px" />
     <p>Generating your worksheet...</p>
-  </div>
-
-  <div
-    class="download-message"
-    id="download-msg"
-    style="
-      text-align: center;
-      font-size: 0.9em;
-      margin-top: 16px;
-      color: #2f855a;
-      display: none;
-    "
-  >
-    ✅ Your worksheet has been generated!
   </div>
 </form>
 
 <a
   href="/download_all"
+  class="button"
   style="
     display: block;
     text-align: center;
     margin: 20px auto;
-    text-decoration: none;
-    font-weight: bold;
-    color: #2b6cb0;
+    max-width: 280px;
   "
 >
   ⬇ Download All Worksheets
 </a>
 {% endblock %} {% block extra_scripts %}
 <script>
-  function toggleDarkMode() {
-    document.body.classList.toggle("dark");
-    localStorage.setItem(
-      "theme",
-      document.body.classList.contains("dark") ? "dark" : "light"
-    );
+  let tags = [];
+
+  document
+    .getElementById("verseInput")
+    .addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const val = this.value.trim();
+        if (val && !tags.includes(val)) {
+          tags.push(val);
+          this.value = "";
+          updateTags();
+          fetchPreview();
+        }
+      }
+    });
+
+  function updateTags() {
+    const container = document.getElementById("tagsContainer");
+    const hidden = document.getElementById("verseHidden");
+    container.innerHTML = "";
+    tags.forEach((tag, i) => {
+      const span = document.createElement("span");
+      span.innerHTML = `${tag} <button type="button" onclick="removeTag(${i})" style="margin-left:6px;">✖</button>`;
+      span.style =
+        "background: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-size: 0.9em";
+      container.appendChild(span);
+    });
+    hidden.value = tags.join(", ");
   }
 
-  function showSpinner() {
-    document.getElementById("spinner").style.display = "block";
-    document.getElementById("download-msg").style.display = "none";
+  function removeTag(index) {
+    tags.splice(index, 1);
+    updateTags();
+    fetchPreview();
+  }
+
+  function clearVerses() {
+    tags = [];
+    document.getElementById("verseInput").value = "";
+    updateTags();
+    document.getElementById("preview").style.display = "none";
   }
 
   function fetchPreview() {
-    const verse = document.getElementById("verse").value;
     const version = document.getElementById("version").value;
     const preview = document.getElementById("preview");
 
-    if (verse.length < 4) return;
+    if (tags.length === 0) {
+      preview.style.display = "none";
+      preview.innerHTML = "";
+      return;
+    }
 
-    const params = new URLSearchParams({ verse });
+    const params = new URLSearchParams({ verse: tags.join(",") });
     if (version && version !== "auto") params.append("version", version);
 
     fetch(`/preview?${params.toString()}`)
@@ -152,11 +181,22 @@ Sparks Printables{% endblock %} {% block content %}
         if (text) {
           preview.style.display = "block";
           preview.innerHTML = text;
+        } else {
+          preview.style.display = "none";
         }
       })
       .catch(() => {
         preview.style.display = "none";
       });
+  }
+
+  function handleSubmit() {
+    if (tags.length === 0) {
+      alert("Please enter at least one Bible verse.");
+      return false;
+    }
+    document.getElementById("spinner").style.display = "block";
+    return true;
   }
 
   if (localStorage.getItem("theme") === "dark") {

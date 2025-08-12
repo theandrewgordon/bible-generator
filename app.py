@@ -21,6 +21,15 @@ google_bp = make_google_blueprint(
            "https://www.googleapis.com/auth/userinfo.profile", "openid"]
 )
 app.register_blueprint(google_bp, url_prefix="/login")
+@app.before_request
+def load_user_info():
+    if google.authorized and "user_info" not in session:
+        resp = google.get("/oauth2/v1/userinfo")
+        if resp.ok:
+            session["user_info"] = resp.json()
+    elif not google.authorized:
+        session.pop("user_info", None)
+
 
 creds_str = os.environ.get("FIREBASE_CREDS_JSON")
 if creds_str:
