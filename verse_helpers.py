@@ -3,12 +3,13 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Load environment and initialize OpenAI client
+# --- Load API Key ---
 load_dotenv("secret.env")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# === Slug & Normalization ===
 def normalize_slug(verse_ref):
-    """Create a clean, filesystem-safe slug from a verse reference."""
+    """Convert verse reference to filesystem-safe slug."""
     return (
         verse_ref.lower()
         .replace(":", "_")
@@ -17,8 +18,9 @@ def normalize_slug(verse_ref):
         .replace(" ", "_")
     )
 
+# === Prompt Construction ===
 def build_prompt(verse_ref, version):
-    """Build the initial GPT prompt to generate worksheet data."""
+    """Generate OpenAI prompt to build worksheet JSON."""
     return [
         {"role": "system", "content": "You help Christian homeschoolers create Bible worksheets."},
         {"role": "user", "content": f"""
@@ -42,8 +44,9 @@ Verse: {verse_ref}
 """}
     ]
 
+# === GPT Call Wrapper ===
 def call_openai(prompt):
-    """Make a call to OpenAI API and return the response content."""
+    """Call OpenAI API with a given prompt."""
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -54,8 +57,9 @@ def call_openai(prompt):
         print(f"⚠️ OpenAI error: {e}")
         return None
 
+# === Request Verse Data ===
 def request_verse_data(verse_ref, version="nlt"):
-    """Request worksheet data from GPT, retrying once if needed."""
+    """Request worksheet data from OpenAI, retrying once if needed."""
     prompt = build_prompt(verse_ref, version)
     content = call_openai(prompt)
     if content:
@@ -63,16 +67,18 @@ def request_verse_data(verse_ref, version="nlt"):
     print("🔁 Retrying OpenAI call...")
     return call_openai(prompt)
 
+# === JSON Safety Wrapper ===
 def parse_and_clean_json(content):
-    """Parse JSON string safely into a Python dict."""
+    """Safely parse OpenAI's JSON response."""
     try:
         return json.loads(content)
     except json.JSONDecodeError as e:
         print(f"❌ JSON parse error: {e}")
         return {}
 
+# === Retry Shortening for Long Traceable Verses ===
 def retry_traceable_fix(data):
-    """Retry GPT with a shorter traceableVerse if the original is too long."""
+    """Retry GPT if traceableVerse is longer than 26 words."""
     trace = data.get("traceableVerse", "")
     if len(trace.split()) <= 26:
         return data
@@ -96,7 +102,37 @@ Only return updated JSON, and keep the original fullVerse as-is.
             print(f"⚠️ Retry fix parse failed: {e}")
     return data
 
+# === Save Locally ===
 def save_json_to_file(data, path):
-    """Save worksheet JSON to file."""
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    """Save worksheet data to a local file."""
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ Could not save JSON to {path}: {e}")
+
+# === Custom Text Filtering ===
+def ai_validate_custom_text(text):
+    """Use GPT to check if custom content is safe and scripture-like."""
+    prompt = [
+        {"role": "system", "content": "You review religious education content for safety and accuracy."},
+        {"role": "user", "content": f"""
+Analyze the following custom text for appropriateness in a Christian children's worksheet.
+
+1. Flag if it includes profanity, crude, or lewd content.
+2. Evaluate if it resembles a Bible verse (even if paraphrased from a modern version).
+3. Return JSON with:
+  - "safe": true/false
+  - "isScriptureLike": true/false
+  - "reason": short explanation
+
+Text: {text}
+"""}
+    ]
+    result = call_openai(prompt)
+    try:
+        analysis = json.loads(result)
+        return analysis.get("safe", False) and analysis.get("isScriptureLike", False)
+    except Exception as e:
+        print(f"⚠️ Custom validation failed: {e}")
+        return False

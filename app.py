@@ -2,36 +2,40 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re
+from zipfile import ZipFile
 import firebase_admin
 from firebase_admin import credentials, firestore
-from zipfile import ZipFile
-from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file
+from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
 
+# --- App Setup ---
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
+# --- Google Auth ---
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
     redirect_to="index",
-    scope=["https://www.googleapis.com/auth/userinfo.email",
-           "https://www.googleapis.com/auth/userinfo.profile", "openid"]
+    scope=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"]
 )
 app.register_blueprint(google_bp, url_prefix="/login")
+
 @app.before_request
 def load_user_info():
     if google.authorized and "user_info" not in session:
         resp = google.get("/oauth2/v1/userinfo")
         if resp.ok:
             session["user_info"] = resp.json()
+            session["user_email"] = session["user_info"]["email"]
     elif not google.authorized:
         session.pop("user_info", None)
+        session.pop("user_email", None)
 
-
-creds_str = os.environ.get("FIREBASE_CREDS_JSON")
+# --- Firebase ---
+creds_str = os.getenv("FIREBASE_CREDS_JSON")
 if creds_str:
     with open("/tmp/firebase-creds.json", "w") as f:
         json.dump(json.loads(creds_str), f)
@@ -41,6 +45,7 @@ else:
     db = None
     print("⚠️ Firestore not initialized")
 
+# --- Helpers ---
 def login_required(func):
     from functools import wraps
     @wraps(func)
@@ -53,13 +58,8 @@ def login_required(func):
 def normalize_slug(text):
     return re.sub(r'[\s:–—]', '_', text.lower())
 
-# --- Utilities ---
 def extract_version_from_text(text, fallback_version):
-    """Extract Bible version from text, defaulting to ESV if not specified."""
-    fallback_version = fallback_version.lower()
-    if fallback_version == "auto":
-        fallback_version = "esv"
-    
+    fallback_version = "esv" if fallback_version.lower() == "auto" else fallback_version.lower()
     match = re.search(r'\((\w{2,6})\)$', text.strip())
     if match:
         version = match.group(1).lower()
@@ -67,7 +67,7 @@ def extract_version_from_text(text, fallback_version):
     else:
         version = fallback_version
         verse = text.strip()
-    return version or "esv", verse.title()
+    return version, verse.title()
 
 def update_zip_bundle():
     with ZipFile("output/worksheets_bundle.zip", "w") as zf:
@@ -77,13 +77,10 @@ def update_zip_bundle():
 
 os.makedirs("output", exist_ok=True)
 
+# --- Routes ---
 @app.route("/")
 def index():
-    if google.authorized:
-        resp = google.get("/oauth2/v1/userinfo")
-        if resp.ok:
-            session["user_email"] = resp.json().get("email", "anonymous")
-    return render_template("index.html", user_info=resp.json() if google.authorized else None)
+    return render_template("index.html", user_info=session.get("user_info"))
 
 @app.route("/logout")
 def logout():
@@ -94,94 +91,121 @@ def logout():
 def about():
     return render_template("about.html")
 
-@app.route("/preview")
-def preview():
-    verse_input = request.args.get('verse', '').strip()
-    fallback = request.args.get('version', 'auto').lower()
-    if not verse_input:
-        return "", 400
-    previews = []
-    for verse_entry in verse_input.split(","):
-        version, verse = extract_version_from_text(verse_entry, fallback)
-        data = parse_and_clean_json(request_verse_data(verse, version=version))
-        previews.append(f"<strong>{verse}</strong> ({version.upper()}): {data.get('fullVerse', '')}")
-    return "<br><br>".join(previews)
-
 @app.route("/generate", methods=["GET", "POST"])
 @login_required
 def generate():
     if request.method == "GET":
-        return render_template("generate.html")
+        return render_template("generate.html", prefill_verse=request.args.get("verse", "").strip())
 
     try:
         verse_input = request.form.get('verse', '').strip()
-        selected_version = request.form.get('version', '').strip().lower()
+        custom_text = request.form.get('custom_text', '').strip()
+        selected_version = request.form.get('version', 'esv').strip().lower()
+        use_cursive = request.form.get('cursive') == "on"
+        is_custom = bool(custom_text)
         user_email = session.get("user_email", "anonymous")
-        use_cursive = 'cursive' in request.form
 
-        # Force ESV for "auto" right at input
-        if selected_version == "auto":
-            selected_version = "esv"
-
-        if not verse_input:
+        if not verse_input and not custom_text:
             return "Verse is required", 400
 
-        verses = [v.strip() for v in verse_input.split(",") if v.strip()]
-        last_pdf = None
+        items_to_generate = []
 
-        for v in verses:
-            version, verse = extract_version_from_text(v, selected_version)
-            actual_version = version.upper()  # Normalize version case
-            slug = normalize_slug(verse)
+        if verse_input:
+            for v in [v.strip() for v in verse_input.split(",") if v.strip()]:
+                version, verse = extract_version_from_text(v, selected_version)
+                items_to_generate.append({
+                    "slug": normalize_slug(verse),
+                    "verse": verse,
+                    "version": version.upper(),
+                    "is_custom": False,
+                    "text": None
+                })
+
+        if is_custom:
+            safe = ai_validate_custom_text(custom_text)
+            label = "Custom Text (User Submitted)"
+            if not safe:
+                label += " ⚠️ Unverified"
+            items_to_generate.append({
+                "slug": normalize_slug(label),
+                "verse": label,
+                "version": "DIY",
+                "is_custom": True,
+                "text": custom_text
+            })
+
+        last_pdf = None
+        for item in items_to_generate:
+            slug = item["slug"]
+            version = item["version"]
+            verse = item["verse"]
+            is_custom = item["is_custom"]
+            text = item["text"]
             pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
             last_pdf = pdf_path
 
+            # Skip if already exists
             existing = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
                 .where(filter=firestore.FieldFilter("verse", "==", verse))\
-                .where(filter=firestore.FieldFilter("version", "==", actual_version))\
-                .where(filter=firestore.FieldFilter("cursive", "==", use_cursive))\
-                .limit(1).stream() if db else []
+                .where(filter=firestore.FieldFilter("version", "==", version))\
+                .where(filter=firestore.FieldFilter("cursive", "==", use_cursive)).limit(1).stream() if db else []
             doc = next(existing, None)
             if doc and os.path.exists(os.path.join("output", doc.to_dict().get("filename"))):
                 last_pdf = os.path.join("output", doc.to_dict().get("filename"))
                 continue
 
-            cached = db.collection("verse_cache").document(f"{slug}_{version}").get() if db else None
-            if cached and cached.exists:
-                data = cached.to_dict()["data"]
+            if is_custom:
+                data = {
+                    "verse": verse,
+                    "fullVerse": text,
+                    "traceableVerse": text,
+                    "handwritingLines": 3,
+                    "reflectionQuestion": "Why is this meaningful to you?",
+                    "imageIdea": "An open Bible or prayer hands",
+                    "version": "DIY",
+                    "cursive": use_cursive,
+                    "disclaimer": "This content was submitted by the user and not verified as Scripture."
+                }
             else:
-                content = request_verse_data(verse, version)
-                if not content:
-                    continue
-                data = parse_and_clean_json(content)
-                data.update({"version": actual_version, "cursive": use_cursive})
-                if db:
-                    db.collection("verse_cache").document(f"{slug}_{version}").set({
-                        "verse": verse,
-                        "version": actual_version,
-                        "slug": f"{slug}_{version}",
-                        "data": data,
-                        "timestamp": firestore.SERVER_TIMESTAMP
-                    })
-                save_json_to_file(data, f"output/{slug}_{version}.json")
+                cached = db.collection("verse_cache").document(f"{slug}_{version}").get() if db else None
+                if cached and cached.exists:
+                    data = cached.to_dict()["data"]
+                else:
+                    content = request_verse_data(verse, version)
+                    if not content:
+                        continue
+                    data = parse_and_clean_json(content)
+                    data.update({"version": version, "cursive": use_cursive})
+                    if db:
+                        db.collection("verse_cache").document(f"{slug}_{version}").set({
+                            "verse": verse,
+                            "version": version,
+                            "slug": f"{slug}_{version}",
+                            "data": data,
+                            "timestamp": firestore.SERVER_TIMESTAMP
+                        })
+                    save_json_to_file(data, f"output/{slug}_{version}.json")
 
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
+
             if db:
                 db.collection("worksheets").add({
                     "email": user_email,
                     "verse": verse,
-                    "version": actual_version,
+                    "version": version,
                     "filename": os.path.basename(pdf_path),
                     "timestamp": firestore.SERVER_TIMESTAMP,
-                    "cursive": use_cursive
+                    "cursive": use_cursive,
+                    "custom": is_custom
                 })
 
-        # Improved return logic
-        if len(verses) == 1 and os.path.exists(last_pdf):
+        update_zip_bundle()
+
+        if len(items_to_generate) == 1 and os.path.exists(last_pdf):
             return send_file(last_pdf, as_attachment=True)
-        if len(verses) > 1 and os.path.exists("output/worksheets_bundle.zip"):
+        elif len(items_to_generate) > 1 and os.path.exists("output/worksheets_bundle.zip"):
             return send_file("output/worksheets_bundle.zip", as_attachment=True)
-        
+
         return "No worksheets were generated successfully", 500
 
     except Exception as e:
@@ -214,19 +238,33 @@ def regenerate(filename):
         return "Original data not found", 404
 
     meta = doc.to_dict()
-    version = meta["version"].lower()
     verse = meta["verse"]
+    version = meta["version"]
     use_cursive = meta.get("cursive", False)
     slug = normalize_slug(verse)
     pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
 
-    content = request_verse_data(verse, version)
-    if not content:
-        return "Verse fetch failed", 500
-    data = parse_and_clean_json(content)
-    data.update({"version": version.upper(), "cursive": use_cursive})
+    if meta.get("custom"):
+        data = {
+            "verse": verse,
+            "fullVerse": verse,
+            "traceableVerse": verse,
+            "handwritingLines": 3,
+            "reflectionQuestion": "Why is this meaningful to you?",
+            "imageIdea": "An open Bible or prayer hands",
+            "version": "DIY",
+            "cursive": use_cursive,
+            "disclaimer": "This content was submitted by the user and not verified as Scripture."
+        }
+    else:
+        content = request_verse_data(verse, version.lower())
+        if not content:
+            return "Verse fetch failed", 500
+        data = parse_and_clean_json(content)
+        data.update({"version": version.upper(), "cursive": use_cursive})
+
     generate_pdf(data, pdf_path, use_cursive=use_cursive)
-    flash(f"✅ Regenerated {verse} ({version.upper()})", "success")
+    flash(f"✅ Regenerated {verse} ({version})", "success")
     return redirect(url_for("history"))
 
 @app.route("/download/<filename>")
@@ -246,18 +284,17 @@ def delete_worksheet(filename):
     if not db:
         return "Firestore not configured", 500
     user_email = session.get("user_email")
-
     docs = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
         .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
     doc = next(docs, None)
     if doc:
         db.collection("worksheet_archive").add({**doc.to_dict(), "deleted_at": firestore.SERVER_TIMESTAMP})
         doc.reference.delete()
-        path = os.path.join("output", filename)
-        if os.path.exists(path):
-            os.remove(path)
-        update_zip_bundle()
-        flash("✅ Worksheet deleted", "success")
+    path = os.path.join("output", filename)
+    if os.path.exists(path):
+        os.remove(path)
+    update_zip_bundle()
+    flash("✅ Worksheet deleted", "success")
     return redirect(url_for("history"))
 
 @app.route("/delete_bulk", methods=["POST"])
