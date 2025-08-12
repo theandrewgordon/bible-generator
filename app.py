@@ -44,10 +44,13 @@ def login_required(func):
 def normalize_slug(text):
     return re.sub(r'[\s:–—]', '_', text.lower())
 
+# --- Utilities ---
 def extract_version_from_text(text, fallback_version):
-    fallback_version = (fallback_version or "esv").lower()
+    """Extract Bible version from text, defaulting to ESV if not specified."""
+    fallback_version = fallback_version.lower()
     if fallback_version == "auto":
         fallback_version = "esv"
+    
     match = re.search(r'\((\w{2,6})\)$', text.strip())
     if match:
         version = match.group(1).lower()
@@ -55,7 +58,7 @@ def extract_version_from_text(text, fallback_version):
     else:
         version = fallback_version
         verse = text.strip()
-    return version, verse.title()
+    return version or "esv", verse.title()
 
 def update_zip_bundle():
     with ZipFile("output/worksheets_bundle.zip", "w") as zf:
@@ -104,8 +107,12 @@ def generate():
     try:
         verse_input = request.form.get('verse', '').strip()
         selected_version = request.form.get('version', '').strip().lower()
-        use_cursive = 'cursive' in request.form
         user_email = session.get("user_email", "anonymous")
+        use_cursive = 'cursive' in request.form
+
+        # Force ESV for "auto" right at input
+        if selected_version == "auto":
+            selected_version = "esv"
 
         if not verse_input:
             return "Verse is required", 400
@@ -114,8 +121,8 @@ def generate():
         last_pdf = None
 
         for v in verses:
-            version, verse = extract_version_from_text(v, selected_version or "esv")
-            actual_version = version.upper()
+            version, verse = extract_version_from_text(v, selected_version)
+            actual_version = version.upper()  # Normalize version case
             slug = normalize_slug(verse)
             pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
             last_pdf = pdf_path
@@ -160,12 +167,13 @@ def generate():
                     "cursive": use_cursive
                 })
 
-        update_zip_bundle()
+        # Improved return logic
         if len(verses) == 1 and os.path.exists(last_pdf):
             return send_file(last_pdf, as_attachment=True)
-        elif os.path.exists("output/worksheets_bundle.zip"):
+        if len(verses) > 1 and os.path.exists("output/worksheets_bundle.zip"):
             return send_file("output/worksheets_bundle.zip", as_attachment=True)
-        return "No file generated", 500
+        
+        return "No worksheets were generated successfully", 500
 
     except Exception as e:
         import traceback
