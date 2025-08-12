@@ -31,7 +31,7 @@ Printables{% endblock %} {% block content %}
   >
     <option value="">All Versions</option>
     {% for item in history|map(attribute='version')|unique %}
-    <option value="{{ item }}">{{ item }}</option>
+    <option value="{{ item|lower }}">{{ item }}</option>
     {% endfor %}
   </select>
 </div>
@@ -95,9 +95,8 @@ Printables{% endblock %} {% block content %}
                 font-size: 0.8em;
                 margin-left: 4px;
               "
+              >✍️ Cursive</span
             >
-              ✍️ Cursive
-            </span>
             {% endif %} </strong
           ><br />
           <span style="color: var(--text-secondary); font-size: 0.95em">
@@ -120,7 +119,7 @@ Printables{% endblock %} {% block content %}
           >🗑️ Delete</a
         >
         <a
-          href="{{ url_for('generate') }}?verse={{ item.verse | urlencode }} ({{ item.version | urlencode }}){% if item.cursive %}&cursive=on{% endif %}"
+          href="{{ url_for('generate') }}?verse={{ item.verse | urlencode }}+({{ item.version | urlencode }}){% if item.cursive %}&cursive=on{% endif %}"
           class="button"
           >♻ Regenerate</a
         >
@@ -151,18 +150,18 @@ Printables{% endblock %} {% block content %}
 <script>
   function filterHistory() {
     const query = document.getElementById("searchInput").value.toLowerCase();
-    const version = document
+    const selectedVersion = document
       .getElementById("versionFilter")
       .value.toLowerCase();
     const entries = document.querySelectorAll(".history-entry");
 
     entries.forEach((entry) => {
-      const verse = (entry.dataset.verse || "").toLowerCase();
-      const vers = (entry.dataset.version || "").toLowerCase();
-      const match =
-        (!query || verse.includes(query) || vers.includes(query)) &&
-        (!version || vers === version);
-      entry.style.display = match ? "flex" : "none";
+      const verse = entry.dataset.verse || "";
+      const version = entry.dataset.version || "";
+      const matchesVerse =
+        !query || verse.includes(query) || version.includes(query);
+      const matchesVersion = !selectedVersion || version === selectedVersion;
+      entry.style.display = matchesVerse && matchesVersion ? "flex" : "none";
     });
   }
 

@@ -11,7 +11,6 @@ endblock %} {% block content %}
       id="verseInput"
       name="verse"
       placeholder="e.g. John 3:16 (ESV) or paste a list"
-      required
     />
     <div id="tagList" class="tag-input"></div>
     <small id="verseHint">
@@ -144,21 +143,29 @@ endblock %} {% block content %}
     const tags = [...tagList.querySelectorAll(".tag")].map((el) =>
       el.textContent.replace("✖", "").trim()
     );
-    if (tags.length) {
-      verseInput.value = tags.join(", ");
+
+    const customText = customTextArea.value.trim();
+    const allowSubmit = tags.length > 0 || customText.length > 0;
+
+    if (!allowSubmit) {
+      e.preventDefault();
+      alert("Please enter at least one verse or custom text.");
+      return false;
     }
 
-    // Terms validation for custom
+    if (tags.length > 0) {
+      verseInput.value = tags.join(", ");
+      localStorage.setItem("recentVerses", verseInput.value);
+    }
+
     if (customMode.checked && !agreeTerms.checked) {
       e.preventDefault();
       alert("You must agree to the terms to submit custom content.");
       return false;
     }
-
-    localStorage.setItem("recentVerses", verseInput.value);
   });
 
-  // Show custom input
+  // Show/hide custom input
   customMode.addEventListener("change", () => {
     const show = customMode.checked;
     customTextArea.style.display = show ? "block" : "none";
@@ -166,12 +173,10 @@ endblock %} {% block content %}
     termsWrapper.style.display = show ? "block" : "none";
   });
 
-  // Restore previous values from localStorage
+  // Restore from local storage
   window.addEventListener("DOMContentLoaded", () => {
     const recent = localStorage.getItem("recentVerses");
-    if (recent) {
-      recent.split(",").forEach((v) => addTag(v.trim()));
-    }
+    if (recent) recent.split(",").forEach((v) => addTag(v.trim()));
 
     const storedVersion = localStorage.getItem("preferredVersion");
     if (storedVersion) versionSelect.value = storedVersion;
@@ -196,7 +201,6 @@ endblock %} {% block content %}
     gap: 8px;
     margin-top: 8px;
   }
-
   .tag {
     background-color: var(--box);
     padding: 6px 10px;
@@ -206,7 +210,6 @@ endblock %} {% block content %}
     gap: 6px;
     font-size: 0.9em;
   }
-
   .tag button {
     background: none;
     border: none;

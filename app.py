@@ -105,8 +105,15 @@ def generate():
         is_custom = bool(custom_text)
         user_email = session.get("user_email", "anonymous")
 
-        if not verse_input and not custom_text:
-            return "Verse is required", 400
+        tag_list = [v.strip() for v in verse_input.split(",") if v.strip()]
+        is_custom = bool(custom_text)
+
+        if not tag_list and not is_custom:
+            flash("⚠️ Please enter a verse or custom text to generate.", "warning")
+            return redirect(url_for("generate"))
+
+        verse_input = ", ".join(tag_list)  # Normalize input
+
 
         items_to_generate = []
 
@@ -271,7 +278,12 @@ def regenerate(filename):
 @login_required
 def download_file(filename):
     path = os.path.join("output", filename)
-    return send_file(path, as_attachment=True) if os.path.exists(path) else "File not found", 404
+    if not os.path.exists(path):
+        flash("⚠️ That file no longer exists. Please regenerate it.", "warning")
+        return redirect(url_for("history"))
+    return send_file(path, as_attachment=True)
+
+
 
 @app.route("/download_all")
 @login_required
