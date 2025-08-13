@@ -246,9 +246,10 @@ def history():
 def regenerate(filename):
     if not db:
         return "Firestore not configured", 500
-    user_email = session.get("user_email")
 
-    docs = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
+    user_email = session.get("user_email")
+    docs = db.collection("worksheets") \
+        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
         .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
     doc = next(docs, None)
     if not doc:
@@ -258,10 +259,11 @@ def regenerate(filename):
     verse = meta["verse"]
     version = meta["version"]
     use_cursive = meta.get("cursive", False)
-    slug = normalize_slug(verse)
+    is_custom = meta.get("custom", False)
+    slug = re.sub(r'[\s:–—]', '_', verse.lower())
     pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
 
-    if meta.get("custom"):
+    if is_custom:
         data = {
             "verse": verse,
             "fullVerse": verse,
@@ -281,8 +283,11 @@ def regenerate(filename):
         data.update({"version": version.upper(), "cursive": use_cursive})
 
     generate_pdf(data, pdf_path, use_cursive=use_cursive)
-    flash(f"✅ Regenerated {verse} ({version})", "success")
-    return redirect(url_for("history"))
+
+    # 🟢 Instead of redirecting, serve the file
+    if os.path.exists(pdf_path):
+        return send_file(pdf_path, as_attachment=True)
+    return "Regeneration failed", 500
 
 @app.route("/download/<filename>")
 @login_required
