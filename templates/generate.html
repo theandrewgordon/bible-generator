@@ -107,76 +107,83 @@ endblock %} {% block content %}
 </form>
 
 <script>
-  const verseInput = document.getElementById("verseInput");
-  const tagList = document.getElementById("tagList");
-  const versionSelect = document.getElementById("versionSelect");
-  const cursiveToggle = document.getElementById("cursiveToggle");
-  const customMode = document.getElementById("customMode");
-  const customTextArea = document.getElementById("customTextArea");
-  const customNote = document.getElementById("customModeNote");
-  const termsWrapper = document.getElementById("termsWrapper");
-  const agreeTerms = document.getElementById("agreeTerms");
-  const customTitle = document.getElementById("customTitle");
-  const clearVersesBtn = document.getElementById("clearVerses");
+    const verseInput = document.getElementById("verseInput");
+    const tagList = document.getElementById("tagList");
+    const versionSelect = document.getElementById("versionSelect");
+    const cursiveToggle = document.getElementById("cursiveToggle");
+    const customMode = document.getElementById("customMode");
+    const customTextArea = document.getElementById("customTextArea");
+    const customNote = document.getElementById("customModeNote");
+    const termsWrapper = document.getElementById("termsWrapper");
+    const agreeTerms = document.getElementById("agreeTerms");
+    const customTitle = document.getElementById("customTitle");
+    const clearVersesBtn = document.getElementById("clearVerses");
 
-  function clearForm() {
-    tagList.innerHTML = "";
-    verseInput.value = "";
-    customTextArea.value = "";
-    customTitle.value = "";
-    customMode.checked = false;
-    customTextArea.style.display = "none";
-    customNote.style.display = "none";
-    termsWrapper.style.display = "none";
-    customTitle.style.display = "none";
-    agreeTerms.checked = false;
-    clearVersesBtn.style.display = "none";
-    localStorage.removeItem("recentVerses");
-  }
-
-  function addTag(text) {
-    const span = document.createElement("span");
-    span.className = "tag";
-    span.textContent = text;
-    const removeBtn = document.createElement("button");
-    removeBtn.textContent = "✖";
-    removeBtn.onclick = () => {
-      span.remove();
-      toggleClearButton();
-    };
-    span.appendChild(removeBtn);
-    tagList.appendChild(span);
-    toggleClearButton();
-  }
-
-  function toggleClearButton() {
-    clearVersesBtn.style.display = tagList.children.length > 0 ? "inline-block" : "none";
-  }
-
-  // Add tag on Enter or comma
-  verseInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const val = verseInput.value.trim();
-      if (val) {
-        addTag(val);
-        verseInput.value = "";
-      }
+    function clearForm() {
+      tagList.innerHTML = "";
+      verseInput.value = "";
+      customTextArea.value = "";
+      customTitle.value = "";
+      customMode.checked = false;
+      customTextArea.style.display = "none";
+      customNote.style.display = "none";
+      termsWrapper.style.display = "none";
+      customTitle.style.display = "none";
+      agreeTerms.checked = false;
+      clearVersesBtn.style.display = "none";
+      localStorage.removeItem("recentVerses");
     }
-  });
 
-  // Clear all tags
-  clearVersesBtn.addEventListener("click", () => {
-    tagList.innerHTML = "";
-    verseInput.value = "";
-    localStorage.removeItem("recentVerses");
-    toggleClearButton();
-  });
+    function addTag(text) {
+      const span = document.createElement("span");
+      span.className = "tag";
+      span.textContent = text;
+      const removeBtn = document.createElement("button");
+      removeBtn.textContent = "✖";
+      removeBtn.onclick = () => {
+        span.remove();
+        toggleClearButton();
+      };
+      span.appendChild(removeBtn);
+      tagList.appendChild(span);
+      toggleClearButton();
+    }
+
+    function toggleClearButton() {
+      clearVersesBtn.style.display = tagList.children.length > 0 ? "inline-block" : "none";
+    }
+
+    // Add tag on Enter or comma
+    verseInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === ",") {
+        e.preventDefault();
+        const val = verseInput.value.trim();
+        if (val) {
+          addTag(val);
+          verseInput.value = "";
+        }
+      }
+    });
+
+    // Clear all tags
+    clearVersesBtn.addEventListener("click", () => {
+      tagList.innerHTML = "";
+      verseInput.value = "";
+      localStorage.removeItem("recentVerses");
+      toggleClearButton();
+    });
 
   document.getElementById("worksheetForm").addEventListener("submit", (e) => {
     const tags = [...tagList.querySelectorAll(".tag")].map((el) =>
       el.textContent.replace("✖", "").trim()
     );
+
+    // ✅ Also grab the current text in the input field if it's not empty
+    const currentInput = verseInput.value.trim();
+    if (currentInput) {
+      tags.push(currentInput);
+    }
+
     const customText = customTextArea.value.trim();
     const allowSubmit = tags.length > 0 || customText.length > 0;
 
@@ -186,10 +193,8 @@ endblock %} {% block content %}
       return false;
     }
 
-    if (tags.length > 0) {
-      verseInput.value = tags.join(", ");
-      localStorage.setItem("recentVerses", verseInput.value);
-    }
+    verseInput.value = tags.join(", ");
+    localStorage.setItem("recentVerses", verseInput.value);
 
     if (customMode.checked && !agreeTerms.checked) {
       e.preventDefault();
@@ -198,38 +203,39 @@ endblock %} {% block content %}
     }
   });
 
-  customMode.addEventListener("change", () => {
-    const show = customMode.checked;
-    customTextArea.style.display = show ? "block" : "none";
-    customNote.style.display = show ? "block" : "none";
-    termsWrapper.style.display = show ? "block" : "none";
-    customTitle.style.display = show ? "block" : "none";
-  });
 
-  window.addEventListener("DOMContentLoaded", () => {
-    const clearFlag = {{ clear_storage | tojson | default("false") }};
-    if (clearFlag) {
-      clearForm();
-      return;
-    }
+    customMode.addEventListener("change", () => {
+      const show = customMode.checked;
+      customTextArea.style.display = show ? "block" : "none";
+      customNote.style.display = show ? "block" : "none";
+      termsWrapper.style.display = show ? "block" : "none";
+      customTitle.style.display = show ? "block" : "none";
+    });
 
-    const recent = localStorage.getItem("recentVerses");
-    if (recent) recent.split(",").forEach((v) => addTag(v.trim()));
+    window.addEventListener("DOMContentLoaded", () => {
+      const clearFlag = {{ clear_storage | tojson | default("false") }};
+      if (clearFlag) {
+        clearForm();
+        return;
+      }
 
-    const storedVersion = localStorage.getItem("preferredVersion");
-    if (storedVersion) versionSelect.value = storedVersion;
+      const recent = localStorage.getItem("recentVerses");
+      if (recent) recent.split(",").forEach((v) => addTag(v.trim()));
 
-    const useCursive = localStorage.getItem("useCursive") === "true";
-    cursiveToggle.checked = useCursive;
-  });
+      const storedVersion = localStorage.getItem("preferredVersion");
+      if (storedVersion) versionSelect.value = storedVersion;
 
-  versionSelect.addEventListener("change", () => {
-    localStorage.setItem("preferredVersion", versionSelect.value);
-  });
+      const useCursive = localStorage.getItem("useCursive") === "true";
+      cursiveToggle.checked = useCursive;
+    });
 
-  cursiveToggle.addEventListener("change", () => {
-    localStorage.setItem("useCursive", cursiveToggle.checked);
-  });
+    versionSelect.addEventListener("change", () => {
+      localStorage.setItem("preferredVersion", versionSelect.value);
+    });
+
+    cursiveToggle.addEventListener("change", () => {
+      localStorage.setItem("useCursive", cursiveToggle.checked);
+    });
 </script>
 
 <style>
