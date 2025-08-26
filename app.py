@@ -56,8 +56,9 @@ def login_required(func):
 
 def normalize_slug(text):
     text = text.lower()
-    text = re.sub(r'[^\w\s-]', '', text)  # Remove all non-word characters except space and dash
-    text = re.sub(r'[\s:–—]+', '_', text)  # Replace whitespace/dashes with underscore
+    text = text.replace("⚠️", "")
+    text = re.sub(r'[^\w\s-]', '', text)  # Remove non-word characters
+    text = re.sub(r'[\s:–—]+', '_', text)  # Replace space/dashes with underscores
     return text.strip('_')
 
 def extract_version_from_text(text, fallback_version):
@@ -134,13 +135,13 @@ def generate():
         if is_custom:
             safe = ai_validate_custom_text(custom_text)
             label = custom_title or "Custom Text (User Submitted)"
-            title = label + (" ⚠️ Unverified" if not safe else "")
+            title = label.strip()  # ⚠️ Removed "⚠️ Unverified"
             items_to_generate.append({
-                "slug": normalize_slug(label),
-                "verse": title,              # this becomes the display title
+                "slug": normalize_slug(title),
+                "verse": title,
                 "version": "DIY",
                 "is_custom": True,
-                "text": custom_text          # this is used as actual verse content
+                "text": custom_text
             })
 
         last_pdf = None
@@ -163,7 +164,7 @@ def generate():
                 existing_path = os.path.join("output", doc.to_dict().get("filename"))
                 if os.path.exists(existing_path):
                     last_pdf = existing_path
-                    continue  # ✅ Skip both PDF and Firestore write
+                    continue
 
             if is_custom:
                 data = {
@@ -225,85 +226,14 @@ def generate():
         import traceback
         traceback.print_exc()
         return f"Server error: {e}", 500
-@app.route("/history")
-@login_required
-def history():
-    if not db:
-        return "Firestore not configured", 500
-    user_email = session.get("user_email")
-    results = db.collection("worksheets") \
-        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
-        .order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).stream()
-    history = [doc.to_dict() for doc in results]
-    return render_template("history.html", history=history, email=user_email)
-from flask import send_from_directory
 
-# 🔽 Download a specific worksheet
-@app.route("/download/<filename>")
-@login_required
-def download_file(filename):
-    path = os.path.join("output", filename)
-    if os.path.exists(path):
-        return send_file(path, as_attachment=True)
-    else:
-        return "File not found", 404
-
-# 🗑️ Delete a specific file (if needed)
-@app.route("/delete/<filename>", methods=["POST"])
-@login_required
-def delete_file(filename):
-    user_email = session.get("user_email")
-    if not db:
-        return "Firestore not configured", 500
-
-    path = os.path.join("output", filename)
-    if os.path.exists(path):
-        os.remove(path)
-
-    # Delete from Firestore
-    docs = db.collection("worksheets") \
-        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
-        .where(filter=firestore.FieldFilter("filename", "==", filename)).stream()
-    for doc in docs:
-        doc.reference.delete()
-
-    flash(f"{filename} deleted.", "success")
-    return redirect(url_for("history"))
-
-# 🗑️ Bulk delete selected files
-@app.route("/delete_bulk", methods=["POST"])
-@login_required
-def delete_bulk():
-    filenames = request.form.getlist("selected_files")
-    user_email = session.get("user_email")
-
-    if not filenames:
-        flash("No files selected.", "warning")
-        return redirect(url_for("history"))
-
-    for filename in filenames:
-        path = os.path.join("output", filename)
-        if os.path.exists(path):
-            os.remove(path)
-
-        if db:
-            docs = db.collection("worksheets") \
-                .where(filter=firestore.FieldFilter("email", "==", user_email)) \
-                .where(filter=firestore.FieldFilter("filename", "==", filename)).stream()
-            for doc in docs:
-                doc.reference.delete()
-
-    flash(f"Deleted {len(filenames)} file(s).", "success")
-    return redirect(url_for("history"))
-
-# 🔁 Regenerate with saved `text` if DIY
 @app.route("/regenerate/<filename>")
 @login_required
 def regenerate(filename):
     if not db:
         return "Firestore not configured", 500
 
-    # 🔧 Append .pdf if missing
+    # Append .pdf if missing
     if not filename.lower().endswith(".pdf"):
         filename += ".pdf"
 
@@ -321,7 +251,9 @@ def regenerate(filename):
     use_cursive = meta.get("cursive", False)
     is_custom = meta.get("custom", False)
     original_text = meta.get("text", verse)
-    slug = normalize_slug(verse)
+
+    display_title = verse.replace("⚠️ Unverified", "").strip()
+    slug = normalize_slug(display_title)
     pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
 
     if is_custom:
@@ -345,4 +277,3 @@ def regenerate(filename):
 
     generate_pdf(data, pdf_path, use_cursive=use_cursive)
     return send_file(pdf_path, as_attachment=True) if os.path.exists(pdf_path) else "Regeneration failed", 500
-
