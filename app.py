@@ -8,13 +8,12 @@ from firebase_admin import credentials, firestore
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
 
-# --- App Setup ---
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# --- Google Auth ---
+# --- Google OAuth ---
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
@@ -34,7 +33,7 @@ def load_user_info():
         session.pop("user_info", None)
         session.pop("user_email", None)
 
-# --- Firebase ---
+# --- Firestore Init ---
 creds_str = os.getenv("FIREBASE_CREDS_JSON")
 if creds_str:
     with open("/tmp/firebase-creds.json", "w") as f:
@@ -78,7 +77,6 @@ def update_zip_bundle():
 os.makedirs("output", exist_ok=True)
 
 # --- Routes ---
-# --- Routes ---
 @app.route("/")
 def index():
     return render_template("index.html", user_info=session.get("user_info"))
@@ -96,7 +94,6 @@ def about():
 @login_required
 def generate():
     if request.method == "GET":
-        # Pass clear_storage flag from session and reset it
         clear_storage = session.pop("clear_storage", False)
         return render_template(
             "generate.html",
@@ -110,7 +107,6 @@ def generate():
         custom_title = request.form.get('custom_title', '').strip()
         selected_version = request.form.get('version', 'esv').strip().lower()
         use_cursive = request.form.get('cursive') == "on"
-        is_custom = bool(custom_text)
         user_email = session.get("user_email", "anonymous")
 
         tag_list = [v.strip() for v in verse_input.split(",") if v.strip()]
@@ -120,19 +116,17 @@ def generate():
             flash("⚠️ Please enter a verse or custom text to generate.", "warning")
             return redirect(url_for("generate"))
 
-        verse_input = ", ".join(tag_list)  # Normalize input
-
         items_to_generate = []
-        if verse_input:
-            for v in [v.strip() for v in verse_input.split(",") if v.strip()]:
-                version, verse = extract_version_from_text(v, selected_version)
-                items_to_generate.append({
-                    "slug": normalize_slug(verse),
-                    "verse": verse,
-                    "version": version.upper(),
-                    "is_custom": False,
-                    "text": None
-                })
+
+        for v in tag_list:
+            version, verse = extract_version_from_text(v, selected_version)
+            items_to_generate.append({
+                "slug": normalize_slug(verse),
+                "verse": verse,
+                "version": version.upper(),
+                "is_custom": False,
+                "text": None
+            })
 
         if is_custom:
             safe = ai_validate_custom_text(custom_text)
@@ -148,6 +142,7 @@ def generate():
             })
 
         last_pdf = None
+
         for item in items_to_generate:
             slug = item["slug"]
             version = item["version"]
@@ -157,7 +152,6 @@ def generate():
             pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
             last_pdf = pdf_path
 
-            # Skip if already exists
             existing = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
                 .where(filter=firestore.FieldFilter("verse", "==", verse))\
                 .where(filter=firestore.FieldFilter("version", "==", version))\
@@ -209,12 +203,11 @@ def generate():
                     "filename": os.path.basename(pdf_path),
                     "timestamp": firestore.SERVER_TIMESTAMP,
                     "cursive": use_cursive,
-                    "custom": is_custom
+                    "custom": is_custom,
+                    **({"text": text} if is_custom else {})
                 })
 
         update_zip_bundle()
-
-        # ✅ Set flag to clear localStorage after redirect
         session["clear_storage"] = True
 
         if len(items_to_generate) == 1 and os.path.exists(last_pdf):
@@ -229,18 +222,7 @@ def generate():
         traceback.print_exc()
         return f"Server error: {e}", 500
 
-
-@app.route("/history")
-@login_required
-def history():
-    if not db:
-        return "Firestore not configured", 500
-    user_email = session.get("user_email")
-    results = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
-        .order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).stream()
-    history = [doc.to_dict() for doc in results]
-    return render_template("history.html", history=history, email=user_email)
-
+# 🔁 Regenerate with saved `text` if DIY
 @app.route("/regenerate/<filename>")
 @login_required
 def regenerate(filename):
@@ -260,8 +242,8 @@ def regenerate(filename):
     version = meta["version"]
     use_cursive = meta.get("cursive", False)
     is_custom = meta.get("custom", False)
-    original_text = meta.get("text", verse)  # ✅ Safely retrieve original content
-    slug = re.sub(r'[\s:–—]', '_', verse.lower())
+    original_text = meta.get("text", verse)
+    slug = normalize_slug(verse)
     pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
 
     if is_custom:
@@ -284,84 +266,4 @@ def regenerate(filename):
         data.update({"version": version.upper(), "cursive": use_cursive})
 
     generate_pdf(data, pdf_path, use_cursive=use_cursive)
-
-    if os.path.exists(pdf_path):
-        return send_file(pdf_path, as_attachment=True)
-    return "Regeneration failed", 500
-
-
-@app.route("/download/<filename>")
-@login_required
-def download_file(filename):
-    path = os.path.join("output", filename)
-    if not os.path.exists(path):
-        flash("⚠️ That file no longer exists. Please regenerate it.", "warning")
-        return redirect(url_for("history"))
-    return send_file(path, as_attachment=True)
-
-
-
-@app.route("/download_all")
-@login_required
-def download_all():
-    return send_file("output/worksheets_bundle.zip", as_attachment=True) if os.path.exists("output/worksheets_bundle.zip") else "Bundle not found", 404
-
-@app.route("/delete/<filename>")
-@login_required
-def delete_worksheet(filename):
-    if not db:
-        return "Firestore not configured", 500
-    user_email = session.get("user_email")
-    docs = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
-        .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
-    doc = next(docs, None)
-    if doc:
-        db.collection("worksheet_archive").add({**doc.to_dict(), "deleted_at": firestore.SERVER_TIMESTAMP})
-        doc.reference.delete()
-    path = os.path.join("output", filename)
-    if os.path.exists(path):
-        os.remove(path)
-    update_zip_bundle()
-    flash("✅ Worksheet deleted", "success")
-    return redirect(url_for("history"))
-
-@app.route("/delete_bulk", methods=["POST"])
-@login_required
-def delete_bulk():
-    if not db:
-        return "Firestore not configured", 500
-
-    user_email = session.get("user_email")
-    selected = request.form.getlist("selected_files")
-
-    if not selected:
-        flash("⚠️ No worksheets selected.", "warning")
-        return redirect(url_for("history"))
-
-    deleted = 0
-    for filename in selected:
-        # Look up Firestore doc
-        docs = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
-            .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
-        doc = next(docs, None)
-
-        if doc:
-            db.collection("worksheet_archive").add({**doc.to_dict(), "deleted_at": firestore.SERVER_TIMESTAMP})
-            doc.reference.delete()
-
-        path = os.path.join("output", filename)
-        if os.path.exists(path):
-            os.remove(path)
-        deleted += 1
-
-    update_zip_bundle()
-    flash(f"✅ Deleted {deleted} worksheet(s).", "success")
-    return redirect(url_for("history"))
-
-
-@app.errorhandler(404)
-def not_found(e):
-    return render_template("404.html"), 404
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    return send_file(pdf_path, as_attachment=True) if os.path.exists(pdf_path) else "Regeneration failed", 500
