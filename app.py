@@ -225,6 +225,17 @@ def generate():
         import traceback
         traceback.print_exc()
         return f"Server error: {e}", 500
+@app.route("/history")
+@login_required
+def history():
+    if not db:
+        return "Firestore not configured", 500
+    user_email = session.get("user_email")
+    results = db.collection("worksheets") \
+        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+        .order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).stream()
+    history = [doc.to_dict() for doc in results]
+    return render_template("history.html", history=history, email=user_email)
 
 # 🔁 Regenerate with saved `text` if DIY
 @app.route("/regenerate/<filename>")
