@@ -303,6 +303,10 @@ def regenerate(filename):
     if not db:
         return "Firestore not configured", 500
 
+    # 🔧 Append .pdf if missing
+    if not filename.lower().endswith(".pdf"):
+        filename += ".pdf"
+
     user_email = session.get("user_email")
     docs = db.collection("worksheets") \
         .where(filter=firestore.FieldFilter("email", "==", user_email)) \
@@ -341,3 +345,4 @@ def regenerate(filename):
 
     generate_pdf(data, pdf_path, use_cursive=use_cursive)
     return send_file(pdf_path, as_attachment=True) if os.path.exists(pdf_path) else "Regeneration failed", 500
+
