@@ -55,7 +55,10 @@ def login_required(func):
     return wrapper
 
 def normalize_slug(text):
-    return re.sub(r'[\s:–—]', '_', text.lower())
+    text = text.lower()
+    text = re.sub(r'[^\w\s-]', '', text)  # Remove all non-word characters except space and dash
+    text = re.sub(r'[\s:–—]+', '_', text)  # Replace whitespace/dashes with underscore
+    return text.strip('_')
 
 def extract_version_from_text(text, fallback_version):
     fallback_version = "esv" if fallback_version.lower() == "auto" else fallback_version.lower()
@@ -131,14 +134,13 @@ def generate():
         if is_custom:
             safe = ai_validate_custom_text(custom_text)
             label = custom_title or "Custom Text (User Submitted)"
-            if not safe:
-                label += " ⚠️ Unverified"
+            title = label + (" ⚠️ Unverified" if not safe else "")
             items_to_generate.append({
                 "slug": normalize_slug(label),
-                "verse": label,
+                "verse": title,              # this becomes the display title
                 "version": "DIY",
                 "is_custom": True,
-                "text": custom_text
+                "text": custom_text          # this is used as actual verse content
             })
 
         last_pdf = None
@@ -157,9 +159,11 @@ def generate():
                 .where(filter=firestore.FieldFilter("version", "==", version))\
                 .where(filter=firestore.FieldFilter("cursive", "==", use_cursive)).limit(1).stream() if db else []
             doc = next(existing, None)
-            if doc and os.path.exists(os.path.join("output", doc.to_dict().get("filename"))):
-                last_pdf = os.path.join("output", doc.to_dict().get("filename"))
-                continue
+            if doc:
+                existing_path = os.path.join("output", doc.to_dict().get("filename"))
+                if os.path.exists(existing_path):
+                    last_pdf = existing_path
+                    continue  # ✅ Skip both PDF and Firestore write
 
             if is_custom:
                 data = {
