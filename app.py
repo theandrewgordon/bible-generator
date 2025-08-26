@@ -260,14 +260,15 @@ def regenerate(filename):
     version = meta["version"]
     use_cursive = meta.get("cursive", False)
     is_custom = meta.get("custom", False)
+    original_text = meta.get("text", verse)  # ✅ Safely retrieve original content
     slug = re.sub(r'[\s:–—]', '_', verse.lower())
     pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
 
     if is_custom:
         data = {
             "verse": verse,
-            "fullVerse": verse,
-            "traceableVerse": verse,
+            "fullVerse": original_text,
+            "traceableVerse": original_text,
             "handwritingLines": 3,
             "reflectionQuestion": "Why is this meaningful to you?",
             "imageIdea": "An open Bible or prayer hands",
@@ -284,10 +285,10 @@ def regenerate(filename):
 
     generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
-    # 🟢 Instead of redirecting, serve the file
     if os.path.exists(pdf_path):
         return send_file(pdf_path, as_attachment=True)
     return "Regeneration failed", 500
+
 
 @app.route("/download/<filename>")
 @login_required
@@ -329,27 +330,34 @@ def delete_worksheet(filename):
 def delete_bulk():
     if not db:
         return "Firestore not configured", 500
+
     user_email = session.get("user_email")
     selected = request.form.getlist("selected_files")
+
     if not selected:
         flash("⚠️ No worksheets selected.", "warning")
         return redirect(url_for("history"))
 
     deleted = 0
     for filename in selected:
+        # Look up Firestore doc
         docs = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
             .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
         doc = next(docs, None)
+
         if doc:
             db.collection("worksheet_archive").add({**doc.to_dict(), "deleted_at": firestore.SERVER_TIMESTAMP})
             doc.reference.delete()
+
         path = os.path.join("output", filename)
         if os.path.exists(path):
             os.remove(path)
         deleted += 1
+
     update_zip_bundle()
-    flash(f"✅ Deleted {deleted} worksheets.", "success")
+    flash(f"✅ Deleted {deleted} worksheet(s).", "success")
     return redirect(url_for("history"))
+
 
 @app.errorhandler(404)
 def not_found(e):

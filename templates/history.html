@@ -3,12 +3,35 @@ Printables{% endblock %} {% block content %}
 <h1>🗂 Worksheet History</h1>
 <p>Logged in as: <strong>{{ email }}</strong></p>
 
+<noscript>
+  <div
+    style="
+      padding: 12px;
+      background: #fed7d7;
+      color: #721c24;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    "
+  >
+    ⚠️ JavaScript is required to filter, delete, and regenerate worksheets.
+  </div>
+</noscript>
+
+{% with messages = get_flashed_messages(with_categories=true) %} {% if messages
+%}
+<div id="flashContainer">
+  {% for category, message in messages %}
+  <div class="snackbar show">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %} {% endwith %}
+
 <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px">
   <input
     type="text"
     id="searchInput"
     placeholder="Search by verse or version..."
-    onkeyup="filterHistory()"
+    oninput="debouncedFilterHistory()"
     style="
       padding: 8px 12px;
       border-radius: 6px;
@@ -34,6 +57,9 @@ Printables{% endblock %} {% block content %}
     <option value="{{ item|lower }}">{{ item }}</option>
     {% endfor %}
   </select>
+  <button class="button" type="button" onclick="clearFilters()">
+    Clear Filters
+  </button>
 </div>
 
 {% if history %}
@@ -60,12 +86,6 @@ Printables{% endblock %} {% block content %}
       class="history-entry"
       data-verse="{{ item.verse | lower }}"
       data-version="{{ item.version | lower }}"
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-      "
     >
       <div style="flex: 1; display: flex; align-items: center">
         <input
@@ -119,7 +139,7 @@ Printables{% endblock %} {% block content %}
           >🗑️ Delete</a
         >
         <a
-          href="{{ url_for('generate') }}?verse={{ item.verse | urlencode }}+({{ item.version | urlencode }}){% if item.cursive %}&cursive=on{% endif %}"
+          href="{{ url_for('regenerate', filename=item.filename) }}"
           class="button"
           >♻ Regenerate</a
         >
@@ -142,9 +162,8 @@ Printables{% endblock %} {% block content %}
       font-weight: bold;
       text-decoration: none;
     "
+    >Create a Worksheet</a
   >
-    Create a Worksheet
-  </a>
 </div>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
@@ -158,16 +177,29 @@ Printables{% endblock %} {% block content %}
     entries.forEach((entry) => {
       const verse = entry.dataset.verse || "";
       const version = entry.dataset.version || "";
-      const matchesVerse =
-        !query || verse.includes(query) || version.includes(query);
-      const matchesVersion = !selectedVersion || version === selectedVersion;
-      entry.style.display = matchesVerse && matchesVersion ? "flex" : "none";
+      const match =
+        (!query || verse.includes(query) || version.includes(query)) &&
+        (!selectedVersion || version === selectedVersion);
+      entry.style.display = match ? "flex" : "none";
     });
   }
 
+  let debounceTimer;
+  function debouncedFilterHistory() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(filterHistory, 300);
+  }
+
+  function clearFilters() {
+    document.getElementById("searchInput").value = "";
+    document.getElementById("versionFilter").value = "";
+    filterHistory();
+  }
+
   function toggleSelectAll(source) {
-    const checkboxes = document.querySelectorAll(".select-checkbox");
-    checkboxes.forEach((cb) => (cb.checked = source.checked));
+    document
+      .querySelectorAll(".select-checkbox")
+      .forEach((cb) => (cb.checked = source.checked));
   }
 
   function deleteSelected() {
@@ -181,9 +213,17 @@ Printables{% endblock %} {% block content %}
     );
   }
 
+  // Dark mode
   if (localStorage.getItem("theme") === "dark") {
     document.body.classList.add("dark");
   }
+
+  // Auto-hide snackbars
+  window.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".snackbar").forEach((snack) => {
+      setTimeout(() => snack.classList.remove("show"), 4000);
+    });
+  });
 </script>
 
 <style>
@@ -196,11 +236,30 @@ Printables{% endblock %} {% block content %}
   .tag {
     font-weight: 500;
   }
+
   body.dark .button.delete {
     background: #9b2c2c;
   }
   body.dark .button.delete:hover {
     background: #822727;
+  }
+
+  .snackbar {
+    background-color: #38a169;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    font-size: 1em;
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
+  }
+  .snackbar.show {
+    opacity: 1;
   }
 </style>
 {% endblock %}
