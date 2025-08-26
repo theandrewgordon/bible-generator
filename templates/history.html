@@ -67,10 +67,10 @@ Printables{% endblock %} {% block content %}
   <div
     style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px"
   >
-    <label
-      ><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
-      Select All</label
-    >
+    <label>
+      <input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
+      Select All
+    </label>
     <button
       type="submit"
       class="button delete"
@@ -139,7 +139,7 @@ Printables{% endblock %} {% block content %}
           >🗑️ Delete</a
         >
         <a
-          href="{{ url_for('regenerate', filename=item.filename) }}"
+          href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
           class="button"
           >♻ Regenerate</a
         >
@@ -162,8 +162,9 @@ Printables{% endblock %} {% block content %}
       font-weight: bold;
       text-decoration: none;
     "
-    >Create a Worksheet</a
   >
+    Create a Worksheet
+  </a>
 </div>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
