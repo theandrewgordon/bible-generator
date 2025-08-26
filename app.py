@@ -236,6 +236,65 @@ def history():
         .order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).stream()
     history = [doc.to_dict() for doc in results]
     return render_template("history.html", history=history, email=user_email)
+from flask import send_from_directory
+
+# 🔽 Download a specific worksheet
+@app.route("/download/<filename>")
+@login_required
+def download_file(filename):
+    path = os.path.join("output", filename)
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True)
+    else:
+        return "File not found", 404
+
+# 🗑️ Delete a specific file (if needed)
+@app.route("/delete/<filename>", methods=["POST"])
+@login_required
+def delete_file(filename):
+    user_email = session.get("user_email")
+    if not db:
+        return "Firestore not configured", 500
+
+    path = os.path.join("output", filename)
+    if os.path.exists(path):
+        os.remove(path)
+
+    # Delete from Firestore
+    docs = db.collection("worksheets") \
+        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+        .where(filter=firestore.FieldFilter("filename", "==", filename)).stream()
+    for doc in docs:
+        doc.reference.delete()
+
+    flash(f"{filename} deleted.", "success")
+    return redirect(url_for("history"))
+
+# 🗑️ Bulk delete selected files
+@app.route("/delete_bulk", methods=["POST"])
+@login_required
+def delete_bulk():
+    filenames = request.form.getlist("selected_files")
+    user_email = session.get("user_email")
+
+    if not filenames:
+        flash("No files selected.", "warning")
+        return redirect(url_for("history"))
+
+    for filename in filenames:
+        path = os.path.join("output", filename)
+        if os.path.exists(path):
+            os.remove(path)
+
+        if db:
+            docs = db.collection("worksheets") \
+                .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+                .where(filter=firestore.FieldFilter("filename", "==", filename)).stream()
+            for doc in docs:
+                doc.reference.delete()
+
+    flash(f"Deleted {len(filenames)} file(s).", "success")
+    return redirect(url_for("history"))
 
 # 🔁 Regenerate with saved `text` if DIY
 @app.route("/regenerate/<filename>")

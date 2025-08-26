@@ -133,7 +133,7 @@ Printables{% endblock %} {% block content %}
           >📥 Download</a
         >
         <a
-          href="{{ url_for('delete_worksheet', filename=item.filename) }}"
+          href="{{ url_for('delete_file', filename=item.filename) }}"
           class="button delete"
           onclick="return confirm('Are you sure you want to delete this worksheet?')"
           >🗑️ Delete</a
@@ -236,14 +236,12 @@ Printables{% endblock %} {% block content %}
   .tag {
     font-weight: 500;
   }
-
   body.dark .button.delete {
     background: #9b2c2c;
   }
   body.dark .button.delete:hover {
     background: #822727;
   }
-
   .snackbar {
     background-color: #38a169;
     color: white;
