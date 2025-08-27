@@ -15,6 +15,10 @@ endblock %} {% block content %}
     <small id="verseHint"
       >Separate multiple with commas. Add version in parentheses.</small
     >
+    <div
+      id="filenamePreview"
+      style="margin-top: 6px; font-size: 0.9em; color: gray"
+    ></div>
   </div>
 
   <div style="margin-bottom: 1rem">
@@ -107,13 +111,30 @@ endblock %} {% block content %}
 <script>
   const verseInput = document.getElementById("verseInput");
   const tagify = new Tagify(verseInput, {
-    whitelist: [],
     dropdown: { enabled: 0 },
     enforceWhitelist: false,
-    duplicates: false,
     trim: true
   });
 
+  const filenamePreview = document.getElementById("filenamePreview");
+  const updateFilenamePreview = () => {
+    const tags = tagify.value.map(t => t.value.trim());
+    const cursive = document.getElementById("cursiveToggle").checked;
+    const suffix = cursive ? "_cursive.pdf" : ".pdf";
+
+    if (tags.length) {
+      filenamePreview.textContent = tags.map(v => v.replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase() + suffix).join(", ");
+    } else {
+      filenamePreview.textContent = "";
+    }
+  };
+
+  tagify.on("add", updateFilenamePreview);
+  tagify.on("remove", updateFilenamePreview);
+  tagify.on("input", updateFilenamePreview);
+  document.getElementById("cursiveToggle").addEventListener("change", updateFilenamePreview);
+
+  // Shortcuts and toggles
   const versionSelect = document.getElementById("versionSelect");
   const cursiveToggle = document.getElementById("cursiveToggle");
   const customMode = document.getElementById("customMode");
@@ -123,19 +144,13 @@ endblock %} {% block content %}
   const agreeTerms = document.getElementById("agreeTerms");
   const customTitle = document.getElementById("customTitle");
 
-  function clearForm() {
-    tagify.removeAllTags();
-    verseInput.value = "";
-    customTextArea.value = "";
-    customTitle.value = "";
-    customMode.checked = false;
-    customTextArea.style.display = "none";
-    customNote.style.display = "none";
-    termsWrapper.style.display = "none";
-    customTitle.style.display = "none";
-    agreeTerms.checked = false;
-    localStorage.removeItem("recentVerses");
-  }
+  customMode.addEventListener("change", () => {
+    const show = customMode.checked;
+    customTextArea.style.display = show ? "block" : "none";
+    customNote.style.display = show ? "block" : "none";
+    termsWrapper.style.display = show ? "block" : "none";
+    customTitle.style.display = show ? "block" : "none";
+  });
 
   document.getElementById("worksheetForm").addEventListener("submit", (e) => {
     const tags = tagify.value.map((t) => t.value);
@@ -158,14 +173,6 @@ endblock %} {% block content %}
     localStorage.setItem("recentVerses", verseInput.value);
   });
 
-  customMode.addEventListener("change", () => {
-    const show = customMode.checked;
-    customTextArea.style.display = show ? "block" : "none";
-    customNote.style.display = show ? "block" : "none";
-    termsWrapper.style.display = show ? "block" : "none";
-    customTitle.style.display = show ? "block" : "none";
-  });
-
   window.addEventListener("DOMContentLoaded", () => {
     const clearFlag = {{ clear_storage | tojson | default("false") }};
     if (clearFlag) {
@@ -175,7 +182,7 @@ endblock %} {% block content %}
 
     const recent = localStorage.getItem("recentVerses");
     if (recent) {
-      tagify.addTags(recent.split(",").map((v) => v.trim()));
+      tagify.addTags(recent.split(",").map(v => v.trim()));
     }
 
     const storedVersion = localStorage.getItem("preferredVersion");
@@ -183,6 +190,7 @@ endblock %} {% block content %}
 
     const useCursive = localStorage.getItem("useCursive") === "true";
     cursiveToggle.checked = useCursive;
+    updateFilenamePreview();
   });
 
   versionSelect.addEventListener("change", () => {
@@ -192,5 +200,20 @@ endblock %} {% block content %}
   cursiveToggle.addEventListener("change", () => {
     localStorage.setItem("useCursive", cursiveToggle.checked);
   });
+
+  function clearForm() {
+    tagify.removeAllTags();
+    verseInput.value = "";
+    customTextArea.value = "";
+    customTitle.value = "";
+    customMode.checked = false;
+    customTextArea.style.display = "none";
+    customNote.style.display = "none";
+    termsWrapper.style.display = "none";
+    customTitle.style.display = "none";
+    agreeTerms.checked = false;
+    filenamePreview.textContent = "";
+    localStorage.removeItem("recentVerses");
+  }
 </script>
 {% endblock %}

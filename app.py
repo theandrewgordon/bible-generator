@@ -227,6 +227,65 @@ def generate():
 def test_history():
     return "History route works!"
 
+@app.route("/delete/<filename>")
+@login_required
+def delete_worksheet(filename):
+    if not db:
+        return "Firestore not configured", 500
+
+    user_email = session.get("user_email")
+    try:
+        # Delete from Firestore
+        docs = db.collection("worksheets") \
+            .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+            .where(filter=firestore.FieldFilter("filename", "==", filename)) \
+            .limit(1).stream()
+
+        doc = next(docs, None)
+        if doc:
+            doc.reference.delete()
+
+        # Delete file
+        file_path = os.path.join("output", filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        flash("Worksheet deleted successfully.", "success")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f"Error deleting worksheet: {e}", "error")
+
+    return redirect(url_for("history"))
+
+@app.route("/delete_bulk", methods=["POST"])
+@login_required
+def delete_bulk():
+    if not db:
+        return "Firestore not configured", 500
+    user_email = session.get("user_email")
+    selected = request.form.getlist("selected_files")
+    try:
+        for filename in selected:
+            docs = db.collection("worksheets") \
+                .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+                .where(filter=firestore.FieldFilter("filename", "==", filename)) \
+                .limit(1).stream()
+            doc = next(docs, None)
+            if doc:
+                doc.reference.delete()
+            file_path = os.path.join("output", filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        flash("Selected worksheets deleted.", "success")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f"Error deleting worksheets: {e}", "error")
+
+    return redirect(url_for("history"))
+
+
 @app.route("/history")
 @login_required
 def history():
