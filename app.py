@@ -8,12 +8,13 @@ from firebase_admin import credentials, firestore
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
 
+# --- App Setup ---
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# --- Google OAuth ---
+# --- Google Auth ---
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
@@ -33,7 +34,7 @@ def load_user_info():
         session.pop("user_info", None)
         session.pop("user_email", None)
 
-# --- Firestore Init ---
+# --- Firebase ---
 creds_str = os.getenv("FIREBASE_CREDS_JSON")
 if creds_str:
     with open("/tmp/firebase-creds.json", "w") as f:
@@ -55,11 +56,10 @@ def login_required(func):
     return wrapper
 
 def normalize_slug(text):
-    text = text.lower()
-    text = text.replace("⚠️", "")
-    text = re.sub(r'[^\w\s-]', '', text)  # Remove non-word characters
-    text = re.sub(r'[\s:–—]+', '_', text)  # Replace space/dashes with underscores
-    return text.strip('_')
+    text = text.replace("⚠️", "")  # remove warning emoji if present
+    text = re.sub(r'[^\w\s-]', '', text)  # remove symbols
+    text = re.sub(r'[\s:–—]+', '_', text)  # convert space/dash to _
+    return text.strip('_').lower()
 
 def extract_version_from_text(text, fallback_version):
     fallback_version = "esv" if fallback_version.lower() == "auto" else fallback_version.lower()
@@ -99,25 +99,21 @@ def about():
 def generate():
     if request.method == "GET":
         clear_storage = session.pop("clear_storage", False)
-        return render_template(
-            "generate.html",
-            prefill_verse=request.args.get("verse", "").strip(),
-            clear_storage=clear_storage
-        )
+        return render_template("generate.html", prefill_verse=request.args.get("verse", ""), clear_storage=clear_storage)
 
     try:
-        verse_input = request.form.get('verse', '').strip()
-        custom_text = request.form.get('custom_text', '').strip()
-        custom_title = request.form.get('custom_title', '').strip()
-        selected_version = request.form.get('version', 'esv').strip().lower()
-        use_cursive = request.form.get('cursive') == "on"
+        verse_input = request.form.get("verse", "").strip()
+        custom_text = request.form.get("custom_text", "").strip()
+        custom_title = request.form.get("custom_title", "").strip()
+        selected_version = request.form.get("version", "esv").strip().lower()
+        use_cursive = request.form.get("cursive") == "on"
         user_email = session.get("user_email", "anonymous")
 
-        tag_list = [v.strip() for v in verse_input.split(",") if v.strip()]
+        tag_list = [v.strip() for v in re.split(r'[,;\n]+', verse_input) if v.strip()]
         is_custom = bool(custom_text)
 
         if not tag_list and not is_custom:
-            flash("⚠️ Please enter a verse or custom text to generate.", "warning")
+            flash("Please enter a verse or custom text to generate.", "warning")
             return redirect(url_for("generate"))
 
         items_to_generate = []
@@ -134,8 +130,7 @@ def generate():
 
         if is_custom:
             safe = ai_validate_custom_text(custom_text)
-            label = custom_title or "Custom Text (User Submitted)"
-            title = label.strip()  # ⚠️ Removed "⚠️ Unverified"
+            title = custom_title or "Custom Text (User Submitted)"
             items_to_generate.append({
                 "slug": normalize_slug(title),
                 "verse": title,
@@ -155,6 +150,7 @@ def generate():
             pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
             last_pdf = pdf_path
 
+            # Skip if already exists
             existing = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
                 .where(filter=firestore.FieldFilter("verse", "==", verse))\
                 .where(filter=firestore.FieldFilter("version", "==", version))\
@@ -232,14 +228,12 @@ def generate():
 def regenerate(filename):
     if not db:
         return "Firestore not configured", 500
+    user_email = session.get("user_email")
 
-    # Append .pdf if missing
     if not filename.lower().endswith(".pdf"):
         filename += ".pdf"
 
-    user_email = session.get("user_email")
-    docs = db.collection("worksheets") \
-        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+    docs = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
         .where(filter=firestore.FieldFilter("filename", "==", filename)).limit(1).stream()
     doc = next(docs, None)
     if not doc:
@@ -251,9 +245,7 @@ def regenerate(filename):
     use_cursive = meta.get("cursive", False)
     is_custom = meta.get("custom", False)
     original_text = meta.get("text", verse)
-
-    display_title = verse.replace("⚠️ Unverified", "").strip()
-    slug = normalize_slug(display_title)
+    slug = normalize_slug(verse)
     pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
 
     if is_custom:
