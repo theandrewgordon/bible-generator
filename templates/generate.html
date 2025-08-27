@@ -3,7 +3,7 @@ endblock %} {% block content %}
 <h1>📝 Generate Worksheet</h1>
 
 <form id="worksheetForm" method="POST" action="/generate">
-  <div style="margin-bottom: 1.5rem">
+  <section style="margin-bottom: 1.5rem">
     <label for="verseInput"><strong>📖 Bible Verse(s)</strong></label>
     <input
       type="text"
@@ -19,13 +19,14 @@ endblock %} {% block content %}
       id="filenamePreview"
       style="margin-top: 6px; font-size: 0.9em; color: gray"
     ></div>
-  </div>
+  </section>
 
-  <div style="margin-bottom: 1rem">
+  <section style="margin-bottom: 1.5rem">
     <label>
       <input type="checkbox" id="customMode" name="custom_mode" />
       ✍️ Fill in your own verse or prayer
     </label>
+
     <textarea
       id="customTextArea"
       name="custom_text"
@@ -33,13 +34,23 @@ endblock %} {% block content %}
       style="display: none; width: 100%; margin-top: 8px; padding: 10px"
       rows="4"
     ></textarea>
+
+    <input
+      type="text"
+      id="customPrompt"
+      name="custom_prompt"
+      placeholder="Optional: Coloring prompt (e.g., 'Jesus walking on water')"
+      style="display: none; width: 100%; margin-top: 8px; padding: 8px"
+    />
+
     <input
       type="text"
       id="customTitle"
       name="custom_title"
-      placeholder="Optional: Title for this worksheet (e.g., 'Psalm of Protection')"
+      placeholder="Optional: Title for this worksheet (e.g., 'Psalm of Comfort')"
       style="display: none; width: 100%; margin-top: 8px; padding: 8px"
     />
+
     <p
       id="customModeNote"
       style="
@@ -51,9 +62,9 @@ endblock %} {% block content %}
     >
       We’ll try to validate your verse. If we can’t, a disclaimer will be added.
     </p>
-  </div>
+  </section>
 
-  <div
+  <section
     id="termsWrapper"
     style="display: none; margin-top: 1rem; font-size: 0.9em"
   >
@@ -61,16 +72,16 @@ endblock %} {% block content %}
       <input type="checkbox" id="agreeTerms" name="agreeTerms" />
       I agree that this content is appropriate and family-friendly.
     </label>
-  </div>
+  </section>
 
-  <div style="margin-bottom: 1rem">
+  <section style="margin-bottom: 1rem">
     <label>
       <input type="checkbox" name="cursive" id="cursiveToggle" />
       Use cursive tracing font
     </label>
-  </div>
+  </section>
 
-  <div style="margin-bottom: 1rem">
+  <section style="margin-bottom: 1.5rem">
     <label for="versionSelect"><strong>📘 Default Version</strong></label>
     <select id="versionSelect" name="version">
       <option value="esv">ESV</option>
@@ -81,7 +92,7 @@ endblock %} {% block content %}
       <option value="csb">CSB</option>
       <option value="auto">Auto Detect</option>
     </select>
-  </div>
+  </section>
 
   <button type="submit" class="button">🚀 Generate Worksheet</button>
   <button
@@ -101,7 +112,10 @@ endblock %} {% block content %}
   </div>
 </form>
 
-<!-- Tagify JS + CSS -->
+<!-- Toast for confirmation -->
+<div id="toast" class="snackbar">✅ Worksheet generated!</div>
+
+<!-- Tagify JS -->
 <link
   href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css"
   rel="stylesheet"
@@ -117,24 +131,6 @@ endblock %} {% block content %}
   });
 
   const filenamePreview = document.getElementById("filenamePreview");
-  const updateFilenamePreview = () => {
-    const tags = tagify.value.map(t => t.value.trim());
-    const cursive = document.getElementById("cursiveToggle").checked;
-    const suffix = cursive ? "_cursive.pdf" : ".pdf";
-
-    if (tags.length) {
-      filenamePreview.textContent = tags.map(v => v.replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase() + suffix).join(", ");
-    } else {
-      filenamePreview.textContent = "";
-    }
-  };
-
-  tagify.on("add", updateFilenamePreview);
-  tagify.on("remove", updateFilenamePreview);
-  tagify.on("input", updateFilenamePreview);
-  document.getElementById("cursiveToggle").addEventListener("change", updateFilenamePreview);
-
-  // Shortcuts and toggles
   const versionSelect = document.getElementById("versionSelect");
   const cursiveToggle = document.getElementById("cursiveToggle");
   const customMode = document.getElementById("customMode");
@@ -143,6 +139,21 @@ endblock %} {% block content %}
   const termsWrapper = document.getElementById("termsWrapper");
   const agreeTerms = document.getElementById("agreeTerms");
   const customTitle = document.getElementById("customTitle");
+  const customPrompt = document.getElementById("customPrompt");
+
+  const updateFilenamePreview = () => {
+    const tags = tagify.value.map(t => t.value.trim());
+    const cursive = cursiveToggle.checked;
+    const suffix = cursive ? "_cursive.pdf" : ".pdf";
+    filenamePreview.textContent = tags.length
+      ? tags.map(v => v.replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase() + suffix).join(", ")
+      : "";
+  };
+
+  tagify.on("add", updateFilenamePreview);
+  tagify.on("remove", updateFilenamePreview);
+  tagify.on("input", updateFilenamePreview);
+  cursiveToggle.addEventListener("change", updateFilenamePreview);
 
   customMode.addEventListener("change", () => {
     const show = customMode.checked;
@@ -150,47 +161,35 @@ endblock %} {% block content %}
     customNote.style.display = show ? "block" : "none";
     termsWrapper.style.display = show ? "block" : "none";
     customTitle.style.display = show ? "block" : "none";
+    customPrompt.style.display = show ? "block" : "none";
   });
 
   document.getElementById("worksheetForm").addEventListener("submit", (e) => {
-    const tags = tagify.value.map((t) => t.value);
+    const tags = tagify.value.map(t => t.value);
     const customText = customTextArea.value.trim();
     const allowSubmit = tags.length > 0 || customText.length > 0;
 
     if (!allowSubmit) {
       e.preventDefault();
       alert("Please enter at least one verse or custom text.");
-      return false;
+      return;
     }
 
     if (customMode.checked && !agreeTerms.checked) {
       e.preventDefault();
       alert("You must agree to the terms to submit custom content.");
-      return false;
+      return;
     }
 
     verseInput.value = tags.join(", ");
     localStorage.setItem("recentVerses", verseInput.value);
-  });
 
-  window.addEventListener("DOMContentLoaded", () => {
-    const clearFlag = {{ clear_storage | tojson | default("false") }};
-    if (clearFlag) {
-      clearForm();
-      return;
-    }
-
-    const recent = localStorage.getItem("recentVerses");
-    if (recent) {
-      tagify.addTags(recent.split(",").map(v => v.trim()));
-    }
-
-    const storedVersion = localStorage.getItem("preferredVersion");
-    if (storedVersion) versionSelect.value = storedVersion;
-
-    const useCursive = localStorage.getItem("useCursive") === "true";
-    cursiveToggle.checked = useCursive;
-    updateFilenamePreview();
+    // Show toast after short delay
+    setTimeout(() => {
+      const toast = document.getElementById("toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3500);
+    }, 100);
   });
 
   versionSelect.addEventListener("change", () => {
@@ -201,19 +200,60 @@ endblock %} {% block content %}
     localStorage.setItem("useCursive", cursiveToggle.checked);
   });
 
+  window.addEventListener("DOMContentLoaded", () => {
+    const clearFlag = {{ clear_storage | tojson | default("false") }};
+    if (clearFlag) {
+      clearForm();
+      return;
+    }
+
+    const recent = localStorage.getItem("recentVerses");
+    if (recent) tagify.addTags(recent.split(",").map(v => v.trim()));
+
+    const storedVersion = localStorage.getItem("preferredVersion");
+    if (storedVersion) versionSelect.value = storedVersion;
+
+    const useCursive = localStorage.getItem("useCursive") === "true";
+    cursiveToggle.checked = useCursive;
+    updateFilenamePreview();
+  });
+
   function clearForm() {
     tagify.removeAllTags();
     verseInput.value = "";
     customTextArea.value = "";
     customTitle.value = "";
+    customPrompt.value = "";
     customMode.checked = false;
     customTextArea.style.display = "none";
     customNote.style.display = "none";
     termsWrapper.style.display = "none";
     customTitle.style.display = "none";
+    customPrompt.style.display = "none";
     agreeTerms.checked = false;
     filenamePreview.textContent = "";
     localStorage.removeItem("recentVerses");
   }
 </script>
+
+<style>
+  .snackbar {
+    background-color: #38a169;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    font-size: 1em;
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
+  }
+
+  .snackbar.show {
+    opacity: 1;
+  }
+</style>
 {% endblock %}

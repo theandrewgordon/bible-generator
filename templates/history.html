@@ -62,7 +62,7 @@ endblock %} {% block content %}
     </button>
   </div>
 
-  <table id="historyTable">
+  <table id="historyTable" data-sort-col="1" data-sort-asc="true">
     <thead>
       <tr>
         <th></th>
@@ -88,8 +88,8 @@ endblock %} {% block content %}
           />
         </td>
         <td>
-          <span class="highlightable">{{ item.verse }}</span> {% if item.cursive
-          %}<span class="tag">✍️</span>{% endif %}
+          <span class="highlightable">{{ item.verse }}</span>
+          {% if item.cursive %}<span class="tag">✍️</span>{% endif %}
         </td>
         <td><span class="highlightable">{{ item.version }}</span></td>
         <td>
@@ -181,9 +181,10 @@ endblock %} {% block content %}
   function sortTable(colIndex) {
     const table = document.getElementById("historyTable");
     const rows = Array.from(table.rows).slice(1);
-    const asc = !table.dataset.sortAsc || table.dataset.sortCol != colIndex;
-    table.dataset.sortAsc = asc;
+    const asc =
+      table.dataset.sortCol != colIndex || table.dataset.sortAsc === "false";
     table.dataset.sortCol = colIndex;
+    table.dataset.sortAsc = asc;
 
     rows.sort((a, b) => {
       const valA = a.cells[colIndex].innerText.toLowerCase();
@@ -219,7 +220,10 @@ endblock %} {% block content %}
     }
 
     document.querySelectorAll(".snackbar").forEach((snack) => {
-      setTimeout(() => snack.classList.remove("show"), 4000);
+      setTimeout(() => {
+        snack.classList.add("hide");
+        setTimeout(() => snack.remove(), 400);
+      }, 4000);
     });
   });
 </script>
@@ -289,12 +293,13 @@ endblock %} {% block content %}
     transform: translateX(-50%);
     z-index: 9999;
     font-size: 1em;
-    opacity: 0;
-    transition: opacity 0.4s ease-in-out;
+    opacity: 1;
+    transition: opacity 0.4s ease-in-out, bottom 0.4s ease-in-out;
   }
 
-  .snackbar.show {
-    opacity: 1;
+  .snackbar.hide {
+    opacity: 0;
+    bottom: 0;
   }
 </style>
 {% endblock %}
