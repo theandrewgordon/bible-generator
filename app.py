@@ -223,6 +223,31 @@ def generate():
         traceback.print_exc()
         return f"Server error: {e}", 500
 
+@app.route("/test-history")
+def test_history():
+    return "History route works!"
+
+@app.route("/history")
+@login_required
+def history():
+    if not db:
+        return "Firestore not configured", 500
+
+    user_email = session.get("user_email")
+    try:
+        docs = db.collection("worksheets") \
+            .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+            .order_by("timestamp", direction=firestore.Query.DESCENDING) \
+            .stream()
+        history_items = [
+            {**doc.to_dict(), "timestamp": doc.get("timestamp")} for doc in docs
+        ]
+        return render_template("history.html", history=history_items, email=user_email)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Error fetching history: {e}", 500
+
 @app.route("/regenerate/<filename>")
 @login_required
 def regenerate(filename):
