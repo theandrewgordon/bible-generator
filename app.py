@@ -248,6 +248,14 @@ def history():
         traceback.print_exc()
         return f"Error fetching history: {e}", 500
 
+@app.route("/download/<filename>")
+@login_required
+def download_file(filename):
+    file_path = os.path.join("output", filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    return "File not found", 404
+
 @app.route("/regenerate/<filename>")
 @login_required
 def regenerate(filename):
