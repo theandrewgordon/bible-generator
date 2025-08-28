@@ -1,37 +1,13 @@
 {% extends "base.html" %} {% block title %}Worksheet History | Faith Sparks{%
 endblock %} {% block content %}
+<h1>📂 Worksheet History</h1>
+<p class="muted small">Logged in as: <strong>{{ email }}</strong></p>
 
-<h1>🗂 Worksheet History</h1>
-<p>Logged in as: <strong>{{ email }}</strong></p>
-
-<noscript>
-  <div
-    style="
-      padding: 12px;
-      background: #fed7d7;
-      color: #721c24;
-      border-radius: 6px;
-      margin-bottom: 16px;
-    "
-  >
-    ⚠️ JavaScript is required to filter, delete, and regenerate worksheets.
-  </div>
-</noscript>
-
-{% with messages = get_flashed_messages(with_categories=true) %} {% if messages
-%}
-<div id="flashContainer">
-  {% for category, message in messages %}
-  <div class="snackbar show">{{ message }}</div>
-  {% endfor %}
-</div>
-{% endif %} {% endwith %}
-
-<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px">
+<div class="toolbar">
   <input
     type="text"
     id="searchInput"
-    placeholder="Search..."
+    placeholder="Search…"
     oninput="debouncedFilterHistory()"
   />
   <select id="versionFilter" onchange="filterHistory()">
@@ -45,14 +21,12 @@ endblock %} {% block content %}
 </div>
 
 {% if history %}
-<form id="bulkDeleteForm" method="POST" action="/delete_bulk">
-  <div
-    style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px"
-  >
-    <label
-      ><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
-      Select All</label
-    >
+<form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
+  <div class="bulkbar">
+    <label class="checkbox-row">
+      <input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
+      Select All
+    </label>
     <button
       type="submit"
       class="button delete"
@@ -62,65 +36,96 @@ endblock %} {% block content %}
     </button>
   </div>
 
-  <table id="historyTable" data-sort-col="1" data-sort-asc="true">
-    <thead>
-      <tr>
-        <th></th>
-        <th onclick="sortTable(1)">📖 Verse</th>
-        <th onclick="sortTable(2)">📘 Version</th>
-        <th onclick="sortTable(3)">🕒 Date</th>
-        <th>⚙️ Actions</th>
-      </tr>
-    </thead>
-    <tbody id="historyList">
-      {% for item in history %}
-      <tr
-        class="history-entry"
-        data-verse="{{ item.verse | lower }}"
-        data-version="{{ item.version | lower }}"
-      >
-        <td>
-          <input
-            type="checkbox"
-            name="selected_files"
-            value="{{ item.filename }}"
-            class="select-checkbox"
-          />
-        </td>
-        <td>
-          <span class="highlightable">{{ item.verse }}</span>
-          {% if item.cursive %}<span class="tag">✍️</span>{% endif %}
-        </td>
-        <td><span class="highlightable">{{ item.version }}</span></td>
-        <td>
-          {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else
-          'Date unknown' }}
-        </td>
-        <td style="white-space: nowrap">
-          <a
-            href="{{ url_for('download_file', filename=item.filename) }}"
-            class="button"
-            >📥</a
-          >
-          <a
-            href="{{ url_for('delete_worksheet', filename=item.filename) }}"
-            class="button delete"
-            onclick="return confirm('Delete this worksheet?')"
-            >🗑️</a
-          >
-          <a
-            href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
-            class="button"
-            >♻️</a
-          >
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table id="historyTable" class="history">
+      <colgroup>
+        <col style="width: 44px" />
+        <col />
+        <col style="width: 120px" />
+        <col style="width: 170px" />
+        <col style="width: 170px" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th><span class="sr-only">Select</span></th>
+          <th>📖 Verse</th>
+          <th>📘 Version</th>
+          <th>🕒 Date</th>
+          <th>⚙️ Actions</th>
+        </tr>
+      </thead>
+      <tbody id="historyList">
+        {% for item in history %}
+        <tr
+          class="history-entry"
+          data-verse="{{ item.verse|lower }}"
+          data-version="{{ item.version|lower }}"
+        >
+          <!-- Select -->
+          <td data-label="Select">
+            <input
+              type="checkbox"
+              name="selected_files"
+              value="{{ item.filename }}"
+              class="select-checkbox"
+            />
+          </td>
+
+          <!-- Verse -->
+          <td data-label="Verse">
+            <span class="verse">{{ item.verse }}</span>
+            {% if item.cursive %}<span class="tag" title="Cursive">✍️</span>{%
+            endif %} {% if item.custom %}<span
+              class="tag gray"
+              title="Custom / DIY"
+              >DIY</span
+            >{% endif %}
+          </td>
+
+          <!-- Version -->
+          <td data-label="Version">
+            <span class="mono">{{ item.version }}</span>
+          </td>
+
+          <!-- Date -->
+          <td data-label="Date">
+            {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else
+            'Date unknown' }}
+          </td>
+
+          <!-- Actions -->
+          <td data-label="Actions">
+            <div class="actions">
+              <a
+                class="icon-btn"
+                href="{{ url_for('download_file', filename=item.filename) }}"
+                title="Download"
+                >📥</a
+              >
+              <a
+                class="icon-btn danger"
+                href="{{ url_for('delete_worksheet', filename=item.filename) }}"
+                onclick="return confirm('Delete this worksheet?')"
+                title="Delete"
+                >🗑️</a
+              >
+              <a
+                class="icon-btn"
+                href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
+                title="Regenerate"
+                >♻️</a
+              >
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </form>
 {% else %}
-<p>No worksheets found. <a href="/generate" class="button">Create One</a></p>
+<p>No worksheets found.</p>
+<p><a href="{{ url_for('generate') }}" class="button">Create One</a></p>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
   function filterHistory() {
@@ -131,30 +136,20 @@ endblock %} {% block content %}
     const rows = document.querySelectorAll(".history-entry");
 
     rows.forEach((row) => {
-      const verse = row.dataset.verse;
-      const vers = row.dataset.version;
+      const verse = row.dataset.verse || "";
+      const vers = row.dataset.version || "";
       const match =
         (!query || verse.includes(query) || vers.includes(query)) &&
         (!version || vers === version);
 
       row.style.display = match ? "" : "none";
-
-      row.querySelectorAll(".highlightable").forEach((span) => {
-        const text = span.textContent;
-        if (query && text.toLowerCase().includes(query)) {
-          const regex = new RegExp(`(${query})`, "gi");
-          span.innerHTML = text.replace(regex, "<mark>$1</mark>");
-        } else {
-          span.innerHTML = text;
-        }
-      });
     });
   }
 
   let debounceTimer;
   function debouncedFilterHistory() {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(filterHistory, 250);
+    debounceTimer = setTimeout(filterHistory, 200);
   }
 
   function toggleSelectAll(source) {
@@ -178,128 +173,195 @@ endblock %} {% block content %}
     filterHistory();
   }
 
-  function sortTable(colIndex) {
-    const table = document.getElementById("historyTable");
-    const rows = Array.from(table.rows).slice(1);
-    const asc =
-      table.dataset.sortCol != colIndex || table.dataset.sortAsc === "false";
-    table.dataset.sortCol = colIndex;
-    table.dataset.sortAsc = asc;
-
-    rows.sort((a, b) => {
-      const valA = a.cells[colIndex].innerText.toLowerCase();
-      const valB = b.cells[colIndex].innerText.toLowerCase();
-      return asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    });
-
-    rows.forEach((row) => table.tBodies[0].appendChild(row));
-  }
-
   function exportCSV() {
     let csv = "Verse,Version,Date\n";
     document.querySelectorAll(".history-entry").forEach((row) => {
       if (row.style.display === "none") return;
-      const verse = row.cells[1].textContent.trim().replace("✍️", "");
-      const version = row.cells[2].textContent.trim();
-      const date = row.cells[3].textContent.trim();
-      csv += `"${verse}","${version}","${date}"\n`;
+      const verse = row.querySelector(".verse")?.textContent.trim() || "";
+      const version = row
+        .querySelector('td[data-label="Version"]')
+        .innerText.trim();
+      const date = row.querySelector('td[data-label="Date"]').innerText.trim();
+      csv += `"${verse.replace(/"/g, '""')}","${version}","${date}"\n`;
     });
-
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "worksheet_history.csv";
+    const a = Object.assign(document.createElement("a"), {
+      href: url,
+      download: "worksheet_history.csv",
+    });
     a.click();
     URL.revokeObjectURL(url);
   }
 
+  // Dark mode class (in case base hasn't applied yet)
   window.addEventListener("DOMContentLoaded", () => {
-    if (localStorage.getItem("theme") === "dark") {
+    if (localStorage.getItem("theme") === "dark")
       document.body.classList.add("dark");
-    }
-
-    document.querySelectorAll(".snackbar").forEach((snack) => {
-      setTimeout(() => {
-        snack.classList.add("hide");
-        setTimeout(() => snack.remove(), 400);
-      }, 4000);
-    });
   });
 </script>
 
 <style>
+  .muted {
+    color: var(--text-secondary);
+  }
+  .small {
+    font-size: 0.9em;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0 0 1rem 0;
+  }
   #searchInput,
   #versionFilter {
     padding: 8px 12px;
     border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 1em;
+    border: 1px solid #cbd5e1;
     min-width: 200px;
   }
 
-  table {
+  .bulkbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.25rem 0 12px 0;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+  }
+  table.history {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 2rem;
+    background: transparent;
   }
-
-  th {
+  table.history thead th {
+    text-align: left;
     background: var(--box);
     padding: 12px;
-    cursor: pointer;
-    text-align: left;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  table.history td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eef2f7;
+    vertical-align: middle;
   }
 
-  td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
+  .actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
-
-  th:hover {
-    background: #edf2f7;
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: #e2e8f0;
+    text-decoration: none;
+  }
+  .icon-btn:hover {
+    background: #cbd5e1;
+  }
+  .icon-btn.danger {
+    background: #fecaca;
+  }
+  .icon-btn.danger:hover {
+    background: #fca5a5;
   }
 
   .tag {
-    background: #ecc94b;
-    color: #000;
-    font-size: 0.8em;
-    border-radius: 4px;
-    padding: 2px 6px;
+    display: inline-block;
     margin-left: 6px;
+    padding: 2px 6px;
+    font-size: 0.75em;
+    border-radius: 4px;
+    background: #fde68a;
+    color: #111827;
+    vertical-align: middle;
+  }
+  .tag.gray {
+    background: #e5e7eb;
   }
 
-  mark {
-    background-color: yellow;
-    color: black;
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+      "Liberation Mono", monospace;
   }
 
-  .button.delete {
-    background: #e53e3e;
+  /* Mobile: turn table rows into cards */
+  @media (max-width: 680px) {
+    .toolbar {
+      gap: 0.4rem;
+    }
+    .table-wrap {
+      overflow: visible;
+    }
+    table.history thead {
+      display: none;
+    }
+    table.history,
+    table.history tbody,
+    table.history tr,
+    table.history td {
+      display: block;
+      width: 100%;
+    }
+    table.history tr {
+      margin-bottom: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: var(--box);
+    }
+    table.history td {
+      border-bottom: none;
+      padding: 10px 12px;
+      position: relative;
+    }
+    table.history td::before {
+      content: attr(data-label);
+      position: absolute;
+      left: 12px;
+      top: 10px;
+      font-size: 0.75em;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+    table.history td[data-label="Select"]::before {
+      content: "";
+    }
+    table.history td[data-label="Select"] {
+      padding-top: 12px;
+    }
+    table.history td[data-label="Verse"] {
+      padding-top: 28px;
+    }
+    .actions {
+      justify-content: flex-start;
+    }
   }
 
-  .button.delete:hover {
-    background: #c53030;
-  }
-
-  .snackbar {
-    background-color: #38a169;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 6px;
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 9999;
-    font-size: 1em;
-    opacity: 1;
-    transition: opacity 0.4s ease-in-out, bottom 0.4s ease-in-out;
-  }
-
-  .snackbar.hide {
-    opacity: 0;
-    bottom: 0;
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
   }
 </style>
 {% endblock %}
