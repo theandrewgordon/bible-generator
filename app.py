@@ -1,3 +1,4 @@
+# test08-28-2025
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
@@ -13,6 +14,13 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+# Recommended cookie settings for HTTPS
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# Helpful OAuth env flags (no-op if already set)
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+# Do NOT set OAUTHLIB_INSECURE_TRANSPORT to 1 in production
 
 # --- Google Auth ---
 google_bp = make_google_blueprint(
@@ -23,15 +31,29 @@ google_bp = make_google_blueprint(
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
+from flask import request
+
 @app.before_request
 def load_user_info():
-    if google.authorized and "user_info" not in session:
-        resp = google.get("/oauth2/v1/userinfo")
-        if resp.ok:
-            session["user_info"] = resp.json()
-            session["user_email"] = session["user_info"]["email"]
-    elif not google.authorized:
-        session.clear()
+    """
+    Don't clear the session during the OAuth dance.
+    Only fetch user_info after we're authorized.
+    """
+    # Skip meddling while the Flask-Dance blueprint is doing its work
+    if request.blueprint == "google" or request.path.startswith("/login/google"):
+        return
+
+    if google.authorized:
+        if "user_info" not in session:
+            resp = google.get("/oauth2/v1/userinfo")
+            if resp.ok:
+                session["user_info"] = resp.json()
+                session["user_email"] = session["user_info"].get("email")
+    else:
+        # Not authorized: just drop cached user display info (do NOT clear entire session)
+        session.pop("user_info", None)
+        session.pop("user_email", None)
+
 
 # --- Firebase ---
 creds_str = os.getenv("FIREBASE_CREDS_JSON")
