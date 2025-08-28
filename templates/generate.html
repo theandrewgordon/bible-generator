@@ -3,7 +3,8 @@ endblock %} {% block content %}
 <h1>📝 Generate Worksheet</h1>
 
 <form id="worksheetForm" method="POST" action="/generate">
-  <section style="margin-bottom: 1.5rem">
+  <!-- Verse entry -->
+  <section class="block">
     <label for="verseInput"><strong>📖 Bible Verse(s)</strong></label>
     <input
       type="text"
@@ -11,79 +12,103 @@ endblock %} {% block content %}
       name="verse"
       placeholder="e.g. John 3:16 (ESV), Romans 8:28"
       autofocus
+      autocomplete="off"
+      inputmode="text"
+      aria-describedby="verseHint filenamePreview"
     />
     <small id="verseHint"
       >Separate multiple with commas. Add version in parentheses.</small
     >
-    <div
-      id="filenamePreview"
-      style="margin-top: 6px; font-size: 0.9em; color: gray"
-    ></div>
+    <div id="filenamePreview" class="muted small"></div>
   </section>
 
-  <section style="margin-bottom: 1.5rem">
-    <label>
+  <!-- Custom DIY mode -->
+  <section class="block">
+    <label class="checkbox-row">
       <input type="checkbox" id="customMode" name="custom_mode" />
-      ✍️ Fill in your own verse or prayer
+      ✍️ Use your own verse, poem, or prayer
     </label>
+
+    <!-- Reordered: Title → Text → Prompt -->
+    <input
+      type="text"
+      id="customTitle"
+      name="custom_title"
+      placeholder="Title (e.g., 'Psalm of Comfort')"
+      class="hidden wide-input"
+      aria-label="Custom title"
+    />
 
     <textarea
       id="customTextArea"
       name="custom_text"
       placeholder="Paste your own verse, poem, or prayer here..."
-      style="display: none; width: 100%; margin-top: 8px; padding: 10px"
+      class="hidden wide-input"
       rows="4"
+      aria-label="Custom text"
     ></textarea>
 
-    <input
-      type="text"
-      id="customPrompt"
-      name="custom_prompt"
-      placeholder="Optional: Coloring prompt (e.g., 'Jesus walking on water')"
-      style="display: none; width: 100%; margin-top: 8px; padding: 8px"
-    />
+    <div id="promptRow" class="hidden">
+      <input
+        type="text"
+        id="customPrompt"
+        name="custom_prompt"
+        placeholder="Optional: Coloring prompt (e.g., 'Jesus walking on water')"
+        class="wide-input"
+        aria-label="Coloring prompt"
+      />
+      <div class="prompt-ideas">
+        <button
+          type="button"
+          class="chip"
+          data-prompt="A child praying by a window"
+        >
+          🙏 Prayer
+        </button>
+        <button type="button" class="chip" data-prompt="Jesus walking on water">
+          🌊 Miracle
+        </button>
+        <button
+          type="button"
+          class="chip"
+          data-prompt="A family reading the Bible together"
+        >
+          👨‍👩‍👧 Family
+        </button>
+        <button
+          type="button"
+          class="chip"
+          data-prompt="Shepherd with sheep on a hillside"
+        >
+          🐑 Shepherd
+        </button>
+      </div>
+    </div>
 
-    <input
-      type="text"
-      id="customTitle"
-      name="custom_title"
-      placeholder="Optional: Title for this worksheet (e.g., 'Psalm of Comfort')"
-      style="display: none; width: 100%; margin-top: 8px; padding: 8px"
-    />
-
-    <p
-      id="customModeNote"
-      style="
-        display: none;
-        font-size: 0.9em;
-        color: var(--text-secondary);
-        margin-top: 4px;
-      "
-    >
+    <p id="customModeNote" class="hidden help">
       We’ll try to validate your verse. If we can’t, a disclaimer will be added.
     </p>
   </section>
 
-  <section
-    id="termsWrapper"
-    style="display: none; margin-top: 1rem; font-size: 0.9em"
-  >
-    <label>
+  <!-- Terms for DIY -->
+  <section id="termsWrapper" class="hidden small">
+    <label class="checkbox-row">
       <input type="checkbox" id="agreeTerms" name="agreeTerms" />
       I agree that this content is appropriate and family-friendly.
     </label>
   </section>
 
-  <section style="margin-bottom: 1rem">
-    <label>
+  <!-- Options -->
+  <section class="block">
+    <label class="checkbox-row">
       <input type="checkbox" name="cursive" id="cursiveToggle" />
       Use cursive tracing font
     </label>
   </section>
 
-  <section style="margin-bottom: 1.5rem">
+  <section class="block">
     <label for="versionSelect"><strong>📘 Default Version</strong></label>
-    <select id="versionSelect" name="version">
+    <select id="versionSelect" name="version" class="wide-input">
       <option value="esv">ESV</option>
       <option value="kjv">KJV</option>
       <option value="nlt">NLT</option>
@@ -94,28 +119,22 @@ endblock %} {% block content %}
     </select>
   </section>
 
-  <button type="submit" class="button">🚀 Generate Worksheet</button>
-  <button
-    type="button"
-    class="button"
-    onclick="clearForm()"
-    style="background: #a0aec0"
-  >
-    🧹 Clear
-  </button>
+  <div class="actions">
+    <button type="submit" class="button primary">🚀 Generate Worksheet</button>
+    <button type="button" class="button" onclick="clearForm()">🧹 Clear</button>
+  </div>
 
-  <div
-    id="disclaimerBox"
-    style="display: none; margin-top: 1.5rem; color: #e53e3e"
-  >
+  <div id="disclaimerBox" class="hidden warn">
     ⚠️ Some verses could not be verified. Please double-check your input.
   </div>
 </form>
 
 <!-- Toast for confirmation -->
-<div id="toast" class="snackbar">✅ Worksheet generated!</div>
+<div id="toast" class="snackbar" role="status" aria-live="polite">
+  ✅ Worksheet generated!
+</div>
 
-<!-- Tagify JS -->
+<!-- Tagify -->
 <link
   href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css"
   rel="stylesheet"
@@ -123,68 +142,83 @@ endblock %} {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 
 <script>
+  // Elements
   const verseInput = document.getElementById("verseInput");
-  const tagify = new Tagify(verseInput, {
-    dropdown: { enabled: 0 },
-    enforceWhitelist: false,
-    trim: true
-  });
+  const tagify = new Tagify(verseInput, { dropdown: { enabled: 0 }, enforceWhitelist: false, trim: true });
 
   const filenamePreview = document.getElementById("filenamePreview");
-  const versionSelect = document.getElementById("versionSelect");
-  const cursiveToggle = document.getElementById("cursiveToggle");
-  const customMode = document.getElementById("customMode");
-  const customTextArea = document.getElementById("customTextArea");
-  const customNote = document.getElementById("customModeNote");
-  const termsWrapper = document.getElementById("termsWrapper");
-  const agreeTerms = document.getElementById("agreeTerms");
-  const customTitle = document.getElementById("customTitle");
-  const customPrompt = document.getElementById("customPrompt");
+  const versionSelect   = document.getElementById("versionSelect");
+  const cursiveToggle   = document.getElementById("cursiveToggle");
 
+  const customMode    = document.getElementById("customMode");
+  const customTitle   = document.getElementById("customTitle");
+  const customText    = document.getElementById("customTextArea");
+  const customPrompt  = document.getElementById("customPrompt");
+  const promptRow     = document.getElementById("promptRow");
+  const customNote    = document.getElementById("customModeNote");
+  const termsWrapper  = document.getElementById("termsWrapper");
+  const agreeTerms    = document.getElementById("agreeTerms");
+
+  // Filename preview
   const updateFilenamePreview = () => {
     const tags = tagify.value.map(t => t.value.trim());
-    const cursive = cursiveToggle.checked;
-    const suffix = cursive ? "_cursive.pdf" : ".pdf";
+    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
     filenamePreview.textContent = tags.length
       ? tags.map(v => v.replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase() + suffix).join(", ")
       : "";
   };
-
-  tagify.on("add", updateFilenamePreview);
-  tagify.on("remove", updateFilenamePreview);
-  tagify.on("input", updateFilenamePreview);
+  ["add","remove","input"].forEach(evt => tagify.on(evt, updateFilenamePreview));
   cursiveToggle.addEventListener("change", updateFilenamePreview);
 
-  customMode.addEventListener("change", () => {
-    const show = customMode.checked;
-    customTextArea.style.display = show ? "block" : "none";
-    customNote.style.display = show ? "block" : "none";
-    termsWrapper.style.display = show ? "block" : "none";
-    customTitle.style.display = show ? "block" : "none";
-    customPrompt.style.display = show ? "block" : "none";
+  // DIY toggle (show/hide group)
+  const setCustomVisibility = (show) => {
+    [customTitle, customText, promptRow, customNote, termsWrapper].forEach(el => el.classList.toggle("hidden", !show));
+    if (!show) {
+      customTitle.value = "";
+      customText.value  = "";
+      if (customPrompt) customPrompt.value = "";
+      agreeTerms.checked = false;
+    }
+  };
+  customMode.addEventListener("change", () => setCustomVisibility(customMode.checked));
+
+  // Prompt idea chips
+  document.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    const idea = chip.getAttribute("data-prompt");
+    if (idea) {
+      customPrompt.value = idea;
+      customPrompt.focus();
+    }
   });
 
+  // Persist simple preferences
+  versionSelect.addEventListener("change", () => localStorage.setItem("preferredVersion", versionSelect.value));
+  cursiveToggle.addEventListener("change", () => localStorage.setItem("useCursive", cursiveToggle.checked));
+
+  // Submit validation + toast
   document.getElementById("worksheetForm").addEventListener("submit", (e) => {
     const tags = tagify.value.map(t => t.value);
-    const customText = customTextArea.value.trim();
-    const allowSubmit = tags.length > 0 || customText.length > 0;
+    const customTextVal = customText.value.trim();
+    const allowSubmit = tags.length > 0 || customTextVal.length > 0;
 
     if (!allowSubmit) {
       e.preventDefault();
-      alert("Please enter at least one verse or custom text.");
+      alert("Please enter at least one verse or provide your own verse/poem/prayer.");
       return;
     }
-
     if (customMode.checked && !agreeTerms.checked) {
       e.preventDefault();
       alert("You must agree to the terms to submit custom content.");
       return;
     }
 
+    // Pack tag values into the real input
     verseInput.value = tags.join(", ");
     localStorage.setItem("recentVerses", verseInput.value);
 
-    // Show toast after short delay
+    // Toast feedback
     setTimeout(() => {
       const toast = document.getElementById("toast");
       toast.classList.add("show");
@@ -192,20 +226,10 @@ endblock %} {% block content %}
     }, 100);
   });
 
-  versionSelect.addEventListener("change", () => {
-    localStorage.setItem("preferredVersion", versionSelect.value);
-  });
-
-  cursiveToggle.addEventListener("change", () => {
-    localStorage.setItem("useCursive", cursiveToggle.checked);
-  });
-
+  // Restore local prefs
   window.addEventListener("DOMContentLoaded", () => {
     const clearFlag = {{ clear_storage | tojson | default("false") }};
-    if (clearFlag) {
-      clearForm();
-      return;
-    }
+    if (clearFlag) { clearForm(); return; }
 
     const recent = localStorage.getItem("recentVerses");
     if (recent) tagify.addTags(recent.split(",").map(v => v.trim()));
@@ -215,30 +239,92 @@ endblock %} {% block content %}
 
     const useCursive = localStorage.getItem("useCursive") === "true";
     cursiveToggle.checked = useCursive;
+
+    setCustomVisibility(customMode.checked);
     updateFilenamePreview();
   });
 
+  // Clear
   function clearForm() {
     tagify.removeAllTags();
     verseInput.value = "";
-    customTextArea.value = "";
     customTitle.value = "";
-    customPrompt.value = "";
+    customText.value = "";
+    if (customPrompt) customPrompt.value = "";
     customMode.checked = false;
-    customTextArea.style.display = "none";
-    customNote.style.display = "none";
-    termsWrapper.style.display = "none";
-    customTitle.style.display = "none";
-    customPrompt.style.display = "none";
-    agreeTerms.checked = false;
+    setCustomVisibility(false);
     filenamePreview.textContent = "";
     localStorage.removeItem("recentVerses");
   }
 </script>
 
 <style>
+  .block {
+    margin-bottom: 1.5rem;
+  }
+  .small {
+    font-size: 0.9em;
+  }
+  .muted {
+    color: var(--text-secondary, #6b7280);
+    margin-top: 6px;
+  }
+  .help {
+    font-size: 0.9em;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 6px;
+  }
+  .warn {
+    color: #e53e3e;
+    margin-top: 1rem;
+  }
+  .wide-input {
+    width: 100%;
+    padding: 10px;
+  }
+  .checkbox-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .hidden {
+    display: none;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .button.primary {
+    background: #2563eb;
+  }
+  .button.primary:hover {
+    background: #1e40af;
+  }
+
+  /* Prompt idea chips */
+  .prompt-ideas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .chip {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.85em;
+    cursor: pointer;
+  }
+  .chip:hover {
+    background: #eef2ff;
+  }
+
+  /* Toast */
   .snackbar {
-    background-color: #38a169;
+    background-color: #16a34a;
     color: white;
     padding: 12px 20px;
     border-radius: 6px;
@@ -249,11 +335,17 @@ endblock %} {% block content %}
     z-index: 9999;
     font-size: 1em;
     opacity: 0;
-    transition: opacity 0.4s ease-in-out;
+    transition: opacity 0.35s ease-in-out;
   }
-
   .snackbar.show {
     opacity: 1;
+  }
+
+  /* Mobile tweaks */
+  @media (max-width: 640px) {
+    .actions {
+      flex-direction: column;
+    }
   }
 </style>
 {% endblock %}
