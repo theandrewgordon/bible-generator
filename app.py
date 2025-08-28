@@ -321,14 +321,28 @@ def history():
     except Exception as e:
         traceback.print_exc()
         return f"Error fetching history: {e}", 500
-
 @app.route("/download/<filename>")
 @login_required
 def download_file(filename):
     file_path = os.path.join("output", filename)
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
-    return "File not found", 404
+
+    # 🟢 Auto-fallback: regenerate instead of error
+    user_email = session.get("user_email")
+    docs = db.collection("worksheets") \
+        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
+        .where(filter=firestore.FieldFilter("filename", "==", filename)) \
+        .limit(1).stream()
+
+    doc = next(docs, None)
+    if not doc:
+        flash("⚠️ File missing and original data not found.", "error")
+        return redirect(url_for("history"))
+
+    # reuse regenerate logic
+    return redirect(url_for("regenerate", filename=filename))
+
 
 @app.route("/regenerate/<filename>")
 @login_required
