@@ -1,16 +1,16 @@
 {% extends "base.html" %} {% block title %}Worksheet History | Faith Sparks{%
 endblock %} {% block content %}
-<h1>📂 Worksheet History</h1>
+<h1>🗂️ Worksheet History</h1>
 <p class="muted small">Logged in as: <strong>{{ email }}</strong></p>
 
 <div class="toolbar">
   <input
-    type="text"
     id="searchInput"
-    placeholder="Search…"
-    oninput="debouncedFilterHistory()"
+    type="text"
+    placeholder="Search verse or version…"
+    oninput="debouncedFilter()"
   />
-  <select id="versionFilter" onchange="filterHistory()">
+  <select id="versionFilter" onchange="applyFilters()">
     <option value="">All Versions</option>
     {% for item in history|map(attribute='version')|unique %}
     <option value="{{ item|lower }}">{{ item }}</option>
@@ -23,166 +23,140 @@ endblock %} {% block content %}
 {% if history %}
 <form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
   <div class="bulkbar">
-    <label class="checkbox-row">
-      <input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" />
-      Select All
+    <label class="checkrow">
+      <input type="checkbox" id="selectAll" onclick="toggleAll(this)" />
+      Select all
     </label>
     <button
       type="submit"
       class="button delete"
-      onclick="return deleteSelected()"
+      onclick="return confirmDeleteSelected()"
     >
-      🗑️ Delete Selected
+      🗑️ Delete selected
     </button>
   </div>
 
-  <div class="table-wrap">
-    <table id="historyTable" class="history">
-      <colgroup>
-        <col style="width: 44px" />
-        <col />
-        <col style="width: 120px" />
-        <col style="width: 170px" />
-        <col style="width: 170px" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th><span class="sr-only">Select</span></th>
-          <th>📖 Verse</th>
-          <th>📘 Version</th>
-          <th>🕒 Date</th>
-          <th>⚙️ Actions</th>
-        </tr>
-      </thead>
-      <tbody id="historyList">
-        {% for item in history %}
-        <tr
-          class="history-entry"
-          data-verse="{{ item.verse|lower }}"
-          data-version="{{ item.version|lower }}"
+  <ul id="cards" class="cards">
+    {% for item in history %}
+    <li
+      class="card"
+      data-verse="{{ item.verse|lower }}"
+      data-version="{{ item.version|lower }}"
+    >
+      <!-- left: checkbox -->
+      <div class="cell select">
+        <input
+          type="checkbox"
+          class="row-check"
+          name="selected_files"
+          value="{{ item.filename }}"
+          aria-label="Select {{ item.verse }}"
+        />
+      </div>
+
+      <!-- main: title + tags -->
+      <div class="cell title">
+        <div class="verse">{{ item.verse }}</div>
+        <div class="tags">
+          {% if item.cursive %}<span class="chip">✍️ Cursive</span>{% endif %}
+          {% if item.custom %}<span class="chip alt">DIY</span>{% endif %}
+        </div>
+      </div>
+
+      <!-- version -->
+      <div class="cell version">
+        <span class="mono">{{ item.version }}</span>
+      </div>
+
+      <!-- date -->
+      <div class="cell date">
+        {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else
+        'Date unknown' }}
+      </div>
+
+      <!-- actions -->
+      <div class="cell actions">
+        <a
+          class="icon"
+          href="{{ url_for('download_file', filename=item.filename) }}"
+          title="Download"
+          >📥</a
         >
-          <!-- Select -->
-          <td data-label="Select">
-            <input
-              type="checkbox"
-              name="selected_files"
-              value="{{ item.filename }}"
-              class="select-checkbox"
-            />
-          </td>
-
-          <!-- Verse -->
-          <td data-label="Verse">
-            <span class="verse">{{ item.verse }}</span>
-            {% if item.cursive %}<span class="tag" title="Cursive">✍️</span>{%
-            endif %} {% if item.custom %}<span
-              class="tag gray"
-              title="Custom / DIY"
-              >DIY</span
-            >{% endif %}
-          </td>
-
-          <!-- Version -->
-          <td data-label="Version">
-            <span class="mono">{{ item.version }}</span>
-          </td>
-
-          <!-- Date -->
-          <td data-label="Date">
-            {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else
-            'Date unknown' }}
-          </td>
-
-          <!-- Actions -->
-          <td data-label="Actions">
-            <div class="actions">
-              <a
-                class="icon-btn"
-                href="{{ url_for('download_file', filename=item.filename) }}"
-                title="Download"
-                >📥</a
-              >
-              <a
-                class="icon-btn danger"
-                href="{{ url_for('delete_worksheet', filename=item.filename) }}"
-                onclick="return confirm('Delete this worksheet?')"
-                title="Delete"
-                >🗑️</a
-              >
-              <a
-                class="icon-btn"
-                href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
-                title="Regenerate"
-                >♻️</a
-              >
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+        <a
+          class="icon danger"
+          href="{{ url_for('delete_worksheet', filename=item.filename) }}"
+          title="Delete"
+          onclick="return confirm('Delete this worksheet?')"
+          >🗑️</a
+        >
+        <a
+          class="icon"
+          href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
+          title="Regenerate"
+          >♻️</a
+        >
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
 </form>
 {% else %}
-<p>No worksheets found.</p>
-<p><a href="{{ url_for('generate') }}" class="button">Create One</a></p>
+<p class="muted">No worksheets yet.</p>
+<p><a class="button" href="{{ url_for('generate') }}">Create one</a></p>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
-  function filterHistory() {
-    const query = document.getElementById("searchInput").value.toLowerCase();
-    const version = document
-      .getElementById("versionFilter")
-      .value.toLowerCase();
-    const rows = document.querySelectorAll(".history-entry");
-
-    rows.forEach((row) => {
-      const verse = row.dataset.verse || "";
-      const vers = row.dataset.version || "";
-      const match =
-        (!query || verse.includes(query) || vers.includes(query)) &&
-        (!version || vers === version);
-
-      row.style.display = match ? "" : "none";
+  function applyFilters() {
+    const q = (
+      document.getElementById("searchInput").value || ""
+    ).toLowerCase();
+    const vf = (
+      document.getElementById("versionFilter").value || ""
+    ).toLowerCase();
+    document.querySelectorAll("#cards .card").forEach((li) => {
+      const verse = li.dataset.verse || "";
+      const ver = li.dataset.version || "";
+      const ok =
+        (!q || verse.includes(q) || ver.includes(q)) && (!vf || ver === vf);
+      li.style.display = ok ? "" : "none";
     });
   }
-
-  let debounceTimer;
-  function debouncedFilterHistory() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(filterHistory, 200);
+  let t;
+  function debouncedFilter() {
+    clearTimeout(t);
+    t = setTimeout(applyFilters, 180);
   }
 
-  function toggleSelectAll(source) {
+  function toggleAll(src) {
     document
-      .querySelectorAll(".select-checkbox")
-      .forEach((cb) => (cb.checked = source.checked));
+      .querySelectorAll(".row-check")
+      .forEach((cb) => (cb.checked = src.checked));
   }
-
-  function deleteSelected() {
-    const selected = document.querySelectorAll(".select-checkbox:checked");
-    if (selected.length === 0) {
+  function confirmDeleteSelected() {
+    const n = document.querySelectorAll(".row-check:checked").length;
+    if (!n) {
       alert("No worksheets selected.");
       return false;
     }
-    return confirm(`Delete ${selected.length} worksheet(s)?`);
+    return confirm(`Delete ${n} worksheet(s)?`);
   }
 
   function clearFilters() {
     document.getElementById("searchInput").value = "";
     document.getElementById("versionFilter").value = "";
-    filterHistory();
+    applyFilters();
   }
 
   function exportCSV() {
     let csv = "Verse,Version,Date\n";
-    document.querySelectorAll(".history-entry").forEach((row) => {
-      if (row.style.display === "none") return;
-      const verse = row.querySelector(".verse")?.textContent.trim() || "";
-      const version = row
-        .querySelector('td[data-label="Version"]')
-        .innerText.trim();
-      const date = row.querySelector('td[data-label="Date"]').innerText.trim();
-      csv += `"${verse.replace(/"/g, '""')}","${version}","${date}"\n`;
+    document.querySelectorAll("#cards .card").forEach((li) => {
+      if (li.style.display === "none") return;
+      const verse = li
+        .querySelector(".verse")
+        .innerText.trim()
+        .replace(/"/g, '""');
+      const ver = li.querySelector(".version").innerText.trim();
+      const date = li.querySelector(".date").innerText.trim();
+      csv += `"${verse}","${ver}","${date}"\n`;
     });
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -194,8 +168,8 @@ endblock %} {% block content %}
     URL.revokeObjectURL(url);
   }
 
-  // Dark mode class (in case base hasn't applied yet)
-  window.addEventListener("DOMContentLoaded", () => {
+  // Keep dark mode consistent if base didn't run yet
+  document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.getItem("theme") === "dark")
       document.body.classList.add("dark");
   });
@@ -213,13 +187,13 @@ endblock %} {% block content %}
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-    margin: 0 0 1rem 0;
+    margin: 0 0 1rem;
   }
   #searchInput,
   #versionFilter {
     padding: 8px 12px;
-    border-radius: 6px;
     border: 1px solid #cbd5e1;
+    border-radius: 8px;
     min-width: 200px;
   }
 
@@ -227,72 +201,53 @@ endblock %} {% block content %}
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin: 0.25rem 0 12px 0;
+    margin: 0.25rem 0 12px;
   }
-  .checkbox-row {
+  .checkrow {
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
 
-  .table-wrap {
-    width: 100%;
-    overflow-x: auto;
-  }
-  table.history {
-    width: 100%;
-    border-collapse: collapse;
-    background: transparent;
-  }
-  table.history thead th {
-    text-align: left;
-    background: var(--box);
-    padding: 12px;
-    font-weight: 600;
-    border-bottom: 1px solid #e5e7eb;
-  }
-  table.history td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #eef2f7;
-    vertical-align: middle;
-  }
-
-  .actions {
+  .cards {
+    list-style: none;
+    padding: 0;
+    margin: 0;
     display: flex;
-    gap: 8px;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.75rem;
   }
-  .icon-btn {
-    display: inline-flex;
+  .card {
+    display: grid;
+    grid-template-columns: 36px 1fr 120px 170px 150px;
+    gap: 0.75rem;
     align-items: center;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: var(--box);
+  }
+  .cell.select {
+    display: flex;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    background: #e2e8f0;
-    text-decoration: none;
   }
-  .icon-btn:hover {
-    background: #cbd5e1;
+  .verse {
+    font-weight: 600;
   }
-  .icon-btn.danger {
-    background: #fecaca;
+  .tags {
+    margin-top: 4px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
   }
-  .icon-btn.danger:hover {
-    background: #fca5a5;
-  }
-
-  .tag {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 2px 6px;
+  .chip {
     font-size: 0.75em;
-    border-radius: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
     background: #fde68a;
     color: #111827;
-    vertical-align: middle;
   }
-  .tag.gray {
+  .chip.alt {
     background: #e5e7eb;
   }
 
@@ -300,68 +255,65 @@ endblock %} {% block content %}
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
       "Liberation Mono", monospace;
   }
-
-  /* Mobile: turn table rows into cards */
-  @media (max-width: 680px) {
-    .toolbar {
-      gap: 0.4rem;
-    }
-    .table-wrap {
-      overflow: visible;
-    }
-    table.history thead {
-      display: none;
-    }
-    table.history,
-    table.history tbody,
-    table.history tr,
-    table.history td {
-      display: block;
-      width: 100%;
-    }
-    table.history tr {
-      margin-bottom: 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      background: var(--box);
-    }
-    table.history td {
-      border-bottom: none;
-      padding: 10px 12px;
-      position: relative;
-    }
-    table.history td::before {
-      content: attr(data-label);
-      position: absolute;
-      left: 12px;
-      top: 10px;
-      font-size: 0.75em;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-    }
-    table.history td[data-label="Select"]::before {
-      content: "";
-    }
-    table.history td[data-label="Select"] {
-      padding-top: 12px;
-    }
-    table.history td[data-label="Verse"] {
-      padding-top: 28px;
-    }
-    .actions {
-      justify-content: flex-start;
-    }
+  .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: #e2e8f0;
+    text-decoration: none;
+    margin-left: 6px;
+  }
+  .icon:hover {
+    background: #cbd5e1;
+  }
+  .icon.danger {
+    background: #fecaca;
+  }
+  .icon.danger:hover {
+    background: #fca5a5;
+  }
+  .cell.actions {
+    display: flex;
+    justify-content: flex-end;
   }
 
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    border: 0;
+  /* Compact + mobile */
+  @media (max-width: 900px) {
+    .card {
+      grid-template-columns: 32px 1fr 90px 140px 120px;
+    }
+  }
+  @media (max-width: 680px) {
+    .card {
+      grid-template-columns: 28px 1fr;
+      grid-template-areas:
+        "sel title"
+        "sel version"
+        "sel date"
+        "sel actions";
+    }
+    .cell.select {
+      grid-area: sel;
+    }
+    .cell.title {
+      grid-area: title;
+    }
+    .cell.version {
+      grid-area: version;
+      margin-top: 2px;
+    }
+    .cell.date {
+      grid-area: date;
+      margin-top: 2px;
+    }
+    .cell.actions {
+      grid-area: actions;
+      justify-content: flex-start;
+      margin-top: 6px;
+    }
   }
 </style>
 {% endblock %}
