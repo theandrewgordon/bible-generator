@@ -43,8 +43,8 @@ endblock %} {% block content %}
       data-verse="{{ item.verse|lower }}"
       data-version="{{ item.version|lower }}"
     >
-      <!-- left: checkbox -->
-      <div class="cell select">
+      <!-- checkbox -->
+      <div class="select">
         <input
           type="checkbox"
           class="row-check"
@@ -54,28 +54,27 @@ endblock %} {% block content %}
         />
       </div>
 
-      <!-- main: title + tags -->
-      <div class="cell title">
-        <div class="verse">{{ item.verse }}</div>
-        <div class="tags">
-          {% if item.cursive %}<span class="chip">✍️ Cursive</span>{% endif %}
-          {% if item.custom %}<span class="chip alt">DIY</span>{% endif %}
+      <!-- content -->
+      <div class="content">
+        <div class="title">{{ item.verse }}</div>
+        <div class="meta">
+          <span class="meta-left">
+            {# Show either DIY or Version, not both #}
+            <span class="badge alt">
+              {% if item.custom %}DIY{% else %}{{ item.version }}{% endif %}
+            </span>
+            {% if item.cursive %}<span class="badge">✍️ Cursive</span>{% endif
+            %}
+          </span>
+          <span class="meta-right">
+            {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else
+            'Date unknown' }}
+          </span>
         </div>
       </div>
 
-      <!-- version -->
-      <div class="cell version">
-        <span class="mono">{{ item.version }}</span>
-      </div>
-
-      <!-- date -->
-      <div class="cell date">
-        {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else
-        'Date unknown' }}
-      </div>
-
       <!-- actions -->
-      <div class="cell actions">
+      <div class="actions">
         <a
           class="icon"
           href="{{ url_for('download_file', filename=item.filename) }}"
@@ -123,7 +122,7 @@ endblock %} {% block content %}
   let t;
   function debouncedFilter() {
     clearTimeout(t);
-    t = setTimeout(applyFilters, 180);
+    t = setTimeout(applyFilters, 160);
   }
 
   function toggleAll(src) {
@@ -147,16 +146,19 @@ endblock %} {% block content %}
   }
 
   function exportCSV() {
-    let csv = "Verse,Version,Date\n";
+    let csv = "Verse,Version/DIY,Cursive,Date\n";
     document.querySelectorAll("#cards .card").forEach((li) => {
       if (li.style.display === "none") return;
       const verse = li
-        .querySelector(".verse")
+        .querySelector(".title")
         .innerText.trim()
         .replace(/"/g, '""');
-      const ver = li.querySelector(".version").innerText.trim();
-      const date = li.querySelector(".date").innerText.trim();
-      csv += `"${verse}","${ver}","${date}"\n`;
+      const vbadge = li.querySelector(".badge.alt").innerText.trim();
+      const hasCursive = !!li.querySelector(".badge:not(.alt)");
+      const date = li.querySelector(".meta-right").innerText.trim();
+      csv += `"${verse}","${vbadge}","${
+        hasCursive ? "Yes" : "No"
+      }","${date}"\n`;
     });
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -168,7 +170,6 @@ endblock %} {% block content %}
     URL.revokeObjectURL(url);
   }
 
-  // Keep dark mode consistent if base didn't run yet
   document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.getItem("theme") === "dark")
       document.body.classList.add("dark");
@@ -219,7 +220,7 @@ endblock %} {% block content %}
   }
   .card {
     display: grid;
-    grid-template-columns: 36px 1fr 120px 170px 150px;
+    grid-template-columns: 38px 1fr auto;
     gap: 0.75rem;
     align-items: center;
     padding: 12px;
@@ -227,44 +228,53 @@ endblock %} {% block content %}
     border-radius: 10px;
     background: var(--box);
   }
-  .cell.select {
+  .select {
     display: flex;
     justify-content: center;
   }
-  .verse {
-    font-weight: 600;
+  .content {
+    min-width: 0;
   }
-  .tags {
-    margin-top: 4px;
+  .title {
+    font-weight: 700;
+    line-height: 1.25;
+    word-break: break-word;
+    font-size: 1.02rem;
+    margin-bottom: 4px;
+  }
+  .meta {
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
   }
-  .chip {
-    font-size: 0.75em;
+  .badge {
+    font-size: 0.73rem;
     padding: 2px 8px;
     border-radius: 999px;
     background: #fde68a;
     color: #111827;
+    vertical-align: middle;
   }
-  .chip.alt {
+  .badge.alt {
     background: #e5e7eb;
+    margin-right: 6px;
   }
-
-  .mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
-      "Liberation Mono", monospace;
+  .actions {
+    display: flex;
+    gap: 6px;
   }
   .icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 8px;
     background: #e2e8f0;
     text-decoration: none;
-    margin-left: 6px;
   }
   .icon:hover {
     background: #cbd5e1;
@@ -275,44 +285,14 @@ endblock %} {% block content %}
   .icon.danger:hover {
     background: #fca5a5;
   }
-  .cell.actions {
-    display: flex;
-    justify-content: flex-end;
-  }
 
-  /* Compact + mobile */
-  @media (max-width: 900px) {
+  /* Mobile layout: actions drop under title */
+  @media (max-width: 640px) {
     .card {
-      grid-template-columns: 32px 1fr 90px 140px 120px;
+      grid-template-columns: 30px 1fr;
     }
-  }
-  @media (max-width: 680px) {
-    .card {
-      grid-template-columns: 28px 1fr;
-      grid-template-areas:
-        "sel title"
-        "sel version"
-        "sel date"
-        "sel actions";
-    }
-    .cell.select {
-      grid-area: sel;
-    }
-    .cell.title {
-      grid-area: title;
-    }
-    .cell.version {
-      grid-area: version;
-      margin-top: 2px;
-    }
-    .cell.date {
-      grid-area: date;
-      margin-top: 2px;
-    }
-    .cell.actions {
-      grid-area: actions;
-      justify-content: flex-start;
-      margin-top: 6px;
+    .actions {
+      grid-column: 2 / -1;
     }
   }
 </style>
