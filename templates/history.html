@@ -8,7 +8,7 @@
 <div class="toolbar">
   <input
     id="searchInput"
-    type="text"
+    type="search"
     placeholder="🔎 Search verse or version…"
     oninput="debouncedFilter()"
     aria-label="Search worksheets"
@@ -115,14 +115,16 @@
 {% block extra_scripts %}
 <script>
   function applyFilters() {
-    const q = (document.getElementById("searchInput").value || "").toLowerCase();
+    const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
     const vf = (document.getElementById("versionFilter").value || "").toLowerCase();
 
     document.querySelectorAll("#cards .card").forEach((li) => {
       const verse = li.dataset.verse || "";
       const ver = li.dataset.version || "";
-      const ok = (!q || verse.includes(q) || ver.includes(q)) && (!vf || ver === vf);
-      li.style.display = ok ? "" : "none";
+      const titleTxt = (li.querySelector('.title')?.innerText || '').toLowerCase();
+      const searchable = `${verse} ${ver} ${titleTxt}`;
+      const ok = (!q || searchable.includes(q)) && (!vf || ver === vf);
+      li.hidden = !ok;
     });
   }
 
@@ -154,7 +156,7 @@
   function exportCSV() {
     let csv = "Verse,Version/DIY,Cursive,Date\n";
     document.querySelectorAll("#cards .card").forEach((li) => {
-      if (li.style.display === "none") return;
+      if (li.hidden || li.style.display === "none") return;
       const verse = li.querySelector(".title").innerText.trim().replace(/"/g, '""');
       const vbadge = li.querySelector(".pill.alt").innerText.trim();
       const hasCursive = !!li.querySelector(".pill:not(.alt)");

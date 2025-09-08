@@ -164,12 +164,14 @@ def generate():
         last_pdf = None
 
         for item in items_to_generate:
-            slug = item["slug"]
+            # initial metadata from input
+            input_slug = item["slug"]
             version = item["version"]
-            verse = item["verse"]
+            verse = item["verse"]  # may be a query string; will be replaced by canonical ref if available
             is_custom = item["is_custom"]
             text = item["text"]
-            pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
+            # temporary path before we possibly update with canonical reference
+            pdf_path = f"output/{input_slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
             last_pdf = pdf_path
 
             existing = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
@@ -196,7 +198,8 @@ def generate():
                     "disclaimer": "This content was submitted by the user and not verified as Scripture."
                 }
             else:
-                cached = db.collection("verse_cache").document(f"{slug}_{version}").get() if db else None
+                # Try cache by input slug first
+                cached = db.collection("verse_cache").document(f"{input_slug}_{version}").get() if db else None
                 if cached and cached.exists:
                     data = cached.to_dict()["data"]
                 else:
@@ -206,22 +209,35 @@ def generate():
                         continue
                     data = parse_and_clean_json(content)
                     data.update({"version": version, "cursive": use_cursive})
+                    # Save cache under canonical reference slug if available
+                    canonical_ref = data.get("verse") or verse
+                    canonical_slug = normalize_slug(canonical_ref)
                     if db:
-                        db.collection("verse_cache").document(f"{slug}_{version}").set({
-                            "verse": verse,
+                        db.collection("verse_cache").document(f"{canonical_slug}_{version}").set({
+                            "verse": canonical_ref,
                             "version": version,
-                            "slug": f"{slug}_{version}",
+                            "slug": f"{canonical_slug}_{version}",
                             "data": data,
                             "timestamp": firestore.SERVER_TIMESTAMP
                         })
-                    save_json_to_file(data, f"output/{slug}_{version}.json")
+                    save_json_to_file(data, f"output/{canonical_slug}_{version}.json")
 
             generate_pdf(data, pdf_path, use_cursive=use_cursive)
+
+            # If this is a Bible verse (not custom), prefer the canonical verse reference
+            if not is_custom:
+                canonical_ref = data.get("verse") or verse
+                canonical_slug = normalize_slug(canonical_ref)
+                # update pdf path and rename if necessary
+                desired_path = f"output/{canonical_slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
+                if pdf_path != desired_path and os.path.exists(pdf_path):
+                    os.replace(pdf_path, desired_path)
+                pdf_path = desired_path
 
             if db:
                 db.collection("worksheets").add({
                     "email": user_email,
-                    "verse": verse,
+                    "verse": (data.get("verse") if not is_custom else verse),
                     "version": version,
                     "filename": os.path.basename(pdf_path),
                     "timestamp": firestore.SERVER_TIMESTAMP,
@@ -229,6 +245,9 @@ def generate():
                     "custom": is_custom,
                     **({"text": text, "imageIdea": custom_prompt} if is_custom else {})
                 })
+
+            # Track last generated path for redirect/download
+            last_pdf = pdf_path
 
         update_zip_bundle()
         session["clear_storage"] = True
