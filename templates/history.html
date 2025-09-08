@@ -83,9 +83,7 @@
         </div>
 
         <div class="actions">
-          <form method="POST" action="{{ url_for('toggle_favorite', filename=item.filename) }}" style="display:inline">
-            <button class="icon" title="Favorite" aria-label="Favorite {{ item.verse }}">{% if item.get('favorite') %}⭐{% else %}☆{% endif %}</button>
-          </form>
+          <button type="button" class="icon fav-btn" data-file="{{ item.filename }}" title="Favorite" aria-label="Favorite {{ item.verse }}">{% if item.get('favorite') %}⭐{% else %}☆{% endif %}</button>
           <a
             class="icon"
             href="{{ url_for('download_file', filename=item.filename) }}"
@@ -211,6 +209,16 @@
     // Keep Select All state in sync
     document.getElementById('cards').addEventListener('change', (e)=>{
       if (e.target.classList && e.target.classList.contains('row-check')) updateSelectAllState();
+    });
+    // Favorites async toggle
+    document.querySelectorAll('.fav-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const file = btn.dataset.file;
+        try {
+          await fetch(`{{ url_for('toggle_favorite', filename='__F__') }}`.replace('__F__', file), { method: 'POST' });
+          location.reload();
+        } catch(e) { console.error('Fav toggle failed', e); }
+      });
     });
   });
 </script>
