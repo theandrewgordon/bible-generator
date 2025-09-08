@@ -230,10 +230,15 @@
   // Restore local prefs
   window.addEventListener("DOMContentLoaded", () => {
     const clearFlag = {{ clear_storage | tojson | default("false") }};
-    if (clearFlag) { clearForm(); return; }
+    // Prefill from server if provided
+    const prefill = {{ prefill_verse|tojson|default('""') }};
+    if (prefill) {
+      tagify.addTags(prefill.split(',').map(v => v.trim()).filter(Boolean));
+    }
+    if (clearFlag && !prefill) { clearForm(); return; }
 
     const recent = localStorage.getItem("recentVerses");
-    if (recent) tagify.addTags(recent.split(",").map(v => v.trim()));
+    if (!prefill && recent) tagify.addTags(recent.split(",").map(v => v.trim()));
 
     const storedVersion = localStorage.getItem("preferredVersion");
     if (storedVersion) versionSelect.value = storedVersion;

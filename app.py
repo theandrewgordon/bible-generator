@@ -50,6 +50,8 @@ def load_user_info():
             if resp.ok:
                 session["user_info"] = resp.json()
                 session["user_email"] = session["user_info"].get("email")
+                # Clear client-side generate form on fresh sign-in
+                session["clear_storage"] = True
     else:
         # Not authorized: just drop cached user display info (do NOT clear entire session)
         session.pop("user_info", None)
@@ -103,6 +105,26 @@ def update_zip_bundle():
 os.makedirs("output", exist_ok=True)
 os.makedirs("output/thumbs", exist_ok=True)
 
+# --- Collections ---
+def load_collections():
+    try:
+        with open('collections.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        # minimal defaults; you can expand/override via collections.json
+        return {
+            "back-to-school": ["Proverbs 22:6", "Colossians 3:23", "Psalm 119:105"],
+            "memory-verses": ["John 3:16", "Romans 8:28", "Philippians 4:13"],
+            "psalms": ["Psalm 23:1", "Psalm 100:4", "Psalm 1:1"],
+            "advent": ["Isaiah 9:6", "Micah 5:2", "Luke 2:11"],
+            "easter": ["John 11:25", "Luke 24:6", "1 Corinthians 15:3-4"],
+        }
+
+COLLECTIONS = load_collections()
+
+def get_collection_verses(slug: str):
+    return COLLECTIONS.get(slug, [])
+
 def make_thumbnail(verse_ref: str, version: str, base_name: str):
     """Create a small PNG thumbnail for listings. Lightweight and dependency-free."""
     try:
@@ -153,7 +175,16 @@ def generate():
     try:
         if request.method == "GET":
             clear_storage = session.pop("clear_storage", False)
-            return render_template("generate.html", prefill_verse=request.args.get("verse", ""), clear_storage=clear_storage)
+            # Collection prefill support
+            prefill = request.args.get("verse", "").strip()
+            col = request.args.get("collection")
+            if not prefill and col:
+                verses = get_collection_verses(col)
+                if verses:
+                    prefill = ", ".join(verses)
+                    # if coming from collection, do not clear immediately
+                    clear_storage = False
+            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage)
 
         verse_input = request.form.get("verse", "").strip()
         custom_text = request.form.get("custom_text", "").strip()
@@ -406,6 +437,23 @@ def thumb(filename):
     path = os.path.join('output', 'thumbs', filename)
     if os.path.exists(path):
         return send_file(path)
+    # On-demand create if missing
+    base = os.path.splitext(os.path.basename(filename))[0]
+    pdf_name = base + '.pdf'
+    if db:
+        user_email = session.get('user_email')
+        docs = db.collection('worksheets') \
+            .where(filter=firestore.FieldFilter('email', '==', user_email)) \
+            .where(filter=firestore.FieldFilter('filename', '==', pdf_name)) \
+            .limit(1).stream()
+        doc = next(docs, None)
+        if doc:
+            meta = doc.to_dict()
+            verse_ref = meta.get('verse', base)
+            version = meta.get('version', 'ESV')
+            out = make_thumbnail(verse_ref, version, base)
+            if out and os.path.exists(out):
+                return send_file(out)
     return ("", 404)
 
 @app.route('/toggle_favorite/<filename>', methods=['POST'])
@@ -437,12 +485,16 @@ def browse():
         .order_by('timestamp', direction=firestore.Query.DESCENDING) \
         .limit(24).stream()
     items = [doc.to_dict() for doc in recent]
+    title_map = {
+        'back-to-school': 'Back to School',
+        'memory-verses': 'Memory Verses',
+        'psalms': 'Psalms',
+        'advent': 'Advent',
+        'easter': 'Easter',
+    }
     collections = [
-        { 'slug': 'back-to-school', 'title': 'Back to School' },
-        { 'slug': 'memory-verses', 'title': 'Memory Verses' },
-        { 'slug': 'psalms', 'title': 'Psalms' },
-        { 'slug': 'advent', 'title': 'Advent' },
-        { 'slug': 'easter', 'title': 'Easter' },
+        { 'slug': slug, 'title': title_map.get(slug, slug.replace('-', ' ').title()), 'count': len(get_collection_verses(slug)) }
+        for slug in COLLECTIONS.keys()
     ]
     return render_template('browse.html', items=items, collections=collections)
 

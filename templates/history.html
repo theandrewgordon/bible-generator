@@ -144,14 +144,9 @@
   }
 
   function toggleAll(src) {
-    // Toggle only currently visible cards
-    document.querySelectorAll('#cards .card').forEach((li)=>{
-      if (li.hidden) return;
-      const cb = li.querySelector('.row-check');
-      if (!cb) return;
-      cb.checked = src.checked;
-      cb.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    const checks = document.querySelectorAll('#cards .card:not([hidden]) input.row-check');
+    checks.forEach((cb) => { cb.checked = src.checked; });
+    updateSelectAllState();
   }
   function getSelectedValues() {
     const form = document.getElementById('bulkDeleteForm');
@@ -206,6 +201,12 @@
   document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
     applyFilters();
+    // Wire up listeners
+    const searchEl = document.getElementById('searchInput');
+    const versionEl = document.getElementById('versionFilter');
+    if (searchEl) searchEl.addEventListener('input', debouncedFilter);
+    if (versionEl) versionEl.addEventListener('change', applyFilters);
+
     // Keep Select All state in sync
     document.getElementById('cards').addEventListener('change', (e)=>{
       if (e.target.classList && e.target.classList.contains('row-check')) updateSelectAllState();

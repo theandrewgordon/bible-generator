@@ -9,6 +9,7 @@
     {% for c in collections %}
       <a class="collection-tile" href="{{ url_for('generate') }}?collection={{ c.slug }}">
         <div class="collection-title">{{ c.title }}</div>
+        <div class="collection-count">{{ c.count }} verses</div>
       </a>
     {% endfor %}
   </div>
@@ -40,6 +41,7 @@
   .grid-collections { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
   .collection-tile { display: block; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: var(--box); text-decoration: none; color: inherit; }
   .collection-title { font-weight: 700; }
+  .collection-count { color: var(--text-secondary); font-size: .85em; }
 
   .grid-cards { list-style: none; padding:0; margin:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .grid-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; background: var(--box); }
