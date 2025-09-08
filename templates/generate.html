@@ -4,6 +4,9 @@
 <h1 class="page-title">📝 Generate Worksheet</h1>
 
 <form id="worksheetForm" method="POST" action="/generate">
+  {% if collection_slug %}
+    <input type="hidden" name="collection_slug" value="{{ collection_slug }}">
+  {% endif %}
   <!-- Verse entry -->
   <section class="block">
     <label for="verseInput"><strong>📖 Bible Verse(s)</strong></label>
@@ -124,6 +127,7 @@
     <button type="submit" class="button primary">🚀 Generate Worksheet</button>
     <button type="button" class="button" onclick="clearForm()">🧹 Clear</button>
   </div>
+  <div id="zipHint" class="small muted" style="margin-top:6px; display:none;"></div>
 
   <div id="disclaimerBox" class="hidden warn">
     ⚠️ Some verses could not be verified. Please double-check your input.
@@ -226,6 +230,16 @@
       setTimeout(() => toast.classList.remove("show"), 3500);
     }, 100);
   });
+
+  // Show hint when multiple tags present
+  function updateZipHint(){
+    const n = tagify.value.length;
+    const el = document.getElementById('zipHint');
+    if (n > 1) { el.style.display='block'; el.textContent = `Will create a ZIP with ${n} worksheets.`; }
+    else { el.style.display='none'; }
+  }
+  ["add","remove"].forEach(evt => tagify.on(evt, updateZipHint));
+  updateZipHint();
 
   // Restore local prefs
   window.addEventListener("DOMContentLoaded", () => {

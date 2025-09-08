@@ -6,6 +6,7 @@ import os, json, re, traceback
 from zipfile import ZipFile
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud import storage
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
@@ -60,14 +61,23 @@ def load_user_info():
 
 # --- Firebase ---
 creds_str = os.getenv("FIREBASE_CREDS_JSON")
+STORAGE_BUCKET = os.getenv("FIREBASE_STORAGE_BUCKET") or os.getenv("STORAGE_BUCKET")
+
 if creds_str:
     with open("/tmp/firebase-creds.json", "w") as f:
         json.dump(json.loads(creds_str), f)
     firebase_admin.initialize_app(credentials.Certificate("/tmp/firebase-creds.json"))
     db = firestore.client()
+    # Storage client (optional)
+    try:
+        storage_client = storage.Client.from_service_account_json("/tmp/firebase-creds.json") if STORAGE_BUCKET else None
+    except Exception as e:
+        print(f"⚠️ Storage client init failed: {e}")
+        storage_client = None
 else:
     db = None
     print("⚠️ Firestore not initialized")
+    storage_client = None
 
 # --- Helpers ---
 def login_required(func):
@@ -90,6 +100,9 @@ def admin_required(func):
             return "Forbidden", 403
         return func(*args, **kwargs)
     return wrapper
+
+def is_public_browse_enabled() -> bool:
+    return os.getenv('PUBLIC_BROWSE', '0') in ('1','true','True','yes','on')
 
 def normalize_slug(text):
     text = text.replace("⚠️", "")
@@ -116,6 +129,7 @@ def update_zip_bundle():
 
 os.makedirs("output", exist_ok=True)
 os.makedirs("output/thumbs", exist_ok=True)
+os.makedirs("output/packs", exist_ok=True)
 
 # --- Collections ---
 def load_collections():
@@ -226,6 +240,21 @@ def make_thumbnail(verse_ref: str, version: str, base_name: str):
         print(f"⚠️ Thumbnail generation failed: {e}")
         return None
 
+def upload_to_storage(local_path: str, dst_path: str) -> str | None:
+    """Upload file to the configured GCS bucket. Returns public URL or None."""
+    if not storage_client or not STORAGE_BUCKET:
+        return None
+    try:
+        bucket = storage_client.bucket(STORAGE_BUCKET)
+        blob = bucket.blob(dst_path)
+        blob.upload_from_filename(local_path)
+        # Make public (simple). For private, switch to signed URLs.
+        blob.make_public()
+        return blob.public_url
+    except Exception as e:
+        print(f"⚠️ Upload to storage failed: {e}")
+        return None
+
 # --- Routes ---
 @app.route("/")
 def index():
@@ -257,9 +286,10 @@ def generate():
                     default_version_override = meta.get('defaultVersion')
                     # if coming from collection, do not clear immediately
                     clear_storage = False
-            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage, default_version_override=default_version_override)
+            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage, default_version_override=default_version_override, collection_slug=col)
 
         verse_input = request.form.get("verse", "").strip()
+        from_collection = (request.form.get('collection_slug') or '').strip() or None
         custom_text = request.form.get("custom_text", "").strip()
         custom_title = request.form.get("custom_title", "").strip()
         selected_version = request.form.get("version", "esv").strip().lower()
@@ -406,6 +436,13 @@ def generate():
             # Track last generated path for redirect/download
             last_pdf = pdf_path
 
+        # analytics: collection generate count
+        if db and from_collection:
+            try:
+                db.collection('analytics').document('pack_generates').set({ from_collection: firestore.Increment(1) }, merge=True)
+            except Exception:
+                pass
+
         update_zip_bundle()
         session["clear_storage"] = True
 
@@ -502,6 +539,13 @@ def history():
 def download_file(filename):
     file_path = os.path.join("output", filename)
     if os.path.exists(file_path):
+        # analytics per-verse download
+        try:
+            if db:
+                base = os.path.splitext(filename)[0]
+                db.collection('analytics').document('verses').set({ base: firestore.Increment(1) }, merge=True)
+        except Exception:
+            pass
         return send_file(file_path, as_attachment=True)
 
     # 🟢 Auto-fallback: regenerate instead of error
@@ -525,6 +569,16 @@ def thumb(filename):
     """Serve generated thumbnails from output/thumbs."""
     path = os.path.join('output', 'thumbs', filename)
     if os.path.exists(path):
+        # If storage is configured, redirect to cloud copy when available
+        if storage_client and STORAGE_BUCKET:
+            try:
+                bucket = storage_client.bucket(STORAGE_BUCKET)
+                blob = bucket.blob(f'thumbs/{filename}')
+                if blob.exists():
+                    blob.make_public()  # ensure public
+                    return redirect(blob.public_url)
+            except Exception:
+                pass
         return send_file(path)
     # On-demand create if missing
     base = os.path.splitext(os.path.basename(filename))[0]
@@ -542,6 +596,17 @@ def thumb(filename):
             version = meta.get('version', 'ESV')
             out = make_thumbnail(verse_ref, version, base)
             if out and os.path.exists(out):
+                # upload for durability
+                upload_to_storage(out, f'thumbs/{filename}')
+                if storage_client and STORAGE_BUCKET:
+                    try:
+                        bucket = storage_client.bucket(STORAGE_BUCKET)
+                        blob = bucket.blob(f'thumbs/{filename}')
+                        if blob.exists():
+                            blob.make_public()
+                            return redirect(blob.public_url)
+                    except Exception:
+                        pass
                 return send_file(out)
     return ("", 404)
 
@@ -572,6 +637,7 @@ def admin_seed_collections():
                 'verses': verses,
                 'isPublic': True,
                 'order': order,
+                'defaultVersion': 'esv',
             })
             order += 1
         batch.commit()
@@ -622,7 +688,7 @@ def admin_collections_new():
             'isPublic': is_public,
             'description': description,
         }
-        if default_version: data['defaultVersion'] = default_version
+        data['defaultVersion'] = default_version or 'esv'
         if order_val is not None: data['order'] = order_val
         if zip_url: data['zipUrl'] = zip_url
         db.collection('collections').document(slug).set(data)
@@ -659,7 +725,7 @@ def admin_collections_edit(slug):
             'description': description,
         }
         if default_version: data['defaultVersion'] = default_version
-        else: data.pop('defaultVersion', None)
+        else: data['defaultVersion'] = 'esv'
         if order_val is not None: data['order'] = order_val
         else: data.pop('order', None)
         if zip_url: data['zipUrl'] = zip_url
@@ -689,6 +755,111 @@ def admin_collections_delete(slug):
     flash('Collection deleted', 'success')
     return redirect(url_for('admin_collections'))
 
+@app.route('/admin/prewarm/<slug>', methods=['POST'])
+@admin_required
+def admin_prewarm_pack(slug):
+    if not db:
+        return "Firestore not configured", 500
+    meta = get_collection_meta(slug)
+    if not meta:
+        return "Not found", 404
+    verses = meta.get('verses', [])
+    default_version = (meta.get('defaultVersion') or 'esv').lower()
+    use_cursive = False
+    user_email = session.get('user_email', 'admin')
+    generated_files = []
+    for v in verses:
+        try:
+            version, verse = extract_version_from_text(v, default_version)
+            input_slug = normalize_slug(verse)
+            version_up = version.upper()
+            pdf_path = f"output/{input_slug}_{version_up}.pdf"
+            # Try cache first
+            cached = db.collection("verse_cache").document(f"{input_slug}_{version_up}").get()
+            if cached and cached.exists:
+                data = cached.to_dict().get('data', {})
+            else:
+                content = request_verse_data(verse, version)
+                if not content:
+                    print(f"⚠️ Skip prewarm: could not fetch {verse} ({version})")
+                    continue
+                data = parse_and_clean_json(content)
+                if not data or not data.get('fullVerse'):
+                    print(f"⚠️ Skip prewarm: invalid data for {verse}")
+                    continue
+                data.update({ 'version': version_up, 'cursive': use_cursive })
+                db.collection('verse_cache').document(f"{input_slug}_{version_up}").set({
+                    'verse': verse, 'version': version_up, 'slug': f"{input_slug}_{version_up}", 'data': data,
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+                save_json_to_file(data, f"output/{input_slug}_{version_up}.json")
+            # Render PDF if missing
+            if not os.path.exists(pdf_path):
+                generate_pdf(data, pdf_path, use_cursive=use_cursive)
+            if os.path.exists(pdf_path):
+                generated_files.append(pdf_path)
+        except Exception as e:
+            traceback.print_exc(); print(f"⚠️ Prewarm error for {v}: {e}")
+            continue
+
+    if not generated_files:
+        flash('No files generated for this pack.', 'warning')
+        return redirect(url_for('browse_detail', slug=slug))
+
+    # Build ZIP
+    zip_name = f"{slug}.zip"
+    zip_path = os.path.join('output', 'packs', zip_name)
+    try:
+        with ZipFile(zip_path, 'w') as z:
+            for p in generated_files:
+                z.write(p, os.path.basename(p))
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'ZIP failed: {e}', 'error')
+        return redirect(url_for('browse_detail', slug=slug))
+
+    # Upload to storage (if configured)
+    url = upload_to_storage(zip_path, f"packs/{zip_name}")
+    if not url:
+        # Fallback to local route
+        url = url_for('serve_pack', filename=zip_name, _external=True)
+
+    # Save link
+    db.collection('collections').document(slug).set({ 'zipUrl': url }, merge=True)
+    flash('Pack built successfully.', 'success')
+    return redirect(url_for('browse_detail', slug=slug))
+
+@app.route('/packs/<path:filename>')
+@login_required
+def serve_pack(filename):
+    path = os.path.join('output', 'packs', filename)
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True)
+    return ("", 404)
+
+@app.route('/dl/pack/<slug>')
+def dl_pack(slug):
+    # Public download endpoint for packs; increments analytics and redirects
+    if not db:
+        return "Firestore not configured", 500
+    d = db.collection('collections').document(slug).get()
+    if not d.exists:
+        return "Not found", 404
+    meta = d.to_dict()
+    # Increment analytics counter
+    try:
+        db.collection('analytics').document('packs').set({ slug: firestore.Increment(1) }, merge=True)
+    except Exception:
+        pass
+    url = meta.get('zipUrl')
+    if url:
+        return redirect(url)
+    # fallback to local if present
+    path = os.path.join('output', 'packs', f'{slug}.zip')
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True)
+    return "Pack not available", 404
+
 @app.route('/toggle_favorite/<filename>', methods=['POST'])
 @login_required
 def toggle_favorite(filename):
@@ -707,21 +878,47 @@ def toggle_favorite(filename):
     return redirect(url_for('history'))
 
 @app.route('/browse')
-@login_required
 def browse():
-    """Simple browse page: shows recent items and collection tiles."""
-    if not db:
-        return "Firestore not configured", 500
-    user_email = session.get('user_email')
-    recent = db.collection('worksheets') \
-        .where(filter=firestore.FieldFilter('email', '==', user_email)) \
-        .order_by('timestamp', direction=firestore.Query.DESCENDING) \
-        .limit(24).stream()
-    items = [doc.to_dict() for doc in recent]
+    """Browse page: public if PUBLIC_BROWSE enabled; else requires login."""
+    if not is_public_browse_enabled() and not google.authorized:
+        return redirect(url_for('google.login'))
+    items = []
+    if db and google.authorized:
+        user_email = session.get('user_email')
+        recent = db.collection('worksheets') \
+            .where(filter=firestore.FieldFilter('email', '==', user_email)) \
+            .order_by('timestamp', direction=firestore.Query.DESCENDING) \
+            .limit(24).stream()
+        items = [doc.to_dict() for doc in recent]
     col_items = get_collections()
     # enrich with counts
     collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl') } for c in col_items ]
-    return render_template('browse.html', items=items, collections=collections)
+    # Top packs by download count
+    top_packs = []
+    if db:
+        try:
+            doc = db.collection('analytics').document('packs').get()
+            if doc.exists:
+                counts = doc.to_dict() or {}
+                # sort by count desc and map to known collections
+                by_slug = { c['slug']: c for c in collections }
+                sorted_slugs = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+                for slug, cnt in sorted_slugs[:6]:
+                    meta = by_slug.get(slug)
+                    if meta:
+                        top_packs.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl') })
+        except Exception as e:
+            print(f"⚠️ Could not load analytics packs: {e}")
+    return render_template('browse.html', items=items, collections=collections, top_packs=top_packs)
+
+@app.route('/browse/<slug>')
+def browse_detail(slug):
+    if not is_public_browse_enabled() and not google.authorized:
+        return redirect(url_for('google.login'))
+    meta = get_collection_meta(slug)
+    if not meta:
+        return "Not found", 404
+    return render_template('browse_detail.html', c=meta)
 
 
 @app.route("/regenerate/<filename>")
@@ -781,6 +978,13 @@ def regenerate(filename):
         generate_pdf(data, pdf_path, use_cursive=use_cursive)
 
         if os.path.exists(pdf_path):
+            # analytics per-verse on regenerated download
+            try:
+                if db:
+                    base = os.path.splitext(os.path.basename(pdf_path))[0]
+                    db.collection('analytics').document('verses').set({ base: firestore.Increment(1) }, merge=True)
+            except Exception:
+                pass
             flash(f"Regenerated: {filename}", "success")
             return send_file(pdf_path, as_attachment=True)
         else:

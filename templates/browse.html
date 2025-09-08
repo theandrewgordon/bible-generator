@@ -3,16 +3,30 @@
 {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
 
+{% if top_packs and top_packs|length %}
+<section class="block">
+  <h3>Top Packs</h3>
+  <div class="grid-collections">
+    {% for p in top_packs %}
+      <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
+        <div class="collection-title">{{ p.title }}</div>
+        <div class="collection-count">{{ p.downloads }} downloads</div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section class="block">
   <h3>Collections</h3>
   <div class="grid-collections">
     {% for c in collections %}
-      <a class="collection-tile" href="{{ url_for('generate') }}?collection={{ c.slug }}">
+      <a class="collection-tile" href="{{ url_for('browse_detail', slug=c.slug) }}">
         <div class="collection-title">{{ c.title }}</div>
         <div class="collection-count">{{ c.count }} verses</div>
       </a>
       {% if c.zipUrl %}
-        <a class="button ghost" href="{{ c.zipUrl }}" target="_blank" rel="noopener">⬇️ Download Pack</a>
+        <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
       {% endif %}
     {% endfor %}
   </div>
