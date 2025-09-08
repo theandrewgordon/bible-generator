@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Admin • Collections{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin: Collections</h1>
+
+<p><a class="button" href="{{ url_for('admin_collections_new') }}">➕ New Collection</a></p>
+
+<table style="width:100%; border-collapse: collapse;">
+  <thead>
+    <tr>
+      <th style="text-align:left; padding:6px;">Slug</th>
+      <th style="text-align:left; padding:6px;">Title</th>
+      <th style="text-align:left; padding:6px;">Verses</th>
+      <th style="text-align:left; padding:6px;">Public</th>
+      <th style="text-align:left; padding:6px;">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for c in collections %}
+    <tr style="border-top:1px solid #e5e7eb;">
+      <td style="padding:6px;">{{ c.slug }}</td>
+      <td style="padding:6px;">{{ c.title }}</td>
+      <td style="padding:6px;">{{ c.verses|length }}</td>
+      <td style="padding:6px;">{{ 'Yes' if c.get('isPublic', True) else 'No' }}</td>
+      <td style="padding:6px;">
+        <a class="button ghost" href="{{ url_for('admin_collections_edit', slug=c.slug) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin_collections_delete', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Delete this collection?');">
+          <button class="button" style="background:#fecaca;">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  </table>
+{% endblock %}

@@ -232,8 +232,13 @@
     const clearFlag = {{ clear_storage | tojson | default("false") }};
     // Prefill from server if provided
     const prefill = {{ prefill_verse|tojson|default('""') }};
+    const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
     if (prefill) {
       tagify.addTags(prefill.split(',').map(v => v.trim()).filter(Boolean));
+    }
+    if (defaultVersionOverride) {
+      versionSelect.value = String(defaultVersionOverride).toLowerCase();
+      localStorage.setItem("preferredVersion", versionSelect.value);
     }
     if (clearFlag && !prefill) { clearForm(); return; }
 

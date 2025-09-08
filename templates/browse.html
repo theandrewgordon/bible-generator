@@ -11,6 +11,9 @@
         <div class="collection-title">{{ c.title }}</div>
         <div class="collection-count">{{ c.count }} verses</div>
       </a>
+      {% if c.zipUrl %}
+        <a class="button ghost" href="{{ c.zipUrl }}" target="_blank" rel="noopener">⬇️ Download Pack</a>
+      {% endif %}
     {% endfor %}
   </div>
   <p class="small muted">Collections are starting points; pick one to prefill ideas in Generate.</p>

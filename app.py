@@ -79,6 +79,18 @@ def login_required(func):
         return func(*args, **kwargs)
     return wrapper
 
+def admin_required(func):
+    from functools import wraps
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not google.authorized:
+            return redirect(url_for("google.login"))
+        email = session.get('user_email')
+        if not is_admin_email(email):
+            return "Forbidden", 403
+        return func(*args, **kwargs)
+    return wrapper
+
 def normalize_slug(text):
     text = text.replace("⚠️", "")
     text = re.sub(r'[^\w\s-]', '', text)
@@ -122,8 +134,67 @@ def load_collections():
 
 COLLECTIONS = load_collections()
 
+def get_collections():
+    """Return list of collection dicts: {slug,title,verses,defaultVersion,zipUrl,description}.
+    Uses Firestore if available, else falls back to collections.json.
+    """
+    if db:
+        try:
+            docs = db.collection('collections').where(filter=firestore.FieldFilter('isPublic','==', True)).stream()
+            items = []
+            for d in docs:
+                data = d.to_dict()
+                items.append({
+                    'slug': d.id,
+                    'title': data.get('title') or d.id.replace('-', ' ').title(),
+                    'verses': data.get('verses') or [],
+                    'defaultVersion': data.get('defaultVersion'),
+                    'zipUrl': data.get('zipUrl'),
+                    'description': data.get('description',''),
+                })
+            if items:
+                return items
+        except Exception as e:
+            print(f"⚠️ Could not load collections from Firestore: {e}")
+    # Fallback to JSON
+    items = []
+    for slug, verses in (COLLECTIONS or {}).items():
+        items.append({
+            'slug': slug,
+            'title': slug.replace('-', ' ').title(),
+            'verses': verses,
+            'defaultVersion': None,
+            'zipUrl': None,
+            'description': '',
+        })
+    return items
+
+def get_collection_meta(slug: str):
+    """Return a single collection dict or None."""
+    if db:
+        try:
+            d = db.collection('collections').document(slug).get()
+            if d.exists:
+                data = d.to_dict()
+                return {
+                    'slug': slug,
+                    'title': data.get('title') or slug.replace('-', ' ').title(),
+                    'verses': data.get('verses') or [],
+                    'defaultVersion': data.get('defaultVersion'),
+                    'zipUrl': data.get('zipUrl'),
+                    'description': data.get('description',''),
+                }
+        except Exception as e:
+            print(f"⚠️ Load collection meta failed: {e}")
+    # Fallback
+    verses = (COLLECTIONS or {}).get(slug)
+    if verses is None:
+        return None
+    return {'slug': slug, 'title': slug.replace('-', ' ').title(), 'verses': verses, 'defaultVersion': None, 'zipUrl': None, 'description': ''}
+
 def get_collection_verses(slug: str):
-    return COLLECTIONS.get(slug, [])
+    meta = get_collection_meta(slug)
+    return meta['verses'] if meta else []
 
 def make_thumbnail(verse_ref: str, version: str, base_name: str):
     """Create a small PNG thumbnail for listings. Lightweight and dependency-free."""
@@ -178,13 +249,15 @@ def generate():
             # Collection prefill support
             prefill = request.args.get("verse", "").strip()
             col = request.args.get("collection")
+            default_version_override = None
             if not prefill and col:
-                verses = get_collection_verses(col)
-                if verses:
-                    prefill = ", ".join(verses)
+                meta = get_collection_meta(col)
+                if meta and meta.get('verses'):
+                    prefill = ", ".join(meta['verses'])
+                    default_version_override = meta.get('defaultVersion')
                     # if coming from collection, do not clear immediately
                     clear_storage = False
-            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage)
+            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage, default_version_override=default_version_override)
 
         verse_input = request.form.get("verse", "").strip()
         custom_text = request.form.get("custom_text", "").strip()
@@ -285,7 +358,23 @@ def generate():
                         })
                     save_json_to_file(data, f"output/{canonical_slug}_{version}.json")
 
-            generate_pdf(data, pdf_path, use_cursive=use_cursive)
+            # Validate minimum fields before PDF
+            try:
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid data from model")
+                # Ensure required fields or skip
+                if not data.get("verse"):
+                    data["verse"] = verse
+                if not data.get("version"):
+                    data["version"] = version
+                if not data.get("fullVerse"):
+                    flash(f"AI response missing fullVerse for {verse} ({version}); skipping.", "warning")
+                    continue
+                generate_pdf(data, pdf_path, use_cursive=use_cursive)
+            except Exception as e:
+                traceback.print_exc()
+                flash(f"Could not build PDF for {verse} ({version}): {e}", "error")
+                continue
 
             # If this is a Bible verse (not custom), prefer the canonical verse reference
             if not is_custom:
@@ -456,6 +545,150 @@ def thumb(filename):
                 return send_file(out)
     return ("", 404)
 
+# --- Admin utilities ---
+def is_admin_email(email: str) -> bool:
+    allow = os.getenv('ADMIN_EMAILS', '')
+    if not allow:
+        return False
+    allowed = [e.strip().lower() for e in allow.split(',') if e.strip()]
+    return (email or '').lower() in allowed
+
+@app.route('/admin/seed_collections')
+@login_required
+def admin_seed_collections():
+    if not db:
+        return "Firestore not configured", 500
+    email = session.get('user_email')
+    if not is_admin_email(email):
+        return "Forbidden", 403
+    try:
+        data = load_collections()
+        batch = db.batch()
+        order = 1
+        for slug, verses in data.items():
+            ref = db.collection('collections').document(slug)
+            batch.set(ref, {
+                'title': slug.replace('-', ' ').title(),
+                'verses': verses,
+                'isPublic': True,
+                'order': order,
+            })
+            order += 1
+        batch.commit()
+        return "Seeded collections from collections.json", 200
+    except Exception as e:
+        traceback.print_exc()
+        return f"Seed error: {e}", 500
+
+@app.context_processor
+def inject_admin_flag():
+    try:
+        return { 'is_admin': is_admin_email(session.get('user_email')) }
+    except Exception:
+        return { 'is_admin': False }
+
+# ----- Admin: Collections CRUD -----
+@app.route('/admin/collections')
+@admin_required
+def admin_collections():
+    if not db:
+        return "Firestore not configured", 500
+    cols = get_collections()
+    return render_template('admin_collections.html', collections=cols)
+
+@app.route('/admin/collections/new', methods=['GET','POST'])
+@admin_required
+def admin_collections_new():
+    if not db:
+        return "Firestore not configured", 500
+    if request.method == 'POST':
+        slug = (request.form.get('slug') or '').strip().lower()
+        title = (request.form.get('title') or slug.replace('-', ' ').title()).strip()
+        is_public = request.form.get('isPublic') == 'on'
+        default_version = (request.form.get('defaultVersion') or '').strip().lower() or None
+        order = request.form.get('order')
+        order_val = int(order) if order and order.isdigit() else None
+        zip_url = (request.form.get('zipUrl') or '').strip() or None
+        description = (request.form.get('description') or '').strip()
+        verses_raw = request.form.get('verses') or ''
+        parts = re.split(r'[\n,]+', verses_raw)
+        verses = [p.strip() for p in parts if p.strip()]
+        if not slug or not verses:
+            flash('Slug and at least one verse are required', 'error')
+            return render_template('admin_collection_form.html', mode='new', data=request.form)
+        data = {
+            'title': title,
+            'verses': verses,
+            'isPublic': is_public,
+            'description': description,
+        }
+        if default_version: data['defaultVersion'] = default_version
+        if order_val is not None: data['order'] = order_val
+        if zip_url: data['zipUrl'] = zip_url
+        db.collection('collections').document(slug).set(data)
+        flash('Collection created', 'success')
+        return redirect(url_for('admin_collections'))
+    return render_template('admin_collection_form.html', mode='new', data={})
+
+@app.route('/admin/collections/<slug>', methods=['GET','POST'])
+@admin_required
+def admin_collections_edit(slug):
+    if not db:
+        return "Firestore not configured", 500
+    doc = db.collection('collections').document(slug).get()
+    if not doc.exists:
+        return "Not found", 404
+    current = doc.to_dict()
+    if request.method == 'POST':
+        title = (request.form.get('title') or '').strip() or current.get('title')
+        is_public = request.form.get('isPublic') == 'on'
+        default_version = (request.form.get('defaultVersion') or '').strip().lower() or None
+        order = request.form.get('order')
+        order_val = int(order) if order and order.isdigit() else None
+        zip_url = (request.form.get('zipUrl') or '').strip() or None
+        description = (request.form.get('description') or '').strip()
+        verses_raw = request.form.get('verses')
+        verses = current.get('verses', [])
+        if verses_raw is not None:
+            parts = re.split(r'[\n,]+', verses_raw)
+            verses = [p.strip() for p in parts if p.strip()]
+        data = {
+            'title': title,
+            'verses': verses,
+            'isPublic': is_public,
+            'description': description,
+        }
+        if default_version: data['defaultVersion'] = default_version
+        else: data.pop('defaultVersion', None)
+        if order_val is not None: data['order'] = order_val
+        else: data.pop('order', None)
+        if zip_url: data['zipUrl'] = zip_url
+        else: data.pop('zipUrl', None)
+        db.collection('collections').document(slug).set(data)
+        flash('Collection updated', 'success')
+        return redirect(url_for('admin_collections'))
+    # Pre-fill textarea with newline-joined verses
+    form_data = {
+        'slug': slug,
+        'title': current.get('title',''),
+        'isPublic': current.get('isPublic', True),
+        'defaultVersion': current.get('defaultVersion',''),
+        'order': current.get('order',''),
+        'zipUrl': current.get('zipUrl',''),
+        'description': current.get('description',''),
+        'verses': "\n".join(current.get('verses', [])),
+    }
+    return render_template('admin_collection_form.html', mode='edit', data=form_data)
+
+@app.route('/admin/collections/<slug>/delete', methods=['POST'])
+@admin_required
+def admin_collections_delete(slug):
+    if not db:
+        return "Firestore not configured", 500
+    db.collection('collections').document(slug).delete()
+    flash('Collection deleted', 'success')
+    return redirect(url_for('admin_collections'))
+
 @app.route('/toggle_favorite/<filename>', methods=['POST'])
 @login_required
 def toggle_favorite(filename):
@@ -485,17 +718,9 @@ def browse():
         .order_by('timestamp', direction=firestore.Query.DESCENDING) \
         .limit(24).stream()
     items = [doc.to_dict() for doc in recent]
-    title_map = {
-        'back-to-school': 'Back to School',
-        'memory-verses': 'Memory Verses',
-        'psalms': 'Psalms',
-        'advent': 'Advent',
-        'easter': 'Easter',
-    }
-    collections = [
-        { 'slug': slug, 'title': title_map.get(slug, slug.replace('-', ' ').title()), 'count': len(get_collection_verses(slug)) }
-        for slug in COLLECTIONS.keys()
-    ]
+    col_items = get_collections()
+    # enrich with counts
+    collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl') } for c in col_items ]
     return render_template('browse.html', items=items, collections=collections)
 
 

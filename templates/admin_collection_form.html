@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Admin • {{ 'New' if mode=='new' else 'Edit' }} Collection{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin: {{ 'New' if mode=='new' else 'Edit' }} Collection</h1>
+
+<form method="post">
+  {% if mode == 'new' %}
+    <label>Slug (id)</label><br>
+    <input class="wide-input" name="slug" value="{{ data.get('slug','') }}" placeholder="e.g., back-to-school" required>
+    <small class="muted">Lowercase, hyphens only; used as document id.</small>
+    <br><br>
+  {% else %}
+    <div class="muted small">Editing: <code>{{ data.get('slug') }}</code></div>
+  {% endif %}
+
+  <label>Title</label><br>
+  <input class="wide-input" name="title" value="{{ data.get('title','') }}" placeholder="Display title" required><br><br>
+
+  <label>Description</label><br>
+  <textarea class="wide-input" name="description" rows="2" placeholder="Optional description">{{ data.get('description','') }}</textarea><br><br>
+
+  <div class="checkbox-row">
+    <input type="checkbox" name="isPublic" {% if data.get('isPublic', True) %}checked{% endif %}>
+    <label>Public</label>
+  </div>
+  <br>
+
+  <label>Default Version (optional)</label><br>
+  <input class="wide-input" name="defaultVersion" value="{{ data.get('defaultVersion','') }}" placeholder="esv / nasb / niv"><br><br>
+
+  <label>Order (optional number)</label><br>
+  <input class="wide-input" name="order" type="number" value="{{ data.get('order','') }}"><br><br>
+
+  <label>ZIP URL (optional)</label><br>
+  <input class="wide-input" name="zipUrl" value="{{ data.get('zipUrl','') }}" placeholder="https://storage/...zip"><br><br>
+
+  <label>Verses (one per line or comma separated)</label><br>
+  <textarea class="wide-input" name="verses" rows="10" placeholder="John 3:16\nRomans 8:28\n...">{{ data.get('verses','') }}</textarea><br><br>
+
+  <div class="actions">
+    <button class="button primary" type="submit">Save</button>
+    <a class="button ghost" href="{{ url_for('admin_collections') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
