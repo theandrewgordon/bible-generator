@@ -12,6 +12,7 @@
       <th style="text-align:left; padding:6px;">Title</th>
       <th style="text-align:left; padding:6px;">Verses</th>
       <th style="text-align:left; padding:6px;">Public</th>
+      <th style="text-align:left; padding:6px;">Free</th>
       <th style="text-align:left; padding:6px;">Actions</th>
     </tr>
   </thead>
@@ -22,6 +23,7 @@
       <td style="padding:6px;">{{ c.title }}</td>
       <td style="padding:6px;">{{ c.verses|length }}</td>
       <td style="padding:6px;">{{ 'Yes' if c.get('isPublic', True) else 'No' }}</td>
+      <td style="padding:6px;">{{ 'Yes' if c.get('isFree', False) else 'No' }}</td>
       <td style="padding:6px;">
         <a class="button ghost" href="{{ url_for('admin_collections_edit', slug=c.slug) }}">Edit</a>
         <form method="post" action="{{ url_for('admin_collections_delete', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Delete this collection?');">

@@ -167,6 +167,7 @@ def get_collections():
                     'defaultVersion': data.get('defaultVersion'),
                     'zipUrl': data.get('zipUrl'),
                     'description': data.get('description',''),
+                    'isFree': data.get('isFree', False),
                 })
             if items:
                 return items
@@ -182,6 +183,7 @@ def get_collections():
             'defaultVersion': None,
             'zipUrl': None,
             'description': '',
+            'isFree': False,
         })
     return items
 
@@ -200,6 +202,7 @@ def get_collection_meta(slug: str):
                     'zipUrl': data.get('zipUrl'),
                     'description': data.get('description',''),
                     'prewarm': data.get('prewarm'),
+                    'isFree': data.get('isFree', False),
                 }
         except Exception as e:
             print(f"⚠️ Load collection meta failed: {e}")
@@ -207,7 +210,7 @@ def get_collection_meta(slug: str):
     verses = (COLLECTIONS or {}).get(slug)
     if verses is None:
         return None
-    return {'slug': slug, 'title': slug.replace('-', ' ').title(), 'verses': verses, 'defaultVersion': None, 'zipUrl': None, 'description': '', 'prewarm': None}
+    return {'slug': slug, 'title': slug.replace('-', ' ').title(), 'verses': verses, 'defaultVersion': None, 'zipUrl': None, 'description': '', 'prewarm': None, 'isFree': False}
 
 def get_collection_verses(slug: str):
     meta = get_collection_meta(slug)
@@ -643,6 +646,8 @@ def admin_seed_collections():
                 'isPublic': True,
                 'order': order,
                 'defaultVersion': 'esv',
+                # Mark starter pack as free download
+                'isFree': True if slug == 'starter' else False,
             })
             order += 1
         batch.commit()
@@ -654,9 +659,9 @@ def admin_seed_collections():
 @app.context_processor
 def inject_admin_flag():
     try:
-        return { 'is_admin': is_admin_email(session.get('user_email')) }
+        return { 'is_admin': is_admin_email(session.get('user_email')), 'is_signed_in': bool(session.get('user_email')) }
     except Exception:
-        return { 'is_admin': False }
+        return { 'is_admin': False, 'is_signed_in': False }
 
 @app.route('/admin/analytics')
 @admin_required
@@ -732,6 +737,7 @@ def admin_collections_new():
         slug = (request.form.get('slug') or '').strip().lower()
         title = (request.form.get('title') or slug.replace('-', ' ').title()).strip()
         is_public = request.form.get('isPublic') == 'on'
+        is_free = request.form.get('isFree') == 'on'
         default_version = (request.form.get('defaultVersion') or '').strip().lower() or None
         order = request.form.get('order')
         order_val = int(order) if order and order.isdigit() else None
@@ -747,6 +753,7 @@ def admin_collections_new():
             'title': title,
             'verses': verses,
             'isPublic': is_public,
+            'isFree': is_free,
             'description': description,
         }
         data['defaultVersion'] = default_version or 'esv'
@@ -769,6 +776,7 @@ def admin_collections_edit(slug):
     if request.method == 'POST':
         title = (request.form.get('title') or '').strip() or current.get('title')
         is_public = request.form.get('isPublic') == 'on'
+        is_free = request.form.get('isFree') == 'on'
         default_version = (request.form.get('defaultVersion') or '').strip().lower() or None
         order = request.form.get('order')
         order_val = int(order) if order and order.isdigit() else None
@@ -783,6 +791,7 @@ def admin_collections_edit(slug):
             'title': title,
             'verses': verses,
             'isPublic': is_public,
+            'isFree': is_free,
             'description': description,
         }
         if default_version: data['defaultVersion'] = default_version
@@ -799,6 +808,7 @@ def admin_collections_edit(slug):
         'slug': slug,
         'title': current.get('title',''),
         'isPublic': current.get('isPublic', True),
+        'isFree': current.get('isFree', False),
         'defaultVersion': current.get('defaultVersion',''),
         'order': current.get('order',''),
         'zipUrl': current.get('zipUrl',''),
@@ -915,6 +925,11 @@ def dl_pack(slug):
     if not d.exists:
         return "Not found", 404
     meta = d.to_dict()
+    # Require sign-in unless this pack is explicitly free
+    is_free = bool(meta.get('isFree'))
+    if not is_free and not google.authorized:
+        flash('Please sign in to download packs.', 'warning')
+        return redirect(url_for('google.login'))
     # Increment analytics counter
     try:
         # All-time counter

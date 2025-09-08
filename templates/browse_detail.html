@@ -6,7 +6,13 @@
 
 <p>
   <a class="button" href="{{ url_for('generate') }}?collection={{ c.slug }}">✍️ Open in Generate</a>
-  {% if c.zipUrl %}<a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>{% endif %}
+  {% if c.zipUrl %}
+    {% if is_signed_in or c.isFree %}
+      <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
+    {% else %}
+      <a class="button ghost" href="{{ url_for('google.login') }}">🔐 Sign in to Download</a>
+    {% endif %}
+  {% endif %}
   {% if is_admin %}
     <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');">
       <button class="button" style="background:#e0e7ff; color:#111827;">⚙️ Prewarm & Build ZIP</button>

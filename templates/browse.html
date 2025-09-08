@@ -40,7 +40,11 @@
         <div class="collection-count">{{ c.count }} verses</div>
       </a>
       {% if c.zipUrl %}
-        <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
+        {% if is_signed_in or c.isFree %}
+          <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
+        {% else %}
+          <a class="button ghost" href="{{ url_for('google.login') }}">🔐 Sign in to Download</a>
+        {% endif %}
       {% endif %}
     {% endfor %}
   </div>

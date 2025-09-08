@@ -25,6 +25,12 @@
   </div>
   <br>
 
+  <div class="checkbox-row">
+    <input type="checkbox" name="isFree" {% if data.get('isFree', False) %}checked{% endif %}>
+    <label>Allow public download</label>
+  </div>
+  <br>
+
   <label>Default Version (optional)</label><br>
   <input class="wide-input" name="defaultVersion" value="{{ data.get('defaultVersion','') }}" placeholder="esv / nasb / niv"><br><br>
 
