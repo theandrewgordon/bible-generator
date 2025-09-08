@@ -17,6 +17,20 @@
 </section>
 {% endif %}
 
+{% if top_packs_week and top_packs_week|length %}
+<section class="block">
+  <h3>Top This Week</h3>
+  <div class="grid-collections">
+    {% for p in top_packs_week %}
+      <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
+        <div class="collection-title">{{ p.title }}</div>
+        <div class="collection-count">{{ p.downloads }} downloads</div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section class="block">
   <h3>Collections</h3>
   <div class="grid-collections">

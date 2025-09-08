@@ -4,6 +4,8 @@ from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re, traceback
 from zipfile import ZipFile
+import threading
+from datetime import datetime, timedelta, timezone
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud import storage
@@ -197,6 +199,7 @@ def get_collection_meta(slug: str):
                     'defaultVersion': data.get('defaultVersion'),
                     'zipUrl': data.get('zipUrl'),
                     'description': data.get('description',''),
+                    'prewarm': data.get('prewarm'),
                 }
         except Exception as e:
             print(f"⚠️ Load collection meta failed: {e}")
@@ -204,7 +207,7 @@ def get_collection_meta(slug: str):
     verses = (COLLECTIONS or {}).get(slug)
     if verses is None:
         return None
-    return {'slug': slug, 'title': slug.replace('-', ' ').title(), 'verses': verses, 'defaultVersion': None, 'zipUrl': None, 'description': ''}
+    return {'slug': slug, 'title': slug.replace('-', ' ').title(), 'verses': verses, 'defaultVersion': None, 'zipUrl': None, 'description': '', 'prewarm': None}
 
 def get_collection_verses(slug: str):
     meta = get_collection_meta(slug)
@@ -544,6 +547,8 @@ def download_file(filename):
             if db:
                 base = os.path.splitext(filename)[0]
                 db.collection('analytics').document('verses').set({ base: firestore.Increment(1) }, merge=True)
+                today = datetime.now(timezone.utc).strftime('%Y%m%d')
+                db.collection('analytics_daily').document(f'verses_{today}').set({ base: firestore.Increment(1) }, merge=True)
         except Exception:
             pass
         return send_file(file_path, as_attachment=True)
@@ -653,6 +658,62 @@ def inject_admin_flag():
     except Exception:
         return { 'is_admin': False }
 
+@app.route('/admin/analytics')
+@admin_required
+def admin_analytics():
+    col_items = get_collections()
+    by_slug = { c['slug']: c for c in col_items }
+    top_packs = []
+    top_packs_week = []
+    top_verses = []
+    top_verses_week = []
+    if db:
+        try:
+            doc = db.collection('analytics').document('packs').get()
+            if doc.exists:
+                counts = doc.to_dict() or {}
+                for slug, cnt in sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:10]:
+                    top_packs.append({ 'slug': slug, 'title': by_slug.get(slug, {'title': slug}).get('title'), 'downloads': cnt })
+        except Exception as e:
+            print(f"⚠️ analytics packs error: {e}")
+        try:
+            agg = {}
+            today = datetime.now(timezone.utc).date()
+            for i in range(7):
+                d = (today - timedelta(days=i)).strftime('%Y%m%d')
+                dd = db.collection('analytics_daily').document(f'packs_{d}').get()
+                if dd.exists:
+                    data = dd.to_dict() or {}
+                    for slug, n in data.items():
+                        agg[slug] = agg.get(slug, 0) + int(n)
+            for slug, cnt in sorted(agg.items(), key=lambda kv: kv[1], reverse=True)[:10]:
+                top_packs_week.append({ 'slug': slug, 'title': by_slug.get(slug, {'title': slug}).get('title'), 'downloads': cnt })
+        except Exception as e:
+            print(f"⚠️ analytics weekly packs error: {e}")
+        try:
+            d = db.collection('analytics').document('verses').get()
+            if d.exists:
+                data = d.to_dict() or {}
+                for k, v in sorted(data.items(), key=lambda kv: kv[1], reverse=True)[:10]:
+                    top_verses.append({ 'key': k, 'count': v })
+        except Exception as e:
+            print(f"⚠️ analytics verses error: {e}")
+        try:
+            agg = {}
+            today = datetime.now(timezone.utc).date()
+            for i in range(7):
+                dkey = (today - timedelta(days=i)).strftime('%Y%m%d')
+                dd = db.collection('analytics_daily').document(f'verses_{dkey}').get()
+                if dd.exists:
+                    data = dd.to_dict() or {}
+                    for key, n in data.items():
+                        agg[key] = agg.get(key, 0) + int(n)
+            for k, v in sorted(agg.items(), key=lambda kv: kv[1], reverse=True)[:10]:
+                top_verses_week.append({ 'key': k, 'count': v })
+        except Exception as e:
+            print(f"⚠️ analytics weekly verses error: {e}")
+    return render_template('admin_analytics.html', top_packs=top_packs, top_packs_week=top_packs_week, top_verses=top_verses, top_verses_week=top_verses_week)
+
 # ----- Admin: Collections CRUD -----
 @app.route('/admin/collections')
 @admin_required
@@ -760,73 +821,81 @@ def admin_collections_delete(slug):
 def admin_prewarm_pack(slug):
     if not db:
         return "Firestore not configured", 500
-    meta = get_collection_meta(slug)
-    if not meta:
-        return "Not found", 404
-    verses = meta.get('verses', [])
-    default_version = (meta.get('defaultVersion') or 'esv').lower()
-    use_cursive = False
-    user_email = session.get('user_email', 'admin')
-    generated_files = []
-    for v in verses:
+    # Mark as running and spawn background job to avoid request timeouts
+    ref = db.collection('collections').document(slug)
+    ref.set({ 'prewarm': { 'status': 'running', 'startedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
+
+    def _job():
         try:
-            version, verse = extract_version_from_text(v, default_version)
-            input_slug = normalize_slug(verse)
-            version_up = version.upper()
-            pdf_path = f"output/{input_slug}_{version_up}.pdf"
-            # Try cache first
-            cached = db.collection("verse_cache").document(f"{input_slug}_{version_up}").get()
-            if cached and cached.exists:
-                data = cached.to_dict().get('data', {})
-            else:
-                content = request_verse_data(verse, version)
-                if not content:
-                    print(f"⚠️ Skip prewarm: could not fetch {verse} ({version})")
-                    continue
-                data = parse_and_clean_json(content)
-                if not data or not data.get('fullVerse'):
-                    print(f"⚠️ Skip prewarm: invalid data for {verse}")
-                    continue
-                data.update({ 'version': version_up, 'cursive': use_cursive })
-                db.collection('verse_cache').document(f"{input_slug}_{version_up}").set({
-                    'verse': verse, 'version': version_up, 'slug': f"{input_slug}_{version_up}", 'data': data,
-                    'timestamp': firestore.SERVER_TIMESTAMP
-                })
-                save_json_to_file(data, f"output/{input_slug}_{version_up}.json")
-            # Render PDF if missing
-            if not os.path.exists(pdf_path):
-                generate_pdf(data, pdf_path, use_cursive=use_cursive)
-            if os.path.exists(pdf_path):
-                generated_files.append(pdf_path)
+            meta = get_collection_meta(slug)
+            if not meta:
+                ref.set({ 'prewarm': { 'status': 'error', 'error': 'Not found', 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
+                return
+            verses = meta.get('verses', [])
+            default_version = (meta.get('defaultVersion') or 'esv').lower()
+            use_cursive = False
+            ref.set({ 'prewarm': { 'status': 'running', 'total': len(verses), 'done': 0, 'startedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
+            generated_files = []
+            done = 0
+            for v in verses:
+                try:
+                    version, verse = extract_version_from_text(v, default_version)
+                    input_slug = normalize_slug(verse)
+                    version_up = version.upper()
+                    pdf_path = f"output/{input_slug}_{version_up}.pdf"
+                    # Try cache first
+                    cached = db.collection("verse_cache").document(f"{input_slug}_{version_up}").get()
+                    if cached and cached.exists:
+                        data = cached.to_dict().get('data', {})
+                    else:
+                        content = request_verse_data(verse, version)
+                        if not content:
+                            print(f"⚠️ Skip prewarm: could not fetch {verse} ({version})")
+                            continue
+                        data = parse_and_clean_json(content)
+                        if not data or not data.get('fullVerse'):
+                            print(f"⚠️ Skip prewarm: invalid data for {verse}")
+                            continue
+                        data.update({ 'version': version_up, 'cursive': use_cursive })
+                        db.collection('verse_cache').document(f"{input_slug}_{version_up}").set({
+                            'verse': verse, 'version': version_up, 'slug': f"{input_slug}_{version_up}", 'data': data,
+                            'timestamp': firestore.SERVER_TIMESTAMP
+                        })
+                        save_json_to_file(data, f"output/{input_slug}_{version_up}.json")
+                    if not os.path.exists(pdf_path):
+                        generate_pdf(data, pdf_path, use_cursive=use_cursive)
+                    if os.path.exists(pdf_path):
+                        generated_files.append(pdf_path)
+                finally:
+                    done += 1
+                    try:
+                        ref.set({ 'prewarm': { 'status': 'running', 'total': len(verses), 'done': done } }, merge=True)
+                    except Exception:
+                        pass
+
+            if not generated_files:
+                ref.set({ 'prewarm': { 'status': 'error', 'error': 'No files generated', 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
+                return
+
+            zip_name = f"{slug}.zip"
+            zip_path = os.path.join('output', 'packs', zip_name)
+            try:
+                with ZipFile(zip_path, 'w') as z:
+                    for p in generated_files:
+                        z.write(p, os.path.basename(p))
+            except Exception as e:
+                traceback.print_exc()
+                ref.set({ 'prewarm': { 'status': 'error', 'error': str(e), 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
+                return
+
+            url = upload_to_storage(zip_path, f"packs/{zip_name}") or url_for('serve_pack', filename=zip_name, _external=True)
+            ref.set({ 'zipUrl': url, 'prewarm': { 'status': 'done', 'finishedAt': firestore.SERVER_TIMESTAMP, 'done': len(generated_files), 'total': len(verses) } }, merge=True)
         except Exception as e:
-            traceback.print_exc(); print(f"⚠️ Prewarm error for {v}: {e}")
-            continue
+            traceback.print_exc()
+            ref.set({ 'prewarm': { 'status': 'error', 'error': str(e), 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
 
-    if not generated_files:
-        flash('No files generated for this pack.', 'warning')
-        return redirect(url_for('browse_detail', slug=slug))
-
-    # Build ZIP
-    zip_name = f"{slug}.zip"
-    zip_path = os.path.join('output', 'packs', zip_name)
-    try:
-        with ZipFile(zip_path, 'w') as z:
-            for p in generated_files:
-                z.write(p, os.path.basename(p))
-    except Exception as e:
-        traceback.print_exc()
-        flash(f'ZIP failed: {e}', 'error')
-        return redirect(url_for('browse_detail', slug=slug))
-
-    # Upload to storage (if configured)
-    url = upload_to_storage(zip_path, f"packs/{zip_name}")
-    if not url:
-        # Fallback to local route
-        url = url_for('serve_pack', filename=zip_name, _external=True)
-
-    # Save link
-    db.collection('collections').document(slug).set({ 'zipUrl': url }, merge=True)
-    flash('Pack built successfully.', 'success')
+    threading.Thread(target=_job, daemon=True).start()
+    flash('Prewarm started. You can refresh this page to see progress.', 'success')
     return redirect(url_for('browse_detail', slug=slug))
 
 @app.route('/packs/<path:filename>')
@@ -848,7 +917,11 @@ def dl_pack(slug):
     meta = d.to_dict()
     # Increment analytics counter
     try:
+        # All-time counter
         db.collection('analytics').document('packs').set({ slug: firestore.Increment(1) }, merge=True)
+        # Daily counter for weekly rollups (UTC date)
+        today = datetime.now(timezone.utc).strftime('%Y%m%d')
+        db.collection('analytics_daily').document(f'packs_{today}').set({ slug: firestore.Increment(1) }, merge=True)
     except Exception:
         pass
     url = meta.get('zipUrl')
@@ -893,8 +966,10 @@ def browse():
     col_items = get_collections()
     # enrich with counts
     collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl') } for c in col_items ]
-    # Top packs by download count
+    # Top packs by download count (all-time)
     top_packs = []
+    # Top packs this week (sum of last 7 daily docs)
+    top_packs_week = []
     if db:
         try:
             doc = db.collection('analytics').document('packs').get()
@@ -909,7 +984,27 @@ def browse():
                         top_packs.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl') })
         except Exception as e:
             print(f"⚠️ Could not load analytics packs: {e}")
-    return render_template('browse.html', items=items, collections=collections, top_packs=top_packs)
+
+        # Weekly rollup
+        try:
+            by_slug = { c['slug']: c for c in collections }
+            agg: dict[str,int] = {}
+            today = datetime.now(timezone.utc).date()
+            for i in range(7):
+                d = (today - timedelta(days=i)).strftime('%Y%m%d')
+                dd = db.collection('analytics_daily').document(f'packs_{d}').get()
+                if dd.exists:
+                    data = dd.to_dict() or {}
+                    for slug, n in data.items():
+                        agg[slug] = agg.get(slug, 0) + int(n)
+            sorted_slugs = sorted(agg.items(), key=lambda kv: kv[1], reverse=True)
+            for slug, cnt in sorted_slugs[:6]:
+                meta = by_slug.get(slug)
+                if meta:
+                    top_packs_week.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl') })
+        except Exception as e:
+            print(f"⚠️ Could not compute weekly top packs: {e}")
+    return render_template('browse.html', items=items, collections=collections, top_packs=top_packs, top_packs_week=top_packs_week)
 
 @app.route('/browse/<slug>')
 def browse_detail(slug):
@@ -983,6 +1078,8 @@ def regenerate(filename):
                 if db:
                     base = os.path.splitext(os.path.basename(pdf_path))[0]
                     db.collection('analytics').document('verses').set({ base: firestore.Increment(1) }, merge=True)
+                    today = datetime.now(timezone.utc).strftime('%Y%m%d')
+                    db.collection('analytics_daily').document(f'verses_{today}').set({ base: firestore.Increment(1) }, merge=True)
             except Exception:
                 pass
             flash(f"Regenerated: {filename}", "success")

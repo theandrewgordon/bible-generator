@@ -14,6 +14,17 @@
   {% endif %}
 </p>
 
+{% if c.prewarm %}
+  {% if c.prewarm.status == 'running' %}
+    <div class="muted">Building… {{ c.prewarm.done or 0 }}/{{ c.prewarm.total or '?' }}. This page auto-refreshes.</div>
+    <script>setTimeout(()=>location.reload(), 3500)</script>
+  {% elif c.prewarm.status == 'error' %}
+    <div class="warn">Build error: {{ c.prewarm.error }}</div>
+  {% elif c.prewarm.status == 'done' %}
+    <div class="muted">Pack built.</div>
+  {% endif %}
+{% endif %}
+
 <h3>Verses ({{ c.verses|length }})</h3>
 <ul>
   {% for v in c.verses %}

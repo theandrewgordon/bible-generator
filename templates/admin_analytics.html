@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Admin • Analytics{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin: Analytics</h1>
+
+<section class="block">
+  <h3>Top Packs (All Time)</h3>
+  <ul>
+    {% for p in top_packs %}
+      <li>{{ p.title }} — {{ p.downloads }}</li>
+    {% endfor %}
+    {% if not top_packs %}<li class="muted">No data yet.</li>{% endif %}
+  </ul>
+</section>
+
+<section class="block">
+  <h3>Top Packs (Last 7 Days)</h3>
+  <ul>
+    {% for p in top_packs_week %}
+      <li>{{ p.title }} — {{ p.downloads }}</li>
+    {% endfor %}
+    {% if not top_packs_week %}<li class="muted">No data yet.</li>{% endif %}
+  </ul>
+</section>
+
+<section class="block">
+  <h3>Top Verses (All Time)</h3>
+  <ul>
+    {% for v in top_verses %}
+      <li>{{ v.key }} — {{ v.count }}</li>
+    {% endfor %}
+    {% if not top_verses %}<li class="muted">No data yet.</li>{% endif %}
+  </ul>
+</section>
+
+<section class="block">
+  <h3>Top Verses (Last 7 Days)</h3>
+  <ul>
+    {% for v in top_verses_week %}
+      <li>{{ v.key }} — {{ v.count }}</li>
+    {% endfor %}
+    {% if not top_verses_week %}<li class="muted">No data yet.</li>{% endif %}
+  </ul>
+</section>
+{% endblock %}
