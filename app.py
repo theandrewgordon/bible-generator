@@ -8,6 +8,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
+from PIL import Image, ImageDraw, ImageFont
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -100,6 +101,37 @@ def update_zip_bundle():
                 zf.write(os.path.join("output", file), file)
 
 os.makedirs("output", exist_ok=True)
+os.makedirs("output/thumbs", exist_ok=True)
+
+def make_thumbnail(verse_ref: str, version: str, base_name: str):
+    """Create a small PNG thumbnail for listings. Lightweight and dependency-free."""
+    try:
+        w, h = 560, 420
+        img = Image.new("RGB", (w, h), color=(255, 255, 255))
+        draw = ImageDraw.Draw(img)
+        # Simple header bar
+        draw.rectangle([0,0,w,44], fill=(230, 242, 255))
+        title = "Bible Copywork Worksheet"
+        try:
+            font_big = ImageFont.truetype("fonts/KGPrimaryDotsLined.ttf", 22)
+            font_small = ImageFont.truetype("fonts/KGPrimaryDotsLined.ttf", 16)
+        except Exception:
+            font_big = ImageFont.load_default()
+            font_small = ImageFont.load_default()
+        draw.text((16, 12), title, fill=(27, 49, 94), font=font_big)
+        ref_text = f"{verse_ref} ({version})"
+        draw.text((16, 70), ref_text, fill=(20, 20, 20), font=font_big)
+        # Lines to suggest writing area
+        y = 130
+        for i in range(6):
+            draw.line([(16, y), (w-16, y)], fill=(180, 180, 180), width=1)
+            y += 40
+        out = os.path.join("output", "thumbs", f"{base_name}.png")
+        img.save(out, format="PNG")
+        return out
+    except Exception as e:
+        print(f"⚠️ Thumbnail generation failed: {e}")
+        return None
 
 # --- Routes ---
 @app.route("/")
@@ -233,6 +265,11 @@ def generate():
                 if pdf_path != desired_path and os.path.exists(pdf_path):
                     os.replace(pdf_path, desired_path)
                 pdf_path = desired_path
+                # make thumbnail
+                make_thumbnail(canonical_ref, version, os.path.splitext(os.path.basename(pdf_path))[0])
+            else:
+                # custom: thumbnail with provided title
+                make_thumbnail(verse, version, os.path.splitext(os.path.basename(pdf_path))[0])
 
             if db:
                 db.collection("worksheets").add({
@@ -361,6 +398,53 @@ def download_file(filename):
 
     # reuse regenerate logic
     return redirect(url_for("regenerate", filename=filename))
+
+@app.route('/thumb/<path:filename>')
+@login_required
+def thumb(filename):
+    """Serve generated thumbnails from output/thumbs."""
+    path = os.path.join('output', 'thumbs', filename)
+    if os.path.exists(path):
+        return send_file(path)
+    return ("", 404)
+
+@app.route('/toggle_favorite/<filename>', methods=['POST'])
+@login_required
+def toggle_favorite(filename):
+    if not db:
+        return ("Firestore not configured", 500)
+    user_email = session.get('user_email')
+    docs = db.collection('worksheets') \
+        .where(filter=firestore.FieldFilter('email', '==', user_email)) \
+        .where(filter=firestore.FieldFilter('filename', '==', filename)) \
+        .limit(1).stream()
+    doc = next(docs, None)
+    if not doc:
+        return redirect(url_for('history'))
+    current = bool(doc.to_dict().get('favorite'))
+    doc.reference.update({'favorite': not current})
+    return redirect(url_for('history'))
+
+@app.route('/browse')
+@login_required
+def browse():
+    """Simple browse page: shows recent items and collection tiles."""
+    if not db:
+        return "Firestore not configured", 500
+    user_email = session.get('user_email')
+    recent = db.collection('worksheets') \
+        .where(filter=firestore.FieldFilter('email', '==', user_email)) \
+        .order_by('timestamp', direction=firestore.Query.DESCENDING) \
+        .limit(24).stream()
+    items = [doc.to_dict() for doc in recent]
+    collections = [
+        { 'slug': 'back-to-school', 'title': 'Back to School' },
+        { 'slug': 'memory-verses', 'title': 'Memory Verses' },
+        { 'slug': 'psalms', 'title': 'Psalms' },
+        { 'slug': 'advent', 'title': 'Advent' },
+        { 'slug': 'easter', 'title': 'Easter' },
+    ]
+    return render_template('browse.html', items=items, collections=collections)
 
 
 @app.route("/regenerate/<filename>")

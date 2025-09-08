@@ -19,6 +19,10 @@
       <option value="{{ item|lower }}">{{ item }}</option>
     {% endfor %}
   </select>
+  <label class="checkrow" style="margin-left:6px">
+    <input type="checkbox" id="favOnly" onchange="applyFilters()" />
+    ★ Favorites only
+  </label>
 
   <div class="toolbar-right">
     <button class="button ghost" type="button" onclick="clearFilters()">Clear Filters</button>
@@ -48,6 +52,7 @@
       class="card"
       data-verse="{{ item.verse|lower }}"
       data-version="{{ item.version|lower }}"
+      data-favorite="{{ 'true' if item.get('favorite') else 'false' }}"
     >
       <div class="row-top">
         <label class="row-check-wrap" title="Select {{ item.verse }}">
@@ -61,6 +66,7 @@
         </label>
 
         <div class="content">
+          <img class="thumb" src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}" alt="" onerror="this.style.display='none'" />
           <div class="title">{{ item.verse }}</div>
 
           <div class="meta">
@@ -77,6 +83,9 @@
         </div>
 
         <div class="actions">
+          <form method="POST" action="{{ url_for('toggle_favorite', filename=item.filename) }}" style="display:inline">
+            <button class="icon" title="Favorite" aria-label="Favorite {{ item.verse }}">{% if item.get('favorite') %}⭐{% else %}☆{% endif %}</button>
+          </form>
           <a
             class="icon"
             href="{{ url_for('download_file', filename=item.filename) }}"
@@ -117,13 +126,15 @@
   function applyFilters() {
     const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
     const vf = (document.getElementById("versionFilter").value || "").toLowerCase();
+    const favOnly = document.getElementById('favOnly').checked;
 
     document.querySelectorAll("#cards .card").forEach((li) => {
       const verse = li.dataset.verse || "";
       const ver = li.dataset.version || "";
       const titleTxt = (li.querySelector('.title')?.innerText || '').toLowerCase();
       const searchable = `${verse} ${ver} ${titleTxt}`;
-      const ok = (!q || searchable.includes(q)) && (!vf || ver === vf);
+      const isFav = (li.dataset.favorite === 'true');
+      const ok = (!q || searchable.includes(q)) && (!vf || ver === vf) && (!favOnly || isFav);
       li.hidden = !ok;
     });
   }

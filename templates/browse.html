@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Browse | Faith Sparks{% endblock %}
+{% block content %}
+<h1 class="page-title">🔎 Browse Worksheets</h1>
+
+<section class="block">
+  <h3>Collections</h3>
+  <div class="grid-collections">
+    {% for c in collections %}
+      <a class="collection-tile" href="{{ url_for('generate') }}?collection={{ c.slug }}">
+        <div class="collection-title">{{ c.title }}</div>
+      </a>
+    {% endfor %}
+  </div>
+  <p class="small muted">Collections are starting points; pick one to prefill ideas in Generate.</p>
+</section>
+
+<section class="block">
+  <h3>Recent</h3>
+  <ul class="grid-cards">
+    {% for item in items %}
+    <li class="grid-card">
+      <a href="{{ url_for('download_file', filename=item.filename) }}" title="Download">
+        <img loading="lazy" src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}" alt="Thumbnail for {{ item.verse }}" onerror="this.style.display='none'" />
+      </a>
+      <div class="g-title">{{ item.verse }}</div>
+      <div class="g-meta"><span class="pill alt">{{ item.version }}</span></div>
+      <div class="g-actions">
+        <a class="button" href="{{ url_for('download_file', filename=item.filename) }}">📥 Download</a>
+        <a class="button ghost" href="{{ url_for('regenerate', filename=item.filename[:-4]) }}">♻️ Regenerate</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+  .grid-collections { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .collection-tile { display: block; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: var(--box); text-decoration: none; color: inherit; }
+  .collection-title { font-weight: 700; }
+
+  .grid-cards { list-style: none; padding:0; margin:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .grid-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; background: var(--box); }
+  .grid-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; background: #f8fafc; }
+  .g-title { font-weight: 700; margin-top: 6px; }
+  .g-meta { color: var(--text-secondary); font-size: .85em; margin: 4px 0; }
+  .g-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+</style>
+{% endblock %}
