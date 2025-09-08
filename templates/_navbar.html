@@ -4,10 +4,9 @@
       <img
         src="/static/faith_sparks_logo.png"
         alt="Faith Sparks Logo"
-        style="height: 48px"
       />
     </a>
-    <nav class="nav-links">
+    <nav class="nav-links" aria-label="Main">
       <a href="/">🏠 Home</a>
       <a href="/generate">📝 Generate</a>
       <a href="/history">📚 History</a>
@@ -27,95 +26,4 @@
     <button class="theme-toggle" onclick="toggleDarkMode()">🌙</button>
   </div>
 
-  <style>
-    .main-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--primary);
-      padding: 16px 24px;
-      color: white;
-      flex-wrap: wrap;
-    }
-
-    .logo-nav {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      flex-wrap: wrap;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .nav-links a {
-      color: white;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .auth-theme {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .user-name {
-      color: white;
-      font-weight: 600;
-    }
-
-    .auth-link {
-      color: white;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .auth-link.logout {
-      color: #fecaca;
-    }
-
-    .theme-toggle {
-      background: none;
-      border: none;
-      color: white;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
-
-    .theme-toggle:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    @media (max-width: 600px) {
-      .main-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-      }
-
-      .logo-nav {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-      }
-
-      .nav-links {
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .auth-theme {
-        flex-direction: row;
-        justify-content: space-between;
-        width: 100%;
-        gap: 8px;
-      }
-    }
-  </style>
 </header>

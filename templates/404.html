@@ -1,20 +1,7 @@
-{% extends "base.html" %} {% block title %}Page Not Found | Faith Sparks
-Printables{% endblock %} {% block content %}
-<h1>404</h1>
-<p>Oops! That page doesn’t exist.</p>
-<a
-  href="/"
-  class="button"
-  style="
-    display: inline-block;
-    background: #2b6cb0;
-    color: white;
-    text-decoration: none;
-    padding: 12px 24px;
-    border-radius: 6px;
-    font-weight: bold;
-    margin-top: 20px;
-  "
-  >Return to Home</a
->
+{% extends "base.html" %}
+{% block title %}Page Not Found | Faith Sparks Printables{% endblock %}
+{% block content %}
+  <h1 class="page-title">404 — Not Found</h1>
+  <p class="muted">Oops! That page doesn’t exist.</p>
+  <p><a href="/" class="button">🏠 Return to Home</a></p>
 {% endblock %}

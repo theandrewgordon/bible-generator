@@ -4,13 +4,52 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
+
+    <!-- Friendly fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet"/>
+
+    <!-- Your theme -->
     <link rel="stylesheet" href="/static/theme.css" />
     <script defer src="/static/darkmode.js"></script>
+
     <style>
+      :root {
+        /* soften overall vibe just a touch */
+        --card-shadow: 0 6px 16px rgba(0,0,0,.06);
+      }
+
+      .container {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem;
+      }
+
+      .page-title {
+        font-size: clamp(1.4rem, 2.2vw + 1rem, 2rem);
+        font-weight: 800;
+        letter-spacing: .2px;
+        margin: .2rem 0 .6rem;
+      }
+
+      .button { border-radius: 12px; }
+
+      .muted { color: var(--text-secondary); }
+      .small { font-size: .9em; }
+
+      /* Toasts */
+      #toast-container {
+        position: fixed;
+        top: 12px; right: 12px;
+        display: grid; gap: 8px; z-index: 9999;
+      }
+      .toast {
+        padding: 10px 14px; border-radius: 10px;
+        background: #def7ec; color: #03543f; box-shadow: var(--card-shadow);
+      }
+      .toast-warning { background: #fef3c7; color: #92400e; }
+      .toast-error { background: #fee2e2; color: #7f1d1d; }
+      .toast-success { background: #dcfce7; color: #14532d; }
+
       footer {
         text-align: center;
         padding: 2rem 1rem;
@@ -20,34 +59,33 @@
       }
 
       @media (max-width: 600px) {
-        .container {
-          padding: 1.5rem 1rem;
-        }
-        footer {
-          font-size: 0.8em;
-        }
+        .container { padding: 1.4rem 1rem; }
+        footer { font-size: 0.85em; }
       }
     </style>
   </head>
   <body>
     {% include "_navbar.html" %}
 
-    <!-- Toast Notifications -->
-    {% with messages = get_flashed_messages(with_categories=true) %} {% if
-    messages %}
-    <div id="toast-container">
-      {% for category, message in messages %}
-      <div class="toast toast-{{ category }}">{{ message }}</div>
-      {% endfor %}
-    </div>
-    {% endif %} {% endwith %}
+    {# Toast Notifications #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="toast-container">
+          {% for category, message in messages %}
+            <div class="toast toast-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
-    <main class="container">{% block content %}{% endblock %}</main>
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
 
-    <footer>&copy; 2025 Faith Sparks Printables. All rights reserved.</footar>
+    <footer>&copy; 2025 Faith Sparks Printables. All rights reserved.</footer>
 
     <script>
-      // Ensure dark mode class is applied on load
+      // apply saved theme as early as possible
       if (localStorage.getItem("theme") === "dark") {
         document.body.classList.add("dark");
       }

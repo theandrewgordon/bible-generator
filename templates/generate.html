@@ -1,6 +1,7 @@
-{% extends "base.html" %} {% block title %}Generate a Worksheet | Faith Sparks{%
-endblock %} {% block content %}
-<h1>📝 Generate Worksheet</h1>
+{% extends "base.html" %}
+{% block title %}Generate a Worksheet | Faith Sparks{% endblock %}
+{% block content %}
+<h1 class="page-title">📝 Generate Worksheet</h1>
 
 <form id="worksheetForm" method="POST" action="/generate">
   <!-- Verse entry -->
@@ -259,93 +260,6 @@ endblock %} {% block content %}
 </script>
 
 <style>
-  .block {
-    margin-bottom: 1.5rem;
-  }
-  .small {
-    font-size: 0.9em;
-  }
-  .muted {
-    color: var(--text-secondary, #6b7280);
-    margin-top: 6px;
-  }
-  .help {
-    font-size: 0.9em;
-    color: var(--text-secondary, #6b7280);
-    margin-top: 6px;
-  }
-  .warn {
-    color: #e53e3e;
-    margin-top: 1rem;
-  }
-  .wide-input {
-    width: 100%;
-    padding: 10px;
-  }
-  .checkbox-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .hidden {
-    display: none;
-  }
-
-  .actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  .button.primary {
-    background: #2563eb;
-  }
-  .button.primary:hover {
-    background: #1e40af;
-  }
-
-  /* Prompt idea chips */
-  .prompt-ideas {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .chip {
-    border: 1px solid #cbd5e1;
-    background: #f8fafc;
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-size: 0.85em;
-    cursor: pointer;
-  }
-  .chip:hover {
-    background: #eef2ff;
-  }
-
-  /* Toast */
-  .snackbar {
-    background-color: #16a34a;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 6px;
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 9999;
-    font-size: 1em;
-    opacity: 0;
-    transition: opacity 0.35s ease-in-out;
-  }
-  .snackbar.show {
-    opacity: 1;
-  }
-
-  /* Mobile tweaks */
-  @media (max-width: 640px) {
-    .actions {
-      flex-direction: column;
-    }
-  }
+  .hidden { display: none; }
 </style>
 {% endblock %}

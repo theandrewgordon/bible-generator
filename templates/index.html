@@ -1,46 +1,18 @@
-{% extends "base.html" %} {% block title %}Home | Faith Sparks Printables{%
-endblock %} {% block content %} {% if user_info %}
-<h1 style="text-align: center">
-  Welcome, {{ user_info["email"].split("@")[0] }} 👋
-</h1>
-<p style="text-align: center; font-size: 1.1em; margin-bottom: 32px">
-  Ready to create your next Bible worksheet?
-</p>
-<div style="text-align: center">
-  <a
-    href="/generate"
-    style="
-      display: inline-block;
-      background: #2b6cb0;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 6px;
-      font-weight: bold;
-      text-decoration: none;
-    "
-  >
-    ✍️ Generate a Worksheet
-  </a>
-</div>
+{% extends "base.html" %}
+{% block title %}Home | Faith Sparks Printables{% endblock %}
+{% block content %}
+{% if user_info %}
+  <h1 class="page-title">Welcome, {{ user_info["email"].split("@")[0] }} 👋</h1>
+  <p class="muted">Ready to create your next Bible worksheet?</p>
+  <p>
+    <a class="button" href="/generate">✍️ Generate a Worksheet</a>
+    <a class="button ghost" href="/history">📚 View History</a>
+  </p>
 {% else %}
-<h1 style="text-align: center">Welcome to Faith Sparks Printables</h1>
-<p style="text-align: center; font-size: 1.1em; margin-bottom: 32px">
-  Sign in with Google to create and track your printable Bible worksheets.
-</p>
-<div style="text-align: center">
-  <a
-    href="{{ url_for('google.login') }}"
-    style="
-      display: inline-block;
-      background: #2b6cb0;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 6px;
-      font-weight: bold;
-      text-decoration: none;
-    "
-  >
-    🔐 Login with Google
-  </a>
-</div>
-{% endif %} {% endblock %}
+  <h1 class="page-title">Welcome to Faith Sparks Printables</h1>
+  <p class="muted">Sign in with Google to create and track your printable Bible worksheets.</p>
+  <p>
+    <a class="button" href="{{ url_for('google.login') }}">🔐 Login with Google</a>
+  </p>
+{% endif %}
+{% endblock %}

@@ -1,31 +1,37 @@
-{% extends "base.html" %} {% block title %}Worksheet History | Faith Sparks{%
-endblock %} {% block content %}
-<h1>🗂️ Worksheet History</h1>
+{% extends "base.html" %}
+{% block title %}Worksheet History | Faith Sparks{% endblock %}
+
+{% block content %}
+<h1 class="page-title">📚 Worksheet History</h1>
 <p class="muted small">Logged in as: <strong>{{ email }}</strong></p>
 
 <div class="toolbar">
   <input
     id="searchInput"
     type="text"
-    placeholder="Search verse or version…"
+    placeholder="🔎 Search verse or version…"
     oninput="debouncedFilter()"
+    aria-label="Search worksheets"
   />
-  <select id="versionFilter" onchange="applyFilters()">
+  <select id="versionFilter" onchange="applyFilters()" aria-label="Filter by version">
     <option value="">All Versions</option>
     {% for item in history|map(attribute='version')|unique %}
-    <option value="{{ item|lower }}">{{ item }}</option>
+      <option value="{{ item|lower }}">{{ item }}</option>
     {% endfor %}
   </select>
-  <button class="button" onclick="clearFilters()">Clear Filters</button>
-  <button class="button" onclick="exportCSV()">📤 Export CSV</button>
-</div>
+
+  <div class="toolbar-right">
+    <button class="button ghost" type="button" onclick="clearFilters()">Clear Filters</button>
+    <button class="button ghost" type="button" onclick="exportCSV()">📤 Export CSV</button>
+  </div>
+  </div>
 
 {% if history %}
 <form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
-  <div class="bulkbar">
+  <div class="bulkbar card-lite">
     <label class="checkrow">
       <input type="checkbox" id="selectAll" onclick="toggleAll(this)" />
-      Select all
+      <span>Select all</span>
     </label>
     <button
       type="submit"
@@ -43,93 +49,93 @@ endblock %} {% block content %}
       data-verse="{{ item.verse|lower }}"
       data-version="{{ item.version|lower }}"
     >
-      <!-- checkbox -->
-      <div class="select">
-        <input
-          type="checkbox"
-          class="row-check"
-          name="selected_files"
-          value="{{ item.filename }}"
-          aria-label="Select {{ item.verse }}"
-        />
-      </div>
+      <div class="row-top">
+        <label class="row-check-wrap" title="Select {{ item.verse }}">
+          <input
+            type="checkbox"
+            class="row-check"
+            name="selected_files"
+            value="{{ item.filename }}"
+          />
+          <span class="custom-checkbox" aria-hidden="true"></span>
+        </label>
 
-      <!-- content -->
-      <div class="content">
-        <div class="title">{{ item.verse }}</div>
-        <div class="meta">
-          <span class="meta-left">
-            {# Show either DIY or Version, not both #}
-            <span class="badge alt">
-              {% if item.custom %}DIY{% else %}{{ item.version }}{% endif %}
-            </span>
-            {% if item.cursive %}<span class="badge">✍️ Cursive</span>{% endif
-            %}
-          </span>
-          <span class="meta-right">
-            {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else
-            'Date unknown' }}
-          </span>
+        <div class="content">
+          <div class="title">{{ item.verse }}</div>
+
+          <div class="meta">
+            <div class="meta-left">
+              <span class="pill alt">
+                {% if item.custom %}DIY{% else %}{{ item.version }}{% endif %}
+              </span>
+              {% if item.cursive %}<span class="pill">✍️ Cursive</span>{% endif %}
+            </div>
+            <div class="meta-right">
+              {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else 'Date unknown' }}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- actions -->
-      <div class="actions">
-        <a
-          class="icon"
-          href="{{ url_for('download_file', filename=item.filename) }}"
-          title="Download"
-          >📥</a
-        >
-        <a
-          class="icon danger"
-          href="{{ url_for('delete_worksheet', filename=item.filename) }}"
-          title="Delete"
-          onclick="return confirm('Delete this worksheet?')"
-          >🗑️</a
-        >
-        <a
-          class="icon"
-          href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
-          title="Regenerate"
-          >♻️</a
-        >
+        <div class="actions">
+          <a
+            class="icon"
+            href="{{ url_for('download_file', filename=item.filename) }}"
+            title="Download"
+            aria-label="Download {{ item.verse }}"
+          >📥</a>
+          <a
+            class="icon"
+            href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
+            title="Regenerate"
+            aria-label="Regenerate {{ item.verse }}"
+          >♻️</a>
+          <a
+            class="icon danger"
+            href="{{ url_for('delete_worksheet', filename=item.filename) }}"
+            title="Delete"
+            aria-label="Delete {{ item.verse }}"
+            onclick="return confirm('Delete this worksheet?')"
+          >🗑️</a>
+        </div>
       </div>
     </li>
     {% endfor %}
   </ul>
 </form>
 {% else %}
-<p class="muted">No worksheets yet.</p>
-<p><a class="button" href="{{ url_for('generate') }}">Create one</a></p>
-{% endif %} {% endblock %} {% block extra_scripts %}
+<div class="empty card-lite">
+  <div class="empty-emoji">🧺</div>
+  <h3>No worksheets yet</h3>
+  <p class="muted">When you create worksheets, they’ll show up here.</p>
+  <a class="button" href="{{ url_for('generate') }}">✨ Create one</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
   function applyFilters() {
-    const q = (
-      document.getElementById("searchInput").value || ""
-    ).toLowerCase();
-    const vf = (
-      document.getElementById("versionFilter").value || ""
-    ).toLowerCase();
+    const q = (document.getElementById("searchInput").value || "").toLowerCase();
+    const vf = (document.getElementById("versionFilter").value || "").toLowerCase();
+
     document.querySelectorAll("#cards .card").forEach((li) => {
       const verse = li.dataset.verse || "";
       const ver = li.dataset.version || "";
-      const ok =
-        (!q || verse.includes(q) || ver.includes(q)) && (!vf || ver === vf);
+      const ok = (!q || verse.includes(q) || ver.includes(q)) && (!vf || ver === vf);
       li.style.display = ok ? "" : "none";
     });
   }
-  let t;
+
+  let _t;
   function debouncedFilter() {
-    clearTimeout(t);
-    t = setTimeout(applyFilters, 160);
+    clearTimeout(_t);
+    _t = setTimeout(applyFilters, 160);
   }
 
   function toggleAll(src) {
-    document
-      .querySelectorAll(".row-check")
-      .forEach((cb) => (cb.checked = src.checked));
+    document.querySelectorAll(".row-check").forEach((cb) => (cb.checked = src.checked));
   }
+
   function confirmDeleteSelected() {
     const n = document.querySelectorAll(".row-check:checked").length;
     if (!n) {
@@ -149,16 +155,11 @@ endblock %} {% block content %}
     let csv = "Verse,Version/DIY,Cursive,Date\n";
     document.querySelectorAll("#cards .card").forEach((li) => {
       if (li.style.display === "none") return;
-      const verse = li
-        .querySelector(".title")
-        .innerText.trim()
-        .replace(/"/g, '""');
-      const vbadge = li.querySelector(".badge.alt").innerText.trim();
-      const hasCursive = !!li.querySelector(".badge:not(.alt)");
+      const verse = li.querySelector(".title").innerText.trim().replace(/"/g, '""');
+      const vbadge = li.querySelector(".pill.alt").innerText.trim();
+      const hasCursive = !!li.querySelector(".pill:not(.alt)");
       const date = li.querySelector(".meta-right").innerText.trim();
-      csv += `"${verse}","${vbadge}","${
-        hasCursive ? "Yes" : "No"
-      }","${date}"\n`;
+      csv += `"${verse}","${vbadge}","${hasCursive ? "Yes" : "No"}","${date}"\n`;
     });
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -171,129 +172,12 @@ endblock %} {% block content %}
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    if (localStorage.getItem("theme") === "dark")
-      document.body.classList.add("dark");
+    if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
+    applyFilters();
   });
 </script>
 
 <style>
-  .muted {
-    color: var(--text-secondary);
-  }
-  .small {
-    font-size: 0.9em;
-  }
-
-  .toolbar {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin: 0 0 1rem;
-  }
-  #searchInput,
-  #versionFilter {
-    padding: 8px 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    min-width: 200px;
-  }
-
-  .bulkbar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0.25rem 0 12px;
-  }
-  .checkrow {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .cards {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .card {
-    display: grid;
-    grid-template-columns: 38px 1fr auto;
-    gap: 0.75rem;
-    align-items: center;
-    padding: 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: var(--box);
-  }
-  .select {
-    display: flex;
-    justify-content: center;
-  }
-  .content {
-    min-width: 0;
-  }
-  .title {
-    font-weight: 700;
-    line-height: 1.25;
-    word-break: break-word;
-    font-size: 1.02rem;
-    margin-bottom: 4px;
-  }
-  .meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-  }
-  .badge {
-    font-size: 0.73rem;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #fde68a;
-    color: #111827;
-    vertical-align: middle;
-  }
-  .badge.alt {
-    background: #e5e7eb;
-    margin-right: 6px;
-  }
-  .actions {
-    display: flex;
-    gap: 6px;
-  }
-  .icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: #e2e8f0;
-    text-decoration: none;
-  }
-  .icon:hover {
-    background: #cbd5e1;
-  }
-  .icon.danger {
-    background: #fecaca;
-  }
-  .icon.danger:hover {
-    background: #fca5a5;
-  }
-
-  /* Mobile layout: actions drop under title */
-  @media (max-width: 640px) {
-    .card {
-      grid-template-columns: 30px 1fr;
-    }
-    .actions {
-      grid-column: 2 / -1;
-    }
-  }
+  .page-title { margin-bottom: .25rem; }
 </style>
 {% endblock %}

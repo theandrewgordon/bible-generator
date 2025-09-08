@@ -1,40 +1,11 @@
-{% extends "base.html" %} {% block title %}Worksheet Ready | Faith Sparks
-Printables{% endblock %} {% block content %}
-<h1 style="text-align: center">✅ Your worksheet is ready!</h1>
-<p style="text-align: center; font-size: 1.1em; margin-bottom: 32px">
-  You can download it below or go back to create another.
-</p>
+{% extends "base.html" %}
+{% block title %}Worksheet Ready | Faith Sparks Printables{% endblock %}
+{% block content %}
+  <h1 class="page-title">✅ Your worksheet is ready!</h1>
+  <p class="muted">You can download it below or create another.</p>
 
-<div style="text-align: center">
-  <a
-    href="{{ url_for('download', filename=filename) }}"
-    style="
-      display: inline-block;
-      background: #2b6cb0;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 6px;
-      font-weight: bold;
-      text-decoration: none;
-      margin-bottom: 16px;
-    "
-  >
-    📥 Download Again
-  </a>
-  <br />
-  <a
-    href="/generate"
-    style="
-      display: inline-block;
-      background: #4a5568;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-weight: bold;
-      text-decoration: none;
-    "
-  >
-    🔁 Make Another Worksheet
-  </a>
-</div>
+  <p>
+    <a class="button" href="{{ url_for('download', filename=filename) }}">📥 Download Again</a>
+    <a class="button ghost" href="/generate">🔁 Make Another Worksheet</a>
+  </p>
 {% endblock %}

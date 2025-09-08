@@ -1,20 +1,12 @@
-{% extends "base.html" %} {% block title %}Page Not Found | Faith Sparks
-Printables{% endblock %} {% block content %}
-<h1>404</h1>
-<p>Oops! That page doesn’t exist.</p>
-<a
-  href="/"
-  class="button"
-  style="
-    display: inline-block;
-    background: #2b6cb0;
-    color: white;
-    text-decoration: none;
-    padding: 12px 24px;
-    border-radius: 6px;
-    font-weight: bold;
-    margin-top: 20px;
-  "
-  >Return to Home</a
->
+{% extends "base.html" %}
+{% block title %}Login | Faith Sparks Printables{% endblock %}
+{% block content %}
+  <h1 class="page-title">Login</h1>
+  {% if session.user_info %}
+    <p class="muted">You’re already signed in as <strong>{{ session.user_info.email }}</strong>.</p>
+    <p><a class="button" href="/generate">📝 Go to Generate</a></p>
+  {% else %}
+    <p class="muted">Sign in with Google to continue.</p>
+    <p><a class="button" href="{{ url_for('google.login') }}">🔐 Login with Google</a></p>
+  {% endif %}
 {% endblock %}
