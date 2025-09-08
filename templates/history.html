@@ -135,16 +135,37 @@
   }
 
   function toggleAll(src) {
-    document.querySelectorAll(".row-check").forEach((cb) => (cb.checked = src.checked));
+    // Toggle only currently visible cards
+    document.querySelectorAll('#cards .card').forEach((li)=>{
+      if (li.hidden) return;
+      const cb = li.querySelector('.row-check');
+      if (!cb) return;
+      cb.checked = src.checked;
+      cb.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  function getSelectedValues() {
+    const form = document.getElementById('bulkDeleteForm');
+    const fd = new FormData(form);
+    return fd.getAll('selected_files');
   }
 
   function confirmDeleteSelected() {
-    const n = document.querySelectorAll(".row-check:checked").length;
+    const n = getSelectedValues().length;
     if (!n) {
       alert("No worksheets selected.");
       return false;
     }
     return confirm(`Delete ${n} worksheet(s)?`);
+  }
+
+  function updateSelectAllState() {
+    const selectAll = document.getElementById('selectAll');
+    const visible = Array.from(document.querySelectorAll('#cards .card:not([hidden]) .row-check'));
+    const total = visible.length;
+    const checked = visible.filter(cb=>cb.checked).length;
+    selectAll.checked = total>0 && checked === total;
+    selectAll.indeterminate = checked>0 && checked<total;
   }
 
   function clearFilters() {
@@ -176,6 +197,10 @@
   document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
     applyFilters();
+    // Keep Select All state in sync
+    document.getElementById('cards').addEventListener('change', (e)=>{
+      if (e.target.classList && e.target.classList.contains('row-check')) updateSelectAllState();
+    });
   });
 </script>
 
