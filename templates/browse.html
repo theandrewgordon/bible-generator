@@ -37,18 +37,20 @@
   <h3>Collections</h3>
   <div class="grid-collections">
     {% for c in collections %}
-      <a class="collection-tile" href="{{ url_for('browse_detail', slug=c.slug) }}">
-        <div class="collection-title">{{ c.title }}</div>
+      <div class="collection-tile">
+        <div class="collection-title"><a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a></div>
         <div class="collection-count">{{ c.count }} verses</div>
         {% if c.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
-      </a>
-      {% if c.zipUrl %}
-        {% if is_signed_in or c.isFree %}
-          <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
-        {% else %}
-          <a class="button ghost" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
+        {% if c.zipUrl %}
+          <div class="collection-actions">
+            {% if is_signed_in or c.isFree %}
+              <a class="button ghost small" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
+            {% else %}
+              <a class="button ghost small" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
+            {% endif %}
+          </div>
         {% endif %}
-      {% endif %}
+      </div>
     {% endfor %}
   </div>
   <p class="small muted">Collections are starting points; pick one to prefill ideas in Generate.</p>
@@ -77,10 +79,12 @@
 {% block extra_scripts %}
 <style>
   .grid-collections { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-  .collection-tile { display: block; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: var(--box); text-decoration: none; color: inherit; }
+  .collection-tile { display: block; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: var(--box); color: inherit; }
   .collection-title { font-weight: 700; }
   .collection-count { color: var(--text-secondary); font-size: .85em; }
   .collection-badge { margin-top: 6px; display: inline-block; }
+  .collection-actions { margin-top: 10px; }
+  .button.small { padding: 6px 10px; font-size: .9em; }
 
   .grid-cards { list-style: none; padding:0; margin:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .grid-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; background: var(--box); }

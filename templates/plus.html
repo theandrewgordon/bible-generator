@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Faith Sparks Plus{% endblock %}
+{% block content %}
+  <h1 class="page-title">Faith Sparks Plus</h1>
+  <p class="muted">Support the project and unlock premium resources.</p>
+
+  <div class="grid-collections" style="margin-top:12px;">
+    <div class="collection-tile">
+      <div class="collection-title">Plus Family</div>
+      <div class="collection-count">Best for households</div>
+      {% if prices.family %}
+        {% if is_signed_in %}
+          <form method="post" action="{{ url_for('create_checkout_session') }}" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="hidden" name="price_id" value="{{ prices.family }}" />
+            <input type="text" name="promo_code" placeholder="Promo code (e.g. SAVE25)" style="flex:1; min-width:200px;" />
+            <button class="button">Checkout</button>
+          </form>
+          <div class="small muted">You can also enter codes during Stripe checkout.</div>
+        {% else %}
+          <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
+        {% endif %}
+      {% else %}
+        <div class="small muted">Not configured</div>
+      {% endif %}
+    </div>
+
+    <div class="collection-tile">
+      <div class="collection-title">Plus Classroom</div>
+      <div class="collection-count">Best for co-ops and classes</div>
+      {% if prices.classroom %}
+        {% if is_signed_in %}
+          <form method="post" action="{{ url_for('create_checkout_session') }}" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="hidden" name="price_id" value="{{ prices.classroom }}" />
+            <input type="text" name="promo_code" placeholder="Promo code (e.g. SAVE25)" style="flex:1; min-width:200px;" />
+            <button class="button">Checkout</button>
+          </form>
+          <div class="small muted">You can also enter codes during Stripe checkout.</div>
+        {% else %}
+          <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
+        {% endif %}
+      {% else %}
+        <div class="small muted">Not configured</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <p class="small muted" style="margin-top:10px;">Have a code? Try <b>{{ promo_hint }}</b> or enter it during checkout.</p>
+{% endblock %}

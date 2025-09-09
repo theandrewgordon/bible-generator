@@ -12,6 +12,10 @@ from google.cloud import storage
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
+try:
+    import stripe  # type: ignore
+except Exception:
+    stripe = None
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -80,6 +84,18 @@ else:
     db = None
     print("⚠️ Firestore not initialized")
     storage_client = None
+
+# --- Stripe ---
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_PRICE_FAMILY = os.getenv('STRIPE_PRICE_FAMILY')  # price_...
+STRIPE_PRICE_CLASSROOM = os.getenv('STRIPE_PRICE_CLASSROOM')  # price_...
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+if STRIPE_SECRET_KEY and stripe:
+    try:
+        stripe.api_key = STRIPE_SECRET_KEY
+    except Exception as _e:
+        print(f"⚠️ Could not init Stripe: {_e}")
 
 # --- Helpers ---
 def login_required(func):
@@ -690,13 +706,155 @@ def admin_seed_collections():
 @app.context_processor
 def inject_admin_flag():
     try:
+        email = session.get('user_email')
+        is_pro = False
+        if db and email:
+            try:
+                u = db.collection('users').document(email).get()
+                if u.exists:
+                    is_pro = bool((u.to_dict() or {}).get('isPro'))
+            except Exception:
+                pass
         return {
-            'is_admin': is_admin_email(session.get('user_email')),
-            'is_signed_in': bool(session.get('user_email')),
-            'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com')
+            'is_admin': is_admin_email(email),
+            'is_signed_in': bool(email),
+            'is_pro': is_pro,
+            'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com'),
+            'stripe_pk': STRIPE_PUBLISHABLE_KEY,
         }
     except Exception:
-        return { 'is_admin': False, 'is_signed_in': False, 'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com') }
+        return {
+            'is_admin': False,
+            'is_signed_in': False,
+            'is_pro': False,
+            'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com'),
+            'stripe_pk': None,
+        }
+
+# --- Plus / Checkout ---
+@app.route('/plus')
+def plus_pricing():
+    prices = {
+        'family': STRIPE_PRICE_FAMILY,
+        'classroom': STRIPE_PRICE_CLASSROOM,
+    }
+    return render_template('plus.html', prices=prices, promo_hint='SAVE25')
+
+@app.route('/create_checkout_session', methods=['POST'])
+@login_required
+def create_checkout_session():
+    if not STRIPE_SECRET_KEY or not stripe:
+        return 'Stripe not configured', 500
+    price_id = (request.form.get('price_id') or '').strip()
+    promo_code_text = (request.form.get('promo_code') or '').strip()
+    if not price_id:
+        return 'Missing price', 400
+    user_email = session.get('user_email')
+    discounts = None
+    try:
+        if promo_code_text:
+            pcs = stripe.PromotionCode.list(code=promo_code_text, active=True, limit=1)
+            if pcs and pcs.data:
+                discounts = [{ 'promotion_code': pcs.data[0].id }]
+    except Exception:
+        pass
+    try:
+        chk = stripe.checkout.Session.create(
+            mode='subscription',
+            customer_email=user_email,
+            line_items=[{'price': price_id, 'quantity': 1}],
+            success_url=url_for('plus_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('plus_pricing', _external=True),
+            allow_promotion_codes=True,
+            discounts=discounts,
+            metadata={'email': user_email, 'plan_price_id': price_id},
+        )
+        return redirect(chk.url, code=303)
+    except Exception as e:
+        traceback.print_exc()
+        return f"Stripe error: {e}", 500
+
+@app.route('/plus/success')
+def plus_success():
+    return render_template('success.html')
+
+@app.route('/billing')
+@login_required
+def billing_portal():
+    if not STRIPE_SECRET_KEY or not stripe:
+        return 'Stripe not configured', 500
+    email = session.get('user_email')
+    if not db or not email:
+        return redirect(url_for('index'))
+    try:
+        u = db.collection('users').document(email).get()
+        if not u.exists:
+            flash('No subscription found for your account.', 'warning')
+            return redirect(url_for('plus_pricing'))
+        cid = (u.to_dict() or {}).get('stripeCustomerId')
+        if not cid:
+            flash('No subscription found for your account.', 'warning')
+            return redirect(url_for('plus_pricing'))
+        ps = stripe.billing_portal.Session.create(customer=cid, return_url=url_for('index', _external=True))
+        return redirect(ps.url)
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Billing portal error: {e}', 'error')
+        return redirect(url_for('plus_pricing'))
+
+@app.route('/stripe/webhook', methods=['POST'])
+def stripe_webhook():
+    if not STRIPE_WEBHOOK_SECRET or not stripe:
+        return ('', 200)
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except Exception as e:
+        return (f"Webhook error: {e}", 400)
+
+    et = event.get('type')
+    obj = event.get('data', {}).get('object', {})
+    try:
+        if et == 'checkout.session.completed':
+            email = (obj.get('customer_details') or {}).get('email') or obj.get('customer_email') or (obj.get('metadata') or {}).get('email')
+            subscription_id = obj.get('subscription')
+            customer_id = obj.get('customer')
+            price_id = (obj.get('metadata') or {}).get('plan_price_id')
+            # Retrieve subscription to capture price if needed
+            try:
+                if subscription_id and STRIPE_SECRET_KEY:
+                    sub = stripe.Subscription.retrieve(subscription_id, expand=['items.data.price'])
+                    if sub and sub.get('items') and sub['items']['data']:
+                        price_id = sub['items']['data'][0]['price']['id']
+            except Exception:
+                pass
+            plan = 'family' if price_id == STRIPE_PRICE_FAMILY else 'classroom' if price_id == STRIPE_PRICE_CLASSROOM else 'plus'
+            if db and email:
+                db.collection('users').document(email).set({
+                    'isPro': True,
+                    'plan': plan,
+                    'stripeCustomerId': customer_id,
+                    'subscriptionId': subscription_id,
+                    'priceId': price_id,
+                    'updatedAt': firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+        elif et == 'customer.subscription.deleted':
+            sub = obj
+            customer_id = sub.get('customer')
+            email = None
+            # best-effort lookup by email (if stored under users by email only)
+            # leaving as a no-op if we cannot infer email; admin can resolve
+            if db and customer_id:
+                try:
+                    # if you later store mapping customer->email, update here
+                    pass
+                except Exception:
+                    pass
+        # You can handle other events as needed
+    except Exception:
+        traceback.print_exc()
+    return ('', 200)
 
 @app.route('/admin/analytics')
 @admin_required
