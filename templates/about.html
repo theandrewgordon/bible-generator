@@ -3,16 +3,27 @@
 {% block content %}
   <h1 class="page-title">About Faith Sparks Printables</h1>
   <p>
-    Faith Sparks Printables is dedicated to creating beautiful, faith‑filled resources for
-    families, homeschoolers, and churches. Our tools make learning Scripture engaging,
-    fun, and spiritually formative.
+    Hi, I’m Andrew Gordon — a Christian husband, father of four, homeschool dad, and
+    software developer. I love God and I seek to love my neighbors.
   </p>
   <p>
-    Powered by modern AI, our printable worksheets help children reflect on God’s Word
-    through copywork, journaling, and coloring — tailored for all ages.
+    I saw my family regularly needing fun, Bible‑based ways to practice handwriting and
+    cursive. I couldn’t find exactly what I was looking for, so I built Faith Sparks
+    Printables to create simple, beautiful worksheets that help kids engage Scripture through
+    copywork, reflection, and creativity.
   </p>
   <p>
-    Whether you’re a homeschool parent, Sunday school teacher, or simply someone who
-    loves God’s Word, we’re here to help you spark faith at home and beyond.
+    My hope is that these resources serve families, homeschoolers, and churches by making
+    God’s Word more present in everyday learning.
+  </p>
+
+  <h3>Contact & Support</h3>
+  <p class="muted">
+    Questions or feedback? I’d love to hear from you:
+    {% if support_email %}
+      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+    {% else %}
+      <a href="mailto:support@faithsparksprintables.com">support@faithsparksprintables.com</a>
+    {% endif %}
   </p>
 {% endblock %}

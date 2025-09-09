@@ -1,5 +1,5 @@
 # test08-28-2025
-from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash
+from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash, jsonify
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re, traceback
@@ -106,6 +106,16 @@ def admin_required(func):
 def is_public_browse_enabled() -> bool:
     return os.getenv('PUBLIC_BROWSE', '0') in ('1','true','True','yes','on')
 
+def _fmt_dt(ts):
+    try:
+        return ts.strftime('%Y-%m-%d %H:%M') if ts else None
+    except Exception:
+        try:
+            # Fallback to string
+            return str(ts)
+        except Exception:
+            return None
+
 def normalize_slug(text):
     text = text.replace("⚠️", "")
     text = re.sub(r'[^\w\s-]', '', text)
@@ -160,6 +170,7 @@ def get_collections():
             items = []
             for d in docs:
                 data = d.to_dict()
+                pr = data.get('prewarm') or {}
                 items.append({
                     'slug': d.id,
                     'title': data.get('title') or d.id.replace('-', ' ').title(),
@@ -168,6 +179,9 @@ def get_collections():
                     'zipUrl': data.get('zipUrl'),
                     'description': data.get('description',''),
                     'isFree': data.get('isFree', False),
+                    'prewarm': pr,
+                    'lastBuilt': _fmt_dt(pr.get('finishedAt')) if isinstance(pr, dict) else None,
+                    'order': int(data.get('order') or 9999),
                 })
             if items:
                 return items
@@ -184,6 +198,9 @@ def get_collections():
             'zipUrl': None,
             'description': '',
             'isFree': False,
+            'prewarm': None,
+            'lastBuilt': None,
+            'order': 9999,
         })
     return items
 
@@ -354,6 +371,10 @@ def generate():
             if doc:
                 existing_path = os.path.join("output", doc.to_dict().get("filename"))
                 if os.path.exists(existing_path):
+                    try:
+                        flash("Already generated — using your existing PDF.", "info")
+                    except Exception:
+                        pass
                     last_pdf = existing_path
                     continue
 
@@ -454,12 +475,12 @@ def generate():
 
         if len(items_to_generate) == 1 and os.path.exists(last_pdf):
             flash("Worksheet generated successfully!", "success")
-            return send_file(last_pdf, as_attachment=True)
+            return send_file(last_pdf, as_attachment=True, download_name=os.path.basename(last_pdf), conditional=True)
         elif len(items_to_generate) > 1:
             zip_path = "output/worksheets_bundle.zip"
             if os.path.exists(zip_path):
                 flash("Bundle generated successfully!", "success")
-                return send_file(zip_path, as_attachment=True)
+                return send_file(zip_path, as_attachment=True, download_name=os.path.basename(zip_path), conditional=True)
 
         return "No worksheets were generated successfully", 500
 
@@ -554,7 +575,7 @@ def download_file(filename):
                 db.collection('analytics_daily').document(f'verses_{today}').set({ base: firestore.Increment(1) }, merge=True)
         except Exception:
             pass
-        return send_file(file_path, as_attachment=True)
+        return send_file(file_path, as_attachment=True, download_name=os.path.basename(file_path), conditional=True)
 
     # 🟢 Auto-fallback: regenerate instead of error
     user_email = session.get("user_email")
@@ -587,7 +608,12 @@ def thumb(filename):
                     return redirect(blob.public_url)
             except Exception:
                 pass
-        return send_file(path)
+        resp = send_file(path, conditional=True)
+        try:
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
+        except Exception:
+            pass
+        return resp
     # On-demand create if missing
     base = os.path.splitext(os.path.basename(filename))[0]
     pdf_name = base + '.pdf'
@@ -615,7 +641,12 @@ def thumb(filename):
                             return redirect(blob.public_url)
                     except Exception:
                         pass
-                return send_file(out)
+                resp = send_file(out, conditional=True)
+                try:
+                    resp.headers['Cache-Control'] = 'public, max-age=86400'
+                except Exception:
+                    pass
+                return resp
     return ("", 404)
 
 # --- Admin utilities ---
@@ -659,9 +690,13 @@ def admin_seed_collections():
 @app.context_processor
 def inject_admin_flag():
     try:
-        return { 'is_admin': is_admin_email(session.get('user_email')), 'is_signed_in': bool(session.get('user_email')) }
+        return {
+            'is_admin': is_admin_email(session.get('user_email')),
+            'is_signed_in': bool(session.get('user_email')),
+            'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com')
+        }
     except Exception:
-        return { 'is_admin': False, 'is_signed_in': False }
+        return { 'is_admin': False, 'is_signed_in': False, 'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com') }
 
 @app.route('/admin/analytics')
 @admin_required
@@ -826,6 +861,51 @@ def admin_collections_delete(slug):
     flash('Collection deleted', 'success')
     return redirect(url_for('admin_collections'))
 
+@app.route('/admin/collections/<slug>/move', methods=['POST'])
+@admin_required
+def admin_collections_move(slug):
+    if not db:
+        return "Firestore not configured", 500
+    direction = request.form.get('dir', 'up')
+    # Load all collections, sort by order then title
+    items = get_collections()
+    items.sort(key=lambda c: (int(c.get('order') or 9999), c.get('title','')))
+    idx = next((i for i, c in enumerate(items) if c['slug'] == slug), None)
+    if idx is None:
+        return redirect(url_for('admin_collections'))
+    if direction == 'up' and idx > 0:
+        a, b = items[idx-1], items[idx]
+    elif direction == 'down' and idx < len(items)-1:
+        a, b = items[idx], items[idx+1]
+    else:
+        return redirect(url_for('admin_collections'))
+    # Swap their order values, defaulting missing to sequence
+    a_order = int(a.get('order') or (idx))
+    b_order = int(b.get('order') or (idx+1))
+    try:
+        db.collection('collections').document(a['slug']).set({ 'order': b_order }, merge=True)
+        db.collection('collections').document(b['slug']).set({ 'order': a_order }, merge=True)
+    except Exception:
+        pass
+    return redirect(url_for('admin_collections'))
+
+@app.route('/admin/collections/<slug>/set_order', methods=['POST'])
+@admin_required
+def admin_collections_set_order(slug):
+    if not db:
+        return "Firestore not configured", 500
+    order = request.form.get('order')
+    try:
+        val = int(order)
+    except Exception:
+        flash('Invalid order value', 'error')
+        return redirect(url_for('admin_collections'))
+    try:
+        db.collection('collections').document(slug).set({ 'order': val }, merge=True)
+    except Exception:
+        pass
+    return redirect(url_for('admin_collections'))
+
 @app.route('/admin/prewarm/<slug>', methods=['POST'])
 @admin_required
 def admin_prewarm_pack(slug):
@@ -908,12 +988,45 @@ def admin_prewarm_pack(slug):
     flash('Prewarm started. You can refresh this page to see progress.', 'success')
     return redirect(url_for('browse_detail', slug=slug))
 
+@app.route('/admin/prewarm/<slug>/status')
+@admin_required
+def admin_prewarm_status(slug):
+    if not db:
+        return ("Firestore not configured", 500)
+    try:
+        doc = db.collection('collections').document(slug).get()
+        if not doc.exists:
+            return jsonify({ 'error': 'Not found' }), 404
+        data = doc.to_dict() or {}
+        pr = data.get('prewarm') or {}
+        safe = {}
+        for k, v in pr.items():
+            try:
+                # stringify non-JSON serializable values (e.g., Firestore timestamps)
+                json.dumps(v)  # type: ignore
+                safe[k] = v
+            except Exception:
+                try:
+                    from datetime import datetime as _dt
+                    if hasattr(v, 'isoformat'):
+                        safe[k] = v.isoformat()  # type: ignore
+                    else:
+                        safe[k] = str(v)
+                except Exception:
+                    safe[k] = str(v)
+        # Include zipUrl if present for convenience
+        if data.get('zipUrl'):
+            safe['zipUrl'] = data.get('zipUrl')
+        return jsonify(safe), 200
+    except Exception as e:
+        return jsonify({ 'error': str(e) }), 500
+
 @app.route('/packs/<path:filename>')
 @login_required
 def serve_pack(filename):
     path = os.path.join('output', 'packs', filename)
     if os.path.exists(path):
-        return send_file(path, as_attachment=True)
+        return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
     return ("", 404)
 
 @app.route('/dl/pack/<slug>')
@@ -929,7 +1042,7 @@ def dl_pack(slug):
     is_free = bool(meta.get('isFree'))
     if not is_free and not google.authorized:
         flash('Please sign in to download packs.', 'warning')
-        return redirect(url_for('google.login'))
+        return redirect(url_for('google.login', next=request.url))
     # Increment analytics counter
     try:
         # All-time counter
@@ -945,7 +1058,7 @@ def dl_pack(slug):
     # fallback to local if present
     path = os.path.join('output', 'packs', f'{slug}.zip')
     if os.path.exists(path):
-        return send_file(path, as_attachment=True)
+        return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
     return "Pack not available", 404
 
 @app.route('/toggle_favorite/<filename>', methods=['POST'])
@@ -969,7 +1082,7 @@ def toggle_favorite(filename):
 def browse():
     """Browse page: public if PUBLIC_BROWSE enabled; else requires login."""
     if not is_public_browse_enabled() and not google.authorized:
-        return redirect(url_for('google.login'))
+        return redirect(url_for('google.login', next=request.url))
     items = []
     if db and google.authorized:
         user_email = session.get('user_email')
@@ -979,8 +1092,10 @@ def browse():
             .limit(24).stream()
         items = [doc.to_dict() for doc in recent]
     col_items = get_collections()
+    # Sort by explicit order then title
+    col_items.sort(key=lambda c: (int(c.get('order') or 9999), c.get('title','')))
     # enrich with counts
-    collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl') } for c in col_items ]
+    collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl'), 'isFree': c.get('isFree') } for c in col_items ]
     # Top packs by download count (all-time)
     top_packs = []
     # Top packs this week (sum of last 7 daily docs)
@@ -996,7 +1111,7 @@ def browse():
                 for slug, cnt in sorted_slugs[:6]:
                     meta = by_slug.get(slug)
                     if meta:
-                        top_packs.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl') })
+                        top_packs.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl'), 'isFree': meta.get('isFree') })
         except Exception as e:
             print(f"⚠️ Could not load analytics packs: {e}")
 
@@ -1016,7 +1131,7 @@ def browse():
             for slug, cnt in sorted_slugs[:6]:
                 meta = by_slug.get(slug)
                 if meta:
-                    top_packs_week.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl') })
+                    top_packs_week.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl'), 'isFree': meta.get('isFree') })
         except Exception as e:
             print(f"⚠️ Could not compute weekly top packs: {e}")
     return render_template('browse.html', items=items, collections=collections, top_packs=top_packs, top_packs_week=top_packs_week)
@@ -1024,7 +1139,7 @@ def browse():
 @app.route('/browse/<slug>')
 def browse_detail(slug):
     if not is_public_browse_enabled() and not google.authorized:
-        return redirect(url_for('google.login'))
+        return redirect(url_for('google.login', next=request.url))
     meta = get_collection_meta(slug)
     if not meta:
         return "Not found", 404
@@ -1098,10 +1213,25 @@ def regenerate(filename):
             except Exception:
                 pass
             flash(f"Regenerated: {filename}", "success")
-            return send_file(pdf_path, as_attachment=True)
+            return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
         else:
             return f"PDF not created: {pdf_path}", 500
 
     except Exception as e:
         traceback.print_exc()
         return f"Regenerate error: {e}", 500
+
+# --- Error Handlers ---
+@app.errorhandler(404)
+def handle_404(e):
+    try:
+        return render_template('404.html'), 404
+    except Exception:
+        return "Not found", 404
+
+@app.errorhandler(500)
+def handle_500(e):
+    try:
+        return render_template('500.html'), 500
+    except Exception:
+        return "Server error", 500

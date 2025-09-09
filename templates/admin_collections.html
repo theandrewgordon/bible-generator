@@ -8,24 +8,60 @@
 <table style="width:100%; border-collapse: collapse;">
   <thead>
     <tr>
+      <th style="text-align:left; padding:6px;">Order</th>
       <th style="text-align:left; padding:6px;">Slug</th>
       <th style="text-align:left; padding:6px;">Title</th>
       <th style="text-align:left; padding:6px;">Verses</th>
       <th style="text-align:left; padding:6px;">Public</th>
       <th style="text-align:left; padding:6px;">Free</th>
+      <th style="text-align:left; padding:6px;">Build</th>
+      <th style="text-align:left; padding:6px;">Last built</th>
       <th style="text-align:left; padding:6px;">Actions</th>
     </tr>
   </thead>
   <tbody>
   {% for c in collections %}
-    <tr style="border-top:1px solid #e5e7eb;">
+    <tr style="border-top:1px solid #e5e7eb;" data-slug="{{ c.slug }}">
+      <td style="padding:6px; width:80px;">
+        {{ c.get('order', '') }}
+        <form method="post" action="{{ url_for('admin_collections_move', slug=c.slug) }}" style="display:inline;">
+          <input type="hidden" name="dir" value="up">
+          <button class="button ghost" title="Move up">⬆️</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_collections_move', slug=c.slug) }}" style="display:inline;">
+          <input type="hidden" name="dir" value="down">
+          <button class="button ghost" title="Move down">⬇️</button>
+        </form>
+      </td>
       <td style="padding:6px;">{{ c.slug }}</td>
       <td style="padding:6px;">{{ c.title }}</td>
       <td style="padding:6px;">{{ c.verses|length }}</td>
       <td style="padding:6px;">{{ 'Yes' if c.get('isPublic', True) else 'No' }}</td>
       <td style="padding:6px;">{{ 'Yes' if c.get('isFree', False) else 'No' }}</td>
       <td style="padding:6px;">
+        {% set s = c.get('prewarm', {}).get('status') %}
+        <span class="prewarm" data-status="{{ s or '' }}">
+          {% if s == 'running' %}
+            <span class="pill">Building <span class="done">{{ c.get('prewarm', {}).get('done', 0) }}</span>/<span class="total">{{ c.get('prewarm', {}).get('total', '?') }}</span></span>
+          {% elif s == 'done' %}
+            <span class="pill alt">Ready</span>
+          {% elif s == 'error' %}
+            <span class="pill" style="background:#fecaca; border-color:#fca5a5;">Error</span>
+          {% else %}
+            <span class="muted small">—</span>
+          {% endif %}
+        </span>
+      </td>
+      <td style="padding:6px;"><span class="last-built">{{ c.get('lastBuilt') or '—' }}</span></td>
+      <td style="padding:6px;">
         <a class="button ghost" href="{{ url_for('admin_collections_edit', slug=c.slug) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin_collections_set_order', slug=c.slug) }}" style="display:inline; margin-left:6px;">
+          <input type="number" name="order" value="{{ c.get('order','') }}" style="width:70px;"> 
+          <button class="button ghost" title="Set order">Save</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline; margin-left:6px;">
+          <button class="button" style="background:#e0e7ff; color:#111827;" title="Rebuild ZIP">Rebuild ZIP</button>
+        </form>
         <form method="post" action="{{ url_for('admin_collections_delete', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Delete this collection?');">
           <button class="button" style="background:#fecaca;">Delete</button>
         </form>
@@ -34,4 +70,36 @@
   {% endfor %}
   </tbody>
   </table>
+<script>
+  (function(){
+    const rows = Array.from(document.querySelectorAll('tr[data-slug]'));
+    async function pollRow(row){
+      const slug = row.getAttribute('data-slug');
+      try{
+        const res = await fetch(`/admin/prewarm/${slug}/status`, { headers: { 'Accept': 'application/json' } });
+        if(!res.ok) return;
+        const data = await res.json();
+        const cell = row.querySelector('.prewarm');
+        const lastBuiltEl = row.querySelector('.last-built');
+        if(!cell) return;
+        const s = data.status;
+        cell.setAttribute('data-status', s||'');
+        if(s === 'running'){
+          const done = data.done ?? 0;
+          const total = data.total ?? '?';
+          cell.innerHTML = `<span class="pill">Building <span class="done">${done}</span>/<span class="total">${total}</span></span>`;
+        } else if(s === 'done'){
+          cell.innerHTML = `<span class="pill alt">Ready</span>`;
+          if(lastBuiltEl){ lastBuiltEl.textContent = new Date().toISOString().slice(0,16).replace('T',' '); }
+        } else if(s === 'error'){
+          cell.innerHTML = `<span class="pill" style="background:#fecaca; border-color:#fca5a5;">Error</span>`;
+        }
+      }catch(e){ /* ignore */ }
+    }
+    function tick(){ rows.forEach(pollRow); }
+    setInterval(tick, 3000);
+    // initial
+    tick();
+  })();
+</script>
 {% endblock %}

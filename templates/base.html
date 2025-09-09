@@ -82,7 +82,12 @@
       {% block content %}{% endblock %}
     </main>
 
-    <footer>&copy; 2025 Faith Sparks Printables. All rights reserved.</footer>
+    <footer>
+      &copy; 2025 Faith Sparks Printables. All rights reserved.
+      {% if support_email %}
+        • Support: <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+      {% endif %}
+    </footer>
 
     <script>
       // apply saved theme as early as possible

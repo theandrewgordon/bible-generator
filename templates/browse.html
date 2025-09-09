@@ -11,6 +11,7 @@
       <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
         <div class="collection-title">{{ p.title }}</div>
         <div class="collection-count">{{ p.downloads }} downloads</div>
+        {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
       </a>
     {% endfor %}
   </div>
@@ -25,6 +26,7 @@
       <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
         <div class="collection-title">{{ p.title }}</div>
         <div class="collection-count">{{ p.downloads }} downloads</div>
+        {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
       </a>
     {% endfor %}
   </div>
@@ -38,12 +40,13 @@
       <a class="collection-tile" href="{{ url_for('browse_detail', slug=c.slug) }}">
         <div class="collection-title">{{ c.title }}</div>
         <div class="collection-count">{{ c.count }} verses</div>
+        {% if c.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
       </a>
       {% if c.zipUrl %}
         {% if is_signed_in or c.isFree %}
           <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
         {% else %}
-          <a class="button ghost" href="{{ url_for('google.login') }}">🔐 Sign in to Download</a>
+          <a class="button ghost" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
         {% endif %}
       {% endif %}
     {% endfor %}
@@ -77,6 +80,7 @@
   .collection-tile { display: block; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: var(--box); text-decoration: none; color: inherit; }
   .collection-title { font-weight: 700; }
   .collection-count { color: var(--text-secondary); font-size: .85em; }
+  .collection-badge { margin-top: 6px; display: inline-block; }
 
   .grid-cards { list-style: none; padding:0; margin:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .grid-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; background: var(--box); }
