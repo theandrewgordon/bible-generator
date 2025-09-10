@@ -974,7 +974,40 @@ def plus_pricing():
             'single': STRIPE_PRICE_CLASSROOM,
         }
     }
-    return render_template('plus.html', prices=prices, promo_hint='SAVE25')
+    meta = { 'family': {}, 'classroom': {} }
+    def _price_meta(pid):
+        if not pid or not stripe:
+            return None
+        try:
+            p = stripe.Price.retrieve(pid)
+            return {
+                'amount': (p.get('unit_amount') or 0) / 100.0,
+                'currency': (p.get('currency') or 'usd').upper(),
+                'recurring': (p.get('recurring') or {}).get('interval')
+            }
+        except Exception:
+            return None
+    # Try to enrich with amounts and savings
+    try:
+        fam_m = _price_meta(prices['family'].get('monthly'))
+        fam_y = _price_meta(prices['family'].get('annual'))
+        if fam_m: meta['family']['monthly'] = fam_m
+        if fam_y: meta['family']['annual'] = fam_y
+        if fam_m and fam_y and fam_m.get('amount'):
+            m12 = fam_m['amount'] * 12.0
+            save = max(0.0, 1.0 - (fam_y['amount'] / m12))
+            meta['family']['save_pct'] = round(save * 100)
+        cls_m = _price_meta(prices['classroom'].get('monthly'))
+        cls_y = _price_meta(prices['classroom'].get('annual'))
+        if cls_m: meta['classroom']['monthly'] = cls_m
+        if cls_y: meta['classroom']['annual'] = cls_y
+        if cls_m and cls_y and cls_m.get('amount'):
+            m12 = cls_m['amount'] * 12.0
+            save = max(0.0, 1.0 - (cls_y['amount'] / m12))
+            meta['classroom']['save_pct'] = round(save * 100)
+    except Exception:
+        pass
+    return render_template('plus.html', prices=prices, meta=meta, promo_hint='SAVE25')
 
 def _resolve_price_id(id_or_product: str) -> str:
     """Accepts a price_... or prod_... and returns a valid price id.

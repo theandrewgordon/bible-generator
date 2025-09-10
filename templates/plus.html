@@ -15,13 +15,13 @@
             {% if fam.monthly %}
             <form method="post" action="{{ url_for('create_checkout_session') }}">
               <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
-              <button class="button">Monthly</button>
+              <button class="button">Monthly{% if meta.family.monthly %} — {{ '$%.2f'|format(meta.family.monthly.amount) }}{% endif %}</button>
             </form>
             {% endif %}
             {% if fam.annual %}
             <form method="post" action="{{ url_for('create_checkout_session') }}">
               <input type="hidden" name="price_id" value="{{ fam.annual }}" />
-              <button class="button ghost">Annual</button>
+              <button class="button ghost">Annual{% if meta.family.annual %} — {{ '$%.2f'|format(meta.family.annual.amount) }}{% endif %}{% if meta.family.save_pct %} <span class="save">Save {{ meta.family.save_pct }}%</span>{% endif %}</button>
             </form>
             {% endif %}
             {% if not fam.monthly and not fam.annual and fam.single %}
@@ -49,13 +49,13 @@
             {% if cls.monthly %}
             <form method="post" action="{{ url_for('create_checkout_session') }}">
               <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
-              <button class="button">Monthly</button>
+              <button class="button">Monthly{% if meta.classroom.monthly %} — {{ '$%.2f'|format(meta.classroom.monthly.amount) }}{% endif %}</button>
             </form>
             {% endif %}
             {% if cls.annual %}
             <form method="post" action="{{ url_for('create_checkout_session') }}">
               <input type="hidden" name="price_id" value="{{ cls.annual }}" />
-              <button class="button ghost">Annual</button>
+              <button class="button ghost">Annual{% if meta.classroom.annual %} — {{ '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %}{% if meta.classroom.save_pct %} <span class="save">Save {{ meta.classroom.save_pct }}%</span>{% endif %}</button>
             </form>
             {% endif %}
             {% if not cls.monthly and not cls.annual and cls.single %}
@@ -82,5 +82,6 @@
     .plus-title { font-weight:800; }
     .plus-sub { color: var(--text-secondary); margin-bottom:8px; }
     .btnrow { display:flex; gap:8px; flex-wrap:wrap; }
+    .save { color:#065f46; background:#d1fae5; border-radius:10px; padding:2px 6px; margin-left:6px; font-weight:700; }
   </style>
 {% endblock %}
