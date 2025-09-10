@@ -8,12 +8,29 @@
     <div class="plus-card">
       <div class="plus-title">Plus Family</div>
       <div class="plus-sub">Best for households</div>
-      {% if prices.family %}
+      {% set fam = prices.family %}
+      {% if (fam.monthly or fam.single) %}
         {% if is_signed_in %}
-          <form method="post" action="{{ url_for('create_checkout_session') }}">
-            <input type="hidden" name="price_id" value="{{ prices.family }}" />
-            <button class="button">Checkout</button>
-          </form>
+          <div class="btnrow">
+            {% if fam.monthly %}
+            <form method="post" action="{{ url_for('create_checkout_session') }}">
+              <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
+              <button class="button">Monthly</button>
+            </form>
+            {% endif %}
+            {% if fam.annual %}
+            <form method="post" action="{{ url_for('create_checkout_session') }}">
+              <input type="hidden" name="price_id" value="{{ fam.annual }}" />
+              <button class="button ghost">Annual</button>
+            </form>
+            {% endif %}
+            {% if not fam.monthly and not fam.annual and fam.single %}
+            <form method="post" action="{{ url_for('create_checkout_session') }}">
+              <input type="hidden" name="price_id" value="{{ fam.single }}" />
+              <button class="button">Checkout</button>
+            </form>
+            {% endif %}
+          </div>
         {% else %}
           <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
         {% endif %}
@@ -25,12 +42,29 @@
     <div class="plus-card">
       <div class="plus-title">Plus Classroom</div>
       <div class="plus-sub">Best for co-ops and classes</div>
-      {% if prices.classroom %}
+      {% set cls = prices.classroom %}
+      {% if (cls.monthly or cls.single) %}
         {% if is_signed_in %}
-          <form method="post" action="{{ url_for('create_checkout_session') }}">
-            <input type="hidden" name="price_id" value="{{ prices.classroom }}" />
-            <button class="button">Checkout</button>
-          </form>
+          <div class="btnrow">
+            {% if cls.monthly %}
+            <form method="post" action="{{ url_for('create_checkout_session') }}">
+              <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
+              <button class="button">Monthly</button>
+            </form>
+            {% endif %}
+            {% if cls.annual %}
+            <form method="post" action="{{ url_for('create_checkout_session') }}">
+              <input type="hidden" name="price_id" value="{{ cls.annual }}" />
+              <button class="button ghost">Annual</button>
+            </form>
+            {% endif %}
+            {% if not cls.monthly and not cls.annual and cls.single %}
+            <form method="post" action="{{ url_for('create_checkout_session') }}">
+              <input type="hidden" name="price_id" value="{{ cls.single }}" />
+              <button class="button">Checkout</button>
+            </form>
+            {% endif %}
+          </div>
         {% else %}
           <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
         {% endif %}
@@ -43,9 +77,10 @@
   <p class="small muted" style="margin-top:10px;">You can enter promo codes during Stripe checkout.</p>
 
   <style>
-    .plus-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-top:12px; }
+    .plus-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-top:12px; }
     .plus-card { background: var(--box); border:1px solid #e5e7eb; border-radius:12px; padding:14px; }
     .plus-title { font-weight:800; }
     .plus-sub { color: var(--text-secondary); margin-bottom:8px; }
+    .btnrow { display:flex; gap:8px; flex-wrap:wrap; }
   </style>
 {% endblock %}

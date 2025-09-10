@@ -105,8 +105,12 @@ else:
 # --- Stripe ---
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
-STRIPE_PRICE_FAMILY = os.getenv('STRIPE_PRICE_FAMILY')  # price_...
-STRIPE_PRICE_CLASSROOM = os.getenv('STRIPE_PRICE_CLASSROOM')  # price_...
+STRIPE_PRICE_FAMILY = os.getenv('STRIPE_PRICE_FAMILY')  # legacy single
+STRIPE_PRICE_CLASSROOM = os.getenv('STRIPE_PRICE_CLASSROOM')  # legacy single
+STRIPE_PRICE_FAMILY_MONTHLY = os.getenv('STRIPE_PRICE_FAMILY_MONTHLY')
+STRIPE_PRICE_FAMILY_ANNUAL = os.getenv('STRIPE_PRICE_FAMILY_ANNUAL')
+STRIPE_PRICE_CLASSROOM_MONTHLY = os.getenv('STRIPE_PRICE_CLASSROOM_MONTHLY')
+STRIPE_PRICE_CLASSROOM_ANNUAL = os.getenv('STRIPE_PRICE_CLASSROOM_ANNUAL')
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 if STRIPE_SECRET_KEY and stripe:
     try:
@@ -959,8 +963,16 @@ def inject_admin_flag():
 @app.route('/plus')
 def plus_pricing():
     prices = {
-        'family': STRIPE_PRICE_FAMILY,
-        'classroom': STRIPE_PRICE_CLASSROOM,
+        'family': {
+            'monthly': STRIPE_PRICE_FAMILY_MONTHLY,
+            'annual': STRIPE_PRICE_FAMILY_ANNUAL,
+            'single': STRIPE_PRICE_FAMILY,
+        },
+        'classroom': {
+            'monthly': STRIPE_PRICE_CLASSROOM_MONTHLY,
+            'annual': STRIPE_PRICE_CLASSROOM_ANNUAL,
+            'single': STRIPE_PRICE_CLASSROOM,
+        }
     }
     return render_template('plus.html', prices=prices, promo_hint='SAVE25')
 
