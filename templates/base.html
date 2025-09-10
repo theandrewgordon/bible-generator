@@ -120,25 +120,17 @@
   <body class="{% if request.path.startswith('/admin') %}admin{% endif %}">
     {% include "_navbar.html" %}
     {% if site_content and site_content.announcement_enabled and site_content.announcement_text %}
-      <div style="background: var(--primary); color: white; text-align:center; padding:6px 10px;">
-        {{ site_content.announcement_text }}
-      </div>
+      <div class="site-banner strong">{{ site_content.announcement_text }}</div>
     {% endif %}
     {# Per-page banners #}
     {% set path = request.path %}
     {% if site_content %}
       {% if path.startswith('/browse') and site_content.browse_banner_enabled and site_content.browse_banner_text %}
-        <div style="background: var(--box); color: var(--text); text-align:center; padding:6px 10px; border-bottom:1px solid #e5e7eb;">
-          {{ site_content.browse_banner_text }}
-        </div>
+        <div class="site-banner subtle">{{ site_content.browse_banner_text }}</div>
       {% elif path.startswith('/generate') and site_content.generate_banner_enabled and site_content.generate_banner_text %}
-        <div style="background: var(--box); color: var(--text); text-align:center; padding:6px 10px; border-bottom:1px solid #e5e7eb;">
-          {{ site_content.generate_banner_text }}
-        </div>
+        <div class="site-banner subtle">{{ site_content.generate_banner_text }}</div>
       {% elif path.startswith('/plus') and site_content.plus_banner_enabled and site_content.plus_banner_text %}
-        <div style="background: var(--box); color: var(--text); text-align:center; padding:6px 10px; border-bottom:1px solid #e5e7eb;">
-          {{ site_content.plus_banner_text }}
-        </div>
+        <div class="site-banner subtle">{{ site_content.plus_banner_text }}</div>
       {% endif %}
     {% endif %}
     {% if theme and theme.extras and theme.extras.snow %}<div class="snow"></div>{% endif %}
