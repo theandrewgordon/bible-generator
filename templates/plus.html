@@ -10,12 +10,10 @@
       <div class="collection-count">Best for households</div>
       {% if prices.family %}
         {% if is_signed_in %}
-          <form method="post" action="{{ url_for('create_checkout_session') }}" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <form method="post" action="{{ url_for('create_checkout_session') }}" style="margin-top:8px;">
             <input type="hidden" name="price_id" value="{{ prices.family }}" />
-            <input type="text" name="promo_code" placeholder="Promo code (e.g. SAVE25)" style="flex:1; min-width:200px;" />
             <button class="button">Checkout</button>
           </form>
-          <div class="small muted">You can also enter codes during Stripe checkout.</div>
         {% else %}
           <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
         {% endif %}
@@ -29,12 +27,10 @@
       <div class="collection-count">Best for co-ops and classes</div>
       {% if prices.classroom %}
         {% if is_signed_in %}
-          <form method="post" action="{{ url_for('create_checkout_session') }}" style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <form method="post" action="{{ url_for('create_checkout_session') }}" style="margin-top:8px;">
             <input type="hidden" name="price_id" value="{{ prices.classroom }}" />
-            <input type="text" name="promo_code" placeholder="Promo code (e.g. SAVE25)" style="flex:1; min-width:200px;" />
             <button class="button">Checkout</button>
           </form>
-          <div class="small muted">You can also enter codes during Stripe checkout.</div>
         {% else %}
           <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
         {% endif %}
@@ -44,5 +40,5 @@
     </div>
   </div>
 
-  <p class="small muted" style="margin-top:10px;">Have a code? Try <b>{{ promo_hint }}</b> or enter it during checkout.</p>
+  <p class="small muted" style="margin-top:10px;">You can enter promo codes during Stripe checkout.</p>
 {% endblock %}

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Admin • Theme{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin: Theme</h1>
+
+<form method="post" action="{{ url_for('admin_theme') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+  <label for="theme">Current:</label>
+  <select id="theme" name="theme">
+    {% for key, cfg in themes.items() %}
+      <option value="{{ key }}"{% if key == current %} selected{% endif %}>{{ key|title }}</option>
+    {% endfor %}
+  </select>
+  <button class="button">Save</button>
+  <button class="button ghost" type="button" id="previewBtn">Preview</button>
+  <button class="button ghost" type="button" id="clearPreviewBtn">Clear Preview</button>
+</form>
+
+<p style="margin-top:8px;"><a class="button ghost" href="{{ url_for('admin_theme_new') }}">➕ New Theme</a></p>
+
+<div style="margin-top:16px; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px;">
+  {% for key, cfg in themes.items() %}
+  <div class="collection-tile" style="border:1px solid #e5e7eb; border-radius:12px; padding:12px;">
+    <div class="collection-title">{{ key|title }}</div>
+    <div class="small muted">Primary</div>
+    <div style="display:flex; gap:6px; align-items:center; margin:6px 0;">
+      <div style="width:20px; height:20px; background: {{ cfg.primary }}; border-radius:4px;"></div>
+      <code>{{ cfg.primary }}</code>
+    </div>
+    <div class="small muted">Primary Dark</div>
+    <div style="display:flex; gap:6px; align-items:center; margin:6px 0;">
+      <div style="width:20px; height:20px; background: {{ cfg.primary_dark }}; border-radius:4px;"></div>
+      <code>{{ cfg.primary_dark }}</code>
+    </div>
+    <div class="small muted">Preview</div>
+    <div style="border-radius:8px; overflow:hidden; border:1px solid #e5e7eb;">
+      <div style="background: {{ cfg.primary }}; color:white; padding:8px 10px;">Header</div>
+      <div style="background: {{ cfg.box }}; padding:10px; color: {{ cfg.text }}">Card box</div>
+    </div>
+    {% if key not in ['teal','blue','christmas','thanksgiving'] %}
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <a class="button ghost" href="{{ url_for('admin_theme_edit', slug=key) }}">Edit</a>
+        <a class="button ghost" href="{{ url_for('admin_theme_new') }}?from={{ key }}">Clone</a>
+        <form method="post" action="{{ url_for('admin_theme_delete', slug=key) }}" onsubmit="return confirm('Delete this theme?');">
+          <button class="button" style="background:#fecaca; color:#111827;">Delete</button>
+        </form>
+      </div>
+    {% endif %}
+    <form method="post" action="{{ url_for('admin_theme_logo') }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+      <input type="hidden" name="theme" value="{{ key }}"/>
+      <input type="file" name="file" accept="image/*"/>
+      <button class="button">Upload Logo for This Theme</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% if not themes %}<div class="muted">No themes configured.</div>{% endif %}
+</div>
+<script>
+  const allThemes = {{ themes|tojson }};
+  let previewTag;
+  function applyVars(vars){
+    const css = `:root{--background:${vars.background};--text:${vars.text};--text-secondary:${vars.text_secondary};--box:${vars.box};--primary:${vars.primary};--primary-dark:${vars.primary_dark};}`;
+    if(!previewTag){ previewTag = document.createElement('style'); document.head.appendChild(previewTag); }
+    previewTag.textContent = css;
+  }
+  document.getElementById('previewBtn').addEventListener('click', ()=>{
+    const sel = document.getElementById('theme').value;
+    const vars = allThemes[sel];
+    if(vars){ applyVars(vars); }
+  });
+  document.getElementById('clearPreviewBtn').addEventListener('click', ()=>{
+    if(previewTag){ previewTag.remove(); previewTag = null; }
+  });
+  // Auto theme settings
+  (function(){
+    const f = document.getElementById('autoThemeForm');
+    if(!f) return;
+  })();
+ </script>
+
+<hr style="margin:20px 0;"/>
+
+<h2 class="page-title" style="font-size:1.2rem;">Automatic Theme</h2>
+<form id="autoThemeForm" method="post" action="{{ url_for('admin_theme_auto') }}" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <label><input type="checkbox" name="enabled" {% if auto and auto.enabled %}checked{% endif %}/> Enabled</label>
+  <label>Theme
+    <select name="auto_theme">
+      {% for key, cfg in themes.items() %}
+        <option value="{{ key }}" {% if auto and auto.name==key %}selected{% endif %}>{{ key|title }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Start
+    <input type="date" name="auto_start" value="{{ auto.start if auto and auto.start else '' }}"/>
+  </label>
+  <label>End
+    <input type="date" name="auto_end" value="{{ auto.end if auto and auto.end else '' }}"/>
+  </label>
+  <button class="button">Save Auto</button>
+</form>
+
+<h3 style="margin-top:12px;">Multiple Rules</h3>
+<form method="post" action="{{ url_for('admin_theme_add_rule') }}" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <label>Name
+    <select name="name">
+      {% for key, cfg in themes.items() %}<option value="{{ key }}">{{ key|title }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Start <input type="date" name="start" required/></label>
+  <label>End <input type="date" name="end" required/></label>
+  <label>Start Time <input type="time" name="time_start"/></label>
+  <label>End Time <input type="time" name="time_end"/></label>
+  <span class="small muted" style="width:100%">Weekdays:</span>
+  <label><input type="checkbox" name="weekdays" value="0"/> Sun</label>
+  <label><input type="checkbox" name="weekdays" value="1"/> Mon</label>
+  <label><input type="checkbox" name="weekdays" value="2"/> Tue</label>
+  <label><input type="checkbox" name="weekdays" value="3"/> Wed</label>
+  <label><input type="checkbox" name="weekdays" value="4"/> Thu</label>
+  <label><input type="checkbox" name="weekdays" value="5"/> Fri</label>
+  <label><input type="checkbox" name="weekdays" value="6"/> Sat</label>
+  <label>Priority <input type="number" name="priority" value="10" style="width:80px;"/></label>
+  <label><input type="checkbox" name="enabled" checked/> Enabled</label>
+  <button class="button">Add Rule</button>
+  <span class="small muted">Higher priority wins when dates overlap.</span>
+  <input type="hidden" name="rid" value=""/>
+  <input type="hidden" name="action" value="add"/>
+  <input type="hidden" name="_csrf" value="1"/>
+  
+</form>
+
+{% set rules = (auto.rules if auto and auto.rules else []) %}
+<table style="width:100%; border-collapse: collapse; margin-top:8px;">
+  <thead>
+    <tr><th style="text-align:left; padding:6px;">Theme</th><th style="text-align:left; padding:6px;">Start</th><th style="text-align:left; padding:6px;">End</th><th style="text-align:left; padding:6px;">Time</th><th style="text-align:left; padding:6px;">Weekdays</th><th style="text-align:left; padding:6px;">Priority</th><th style="text-align:left; padding:6px;">Enabled</th><th style="text-align:left; padding:6px;">Actions</th></tr>
+  </thead>
+  <tbody>
+  {% for r in (autoThemes or []) %}
+    <tr style="border-top:1px solid #e5e7eb;">
+      <form method="post" action="{{ url_for('admin_theme_update_rule') }}">
+      <td style="padding:6px;">
+        <select name="name">{% for key, cfg in themes.items() %}<option value="{{ key }}"{% if r.name==key %} selected{% endif %}>{{ key|title }}</option>{% endfor %}</select>
+      </td>
+      <td style="padding:6px;"><input type="date" name="start" value="{{ r.start }}"/></td>
+      <td style="padding:6px;"><input type="date" name="end" value="{{ r.end }}"/></td>
+      <td style="padding:6px;">
+        <input type="time" name="time_start" value="{{ r.timeStart or '' }}" style="width:120px;"/>
+        <input type="time" name="time_end" value="{{ r.timeEnd or '' }}" style="width:120px;"/>
+      </td>
+      <td style="padding:6px;">
+        {% set w = r.weekdays or [] %}
+        {% for i, lbl in [(0,'Sun'),(1,'Mon'),(2,'Tue'),(3,'Wed'),(4,'Thu'),(5,'Fri'),(6,'Sat')] %}
+          <label style="margin-right:6px;">
+            <input type="checkbox" name="weekdays" value="{{ i }}" {% if i in w %}checked{% endif %}/> {{ lbl }}
+          </label>
+        {% endfor %}
+      </td>
+      <td style="padding:6px;"><input type="number" name="priority" value="{{ r.priority or 0 }}" style="width:80px;"/></td>
+      <td style="padding:6px;"><input type="checkbox" name="enabled" {% if r.enabled %}checked{% endif %}/></td>
+      <td style="padding:6px;">
+        <input type="hidden" name="rid" value="{{ r.id }}"/>
+        <button class="button ghost" type="submit">Update</button>
+      </td>
+      </form>
+      <td style="padding:6px;">
+        <form method="post" action="{{ url_for('admin_theme_delete_rule') }}" onsubmit="return confirm('Delete this rule?');">
+          <input type="hidden" name="rid" value="{{ r.id }}"/>
+          <button class="button" style="background:#fecaca; color:#111827;">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  {% if not autoThemes %}
+    <tr><td colspan="6" class="muted" style="padding:6px;">No rules configured.</td></tr>
+  {% endif %}
+  </tbody>
+</table>
+{% endblock %}

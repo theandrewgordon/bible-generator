@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Admin • Site Content{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin: Site Content</h1>
+
+<form method="post" action="{{ url_for('admin_content') }}" style="display:grid; gap:12px; max-width:680px;">
+  <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+    <legend class="small muted">Announcement Banner</legend>
+    <label><input type="checkbox" name="announcement_enabled" {% if data.announcement_enabled %}checked{% endif %}/> Enabled</label>
+    <label>Text
+      <input type="text" name="announcement_text" value="{{ data.announcement_text or '' }}" placeholder="e.g., SAVE25 through Sunday!"/>
+    </label>
+  </fieldset>
+
+  <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+    <legend class="small muted">Homepage (Logged-out)</legend>
+    <label>Title
+      <input type="text" name="home_title" value="{{ data.home_title or '' }}" placeholder="Welcome to Faith Sparks Printables"/>
+    </label>
+    <label>Subtitle
+      <input type="text" name="home_subtitle" value="{{ data.home_subtitle or '' }}" placeholder="Short, encouraging message"/>
+    </label>
+    <div style="display:flex; gap:8px;">
+      <label style="flex:1;">CTA Text
+        <input type="text" name="home_cta_text" value="{{ data.home_cta_text or '' }}" placeholder="Generate a Worksheet"/>
+      </label>
+      <label style="flex:1;">CTA URL
+        <input type="text" name="home_cta_url" value="{{ data.home_cta_url or '/generate' }}"/>
+      </label>
+    </div>
+  </fieldset>
+
+  <div style="display:flex; gap:10px; align-items:center;">
+    <button class="button">Save</button>
+    <a class="button ghost" href="/">View Home</a>
+  </div>
+</form>
+{% endblock %}

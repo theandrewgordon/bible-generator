@@ -10,6 +10,43 @@
 
     <!-- Your theme -->
     <link rel="stylesheet" href="/static/theme.css" />
+    <style>
+      :root {
+        --background: {{ (theme.background or '#ffffff') if theme else '#ffffff' }};
+        --text: {{ (theme.text or '#2d3748') if theme else '#2d3748' }};
+        --text-secondary: {{ (theme.text_secondary or '#718096') if theme else '#718096' }};
+        --box: {{ (theme.box or '#edf2f7') if theme else '#edf2f7' }};
+        --primary: {{ (theme.primary or '#0ea5a8') if theme else '#0ea5a8' }};
+        --primary-dark: {{ (theme.primary_dark or '#0b8a8d') if theme else '#0b8a8d' }};
+      }
+      .dark {
+        /* keep brand hue consistent in dark mode */
+        --primary: {{ (theme.primary or '#0ea5a8') if theme else '#0ea5a8' }};
+        --primary-dark: {{ (theme.primary_dark or '#0b8a8d') if theme else '#0b8a8d' }};
+      }
+      {% if theme.extras and theme.extras.snow %}
+      /* Snow effect */
+      .snow { pointer-events:none; position: fixed; left:0; top:0; width:100%; height:100%; overflow:hidden; z-index: 1; }
+      .snow:before, .snow:after { content:""; position:absolute; top:-10px; width:100%; height:10px; background: radial-gradient(2px 2px at 2px 2px, rgba(255,255,255,.9) 50%, rgba(255,255,255,0) 51%) repeat; background-size: 20px 20px; animation: snow 12s linear infinite; opacity:.7; }
+      .snow:after { animation-duration: 18s; opacity:.5; }
+      @keyframes snow { 0% { transform: translateY(-10px); } 100% { transform: translateY(110vh); } }
+      body { position: relative; }
+      {% endif %}
+      {% if theme.extras and theme.extras.lights %}
+      /* Festive lights along the header */
+      .lights-bar { position: absolute; top:0; left:0; right:0; height:28px; background: repeating-linear-gradient(90deg, #fca5a5 0 16px, #fde68a 16px 32px, #86efac 32px 48px, #93c5fd 48px 64px); box-shadow: 0 2px 4px rgba(0,0,0,.08); }
+      .main-header { position: relative; padding-top: 44px; }
+      {% endif %}
+      {% if theme.extras and theme.extras.leaves %}
+      /* Falling leaves */
+      .leaves { pointer-events:none; position: fixed; left:0; top:0; width:100%; height:100%; overflow:hidden; z-index: 1; }
+      .leaf { position:absolute; top:-40px; width:18px; height:18px; background: radial-gradient(circle at 30% 30%, #f59e0b 40%, #b45309 41%); border-radius: 40% 60% 40% 60%; opacity:.85; animation: fall 12s linear infinite; }
+      @keyframes fall { 0% { transform: translateY(-40px) rotate(0); } 100% { transform: translateY(110vh) rotate(360deg); } }
+      {% endif %}
+      {% if theme.extras and theme.extras.custom_css %}
+      {{ theme.extras.custom_css|safe }}
+      {% endif %}
+    </style>
     <script defer src="/static/darkmode.js"></script>
 
     <style>
@@ -66,6 +103,30 @@
   </head>
   <body>
     {% include "_navbar.html" %}
+    {% if site_content and site_content.announcement_enabled and site_content.announcement_text %}
+      <div style="background: var(--primary); color: white; text-align:center; padding:6px 10px;">
+        {{ site_content.announcement_text }}
+      </div>
+    {% endif %}
+    {% if theme and theme.extras and theme.extras.snow %}<div class="snow"></div>{% endif %}
+    {% if theme and theme.extras and theme.extras.lights %}<div class="lights-bar"></div>{% endif %}
+    {% if theme and theme.extras and theme.extras.leaves %}<div class="leaves" aria-hidden="true"></div>
+    <script>
+      (function(){
+        const wrap = document.querySelector('.leaves');
+        if(!wrap) return;
+        for(let i=0;i<20;i++){
+          const el = document.createElement('div');
+          el.className='leaf';
+          el.style.left = Math.random()*100+'%';
+          el.style.animationDelay = (Math.random()*8)+'s';
+          el.style.opacity = 0.6 + Math.random()*0.4;
+          el.style.transform = `translateY(${-20 - Math.random()*60}px)`;
+          wrap.appendChild(el);
+        }
+      })();
+    </script>
+    {% endif %}
 
     {# Toast Notifications #}
     {% with messages = get_flashed_messages(with_categories=true) %}

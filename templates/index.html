@@ -9,10 +9,11 @@
     <a class="button ghost" href="/history">📚 View History</a>
   </p>
 {% else %}
-  <h1 class="page-title">Welcome to Faith Sparks Printables</h1>
-  <p class="muted">Sign in with Google to create and track your printable Bible worksheets.</p>
+  <h1 class="page-title">{{ (site_content.home_title or 'Welcome to Faith Sparks Printables') if site_content else 'Welcome to Faith Sparks Printables' }}</h1>
+  <p class="muted">{{ (site_content.home_subtitle or 'Sign in with Google to create and track your printable Bible worksheets.') if site_content else 'Sign in with Google to create and track your printable Bible worksheets.' }}</p>
   <p>
-    <a class="button" href="{{ url_for('google.login') }}">🔐 Login with Google</a>
+    <a class="button" href="{{ site_content.home_cta_url or '/generate' }}">{{ site_content.home_cta_text or '✍️ Generate a Worksheet' }}</a>
+    <a class="button ghost" href="{{ url_for('google.login') }}">🔐 Login with Google</a>
   </p>
 {% endif %}
 {% endblock %}

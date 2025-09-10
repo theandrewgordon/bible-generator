@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Admin • Theme {{ 'New' if mode=='new' else 'Edit' }}{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin: Theme {{ 'New' if mode=='new' else 'Edit' }}</h1>
+
+<form method="post" style="display:grid; gap:12px; max-width:560px;">
+  {% if mode == 'new' %}
+  <label>Slug
+    <input type="text" name="slug" value="{{ data.slug or '' }}" placeholder="e.g. advent-2025" required />
+  </label>
+  {% else %}
+  <div class="muted">Editing: <code>{{ data.slug }}</code></div>
+  {% endif %}
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+    <label>Primary
+      <input type="color" name="primary" value="{{ data.primary or '#0ea5a8' }}" />
+    </label>
+    <label>Primary Dark
+      <input type="color" name="primary_dark" value="{{ data.primary_dark or '#0b8a8d' }}" />
+    </label>
+    <label>Background
+      <input type="color" name="background" value="{{ data.background or '#ffffff' }}" />
+    </label>
+    <label>Box
+      <input type="color" name="box" value="{{ data.box or '#edf2f7' }}" />
+    </label>
+    <label>Text
+      <input type="color" name="text" value="{{ data.text or '#1f2937' }}" />
+    </label>
+    <label>Text Secondary
+      <input type="color" name="text_secondary" value="{{ data.text_secondary or '#6b7280' }}" />
+    </label>
+  </div>
+
+  <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+    <legend class="small muted">Extras</legend>
+    <label><input type="checkbox" name="snow" {% if data.snow %}checked{% endif %}/> Snow effect (seasonal)</label>
+    <label><input type="checkbox" name="lights" {% if data.lights %}checked{% endif %}/> Festive lights (header)</label>
+    <label><input type="checkbox" name="leaves" {% if data.leaves %}checked{% endif %}/> Falling leaves</label>
+    <label>Custom CSS
+      <textarea name="extra_css" rows="5" placeholder=":root { /* your css */ }" style="width:100%;">{{ data.extra_css or '' }}</textarea>
+    </label>
+  </fieldset>
+
+  <div style="display:flex; gap:10px; align-items:center;">
+    <button class="button">Save</button>
+    <a class="button ghost" href="{{ url_for('admin_theme') }}">Back</a>
+    {% if mode == 'edit' %}
+    <form method="post" action="{{ url_for('admin_theme_delete', slug=data.slug) }}" onsubmit="return confirm('Delete this theme?');">
+      <button class="button" style="background:#fecaca; color:#111827;">Delete</button>
+    </form>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

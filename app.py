@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud import storage
+from werkzeug.utils import secure_filename
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
@@ -158,6 +159,132 @@ def update_zip_bundle():
 os.makedirs("output", exist_ok=True)
 os.makedirs("output/thumbs", exist_ok=True)
 os.makedirs("output/packs", exist_ok=True)
+
+# --- Theming ---
+THEMES = {
+    'teal': {
+        'primary': '#0ea5a8', 'primary_dark': '#0b8a8d',
+        'background': '#ffffff', 'box': '#edf2f7',
+        'text': '#1f2937', 'text_secondary': '#6b7280'
+    },
+    'blue': {
+        'primary': '#3182ce', 'primary_dark': '#2b6cb0',
+        'background': '#ffffff', 'box': '#edf2f7',
+        'text': '#2d3748', 'text_secondary': '#718096'
+    },
+    'christmas': {
+        'primary': '#065f46', 'primary_dark': '#064e3b',
+        'background': '#ffffff', 'box': '#f1f5f9',
+        'text': '#1f2937', 'text_secondary': '#6b7280'
+    },
+    'thanksgiving': {
+        'primary': '#b45309', 'primary_dark': '#92400e',
+        'background': '#fffaf0', 'box': '#fef3c7',
+        'text': '#1f2937', 'text_secondary': '#6b7280'
+    },
+}
+
+def get_theme_vars(name: str) -> dict | None:
+    """Return theme vars for a given name from presets or Firestore custom themes."""
+    if name in THEMES:
+        return THEMES[name]
+    if db and name:
+        try:
+            d = db.collection('themes').document(name).get()
+            if d.exists:
+                data = d.to_dict() or {}
+                return {
+                    'primary': data.get('primary') or '#0ea5a8',
+                    'primary_dark': data.get('primary_dark') or data.get('primaryDark') or '#0b8a8d',
+                    'background': data.get('background') or '#ffffff',
+                    'box': data.get('box') or '#edf2f7',
+                    'text': data.get('text') or '#1f2937',
+                    'text_secondary': data.get('text_secondary') or data.get('textSecondary') or '#6b7280',
+                    'extras': {
+                        'snow': bool(data.get('snow') or (data.get('extras') or {}).get('snow')),
+                        'lights': bool(data.get('lights') or (data.get('extras') or {}).get('lights')),
+                        'leaves': bool(data.get('leaves') or (data.get('extras') or {}).get('leaves')),
+                        'custom_css': (data.get('extra_css') or (data.get('extras', {}) if isinstance(data.get('extras'), dict) else {}).get('custom_css') or ''),
+                    }
+                }
+        except Exception:
+            pass
+    return None
+
+def list_all_themes() -> dict:
+    """Return mapping name->vars for all presets + custom themes (best-effort if Firestore present)."""
+    out = dict(THEMES)
+    if db:
+        try:
+            for d in db.collection('themes').stream():
+                name = d.id
+                data = d.to_dict() or {}
+                out[name] = {
+                    'primary': data.get('primary') or '#0ea5a8',
+                    'primary_dark': data.get('primary_dark') or data.get('primaryDark') or '#0b8a8d',
+                    'background': data.get('background') or '#ffffff',
+                    'box': data.get('box') or '#edf2f7',
+                    'text': data.get('text') or '#1f2937',
+                    'text_secondary': data.get('text_secondary') or data.get('textSecondary') or '#6b7280',
+                    'extras': {
+                        'snow': bool(data.get('snow') or (data.get('extras') or {}).get('snow')),
+                        'lights': bool(data.get('lights') or (data.get('extras') or {}).get('lights')),
+                        'leaves': bool(data.get('leaves') or (data.get('extras') or {}).get('leaves')),
+                        'custom_css': (data.get('extra_css') or (data.get('extras') or {}).get('custom_css') or ''),
+                    }
+                }
+        except Exception:
+            pass
+    return out
+
+def get_theme_selection():
+    """Return (name, vars) for the current theme. Prefers Firestore, then env THEME_NAME, else 'teal'."""
+    name = 'teal'
+    auto = None
+    auto_rules = []
+    if db:
+        try:
+            conf = db.collection('config').document('app').get()
+            if conf.exists:
+                n = (conf.to_dict() or {}).get('theme')
+                if n:
+                    name = n
+                confd = (conf.to_dict() or {})
+                auto = confd.get('autoTheme') or None
+                auto_rules = confd.get('autoThemes') or []
+        except Exception:
+            pass
+    if name == 'teal':
+        env_sel = os.getenv('THEME_NAME')
+        if env_sel:
+            name = env_sel
+    # Auto theme override if in date range
+    try:
+        # Highest priority matching rule wins
+        if isinstance(auto_rules, list) and len(auto_rules):
+            def _key(r):
+                try:
+                    return int(r.get('priority') or 0)
+                except Exception:
+                    return 0
+            for r in sorted(auto_rules, key=_key, reverse=True):
+                if r.get('enabled') and r.get('name') and _rule_matches(r):
+                    name = r.get('name')
+                    break
+        elif auto and auto.get('enabled') and auto.get('name'):
+            if _is_today_in_range(auto.get('start',''), auto.get('end','')):
+                name = auto.get('name')
+    except Exception:
+        pass
+    # Live preview via query param (does not persist)
+    try:
+        qname = (request.args.get('theme') or '').strip()
+        if qname and (get_theme_vars(qname) is not None):
+            name = qname
+    except Exception:
+        pass
+    vars = get_theme_vars(name) or THEMES['teal']
+    return name, vars
 
 # --- Collections ---
 def load_collections():
@@ -708,6 +835,26 @@ def inject_admin_flag():
     try:
         email = session.get('user_email')
         is_pro = False
+        theme_name, theme_vars = get_theme_selection()
+        # Resolve themed logo
+        logo_url = url_for('static', filename='faith_sparks_logo.png')
+        if db:
+            try:
+                conf = db.collection('config').document('app').get()
+                if conf.exists:
+                    logos = (conf.to_dict() or {}).get('logos') or {}
+                    if isinstance(logos, dict):
+                        logo_url = logos.get(theme_name) or logos.get('default') or logo_url
+            except Exception:
+                pass
+        site_content = {}
+        if db:
+            try:
+                cdoc = db.collection('config').document('content').get()
+                if cdoc.exists:
+                    site_content = cdoc.to_dict() or {}
+            except Exception:
+                pass
         if db and email:
             try:
                 u = db.collection('users').document(email).get()
@@ -721,6 +868,10 @@ def inject_admin_flag():
             'is_pro': is_pro,
             'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com'),
             'stripe_pk': STRIPE_PUBLISHABLE_KEY,
+            'theme_name': theme_name,
+            'theme': theme_vars,
+            'logo_url': logo_url,
+            'site_content': site_content,
         }
     except Exception:
         return {
@@ -729,6 +880,10 @@ def inject_admin_flag():
             'is_pro': False,
             'support_email': os.getenv('SUPPORT_EMAIL', 'support@faithsparksprintables.com'),
             'stripe_pk': None,
+            'theme_name': 'teal',
+            'theme': THEMES.get('teal'),
+            'logo_url': url_for('static', filename='faith_sparks_logo.png'),
+            'site_content': {},
         }
 
 # --- Plus / Checkout ---
@@ -740,24 +895,48 @@ def plus_pricing():
     }
     return render_template('plus.html', prices=prices, promo_hint='SAVE25')
 
+def _resolve_price_id(id_or_product: str) -> str:
+    """Accepts a price_... or prod_... and returns a valid price id.
+    If a product id is given, tries product.default_price else the first active recurring price.
+    """
+    if not stripe:
+        raise RuntimeError('Stripe SDK not available')
+    pid = (id_or_product or '').strip()
+    if not pid:
+        raise ValueError('Missing price id')
+    if pid.startswith('price_'):
+        return pid
+    if pid.startswith('prod_'):
+        # Try default_price first
+        try:
+            prod = stripe.Product.retrieve(pid, expand=['default_price'])
+            dp = prod.get('default_price')
+            if isinstance(dp, dict) and dp.get('id'):
+                return dp['id']
+            # fallback: list active recurring prices
+            prices = stripe.Price.list(product=pid, active=True, limit=10)
+            if prices and prices.data:
+                # prefer recurring, else first
+                recurring = [p for p in prices.data if p.get('recurring')]
+                target = (recurring[0] if recurring else prices.data[0])
+                return target.id
+        except Exception:
+            pass
+        # As a final fallback, let it error out
+        return pid
+    # Unknown format; let Stripe validate
+    return pid
+
 @app.route('/create_checkout_session', methods=['POST'])
 @login_required
 def create_checkout_session():
     if not STRIPE_SECRET_KEY or not stripe:
         return 'Stripe not configured', 500
-    price_id = (request.form.get('price_id') or '').strip()
-    promo_code_text = (request.form.get('promo_code') or '').strip()
-    if not price_id:
+    id_or_price = (request.form.get('price_id') or '').strip()
+    if not id_or_price:
         return 'Missing price', 400
+    price_id = _resolve_price_id(id_or_price)
     user_email = session.get('user_email')
-    discounts = None
-    try:
-        if promo_code_text:
-            pcs = stripe.PromotionCode.list(code=promo_code_text, active=True, limit=1)
-            if pcs and pcs.data:
-                discounts = [{ 'promotion_code': pcs.data[0].id }]
-    except Exception:
-        pass
     try:
         chk = stripe.checkout.Session.create(
             mode='subscription',
@@ -766,7 +945,6 @@ def create_checkout_session():
             success_url=url_for('plus_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('plus_pricing', _external=True),
             allow_promotion_codes=True,
-            discounts=discounts,
             metadata={'email': user_email, 'plan_price_id': price_id},
         )
         return redirect(chk.url, code=303)
@@ -1018,6 +1196,401 @@ def admin_collections_delete(slug):
     db.collection('collections').document(slug).delete()
     flash('Collection deleted', 'success')
     return redirect(url_for('admin_collections'))
+
+@app.route('/admin/theme', methods=['GET','POST'])
+@admin_required
+def admin_theme():
+    name, _vars = get_theme_selection()
+    if request.method == 'POST':
+        if not db:
+            flash('Firestore not configured', 'error')
+            return redirect(url_for('admin_theme'))
+        sel = (request.form.get('theme') or 'teal').strip()
+        if sel not in THEMES:
+            # allow selecting a custom theme if it exists in Firestore
+            if not (db and db.collection('themes').document(sel).get().exists):
+                flash('Unknown theme', 'error')
+                return redirect(url_for('admin_theme'))
+        try:
+            db.collection('config').document('app').set({ 'theme': sel }, merge=True)
+            flash('Theme updated', 'success')
+        except Exception as e:
+            traceback.print_exc()
+            flash(f'Error saving theme: {e}', 'error')
+        return redirect(url_for('admin_theme'))
+    # load auto settings
+    auto = {}
+    autoThemes = []
+    if db:
+        try:
+            conf = db.collection('config').document('app').get()
+            if conf.exists:
+                confd = (conf.to_dict() or {})
+                auto = confd.get('autoTheme') or {}
+                autoThemes = confd.get('autoThemes') or []
+        except Exception:
+            pass
+    return render_template('admin_theme.html', themes=list_all_themes(), current=name, auto=auto, autoThemes=autoThemes)
+
+@app.route('/admin/theme/new', methods=['GET','POST'])
+@admin_required
+def admin_theme_new():
+    if request.method == 'POST':
+        if not db:
+            flash('Firestore not configured', 'error')
+            return redirect(url_for('admin_theme_new'))
+        slug = (request.form.get('slug') or '').strip().lower()
+        if not slug:
+            flash('Slug is required', 'error')
+            return render_template('admin_theme_form.html', mode='new', data=request.form)
+        data = {
+            'primary': (request.form.get('primary') or '').strip() or '#0ea5a8',
+            'primary_dark': (request.form.get('primary_dark') or '').strip() or '#0b8a8d',
+            'background': (request.form.get('background') or '').strip() or '#ffffff',
+            'box': (request.form.get('box') or '').strip() or '#edf2f7',
+            'text': (request.form.get('text') or '').strip() or '#1f2937',
+            'text_secondary': (request.form.get('text_secondary') or '').strip() or '#6b7280',
+            'snow': True if request.form.get('snow') == 'on' else False,
+            'lights': True if request.form.get('lights') == 'on' else False,
+            'leaves': True if request.form.get('leaves') == 'on' else False,
+            'extra_css': (request.form.get('extra_css') or '').strip(),
+        }
+        try:
+            db.collection('themes').document(slug).set(data)
+            flash('Theme created', 'success')
+            return redirect(url_for('admin_theme'))
+        except Exception as e:
+            traceback.print_exc()
+            flash(f'Error saving theme: {e}', 'error')
+            return render_template('admin_theme_form.html', mode='new', data=request.form)
+    # GET: optional clone source
+    src = (request.args.get('from') or '').strip()
+    data = {}
+    if src:
+        try:
+            vars = get_theme_vars(src)
+            if vars:
+                data = {
+                    'slug': f"{src}-copy",
+                    'primary': vars.get('primary'),
+                    'primary_dark': vars.get('primary_dark'),
+                    'background': vars.get('background'),
+                    'box': vars.get('box'),
+                    'text': vars.get('text'),
+                    'text_secondary': vars.get('text_secondary'),
+                    'snow': (vars.get('extras') or {}).get('snow'),
+                    'lights': (vars.get('extras') or {}).get('lights'),
+                    'leaves': (vars.get('extras') or {}).get('leaves'),
+                    'extra_css': (vars.get('extras') or {}).get('custom_css'),
+                }
+        except Exception:
+            pass
+    return render_template('admin_theme_form.html', mode='new', data=data)
+
+@app.route('/admin/theme/<slug>', methods=['GET','POST'])
+@admin_required
+def admin_theme_edit(slug):
+    if not db:
+        return 'Firestore not configured', 500
+    doc = db.collection('themes').document(slug).get()
+    if not doc.exists:
+        return 'Not found', 404
+    current = doc.to_dict() or {}
+    if request.method == 'POST':
+        data = {
+            'primary': (request.form.get('primary') or '').strip() or '#0ea5a8',
+            'primary_dark': (request.form.get('primary_dark') or '').strip() or '#0b8a8d',
+            'background': (request.form.get('background') or '').strip() or '#ffffff',
+            'box': (request.form.get('box') or '').strip() or '#edf2f7',
+            'text': (request.form.get('text') or '').strip() or '#1f2937',
+            'text_secondary': (request.form.get('text_secondary') or '').strip() or '#6b7280',
+            'snow': True if request.form.get('snow') == 'on' else False,
+            'lights': True if request.form.get('lights') == 'on' else False,
+            'leaves': True if request.form.get('leaves') == 'on' else False,
+            'extra_css': (request.form.get('extra_css') or '').strip(),
+        }
+        try:
+            db.collection('themes').document(slug).set(data)
+            flash('Theme updated', 'success')
+            return redirect(url_for('admin_theme'))
+        except Exception as e:
+            traceback.print_exc()
+            flash(f'Error saving theme: {e}', 'error')
+    form_data = {
+        'slug': slug,
+        'primary': current.get('primary',''),
+        'primary_dark': current.get('primary_dark') or current.get('primaryDark',''),
+        'background': current.get('background',''),
+        'box': current.get('box',''),
+        'text': current.get('text',''),
+        'text_secondary': current.get('text_secondary') or current.get('textSecondary',''),
+        'snow': current.get('snow') or (current.get('extras') or {}).get('snow'),
+        'lights': current.get('lights') or (current.get('extras') or {}).get('lights'),
+        'leaves': current.get('leaves') or (current.get('extras') or {}).get('leaves'),
+        'extra_css': current.get('extra_css') or (current.get('extras') or {}).get('custom_css'),
+    }
+    return render_template('admin_theme_form.html', mode='edit', data=form_data)
+
+@app.route('/admin/theme/<slug>/delete', methods=['POST'])
+@admin_required
+def admin_theme_delete(slug):
+    if not db:
+        return 'Firestore not configured', 500
+    try:
+        db.collection('themes').document(slug).delete()
+        flash('Theme deleted', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Error deleting theme: {e}', 'error')
+    return redirect(url_for('admin_theme'))
+
+def _parse_date_str(s: str):
+    from datetime import date
+    s = (s or '').strip()
+    if not s:
+        return None
+    try:
+        # Try YYYY-MM-DD
+        parts = [int(p) for p in s.split('-')]
+        if len(parts) == 3:
+            return date(parts[0], parts[1], parts[2])
+    except Exception:
+        pass
+    try:
+        # Try MM-DD (assume this year)
+        parts = [int(p) for p in s.split('-')]
+        if len(parts) == 2:
+            today = datetime.now(timezone.utc).date()
+            return today.replace(month=parts[0], day=parts[1])
+    except Exception:
+        return None
+    return None
+
+def _is_today_in_range(start_s: str, end_s: str) -> bool:
+    from datetime import date
+    today = datetime.now(timezone.utc).date()
+    start = _parse_date_str(start_s)
+    end = _parse_date_str(end_s)
+    if not start or not end:
+        return False
+    # Normalize years to this or adjacent year to handle wrapping (e.g., Dec -> Jan)
+    s = start.replace(year=today.year)
+    e = end.replace(year=today.year)
+    if e < s:
+        # wraps year-end: if today >= s or today <= e
+        return today >= s or today <= e
+    return s <= today <= e
+
+def _parse_time_str(s: str):
+    s = (s or '').strip()
+    if not s:
+        return None
+    try:
+        hh, mm = s.split(':')
+        return int(hh) * 60 + int(mm)
+    except Exception:
+        return None
+
+def _is_now_in_time_range(start_t: str, end_t: str) -> bool:
+    """Return True if current local time is within [start,end], inclusive; supports wrap-around (e.g., 22:00–06:00)."""
+    now = datetime.now().hour * 60 + datetime.now().minute
+    s = _parse_time_str(start_t)
+    e = _parse_time_str(end_t)
+    if s is None or e is None:
+        return True
+    if e < s:
+        return now >= s or now <= e
+    return s <= now <= e
+
+def _weekday_today_sun0() -> int:
+    # Python: Monday=0..Sunday=6; convert to Sunday=0..Saturday=6
+    return (datetime.now().weekday() + 1) % 7
+
+def _rule_matches(r: dict) -> bool:
+    if not r or not r.get('name'):
+        return False
+    if not _is_today_in_range(r.get('start',''), r.get('end','')):
+        return False
+    if not _is_now_in_time_range(r.get('timeStart',''), r.get('timeEnd','')):
+        return False
+    w = r.get('weekdays') or []
+    if isinstance(w, list) and len(w):
+        if _weekday_today_sun0() not in [int(x) for x in w]:
+            return False
+    return True
+
+@app.route('/admin/theme/auto', methods=['POST'])
+@admin_required
+def admin_theme_auto():
+    if not db:
+        flash('Firestore not configured', 'error')
+        return redirect(url_for('admin_theme'))
+    enabled = request.form.get('enabled') == 'on'
+    name = (request.form.get('auto_theme') or '').strip()
+    start = (request.form.get('auto_start') or '').strip()
+    end = (request.form.get('auto_end') or '').strip()
+    try:
+        db.collection('config').document('app').set({ 'autoTheme': { 'enabled': enabled, 'name': name, 'start': start, 'end': end } }, merge=True)
+        flash('Auto theme settings saved', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Error saving auto theme: {e}', 'error')
+    return redirect(url_for('admin_theme'))
+
+def _save_auto_rules(rules: list[dict]):
+    if not db:
+        return
+    db.collection('config').document('app').set({ 'autoThemes': rules }, merge=True)
+
+@app.route('/admin/theme/auto_rules/add', methods=['POST'])
+@admin_required
+def admin_theme_add_rule():
+    if not db:
+        flash('Firestore not configured', 'error')
+        return redirect(url_for('admin_theme'))
+    name = (request.form.get('name') or '').strip()
+    start = (request.form.get('start') or '').strip()
+    end = (request.form.get('end') or '').strip()
+    priority = request.form.get('priority') or '0'
+    enabled = request.form.get('enabled') == 'on'
+    try:
+        conf = db.collection('config').document('app').get()
+        rules = (conf.to_dict() or {}).get('autoThemes') or []
+        rid = f"r{int(datetime.now(timezone.utc).timestamp())}"
+        weekdays = request.form.getlist('weekdays')
+        weekdays = [int(x) for x in weekdays if (x.isdigit())]
+        time_start = (request.form.get('time_start') or '').strip()
+        time_end = (request.form.get('time_end') or '').strip()
+        rules.append({ 'id': rid, 'name': name, 'start': start, 'end': end, 'timeStart': time_start, 'timeEnd': time_end, 'weekdays': weekdays, 'priority': int(priority or 0), 'enabled': enabled })
+        _save_auto_rules(rules)
+        flash('Rule added', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Error adding rule: {e}', 'error')
+    return redirect(url_for('admin_theme'))
+
+@app.route('/admin/theme/auto_rules/update', methods=['POST'])
+@admin_required
+def admin_theme_update_rule():
+    if not db:
+        flash('Firestore not configured', 'error')
+        return redirect(url_for('admin_theme'))
+    rid = (request.form.get('rid') or '').strip()
+    try:
+        conf = db.collection('config').document('app').get()
+        rules = (conf.to_dict() or {}).get('autoThemes') or []
+        new_rules = []
+        for r in rules:
+            if r.get('id') == rid:
+                r = {
+                    'id': rid,
+                    'name': (request.form.get('name') or r.get('name')),
+                    'start': (request.form.get('start') or r.get('start')),
+                    'end': (request.form.get('end') or r.get('end')),
+                    'timeStart': (request.form.get('time_start') or r.get('timeStart') or ''),
+                    'timeEnd': (request.form.get('time_end') or r.get('timeEnd') or ''),
+                    'weekdays': [int(x) for x in request.form.getlist('weekdays')] if request.form.getlist('weekdays') else (r.get('weekdays') or []),
+                    'priority': int(request.form.get('priority') or r.get('priority') or 0),
+                    'enabled': (request.form.get('enabled') == 'on'),
+                }
+            new_rules.append(r)
+        _save_auto_rules(new_rules)
+        flash('Rule updated', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Error updating rule: {e}', 'error')
+    return redirect(url_for('admin_theme'))
+
+@app.route('/admin/theme/auto_rules/delete', methods=['POST'])
+@admin_required
+def admin_theme_delete_rule():
+    if not db:
+        flash('Firestore not configured', 'error')
+        return redirect(url_for('admin_theme'))
+    rid = (request.form.get('rid') or '').strip()
+    try:
+        conf = db.collection('config').document('app').get()
+        rules = (conf.to_dict() or {}).get('autoThemes') or []
+        rules = [r for r in rules if (r.get('id') != rid)]
+        _save_auto_rules(rules)
+        flash('Rule deleted', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Error deleting rule: {e}', 'error')
+    return redirect(url_for('admin_theme'))
+
+@app.route('/admin/theme/vars/<name>')
+@admin_required
+def admin_theme_vars(name):
+    vars = get_theme_vars(name)
+    if not vars:
+        return jsonify({ 'error': 'Not found' }), 404
+    return jsonify(vars)
+
+@app.route('/admin/theme/logo', methods=['POST'])
+@admin_required
+def admin_theme_logo():
+    if not db:
+        flash('Firestore not configured', 'error')
+        return redirect(url_for('admin_theme'))
+    theme = (request.form.get('theme') or '').strip() or 'default'
+    f = request.files.get('file')
+    if not f or not f.filename:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('admin_theme'))
+    filename = secure_filename(f.filename)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ('.png', '.jpg', '.jpeg', '.gif', '.svg'):
+        flash('Unsupported file type', 'error')
+        return redirect(url_for('admin_theme'))
+    local_path = os.path.join('output', f'logo_{theme}{ext}')
+    try:
+        f.save(local_path)
+        url = None
+        if storage_client and STORAGE_BUCKET:
+            url = upload_to_storage(local_path, f'branding/{theme}/logo{ext}')
+        if not url:
+            # fallback to serving local path via packs (not public); better to use cloud URL
+            url = url_for('static', filename='faith_sparks_logo.png')
+        # Update config logos map
+        db.collection('config').document('app').set({ 'logos': { theme: url } }, merge=True)
+        flash('Logo uploaded', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Upload failed: {e}', 'error')
+    return redirect(url_for('admin_theme'))
+
+@app.route('/admin/content', methods=['GET','POST'])
+@admin_required
+def admin_content():
+    data = {}
+    if db:
+        try:
+            doc = db.collection('config').document('content').get()
+            if doc.exists:
+                data = doc.to_dict() or {}
+        except Exception:
+            pass
+    if request.method == 'POST':
+        if not db:
+            flash('Firestore not configured', 'error')
+            return redirect(url_for('admin_content'))
+        payload = {
+            'announcement_enabled': request.form.get('announcement_enabled') == 'on',
+            'announcement_text': (request.form.get('announcement_text') or '').strip(),
+            'home_title': (request.form.get('home_title') or '').strip(),
+            'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
+            'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Generate a Worksheet',
+            'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
+        }
+        try:
+            db.collection('config').document('content').set(payload, merge=True)
+            flash('Content saved', 'success')
+        except Exception as e:
+            traceback.print_exc()
+            flash(f'Error saving: {e}', 'error')
+        return redirect(url_for('admin_content'))
+    return render_template('admin_content.html', data=data)
 
 @app.route('/admin/collections/<slug>/move', methods=['POST'])
 @admin_required

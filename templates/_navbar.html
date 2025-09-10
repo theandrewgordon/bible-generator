@@ -1,10 +1,7 @@
 <header class="main-header">
   <div class="logo-nav">
     <a href="/" class="logo">
-      <img
-        src="/static/faith_sparks_logo.png"
-        alt="Faith Sparks Logo"
-      />
+      <img src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}" alt="Faith Sparks Logo"/>
     </a>
     <nav class="nav-links" aria-label="Main">
       <a href="/">🏠 Home</a>
@@ -12,7 +9,7 @@
       <a href="/browse">🔎 Browse</a>
       <a href="/history">📚 History</a>
       {% if not is_pro %}<a href="/plus">⭐ Plus</a>{% else %}<a href="/billing">🧾 Billing</a>{% endif %}
-      {% if is_admin %}<a href="/admin/collections">🛠️ Admin</a>{% endif %}
+      {% if is_admin %}<a href="/admin/collections">🛠️ Admin</a><a href="/admin/theme">🎨 Theme</a><a href="/admin/content">🧩 Content</a>{% endif %}
       <a href="/about">ℹ️ About</a>
       {% if is_admin %}<a href="/admin/analytics">📈 Analytics</a>{% endif %}
     </nav>
