@@ -26,6 +26,9 @@
     <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');">
       <button class="button" style="background:#e0e7ff; color:#111827;">⚙️ Prewarm & Build ZIP</button>
     </form>
+    {% if c.priceId %}
+      <a class="button ghost" href="{{ stripe_price_url(c.priceId) }}" target="_blank">Open in Stripe</a>
+    {% endif %}
   {% endif %}
 </p>
 

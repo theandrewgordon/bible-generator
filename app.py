@@ -458,13 +458,16 @@ def load_collections():
 
 COLLECTIONS = load_collections()
 
-def get_collections():
+def get_collections(show_all: bool = False):
     """Return list of collection dicts: {slug,title,verses,defaultVersion,zipUrl,description}.
     Uses Firestore if available, else falls back to collections.json.
     """
     if db:
         try:
-            docs = db.collection('collections').where(filter=firestore.FieldFilter('isPublic','==', True)).stream()
+            if show_all:
+                docs = db.collection('collections').stream()
+            else:
+                docs = db.collection('collections').where(filter=firestore.FieldFilter('isPublic','==', True)).stream()
             items = []
             for d in docs:
                 data = d.to_dict()
@@ -568,18 +571,32 @@ def make_thumbnail(verse_ref: str, version: str, base_name: str):
         return None
 
 def upload_to_storage(local_path: str, dst_path: str) -> str | None:
-    """Upload file to the configured GCS bucket. Returns public URL or None."""
+    """Upload file to GCS bucket. Keeps object private. Returns None (do not store signed URLs)."""
     if not storage_client or not STORAGE_BUCKET:
         return None
     try:
         bucket = storage_client.bucket(STORAGE_BUCKET)
         blob = bucket.blob(dst_path)
         blob.upload_from_filename(local_path)
-        # Make public (simple). For private, switch to signed URLs.
-        blob.make_public()
-        return blob.public_url
+        # Keep private; do not return signed URL here (it expires)
+        return None
     except Exception as e:
         print(f"⚠️ Upload to storage failed: {e}")
+        return None
+
+def signed_url_for_path(dst_path: str, minutes: int = 120) -> str | None:
+    """Generate a short‑lived signed URL for a GCS object path within the configured bucket."""
+    if not storage_client or not STORAGE_BUCKET:
+        return None
+    try:
+        bucket = storage_client.bucket(STORAGE_BUCKET)
+        blob = bucket.blob(dst_path)
+        if not blob.exists():
+            return None
+        url = blob.generate_signed_url(version="v4", expiration=timedelta(minutes=minutes), method="GET")
+        return url
+    except Exception as e:
+        print(f"⚠️ Signed URL error: {e}")
         return None
 
 # --- Routes ---
@@ -1353,7 +1370,7 @@ def stripe_webhook():
 @app.route('/admin/analytics')
 @admin_required
 def admin_analytics():
-    col_items = get_collections()
+    col_items = get_collections(show_all=True)
     by_slug = { c['slug']: c for c in col_items }
     top_packs = []
     top_packs_week = []
@@ -1436,12 +1453,34 @@ def admin_gift():
                 flash('Could not parse expiration date; ignoring.', 'warning')
         try:
             db.collection('users').document(email).set(data, merge=True)
+            # Log gift entry
+            try:
+                admin_email = session.get('user_email')
+                entry = {
+                    'email': email,
+                    'plan': plan,
+                    'expiresAt': data.get('giftExpiresAt'),
+                    'by': admin_email,
+                    'at': firestore.SERVER_TIMESTAMP,
+                }
+                db.collection('gifts').add(entry)
+            except Exception:
+                pass
             flash('Gift plan saved', 'success')
         except Exception as e:
             traceback.print_exc()
             flash(f'Gift save failed: {e}', 'error')
         return redirect(url_for('admin_gift'))
-    return render_template('admin_gift.html')
+    # GET: show last 50 gifts
+    gifts = []
+    if db:
+        try:
+            q = db.collection('gifts').order_by('at', direction=firestore.Query.DESCENDING).limit(50).stream()
+            for d in q:
+                gifts.append(d.to_dict())
+        except Exception:
+            gifts = []
+    return render_template('admin_gift.html', gifts=gifts)
 
 # ----- Admin: Collections CRUD -----
 @app.route('/admin/collections')
@@ -1449,7 +1488,7 @@ def admin_gift():
 def admin_collections():
     if not db:
         return "Firestore not configured", 500
-    cols = get_collections()
+    cols = get_collections(show_all=True)
     filt = (request.args.get('visibility') or 'all').lower()
     if filt == 'public':
         cols = [c for c in cols if c.get('isPublic', True)]
@@ -2343,6 +2382,13 @@ def dl_pack(slug):
     except Exception:
         pass
     url = meta.get('zipUrl')
+    # Prefer signed GCS URL when available
+    try:
+        gcs_signed = signed_url_for_path(f"packs/{slug}.zip", minutes=120)
+        if gcs_signed:
+            return redirect(gcs_signed)
+    except Exception:
+        pass
     if url:
         return redirect(url)
     # fallback to local if present
@@ -2417,7 +2463,8 @@ def browse():
             .order_by('timestamp', direction=firestore.Query.DESCENDING) \
             .limit(24).stream()
         items = [doc.to_dict() for doc in recent]
-    col_items = get_collections()
+    is_admin = is_admin_email(session.get('user_email'))
+    col_items = get_collections(show_all=is_admin)
     # Sort by explicit order then title
     col_items.sort(key=lambda c: (int(c.get('order') or 9999), c.get('title','')))
     # enrich with counts

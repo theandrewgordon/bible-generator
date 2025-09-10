@@ -41,7 +41,7 @@
   <h3>Collections</h3>
   <div class="grid-collections">
     {% for c in collections %}
-      <div class="collection-tile">
+      <div class="collection-tile {% if c.isSubscriberOnly and not is_pro and not (purchases.get(c.slug) if purchases else None) %}locked{% endif %}">
         <div class="collection-title"><a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a></div>
         <div class="collection-count">{{ c.count }} verses</div>
         {% if c.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
@@ -99,6 +99,8 @@
 <style>
   .grid-collections { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
   .collection-tile { display: block; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: var(--box); color: inherit; }
+  .collection-tile.locked { position: relative; }
+  .collection-tile.locked::after { content: '🔒'; position: absolute; right: 10px; top: 10px; opacity: .7; }
   .collection-title { font-weight: 700; }
   .collection-count { color: var(--text-secondary); font-size: .85em; }
   .collection-badge { margin-top: 6px; display: inline-block; }

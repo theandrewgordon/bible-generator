@@ -23,4 +23,26 @@
     <a class="button ghost" href="{{ url_for('admin_collections') }}">Back</a>
   </div>
 </form>
+
+{% if gifts %}
+  <h3 style="margin-top:16px;">Recent Gifts</h3>
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr><th style="text-align:left; padding:6px;">When</th><th style="text-align:left; padding:6px;">Email</th><th style="text-align:left; padding:6px;">Plan</th><th style="text-align:left; padding:6px;">Expires</th><th style="text-align:left; padding:6px;">By</th></tr>
+    </thead>
+    <tbody>
+      {% for g in gifts %}
+      <tr style="border-top:1px solid #e5e7eb;">
+        <td style="padding:6px;">{{ g.at if g.at else '' }}</td>
+        <td style="padding:6px;">{{ g.email }}</td>
+        <td style="padding:6px;">{{ g.plan }}</td>
+        <td style="padding:6px;">{{ g.expiresAt if g.expiresAt else '' }}</td>
+        <td style="padding:6px;">{{ g.by or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="small muted" style="margin-top:12px;">No gifts logged yet.</p>
+{% endif %}
 {% endblock %}
