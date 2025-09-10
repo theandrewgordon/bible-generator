@@ -28,6 +28,9 @@
         <input type="text" name="home_cta_url" value="{{ data.home_cta_url or '/generate' }}"/>
       </label>
     </div>
+    <label>Intro HTML (optional)
+      <textarea name="home_intro_html" rows="4" placeholder="Optional rich intro HTML" style="width:100%">{{ data.home_intro_html or '' }}</textarea>
+    </label>
   </fieldset>
 
   <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
@@ -49,6 +52,13 @@
   </fieldset>
 
   <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+    <legend class="small muted">About Page</legend>
+    <label>About HTML
+      <textarea name="about_html" rows="10" placeholder="Rich HTML for About page" style="width:100%">{{ data.about_html or '' }}</textarea>
+    </label>
+    <div class="small muted">Tip: The footer already shows your support email; no need to repeat it here.</div>
+  </fieldset>
+  <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
     <legend class="small muted">Seasonal CTA Presets</legend>
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       <label>Presets
@@ -59,6 +69,7 @@
         </select>
       </label>
       <button class="button" name="action" value="apply_preset">Apply Preset</button>
+      <button class="button" name="action" value="apply_and_save_active">Apply + Save as Active</button>
       <span class="small muted">Or save a new one from the current form values:</span>
       <input type="text" name="new_preset_name" placeholder="Preset name (e.g., Advent)" />
       <button class="button ghost" name="action" value="save_preset">Save Preset</button>

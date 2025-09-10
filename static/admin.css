@@ -1,0 +1,12 @@
+/* Minimal admin UI refinements */
+.admin .container { max-width: 1100px; }
+.admin .page-title { margin-top: .4rem; margin-bottom: .6rem; }
+.admin .grid-cards, .admin .grid-collections { gap: 10px; }
+.admin .collection-tile { border-radius: 10px; padding: 12px; }
+.admin table { width: 100%; border-collapse: collapse; }
+.admin th, .admin td { padding: 6px 8px; }
+.admin .button { padding: 8px 12px; border-radius: 10px; }
+.admin .button.ghost { border-radius: 10px; }
+.admin fieldset { margin-bottom: 10px; }
+.admin input[type="text"], .admin input[type="number"], .admin input[type="date"], .admin input[type="time"], .admin select, .admin textarea { border-radius: 8px; padding: 6px 8px; border: 1px solid #e5e7eb; }
+.admin .muted { font-size: .92em; }

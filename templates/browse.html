@@ -5,7 +5,7 @@
 
 {% if top_packs and top_packs|length %}
 <section class="block">
-  <details>
+  <details id="topPacks">
     <summary><h3 style="display:inline">Top Packs</h3> <span class="small muted">(click to expand)</span></summary>
     <div class="grid-collections" style="margin-top:10px;">
       {% for p in top_packs %}
@@ -22,7 +22,7 @@
 
 {% if top_packs_week and top_packs_week|length %}
 <section class="block">
-  <details>
+  <details id="topWeek">
     <summary><h3 style="display:inline">Top This Week</h3> <span class="small muted">(click to expand)</span></summary>
     <div class="grid-collections" style="margin-top:10px;">
       {% for p in top_packs_week %}
@@ -97,4 +97,21 @@
   .g-meta { color: var(--text-secondary); font-size: .85em; margin: 4px 0; }
   .g-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 </style>
+<script>
+  (function(){
+    const ids=['topPacks','topWeek'];
+    ids.forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el) return;
+      const key='browse:'+id+':open';
+      try{
+        const v=localStorage.getItem(key);
+        if(v==='true') el.setAttribute('open','');
+      }catch(e){}
+      el.addEventListener('toggle',()=>{
+        try{ localStorage.setItem(key, el.open?'true':'false'); }catch(e){}
+      });
+    });
+  })();
+</script>
 {% endblock %}

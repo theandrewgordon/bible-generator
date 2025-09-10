@@ -11,6 +11,7 @@
 
     <!-- Your theme -->
     <link rel="stylesheet" href="/static/theme.css" />
+    {% if request.path.startswith('/admin') %}<link rel="stylesheet" href="/static/admin.css" />{% endif %}
     <style>
       :root {
         --background: {{ (theme.background or '#ffffff') if theme else '#ffffff' }};
@@ -116,7 +117,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="{% if request.path.startswith('/admin') %}admin{% endif %}">
     {% include "_navbar.html" %}
     {% if site_content and site_content.announcement_enabled and site_content.announcement_text %}
       <div style="background: var(--primary); color: white; text-align:center; padding:6px 10px;">

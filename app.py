@@ -1264,6 +1264,8 @@ def admin_theme():
     # load auto settings
     auto = {}
     autoThemes = []
+    logos = {}
+    favicons = {}
     if db:
         try:
             conf = db.collection('config').document('app').get()
@@ -1271,9 +1273,11 @@ def admin_theme():
                 confd = (conf.to_dict() or {})
                 auto = confd.get('autoTheme') or {}
                 autoThemes = confd.get('autoThemes') or []
+                logos = confd.get('logos') or {}
+                favicons = confd.get('favicons') or {}
         except Exception:
             pass
-    return render_template('admin_theme.html', themes=list_all_themes(), current=name, auto=auto, autoThemes=autoThemes)
+    return render_template('admin_theme.html', themes=list_all_themes(), current=name, auto=auto, autoThemes=autoThemes, logos=logos, favicons=favicons)
 
 @app.route('/admin/theme/new', methods=['GET','POST'])
 @admin_required
@@ -1656,7 +1660,7 @@ def admin_content():
             flash('Firestore not configured', 'error')
             return redirect(url_for('admin_content'))
         action = request.form.get('action') or 'save'
-        if action == 'apply_preset':
+        if action == 'apply_preset' or action == 'apply_and_save_active':
             name = (request.form.get('preset_name') or '').strip()
             if not name:
                 flash('Select a preset to apply', 'warning')
@@ -1670,7 +1674,11 @@ def admin_content():
                     flash('Preset not found', 'error')
                 else:
                     db.collection('config').document('content').set(preset, merge=True)
-                    flash(f'Applied preset: {name}', 'success')
+                    if action == 'apply_and_save_active':
+                        db.collection('config').document('content').set({ 'activePreset': name }, merge=True)
+                        flash(f'Applied and set active preset: {name}', 'success')
+                    else:
+                        flash(f'Applied preset: {name}', 'success')
             except Exception as e:
                 traceback.print_exc()
                 flash(f'Error applying preset: {e}', 'error')
@@ -1694,6 +1702,8 @@ def admin_content():
                     'generate_banner_text': (request.form.get('generate_banner_text') or '').strip(),
                     'plus_banner_enabled': request.form.get('plus_banner_enabled') == 'on',
                     'plus_banner_text': (request.form.get('plus_banner_text') or '').strip(),
+                    'about_html': (request.form.get('about_html') or '').strip(),
+                    'home_intro_html': (request.form.get('home_intro_html') or '').strip(),
                 }
                 doc = db.collection('config').document('content').get()
                 conf = doc.to_dict() if doc.exists else {}
@@ -1719,6 +1729,8 @@ def admin_content():
                 'generate_banner_text': (request.form.get('generate_banner_text') or '').strip(),
                 'plus_banner_enabled': request.form.get('plus_banner_enabled') == 'on',
                 'plus_banner_text': (request.form.get('plus_banner_text') or '').strip(),
+                'about_html': (request.form.get('about_html') or '').strip(),
+                'home_intro_html': (request.form.get('home_intro_html') or '').strip(),
             }
             try:
                 db.collection('config').document('content').set(payload, merge=True)

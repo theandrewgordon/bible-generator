@@ -2,28 +2,24 @@
 {% block title %}About | Faith Sparks Printables{% endblock %}
 {% block content %}
   <h1 class="page-title">About Faith Sparks Printables</h1>
-  <p>
-    Hi, I’m Andrew Gordon — a Christian husband, father of four, homeschool dad, and
-    software developer. I love God and I seek to love my neighbors.
-  </p>
-  <p>
-    I saw my family regularly needing fun, Bible‑based ways to practice handwriting and
-    cursive. I couldn’t find exactly what I was looking for, so I built Faith Sparks
-    Printables to create simple, beautiful worksheets that help kids engage Scripture through
-    copywork, reflection, and creativity.
-  </p>
-  <p>
-    My hope is that these resources serve families, homeschoolers, and churches by making
-    God’s Word more present in everyday learning.
-  </p>
-
+  {% if site_content and site_content.about_html %}
+    <div>{{ site_content.about_html|safe }}</div>
+  {% else %}
+    <p>
+      Hi, I’m Andrew Gordon — a Christian husband, father of four, homeschool dad, and software
+      developer. I love God and I seek to love my neighbors.
+    </p>
+    <p>
+      I saw my family regularly needing fun, Bible‑based ways to practice handwriting and cursive.
+      I couldn’t find exactly what I was looking for, so I built Faith Sparks Printables to create
+      simple, beautiful worksheets that help kids engage Scripture through copywork, reflection,
+      and creativity.
+    </p>
+    <p>
+      My hope is that these resources serve families, homeschoolers, and churches by making God’s
+      Word more present in everyday learning.
+    </p>
+  {% endif %}
   <h3>Contact & Support</h3>
-  <p class="muted">
-    Questions or feedback? I’d love to hear from you:
-    {% if support_email %}
-      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
-    {% else %}
-      <a href="mailto:support@faithsparksprintables.com">support@faithsparksprintables.com</a>
-    {% endif %}
-  </p>
+  <p class="muted">Questions or feedback? Use the support email in the footer.</p>
 {% endblock %}

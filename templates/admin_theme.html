@@ -26,6 +26,10 @@
   {% for key, cfg in themes.items() %}
   <div class="collection-tile" style="border:1px solid #e5e7eb; border-radius:12px; padding:12px;">
     <div class="collection-title">{{ key|title }}</div>
+    <div class="small muted" style="display:flex; gap:8px; align-items:center;">
+      {% if logos and logos.get(key) %}<img src="{{ logos.get(key) }}" alt="logo" style="height:22px;"/>{% endif %}
+      {% if favicons and favicons.get(key) %}<img src="{{ favicons.get(key) }}" alt="favicon" style="height:16px; width:16px;"/>{% endif %}
+    </div>
     <div class="small muted">Primary</div>
     <div style="display:flex; gap:6px; align-items:center; margin:6px 0;">
       <div style="width:20px; height:20px; background: {{ cfg.primary }}; border-radius:4px;"></div>
