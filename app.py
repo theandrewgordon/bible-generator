@@ -1430,6 +1430,20 @@ def admin_gift():
     if request.method == 'POST':
         if not db:
             return 'Firestore not configured', 500
+        action = (request.form.get('action') or 'gift').strip()
+        if action == 'revoke':
+            email = (request.form.get('email') or '').strip().lower()
+            if not email:
+                flash('Email is required', 'error')
+                return redirect(url_for('admin_gift'))
+            try:
+                db.collection('users').document(email).set({ 'plan': 'free', 'isPro': False, 'gifted': False, 'giftExpiresAt': None, 'updatedAt': firestore.SERVER_TIMESTAMP }, merge=True)
+                flash('Gift revoked', 'success')
+            except Exception as e:
+                traceback.print_exc()
+                flash(f'Revoke failed: {e}', 'error')
+            return redirect(url_for('admin_gift'))
+        # default: create/update gift
         email = (request.form.get('email') or '').strip().lower()
         plan = (request.form.get('plan') or 'family').strip().lower()
         expires = (request.form.get('expires') or '').strip()
@@ -1442,27 +1456,18 @@ def admin_gift():
             'gifted': True,
             'updatedAt': firestore.SERVER_TIMESTAMP,
         }
-        # Parse YYYY-MM-DD
         if expires:
             try:
                 y,m,d = [int(x) for x in expires.split('-')]
-                # Store as naive UTC date end-of-day
                 dt = datetime(y,m,d,23,59,59,tzinfo=timezone.utc)
                 data['giftExpiresAt'] = dt
             except Exception:
                 flash('Could not parse expiration date; ignoring.', 'warning')
         try:
             db.collection('users').document(email).set(data, merge=True)
-            # Log gift entry
             try:
                 admin_email = session.get('user_email')
-                entry = {
-                    'email': email,
-                    'plan': plan,
-                    'expiresAt': data.get('giftExpiresAt'),
-                    'by': admin_email,
-                    'at': firestore.SERVER_TIMESTAMP,
-                }
+                entry = { 'email': email, 'plan': plan, 'expiresAt': data.get('giftExpiresAt'), 'by': admin_email, 'at': firestore.SERVER_TIMESTAMP }
                 db.collection('gifts').add(entry)
             except Exception:
                 pass
@@ -1473,6 +1478,7 @@ def admin_gift():
         return redirect(url_for('admin_gift'))
     # GET: show last 50 gifts
     gifts = []
+    gifted_users = []
     if db:
         try:
             q = db.collection('gifts').order_by('at', direction=firestore.Query.DESCENDING).limit(50).stream()
@@ -1480,7 +1486,15 @@ def admin_gift():
                 gifts.append(d.to_dict())
         except Exception:
             gifts = []
-    return render_template('admin_gift.html', gifts=gifts)
+        try:
+            # Current gifted users (gifted true or plan != free with gift flag/expiry present)
+            q2 = db.collection('users').where(filter=firestore.FieldFilter('gifted','==', True)).stream()
+            for d in q2:
+                ud = d.to_dict() or {}
+                gifted_users.append({ 'email': d.id, 'plan': ud.get('plan','free'), 'expiresAt': ud.get('giftExpiresAt') })
+        except Exception:
+            gifted_users = []
+    return render_template('admin_gift.html', gifts=gifts, gifted_users=gifted_users)
 
 # ----- Admin: Collections CRUD -----
 @app.route('/admin/collections')
@@ -2469,6 +2483,23 @@ def browse():
     col_items.sort(key=lambda c: (int(c.get('order') or 9999), c.get('title','')))
     # enrich with counts
     collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl'), 'isFree': c.get('isFree'), 'isSubscriberOnly': c.get('isSubscriberOnly'), 'priceId': c.get('priceId') } for c in col_items ]
+    # Attach live price meta so Buy buttons reflect Stripe amounts
+    if stripe and STRIPE_SECRET_KEY:
+        seen: dict[str,dict] = {}
+        for c in collections:
+            pid = c.get('priceId')
+            if not pid:
+                continue
+            if pid in seen:
+                c['priceMeta'] = seen[pid]
+                continue
+            try:
+                p = stripe.Price.retrieve(pid)
+                meta = { 'amount': (p.get('unit_amount') or 0)/100.0, 'currency': (p.get('currency') or 'usd').upper() }
+                c['priceMeta'] = meta
+                seen[pid] = meta
+            except Exception:
+                c['priceMeta'] = None
     # Top packs by download count (all-time)
     top_packs = []
     # Top packs this week (sum of last 7 daily docs)

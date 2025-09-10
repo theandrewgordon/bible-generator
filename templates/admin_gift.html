@@ -45,4 +45,31 @@
 {% else %}
   <p class="small muted" style="margin-top:12px;">No gifts logged yet.</p>
 {% endif %}
+
+<h3 style="margin-top:16px;">Active Gifted Users</h3>
+{% if gifted_users %}
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr><th style="text-align:left; padding:6px;">Email</th><th style="text-align:left; padding:6px;">Plan</th><th style="text-align:left; padding:6px;">Expires</th><th style="text-align:left; padding:6px;">Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for u in gifted_users %}
+      <tr style="border-top:1px solid #e5e7eb;">
+        <td style="padding:6px;">{{ u.email }}</td>
+        <td style="padding:6px;">{{ u.plan }}</td>
+        <td style="padding:6px;">{{ u.expiresAt if u.expiresAt else '' }}</td>
+        <td style="padding:6px;">
+          <form method="post" action="{{ url_for('admin_gift') }}" onsubmit="return confirm('Revoke gift for {{ u.email }}?');">
+            <input type="hidden" name="action" value="revoke"/>
+            <input type="hidden" name="email" value="{{ u.email }}"/>
+            <button class="button" style="background:#fecaca; color:#111827;">Revoke</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="small muted">No active gifted users.</p>
+{% endif %}
 {% endblock %}
