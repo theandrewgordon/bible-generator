@@ -14,22 +14,28 @@
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
     <label>Primary
-      <input type="color" name="primary" value="{{ data.primary or '#0ea5a8' }}" />
+      <input type="color" id="c_primary" value="{{ data.primary or '#0ea5a8' }}" />
+      <input type="text" name="primary" id="t_primary" value="{{ data.primary or '#0ea5a8' }}" pattern="#?[0-9a-fA-F]{6}" placeholder="#0ea5a8" />
     </label>
     <label>Primary Dark
-      <input type="color" name="primary_dark" value="{{ data.primary_dark or '#0b8a8d' }}" />
+      <input type="color" id="c_primary_dark" value="{{ data.primary_dark or '#0b8a8d' }}" />
+      <input type="text" name="primary_dark" id="t_primary_dark" value="{{ data.primary_dark or '#0b8a8d' }}" pattern="#?[0-9a-fA-F]{6}" placeholder="#0b8a8d" />
     </label>
     <label>Background
-      <input type="color" name="background" value="{{ data.background or '#ffffff' }}" />
+      <input type="color" id="c_background" value="{{ data.background or '#ffffff' }}" />
+      <input type="text" name="background" id="t_background" value="{{ data.background or '#ffffff' }}" pattern="#?[0-9a-fA-F]{6}" placeholder="#ffffff" />
     </label>
     <label>Box
-      <input type="color" name="box" value="{{ data.box or '#edf2f7' }}" />
+      <input type="color" id="c_box" value="{{ data.box or '#edf2f7' }}" />
+      <input type="text" name="box" id="t_box" value="{{ data.box or '#edf2f7' }}" pattern="#?[0-9a-fA-F]{6}" placeholder="#edf2f7" />
     </label>
     <label>Text
-      <input type="color" name="text" value="{{ data.text or '#1f2937' }}" />
+      <input type="color" id="c_text" value="{{ data.text or '#1f2937' }}" />
+      <input type="text" name="text" id="t_text" value="{{ data.text or '#1f2937' }}" pattern="#?[0-9a-fA-F]{6}" placeholder="#1f2937" />
     </label>
     <label>Text Secondary
-      <input type="color" name="text_secondary" value="{{ data.text_secondary or '#6b7280' }}" />
+      <input type="color" id="c_text_secondary" value="{{ data.text_secondary or '#6b7280' }}" />
+      <input type="text" name="text_secondary" id="t_text_secondary" value="{{ data.text_secondary or '#6b7280' }}" pattern="#?[0-9a-fA-F]{6}" placeholder="#6b7280" />
     </label>
   </div>
 
@@ -38,6 +44,8 @@
     <label><input type="checkbox" name="snow" {% if data.snow %}checked{% endif %}/> Snow effect (seasonal)</label>
     <label><input type="checkbox" name="lights" {% if data.lights %}checked{% endif %}/> Festive lights (header)</label>
     <label><input type="checkbox" name="leaves" {% if data.leaves %}checked{% endif %}/> Falling leaves</label>
+    <label><input type="checkbox" name="string_lights" {% if data.string_lights %}checked{% endif %}/> String lights (twinkle)</label>
+    <label><input type="checkbox" name="snow_svg" {% if data.snow_svg %}checked{% endif %}/> Snowflakes (SVG)</label>
     <label>Custom CSS
       <textarea name="extra_css" rows="5" placeholder=":root { /* your css */ }" style="width:100%;">{{ data.extra_css or '' }}</textarea>
     </label>
@@ -52,5 +60,24 @@
     </form>
     {% endif %}
   </div>
+<script>
+  (function(){
+    const pairs = [
+      ['primary'],['primary_dark'],['background'],['box'],['text'],['text_secondary']
+    ];
+    function norm(v){ v=v.trim(); if(!v.startsWith('#')) v='#'+v; return v; }
+    function isHex(v){ return /^#?[0-9a-fA-F]{6}$/.test(v.trim()); }
+    for(const [k] of pairs){
+      const tc = document.getElementById('t_'+k);
+      const cc = document.getElementById('c_'+k);
+      if(!tc || !cc) continue;
+      cc.addEventListener('input', ()=>{ tc.value = cc.value; tc.setCustomValidity(''); tc.style.borderColor=''; });
+      tc.addEventListener('input', ()=>{
+        if(isHex(tc.value)){ cc.value = norm(tc.value); tc.setCustomValidity(''); tc.style.borderColor=''; }
+        else { tc.setCustomValidity('Invalid hex (e.g. #0ea5a8)'); tc.style.borderColor='red'; }
+      });
+    }
+  })();
+</script>
 </form>
 {% endblock %}

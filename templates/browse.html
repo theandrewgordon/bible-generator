@@ -5,31 +5,35 @@
 
 {% if top_packs and top_packs|length %}
 <section class="block">
-  <h3>Top Packs</h3>
-  <div class="grid-collections">
-    {% for p in top_packs %}
-      <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
-        <div class="collection-title">{{ p.title }}</div>
-        <div class="collection-count">{{ p.downloads }} downloads</div>
-        {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
-      </a>
-    {% endfor %}
-  </div>
-</section>
+  <details>
+    <summary><h3 style="display:inline">Top Packs</h3> <span class="small muted">(click to expand)</span></summary>
+    <div class="grid-collections" style="margin-top:10px;">
+      {% for p in top_packs %}
+        <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
+          <div class="collection-title">{{ p.title }}</div>
+          <div class="collection-count">{{ p.downloads }} downloads</div>
+          {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </details>
+  </section>
 {% endif %}
 
 {% if top_packs_week and top_packs_week|length %}
 <section class="block">
-  <h3>Top This Week</h3>
-  <div class="grid-collections">
-    {% for p in top_packs_week %}
-      <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
-        <div class="collection-title">{{ p.title }}</div>
-        <div class="collection-count">{{ p.downloads }} downloads</div>
-        {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
-      </a>
-    {% endfor %}
-  </div>
+  <details>
+    <summary><h3 style="display:inline">Top This Week</h3> <span class="small muted">(click to expand)</span></summary>
+    <div class="grid-collections" style="margin-top:10px;">
+      {% for p in top_packs_week %}
+        <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
+          <div class="collection-title">{{ p.title }}</div>
+          <div class="collection-count">{{ p.downloads }} downloads</div>
+          {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </details>
 </section>
 {% endif %}
 

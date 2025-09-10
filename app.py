@@ -204,6 +204,8 @@ def get_theme_vars(name: str) -> dict | None:
                         'snow': bool(data.get('snow') or (data.get('extras') or {}).get('snow')),
                         'lights': bool(data.get('lights') or (data.get('extras') or {}).get('lights')),
                         'leaves': bool(data.get('leaves') or (data.get('extras') or {}).get('leaves')),
+                        'string_lights': bool(data.get('string_lights') or (data.get('extras') or {}).get('string_lights')),
+                        'snow_svg': bool(data.get('snow_svg') or (data.get('extras') or {}).get('snow_svg')),
                         'custom_css': (data.get('extra_css') or (data.get('extras', {}) if isinstance(data.get('extras'), dict) else {}).get('custom_css') or ''),
                     }
                 }
@@ -230,6 +232,8 @@ def list_all_themes() -> dict:
                         'snow': bool(data.get('snow') or (data.get('extras') or {}).get('snow')),
                         'lights': bool(data.get('lights') or (data.get('extras') or {}).get('lights')),
                         'leaves': bool(data.get('leaves') or (data.get('extras') or {}).get('leaves')),
+                        'string_lights': bool(data.get('string_lights') or (data.get('extras') or {}).get('string_lights')),
+                        'snow_svg': bool(data.get('snow_svg') or (data.get('extras') or {}).get('snow_svg')),
                         'custom_css': (data.get('extra_css') or (data.get('extras') or {}).get('custom_css') or ''),
                     }
                 }
@@ -276,8 +280,17 @@ def get_theme_selection():
                 name = auto.get('name')
     except Exception:
         pass
-    # Live preview via query param (does not persist)
+    # Live preview via session and query param (does not persist)
     try:
+        # Session-driven preview set from admin page (with optional TTL)
+        pv = session.get('preview_theme')
+        pv_exp = session.get('preview_theme_exp')
+        if pv:
+            if pv_exp and int(datetime.now(timezone.utc).timestamp()) > int(pv_exp):
+                session.pop('preview_theme', None)
+                session.pop('preview_theme_exp', None)
+            elif (get_theme_vars(pv) is not None):
+                name = pv
         qname = (request.args.get('theme') or '').strip()
         if qname and (get_theme_vars(qname) is not None):
             name = qname
@@ -285,6 +298,30 @@ def get_theme_selection():
         pass
     vars = get_theme_vars(name) or THEMES['teal']
     return name, vars
+
+@app.route('/admin/theme/preview', methods=['POST'])
+@admin_required
+def admin_theme_preview():
+    try:
+        payload = request.get_json(silent=True) or {}
+        if payload.get('clear'):
+            session.pop('preview_theme', None)
+            session.pop('preview_theme_exp', None)
+            return jsonify({ 'ok': True, 'cleared': True })
+        sel = (payload.get('theme') or '').strip()
+        if sel and (get_theme_vars(sel) is not None):
+            session['preview_theme'] = sel
+            ttl = payload.get('ttlMinutes')
+            try:
+                if ttl:
+                    ttl = int(ttl)
+                    session['preview_theme_exp'] = int(datetime.now(timezone.utc).timestamp()) + max(60, ttl*60)
+            except Exception:
+                pass
+            return jsonify({ 'ok': True, 'theme': sel })
+        return jsonify({ 'ok': False, 'error': 'Unknown theme' }), 400
+    except Exception as e:
+        return jsonify({ 'ok': False, 'error': str(e) }), 500
 
 # --- Collections ---
 def load_collections():
@@ -836,8 +873,9 @@ def inject_admin_flag():
         email = session.get('user_email')
         is_pro = False
         theme_name, theme_vars = get_theme_selection()
-        # Resolve themed logo
+        # Resolve themed logo and favicon
         logo_url = url_for('static', filename='faith_sparks_logo.png')
+        favicon_url = url_for('static', filename='favicon.ico')
         if db:
             try:
                 conf = db.collection('config').document('app').get()
@@ -845,6 +883,9 @@ def inject_admin_flag():
                     logos = (conf.to_dict() or {}).get('logos') or {}
                     if isinstance(logos, dict):
                         logo_url = logos.get(theme_name) or logos.get('default') or logo_url
+                    favs = (conf.to_dict() or {}).get('favicons') or {}
+                    if isinstance(favs, dict):
+                        favicon_url = favs.get(theme_name) or favs.get('default') or favicon_url
             except Exception:
                 pass
         site_content = {}
@@ -871,6 +912,7 @@ def inject_admin_flag():
             'theme_name': theme_name,
             'theme': theme_vars,
             'logo_url': logo_url,
+            'favicon_url': favicon_url,
             'site_content': site_content,
         }
     except Exception:
@@ -883,6 +925,7 @@ def inject_admin_flag():
             'theme_name': 'teal',
             'theme': THEMES.get('teal'),
             'logo_url': url_for('static', filename='faith_sparks_logo.png'),
+            'favicon_url': url_for('static', filename='favicon.ico'),
             'site_content': {},
         }
 
@@ -1253,6 +1296,8 @@ def admin_theme_new():
             'snow': True if request.form.get('snow') == 'on' else False,
             'lights': True if request.form.get('lights') == 'on' else False,
             'leaves': True if request.form.get('leaves') == 'on' else False,
+            'string_lights': True if request.form.get('string_lights') == 'on' else False,
+            'snow_svg': True if request.form.get('snow_svg') == 'on' else False,
             'extra_css': (request.form.get('extra_css') or '').strip(),
         }
         try:
@@ -1307,6 +1352,8 @@ def admin_theme_edit(slug):
             'snow': True if request.form.get('snow') == 'on' else False,
             'lights': True if request.form.get('lights') == 'on' else False,
             'leaves': True if request.form.get('leaves') == 'on' else False,
+            'string_lights': True if request.form.get('string_lights') == 'on' else False,
+            'snow_svg': True if request.form.get('snow_svg') == 'on' else False,
             'extra_css': (request.form.get('extra_css') or '').strip(),
         }
         try:
@@ -1327,6 +1374,8 @@ def admin_theme_edit(slug):
         'snow': current.get('snow') or (current.get('extras') or {}).get('snow'),
         'lights': current.get('lights') or (current.get('extras') or {}).get('lights'),
         'leaves': current.get('leaves') or (current.get('extras') or {}).get('leaves'),
+        'string_lights': current.get('string_lights') or (current.get('extras') or {}).get('string_lights'),
+        'snow_svg': current.get('snow_svg') or (current.get('extras') or {}).get('snow_svg'),
         'extra_css': current.get('extra_css') or (current.get('extras') or {}).get('custom_css'),
     }
     return render_template('admin_theme_form.html', mode='edit', data=form_data)
@@ -1560,6 +1609,37 @@ def admin_theme_logo():
         flash(f'Upload failed: {e}', 'error')
     return redirect(url_for('admin_theme'))
 
+@app.route('/admin/theme/favicon', methods=['POST'])
+@admin_required
+def admin_theme_favicon():
+    if not db:
+        flash('Firestore not configured', 'error')
+        return redirect(url_for('admin_theme'))
+    theme = (request.form.get('theme') or '').strip() or 'default'
+    f = request.files.get('file')
+    if not f or not f.filename:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('admin_theme'))
+    filename = secure_filename(f.filename)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ('.ico', '.png', '.jpg', '.jpeg'):
+        flash('Unsupported file type (use .ico or .png)', 'error')
+        return redirect(url_for('admin_theme'))
+    local_path = os.path.join('output', f'favicon_{theme}{ext}')
+    try:
+        f.save(local_path)
+        url = None
+        if storage_client and STORAGE_BUCKET:
+            url = upload_to_storage(local_path, f'branding/{theme}/favicon{ext}')
+        if not url:
+            url = url_for('static', filename='favicon.ico')
+        db.collection('config').document('app').set({ 'favicons': { theme: url } }, merge=True)
+        flash('Favicon uploaded', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Upload failed: {e}', 'error')
+    return redirect(url_for('admin_theme'))
+
 @app.route('/admin/content', methods=['GET','POST'])
 @admin_required
 def admin_content():
@@ -1575,22 +1655,122 @@ def admin_content():
         if not db:
             flash('Firestore not configured', 'error')
             return redirect(url_for('admin_content'))
-        payload = {
-            'announcement_enabled': request.form.get('announcement_enabled') == 'on',
-            'announcement_text': (request.form.get('announcement_text') or '').strip(),
-            'home_title': (request.form.get('home_title') or '').strip(),
-            'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
-            'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Generate a Worksheet',
-            'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
-        }
-        try:
-            db.collection('config').document('content').set(payload, merge=True)
-            flash('Content saved', 'success')
-        except Exception as e:
-            traceback.print_exc()
-            flash(f'Error saving: {e}', 'error')
-        return redirect(url_for('admin_content'))
+        action = request.form.get('action') or 'save'
+        if action == 'apply_preset':
+            name = (request.form.get('preset_name') or '').strip()
+            if not name:
+                flash('Select a preset to apply', 'warning')
+                return redirect(url_for('admin_content'))
+            try:
+                doc = db.collection('config').document('content').get()
+                conf = doc.to_dict() if doc.exists else {}
+                presets = (conf or {}).get('contentPresets') or {}
+                preset = presets.get(name)
+                if not preset:
+                    flash('Preset not found', 'error')
+                else:
+                    db.collection('config').document('content').set(preset, merge=True)
+                    flash(f'Applied preset: {name}', 'success')
+            except Exception as e:
+                traceback.print_exc()
+                flash(f'Error applying preset: {e}', 'error')
+            return redirect(url_for('admin_content'))
+        elif action == 'save_preset':
+            name = (request.form.get('new_preset_name') or '').strip()
+            if not name:
+                flash('Enter a name for the preset', 'warning')
+                return redirect(url_for('admin_content'))
+            try:
+                payload = {
+                    'announcement_enabled': request.form.get('announcement_enabled') == 'on',
+                    'announcement_text': (request.form.get('announcement_text') or '').strip(),
+                    'home_title': (request.form.get('home_title') or '').strip(),
+                    'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
+                    'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Generate a Worksheet',
+                    'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
+                    'browse_banner_enabled': request.form.get('browse_banner_enabled') == 'on',
+                    'browse_banner_text': (request.form.get('browse_banner_text') or '').strip(),
+                    'generate_banner_enabled': request.form.get('generate_banner_enabled') == 'on',
+                    'generate_banner_text': (request.form.get('generate_banner_text') or '').strip(),
+                    'plus_banner_enabled': request.form.get('plus_banner_enabled') == 'on',
+                    'plus_banner_text': (request.form.get('plus_banner_text') or '').strip(),
+                }
+                doc = db.collection('config').document('content').get()
+                conf = doc.to_dict() if doc.exists else {}
+                presets = (conf or {}).get('contentPresets') or {}
+                presets[name] = payload
+                db.collection('config').document('content').set({ 'contentPresets': presets }, merge=True)
+                flash(f'Saved preset: {name}', 'success')
+            except Exception as e:
+                traceback.print_exc()
+                flash(f'Error saving preset: {e}', 'error')
+            return redirect(url_for('admin_content'))
+        else:
+            payload = {
+                'announcement_enabled': request.form.get('announcement_enabled') == 'on',
+                'announcement_text': (request.form.get('announcement_text') or '').strip(),
+                'home_title': (request.form.get('home_title') or '').strip(),
+                'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
+                'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Generate a Worksheet',
+                'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
+                'browse_banner_enabled': request.form.get('browse_banner_enabled') == 'on',
+                'browse_banner_text': (request.form.get('browse_banner_text') or '').strip(),
+                'generate_banner_enabled': request.form.get('generate_banner_enabled') == 'on',
+                'generate_banner_text': (request.form.get('generate_banner_text') or '').strip(),
+                'plus_banner_enabled': request.form.get('plus_banner_enabled') == 'on',
+                'plus_banner_text': (request.form.get('plus_banner_text') or '').strip(),
+            }
+            try:
+                db.collection('config').document('content').set(payload, merge=True)
+                flash('Content saved', 'success')
+            except Exception as e:
+                traceback.print_exc()
+                flash(f'Error saving: {e}', 'error')
+            return redirect(url_for('admin_content'))
     return render_template('admin_content.html', data=data)
+
+@app.route('/admin/help')
+@admin_required
+def admin_help():
+    return render_template('admin_help.html')
+
+@app.route('/admin/theme/clone_activate', methods=['POST'])
+@admin_required
+def admin_theme_clone_activate():
+    if not db:
+        flash('Firestore not configured', 'error')
+        return redirect(url_for('admin_theme'))
+    src = (request.form.get('from') or '').strip()
+    if not src:
+        flash('Missing source theme', 'error')
+        return redirect(url_for('admin_theme'))
+    try:
+        vars = get_theme_vars(src)
+        if not vars:
+            flash('Unknown source theme', 'error')
+            return redirect(url_for('admin_theme'))
+        new_slug = f"{src}-copy-{int(datetime.now(timezone.utc).timestamp())}"
+        data = {
+            'primary': vars.get('primary'),
+            'primary_dark': vars.get('primary_dark'),
+            'background': vars.get('background'),
+            'box': vars.get('box'),
+            'text': vars.get('text'),
+            'text_secondary': vars.get('text_secondary'),
+            'snow': (vars.get('extras') or {}).get('snow', False),
+            'lights': (vars.get('extras') or {}).get('lights', False),
+            'leaves': (vars.get('extras') or {}).get('leaves', False),
+            'string_lights': (vars.get('extras') or {}).get('string_lights', False),
+            'snow_svg': (vars.get('extras') or {}).get('snow_svg', False),
+            'extra_css': (vars.get('extras') or {}).get('custom_css', ''),
+        }
+        db.collection('themes').document(new_slug).set(data)
+        db.collection('config').document('app').set({ 'theme': new_slug }, merge=True)
+        flash(f'Cloned and activated: {new_slug}', 'success')
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Clone failed: {e}', 'error')
+    return redirect(url_for('admin_theme'))
 
 @app.route('/admin/collections/<slug>/move', methods=['POST'])
 @admin_required

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="{{ favicon_url }}" />
 
     <!-- Friendly fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet"/>
@@ -36,6 +37,20 @@
       /* Festive lights along the header */
       .lights-bar { position: absolute; top:0; left:0; right:0; height:28px; background: repeating-linear-gradient(90deg, #fca5a5 0 16px, #fde68a 16px 32px, #86efac 32px 48px, #93c5fd 48px 64px); box-shadow: 0 2px 4px rgba(0,0,0,.08); }
       .main-header { position: relative; padding-top: 44px; }
+      {% endif %}
+      {% if theme.extras and theme.extras.string_lights %}
+      /* String lights (twinkle) */
+      .string-lights { position:absolute; top:0; left:0; right:0; height:36px; display:flex; justify-content:space-around; align-items:flex-start; pointer-events:none; }
+      .string-lights .bulb { width:10px; height:16px; border-radius:50% 50% 60% 60%; background:#fca5a5; box-shadow:0 0 8px rgba(255,255,255,.7); animation: twinkle 2.4s ease-in-out infinite; }
+      .string-lights .bulb:nth-child(2n){ background:#fde68a; animation-delay:.4s }
+      .string-lights .bulb:nth-child(3n){ background:#93c5fd; animation-delay:.8s }
+      .string-lights .bulb:nth-child(4n){ background:#86efac; animation-delay:1.2s }
+      @keyframes twinkle { 0%,100% { opacity:.7; filter:brightness(1); } 50% { opacity:1; filter:brightness(1.5); } }
+      .main-header { position: relative; padding-top: 52px; }
+      {% endif %}
+      {% if theme.extras and theme.extras.snow_svg %}
+      /* SVG snowflakes */
+      .snow-svg { position: fixed; pointer-events:none; left:0; top:0; width:100%; height:100%; z-index:1; overflow:hidden; }
       {% endif %}
       {% if theme.extras and theme.extras.leaves %}
       /* Falling leaves */
@@ -108,8 +123,43 @@
         {{ site_content.announcement_text }}
       </div>
     {% endif %}
+    {# Per-page banners #}
+    {% set path = request.path %}
+    {% if site_content %}
+      {% if path.startswith('/browse') and site_content.browse_banner_enabled and site_content.browse_banner_text %}
+        <div style="background: var(--box); color: var(--text); text-align:center; padding:6px 10px; border-bottom:1px solid #e5e7eb;">
+          {{ site_content.browse_banner_text }}
+        </div>
+      {% elif path.startswith('/generate') and site_content.generate_banner_enabled and site_content.generate_banner_text %}
+        <div style="background: var(--box); color: var(--text); text-align:center; padding:6px 10px; border-bottom:1px solid #e5e7eb;">
+          {{ site_content.generate_banner_text }}
+        </div>
+      {% elif path.startswith('/plus') and site_content.plus_banner_enabled and site_content.plus_banner_text %}
+        <div style="background: var(--box); color: var(--text); text-align:center; padding:6px 10px; border-bottom:1px solid #e5e7eb;">
+          {{ site_content.plus_banner_text }}
+        </div>
+      {% endif %}
+    {% endif %}
     {% if theme and theme.extras and theme.extras.snow %}<div class="snow"></div>{% endif %}
     {% if theme and theme.extras and theme.extras.lights %}<div class="lights-bar"></div>{% endif %}
+    {% if theme and theme.extras and theme.extras.string_lights %}
+      <div class="string-lights">
+        {% for i in range(24) %}<div class="bulb"></div>{% endfor %}
+      </div>
+    {% endif %}
+    {% if theme and theme.extras and theme.extras.snow_svg %}
+      <svg class="snow-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <circle id="flake" cx="0" cy="0" r="1" fill="white"/>
+        </defs>
+        {% for i in range(60) %}
+        <use href="#flake" x="{{ (i*7) % 100 }}" y="-2" opacity="{{ 0.4 + (i % 6)/10 }}">
+          <animate attributeName="y" values="-2;102" dur="{{ 6 + (i % 5) }}s" repeatCount="indefinite"/>
+          <animate attributeName="x" values="{{ (i*7) % 100 }}; {{ ((i*7)+6) % 100 }}" dur="{{ 4 + (i % 3) }}s" repeatCount="indefinite"/>
+        </use>
+        {% endfor %}
+      </svg>
+    {% endif %}
     {% if theme and theme.extras and theme.extras.leaves %}<div class="leaves" aria-hidden="true"></div>
     <script>
       (function(){

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Admin • Help & FAQs{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin Help & FAQs</h1>
+
+<h3>Getting Started</h3>
+<p class="muted">Short answers for common tasks your team might do.</p>
+
+<h4>Themes</h4>
+<ul>
+  <li><b>Switch theme:</b> Go to Admin → Theme, select from the dropdown, click Save.</li>
+  <li><b>Preview:</b> Click Preview to test without saving. Clear Preview to revert.</li>
+  <li><b>Live Preview:</b> Use Start Live Preview to persist across navigation; Stop Live Preview to clear.</li>
+  <li><b>Create theme:</b> Admin → Theme → “➕ New Theme”; pick colors, optional effects (snow, lights, leaves, etc.).</li>
+  <li><b>Clone theme:</b> From a theme card, click Clone, adjust, Save.</li>
+  <li><b>Clone & activate:</b> Use Clone, Save, then select in dropdown and Save.</li>
+  <li><b>Auto rules:</b> Add multiple date/time/weekday rules under “Multiple Rules”. Higher priority wins if overlap.</li>
+  <li><b>Per-theme logo:</b> On a theme card, upload a logo; it becomes active when that theme is selected.</li>
+</ul>
+
+<h4>Homepage Text & Banner</h4>
+<ul>
+  <li><b>Announcement banner:</b> Admin → Content. Toggle and set the banner text.</li>
+  <li><b>Homepage text:</b> In the same place, edit title, subtitle, and call‑to‑action.</li>
+</ul>
+
+<h4>Collections & Packs</h4>
+<ul>
+  <li><b>Create/edit:</b> Admin → Collections. Add verses, mark public, order, and description.</li>
+  <li><b>Build download ZIP:</b> Click “Rebuild ZIP”. Progress will update automatically.</li>
+  <li><b>Order:</b> Use Save Order or arrows to reorder the grid.</li>
+</ul>
+
+<h4>Subscriptions</h4>
+<ul>
+  <li><b>Plus page:</b> /plus shows Family/Classroom buttons.</li>
+  <li><b>Promo codes:</b> Enter codes directly on Stripe checkout. Ensure coupon/promotion exists in Stripe.</li>
+  <li><b>Billing portal:</b> If subscribed, “🧾 Billing” appears in the navbar (for account management).</li>
+</ul>
+
+<h4>Troubleshooting</h4>
+<ul>
+  <li><b>“No such price”:</b> In env, set STRIPE_PRICE_* to a Price ID (price_…) or a Product ID (prod_…) with a default price.</li>
+  <li><b>Webhooks not updating Pro:</b> Verify STRIPE_WEBHOOK_SECRET and events: checkout.session.completed, customer.subscription.deleted.</li>
+  <li><b>Thumbnails not loading:</b> First load may generate them on demand; refresh if needed.</li>
+</ul>
+
+<p class="muted">Questions? Email {{ support_email }}.</p>
+{% endblock %}

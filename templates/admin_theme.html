@@ -13,6 +13,11 @@
   <button class="button">Save</button>
   <button class="button ghost" type="button" id="previewBtn">Preview</button>
   <button class="button ghost" type="button" id="clearPreviewBtn">Clear Preview</button>
+  <button class="button ghost" type="button" id="startLivePreviewBtn">Start Live Preview</button>
+  <label class="small muted">for</label>
+  <input type="number" id="livePreviewMinutes" value="15" min="1" max="120" style="width:80px;"/>
+  <label class="small muted">minutes</label>
+  <button class="button ghost" type="button" id="stopLivePreviewBtn">Stop Live Preview</button>
 </form>
 
 <p style="margin-top:8px;"><a class="button ghost" href="{{ url_for('admin_theme_new') }}">➕ New Theme</a></p>
@@ -40,6 +45,10 @@
       <div style="margin-top:8px; display:flex; gap:8px;">
         <a class="button ghost" href="{{ url_for('admin_theme_edit', slug=key) }}">Edit</a>
         <a class="button ghost" href="{{ url_for('admin_theme_new') }}?from={{ key }}">Clone</a>
+        <form method="post" action="{{ url_for('admin_theme_clone_activate') }}" style="display:inline;">
+          <input type="hidden" name="from" value="{{ key }}"/>
+          <button class="button" style="background:#d1fae5; color:#065f46;">Clone & Activate</button>
+        </form>
         <form method="post" action="{{ url_for('admin_theme_delete', slug=key) }}" onsubmit="return confirm('Delete this theme?');">
           <button class="button" style="background:#fecaca; color:#111827;">Delete</button>
         </form>
@@ -49,6 +58,11 @@
       <input type="hidden" name="theme" value="{{ key }}"/>
       <input type="file" name="file" accept="image/*"/>
       <button class="button">Upload Logo for This Theme</button>
+    </form>
+    <form method="post" action="{{ url_for('admin_theme_favicon') }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+      <input type="hidden" name="theme" value="{{ key }}"/>
+      <input type="file" name="file" accept="image/x-icon,image/png,image/jpeg"/>
+      <button class="button ghost">Upload Favicon</button>
     </form>
   </div>
   {% endfor %}
@@ -69,6 +83,20 @@
   });
   document.getElementById('clearPreviewBtn').addEventListener('click', ()=>{
     if(previewTag){ previewTag.remove(); previewTag = null; }
+  });
+  // Session-based live preview
+  async function post(url, data){
+    await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data||{}) });
+  }
+  document.getElementById('startLivePreviewBtn').addEventListener('click', async ()=>{
+    const sel = document.getElementById('theme').value;
+    const ttl = parseInt(document.getElementById('livePreviewMinutes').value || '0', 10);
+    await post('{{ url_for('admin_theme_preview') }}', { theme: sel, ttlMinutes: ttl });
+    alert('Live preview enabled. Navigate around to see it.');
+  });
+  document.getElementById('stopLivePreviewBtn').addEventListener('click', async ()=>{
+    await post('{{ url_for('admin_theme_preview') }}', { clear: true });
+    alert('Live preview cleared.');
   });
   // Auto theme settings
   (function(){

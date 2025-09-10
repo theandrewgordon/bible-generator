@@ -3,7 +3,7 @@
 {% block content %}
 <h1 class="page-title">Admin: Site Content</h1>
 
-<form method="post" action="{{ url_for('admin_content') }}" style="display:grid; gap:12px; max-width:680px;">
+<form method="post" action="{{ url_for('admin_content') }}" style="display:grid; gap:12px; max-width:720px;">
   <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
     <legend class="small muted">Announcement Banner</legend>
     <label><input type="checkbox" name="announcement_enabled" {% if data.announcement_enabled %}checked{% endif %}/> Enabled</label>
@@ -30,8 +30,43 @@
     </div>
   </fieldset>
 
+  <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+    <legend class="small muted">Per-Page Banners</legend>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div>
+        <label><input type="checkbox" name="browse_banner_enabled" {% if data.browse_banner_enabled %}checked{% endif %}/> Browse Banner</label>
+        <input type="text" name="browse_banner_text" value="{{ data.browse_banner_text or '' }}" placeholder="Browse page banner text" />
+      </div>
+      <div>
+        <label><input type="checkbox" name="generate_banner_enabled" {% if data.generate_banner_enabled %}checked{% endif %}/> Generate Banner</label>
+        <input type="text" name="generate_banner_text" value="{{ data.generate_banner_text or '' }}" placeholder="Generate page banner text" />
+      </div>
+      <div>
+        <label><input type="checkbox" name="plus_banner_enabled" {% if data.plus_banner_enabled %}checked{% endif %}/> Plus Banner</label>
+        <input type="text" name="plus_banner_text" value="{{ data.plus_banner_text or '' }}" placeholder="Plus page banner text" />
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+    <legend class="small muted">Seasonal CTA Presets</legend>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <label>Presets
+        <select name="preset_name">
+          {% for name, preset in (data.contentPresets or {}).items() %}
+            <option value="{{ name }}">{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="button" name="action" value="apply_preset">Apply Preset</button>
+      <span class="small muted">Or save a new one from the current form values:</span>
+      <input type="text" name="new_preset_name" placeholder="Preset name (e.g., Advent)" />
+      <button class="button ghost" name="action" value="save_preset">Save Preset</button>
+    </div>
+  </fieldset>
+
   <div style="display:flex; gap:10px; align-items:center;">
-    <button class="button">Save</button>
+    <button class="button" name="action" value="save">Save</button>
     <a class="button ghost" href="/">View Home</a>
   </div>
 </form>
