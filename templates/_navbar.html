@@ -3,7 +3,8 @@
     <a href="/" class="logo">
       <img src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}" alt="Faith Sparks Logo"/>
     </a>
-    <nav class="nav-links" aria-label="Main">
+    <button class="menu-toggle" id="menuToggle" aria-controls="mainNav" aria-expanded="false">☰</button>
+    <nav id="mainNav" class="nav-links" aria-label="Main">
       <a href="/">🏠 Home</a>
       <a href="/generate">📝 Generate</a>
       <a href="/browse">🔎 Browse</a>
@@ -17,14 +18,12 @@
 
   <div class="auth-theme">
     {% if session.user_info %}
-    <span class="user-name"
-      >👤 {{ session.user_info.email.split('@')[0] }}</span
-    >
+    <span class="user-name">👤 {{ session.user_info.email.split('@')[0] }}</span>
     <a href="/logout" class="auth-link logout">🚪 Logout</a>
     {% else %}
     <a href="{{ url_for('google.login') }}" class="auth-link">🔐 Login</a>
     {% endif %}
-    <button class="theme-toggle" onclick="toggleDarkMode()">🌙</button>
+    <button class="theme-toggle" onclick="toggleDarkMode()" aria-label="Toggle dark mode">🌙</button>
   </div>
 
 </header>
