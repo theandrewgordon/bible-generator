@@ -45,10 +45,25 @@
         <div class="collection-title"><a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a></div>
         <div class="collection-count">{{ c.count }} verses</div>
         {% if c.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
+        {% set purchased = purchases.get(c.slug) if purchases else None %}
+        {% if c.isSubscriberOnly and not is_pro and not purchased %}
+          <div class="collection-badge pill">Included with Plus</div>
+        {% endif %}
+        {% if purchased %}
+          <div class="collection-badge pill alt">Purchased</div>
+        {% endif %}
         {% if c.zipUrl %}
           <div class="collection-actions">
             {% if is_signed_in or c.isFree %}
-              <a class="button ghost small" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
+              {% set purchased = purchases.get(c.slug) if purchases else None %}
+              {% if c.isSubscriberOnly and not is_pro and not purchased %}
+                {% if c.priceId %}
+                  <a class="button ghost small" href="{{ url_for('buy_pack', slug=c.slug) }}">💳 Buy $2.50</a>
+                {% endif %}
+                <a class="button small" href="{{ url_for('plus_pricing') }}">⭐ Included with Plus</a>
+              {% else %}
+                <a class="button ghost small" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
+              {% endif %}
             {% else %}
               <a class="button ghost small" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
             {% endif %}

@@ -134,6 +134,18 @@ def _get_user_plan(email: str) -> str:
         u = db.collection('users').document(email).get()
         if u.exists:
             d = u.to_dict() or {}
+            # gift expiration handling
+            exp = d.get('giftExpiresAt')
+            try:
+                if exp and hasattr(exp, 'timestamp'):
+                    # Firestore timestamp
+                    if datetime.now(timezone.utc) > exp:
+                        # expire gift
+                        db.collection('users').document(email).set({ 'plan': 'free', 'isPro': False, 'giftExpiresAt': None }, merge=True)
+                        d['plan'] = 'free'
+                        d['isPro'] = False
+            except Exception:
+                pass
             plan = d.get('plan')
             if plan:
                 return plan
@@ -465,6 +477,8 @@ def get_collections():
                     'zipUrl': data.get('zipUrl'),
                     'description': data.get('description',''),
                     'isFree': data.get('isFree', False),
+                    'isSubscriberOnly': data.get('isSubscriberOnly', False),
+                    'priceId': data.get('priceId'),
                     'prewarm': pr,
                     'lastBuilt': _fmt_dt(pr.get('finishedAt')) if isinstance(pr, dict) else None,
                     'order': int(data.get('order') or 9999),
@@ -484,6 +498,8 @@ def get_collections():
             'zipUrl': None,
             'description': '',
             'isFree': False,
+            'isSubscriberOnly': False,
+            'priceId': None,
             'prewarm': None,
             'lastBuilt': None,
             'order': 9999,
@@ -504,6 +520,8 @@ def get_collection_meta(slug: str):
                     'defaultVersion': data.get('defaultVersion'),
                     'zipUrl': data.get('zipUrl'),
                     'description': data.get('description',''),
+                    'isSubscriberOnly': data.get('isSubscriberOnly', False),
+                    'priceId': data.get('priceId'),
                     'prewarm': data.get('prewarm'),
                     'isFree': data.get('isFree', False),
                 }
@@ -513,7 +531,7 @@ def get_collection_meta(slug: str):
     verses = (COLLECTIONS or {}).get(slug)
     if verses is None:
         return None
-    return {'slug': slug, 'title': slug.replace('-', ' ').title(), 'verses': verses, 'defaultVersion': None, 'zipUrl': None, 'description': '', 'prewarm': None, 'isFree': False}
+    return {'slug': slug, 'title': slug.replace('-', ' ').title(), 'verses': verses, 'defaultVersion': None, 'zipUrl': None, 'description': '', 'prewarm': None, 'isFree': False, 'isSubscriberOnly': False, 'priceId': None}
 
 def get_collection_verses(slug: str):
     meta = get_collection_meta(slug)
@@ -1095,6 +1113,17 @@ def inject_admin_flag():
                     usage_nav = { 'text': '∞', 'title': 'Unlimited this month' }
             except Exception:
                 usage_nav = None
+        def stripe_price_url(pid: str|None):
+            if not pid:
+                return '#'
+            key = os.getenv('STRIPE_SECRET_KEY','')
+            base = 'https://dashboard.stripe.com/prices/'
+            try:
+                if 'sk_test' in key:
+                    base = 'https://dashboard.stripe.com/test/prices/'
+            except Exception:
+                pass
+            return base + str(pid)
         return {
             'is_admin': is_admin_email(email),
             'is_signed_in': bool(email),
@@ -1107,6 +1136,7 @@ def inject_admin_flag():
             'favicon_url': favicon_url,
             'site_content': site_content,
             'usage_nav': usage_nav,
+            'stripe_price_url': stripe_price_url,
         }
     except Exception:
         return {
@@ -1277,6 +1307,7 @@ def stripe_webhook():
             subscription_id = obj.get('subscription')
             customer_id = obj.get('customer')
             price_id = (obj.get('metadata') or {}).get('plan_price_id')
+            pack_slug = (obj.get('metadata') or {}).get('pack_slug')
             # Retrieve subscription to capture price if needed
             try:
                 if subscription_id and STRIPE_SECRET_KEY:
@@ -1285,16 +1316,23 @@ def stripe_webhook():
                         price_id = sub['items']['data'][0]['price']['id']
             except Exception:
                 pass
-            plan = 'family' if price_id == STRIPE_PRICE_FAMILY else 'classroom' if price_id == STRIPE_PRICE_CLASSROOM else 'plus'
             if db and email:
-                db.collection('users').document(email).set({
-                    'isPro': True,
-                    'plan': plan,
-                    'stripeCustomerId': customer_id,
-                    'subscriptionId': subscription_id,
-                    'priceId': price_id,
-                    'updatedAt': firestore.SERVER_TIMESTAMP,
-                }, merge=True)
+                if subscription_id:
+                    plan = 'family' if price_id == STRIPE_PRICE_FAMILY else 'classroom' if price_id == STRIPE_PRICE_CLASSROOM else 'plus'
+                    db.collection('users').document(email).set({
+                        'isPro': True,
+                        'plan': plan,
+                        'stripeCustomerId': customer_id,
+                        'subscriptionId': subscription_id,
+                        'priceId': price_id,
+                        'updatedAt': firestore.SERVER_TIMESTAMP,
+                    }, merge=True)
+                elif pack_slug:
+                    # one-time pack purchase
+                    db.collection('users').document(email).set({
+                        'purchases': { pack_slug: True },
+                        'updatedAt': firestore.SERVER_TIMESTAMP,
+                    }, merge=True)
         elif et == 'customer.subscription.deleted':
             sub = obj
             customer_id = sub.get('customer')
@@ -1368,6 +1406,43 @@ def admin_analytics():
             print(f"⚠️ analytics weekly verses error: {e}")
     return render_template('admin_analytics.html', top_packs=top_packs, top_packs_week=top_packs_week, top_verses=top_verses, top_verses_week=top_verses_week)
 
+# ----- Admin: Gift Plan -----
+@app.route('/admin/gift', methods=['GET','POST'])
+@admin_required
+def admin_gift():
+    if request.method == 'POST':
+        if not db:
+            return 'Firestore not configured', 500
+        email = (request.form.get('email') or '').strip().lower()
+        plan = (request.form.get('plan') or 'family').strip().lower()
+        expires = (request.form.get('expires') or '').strip()
+        if not email:
+            flash('Email is required', 'error')
+            return redirect(url_for('admin_gift'))
+        data = {
+            'plan': plan,
+            'isPro': plan in ('family','classroom','plus','plus_family','plus_classroom'),
+            'gifted': True,
+            'updatedAt': firestore.SERVER_TIMESTAMP,
+        }
+        # Parse YYYY-MM-DD
+        if expires:
+            try:
+                y,m,d = [int(x) for x in expires.split('-')]
+                # Store as naive UTC date end-of-day
+                dt = datetime(y,m,d,23,59,59,tzinfo=timezone.utc)
+                data['giftExpiresAt'] = dt
+            except Exception:
+                flash('Could not parse expiration date; ignoring.', 'warning')
+        try:
+            db.collection('users').document(email).set(data, merge=True)
+            flash('Gift plan saved', 'success')
+        except Exception as e:
+            traceback.print_exc()
+            flash(f'Gift save failed: {e}', 'error')
+        return redirect(url_for('admin_gift'))
+    return render_template('admin_gift.html')
+
 # ----- Admin: Collections CRUD -----
 @app.route('/admin/collections')
 @admin_required
@@ -1375,7 +1450,12 @@ def admin_collections():
     if not db:
         return "Firestore not configured", 500
     cols = get_collections()
-    return render_template('admin_collections.html', collections=cols)
+    filt = (request.args.get('visibility') or 'all').lower()
+    if filt == 'public':
+        cols = [c for c in cols if c.get('isPublic', True)]
+    elif filt == 'private':
+        cols = [c for c in cols if not c.get('isPublic', True)]
+    return render_template('admin_collections.html', collections=cols, visibility=filt)
 
 @app.route('/admin/collections/new', methods=['GET','POST'])
 @admin_required
@@ -1392,6 +1472,8 @@ def admin_collections_new():
         order_val = int(order) if order and order.isdigit() else None
         zip_url = (request.form.get('zipUrl') or '').strip() or None
         description = (request.form.get('description') or '').strip()
+        is_sub_only = request.form.get('isSubscriberOnly') == 'on'
+        price_id = (request.form.get('priceId') or '').strip() or None
         verses_raw = request.form.get('verses') or ''
         parts = re.split(r'[\n,]+', verses_raw)
         verses = [p.strip() for p in parts if p.strip()]
@@ -1404,6 +1486,8 @@ def admin_collections_new():
             'isPublic': is_public,
             'isFree': is_free,
             'description': description,
+            'isSubscriberOnly': is_sub_only,
+            'priceId': price_id,
         }
         data['defaultVersion'] = default_version or 'esv'
         if order_val is not None: data['order'] = order_val
@@ -1426,6 +1510,8 @@ def admin_collections_edit(slug):
         title = (request.form.get('title') or '').strip() or current.get('title')
         is_public = request.form.get('isPublic') == 'on'
         is_free = request.form.get('isFree') == 'on'
+        is_sub_only = request.form.get('isSubscriberOnly') == 'on'
+        price_id = (request.form.get('priceId') or '').strip() or None
         default_version = (request.form.get('defaultVersion') or '').strip().lower() or None
         order = request.form.get('order')
         order_val = int(order) if order and order.isdigit() else None
@@ -1443,6 +1529,8 @@ def admin_collections_edit(slug):
             'isFree': is_free,
             'description': description,
         }
+        data['isSubscriberOnly'] = is_sub_only
+        if price_id: data['priceId'] = price_id
         if default_version: data['defaultVersion'] = default_version
         else: data['defaultVersion'] = 'esv'
         if order_val is not None: data['order'] = order_val
@@ -1458,6 +1546,8 @@ def admin_collections_edit(slug):
         'title': current.get('title',''),
         'isPublic': current.get('isPublic', True),
         'isFree': current.get('isFree', False),
+        'isSubscriberOnly': current.get('isSubscriberOnly', False),
+        'priceId': current.get('priceId',''),
         'defaultVersion': current.get('defaultVersion',''),
         'order': current.get('order',''),
         'zipUrl': current.get('zipUrl',''),
@@ -2220,6 +2310,29 @@ def dl_pack(slug):
     if not is_free and not google.authorized:
         flash('Please sign in to download packs.', 'warning')
         return redirect(url_for('google.login', next=request.url))
+    # Subscriber-only gating
+    if meta.get('isSubscriberOnly') and not is_free:
+        allowed = False
+        if google.authorized:
+            email = session.get('user_email')
+            # purchased or plus
+            try:
+                u = db.collection('users').document(email).get()
+                if u.exists:
+                    ud = u.to_dict() or {}
+                    if ud.get('isPro') or (ud.get('plan') in ('family','classroom','plus','plus_family','plus_classroom')):
+                        allowed = True
+                    purchases = ud.get('purchases') or {}
+                    if purchases.get(slug):
+                        allowed = True
+            except Exception:
+                pass
+        if not allowed:
+            if meta.get('priceId'):
+                flash('This pack is included with Plus, or buy it a la carte.', 'info')
+                return redirect(url_for('browse_detail', slug=slug))
+            flash('This pack is included with Plus.', 'info')
+            return redirect(url_for('plus_pricing'))
     # Increment analytics counter
     try:
         # All-time counter
@@ -2237,6 +2350,42 @@ def dl_pack(slug):
     if os.path.exists(path):
         return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
     return "Pack not available", 404
+
+@app.route('/buy/pack/<slug>')
+@login_required
+def buy_pack(slug):
+    if not stripe or not STRIPE_SECRET_KEY:
+        return 'Stripe not configured', 500
+    if not db:
+        return 'Firestore not configured', 500
+    d = db.collection('collections').document(slug).get()
+    if not d.exists:
+        return 'Not found', 404
+    meta = d.to_dict() or {}
+    price_id = meta.get('priceId')
+    if not price_id:
+        flash('This pack is not available for one-time purchase.', 'warning')
+        return redirect(url_for('browse_detail', slug=slug))
+    email = session.get('user_email')
+    try:
+        chk = stripe.checkout.Session.create(
+            mode='payment',
+            customer_email=email,
+            line_items=[{'price': price_id, 'quantity': 1}],
+            success_url=url_for('buy_success', slug=slug, _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('browse_detail', slug=slug, _external=True),
+            metadata={'email': email, 'pack_slug': slug},
+        )
+        return redirect(chk.url, code=303)
+    except Exception as e:
+        traceback.print_exc()
+        return f'Stripe error: {e}', 500
+
+@app.route('/buy/success/<slug>')
+@login_required
+def buy_success(slug):
+    flash('Purchase successful. You can now download this pack.', 'success')
+    return redirect(url_for('browse_detail', slug=slug))
 
 @app.route('/toggle_favorite/<filename>', methods=['POST'])
 @login_required
@@ -2272,7 +2421,7 @@ def browse():
     # Sort by explicit order then title
     col_items.sort(key=lambda c: (int(c.get('order') or 9999), c.get('title','')))
     # enrich with counts
-    collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl'), 'isFree': c.get('isFree') } for c in col_items ]
+    collections = [ { 'slug': c['slug'], 'title': c['title'], 'count': len(c['verses']), 'zipUrl': c.get('zipUrl'), 'isFree': c.get('isFree'), 'isSubscriberOnly': c.get('isSubscriberOnly'), 'priceId': c.get('priceId') } for c in col_items ]
     # Top packs by download count (all-time)
     top_packs = []
     # Top packs this week (sum of last 7 daily docs)
@@ -2311,7 +2460,15 @@ def browse():
                     top_packs_week.append({ 'slug': slug, 'title': meta['title'], 'downloads': cnt, 'zipUrl': meta.get('zipUrl'), 'isFree': meta.get('isFree') })
         except Exception as e:
             print(f"⚠️ Could not compute weekly top packs: {e}")
-    return render_template('browse.html', items=items, collections=collections, top_packs=top_packs, top_packs_week=top_packs_week)
+    purchases = {}
+    if db and google.authorized:
+        try:
+            u = db.collection('users').document(session.get('user_email')).get()
+            if u.exists:
+                purchases = (u.to_dict() or {}).get('purchases') or {}
+        except Exception:
+            purchases = {}
+    return render_template('browse.html', items=items, collections=collections, top_packs=top_packs, top_packs_week=top_packs_week, purchases=purchases)
 
 @app.route('/browse/<slug>')
 def browse_detail(slug):
@@ -2320,7 +2477,15 @@ def browse_detail(slug):
     meta = get_collection_meta(slug)
     if not meta:
         return "Not found", 404
-    return render_template('browse_detail.html', c=meta)
+    purchases = {}
+    if db and google.authorized:
+        try:
+            u = db.collection('users').document(session.get('user_email')).get()
+            if u.exists:
+                purchases = (u.to_dict() or {}).get('purchases') or {}
+        except Exception:
+            purchases = {}
+    return render_template('browse_detail.html', c=meta, purchases=purchases)
 
 
 @app.route("/regenerate/<filename>")

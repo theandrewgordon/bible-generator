@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Admin • Gift Plan{% endblock %}
+{% block content %}
+<h1 class="page-title">Admin: Gift Plan</h1>
+
+<form method="post" action="{{ url_for('admin_gift') }}" style="max-width:520px; display:grid; gap:10px;">
+  <label>Email
+    <input class="wide-input" type="email" name="email" placeholder="user@example.com" required />
+  </label>
+  <label>Plan
+    <select name="plan">
+      <option value="family">Plus Family</option>
+      <option value="classroom">Plus Classroom</option>
+      <option value="free">Free</option>
+    </select>
+  </label>
+  <label>Expires (optional)
+    <input type="date" name="expires" />
+  </label>
+  <div class="small muted">If an expiration date is set, the user will automatically revert to Free after that date.</div>
+  <div class="actions">
+    <button class="button">Save Gift</button>
+    <a class="button ghost" href="{{ url_for('admin_collections') }}">Back</a>
+  </div>
+</form>
+{% endblock %}

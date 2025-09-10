@@ -31,6 +31,20 @@
   </div>
   <br>
 
+  <div class="checkbox-row">
+    <input type="checkbox" name="isSubscriberOnly" {% if data.get('isSubscriberOnly', False) %}checked{% endif %}>
+    <label>Subscriber only (included with Plus)</label>
+  </div>
+  <small class="muted">If enabled and user is not Plus, they’ll see an upgrade/buy option instead of download.</small>
+  <br>
+
+  <label>One‑time Price ID (optional)</label><br>
+  <input class="wide-input" name="priceId" value="{{ data.get('priceId','') }}" placeholder="price_... for $2.50 collection">
+  {% if data.get('priceId') %}
+    <p class="small muted" style="margin:6px 0;">Stripe: <a href="{{ stripe_price_url(data.get('priceId')) }}" target="_blank">Open price</a></p>
+  {% endif %}
+  <br>
+
   <label>Default Version (optional)</label><br>
   <input class="wide-input" name="defaultVersion" value="{{ data.get('defaultVersion','') }}" placeholder="esv / nasb / niv"><br><br>
 

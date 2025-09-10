@@ -3,7 +3,13 @@
 {% block content %}
 <h1 class="page-title">Admin: Collections</h1>
 
-<p><a class="button" href="{{ url_for('admin_collections_new') }}">➕ New Collection</a></p>
+<p>
+  <a class="button" href="{{ url_for('admin_collections_new') }}">➕ New Collection</a>
+  <span class="small muted" style="margin-left:10px;">Filter:</span>
+  <a class="button ghost" href="{{ url_for('admin_collections', visibility='all') }}" {% if visibility=='all' %}style="background:#e0e7ff;"{% endif %}>All</a>
+  <a class="button ghost" href="{{ url_for('admin_collections', visibility='public') }}" {% if visibility=='public' %}style="background:#e0e7ff;"{% endif %}>Public</a>
+  <a class="button ghost" href="{{ url_for('admin_collections', visibility='private') }}" {% if visibility=='private' %}style="background:#e0e7ff;"{% endif %}>Private</a>
+</p>
 
 <table style="width:100%; border-collapse: collapse;">
   <thead>
@@ -14,6 +20,8 @@
       <th style="text-align:left; padding:6px;">Verses</th>
       <th style="text-align:left; padding:6px;">Public</th>
       <th style="text-align:left; padding:6px;">Free</th>
+      <th style="text-align:left; padding:6px;">Subscriber</th>
+      <th style="text-align:left; padding:6px;">Price</th>
       <th style="text-align:left; padding:6px;">Build</th>
       <th style="text-align:left; padding:6px;">Last built</th>
       <th style="text-align:left; padding:6px;">Actions</th>
@@ -38,6 +46,13 @@
       <td style="padding:6px;">{{ c.verses|length }}</td>
       <td style="padding:6px;">{{ 'Yes' if c.get('isPublic', True) else 'No' }}</td>
       <td style="padding:6px;">{{ 'Yes' if c.get('isFree', False) else 'No' }}</td>
+      <td style="padding:6px;">{{ 'Yes' if c.get('isSubscriberOnly', False) else 'No' }}</td>
+      <td style="padding:6px;">
+        {{ c.get('priceId','') }}
+        {% if c.get('priceId') %}
+          <a class="button ghost" href="{{ stripe_price_url(c.get('priceId')) }}" target="_blank" title="Open in Stripe">Open</a>
+        {% endif %}
+      </td>
       <td style="padding:6px;">
         {% set s = c.get('prewarm', {}).get('status') %}
         <span class="prewarm" data-status="{{ s or '' }}">
