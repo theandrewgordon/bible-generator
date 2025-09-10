@@ -3,7 +3,7 @@
 
 {% block content %}
 <h1 class="page-title">📚 Worksheet History</h1>
-<p class="muted small">Logged in as: <strong>{{ email }}</strong></p>
+<p class="muted small page-sub">Logged in as: <strong>{{ email }}</strong></p>
 
 <div class="toolbar">
   <input
@@ -226,5 +226,11 @@
 
 <style>
   .page-title { margin-bottom: .25rem; }
+  @media (max-width: 820px) {
+    .page-title { font-size: 1.55rem; line-height: 1.1; }
+    .page-sub { margin-top: 0; line-height: 1.2; }
+    /* Make history actions a horizontal row under the title */
+    #cards .actions { flex-direction: row; }
+  }
 </style>
 {% endblock %}

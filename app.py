@@ -118,6 +118,85 @@ if STRIPE_SECRET_KEY and stripe:
     except Exception as _e:
         print(f"⚠️ Could not init Stripe: {_e}")
 
+# --- Quotas ---
+FREE_LIFETIME_QUOTA = int(os.getenv('FREE_LIFETIME_QUOTA', '10'))
+FREE_MONTHLY_QUOTA = int(os.getenv('FREE_MONTHLY_QUOTA', '1'))
+FAMILY_MONTHLY_QUOTA = int(os.getenv('FAMILY_MONTHLY_QUOTA', '15'))
+CLASSROOM_MONTHLY_QUOTA = int(os.getenv('CLASSROOM_MONTHLY_QUOTA', '100'))
+
+def _month_key():
+    return datetime.now(timezone.utc).strftime('%Y-%m')
+
+def _get_user_plan(email: str) -> str:
+    if not db or not email:
+        return 'free'
+    try:
+        u = db.collection('users').document(email).get()
+        if u.exists:
+            d = u.to_dict() or {}
+            plan = d.get('plan')
+            if plan:
+                return plan
+            if d.get('isPro'):
+                return 'family'
+    except Exception:
+        pass
+    return 'free'
+
+def _get_usage(email: str) -> tuple[int,int]:
+    if not db or not email:
+        return (0,0)
+    try:
+        u = db.collection('users').document(email).get()
+        if u.exists:
+            d = u.to_dict() or {}
+            usage = d.get('usage') or {}
+            lifetime = int(usage.get('lifetime') or 0)
+            months = usage.get('months') or {}
+            mk = _month_key()
+            monthly = int(months.get(mk) or 0)
+            return (lifetime, monthly)
+    except Exception:
+        pass
+    return (0,0)
+
+def _quota_for_plan(plan: str) -> tuple[int|None,int|None]:
+    plan = (plan or 'free').lower()
+    if plan in ('classroom','school','plus_classroom'):
+        return (CLASSROOM_MONTHLY_QUOTA, None)
+    if plan in ('family','plus','plus_family'):
+        return (FAMILY_MONTHLY_QUOTA, None)
+    return (FREE_MONTHLY_QUOTA, FREE_LIFETIME_QUOTA)
+
+def _update_usage(email: str, add: int):
+    if not db or not email or add <= 0:
+        return
+    try:
+        u = db.collection('users').document(email).get()
+        existing = u.to_dict() if u.exists else {}
+        usage = existing.get('usage') or {}
+        lifetime = int(usage.get('lifetime') or 0) + add
+        months = usage.get('months') or {}
+        mk = _month_key()
+        monthly = int(months.get(mk) or 0) + add
+        db.collection('users').document(email).set({ 'usage': { 'lifetime': lifetime, 'months': { mk: monthly } } }, merge=True)
+    except Exception:
+        pass
+
+def _get_free_slugs() -> set[str]:
+    """Return set of collection slugs that shouldn't count toward quota."""
+    if not db:
+        return set()
+    try:
+        doc = db.collection('config').document('app').get()
+        if doc.exists:
+            data = doc.to_dict() or {}
+            slugs = data.get('freeSlugs') or []
+            return set([str(s).strip().lower() for s in slugs if str(s).strip()])
+    except Exception:
+        pass
+    return set()
+
 # --- Helpers ---
 def login_required(func):
     from functools import wraps
@@ -516,7 +595,32 @@ def generate():
                     default_version_override = meta.get('defaultVersion')
                     # if coming from collection, do not clear immediately
                     clear_storage = False
-            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage, default_version_override=default_version_override, collection_slug=col)
+            # Usage/plan info for banner
+            email = session.get('user_email')
+            plan = _get_user_plan(email)
+            m_limit, l_limit = _quota_for_plan(plan)
+            used_life, used_m = _get_usage(email)
+            # Remaining computations
+            def r(limit, used):
+                return None if limit is None else max(0, int(limit) - int(used))
+            remain_m = r(m_limit, used_m)
+            # percent used for monthly (for upgrade banner)
+            pct = 0
+            try:
+                if m_limit is not None and int(m_limit) > 0:
+                    pct = int(round((used_m / float(m_limit)) * 100))
+            except Exception:
+                pct = 0
+            usage_info = {
+                'plan': plan,
+                'monthly_used': int(used_m),
+                'monthly_limit': m_limit,
+                'lifetime_used': int(used_life),
+                'lifetime_limit': l_limit,
+                'monthly_remaining': remain_m,
+                'monthly_pct_used': pct,
+            }
+            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage, default_version_override=default_version_override, collection_slug=col, usage_info=usage_info)
 
         verse_input = request.form.get("verse", "").strip()
         from_collection = (request.form.get('collection_slug') or '').strip() or None
@@ -557,8 +661,44 @@ def generate():
                 "text": custom_text
             })
 
-        last_pdf = None
+        # --- Quota check ---
+        generated_target = 0
+        if tag_list:
+            generated_target += len(tag_list)
+        if is_custom:
+            generated_target += 1
 
+        user_plan = _get_user_plan(user_email)
+        monthly_limit, lifetime_limit = _quota_for_plan(user_plan)
+        used_lifetime, used_monthly = _get_usage(user_email)
+
+        def _remaining(limit, used):
+            return 10**9 if limit is None else max(0, int(limit) - int(used))
+        remain_month = _remaining(monthly_limit, used_monthly)
+        remain_life = _remaining(lifetime_limit, used_lifetime)
+        allowed = min(remain_month, remain_life)
+        if allowed <= 0:
+            flash("You’ve reached your monthly limit. Consider Plus for more.", "warning")
+            return redirect(url_for("browse"))
+        if generated_target > allowed:
+            flash(f"Your plan allows {allowed} more this month; generating the first {allowed}.", "warning")
+            # Trim inputs accordingly
+            keep = allowed
+            trimmed_tag_list = tag_list[:min(len(tag_list), keep)]
+            keep -= len(trimmed_tag_list)
+            tag_list = trimmed_tag_list
+            if is_custom and keep <= 0:
+                is_custom = False
+
+        last_pdf = None
+        free_skip_count = False
+        # If coming from a free collection, skip counting usage
+        if from_collection:
+            free_slugs = _get_free_slugs()
+            if from_collection.strip().lower() in free_slugs:
+                free_skip_count = True
+
+        success_count = 0
         for item in items_to_generate:
             # initial metadata from input
             input_slug = item["slug"]
@@ -669,6 +809,7 @@ def generate():
 
             # Track last generated path for redirect/download
             last_pdf = pdf_path
+            success_count += 1
 
         # analytics: collection generate count
         if db and from_collection:
@@ -678,6 +819,12 @@ def generate():
                 pass
 
         update_zip_bundle()
+        # Record usage increments (skip if free slug)
+        try:
+            if not free_skip_count:
+                _update_usage(user_email, success_count)
+        except Exception:
+            pass
         session["clear_storage"] = True
 
         if len(items_to_generate) == 1 and os.path.exists(last_pdf):
@@ -926,6 +1073,7 @@ def inject_admin_flag():
                     site_content = cdoc.to_dict() or {}
             except Exception:
                 pass
+        usage_nav = None
         if db and email:
             try:
                 u = db.collection('users').document(email).get()
@@ -933,6 +1081,20 @@ def inject_admin_flag():
                     is_pro = bool((u.to_dict() or {}).get('isPro'))
             except Exception:
                 pass
+            # usage chip
+            try:
+                plan = _get_user_plan(email)
+                m_lim, _ = _quota_for_plan(plan)
+                used_life, used_m = _get_usage(email)
+                if m_lim is not None:
+                    usage_nav = {
+                        'text': f"{used_m}/{m_lim}",
+                        'title': f"{used_m} of {m_lim} used this month",
+                    }
+                else:
+                    usage_nav = { 'text': '∞', 'title': 'Unlimited this month' }
+            except Exception:
+                usage_nav = None
         return {
             'is_admin': is_admin_email(email),
             'is_signed_in': bool(email),
@@ -944,6 +1106,7 @@ def inject_admin_flag():
             'logo_url': logo_url,
             'favicon_url': favicon_url,
             'site_content': site_content,
+            'usage_nav': usage_nav,
         }
     except Exception:
         return {
@@ -957,6 +1120,7 @@ def inject_admin_flag():
             'logo_url': url_for('static', filename='faith_sparks_logo.png'),
             'favicon_url': url_for('static', filename='favicon.ico'),
             'site_content': {},
+            'usage_nav': None,
         }
 
 # --- Plus / Checkout ---
@@ -1134,13 +1298,13 @@ def stripe_webhook():
         elif et == 'customer.subscription.deleted':
             sub = obj
             customer_id = sub.get('customer')
-            email = None
-            # best-effort lookup by email (if stored under users by email only)
-            # leaving as a no-op if we cannot infer email; admin can resolve
             if db and customer_id:
                 try:
-                    # if you later store mapping customer->email, update here
-                    pass
+                    # Find user by stripeCustomerId
+                    q = db.collection('users').where(filter=firestore.FieldFilter('stripeCustomerId','==', customer_id)).limit(1).stream()
+                    udoc = next(q, None)
+                    if udoc:
+                        udoc.reference.set({ 'plan': 'free', 'isPro': False, 'subscriptionId': None, 'updatedAt': firestore.SERVER_TIMESTAMP }, merge=True)
                 except Exception:
                     pass
         # You can handle other events as needed
@@ -1719,11 +1883,21 @@ def admin_theme_favicon():
 @admin_required
 def admin_content():
     data = {}
+    free_slugs = []
+    collections_list = []
     if db:
         try:
             doc = db.collection('config').document('content').get()
             if doc.exists:
                 data = doc.to_dict() or {}
+            adoc = db.collection('config').document('app').get()
+            if adoc.exists:
+                free_slugs = (adoc.to_dict() or {}).get('freeSlugs') or []
+            # Pull available collections for helper UI
+            try:
+                collections_list = get_collections()
+            except Exception:
+                collections_list = []
         except Exception:
             pass
     if request.method == 'POST':
@@ -1805,12 +1979,21 @@ def admin_content():
             }
             try:
                 db.collection('config').document('content').set(payload, merge=True)
+                # Also save free slugs configuration to config/app (from text + checkboxes)
+                all_slugs = []
+                free_raw = (request.form.get('free_slugs') or '').strip()
+                if free_raw:
+                    all_slugs.extend([s.strip().lower() for s in re.split(r'[\s,]+', free_raw) if s.strip()])
+                from_checks = request.form.getlist('free_slugs_checks') or []
+                all_slugs.extend([s.strip().lower() for s in from_checks if s.strip()])
+                if db:
+                    db.collection('config').document('app').set({ 'freeSlugs': sorted(list(set(all_slugs))) }, merge=True)
                 flash('Content saved', 'success')
             except Exception as e:
                 traceback.print_exc()
                 flash(f'Error saving: {e}', 'error')
             return redirect(url_for('admin_content'))
-    return render_template('admin_content.html', data=data)
+    return render_template('admin_content.html', data=data, free_slugs=free_slugs, collections_list=collections_list)
 
 @app.route('/admin/help')
 @admin_required

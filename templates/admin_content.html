@@ -93,6 +93,23 @@
     {% endif %}
   </fieldset>
 
+  <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+    <legend class="small muted">Free Collections</legend>
+    <p class="small muted">Enter collection slugs that should NOT count toward quota (comma‑separated). Example: <code>starter, psalms</code></p>
+    <input type="text" name="free_slugs" value="{{ (free_slugs|join(', ')) if free_slugs else '' }}" placeholder="starter, psalms" />
+    <div class="small muted">Saved to config/app.freeSlugs.</div>
+    {% if collections_list %}
+    <div style="margin-top:8px; display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:8px;">
+      {% for c in collections_list %}
+        <label style="display:flex; gap:6px; align-items:center; border:1px solid #e5e7eb; border-radius:10px; padding:6px 8px; background: var(--box);">
+          <input type="checkbox" name="free_slugs_checks" value="{{ c.slug }}" {% if c.slug in free_slugs %}checked{% endif %}/>
+          <span>{{ c.title }} <span class="small muted">({{ c.slug }})</span></span>
+        </label>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </fieldset>
+
   <div style="display:flex; gap:10px; align-items:center;">
     <button class="button" name="action" value="save">Save</button>
     <a class="button ghost" href="/">View Home</a>

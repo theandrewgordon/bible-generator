@@ -7,6 +7,7 @@
     <nav id="mainNav" class="nav-links" aria-label="Main">
       <a href="/">🏠 Home</a>
       <a href="/generate">📝 Generate</a>
+      {% if is_signed_in and usage_nav %}<span class="usage-chip" title="{{ usage_nav.title }}">{{ usage_nav.text }}</span>{% endif %}
       <a href="/browse">🔎 Browse</a>
       <a href="/history">📚 History</a>
       {% if not is_pro %}<a href="/plus">⭐ Plus</a>{% else %}<a href="/billing">🧾 Billing</a>{% endif %}

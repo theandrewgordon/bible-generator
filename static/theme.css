@@ -258,6 +258,8 @@ body.dark .cursive-badge {
 .logo img { height: 48px; }
 .nav-links { display: flex; gap: 16px; flex-wrap: wrap; }
 .nav-links a { color: white; text-decoration: none; font-weight: 600; }
+.usage-chip { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background: rgba(255,255,255,.15); color:#fff; font-weight:700; font-size:.85em; vertical-align: middle; }
+@media (max-width: 820px) { .usage-chip { background: rgba(255,255,255,.22); } }
 
 /* Mobile nav */
 .menu-toggle { display:none; background: transparent; border: 1px solid rgba(255,255,255,.6); color: #fff; border-radius:8px; padding:6px 10px; font-size:1.1em; }
@@ -282,6 +284,15 @@ body.dark .cursive-badge {
   .logo-nav { flex-direction: column; align-items: flex-start; gap: 12px; }
   .nav-links { flex-direction: column; gap: 8px; }
   .auth-theme { flex-direction: row; justify-content: space-between; width: 100%; gap: 8px; }
+}
+
+/* Home hero CTAs stack on small to medium widths */
+@media (max-width: 820px) {
+  .auth-theme .user-name { display: none; }
+  .grid-collections { grid-template-columns: 1fr; }
+  .container p > .button { width: 100%; margin-bottom: 8px; }
+  .container p > .button.ghost { width: 100%; }
+  .site-banner { font-size: .95em; }
 }
 
 /* Shared form utilities */
@@ -349,7 +360,8 @@ details > div {
 .content .thumb { width: 100%; max-width: 160px; border-radius: 8px; display: block; margin-bottom: 6px; background: #f1f5f9; }
 .empty { text-align: center; padding: 24px; border: 1px dashed #e5e7eb; border-radius: 14px; }
 .empty-emoji { font-size: 2.25rem; margin-bottom: .25rem; }
-@media (max-width: 640px) { .row-top { grid-template-columns: 30px 1fr; } .actions { grid-column: 2 / -1; margin-top: .35rem; } }
+@media (max-width: 640px) { .row-top { grid-template-columns: 30px 1fr; } .actions { grid-column: 2 / -1; margin-top: .35rem; flex-direction: row !important; } .icon { width:34px; height:34px; } }
+@media (max-width: 420px) { .icon { width:30px; height:30px; } }
 
 /* Extra small screens general tweaks */
 @media (max-width: 640px) {

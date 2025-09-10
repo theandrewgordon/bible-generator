@@ -76,6 +76,15 @@
 
   <p class="small muted" style="margin-top:10px;">You can enter promo codes during Stripe checkout.</p>
 
+  <section class="block" style="margin-top:16px;">
+    <h3>Your Plan Options</h3>
+    <ul class="plan-list">
+      <li><strong>Free:</strong> 10 lifetime generates, then 1 per month.</li>
+      <li><strong>Plus Family:</strong> 15 generates per month, plus occasional free collection giveaways.</li>
+      <li><strong>Plus Classroom:</strong> 100 generates per month, plus occasional free collection giveaways.</li>
+    </ul>
+  </section>
+
   <style>
     .plus-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-top:12px; }
     .plus-card { background: var(--box); border:1px solid #e5e7eb; border-radius:12px; padding:14px; }
@@ -83,5 +92,6 @@
     .plus-sub { color: var(--text-secondary); margin-bottom:8px; }
     .btnrow { display:flex; gap:8px; flex-wrap:wrap; }
     .save { color:#065f46; background:#d1fae5; border-radius:10px; padding:2px 6px; margin-left:6px; font-weight:700; }
+    .plan-list { margin: 8px 0 0 16px; }
   </style>
 {% endblock %}

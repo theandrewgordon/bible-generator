@@ -4,17 +4,20 @@
 {% if user_info %}
   <h1 class="page-title">Welcome, {{ user_info["email"].split("@")[0] }} 👋</h1>
   <p class="muted">Ready to create your next Bible worksheet?</p>
-  <p>
+  <div class="cta-row">
     <a class="button" href="/generate">✍️ Generate a Worksheet</a>
     <a class="button ghost" href="/history">📚 View History</a>
-  </p>
+  </div>
 {% else %}
   <h1 class="page-title">{{ (site_content.home_title or 'Welcome to Faith Sparks Printables') if site_content else 'Welcome to Faith Sparks Printables' }}</h1>
+  {% if site_content and site_content.activePreset %}
+    <p class="small muted">Preset active: {{ site_content.activePreset }}</p>
+  {% endif %}
   <p class="muted">{{ (site_content.home_subtitle or 'Sign in with Google to create and track your printable Bible worksheets.') if site_content else 'Sign in with Google to create and track your printable Bible worksheets.' }}</p>
-  <p>
+  <div class="cta-row">
     <a class="button" href="{{ site_content.home_cta_url or '/generate' }}">{{ site_content.home_cta_text or '✍️ Generate a Worksheet' }}</a>
     <a class="button ghost" href="{{ url_for('google.login') }}">🔐 Login with Google</a>
-  </p>
+  </div>
   {% if site_content and site_content.home_intro_html %}
     {% if site_content.home_intro_is_markdown %}
       <div>{{ site_content.home_intro_html|markdown|safe }}</div>
@@ -23,4 +26,11 @@
     {% endif %}
   {% endif %}
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+  .cta-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .cta-row .button { flex:1 1 260px; }
+</style>
 {% endblock %}
