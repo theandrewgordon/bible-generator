@@ -3,7 +3,7 @@
 {% block content %}
 <h1 class="page-title">Admin: Theme</h1>
 
-<form method="post" action="{{ url_for('admin_theme') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+<form method="post" action="{{ url_for('admin_theme') }}" class="toolbar">
   <label for="theme">Current:</label>
   <select id="theme" name="theme">
     {% for key, cfg in themes.items() %}
@@ -18,6 +18,7 @@
   <input type="number" id="livePreviewMinutes" value="15" min="1" max="120" style="width:80px;"/>
   <label class="small muted">minutes</label>
   <button class="button ghost" type="button" id="stopLivePreviewBtn">Stop Live Preview</button>
+  <span class="share"><label class="small">Share:</label> <input type="text" id="shareLink" readonly placeholder="Link appears after starting live preview"/></span>
 </form>
 
 <p style="margin-top:8px;"><a class="button ghost" href="{{ url_for('admin_theme_new') }}">➕ New Theme</a></p>
@@ -58,16 +59,18 @@
         </form>
       </div>
     {% endif %}
-    <form method="post" action="{{ url_for('admin_theme_logo') }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-      <input type="hidden" name="theme" value="{{ key }}"/>
-      <input type="file" name="file" accept="image/*"/>
-      <button class="button">Upload Logo for This Theme</button>
-    </form>
-    <form method="post" action="{{ url_for('admin_theme_favicon') }}" enctype="multipart/form-data" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-      <input type="hidden" name="theme" value="{{ key }}"/>
-      <input type="file" name="file" accept="image/x-icon,image/png,image/jpeg"/>
-      <button class="button ghost">Upload Favicon</button>
-    </form>
+    <div class="upload-row">
+      <form method="post" action="{{ url_for('admin_theme_logo') }}" enctype="multipart/form-data">
+        <input type="hidden" name="theme" value="{{ key }}"/>
+        <input type="file" name="file" accept="image/*"/>
+        <button class="button">Upload Logo</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_theme_favicon') }}" enctype="multipart/form-data">
+        <input type="hidden" name="theme" value="{{ key }}"/>
+        <input type="file" name="file" accept="image/x-icon,image/png,image/jpeg"/>
+        <button class="button ghost">Upload Favicon</button>
+      </form>
+    </div>
   </div>
   {% endfor %}
   {% if not themes %}<div class="muted">No themes configured.</div>{% endif %}
@@ -96,7 +99,12 @@
     const sel = document.getElementById('theme').value;
     const ttl = parseInt(document.getElementById('livePreviewMinutes').value || '0', 10);
     await post('{{ url_for('admin_theme_preview') }}', { theme: sel, ttlMinutes: ttl });
-    alert('Live preview enabled. Navigate around to see it.');
+    const shareUrl = new URL(window.location.href);
+    shareUrl.searchParams.set('theme', sel);
+    shareUrl.searchParams.set('pv', '1');
+    history.replaceState(null, '', shareUrl.toString());
+    const box = document.getElementById('shareLink');
+    if(box){ box.value = shareUrl.toString(); box.focus(); box.select(); }
   });
   document.getElementById('stopLivePreviewBtn').addEventListener('click', async ()=>{
     await post('{{ url_for('admin_theme_preview') }}', { clear: true });

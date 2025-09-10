@@ -66,7 +66,7 @@
         </label>
 
         <div class="content">
-          <img class="thumb" src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}" alt="" onerror="this.style.display='none'" />
+          <img class="thumb" loading="lazy" width="160" height="120" src="{{ url_for('thumb', filename=item.filename[:-4] + '.png', skip=1) }}" alt="" onerror="this.style.display='none'" />
           <div class="title">{{ item.verse }}</div>
 
           <div class="meta">

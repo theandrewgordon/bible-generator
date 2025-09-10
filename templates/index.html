@@ -15,5 +15,12 @@
     <a class="button" href="{{ site_content.home_cta_url or '/generate' }}">{{ site_content.home_cta_text or '✍️ Generate a Worksheet' }}</a>
     <a class="button ghost" href="{{ url_for('google.login') }}">🔐 Login with Google</a>
   </p>
+  {% if site_content and site_content.home_intro_html %}
+    {% if site_content.home_intro_is_markdown %}
+      <div>{{ site_content.home_intro_html|markdown|safe }}</div>
+    {% else %}
+      <div>{{ site_content.home_intro_html|safe }}</div>
+    {% endif %}
+  {% endif %}
 {% endif %}
 {% endblock %}

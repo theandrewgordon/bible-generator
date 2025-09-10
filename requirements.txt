@@ -27,3 +27,4 @@ flask-dance==7.0.0
 flask-session==0.5.0
 google-cloud-storage>=2.17.0
 stripe>=9.0.0
+markdown2>=2.4.12

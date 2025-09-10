@@ -28,9 +28,10 @@
         <input type="text" name="home_cta_url" value="{{ data.home_cta_url or '/generate' }}"/>
       </label>
     </div>
-    <label>Intro HTML (optional)
-      <textarea name="home_intro_html" rows="4" placeholder="Optional rich intro HTML" style="width:100%">{{ data.home_intro_html or '' }}</textarea>
+    <label>Intro HTML/Markdown (optional)
+      <textarea name="home_intro_html" rows="4" placeholder="Optional rich intro content" style="width:100%">{{ data.home_intro_html or '' }}</textarea>
     </label>
+    <label><input type="checkbox" name="home_intro_is_markdown" {% if data.home_intro_is_markdown %}checked{% endif %}/> Interpret as Markdown</label>
   </fieldset>
 
   <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
@@ -53,9 +54,10 @@
 
   <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
     <legend class="small muted">About Page</legend>
-    <label>About HTML
-      <textarea name="about_html" rows="10" placeholder="Rich HTML for About page" style="width:100%">{{ data.about_html or '' }}</textarea>
+    <label>About HTML/Markdown
+      <textarea name="about_html" rows="10" placeholder="Rich HTML or Markdown for About page" style="width:100%">{{ data.about_html or '' }}</textarea>
     </label>
+    <label><input type="checkbox" name="about_is_markdown" {% if data.about_is_markdown %}checked{% endif %}/> Interpret as Markdown</label>
     <div class="small muted">Tip: The footer already shows your support email; no need to repeat it here.</div>
   </fieldset>
   <fieldset style="border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
@@ -74,6 +76,21 @@
       <input type="text" name="new_preset_name" placeholder="Preset name (e.g., Advent)" />
       <button class="button ghost" name="action" value="save_preset">Save Preset</button>
     </div>
+    {% if data.contentPresets %}
+    <div style="margin-top:8px; display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:8px;">
+      {% for name, preset in data.contentPresets.items() %}
+      <form method="post" action="{{ url_for('admin_content') }}" style="border:1px solid #e5e7eb; border-radius:8px; padding:8px;">
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="hidden" name="preset_name" value="{{ name }}"/>
+          <input type="text" name="preset_new_name" value="{{ name }}" style="flex:1;" />
+          <button class="button ghost" name="action" value="rename_preset">Rename</button>
+          <button class="button" style="background:#fecaca; color:#111827;" name="action" value="delete_preset" onclick="return confirm('Delete preset {{ name }}?');">Delete</button>
+        </div>
+        <div class="small muted" style="margin-top:6px;">{{ (preset.home_title or '')[:60] }}{% if (preset.home_title or '')|length > 60 %}…{% endif %}</div>
+      </form>
+      {% endfor %}
+    </div>
+    {% endif %}
   </fieldset>
 
   <div style="display:flex; gap:10px; align-items:center;">

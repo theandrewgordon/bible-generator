@@ -3,7 +3,11 @@
 {% block content %}
   <h1 class="page-title">About Faith Sparks Printables</h1>
   {% if site_content and site_content.about_html %}
-    <div>{{ site_content.about_html|safe }}</div>
+    {% if site_content.about_is_markdown %}
+      <div>{{ site_content.about_html|markdown|safe }}</div>
+    {% else %}
+      <div>{{ site_content.about_html|safe }}</div>
+    {% endif %}
   {% else %}
     <p>
       Hi, I’m Andrew Gordon — a Christian husband, father of four, homeschool dad, and software

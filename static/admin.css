@@ -10,3 +10,19 @@
 .admin fieldset { margin-bottom: 10px; }
 .admin input[type="text"], .admin input[type="number"], .admin input[type="date"], .admin input[type="time"], .admin select, .admin textarea { border-radius: 8px; padding: 6px 8px; border: 1px solid #e5e7eb; }
 .admin .muted { font-size: .92em; }
+
+/* Toolbar at top of admin pages */
+.admin .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin: 6px 0 12px; }
+.admin .toolbar label.small { font-size:.9em; color: var(--text-secondary); }
+.admin .toolbar input[type="number"] { width: 80px; }
+.admin .toolbar .share { display:flex; gap:6px; align-items:center; }
+.admin .toolbar .share input { width: 320px; }
+
+/* Upload rows inside theme cards */
+.admin .upload-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+.admin .upload-row form { display:flex; gap:8px; align-items:center; }
+.admin input[type="file"] { font-size:.9em; }
+
+/* Details summary polish */
+details summary { cursor:pointer; list-style:none; }
+details summary::-webkit-details-marker { display:none; }

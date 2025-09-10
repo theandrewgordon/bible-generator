@@ -17,12 +17,28 @@ try:
     import stripe  # type: ignore
 except Exception:
     stripe = None
+try:
+    import markdown2  # type: ignore
+except Exception:
+    markdown2 = None
 
 # --- App Setup ---
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+
+# Jinja filter for Markdown
+def _md(text: str) -> str:
+    try:
+        if not text:
+            return ''
+        if markdown2:
+            return markdown2.markdown(text)
+        return text
+    except Exception:
+        return text
+app.jinja_env.filters['markdown'] = _md
 # Recommended cookie settings for HTTPS
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -294,6 +310,13 @@ def get_theme_selection():
         qname = (request.args.get('theme') or '').strip()
         if qname and (get_theme_vars(qname) is not None):
             name = qname
+            # If pv=1 query param present, persist session preview
+            if request.args.get('pv') in ('1','true','True','yes'):
+                session['preview_theme'] = qname
+                try:
+                    session['preview_theme_exp'] = int(datetime.now(timezone.utc).timestamp()) + 3600
+                except Exception:
+                    pass
     except Exception:
         pass
     vars = get_theme_vars(name) or THEMES['teal']
@@ -777,6 +800,7 @@ def download_file(filename):
 def thumb(filename):
     """Serve generated thumbnails from output/thumbs."""
     path = os.path.join('output', 'thumbs', filename)
+    no_gen = request.args.get('skip') in ('1','true','True','yes')
     if os.path.exists(path):
         # If storage is configured, redirect to cloud copy when available
         if storage_client and STORAGE_BUCKET:
@@ -794,7 +818,9 @@ def thumb(filename):
         except Exception:
             pass
         return resp
-    # On-demand create if missing
+    # On-demand create if missing (unless caller skips generation)
+    if no_gen:
+        return ("", 404)
     base = os.path.splitext(os.path.basename(filename))[0]
     pdf_name = base + '.pdf'
     if db:
