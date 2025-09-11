@@ -1,61 +1,133 @@
-{% extends "base.html" %}
-{% block title %}Admin • {{ 'New' if mode=='new' else 'Edit' }} Collection{% endblock %}
-{% block content %}
-<h1 class="page-title">Admin: {{ 'New' if mode=='new' else 'Edit' }} Collection</h1>
+{% extends "base.html" %} {% block title %}Admin • {{ 'New' if mode=='new' else
+'Edit' }} Collection{% endblock %} {% block content %}
+<h1 class="page-title">
+  Admin: {{ 'New' if mode=='new' else 'Edit' }} Collection
+</h1>
 
 <form method="post">
   {% if mode == 'new' %}
-    <label>Slug (id)</label><br>
-    <input class="wide-input" name="slug" value="{{ data.get('slug','') }}" placeholder="e.g., back-to-school" required>
-    <small class="muted">Lowercase, hyphens only; used as document id.</small>
-    <br><br>
+  <label>Slug (id)</label><br />
+  <input
+    class="wide-input"
+    name="slug"
+    value="{{ data.get('slug','') }}"
+    placeholder="e.g., back-to-school"
+    required
+  />
+  <small class="muted">Lowercase, hyphens only; used as document id.</small>
+  <br /><br />
   {% else %}
-    <div class="muted small">Editing: <code>{{ data.get('slug') }}</code></div>
+  <div class="muted small">Editing: <code>{{ data.get('slug') }}</code></div>
   {% endif %}
 
-  <label>Title</label><br>
-  <input class="wide-input" name="title" value="{{ data.get('title','') }}" placeholder="Display title" required><br><br>
+  <label>Title</label><br />
+  <input
+    class="wide-input"
+    name="title"
+    value="{{ data.get('title','') }}"
+    placeholder="Display title"
+    required
+  /><br /><br />
 
-  <label>Description</label><br>
-  <textarea class="wide-input" name="description" rows="2" placeholder="Optional description">{{ data.get('description','') }}</textarea><br><br>
+  <label>Description</label><br />
+  <textarea
+    class="wide-input"
+    name="description"
+    rows="2"
+    placeholder="Optional description"
+  >
+{{ data.get('description','') }}</textarea
+  ><br /><br />
 
   <div class="checkbox-row">
-    <input type="checkbox" name="isPublic" {% if data.get('isPublic', True) %}checked{% endif %}>
+    <input type="checkbox" name="isPublic" {% if data.get('isPublic', True)
+    %}checked{% endif %}>
     <label>Public</label>
   </div>
-  <br>
+  <br />
 
   <div class="checkbox-row">
-    <input type="checkbox" name="isFree" {% if data.get('isFree', False) %}checked{% endif %}>
-    <label>Allow public download</label>
+    <input type="checkbox" name="isFree" {% if data.get('isFree', False)
+    %}checked{% endif %}>
+    <label>Free (anyone can download)</label>
   </div>
-  <br>
+  <small class="muted"
+    >If Free is enabled, <strong>Price ID</strong> and
+    <strong>Subscriber only</strong> are ignored.</small
+  >
+  <br />
 
   <div class="checkbox-row">
-    <input type="checkbox" name="isSubscriberOnly" {% if data.get('isSubscriberOnly', False) %}checked{% endif %}>
+    <input type="checkbox" name="isSubscriberOnly" {% if
+    data.get('isSubscriberOnly', False) %}checked{% endif %}>
     <label>Subscriber only (included with Plus)</label>
   </div>
-  <small class="muted">If enabled and user is not Plus, they’ll see an upgrade/buy option instead of download.</small>
-  <br>
+  <small class="muted"
+    >If enabled and user is not Plus, they'll see an upgrade/buy option instead
+    of download.</small
+  >
+  <br />
 
-  <label>One‑time Price ID (optional)</label><br>
-  <input class="wide-input" name="priceId" value="{{ data.get('priceId','') }}" placeholder="price_... for $2.50 collection">
+  <label>One‑time Price ID (optional)</label><br />
+  <input
+    class="wide-input"
+    name="priceId"
+    value="{{ data.get('priceId','') }}"
+    placeholder="price_... for $2.50 collection"
+  />
+  <p class="small muted" style="margin: 6px 0">
+    Leave blank to use <code>STRIPE_DEFAULT_PACK_PRICE</code> if set.
+  </p>
   {% if data.get('priceId') %}
-    <p class="small muted" style="margin:6px 0;">Stripe: <a href="{{ stripe_price_url(data.get('priceId')) }}" target="_blank">Open price</a></p>
+  <p class="small muted" style="margin: 6px 0">
+    Stripe:
+    <a href="{{ stripe_price_url(data.get('priceId')) }}" target="_blank"
+      >Open price</a
+    >
+  </p>
   {% endif %}
-  <br>
+  <br />
 
-  <label>Default Version (optional)</label><br>
-  <input class="wide-input" name="defaultVersion" value="{{ data.get('defaultVersion','') }}" placeholder="esv / nasb / niv"><br><br>
+  <label>Default Version (optional)</label><br />
+  <input
+    class="wide-input"
+    name="defaultVersion"
+    value="{{ data.get('defaultVersion','') }}"
+    placeholder="esv / nasb / niv"
+  /><br /><br />
 
-  <label>Order (optional number)</label><br>
-  <input class="wide-input" name="order" type="number" value="{{ data.get('order','') }}"><br><br>
+  <label>Order (optional number)</label><br />
+  <input
+    class="wide-input"
+    name="order"
+    type="number"
+    value="{{ data.get('order','') }}"
+  />
+  <small class="muted">Lower numbers appear first.</small><br /><br />
 
-  <label>ZIP URL (optional)</label><br>
-  <input class="wide-input" name="zipUrl" value="{{ data.get('zipUrl','') }}" placeholder="https://storage/...zip"><br><br>
+  <label>ZIP URL (optional)</label><br />
+  <input
+    class="wide-input"
+    name="zipUrl"
+    value="{{ data.get('zipUrl','') }}"
+    placeholder="https://storage/...zip"
+  />
+  {% if data.get('zipUrl') %}
+  <p class="small muted" style="margin: 6px 0">
+    <a href="{{ data.get('zipUrl') }}" target="_blank">Open ZIP</a>
+  </p>
+  {% endif %}
+  <br /><br />
 
-  <label>Verses (one per line or comma separated)</label><br>
-  <textarea class="wide-input" name="verses" rows="10" placeholder="John 3:16\nRomans 8:28\n...">{{ data.get('verses','') }}</textarea><br><br>
+  <label>Verses (one per line or comma separated)</label><br />
+  <textarea
+    class="wide-input"
+    name="verses"
+    rows="10"
+    placeholder="John 3:16\nRomans 8:28\n..."
+  >
+{{ data.get('verses','') }}</textarea
+  ><br /><br />
 
   <div class="actions">
     <button class="button primary" type="submit">Save</button>

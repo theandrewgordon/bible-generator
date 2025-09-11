@@ -19,7 +19,7 @@
       <th style="text-align:left; padding:6px;">Title</th>
       <th style="text-align:left; padding:6px;">Verses</th>
       <th style="text-align:left; padding:6px;">Public</th>
-      <th style="text-align:left; padding:6px;">Free</th>
+      <th style="text-align:left; padding:6px;">Free (anyone can download)</th>
       <th style="text-align:left; padding:6px;">Subscriber</th>
       <th style="text-align:left; padding:6px;">Price</th>
       <th style="text-align:left; padding:6px;">Build</th>
@@ -48,9 +48,18 @@
       <td style="padding:6px;">{{ 'Yes' if c.get('isFree', False) else 'No' }}</td>
       <td style="padding:6px;">{{ 'Yes' if c.get('isSubscriberOnly', False) else 'No' }}</td>
       <td style="padding:6px;">
-        {{ c.get('priceId','') }}
-        {% if c.get('priceId') %}
-          <a class="button ghost" href="{{ stripe_price_url(c.get('priceId')) }}" target="_blank" title="Open in Stripe">Open</a>
+        {% set explicit = c.get('priceId') %}
+        {% set pid = pack_effective_price_id(c) %}
+        {% if pid %}
+          <div>
+            <code>{{ pid }}</code>
+            {% if not explicit %}
+              <span class="small muted">(default)</span>
+            {% endif %}
+            <a class="button ghost" href="{{ stripe_price_url(pid) }}" target="_blank" title="Open in Stripe">Open</a>
+          </div>
+        {% else %}
+          <span class="muted small">—</span>
         {% endif %}
       </td>
       <td style="padding:6px;">
@@ -75,7 +84,7 @@
           <button class="button ghost" title="Set order">Save</button>
         </form>
         <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline; margin-left:6px;">
-          <button class="button" style="background:#e0e7ff; color:#111827;" title="Rebuild ZIP">Rebuild ZIP</button>
+          <button class="button" style="background:#e0e7ff; color:#111827;" title="Prewarm ZIP">Prewarm ZIP</button>
         </form>
         <form method="post" action="{{ url_for('admin_collections_delete', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Delete this collection?');">
           <button class="button" style="background:#fecaca;">Delete</button>

@@ -1141,6 +1141,16 @@ def inject_admin_flag():
             except Exception:
                 pass
             return base + str(pid)
+        def env(name, default=''):
+            return os.getenv(name, default)
+
+        def pack_effective_price_id(c):
+            """Per-collection priceId overrides STRIPE_DEFAULT_PACK_PRICE; empty => no Buy."""
+            pid = (c.get('priceId') or '').strip()
+            if not pid:
+                pid = os.getenv('STRIPE_DEFAULT_PACK_PRICE', '').strip()
+            return pid or None
+
         return {
             'is_admin': is_admin_email(email),
             'is_signed_in': bool(email),
@@ -1153,6 +1163,8 @@ def inject_admin_flag():
             'favicon_url': favicon_url,
             'site_content': site_content,
             'usage_nav': usage_nav,
+            'env': env,
+            'pack_effective_price_id': pack_effective_price_id,
             'stripe_price_url': stripe_price_url,
         }
     except Exception:
@@ -1565,32 +1577,24 @@ def admin_collections_edit(slug):
         is_free = request.form.get('isFree') == 'on'
         is_sub_only = request.form.get('isSubscriberOnly') == 'on'
         price_id = (request.form.get('priceId') or '').strip() or None
-        default_version = (request.form.get('defaultVersion') or '').strip().lower() or None
-        order = request.form.get('order')
-        order_val = int(order) if order and order.isdigit() else None
-        zip_url = (request.form.get('zipUrl') or '').strip() or None
-        description = (request.form.get('description') or '').strip()
-        verses_raw = request.form.get('verses')
-        verses = current.get('verses', [])
-        if verses_raw is not None:
-            parts = re.split(r'[\n,]+', verses_raw)
-            verses = [p.strip() for p in parts if p.strip()]
+
+        # Precedence: Free > Subscriber/Price
+        if is_free:
+            is_sub_only = False
+            price_id = None
+
         data = {
             'title': title,
-            'verses': verses,
+            'verses': current.get('verses', []),
             'isPublic': is_public,
             'isFree': is_free,
-            'description': description,
+            'description': current.get('description', ''),
+            'isSubscriberOnly': is_sub_only,
+            'priceId': price_id,
         }
-        data['isSubscriberOnly'] = is_sub_only
-        if price_id: data['priceId'] = price_id
-        if default_version: data['defaultVersion'] = default_version
-        else: data['defaultVersion'] = 'esv'
-        if order_val is not None: data['order'] = order_val
-        else: data.pop('order', None)
-        if zip_url: data['zipUrl'] = zip_url
-        else: data.pop('zipUrl', None)
-        db.collection('collections').document(slug).set(data)
+
+        # Don't clobber unknown fields
+        db.collection('collections').document(slug).set(data, merge=True)
         flash('Collection updated', 'success')
         return redirect(url_for('admin_collections'))
     # Pre-fill textarea with newline-joined verses
