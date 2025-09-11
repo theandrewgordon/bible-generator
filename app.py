@@ -1522,28 +1522,39 @@ def admin_gift():
 def admin_collections():
     if not db:
         return "Firestore not configured", 500
-    q = (request.args.get("q") or "").strip().lower()
-    users = []
-    try:
-        # Fetch most recently seen users first
-        stream = db.collection("users")\
-            .order_by("lastSeenAt", direction=firestore.Query.DESCENDING)\
-            .limit(200).stream()
-        for d in stream:
-            u = d.to_dict() or {}
-            if q and q not in d.id.lower():
+    cols = get_collections(show_all=True)
+
+    # Enrich with Stripe price metadata
+    if stripe and STRIPE_SECRET_KEY:
+        cache = {}
+        for c in cols:
+            pid = c.get('priceId')
+            if not pid:
                 continue
-            users.append({
-                "email": d.id,
-                "plan": u.get("plan","free"),
-                "isPro": bool(u.get("isPro")),
-                "usage": u.get("usage", {}),
-                "lastSeenAt": u.get("lastSeenAt"),
-                "createdAt": u.get("createdAt"),
-            })
-    except Exception:
-        users = []
-    return render_template("admin_users.html", users=users, q=q)
+            if pid in cache:
+                c['priceMeta'] = cache[pid]
+                continue
+            try:
+                p = stripe.Price.retrieve(pid)
+                meta = {
+                    'amount': (p.get('unit_amount') or 0)/100.0,
+                    'currency': (p.get('currency') or 'usd').upper()
+                }
+                c['priceMeta'] = meta
+                cache[pid] = meta
+            except Exception:
+                c['priceMeta'] = None
+
+    # Filter collections by visibility
+    filt = (request.args.get('visibility') or 'all').lower()
+    if filt == 'public':
+        cols = [c for c in cols if c.get('isPublic', True)]
+    elif filt == 'private':
+        cols = [c for c in cols if not c.get('isPublic', True)]
+
+    return render_template('admin_collections.html', 
+                         collections=cols, 
+                         visibility=filt)
 
 @app.route('/admin/collections/new', methods=['GET','POST'])
 @admin_required
@@ -2746,30 +2757,20 @@ def plan_label(p: str) -> str:
 @app.route("/admin/users")
 @admin_required
 def admin_users():
+    """List users with search and plan management."""
     if not db:
         return "Firestore not configured", 500
     q = (request.args.get("q") or "").strip().lower()
+    docs = db.collection("users").limit(200).stream()
     users = []
-    try:
-        # Fetch most recently seen users first
-        stream = db.collection("users")\
-            .order_by("lastSeenAt", direction=firestore.Query.DESCENDING)\
-            .limit(200).stream()
-        for d in stream:
-            u = d.to_dict() or {}
-            if q and q not in d.id.lower():
-                continue
-            users.append({
-                "email": d.id,
-                "plan": u.get("plan","free"),
-                "isPro": bool(u.get("isPro")),
-                "usage": u.get("usage", {}),
-                "lastSeenAt": u.get("lastSeenAt"),
-                "createdAt": u.get("createdAt"),
-            })
-    except Exception:
-        users = []
-    return render_template("admin_users.html", users=users, q=q)
+    for d in docs:
+        u = d.to_dict() or {}
+        u["id"] = d.id  # document id is email in your app
+        if q and q not in (u.get("email","").lower() or d.id.lower()):
+            continue
+        users.append(u)
+    users.sort(key=lambda u: (u.get("email") or u["id"]).lower())
+    return render_template("admin_users.html", users=users, q=q, plan_label=plan_label)
 
 @app.route("/admin/users/<uid>/set_plan", methods=["POST"])
 @admin_required 
