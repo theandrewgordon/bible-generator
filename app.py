@@ -695,11 +695,7 @@ def generate():
             })
 
         # --- Quota check ---
-        generated_target = 0
-        if tag_list:
-            generated_target += len(tag_list)
-        if is_custom:
-            generated_target += 1
+        generated_target = (len(tag_list) if tag_list else 0) + (1 if is_custom else 0)
 
         user_plan = _get_user_plan(user_email)
         monthly_limit, lifetime_limit = _quota_for_plan(user_plan)
@@ -707,21 +703,41 @@ def generate():
 
         def _remaining(limit, used):
             return 10**9 if limit is None else max(0, int(limit) - int(used))
-        remain_month = _remaining(monthly_limit, used_monthly)
-        remain_life = _remaining(lifetime_limit, used_lifetime)
-        allowed = min(remain_month, remain_life)
+
+        allowed = min(_remaining(monthly_limit, used_monthly), _remaining(lifetime_limit, used_lifetime))
         if allowed <= 0:
-            flash("You’ve reached your monthly limit. Consider Plus for more.", "warning")
+            flash("You've reached your monthly limit. Consider Plus for more.", "warning")
             return redirect(url_for("browse"))
+
         if generated_target > allowed:
             flash(f"Your plan allows {allowed} more this month; generating the first {allowed}.", "warning")
-            # Trim inputs accordingly
             keep = allowed
-            trimmed_tag_list = tag_list[:min(len(tag_list), keep)]
-            keep -= len(trimmed_tag_list)
-            tag_list = trimmed_tag_list
+            tag_list = tag_list[:keep]
+            keep -= len(tag_list)
             if is_custom and keep <= 0:
                 is_custom = False
+
+        # Rebuild items_to_generate AFTER trimming
+        items_to_generate = []
+        for v in tag_list:
+            version, verse = extract_version_from_text(v, selected_version)
+            items_to_generate.append({
+                "slug": normalize_slug(verse),
+                "verse": verse,
+                "version": version.upper(),
+                "is_custom": False,
+                "text": None
+            })
+        if is_custom:
+            ai_validate_custom_text(custom_text)
+            title = custom_title or "Custom Text (User Submitted)"
+            items_to_generate.append({
+                "slug": normalize_slug(title),
+                "verse": title,
+                "version": "DIY",
+                "is_custom": True,
+                "text": custom_text
+            })
 
         last_pdf = None
         free_skip_count = False
@@ -2786,6 +2802,10 @@ def admin_users_set_plan(uid):
     flash("Plan updated.", "success")
     return redirect(url_for("admin_users"))
 
+@app.get("/health")
+def health():
+    return {"ok": True}, 200
+
 @app.route("/admin/users/<uid>/reset_usage", methods=["POST"])
 @admin_required
 def admin_users_reset_usage(uid):
@@ -2813,3 +2833,10 @@ def admin_users_reset_usage(uid):
     ref.set({"usage": new_usage, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
     flash(f"Usage reset for {uid} ({plan_label(plan)})", "success")
     return redirect(url_for("admin_users"))
+
+if __name__ == "__main__":
+    import os
+    # friendlier local cookies
+    if os.getenv("FLASK_ENV") == "development":
+        app.config["SESSION_COOKIE_SECURE"] = False
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
