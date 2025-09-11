@@ -2283,7 +2283,8 @@ def admin_collections_set_order(slug):
 def admin_prewarm_pack(slug):
     if not db:
         return "Firestore not configured", 500
-    # Mark as running and spawn background job to avoid request timeouts
+        
+    # Mark as running and spawn background job
     ref = db.collection('collections').document(slug)
     ref.set({ 'prewarm': { 'status': 'running', 'startedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
 
@@ -2293,12 +2294,16 @@ def admin_prewarm_pack(slug):
             if not meta:
                 ref.set({ 'prewarm': { 'status': 'error', 'error': 'Not found', 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
                 return
+
             verses = meta.get('verses', [])
             default_version = (meta.get('defaultVersion') or 'esv').lower()
             use_cursive = False
+
             ref.set({ 'prewarm': { 'status': 'running', 'total': len(verses), 'done': 0, 'startedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
+            
             generated_files = []
             done = 0
+            
             for v in verses:
                 try:
                     version, verse = extract_version_from_text(v, default_version)
@@ -2341,6 +2346,7 @@ def admin_prewarm_pack(slug):
 
             zip_name = f"{slug}.zip"
             zip_path = os.path.join('output', 'packs', zip_name)
+            
             try:
                 with ZipFile(zip_path, 'w') as z:
                     for p in generated_files:
@@ -2350,8 +2356,12 @@ def admin_prewarm_pack(slug):
                 ref.set({ 'prewarm': { 'status': 'error', 'error': str(e), 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
                 return
 
-            url = upload_to_storage(zip_path, f"packs/{zip_name}") or url_for('serve_pack', filename=zip_name, _external=True)
+            # Create application context for URL generation
+            with app.app_context():
+                url = upload_to_storage(zip_path, f"packs/{zip_name}") or url_for('serve_pack', filename=zip_name, _external=True)
+            
             ref.set({ 'zipUrl': url, 'prewarm': { 'status': 'done', 'finishedAt': firestore.SERVER_TIMESTAMP, 'done': len(generated_files), 'total': len(verses) } }, merge=True)
+
         except Exception as e:
             traceback.print_exc()
             ref.set({ 'prewarm': { 'status': 'error', 'error': str(e), 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
@@ -2833,10 +2843,3 @@ def admin_users_reset_usage(uid):
     ref.set({"usage": new_usage, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
     flash(f"Usage reset for {uid} ({plan_label(plan)})", "success")
     return redirect(url_for("admin_users"))
-
-if __name__ == "__main__":
-    import os
-    # friendlier local cookies
-    if os.getenv("FLASK_ENV") == "development":
-        app.config["SESSION_COOKIE_SECURE"] = False
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
