@@ -28,6 +28,13 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
+# Add near top with other config
+app.config.update(
+    SERVER_NAME='faithsparksprintables.com',
+    APPLICATION_ROOT='/',
+    PREFERRED_URL_SCHEME='https'
+)
+
 # Jinja filter for Markdown
 def _md(text: str) -> str:
     try:
@@ -2324,7 +2331,7 @@ def admin_prewarm_pack(slug):
                             print(f"⚠️ Skip prewarm: invalid data for {verse}")
                             continue
                         data.update({ 'version': version_up, 'cursive': use_cursive })
-                        db.collection('verse_cache').document(f"{input_slug}_{version_up}").set({
+                        db.collection("verse_cache").document(f"{input_slug}_{version_up}").set({
                             'verse': verse, 'version': version_up, 'slug': f"{input_slug}_{version_up}", 'data': data,
                             'timestamp': firestore.SERVER_TIMESTAMP
                         })
@@ -2358,13 +2365,29 @@ def admin_prewarm_pack(slug):
 
             # Create application context for URL generation
             with app.app_context():
-                url = upload_to_storage(zip_path, f"packs/{zip_name}") or url_for('serve_pack', filename=zip_name, _external=True)
+                url = upload_to_storage(zip_path, f"packs/{zip_name}")
+                if not url:
+                    url = url_for('serve_pack', filename=zip_name, _external=True)
             
-            ref.set({ 'zipUrl': url, 'prewarm': { 'status': 'done', 'finishedAt': firestore.SERVER_TIMESTAMP, 'done': len(generated_files), 'total': len(verses) } }, merge=True)
+            ref.set({
+                'zipUrl': url,
+                'prewarm': {
+                    'status': 'done',
+                    'finishedAt': firestore.SERVER_TIMESTAMP,
+                    'done': len(generated_files),
+                    'total': len(verses)
+                }
+            }, merge=True)
 
         except Exception as e:
             traceback.print_exc()
-            ref.set({ 'prewarm': { 'status': 'error', 'error': str(e), 'finishedAt': firestore.SERVER_TIMESTAMP } }, merge=True)
+            ref.set({
+                'prewarm': {
+                    'status': 'error',
+                    'error': str(e),
+                    'finishedAt': firestore.SERVER_TIMESTAMP
+                }
+            }, merge=True)
 
     threading.Thread(target=_job, daemon=True).start()
     flash('Prewarm started. You can refresh this page to see progress.', 'success')
