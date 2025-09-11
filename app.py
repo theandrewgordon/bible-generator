@@ -58,30 +58,26 @@ app.register_blueprint(google_bp, url_prefix="/login")
 
 @app.before_request
 def load_user_info():
+    """
+    Don't clear the session during the OAuth dance.
+    Only fetch user_info after we're authorized.
+    """
+    # Skip meddling while the Flask-Dance blueprint is doing its work
+    if request.blueprint == "google" or request.path.startswith("/login/google"):
+        return
+
     if google.authorized:
         if "user_info" not in session:
             resp = google.get("/oauth2/v1/userinfo")
             if resp.ok:
                 session["user_info"] = resp.json()
                 session["user_email"] = session["user_info"].get("email")
+                # Clear client-side generate form on fresh sign-in
                 session["clear_storage"] = True
-                
-                # Create/update user document
-                try:
-                    email = session.get("user_email")
-                    if db and email:
-                        uref = db.collection("users").document(email)
-                        uref.set({
-                            "email": email,
-                            "plan": _get_user_plan(email),
-                            "isPro": _get_user_plan(email) in ("family", "classroom", "plus", "plus_family", "plus_classroom"),
-                            "createdAt": firestore.SERVER_TIMESTAMP,
-                            "lastSeenAt": firestore.SERVER_TIMESTAMP,
-                        }, merge=True)
-                except Exception:
-                    pass
     else:
-        session.clear()
+        # Not authorized: just drop cached user display info (do NOT clear entire session)
+        session.pop("user_info", None)
+        session.pop("user_email", None)
 
 
 # --- Firebase ---
@@ -1751,8 +1747,12 @@ def admin_theme_new():
         except Exception:
             pass
     return render_template('admin_theme_form.html', mode='new', data=data)
+
+@app.route('/admin/theme/<slug>', methods=['GET','POST'])
+@admin_required
+def admin_theme_edit(slug):
     if not db:
-               return 'Firestore not configured', 500
+        return 'Firestore not configured', 500
     doc = db.collection('themes').document(slug).get()
     if not doc.exists:
         return 'Not found', 404
