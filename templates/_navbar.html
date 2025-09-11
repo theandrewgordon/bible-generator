@@ -1,17 +1,39 @@
 <header class="main-header">
   <div class="logo-nav">
     <a href="/" class="logo">
-      <img src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}" alt="Faith Sparks Logo"/>
+      <img
+        src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}"
+        alt="Faith Sparks Logo"
+      />
     </a>
-    <button class="menu-toggle" id="menuToggle" aria-controls="mainNav" aria-expanded="false">☰</button>
+    <button
+      class="menu-toggle"
+      id="menuToggle"
+      aria-controls="mainNav"
+      aria-expanded="false"
+    >
+      ☰
+    </button>
     <nav id="mainNav" class="nav-links" aria-label="Main">
       <a href="/">🏠 Home</a>
       <a href="/generate">📝 Generate</a>
-      {% if is_signed_in and usage_nav %}<span class="usage-chip" title="{{ usage_nav.title }}">{{ usage_nav.text }}</span>{% endif %}
+      {% if is_signed_in and usage_nav %}<span
+        class="usage-chip"
+        title="{{ usage_nav.title }}"
+        >{{ usage_nav.text }}</span
+      >{% endif %}
       <a href="/browse">🔎 Browse</a>
       <a href="/history">📚 History</a>
-      {% if not is_pro %}<a href="/plus">⭐ Plus</a>{% else %}<a href="/billing">🧾 Billing</a>{% endif %}
-      {% if is_admin %}<a href="/admin/collections">🛠️ Admin</a><a href="/admin/theme">🎨 Theme</a><a href="/admin/content">🧩 Content</a><a href="/admin/gift">🎁 Gift</a><a href="/admin/help">❓ Help</a>{% endif %}
+      {% if not is_pro %}<a href="/plus">⭐ Plus</a>{% else %}<a href="/billing"
+        >🧾 Billing</a
+      >{% endif %} {% if is_admin %}
+      <a href="/admin/collections">🛠️ Admin</a>
+      <a href="/admin/users">👥 Users</a>
+      <a href="/admin/theme">🎨 Theme</a>
+      <a href="/admin/content">🧩 Content</a>
+      <a href="/admin/gift">🎁 Gift</a>
+      <a href="/admin/help">❓ Help</a>
+      {% endif %}
       <a href="/about">ℹ️ About</a>
       {% if is_admin %}<a href="/admin/analytics">📈 Analytics</a>{% endif %}
     </nav>
@@ -19,12 +41,19 @@
 
   <div class="auth-theme">
     {% if session.user_info %}
-    <span class="user-name">👤 {{ session.user_info.email.split('@')[0] }}</span>
+    <span class="user-name"
+      >👤 {{ session.user_info.email.split('@')[0] }}</span
+    >
     <a href="/logout" class="auth-link logout">🚪 Logout</a>
     {% else %}
     <a href="{{ url_for('google.login') }}" class="auth-link">🔐 Login</a>
     {% endif %}
-    <button class="theme-toggle" onclick="toggleDarkMode()" aria-label="Toggle dark mode">🌙</button>
+    <button
+      class="theme-toggle"
+      onclick="toggleDarkMode()"
+      aria-label="Toggle dark mode"
+    >
+      🌙
+    </button>
   </div>
-
 </header>
