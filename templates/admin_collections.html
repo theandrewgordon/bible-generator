@@ -52,11 +52,17 @@
         {% set pid = pack_effective_price_id(c) %}
         {% if pid %}
           <div>
+            {% if c.get('priceMeta') %}
+              <div class="small" style="margin-bottom:4px;">
+                ${{ '%.2f' % c.priceMeta.amount }} {{ c.priceMeta.currency }}
+              </div>
+            {% endif %}
             <code>{{ pid }}</code>
             {% if not explicit %}
               <span class="small muted">(default)</span>
             {% endif %}
-            <a class="button ghost" href="{{ stripe_price_url(pid) }}" target="_blank" title="Open in Stripe">Open</a>
+            <a class="button ghost" href="{{ stripe_price_url(pid) }}" 
+               target="_blank" title="Open in Stripe">Open</a>
           </div>
         {% else %}
           <span class="muted small">—</span>

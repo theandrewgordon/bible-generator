@@ -56,8 +56,6 @@ google_bp = make_google_blueprint(
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
-from flask import request
-
 @app.before_request
 def load_user_info():
     """
@@ -1080,7 +1078,7 @@ def admin_seed_collections():
         return f"Seed error: {e}", 500
 
 @app.context_processor
-def inject_admin_flag():
+def inject_helpers():
     try:
         email = session.get('user_email')
         is_pro = False
@@ -1151,6 +1149,10 @@ def inject_admin_flag():
                 pid = os.getenv('STRIPE_DEFAULT_PACK_PRICE', '').strip()
             return pid or None
 
+        def month_key():
+            """Get current month key for usage tracking"""
+            return datetime.now(timezone.utc).strftime('%Y-%m')
+
         return {
             'is_admin': is_admin_email(email),
             'is_signed_in': bool(email),
@@ -1166,6 +1168,8 @@ def inject_admin_flag():
             'env': env,
             'pack_effective_price_id': pack_effective_price_id,
             'stripe_price_url': stripe_price_url,
+            'month_key': month_key,
+            'plan_label': plan_label,
         }
     except Exception:
         return {
@@ -1515,12 +1519,38 @@ def admin_collections():
     if not db:
         return "Firestore not configured", 500
     cols = get_collections(show_all=True)
+
+    # Enrich with Stripe price metadata
+    if stripe and STRIPE_SECRET_KEY:
+        cache = {}
+        for c in cols:
+            pid = c.get('priceId')
+            if not pid:
+                continue
+            if pid in cache:
+                c['priceMeta'] = cache[pid]
+                continue
+            try:
+                p = stripe.Price.retrieve(pid)
+                meta = {
+                    'amount': (p.get('unit_amount') or 0)/100.0,
+                    'currency': (p.get('currency') or 'usd').upper()
+                }
+                c['priceMeta'] = meta
+                cache[pid] = meta
+            except Exception:
+                c['priceMeta'] = None
+
+    # Filter collections by visibility
     filt = (request.args.get('visibility') or 'all').lower()
     if filt == 'public':
         cols = [c for c in cols if c.get('isPublic', True)]
     elif filt == 'private':
         cols = [c for c in cols if not c.get('isPublic', True)]
-    return render_template('admin_collections.html', collections=cols, visibility=filt)
+
+    return render_template('admin_collections.html', 
+                         collections=cols, 
+                         visibility=filt)
 
 @app.route('/admin/collections/new', methods=['GET','POST'])
 @admin_required
@@ -2191,9 +2221,11 @@ def admin_collections_move(slug):
     if not db:
         return "Firestore not configured", 500
     direction = request.form.get('dir', 'up')
-    # Load all collections, sort by order then title
-    items = get_collections()
+    
+    # Load ALL collections (including private ones)
+    items = get_collections(show_all=True)
     items.sort(key=lambda c: (int(c.get('order') or 9999), c.get('title','')))
+    
     idx = next((i for i, c in enumerate(items) if c['slug'] == slug), None)
     if idx is None:
         return redirect(url_for('admin_collections'))
@@ -2556,9 +2588,22 @@ def browse():
 def browse_detail(slug):
     if not is_public_browse_enabled() and not google.authorized:
         return redirect(url_for('google.login', next=request.url))
+    
     meta = get_collection_meta(slug)
     if not meta:
         return "Not found", 404
+
+    # Add Stripe price metadata
+    if stripe and STRIPE_SECRET_KEY and meta and meta.get('priceId'):
+        try:
+            p = stripe.Price.retrieve(meta['priceId'])
+            meta['priceMeta'] = {
+                'amount': (p.get('unit_amount') or 0)/100.0,
+                'currency': (p.get('currency') or 'usd').upper()
+            }
+        except Exception:
+            meta['priceMeta'] = None
+
     purchases = {}
     if db and google.authorized:
         try:
@@ -2567,8 +2612,41 @@ def browse_detail(slug):
                 purchases = (u.to_dict() or {}).get('purchases') or {}
         except Exception:
             purchases = {}
+
     return render_template('browse_detail.html', c=meta, purchases=purchases)
 
+@app.post("/admin/reset_credits/<uid>")
+@admin_required
+def admin_reset_credits(uid):
+    # Fetch user document
+    ref = db.collection("users").document(uid)
+    snap = ref.get()
+    user = snap.to_dict() if snap.exists else {}
+
+    # Determine plan
+    plan = user.get("plan", "free")  # "free", "plus_family", "plus_classroom"
+
+    if plan == "free":
+        credits = {
+            "lifetime": 10,   # reset lifetime to full
+            "monthly": 1,     # 1 per month
+        }
+    elif plan == "plus_family":
+        credits = {
+            "monthly": 15,
+        }
+    elif plan == "plus_classroom":
+        credits = {
+            "monthly": 100,
+        }
+    else:
+        credits = {}  # fallback if unknown plan
+
+    # Store credits back
+    ref.set({"credits": credits}, merge=True)
+
+    flash(f"Credits reset for {uid} ({plan})", "success")
+    return redirect(url_for("admin_users"))
 
 @app.route("/regenerate/<filename>")
 @login_required
@@ -2659,3 +2737,79 @@ def handle_500(e):
         return render_template('500.html'), 500
     except Exception:
         return "Server error", 500
+
+def plan_norm(p: str) -> str:
+    """Normalize plan names to canonical values."""
+    p = (p or "free").lower()
+    if p in ("plus_family", "family", "plus"):  # treat legacy 'plus' as family
+        return "plus_family"
+    if p in ("plus_classroom", "classroom", "school"):
+        return "plus_classroom"
+    return "free"
+
+def plan_label(p: str) -> str:
+    """Get human-readable label for a plan."""
+    return {
+        "plus_family": "Plus Family",
+        "plus_classroom": "Plus Classroom", 
+        "free": "Free",
+    }.get(plan_norm(p), p or "Free")
+@app.route("/admin/users")
+@admin_required
+def admin_users():
+    """List users with search and plan management."""
+    if not db:
+        return "Firestore not configured", 500
+    q = (request.args.get("q") or "").strip().lower()
+    docs = db.collection("users").limit(200).stream()
+    users = []
+    for d in docs:
+        u = d.to_dict() or {}
+        u["id"] = d.id  # document id is email in your app
+        if q and q not in (u.get("email","").lower() or d.id.lower()):
+            continue
+        users.append(u)
+    users.sort(key=lambda u: (u.get("email") or u["id"]).lower())
+    return render_template("admin_users.html", users=users, q=q, plan_label=plan_label)
+
+@app.route("/admin/users/<uid>/set_plan", methods=["POST"])
+@admin_required 
+def admin_users_set_plan(uid):
+    """Update a user's plan."""
+    if not db:
+        return "Firestore not configured", 500
+    plan = plan_norm(request.form.get("plan", "free"))
+    db.collection("users").document(uid).set(
+        {"plan": plan, "isPro": plan != "free", "updatedAt": firestore.SERVER_TIMESTAMP},
+        merge=True,
+    )
+    flash("Plan updated.", "success")
+    return redirect(url_for("admin_users"))
+
+@app.route("/admin/users/<uid>/reset_usage", methods=["POST"])
+@admin_required
+def admin_users_reset_usage(uid):
+    """Reset usage counters based on plan type."""
+    if not db:
+        return "Firestore not configured", 500
+    ref = db.collection("users").document(uid)
+    snap = ref.get()
+    user = snap.to_dict() if snap.exists else {}
+    plan = plan_norm(user.get("plan", "free"))
+    mk = _month_key()
+
+    # Resets by plan:
+    # - Free: wipe lifetime & this month's usage => user gets 10 lifetime + 1/mo again
+    # - Plus Family: wipe this month's usage (15/mo)
+    # - Plus Classroom: wipe this month's usage (100/mo)
+    if plan == "free":
+        new_usage = {"lifetime": 0, "months": {mk: 0}}
+    else:
+        # keep lifetime; just reset current month
+        existing = (user or {}).get("usage") or {}
+        lifetime = int((existing.get("lifetime") or 0))
+        new_usage = {"lifetime": lifetime, "months": {mk: 0}}
+
+    ref.set({"usage": new_usage, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
+    flash(f"Usage reset for {uid} ({plan_label(plan)})", "success")
+    return redirect(url_for("admin_users"))
