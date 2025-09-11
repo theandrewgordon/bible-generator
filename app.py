@@ -58,26 +58,30 @@ app.register_blueprint(google_bp, url_prefix="/login")
 
 @app.before_request
 def load_user_info():
-    """
-    Don't clear the session during the OAuth dance.
-    Only fetch user_info after we're authorized.
-    """
-    # Skip meddling while the Flask-Dance blueprint is doing its work
-    if request.blueprint == "google" or request.path.startswith("/login/google"):
-        return
-
     if google.authorized:
         if "user_info" not in session:
             resp = google.get("/oauth2/v1/userinfo")
             if resp.ok:
                 session["user_info"] = resp.json()
                 session["user_email"] = session["user_info"].get("email")
-                # Clear client-side generate form on fresh sign-in
                 session["clear_storage"] = True
+                
+                # Create/update user document
+                try:
+                    email = session.get("user_email")
+                    if db and email:
+                        uref = db.collection("users").document(email)
+                        uref.set({
+                            "email": email,
+                            "plan": _get_user_plan(email),
+                            "isPro": _get_user_plan(email) in ("family", "classroom", "plus", "plus_family", "plus_classroom"),
+                            "createdAt": firestore.SERVER_TIMESTAMP,
+                            "lastSeenAt": firestore.SERVER_TIMESTAMP,
+                        }, merge=True)
+                except Exception:
+                    pass
     else:
-        # Not authorized: just drop cached user display info (do NOT clear entire session)
-        session.pop("user_info", None)
-        session.pop("user_email", None)
+        session.clear()
 
 
 # --- Firebase ---
@@ -1518,39 +1522,28 @@ def admin_gift():
 def admin_collections():
     if not db:
         return "Firestore not configured", 500
-    cols = get_collections(show_all=True)
-
-    # Enrich with Stripe price metadata
-    if stripe and STRIPE_SECRET_KEY:
-        cache = {}
-        for c in cols:
-            pid = c.get('priceId')
-            if not pid:
+    q = (request.args.get("q") or "").strip().lower()
+    users = []
+    try:
+        # Fetch most recently seen users first
+        stream = db.collection("users")\
+            .order_by("lastSeenAt", direction=firestore.Query.DESCENDING)\
+            .limit(200).stream()
+        for d in stream:
+            u = d.to_dict() or {}
+            if q and q not in d.id.lower():
                 continue
-            if pid in cache:
-                c['priceMeta'] = cache[pid]
-                continue
-            try:
-                p = stripe.Price.retrieve(pid)
-                meta = {
-                    'amount': (p.get('unit_amount') or 0)/100.0,
-                    'currency': (p.get('currency') or 'usd').upper()
-                }
-                c['priceMeta'] = meta
-                cache[pid] = meta
-            except Exception:
-                c['priceMeta'] = None
-
-    # Filter collections by visibility
-    filt = (request.args.get('visibility') or 'all').lower()
-    if filt == 'public':
-        cols = [c for c in cols if c.get('isPublic', True)]
-    elif filt == 'private':
-        cols = [c for c in cols if not c.get('isPublic', True)]
-
-    return render_template('admin_collections.html', 
-                         collections=cols, 
-                         visibility=filt)
+            users.append({
+                "email": d.id,
+                "plan": u.get("plan","free"),
+                "isPro": bool(u.get("isPro")),
+                "usage": u.get("usage", {}),
+                "lastSeenAt": u.get("lastSeenAt"),
+                "createdAt": u.get("createdAt"),
+            })
+    except Exception:
+        users = []
+    return render_template("admin_users.html", users=users, q=q)
 
 @app.route('/admin/collections/new', methods=['GET','POST'])
 @admin_required
@@ -1747,12 +1740,8 @@ def admin_theme_new():
         except Exception:
             pass
     return render_template('admin_theme_form.html', mode='new', data=data)
-
-@app.route('/admin/theme/<slug>', methods=['GET','POST'])
-@admin_required
-def admin_theme_edit(slug):
     if not db:
-        return 'Firestore not configured', 500
+               return 'Firestore not configured', 500
     doc = db.collection('themes').document(slug).get()
     if not doc.exists:
         return 'Not found', 404
@@ -2757,20 +2746,30 @@ def plan_label(p: str) -> str:
 @app.route("/admin/users")
 @admin_required
 def admin_users():
-    """List users with search and plan management."""
     if not db:
         return "Firestore not configured", 500
     q = (request.args.get("q") or "").strip().lower()
-    docs = db.collection("users").limit(200).stream()
     users = []
-    for d in docs:
-        u = d.to_dict() or {}
-        u["id"] = d.id  # document id is email in your app
-        if q and q not in (u.get("email","").lower() or d.id.lower()):
-            continue
-        users.append(u)
-    users.sort(key=lambda u: (u.get("email") or u["id"]).lower())
-    return render_template("admin_users.html", users=users, q=q, plan_label=plan_label)
+    try:
+        # Fetch most recently seen users first
+        stream = db.collection("users")\
+            .order_by("lastSeenAt", direction=firestore.Query.DESCENDING)\
+            .limit(200).stream()
+        for d in stream:
+            u = d.to_dict() or {}
+            if q and q not in d.id.lower():
+                continue
+            users.append({
+                "email": d.id,
+                "plan": u.get("plan","free"),
+                "isPro": bool(u.get("isPro")),
+                "usage": u.get("usage", {}),
+                "lastSeenAt": u.get("lastSeenAt"),
+                "createdAt": u.get("createdAt"),
+            })
+    except Exception:
+        users = []
+    return render_template("admin_users.html", users=users, q=q)
 
 @app.route("/admin/users/<uid>/set_plan", methods=["POST"])
 @admin_required 

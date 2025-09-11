@@ -23,17 +23,16 @@
       <th>Email</th>
       <th>Plan</th>
       <th>Usage</th>
+      <th>Last Seen</th>
       <th>Actions</th>
     </tr>
   </thead>
   <tbody>
   {% for u in users %}
-    {% set usage = u.get('usage', {}) %}
-    {% set months = usage.get('months', {}) %}
     <tr>
-      <td>{{ u.get('email') or u.id }}</td>
+      <td>{{ u.email }}</td>
       <td>
-        <div class="current-plan">{{ plan_label(u.get('plan')) }}</div>
+        <div class="current-plan">{{ plan_label(u.plan) }}</div>
         <form method="post" action="{{ url_for('admin_users_set_plan', uid=u.id) }}" class="plan-form">
           <select name="plan">
             <option value="free" {% if u.get('plan','free') == 'free' %}selected{% endif %}>
@@ -50,8 +49,11 @@
         </form>
       </td>
       <td>
-        <div class="small">lifetime: {{ usage.get('lifetime', 0) }}</div>
-        <div class="small">this month: {{ months.get(month_key(), 0) }}</div>
+        <div class="small">lifetime: {{ u.usage.lifetime or 0 }}</div>
+        <div class="small">this month: {{ (u.usage.months or {}).get(month_key(), 0) }}</div>
+      </td>
+      <td>
+        <div class="small">{{ u.lastSeenAt.strftime('%Y-%m-%d %H:%M') if u.lastSeenAt else '—' }}</div>
       </td>
       <td>
         <form method="post" action="{{ url_for('admin_users_reset_usage', uid=u.id) }}">

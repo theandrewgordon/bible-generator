@@ -81,6 +81,11 @@ button.toggle-btn {
   cursor: pointer;
 }
 
+.button,
+.button.small {
+  white-space: nowrap;
+}
+
 .button:hover {
   background-color: var(--primary-dark);
 }
