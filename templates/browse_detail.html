@@ -4,6 +4,7 @@
 {% block content %}
 {% set purchased = purchases.get(c.slug) if purchases else None %}
 {% set locked = (c.isSubscriberOnly and not is_pro and not purchased) %}
+{% set pid = pack_effective_price_id(c) %} {# <<< match browse logic #}
 
 <h1 class="page-title">
   {{ c.title }}
@@ -19,8 +20,9 @@
 
   {% if c.zipUrl %}
     {% if locked %}
+      {# Use effective price id + a safe display price fallback #}
       {% set display_price = ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %}
-      {% if c.priceId %}
+      {% if pid %}
         {% if is_signed_in %}
           <a class="button" href="{{ url_for('buy_pack', slug=c.slug) }}">💳 Buy {{ display_price }}</a>
         {% else %}
@@ -41,8 +43,8 @@
     <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');">
       <button class="button" style="background:#e0e7ff;color:#111827;">⚙️ Prewarm & Build ZIP</button>
     </form>
-    {% if c.priceId %}
-      <a class="button ghost" href="{{ stripe_price_url(c.priceId) }}" target="_blank">Open in Stripe</a>
+    {% if pid %}
+      <a class="button ghost" href="{{ stripe_price_url(pid) }}" target="_blank">Open in Stripe</a>
     {% endif %}
   {% endif %}
 </p>
@@ -53,7 +55,6 @@
     <li>{{ verse }}</li>
   {% endfor %}
 </ul>
-
 {% endblock %}
 
 {% block extra_scripts %}
