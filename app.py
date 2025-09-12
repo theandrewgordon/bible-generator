@@ -2503,15 +2503,28 @@ def buy_pack(slug):
         return 'Stripe not configured', 500
     if not db:
         return 'Firestore not configured', 500
+
     d = db.collection('collections').document(slug).get()
     if not d.exists:
         return 'Not found', 404
     meta = d.to_dict() or {}
-    price_id = meta.get('priceId')
+
+    # Already purchased? send them back with a happy message
+    email = session.get('user_email')
+    try:
+        pur = db.collection('purchases').document(email).get().to_dict() if email and db else {}
+        if pur and (pur.get('packs') or {}).get(slug):
+            flash('You already own this pack. Download away! 🎉', 'success')
+            return redirect(url_for('browse_detail', slug=slug))
+    except Exception:
+        pass
+
+    # Use same fallback as Jinja helper (Option A — Stripe Checkout)
+    price_id = (meta.get('priceId') or os.getenv('STRIPE_DEFAULT_PACK_PRICE', '')).strip()
     if not price_id:
         flash('This pack is not available for one-time purchase.', 'warning')
         return redirect(url_for('browse_detail', slug=slug))
-    email = session.get('user_email')
+
     try:
         chk = stripe.checkout.Session.create(
             mode='payment',
