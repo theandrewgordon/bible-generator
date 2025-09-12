@@ -58,11 +58,33 @@
   {% endif %}
 {% endif %}
 
-<h3>Verses ({{ c.verses|length }})</h3>
+<h2>Verses ({{ c.verses|length }})</h2>
 <ul>
-  {% for v in c.verses %}
-  <li>{{ v }}</li>
+  {% for verse in c.verses %}
+    <li>{{ verse }}</li>
   {% endfor %}
-  {% if not c.verses %}<li class="muted">No verses defined.</li>{% endif %}
 </ul>
+
+<div class="download-controls">
+    {% if can_download %}
+        <a href="{{ url_for('dl_pack', slug=c.slug) }}" class="btn btn-primary">
+            <i class="fas fa-download"></i> Download Pack
+        </a>
+    {% elif not g.is_signed_in %}
+        <a href="{{ url_for('google.login', next=request.url) }}" class="btn btn-primary">
+            Sign in to Download
+        </a>
+    {% elif needs_purchase %}
+        <a href="{{ url_for('buy_pack', slug=c.slug) }}" class="btn btn-primary">
+            Buy Pack (${{ c.priceMeta.amount }} {{ c.priceMeta.currency }})
+        </a>
+        <p class="text-muted">
+            Or get unlimited access with <a href="{{ url_for('plus_pricing') }}">Plus</a>
+        </p>
+    {% else %}
+        <p>
+            This pack is included with <a href="{{ url_for('plus_pricing') }}">Plus</a>
+        </p>
+    {% endif %}
+</div>
 {% endblock %}

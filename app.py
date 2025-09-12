@@ -2635,6 +2635,7 @@ def browse():
 
 @app.route('/browse/<slug>')
 def browse_detail(slug):
+    """Show collection details, but gate downloads behind Plus/purchase."""
     if not is_public_browse_enabled() and not google.authorized:
         return redirect(url_for('google.login', next=request.url))
     
@@ -2642,8 +2643,36 @@ def browse_detail(slug):
     if not meta:
         return "Not found", 404
 
-    # Add Stripe price metadata
-    if stripe and STRIPE_SECRET_KEY and meta and meta.get('priceId'):
+    # Always show the collection contents
+    can_download = False
+    needs_purchase = False
+    
+    # Check download permissions if logged in
+    if google.authorized and db:
+        email = session.get('user_email')
+        try:
+            u = db.collection('users').document(email).get()
+            if u.exists:
+                ud = u.to_dict() or {}
+                # Allow if:
+                # 1. Collection is free
+                # 2. User has Plus subscription
+                # 3. User has purchased this collection
+                if meta.get('isFree'):
+                    can_download = True
+                elif ud.get('isPro') or (ud.get('plan') in ('family','classroom','plus','plus_family','plus_classroom')):
+                    can_download = True
+                elif (ud.get('purchases') or {}).get(slug):
+                    can_download = True
+                # Show purchase option if not free and has price
+                elif meta.get('priceId'):
+                    needs_purchase = True
+
+        except Exception as e:
+            print(f"Error checking permissions: {e}")
+
+    # Add Stripe price metadata if needed
+    if meta.get('priceId') and stripe and STRIPE_SECRET_KEY:
         try:
             p = stripe.Price.retrieve(meta['priceId'])
             meta['priceMeta'] = {
@@ -2653,16 +2682,12 @@ def browse_detail(slug):
         except Exception:
             meta['priceMeta'] = None
 
-    purchases = {}
-    if db and google.authorized:
-        try:
-            u = db.collection('users').document(session.get('user_email')).get()
-            if u.exists:
-                purchases = (u.to_dict() or {}).get('purchases') or {}
-        except Exception:
-            purchases = {}
-
-    return render_template('browse_detail.html', c=meta, purchases=purchases)
+    return render_template(
+        'browse_detail.html',
+        c=meta,
+        can_download=can_download,
+        needs_purchase=needs_purchase
+    )
 
 @app.post("/admin/reset_credits/<uid>")
 @admin_required
