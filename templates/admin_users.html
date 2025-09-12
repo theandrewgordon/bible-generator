@@ -5,17 +5,17 @@
 <h1 class="page-title">Admin: Users</h1>
 
 <form method="get" action="{{ url_for('admin_users') }}" class="search-form">
-  <input 
-    name="q" 
-    value="{{ q or '' }}" 
-    placeholder="Search email…" 
-    class="wide-input search-input"
-  >
+  <input name="q" value="{{ q or '' }}" placeholder="Search email…" class="wide-input search-input">
   <button class="button">Search</button>
-  {% if q %}
-    <a class="button ghost" href="{{ url_for('admin_users') }}">Clear</a>
-  {% endif %}
+  {% if q %}<a class="button ghost" href="{{ url_for('admin_users') }}">Clear</a>{% endif %}
 </form>
+
+{# month key (safe if the helper isn't injected) #}
+{% if month_key is defined %}
+  {% set mkey = month_key() %}
+{% else %}
+  {% set mkey = None %}
+{% endif %}
 
 <table class="admin-table">
   <thead>
@@ -29,34 +29,38 @@
   </thead>
   <tbody>
   {% for u in users %}
+    {% set plan = u.get('plan', 'free') %}
+    {% set usage = u.get('usage', {}) %}
+    {% set lifetime = usage.get('lifetime', 0) %}
+    {% set months = usage.get('months', {}) %}
+    {% set this_month = (months.get(mkey) if mkey else 0) %}
+    {% set last_seen = u.get('lastSeenAt') %}
     <tr>
-      <td>{{ u.email }}</td>
+      <td>{{ u.get('email','—') }}</td>
       <td>
-        <div class="current-plan">{{ plan_label(u.plan) }}</div>
-        <form method="post" action="{{ url_for('admin_users_set_plan', uid=u.id) }}" class="plan-form">
+        <div class="current-plan">
+          {% if plan_label is defined %}{{ plan_label(plan) }}{% else %}{{ plan }}{% endif %}
+        </div>
+        <form method="post" action="{{ url_for('admin_users_set_plan', uid=u.get('id')) }}" class="plan-form">
           <select name="plan">
-            <option value="free" {% if u.get('plan','free') == 'free' %}selected{% endif %}>
-              Free
-            </option>
-            <option value="plus_family" {% if u.get('plan') in ['family','plus','plus_family'] %}selected{% endif %}>
-              Plus Family
-            </option>
-            <option value="plus_classroom" {% if u.get('plan') in ['classroom','school','plus_classroom'] %}selected{% endif %}>
-              Plus Classroom
-            </option>
+            <option value="free" {{ 'selected' if plan == 'free' else '' }}>Free</option>
+            <option value="plus_family" {{ 'selected' if plan in ['family','plus','plus_family'] else '' }}>Plus Family</option>
+            <option value="plus_classroom" {{ 'selected' if plan in ['classroom','school','plus_classroom'] else '' }}>Plus Classroom</option>
           </select>
           <button class="button ghost">Save</button>
         </form>
       </td>
       <td>
-        <div class="small">lifetime: {{ u.usage.lifetime or 0 }}</div>
-        <div class="small">this month: {{ (u.usage.months or {}).get(month_key(), 0) }}</div>
+        <div class="small">lifetime: {{ lifetime }}</div>
+        <div class="small">this month: {{ this_month }}</div>
       </td>
       <td>
-        <div class="small">{{ u.lastSeenAt.strftime('%Y-%m-%d %H:%M') if u.lastSeenAt else '—' }}</div>
+        <div class="small">
+          {{ last_seen.strftime('%Y-%m-%d %H:%M') if last_seen else '—' }}
+        </div>
       </td>
       <td>
-        <form method="post" action="{{ url_for('admin_users_reset_usage', uid=u.id) }}">
+        <form method="post" action="{{ url_for('admin_users_reset_usage', uid=u.get('id')) }}">
           <button class="button accent">♻️ Reset Usage</button>
         </form>
       </td>
@@ -66,35 +70,13 @@
 </table>
 
 <style>
-.search-form {
-  margin-bottom: 1rem;
-}
-.search-input {
-  max-width: 320px;
-}
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.admin-table th,
-.admin-table td {
-  padding: 0.75rem;
-  text-align: left;
-}
-.admin-table tr {
-  border-top: 1px solid var(--border-color, #e5e7eb);
-}
-.current-plan {
-  margin-bottom: 0.5rem;
-}
-.plan-form {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-.button.accent {
-  background: var(--accent-color, #e0e7ff);
-  color: var(--accent-text, #111827);
-}
+.search-form{margin-bottom:1rem}
+.search-input{max-width:320px}
+.admin-table{width:100%;border-collapse:collapse}
+.admin-table th,.admin-table td{padding:.75rem;text-align:left;vertical-align:top}
+.admin-table tr{border-top:1px solid var(--border-color,#e5e7eb)}
+.current-plan{margin-bottom:.5rem}
+.plan-form{display:flex;gap:.5rem;align-items:center}
+.button.accent{background:var(--accent-color,#e0e7ff);color:var(--accent-text,#111827)}
 </style>
 {% endblock %}
