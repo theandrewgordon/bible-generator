@@ -1,36 +1,49 @@
-{% extends "base.html" %}
-{% block title %}Browse | Faith Sparks{% endblock %}
+{% extends "base.html" %} {% block title %}Browse | Faith Sparks{% endblock %}
 {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
 
 {% if top_packs and top_packs|length %}
 <section class="block">
   <details id="topPacks">
-    <summary><h3 style="display:inline">Top Packs</h3> <span class="small muted">(click to expand)</span></summary>
-    <div class="grid-collections" style="margin-top:10px;">
+    <summary>
+      <h3 style="display: inline">Top Packs</h3>
+      <span class="small muted">(click to expand)</span>
+    </summary>
+    <div class="grid-collections" style="margin-top: 10px">
       {% for p in top_packs %}
-        <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
-          <div class="collection-title">{{ p.title }}</div>
-          <div class="collection-count">{{ p.downloads }} downloads</div>
-          {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
-        </a>
+      <a
+        class="collection-tile"
+        href="{{ url_for('browse_detail', slug=p.slug) }}"
+      >
+        <div class="collection-title">{{ p.title }}</div>
+        <div class="collection-count">{{ p.downloads }} downloads</div>
+        {% if p.isFree %}
+        <div class="collection-badge pill alt">Free</div>
+        {% endif %}
+      </a>
       {% endfor %}
     </div>
   </details>
-  </section>
-{% endif %}
-
-{% if top_packs_week and top_packs_week|length %}
+</section>
+{% endif %} {% if top_packs_week and top_packs_week|length %}
 <section class="block">
   <details id="topWeek">
-    <summary><h3 style="display:inline">Top This Week</h3> <span class="small muted">(click to expand)</span></summary>
-    <div class="grid-collections" style="margin-top:10px;">
+    <summary>
+      <h3 style="display: inline">Top This Week</h3>
+      <span class="small muted">(click to expand)</span>
+    </summary>
+    <div class="grid-collections" style="margin-top: 10px">
       {% for p in top_packs_week %}
-        <a class="collection-tile" href="{{ url_for('browse_detail', slug=p.slug) }}">
-          <div class="collection-title">{{ p.title }}</div>
-          <div class="collection-count">{{ p.downloads }} downloads</div>
-          {% if p.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
-        </a>
+      <a
+        class="collection-tile"
+        href="{{ url_for('browse_detail', slug=p.slug) }}"
+      >
+        <div class="collection-title">{{ p.title }}</div>
+        <div class="collection-count">{{ p.downloads }} downloads</div>
+        {% if p.isFree %}
+        <div class="collection-badge pill alt">Free</div>
+        {% endif %}
+      </a>
       {% endfor %}
     </div>
   </details>
@@ -41,38 +54,62 @@
   <h3>Collections</h3>
   <div class="grid-collections">
     {% for c in collections %}
-      <div class="collection-tile {% if c.isSubscriberOnly and not is_pro and not (purchases.get(c.slug) if purchases else None) %}locked{% endif %}">
-        <div class="collection-title"><a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a></div>
-        <div class="collection-count">{{ c.count }} verses</div>
-        {% if c.isFree %}<div class="collection-badge pill alt">Free</div>{% endif %}
-        {% set purchased = purchases.get(c.slug) if purchases else None %}
-        {% if c.isSubscriberOnly and not is_pro and not purchased %}
-          <div class="collection-badge pill">Included with Plus</div>
-        {% endif %}
-        {% if purchased %}
-          <div class="collection-badge pill alt">Purchased</div>
-        {% endif %}
-        {% if c.zipUrl %}
-          <div class="collection-actions">
-            {% if is_signed_in or c.isFree %}
-              {% set purchased = purchases.get(c.slug) if purchases else None %}
-              {% if c.isSubscriberOnly and not is_pro and not purchased %}
-                {% if c.priceId %}
-                  <a class="button ghost small" href="{{ url_for('buy_pack', slug=c.slug) }}">💳 Buy $2.50</a>
-                {% endif %}
-                <a class="button small" href="{{ url_for('plus_pricing') }}">⭐ Included with Plus</a>
-              {% else %}
-                <a class="button ghost small" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
-              {% endif %}
-            {% else %}
-              <a class="button ghost small" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
-            {% endif %}
-          </div>
+    <div
+      class="collection-tile {% if c.isSubscriberOnly and not is_pro and not (purchases.get(c.slug) if purchases else None) %}locked{% endif %}"
+    >
+      <div class="collection-title">
+        <a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a>
+      </div>
+      <div class="collection-count">{{ c.count }} verses</div>
+      {% if c.isFree %}
+      <div class="collection-badge pill alt">Free</div>
+      {% endif %} {% set purchased = purchases.get(c.slug) if purchases else
+      None %} {% if c.isSubscriberOnly and not is_pro and not purchased %}
+      <div class="collection-badge pill">Included with Plus</div>
+      {% endif %} {% if purchased %}
+      <div class="collection-badge pill alt">Purchased</div>
+      {% endif %} {% if c.zipUrl %}
+      <div class="collection-actions">
+        {% if is_signed_in or c.isFree %} {% set purchased =
+        purchases.get(c.slug) if purchases else None %} {% if c.isSubscriberOnly
+        and not is_pro and not purchased %} {% set pid =
+        pack_effective_price_id(c) %} {% if pid %} {% if is_signed_in %}
+        <a
+          class="button ghost small"
+          href="{{ url_for('buy_pack', slug=c.slug) }}"
+          >💳 Buy $2.50</a
+        >
+        {% else %}
+        <a
+          class="button ghost small"
+          href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}"
+          >💳 Buy $2.50</a
+        >
+        {% endif %} {% endif %}
+        <a class="button small" href="{{ url_for('plus_pricing') }}"
+          >⭐ Included with Plus</a
+        >
+        {% elif is_signed_in or c.isFree %}
+        <a
+          class="button ghost small"
+          href="{{ url_for('dl_pack', slug=c.slug) }}"
+          >⬇️ Download Pack</a
+        >
+        {% else %}
+        <a
+          class="button ghost small"
+          href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
+          >🔐 Sign in to Download</a
+        >
         {% endif %}
       </div>
+      {% endif %}
+    </div>
     {% endfor %}
   </div>
-  <p class="small muted">Collections are starting points; pick one to prefill ideas in Generate.</p>
+  <p class="small muted">
+    Collections are starting points; pick one to prefill ideas in Generate.
+  </p>
 </section>
 
 <section class="block">
@@ -80,53 +117,130 @@
   <ul class="grid-cards">
     {% for item in items %}
     <li class="grid-card">
-      <a href="{{ url_for('download_file', filename=item.filename) }}" title="Download">
-        <img loading="lazy" src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}" alt="Thumbnail for {{ item.verse }}" onerror="this.style.display='none'" />
+      <a
+        href="{{ url_for('download_file', filename=item.filename) }}"
+        title="Download"
+      >
+        <img
+          loading="lazy"
+          src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}"
+          alt="Thumbnail for {{ item.verse }}"
+          onerror="this.style.display='none'"
+        />
       </a>
       <div class="g-title">{{ item.verse }}</div>
       <div class="g-meta"><span class="pill alt">{{ item.version }}</span></div>
       <div class="g-actions">
-        <a class="button" href="{{ url_for('download_file', filename=item.filename) }}">📥 Download</a>
-        <a class="button ghost" href="{{ url_for('regenerate', filename=item.filename[:-4]) }}">♻️ Regenerate</a>
+        <a
+          class="button"
+          href="{{ url_for('download_file', filename=item.filename) }}"
+          >📥 Download</a
+        >
+        <a
+          class="button ghost"
+          href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
+          >♻️ Regenerate</a
+        >
       </div>
     </li>
     {% endfor %}
   </ul>
 </section>
-{% endblock %}
-
-{% block extra_scripts %}
+{% endblock %} {% block extra_scripts %}
 <style>
-  .grid-collections { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-  .collection-tile { display: block; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; background: var(--box); color: inherit; }
-  .collection-tile.locked { position: relative; }
-  .collection-tile.locked::after { content: '🔒'; position: absolute; right: 10px; top: 10px; opacity: .7; }
-  .collection-title { font-weight: 700; }
-  .collection-count { color: var(--text-secondary); font-size: .85em; }
-  .collection-badge { margin-top: 6px; display: inline-block; }
-  .collection-actions { margin-top: 10px; }
-  .button.small { padding: 6px 10px; font-size: .9em; }
+  .grid-collections {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .collection-tile {
+    display: block;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--box);
+    color: inherit;
+  }
+  .collection-tile.locked {
+    position: relative;
+  }
+  .collection-tile.locked::after {
+    content: "🔒";
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    opacity: 0.7;
+  }
+  .collection-title {
+    font-weight: 700;
+  }
+  .collection-count {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+  }
+  .collection-badge {
+    margin-top: 6px;
+    display: inline-block;
+  }
+  .collection-actions {
+    margin-top: 10px;
+  }
+  .button.small {
+    padding: 6px 10px;
+    font-size: 0.9em;
+  }
 
-  .grid-cards { list-style: none; padding:0; margin:0; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-  .grid-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; background: var(--box); }
-  .grid-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; background: #f8fafc; }
-  .g-title { font-weight: 700; margin-top: 6px; }
-  .g-meta { color: var(--text-secondary); font-size: .85em; margin: 4px 0; }
-  .g-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .grid-cards {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .grid-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px;
+    background: var(--box);
+  }
+  .grid-card img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  .g-title {
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .g-meta {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin: 4px 0;
+  }
+  .g-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
 </style>
 <script>
-  (function(){
-    const ids=['topPacks','topWeek'];
-    ids.forEach(id=>{
-      const el=document.getElementById(id);
-      if(!el) return;
-      const key='browse:'+id+':open';
-      try{
-        const v=localStorage.getItem(key);
-        if(v==='true') el.setAttribute('open','');
-      }catch(e){}
-      el.addEventListener('toggle',()=>{
-        try{ localStorage.setItem(key, el.open?'true':'false'); }catch(e){}
+  (function () {
+    const ids = ["topPacks", "topWeek"];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const key = "browse:" + id + ":open";
+      try {
+        const v = localStorage.getItem(key);
+        if (v === "true") el.setAttribute("open", "");
+      } catch (e) {}
+      el.addEventListener("toggle", () => {
+        try {
+          localStorage.setItem(key, el.open ? "true" : "false");
+        } catch (e) {}
       });
     });
   })();
