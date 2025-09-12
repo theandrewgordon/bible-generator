@@ -9,33 +9,32 @@
 {% if c.description %}<p class="muted">{{ c.description }}</p>{% endif %}
 
 <p>
-<a class="button" href="{{ url_for('generate') }}?collection={{ c.slug }}">✍️ Open in Generate</a>
+  <a class="button" href="{{ url_for('generate') }}?collection={{ c.slug }}">✍️ Open in Generate</a>
 
-{% if c.zipUrl %}
-  {% set purchased = purchased if purchased is defined else None %}
-  {% if c.isSubscriberOnly and not is_pro and not purchased %}
-    {# Decide the price id we’ll use (per-collection override or default) #}
-    {% set pid = pack_effective_price_id(c) %}
-    {% if pid %}
-      {% if is_signed_in %}
-        <a class="button" href="{{ url_for('buy_pack', slug=c.slug) }}">
-          💳 Buy {{ ('$%.2f' % c.priceMeta.amount) if c.priceMeta else '$2.50' }}
-        </a>
+  {% if c.zipUrl %}
+    {% set purchased = purchases.get(c.slug) if purchases else None %}
+    {% if c.isSubscriberOnly and not is_pro and not purchased %}
+      {% set pid = pack_effective_price_id(c) %}
+      {% if pid %}
+        {% if is_signed_in %}
+          <a class="button" href="{{ url_for('buy_pack', slug=c.slug) }}">
+            💳 Buy {{ ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) }}
+          </a>
+        {% else %}
+          <a class="button" href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}">
+            💳 Buy {{ ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) }}
+          </a>
+        {% endif %}
+      {% endif %}
+      <a class="button ghost" href="{{ url_for('plus_pricing') }}">⭐ Included with Plus</a>
+    {% else %}
+      {% if is_signed_in or c.isFree %}
+        <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
       {% else %}
-        <a class="button" href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}">
-          💳 Buy {{ ('$%.2f' % c.priceMeta.amount) if c.priceMeta else '$2.50' }}
-        </a>
+        <a class="button ghost" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
       {% endif %}
     {% endif %}
-    <a class="button ghost" href="{{ url_for('plus_pricing') }}">⭐ Included with Plus</a>
-  {% else %}
-    {% if is_signed_in or c.isFree %}
-      <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
-    {% else %}
-      <a class="button ghost" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
-    {% endif %}
   {% endif %}
-{% endif %}
   {% if is_admin %}
     <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');">
       <button class="button" style="background:#e0e7ff; color:#111827;">⚙️ Prewarm & Build ZIP</button>
