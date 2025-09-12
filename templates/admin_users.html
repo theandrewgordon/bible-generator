@@ -4,79 +4,121 @@
 {% block content %}
 <h1 class="page-title">Admin: Users</h1>
 
-<form method="get" action="{{ url_for('admin_users') }}" class="search-form">
-  <input name="q" value="{{ q or '' }}" placeholder="Search email…" class="wide-input search-input">
+<form method="get" action="{{ url_for('admin_users') }}" class="search-form" role="search">
+  <input
+    name="q"
+    value="{{ q or '' }}"
+    placeholder="Search email…"
+    class="wide-input search-input"
+    aria-label="Search by email"
+    oninput="liveFilter(this.value)"
+  >
   <button class="button">Search</button>
-  {% if q %}<a class="button ghost" href="{{ url_for('admin_users') }}">Clear</a>{% endif %}
+  {% if q %}
+    <a class="button ghost" href="{{ url_for('admin_users') }}">Clear</a>
+  {% endif %}
 </form>
 
-{# month key (safe if the helper isn't injected) #}
+{# month key (safe if helper isn't injected) #}
 {% if month_key is defined %}
   {% set mkey = month_key() %}
 {% else %}
   {% set mkey = None %}
 {% endif %}
 
-<table class="admin-table">
-  <thead>
-    <tr>
-      <th>Email</th>
-      <th>Plan</th>
-      <th>Usage</th>
-      <th>Last Seen</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for u in users %}
-    {% set plan = u.get('plan', 'free') %}
-    {% set usage = u.get('usage', {}) %}
-    {% set lifetime = usage.get('lifetime', 0) %}
-    {% set months = usage.get('months', {}) %}
-    {% set this_month = (months.get(mkey) if mkey else 0) %}
-    {% set last_seen = u.get('lastSeenAt') %}
-    <tr>
-      <td>{{ u.get('email','—') }}</td>
-      <td>
-        <div class="current-plan">
-          {% if plan_label is defined %}{{ plan_label(plan) }}{% else %}{{ plan }}{% endif %}
-        </div>
-        <form method="post" action="{{ url_for('admin_users_set_plan', uid=u.get('id')) }}" class="plan-form">
-          <select name="plan">
-            <option value="free" {{ 'selected' if plan == 'free' else '' }}>Free</option>
-            <option value="plus_family" {{ 'selected' if plan in ['family','plus','plus_family'] else '' }}>Plus Family</option>
-            <option value="plus_classroom" {{ 'selected' if plan in ['classroom','school','plus_classroom'] else '' }}>Plus Classroom</option>
-          </select>
-          <button class="button ghost">Save</button>
-        </form>
-      </td>
-      <td>
-        <div class="small">lifetime: {{ lifetime }}</div>
-        <div class="small">this month: {{ this_month }}</div>
-      </td>
-      <td>
-        <div class="small">
-          {{ last_seen.strftime('%Y-%m-%d %H:%M') if last_seen else '—' }}
-        </div>
-      </td>
-      <td>
-        <form method="post" action="{{ url_for('admin_users_reset_usage', uid=u.get('id')) }}">
-          <button class="button accent">♻️ Reset Usage</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+{% if users and users|length %}
+  <div class="table-wrap">
+    <table class="admin-table" id="usersTable">
+      <thead>
+        <tr>
+          <th style="min-width: 220px;">Email</th>
+          <th style="min-width: 240px;">Plan</th>
+          <th style="min-width: 180px;">Usage</th>
+          <th style="min-width: 140px;">Last Seen</th>
+          <th style="min-width: 150px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in users %}
+        {% set plan = u.get('plan','free') %}
+        {% set usage = u.get('usage', {}) %}
+        {% set lifetime = usage.get('lifetime', 0) %}
+        {% set months = usage.get('months', {}) %}
+        {% set this_month = (months.get(mkey) if mkey else 0) %}
+        {% set last_seen = u.get('lastSeenAt') %}
+        <tr data-email="{{ u.get('email','')|lower }}">
+          <td class="nowrap">{{ u.get('email','—') }}</td>
+
+          <td>
+            <div class="current-plan pill {{ 'alt' if plan=='free' else '' }}">
+              {% if plan_label is defined %}{{ plan_label(plan) }}{% else %}{{ plan }}{% endif %}
+            </div>
+            <form method="post"
+                  action="{{ url_for('admin_users_set_plan', uid=u.get('id')) }}"
+                  class="plan-form">
+              <select name="plan" aria-label="Select plan">
+                <option value="free" {{ 'selected' if plan=='free' else '' }}>Free</option>
+                <option value="plus_family" {{ 'selected' if plan in ['family','plus','plus_family'] else '' }}>Plus Family</option>
+                <option value="plus_classroom" {{ 'selected' if plan in ['classroom','school','plus_classroom'] else '' }}>Plus Classroom</option>
+              </select>
+              <button class="button ghost">Save</button>
+            </form>
+          </td>
+
+          <td>
+            <div class="small">lifetime: <span class="pill alt">{{ lifetime }}</span></div>
+            <div class="small">this month: <span class="pill alt">{{ this_month if this_month else '0' }}</span></div>
+          </td>
+
+          <td class="small">
+            {{ last_seen.strftime('%Y-%m-%d %H:%M') if last_seen else '—' }}
+          </td>
+
+          <td>
+            <form method="post"
+                  onsubmit="return confirm('Reset usage for {{ u.get('email','this user') }}?')"
+                  action="{{ url_for('admin_users_reset_usage', uid=u.get('id')) }}">
+              <button class="button accent">♻️ Reset Usage</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="muted">No users match your search.</p>
+{% endif %}
 
 <style>
-.search-form{margin-bottom:1rem}
-.search-input{max-width:320px}
-.admin-table{width:100%;border-collapse:collapse}
-.admin-table th,.admin-table td{padding:.75rem;text-align:left;vertical-align:top}
-.admin-table tr{border-top:1px solid var(--border-color,#e5e7eb)}
-.current-plan{margin-bottom:.5rem}
-.plan-form{display:flex;gap:.5rem;align-items:center}
-.button.accent{background:var(--accent-color,#e0e7ff);color:var(--accent-text,#111827)}
+  .table-wrap{overflow:auto;border-radius:10px;border:1px solid var(--border-color,#e5e7eb);background:var(--box,#fff)}
+  .search-form{margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .search-input{max-width:320px}
+  .admin-table{width:100%;border-collapse:collapse}
+  .admin-table thead th{position:sticky;top:0;background:var(--box,#fff);z-index:1;border-bottom:1px solid var(--border-color,#e5e7eb)}
+  .admin-table th,.admin-table td{padding:.75rem 1rem;text-align:left;vertical-align:middle}
+  .admin-table tbody tr:nth-child(odd){background:color-mix(in srgb, var(--box,#fff) 90%, #000 0%)}
+  .admin-table tbody tr:hover{background:color-mix(in srgb, var(--box,#fff) 85%, #000 0%)}
+  .nowrap{white-space:nowrap}
+  .current-plan{margin-bottom:.4rem}
+  .plan-form{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+  .button.accent{background:var(--accent-color,#e0e7ff);color:var(--accent-text,#111827)}
+  .pill{display:inline-block;padding:.2rem .55rem;border-radius:999px;background:#e2e8f0;color:#0f172a;font-size:.8rem}
+  .pill.alt{background:#eef2ff}
+  @media (max-width:720px){
+    .admin-table th:nth-child(3), .admin-table td:nth-child(3){min-width:160px}
+    .admin-table th:nth-child(5), .admin-table td:nth-child(5){min-width:140px}
+  }
 </style>
+
+<script>
+  // Simple client-side filter that narrows visible rows while typing.
+  function liveFilter(val){
+    const q = (val || '').toLowerCase().trim();
+    document.querySelectorAll('#usersTable tbody tr').forEach(tr=>{
+      const email = tr.dataset.email || '';
+      tr.style.display = (!q || email.includes(q)) ? '' : 'none';
+    });
+  }
+</script>
 {% endblock %}
