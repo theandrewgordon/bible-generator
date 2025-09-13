@@ -1,36 +1,335 @@
-{% extends "base.html" %}
-{% block title %}Home | Faith Sparks Printables{% endblock %}
-{% block content %}
-{% if user_info %}
-  <h1 class="page-title">Welcome, {{ user_info["email"].split("@")[0] }} 👋</h1>
-  <p class="muted">Ready to create your next Bible worksheet?</p>
-  <div class="cta-row">
-    <a class="button" href="/generate">✍️ Generate a Worksheet</a>
-    <a class="button ghost" href="/history">📚 View History</a>
+{% extends "base.html" %} {% block title %}Home | Faith Sparks Printables{%
+endblock %} {% block content %} {# ---------- Announcement banner (reuses admin
+content fields if you render them in base; safe duplicate here) ---------- #} {%
+if site_content and site_content.announcement_enabled and
+site_content.announcement_text %}
+<div class="announcement" role="status">
+  {{ site_content.announcement_text }}
+</div>
+{% endif %} {% if user_info %} {# ---------- Logged-in hero ---------- #}
+<section class="hero card-lite">
+  <div class="hero-left">
+    <h1 class="page-title">
+      Welcome, {{ user_info["email"].split("@")[0] }} 👋
+    </h1>
+    <p class="muted">Ready to create your next Bible worksheet?</p>
+    <div class="cta-row">
+      <a class="button" href="{{ url_for('generate') }}"
+        >✍️ Generate a Worksheet</a
+      >
+      <a class="button ghost" href="{{ url_for('history') }}"
+        >📚 View History</a
+      >
+      <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
+    </div>
   </div>
-{% else %}
-  <h1 class="page-title">{{ (site_content.home_title or 'Welcome to Faith Sparks Printables') if site_content else 'Welcome to Faith Sparks Printables' }}</h1>
-  {% if site_content and site_content.activePreset %}
-    <p class="small muted">Preset active: {{ site_content.activePreset }}</p>
-  {% endif %}
-  <p class="muted">{{ (site_content.home_subtitle or 'Sign in with Google to create and track your printable Bible worksheets.') if site_content else 'Sign in with Google to create and track your printable Bible worksheets.' }}</p>
-  <div class="cta-row">
-    <a class="button" href="{{ site_content.home_cta_url or '/generate' }}">{{ site_content.home_cta_text or '✍️ Generate a Worksheet' }}</a>
-    <a class="button ghost" href="{{ url_for('google.login') }}">🔐 Login with Google</a>
+  <div class="hero-right">
+    <div class="mini-preview">
+      <div class="lines"></div>
+      <div class="badge-row">
+        <span class="pill alt">ESV</span>
+        <span class="pill">✍️ Cursive</span>
+      </div>
+    </div>
   </div>
-  {% if site_content and site_content.home_intro_html %}
-    {% if site_content.home_intro_is_markdown %}
-      <div>{{ site_content.home_intro_html|markdown|safe }}</div>
-    {% else %}
-      <div>{{ site_content.home_intro_html|safe }}</div>
-    {% endif %}
-  {% endif %}
-{% endif %}
-{% endblock %}
+</section>
 
-{% block extra_scripts %}
+{% else %} {# ---------- Logged-out hero: fully driven by Admin → Site Content
+---------- #}
+<section class="hero card-lite">
+  <div class="hero-left">
+    <h1 class="page-title">
+      {{ (site_content.home_title or 'Welcome to Faith Sparks Printables') if
+      site_content else 'Welcome to Faith Sparks Printables' }}
+    </h1>
+    {% if site_content and site_content.activePreset %}
+    <p class="small muted">Preset active: {{ site_content.activePreset }}</p>
+    {% endif %}
+
+    <p class="muted">
+      {{ (site_content.home_subtitle or 'Sign in with Google to create and track
+      your printable Bible worksheets.') if site_content else 'Sign in with
+      Google to create and track your printable Bible worksheets.' }}
+    </p>
+
+    <div class="cta-row">
+      <a
+        class="button"
+        href="{{ (site_content.home_cta_url or '/generate') if site_content else '/generate' }}"
+      >
+        {{ (site_content.home_cta_text or '✍️ Generate a Worksheet') if
+        site_content else '✍️ Generate a Worksheet' }}
+      </a>
+      <a class="button ghost" href="{{ url_for('google.login') }}"
+        >🔐 Login with Google</a
+      >
+      <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
+    </div>
+
+    {% if site_content and site_content.home_intro_html %}
+    <div class="intro">
+      {% if site_content.home_intro_is_markdown %} {{
+      site_content.home_intro_html|markdown|safe }} {% else %} {{
+      site_content.home_intro_html|safe }} {% endif %}
+    </div>
+    {% endif %}
+
+    <ul class="trust small">
+      <li>Printable PDFs</li>
+      <li>Bible-based handwriting & copywork</li>
+      <li>Great for homeschool & Sunday school</li>
+    </ul>
+  </div>
+
+  <div class="hero-right">
+    <div class="mini-preview">
+      <div class="lines"></div>
+      <div class="badge-row">
+        <span class="pill alt">KJV</span>
+        <span class="pill">🖍️ Color</span>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %} {# ---------- Featured Collections (auto from collections list if
+provided) ---------- #} {% set show_collections = collections if collections
+else [] %} {% if show_collections and show_collections|length %}
+<section class="section">
+  <div class="section-head">
+    <h2 class="section-title">Featured Packs</h2>
+    <a class="button ghost tiny" href="{{ url_for('browse') }}">View all</a>
+  </div>
+
+  <div class="pack-grid">
+    {% for c in show_collections[:6] %}
+    <article class="pack-card">
+      <div class="pack-top">
+        <div class="pack-thumb" aria-hidden="true"></div>
+        <div class="pack-meta">
+          {% if c.isPublic %}
+          <span class="pill alt">Public</span>
+          {% else %}
+          <span class="pill">Private</span>
+          {% endif %} {% if c.isFree %}
+          <span class="pill ok">Free</span>
+          {% elif c.isSubscriberOnly %}
+          <span class="pill info">Plus</span>
+          {% endif %}
+        </div>
+      </div>
+      <h3 class="pack-title">{{ c.title }}</h3>
+      <p class="pack-sub muted small">
+        {{ c.verses|length }} verses • <code>{{ c.slug }}</code>
+      </p>
+      <div class="pack-actions">
+        <a class="button" href="{{ url_for('browse_detail', slug=c.slug) }}"
+          >Details</a
+        >
+        <a
+          class="button ghost"
+          href="{{ url_for('generate', collection_slug=c.slug) }}"
+          >Use Pack</a
+        >
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %} {# ---------- 1-2-3 how it works (evergreen; no admin field needed)
+---------- #}
+<section class="section how">
+  <h2 class="section-title">How it works</h2>
+  <ol class="steps">
+    <li><span class="dot">1</span> Pick a verse (or paste your own text)</li>
+    <li><span class="dot">2</span> Choose version & ✍️ cursive</li>
+    <li><span class="dot">3</span> Download your printable PDF</li>
+  </ol>
+  <div class="cta-row center">
+    <a class="button" href="{{ url_for('generate') }}">Start now</a>
+    <a class="button ghost" href="{{ url_for('browse') }}">Browse packs</a>
+  </div>
+</section>
+
+{% endblock %} {% block extra_scripts %}
 <style>
-  .cta-row { display:flex; gap:10px; flex-wrap:wrap; }
-  .cta-row .button { flex:1 1 260px; }
+  .announcement {
+    margin-bottom: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid #4b3a0f;
+    background: #4b3a0f33;
+    color: #f8e7c7;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 1rem;
+    align-items: center;
+  }
+  .hero-right {
+    display: grid;
+    place-items: center;
+  }
+  .mini-preview {
+    width: 260px;
+    max-width: 100%;
+    border: 1px dashed #334155;
+    border-radius: 14px;
+    padding: 0.8rem;
+  }
+  .mini-preview .lines {
+    height: 110px;
+    border-radius: 10px;
+    background: repeating-linear-gradient(
+      #0f172a,
+      #0f172a 18px,
+      #223043 18px,
+      #223043 20px
+    );
+    border: 1px solid #233144;
+  }
+  .badge-row {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .pill {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-size: 0.8rem;
+    border: 1px solid #334155;
+  }
+  .pill.alt {
+    background: #0b3b5a;
+    border-color: #0b3b5a;
+    color: #e6f2ff;
+  }
+  .pill.ok {
+    background: #0f3a2a;
+    border-color: #0f3a2a;
+  }
+  .pill.info {
+    background: #0b365a;
+    border-color: #0b365a;
+  }
+
+  .cta-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .cta-row .button {
+    flex: 1 1 220px;
+  }
+  .cta-row.center {
+    justify-content: center;
+  }
+
+  .trust {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .trust li::marker {
+    content: "";
+  }
+
+  .section {
+    margin-top: 1.25rem;
+  }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+  }
+  .section-title {
+    margin: 0;
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0.6rem 0;
+  }
+  .steps li {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    border: 1px solid #2a3441;
+    background: var(--box, #0f172a);
+    border-radius: 12px;
+    padding: 0.6rem;
+  }
+  .dot {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #0b3b5a;
+    color: #e6f2ff;
+    font-weight: 700;
+  }
+
+  .pack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
+  }
+  .pack-card {
+    border: 1px solid #2a3441;
+    background: var(--box, #0f172a);
+    border-radius: 12px;
+    padding: 0.75rem;
+  }
+  .pack-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  .pack-thumb {
+    height: 90px;
+    flex: 1;
+    border-radius: 8px;
+    border: 1px dashed #334155;
+    background: linear-gradient(135deg, #0f172a 0%, #111b2a 100%);
+  }
+  .pack-meta {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .pack-title {
+    margin: 0.5rem 0 0.25rem;
+  }
+  .pack-sub {
+    margin: 0;
+  }
+  .pack-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+
+  @media (max-width: 980px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+    .steps {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 {% endblock %}
