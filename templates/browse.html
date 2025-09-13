@@ -2,6 +2,26 @@
 {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
 
+<div class="toolbar">
+  <input
+    id="search"
+    type="search"
+    placeholder="Search packs…"
+    oninput="debounced()"
+    aria-label="Search packs"
+  />
+  <select id="tag" onchange="applyFilters()" aria-label="Filter by access">
+    <option value="">All</option>
+    <option value="free">Free</option>
+    <option value="plus">Included with Plus</option>
+  </select>
+  <select id="sort" onchange="applyFilters()" aria-label="Sort">
+    <option value="order">Sort: Featured</option>
+    <option value="alpha">Sort: A→Z</option>
+    <option value="count_desc">Sort: Most verses</option>
+  </select>
+</div>
+
 {% if top_packs and top_packs|length %}
 <section class="block">
   <details id="topPacks">
@@ -9,17 +29,22 @@
       <h3 style="display: inline">Top Packs</h3>
       <span class="small muted">(click to expand)</span>
     </summary>
-    <div class="grid-collections mt10">
+    <div class="pack-grid mt10">
       {% for p in top_packs %}
       <a
-        class="collection-tile"
+        class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
+        data-title="{{ p.title|lower }}"
       >
-        <div class="row">
-          <div class="collection-title">{{ p.title }}</div>
-          {% if p.isFree %}<span class="pill alt">Free</span>{% endif %}
+        <div class="pack-top">
+          <div class="pack-thumb" aria-hidden="true"></div>
+          <div class="pack-meta">
+            {% if p.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
+            p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
+          </div>
         </div>
-        <div class="collection-count">{{ p.downloads }} downloads</div>
+        <h3 class="pack-title">{{ p.title }}</h3>
+        <div class="pack-sub muted small">{{ p.downloads }} downloads</div>
       </a>
       {% endfor %}
     </div>
@@ -32,17 +57,22 @@
       <h3 style="display: inline">Top This Week</h3>
       <span class="small muted">(click to expand)</span>
     </summary>
-    <div class="grid-collections mt10">
+    <div class="pack-grid mt10">
       {% for p in top_packs_week %}
       <a
-        class="collection-tile"
+        class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
+        data-title="{{ p.title|lower }}"
       >
-        <div class="row">
-          <div class="collection-title">{{ p.title }}</div>
-          {% if p.isFree %}<span class="pill alt">Free</span>{% endif %}
+        <div class="pack-top">
+          <div class="pack-thumb" aria-hidden="true"></div>
+          <div class="pack-meta">
+            {% if p.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
+            p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
+          </div>
         </div>
-        <div class="collection-count">{{ p.downloads }} downloads</div>
+        <h3 class="pack-title">{{ p.title }}</h3>
+        <div class="pack-sub muted small">{{ p.downloads }} downloads</div>
       </a>
       {% endfor %}
     </div>
@@ -51,66 +81,85 @@
 {% endif %}
 
 <section class="block">
-  <h3>Collections</h3>
-  <div class="grid-collections">
+  <div class="section-head">
+    <h3>Collections</h3>
+    <span id="countShown" class="small muted"></span>
+  </div>
+
+  <div id="packs" class="pack-grid">
     {% for c in collections %} {% set purchased = purchases.get(c.slug) if
     purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro
     and not purchased) %}
-    <div class="collection-tile {{ 'locked' if locked }}">
-      <div class="row">
-        <div class="collection-title">
-          <a href="{{ url_for('browse_detail', slug=c.slug) }}"
-            >{{ c.title }}</a
-          >
+    <article
+      class="pack-card {{ 'locked' if locked }}"
+      data-title="{{ c.title|lower }}"
+      data-free="{{ 'true' if c.isFree else 'false' }}"
+      data-plus="{{ 'true' if c.isSubscriberOnly else 'false' }}"
+      data-count="{{ c.count or (c.verses|length) }}"
+    >
+      <div class="pack-top">
+        <div class="pack-thumb" aria-hidden="true"></div>
+        <div class="pack-meta">
+          {% if c.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
+          purchased %}<span class="pill alt">Purchased</span>{% endif %} {% if
+          locked %}<span class="pill info">Plus</span>{% endif %}
         </div>
-        {% if c.isFree %}<span class="pill alt">Free</span>{% endif %} {% if
-        purchased %}<span class="pill alt">Purchased</span>{% endif %} {% if
-        locked %}<span class="pill">Included with Plus</span>{% endif %}
       </div>
 
-      <div class="collection-count">{{ c.count }} verses</div>
+      <h3 class="pack-title">
+        <a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a>
+      </h3>
+      <div class="pack-sub muted small">
+        {{ c.count or (c.verses|length) }} verses • <code>{{ c.slug }}</code>
+      </div>
 
       {% if c.zipUrl %}
-      <div class="actions-row">
-        {% if is_signed_in or c.isFree %} {% if locked %} {# Not pro & not
-        purchased: show Buy + tiny “or Get Plus” link #} {% set pid =
+      <div class="pack-actions">
+        {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
         pack_effective_price_id(c) %} {% if pid %}
         <a class="button small" href="{{ url_for('buy_pack', slug=c.slug) }}"
           >💳 Buy $2.50</a
         >
         {% endif %}
-        <a class="link-soft" href="{{ url_for('plus_pricing') }}"
-          >or get Plus</a
+        <a class="button ghost small" href="{{ url_for('plus_pricing') }}"
+          >Get Plus</a
         >
         {% else %}
         <a
           class="button ghost small"
           href="{{ url_for('dl_pack', slug=c.slug) }}"
-          >⬇️ Download Pack</a
+          >⬇️ Download</a
         >
         {% endif %} {% else %} {% set next_url = (url_for('buy_pack',
         slug=c.slug) if locked else url_for('dl_pack', slug=c.slug)) %}
         <a
-          class="button ghost small"
+          class="button small"
           href="{{ url_for('google.login', next=next_url) }}"
           >🔐 Sign in</a
         >
         {% endif %}
+        <a
+          class="button small"
+          href="{{ url_for('generate', collection_slug=c.slug) }}"
+          >✍️ Use Pack</a
+        >
       </div>
       {% endif %}
-    </div>
+    </article>
     {% endfor %}
   </div>
+
   <p class="small muted">
     Collections are starting points; pick one to prefill ideas in Generate.
   </p>
 </section>
 
+{% if items and items|length %}
 <section class="block">
   <h3>Recent</h3>
-  <ul class="grid-cards">
+  <ul class="thumb-grid">
     {% for item in items %}
-    <li class="grid-card">
+    <li class="thumb-card">
       <a
         href="{{ url_for('download_file', filename=item.filename) }}"
         title="Download"
@@ -122,9 +171,9 @@
           onerror="this.style.display='none'"
         />
       </a>
-      <div class="g-title">{{ item.verse }}</div>
-      <div class="g-meta"><span class="pill alt">{{ item.version }}</span></div>
-      <div class="g-actions">
+      <div class="t-title">{{ item.verse }}</div>
+      <div class="t-meta"><span class="pill alt">{{ item.version }}</span></div>
+      <div class="t-actions">
         <a
           class="button"
           href="{{ url_for('download_file', filename=item.filename) }}"
@@ -140,131 +189,151 @@
     {% endfor %}
   </ul>
 </section>
-{% endblock %} {% block extra_scripts %}
+{% endif %} {% endblock %} {% block extra_scripts %}
 <style>
+  .toolbar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+  }
+  .toolbar input[type="search"] {
+    min-width: 240px;
+  }
   .mt10 {
     margin-top: 10px;
   }
-  .row {
+  .section-head {
     display: flex;
-    gap: 8px;
-    align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
+    align-items: center;
   }
-  .grid-collections {
+
+  .pack-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
   }
-  .collection-tile {
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 14px;
-    background: var(--box);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
-    transition: transform 0.05s ease, box-shadow 0.2s ease;
-  }
-  .collection-tile:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
-  }
-  .collection-tile.locked {
+  .pack-card {
+    border: 1px solid #2a3441;
+    background: var(--box, #0f172a);
+    border-radius: 12px;
+    padding: 0.75rem;
     position: relative;
   }
-  .collection-tile.locked::after {
+  .pack-card.locked::after {
     content: "🔒";
     position: absolute;
     right: 10px;
     top: 10px;
     opacity: 0.7;
   }
-  .collection-title {
-    font-weight: 800;
+  .pack-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: flex-start;
   }
-  .collection-count {
-    color: var(--text-secondary);
-    font-size: 0.9em;
-    margin-top: 2px;
+  .pack-thumb {
+    height: 90px;
+    flex: 1;
+    border-radius: 8px;
+    border: 1px dashed #334155;
+    background: linear-gradient(135deg, #0f172a 0%, #111b2a 100%);
   }
+  .pack-meta {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .pack-title {
+    margin: 0.5rem 0 0.25rem;
+  }
+  .pack-sub {
+    margin: 0;
+  }
+  .pack-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+
   .pill {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 999px;
-    background: #ffefa5;
-    color: #111827;
-    font-weight: 600;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-weight: 700;
     font-size: 0.78rem;
+    border: 1px solid #334155;
   }
   .pill.alt {
-    background: #e8eef7;
+    background: #0b3b5a;
+    border-color: #0b3b5a;
+    color: #e6f2ff;
   }
-  .actions-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-top: 10px;
-    flex-wrap: wrap;
+  .pill.ok {
+    background: #0f3a2a;
+    border-color: #0f3a2a;
   }
-  .link-soft {
-    font-size: 0.9em;
-    color: var(--text-secondary);
-    text-decoration: underline;
+  .pill.info {
+    background: #0b365a;
+    border-color: #0b365a;
   }
-  /* Recent */
-  .grid-cards {
+
+  .thumb-grid {
     list-style: none;
     padding: 0;
     margin: 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px;
+    gap: 0.75rem;
   }
-  .grid-card {
-    border: 1px solid #e5e7eb;
+  .thumb-card {
+    border: 1px solid #2a3441;
+    background: var(--box, #0f172a);
     border-radius: 12px;
-    padding: 10px;
-    background: var(--box);
+    padding: 0.6rem;
   }
-  .grid-card img {
+  .thumb-card img {
     width: 100%;
     aspect-ratio: 4/3;
     object-fit: cover;
     border-radius: 8px;
-    background: #f8fafc;
+    background: #0b1220;
   }
-  .g-title {
+  .t-title {
     font-weight: 800;
     margin-top: 6px;
   }
-  .g-meta {
-    color: var(--text-secondary);
+  .t-meta {
     font-size: 0.85em;
     margin: 4px 0;
   }
-  .g-actions {
+  .t-actions {
     display: flex;
-    gap: 6px;
+    gap: 0.4rem;
     flex-wrap: wrap;
   }
-  .button.small {
-    padding: 6px 10px;
-    font-size: 0.92em;
-  }
+
   @media (max-width: 520px) {
-    .grid-collections {
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    .pack-grid {
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     }
   }
 </style>
+
 <script>
+  // Persist details open/closed
   (function () {
     ["topPacks", "topWeek"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       const key = "browse:" + id + ":open";
       try {
-        if (localStorage.getItem(key) === "true") el.setAttribute("open", "");
+        if (localStorage.getItem(key) === "true") el.open = true;
       } catch (e) {}
       el.addEventListener("toggle", () => {
         try {
@@ -273,5 +342,54 @@
       });
     });
   })();
+
+  // Search / filter / sort (client-side)
+  let _t;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  function debounced() {
+    clearTimeout(_t);
+    _t = setTimeout(applyFilters, 120);
+  }
+
+  function applyFilters() {
+    const q = ($("#search").value || "").toLowerCase().trim();
+    const tag = $("#tag").value;
+    const sort = $("#sort").value;
+
+    const cards = $$("#packs .pack-card");
+    const visible = [];
+
+    cards.forEach((el) => {
+      const title = el.dataset.title || "";
+      const isFree = el.dataset.free === "true";
+      const isPlus = el.dataset.plus === "true";
+
+      let ok = true;
+      if (q && !title.includes(q)) ok = false;
+      if (tag === "free" && !isFree) ok = false;
+      if (tag === "plus" && !isPlus) ok = false;
+
+      el.hidden = !ok;
+      if (ok) visible.push(el);
+    });
+
+    // sort
+    visible
+      .sort((a, b) => {
+        if (sort === "alpha") {
+          return (a.dataset.title || "").localeCompare(b.dataset.title || "");
+        }
+        if (sort === "count_desc") {
+          return (+b.dataset.count || 0) - (+a.dataset.count || 0);
+        }
+        return 0; // featured/order is server order
+      })
+      .forEach((el) => el.parentNode.appendChild(el));
+
+    $("#countShown").textContent = `${visible.length} shown`;
+  }
+
+  document.addEventListener("DOMContentLoaded", applyFilters);
 </script>
 {% endblock %}

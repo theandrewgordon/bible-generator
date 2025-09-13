@@ -1,67 +1,165 @@
-{% extends "base.html" %}
-{% block title %}{{ c.title }} | Collections{% endblock %}
+{% extends "base.html" %} {% block title %}{{ c.title }} | Collections{%
+endblock %} {% block content %} {% set purchased = purchases.get(c.slug) if
+purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro and
+not purchased) %} {% set pid = pack_effective_price_id(c) %}
 
-{% block content %}
-{% set purchased = purchases.get(c.slug) if purchases else None %}
-{% set locked = (c.isSubscriberOnly and not is_pro and not purchased) %}
-{% set pid = pack_effective_price_id(c) %} {# <<< match browse logic #}
+<header class="head">
+  <div>
+    <h1 class="page-title">{{ c.title }}</h1>
+    <div class="badges">
+      {% if c.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
+      purchased %}<span class="pill alt">Purchased</span>{% endif %} {% if
+      locked %}<span class="pill info">Included with Plus</span>{% endif %}
+      <span class="pill">{{ c.verses|length }} verses</span>
+    </div>
+    {% if c.description %}
+    <p class="muted">{{ c.description }}</p>
+    {% endif %}
+  </div>
+</header>
 
-<h1 class="page-title">
-  {{ c.title }}
-  {% if c.isFree %}<span class="pill alt">Free</span>{% endif %}
-  {% if purchased %}<span class="pill alt">Purchased</span>{% endif %}
-  {% if locked %}<span class="pill">Included with Plus</span>{% endif %}
-</h1>
+<div class="grid">
+  <aside class="side">
+    <div class="hero-thumb" aria-hidden="true"></div>
+    <div class="sticky-cta">
+      <a class="button" href="{{ url_for('generate') }}?collection={{ c.slug }}"
+        >✍️ Open in Generate</a
+      >
 
-{% if c.description %}<p class="muted">{{ c.description }}</p>{% endif %}
-
-<p class="actions-row">
-  <a class="button" href="{{ url_for('generate') }}?collection={{ c.slug }}">✍️ Open in Generate</a>
-
-  {% if c.zipUrl %}
-    {% if locked %}
-      {# Use effective price id + a safe display price fallback #}
-      {% set display_price = ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %}
-      {% if pid %}
-        {% if is_signed_in %}
-          <a class="button" href="{{ url_for('buy_pack', slug=c.slug) }}">💳 Buy {{ display_price }}</a>
-        {% else %}
-          <a class="button" href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}">💳 Buy {{ display_price }}</a>
-        {% endif %}
-      {% endif %}
-      <a class="link-soft" href="{{ url_for('plus_pricing') }}">or get Plus</a>
-    {% else %}
-      {% if is_signed_in or c.isFree %}
-        <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">⬇️ Download Pack</a>
+      {% if c.zipUrl %} {% if locked %} {% set display_price = ('$%.2f' %
+      (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %} {% if
+      is_signed_in %}
+      <a class="button" href="{{ url_for('buy_pack', slug=c.slug) }}"
+        >💳 Buy {{ display_price }}</a
+      >
       {% else %}
-        <a class="button ghost" href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}">🔐 Sign in to Download</a>
-      {% endif %}
-    {% endif %}
-  {% endif %}
+      <a
+        class="button"
+        href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}"
+        >💳 Buy {{ display_price }}</a
+      >
+      {% endif %} {% endif %}
+      <a class="button ghost" href="{{ url_for('plus_pricing') }}">Get Plus</a>
+      {% else %} {% if is_signed_in or c.isFree %}
+      <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
+        >⬇️ Download Pack</a
+      >
+      {% else %}
+      <a
+        class="button ghost"
+        href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
+        >🔐 Sign in to Download</a
+      >
+      {% endif %} {% endif %} {% endif %} {% if is_admin %}
+      <form
+        method="post"
+        action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}"
+        onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');"
+      >
+        <button class="button" style="background: #e0e7ff; color: #111827">
+          ⚙️ Prewarm & Build ZIP
+        </button>
+      </form>
+      {% if pid %}
+      <a class="button ghost" href="{{ stripe_price_url(pid) }}" target="_blank"
+        >Open in Stripe</a
+      >
+      {% endif %} {% endif %}
+    </div>
+  </aside>
 
-  {% if is_admin %}
-    <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');">
-      <button class="button" style="background:#e0e7ff;color:#111827;">⚙️ Prewarm & Build ZIP</button>
-    </form>
-    {% if pid %}
-      <a class="button ghost" href="{{ stripe_price_url(pid) }}" target="_blank">Open in Stripe</a>
-    {% endif %}
-  {% endif %}
-</p>
-
-<h2>Verses ({{ c.verses|length }})</h2>
-<ul>
-  {% for verse in c.verses %}
-    <li>{{ verse }}</li>
-  {% endfor %}
-</ul>
-{% endblock %}
-
-{% block extra_scripts %}
+  <main class="main">
+    <h2>Verses ({{ c.verses|length }})</h2>
+    <ul class="verse-list" id="verseList">
+      {% for verse in c.verses %}
+      <li>{{ verse }}</li>
+      {% endfor %}
+    </ul>
+  </main>
+</div>
+{% endblock %} {% block extra_scripts %}
 <style>
-  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#ffefa5;color:#111827;font-weight:700;font-size:.78rem}
-  .pill.alt{background:#e8eef7}
-  .actions-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .link-soft{font-size:.95em;color:var(--text-secondary);text-decoration:underline}
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .badges {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin: 0.25rem 0;
+  }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-weight: 700;
+    font-size: 0.78rem;
+    border: 1px solid #334155;
+  }
+  .pill.alt {
+    background: #0b3b5a;
+    border-color: #0b3b5a;
+    color: #e6f2ff;
+  }
+  .pill.ok {
+    background: #0f3a2a;
+    border-color: #0f3a2a;
+  }
+  .pill.info {
+    background: #0b365a;
+    border-color: #0b365a;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 1rem;
+  }
+  @media (max-width: 980px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+    .side {
+      order: -1;
+    }
+  }
+  .side {
+    position: relative;
+  }
+  .hero-thumb {
+    height: 160px;
+    border: 1px dashed #334155;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #0f172a 0%, #111b2a 100%);
+    margin-bottom: 0.6rem;
+  }
+  .sticky-cta {
+    position: sticky;
+    top: 1rem;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .verse-list {
+    columns: 2;
+    column-gap: 1rem;
+    list-style: disc;
+    padding-left: 1.1rem;
+  }
+  .verse-list li {
+    break-inside: avoid;
+    margin: 0.15rem 0;
+  }
+  @media (max-width: 720px) {
+    .verse-list {
+      columns: 1;
+    }
+  }
 </style>
 {% endblock %}
