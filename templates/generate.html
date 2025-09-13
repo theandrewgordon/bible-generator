@@ -2,10 +2,10 @@
 endblock %} {% block content %}
 <h1 class="page-title">📝 Generate Worksheet</h1>
 
-{# ---------- Usage / Plan Banner ---------- #} {% if usage_info %}
-<div class="usage-banner">
-  {% set m_lim = usage_info.monthly_limit %} {% set m_used =
-  usage_info.monthly_used %} {% if m_lim is not none %}
+{# ---------- Usage / Plan Banner ---------- #} {% if usage_info %} {% set m_lim
+= usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %}
+<div class="usage-banner" aria-live="polite">
+  {% if m_lim is not none %}
   <div
     class="bar"
     role="progressbar"
@@ -22,17 +22,27 @@ endblock %} {% block content %}
     <span class="small muted">Plan: {{ usage_info.plan|title }}</span>
     <span class="small">{{ m_used }} of {{ m_lim }} this month</span>
   </div>
+  <span class="sr-only">{{ m_used }} of {{ m_lim }} used</span>
   {% if usage_info.plan == 'free' and usage_info.monthly_pct_used >= 70 %}
   <div class="upgrade" id="upgradeCta" hidden>
     You’re close to your monthly limit.
     <a href="{{ url_for('plus_pricing') }}">Upgrade to Plus</a> for more.
-    <button type="button" class="dismiss" aria-label="Dismiss">✕</button>
+    <button type="button" class="dismiss" aria-label="Dismiss upgrade notice">
+      ✕
+    </button>
   </div>
   {% endif %} {% endif %}
 </div>
-{% endif %}
+{% endif %} {% set out_of_quota = usage_info and usage_info.monthly_limit is not
+none and (usage_info.monthly_remaining|int) <= 0 %}
 
-<form id="worksheetForm" method="POST" action="/generate" novalidate>
+<form
+  id="worksheetForm"
+  method="POST"
+  action="{{ url_for('generate') }}"
+  novalidate
+  aria-labelledby="titleStep"
+>
   {% if collection_slug %}
   <input type="hidden" name="collection_slug" value="{{ collection_slug }}" />
   {% endif %}
@@ -40,8 +50,8 @@ endblock %} {% block content %}
   <div class="grid">
     <div class="col-main">
       {# ---------- Step 1: Verse entry ---------- #}
-      <section class="block">
-        <h2 class="step">
+      <section class="block" aria-labelledby="step1">
+        <h2 id="step1" class="step">
           <span class="step-dot">1</span> Choose your verse(s)
         </h2>
 
@@ -51,43 +61,49 @@ endblock %} {% block content %}
           id="verseInput"
           name="verse"
           placeholder="e.g., John 3:16 (ESV), Romans 8:28"
-          autofocus
           autocomplete="off"
           inputmode="text"
           aria-describedby="verseHint filenamePreview"
         />
         <small id="verseHint" class="muted">
-          Tip: Separate multiple with commas. Add version in parentheses (e.g.,
-          “(ESV)”).
+          Tip: Separate multiple with commas or new lines. Add version in
+          parentheses (e.g., “(ESV)”).
         </small>
 
+        {# Quick picks driven by Admin → Content (fallback provided) #}
         <div class="quick-picks">
           <span class="label small muted">Quick picks:</span>
-          <button type="button" class="chip" data-verse="John 3:16 (ESV)">
-            John 3:16
+          {% set quick = (site_content.generate_quick_picks or ['John 3:16
+          (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (NIV)','Proverbs 3:5-6
+          (ESV)']) %} {% for v in quick %}
+          <button type="button" class="chip" data-verse="{{ v }}">
+            {{ v.split('(')[0].strip() }}
           </button>
-          <button type="button" class="chip" data-verse="Psalm 23:1 (KJV)">
-            Psalm 23:1
-          </button>
-          <button
-            type="button"
-            class="chip"
-            data-verse="Philippians 4:13 (NIV)"
-          >
-            Phil 4:13
-          </button>
-          <button type="button" class="chip" data-verse="Proverbs 3:5-6 (ESV)">
-            Prov 3:5–6
-          </button>
+          {% endfor %}
         </div>
+
+        {% if collection_sample_verses %}
+        <div class="quick-picks" style="margin-top: 0.35rem">
+          <span class="label small muted">From {{ collection_slug }}:</span>
+          {% for v in collection_sample_verses[:6] %}
+          <button type="button" class="chip" data-verse="{{ v }}">
+            {{ v.split('(')[0].strip() }}
+          </button>
+          {% endfor %}
+        </div>
+        {% endif %} {% if site_content and site_content.generate_tips_html %}
+        <div class="help" style="margin-top: 0.35rem">
+          {{ site_content.generate_tips_html|safe }}
+        </div>
+        {% endif %}
 
         <div id="filenamePreview" class="muted small"></div>
         <div id="zipHint" class="small muted" style="display: none"></div>
       </section>
 
       {# ---------- Step 2: DIY Mode ---------- #}
-      <section class="block">
-        <h2 class="step">
+      <section class="block" aria-labelledby="step2">
+        <h2 id="step2" class="step">
           <span class="step-dot">2</span> (Optional) Use your own text
         </h2>
 
@@ -105,7 +121,6 @@ endblock %} {% block content %}
             class="wide-input"
             aria-label="Custom title"
           />
-
           <textarea
             id="customTextArea"
             name="custom_text"
@@ -171,8 +186,8 @@ endblock %} {% block content %}
       </section>
 
       {# ---------- Step 3: Options ---------- #}
-      <section class="block">
-        <h2 class="step"><span class="step-dot">3</span> Options</h2>
+      <section class="block" aria-labelledby="step3">
+        <h2 id="step3" class="step"><span class="step-dot">3</span> Options</h2>
 
         <div class="row">
           <label class="checkbox-row">
@@ -181,9 +196,14 @@ endblock %} {% block content %}
           </label>
         </div>
 
-        <div class="row">
+        <div class="row" style="margin-top: 4px">
           <label for="versionSelect"><strong>📘 Version</strong></label>
-          <select id="versionSelect" name="version" class="wide-input">
+          <select
+            id="versionSelect"
+            name="version"
+            class="wide-input"
+            style="max-width: 220px"
+          >
             <option value="esv">ESV</option>
             <option value="kjv">KJV</option>
             <option value="nlt">NLT</option>
@@ -197,10 +217,7 @@ endblock %} {% block content %}
         <details class="advanced">
           <summary>Advanced options</summary>
           <ul class="muted small">
-            <li>
-              We’ll auto-detect a version if you include “(ESV)” etc. in the
-              verse.
-            </li>
+            <li>Include “(ESV)” etc. in a verse to override the dropdown.</li>
             <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
             <li>DIY text is validated and profanity-filtered.</li>
           </ul>
@@ -209,13 +226,28 @@ endblock %} {% block content %}
 
       {# ---------- Actions ---------- #}
       <div class="actions">
-        <button type="submit" class="button primary" id="submitBtn">
+        <button
+          type="submit"
+          class="button primary"
+          id="submitBtn"
+          title="Create printable PDF(s)"
+          {%
+          if
+          out_of_quota
+          %}disabled
+          aria-disabled="true"
+          {%
+          endif
+          %}
+        >
           🚀 Generate Worksheet
         </button>
-        <button type="button" class="button" onclick="clearForm()">
-          🧹 Clear
-        </button>
+        <button type="button" class="button" id="clearBtn">🧹 Clear</button>
         <a class="button ghost" href="{{ url_for('history') }}">📚 History</a>
+        <button type="button" class="button ghost" id="shareLinkBtn">
+          🔗 Share this setup
+        </button>
+
         {% if usage_info %}
         <span class="small muted left-chip">
           {% if usage_info.monthly_limit is not none %} {{
@@ -224,6 +256,13 @@ endblock %} {% block content %}
         </span>
         {% endif %}
       </div>
+
+      {% if out_of_quota %}
+      <div class="help" style="margin-top: 0.35rem">
+        You’ve hit your monthly limit.
+        <a href="{{ url_for('plus_pricing') }}">Upgrade to Plus</a> for more.
+      </div>
+      {% endif %}
 
       <div id="disclaimerBox" class="hidden warn" role="alert">
         ⚠️ Some verses could not be verified. Please double-check your input.
@@ -258,14 +297,9 @@ endblock %} {% block content %}
   </div>
 </form>
 
-{# ---------- Toast & Loading ---------- #}
+{# ---------- Toast ---------- #}
 <div id="toast" class="snackbar" role="status" aria-live="polite">
   ✅ Worksheet request sent…
-</div>
-
-<div id="loadingOverlay" class="loading-overlay" hidden aria-hidden="true">
-  <div class="spinner" aria-label="Generating your worksheet…"></div>
-  <div class="muted small">Generating your worksheet…</div>
 </div>
 
 {# ---------- Tagify ---------- #}
@@ -276,9 +310,17 @@ endblock %} {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 
 <script>
-  // ---------- Elements ----------
+  /* ========= Elements ========= */
   const verseInput   = document.getElementById("verseInput");
-  const tagify       = new Tagify(verseInput, { dropdown: { enabled: 0 }, enforceWhitelist: false, trim: true });
+  const tagify       = new Tagify(verseInput, {
+    enforceWhitelist: false,
+    trim: true,
+    duplicates: false,
+    pasteAsTags: true,
+    delimiters: ",\n",
+    dropdown: { enabled: 0 },
+    originalInputValueFormat: arr => arr.map(v=>v.value).join(", ")
+  });
   const filenamePreview = document.getElementById("filenamePreview");
   const versionSelect   = document.getElementById("versionSelect");
   const cursiveToggle   = document.getElementById("cursiveToggle");
@@ -287,78 +329,24 @@ endblock %} {% block content %}
   const customTitle     = document.getElementById("customTitle");
   const customText      = document.getElementById("customTextArea");
   const customPrompt    = document.getElementById("customPrompt");
-  const customNote      = document.getElementById("customModeNote");
-  const termsWrapper    = document.getElementById("termsWrapper");
   const agreeTerms      = document.getElementById("agreeTerms");
   const submitBtn       = document.getElementById("submitBtn");
   const toastEl         = document.getElementById("toast");
-  const loadingOverlay  = document.getElementById("loadingOverlay");
 
-  // Preview elements
+  /* Preview */
   const previewVerse   = document.getElementById("previewVerse");
   const previewVersion = document.getElementById("previewVersion");
   const previewCursive = document.getElementById("previewCursive");
   const previewPrompt  = document.getElementById("previewPrompt");
 
-  // ---------- Quick picks ----------
-  document.addEventListener("click", (e)=>{
-    const chip = e.target.closest(".chip");
-    if (!chip) return;
-    const v = chip.getAttribute("data-verse");
-    const p = chip.getAttribute("data-prompt");
-    if (v){
-      tagify.addTags([v]);
-      updateFilenamePreview(); updateZipHint(); updatePreview();
-    }
-    if (p){
-      customPrompt.value = p;
-      updatePreview();
-    }
-  });
-
-  // ---------- Filename preview ----------
-  function sluggify(s){ return s.replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase(); }
-  function updateFilenamePreview(){
-    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
-    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
-    filenamePreview.textContent = tags.length ? tags.map(v => sluggify(v) + suffix).join(", ") : "";
+  /* ========= Helpers ========= */
+  const KNOWN_VERS = ['ESV','KJV','NLT','NASB','NIV','CSB','AUTO'];
+  function sluggify(s){ return (s||'').replace(/[^\w\s]/g,"").replace(/\s+/g,"_").toLowerCase(); }
+  function detectVersion(str){ const m = /\((ESV|KJV|NLT|NASB|NIV|CSB)\)/i.exec(str||''); return m?m[1].toUpperCase():null; }
+  function computeEffectiveVersion(){
+    const lastTagVer = [...tagify.value].reverse().map(t=>detectVersion(t.value)).find(Boolean);
+    return (lastTagVer || (versionSelect.value||'esv')).toUpperCase();
   }
-  ["add","remove","input"].forEach(evt => tagify.on(evt, ()=>{ updateFilenamePreview(); updatePreview(); }));
-  cursiveToggle.addEventListener("change", ()=>{ updateFilenamePreview(); updatePreview(); });
-
-  // ---------- DIY toggle ----------
-  function setCustomVisibility(show){
-    customWrap.classList.toggle("hidden", !show);
-    if(!show){
-      customTitle.value = ""; customText.value = ""; customPrompt.value = "";
-      agreeTerms.checked = false;
-    }
-    updatePreview();
-  }
-  customMode.addEventListener("change", ()=> setCustomVisibility(customMode.checked));
-
-  // ---------- Prompt idea chips ----------
-  document.addEventListener("click", (e) => {
-    const chip = e.target.closest(".chip[data-prompt]");
-    if (!chip) return;
-    customPrompt.value = chip.getAttribute("data-prompt") || "";
-    updatePreview();
-  });
-
-  // ---------- Persist simple prefs ----------
-  versionSelect.addEventListener("change", () => { localStorage.setItem("preferredVersion", versionSelect.value); updatePreview(); });
-  cursiveToggle.addEventListener("change", () => localStorage.setItem("useCursive", cursiveToggle.checked));
-
-  // ---------- Search hint: ZIP ----------
-  function updateZipHint(){
-    const n = tagify.value.length;
-    const el = document.getElementById('zipHint');
-    if (n > 1) { el.style.display='block'; el.textContent = `Will create a ZIP with ${n} worksheets.`; }
-    else { el.style.display='none'; }
-  }
-  ["add","remove"].forEach(evt => tagify.on(evt, updateZipHint));
-
-  // ---------- Preview card ----------
   function firstTagText(){
     const t = tagify.value.map(t=>t.value.trim()).find(Boolean);
     return t || (customTitle.value.trim() || '');
@@ -366,30 +354,71 @@ endblock %} {% block content %}
   function updatePreview(){
     const verse = firstTagText() || (customText.value.trim() ? '(DIY text)' : '—');
     previewVerse.textContent = verse;
-    const ver = (versionSelect.value || 'esv').toUpperCase();
-    previewVersion.textContent = ver === 'AUTO' ? 'AUTO' : ver;
+    previewVersion.textContent = computeEffectiveVersion();
     previewCursive.hidden = !cursiveToggle.checked;
-    previewPrompt.textContent = customPrompt.value.trim() || '—';
+    previewPrompt.textContent = (customPrompt.value||'').trim() || '—';
   }
-  ['input','change'].forEach(evt=>{
-    customTitle.addEventListener(evt, updatePreview);
-    customText.addEventListener(evt, updatePreview);
-    customPrompt.addEventListener(evt, updatePreview);
+  function updateFilenamePreview(){
+    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+    filenamePreview.textContent = tags.length ? tags.map(v => sluggify(v) + suffix).join(", ") : "";
+  }
+  function updateZipHint(){
+    const n = tagify.value.length;
+    const el = document.getElementById('zipHint');
+    if (n > 1){ el.style.display='block'; el.textContent = `Will create a ZIP with ${n} worksheets.`; }
+    else { el.style.display='none'; }
+  }
+
+  /* ========= Quick picks / chips ========= */
+  document.addEventListener("click", (e)=>{
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    const v = chip.getAttribute("data-verse");
+    const p = chip.getAttribute("data-prompt");
+    if (v){ tagify.addTags([v]); updateFilenamePreview(); updateZipHint(); updatePreview(); }
+    if (p){ customPrompt.value = p; updatePreview(); }
   });
 
-  // ---------- Submit validation + UX ----------
-  document.getElementById("worksheetForm").addEventListener("submit", (e) => {
-    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
-    const customTextVal = (customText.value || '').trim();
+  /* ========= Tagify events ========= */
+  ["add","remove","input","blur"].forEach(evt=>{
+    tagify.on(evt, ()=>{ updateFilenamePreview(); updateZipHint(); updatePreview(); });
+  });
+  tagify.on('add', ()=>{
+    // de-dupe gently
+    const vals = tagify.value.map(t => t.value.toLowerCase().replace(/\s+/g,' ').trim());
+    if (new Set(vals).size !== vals.length){
+      const uniq = [...new Set(vals)];
+      tagify.removeAllTags();
+      uniq.forEach(v => tagify.addTags([v]));
+      toastEl.textContent = '⚠️ Removed duplicate verses.';
+      toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 1800);
+    }
+  });
 
-    // Require at least one source
+  /* ========= DIY toggle ========= */
+  function setCustomVisibility(show){
+    customWrap.classList.toggle("hidden", !show);
+    if(!show){ customTitle.value=""; customText.value=""; customPrompt.value=""; if (agreeTerms) agreeTerms.checked=false; }
+    updatePreview();
+  }
+  customMode.addEventListener("change", ()=> setCustomVisibility(customMode.checked));
+
+  /* ========= Persist simple prefs ========= */
+  versionSelect.addEventListener("change", ()=>{ localStorage.setItem("preferredVersion", versionSelect.value); updatePreview(); });
+  cursiveToggle.addEventListener("change", ()=>{ localStorage.setItem("useCursive", cursiveToggle.checked); updateFilenamePreview(); updatePreview(); });
+
+  /* ========= Submit + non-sticky overlay guard ========= */
+  document.getElementById("worksheetForm").addEventListener("submit", (e)=>{
+    const tags = tagify.value.map(t=>t.value.trim()).filter(Boolean);
+    const customTextVal = (customText.value||'').trim();
     if (tags.length === 0 && !customTextVal){
       e.preventDefault();
       alert("Please enter at least one verse or provide your own verse/poem/prayer.");
+      verseInput.setAttribute('aria-invalid','true');
       return;
     }
-    // DIY terms
-    if (customMode.checked && !agreeTerms.checked){
+    if (customMode.checked && !(agreeTerms && agreeTerms.checked)){
       e.preventDefault();
       alert("You must agree to the terms to submit custom content.");
       return;
@@ -398,45 +427,20 @@ endblock %} {% block content %}
     verseInput.value = tags.join(", ");
     localStorage.setItem("recentVerses", verseInput.value);
 
-    // Disable + show loading
+    // Show overlay only for real submits
+    window._fsGenerating = true;
+    if (window.showOverlay) window.showOverlay();
     submitBtn.disabled = true;
-    loadingOverlay.hidden = false;
-    loadingOverlay.setAttribute('aria-hidden','false');
 
-    // Toast feedback (non-blocking)
-    setTimeout(()=>{ toastEl.classList.add("show"); setTimeout(()=>toastEl.classList.remove("show"), 3000); }, 100);
+    // Safety: auto re-enable if nothing happens
+    setTimeout(()=>{ if (!document.hidden){ submitBtn.disabled = false; if (window.hideOverlay) window.hideOverlay(); } }, 20000);
+
+    // Toast feedback
+    setTimeout(()=>{ toastEl.classList.add("show"); setTimeout(()=>toastEl.classList.remove("show"), 2500); }, 80);
   });
 
-  // ---------- Restore prefs / prefill ----------
-  window.addEventListener("DOMContentLoaded", () => {
-    const clearFlag = {{ clear_storage | tojson | default("false") }};
-    const prefill = {{ prefill_verse|tojson|default('""') }};
-    const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
-
-    if (prefill) tagify.addTags(prefill.split(',').map(v => v.trim()).filter(Boolean));
-    if (defaultVersionOverride){
-      versionSelect.value = String(defaultVersionOverride).toLowerCase();
-      localStorage.setItem("preferredVersion", versionSelect.value);
-    }
-    if (clearFlag && !prefill){ clearForm(); return; }
-
-    const recent = localStorage.getItem("recentVerses");
-    if (!prefill && recent) tagify.addTags(recent.split(",").map(v => v.trim()).filter(Boolean));
-
-    const storedVersion = localStorage.getItem("preferredVersion");
-    if (storedVersion) versionSelect.value = storedVersion;
-
-    const useCursive = localStorage.getItem("useCursive") === "true";
-    cursiveToggle.checked = useCursive;
-
-    setCustomVisibility(customMode.checked);
-    updateFilenamePreview();
-    updateZipHint();
-    updatePreview();
-  });
-
-  // ---------- Clear ----------
-  function clearForm(){
+  /* ========= Clear ========= */
+  document.getElementById("clearBtn").addEventListener("click", ()=>{
     tagify.removeAllTags();
     verseInput.value = "";
     customTitle.value = "";
@@ -447,21 +451,63 @@ endblock %} {% block content %}
     filenamePreview.textContent = "";
     localStorage.removeItem("recentVerses");
     updatePreview(); updateZipHint();
-  }
+  });
 
-  // ---------- Upgrade toast logic ----------
-  (function(){
+  /* ========= Share link ========= */
+  document.getElementById('shareLinkBtn').addEventListener('click', async ()=>{
+    const params = new URLSearchParams();
+    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+    if (tags.length) params.set('v', tags.join(' | '));
+    if (cursiveToggle.checked) params.set('cursive','1');
+    if (versionSelect.value && versionSelect.value !== 'auto') params.set('version', versionSelect.value);
+    const url = `${location.origin}${location.pathname}?${params.toString()}`;
+    try { await navigator.clipboard.writeText(url); } catch {}
+    toastEl.textContent = '🔗 Link copied!'; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 1800);
+  });
+
+  /* ========= Hydrate on load ========= */
+  window.addEventListener("DOMContentLoaded", () => {
+    // If a browser/extension left an overlay, force-hide it
+    if (window.hideOverlay) window.hideOverlay();
+    window._fsGenerating = false;
+
+    // Prefill from server or URL
+    const prefill = {{ prefill_verse|tojson|default('""') }};
+    const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
+    const params = new URLSearchParams(location.search);
+    const urlVerses = params.get('v');
+    const urlVer = params.get('version');
+    const urlCur = params.get('cursive') === '1';
+
+    if (prefill) tagify.addTags(prefill.split(',').map(v=>v.trim()).filter(Boolean));
+    if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
+
+    if (defaultVersionOverride) versionSelect.value = String(defaultVersionOverride).toLowerCase();
+    if (urlVer) versionSelect.value = urlVer.toLowerCase();
+
+    const recent = (!prefill && !urlVerses) ? localStorage.getItem("recentVerses") : null;
+    if (recent) tagify.addTags(recent.split(",").map(v => v.trim()).filter(Boolean));
+
+    cursiveToggle.checked = urlCur || (localStorage.getItem("useCursive") === "true");
+
+    setCustomVisibility(customMode.checked);
+    updateFilenamePreview(); updateZipHint(); updatePreview();
+
+    // Keyboard submit
+    document.addEventListener('keydown', (e)=>{ if ((e.metaKey || e.ctrlKey) && e.key === 'Enter'){ document.getElementById('worksheetForm').requestSubmit(); }});
+
+    // Upgrade banner dismissal (month-scoped)
     const el = document.getElementById('upgradeCta');
-    if(!el) return;
-    const key = 'upgradeDismiss_' + (new Date()).toISOString().slice(0,7).replace('-', '');
-    if(localStorage.getItem(key) === '1'){ el.hidden = true; return; }
-    el.hidden = false;
-    el.querySelector('.dismiss').addEventListener('click', ()=>{ localStorage.setItem(key,'1'); el.hidden = true; });
-  })();
+    if (el){
+      const key = 'upgradeDismiss_' + (new Date()).toISOString().slice(0,7).replace('-', '');
+      if(localStorage.getItem(key) === '1'){ el.hidden = true; }
+      else { el.hidden = false; el.querySelector('.dismiss').addEventListener('click', ()=>{ localStorage.setItem(key,'1'); el.hidden = true; }); }
+    }
+  });
 </script>
 
 <style>
-  /* Layout */
+  /* ------- Layout ------- */
   .grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
@@ -483,6 +529,7 @@ endblock %} {% block content %}
     top: 1rem;
   }
 
+  /* ------- Blocks ------- */
   .block {
     border: 1px solid var(--border-color, #2a3441);
     background: var(--box, #0f172a);
@@ -525,7 +572,6 @@ endblock %} {% block content %}
     flex-wrap: wrap;
     margin-top: 0.4rem;
   }
-
   .chip {
     border: 1px solid #334155;
     border-radius: 999px;
@@ -538,6 +584,7 @@ endblock %} {% block content %}
     background: #132033;
   }
 
+  /* ------- Advanced ------- */
   .advanced {
     margin-top: 0.35rem;
   }
@@ -545,6 +592,7 @@ endblock %} {% block content %}
     cursor: pointer;
   }
 
+  /* ------- Helpers ------- */
   .hidden {
     display: none;
   }
@@ -562,7 +610,7 @@ endblock %} {% block content %}
     }
   }
 
-  /* Usage banner */
+  /* ------- Usage banner ------- */
   .usage-banner {
     background: var(--box);
     border: 1px solid #2a3441;
@@ -606,7 +654,7 @@ endblock %} {% block content %}
     color: inherit;
   }
 
-  /* Preview card */
+  /* ------- Preview card ------- */
   .preview-card {
     border: 1px dashed #334155;
     border-radius: 12px;
@@ -663,7 +711,7 @@ endblock %} {% block content %}
     min-height: 56px;
   }
 
-  /* Actions */
+  /* ------- Actions ------- */
   .actions {
     display: flex;
     gap: 0.5rem;
@@ -674,8 +722,19 @@ endblock %} {% block content %}
   .left-chip {
     margin-left: auto;
   }
+  @media (max-width: 820px) {
+    .actions {
+      position: sticky;
+      bottom: 0;
+      background: color-mix(in oklab, var(--background), transparent 20%);
+      border-top: 1px solid #2a3441;
+      padding: 0.5rem;
+      backdrop-filter: blur(6px);
+      z-index: 5;
+    }
+  }
 
-  /* Toast & Loading */
+  /* ------- Toast ------- */
   .snackbar {
     position: fixed;
     left: 50%;
@@ -694,42 +753,8 @@ endblock %} {% block content %}
   .snackbar.show {
     opacity: 1;
   }
-  .loading-overlay {
-    position: fixed;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    gap: 0.5rem;
-    background: rgba(0, 0, 0, 0.35);
-    z-index: 9998;
-  }
-  .spinner {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: 3px solid #e5e7eb33;
-    border-top-color: #e5e7eb;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
 
-  /* Sticky mobile quick actions (kept minimal) */
-  @media (max-width: 820px) {
-    .actions {
-      position: sticky;
-      bottom: 0;
-      background: color-mix(in oklab, var(--background), transparent 20%);
-      border-top: 1px solid #2a3441;
-      padding: 0.5rem;
-      backdrop-filter: blur(6px);
-      z-index: 5;
-    }
-  }
-
+  /* ------- Text helpers ------- */
   .sr-only {
     position: absolute;
     width: 1px;
@@ -761,23 +786,4 @@ endblock %} {% block content %}
     opacity: 0.7;
   }
 </style>
-
-<script>
-  // Upgrade banner dismissal (month-scoped)
-  (function () {
-    const el = document.getElementById("upgradeCta");
-    if (!el) return;
-    const key =
-      "upgradeDismiss_" + new Date().toISOString().slice(0, 7).replace("-", "");
-    if (localStorage.getItem(key) === "1") {
-      el.hidden = true;
-      return;
-    }
-    el.hidden = false;
-    el.querySelector(".dismiss").addEventListener("click", () => {
-      localStorage.setItem(key, "1");
-      el.hidden = true;
-    });
-  })();
-</script>
 {% endblock %}
