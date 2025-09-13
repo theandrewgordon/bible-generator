@@ -4,228 +4,135 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="{{ favicon_url }}" />
 
-    <!-- Friendly fonts -->
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
       rel="stylesheet"
     />
 
-    <!-- Your theme -->
+    <!-- Theme CSS -->
     <link rel="stylesheet" href="/static/theme.css" />
     {% if request.path.startswith('/admin') %}
     <link rel="stylesheet" href="/static/admin.css" />
     {% endif %}
 
-    <!-- Theme tokens coming from Admin → Theme -->
+    <!-- Admin → Theme tokens -->
     <style>
-      :root {
+      :root{
         --background: {{ (theme.background or '#ffffff') if theme else '#ffffff' }};
         --text: {{ (theme.text or '#2d3748') if theme else '#2d3748' }};
         --text-secondary: {{ (theme.text_secondary or '#718096') if theme else '#718096' }};
         --box: {{ (theme.box or '#edf2f7') if theme else '#edf2f7' }};
         --primary: {{ (theme.primary or '#0ea5a8') if theme else '#0ea5a8' }};
         --primary-dark: {{ (theme.primary_dark or '#0b8a8d') if theme else '#0b8a8d' }};
+        --card-shadow: 0 6px 16px rgba(0,0,0,.06);
       }
-      .dark {
-        /* keep brand hue consistent in dark mode */
+      .dark{
         --primary: {{ (theme.primary or '#0ea5a8') if theme else '#0ea5a8' }};
         --primary-dark: {{ (theme.primary_dark or '#0b8a8d') if theme else '#0b8a8d' }};
       }
 
+      /* Seasonal extras toggles */
       {% if theme.extras and theme.extras.snow %}
-      /* Snow effect */
-      .snow { pointer-events:none; position: fixed; left:0; top:0; width:100%; height:100%; overflow:hidden; z-index: 1; }
-      .snow:before, .snow:after { content:""; position:absolute; top:-10px; width:100%; height:10px; background: radial-gradient(2px 2px at 2px 2px, rgba(255,255,255,.9) 50%, rgba(255,255,255,0) 51%) repeat; background-size: 20px 20px; animation: snow 12s linear infinite; opacity:.7; }
-      .snow:after { animation-duration: 18s; opacity:.5; }
-      @keyframes snow { 0% { transform: translateY(-10px); } 100% { transform: translateY(110vh); } }
-      body { position: relative; }
+      .snow{pointer-events:none;position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:1}
+      .snow:before,.snow:after{content:"";position:absolute;top:-10px;width:100%;height:10px;background:radial-gradient(2px 2px at 2px 2px,rgba(255,255,255,.9) 50%,rgba(255,255,255,0) 51%) repeat;background-size:20px 20px;animation:snow 12s linear infinite;opacity:.7}
+      .snow:after{animation-duration:18s;opacity:.5}
+      @keyframes snow{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
+      body{position:relative}
       {% endif %}
 
       {% if theme.extras and theme.extras.lights %}
-      /* Festive lights bar */
-      .lights-bar { position: absolute; top:0; left:0; right:0; height:28px; background: repeating-linear-gradient(90deg, #fca5a5 0 16px, #fde68a 16px 32px, #86efac 32px 48px, #93c5fd 48px 64px); box-shadow: 0 2px 4px rgba(0,0,0,.08); }
-      .main-header { position: relative; padding-top: 44px; }
+      .lights-bar{position:absolute;top:0;left:0;right:0;height:28px;background:repeating-linear-gradient(90deg,#fca5a5 0 16px,#fde68a 16px 32px,#86efac 32px 48px,#93c5fd 48px 64px);box-shadow:0 2px 4px rgba(0,0,0,.08)}
+      .main-header{position:relative;padding-top:44px}
       {% endif %}
 
       {% if theme.extras and theme.extras.string_lights %}
-      /* String lights (twinkle) */
-      .string-lights { position:absolute; top:0; left:0; right:0; height:36px; display:flex; justify-content:space-around; align-items:flex-start; pointer-events:none; }
-      .string-lights .bulb { width:10px; height:16px; border-radius:50% 50% 60% 60%; background:#fca5a5; box-shadow:0 0 8px rgba(255,255,255,.7); animation: twinkle 2.4s ease-in-out infinite; }
-      .string-lights .bulb:nth-child(2n){ background:#fde68a; animation-delay:.4s }
-      .string-lights .bulb:nth-child(3n){ background:#93c5fd; animation-delay:.8s }
-      .string-lights .bulb:nth-child(4n){ background:#86efac; animation-delay:1.2s }
-      @keyframes twinkle { 0%,100% { opacity:.7; filter:brightness(1); } 50% { opacity:1; filter:brightness(1.5); } }
-      .main-header { position: relative; padding-top: 52px; }
+      .string-lights{position:absolute;top:0;left:0;right:0;height:36px;display:flex;justify-content:space-around;align-items:flex-start;pointer-events:none}
+      .string-lights .bulb{width:10px;height:16px;border-radius:50% 50% 60% 60%;background:#fca5a5;box-shadow:0 0 8px rgba(255,255,255,.7);animation:twinkle 2.4s ease-in-out infinite}
+      .string-lights .bulb:nth-child(2n){background:#fde68a;animation-delay:.4s}
+      .string-lights .bulb:nth-child(3n){background:#93c5fd;animation-delay:.8s}
+      .string-lights .bulb:nth-child(4n){background:#86efac;animation-delay:1.2s}
+      @keyframes twinkle{0%,100%{opacity:.7;filter:brightness(1)}50%{opacity:1;filter:brightness(1.5)}}
+      .main-header{position:relative;padding-top:52px}
       {% endif %}
 
       {% if theme.extras and theme.extras.snow_svg %}
-      /* SVG snowflakes */
-      .snow-svg { position: fixed; pointer-events:none; left:0; top:0; width:100%; height:100%; z-index:1; overflow:hidden; }
+      .snow-svg{position:fixed;pointer-events:none;left:0;top:0;width:100%;height:100%;z-index:1;overflow:hidden}
       {% endif %}
 
       {% if theme.extras and theme.extras.leaves %}
-      /* Falling leaves */
-      .leaves { pointer-events:none; position: fixed; left:0; top:0; width:100%; height:100%; overflow:hidden; z-index: 1; }
-      .leaf { position:absolute; top:-40px; width:18px; height:18px; background: radial-gradient(circle at 30% 30%, #f59e0b 40%, #b45309 41%); border-radius: 40% 60% 40% 60%; opacity:.85; animation: fall 12s linear infinite; }
-      @keyframes fall { 0% { transform: translateY(-40px) rotate(0); } 100% { transform: translateY(110vh) rotate(360deg); } }
+      .leaves{pointer-events:none;position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:1}
+      .leaf{position:absolute;top:-40px;width:18px;height:18px;background:radial-gradient(circle at 30% 30%,#f59e0b 40%,#b45309 41%);border-radius:40% 60% 40% 60%;opacity:.85;animation:fall 12s linear infinite}
+      @keyframes fall{0%{transform:translateY(-40px) rotate(0)}100%{transform:translateY(110vh) rotate(360deg)}}
       {% endif %}
 
       {% if theme.extras and theme.extras.custom_css %}
       {{ theme.extras.custom_css|safe }}
       {% endif %}
+
+      /* Layout polish shared */
+      .container{max-width:980px;margin:0 auto;padding:2rem 1.25rem}
+      .page-title{font-size:clamp(1.4rem,2.2vw + 1rem,2rem);font-weight:800;letter-spacing:.2px;margin:.2rem 0 .6rem}
+      .button{border-radius:12px}
+      .muted{color:var(--text-secondary)}
+      .small{font-size:.9em}
+
+      /* Toasts */
+      #toast-container{position:fixed;top:12px;right:12px;display:grid;gap:8px;z-index:9999}
+      .toast{padding:10px 14px;border-radius:10px;background:#def7ec;color:#03543f;box-shadow:var(--card-shadow)}
+      .toast-warning{background:#fef3c7;color:#92400e}
+      .toast-error{background:#fee2e2;color:#7f1d1d}
+      .toast-success{background:#dcfce7;color:#14532d}
+
+      footer{text-align:center;padding:2rem 1rem;font-size:.9em;color:var(--text-secondary);background-color:transparent}
+
+      /* Admin → Content banners */
+      .site-banner{margin:8px auto 0;max-width:980px;padding:10px 14px;border-radius:12px;line-height:1.25;box-shadow:var(--card-shadow)}
+      .site-banner.strong{background:#fef3c7;border:1px solid #fde68a;color:#7a4a00}
+      .site-banner.subtle{background:var(--box);border:1px solid #e5e7eb;color:var(--text)}
+
+      /* Sticky header shadow */
+      .main-header.is-stuck{box-shadow:0 6px 16px rgba(0,0,0,.06)}
+
+      /* Page overlay (only on real submits) */
+      #pageOverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:color-mix(in oklab,var(--background), black 35%);backdrop-filter:blur(2px);z-index:10000}
+      #pageOverlay.show{display:flex}
+      #pageOverlay .panel{background:var(--box);color:var(--text);border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;box-shadow:var(--card-shadow);font-weight:700}
+      body.overlay-open{overflow:hidden}
+
+      /* Skip link */
+      .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+      .skip-link:focus{left:12px;top:12px;width:auto;height:auto;padding:8px 10px;border-radius:10px;background:var(--box);border:1px solid #e5e7eb;z-index:10001}
+
+      @media (max-width:600px){
+        .container{padding:1.4rem 1rem}
+        footer{font-size:.85em}
+        .site-banner{border-radius:10px}
+      }
     </style>
 
     <script defer src="/static/darkmode.js"></script>
 
-    <!-- Layout polish & shared bits -->
-    <style>
-      :root {
-        --card-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-      }
-
-      .container {
-        max-width: 980px;
-        margin: 0 auto;
-        padding: 2rem 1.25rem;
-      }
-
-      .page-title {
-        font-size: clamp(1.4rem, 2.2vw + 1rem, 2rem);
-        font-weight: 800;
-        letter-spacing: 0.2px;
-        margin: 0.2rem 0 0.6rem;
-      }
-
-      .button {
-        border-radius: 12px;
-      }
-      .muted {
-        color: var(--text-secondary);
-      }
-      .small {
-        font-size: 0.9em;
-      }
-
-      /* Toasts */
-      #toast-container {
-        position: fixed;
-        top: 12px;
-        right: 12px;
-        display: grid;
-        gap: 8px;
-        z-index: 9999;
-      }
-      .toast {
-        padding: 10px 14px;
-        border-radius: 10px;
-        background: #def7ec;
-        color: #03543f;
-        box-shadow: var(--card-shadow);
-      }
-      .toast-warning {
-        background: #fef3c7;
-        color: #92400e;
-      }
-      .toast-error {
-        background: #fee2e2;
-        color: #7f1d1d;
-      }
-      .toast-success {
-        background: #dcfce7;
-        color: #14532d;
-      }
-
-      footer {
-        text-align: center;
-        padding: 2rem 1rem;
-        font-size: 0.9em;
-        color: var(--text-secondary);
-        background-color: transparent;
-      }
-
-      /* Nicer site banners driven by Admin → Content */
-      .site-banner {
-        margin: 8px auto 0;
-        max-width: 980px;
-        padding: 10px 14px;
-        border-radius: 12px;
-        line-height: 1.25;
-        box-shadow: var(--card-shadow);
-      }
-      .site-banner.strong {
-        background: #fef3c7;
-        border: 1px solid #fde68a;
-        color: #7a4a00;
-      }
-      .site-banner.subtle {
-        background: var(--box);
-        border: 1px solid #e5e7eb;
-        color: var(--text);
-      }
-
-      /* Sticky header shadow toggle */
-      .main-header.is-stuck {
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-      }
-
-      /* Full-page overlay shown only on real submits */
-      #pageOverlay {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: color-mix(in oklab, var(--background), black 35%);
-        backdrop-filter: blur(2px);
-        z-index: 10000;
-      }
-      #pageOverlay.show {
-        display: flex;
-      }
-      #pageOverlay .panel {
-        background: var(--box);
-        color: var(--text);
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 14px 16px;
-        box-shadow: var(--card-shadow);
-        font-weight: 700;
-      }
-      /* Prevent scroll when overlay is open */
-      body.overlay-open {
-        overflow: hidden;
-      }
-
-      @media (max-width: 600px) {
-        .container {
-          padding: 1.4rem 1rem;
-        }
-        footer {
-          font-size: 0.85em;
-        }
-        .site-banner {
-          border-radius: 10px;
-        }
-      }
-    </style>
+    {% block head_extra %}{% endblock %}
   </head>
 
-  <!-- Small utilities: nav toggle + sticky header -->
+  <!-- Utilities: mobile nav, sticky header -->
   <script>
     (function () {
-      // Mobile open/close
+      // Mobile nav
       document.addEventListener("DOMContentLoaded", () => {
         const btn = document.getElementById("menuToggle");
         const nav = document.getElementById("mainNav");
         if (!btn || !nav) return;
 
-        const setOpen = (open) => {
+        function setOpen(open) {
           document.body.classList.toggle("nav-open", !!open);
           btn.setAttribute("aria-expanded", open ? "true" : "false");
-        };
-
+        }
         btn.addEventListener("click", () =>
           setOpen(!document.body.classList.contains("nav-open"))
         );
@@ -237,16 +144,18 @@
         });
       });
 
-      // Sticky header shadow on scroll
+      // Sticky header shadow
       const h = document.querySelector(".main-header");
       const onScroll = () =>
         h && h.classList.toggle("is-stuck", (window.scrollY || 0) > 2);
       onScroll();
-      window.addEventListener("scroll", onScroll, { passive: true });
+      addEventListener("scroll", onScroll, { passive: true });
     })();
   </script>
 
   <body class="{% if request.path.startswith('/admin') %}admin{% endif %}">
+    <a href="#maincontent" class="skip-link">Skip to content</a>
+
     {% include "_navbar.html" %} {% if site_content and
     site_content.announcement_enabled and site_content.announcement_text %}
     <div class="site-banner strong">{{ site_content.announcement_text }}</div>
@@ -316,16 +225,16 @@
         }
       })();
     </script>
-    {% endif %} {# Toast Notifications #} {% with messages =
+    {% endif %} {# Flash toasts #} {% with messages =
     get_flashed_messages(with_categories=true) %} {% if messages %}
-    <div id="toast-container">
+    <div id="toast-container" aria-live="polite">
       {% for category, message in messages %}
       <div class="toast toast-{{ category }}">{{ message }}</div>
       {% endfor %}
     </div>
     {% endif %} {% endwith %}
 
-    <!-- OVERLAY (only shows when a submit actually goes through) -->
+    <!-- GLOBAL OVERLAY (shown only when a real submit proceeds) -->
     <div
       id="pageOverlay"
       aria-live="polite"
@@ -335,53 +244,54 @@
       <div class="panel">Generating your worksheet…</div>
     </div>
 
-    <main class="container">{% block content %}{% endblock %}</main>
+    <main id="maincontent" class="container">
+      {% block content %}{% endblock %}
+    </main>
 
     <footer>
       &copy; 2025 Faith Sparks Printables. All rights reserved. {% if
       support_email %} • Support:
-      <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
+      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+      {% endif %}
     </footer>
 
     <script>
-      // Apply saved theme early
-      if (localStorage.getItem("theme") === "dark") {
+      // Apply saved theme early on first paint
+      if (localStorage.getItem("theme") === "dark")
         document.body.classList.add("dark");
-      }
 
-      // FORM OVERLAY: show only when submit is NOT prevented.
+      // Page overlay controller
       (function () {
         const overlay = document.getElementById("pageOverlay");
-        const show = () => {
+        function show() {
           if (!overlay) return;
           overlay.classList.add("show");
           overlay.setAttribute("aria-hidden", "false");
           document.body.classList.add("overlay-open");
-        };
-        const hide = () => {
+        }
+        function hide() {
           if (!overlay) return;
           overlay.classList.remove("show");
           overlay.setAttribute("aria-hidden", "true");
           document.body.classList.remove("overlay-open");
-        };
-        // Make helpers available for page-specific scripts
+        }
         window.showOverlay = show;
         window.hideOverlay = hide;
 
-        // Hide overlay on load + bfcache restore
+        // Hide overlay on load/bfcache restore in case a previous page left it up
         addEventListener("DOMContentLoaded", hide);
         addEventListener("pageshow", hide);
 
-        // Capture all form submits; defer to see if default was prevented.
+        // Intercept submits: only show if NOT prevented and method is POST
         document.addEventListener(
           "submit",
-          function (ev) {
+          (ev) => {
+            // Wait one microtask to see if someone called preventDefault()
             Promise.resolve().then(() => {
               if (ev.defaultPrevented) {
                 hide();
                 return;
               }
-              // Only show on POST (optional; comment if you want GETs too)
               const form = ev.target;
               const method = (
                 form.getAttribute("method") || "GET"
