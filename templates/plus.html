@@ -1,97 +1,399 @@
-{% extends "base.html" %}
-{% block title %}Faith Sparks Plus{% endblock %}
-{% block content %}
-  <h1 class="page-title">Faith Sparks Plus</h1>
-  <p class="muted">Support the project and unlock premium resources.</p>
+{% extends "base.html" %} {% block title %}Faith Sparks Plus{% endblock %} {%
+block content %} {# Optional per-page banner if you don't render it in base.html
+#} {% if site_content and site_content.plus_banner_enabled and
+site_content.plus_banner_text %}
+<div class="announcement" role="status">
+  {{ site_content.plus_banner_text }}
+</div>
+{% endif %}
 
-  <div class="plus-grid">
-    <div class="plus-card">
-      <div class="plus-title">Plus Family</div>
-      <div class="plus-sub">Best for households</div>
-      {% set fam = prices.family %}
-      {% if (fam.monthly or fam.single) %}
-        {% if is_signed_in %}
-          <div class="btnrow">
-            {% if fam.monthly %}
-            <form method="post" action="{{ url_for('create_checkout_session') }}">
-              <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
-              <button class="button">Monthly{% if meta.family.monthly %} — {{ '$%.2f'|format(meta.family.monthly.amount) }}{% endif %}</button>
-            </form>
-            {% endif %}
-            {% if fam.annual %}
-            <form method="post" action="{{ url_for('create_checkout_session') }}">
-              <input type="hidden" name="price_id" value="{{ fam.annual }}" />
-              <button class="button ghost">Annual{% if meta.family.annual %} — {{ '$%.2f'|format(meta.family.annual.amount) }}{% endif %}{% if meta.family.save_pct %} <span class="save">Save {{ meta.family.save_pct }}%</span>{% endif %}</button>
-            </form>
-            {% endif %}
-            {% if not fam.monthly and not fam.annual and fam.single %}
-            <form method="post" action="{{ url_for('create_checkout_session') }}">
-              <input type="hidden" name="price_id" value="{{ fam.single }}" />
-              <button class="button">Checkout</button>
-            </form>
-            {% endif %}
-          </div>
-        {% else %}
-          <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
-        {% endif %}
-      {% else %}
-        <div class="small muted">Not configured</div>
-      {% endif %}
-    </div>
-
-    <div class="plus-card">
-      <div class="plus-title">Plus Classroom</div>
-      <div class="plus-sub">Best for co-ops and classes</div>
-      {% set cls = prices.classroom %}
-      {% if (cls.monthly or cls.single) %}
-        {% if is_signed_in %}
-          <div class="btnrow">
-            {% if cls.monthly %}
-            <form method="post" action="{{ url_for('create_checkout_session') }}">
-              <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
-              <button class="button">Monthly{% if meta.classroom.monthly %} — {{ '$%.2f'|format(meta.classroom.monthly.amount) }}{% endif %}</button>
-            </form>
-            {% endif %}
-            {% if cls.annual %}
-            <form method="post" action="{{ url_for('create_checkout_session') }}">
-              <input type="hidden" name="price_id" value="{{ cls.annual }}" />
-              <button class="button ghost">Annual{% if meta.classroom.annual %} — {{ '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %}{% if meta.classroom.save_pct %} <span class="save">Save {{ meta.classroom.save_pct }}%</span>{% endif %}</button>
-            </form>
-            {% endif %}
-            {% if not cls.monthly and not cls.annual and cls.single %}
-            <form method="post" action="{{ url_for('create_checkout_session') }}">
-              <input type="hidden" name="price_id" value="{{ cls.single }}" />
-              <button class="button">Checkout</button>
-            </form>
-            {% endif %}
-          </div>
-        {% else %}
-          <a class="button" href="{{ url_for('google.login', next=url_for('plus_pricing')) }}">Login to Checkout</a>
-        {% endif %}
-      {% else %}
-        <div class="small muted">Not configured</div>
-      {% endif %}
+<header class="plus-hero card-lite">
+  <div>
+    <h1 class="page-title">Faith Sparks Plus</h1>
+    <p class="muted">
+      Support the project and unlock premium resources for your family, co-op,
+      or classroom.
+    </p>
+    <ul class="value-props small">
+      <li>✨ Higher monthly generate limits</li>
+      <li>📦 Access to subscriber packs</li>
+      <li>🎁 Occasional collection giveaways</li>
+    </ul>
+  </div>
+  <div class="mini-preview" aria-hidden="true">
+    <div class="lines"></div>
+    <div class="badge-row">
+      <span class="pill alt">ESV</span>
+      <span class="pill">✍️ Cursive</span>
     </div>
   </div>
+</header>
 
-  <p class="small muted" style="margin-top:10px;">You can enter promo codes during Stripe checkout.</p>
+<section class="plans">
+  <div class="plan-grid">
+    {# --------------------- FAMILY --------------------- #}
+    <article class="plan-card featured">
+      <div class="plan-head">
+        <div class="plan-title">Plus Family</div>
+        <div class="plan-sub">Best for households</div>
+      </div>
 
-  <section class="block" style="margin-top:16px;">
-    <h3>Your Plan Options</h3>
-    <ul class="plan-list">
-      <li><strong>Free:</strong> 10 lifetime generates, then 1 per month.</li>
-      <li><strong>Plus Family:</strong> 15 generates per month, plus occasional free collection giveaways.</li>
-      <li><strong>Plus Classroom:</strong> 100 generates per month, plus occasional free collection giveaways.</li>
-    </ul>
-  </section>
+      <ul class="plan-points">
+        <li>15 generates per month</li>
+        <li>Subscriber-only packs included</li>
+        <li>Occasional free collection giveaways</li>
+      </ul>
 
-  <style>
-    .plus-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-top:12px; }
-    .plus-card { background: var(--box); border:1px solid #e5e7eb; border-radius:12px; padding:14px; }
-    .plus-title { font-weight:800; }
-    .plus-sub { color: var(--text-secondary); margin-bottom:8px; }
-    .btnrow { display:flex; gap:8px; flex-wrap:wrap; }
-    .save { color:#065f46; background:#d1fae5; border-radius:10px; padding:2px 6px; margin-left:6px; font-weight:700; }
-    .plan-list { margin: 8px 0 0 16px; }
-  </style>
+      {% set fam = prices.family %} {% if (fam.monthly or fam.single or
+      fam.annual) %} {% if is_signed_in %}
+      <div class="btnrow">
+        {% if fam.monthly %}
+        <form method="post" action="{{ url_for('create_checkout_session') }}">
+          <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
+          <button class="button primary wide">
+            Monthly{% if meta.family.monthly %} — {{
+            '$%.2f'|format(meta.family.monthly.amount) }}{% endif %}
+          </button>
+        </form>
+        {% endif %} {% if fam.annual %}
+        <form method="post" action="{{ url_for('create_checkout_session') }}">
+          <input type="hidden" name="price_id" value="{{ fam.annual }}" />
+          <button class="button ghost wide">
+            Annual{% if meta.family.annual %} — {{
+            '$%.2f'|format(meta.family.annual.amount) }}{% endif %} {% if
+            meta.family.save_pct %}<span class="save"
+              >Save {{ meta.family.save_pct }}%</span
+            >{% endif %}
+          </button>
+        </form>
+        {% endif %} {% if not fam.monthly and not fam.annual and fam.single %}
+        <form method="post" action="{{ url_for('create_checkout_session') }}">
+          <input type="hidden" name="price_id" value="{{ fam.single }}" />
+          <button class="button wide">Checkout</button>
+        </form>
+        {% endif %}
+      </div>
+      {% else %}
+      <a
+        class="button primary wide"
+        href="{{ url_for('google.login', next=url_for('plus_pricing')) }}"
+        >Login to Checkout</a
+      >
+      {% endif %} {% else %}
+      <div class="small muted">Not configured</div>
+      {% endif %}
+    </article>
+
+    {# --------------------- CLASSROOM --------------------- #}
+    <article class="plan-card">
+      <div class="plan-head">
+        <div class="plan-title">Plus Classroom</div>
+        <div class="plan-sub">Best for co-ops and classes</div>
+      </div>
+
+      <ul class="plan-points">
+        <li>100 generates per month</li>
+        <li>Subscriber-only packs included</li>
+        <li>Occasional free collection giveaways</li>
+      </ul>
+
+      {% set cls = prices.classroom %} {% if (cls.monthly or cls.single or
+      cls.annual) %} {% if is_signed_in %}
+      <div class="btnrow">
+        {% if cls.monthly %}
+        <form method="post" action="{{ url_for('create_checkout_session') }}">
+          <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
+          <button class="button primary wide">
+            Monthly{% if meta.classroom.monthly %} — {{
+            '$%.2f'|format(meta.classroom.monthly.amount) }}{% endif %}
+          </button>
+        </form>
+        {% endif %} {% if cls.annual %}
+        <form method="post" action="{{ url_for('create_checkout_session') }}">
+          <input type="hidden" name="price_id" value="{{ cls.annual }}" />
+          <button class="button ghost wide">
+            Annual{% if meta.classroom.annual %} — {{
+            '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %} {% if
+            meta.classroom.save_pct %}<span class="save"
+              >Save {{ meta.classroom.save_pct }}%</span
+            >{% endif %}
+          </button>
+        </form>
+        {% endif %} {% if not cls.monthly and not cls.annual and cls.single %}
+        <form method="post" action="{{ url_for('create_checkout_session') }}">
+          <input type="hidden" name="price_id" value="{{ cls.single }}" />
+          <button class="button wide">Checkout</button>
+        </form>
+        {% endif %}
+      </div>
+      {% else %}
+      <a
+        class="button primary wide"
+        href="{{ url_for('google.login', next=url_for('plus_pricing')) }}"
+        >Login to Checkout</a
+      >
+      {% endif %} {% else %}
+      <div class="small muted">Not configured</div>
+      {% endif %}
+    </article>
+  </div>
+
+  <p class="small muted promo-note">
+    You can enter promo codes during Stripe checkout.
+  </p>
+</section>
+
+<section class="compare block">
+  <h3>Compare plans</h3>
+  <div class="cmp-grid small">
+    <div class="cmp-row head">
+      <div></div>
+      <div>Free</div>
+      <div>Plus Family</div>
+      <div>Plus Classroom</div>
+    </div>
+
+    <div class="cmp-row">
+      <div class="label">Monthly generates</div>
+      <div>1 (after 10 lifetime)</div>
+      <div>15</div>
+      <div>100</div>
+    </div>
+
+    <div class="cmp-row">
+      <div class="label">Subscriber packs</div>
+      <div>—</div>
+      <div>Included</div>
+      <div>Included</div>
+    </div>
+
+    <div class="cmp-row">
+      <div class="label">Giveaways</div>
+      <div>Occasional</div>
+      <div>Occasional</div>
+      <div>Occasional</div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <h3>What you get</h3>
+  <ul class="benefits">
+    <li>Printable PDFs perfect for handwriting & copywork</li>
+    <li>Kid-friendly cursive tracing option</li>
+    <li>Great for homeschool, co-ops, and Sunday school</li>
+    <li>Simple dashboard to track & regenerate worksheets</li>
+  </ul>
+  <ul class="trust small">
+    <li>🔒 Secure checkout with Stripe</li>
+    <li>💌 Friendly email support</li>
+    <li>🌙 Dark-mode ready</li>
+  </ul>
+</section>
+
+<section class="faq block">
+  <h3>FAQs</h3>
+  <details>
+    <summary>Can I cancel anytime?</summary>
+    <p class="muted">
+      Yes. Subscriptions are managed via Stripe’s customer portal (link in the
+      top navigation once you’re signed in).
+    </p>
+  </details>
+  <details>
+    <summary>Do I lose access if I cancel?</summary>
+    <p class="muted">
+      You’ll keep any downloads you’ve already saved. Your monthly generate
+      limit will return to Free.
+    </p>
+  </details>
+  <details>
+    <summary>Can I switch between Family and Classroom?</summary>
+    <p class="muted">
+      Yes, you can change plans from the billing portal. Proration is handled by
+      Stripe.
+    </p>
+  </details>
+</section>
+
+{% endblock %} {% block extra_scripts %}
+<style>
+  .announcement {
+    margin-bottom: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid #4b3a0f;
+    background: #4b3a0f33;
+    color: #f8e7c7;
+  }
+
+  .plus-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 1rem;
+    align-items: center;
+  }
+  @media (max-width: 980px) {
+    .plus-hero {
+      grid-template-columns: 1fr;
+    }
+  }
+  .mini-preview {
+    width: 260px;
+    max-width: 100%;
+    border: 1px dashed #334155;
+    border-radius: 14px;
+    padding: 0.8rem;
+  }
+  .mini-preview .lines {
+    height: 110px;
+    border-radius: 10px;
+    background: repeating-linear-gradient(
+      #0f172a,
+      #0f172a 18px,
+      #223043 18px,
+      #223043 20px
+    );
+    border: 1px solid #233144;
+  }
+  .badge-row {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .pill {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-size: 0.8rem;
+    border: 1px solid #334155;
+  }
+  .pill.alt {
+    background: #0b3b5a;
+    border-color: #0b3b5a;
+    color: #e6f2ff;
+  }
+
+  .value-props {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .plans {
+    margin-top: 0.75rem;
+  }
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.8rem;
+  }
+  .plan-card {
+    border: 1px solid #2a3441;
+    background: var(--box, #0f172a);
+    border-radius: 12px;
+    padding: 14px;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .plan-card.featured {
+    outline: 2px solid rgba(11, 59, 90, 0.35);
+    box-shadow: 0 6px 26px rgba(0, 0, 0, 0.18);
+  }
+  .plan-head {
+    display: grid;
+    gap: 0.2rem;
+  }
+  .plan-title {
+    font-weight: 800;
+  }
+  .plan-sub {
+    color: var(--text-secondary);
+  }
+  .plan-points {
+    margin: 0.25rem 0 0 1rem;
+  }
+  .btnrow {
+    display: grid;
+    gap: 0.45rem;
+  }
+  .button.wide {
+    width: 100%;
+  }
+  .button.primary {
+    background: var(--primary, #0b3b5a);
+    color: #e6f2ff;
+  }
+  .save {
+    color: #065f46;
+    background: #0b3b5a22;
+    border-radius: 10px;
+    padding: 2px 6px;
+    margin-left: 6px;
+    font-weight: 700;
+  }
+
+  .promo-note {
+    margin-top: 0.4rem;
+  }
+
+  .compare .cmp-grid {
+    display: grid;
+    gap: 0.25rem;
+  }
+  .cmp-row {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr;
+    gap: 0.25rem;
+    align-items: center;
+  }
+  .cmp-row.head {
+    font-weight: 700;
+  }
+  .cmp-row:not(.head) {
+    border: 1px solid #2a3441;
+    border-radius: 8px;
+    padding: 0.4rem 0.5rem;
+  }
+  .cmp-row .label {
+    font-weight: 600;
+  }
+  @media (max-width: 720px) {
+    .cmp-row {
+      grid-template-columns: 1fr;
+    }
+    .cmp-row.head {
+      display: none;
+    }
+  }
+
+  .benefits {
+    margin: 0.25rem 0 0 1rem;
+  }
+  .trust {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 0.6rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .faq details {
+    border: 1px solid #2a3441;
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+    margin: 0.35rem 0;
+    background: var(--box, #0f172a);
+  }
+  .faq summary {
+    cursor: pointer;
+  }
+</style>
 {% endblock %}
