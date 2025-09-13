@@ -1,60 +1,44 @@
 {% extends "base.html" %} {% block title %}Home | Faith Sparks Printables{%
-endblock %} {% block content %} {# ---------- Announcement banner (reuses admin
-content fields if you render them in base; safe duplicate here) ---------- #} {%
-if site_content and site_content.announcement_enabled and
-site_content.announcement_text %}
-<div class="announcement" role="status">
-  {{ site_content.announcement_text }}
+endblock %} {% block content %} {# ——— Announcement (Admin → Site Content).
+Subtle + dismissible. ——— #} {% if site_content and
+site_content.announcement_enabled and site_content.announcement_text %}
+<div class="announce" id="announce">
+  <span class="a-dot" aria-hidden="true">●</span>
+  <span class="a-text">{{ site_content.announcement_text }}</span>
+  <button class="a-x" type="button" aria-label="Dismiss">✕</button>
 </div>
-{% endif %} {% if user_info %} {# ---------- Logged-in hero ---------- #}
-<section class="hero card-lite">
-  <div class="hero-left">
-    <h1 class="page-title">
+{% endif %} {# ——— HERO ——— #}
+<section class="hero">
+  <div class="hero-text">
+    {% if user_info %}
+    <h1 class="hero-title">
       Welcome, {{ user_info["email"].split("@")[0] }} 👋
     </h1>
-    <p class="muted">Ready to create your next Bible worksheet?</p>
+    <p class="hero-sub">Ready to create your next Bible worksheet?</p>
     <div class="cta-row">
-      <a class="button" href="{{ url_for('generate') }}"
+      <a class="button primary" href="{{ url_for('generate') }}"
         >✍️ Generate a Worksheet</a
       >
-      <a class="button ghost" href="{{ url_for('history') }}"
+      <a class="button ghost" href="{{ url_for('history')  }}"
         >📚 View History</a
       >
-      <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
+      <a class="button ghost" href="{{ url_for('browse')   }}"
+        >🗂️ Browse Packs</a
+      >
     </div>
-  </div>
-  <div class="hero-right">
-    <div class="mini-preview">
-      <div class="lines"></div>
-      <div class="badge-row">
-        <span class="pill alt">ESV</span>
-        <span class="pill">✍️ Cursive</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-{% else %} {# ---------- Logged-out hero: fully driven by Admin → Site Content
----------- #}
-<section class="hero card-lite">
-  <div class="hero-left">
-    <h1 class="page-title">
+    {% else %}
+    <h1 class="hero-title">
       {{ (site_content.home_title or 'Welcome to Faith Sparks Printables') if
       site_content else 'Welcome to Faith Sparks Printables' }}
     </h1>
-    {% if site_content and site_content.activePreset %}
-    <p class="small muted">Preset active: {{ site_content.activePreset }}</p>
-    {% endif %}
-
-    <p class="muted">
+    <p class="hero-sub">
       {{ (site_content.home_subtitle or 'Sign in with Google to create and track
       your printable Bible worksheets.') if site_content else 'Sign in with
       Google to create and track your printable Bible worksheets.' }}
     </p>
-
     <div class="cta-row">
       <a
-        class="button"
+        class="button primary"
         href="{{ (site_content.home_cta_url or '/generate') if site_content else '/generate' }}"
       >
         {{ (site_content.home_cta_text or '✍️ Generate a Worksheet') if
@@ -65,8 +49,7 @@ site_content.announcement_text %}
       >
       <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
     </div>
-
-    {% if site_content and site_content.home_intro_html %}
+    {% endif %} {% if site_content and site_content.home_intro_html %}
     <div class="intro">
       {% if site_content.home_intro_is_markdown %} {{
       site_content.home_intro_html|markdown|safe }} {% else %} {{
@@ -81,64 +64,36 @@ site_content.announcement_text %}
     </ul>
   </div>
 
-  <div class="hero-right">
-    <div class="mini-preview">
-      <div class="lines"></div>
-      <div class="badge-row">
-        <span class="pill alt">KJV</span>
-        <span class="pill">🖍️ Color</span>
-      </div>
-    </div>
+  {# ——— Clean SVG preview (no bitmap fuzz, themed for dark/light) ——— #}
+  <div class="hero-art" aria-hidden="true">
+    <svg viewBox="0 0 360 240" class="sheet">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" class="g1" />
+          <stop offset="1" class="g2" />
+        </linearGradient>
+        <pattern id="rules" width="1" height="18" patternUnits="userSpaceOnUse">
+          <rect x="0" y="0" width="360" height="1" class="rule" />
+        </pattern>
+      </defs>
+      <rect x="6" y="6" width="348" height="228" rx="14" class="sheet-bg" />
+      <rect x="12" y="12" width="336" height="216" rx="10" fill="url(#bg)" />
+      <rect x="24" y="28" width="312" height="170" fill="url(#rules)" />
+      <rect
+        x="24"
+        y="210"
+        width="112"
+        height="16"
+        rx="8"
+        class="chip chip-alt"
+      />
+      <rect x="144" y="210" width="90" height="16" rx="8" class="chip" />
+    </svg>
   </div>
 </section>
-{% endif %} {# ---------- Featured Collections (auto from collections list if
-provided) ---------- #} {% set show_collections = collections if collections
-else [] %} {% if show_collections and show_collections|length %}
-<section class="section">
-  <div class="section-head">
-    <h2 class="section-title">Featured Packs</h2>
-    <a class="button ghost tiny" href="{{ url_for('browse') }}">View all</a>
-  </div>
 
-  <div class="pack-grid">
-    {% for c in show_collections[:6] %}
-    <article class="pack-card">
-      <div class="pack-top">
-        <div class="pack-thumb" aria-hidden="true"></div>
-        <div class="pack-meta">
-          {% if c.isPublic %}
-          <span class="pill alt">Public</span>
-          {% else %}
-          <span class="pill">Private</span>
-          {% endif %} {% if c.isFree %}
-          <span class="pill ok">Free</span>
-          {% elif c.isSubscriberOnly %}
-          <span class="pill info">Plus</span>
-          {% endif %}
-        </div>
-      </div>
-      <h3 class="pack-title">{{ c.title }}</h3>
-      <p class="pack-sub muted small">
-        {{ c.verses|length }} verses • <code>{{ c.slug }}</code>
-      </p>
-      <div class="pack-actions">
-        <a class="button" href="{{ url_for('browse_detail', slug=c.slug) }}"
-          >Details</a
-        >
-        <a
-          class="button ghost"
-          href="{{ url_for('generate', collection_slug=c.slug) }}"
-          >Use Pack</a
-        >
-      </div>
-    </article>
-    {% endfor %}
-  </div>
-</section>
-{% endif %} {# ---------- 1-2-3 how it works (evergreen; no admin field needed)
----------- #}
-<section class="section how">
-  <h2 class="section-title">How it works</h2>
+{# ——— How it works ——— #}
+<section class="how">
   <ol class="steps">
     <li><span class="dot">1</span> Pick a verse (or paste your own text)</li>
     <li><span class="dot">2</span> Choose version & ✍️ cursive</li>
@@ -150,77 +105,51 @@ else [] %} {% if show_collections and show_collections|length %}
   </div>
 </section>
 
-{% endblock %} {% block extra_scripts %}
+{# ——— Featured (shows even when logged in, if provided) ——— #} {% if
+collections and collections|length %}
+<section class="featured">
+  <div class="section-head">
+    <h2 class="section-title">Featured Packs</h2>
+    <a class="button ghost tiny" href="{{ url_for('browse') }}">View all</a>
+  </div>
+  <div class="pack-grid">
+    {% for c in collections[:3] %}
+    <a class="pack-card" href="{{ url_for('browse_detail', slug=c.slug) }}">
+      <div class="pack-thumb"></div>
+      <div class="pack-meta">
+        {% if c.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
+        c.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
+      </div>
+      <h3 class="pack-title">{{ c.title }}</h3>
+      <p class="small muted">
+        {{ c.verses|length }} verses • <code>{{ c.slug }}</code>
+      </p>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %} {% endblock %} {% block extra_scripts %}
 <style>
-  .announcement {
-    margin-bottom: 0.6rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 10px;
-    border: 1px solid #4b3a0f;
-    background: #4b3a0f33;
-    color: #f8e7c7;
-  }
-
+  /* Layout */
   .hero {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 1rem;
+    gap: 16px;
     align-items: center;
   }
-  .hero-right {
-    display: grid;
-    place-items: center;
+  .hero-text {
+    min-width: 0;
   }
-  .mini-preview {
-    width: 260px;
-    max-width: 100%;
-    border: 1px dashed #334155;
-    border-radius: 14px;
-    padding: 0.8rem;
+  .hero-title {
+    margin: 0 0 0.15rem;
   }
-  .mini-preview .lines {
-    height: 110px;
-    border-radius: 10px;
-    background: repeating-linear-gradient(
-      #0f172a,
-      #0f172a 18px,
-      #223043 18px,
-      #223043 20px
-    );
-    border: 1px solid #233144;
+  .hero-sub {
+    margin: 0.1rem 0 0.6rem;
+    color: var(--text-secondary);
   }
-  .badge-row {
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-    margin-top: 0.5rem;
-  }
-  .pill {
-    display: inline-block;
-    padding: 0.2rem 0.55rem;
-    border-radius: 999px;
-    background: #1f2937;
-    color: #e5e7eb;
-    font-size: 0.8rem;
-    border: 1px solid #334155;
-  }
-  .pill.alt {
-    background: #0b3b5a;
-    border-color: #0b3b5a;
-    color: #e6f2ff;
-  }
-  .pill.ok {
-    background: #0f3a2a;
-    border-color: #0f3a2a;
-  }
-  .pill.info {
-    background: #0b365a;
-    border-color: #0b365a;
-  }
-
   .cta-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
   }
   .cta-row .button {
@@ -229,44 +158,92 @@ else [] %} {% if show_collections and show_collections|length %}
   .cta-row.center {
     justify-content: center;
   }
-
+  .intro {
+    margin: 0.6rem 0;
+  }
   .trust {
     display: flex;
-    gap: 1rem;
+    gap: 12px;
     flex-wrap: wrap;
-    margin: 0.75rem 0 0;
+    margin: 0.4rem 0 0;
     padding: 0;
     list-style: none;
   }
-  .trust li::marker {
-    content: "";
+  .hero-art {
+    display: grid;
+    place-items: center;
   }
 
-  .section {
-    margin-top: 1.25rem;
-  }
-  .section-head {
+  /* Announcement (subtle, dismissible) */
+  .announce {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.4rem;
+    gap: 0.5rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    background: color-mix(in oklab, var(--box, #fff) 90%, transparent 10%);
+    padding: 0.5rem 0.75rem;
+    border-radius: 12px;
+    margin-bottom: 0.6rem;
   }
-  .section-title {
-    margin: 0;
+  .a-dot {
+    color: #f59e0b;
+  }
+  .a-text {
+    flex: 1;
+  }
+  .a-x {
+    appearance: none;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.95rem;
+    opacity: 0.75;
+  }
+
+  /* SVG preview styles (maps to classes in the SVG) */
+  .sheet {
+    width: 100%;
+    max-width: 360px;
+    height: auto;
+  }
+  .sheet-bg {
+    fill: transparent;
+    stroke: var(--border-color, #334155);
+    stroke-dasharray: 4 4;
+  }
+  .g1 {
+    stop-color: #0b2035;
+  }
+  .g2 {
+    stop-color: #13273f;
+  }
+  .rule {
+    fill: #203046;
+  }
+  .chip {
+    fill: #183045;
+  }
+  .chip-alt {
+    fill: #0b3b5a;
+  }
+
+  /* How it works */
+  .how {
+    margin-top: 10px;
   }
   .steps {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.5rem;
+    gap: 8px;
     list-style: none;
     padding: 0;
-    margin: 0.6rem 0;
+    margin: 0 0 0.6rem;
   }
   .steps li {
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    border: 1px solid #2a3441;
+    border: 1px solid var(--border-color, #2a3441);
     background: var(--box, #0f172a);
     border-radius: 12px;
     padding: 0.6rem;
@@ -282,54 +259,121 @@ else [] %} {% if show_collections and show_collections|length %}
     font-weight: 700;
   }
 
+  /* Featured */
+  .featured {
+    margin-top: 8px;
+  }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+  }
+  .section-title {
+    margin: 0;
+  }
   .pack-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
   }
   .pack-card {
     border: 1px solid #2a3441;
     background: var(--box, #0f172a);
     border-radius: 12px;
-    padding: 0.75rem;
-  }
-  .pack-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-    align-items: flex-start;
+    padding: 0.6rem;
   }
   .pack-thumb {
     height: 90px;
-    flex: 1;
-    border-radius: 8px;
     border: 1px dashed #334155;
+    border-radius: 8px;
     background: linear-gradient(135deg, #0f172a 0%, #111b2a 100%);
   }
   .pack-meta {
     display: flex;
     gap: 0.35rem;
     flex-wrap: wrap;
+    margin-top: 0.4rem;
   }
   .pack-title {
-    margin: 0.5rem 0 0.25rem;
+    margin: 0.35rem 0 0.1rem;
   }
-  .pack-sub {
-    margin: 0;
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-weight: 700;
+    font-size: 0.78rem;
+    border: 1px solid #334155;
   }
-  .pack-actions {
-    display: flex;
-    gap: 0.4rem;
-    margin-top: 0.5rem;
+  .pill.ok {
+    background: #0f3a2a;
+    border-color: #0f3a2a;
+  }
+  .pill.info {
+    background: #0b365a;
+    border-color: #0b365a;
   }
 
+  /* Responsive */
   @media (max-width: 980px) {
     .hero {
       grid-template-columns: 1fr;
     }
-    .steps {
-      grid-template-columns: 1fr;
+    .hero-art {
+      order: -1;
+    }
+    .cta-row .button {
+      flex: 1 1 180px;
+    }
+  }
+  @media (prefers-color-scheme: light) {
+    .g1 {
+      stop-color: #f8fafc;
+    }
+    .g2 {
+      stop-color: #eef2f7;
+    }
+    .rule {
+      fill: #e6edf6;
+    }
+    .chip {
+      fill: #dfe9f7;
+    }
+    .chip-alt {
+      fill: #cfe5fb;
+    }
+    .sheet-bg {
+      stroke: #d4d9e0;
     }
   }
 </style>
+
+<script>
+  // Dismiss announcement (persist by month)
+  (function () {
+    const el = document.getElementById("announce");
+    if (!el) return;
+    const key = "ann_dismiss_" + new Date().toISOString().slice(0, 7); // YYYY-MM
+    try {
+      if (localStorage.getItem(key) === "1") {
+        el.remove();
+        return;
+      }
+    } catch (_) {}
+    const btn = el.querySelector(".a-x");
+    if (btn)
+      btn.addEventListener("click", () => {
+        try {
+          localStorage.setItem(key, "1");
+        } catch (_) {}
+        el.style.transition = "opacity .15s ease, transform .15s ease";
+        el.style.opacity = "0";
+        el.style.transform = "translateY(-4px)";
+        setTimeout(() => el.remove(), 160);
+      });
+  })();
+</script>
 {% endblock %}
