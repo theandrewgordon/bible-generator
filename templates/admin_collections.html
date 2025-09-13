@@ -1,134 +1,513 @@
-{% extends "base.html" %}
-{% block title %}Admin • Collections{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Admin • Collections{% endblock %} {%
+block content %}
 <h1 class="page-title">Admin: Collections</h1>
 
-<p>
-  <a class="button" href="{{ url_for('admin_collections_new') }}">➕ New Collection</a>
-  <span class="small muted" style="margin-left:10px;">Filter:</span>
-  <a class="button ghost" href="{{ url_for('admin_collections', visibility='all') }}" {% if visibility=='all' %}style="background:#e0e7ff;"{% endif %}>All</a>
-  <a class="button ghost" href="{{ url_for('admin_collections', visibility='public') }}" {% if visibility=='public' %}style="background:#e0e7ff;"{% endif %}>Public</a>
-  <a class="button ghost" href="{{ url_for('admin_collections', visibility='private') }}" {% if visibility=='private' %}style="background:#e0e7ff;"{% endif %}>Private</a>
-</p>
+<div class="toolbar">
+  <div class="left">
+    <a class="button" href="{{ url_for('admin_collections_new') }}"
+      >➕ New Collection</a
+    >
+  </div>
 
-<table style="width:100%; border-collapse: collapse;">
-  <thead>
-    <tr>
-      <th style="text-align:left; padding:6px;">Order</th>
-      <th style="text-align:left; padding:6px;">Slug</th>
-      <th style="text-align:left; padding:6px;">Title</th>
-      <th style="text-align:left; padding:6px;">Verses</th>
-      <th style="text-align:left; padding:6px;">Public</th>
-      <th style="text-align:left; padding:6px;">Free (anyone can download)</th>
-      <th style="text-align:left; padding:6px;">Subscriber</th>
-      <th style="text-align:left; padding:6px;">Price</th>
-      <th style="text-align:left; padding:6px;">Build</th>
-      <th style="text-align:left; padding:6px;">Last built</th>
-      <th style="text-align:left; padding:6px;">Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for c in collections %}
-    <tr style="border-top:1px solid #e5e7eb;" data-slug="{{ c.slug }}">
-      <td style="padding:6px; width:80px;">
-        {{ c.get('order', '') }}
-        <form method="post" action="{{ url_for('admin_collections_move', slug=c.slug) }}" style="display:inline;">
-          <input type="hidden" name="dir" value="up">
-          <button class="button ghost" title="Move up">⬆️</button>
-        </form>
-        <form method="post" action="{{ url_for('admin_collections_move', slug=c.slug) }}" style="display:inline;">
-          <input type="hidden" name="dir" value="down">
-          <button class="button ghost" title="Move down">⬇️</button>
-        </form>
-      </td>
-      <td style="padding:6px;">{{ c.slug }}</td>
-      <td style="padding:6px;">{{ c.title }}</td>
-      <td style="padding:6px;">{{ c.verses|length }}</td>
-      <td style="padding:6px;">{{ 'Yes' if c.get('isPublic', True) else 'No' }}</td>
-      <td style="padding:6px;">{{ 'Yes' if c.get('isFree', False) else 'No' }}</td>
-      <td style="padding:6px;">{{ 'Yes' if c.get('isSubscriberOnly', False) else 'No' }}</td>
-      <td style="padding:6px;">
-        {% set explicit = c.get('priceId') %}
-        {% set pid = pack_effective_price_id(c) %}
-        {% if pid %}
-          <div>
-            {% if c.get('priceMeta') %}
-              <div class="small" style="margin-bottom:4px;">
-                ${{ '%.2f' % c.priceMeta.amount }} {{ c.priceMeta.currency }}
-              </div>
-            {% endif %}
-            <code>{{ pid }}</code>
-            {% if not explicit %}
-              <span class="small muted">(default)</span>
-            {% endif %}
-            <a class="button ghost" href="{{ stripe_price_url(pid) }}" 
-               target="_blank" title="Open in Stripe">Open</a>
+  <div class="right">
+    <div class="filter-row">
+      <span class="small muted">Filter:</span>
+      <a
+        class="button ghost"
+        href="{{ url_for('admin_collections', visibility='all') }}"
+        data-active="{{ '1' if visibility=='all' else '0' }}"
+        >All</a
+      >
+      <a
+        class="button ghost"
+        href="{{ url_for('admin_collections', visibility='public') }}"
+        data-active="{{ '1' if visibility=='public' else '0' }}"
+        >Public</a
+      >
+      <a
+        class="button ghost"
+        href="{{ url_for('admin_collections', visibility='private') }}"
+        data-active="{{ '1' if visibility=='private' else '0' }}"
+        >Private</a
+      >
+    </div>
+
+    <div class="search-row">
+      <input
+        id="q"
+        class="wide-input search-input"
+        placeholder="Search by slug or title…"
+        oninput="liveFilter(this.value)"
+      />
+      <button class="button ghost" type="button" onclick="exportCsv()">
+        Export CSV
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="admin-table" id="collectionsTable">
+    <thead>
+      <tr>
+        <th data-sort="num" class="num">Order</th>
+        <th data-sort="text">Slug</th>
+        <th data-sort="text">Title</th>
+        <th data-sort="num" class="num">Verses</th>
+        <th data-sort="text">Visibility</th>
+        <th data-sort="text">Free</th>
+        <th data-sort="text">Subscriber</th>
+        <th data-sort="text">Price</th>
+        <th data-sort="text">Build</th>
+        <th data-sort="date">Last Built</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in collections %} {% set is_public = c.get('isPublic', True) %}
+      {% set is_free = c.get('isFree', False) %} {% set is_sub =
+      c.get('isSubscriberOnly', False) %} {% set explicit = c.get('priceId') %}
+      {% set pid = pack_effective_price_id(c) %} {% set price_meta =
+      c.get('priceMeta') %} {% set s = (c.get('prewarm') or {}).get('status') %}
+      <tr data-slug="{{ c.slug }}" data-title="{{ (c.title or '')|lower }}">
+        <td class="num">
+          <div class="order-cell">
+            <span class="mono">{{ c.get('order','') }}</span>
+            <form
+              method="post"
+              action="{{ url_for('admin_collections_move', slug=c.slug) }}"
+              class="inline"
+            >
+              <input type="hidden" name="dir" value="up" />
+              <button class="icon-btn" title="Move up" aria-label="Move up">
+                ⬆️
+              </button>
+            </form>
+            <form
+              method="post"
+              action="{{ url_for('admin_collections_move', slug=c.slug) }}"
+              class="inline"
+            >
+              <input type="hidden" name="dir" value="down" />
+              <button class="icon-btn" title="Move down" aria-label="Move down">
+                ⬇️
+              </button>
+            </form>
           </div>
-        {% else %}
-          <span class="muted small">—</span>
-        {% endif %}
-      </td>
-      <td style="padding:6px;">
-        {% set s = c.get('prewarm', {}).get('status') %}
-        <span class="prewarm" data-status="{{ s or '' }}">
-          {% if s == 'running' %}
-            <span class="pill">Building <span class="done">{{ c.get('prewarm', {}).get('done', 0) }}</span>/<span class="total">{{ c.get('prewarm', {}).get('total', '?') }}</span></span>
-          {% elif s == 'done' %}
-            <span class="pill alt">Ready</span>
-          {% elif s == 'error' %}
-            <span class="pill" style="background:#fecaca; border-color:#fca5a5;">Error</span>
+        </td>
+
+        <td class="nowrap">
+          <code class="mono">{{ c.slug }}</code>
+        </td>
+
+        <td>{{ c.title }}</td>
+
+        <td class="num">{{ c.verses|length }}</td>
+
+        <td>
+          {% if is_public %}
+          <span class="pill success">Public</span>
           {% else %}
-            <span class="muted small">—</span>
+          <span class="pill">Private</span>
           {% endif %}
-        </span>
-      </td>
-      <td style="padding:6px;"><span class="last-built">{{ c.get('lastBuilt') or '—' }}</span></td>
-      <td style="padding:6px;">
-        <a class="button ghost" href="{{ url_for('admin_collections_edit', slug=c.slug) }}">Edit</a>
-        <form method="post" action="{{ url_for('admin_collections_set_order', slug=c.slug) }}" style="display:inline; margin-left:6px;">
-          <input type="number" name="order" value="{{ c.get('order','') }}" style="width:70px;"> 
-          <button class="button ghost" title="Set order">Save</button>
-        </form>
-        <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" style="display:inline; margin-left:6px;">
-          <button class="button" style="background:#e0e7ff; color:#111827;" title="Prewarm ZIP">Prewarm ZIP</button>
-        </form>
-        <form method="post" action="{{ url_for('admin_collections_delete', slug=c.slug) }}" style="display:inline;" onsubmit="return confirm('Delete this collection?');">
-          <button class="button" style="background:#fecaca;">Delete</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
+        </td>
+
+        <td>
+          {% if is_free %}
+          <span class="pill info">Free</span>
+          {% else %}
+          <span class="pill dim">—</span>
+          {% endif %}
+        </td>
+
+        <td>
+          {% if is_sub %}
+          <span class="pill warn">Plus</span>
+          {% else %}
+          <span class="pill dim">—</span>
+          {% endif %}
+        </td>
+
+        <td>
+          {% if pid %}
+          <div class="price-cell">
+            {% if price_meta %}
+            <div class="small muted">
+              $ {{ '%.2f' % price_meta.amount }} {{ price_meta.currency }}
+            </div>
+            {% endif %}
+            <code class="mono">{{ pid }}</code>
+            {% if not explicit %}<span class="small muted">(default)</span>{%
+            endif %}
+            <a
+              class="button ghost tiny"
+              href="{{ stripe_price_url(pid) }}"
+              target="_blank"
+              title="Open in Stripe"
+              >Open</a
+            >
+          </div>
+          {% else %}
+          <span class="muted small">—</span>
+          {% endif %}
+        </td>
+
+        <td>
+          <span class="prewarm" data-status="{{ s or '' }}">
+            {% if s == 'running' %}
+            <span class="pill"
+              >Building
+              <span class="done">{{ c.get('prewarm', {}).get('done', 0) }}</span
+              >/<span class="total"
+                >{{ c.get('prewarm', {}).get('total', '?') }}</span
+              ></span
+            >
+            {% elif s == 'done' %}
+            <span class="pill alt">Ready</span>
+            {% elif s == 'error' %}
+            <span class="pill error">Error</span>
+            {% else %}
+            <span class="muted small">—</span>
+            {% endif %}
+          </span>
+        </td>
+
+        <td class="small" data-iso="{{ (c.get('lastBuilt') or '') }}">
+          {{ c.get('lastBuilt') or '—' }}
+        </td>
+
+        <td class="nowrap">
+          <a
+            class="button ghost"
+            href="{{ url_for('admin_collections_edit', slug=c.slug) }}"
+            >Edit</a
+          >
+
+          <form
+            method="post"
+            action="{{ url_for('admin_collections_set_order', slug=c.slug) }}"
+            class="inline"
+          >
+            <input
+              class="order-input"
+              type="number"
+              name="order"
+              value="{{ c.get('order','') }}"
+              title="Set order"
+            />
+            <button class="button ghost" title="Set order">Save</button>
+          </form>
+
+          <form
+            method="post"
+            action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}"
+            class="inline"
+          >
+            <button class="button accent" title="Prewarm ZIP">
+              Prewarm ZIP
+            </button>
+          </form>
+
+          <form
+            method="post"
+            action="{{ url_for('admin_collections_delete', slug=c.slug) }}"
+            class="inline"
+            onsubmit="return confirm('Delete collection {{ c.title }}?');"
+          >
+            <button class="button danger" title="Delete">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
+</div>
+
+<style>
+  .toolbar {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .filter-row,
+  .search-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .search-input {
+    min-width: 260px;
+  }
+  .button.ghost[data-active="1"] {
+    background: #0b3b5a;
+    color: #e6f2ff;
+    border-color: #0b3b5a;
+  }
+
+  .table-wrap {
+    overflow: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #2a3441);
+    background: var(--box, #0f172a);
+  }
+  .admin-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .admin-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--box, #0f172a);
+    z-index: 1;
+    border-bottom: 1px solid var(--border-color, #2a3441);
+    padding: 0.75rem 1rem;
+    user-select: none;
+  }
+  .admin-table thead th.sortable {
+    cursor: pointer;
+  }
+  .admin-table th,
+  .admin-table td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+  }
+  .admin-table td.num,
+  .admin-table th.num {
+    text-align: right;
+  }
+  .admin-table tbody tr:nth-child(odd) {
+    background: color-mix(in srgb, var(--box, #0f172a) 88%, #000 12%);
+  }
+  .admin-table tbody tr:hover {
+    background: color-mix(in srgb, var(--box, #0f172a) 80%, #000 20%);
+  }
+
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      monospace;
+  }
+  .nowrap {
+    white-space: nowrap;
+  }
+  .inline {
+    display: inline;
+  }
+  .order-cell {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .icon-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 2px;
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-size: 0.8rem;
+    border: 1px solid #334155;
+  }
+  .pill.alt {
+    background: #0b3b5a;
+    border-color: #0b3b5a;
+    color: #e6f2ff;
+  }
+  .pill.success {
+    background: #0f3a2a;
+    border-color: #0f3a2a;
+  }
+  .pill.info {
+    background: #0b365a;
+    border-color: #0b365a;
+  }
+  .pill.warn {
+    background: #4b3a0f;
+    border-color: #4b3a0f;
+  }
+  .pill.error {
+    background: #5a0b0b;
+    border-color: #5a0b0b;
+  }
+  .pill.dim {
+    background: #1f2530;
+    color: #a7b0bd;
+    border-color: #2b3140;
+  }
+
+  .price-cell {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .button.tiny {
+    padding: 0.2rem 0.45rem;
+    font-size: 0.8rem;
+  }
+  .button.accent {
+    background: #1e293b;
+    color: #e5e7eb;
+    border: 1px solid #334155;
+  }
+  .button.danger {
+    background: #5a0b0b;
+    color: #f8dada;
+    border: 1px solid #7a1a1a;
+  }
+
+  .order-input {
+    width: 64px;
+  }
+  .muted {
+    opacity: 0.8;
+  }
+
+  /* Sort indicators */
+  th[data-sort].asc::after {
+    content: " ⬆";
+  }
+  th[data-sort].desc::after {
+    content: " ⬇";
+  }
+</style>
+
 <script>
-  (function(){
-    const rows = Array.from(document.querySelectorAll('tr[data-slug]'));
-    async function pollRow(row){
-      const slug = row.getAttribute('data-slug');
-      try{
-        const res = await fetch(`/admin/prewarm/${slug}/status`, { headers: { 'Accept': 'application/json' } });
-        if(!res.ok) return;
-        const data = await res.json();
-        const cell = row.querySelector('.prewarm');
-        const lastBuiltEl = row.querySelector('.last-built');
-        if(!cell) return;
-        const s = data.status;
-        cell.setAttribute('data-status', s||'');
-        if(s === 'running'){
-          const done = data.done ?? 0;
-          const total = data.total ?? '?';
-          cell.innerHTML = `<span class="pill">Building <span class="done">${done}</span>/<span class="total">${total}</span></span>`;
-        } else if(s === 'done'){
-          cell.innerHTML = `<span class="pill alt">Ready</span>`;
-          if(lastBuiltEl){ lastBuiltEl.textContent = new Date().toISOString().slice(0,16).replace('T',' '); }
-        } else if(s === 'error'){
-          cell.innerHTML = `<span class="pill" style="background:#fecaca; border-color:#fca5a5;">Error</span>`;
-        }
-      }catch(e){ /* ignore */ }
+  // --- Search (slug or title) ---
+  function liveFilter(val) {
+    const q = (val || "").toLowerCase().trim();
+    document.querySelectorAll("#collectionsTable tbody tr").forEach((tr) => {
+      const hit =
+        (tr.getAttribute("data-slug") || "").includes(q) ||
+        (tr.getAttribute("data-title") || "").includes(q);
+      tr.style.display = !q || hit ? "" : "none";
+    });
+  }
+
+  // --- Sortable headers (text / num / date) ---
+  (function makeSortable() {
+    const table = document.getElementById("collectionsTable");
+    if (!table) return;
+    const ths = table.tHead.querySelectorAll("th[data-sort]");
+    ths.forEach((th, idx) => {
+      th.classList.add("sortable");
+      th.addEventListener("click", () => {
+        const type = th.dataset.sort;
+        const dir = th.classList.contains("asc") ? "desc" : "asc";
+        ths.forEach((x) => x.classList.remove("asc", "desc"));
+        th.classList.add(dir);
+        const rows = Array.from(table.tBodies[0].rows);
+        rows.sort((a, b) => {
+          const av = cellVal(a, idx, type);
+          const bv = cellVal(b, idx, type);
+          if (av < bv) return dir === "asc" ? -1 : 1;
+          if (av > bv) return dir === "asc" ? 1 : -1;
+          return 0;
+        });
+        rows.forEach((r) => table.tBodies[0].appendChild(r));
+      });
+    });
+    function cellVal(tr, i, type) {
+      const td = tr.cells[i];
+      if (!td) return "";
+      if (type === "num") {
+        const n =
+          parseFloat((td.textContent || "").replace(/[^\d.]/g, "")) || 0;
+        return n;
+      }
+      if (type === "date") {
+        const iso = td.getAttribute("data-iso");
+        return iso ? Date.parse(iso) || 0 : Date.parse(td.textContent) || 0;
+      }
+      return (td.textContent || "").toLowerCase().trim();
     }
-    function tick(){ rows.forEach(pollRow); }
+  })();
+
+  // --- CSV export honoring current filter ---
+  function exportCsv() {
+    const table = document.getElementById("collectionsTable");
+    if (!table) return;
+    const visibleRows = [...table.tBodies[0].rows].filter(
+      (r) => r.style.display !== "none"
+    );
+    const headers = [...table.tHead.rows[0].cells]
+      .slice(0, 10)
+      .map((th) => `"${th.textContent.trim()}"`)
+      .join(",");
+    const lines = visibleRows.map((r) => {
+      return [...r.cells]
+        .slice(0, 10)
+        .map((td) => {
+          const txt = td.textContent.replace(/\s+/g, " ").trim();
+          return `"${txt.replace(/"/g, '""')}"`;
+        })
+        .join(",");
+    });
+    const csv = [headers, ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "collections.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // --- Live prewarm status polling (keeps your routes) ---
+  (function () {
+    const rows = Array.from(document.querySelectorAll("tr[data-slug]"));
+    async function pollRow(row) {
+      const slug = row.getAttribute("data-slug");
+      try {
+        const res = await fetch(`/admin/prewarm/${slug}/status`, {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const cell = row.querySelector(".prewarm");
+        const built = row.querySelector("[data-iso]");
+        if (!cell) return;
+        const s = data.status;
+        cell.setAttribute("data-status", s || "");
+        if (s === "running") {
+          const done = data.done ?? 0;
+          const total = data.total ?? "?";
+          cell.innerHTML = `<span class="pill">Building <span class="done">${done}</span>/<span class="total">${total}</span></span>`;
+        } else if (s === "done") {
+          cell.innerHTML = `<span class="pill alt">Ready</span>`;
+          if (built) {
+            const now = new Date().toISOString().slice(0, 16).replace("T", " ");
+            built.textContent = now;
+            built.setAttribute("data-iso", now);
+          }
+        } else if (s === "error") {
+          cell.innerHTML = `<span class="pill error">Error</span>`;
+        } else {
+          cell.innerHTML = `<span class="muted small">—</span>`;
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    function tick() {
+      rows.forEach(pollRow);
+    }
     setInterval(tick, 3000);
-    // initial
     tick();
   })();
 </script>

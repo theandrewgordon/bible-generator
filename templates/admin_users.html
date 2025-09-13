@@ -4,22 +4,29 @@
 {% block content %}
 <h1 class="page-title">Admin: Users</h1>
 
-<form method="get" action="{{ url_for('admin_users') }}" class="search-form" role="search">
-  <input
-    name="q"
-    value="{{ q or '' }}"
-    placeholder="Search email…"
-    class="wide-input search-input"
-    aria-label="Search by email"
-    oninput="liveFilter(this.value)"
-  >
-  <button class="button">Search</button>
-  {% if q %}
-    <a class="button ghost" href="{{ url_for('admin_users') }}">Clear</a>
-  {% endif %}
+<form method="get" action="{{ url_for('admin_users') }}" class="search-form" role="search" aria-label="Search users">
+  <div class="input-wrap">
+    <input
+      name="q"
+      value="{{ q or '' }}"
+      placeholder="Search by email…"
+      class="wide-input search-input"
+      aria-label="Search by email"
+      oninput="liveFilter(this.value)"
+      autofocus
+    >
+    {% if q %}
+      <a class="button ghost" href="{{ url_for('admin_users') }}">Clear</a>
+    {% endif %}
+  </div>
+
+  <div class="tool-row">
+    <button class="button" type="submit">Search</button>
+    <button class="button ghost" type="button" onclick="exportCsv()">Export CSV</button>
+  </div>
 </form>
 
-{# month key (safe if helper isn't injected) #}
+{# Safely resolve month key if helper exists #}
 {% if month_key is defined %}
   {% set mkey = month_key() %}
 {% else %}
@@ -31,54 +38,74 @@
     <table class="admin-table" id="usersTable">
       <thead>
         <tr>
-          <th style="min-width: 220px;">Email</th>
-          <th style="min-width: 240px;">Plan</th>
-          <th style="min-width: 180px;">Usage</th>
-          <th style="min-width: 140px;">Last Seen</th>
-          <th style="min-width: 150px;">Actions</th>
+          <th data-sort="text">Email</th>
+          <th data-sort="text">Plan</th>
+          <th data-sort="num" class="num">Lifetime</th>
+          <th data-sort="num" class="num">This&nbsp;Month</th>
+          <th data-sort="date">Last&nbsp;Seen</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
       {% for u in users %}
+        {# Resolve a reliable email/identifier per row #}
+        {% set email =
+              u.get('email')
+           or u.get('id')
+           or u.get('uid')
+           or (u.get('profile') or {}).get('email')
+           or (u.get('auth') or {}).get('email')
+           or (u.get('google') or {}).get('email')
+           or (u.get('user') or {}).get('email')
+           or (u.get('metadata') or {}).get('email')
+           or '—' %}
+
         {% set plan = u.get('plan','free') %}
         {% set usage = u.get('usage', {}) %}
         {% set lifetime = usage.get('lifetime', 0) %}
         {% set months = usage.get('months', {}) %}
         {% set this_month = (months.get(mkey) if mkey else 0) %}
         {% set last_seen = u.get('lastSeenAt') %}
-        <tr data-email="{{ u.get('email','')|lower }}">
-          <td class="nowrap">{{ u.get('email','—') }}</td>
+
+        <tr data-email="{{ email|lower }}">
+          <td class="nowrap">
+            <div class="email-cell">
+              <span title="{{ u.get('email') or email }}">{{ email }}</span>
+              {% if email and email != '—' %}
+              <button class="icon-btn" type="button" title="Copy email" onclick="copyText('{{ email }}')">📋</button>
+              {% endif %}
+            </div>
+          </td>
 
           <td>
             <div class="current-plan pill {{ 'alt' if plan=='free' else '' }}">
               {% if plan_label is defined %}{{ plan_label(plan) }}{% else %}{{ plan }}{% endif %}
             </div>
             <form method="post"
-                  action="{{ url_for('admin_users_set_plan', uid=u.get('id')) }}"
-                  class="plan-form">
+                  action="{{ url_for('admin_users_set_plan', uid=u.get('id') or u.get('uid') or email) }}"
+                  class="plan-form"
+                  aria-label="Change plan for {{ email }}">
               <select name="plan" aria-label="Select plan">
                 <option value="free" {{ 'selected' if plan=='free' else '' }}>Free</option>
                 <option value="plus_family" {{ 'selected' if plan in ['family','plus','plus_family'] else '' }}>Plus Family</option>
                 <option value="plus_classroom" {{ 'selected' if plan in ['classroom','school','plus_classroom'] else '' }}>Plus Classroom</option>
               </select>
-              <button class="button ghost">Save</button>
+              <button class="button ghost" type="submit">Save</button>
             </form>
           </td>
 
-          <td>
-            <div class="small">lifetime: <span class="pill alt">{{ lifetime }}</span></div>
-            <div class="small">this month: <span class="pill alt">{{ this_month if this_month else '0' }}</span></div>
-          </td>
+          <td class="num"><span class="pill alt">{{ lifetime }}</span></td>
+          <td class="num"><span class="pill alt">{{ this_month if this_month else '0' }}</span></td>
 
-          <td class="small">
+          <td class="small" data-iso="{{ (last_seen.isoformat() if last_seen else '') }}">
             {{ last_seen.strftime('%Y-%m-%d %H:%M') if last_seen else '—' }}
           </td>
 
           <td>
             <form method="post"
-                  onsubmit="return confirm('Reset usage for {{ u.get('email','this user') }}?')"
-                  action="{{ url_for('admin_users_reset_usage', uid=u.get('id')) }}">
-              <button class="button accent">♻️ Reset Usage</button>
+                  onsubmit="return confirm('Reset usage for {{ email }}?')"
+                  action="{{ url_for('admin_users_reset_usage', uid=u.get('id') or u.get('uid') or email) }}">
+              <button class="button accent" type="submit">♻️ Reset Usage</button>
             </form>
           </td>
         </tr>
@@ -91,34 +118,141 @@
 {% endif %}
 
 <style>
-  .table-wrap{overflow:auto;border-radius:10px;border:1px solid var(--border-color,#e5e7eb);background:var(--box,#fff)}
-  .search-form{margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-  .search-input{max-width:320px}
-  .admin-table{width:100%;border-collapse:collapse}
-  .admin-table thead th{position:sticky;top:0;background:var(--box,#fff);z-index:1;border-bottom:1px solid var(--border-color,#e5e7eb)}
+  /* Layout */
+  .search-form{margin:0 0 1rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-end}
+  .input-wrap{flex:1;min-width:240px;display:flex;gap:.5rem}
+  .tool-row{display:flex;gap:.5rem}
+  .search-input{width:100%}
+
+  .table-wrap{overflow:auto;border-radius:12px;border:1px solid var(--border-color,#2a3441);
+    background:var(--box,#0f172a);box-shadow:0 1px 0 rgba(0,0,0,.08) inset}
+  .admin-table{width:100%;border-collapse:separate;border-spacing:0}
+  .admin-table thead th{
+    position:sticky;top:0;background:var(--box,#0f172a);z-index:1;
+    border-bottom:1px solid var(--border-color,#2a3441);padding:.75rem 1rem;user-select:none;cursor:default
+  }
+  .admin-table thead th.sortable{cursor:pointer}
   .admin-table th,.admin-table td{padding:.75rem 1rem;text-align:left;vertical-align:middle}
-  .admin-table tbody tr:nth-child(odd){background:color-mix(in srgb, var(--box,#fff) 90%, #000 0%)}
-  .admin-table tbody tr:hover{background:color-mix(in srgb, var(--box,#fff) 85%, #000 0%)}
+  .admin-table td.num,.admin-table th.num{text-align:right}
+  .admin-table tbody tr:nth-child(odd){background:color-mix(in srgb, var(--box,#0f172a) 88%, #000 12%)}
+  .admin-table tbody tr:hover{background:color-mix(in srgb, var(--box,#0f172a) 80%, #000 20%)}
+
   .nowrap{white-space:nowrap}
+  .email-cell{display:flex;align-items:center;gap:.4rem}
+  .icon-btn{border:none;background:transparent;cursor:pointer;font-size:1rem;line-height:1}
   .current-plan{margin-bottom:.4rem}
   .plan-form{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-  .button.accent{background:var(--accent-color,#e0e7ff);color:var(--accent-text,#111827)}
-  .pill{display:inline-block;padding:.2rem .55rem;border-radius:999px;background:#e2e8f0;color:#0f172a;font-size:.8rem}
-  .pill.alt{background:#eef2ff}
-  @media (max-width:720px){
-    .admin-table th:nth-child(3), .admin-table td:nth-child(3){min-width:160px}
-    .admin-table th:nth-child(5), .admin-table td:nth-child(5){min-width:140px}
+  .button.accent{background:var(--accent-color,#1e293b);color:var(--accent-text,#e5e7eb);border:1px solid #334155}
+  .pill{display:inline-block;padding:.2rem .55rem;border-radius:999px;background:#1f2937;color:#e5e7eb;font-size:.8rem}
+  .pill.alt{background:#0b3b5a;color:#e6f2ff}
+  .muted{opacity:.8}
+
+  /* Sort state indicators */
+  th[data-sort].asc::after{content:" ⬆"}
+  th[data-sort].desc::after{content:" ⬇"}
+
+  @media (max-width:760px){
+    .admin-table th:nth-child(6), .admin-table td:nth-child(6){min-width:140px}
+    .plan-form select{max-width:160px}
   }
 </style>
 
 <script>
-  // Simple client-side filter that narrows visible rows while typing.
+  // --- Live filter on the resolved email stored in data-email ---
   function liveFilter(val){
     const q = (val || '').toLowerCase().trim();
-    document.querySelectorAll('#usersTable tbody tr').forEach(tr=>{
+    const rows = document.querySelectorAll('#usersTable tbody tr');
+    let any = false;
+    rows.forEach(tr=>{
       const email = tr.dataset.email || '';
-      tr.style.display = (!q || email.includes(q)) ? '' : 'none';
+      const show = (!q || email.includes(q));
+      tr.style.display = show ? '' : 'none';
+      if (show) any = true;
     });
+  }
+
+  // --- Copy helper ---
+  function copyText(text){
+    navigator.clipboard.writeText(text).then(()=>{
+      toast('Copied: ' + text);
+    });
+  }
+
+  // --- Tiny toast ---
+  function toast(msg){
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    Object.assign(t.style,{
+      position:'fixed',bottom:'18px',left:'50%',transform:'translateX(-50%)',
+      background:'rgba(30,41,59,.95)',color:'#e5e7eb',padding:'8px 12px',
+      borderRadius:'10px',fontSize:'14px',zIndex:9999
+    });
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),1400);
+  }
+
+  // --- Make sortable headers (text / num / date) ---
+  (function makeSortable(){
+    const table = document.getElementById('usersTable');
+    if (!table) return;
+    const ths = table.tHead.querySelectorAll('th[data-sort]');
+    ths.forEach((th, idx)=>{
+      th.classList.add('sortable');
+      th.addEventListener('click', ()=>{
+        const type = th.dataset.sort;
+        const dir = th.classList.contains('asc') ? 'desc' : 'asc';
+        ths.forEach(x=>x.classList.remove('asc','desc'));
+        th.classList.add(dir);
+        const rows = Array.from(table.tBodies[0].rows);
+        rows.sort((a,b)=>{
+          const av = cellVal(a, idx, type);
+          const bv = cellVal(b, idx, type);
+          if (av < bv) return dir==='asc' ? -1 : 1;
+          if (av > bv) return dir==='asc' ? 1 : -1;
+          return 0;
+        });
+        rows.forEach(r=>table.tBodies[0].appendChild(r));
+      });
+    });
+    function cellVal(tr, i, type){
+      const td = tr.cells[i];
+      if (!td) return '';
+      if (type==='num'){
+        const n = parseFloat(td.textContent.replace(/[^\d.]/g,'')) || 0;
+        return n;
+      }
+      if (type==='date'){
+        // prefer ISO data attribute when available
+        const iso = td.getAttribute('data-iso');
+        return iso ? Date.parse(iso) || 0 : Date.parse(td.textContent) || 0;
+      }
+      return (td.textContent || '').toLowerCase().trim();
+    }
+  })();
+
+  // --- Client-side CSV export ---
+  function exportCsv(){
+    const table = document.getElementById('usersTable');
+    if (!table) return;
+    const rows = [...table.rows];
+    const visible = rows.filter(r => r.style.display !== 'none'); // honor live filter
+    const csv = visible.map(r => {
+      return [...r.cells].slice(0,5) // exclude Actions col
+        .map(td => {
+          const txt = td.textContent.replace(/\s+/g,' ').trim();
+          return `"${txt.replace(/"/g,'""')}"`;
+        }).join(',');
+    }).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'users.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 </script>
 {% endblock %}
