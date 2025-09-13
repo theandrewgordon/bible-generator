@@ -1,175 +1,274 @@
-{% extends "base.html" %}
-{% block title %}Generate a Worksheet | Faith Sparks{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Generate a Worksheet | Faith Sparks{%
+endblock %} {% block content %}
 <h1 class="page-title">📝 Generate Worksheet</h1>
-{% if usage_info %}
-  <div class="usage-banner">
-    {% set m_lim = usage_info.monthly_limit %}
-    {% set m_used = usage_info.monthly_used %}
-    {% if m_lim is not none %}
-      <div class="bar">
-        <div class="fill" style="width: {{ [0, [100, usage_info.monthly_pct_used]|min]|max }}%"></div>
-      </div>
-      <div class="row">
-        <span class="small muted">Plan: {{ usage_info.plan|title }}</span>
-        <span class="small">{{ m_used }} of {{ m_lim }} this month</span>
-      </div>
-      {% if usage_info.plan == 'free' and usage_info.monthly_pct_used >= 70 %}
-      <div class="upgrade" id="upgradeCta" hidden>
-        You’re close to your monthly limit. <a href="{{ url_for('plus_pricing') }}">Upgrade to Plus</a> for more.
-        <button type="button" class="dismiss" aria-label="Dismiss">✕</button>
-      </div>
-      {% endif %}
-    {% endif %}
+
+{# ---------- Usage / Plan Banner ---------- #} {% if usage_info %}
+<div class="usage-banner">
+  {% set m_lim = usage_info.monthly_limit %} {% set m_used =
+  usage_info.monthly_used %} {% if m_lim is not none %}
+  <div
+    class="bar"
+    role="progressbar"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow="{{ usage_info.monthly_pct_used|int }}"
+  >
+    <div
+      class="fill"
+      style="width: {{ [0, [100, usage_info.monthly_pct_used]|min]|max }}%"
+    ></div>
   </div>
+  <div class="row">
+    <span class="small muted">Plan: {{ usage_info.plan|title }}</span>
+    <span class="small">{{ m_used }} of {{ m_lim }} this month</span>
+  </div>
+  {% if usage_info.plan == 'free' and usage_info.monthly_pct_used >= 70 %}
+  <div class="upgrade" id="upgradeCta" hidden>
+    You’re close to your monthly limit.
+    <a href="{{ url_for('plus_pricing') }}">Upgrade to Plus</a> for more.
+    <button type="button" class="dismiss" aria-label="Dismiss">✕</button>
+  </div>
+  {% endif %} {% endif %}
+</div>
 {% endif %}
 
-<form id="worksheetForm" method="POST" action="/generate">
+<form id="worksheetForm" method="POST" action="/generate" novalidate>
   {% if collection_slug %}
-    <input type="hidden" name="collection_slug" value="{{ collection_slug }}">
+  <input type="hidden" name="collection_slug" value="{{ collection_slug }}" />
   {% endif %}
-  <!-- Verse entry -->
-  <section class="block">
-    <label for="verseInput"><strong>📖 Bible Verse(s)</strong></label>
-    <input
-      type="text"
-      id="verseInput"
-      name="verse"
-      placeholder="e.g. John 3:16 (ESV), Romans 8:28"
-      autofocus
-      autocomplete="off"
-      inputmode="text"
-      aria-describedby="verseHint filenamePreview"
-    />
-    <small id="verseHint"
-      >Separate multiple with commas. Add version in parentheses.</small
-    >
-    <div id="filenamePreview" class="muted small"></div>
-  </section>
 
-  <!-- Custom DIY mode -->
-  <section class="block">
-    <label class="checkbox-row">
-      <input type="checkbox" id="customMode" name="custom_mode" />
-      ✍️ Use your own verse, poem, or prayer
-    </label>
+  <div class="grid">
+    <div class="col-main">
+      {# ---------- Step 1: Verse entry ---------- #}
+      <section class="block">
+        <h2 class="step">
+          <span class="step-dot">1</span> Choose your verse(s)
+        </h2>
 
-    <!-- Reordered: Title → Text → Prompt -->
-    <input
-      type="text"
-      id="customTitle"
-      name="custom_title"
-      placeholder="Title (e.g., 'Psalm of Comfort')"
-      class="hidden wide-input"
-      aria-label="Custom title"
-    />
+        <label for="verseInput" class="sr-only">Bible Verse(s)</label>
+        <input
+          type="text"
+          id="verseInput"
+          name="verse"
+          placeholder="e.g., John 3:16 (ESV), Romans 8:28"
+          autofocus
+          autocomplete="off"
+          inputmode="text"
+          aria-describedby="verseHint filenamePreview"
+        />
+        <small id="verseHint" class="muted">
+          Tip: Separate multiple with commas. Add version in parentheses (e.g.,
+          “(ESV)”).
+        </small>
 
-    <textarea
-      id="customTextArea"
-      name="custom_text"
-      placeholder="Paste your own verse, poem, or prayer here..."
-      class="hidden wide-input"
-      rows="4"
-      aria-label="Custom text"
-    ></textarea>
+        <div class="quick-picks">
+          <span class="label small muted">Quick picks:</span>
+          <button type="button" class="chip" data-verse="John 3:16 (ESV)">
+            John 3:16
+          </button>
+          <button type="button" class="chip" data-verse="Psalm 23:1 (KJV)">
+            Psalm 23:1
+          </button>
+          <button
+            type="button"
+            class="chip"
+            data-verse="Philippians 4:13 (NIV)"
+          >
+            Phil 4:13
+          </button>
+          <button type="button" class="chip" data-verse="Proverbs 3:5-6 (ESV)">
+            Prov 3:5–6
+          </button>
+        </div>
 
-    <div id="promptRow" class="hidden">
-      <input
-        type="text"
-        id="customPrompt"
-        name="custom_prompt"
-        placeholder="Optional: Coloring prompt (e.g., 'Jesus walking on water')"
-        class="wide-input"
-        aria-label="Coloring prompt"
-      />
-      <div class="prompt-ideas">
-        <button
-          type="button"
-          class="chip"
-          data-prompt="A child praying by a window"
-        >
-          🙏 Prayer
+        <div id="filenamePreview" class="muted small"></div>
+        <div id="zipHint" class="small muted" style="display: none"></div>
+      </section>
+
+      {# ---------- Step 2: DIY Mode ---------- #}
+      <section class="block">
+        <h2 class="step">
+          <span class="step-dot">2</span> (Optional) Use your own text
+        </h2>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="customMode" name="custom_mode" />
+          ✍️ Use your own verse, poem, or prayer
+        </label>
+
+        <div id="customWrap" class="collapse hidden">
+          <input
+            type="text"
+            id="customTitle"
+            name="custom_title"
+            placeholder="Short title (e.g., 'Psalm of Comfort')"
+            class="wide-input"
+            aria-label="Custom title"
+          />
+
+          <textarea
+            id="customTextArea"
+            name="custom_text"
+            placeholder="Paste your own verse, poem, or prayer (we’ll keep it family-friendly)…"
+            class="wide-input"
+            rows="4"
+            aria-label="Custom text"
+          ></textarea>
+
+          <div id="promptRow" class="row">
+            <input
+              type="text"
+              id="customPrompt"
+              name="custom_prompt"
+              placeholder="Optional: Coloring prompt (e.g., 'Jesus walking on water')"
+              class="wide-input"
+              aria-label="Coloring prompt"
+            />
+            <div class="prompt-ideas">
+              <button
+                type="button"
+                class="chip"
+                data-prompt="A child praying by a window"
+              >
+                🙏 Prayer
+              </button>
+              <button
+                type="button"
+                class="chip"
+                data-prompt="Jesus walking on water"
+              >
+                🌊 Miracle
+              </button>
+              <button
+                type="button"
+                class="chip"
+                data-prompt="A family reading the Bible together"
+              >
+                👨‍👩‍👧 Family
+              </button>
+              <button
+                type="button"
+                class="chip"
+                data-prompt="Shepherd with sheep on a hillside"
+              >
+                🐑 Shepherd
+              </button>
+            </div>
+          </div>
+
+          <p id="customModeNote" class="help">
+            We’ll try to validate your verse. If we can’t, a disclaimer will be
+            added.
+          </p>
+
+          <section id="termsWrapper" class="small">
+            <label class="checkbox-row">
+              <input type="checkbox" id="agreeTerms" name="agreeTerms" />
+              I agree this content is appropriate and family-friendly.
+            </label>
+          </section>
+        </div>
+      </section>
+
+      {# ---------- Step 3: Options ---------- #}
+      <section class="block">
+        <h2 class="step"><span class="step-dot">3</span> Options</h2>
+
+        <div class="row">
+          <label class="checkbox-row">
+            <input type="checkbox" name="cursive" id="cursiveToggle" />
+            Use cursive tracing font
+          </label>
+        </div>
+
+        <div class="row">
+          <label for="versionSelect"><strong>📘 Version</strong></label>
+          <select id="versionSelect" name="version" class="wide-input">
+            <option value="esv">ESV</option>
+            <option value="kjv">KJV</option>
+            <option value="nlt">NLT</option>
+            <option value="nasb">NASB</option>
+            <option value="niv">NIV</option>
+            <option value="csb">CSB</option>
+            <option value="auto">Auto Detect</option>
+          </select>
+        </div>
+
+        <details class="advanced">
+          <summary>Advanced options</summary>
+          <ul class="muted small">
+            <li>
+              We’ll auto-detect a version if you include “(ESV)” etc. in the
+              verse.
+            </li>
+            <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
+            <li>DIY text is validated and profanity-filtered.</li>
+          </ul>
+        </details>
+      </section>
+
+      {# ---------- Actions ---------- #}
+      <div class="actions">
+        <button type="submit" class="button primary" id="submitBtn">
+          🚀 Generate Worksheet
         </button>
-        <button type="button" class="chip" data-prompt="Jesus walking on water">
-          🌊 Miracle
+        <button type="button" class="button" onclick="clearForm()">
+          🧹 Clear
         </button>
-        <button
-          type="button"
-          class="chip"
-          data-prompt="A family reading the Bible together"
-        >
-          👨‍👩‍👧 Family
-        </button>
-        <button
-          type="button"
-          class="chip"
-          data-prompt="Shepherd with sheep on a hillside"
-        >
-          🐑 Shepherd
-        </button>
+        <a class="button ghost" href="{{ url_for('history') }}">📚 History</a>
+        {% if usage_info %}
+        <span class="small muted left-chip">
+          {% if usage_info.monthly_limit is not none %} {{
+          usage_info.monthly_remaining }} left this month {% else %} Unlimited
+          this month {% endif %}
+        </span>
+        {% endif %}
+      </div>
+
+      <div id="disclaimerBox" class="hidden warn" role="alert">
+        ⚠️ Some verses could not be verified. Please double-check your input.
       </div>
     </div>
 
-    <p id="customModeNote" class="hidden help">
-      We’ll try to validate your verse. If we can’t, a disclaimer will be added.
-    </p>
-  </section>
-
-  <!-- Terms for DIY -->
-  <section id="termsWrapper" class="hidden small">
-    <label class="checkbox-row">
-      <input type="checkbox" id="agreeTerms" name="agreeTerms" />
-      I agree that this content is appropriate and family-friendly.
-    </label>
-  </section>
-
-  <!-- Options -->
-  <section class="block">
-    <label class="checkbox-row">
-      <input type="checkbox" name="cursive" id="cursiveToggle" />
-      Use cursive tracing font
-    </label>
-  </section>
-
-  <section class="block">
-    <label for="versionSelect"><strong>📘 Default Version</strong></label>
-    <select id="versionSelect" name="version" class="wide-input">
-      <option value="esv">ESV</option>
-      <option value="kjv">KJV</option>
-      <option value="nlt">NLT</option>
-      <option value="nasb">NASB</option>
-      <option value="niv">NIV</option>
-      <option value="csb">CSB</option>
-      <option value="auto">Auto Detect</option>
-    </select>
-  </section>
-
-  <div class="actions">
-    <button type="submit" class="button primary">🚀 Generate Worksheet</button>
-    <button type="button" class="button" onclick="clearForm()">🧹 Clear</button>
-  </div>
-  {% if usage_info %}
-    <div class="small muted left-chip">
-      {% if usage_info.monthly_limit is not none %}
-        {{ usage_info.monthly_remaining }} left this month
-      {% else %}
-        Unlimited this month
-      {% endif %}
-    </div>
-  {% endif %}
-  <div id="zipHint" class="small muted" style="margin-top:6px; display:none;"></div>
-
-  <div id="disclaimerBox" class="hidden warn">
-    ⚠️ Some verses could not be verified. Please double-check your input.
+    {# ---------- Side Preview ---------- #}
+    <aside class="col-side">
+      <div class="preview card-lite" aria-live="polite">
+        <h3 class="muted">Preview</h3>
+        <div class="preview-card">
+          <div class="preview-header">
+            <div class="preview-verse" id="previewVerse">—</div>
+            <div class="preview-badges">
+              <span class="pill alt" id="previewVersion">ESV</span>
+              <span class="pill" id="previewCursive" hidden>✍️ Cursive</span>
+            </div>
+          </div>
+          <div class="preview-body">
+            <div class="preview-lines"></div>
+            <div class="preview-draw">
+              <span class="muted small">Coloring prompt:</span>
+              <div id="previewPrompt" class="muted small">—</div>
+            </div>
+          </div>
+        </div>
+        <p class="muted micro">
+          This is a layout preview, not a full fidelity render.
+        </p>
+      </div>
+    </aside>
   </div>
 </form>
 
-<!-- Toast for confirmation -->
+{# ---------- Toast & Loading ---------- #}
 <div id="toast" class="snackbar" role="status" aria-live="polite">
-  ✅ Worksheet generated!
+  ✅ Worksheet request sent…
 </div>
 
-<!-- Tagify -->
+<div id="loadingOverlay" class="loading-overlay" hidden aria-hidden="true">
+  <div class="spinner" aria-label="Generating your worksheet…"></div>
+  <div class="muted small">Generating your worksheet…</div>
+</div>
+
+{# ---------- Tagify ---------- #}
 <link
   href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css"
   rel="stylesheet"
@@ -177,91 +276,80 @@
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 
 <script>
-  // Elements
-  const verseInput = document.getElementById("verseInput");
-  const tagify = new Tagify(verseInput, { dropdown: { enabled: 0 }, enforceWhitelist: false, trim: true });
-
+  // ---------- Elements ----------
+  const verseInput   = document.getElementById("verseInput");
+  const tagify       = new Tagify(verseInput, { dropdown: { enabled: 0 }, enforceWhitelist: false, trim: true });
   const filenamePreview = document.getElementById("filenamePreview");
   const versionSelect   = document.getElementById("versionSelect");
   const cursiveToggle   = document.getElementById("cursiveToggle");
+  const customMode      = document.getElementById("customMode");
+  const customWrap      = document.getElementById("customWrap");
+  const customTitle     = document.getElementById("customTitle");
+  const customText      = document.getElementById("customTextArea");
+  const customPrompt    = document.getElementById("customPrompt");
+  const customNote      = document.getElementById("customModeNote");
+  const termsWrapper    = document.getElementById("termsWrapper");
+  const agreeTerms      = document.getElementById("agreeTerms");
+  const submitBtn       = document.getElementById("submitBtn");
+  const toastEl         = document.getElementById("toast");
+  const loadingOverlay  = document.getElementById("loadingOverlay");
 
-  const customMode    = document.getElementById("customMode");
-  const customTitle   = document.getElementById("customTitle");
-  const customText    = document.getElementById("customTextArea");
-  const customPrompt  = document.getElementById("customPrompt");
-  const promptRow     = document.getElementById("promptRow");
-  const customNote    = document.getElementById("customModeNote");
-  const termsWrapper  = document.getElementById("termsWrapper");
-  const agreeTerms    = document.getElementById("agreeTerms");
+  // Preview elements
+  const previewVerse   = document.getElementById("previewVerse");
+  const previewVersion = document.getElementById("previewVersion");
+  const previewCursive = document.getElementById("previewCursive");
+  const previewPrompt  = document.getElementById("previewPrompt");
 
-  // Filename preview
-  const updateFilenamePreview = () => {
-    const tags = tagify.value.map(t => t.value.trim());
-    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
-    filenamePreview.textContent = tags.length
-      ? tags.map(v => v.replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase() + suffix).join(", ")
-      : "";
-  };
-  ["add","remove","input"].forEach(evt => tagify.on(evt, updateFilenamePreview));
-  cursiveToggle.addEventListener("change", updateFilenamePreview);
-
-  // DIY toggle (show/hide group)
-  const setCustomVisibility = (show) => {
-    [customTitle, customText, promptRow, customNote, termsWrapper].forEach(el => el.classList.toggle("hidden", !show));
-    if (!show) {
-      customTitle.value = "";
-      customText.value  = "";
-      if (customPrompt) customPrompt.value = "";
-      agreeTerms.checked = false;
-    }
-  };
-  customMode.addEventListener("change", () => setCustomVisibility(customMode.checked));
-
-  // Prompt idea chips
-  document.addEventListener("click", (e) => {
+  // ---------- Quick picks ----------
+  document.addEventListener("click", (e)=>{
     const chip = e.target.closest(".chip");
     if (!chip) return;
-    const idea = chip.getAttribute("data-prompt");
-    if (idea) {
-      customPrompt.value = idea;
-      customPrompt.focus();
+    const v = chip.getAttribute("data-verse");
+    const p = chip.getAttribute("data-prompt");
+    if (v){
+      tagify.addTags([v]);
+      updateFilenamePreview(); updateZipHint(); updatePreview();
+    }
+    if (p){
+      customPrompt.value = p;
+      updatePreview();
     }
   });
 
-  // Persist simple preferences
-  versionSelect.addEventListener("change", () => localStorage.setItem("preferredVersion", versionSelect.value));
+  // ---------- Filename preview ----------
+  function sluggify(s){ return s.replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase(); }
+  function updateFilenamePreview(){
+    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+    filenamePreview.textContent = tags.length ? tags.map(v => sluggify(v) + suffix).join(", ") : "";
+  }
+  ["add","remove","input"].forEach(evt => tagify.on(evt, ()=>{ updateFilenamePreview(); updatePreview(); }));
+  cursiveToggle.addEventListener("change", ()=>{ updateFilenamePreview(); updatePreview(); });
+
+  // ---------- DIY toggle ----------
+  function setCustomVisibility(show){
+    customWrap.classList.toggle("hidden", !show);
+    if(!show){
+      customTitle.value = ""; customText.value = ""; customPrompt.value = "";
+      agreeTerms.checked = false;
+    }
+    updatePreview();
+  }
+  customMode.addEventListener("change", ()=> setCustomVisibility(customMode.checked));
+
+  // ---------- Prompt idea chips ----------
+  document.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip[data-prompt]");
+    if (!chip) return;
+    customPrompt.value = chip.getAttribute("data-prompt") || "";
+    updatePreview();
+  });
+
+  // ---------- Persist simple prefs ----------
+  versionSelect.addEventListener("change", () => { localStorage.setItem("preferredVersion", versionSelect.value); updatePreview(); });
   cursiveToggle.addEventListener("change", () => localStorage.setItem("useCursive", cursiveToggle.checked));
 
-  // Submit validation + toast
-  document.getElementById("worksheetForm").addEventListener("submit", (e) => {
-    const tags = tagify.value.map(t => t.value);
-    const customTextVal = customText.value.trim();
-    const allowSubmit = tags.length > 0 || customTextVal.length > 0;
-
-    if (!allowSubmit) {
-      e.preventDefault();
-      alert("Please enter at least one verse or provide your own verse/poem/prayer.");
-      return;
-    }
-    if (customMode.checked && !agreeTerms.checked) {
-      e.preventDefault();
-      alert("You must agree to the terms to submit custom content.");
-      return;
-    }
-
-    // Pack tag values into the real input
-    verseInput.value = tags.join(", ");
-    localStorage.setItem("recentVerses", verseInput.value);
-
-    // Toast feedback
-    setTimeout(() => {
-      const toast = document.getElementById("toast");
-      toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 3500);
-    }, 100);
-  });
-
-  // Show hint when multiple tags present
+  // ---------- Search hint: ZIP ----------
   function updateZipHint(){
     const n = tagify.value.length;
     const el = document.getElementById('zipHint');
@@ -269,25 +357,71 @@
     else { el.style.display='none'; }
   }
   ["add","remove"].forEach(evt => tagify.on(evt, updateZipHint));
-  updateZipHint();
 
-  // Restore local prefs
+  // ---------- Preview card ----------
+  function firstTagText(){
+    const t = tagify.value.map(t=>t.value.trim()).find(Boolean);
+    return t || (customTitle.value.trim() || '');
+  }
+  function updatePreview(){
+    const verse = firstTagText() || (customText.value.trim() ? '(DIY text)' : '—');
+    previewVerse.textContent = verse;
+    const ver = (versionSelect.value || 'esv').toUpperCase();
+    previewVersion.textContent = ver === 'AUTO' ? 'AUTO' : ver;
+    previewCursive.hidden = !cursiveToggle.checked;
+    previewPrompt.textContent = customPrompt.value.trim() || '—';
+  }
+  ['input','change'].forEach(evt=>{
+    customTitle.addEventListener(evt, updatePreview);
+    customText.addEventListener(evt, updatePreview);
+    customPrompt.addEventListener(evt, updatePreview);
+  });
+
+  // ---------- Submit validation + UX ----------
+  document.getElementById("worksheetForm").addEventListener("submit", (e) => {
+    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+    const customTextVal = (customText.value || '').trim();
+
+    // Require at least one source
+    if (tags.length === 0 && !customTextVal){
+      e.preventDefault();
+      alert("Please enter at least one verse or provide your own verse/poem/prayer.");
+      return;
+    }
+    // DIY terms
+    if (customMode.checked && !agreeTerms.checked){
+      e.preventDefault();
+      alert("You must agree to the terms to submit custom content.");
+      return;
+    }
+    // Pack tags back into the real input
+    verseInput.value = tags.join(", ");
+    localStorage.setItem("recentVerses", verseInput.value);
+
+    // Disable + show loading
+    submitBtn.disabled = true;
+    loadingOverlay.hidden = false;
+    loadingOverlay.setAttribute('aria-hidden','false');
+
+    // Toast feedback (non-blocking)
+    setTimeout(()=>{ toastEl.classList.add("show"); setTimeout(()=>toastEl.classList.remove("show"), 3000); }, 100);
+  });
+
+  // ---------- Restore prefs / prefill ----------
   window.addEventListener("DOMContentLoaded", () => {
     const clearFlag = {{ clear_storage | tojson | default("false") }};
-    // Prefill from server if provided
     const prefill = {{ prefill_verse|tojson|default('""') }};
     const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
-    if (prefill) {
-      tagify.addTags(prefill.split(',').map(v => v.trim()).filter(Boolean));
-    }
-    if (defaultVersionOverride) {
+
+    if (prefill) tagify.addTags(prefill.split(',').map(v => v.trim()).filter(Boolean));
+    if (defaultVersionOverride){
       versionSelect.value = String(defaultVersionOverride).toLowerCase();
       localStorage.setItem("preferredVersion", versionSelect.value);
     }
-    if (clearFlag && !prefill) { clearForm(); return; }
+    if (clearFlag && !prefill){ clearForm(); return; }
 
     const recent = localStorage.getItem("recentVerses");
-    if (!prefill && recent) tagify.addTags(recent.split(",").map(v => v.trim()));
+    if (!prefill && recent) tagify.addTags(recent.split(",").map(v => v.trim()).filter(Boolean));
 
     const storedVersion = localStorage.getItem("preferredVersion");
     if (storedVersion) versionSelect.value = storedVersion;
@@ -297,38 +431,25 @@
 
     setCustomVisibility(customMode.checked);
     updateFilenamePreview();
+    updateZipHint();
+    updatePreview();
   });
 
-  // Clear
-  function clearForm() {
+  // ---------- Clear ----------
+  function clearForm(){
     tagify.removeAllTags();
     verseInput.value = "";
     customTitle.value = "";
-    customText.value = "";
-    if (customPrompt) customPrompt.value = "";
+    customText.value  = "";
+    customPrompt.value = "";
     customMode.checked = false;
     setCustomVisibility(false);
     filenamePreview.textContent = "";
     localStorage.removeItem("recentVerses");
+    updatePreview(); updateZipHint();
   }
-</script>
 
-<style>
-  .hidden { display: none; }
-  .usage-banner { background: var(--box); border:1px solid #e5e7eb; border-radius: 12px; padding:10px; margin-bottom:12px; }
-  .usage-banner .bar { height: 8px; background:#e5e7eb; border-radius:999px; overflow:hidden; }
-  .usage-banner .fill { height:100%; background: var(--primary); }
-  .usage-banner .row { display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
-  .upgrade { margin-top:8px; padding:6px 10px; border-radius:10px; background:#fef3c7; border:1px solid #fde68a; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-  .upgrade .dismiss { background:transparent; border:none; cursor:pointer; font-size:1rem; }
-  /* Sticky action bar on mobile */
-  @media (max-width: 820px) {
-    .sticky-actions { position: fixed; left: 0; right: 0; bottom: 0; backdrop-filter: blur(6px); background: color-mix(in oklab, var(--background), transparent 20%); border-top: 1px solid #e5e7eb; padding: 10px; display: flex; gap: 8px; z-index: 50; box-shadow: 0 -6px 16px rgba(0,0,0,.08); }
-    .sticky-actions .button { flex: 1; }
-    body { padding-bottom: 76px; }
-  }
-  </style>
-<script>
+  // ---------- Upgrade toast logic ----------
   (function(){
     const el = document.getElementById('upgradeCta');
     if(!el) return;
@@ -338,18 +459,325 @@
     el.querySelector('.dismiss').addEventListener('click', ()=>{ localStorage.setItem(key,'1'); el.hidden = true; });
   })();
 </script>
-<div class="sticky-actions" role="group" aria-label="Quick actions">
-  <button type="button" class="button" onclick="document.getElementById('worksheetForm').requestSubmit()">🚀 Generate</button>
-  <button type="button" class="button ghost" onclick="clearForm()">🧹 Clear</button>
-  <a class="button ghost" href="{{ url_for('history') }}">📚 History</a>
-  {% if usage_info %}
-    <span class="small muted" style="align-self:center; margin-left:auto;">
-      {% if usage_info.monthly_limit is not none %}
-        {{ usage_info.monthly_remaining }} left
-      {% else %}
-        Unlimited
-      {% endif %}
-    </span>
-  {% endif %}
-</div>
+
+<style>
+  /* Layout */
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 1rem;
+  }
+  @media (max-width: 980px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+    .col-side {
+      order: -1;
+    }
+  }
+  .col-side {
+    position: relative;
+  }
+  .preview {
+    position: sticky;
+    top: 1rem;
+  }
+
+  .block {
+    border: 1px solid var(--border-color, #2a3441);
+    background: var(--box, #0f172a);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.85rem;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0;
+  }
+  .step-dot {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #0b3b5a;
+    color: #e6f2ff;
+    font-weight: 700;
+  }
+
+  .row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .checkbox-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .quick-picks {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.4rem;
+  }
+
+  .chip {
+    border: 1px solid #334155;
+    border-radius: 999px;
+    background: #0f172a;
+    color: #e5e7eb;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+  }
+  .chip:hover {
+    background: #132033;
+  }
+
+  .advanced {
+    margin-top: 0.35rem;
+  }
+  .advanced summary {
+    cursor: pointer;
+  }
+
+  .hidden {
+    display: none;
+  }
+  .collapse {
+    animation: fadeIn 0.18s ease-out;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0.6;
+      transform: translateY(-2px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Usage banner */
+  .usage-banner {
+    background: var(--box);
+    border: 1px solid #2a3441;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .usage-banner .bar {
+    height: 8px;
+    background: #1f2937;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .usage-banner .fill {
+    height: 100%;
+    background: var(--primary, #0b3b5a);
+  }
+  .usage-banner .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .upgrade {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: #4b3a0f33;
+    border: 1px solid #4b3a0f;
+    color: #f8e7c7;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .upgrade .dismiss {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: inherit;
+  }
+
+  /* Preview card */
+  .preview-card {
+    border: 1px dashed #334155;
+    border-radius: 12px;
+    padding: 0.8rem;
+  }
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  .preview-verse {
+    font-weight: 700;
+  }
+  .preview-badges {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .pill {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-size: 0.8rem;
+    border: 1px solid #334155;
+  }
+  .pill.alt {
+    background: #0b3b5a;
+    border-color: #0b3b5a;
+    color: #e6f2ff;
+  }
+  .preview-body {
+    margin-top: 0.6rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .preview-lines {
+    height: 80px;
+    border-radius: 8px;
+    background: repeating-linear-gradient(
+      #0f172a,
+      #0f172a 18px,
+      #223043 18px,
+      #223043 20px
+    );
+    border: 1px solid #233144;
+  }
+  .preview-draw {
+    border: 1px solid #233144;
+    border-radius: 8px;
+    padding: 0.5rem;
+    min-height: 56px;
+  }
+
+  /* Actions */
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .left-chip {
+    margin-left: auto;
+  }
+
+  /* Toast & Loading */
+  .snackbar {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    background: rgba(30, 41, 59, 0.95);
+    color: #e5e7eb;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s;
+  }
+  .snackbar.show {
+    opacity: 1;
+  }
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 9998;
+  }
+  .spinner {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 3px solid #e5e7eb33;
+    border-top-color: #e5e7eb;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Sticky mobile quick actions (kept minimal) */
+  @media (max-width: 820px) {
+    .actions {
+      position: sticky;
+      bottom: 0;
+      background: color-mix(in oklab, var(--background), transparent 20%);
+      border-top: 1px solid #2a3441;
+      padding: 0.5rem;
+      backdrop-filter: blur(6px);
+      z-index: 5;
+    }
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .muted {
+    opacity: 0.85;
+  }
+  .help {
+    opacity: 0.9;
+    font-size: 0.9rem;
+  }
+  .warn {
+    margin-top: 0.5rem;
+    border: 1px solid #7a1a1a;
+    background: #5a0b0b22;
+    color: #f8dada;
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+  }
+  .micro {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+</style>
+
+<script>
+  // Upgrade banner dismissal (month-scoped)
+  (function () {
+    const el = document.getElementById("upgradeCta");
+    if (!el) return;
+    const key =
+      "upgradeDismiss_" + new Date().toISOString().slice(0, 7).replace("-", "");
+    if (localStorage.getItem(key) === "1") {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    el.querySelector(".dismiss").addEventListener("click", () => {
+      localStorage.setItem(key, "1");
+      el.hidden = true;
+    });
+  })();
+</script>
 {% endblock %}
