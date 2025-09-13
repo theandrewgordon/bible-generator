@@ -1,41 +1,59 @@
-{% extends "base.html" %}
-{% block title %}Worksheet History | Faith Sparks{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}Worksheet History | Faith Sparks{%
+endblock %} {% block content %}
 <h1 class="page-title">📚 Worksheet History</h1>
 <p class="muted small page-sub">Logged in as: <strong>{{ email }}</strong></p>
 
 <div class="toolbar">
-  <input
-    id="searchInput"
-    type="search"
-    placeholder="🔎 Search verse or version…"
-    oninput="debouncedFilter()"
-    aria-label="Search worksheets"
-  />
-  <select id="versionFilter" onchange="applyFilters()" aria-label="Filter by version">
-    <option value="">All Versions</option>
-    {% for item in history|map(attribute='version')|unique %}
+  <div class="toolbar-left">
+    <input
+      id="searchInput"
+      type="search"
+      placeholder="🔎 Search verse or version…"
+      oninput="debouncedFilter()"
+      aria-label="Search worksheets"
+    />
+    <select
+      id="versionFilter"
+      onchange="applyFilters()"
+      aria-label="Filter by version"
+    >
+      <option value="">All Versions</option>
+      {% for item in history|map(attribute='version')|unique %}
       <option value="{{ item|lower }}">{{ item }}</option>
-    {% endfor %}
-  </select>
-  <label class="checkrow" style="margin-left:6px">
-    <input type="checkbox" id="favOnly" onchange="applyFilters()" />
-    ★ Favorites only
-  </label>
+      {% endfor %}
+    </select>
+
+    <label class="checkrow">
+      <input type="checkbox" id="favOnly" onchange="applyFilters()" />
+      ★ Favorites only
+    </label>
+
+    <select id="sortSelect" onchange="applySort()" aria-label="Sort results">
+      <option value="date_desc">Sort: Date (newest)</option>
+      <option value="date_asc">Sort: Date (oldest)</option>
+      <option value="verse_asc">Sort: Verse A→Z</option>
+      <option value="verse_desc">Sort: Verse Z→A</option>
+      <option value="version_asc">Sort: Version A→Z</option>
+    </select>
+  </div>
 
   <div class="toolbar-right">
-    <button class="button ghost" type="button" onclick="clearFilters()">Clear Filters</button>
-    <button class="button ghost" type="button" onclick="exportCSV()">📤 Export CSV</button>
+    <span id="resultCount" class="pill">0 shown</span>
+    <button class="button ghost" type="button" onclick="clearFilters()">
+      Clear Filters
+    </button>
+    <button class="button ghost" type="button" onclick="exportCSV()">
+      📤 Export CSV
+    </button>
   </div>
-  </div>
+</div>
 
 {% if history %}
 <form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
   <div class="bulkbar card-lite">
     <label class="checkrow">
       <input type="checkbox" id="selectAll" onclick="toggleAll(this)" />
-      <span>Select all</span>
+      <span>Select visible</span>
     </label>
     <button
       type="submit"
@@ -53,6 +71,7 @@
       data-verse="{{ item.verse|lower }}"
       data-version="{{ item.version|lower }}"
       data-favorite="{{ 'true' if item.get('favorite') else 'false' }}"
+      data-date="{{ item.timestamp.isoformat() if item.timestamp else '' }}"
     >
       <div class="row-top">
         <label class="row-check-wrap" title="Select {{ item.verse }}">
@@ -66,43 +85,67 @@
         </label>
 
         <div class="content">
-          <img class="thumb" loading="lazy" width="160" height="120" src="{{ url_for('thumb', filename=item.filename[:-4] + '.png', skip=1) }}" alt="" onerror="this.style.display='none'" />
-          <div class="title">{{ item.verse }}</div>
+          <img
+            class="thumb"
+            loading="lazy"
+            width="160"
+            height="120"
+            src="{{ url_for('thumb', filename=item.filename[:-4] + '.png', skip=1) }}"
+            alt=""
+            onerror="this.style.display='none'"
+          />
+
+          <div class="title" data-title="{{ item.verse }}">
+            {{ item.verse }}
+          </div>
 
           <div class="meta">
             <div class="meta-left">
               <span class="pill alt">
                 {% if item.custom %}DIY{% else %}{{ item.version }}{% endif %}
               </span>
-              {% if item.cursive %}<span class="pill">✍️ Cursive</span>{% endif %}
+              {% if item.cursive %}<span class="pill">✍️ Cursive</span>{% endif
+              %}
             </div>
             <div class="meta-right">
-              {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp else 'Date unknown' }}
+              {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp
+              else 'Date unknown' }}
             </div>
           </div>
         </div>
 
         <div class="actions">
-          <button type="button" class="icon fav-btn" data-file="{{ item.filename }}" title="Favorite" aria-label="Favorite {{ item.verse }}">{% if item.get('favorite') %}⭐{% else %}☆{% endif %}</button>
+          <button
+            type="button"
+            class="icon fav-btn"
+            data-file="{{ item.filename }}"
+            title="Favorite"
+            aria-label="Favorite {{ item.verse }}"
+          >
+            {% if item.get('favorite') %}⭐{% else %}☆{% endif %}
+          </button>
           <a
             class="icon"
             href="{{ url_for('download_file', filename=item.filename) }}"
             title="Download"
             aria-label="Download {{ item.verse }}"
-          >📥</a>
+            >📥</a
+          >
           <a
             class="icon"
             href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
             title="Regenerate"
             aria-label="Regenerate {{ item.verse }}"
-          >♻️</a>
+            >♻️</a
+          >
           <a
             class="icon danger"
             href="{{ url_for('delete_worksheet', filename=item.filename) }}"
             title="Delete"
             aria-label="Delete {{ item.verse }}"
             onclick="return confirm('Delete this worksheet?')"
-          >🗑️</a>
+            >🗑️</a
+          >
         </div>
       </div>
     </li>
@@ -116,42 +159,105 @@
   <p class="muted">When you create worksheets, they’ll show up here.</p>
   <a class="button" href="{{ url_for('generate') }}">✨ Create one</a>
 </div>
-{% endif %}
-{% endblock %}
-
-{% block extra_scripts %}
+{% endif %} {% endblock %} {% block extra_scripts %}
 <script>
-  function applyFilters() {
-    const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
-    const vf = (document.getElementById("versionFilter").value || "").toLowerCase();
-    const favOnly = document.getElementById('favOnly').checked;
-
-    document.querySelectorAll("#cards .card").forEach((li) => {
-      const verse = li.dataset.verse || "";
-      const ver = li.dataset.version || "";
-      const titleTxt = (li.querySelector('.title')?.innerText || '').toLowerCase();
-      const searchable = `${verse} ${ver} ${titleTxt}`;
-      const isFav = (li.dataset.favorite === 'true');
-      const ok = (!q || searchable.includes(q)) && (!vf || ver === vf) && (!favOnly || isFav);
-      li.hidden = !ok;
-    });
-  }
-
+  // ---------- Filtering, Sorting, Highlighting ----------
   let _t;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+
   function debouncedFilter() {
     clearTimeout(_t);
     _t = setTimeout(applyFilters, 160);
   }
 
+  function applyFilters() {
+    const q = ($("#searchInput").value || "").toLowerCase().trim();
+    const vf = ($("#versionFilter").value || "").toLowerCase();
+    const favOnly = $("#favOnly").checked;
+
+    const cards = $$("#cards .card");
+    let shown = 0;
+
+    cards.forEach((li) => {
+      const verse = li.dataset.verse || "";
+      const ver = li.dataset.version || "";
+      const titleTxt = (
+        li.querySelector(".title")?.dataset.title || ""
+      ).toLowerCase();
+      const searchable = `${verse} ${ver} ${titleTxt}`;
+      const isFav = li.dataset.favorite === "true";
+      const ok =
+        (!q || searchable.includes(q)) &&
+        (!vf || ver === vf) &&
+        (!favOnly || isFav);
+      li.hidden = !ok;
+      if (ok) shown++;
+      // highlight verse title
+      const titleEl = li.querySelector(".title");
+      if (titleEl) {
+        titleEl.innerHTML = escapeHTML(titleEl.dataset.title || "");
+        if (q) wrapMatches(titleEl, q);
+      }
+    });
+
+    $("#resultCount").textContent = `${shown} shown`;
+    updateSelectAllState();
+    // Re-apply sort to the visible subset
+    applySort();
+  }
+
+  function applySort() {
+    const mode = $("#sortSelect").value;
+    const list = $("#cards");
+    const items = $$("#cards .card");
+    const visible = items.filter((li) => !li.hidden);
+
+    function cmp(a, b) {
+      if (mode === "verse_asc" || mode === "verse_desc") {
+        const av = (
+          a.querySelector(".title")?.dataset.title || ""
+        ).toLowerCase();
+        const bv = (
+          b.querySelector(".title")?.dataset.title || ""
+        ).toLowerCase();
+        return mode === "verse_asc"
+          ? av.localeCompare(bv)
+          : bv.localeCompare(av);
+      }
+      if (mode === "version_asc") {
+        const av = (a.dataset.version || "").toLowerCase();
+        const bv = (b.dataset.version || "").toLowerCase();
+        return av.localeCompare(bv);
+      }
+      // dates
+      const ad = Date.parse(a.dataset.date || 0) || 0;
+      const bd = Date.parse(b.dataset.date || 0) || 0;
+      return mode === "date_asc" ? ad - bd : bd - ad;
+    }
+
+    visible.sort(cmp).forEach((el) => list.appendChild(el));
+  }
+
+  function clearFilters() {
+    $("#searchInput").value = "";
+    $("#versionFilter").value = "";
+    $("#favOnly").checked = false;
+    $("#sortSelect").value = "date_desc";
+    applyFilters();
+  }
+
+  // ---------- Bulk select / delete ----------
   function toggleAll(src) {
-    const checks = document.querySelectorAll('#cards .card:not([hidden]) input.row-check');
-    checks.forEach((cb) => { cb.checked = src.checked; });
+    const checks = $$("#cards .card:not([hidden]) input.row-check");
+    checks.forEach((cb) => (cb.checked = src.checked));
     updateSelectAllState();
   }
+
   function getSelectedValues() {
-    const form = document.getElementById('bulkDeleteForm');
-    const fd = new FormData(form);
-    return fd.getAll('selected_files');
+    return $$("#cards .card:not([hidden]) input.row-check:checked").map(
+      (cb) => cb.value
+    );
   }
 
   function confirmDeleteSelected() {
@@ -164,73 +270,255 @@
   }
 
   function updateSelectAllState() {
-    const selectAll = document.getElementById('selectAll');
-    const visible = Array.from(document.querySelectorAll('#cards .card:not([hidden]) .row-check'));
-    const total = visible.length;
-    const checked = visible.filter(cb=>cb.checked).length;
-    selectAll.checked = total>0 && checked === total;
-    selectAll.indeterminate = checked>0 && checked<total;
+    const selectAll = $("#selectAll");
+    if (!selectAll) return;
+    const visible = $$("#cards .card:not([hidden]) .row-check");
+    const checked = visible.filter((cb) => cb.checked).length;
+    selectAll.checked = visible.length > 0 && checked === visible.length;
+    selectAll.indeterminate = checked > 0 && checked < visible.length;
   }
 
-  function clearFilters() {
-    document.getElementById("searchInput").value = "";
-    document.getElementById("versionFilter").value = "";
-    applyFilters();
-  }
-
+  // ---------- CSV export of visible ----------
   function exportCSV() {
+    const rows = $$("#cards .card:not([hidden])");
     let csv = "Verse,Version/DIY,Cursive,Date\n";
-    document.querySelectorAll("#cards .card").forEach((li) => {
-      if (li.hidden || li.style.display === "none") return;
-      const verse = li.querySelector(".title").innerText.trim().replace(/"/g, '""');
-      const vbadge = li.querySelector(".pill.alt").innerText.trim();
+    rows.forEach((li) => {
+      const verse = (li.querySelector(".title")?.dataset.title || "")
+        .trim()
+        .replace(/"/g, '""');
+      const vbadge = (li.querySelector(".pill.alt")?.textContent || "").trim();
       const hasCursive = !!li.querySelector(".pill:not(.alt)");
-      const date = li.querySelector(".meta-right").innerText.trim();
-      csv += `"${verse}","${vbadge}","${hasCursive ? "Yes" : "No"}","${date}"\n`;
+      const date = (li.querySelector(".meta-right")?.textContent || "").trim();
+      csv += `"${verse}","${vbadge}","${
+        hasCursive ? "Yes" : "No"
+      }","${date}"\n`;
     });
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
       href: url,
       download: "worksheet_history.csv",
     });
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
-    applyFilters();
-    // Wire up listeners
-    const searchEl = document.getElementById('searchInput');
-    const versionEl = document.getElementById('versionFilter');
-    if (searchEl) searchEl.addEventListener('input', debouncedFilter);
-    if (versionEl) versionEl.addEventListener('change', applyFilters);
+  // ---------- Favorite (no reload) ----------
+  function toast(msg) {
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position: "fixed",
+      bottom: "18px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(30,41,59,.95)",
+      color: "#e5e7eb",
+      padding: "8px 12px",
+      borderRadius: "10px",
+      fontSize: "14px",
+      zIndex: 9999,
+    });
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1200);
+  }
 
-    // Keep Select All state in sync
-    document.getElementById('cards').addEventListener('change', (e)=>{
-      if (e.target.classList && e.target.classList.contains('row-check')) updateSelectAllState();
+  async function toggleFavorite(btn) {
+    const file = btn.dataset.file;
+    try {
+      await fetch(
+        `{{ url_for('toggle_favorite', filename='__F__') }}`.replace(
+          "__F__",
+          file
+        ),
+        { method: "POST" }
+      );
+      const li = btn.closest(".card");
+      const nowFav = btn.textContent.trim() === "☆";
+      btn.textContent = nowFav ? "⭐" : "☆";
+      li.dataset.favorite = nowFav ? "true" : "false";
+      toast(nowFav ? "Added to favorites" : "Removed from favorites");
+      applyFilters(); // respect fav-only filter if enabled
+    } catch (e) {
+      console.error(e);
+      toast("Failed to update favorite");
+    }
+  }
+
+  // ---------- Highlight helpers ----------
+  function escapeHTML(str) {
+    return (str || "").replace(
+      /[&<>"']/g,
+      (m) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }[m])
+    );
+  }
+  function wrapMatches(el, q) {
+    if (!q) return;
+    const text = el.innerHTML;
+    const re = new RegExp(
+      `(${q.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")})`,
+      "ig"
+    );
+    el.innerHTML = text.replace(re, "<mark>$1</mark>");
+  }
+
+  // ---------- Init ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    applyFilters();
+    $("#cards")?.addEventListener("change", (e) => {
+      if (e.target.classList.contains("row-check")) updateSelectAllState();
     });
-    // Favorites async toggle
-    document.querySelectorAll('.fav-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const file = btn.dataset.file;
-        try {
-          await fetch(`{{ url_for('toggle_favorite', filename='__F__') }}`.replace('__F__', file), { method: 'POST' });
-          location.reload();
-        } catch(e) { console.error('Fav toggle failed', e); }
-      });
-    });
+    $$(".fav-btn").forEach((btn) =>
+      btn.addEventListener("click", () => toggleFavorite(btn))
+    );
   });
 </script>
 
 <style>
-  .page-title { margin-bottom: .25rem; }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+  .toolbar-left {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .toolbar-right {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  #searchInput {
+    min-width: 260px;
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #1f2937;
+    color: #e5e7eb;
+    font-size: 0.8rem;
+    border: 1px solid #334155;
+  }
+  .pill.alt {
+    background: #0b3b5a;
+    border-color: #0b3b5a;
+    color: #e6f2ff;
+  }
+
+  .bulkbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.75rem;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+    padding: 0;
+    list-style: none;
+  }
+  .card {
+    border: 1px solid var(--border-color, #2a3441);
+    background: var(--box, #0f172a);
+    border-radius: 12px;
+    padding: 0.65rem;
+  }
+  .row-top {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .thumb {
+    border-radius: 8px;
+    border: 1px solid #233144;
+    background: #0b1220;
+  }
+  .title {
+    font-weight: 700;
+    margin: 0.15rem 0 0.4rem;
+    font-size: 1.02rem;
+  }
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .meta-left {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .meta-right {
+    opacity: 0.8;
+    font-size: 0.85rem;
+  }
+  .actions {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .icon {
+    font-size: 1.05rem;
+    text-decoration: none;
+  }
+  .icon.danger {
+    filter: saturate(1.1);
+  }
+  .row-check-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .custom-checkbox {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #334155;
+    display: inline-block;
+  }
+  .row-check:checked + .custom-checkbox {
+    background: #0b3b5a;
+    box-shadow: inset 0 0 0 2px #0f172a;
+  }
+
+  mark {
+    background: #4f46e51a;
+    padding: 0 0.15em;
+    border-radius: 0.2em;
+  }
+
   @media (max-width: 820px) {
-    .page-title { font-size: 1.55rem; line-height: 1.1; }
-    .page-sub { margin-top: 0; line-height: 1.2; }
-    /* Make history actions a horizontal row under the title */
-    #cards .actions { flex-direction: row; }
+    .title {
+      font-size: 1rem;
+    }
+    .row-top {
+      grid-template-columns: auto 1fr;
+    }
+    .actions {
+      margin-top: 0.35rem;
+    }
   }
 </style>
 {% endblock %}
