@@ -1,59 +1,83 @@
-<header class="main-header">
-  <div class="logo-nav">
-    <a href="/" class="logo">
+<header class="main-header" role="banner">
+  <div class="nav-wrap">
+    <!-- Left: Logo -->
+    <a href="/" class="logo" aria-label="Faith Sparks Printables">
       <img
         src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}"
         alt="Faith Sparks Logo"
       />
     </a>
-    <button
-      class="menu-toggle"
-      id="menuToggle"
-      aria-controls="mainNav"
-      aria-expanded="false"
-    >
-      ☰
-    </button>
-    <nav id="mainNav" class="nav-links" aria-label="Main">
-      <a href="/">🏠 Home</a>
-      <a href="/generate">📝 Generate</a>
-      {% if is_signed_in and usage_nav %}<span
-        class="usage-chip"
-        title="{{ usage_nav.title }}"
-        >{{ usage_nav.text }}</span
-      >{% endif %}
-      <a href="/browse">🔎 Browse</a>
-      <a href="/history">📚 History</a>
-      {% if not is_pro %}<a href="/plus">⭐ Plus</a>{% else %}<a href="/billing"
-        >🧾 Billing</a
-      >{% endif %} {% if is_admin %}
-      <a href="/admin/collections">🛠️ Admin</a>
-      <a href="/admin/users">👥 Users</a>
-      <a href="/admin/theme">🎨 Theme</a>
-      <a href="/admin/content">🧩 Content</a>
-      <a href="/admin/gift">🎁 Gift</a>
-      <a href="/admin/help">❓ Help</a>
-      {% endif %}
-      <a href="/about">ℹ️ About</a>
-      {% if is_admin %}<a href="/admin/analytics">📈 Analytics</a>{% endif %}
-    </nav>
-  </div>
 
-  <div class="auth-theme">
-    {% if session.user_info %}
-    <span class="user-name"
-      >👤 {{ session.user_info.email.split('@')[0] }}</span
-    >
-    <a href="/logout" class="auth-link logout">🚪 Logout</a>
-    {% else %}
-    <a href="{{ url_for('google.login') }}" class="auth-link">🔐 Login</a>
-    {% endif %}
-    <button
-      class="theme-toggle"
-      onclick="toggleDarkMode()"
-      aria-label="Toggle dark mode"
-    >
-      🌙
-    </button>
+    <!-- Center/Right: Primary nav -->
+    <nav id="mainNav" class="nav" aria-label="Main">
+      <a class="nav-link" href="/">🏠 Home</a>
+      <a class="nav-link" href="/generate">📝 Generate</a>
+
+      {% if is_signed_in and usage_nav %}
+      <span class="usage-chip" title="{{ usage_nav.title }}"
+        >{{ usage_nav.text }}</span
+      >
+      {% endif %}
+
+      <a class="nav-link" href="/browse">🔎 Browse</a>
+      <a class="nav-link" href="/history">📚 History</a>
+
+      {% if not is_pro %}
+      <a class="nav-link plus" href="/plus">⭐ Plus</a>
+      {% else %}
+      <a class="nav-link" href="/billing">🧾 Billing</a>
+      {% endif %}
+
+      <div class="nav-divider" aria-hidden="true"></div>
+
+      {% if is_admin %}
+      <details class="admin-drop" role="group">
+        <summary class="nav-link admin-summary">🛠️ Admin</summary>
+        <div class="admin-panel">
+          <a class="nav-sublink" href="/admin/collections">Collections</a>
+          <a class="nav-sublink" href="/admin/users">Users</a>
+          <a class="nav-sublink" href="/admin/theme">Theme</a>
+          <a class="nav-sublink" href="/admin/content">Content</a>
+          <a class="nav-sublink" href="/admin/gift">Gift</a>
+          <a class="nav-sublink" href="/admin/help">Help</a>
+          <a class="nav-sublink" href="/admin/analytics">Analytics</a>
+        </div>
+      </details>
+      {% endif %}
+
+      <a class="nav-link" href="/about">ℹ️ About</a>
+    </nav>
+
+    <!-- Right: Auth + theme + mobile toggle -->
+    <div class="actions">
+      {% if session.user_info %}
+      <span class="user-tag" title="{{ session.user_info.email }}"
+        >👤 {{ session.user_info.email.split('@')[0] }}</span
+      >
+      <a class="auth-link logout" href="/logout">🚪 Logout</a>
+      {% else %}
+      <a class="auth-link" href="{{ url_for('google.login') }}">🔐 Login</a>
+      {% endif %}
+      <button
+        class="theme-toggle"
+        id="themeToggle"
+        type="button"
+        aria-label="Toggle dark mode"
+      >
+        🌙
+      </button>
+
+      <button
+        class="menu-toggle"
+        id="menuToggle"
+        type="button"
+        aria-controls="mainNav"
+        aria-expanded="false"
+        aria-label="Menu"
+      >
+        <span class="bar"></span><span class="bar"></span
+        ><span class="bar"></span>
+      </button>
+    </div>
   </div>
 </header>

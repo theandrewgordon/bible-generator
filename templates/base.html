@@ -7,11 +7,16 @@
     <link rel="icon" href="{{ favicon_url }}" />
 
     <!-- Friendly fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet"/>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
+      rel="stylesheet"
+    />
 
     <!-- Your theme -->
     <link rel="stylesheet" href="/static/theme.css" />
-    {% if request.path.startswith('/admin') %}<link rel="stylesheet" href="/static/admin.css" />{% endif %}
+    {% if request.path.startswith('/admin') %}
+    <link rel="stylesheet" href="/static/admin.css" />
+    {% endif %}
     <style>
       :root {
         --background: {{ (theme.background or '#ffffff') if theme else '#ffffff' }};
@@ -68,7 +73,7 @@
     <style>
       :root {
         /* soften overall vibe just a touch */
-        --card-shadow: 0 6px 16px rgba(0,0,0,.06);
+        --card-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
       }
 
       .container {
@@ -80,28 +85,49 @@
       .page-title {
         font-size: clamp(1.4rem, 2.2vw + 1rem, 2rem);
         font-weight: 800;
-        letter-spacing: .2px;
-        margin: .2rem 0 .6rem;
+        letter-spacing: 0.2px;
+        margin: 0.2rem 0 0.6rem;
       }
 
-      .button { border-radius: 12px; }
+      .button {
+        border-radius: 12px;
+      }
 
-      .muted { color: var(--text-secondary); }
-      .small { font-size: .9em; }
+      .muted {
+        color: var(--text-secondary);
+      }
+      .small {
+        font-size: 0.9em;
+      }
 
       /* Toasts */
       #toast-container {
         position: fixed;
-        top: 12px; right: 12px;
-        display: grid; gap: 8px; z-index: 9999;
+        top: 12px;
+        right: 12px;
+        display: grid;
+        gap: 8px;
+        z-index: 9999;
       }
       .toast {
-        padding: 10px 14px; border-radius: 10px;
-        background: #def7ec; color: #03543f; box-shadow: var(--card-shadow);
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: #def7ec;
+        color: #03543f;
+        box-shadow: var(--card-shadow);
       }
-      .toast-warning { background: #fef3c7; color: #92400e; }
-      .toast-error { background: #fee2e2; color: #7f1d1d; }
-      .toast-success { background: #dcfce7; color: #14532d; }
+      .toast-warning {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .toast-error {
+        background: #fee2e2;
+        color: #7f1d1d;
+      }
+      .toast-success {
+        background: #dcfce7;
+        color: #14532d;
+      }
 
       footer {
         text-align: center;
@@ -112,84 +138,143 @@
       }
 
       @media (max-width: 600px) {
-        .container { padding: 1.4rem 1rem; }
-        footer { font-size: 0.85em; }
+        .container {
+          padding: 1.4rem 1rem;
+        }
+        footer {
+          font-size: 0.85em;
+        }
       }
     </style>
   </head>
+  <script>
+    // Mobile open/close
+    (function () {
+      const btn = document.getElementById("menuToggle");
+      const nav = document.getElementById("mainNav");
+      if (!btn || !nav) return;
+
+      function setOpen(open) {
+        document.body.classList.toggle("nav-open", !!open);
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+
+      btn.addEventListener("click", () =>
+        setOpen(!document.body.classList.contains("nav-open"))
+      );
+      // Close when clicking a link
+      nav.addEventListener("click", (e) => {
+        if (e.target.closest("a")) setOpen(false);
+      });
+      // Close on ESC
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") setOpen(false);
+      });
+    })();
+
+    // Sticky header shadow on scroll
+    (function () {
+      const h = document.querySelector(".main-header");
+      if (!h) return;
+      let last = 0;
+      const onScroll = () => {
+        const y = window.scrollY || 0;
+        // add shadow when scrolled a tad, remove at top
+        h.classList.toggle("is-stuck", y > 2);
+        last = y;
+      };
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+    })();
+  </script>
+
   <body class="{% if request.path.startswith('/admin') %}admin{% endif %}">
-    {% include "_navbar.html" %}
-    {% if site_content and site_content.announcement_enabled and site_content.announcement_text %}
-      <div class="site-banner strong">{{ site_content.announcement_text }}</div>
-    {% endif %}
-    {# Per-page banners #}
-    {% set path = request.path %}
-    {% if site_content %}
-      {% if path.startswith('/browse') and site_content.browse_banner_enabled and site_content.browse_banner_text %}
-        <div class="site-banner subtle">{{ site_content.browse_banner_text }}</div>
-      {% elif path.startswith('/generate') and site_content.generate_banner_enabled and site_content.generate_banner_text %}
-        <div class="site-banner subtle">{{ site_content.generate_banner_text }}</div>
-      {% elif path.startswith('/plus') and site_content.plus_banner_enabled and site_content.plus_banner_text %}
-        <div class="site-banner subtle">{{ site_content.plus_banner_text }}</div>
-      {% endif %}
-    {% endif %}
-    {% if theme and theme.extras and theme.extras.snow %}<div class="snow"></div>{% endif %}
-    {% if theme and theme.extras and theme.extras.lights %}<div class="lights-bar"></div>{% endif %}
-    {% if theme and theme.extras and theme.extras.string_lights %}
-      <div class="string-lights">
-        {% for i in range(24) %}<div class="bulb"></div>{% endfor %}
-      </div>
-    {% endif %}
-    {% if theme and theme.extras and theme.extras.snow_svg %}
-      <svg class="snow-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs>
-          <circle id="flake" cx="0" cy="0" r="1" fill="white"/>
-        </defs>
-        {% for i in range(60) %}
-        <use href="#flake" x="{{ (i*7) % 100 }}" y="-2" opacity="{{ 0.4 + (i % 6)/10 }}">
-          <animate attributeName="y" values="-2;102" dur="{{ 6 + (i % 5) }}s" repeatCount="indefinite"/>
-          <animate attributeName="x" values="{{ (i*7) % 100 }}; {{ ((i*7)+6) % 100 }}" dur="{{ 4 + (i % 3) }}s" repeatCount="indefinite"/>
-        </use>
-        {% endfor %}
-      </svg>
-    {% endif %}
-    {% if theme and theme.extras and theme.extras.leaves %}<div class="leaves" aria-hidden="true"></div>
+    {% include "_navbar.html" %} {% if site_content and
+    site_content.announcement_enabled and site_content.announcement_text %}
+    <div class="site-banner strong">{{ site_content.announcement_text }}</div>
+    {% endif %} {# Per-page banners #} {% set path = request.path %} {% if
+    site_content %} {% if path.startswith('/browse') and
+    site_content.browse_banner_enabled and site_content.browse_banner_text %}
+    <div class="site-banner subtle">{{ site_content.browse_banner_text }}</div>
+    {% elif path.startswith('/generate') and
+    site_content.generate_banner_enabled and site_content.generate_banner_text
+    %}
+    <div class="site-banner subtle">
+      {{ site_content.generate_banner_text }}
+    </div>
+    {% elif path.startswith('/plus') and site_content.plus_banner_enabled and
+    site_content.plus_banner_text %}
+    <div class="site-banner subtle">{{ site_content.plus_banner_text }}</div>
+    {% endif %} {% endif %} {% if theme and theme.extras and theme.extras.snow
+    %}
+    <div class="snow"></div>
+    {% endif %} {% if theme and theme.extras and theme.extras.lights %}
+    <div class="lights-bar"></div>
+    {% endif %} {% if theme and theme.extras and theme.extras.string_lights %}
+    <div class="string-lights">
+      {% for i in range(24) %}
+      <div class="bulb"></div>
+      {% endfor %}
+    </div>
+    {% endif %} {% if theme and theme.extras and theme.extras.snow_svg %}
+    <svg class="snow-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs>
+        <circle id="flake" cx="0" cy="0" r="1" fill="white" />
+      </defs>
+      {% for i in range(60) %}
+      <use
+        href="#flake"
+        x="{{ (i*7) % 100 }}"
+        y="-2"
+        opacity="{{ 0.4 + (i % 6)/10 }}"
+      >
+        <animate
+          attributeName="y"
+          values="-2;102"
+          dur="{{ 6 + (i % 5) }}s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="x"
+          values="{{ (i*7) % 100 }}; {{ ((i*7)+6) % 100 }}"
+          dur="{{ 4 + (i % 3) }}s"
+          repeatCount="indefinite"
+        />
+      </use>
+      {% endfor %}
+    </svg>
+    {% endif %} {% if theme and theme.extras and theme.extras.leaves %}
+    <div class="leaves" aria-hidden="true"></div>
     <script>
-      (function(){
-        const wrap = document.querySelector('.leaves');
-        if(!wrap) return;
-        for(let i=0;i<20;i++){
-          const el = document.createElement('div');
-          el.className='leaf';
-          el.style.left = Math.random()*100+'%';
-          el.style.animationDelay = (Math.random()*8)+'s';
-          el.style.opacity = 0.6 + Math.random()*0.4;
-          el.style.transform = `translateY(${-20 - Math.random()*60}px)`;
+      (function () {
+        const wrap = document.querySelector(".leaves");
+        if (!wrap) return;
+        for (let i = 0; i < 20; i++) {
+          const el = document.createElement("div");
+          el.className = "leaf";
+          el.style.left = Math.random() * 100 + "%";
+          el.style.animationDelay = Math.random() * 8 + "s";
+          el.style.opacity = 0.6 + Math.random() * 0.4;
+          el.style.transform = `translateY(${-20 - Math.random() * 60}px)`;
           wrap.appendChild(el);
         }
       })();
     </script>
-    {% endif %}
+    {% endif %} {# Toast Notifications #} {% with messages =
+    get_flashed_messages(with_categories=true) %} {% if messages %}
+    <div id="toast-container">
+      {% for category, message in messages %}
+      <div class="toast toast-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
 
-    {# Toast Notifications #}
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div id="toast-container">
-          {% for category, message in messages %}
-            <div class="toast toast-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
-    <main class="container">
-      {% block content %}{% endblock %}
-    </main>
+    <main class="container">{% block content %}{% endblock %}</main>
 
     <footer>
-      &copy; 2025 Faith Sparks Printables. All rights reserved.
-      {% if support_email %}
-        • Support: <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+      &copy; 2025 Faith Sparks Printables. All rights reserved. {% if
+      support_email %} • Support:
+      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
       {% endif %}
     </footer>
 
@@ -199,12 +284,12 @@
         document.body.classList.add("dark");
       }
       // mobile nav toggle
-      addEventListener('DOMContentLoaded', ()=>{
-        const btn = document.getElementById('menuToggle');
-        if(btn){
-          btn.addEventListener('click', ()=>{
-            const open = document.body.classList.toggle('nav-open');
-            btn.setAttribute('aria-expanded', open? 'true':'false');
+      addEventListener("DOMContentLoaded", () => {
+        const btn = document.getElementById("menuToggle");
+        if (btn) {
+          btn.addEventListener("click", () => {
+            const open = document.body.classList.toggle("nav-open");
+            btn.setAttribute("aria-expanded", open ? "true" : "false");
           });
         }
       });
