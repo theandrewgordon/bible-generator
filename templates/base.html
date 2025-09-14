@@ -14,10 +14,16 @@
       rel="stylesheet"
     />
 
-    <!-- Theme CSS -->
-    <link rel="stylesheet" href="/static/theme.css" />
+    <!-- Theme / Admin CSS (cache-busted) -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='theme.css') }}?v={{ static_v|default(1) }}"
+    />
     {% if request.path.startswith('/admin') %}
-    <link rel="stylesheet" href="/static/admin.css" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='admin.css') }}?v={{ static_v|default(1) }}"
+    />
     {% endif %}
 
     <!-- Admin → Theme tokens -->
@@ -32,6 +38,7 @@
         --card-shadow: 0 6px 16px rgba(0,0,0,.06);
       }
       .dark{
+        /* keep brand hue consistent in dark mode */
         --primary: {{ (theme.primary or '#0ea5a8') if theme else '#0ea5a8' }};
         --primary-dark: {{ (theme.primary_dark or '#0b8a8d') if theme else '#0b8a8d' }};
       }
@@ -70,8 +77,9 @@
       @keyframes fall{0%{transform:translateY(-40px) rotate(0)}100%{transform:translateY(110vh) rotate(360deg)}}
       {% endif %}
 
-      {% if theme.extras and theme.extras.custom_css %}
-      {{ theme.extras.custom_css|safe }}
+      {# Safer custom CSS: only render sanitized content if present #}
+      {% if theme.extras and theme.extras.custom_css_sanitized %}
+      {{ theme.extras.custom_css_sanitized|safe }}
       {% endif %}
 
       /* Layout polish shared */
@@ -98,7 +106,7 @@
       /* Sticky header shadow */
       .main-header.is-stuck{box-shadow:0 6px 16px rgba(0,0,0,.06)}
 
-      /* Page overlay (only on real submits) */
+      /* Global overlay (only on real POST submits) */
       #pageOverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:color-mix(in oklab,var(--background), black 35%);backdrop-filter:blur(2px);z-index:10000}
       #pageOverlay.show{display:flex}
       #pageOverlay .panel{background:var(--box);color:var(--text);border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;box-shadow:var(--card-shadow);font-weight:700}
@@ -115,12 +123,16 @@
       }
     </style>
 
-    <script defer src="/static/darkmode.js"></script>
+    <!-- Small theme helper (JS toggler etc.) -->
+    <script
+      defer
+      src="{{ url_for('static', filename='darkmode.js') }}?v={{ static_v|default(1) }}"
+    ></script>
 
     {% block head_extra %}{% endblock %}
   </head>
 
-  <!-- Utilities: mobile nav, sticky header -->
+  <!-- Utilities: mobile nav + sticky header -->
   <script>
     (function () {
       // Mobile nav
@@ -154,6 +166,13 @@
   </script>
 
   <body class="{% if request.path.startswith('/admin') %}admin{% endif %}">
+    <!-- Apply saved theme ASAP to avoid flash -->
+    <script>
+      if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+      }
+    </script>
+
     <a href="#maincontent" class="skip-link">Skip to content</a>
 
     {% include "_navbar.html" %} {% if site_content and
@@ -256,11 +275,7 @@
     </footer>
 
     <script>
-      // Apply saved theme early on first paint
-      if (localStorage.getItem("theme") === "dark")
-        document.body.classList.add("dark");
-
-      // Page overlay controller
+      // Page overlay controller (only show for non-prevented POST)
       (function () {
         const overlay = document.getElementById("pageOverlay");
         function show() {
@@ -286,12 +301,8 @@
         document.addEventListener(
           "submit",
           (ev) => {
-            // Wait one microtask to see if someone called preventDefault()
             Promise.resolve().then(() => {
-              if (ev.defaultPrevented) {
-                hide();
-                return;
-              }
+              if (ev.defaultPrevented) return hide();
               const form = ev.target;
               const method = (
                 form.getAttribute("method") || "GET"

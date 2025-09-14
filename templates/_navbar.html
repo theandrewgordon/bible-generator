@@ -1,5 +1,5 @@
 <header class="main-header" role="banner">
-  <div class="nav-wrap">
+  <div class="logo-nav">
     <!-- Left: Logo -->
     <a href="/" class="logo" aria-label="Faith Sparks Printables">
       <img
@@ -8,75 +8,96 @@
       />
     </a>
 
-    <!-- Center/Right: Primary nav -->
-    <nav id="mainNav" class="nav" aria-label="Main">
-      <a class="nav-link" href="/">🏠 Home</a>
-      <a class="nav-link" href="/generate">📝 Generate</a>
+    <!-- Mobile menu button -->
+    <button
+      class="menu-toggle"
+      id="menuToggle"
+      type="button"
+      aria-controls="mainNav"
+      aria-expanded="false"
+      aria-label="Toggle menu"
+    >
+      <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </button>
 
-      {% if is_signed_in and usage_nav %}
-      <span class="usage-chip" title="{{ usage_nav.title }}"
-        >{{ usage_nav.text }}</span
-      >
-      {% endif %}
+    <!-- Primary nav -->
+    <nav id="mainNav" class="nav-links" aria-label="Primary">
+      {# active helpers #}
+      {% set p = request.path or '' %}
+      <a class="nav-link" href="/"
+         {% if p == '/' %}aria-current="page"{% endif %}>🏠 Home</a>
 
-      <a class="nav-link" href="/browse">🔎 Browse</a>
-      <a class="nav-link" href="/history">📚 History</a>
+      <a class="nav-link" href="/generate"
+         {% if p.startswith('/generate') %}aria-current="page"{% endif %}>📝 Generate</a>
+
+      <a class="nav-link" href="/browse"
+         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>🔎 Browse</a>
+
+      <a class="nav-link" href="/history"
+         {% if p.startswith('/history') %}aria-current="page"{% endif %}>📚 History</a>
 
       {% if not is_pro %}
-      <a class="nav-link plus" href="/plus">⭐ Plus</a>
+        <a class="nav-link plus" href="/plus"
+           {% if p.startswith('/plus') %}aria-current="page"{% endif %}>⭐ Plus</a>
       {% else %}
-      <a class="nav-link" href="/billing">🧾 Billing</a>
+        <a class="nav-link" href="/billing"
+           {% if p.startswith('/billing') %}aria-current="page"{% endif %}>🧾 Billing</a>
       {% endif %}
-
-      <div class="nav-divider" aria-hidden="true"></div>
 
       {% if is_admin %}
-      <details class="admin-drop" role="group">
-        <summary class="nav-link admin-summary">🛠️ Admin</summary>
-        <div class="admin-panel">
-          <a class="nav-sublink" href="/admin/collections">Collections</a>
-          <a class="nav-sublink" href="/admin/users">Users</a>
-          <a class="nav-sublink" href="/admin/theme">Theme</a>
-          <a class="nav-sublink" href="/admin/content">Content</a>
-          <a class="nav-sublink" href="/admin/gift">Gift</a>
-          <a class="nav-sublink" href="/admin/help">Help</a>
-          <a class="nav-sublink" href="/admin/analytics">Analytics</a>
-        </div>
-      </details>
+        <details class="admin-drop" {% if p.startswith('/admin') %}open{% endif %}>
+          <summary
+            class="admin-summary"
+            role="button"
+            aria-haspopup="menu"
+            aria-expanded="{{ 'true' if p.startswith('/admin') else 'false' }}"
+          >🛠️ Admin</summary>
+          <div class="admin-panel" role="menu">
+            <a class="nav-sublink" href="/admin/collections"
+               role="menuitem" {% if p.startswith('/admin/collections') %}aria-current="page"{% endif %}>Collections</a>
+            <a class="nav-sublink" href="/admin/users"
+               role="menuitem" {% if p.startswith('/admin/users') %}aria-current="page"{% endif %}>Users</a>
+            <a class="nav-sublink" href="/admin/theme"
+               role="menuitem" {% if p.startswith('/admin/theme') %}aria-current="page"{% endif %}>Theme</a>
+            <a class="nav-sublink" href="/admin/content"
+               role="menuitem" {% if p.startswith('/admin/content') %}aria-current="page"{% endif %}>Content</a>
+            <a class="nav-sublink" href="/admin/gift"
+               role="menuitem" {% if p.startswith('/admin/gift') %}aria-current="page"{% endif %}>Gift</a>
+            <a class="nav-sublink" href="/admin/help"
+               role="menuitem" {% if p.startswith('/admin/help') %}aria-current="page"{% endif %}>Help</a>
+            <a class="nav-sublink" href="/admin/analytics"
+               role="menuitem" {% if p.startswith('/admin/analytics') %}aria-current="page"{% endif %}>Analytics</a>
+          </div>
+        </details>
       {% endif %}
 
-      <a class="nav-link" href="/about">ℹ️ About</a>
+      <a class="nav-link" href="/about"
+         {% if p.startswith('/about') %}aria-current="page"{% endif %}>ℹ️ About</a>
     </nav>
 
-    <!-- Right: Auth + theme + mobile toggle -->
-    <div class="actions">
-      {% if session.user_info %}
-      <span class="user-tag" title="{{ session.user_info.email }}"
-        >👤 {{ session.user_info.email.split('@')[0] }}</span
-      >
-      <a class="auth-link logout" href="/logout">🚪 Logout</a>
-      {% else %}
-      <a class="auth-link" href="{{ url_for('google.login') }}">🔐 Login</a>
+    <!-- Right: usage, auth, theme -->
+    <div class="auth-theme">
+      {% if is_signed_in and usage_nav %}
+        <span class="usage-chip" title="{{ usage_nav.title }}">{{ usage_nav.text }}</span>
       {% endif %}
+
+      {% if session.user_info %}
+        <span class="user-name" title="{{ session.user_info.email }}">
+          👤 {{ session.user_info.email.split('@')[0] }}
+        </span>
+        <a class="auth-link logout" href="/logout">🚪 Logout</a>
+      {% else %}
+        <a class="auth-link" href="{{ url_for('google.login') }}">🔐 Login</a>
+      {% endif %}
+
       <button
         class="theme-toggle"
         id="themeToggle"
         type="button"
         aria-label="Toggle dark mode"
+        title="Toggle dark mode"
       >
         🌙
-      </button>
-
-      <button
-        class="menu-toggle"
-        id="menuToggle"
-        type="button"
-        aria-controls="mainNav"
-        aria-expanded="false"
-        aria-label="Menu"
-      >
-        <span class="bar"></span><span class="bar"></span
-        ><span class="bar"></span>
       </button>
     </div>
   </div>
