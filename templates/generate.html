@@ -42,13 +42,15 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   action="{{ url_for('generate') }}"
   novalidate
 >
-  {% if collection_slug %}
-  <input type="hidden" name="collection_slug" value="{{ collection_slug }}" />
-  {% endif %}
+  {% if collection_slug %}<input
+    type="hidden"
+    name="collection_slug"
+    value="{{ collection_slug }}"
+  />{% endif %}
 
   <div class="grid">
     <div class="col-main">
-      {# ---------- Step 1: Choose Mode ---------- #}
+      <!-- Step 1 -->
       <section class="block">
         <h2 class="step"><span class="step-dot">1</span> Choose input</h2>
 
@@ -73,7 +75,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         </p>
       </section>
 
-      {# ---------- Step 2A: Verse Mode ---------- #}
+      <!-- Step 2A: Verse mode -->
       <section
         class="block mode-block"
         id="verseBlock"
@@ -90,13 +92,14 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           placeholder="e.g., John 3:16 (ESV), Romans 8:28)"
           autocomplete="off"
         />
+
         <small class="muted"
           >Separate multiple with commas or new lines. Add version in
           parentheses (e.g., “(ESV)”).</small
         >
 
-        <div class="quick-picks">
-          <span class="label small muted">Quick picks:</span>
+        <div class="quick-picks" role="group" aria-label="Quick pick verses">
+          <span class="quick-picks-label small muted">Quick picks:</span>
           {% set quick = (site_content.generate_quick_picks or ['John 3:16
           (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (NIV)','Proverbs 3:5-6
           (ESV)']) %} {% for v in quick %}
@@ -115,7 +118,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         <div id="zipHint" class="small muted" style="display: none"></div>
       </section>
 
-      {# ---------- Step 2B: Custom Mode ---------- #}
+      <!-- Step 2B: Custom mode -->
       <section
         class="block mode-block hidden"
         id="customBlock"
@@ -180,14 +183,14 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
         <div class="small">
           <label class="checkbox-row">
-            <input type="checkbox" id="agreeTerms" name="agreeTerms" />
-            I confirm this content is appropriate and family-friendly.
+            <input type="checkbox" id="agreeTerms" name="agreeTerms" /> I
+            confirm this content is appropriate and family-friendly.
           </label>
         </div>
         <div id="customFilename" class="muted small"></div>
       </section>
 
-      {# ---------- Step 3: Options ---------- #}
+      <!-- Step 3 -->
       <section class="block">
         <h2 class="step"><span class="step-dot">3</span> Options</h2>
 
@@ -198,7 +201,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           </label>
         </div>
 
-        <div class="row" style="margin-top: 4px">
+        <div class="row" style="margin-top: 0.4rem">
           <label for="versionSelect"><strong>📘 Version</strong></label>
           <select
             id="versionSelect"
@@ -230,7 +233,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         </details>
       </section>
 
-      {# ---------- Actions ---------- #}
+      <!-- Actions -->
       <div class="actions">
         <button
           type="submit"
@@ -275,7 +278,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       </div>
     </div>
 
-    {# ---------- Side Preview ---------- #}
+    <!-- Side preview -->
     <aside class="col-side">
       <div class="preview card-lite" aria-live="polite">
         <h3 class="muted">Preview</h3>
@@ -301,12 +304,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   </div>
 </form>
 
-{# ---------- Snackbar ---------- #}
+<!-- Snackbar -->
 <div id="toast" class="snackbar" role="status" aria-live="polite">
   ✅ Worksheet request sent…
 </div>
 
-{# ---------- Tagify ---------- #}
+<!-- Tagify -->
 <link
   href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css"
   rel="stylesheet"
@@ -356,11 +359,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const KNOWN = ['ESV','KJV','NLT','NASB','NIV','CSB','AUTO'];
   const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
   const detectVersion = str => {
-    const m = /\((ESV|KJV|NLT|NASB|NIV|CSB)\)/i.exec(str||'');
-    return m ? m[1].toUpperCase() : null;
+    const m = /\((ESV|KJV|NLT|NASB|NIV|CSB)\)/i.exec(str||''); return m ? m[1].toUpperCase() : null;
   };
   const effectiveVersion = () => {
-    // prefer explicit in last tag, else dropdown
     const v = [...tagify.value].reverse().map(t=>detectVersion(t.value)).find(Boolean);
     return (v || (versionSelect.value||'esv')).toUpperCase();
   };
@@ -371,32 +372,22 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     customBlock.classList.toggle('hidden',  isVerse);
 
     if (isVerse){
-      // clear custom
-      customTitle.value = '';
-      customText.value = '';
-      customPrompt.value = '';
-      if (agreeTerms) agreeTerms.checked = false;
-      customFilename.textContent = '';
+      customTitle.value = ''; customText.value = ''; customPrompt.value = '';
+      if (agreeTerms) agreeTerms.checked = false; customFilename.textContent = '';
     } else {
-      // clear verse tags
-      tagify.removeAllTags();
-      verseInput.value = '';
-      filenamePreview.textContent = '';
-      zipHint.style.display = 'none';
+      tagify.removeAllTags(); verseInput.value = '';
+      filenamePreview.textContent = ''; zipHint.style.display = 'none';
     }
     updatePreview();
   }
 
-  function firstTagText(){
-    const t = tagify.value.map(t=>t.value.trim()).find(Boolean);
-    return t || '';
-  }
+  const firstTagText = () => (tagify.value.map(t=>t.value.trim()).find(Boolean) || '');
 
   function updatePreview(){
     const isVerse = !customBlock || customBlock.classList.contains('hidden');
     if (isVerse){
       const verse = firstTagText() || '—';
-      previewVerse.textContent = verse;
+      previewVerse.textContent   = verse;
       previewVersion.textContent = effectiveVersion();
       previewPrompt.textContent  = '—';
     } else {
@@ -429,10 +420,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   modeVerse.addEventListener('change', ()=> setMode('verse'));
   modeCustom.addEventListener('change', ()=> setMode('custom'));
 
-  /* ===== Quick picks ===== */
+  /* ===== Quick picks (verses & prompts) ===== */
   document.addEventListener('click', (e)=>{
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
+    const chip = e.target.closest('.chip'); if (!chip) return;
     const v = chip.getAttribute('data-verse');
     const p = chip.getAttribute('data-prompt');
     if (v){
@@ -465,33 +455,18 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const customBody = (customText.value||'').trim();
 
     if (isVerse){
-      if (tags.length === 0){
-        e.preventDefault();
-        alert('Please add at least one verse.');
-        verseInput.setAttribute('aria-invalid','true');
-        return;
+      if (!tags.length){
+        e.preventDefault(); alert('Please add at least one verse.');
+        verseInput.setAttribute('aria-invalid','true'); return;
       }
-      // Pack tags back into the real input
-      verseInput.value = tags.join(', ');
-      localStorage.setItem('recentVerses', verseInput.value);
+      verseInput.value = tags.join(', '); localStorage.setItem('recentVerses', verseInput.value);
     } else {
-      if (!customBody){
-        e.preventDefault();
-        alert('Please paste your text.');
-        return;
-      }
-      if (!(agreeTerms && agreeTerms.checked)){
-        e.preventDefault();
-        alert('Please confirm your content is appropriate.');
-        return;
-      }
+      if (!customBody){ e.preventDefault(); alert('Please paste your text.'); return; }
+      if (!(agreeTerms && agreeTerms.checked)){ e.preventDefault(); alert('Please confirm your content is appropriate.'); return; }
     }
 
-    // Base template handles overlay for real POSTs
     submitBtn.disabled = true;
-    setTimeout(()=>{ toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 2200); }, 80);
-
-    // Safety: auto re-enable if nothing happens
+    setTimeout(()=>{ toastEl.textContent = '✅ Worksheet request sent…'; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 2200); }, 80);
     setTimeout(()=>{ if (!document.hidden){ submitBtn.disabled = false; } }, 20000);
   });
 
@@ -501,8 +476,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     customTitle.value=''; customText.value=''; customPrompt.value='';
     if (agreeTerms) agreeTerms.checked = false;
     filenamePreview.textContent=''; customFilename.textContent='';
-    zipHint.style.display='none';
-    updatePreview();
+    zipHint.style.display='none'; updatePreview();
   });
 
   /* ===== Share link ===== */
@@ -528,7 +502,6 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
   /* ===== Hydrate on load ===== */
   window.addEventListener('DOMContentLoaded', ()=>{
-    // URL/state restore
     const params = new URLSearchParams(location.search);
     const urlVerses = params.get('v');
     const urlMode   = params.get('mode') === 'custom';
@@ -538,23 +511,17 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const prefill   = {{ prefill_verse|tojson|default('""') }};
     const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
 
-    if (urlMode){ modeCustom.checked = true; setMode('custom'); }
-    else { setMode('verse'); }
+    if (urlMode){ modeCustom.checked = true; setMode('custom'); } else { setMode('verse'); }
 
     if (modeVerse.checked){
       if (prefill) tagify.addTags(prefill.split(',').map(v=>v.trim()).filter(Boolean));
       if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
-
       const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
       if (recent) tagify.addTags(recent.split(',').map(v=>v.trim()).filter(Boolean));
       updateVerseFilenames();
     } else {
-      const t = params.get('title') || '';
-      const x = params.get('text')  || '';
-      const p = params.get('prompt')|| '';
-      if (t) customTitle.value = t;
-      if (x) customText.value  = x;
-      if (p) customPrompt.value= p;
+      const t = params.get('title') || ''; const x = params.get('text') || ''; const p = params.get('prompt') || '';
+      if (t) customTitle.value = t; if (x) customText.value = x; if (p) customPrompt.value = p;
       updateCustomFilename();
     }
 
@@ -564,7 +531,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');
     updatePreview();
 
-    // Upgrade banner dismissal (month-scoped)
+    // Upgrade banner dismissal
     const el = document.getElementById('upgradeCta');
     if (el){
       const key = 'upgradeDismiss_' + (new Date()).toISOString().slice(0,7).replace('-', '');
@@ -580,7 +547,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 </script>
 
 <style>
-  /* Page-local polish (uses theme tokens, no hardcoded dark blocks) */
+  /* ==== Page-local polish (uses theme tokens) ==== */
   .grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
@@ -608,6 +575,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     border-radius: 12px;
     padding: 1rem;
     margin-bottom: 0.85rem;
+    box-shadow: var(--card-shadow);
   }
   .step {
     display: flex;
@@ -616,7 +584,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     margin-top: 0;
   }
   .step-dot {
-    display: inline-grid;
+    display: grid;
     place-items: center;
     width: 24px;
     height: 24px;
@@ -645,7 +613,6 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     opacity: 0;
   }
   .seg-item span {
-    display: inline-block;
     padding: 6px 10px;
     border-radius: 10px;
     cursor: pointer;
@@ -657,17 +624,10 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     border: 1px solid #c7d2fe;
   }
 
-  .quick-picks {
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 0.4rem;
-  }
   .checkbox-row {
     display: flex;
-    gap: 0.5rem;
     align-items: center;
+    gap: 0.5rem;
   }
 
   .hidden {
@@ -708,7 +668,6 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     padding: 0.5rem;
     min-height: 56px;
   }
-
   .left-chip {
     margin-left: auto;
   }
@@ -725,6 +684,61 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     }
   }
 
+  /* ==== Quick Picks — scoped, dark-friendly ==== */
+  .quick-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-top: 0.4rem;
+  }
+  .quick-picks-label {
+    margin-right: 2px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .quick-picks .chip {
+    --qp-bg: #f8fafc;
+    --qp-bd: #cbd5e1;
+    --qp-fg: #0f172a;
+    --qp-bg-hover: #eef2ff;
+    --qp-bd-hover: #c7d2fe;
+    background: var(--qp-bg);
+    border: 1px solid var(--qp-bd);
+    color: var(--qp-fg);
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s, transform 0.03s;
+  }
+  .quick-picks .chip:hover {
+    background: var(--qp-bg-hover);
+    border-color: var(--qp-bd-hover);
+  }
+  .quick-picks .chip:active {
+    transform: translateY(1px);
+  }
+  .quick-picks .chip:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+
+  .dark .quick-picks .chip {
+    --qp-bg: #0f172a;
+    --qp-bd: #334155;
+    --qp-fg: #e5e7eb;
+    --qp-bg-hover: #111827;
+    --qp-bd-hover: #475569;
+    background: var(--qp-bg);
+    border-color: var(--qp-bd);
+    color: var(--qp-fg);
+  }
+
+  /* Snackbar color alignment with theme */
   .snackbar {
     background: rgba(30, 41, 59, 0.95);
     color: #e5e7eb;

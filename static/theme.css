@@ -784,3 +784,86 @@ body.dark,
     padding: 1.2rem;
   }
 }
+/* ================================
+   Generate — Quick Picks polish
+   ================================ */
+
+/* container + label */
+.quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+.quick-picks-label {
+  margin-right: 2px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* chips inherit your .chip baseline but look softer & more tactile here */
+.quick-picks .chip {
+  --qp-bg: #f8fafc;
+  --qp-bd: #cbd5e1;
+  --qp-fg: #0f172a;
+  --qp-bg-hover: #eef2ff;
+  --qp-bd-hover: #c7d2fe;
+
+  background: var(--qp-bg);
+  border-color: var(--qp-bd);
+  color: var(--qp-fg);
+
+  padding: 5px 10px; /* slightly tighter than default */
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, transform 0.03s;
+}
+.quick-picks .chip:hover {
+  background: var(--qp-bg-hover);
+  border-color: var(--qp-bd-hover);
+}
+.quick-picks .chip:active {
+  transform: translateY(1px);
+}
+.quick-picks .chip:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* optional soft categories (attach these classes in HTML if desired) */
+.quick-picks .chip.nt {
+  --qp-bg: #eef2ff;
+  --qp-bd: #c7d2fe;
+} /* New Testament */
+.quick-picks .chip.psalm {
+  --qp-bg: #ecfeff;
+  --qp-bd: #a5f3fc;
+} /* Psalms */
+.quick-picks .chip.gospel {
+  --qp-bg: #f0fdf4;
+  --qp-bd: #bbf7d0;
+} /* Gospels */
+
+/* dark mode tuning */
+.dark .quick-picks .chip {
+  --qp-bg: #0f172a;
+  --qp-bd: #334155;
+  --qp-fg: #e5e7eb;
+  --qp-bg-hover: #111827;
+  --qp-bd-hover: #475569;
+}
+.dark .quick-picks .chip.nt {
+  --qp-bg: #11183a;
+  --qp-bd: #39458f;
+}
+.dark .quick-picks .chip.psalm {
+  --qp-bg: #0e1d22;
+  --qp-bd: #1e3a3f;
+}
+.dark .quick-picks .chip.gospel {
+  --qp-bg: #0f1f15;
+  --qp-bd: #1f3a27;
+}
