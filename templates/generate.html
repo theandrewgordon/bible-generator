@@ -3,9 +3,9 @@ endblock %} {% block content %}
 <h1 class="page-title">📝 Generate Worksheet</h1>
 
 {# ---------- Usage / Plan Banner ---------- #} {% if usage_info %} {% set m_lim
-= usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %}
+= usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %} {% if
+m_lim is not none %}
 <div class="usage-banner" aria-live="polite">
-  {% if m_lim is not none %}
   <div
     class="bar"
     role="progressbar"
@@ -22,7 +22,6 @@ endblock %} {% block content %}
     <span class="small muted">Plan: {{ usage_info.plan|title }}</span>
     <span class="small">{{ m_used }} of {{ m_lim }} this month</span>
   </div>
-  <span class="sr-only">{{ m_used }} of {{ m_lim }} used</span>
   {% if usage_info.plan == 'free' and usage_info.monthly_pct_used >= 70 %}
   <div class="upgrade" id="upgradeCta" hidden>
     You’re close to your monthly limit.
@@ -31,10 +30,11 @@ endblock %} {% block content %}
       ✕
     </button>
   </div>
-  {% endif %} {% endif %}
+  {% endif %}
 </div>
-{% endif %} {% set out_of_quota = usage_info and usage_info.monthly_limit is not
-none and (usage_info.monthly_remaining|int) <= 0 %}
+{% endif %} {% endif %} {% set out_of_quota = usage_info and
+usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
+%}
 
 <form
   id="worksheetForm"
@@ -45,183 +45,160 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
   {% if collection_slug %}
   <input type="hidden" name="collection_slug" value="{{ collection_slug }}" />
   {% endif %}
-  <input type="hidden" id="customMode" name="custom_mode" value="0" />
 
   <div class="grid">
     <div class="col-main">
-      {# ---------- Step 1: Pick your content (mutually exclusive tabs)
-      ---------- #}
-      <section class="block" aria-labelledby="step1">
-        <h2 id="step1" class="step">
-          <span class="step-dot">1</span> Pick your content
-        </h2>
+      {# ---------- Step 1: Choose Mode ---------- #}
+      <section class="block">
+        <h2 class="step"><span class="step-dot">1</span> Choose input</h2>
 
-        <div class="tabs" role="tablist" aria-label="Content source">
-          <input
-            type="radio"
-            name="mode"
-            id="modeVerses"
-            value="verses"
-            checked
-          />
-          <label
-            role="tab"
-            aria-controls="panelVerses"
-            aria-selected="true"
-            tabindex="0"
-            for="modeVerses"
-            >Bible verses</label
-          >
-
-          <input type="radio" name="mode" id="modeCustom" value="custom" />
-          <label
-            role="tab"
-            aria-controls="panelCustom"
-            aria-selected="false"
-            tabindex="-1"
-            for="modeCustom"
-            >Your own text</label
-          >
-        </div>
-
-        <!-- Verses panel -->
-        <div
-          id="panelVerses"
-          class="panel"
-          role="tabpanel"
-          aria-labelledby="modeVerses"
-        >
-          <label for="verseInput" class="sr-only">Bible Verse(s)</label>
-          <input
-            type="text"
-            id="verseInput"
-            name="verse"
-            placeholder="e.g., John 3:16 (ESV), Romans 8:28"
-            autocomplete="off"
-            inputmode="text"
-            aria-describedby="verseHint filenamePreview"
-          />
-
-          <small id="verseHint" class="muted">
-            Tip: Separate multiple with commas or new lines. Add version in
-            parentheses, e.g. “(ESV)”.
-          </small>
-
-          <div class="quick-picks">
-            <span class="label small muted">Quick picks:</span>
-            {% set quick = (site_content.generate_quick_picks or ['John 3:16
-            (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (NIV)','Proverbs 3:5-6
-            (ESV)']) %} {% for v in quick %}
-            <button type="button" class="chip" data-verse="{{ v }}">
-              {{ v.split('(')[0].strip() }}
-            </button>
-            {% endfor %}
-          </div>
-
-          {% if collection_sample_verses %}
-          <div class="quick-picks" style="margin-top: 0.35rem">
-            <span class="label small muted">From {{ collection_slug }}:</span>
-            {% for v in collection_sample_verses[:6] %}
-            <button type="button" class="chip" data-verse="{{ v }}">
-              {{ v.split('(')[0].strip() }}
-            </button>
-            {% endfor %}
-          </div>
-          {% endif %}
-
-          <div id="filenamePreview" class="muted small"></div>
-          <div id="zipHint" class="small muted" hidden></div>
-        </div>
-
-        <!-- Custom text panel -->
-        <div
-          id="panelCustom"
-          class="panel hidden"
-          role="tabpanel"
-          aria-labelledby="modeCustom"
-          aria-hidden="true"
-        >
-          <input
-            type="text"
-            id="customTitle"
-            name="custom_title"
-            placeholder="Short title (e.g., 'Psalm of Comfort')"
-            class="wide-input"
-            aria-label="Custom title"
-          />
-          <textarea
-            id="customTextArea"
-            name="custom_text"
-            class="wide-input"
-            rows="5"
-            placeholder="Paste your verse, poem, or prayer (family-friendly only)…"
-            aria-label="Custom text"
-          ></textarea>
-
-          <div class="row">
+        <fieldset class="segmented" role="radiogroup" aria-label="Input mode">
+          <label class="seg-item">
             <input
-              type="text"
-              id="customPrompt"
-              name="custom_prompt"
-              class="wide-input"
-              placeholder="Optional: Coloring prompt (e.g., 'Jesus walking on water')"
-              aria-label="Coloring prompt"
+              type="radio"
+              name="mode"
+              value="verse"
+              id="modeVerse"
+              checked
             />
-            <div class="prompt-ideas">
-              <button
-                type="button"
-                class="chip"
-                data-prompt="A child praying by a window"
-              >
-                🙏 Prayer
-              </button>
-              <button
-                type="button"
-                class="chip"
-                data-prompt="Jesus walking on water"
-              >
-                🌊 Miracle
-              </button>
-              <button
-                type="button"
-                class="chip"
-                data-prompt="A family reading the Bible together"
-              >
-                👨‍👩‍👧 Family
-              </button>
-              <button
-                type="button"
-                class="chip"
-                data-prompt="Shepherd with sheep on a hillside"
-              >
-                🐑 Shepherd
-              </button>
-            </div>
-          </div>
-
-          <div class="small">
-            <label class="checkbox-row">
-              <input type="checkbox" id="agreeTerms" />
-              I agree this content is appropriate and family-friendly.
-            </label>
-          </div>
-          <p class="help">
-            We’ll try to validate scripture references in your text; if we
-            can’t, a small disclaimer is added.
-          </p>
-        </div>
+            <span>📖 Verse(s)</span>
+          </label>
+          <label class="seg-item">
+            <input type="radio" name="mode" value="custom" id="modeCustom" />
+            <span>✍️ Your text</span>
+          </label>
+        </fieldset>
+        <p class="help">
+          Pick one mode. Switching clears the other to avoid conflicts.
+        </p>
       </section>
 
-      {# ---------- Step 2: Options ---------- #}
-      <section class="block" aria-labelledby="step2">
-        <h2 id="step2" class="step"><span class="step-dot">2</span> Options</h2>
+      {# ---------- Step 2A: Verse Mode ---------- #}
+      <section
+        class="block mode-block"
+        id="verseBlock"
+        aria-labelledby="verseHeading"
+      >
+        <h2 id="verseHeading" class="step">
+          <span class="step-dot">2</span> Enter verse(s)
+        </h2>
 
-        <label class="checkbox-row">
-          <input type="checkbox" name="cursive" id="cursiveToggle" />
-          Use cursive tracing font
-        </label>
+        <label for="verseInput" class="sr-only">Bible Verse(s)</label>
+        <input
+          id="verseInput"
+          name="verse"
+          placeholder="e.g., John 3:16 (ESV), Romans 8:28)"
+          autocomplete="off"
+        />
+        <small class="muted"
+          >Separate multiple with commas or new lines. Add version in
+          parentheses (e.g., “(ESV)”).</small
+        >
 
-        <div class="row" style="margin-top: 0.35rem">
+        <div class="quick-picks">
+          <span class="label small muted">Quick picks:</span>
+          {% set quick = (site_content.generate_quick_picks or ['John 3:16
+          (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (NIV)','Proverbs 3:5-6
+          (ESV)']) %} {% for v in quick %}
+          <button type="button" class="chip" data-verse="{{ v }}">
+            {{ v.split('(')[0].strip() }}
+          </button>
+          {% endfor %} {% if collection_sample_verses %} {% for v in
+          collection_sample_verses[:4] %}
+          <button type="button" class="chip" data-verse="{{ v }}">
+            {{ v.split('(')[0].strip() }}
+          </button>
+          {% endfor %} {% endif %}
+        </div>
+
+        <div id="filenamePreview" class="muted small"></div>
+        <div id="zipHint" class="small muted" style="display: none"></div>
+      </section>
+
+      {# ---------- Step 2B: Custom Mode ---------- #}
+      <section
+        class="block mode-block hidden"
+        id="customBlock"
+        aria-labelledby="customHeading"
+      >
+        <h2 id="customHeading" class="step">
+          <span class="step-dot">2</span> Use your own text
+        </h2>
+
+        <input
+          id="customTitle"
+          name="custom_title"
+          class="wide-input"
+          placeholder="Short title (e.g., 'Psalm of Comfort')"
+        />
+        <textarea
+          id="customTextArea"
+          name="custom_text"
+          class="wide-input"
+          rows="4"
+          placeholder="Paste your verse, poem, or prayer (kept family-friendly)…"
+        ></textarea>
+
+        <div class="row">
+          <input
+            id="customPrompt"
+            name="custom_prompt"
+            class="wide-input"
+            placeholder="Optional: Coloring prompt (e.g., 'Jesus walking on water')"
+          />
+          <div class="prompt-ideas">
+            <button
+              type="button"
+              class="chip"
+              data-prompt="A child praying by a window"
+            >
+              🙏 Prayer
+            </button>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="Jesus walking on water"
+            >
+              🌊 Miracle
+            </button>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="A family reading the Bible together"
+            >
+              👨‍👩‍👧 Family
+            </button>
+            <button
+              type="button"
+              class="chip"
+              data-prompt="Shepherd with sheep on a hillside"
+            >
+              🐑 Shepherd
+            </button>
+          </div>
+        </div>
+
+        <div class="small">
+          <label class="checkbox-row">
+            <input type="checkbox" id="agreeTerms" name="agreeTerms" />
+            I confirm this content is appropriate and family-friendly.
+          </label>
+        </div>
+        <div id="customFilename" class="muted small"></div>
+      </section>
+
+      {# ---------- Step 3: Options ---------- #}
+      <section class="block">
+        <h2 class="step"><span class="step-dot">3</span> Options</h2>
+
+        <div class="row">
+          <label class="checkbox-row">
+            <input type="checkbox" name="cursive" id="cursiveToggle" /> Use
+            cursive tracing font
+          </label>
+        </div>
+
+        <div class="row" style="margin-top: 4px">
           <label for="versionSelect"><strong>📘 Version</strong></label>
           <select
             id="versionSelect"
@@ -239,13 +216,17 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
           </select>
         </div>
 
-        <details class="tips">
-          <summary>Tips &amp; info</summary>
-          <ul class="muted small">
-            <li>Put “(ESV)” etc. in a verse to override the dropdown.</li>
-            <li>Multiple verses create a <strong>ZIP</strong> of PDFs.</li>
-            <li>Custom text is profanity-filtered.</li>
-          </ul>
+        <details class="advanced" style="margin-top: 0.35rem">
+          <summary>Tips</summary>
+          <div class="muted small">
+            <ul>
+              <li>
+                Add “(ESV)” etc. in the verse text to override the dropdown.
+              </li>
+              <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
+              <li>Custom text is validated and profanity-filtered.</li>
+            </ul>
+          </div>
         </details>
       </section>
 
@@ -266,11 +247,13 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
         >
           🚀 Generate Worksheet
         </button>
+
         <button type="button" class="button" id="clearBtn">🧹 Clear</button>
         <a class="button ghost" href="{{ url_for('history') }}">📚 History</a>
         <button type="button" class="button ghost" id="shareLinkBtn">
           🔗 Share this setup
         </button>
+
         {% if usage_info %}
         <span class="small muted left-chip">
           {% if usage_info.monthly_limit is not none %} {{
@@ -281,10 +264,10 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
       </div>
 
       {% if out_of_quota %}
-      <p class="help" style="margin-top: 0.35rem">
+      <div class="help" style="margin-top: 0.35rem">
         You’ve hit your monthly limit.
         <a href="{{ url_for('plus_pricing') }}">Upgrade to Plus</a> for more.
-      </p>
+      </div>
       {% endif %}
 
       <div id="disclaimerBox" class="hidden warn" role="alert">
@@ -312,15 +295,13 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
             </div>
           </div>
         </div>
-        <p class="muted micro">
-          This is a layout preview, not a full-fidelity render.
-        </p>
+        <p class="muted micro">Layout preview (not full fidelity).</p>
       </div>
     </aside>
   </div>
 </form>
 
-{# ---------- Toast ---------- #}
+{# ---------- Snackbar ---------- #}
 <div id="toast" class="snackbar" role="status" aria-live="polite">
   ✅ Worksheet request sent…
 </div>
@@ -331,242 +312,275 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
   rel="stylesheet"
 />
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
-
+{% endblock %} {% block extra_scripts %}
 <script>
   /* ===== Elements ===== */
-  const modeVerses   = document.getElementById('modeVerses');
-  const modeCustom   = document.getElementById('modeCustom');
-  const panelVerses  = document.getElementById('panelVerses');
-  const panelCustom  = document.getElementById('panelCustom');
-  const customMode   = document.getElementById('customMode');
+  const modeVerse      = document.getElementById('modeVerse');
+  const modeCustom     = document.getElementById('modeCustom');
+  const verseBlock     = document.getElementById('verseBlock');
+  const customBlock    = document.getElementById('customBlock');
 
-  const verseInput   = document.getElementById('verseInput');
-  const versionSelect= document.getElementById('versionSelect');
-  const cursiveToggle= document.getElementById('cursiveToggle');
-  const customTitle  = document.getElementById('customTitle');
-  const customText   = document.getElementById('customTextArea');
-  const customPrompt = document.getElementById('customPrompt');
-  const agreeTerms   = document.getElementById('agreeTerms');
-  const submitBtn    = document.getElementById('submitBtn');
-  const clearBtn     = document.getElementById('clearBtn');
-  const toastEl      = document.getElementById('toast');
+  const verseInput     = document.getElementById('verseInput');
+  const tagify         = new Tagify(verseInput, {
+    enforceWhitelist: false, trim: true, duplicates: false,
+    pasteAsTags: true, delimiters: ",\n",
+    dropdown: { enabled: 0 },
+    originalInputValueFormat: arr => arr.map(v=>v.value).join(", ")
+  });
 
-  const filenamePreview = document.getElementById('filenamePreview');
-  const zipHint         = document.getElementById('zipHint');
-  const shareBtn        = document.getElementById('shareLinkBtn');
+  const versionSelect  = document.getElementById('versionSelect');
+  const cursiveToggle  = document.getElementById('cursiveToggle');
+  const submitBtn      = document.getElementById('submitBtn');
+  const clearBtn       = document.getElementById('clearBtn');
+  const shareBtn       = document.getElementById('shareLinkBtn');
+  const toastEl        = document.getElementById('toast');
 
-  /* Preview bits */
+  // Custom fields
+  const customTitle    = document.getElementById('customTitle');
+  const customText     = document.getElementById('customTextArea');
+  const customPrompt   = document.getElementById('customPrompt');
+  const agreeTerms     = document.getElementById('agreeTerms');
+  const customFilename = document.getElementById('customFilename');
+
+  // Preview
   const previewVerse   = document.getElementById('previewVerse');
   const previewVersion = document.getElementById('previewVersion');
   const previewCursive = document.getElementById('previewCursive');
   const previewPrompt  = document.getElementById('previewPrompt');
 
-  /* ===== Tagify (verses) ===== */
-  const tagify = new Tagify(verseInput, {
-    enforceWhitelist: false,
-    trim: true,
-    duplicates: false,
-    pasteAsTags: true,
-    delimiters: ",\n",
-    dropdown: { enabled: 0 },
-    originalInputValueFormat: arr => arr.map(v => v.value).join(", ")
-  });
+  // Hints
+  const filenamePreview= document.getElementById('filenamePreview');
+  const zipHint        = document.getElementById('zipHint');
 
-  /* ===== Utilities ===== */
-  const KNOWN_VERS = ['ESV','KJV','NLT','NASB','NIV','CSB','AUTO'];
-  const sluggify = s => (s||'').replace(/[^\w\s]/g,"").replace(/\s+/g,"_").toLowerCase();
+  /* ===== Helpers ===== */
+  const KNOWN = ['ESV','KJV','NLT','NASB','NIV','CSB','AUTO'];
+  const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
   const detectVersion = str => {
     const m = /\((ESV|KJV|NLT|NASB|NIV|CSB)\)/i.exec(str||'');
     return m ? m[1].toUpperCase() : null;
   };
-  const computeEffectiveVersion = () => {
-    const lastTagVer = [...tagify.value].reverse().map(t=>detectVersion(t.value)).find(Boolean);
-    return (lastTagVer || (versionSelect.value||'esv')).toUpperCase();
+  const effectiveVersion = () => {
+    // prefer explicit in last tag, else dropdown
+    const v = [...tagify.value].reverse().map(t=>detectVersion(t.value)).find(Boolean);
+    return (v || (versionSelect.value||'esv')).toUpperCase();
   };
-  const firstTagText = () => tagify.value.map(t=>t.value.trim()).find(Boolean) || '';
 
-  /* ===== Mode switching (mutually exclusive) ===== */
   function setMode(mode){
-    const verses = (mode === 'verses');
-    panelVerses.classList.toggle('hidden', !verses);
-    panelVerses.setAttribute('aria-hidden', (!verses).toString());
+    const isVerse  = mode === 'verse';
+    verseBlock.classList.toggle('hidden', !isVerse);
+    customBlock.classList.toggle('hidden',  isVerse);
 
-    panelCustom.classList.toggle('hidden', verses);
-    panelCustom.setAttribute('aria-hidden', verses.toString());
-
-    customMode.value = verses ? '0' : '1';
-
-    // Disable irrelevant inputs to avoid accidental submits
-    verseInput.disabled = !verses;
-    versionSelect.disabled = !verses && versionSelect.value === 'auto' ? false : false; // keep selectable; only ignored in backend if custom
-    customTitle.disabled = verses;
-    customText.disabled = verses;
-    customPrompt.disabled = verses;
-
-    // Share link makes sense only for verse mode
-    shareBtn.style.display = verses ? '' : 'none';
-
+    if (isVerse){
+      // clear custom
+      customTitle.value = '';
+      customText.value = '';
+      customPrompt.value = '';
+      if (agreeTerms) agreeTerms.checked = false;
+      customFilename.textContent = '';
+    } else {
+      // clear verse tags
+      tagify.removeAllTags();
+      verseInput.value = '';
+      filenamePreview.textContent = '';
+      zipHint.style.display = 'none';
+    }
     updatePreview();
   }
-  modeVerses.addEventListener('change', ()=>setMode('verses'));
-  modeCustom.addEventListener('change', ()=>setMode('custom'));
 
-  /* ===== Quick pick chips ===== */
+  function firstTagText(){
+    const t = tagify.value.map(t=>t.value.trim()).find(Boolean);
+    return t || '';
+  }
+
+  function updatePreview(){
+    const isVerse = !customBlock || customBlock.classList.contains('hidden');
+    if (isVerse){
+      const verse = firstTagText() || '—';
+      previewVerse.textContent = verse;
+      previewVersion.textContent = effectiveVersion();
+      previewPrompt.textContent  = '—';
+    } else {
+      const title = (customTitle.value||'').trim();
+      const body  = (customText.value||'').trim();
+      previewVerse.textContent   = title || (body ? '(DIY text)' : '—');
+      previewVersion.textContent = (versionSelect.value||'esv').toUpperCase();
+      previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
+    }
+    previewCursive.hidden = !cursiveToggle.checked;
+  }
+
+  function updateVerseFilenames(){
+    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+    filenamePreview.textContent = tags.length ? tags.map(v => slug(v) + suffix).join(", ") : "";
+    if (zipHint){
+      if (tags.length > 1){ zipHint.style.display='block'; zipHint.textContent = `Will create a ZIP with ${tags.length} worksheets.`; }
+      else { zipHint.style.display='none'; }
+    }
+  }
+
+  function updateCustomFilename(){
+    const name = (customTitle.value||'').trim() || (customText.value||'').slice(0,24).trim() || 'custom_text';
+    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+    customFilename.textContent = `Will create: ${slug(name)}${suffix}`;
+  }
+
+  /* ===== Mode toggle ===== */
+  modeVerse.addEventListener('change', ()=> setMode('verse'));
+  modeCustom.addEventListener('change', ()=> setMode('custom'));
+
+  /* ===== Quick picks ===== */
   document.addEventListener('click', (e)=>{
     const chip = e.target.closest('.chip');
-    if(!chip) return;
+    if (!chip) return;
     const v = chip.getAttribute('data-verse');
     const p = chip.getAttribute('data-prompt');
     if (v){
-      if (!modeVerses.checked) { modeVerses.checked = true; setMode('verses'); }
-      tagify.addTags([v]);
-      updateFilenames(); updateZipHint(); updatePreview();
+      if (!modeVerse.checked) { modeVerse.checked = true; setMode('verse'); }
+      tagify.addTags([v]); updateVerseFilenames(); updatePreview();
     }
     if (p){ customPrompt.value = p; updatePreview(); }
   });
 
-  /* ===== Preview / filenames / zip hint ===== */
-  function updatePreview(){
-    let title, ver = computeEffectiveVersion();
-    if (modeVerses.checked){
-      title = firstTagText() || '—';
-      previewVersion.hidden = false;
-    } else {
-      title = customTitle.value.trim() || (customText.value.trim() ? '(DIY text)' : '—');
-      previewVersion.hidden = true;
-    }
-    previewVerse.textContent = title;
-    previewVersion.textContent = ver;
-    previewCursive.hidden = !cursiveToggle.checked;
-    previewPrompt.textContent = (customPrompt.value||'').trim() || '—';
-  }
-  function updateFilenames(){
-    const tags = tagify.value.map(t=>t.value.trim()).filter(Boolean);
-    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
-    filenamePreview.textContent = modeVerses.checked && tags.length
-      ? tags.map(v => sluggify(v) + suffix).join(", ")
-      : "";
-  }
-  function updateZipHint(){
-    const n = tagify.value.length;
-    zipHint.hidden = !(modeVerses.checked && n > 1);
-    if (!zipHint.hidden) zipHint.textContent = `Will create a ZIP with ${n} worksheets.`;
-  }
-
-  /* Tagify updates */
+  /* ===== Tagify events ===== */
   ['add','remove','input','blur'].forEach(evt=>{
-    tagify.on(evt, ()=>{ updateFilenames(); updateZipHint(); updatePreview(); });
+    tagify.on(evt, ()=>{ updateVerseFilenames(); updatePreview(); });
   });
 
-  /* Persist simple prefs */
+  /* ===== Persist simple prefs ===== */
   versionSelect.addEventListener('change', ()=>{ localStorage.setItem('preferredVersion', versionSelect.value); updatePreview(); });
-  cursiveToggle.addEventListener('change', ()=>{ localStorage.setItem('useCursive', cursiveToggle.checked); updateFilenames(); updatePreview(); });
+  cursiveToggle.addEventListener('change', ()=>{ localStorage.setItem('useCursive', cursiveToggle.checked); updateVerseFilenames(); updateCustomFilename(); updatePreview(); });
 
-  /* Submit */
+  /* ===== Custom inputs ===== */
+  ['input','change'].forEach(evt=>{
+    customTitle.addEventListener(evt, ()=>{ updateCustomFilename(); updatePreview(); });
+    customText .addEventListener(evt, ()=>{ updateCustomFilename(); updatePreview(); });
+    customPrompt.addEventListener(evt, updatePreview);
+  });
+
+  /* ===== Submit ===== */
   document.getElementById('worksheetForm').addEventListener('submit', (e)=>{
-    if (modeVerses.checked){
-      const tags = tagify.value.map(t=>t.value.trim()).filter(Boolean);
+    const isVerse = modeVerse.checked;
+    const tags = tagify.value.map(t=>t.value.trim()).filter(Boolean);
+    const customBody = (customText.value||'').trim();
+
+    if (isVerse){
       if (tags.length === 0){
         e.preventDefault();
-        alert('Please enter at least one verse.');
+        alert('Please add at least one verse.');
         verseInput.setAttribute('aria-invalid','true');
         return;
       }
+      // Pack tags back into the real input
       verseInput.value = tags.join(', ');
       localStorage.setItem('recentVerses', verseInput.value);
     } else {
-      if (!(customText.value||'').trim()){
+      if (!customBody){
         e.preventDefault();
         alert('Please paste your text.');
         return;
       }
       if (!(agreeTerms && agreeTerms.checked)){
         e.preventDefault();
-        alert('You must agree to the terms to submit custom content.');
+        alert('Please confirm your content is appropriate.');
         return;
       }
-      // When custom is used, ensure verse input submits empty to backend
-      verseInput.value = '';
     }
 
-    // Page overlay (provided by base)
-    if (window.showOverlay) window.showOverlay();
+    // Base template handles overlay for real POSTs
     submitBtn.disabled = true;
+    setTimeout(()=>{ toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 2200); }, 80);
 
-    // Safety auto-hide in case navigation is blocked
-    setTimeout(()=>{ submitBtn.disabled = false; if (window.hideOverlay) window.hideOverlay(); }, 20000);
-
-    setTimeout(()=>{ toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 2500); }, 80);
+    // Safety: auto re-enable if nothing happens
+    setTimeout(()=>{ if (!document.hidden){ submitBtn.disabled = false; } }, 20000);
   });
 
-  /* Clear */
+  /* ===== Clear ===== */
   clearBtn.addEventListener('click', ()=>{
-    tagify.removeAllTags();
-    verseInput.value = '';
-    customTitle.value = '';
-    customText.value = '';
-    customPrompt.value = '';
-    agreeTerms && (agreeTerms.checked = false);
-    filenamePreview.textContent = '';
-    localStorage.removeItem('recentVerses');
-    modeVerses.checked = true; setMode('verses');
-    updateZipHint(); updatePreview();
+    tagify.removeAllTags(); verseInput.value = '';
+    customTitle.value=''; customText.value=''; customPrompt.value='';
+    if (agreeTerms) agreeTerms.checked = false;
+    filenamePreview.textContent=''; customFilename.textContent='';
+    zipHint.style.display='none';
+    updatePreview();
   });
 
-  /* Share link (verse mode only) */
+  /* ===== Share link ===== */
   shareBtn.addEventListener('click', async ()=>{
-    if (!modeVerses.checked) return;
     const params = new URLSearchParams();
-    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
-    if (tags.length) params.set('v', tags.join(' | '));
+    if (modeVerse.checked){
+      const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+      if (tags.length) params.set('v', tags.join(' | '));
+    } else {
+      if (customTitle.value.trim()) params.set('title', customTitle.value.trim());
+      if (customText.value.trim())  params.set('text',  customText.value.trim().slice(0,120));
+      if (customPrompt.value.trim()) params.set('prompt', customPrompt.value.trim());
+      params.set('mode','custom');
+    }
     if (cursiveToggle.checked) params.set('cursive','1');
-    const ver = (versionSelect.value||'auto').toLowerCase();
-    if (ver && ver !== 'auto') params.set('version', ver);
+    if (versionSelect.value && versionSelect.value !== 'auto') params.set('version', versionSelect.value);
+
     const url = `${location.origin}${location.pathname}?${params.toString()}`;
     try { await navigator.clipboard.writeText(url); } catch {}
     toastEl.textContent = '🔗 Link copied!'; toastEl.classList.add('show');
-    setTimeout(()=>toastEl.classList.remove('show'), 1600);
+    setTimeout(()=>toastEl.classList.remove('show'), 1800);
   });
 
-  /* Hydrate */
+  /* ===== Hydrate on load ===== */
   window.addEventListener('DOMContentLoaded', ()=>{
-    // Hide any stray overlay from extensions or previous page
-    if (window.hideOverlay) window.hideOverlay();
-
-    // Prefill from server or URL
-    const prefill = {{ prefill_verse|tojson|default('""') }};
-    const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
+    // URL/state restore
     const params = new URLSearchParams(location.search);
     const urlVerses = params.get('v');
+    const urlMode   = params.get('mode') === 'custom';
     const urlVer    = params.get('version');
     const urlCur    = params.get('cursive') === '1';
 
-    if (prefill) tagify.addTags(prefill.split(',').map(v=>v.trim()).filter(Boolean));
-    if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
+    const prefill   = {{ prefill_verse|tojson|default('""') }};
+    const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
+
+    if (urlMode){ modeCustom.checked = true; setMode('custom'); }
+    else { setMode('verse'); }
+
+    if (modeVerse.checked){
+      if (prefill) tagify.addTags(prefill.split(',').map(v=>v.trim()).filter(Boolean));
+      if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
+
+      const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
+      if (recent) tagify.addTags(recent.split(',').map(v=>v.trim()).filter(Boolean));
+      updateVerseFilenames();
+    } else {
+      const t = params.get('title') || '';
+      const x = params.get('text')  || '';
+      const p = params.get('prompt')|| '';
+      if (t) customTitle.value = t;
+      if (x) customText.value  = x;
+      if (p) customPrompt.value= p;
+      updateCustomFilename();
+    }
 
     if (defaultVersionOverride) versionSelect.value = String(defaultVersionOverride).toLowerCase();
     if (urlVer) versionSelect.value = urlVer.toLowerCase();
 
-    const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
-    if (recent) tagify.addTags(recent.split(',').map(v => v.trim()).filter(Boolean));
-
     cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');
-
-    setMode('verses'); // default
-    updateFilenames(); updateZipHint(); updatePreview();
+    updatePreview();
 
     // Upgrade banner dismissal (month-scoped)
     const el = document.getElementById('upgradeCta');
     if (el){
       const key = 'upgradeDismiss_' + (new Date()).toISOString().slice(0,7).replace('-', '');
       if(localStorage.getItem(key) === '1'){ el.hidden = true; }
-      else { el.hidden = false; el.querySelector('.dismiss').addEventListener('click', ()=>{ localStorage.setItem(key,'1'); el.hidden = true; }); }
+      else {
+        el.hidden = false;
+        el.querySelector('.dismiss').addEventListener('click', ()=>{
+          localStorage.setItem(key,'1'); el.hidden = true;
+        });
+      }
     }
   });
 </script>
 
 <style>
-  /* ------- Layout ------- */
+  /* Page-local polish (uses theme tokens, no hardcoded dark blocks) */
   .grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
@@ -588,14 +602,12 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
     top: 1rem;
   }
 
-  /* ------- Blocks & tokens ------- */
   .block {
-    border: 1px solid var(--border-color, #e5e7eb);
+    border: 1px solid #e5e7eb;
     background: var(--box);
     border-radius: 12px;
     padding: 1rem;
-    margin-bottom: 0.9rem;
-    color: var(--text);
+    margin-bottom: 0.85rem;
   }
   .step {
     display: flex;
@@ -609,54 +621,42 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--primary), #000 8%);
+    background: var(--primary-dark);
     color: #fff;
-    font-weight: 800;
+    font-weight: 700;
   }
 
-  /* ------- Tabs (mutually exclusive) ------- */
-  .tabs {
-    display: flex;
+  .segmented {
+    display: inline-flex;
     gap: 6px;
-    margin-bottom: 0.6rem;
-    flex-wrap: wrap;
+    padding: 4px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--box), white 30%);
   }
-  .tabs input {
-    display: none;
+  .seg-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .tabs label {
+  .seg-item input {
+    appearance: none;
+    position: absolute;
+    opacity: 0;
+  }
+  .seg-item span {
+    display: inline-block;
     padding: 6px 10px;
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 999px;
+    border-radius: 10px;
     cursor: pointer;
     user-select: none;
-    font-weight: 700;
-    background: color-mix(in oklab, var(--box), white 8%);
   }
-  .tabs input:checked + label {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
-  }
-  .panel {
-    margin-top: 0.25rem;
-  }
-  .hidden {
-    display: none !important;
+  .seg-item input:checked + span {
+    background: #e0e7ff;
+    color: #111827;
+    border: 1px solid #c7d2fe;
   }
 
-  /* ------- Rows / chips ------- */
-  .row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .checkbox-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
   .quick-picks {
     display: flex;
     gap: 0.4rem;
@@ -664,74 +664,21 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
     flex-wrap: wrap;
     margin-top: 0.4rem;
   }
-  .chip {
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--box), white 6%);
-    color: inherit;
-    padding: 0.25rem 0.6rem;
-    cursor: pointer;
-  }
-  .chip:hover {
-    background: color-mix(in oklab, var(--box), white 14%);
-  }
-
-  /* ------- Tips ------- */
-  .tips {
-    margin-top: 0.35rem;
-  }
-  .tips summary {
-    cursor: pointer;
-  }
-
-  /* ------- Usage banner ------- */
-  .usage-banner {
-    background: var(--box);
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 12px;
-    padding: 10px;
-    margin-bottom: 12px;
-  }
-  .usage-banner .bar {
-    height: 8px;
-    background: color-mix(in oklab, var(--box), black 8%);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .usage-banner .fill {
-    height: 100%;
-    background: var(--primary);
-  }
-  .usage-banner .row {
+  .checkbox-row {
     display: flex;
-    justify-content: space-between;
+    gap: 0.5rem;
     align-items: center;
-    margin-top: 6px;
-  }
-  .upgrade {
-    margin-top: 8px;
-    padding: 6px 10px;
-    border-radius: 10px;
-    background: color-mix(in oklab, var(--primary), #f59e0b 20%);
-    border: 1px solid color-mix(in oklab, var(--primary), #92400e 40%);
-    color: #1f2937;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
-  .upgrade .dismiss {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
   }
 
-  /* ------- Preview ------- */
+  .hidden {
+    display: none;
+  }
+
   .preview-card {
-    border: 1px dashed var(--border-color, #e5e7eb);
+    border: 1px dashed #cbd5e1;
     border-radius: 12px;
     padding: 0.8rem;
+    background: color-mix(in oklab, var(--box), white 12%);
   }
   .preview-header {
     display: flex;
@@ -739,124 +686,48 @@ none and (usage_info.monthly_remaining|int) <= 0 %}
     gap: 0.5rem;
     align-items: flex-start;
   }
-  .preview-verse {
-    font-weight: 800;
-  }
   .preview-badges {
     display: flex;
     gap: 0.35rem;
     align-items: center;
   }
-  .pill {
-    display: inline-block;
-    padding: 0.2rem 0.55rem;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--box), black 10%);
-    color: inherit;
-    font-size: 0.8rem;
-    border: 1px solid var(--border-color, #e5e7eb);
-  }
-  .pill.alt {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
-  }
-  .preview-body {
-    margin-top: 0.6rem;
-    display: grid;
-    gap: 0.5rem;
-  }
   .preview-lines {
     height: 80px;
     border-radius: 8px;
     background: repeating-linear-gradient(
-      color-mix(in oklab, var(--box), black 8%),
-      color-mix(in oklab, var(--box), black 8%) 18px,
-      color-mix(in oklab, var(--box), black 20%) 18px,
-      color-mix(in oklab, var(--box), black 20%) 20px
+      #fff,
+      #fff 18px,
+      #e5e7eb 18px,
+      #e5e7eb 20px
     );
-    border: 1px solid var(--border-color, #e5e7eb);
+    border: 1px solid #e5e7eb;
   }
   .preview-draw {
-    border: 1px solid var(--border-color, #e5e7eb);
+    border: 1px solid #e5e7eb;
     border-radius: 8px;
     padding: 0.5rem;
     min-height: 56px;
   }
 
-  /* ------- Actions & helpers ------- */
-  .actions {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-  }
   .left-chip {
     margin-left: auto;
   }
+
   @media (max-width: 820px) {
     .actions {
       position: sticky;
       bottom: 0;
       background: color-mix(in oklab, var(--background), transparent 20%);
-      border-top: 1px solid var(--border-color, #e5e7eb);
+      border-top: 1px solid #e5e7eb;
       padding: 0.5rem;
       backdrop-filter: blur(6px);
       z-index: 5;
     }
   }
 
-  /* Toast */
   .snackbar {
-    position: fixed;
-    left: 50%;
-    bottom: 18px;
-    transform: translateX(-50%);
-    background: color-mix(in oklab, var(--background), black 70%);
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 14px;
-    z-index: 9999;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.18s;
-  }
-  .snackbar.show {
-    opacity: 1;
-  }
-
-  /* Text helpers */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-  .muted {
-    color: var(--text-secondary);
-  }
-  .help {
-    opacity: 0.95;
-    font-size: 0.9rem;
-  }
-  .warn {
-    margin-top: 0.5rem;
-    border: 1px solid #7a1a1a;
-    background: #5a0b0b22;
-    color: #7a1a1a;
-    border-radius: 10px;
-    padding: 0.5rem 0.75rem;
-  }
-  .micro {
-    font-size: 0.75rem;
-    opacity: 0.7;
+    background: rgba(30, 41, 59, 0.95);
+    color: #e5e7eb;
   }
 </style>
 {% endblock %}
