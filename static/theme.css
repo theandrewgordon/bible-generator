@@ -832,6 +832,15 @@ body.dark,
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
+/* Prevent layout shift while images decode */
+.thumb-card img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #0b1220;
+}
 
 /* optional soft categories (attach these classes in HTML if desired) */
 .quick-picks .chip.nt {

@@ -156,38 +156,64 @@
 
 {% if items and items|length %}
 <section class="block">
-  <h3>Recent</h3>
-  <ul class="thumb-grid">
-    {% for item in items %}
-    <li class="thumb-card">
-      <a
-        href="{{ url_for('download_file', filename=item.filename) }}"
-        title="Download"
-      >
-        <img
-          loading="lazy"
-          src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}"
-          alt="Thumbnail for {{ item.verse }}"
-          onerror="this.style.display='none'"
-        />
-      </a>
-      <div class="t-title">{{ item.verse }}</div>
-      <div class="t-meta"><span class="pill alt">{{ item.version }}</span></div>
-      <div class="t-actions">
-        <a
-          class="button"
-          href="{{ url_for('download_file', filename=item.filename) }}"
-          >📥 Download</a
-        >
-        <a
-          class="button ghost"
-          href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
-          >♻️ Regenerate</a
-        >
-      </div>
-    </li>
-    {% endfor %}
-  </ul>
+  <details id="recentPdfs">
+    <summary>
+      <h3 style="display: inline">Recent</h3>
+      <span class="small muted">(click to expand)</span>
+    </summary>
+
+    <!-- We lazy-hydrate this when <details> opens the first time -->
+    <div id="recentMount" class="mt10">
+      <div class="empty muted small">Loading…</div>
+    </div>
+
+    <!-- Server renders the full list here, but inside a template so it’s inert -->
+    <template id="recentTpl">
+      <ul class="thumb-grid">
+        {% for item in items %}
+        <li class="thumb-card">
+          <a
+            href="{{ url_for('download_file', filename=item.filename) }}"
+            title="Download"
+          >
+            <img
+              src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}"
+              alt="Thumbnail for {{ item.verse }}"
+              width="400"
+              height="300"
+              {#
+              4:3
+              to
+              match
+              aspect-ratio
+              #}
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
+              onerror="this.style.display='none'"
+            />
+          </a>
+          <div class="t-title">{{ item.verse }}</div>
+          <div class="t-meta">
+            <span class="pill alt">{{ item.version }}</span>
+          </div>
+          <div class="t-actions">
+            <a
+              class="button"
+              href="{{ url_for('download_file', filename=item.filename) }}"
+              >📥 Download</a
+            >
+            <a
+              class="button ghost"
+              href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
+              >♻️ Regenerate</a
+            >
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </template>
+  </details>
 </section>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <style>
@@ -391,5 +417,49 @@
   }
 
   document.addEventListener("DOMContentLoaded", applyFilters);
+</script>
+<script>
+  // Remember open/closed state for Top sections + Recent
+  (function rememberDetails() {
+    ["topPacks", "topWeek", "recentPdfs"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const key = `browse:${id}:open`;
+      try {
+        if (localStorage.getItem(key) === "true") el.open = true;
+      } catch (e) {}
+      el.addEventListener("toggle", () => {
+        try {
+          localStorage.setItem(key, el.open ? "true" : "false");
+        } catch (e) {}
+      });
+    });
+  })();
+
+  // Lazy-hydrate Recent only when opened the first time
+  (function hydrateRecentOnOpen() {
+    const det = document.getElementById("recentPdfs");
+    if (!det) return;
+    const mount = document.getElementById("recentMount");
+    const tpl = document.getElementById("recentTpl");
+    let done = false;
+
+    function mountNow() {
+      if (done) return;
+      done = true;
+      if (tpl && mount) {
+        mount.innerHTML = tpl.innerHTML; // cheap, images start decoding only now
+      }
+    }
+    // If it starts opened (remembered), hydrate immediately
+    if (det.open) mountNow();
+    det.addEventListener(
+      "toggle",
+      () => {
+        if (det.open) mountNow();
+      },
+      { once: false }
+    );
+  })();
 </script>
 {% endblock %}
