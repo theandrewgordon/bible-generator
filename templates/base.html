@@ -145,7 +145,7 @@
     {% block head_extra %}{% endblock %}
   </head>
 
-  <!-- Utilities: mobile nav + sticky header -->
+  <!-- Utilities: mobile nav + sticky header (+ usage chip refresh) -->
   <script>
     (function () {
       // Mobile nav
@@ -167,12 +167,58 @@
           if (e.key === "Escape") setOpen(false);
         });
       });
+
       // Sticky header shadow
       const h = document.querySelector(".main-header");
       const onScroll = () =>
         h && h.classList.toggle("is-stuck", (window.scrollY || 0) > 2);
       onScroll();
       addEventListener("scroll", onScroll, { passive: true });
+
+      // === Usage chip refresher (works if you add /api/usage) ===
+      async function refreshUsageChip() {
+        const chip =
+          document.getElementById("usageChip") ||
+          document.querySelector(".usage-chip");
+        if (!chip) return;
+        try {
+          const res = await fetch("/api/usage", {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data && data.text) {
+            chip.textContent = data.text;
+            if (data.title) chip.title = data.title;
+          }
+        } catch {}
+      }
+      window.refreshUsageChip = refreshUsageChip;
+
+      // If we just generated something, refresh a few times as the job settles.
+      if (sessionStorage.getItem("genPending") === "1") {
+        sessionStorage.removeItem("genPending");
+        setTimeout(refreshUsageChip, 1200);
+        setTimeout(refreshUsageChip, 3500);
+        setTimeout(refreshUsageChip, 7000);
+      }
+
+      // When the tab regains focus (download opened a new tab), try once more.
+      addEventListener("focus", () => {
+        if (sessionStorage.getItem("genPendingFocus") === "1") {
+          sessionStorage.removeItem("genPendingFocus");
+          refreshUsageChip();
+        }
+      });
+
+      // Optional hard-reload fallback (leave commented unless you want it):
+      // document.addEventListener("visibilitychange", () => {
+      //   if (document.visibilityState === "visible" && sessionStorage.getItem("genReload") === "1") {
+      //     sessionStorage.removeItem("genReload");
+      //     location.reload();
+      //   }
+      // });
     })();
   </script>
 
@@ -299,7 +345,8 @@
     <footer>
       &copy; 2025 Faith Sparks Printables. All rights reserved. {% if
       support_email %} • Support:
-      <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
+      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+      {% endif %}
     </footer>
 
     <script>
@@ -320,11 +367,14 @@
         }
         window.showOverlay = show;
         window.hideOverlay = hide;
+
         addEventListener("DOMContentLoaded", hide);
         addEventListener("pageshow", hide);
+
         document.addEventListener(
           "submit",
           (ev) => {
+            // Run after anyone else had a chance to preventDefault.
             Promise.resolve().then(() => {
               if (ev.defaultPrevented) return hide();
               const form = ev.target;

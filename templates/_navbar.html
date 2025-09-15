@@ -42,7 +42,11 @@
 
       <a class="nav-link" href="/history"
          {% if p.startswith('/history') %}aria-current="page"{% endif %}>📚 History</a>
-
+      {% if is_signed_in and usage_nav %}
+        <span class="usage-chip" id="usageChip" title="{{ usage_nav.title }}">
+          {{ usage_nav.text }}
+        </span>
+      {% endif %}
       {% if not is_pro %}
         <a class="nav-link plus" href="/plus"
            {% if p.startswith('/plus') %}aria-current="page"{% endif %}>⭐ Plus</a>
