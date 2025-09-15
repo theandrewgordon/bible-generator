@@ -110,21 +110,14 @@
 </header>
 
 <script>
-  // Run after elements exist
   (function () {
     const menuToggle = document.getElementById('menuToggle');
-    const themeToggle = document.getElementById('themeToggle');
     if (menuToggle) {
       menuToggle.addEventListener('click', () => {
         const expanded = menuToggle.getAttribute('aria-expanded') === 'true';
         menuToggle.setAttribute('aria-expanded', String(!expanded));
       });
     }
-    if (themeToggle) {
-      themeToggle.addEventListener('click', () => {
-        const pressed = themeToggle.getAttribute('aria-pressed') === 'true';
-        themeToggle.setAttribute('aria-pressed', String(!pressed));
-      });
-    }
+    // Theme button is wired by darkmode.js; we only ensure it exists.
   })();
 </script>
