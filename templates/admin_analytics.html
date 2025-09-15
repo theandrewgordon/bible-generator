@@ -1,45 +1,110 @@
-{% extends "base.html" %}
-{% block title %}Admin • Analytics{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Admin • Analytics{% endblock %} {%
+block content %}
 <h1 class="page-title">Admin: Analytics</h1>
-
 <section class="block">
-  <h3>Top Packs (All Time)</h3>
-  <ul>
-    {% for p in top_packs %}
-      <li>{{ p.title }} — {{ p.downloads }}</li>
-    {% endfor %}
-    {% if not top_packs %}<li class="muted">No data yet.</li>{% endif %}
-  </ul>
+  <table class="admin-table">
+    <caption>
+      Top Packs (All Time)
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Pack</th>
+        <th scope="col">Downloads</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in top_packs %}
+      <tr>
+        <td>{{ p.title }}</td>
+        <td class="num">{{ p.downloads }}</td>
+      </tr>
+      {% endfor %} {% if not top_packs %}
+      <tr>
+        <td colspan="2" class="muted">No data yet.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <div class="small muted" style="margin-top: 0.25rem">
+    Tip: connect metrics to populate these tables.
+  </div>
 </section>
 
 <section class="block">
-  <h3>Top Packs (Last 7 Days)</h3>
-  <ul>
-    {% for p in top_packs_week %}
-      <li>{{ p.title }} — {{ p.downloads }}</li>
-    {% endfor %}
-    {% if not top_packs_week %}<li class="muted">No data yet.</li>{% endif %}
-  </ul>
+  <table class="admin-table">
+    <caption>
+      Top Packs (Last 7 Days)
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Pack</th>
+        <th scope="col">Downloads</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in top_packs_week %}
+      <tr>
+        <td>{{ p.title }}</td>
+        <td class="num">{{ p.downloads }}</td>
+      </tr>
+      {% endfor %} {% if not top_packs_week %}
+      <tr>
+        <td colspan="2" class="muted">No data yet.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
 </section>
 
 <section class="block">
-  <h3>Top Verses (All Time)</h3>
-  <ul>
-    {% for v in top_verses %}
-      <li>{{ v.key }} — {{ v.count }}</li>
-    {% endfor %}
-    {% if not top_verses %}<li class="muted">No data yet.</li>{% endif %}
-  </ul>
+  <table class="admin-table">
+    <caption>
+      Top Verses (All Time)
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Verse</th>
+        <th scope="col">Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in top_verses %}
+      <tr>
+        <td>{{ v.key }}</td>
+        <td class="num">{{ v.count }}</td>
+      </tr>
+      {% endfor %} {% if not top_verses %}
+      <tr>
+        <td colspan="2" class="muted">No data yet.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
 </section>
 
 <section class="block">
-  <h3>Top Verses (Last 7 Days)</h3>
-  <ul>
-    {% for v in top_verses_week %}
-      <li>{{ v.key }} — {{ v.count }}</li>
-    {% endfor %}
-    {% if not top_verses_week %}<li class="muted">No data yet.</li>{% endif %}
-  </ul>
+  <table class="admin-table">
+    <caption>
+      Top Verses (Last 7 Days)
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Verse</th>
+        <th scope="col">Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in top_verses_week %}
+      <tr>
+        <td>{{ v.key }}</td>
+        <td class="num">{{ v.count }}</td>
+      </tr>
+      {% endfor %} {% if not top_verses_week %}
+      <tr>
+        <td colspan="2" class="muted">No data yet.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
 </section>
 {% endblock %}

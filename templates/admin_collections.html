@@ -48,19 +48,22 @@ block content %}
 
 <div class="table-wrap">
   <table class="admin-table" id="collectionsTable">
+    <caption class="small muted" style="text-align: left; padding: 0.5rem 1rem">
+      Collections
+    </caption>
     <thead>
       <tr>
-        <th data-sort="num" class="num">Order</th>
-        <th data-sort="text">Slug</th>
-        <th data-sort="text">Title</th>
-        <th data-sort="num" class="num">Verses</th>
-        <th data-sort="text">Visibility</th>
-        <th data-sort="text">Free</th>
-        <th data-sort="text">Subscriber</th>
-        <th data-sort="text">Price</th>
-        <th data-sort="text">Build</th>
-        <th data-sort="date">Last Built</th>
-        <th>Actions</th>
+        <th scope="col" data-sort="num" class="num" aria-sort="none">Order</th>
+        <th scope="col" data-sort="text" aria-sort="none">Slug</th>
+        <th scope="col" data-sort="text" aria-sort="none">Title</th>
+        <th scope="col" data-sort="num" class="num" aria-sort="none">Verses</th>
+        <th scope="col" data-sort="text" aria-sort="none">Visibility</th>
+        <th scope="col" data-sort="text" aria-sort="none">Free</th>
+        <th scope="col" data-sort="text" aria-sort="none">Subscriber</th>
+        <th scope="col" data-sort="text" aria-sort="none">Price</th>
+        <th scope="col" data-sort="text" aria-sort="none">Build</th>
+        <th scope="col" data-sort="date" aria-sort="none">Last Built</th>
+        <th scope="col">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -155,14 +158,20 @@ block content %}
         <td>
           <span class="prewarm" data-status="{{ s or '' }}">
             {% if s == 'running' %}
-            <span class="pill"
-              >Building
-              <span class="done">{{ c.get('prewarm', {}).get('done', 0) }}</span
-              >/<span class="total"
-                >{{ c.get('prewarm', {}).get('total', '?') }}</span
-              ></span
-            >
-            {% elif s == 'done' %}
+            <span>
+              <progress
+                max="{{ c.get('prewarm', {}).get('total', 0) or 0 }}"
+                value="{{ c.get('prewarm', {}).get('done', 0) or 0 }}"
+              ></progress>
+              <span class="small mono"
+                ><span class="done"
+                  >{{ c.get('prewarm', {}).get('done', 0) }}</span
+                >/<span class="total"
+                  >{{ c.get('prewarm', {}).get('total', '?') }}</span
+                ></span
+              >
+            </span>
+            > {% elif s == 'done' %}
             <span class="pill alt">Ready</span>
             {% elif s == 'error' %}
             <span class="pill error">Error</span>
@@ -407,8 +416,15 @@ block content %}
       th.addEventListener("click", () => {
         const type = th.dataset.sort;
         const dir = th.classList.contains("asc") ? "desc" : "asc";
-        ths.forEach((x) => x.classList.remove("asc", "desc"));
+        ths.forEach((x) => {
+          x.classList.remove("asc", "desc");
+          x.setAttribute("aria-sort", "none");
+        });
         th.classList.add(dir);
+        th.setAttribute(
+          "aria-sort",
+          dir === "asc" ? "ascending" : "descending"
+        );
         const rows = Array.from(table.tBodies[0].rows);
         rows.sort((a, b) => {
           const av = cellVal(a, idx, type);
@@ -457,7 +473,10 @@ block content %}
         .join(",");
     });
     const csv = [headers, ...lines].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    // Add BOM for Excel compatibility on Windows
+    const blob = new Blob(["\ufeff" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

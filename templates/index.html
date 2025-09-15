@@ -1,13 +1,6 @@
 {% extends "base.html" %} {% block title %}Home | Faith Sparks Printables{%
 endblock %} {% block content %} {# ——— Announcement (Admin → Site Content).
-Subtle + dismissible. ——— #} {% if site_content and
-site_content.announcement_enabled and site_content.announcement_text %}
-<div class="announce" id="announce">
-  <span class="a-dot" aria-hidden="true">●</span>
-  <span class="a-text">{{ site_content.announcement_text }}</span>
-  <button class="a-x" type="button" aria-label="Dismiss">✕</button>
-</div>
-{% endif %} {# ——— HERO ——— #}
+Subtle + dismissible. ——— #} {# ——— HERO ——— #}
 <section class="hero">
   <div class="hero-text">
     {% if user_info %}

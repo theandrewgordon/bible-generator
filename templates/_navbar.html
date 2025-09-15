@@ -5,6 +5,10 @@
       <img
         src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}"
         alt="Faith Sparks Logo"
+        width="180" height="40"
+        decoding="async"
+        fetchpriority="high"
+        loading="eager"
       />
     </a>
 
@@ -20,6 +24,9 @@
       <span class="bar"></span><span class="bar"></span><span class="bar"></span>
     </button>
 
+
+
+    
     <!-- Primary nav -->
     <nav id="mainNav" class="nav-links" aria-label="Primary">
       {# active helpers #}
@@ -45,13 +52,11 @@
       {% endif %}
 
       {% if is_admin %}
-        <details class="admin-drop" {% if p.startswith('/admin') %}open{% endif %}>
+        <details class="admin-drop" {% if p.startswith('/admin') %}open{% endif %} aria-label="Admin menu">
           <summary
             class="admin-summary"
-            role="button"
             aria-haspopup="menu"
-            aria-expanded="{{ 'true' if p.startswith('/admin') else 'false' }}"
-          >🛠️ Admin</summary>
+          >🛠️ <span aria-hidden="true">Admin</span></summary>
           <div class="admin-panel" role="menu">
             <a class="nav-sublink" href="/admin/collections"
                role="menuitem" {% if p.startswith('/admin/collections') %}aria-current="page"{% endif %}>Collections</a>
@@ -96,9 +101,30 @@
         type="button"
         aria-label="Toggle dark mode"
         title="Toggle dark mode"
+        aria-pressed="false"
       >
         🌙
       </button>
     </div>
   </div>
 </header>
+
+<script>
+  // Run after elements exist
+  (function () {
+    const menuToggle = document.getElementById('menuToggle');
+    const themeToggle = document.getElementById('themeToggle');
+    if (menuToggle) {
+      menuToggle.addEventListener('click', () => {
+        const expanded = menuToggle.getAttribute('aria-expanded') === 'true';
+        menuToggle.setAttribute('aria-expanded', String(!expanded));
+      });
+    }
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        const pressed = themeToggle.getAttribute('aria-pressed') === 'true';
+        themeToggle.setAttribute('aria-pressed', String(!pressed));
+      });
+    }
+  })();
+</script>

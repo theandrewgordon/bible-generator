@@ -43,6 +43,51 @@
   --header-border: rgba(230, 242, 255, 0.14);
 }
 
+/* Reusable sheet SVG */
+.fs-sheet .sheet-bg {
+  fill: transparent;
+  stroke: var(--sheet-stroke, #d4d9e0);
+  stroke-dasharray: 4 4;
+}
+.fs-sheet .g1 {
+  stop-color: var(--sheet-g1, #0b2035);
+}
+.fs-sheet .g2 {
+  stop-color: var(--sheet-g2, #13273f);
+}
+.fs-sheet .rule {
+  fill: var(--sheet-rule, #203046);
+}
+.fs-sheet .chip {
+  fill: var(--sheet-chip, #183045);
+}
+.fs-sheet .chip-alt {
+  fill: var(--sheet-chip-alt, #0b3b5a);
+}
+.fs-sheet svg {
+  width: 100%;
+  height: auto;
+  max-width: 360px;
+}
+
+/* Light overrides via :root, dark via .dark */
+:root {
+  --sheet-g1: #f8fafc;
+  --sheet-g2: #eef2f7;
+  --sheet-rule: #e6edf6;
+  --sheet-chip: #dfe9f7;
+  --sheet-chip-alt: #cfe5fb;
+  --sheet-stroke: #d4d9e0;
+}
+.dark {
+  --sheet-g1: #0b2035;
+  --sheet-g2: #13273f;
+  --sheet-rule: #203046;
+  --sheet-chip: #183045;
+  --sheet-chip-alt: #0b3b5a;
+  --sheet-stroke: #334155;
+}
+
 /* ---------- Base ---------- */
 *,
 *::before,

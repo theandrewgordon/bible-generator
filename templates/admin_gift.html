@@ -1,23 +1,45 @@
-{% extends "base.html" %}
-{% block title %}Admin • Gift Plan{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Admin • Gift Plan{% endblock %} {%
+block content %}
 <h1 class="page-title">Admin: Gift Plan</h1>
 
-<form method="post" action="{{ url_for('admin_gift') }}" style="max-width:520px; display:grid; gap:10px;">
-  <label>Email
-    <input class="wide-input" type="email" name="email" placeholder="user@example.com" required />
+<form
+  method="post"
+  action="{{ url_for('admin_gift') }}"
+  style="max-width: 520px; display: grid; gap: 10px"
+>
+  <label for="gift_email"
+    >Email
+    <input
+      id="gift_email"
+      class="wide-input"
+      type="email"
+      name="email"
+      placeholder="user@example.com"
+      autocomplete="email"
+      required
+    />
   </label>
-  <label>Plan
-    <select name="plan">
+  <label for="gift_plan"
+    >Plan
+    <select id="gift_plan" name="plan">
       <option value="family">Plus Family</option>
       <option value="classroom">Plus Classroom</option>
       <option value="free">Free</option>
     </select>
   </label>
-  <label>Expires (optional)
-    <input type="date" name="expires" />
+  <label for="gift_expires"
+    >Expires (optional)
+    <input
+      id="gift_expires"
+      type="date"
+      name="expires"
+      min="{{ (now()|strftime('%Y-%m-%d')) if now else '' }}"
+    />
   </label>
-  <div class="small muted">If an expiration date is set, the user will automatically revert to Free after that date.</div>
+  <div class="small muted">
+    If an expiration date is set, the user will automatically revert to Free
+    after that date.
+  </div>
   <div class="actions">
     <button class="button">Save Gift</button>
     <a class="button ghost" href="{{ url_for('admin_collections') }}">Back</a>
@@ -25,51 +47,73 @@
 </form>
 
 {% if gifts %}
-  <h3 style="margin-top:16px;">Recent Gifts</h3>
-  <table style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr><th style="text-align:left; padding:6px;">When</th><th style="text-align:left; padding:6px;">Email</th><th style="text-align:left; padding:6px;">Plan</th><th style="text-align:left; padding:6px;">Expires</th><th style="text-align:left; padding:6px;">By</th></tr>
-    </thead>
-    <tbody>
-      {% for g in gifts %}
-      <tr style="border-top:1px solid #e5e7eb;">
-        <td style="padding:6px;">{{ g.at if g.at else '' }}</td>
-        <td style="padding:6px;">{{ g.email }}</td>
-        <td style="padding:6px;">{{ g.plan }}</td>
-        <td style="padding:6px;">{{ g.expiresAt if g.expiresAt else '' }}</td>
-        <td style="padding:6px;">{{ g.by or '' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<h3 style="margin-top: 16px">Recent Gifts</h3>
+<table style="width: 100%; border-collapse: collapse">
+  <caption class="small muted" style="text-align: left; padding: 6px 0">
+    Recent Gifts
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col" style="text-align: left; padding: 6px">When</th>
+      <th scope="col" style="text-align: left; padding: 6px">Email</th>
+      <th scope="col" style="text-align: left; padding: 6px">Plan</th>
+      <th scope="col" style="text-align: left; padding: 6px">Expires</th>
+      <th scope="col" style="text-align: left; padding: 6px">By</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in gifts %}
+    <tr style="border-top: 1px solid #e5e7eb">
+      <td style="padding: 6px">{{ g.at if g.at else '' }}</td>
+      <td style="padding: 6px">{{ g.email }}</td>
+      <td style="padding: 6px">{{ g.plan }}</td>
+      <td style="padding: 6px">{{ g.expiresAt if g.expiresAt else '' }}</td>
+      <td style="padding: 6px">{{ g.by or '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% else %}
-  <p class="small muted" style="margin-top:12px;">No gifts logged yet.</p>
+<p class="small muted" style="margin-top: 12px">No gifts logged yet.</p>
 {% endif %}
 
-<h3 style="margin-top:16px;">Active Gifted Users</h3>
+<h3 style="margin-top: 16px">Active Gifted Users</h3>
 {% if gifted_users %}
-  <table style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr><th style="text-align:left; padding:6px;">Email</th><th style="text-align:left; padding:6px;">Plan</th><th style="text-align:left; padding:6px;">Expires</th><th style="text-align:left; padding:6px;">Actions</th></tr>
-    </thead>
-    <tbody>
-      {% for u in gifted_users %}
-      <tr style="border-top:1px solid #e5e7eb;">
-        <td style="padding:6px;">{{ u.email }}</td>
-        <td style="padding:6px;">{{ u.plan }}</td>
-        <td style="padding:6px;">{{ u.expiresAt if u.expiresAt else '' }}</td>
-        <td style="padding:6px;">
-          <form method="post" action="{{ url_for('admin_gift') }}" onsubmit="return confirm('Revoke gift for {{ u.email }}?');">
-            <input type="hidden" name="action" value="revoke"/>
-            <input type="hidden" name="email" value="{{ u.email }}"/>
-            <button class="button" style="background:#fecaca; color:#111827;">Revoke</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<table style="width: 100%; border-collapse: collapse">
+  <caption class="small muted" style="text-align: left; padding: 6px 0">
+    Active Gifted Users
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col" style="text-align: left; padding: 6px">Email</th>
+      <th scope="col" style="text-align: left; padding: 6px">Plan</th>
+      <th scope="col" style="text-align: left; padding: 6px">Expires</th>
+      <th scope="col" style="text-align: left; padding: 6px">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in gifted_users %}
+    <tr style="border-top: 1px solid #e5e7eb">
+      <td style="padding: 6px">{{ u.email }}</td>
+      <td style="padding: 6px">{{ u.plan }}</td>
+      <td style="padding: 6px">{{ u.expiresAt if u.expiresAt else '' }}</td>
+      <td style="padding: 6px">
+        <form
+          method="post"
+          action="{{ url_for('admin_gift') }}"
+          onsubmit="return confirm('Revoke gift for {{ u.email }}?');"
+        >
+          <input type="hidden" name="action" value="revoke" />
+          <input type="hidden" name="email" value="{{ u.email }}" />
+          <button class="button" style="background: #fecaca; color: #111827">
+            Revoke
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% else %}
-  <p class="small muted">No active gifted users.</p>
-{% endif %}
-{% endblock %}
+<p class="small muted">No active gifted users.</p>
+{% endif %} {% endblock %}
