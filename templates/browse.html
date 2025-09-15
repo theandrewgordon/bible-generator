@@ -133,10 +133,11 @@
           href="{{ url_for('google.login', next=next_url) }}"
           >🔐 Sign in</a
         >
-        {% endif %}
+        {% endif %} {% set verses_param = (c.verses|join(' | ') if c.verses else
+        '') %}
         <a
           class="button small"
-          href="{{ url_for('generate', collection_slug=c.slug) }}"
+          href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate', collection_slug=c.slug) }}{% endif %}"
           >✍️ Use Pack</a
         >
       </div>

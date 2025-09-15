@@ -1,7 +1,8 @@
 {% extends "base.html" %} {% block title %}{{ c.title }} | Collections{%
 endblock %} {% block content %} {% set purchased = purchases.get(c.slug) if
 purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro and
-not purchased) %} {% set pid = pack_effective_price_id(c) %}
+not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
+= (c.verses|join(' | ') if c.verses else '') %}
 
 <header class="head">
   <div>
@@ -12,6 +13,7 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %}
       locked %}<span class="pill info">Included with Plus</span>{% endif %}
       <span class="pill">{{ c.verses|length }} verses</span>
     </div>
+
     {% if c.description %}
     <p class="muted">{{ c.description }}</p>
     {% endif %}
@@ -20,10 +22,12 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %}
 
 <div class="grid">
   <aside class="side">
-    <div class="hero-thumb" aria-hidden="true"></div>
     <div class="sticky-cta">
-      <a class="button" href="{{ url_for('generate') }}?collection={{ c.slug }}"
-        >✍️ Open in Generate</a
+      <!-- Match Browse: prefill Generate with ?v= (fallback to collection) -->
+      <a
+        class="button"
+        href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate', collection_slug=c.slug) }}{% endif %}"
+        >✍️ Use Pack in Generate</a
       >
 
       {% if c.zipUrl %} {% if locked %} {% set display_price = ('$%.2f' %
@@ -92,29 +96,6 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %}
     flex-wrap: wrap;
     margin: 0.25rem 0;
   }
-  .pill {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: #1f2937;
-    color: #e5e7eb;
-    font-weight: 700;
-    font-size: 0.78rem;
-    border: 1px solid #334155;
-  }
-  .pill.alt {
-    background: #0b3b5a;
-    border-color: #0b3b5a;
-    color: #e6f2ff;
-  }
-  .pill.ok {
-    background: #0f3a2a;
-    border-color: #0f3a2a;
-  }
-  .pill.info {
-    background: #0b365a;
-    border-color: #0b365a;
-  }
 
   .grid {
     display: grid;
@@ -129,15 +110,9 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %}
       order: -1;
     }
   }
+
   .side {
     position: relative;
-  }
-  .hero-thumb {
-    height: 160px;
-    border: 1px dashed #334155;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #0f172a 0%, #111b2a 100%);
-    margin-bottom: 0.6rem;
   }
   .sticky-cta {
     position: sticky;
