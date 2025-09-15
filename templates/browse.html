@@ -1,3 +1,4 @@
+<!-- ========== 2) browse.html (DROP-IN) ========== -->
 {% extends "base.html" %} {% block title %}Browse | Faith Sparks{% endblock %}
 {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
@@ -105,22 +106,20 @@
           locked %}<span class="pill info">Plus</span>{% endif %}
         </div>
       </div>
-
       <h3 class="pack-title">
         <a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a>
       </h3>
       <div class="pack-sub muted small">
         {{ c.count or (c.verses|length) }} verses • <code>{{ c.slug }}</code>
       </div>
-
       {% if c.zipUrl %}
       <div class="pack-actions">
         {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
-        pack_effective_price_id(c) %} {% if pid %}
-        <a class="button small" href="{{ url_for('buy_pack', slug=c.slug) }}"
+        pack_effective_price_id(c) %} {% if pid %}<a
+          class="button small"
+          href="{{ url_for('buy_pack', slug=c.slug) }}"
           >💳 Buy $2.50</a
-        >
-        {% endif %}
+        >{% endif %}
         <a class="button ghost small" href="{{ url_for('plus_pricing') }}"
           >Get Plus</a
         >
@@ -161,15 +160,16 @@
       <h3 style="display: inline">Recent</h3>
       <span class="small muted">(click to expand)</span>
     </summary>
-
     <!-- We lazy-hydrate this when <details> opens the first time -->
     <div id="recentMount" class="mt10">
       <div class="empty muted small">Loading…</div>
     </div>
-
     <!-- Server renders the full list here, but inside a template so it’s inert -->
     <template id="recentTpl">
-      <ul class="thumb-grid">
+      <ul
+        class="thumb-grid"
+        style="content-visibility: auto; contain-intrinsic-size: 1px 300px"
+      >
         {% for item in items %}
         <li class="thumb-card">
           <a
@@ -181,12 +181,6 @@
               alt="Thumbnail for {{ item.verse }}"
               width="400"
               height="300"
-              {#
-              4:3
-              to
-              match
-              aspect-ratio
-              #}
               loading="lazy"
               decoding="async"
               fetchpriority="low"
@@ -234,7 +228,6 @@
     justify-content: space-between;
     align-items: center;
   }
-
   .pack-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -284,7 +277,6 @@
     margin-top: 0.5rem;
     flex-wrap: wrap;
   }
-
   .pill {
     display: inline-block;
     padding: 2px 8px;
@@ -308,7 +300,6 @@
     background: #0b365a;
     border-color: #0b365a;
   }
-
   .thumb-grid {
     list-style: none;
     padding: 0;
@@ -343,16 +334,13 @@
     gap: 0.4rem;
     flex-wrap: wrap;
   }
-
   @media (max-width: 520px) {
     .pack-grid {
       grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     }
   }
 </style>
-
 <script>
-  // Search / filter / sort (client-side) — unchanged
   let _t;
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -389,8 +377,6 @@
     $("#countShown").textContent = `${visible.length} shown`;
   }
   document.addEventListener("DOMContentLoaded", applyFilters);
-
-  // Remember open/closed state for Top + Recent
   (function rememberDetails() {
     ["topPacks", "topWeek", "recentPdfs"].forEach((id) => {
       const el = document.getElementById(id);
@@ -406,8 +392,6 @@
       });
     });
   })();
-
-  // Lazy-hydrate Recent only once when opened
   (function hydrateRecentOnOpen() {
     const det = document.getElementById("recentPdfs");
     if (!det) return;
@@ -417,19 +401,17 @@
     function mountNow() {
       if (done || !tpl || !mount) return;
       done = true;
-      mount.innerHTML = tpl.innerHTML; // inject real list
-      // (optional) focus the first card for a11y after open:
+      mount.innerHTML = tpl.innerHTML;
       setTimeout(
         () =>
           mount.querySelector(".thumb-card a")?.focus({ preventScroll: true }),
         0
       );
     }
-    if (det.open) mountNow(); // hydrate immediately if remembered open
+    if (det.open) mountNow();
     det.addEventListener("toggle", () => {
       if (det.open) mountNow();
     });
   })();
 </script>
-
 {% endblock %}

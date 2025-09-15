@@ -1,3 +1,4 @@
+<!-- ========== 1) base.html (DROP-IN) ========== -->
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -8,6 +9,7 @@
     <link rel="icon" href="{{ favicon_url }}" />
 
     <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
@@ -18,6 +20,7 @@
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='theme.css') }}?v={{ static_v|default(1) }}"
+      fetchpriority="high"
     />
     {% if request.path.startswith('/admin') %}
     <link
@@ -36,6 +39,10 @@
         --primary: {{ (theme.primary or '#0ea5a8') if theme else '#0ea5a8' }};
         --primary-dark: {{ (theme.primary_dark or '#0b8a8d') if theme else '#0b8a8d' }};
         --card-shadow: 0 6px 16px rgba(0,0,0,.06);
+
+        /* seasonal defaults */
+        --flake-count: 42;
+        --leaf-count: 18;
       }
       .dark{
         /* keep brand hue consistent in dark mode */
@@ -43,12 +50,18 @@
         --primary-dark: {{ (theme.primary_dark or '#0b8a8d') if theme else '#0b8a8d' }};
       }
 
+      /* ===== prefers-reduced-motion: reduce heavy effects ===== */
+      @media (prefers-reduced-motion: reduce) {
+        :root { --flake-count: 0; --leaf-count: 0; }
+        .snow, .snow-svg, .leaves, .string-lights { display: none !important; }
+      }
+
       /* Seasonal extras toggles */
       {% if theme.extras and theme.extras.snow %}
-      .snow{pointer-events:none;position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:1}
-      .snow:before,.snow:after{content:"";position:absolute;top:-10px;width:100%;height:10px;background:radial-gradient(2px 2px at 2px 2px,rgba(255,255,255,.9) 50%,rgba(255,255,255,0) 51%) repeat;background-size:20px 20px;animation:snow 12s linear infinite;opacity:.7}
-      .snow:after{animation-duration:18s;opacity:.5}
-      @keyframes snow{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
+      .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1;contain:layout paint}
+      .snow::before,.snow::after{content:"";position:absolute;top:-10px;width:100%;height:10px;opacity:.65;background:radial-gradient(2px 2px at 2px 2px,rgba(255,255,255,.95) 50%,transparent 51%) repeat;background-size:20px 20px;animation:snow-fall 12s linear infinite;will-change:transform}
+      .snow::after{animation-duration:18s;opacity:.45}
+      @keyframes snow-fall{to{transform:translateY(110vh)}}
       body{position:relative}
       {% endif %}
 
@@ -73,8 +86,8 @@
 
       {% if theme.extras and theme.extras.leaves %}
       .leaves{pointer-events:none;position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:1}
-      .leaf{position:absolute;top:-40px;width:18px;height:18px;background:radial-gradient(circle at 30% 30%,#f59e0b 40%,#b45309 41%);border-radius:40% 60% 40% 60%;opacity:.85;animation:fall 12s linear infinite}
-      @keyframes fall{0%{transform:translateY(-40px) rotate(0)}100%{transform:translateY(110vh) rotate(360deg)}}
+      .leaf{position:absolute;top:-40px;width:18px;height:18px;background:radial-gradient(circle at 30% 30%,#f59e0b 40%,#b45309 41%);border-radius:40% 60% 40% 60%;opacity:.85;animation:fall 12s linear infinite;will-change:transform}
+      @keyframes fall{to{transform:translateY(110vh) rotate(360deg)}}
       {% endif %}
 
       {# Safer custom CSS: only render sanitized content if present #}
@@ -140,7 +153,6 @@
         const btn = document.getElementById("menuToggle");
         const nav = document.getElementById("mainNav");
         if (!btn || !nav) return;
-
         function setOpen(open) {
           document.body.classList.toggle("nav-open", !!open);
           btn.setAttribute("aria-expanded", open ? "true" : "false");
@@ -155,7 +167,6 @@
           if (e.key === "Escape") setOpen(false);
         });
       });
-
       // Sticky header shadow
       const h = document.querySelector(".main-header");
       const onScroll = () =>
@@ -203,9 +214,17 @@
       {% endfor %}
     </div>
     {% endif %} {% if theme and theme.extras and theme.extras.snow_svg %}
-    <svg class="snow-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <svg
+      class="snow-svg"
+      viewBox="0 0 100 100"
+      width="100%"
+      height="100%"
+      aria-hidden="true"
+      preserveAspectRatio="none"
+    >
       <defs><circle id="flake" cx="0" cy="0" r="1" fill="white" /></defs>
-      {% for i in range(60) %}
+      {% set count = 60 %} {% for i in range(count) %} {% if i < 24 or
+      request.user_agent.platform != 'iphone' %}
       <use
         href="#flake"
         x="{{ (i*7) % 100 }}"
@@ -225,23 +244,33 @@
           repeatCount="indefinite"
         />
       </use>
-      {% endfor %}
+      {% endif %} {% endfor %}
     </svg>
     {% endif %} {% if theme and theme.extras and theme.extras.leaves %}
     <div class="leaves" aria-hidden="true"></div>
     <script>
       (function () {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+          return;
         const wrap = document.querySelector(".leaves");
         if (!wrap) return;
-        for (let i = 0; i < 20; i++) {
+        const cssVal = getComputedStyle(
+          document.documentElement
+        ).getPropertyValue("--leaf-count");
+        const n = Math.max(0, Math.min(parseInt(cssVal, 10) || 18, 30));
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < n; i++) {
           const el = document.createElement("div");
           el.className = "leaf";
           el.style.left = Math.random() * 100 + "%";
           el.style.animationDelay = Math.random() * 8 + "s";
-          el.style.opacity = 0.6 + Math.random() * 0.4;
-          el.style.transform = `translateY(${-20 - Math.random() * 60}px)`;
-          wrap.appendChild(el);
+          el.style.opacity = (0.6 + Math.random() * 0.4).toFixed(2);
+          el.style.transform = `translateY(${(-20 - Math.random() * 60).toFixed(
+            0
+          )}px)`;
+          frag.appendChild(el);
         }
+        wrap.appendChild(frag);
       })();
     </script>
     {% endif %} {# Flash toasts #} {% with messages =
@@ -270,8 +299,7 @@
     <footer>
       &copy; 2025 Faith Sparks Printables. All rights reserved. {% if
       support_email %} • Support:
-      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
-      {% endif %}
+      <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
     </footer>
 
     <script>
@@ -292,12 +320,8 @@
         }
         window.showOverlay = show;
         window.hideOverlay = hide;
-
-        // Hide overlay on load/bfcache restore in case a previous page left it up
         addEventListener("DOMContentLoaded", hide);
         addEventListener("pageshow", hide);
-
-        // Intercept submits: only show if NOT prevented and method is POST
         document.addEventListener(
           "submit",
           (ev) => {
