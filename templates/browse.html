@@ -1,4 +1,3 @@
-<!-- ========== 2) browse.html (DROP-IN) ========== -->
 {% extends "base.html" %} {% block title %}Browse | Faith Sparks{% endblock %}
 {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
@@ -88,7 +87,9 @@
   <div id="packs" class="pack-grid">
     {% for c in collections %} {% set purchased = purchases.get(c.slug) if
     purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro
-    and not purchased) %}
+    and not purchased) %} {% set verses_param = (c.verses|join(' | ') if
+    c.verses else '') %}
+
     <article
       class="pack-card {{ 'locked' if locked }}"
       data-title="{{ c.title|lower }}"
@@ -103,20 +104,22 @@
           locked %}<span class="pill info">Plus</span>{% endif %}
         </div>
       </div>
+
       <h3 class="pack-title">
         <a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a>
       </h3>
       <div class="pack-sub muted small">
         {{ c.count or (c.verses|length) }} verses • <code>{{ c.slug }}</code>
       </div>
-      {% if c.zipUrl %}
+
       <div class="pack-actions">
-        {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
-        pack_effective_price_id(c) %} {% if pid %}<a
-          class="button small"
-          href="{{ url_for('buy_pack', slug=c.slug) }}"
+        {# Downloads / billing buttons only if pack has a ZIP #} {% if c.zipUrl
+        %} {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
+        pack_effective_price_id(c) %} {% if pid %}
+        <a class="button small" href="{{ url_for('buy_pack', slug=c.slug) }}"
           >💳 Buy $2.50</a
-        >{% endif %}
+        >
+        {% endif %}
         <a class="button ghost small" href="{{ url_for('plus_pricing') }}"
           >Get Plus</a
         >
@@ -133,14 +136,14 @@
           href="{{ url_for('google.login', next=next_url) }}"
           >🔐 Sign in</a
         >
-        {% set verses_param = (c.verses|join(' | ') if c.verses else '') %}
+        {% endif %} {% endif %} {# Always show Use Pack, with verses (preferred)
+        or collection fallback #}
         <a
           class="button small"
           href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate') }}?collection={{ c.slug|urlencode }}{% endif %}"
           >✍️ Use Pack</a
         >
       </div>
-      {% endif %}
     </article>
     {% endfor %}
   </div>
@@ -157,11 +160,11 @@
       <h3 style="display: inline">Recent</h3>
       <span class="small muted">(click to expand)</span>
     </summary>
-    <!-- We lazy-hydrate this when <details> opens the first time -->
+
     <div id="recentMount" class="mt10">
       <div class="empty muted small">Loading…</div>
     </div>
-    <!-- Server renders the full list here, but inside a template so it’s inert -->
+
     <template id="recentTpl">
       <ul
         class="thumb-grid"
@@ -225,6 +228,7 @@
     justify-content: space-between;
     align-items: center;
   }
+
   .pack-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -267,6 +271,7 @@
     margin-top: 0.5rem;
     flex-wrap: wrap;
   }
+
   .pill {
     display: inline-block;
     padding: 2px 8px;
@@ -290,6 +295,7 @@
     background: #0b365a;
     border-color: #0b365a;
   }
+
   .thumb-grid {
     list-style: none;
     padding: 0;
@@ -324,20 +330,24 @@
     gap: 0.4rem;
     flex-wrap: wrap;
   }
+
   @media (max-width: 520px) {
     .pack-grid {
       grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     }
   }
 </style>
+
 <script>
   let _t;
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
+
   function debounced() {
     clearTimeout(_t);
     _t = setTimeout(applyFilters, 120);
   }
+
   function applyFilters() {
     const q = ($("#search").value || "").toLowerCase().trim();
     const tag = $("#tag").value,
@@ -346,13 +356,12 @@
     const cards = $$("#packs .pack-card");
     const visible = [];
 
-    // remove previous empty state
     grid.querySelector(".empty-state")?.remove();
 
     cards.forEach((el) => {
-      const title = el.dataset.title || "",
-        isFree = el.dataset.free === "true",
-        isPlus = el.dataset.plus === "true";
+      const title = el.dataset.title || "";
+      const isFree = el.dataset.free === "true";
+      const isPlus = el.dataset.plus === "true";
       let ok = true;
       if (q && !title.includes(q)) ok = false;
       if (tag === "free" && !isFree) ok = false;
@@ -382,6 +391,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", applyFilters);
+
   (function rememberDetails() {
     ["topPacks", "topWeek", "recentPdfs"].forEach((id) => {
       const el = document.getElementById(id);
@@ -397,6 +407,7 @@
       });
     });
   })();
+
   (function hydrateRecentOnOpen() {
     const det = document.getElementById("recentPdfs");
     if (!det) return;
