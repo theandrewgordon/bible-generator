@@ -42,6 +42,63 @@
   --header-active-bg: rgba(230, 242, 255, 0.18);
   --header-border: rgba(230, 242, 255, 0.14);
 }
+/* Hero / preview sheet styling */
+.sheet-bg {
+  fill: transparent;
+  stroke: var(--sheet-stroke, #d4d9e0);
+  stroke-dasharray: 4 4;
+}
+.g1 {
+  stop-color: var(--sheet-g1, #0b2035);
+}
+.g2 {
+  stop-color: var(--sheet-g2, #13273f);
+}
+.rule {
+  fill: var(--sheet-rule, #203046);
+}
+.chip {
+  fill: var(--sheet-chip, #183045);
+}
+.chip-alt {
+  fill: var(--sheet-chip-alt, #0b3b5a);
+}
+.sheet {
+  width: 100%;
+  height: auto;
+  max-width: 360px;
+}
+
+.prose {
+  max-width: 72ch;
+}
+.container > .prose {
+  line-height: 1.6;
+}
+
+/* Smooth scrolling for big grids (History etc.) */
+.cards {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 240px;
+}
+
+/* Light vs dark tokens for the sheet */
+:root {
+  --sheet-g1: #f8fafc;
+  --sheet-g2: #eef2f7;
+  --sheet-rule: #e6edf6;
+  --sheet-chip: #dfe9f7;
+  --sheet-chip-alt: #cfe5fb;
+  --sheet-stroke: #d4d9e0;
+}
+.dark {
+  --sheet-g1: #0b2035;
+  --sheet-g2: #13273f;
+  --sheet-rule: #203046;
+  --sheet-chip: #183045;
+  --sheet-chip-alt: #0b3b5a;
+  --sheet-stroke: #334155;
+}
 
 /* Reusable sheet SVG */
 .fs-sheet .sheet-bg {
@@ -491,7 +548,7 @@ input[type="checkbox"] + label,
 
 /* ---------- Banners ---------- */
 .site-banner {
-  margin: 8px auto 0;
+  margin: 8px auto 8px;
   max-width: 980px;
   padding: 10px 14px;
   border-radius: var(--radius);

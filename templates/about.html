@@ -1,29 +1,31 @@
-{% extends "base.html" %}
-{% block title %}About | Faith Sparks Printables{% endblock %}
-{% block content %}
-  <h1 class="page-title">About Faith Sparks Printables</h1>
-  {% if site_content and site_content.about_html %}
-    {% if site_content.about_is_markdown %}
-      <div>{{ site_content.about_html|markdown|safe }}</div>
-    {% else %}
-      <div>{{ site_content.about_html|safe }}</div>
-    {% endif %}
+{% extends "base.html" %} {% block title %}About | Faith Sparks Printables{%
+endblock %} {% block content %}
+<h1 class="page-title">About Faith Sparks Printables</h1>
+<article class="prose">
+  {% if site_content and site_content.about_html %} {% if
+  site_content.about_is_markdown %}
+  <div>{{ site_content.about_html|markdown|safe }}</div>
   {% else %}
-    <p>
-      Hi, I’m Andrew Gordon — a Christian husband, father of four, homeschool dad, and software
-      developer. I love God and I seek to love my neighbors.
-    </p>
-    <p>
-      I saw my family regularly needing fun, Bible‑based ways to practice handwriting and cursive.
-      I couldn’t find exactly what I was looking for, so I built Faith Sparks Printables to create
-      simple, beautiful worksheets that help kids engage Scripture through copywork, reflection,
-      and creativity.
-    </p>
-    <p>
-      My hope is that these resources serve families, homeschoolers, and churches by making God’s
-      Word more present in everyday learning.
-    </p>
+  <div>{{ site_content.about_html|safe }}</div>
+  {% endif %} {% else %}
+  <p>
+    Hi, I’m Andrew Gordon — a Christian husband, father of four, homeschool dad,
+    and software developer. I love God and I seek to love my neighbors.
+  </p>
+  <p>
+    I saw my family regularly needing fun, Bible-based ways to practice
+    handwriting and cursive. I couldn’t find exactly what I was looking for, so
+    I built Faith Sparks Printables to create simple, beautiful worksheets that
+    help kids engage Scripture through copywork, reflection, and creativity.
+  </p>
+  <p>
+    My hope is that these resources serve families, homeschoolers, and churches
+    by making God’s Word more present in everyday learning.
+  </p>
   {% endif %}
   <h3>Contact & Support</h3>
-  <p class="muted">Questions or feedback? Use the support email in the footer.</p>
+  <p class="muted">
+    Questions or feedback? Use the support email in the footer.
+  </p>
+</article>
 {% endblock %}

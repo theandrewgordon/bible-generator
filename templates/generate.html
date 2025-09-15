@@ -239,6 +239,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           type="submit"
           class="button primary"
           id="submitBtn"
+          aria-describedby="quotaNote"
           {%
           if
           out_of_quota
@@ -258,7 +259,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         </button>
 
         {% if usage_info %}
-        <span class="small muted left-chip">
+        <span id="quotaNote" class="small muted left-chip">
           {% if usage_info.monthly_limit is not none %} {{
           usage_info.monthly_remaining }} left this month {% else %} Unlimited
           this month {% endif %}

@@ -352,8 +352,13 @@
     const q = ($("#search").value || "").toLowerCase().trim();
     const tag = $("#tag").value,
       sort = $("#sort").value;
+    const grid = $("#packs");
     const cards = $$("#packs .pack-card");
     const visible = [];
+
+    // remove previous empty state
+    grid.querySelector(".empty-state")?.remove();
+
     cards.forEach((el) => {
       const title = el.dataset.title || "",
         isFree = el.dataset.free === "true",
@@ -365,6 +370,7 @@
       el.hidden = !ok;
       if (ok) visible.push(el);
     });
+
     visible
       .sort((a, b) => {
         if (sort === "alpha")
@@ -374,8 +380,17 @@
         return 0;
       })
       .forEach((el) => el.parentNode.appendChild(el));
+
     $("#countShown").textContent = `${visible.length} shown`;
+
+    if (!visible.length) {
+      const div = document.createElement("div");
+      div.className = "empty-state muted small";
+      div.textContent = "No matches. Clear filters to see all collections.";
+      grid.appendChild(div);
+    }
   }
+
   document.addEventListener("DOMContentLoaded", applyFilters);
   (function rememberDetails() {
     ["topPacks", "topWeek", "recentPdfs"].forEach((id) => {

@@ -1,33 +1,24 @@
 // static/darkmode.js
 (function () {
-  const STORAGE_KEY = "theme"; // 'dark' | 'light' | 'system' (or null = system)
-  const body = document.documentElement || document.body;
+  const KEY = "theme"; // 'dark' | 'light' | 'system' (null => system)
+  const body = document.body;
 
-  function systemPrefersDark() {
-    return (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    );
-  }
+  const prefersDark = () =>
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  function getStored() {
-    return localStorage.getItem(STORAGE_KEY); // may be null
-  }
+  const getStored = () => localStorage.getItem(KEY);
 
-  function effectiveTheme() {
-    const stored = getStored();
-    if (stored === "dark" || stored === "light") return stored;
-    return systemPrefersDark() ? "dark" : "light";
-  }
+  const effective = () => {
+    const s = getStored();
+    if (s === "dark" || s === "light") return s;
+    return prefersDark() ? "dark" : "light";
+  };
 
   function apply(theme) {
-    // Toggle class for CSS tokens
-    if (theme === "dark") {
-      body.classList.add("dark");
-    } else {
-      body.classList.remove("dark");
-    }
-    // Update toggle button UI if present
+    if (theme === "dark") body.classList.add("dark");
+    else body.classList.remove("dark");
+
     const btn = document.getElementById("themeToggle");
     if (btn) {
       const isDark = theme === "dark";
@@ -38,26 +29,19 @@
     }
   }
 
-  // Initialize from stored/system preference
   function init() {
-    apply(effectiveTheme());
+    apply(effective());
   }
-
-  // Click handler: cycle dark <-> light (you can add 'system' if you want)
   function onClick() {
-    const current = effectiveTheme();
-    const next = current === "dark" ? "light" : "dark";
-    localStorage.setItem(STORAGE_KEY, next);
+    const next = effective() === "dark" ? "light" : "dark";
+    localStorage.setItem(KEY, next);
     apply(next);
   }
-
-  // Keep in sync if system preference changes while set to 'system' or unset
   function onSystemChange() {
-    const stored = getStored();
-    if (!stored || stored === "system") apply(effectiveTheme());
+    const s = getStored();
+    if (!s || s === "system") apply(effective());
   }
 
-  // Wire up once DOM is ready
   document.addEventListener("DOMContentLoaded", () => {
     init();
     const btn = document.getElementById("themeToggle");
@@ -66,14 +50,14 @@
 
   if (window.matchMedia) {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    if (mq.addEventListener) mq.addEventListener("change", onSystemChange);
-    else if (mq.addListener) mq.addListener(onSystemChange); // Safari < 14
+    mq.addEventListener?.("change", onSystemChange);
+    mq.addListener?.(onSystemChange); // safari <14
   }
 
-  // Expose tiny API (optional)
-  window.setTheme = function (mode /* 'dark'|'light'|'system' */) {
-    if (mode === "system") localStorage.setItem(STORAGE_KEY, "system");
-    else localStorage.setItem(STORAGE_KEY, mode);
-    apply(effectiveTheme());
+  // optional API
+  window.setTheme = (mode /* 'dark'|'light'|'system' */) => {
+    if (mode === "system") localStorage.setItem(KEY, "system");
+    else localStorage.setItem(KEY, mode);
+    apply(effective());
   };
 })();
