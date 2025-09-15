@@ -352,24 +352,7 @@
 </style>
 
 <script>
-  // Persist details open/closed
-  (function () {
-    ["topPacks", "topWeek"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const key = "browse:" + id + ":open";
-      try {
-        if (localStorage.getItem(key) === "true") el.open = true;
-      } catch (e) {}
-      el.addEventListener("toggle", () => {
-        try {
-          localStorage.setItem(key, el.open ? "true" : "false");
-        } catch (e) {}
-      });
-    });
-  })();
-
-  // Search / filter / sort (client-side)
+  // Search / filter / sort (client-side) — unchanged
   let _t;
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -377,49 +360,37 @@
     clearTimeout(_t);
     _t = setTimeout(applyFilters, 120);
   }
-
   function applyFilters() {
     const q = ($("#search").value || "").toLowerCase().trim();
-    const tag = $("#tag").value;
-    const sort = $("#sort").value;
-
+    const tag = $("#tag").value,
+      sort = $("#sort").value;
     const cards = $$("#packs .pack-card");
     const visible = [];
-
     cards.forEach((el) => {
-      const title = el.dataset.title || "";
-      const isFree = el.dataset.free === "true";
-      const isPlus = el.dataset.plus === "true";
-
+      const title = el.dataset.title || "",
+        isFree = el.dataset.free === "true",
+        isPlus = el.dataset.plus === "true";
       let ok = true;
       if (q && !title.includes(q)) ok = false;
       if (tag === "free" && !isFree) ok = false;
       if (tag === "plus" && !isPlus) ok = false;
-
       el.hidden = !ok;
       if (ok) visible.push(el);
     });
-
-    // sort
     visible
       .sort((a, b) => {
-        if (sort === "alpha") {
+        if (sort === "alpha")
           return (a.dataset.title || "").localeCompare(b.dataset.title || "");
-        }
-        if (sort === "count_desc") {
+        if (sort === "count_desc")
           return (+b.dataset.count || 0) - (+a.dataset.count || 0);
-        }
-        return 0; // featured/order is server order
+        return 0;
       })
       .forEach((el) => el.parentNode.appendChild(el));
-
     $("#countShown").textContent = `${visible.length} shown`;
   }
-
   document.addEventListener("DOMContentLoaded", applyFilters);
-</script>
-<script>
-  // Remember open/closed state for Top sections + Recent
+
+  // Remember open/closed state for Top + Recent
   (function rememberDetails() {
     ["topPacks", "topWeek", "recentPdfs"].forEach((id) => {
       const el = document.getElementById(id);
@@ -436,30 +407,29 @@
     });
   })();
 
-  // Lazy-hydrate Recent only when opened the first time
+  // Lazy-hydrate Recent only once when opened
   (function hydrateRecentOnOpen() {
     const det = document.getElementById("recentPdfs");
     if (!det) return;
     const mount = document.getElementById("recentMount");
     const tpl = document.getElementById("recentTpl");
     let done = false;
-
     function mountNow() {
-      if (done) return;
+      if (done || !tpl || !mount) return;
       done = true;
-      if (tpl && mount) {
-        mount.innerHTML = tpl.innerHTML; // cheap, images start decoding only now
-      }
+      mount.innerHTML = tpl.innerHTML; // inject real list
+      // (optional) focus the first card for a11y after open:
+      setTimeout(
+        () =>
+          mount.querySelector(".thumb-card a")?.focus({ preventScroll: true }),
+        0
+      );
     }
-    // If it starts opened (remembered), hydrate immediately
-    if (det.open) mountNow();
-    det.addEventListener(
-      "toggle",
-      () => {
-        if (det.open) mountNow();
-      },
-      { once: false }
-    );
+    if (det.open) mountNow(); // hydrate immediately if remembered open
+    det.addEventListener("toggle", () => {
+      if (det.open) mountNow();
+    });
   })();
 </script>
+
 {% endblock %}
