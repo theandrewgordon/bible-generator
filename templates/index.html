@@ -25,8 +25,25 @@ endblock %} {% block content %}
     </div>
   </div>
   <div class="hero-art" aria-hidden="true">
-    <!-- Added explicit width/height to avoid layout shift -->
-    <svg viewBox="0 0 360 240" class="sheet" width="360" height="240">
+    {# Prefer a static screenshot; keep SVG as a no-op fallback #}
+    <img
+      src="{{ url_for('static', filename='hero_john_316.png') }}"
+      alt=""
+      width="360"
+      height="465"
+      decoding="async"
+      fetchpriority="high"
+      loading="eager"
+      onerror="this.style.display='none'"
+      style="
+        display: block;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+      "
+    />
+
+    <!-- (Fallback) keep your SVG below; harmless if the image exists -->
+    <svg viewBox="0 0 360 240" class="sheet" width="360" height="465">
       <defs>
         <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" class="g1" />

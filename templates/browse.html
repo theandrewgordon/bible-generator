@@ -38,7 +38,6 @@
         data-title="{{ p.title|lower }}"
       >
         <div class="pack-top">
-          <div class="pack-thumb" aria-hidden="true"></div>
           <div class="pack-meta">
             {% if p.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
             p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
@@ -66,7 +65,6 @@
         data-title="{{ p.title|lower }}"
       >
         <div class="pack-top">
-          <div class="pack-thumb" aria-hidden="true"></div>
           <div class="pack-meta">
             {% if p.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
             p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
@@ -99,7 +97,6 @@
       data-count="{{ c.count or (c.verses|length) }}"
     >
       <div class="pack-top">
-        <div class="pack-thumb" aria-hidden="true"></div>
         <div class="pack-meta">
           {% if c.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
           purchased %}<span class="pill alt">Purchased</span>{% endif %} {% if
@@ -252,13 +249,6 @@
     justify-content: space-between;
     gap: 0.5rem;
     align-items: flex-start;
-  }
-  .pack-thumb {
-    height: 90px;
-    flex: 1;
-    border-radius: 8px;
-    border: 1px dashed #334155;
-    background: linear-gradient(135deg, #0f172a 0%, #111b2a 100%);
   }
   .pack-meta {
     display: flex;

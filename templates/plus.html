@@ -8,7 +8,7 @@ site_content.plus_banner_text %}
 {% endif %}
 
 <header class="plus-hero card-lite">
-  <div>
+  <div class="plus-copy">
     <h1 class="page-title">Faith Sparks Plus</h1>
     <p class="muted">
       Support the project and unlock premium resources for your family, co-op,
@@ -20,13 +20,19 @@ site_content.plus_banner_text %}
       <li>🎁 Occasional collection giveaways</li>
     </ul>
   </div>
-  <div class="mini-preview" aria-hidden="true">
-    <div class="lines"></div>
-    <div class="badge-row">
-      <span class="pill alt">ESV</span>
-      <span class="pill">✍️ Cursive</span>
-    </div>
-  </div>
+
+  <aside class="plus-preview" aria-hidden="true">
+    <img
+      src="{{ url_for('static', filename='hero_john_316.png') }}"
+      alt=""
+      width="360"
+      height="465"
+      decoding="async"
+      loading="eager"
+      fetchpriority="high"
+      style="display: block"
+    />
+  </aside>
 </header>
 
 <section class="plans">
@@ -227,17 +233,6 @@ site_content.plus_banner_text %}
     color: #f8e7c7;
   }
 
-  .plus-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 1rem;
-    align-items: center;
-  }
-  @media (max-width: 980px) {
-    .plus-hero {
-      grid-template-columns: 1fr;
-    }
-  }
   .mini-preview {
     width: 260px;
     max-width: 100%;

@@ -978,3 +978,25 @@ body.dark,
   --qp-bg: #0f1f15;
   --qp-bd: #1f3a27;
 }
+
+.plus-hero {
+  display: grid;
+  grid-template-columns: 1fr minmax(240px, 360px);
+  gap: 1rem 1.25rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+.plus-preview img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+@media (max-width: 900px) {
+  .plus-hero {
+    grid-template-columns: 1fr;
+  }
+  .plus-preview {
+    justify-self: start;
+  }
+}

@@ -318,233 +318,297 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 {% endblock %} {% block extra_scripts %}
 <script>
-  /* ===== Elements ===== */
-  const modeVerse      = document.getElementById('modeVerse');
-  const modeCustom     = document.getElementById('modeCustom');
-  const verseBlock     = document.getElementById('verseBlock');
-  const customBlock    = document.getElementById('customBlock');
+      /* ===== Elements ===== */
+      const modeVerse      = document.getElementById('modeVerse');
+      const modeCustom     = document.getElementById('modeCustom');
+      const verseBlock     = document.getElementById('verseBlock');
+      const customBlock    = document.getElementById('customBlock');
 
-  const verseInput     = document.getElementById('verseInput');
-  const tagify         = new Tagify(verseInput, {
-    enforceWhitelist: false, trim: true, duplicates: false,
-    pasteAsTags: true, delimiters: ",\n",
-    dropdown: { enabled: 0 },
-    originalInputValueFormat: arr => arr.map(v=>v.value).join(", ")
-  });
+      const verseInput     = document.getElementById('verseInput');
+      const tagify         = new Tagify(verseInput, {
+        enforceWhitelist: false, trim: true, duplicates: false,
+        pasteAsTags: true, delimiters: ",\n",
+        dropdown: { enabled: 0 },
+        originalInputValueFormat: arr => arr.map(v=>v.value).join(", ")
+      });
 
-  const versionSelect  = document.getElementById('versionSelect');
-  const cursiveToggle  = document.getElementById('cursiveToggle');
-  const submitBtn      = document.getElementById('submitBtn');
-  const clearBtn       = document.getElementById('clearBtn');
-  const shareBtn       = document.getElementById('shareLinkBtn');
-  const toastEl        = document.getElementById('toast');
+      const versionSelect  = document.getElementById('versionSelect');
+      const cursiveToggle  = document.getElementById('cursiveToggle');
+      const submitBtn      = document.getElementById('submitBtn');
+      const clearBtn       = document.getElementById('clearBtn');
+      const shareBtn       = document.getElementById('shareLinkBtn');
+      const toastEl        = document.getElementById('toast');
 
-  // Custom fields
-  const customTitle    = document.getElementById('customTitle');
-  const customText     = document.getElementById('customTextArea');
-  const customPrompt   = document.getElementById('customPrompt');
-  const agreeTerms     = document.getElementById('agreeTerms');
-  const customFilename = document.getElementById('customFilename');
+      // Custom fields
+      const customTitle    = document.getElementById('customTitle');
+      const customText     = document.getElementById('customTextArea');
+      const customPrompt   = document.getElementById('customPrompt');
+      const agreeTerms     = document.getElementById('agreeTerms');
+      const customFilename = document.getElementById('customFilename');
 
-  // Preview
-  const previewVerse   = document.getElementById('previewVerse');
-  const previewVersion = document.getElementById('previewVersion');
-  const previewCursive = document.getElementById('previewCursive');
-  const previewPrompt  = document.getElementById('previewPrompt');
+      // Preview
+      const previewVerse   = document.getElementById('previewVerse');
+      const previewVersion = document.getElementById('previewVersion');
+      const previewCursive = document.getElementById('previewCursive');
+      const previewPrompt  = document.getElementById('previewPrompt');
 
-  // Hints
-  const filenamePreview= document.getElementById('filenamePreview');
-  const zipHint        = document.getElementById('zipHint');
+      // Hints
+      const filenamePreview= document.getElementById('filenamePreview');
+      const zipHint        = document.getElementById('zipHint');
 
-  /* ===== Helpers ===== */
-  const KNOWN = ['ESV','KJV','NLT','NASB','NIV','CSB','AUTO'];
-  const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
-  const detectVersion = str => {
-    const m = /\((ESV|KJV|NLT|NASB|NIV|CSB)\)/i.exec(str||''); return m ? m[1].toUpperCase() : null;
-  };
-  const effectiveVersion = () => {
-    const v = [...tagify.value].reverse().map(t=>detectVersion(t.value)).find(Boolean);
-    return (v || (versionSelect.value||'esv')).toUpperCase();
-  };
+      /* ===== Helpers ===== */
+      const KNOWN = ['ESV','KJV','NLT','NASB','NIV','CSB','AUTO'];
+      const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
+      const detectVersion = str => {
+        const m = /\((ESV|KJV|NLT|NASB|NIV|CSB)\)/i.exec(str||''); return m ? m[1].toUpperCase() : null;
+      };
+      const effectiveVersion = () => {
+        const v = [...tagify.value].reverse().map(t=>detectVersion(t.value)).find(Boolean);
+        return (v || (versionSelect.value||'esv')).toUpperCase();
+      };
 
-  function setMode(mode){
-    const isVerse  = mode === 'verse';
-    verseBlock.classList.toggle('hidden', !isVerse);
-    customBlock.classList.toggle('hidden',  isVerse);
+      function setMode(mode){
+        const isVerse  = mode === 'verse';
+        verseBlock.classList.toggle('hidden', !isVerse);
+        customBlock.classList.toggle('hidden',  isVerse);
 
-    if (isVerse){
-      customTitle.value = ''; customText.value = ''; customPrompt.value = '';
-      if (agreeTerms) agreeTerms.checked = false; customFilename.textContent = '';
-    } else {
-      tagify.removeAllTags(); verseInput.value = '';
-      filenamePreview.textContent = ''; zipHint.style.display = 'none';
+        if (isVerse){
+          customTitle.value = ''; customText.value = ''; customPrompt.value = '';
+          if (agreeTerms) agreeTerms.checked = false; customFilename.textContent = '';
+        } else {
+          tagify.removeAllTags(); verseInput.value = '';
+          filenamePreview.textContent = ''; zipHint.style.display = 'none';
+        }
+        updatePreview();
+      }
+
+      const firstTagText = () => (tagify.value.map(t=>t.value.trim()).find(Boolean) || '');
+
+      function updatePreview(){
+        const isVerse = !customBlock || customBlock.classList.contains('hidden');
+        if (isVerse){
+          const verse = firstTagText() || '—';
+          previewVerse.textContent   = verse;
+          previewVersion.textContent = effectiveVersion();
+          previewPrompt.textContent  = '—';
+        } else {
+          const title = (customTitle.value||'').trim();
+          const body  = (customText.value||'').trim();
+          previewVerse.textContent   = title || (body ? '(DIY text)' : '—');
+          previewVersion.textContent = (versionSelect.value||'esv').toUpperCase();
+          previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
+        }
+        previewCursive.hidden = !cursiveToggle.checked;
+      }
+
+      function updateVerseFilenames(){
+        const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+        const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+        filenamePreview.textContent = tags.length ? tags.map(v => slug(v) + suffix).join(", ") : "";
+        if (zipHint){
+          if (tags.length > 1){ zipHint.style.display='block'; zipHint.textContent = `Will create a ZIP with ${tags.length} worksheets.`; }
+          else { zipHint.style.display='none'; }
+        }
+      }
+
+      function updateCustomFilename(){
+        const name = (customTitle.value||'').trim() || (customText.value||'').slice(0,24).trim() || 'custom_text';
+        const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+        customFilename.textContent = `Will create: ${slug(name)}${suffix}`;
+      }
+
+      /* ===== Mode toggle ===== */
+      modeVerse.addEventListener('change', ()=> setMode('verse'));
+      modeCustom.addEventListener('change', ()=> setMode('custom'));
+
+      /* ===== Quick picks (verses & prompts) ===== */
+      document.addEventListener('click', (e)=>{
+        const chip = e.target.closest('.chip'); if (!chip) return;
+        const v = chip.getAttribute('data-verse');
+        const p = chip.getAttribute('data-prompt');
+        if (v){
+          if (!modeVerse.checked) { modeVerse.checked = true; setMode('verse'); }
+          tagify.addTags([v]); updateVerseFilenames(); updatePreview();
+        }
+        if (p){ customPrompt.value = p; updatePreview(); }
+      });
+
+      /* ===== Tagify events ===== */
+      ['add','remove','input','blur'].forEach(evt=>{
+        tagify.on(evt, ()=>{ updateVerseFilenames(); updatePreview(); });
+      });
+
+      /* ===== Persist simple prefs ===== */
+      versionSelect.addEventListener('change', ()=>{ localStorage.setItem('preferredVersion', versionSelect.value); updatePreview(); });
+      cursiveToggle.addEventListener('change', ()=>{ localStorage.setItem('useCursive', cursiveToggle.checked); updateVerseFilenames(); updateCustomFilename(); updatePreview(); });
+
+      /* ===== Custom inputs ===== */
+      ['input','change'].forEach(evt=>{
+        customTitle.addEventListener(evt, ()=>{ updateCustomFilename(); updatePreview(); });
+        customText .addEventListener(evt, ()=>{ updateCustomFilename(); updatePreview(); });
+        customPrompt.addEventListener(evt, updatePreview);
+      });
+
+    // Toast + filename helpers (add once)
+    function showToast(msg) {
+      if (!toastEl) return;
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      setTimeout(() => toastEl.classList.remove('show'), 2500);
     }
-    updatePreview();
-  }
-
-  const firstTagText = () => (tagify.value.map(t=>t.value.trim()).find(Boolean) || '');
-
-  function updatePreview(){
-    const isVerse = !customBlock || customBlock.classList.contains('hidden');
-    if (isVerse){
-      const verse = firstTagText() || '—';
-      previewVerse.textContent   = verse;
-      previewVersion.textContent = effectiveVersion();
-      previewPrompt.textContent  = '—';
-    } else {
-      const title = (customTitle.value||'').trim();
-      const body  = (customText.value||'').trim();
-      previewVerse.textContent   = title || (body ? '(DIY text)' : '—');
-      previewVersion.textContent = (versionSelect.value||'esv').toUpperCase();
-      previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
+    function parseFilename(dispo) {
+      if (!dispo) return null;
+      const star = dispo.match(/filename\*\s*=\s*[^']+'[^']*'([^;]+)/i);
+      if (star) return decodeURIComponent(star[1]);
+      const plain = dispo.match(/filename\s*=\s*("?)([^";]+)\1/i);
+      return plain ? plain[2] : null;
     }
-    previewCursive.hidden = !cursiveToggle.checked;
-  }
 
-  function updateVerseFilenames(){
-    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
-    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
-    filenamePreview.textContent = tags.length ? tags.map(v => slug(v) + suffix).join(", ") : "";
-    if (zipHint){
-      if (tags.length > 1){ zipHint.style.display='block'; zipHint.textContent = `Will create a ZIP with ${tags.length} worksheets.`; }
-      else { zipHint.style.display='none'; }
-    }
-  }
 
-  function updateCustomFilename(){
-    const name = (customTitle.value||'').trim() || (customText.value||'').slice(0,24).trim() || 'custom_text';
-    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
-    customFilename.textContent = `Will create: ${slug(name)}${suffix}`;
-  }
-
-  /* ===== Mode toggle ===== */
-  modeVerse.addEventListener('change', ()=> setMode('verse'));
-  modeCustom.addEventListener('change', ()=> setMode('custom'));
-
-  /* ===== Quick picks (verses & prompts) ===== */
-  document.addEventListener('click', (e)=>{
-    const chip = e.target.closest('.chip'); if (!chip) return;
-    const v = chip.getAttribute('data-verse');
-    const p = chip.getAttribute('data-prompt');
-    if (v){
-      if (!modeVerse.checked) { modeVerse.checked = true; setMode('verse'); }
-      tagify.addTags([v]); updateVerseFilenames(); updatePreview();
-    }
-    if (p){ customPrompt.value = p; updatePreview(); }
-  });
-
-  /* ===== Tagify events ===== */
-  ['add','remove','input','blur'].forEach(evt=>{
-    tagify.on(evt, ()=>{ updateVerseFilenames(); updatePreview(); });
-  });
-
-  /* ===== Persist simple prefs ===== */
-  versionSelect.addEventListener('change', ()=>{ localStorage.setItem('preferredVersion', versionSelect.value); updatePreview(); });
-  cursiveToggle.addEventListener('change', ()=>{ localStorage.setItem('useCursive', cursiveToggle.checked); updateVerseFilenames(); updateCustomFilename(); updatePreview(); });
-
-  /* ===== Custom inputs ===== */
-  ['input','change'].forEach(evt=>{
-    customTitle.addEventListener(evt, ()=>{ updateCustomFilename(); updatePreview(); });
-    customText .addEventListener(evt, ()=>{ updateCustomFilename(); updatePreview(); });
-    customPrompt.addEventListener(evt, updatePreview);
-  });
-
-  /* ===== Submit ===== */
-  document.getElementById('worksheetForm').addEventListener('submit', (e)=>{
+      /* ===== Submit ===== */
+     /* ===== Submit (intercept, POST with fetch, download, keep page) ===== */
+  document.getElementById('worksheetForm').addEventListener('submit', async (e) => {
+    const form = e.currentTarget;
     const isVerse = modeVerse.checked;
     const tags = tagify.value.map(t=>t.value.trim()).filter(Boolean);
     const customBody = (customText.value||'').trim();
 
+    // Client-side validation (same as before)
     if (isVerse){
       if (!tags.length){
         e.preventDefault(); alert('Please add at least one verse.');
         verseInput.setAttribute('aria-invalid','true'); return;
       }
-      verseInput.value = tags.join(', '); localStorage.setItem('recentVerses', verseInput.value);
+      verseInput.value = tags.join(', ');
+      localStorage.setItem('recentVerses', verseInput.value);
     } else {
       if (!customBody){ e.preventDefault(); alert('Please paste your text.'); return; }
       if (!(agreeTerms && agreeTerms.checked)){ e.preventDefault(); alert('Please confirm your content is appropriate.'); return; }
     }
 
-    submitBtn.disabled = true;
-    setTimeout(()=>{ toastEl.textContent = '✅ Worksheet request sent…'; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), 2200); }, 80);
-    setTimeout(()=>{ if (!document.hidden){ submitBtn.disabled = false; } }, 20000);
-  });
+    // Intercept normal navigation
+    e.preventDefault();
 
-  /* ===== Clear ===== */
-  clearBtn.addEventListener('click', ()=>{
-    tagify.removeAllTags(); verseInput.value = '';
-    customTitle.value=''; customText.value=''; customPrompt.value='';
-    if (agreeTerms) agreeTerms.checked = false;
-    filenamePreview.textContent=''; customFilename.textContent='';
-    zipHint.style.display='none'; updatePreview();
-  });
+    try {
+      submitBtn.disabled = true;
+      window.showOverlay?.(); // from base.html
 
-  /* ===== Share link ===== */
-  shareBtn.addEventListener('click', async ()=>{
-    const params = new URLSearchParams();
-    if (modeVerse.checked){
-      const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
-      if (tags.length) params.set('v', tags.join(' | '));
-    } else {
-      if (customTitle.value.trim()) params.set('title', customTitle.value.trim());
-      if (customText.value.trim())  params.set('text',  customText.value.trim().slice(0,120));
-      if (customPrompt.value.trim()) params.set('prompt', customPrompt.value.trim());
-      params.set('mode','custom');
-    }
-    if (cursiveToggle.checked) params.set('cursive','1');
-    if (versionSelect.value && versionSelect.value !== 'auto') params.set('version', versionSelect.value);
+      const fd = new FormData(form);
+      const resp = await fetch(form.action, {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/pdf, application/zip, application/octet-stream' },
+      });
 
-    const url = `${location.origin}${location.pathname}?${params.toString()}`;
-    try { await navigator.clipboard.writeText(url); } catch {}
-    toastEl.textContent = '🔗 Link copied!'; toastEl.classList.add('show');
-    setTimeout(()=>toastEl.classList.remove('show'), 1800);
-  });
-
-  /* ===== Hydrate on load ===== */
-  window.addEventListener('DOMContentLoaded', ()=>{
-    const params = new URLSearchParams(location.search);
-    const urlVerses = params.get('v');
-    const urlMode   = params.get('mode') === 'custom';
-    const urlVer    = params.get('version');
-    const urlCur    = params.get('cursive') === '1';
-
-    const prefill   = {{ prefill_verse|tojson|default('""') }};
-    const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
-
-    if (urlMode){ modeCustom.checked = true; setMode('custom'); } else { setMode('verse'); }
-
-    if (modeVerse.checked){
-      if (prefill) tagify.addTags(prefill.split(',').map(v=>v.trim()).filter(Boolean));
-      if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
-      const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
-      if (recent) tagify.addTags(recent.split(',').map(v=>v.trim()).filter(Boolean));
-      updateVerseFilenames();
-    } else {
-      const t = params.get('title') || ''; const x = params.get('text') || ''; const p = params.get('prompt') || '';
-      if (t) customTitle.value = t; if (x) customText.value = x; if (p) customPrompt.value = p;
-      updateCustomFilename();
-    }
-
-    if (defaultVersionOverride) versionSelect.value = String(defaultVersionOverride).toLowerCase();
-    if (urlVer) versionSelect.value = urlVer.toLowerCase();
-
-    cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');
-    updatePreview();
-
-    // Upgrade banner dismissal
-    const el = document.getElementById('upgradeCta');
-    if (el){
-      const key = 'upgradeDismiss_' + (new Date()).toISOString().slice(0,7).replace('-', '');
-      if(localStorage.getItem(key) === '1'){ el.hidden = true; }
-      else {
-        el.hidden = false;
-        el.querySelector('.dismiss').addEventListener('click', ()=>{
-          localStorage.setItem(key,'1'); el.hidden = true;
-        });
+      if (!resp.ok) {
+        let msg = 'Something went wrong. Please try again.';
+        try { msg = (await resp.text()).slice(0, 240) || msg; } catch {}
+        showToast('❌ ' + msg);
+        return;
       }
+
+      // Determine filename
+      const disp = resp.headers.get('Content-Disposition') || '';
+      const ct   = resp.headers.get('Content-Type') || '';
+      const ext  = ct.includes('zip') ? '.zip' : '.pdf';
+      const first = (tags[0] || customTitle.value || 'worksheet').split(/[,\n]/)[0];
+      const fallback = (first || 'worksheet').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_') + ext;
+      const filename = parseFilename(disp) || fallback;
+
+      // Download
+      const blob = await resp.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+
+      showToast('✅ Worksheet ready');
+    } catch (err) {
+      console.error(err);
+      showToast('❌ Network error. Please try again.');
+    } finally {
+      submitBtn.disabled = false;
+      window.hideOverlay?.(); // from base.html
     }
   });
+
+
+      /* ===== Clear ===== */
+      clearBtn.addEventListener('click', ()=>{
+        tagify.removeAllTags(); verseInput.value = '';
+        customTitle.value=''; customText.value=''; customPrompt.value='';
+        if (agreeTerms) agreeTerms.checked = false;
+        filenamePreview.textContent=''; customFilename.textContent='';
+        zipHint.style.display='none'; updatePreview();
+      });
+
+      /* ===== Share link ===== */
+      shareBtn.addEventListener('click', async ()=>{
+        const params = new URLSearchParams();
+        if (modeVerse.checked){
+          const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+          if (tags.length) params.set('v', tags.join(' | '));
+        } else {
+          if (customTitle.value.trim()) params.set('title', customTitle.value.trim());
+          if (customText.value.trim())  params.set('text',  customText.value.trim().slice(0,120));
+          if (customPrompt.value.trim()) params.set('prompt', customPrompt.value.trim());
+          params.set('mode','custom');
+        }
+        if (cursiveToggle.checked) params.set('cursive','1');
+        if (versionSelect.value && versionSelect.value !== 'auto') params.set('version', versionSelect.value);
+
+        const url = `${location.origin}${location.pathname}?${params.toString()}`;
+        try { await navigator.clipboard.writeText(url); } catch {}
+        toastEl.textContent = '🔗 Link copied!'; toastEl.classList.add('show');
+        setTimeout(()=>toastEl.classList.remove('show'), 1800);
+      });
+
+      /* ===== Hydrate on load ===== */
+      window.addEventListener('DOMContentLoaded', ()=>{
+        const params = new URLSearchParams(location.search);
+        const urlVerses = params.get('v');
+        const urlMode   = params.get('mode') === 'custom';
+        const urlVer    = params.get('version');
+        const urlCur    = params.get('cursive') === '1';
+
+        const prefill   = {{ prefill_verse|tojson|default('""') }};
+        const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
+
+        if (urlMode){ modeCustom.checked = true; setMode('custom'); } else { setMode('verse'); }
+
+        if (modeVerse.checked){
+          if (prefill) tagify.addTags(prefill.split(',').map(v=>v.trim()).filter(Boolean));
+          if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
+          const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
+          if (recent) tagify.addTags(recent.split(',').map(v=>v.trim()).filter(Boolean));
+          updateVerseFilenames();
+        } else {
+          const t = params.get('title') || ''; const x = params.get('text') || ''; const p = params.get('prompt') || '';
+          if (t) customTitle.value = t; if (x) customText.value = x; if (p) customPrompt.value = p;
+          updateCustomFilename();
+        }
+
+        if (defaultVersionOverride) versionSelect.value = String(defaultVersionOverride).toLowerCase();
+        if (urlVer) versionSelect.value = urlVer.toLowerCase();
+
+        cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');
+        updatePreview();
+
+        // Upgrade banner dismissal
+        const el = document.getElementById('upgradeCta');
+        if (el){
+          const key = 'upgradeDismiss_' + (new Date()).toISOString().slice(0,7).replace('-', '');
+          if(localStorage.getItem(key) === '1'){ el.hidden = true; }
+          else {
+            el.hidden = false;
+            el.querySelector('.dismiss').addEventListener('click', ()=>{
+              localStorage.setItem(key,'1'); el.hidden = true;
+            });
+          }
+        }
+      });
 </script>
 
 <style>
