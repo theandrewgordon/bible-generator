@@ -25,47 +25,20 @@ endblock %} {% block content %}
     </div>
   </div>
   <div class="hero-art" aria-hidden="true">
-    {# Prefer a static screenshot; keep SVG as a no-op fallback #}
     <img
       src="{{ url_for('static', filename='hero_john_316.png') }}"
       alt=""
       width="360"
       height="465"
       decoding="async"
-      fetchpriority="high"
       loading="eager"
-      onerror="this.style.display='none'"
+      fetchpriority="high"
       style="
         display: block;
         border-radius: 12px;
         box-shadow: var(--card-shadow);
       "
     />
-
-    <!-- (Fallback) keep your SVG below; harmless if the image exists -->
-    <svg viewBox="0 0 360 240" class="sheet" width="360" height="465">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" class="g1" />
-          <stop offset="1" class="g2" />
-        </linearGradient>
-        <pattern id="rules" width="1" height="18" patternUnits="userSpaceOnUse">
-          <rect x="0" y="0" width="360" height="1" class="rule" />
-        </pattern>
-      </defs>
-      <rect x="6" y="6" width="348" height="228" rx="14" class="sheet-bg" />
-      <rect x="12" y="12" width="336" height="216" rx="10" fill="url(#bg)" />
-      <rect x="24" y="28" width="312" height="170" fill="url(#rules)" />
-      <rect
-        x="24"
-        y="210"
-        width="112"
-        height="16"
-        rx="8"
-        class="chip chip-alt"
-      />
-      <rect x="144" y="210" width="90" height="16" rx="8" class="chip" />
-    </svg>
   </div>
 </section>
 {% endblock %}

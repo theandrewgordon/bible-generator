@@ -23,6 +23,14 @@
   /* Effects */
   --card-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
   --radius: 12px;
+
+  /* Sheet (preview) tokens */
+  --sheet-g1: #f8fafc;
+  --sheet-g2: #eef2f7;
+  --sheet-rule: #e6edf6;
+  --sheet-chip: #dfe9f7;
+  --sheet-chip-alt: #cfe5fb;
+  --sheet-stroke: #d4d9e0;
 }
 
 /* Dark theme overrides (body.dark toggled by JS) */
@@ -41,27 +49,46 @@
   --header-hover-bg: rgba(230, 242, 255, 0.1);
   --header-active-bg: rgba(230, 242, 255, 0.18);
   --header-border: rgba(230, 242, 255, 0.14);
+
+  /* Sheet (preview) tokens */
+  --sheet-g1: #0b2035;
+  --sheet-g2: #13273f;
+  --sheet-rule: #203046;
+  --sheet-chip: #183045;
+  --sheet-chip-alt: #0b3b5a;
+  --sheet-stroke: #334155;
 }
-/* Hero / preview sheet styling */
+
+/* Reduce-motion nicety */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Sheet / hero preview ---------- */
 .sheet-bg {
   fill: transparent;
-  stroke: var(--sheet-stroke, #d4d9e0);
+  stroke: var(--sheet-stroke);
   stroke-dasharray: 4 4;
 }
 .g1 {
-  stop-color: var(--sheet-g1, #0b2035);
+  stop-color: var(--sheet-g1);
 }
 .g2 {
-  stop-color: var(--sheet-g2, #13273f);
+  stop-color: var(--sheet-g2);
 }
 .rule {
-  fill: var(--sheet-rule, #203046);
+  fill: var(--sheet-rule);
 }
 .chip {
-  fill: var(--sheet-chip, #183045);
+  fill: var(--sheet-chip);
 }
 .chip-alt {
-  fill: var(--sheet-chip-alt, #0b3b5a);
+  fill: var(--sheet-chip-alt);
 }
 .sheet {
   width: 100%;
@@ -69,80 +96,31 @@
   max-width: 360px;
 }
 
-.prose {
-  max-width: 72ch;
-}
-.container > .prose {
-  line-height: 1.6;
-}
-
-/* Smooth scrolling for big grids (History etc.) */
-.cards {
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 240px;
-}
-
-/* Light vs dark tokens for the sheet */
-:root {
-  --sheet-g1: #f8fafc;
-  --sheet-g2: #eef2f7;
-  --sheet-rule: #e6edf6;
-  --sheet-chip: #dfe9f7;
-  --sheet-chip-alt: #cfe5fb;
-  --sheet-stroke: #d4d9e0;
-}
-.dark {
-  --sheet-g1: #0b2035;
-  --sheet-g2: #13273f;
-  --sheet-rule: #203046;
-  --sheet-chip: #183045;
-  --sheet-chip-alt: #0b3b5a;
-  --sheet-stroke: #334155;
-}
-
-/* Reusable sheet SVG */
+/* Support `.fs-sheet` wrapper as an alias */
 .fs-sheet .sheet-bg {
   fill: transparent;
-  stroke: var(--sheet-stroke, #d4d9e0);
+  stroke: var(--sheet-stroke);
   stroke-dasharray: 4 4;
 }
 .fs-sheet .g1 {
-  stop-color: var(--sheet-g1, #0b2035);
+  stop-color: var(--sheet-g1);
 }
 .fs-sheet .g2 {
-  stop-color: var(--sheet-g2, #13273f);
+  stop-color: var(--sheet-g2);
 }
 .fs-sheet .rule {
-  fill: var(--sheet-rule, #203046);
+  fill: var(--sheet-rule);
 }
 .fs-sheet .chip {
-  fill: var(--sheet-chip, #183045);
+  fill: var(--sheet-chip);
 }
 .fs-sheet .chip-alt {
-  fill: var(--sheet-chip-alt, #0b3b5a);
+  fill: var(--sheet-chip-alt);
 }
 .fs-sheet svg {
   width: 100%;
   height: auto;
   max-width: 360px;
-}
-
-/* Light overrides via :root, dark via .dark */
-:root {
-  --sheet-g1: #f8fafc;
-  --sheet-g2: #eef2f7;
-  --sheet-rule: #e6edf6;
-  --sheet-chip: #dfe9f7;
-  --sheet-chip-alt: #cfe5fb;
-  --sheet-stroke: #d4d9e0;
-}
-.dark {
-  --sheet-g1: #0b2035;
-  --sheet-g2: #13273f;
-  --sheet-rule: #203046;
-  --sheet-chip: #183045;
-  --sheet-chip-alt: #0b3b5a;
-  --sheet-stroke: #334155;
 }
 
 /* ---------- Base ---------- */
@@ -205,6 +183,37 @@ body {
 @media (max-width: 480px) {
   h1 {
     font-size: 1.75rem;
+  }
+}
+
+/* ---------- Home hero layout ---------- */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr minmax(280px, 360px);
+  gap: 1rem 1.5rem;
+  align-items: start;
+  margin-top: 0.25rem;
+}
+.hero-text {
+  min-width: 0;
+}
+.hero-art img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .hero-art {
+    margin-top: 0.75rem;
   }
 }
 
@@ -274,7 +283,6 @@ a.nav-link:hover,
 .toast-error {
   background: #e53e3e;
 }
-
 @keyframes fadeOut {
   0%,
   80% {
@@ -292,13 +300,11 @@ input[type="checkbox"] + label,
 .checkbox-label {
   color: var(--text);
 }
-
 .dark label,
 .dark .checkbox-label,
 .dark input[type="checkbox"] + label {
   color: #f7fafc;
 }
-
 .wide-input {
   width: 100%;
   padding: 10px;
@@ -633,13 +639,17 @@ input[type="checkbox"] + label,
   background: var(--box);
 }
 
+/* large grids render faster */
 .cards {
   list-style: none;
   padding: 0;
   margin: 0;
   display: grid;
   gap: 0.75rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 240px;
 }
+
 .card {
   border-radius: 14px;
   border: 1px solid #e5e7eb;
@@ -738,7 +748,7 @@ input[type="checkbox"] + label,
   margin-bottom: 0.25rem;
 }
 
-/* History list legacy layout helpers (scoped to container) */
+/* History legacy helpers */
 .history-entry {
   display: flex;
   flex-wrap: wrap;
@@ -776,7 +786,7 @@ input[type="checkbox"] + label,
   }
 }
 
-/* ---------- Generic action rows (used on forms & pages) ---------- */
+/* ---------- Generic action rows ---------- */
 .actions {
   display: flex;
   gap: 0.5rem;
@@ -824,7 +834,7 @@ input[type="checkbox"] + label,
   opacity: 1;
 }
 
-/* ---------- Details content (for <details>) ---------- */
+/* ---------- Details content ---------- */
 details > div {
   background: var(--box);
   color: var(--text);
@@ -881,16 +891,14 @@ body.dark,
     width: 100%;
     text-align: center;
   }
-
   .container {
     padding: 1.2rem;
   }
 }
+
 /* ================================
    Generate — Quick Picks polish
    ================================ */
-
-/* container + label */
 .quick-picks {
   display: flex;
   flex-wrap: wrap;
@@ -904,20 +912,16 @@ body.dark,
   font-weight: 600;
   font-size: 0.9rem;
 }
-
-/* chips inherit your .chip baseline but look softer & more tactile here */
 .quick-picks .chip {
   --qp-bg: #f8fafc;
   --qp-bd: #cbd5e1;
   --qp-fg: #0f172a;
   --qp-bg-hover: #eef2ff;
   --qp-bd-hover: #c7d2fe;
-
   background: var(--qp-bg);
   border-color: var(--qp-bd);
   color: var(--qp-fg);
-
-  padding: 5px 10px; /* slightly tighter than default */
+  padding: 5px 10px;
   font-weight: 700;
   line-height: 1;
   user-select: none;
@@ -934,17 +938,8 @@ body.dark,
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
-/* Prevent layout shift while images decode */
-.thumb-card img {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-radius: 8px;
-  background: #0b1220;
-}
 
-/* optional soft categories (attach these classes in HTML if desired) */
+/* optional soft categories */
 .quick-picks .chip.nt {
   --qp-bg: #eef2ff;
   --qp-bd: #c7d2fe;
@@ -957,8 +952,6 @@ body.dark,
   --qp-bg: #f0fdf4;
   --qp-bd: #bbf7d0;
 } /* Gospels */
-
-/* dark mode tuning */
 .dark .quick-picks .chip {
   --qp-bg: #0f172a;
   --qp-bd: #334155;
@@ -979,6 +972,17 @@ body.dark,
   --qp-bd: #1f3a27;
 }
 
+/* Prevent layout shift while images decode (thumbs) */
+.thumb-card img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #0b1220;
+}
+
+/* ---------- Plus hero ---------- */
 .plus-hero {
   display: grid;
   grid-template-columns: 1fr minmax(240px, 360px);
