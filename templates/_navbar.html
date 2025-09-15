@@ -6,122 +6,72 @@
         src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}"
         alt="Faith Sparks Logo"
         width="180" height="40"
-        decoding="async"
-        fetchpriority="high"
-        loading="eager"
+        decoding="async" fetchpriority="high" loading="eager"
       />
     </a>
 
     <!-- Mobile menu button -->
     <button
-      class="menu-toggle"
-      id="menuToggle"
-      type="button"
-      aria-controls="mainNav"
-      aria-expanded="false"
-      aria-label="Toggle menu"
-    >
+      class="menu-toggle" id="menuToggle" type="button"
+      aria-controls="mainNav" aria-expanded="false" aria-label="Toggle menu">
       <span class="bar"></span><span class="bar"></span><span class="bar"></span>
     </button>
 
-
-
-    
     <!-- Primary nav -->
     <nav id="mainNav" class="nav-links" aria-label="Primary">
-      {# active helpers #}
       {% set p = request.path or '' %}
-      <a class="nav-link" href="/"
-         {% if p == '/' %}aria-current="page"{% endif %}>🏠 Home</a>
+      <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}>🏠 Home</a>
+      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}>📝 Generate</a>
+      <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>🔎 Browse</a>
+      <a class="nav-link" href="/history"        {% if p.startswith('/history') %}aria-current="page"{% endif %}>📚 History</a>
 
-      <a class="nav-link" href="/generate"
-         {% if p.startswith('/generate') %}aria-current="page"{% endif %}>📝 Generate</a>
-
-      <a class="nav-link" href="/browse"
-         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>🔎 Browse</a>
-
-      <a class="nav-link" href="/history"
-         {% if p.startswith('/history') %}aria-current="page"{% endif %}>📚 History</a>
-      {% if is_signed_in and usage_nav %}
-        <span class="usage-chip" id="usageChip" title="{{ usage_nav.title }}">
-          {{ usage_nav.text }}
-        </span>
-      {% endif %}
       {% if not is_pro %}
-        <a class="nav-link plus" href="/plus"
-           {% if p.startswith('/plus') %}aria-current="page"{% endif %}>⭐ Plus</a>
+        <a class="nav-link plus" href="/plus"    {% if p.startswith('/plus') %}aria-current="page"{% endif %}>⭐ Plus</a>
       {% else %}
-        <a class="nav-link" href="/billing"
-           {% if p.startswith('/billing') %}aria-current="page"{% endif %}>🧾 Billing</a>
+        <a class="nav-link" href="/billing"      {% if p.startswith('/billing') %}aria-current="page"{% endif %}>🧾 Billing</a>
       {% endif %}
 
       {% if is_admin %}
         <details class="admin-drop" {% if p.startswith('/admin') %}open{% endif %} aria-label="Admin menu">
-          <summary
-            class="admin-summary"
-            aria-haspopup="menu"
-          >🛠️ <span aria-hidden="true">Admin</span></summary>
+          <summary class="admin-summary" aria-haspopup="menu">🛠️ <span aria-hidden="true">Admin</span></summary>
           <div class="admin-panel" role="menu">
-            <a class="nav-sublink" href="/admin/collections"
-               role="menuitem" {% if p.startswith('/admin/collections') %}aria-current="page"{% endif %}>Collections</a>
-            <a class="nav-sublink" href="/admin/users"
-               role="menuitem" {% if p.startswith('/admin/users') %}aria-current="page"{% endif %}>Users</a>
-            <a class="nav-sublink" href="/admin/theme"
-               role="menuitem" {% if p.startswith('/admin/theme') %}aria-current="page"{% endif %}>Theme</a>
-            <a class="nav-sublink" href="/admin/content"
-               role="menuitem" {% if p.startswith('/admin/content') %}aria-current="page"{% endif %}>Content</a>
-            <a class="nav-sublink" href="/admin/gift"
-               role="menuitem" {% if p.startswith('/admin/gift') %}aria-current="page"{% endif %}>Gift</a>
-            <a class="nav-sublink" href="/admin/help"
-               role="menuitem" {% if p.startswith('/admin/help') %}aria-current="page"{% endif %}>Help</a>
-            <a class="nav-sublink" href="/admin/analytics"
-               role="menuitem" {% if p.startswith('/admin/analytics') %}aria-current="page"{% endif %}>Analytics</a>
+            <a class="nav-sublink" href="/admin/collections" role="menuitem" {% if p.startswith('/admin/collections') %}aria-current="page"{% endif %}>Collections</a>
+            <a class="nav-sublink" href="/admin/users"        role="menuitem" {% if p.startswith('/admin/users') %}aria-current="page"{% endif %}>Users</a>
+            <a class="nav-sublink" href="/admin/theme"        role="menuitem" {% if p.startswith('/admin/theme') %}aria-current="page"{% endif %}>Theme</a>
+            <a class="nav-sublink" href="/admin/content"      role="menuitem" {% if p.startswith('/admin/content') %}aria-current="page"{% endif %}>Content</a>
+            <a class="nav-sublink" href="/admin/gift"         role="menuitem" {% if p.startswith('/admin/gift') %}aria-current="page"{% endif %}>Gift</a>
+            <a class="nav-sublink" href="/admin/help"         role="menuitem" {% if p.startswith('/admin/help') %}aria-current="page"{% endif %}>Help</a>
+            <a class="nav-sublink" href="/admin/analytics"    role="menuitem" {% if p.startswith('/admin/analytics') %}aria-current="page"{% endif %}>Analytics</a>
           </div>
         </details>
       {% endif %}
 
-      <a class="nav-link" href="/about"
-         {% if p.startswith('/about') %}aria-current="page"{% endif %}>ℹ️ About</a>
+      <a class="nav-link" href="/about"          {% if p.startswith('/about') %}aria-current="page"{% endif %}>ℹ️ About</a>
     </nav>
 
     <!-- Right: usage, auth, theme -->
     <div class="auth-theme">
       {% if is_signed_in and usage_nav %}
-        <span class="usage-chip" title="{{ usage_nav.title }}">{{ usage_nav.text }}</span>
+        <span
+          class="usage-chip"
+          id="usageChip"
+          title="{{ usage_nav.title }}"
+          role="status"
+          aria-live="polite"
+        >{{ usage_nav.text }}</span>
       {% endif %}
 
       {% if session.user_info %}
-        <span class="user-name" title="{{ session.user_info.email }}">
-          👤 {{ session.user_info.email.split('@')[0] }}
-        </span>
+        <span class="user-name" title="{{ session.user_info.email }}">👤 {{ session.user_info.email.split('@')[0] }}</span>
         <a class="auth-link logout" href="/logout">🚪 Logout</a>
       {% else %}
         <a class="auth-link" href="{{ url_for('google.login') }}">🔐 Login</a>
       {% endif %}
 
       <button
-        class="theme-toggle"
-        id="themeToggle"
-        type="button"
-        aria-label="Toggle dark mode"
-        title="Toggle dark mode"
-        aria-pressed="false"
-      >
-        🌙
+        class="theme-toggle" id="themeToggle" type="button"
+        aria-label="Toggle dark mode" title="Toggle dark mode" aria-pressed="false">🌙
       </button>
     </div>
   </div>
 </header>
-
-<script>
-  (function () {
-    const menuToggle = document.getElementById('menuToggle');
-    if (menuToggle) {
-      menuToggle.addEventListener('click', () => {
-        const expanded = menuToggle.getAttribute('aria-expanded') === 'true';
-        menuToggle.setAttribute('aria-expanded', String(!expanded));
-      });
-    }
-    // Theme button is wired in static/darkmode.js
-  })();
-</script>
