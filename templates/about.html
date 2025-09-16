@@ -1,31 +1,44 @@
-{% extends "base.html" %} {% block title %}About | Faith Sparks Printables{%
-endblock %} {% block content %}
-<h1 class="page-title">About Faith Sparks Printables</h1>
+{% extends "base.html" %} {% set description = "About Faith Sparks Printables —
+we help Christian homeschool families, churches, and co-ops create Bible
+copywork worksheets in seconds." %} {% block title %}About | Faith Sparks
+Printables{% endblock %} {% block content %}
 <article class="prose">
-  {% if site_content and site_content.about_html %} {% if
-  site_content.about_is_markdown %}
-  <div>{{ site_content.about_html|markdown|safe }}</div>
-  {% else %}
-  <div>{{ site_content.about_html|safe }}</div>
-  {% endif %} {% else %}
+  <h1 class="page-title">About Faith Sparks Printables</h1>
+
   <p>
-    Hi, I’m Andrew Gordon — a Christian husband, father of four, homeschool dad,
-    and software developer. I love God and I seek to love my neighbors.
+    Faith Sparks helps Christian homeschool families, churches, and co-ops
+    create beautiful <strong>Bible copywork</strong> worksheets in seconds. Pick
+    a verse, choose a version, and we’ll generate a clean, kid-friendly PDF —
+    perfect for handwriting practice, memory work, or Sunday School.
   </p>
+
+  <h2>Why we built this</h2>
   <p>
-    I saw my family regularly needing fun, Bible-based ways to practice
-    handwriting and cursive. I couldn’t find exactly what I was looking for, so
-    I built Faith Sparks Printables to create simple, beautiful worksheets that
-    help kids engage Scripture through copywork, reflection, and creativity.
+    We wanted an easy, family-friendly way to make scripture copywork that looks
+    consistent across grades — print at home, share with your class, or send
+    home as homework.
   </p>
-  <p>
-    My hope is that these resources serve families, homeschoolers, and churches
-    by making God’s Word more present in everyday learning.
+
+  <h2>How it works</h2>
+  <ol>
+    <li>
+      Go to <a href="{{ url_for('generate') }}">Generate</a> and enter verse(s).
+    </li>
+    <li>Pick a Bible version, and optionally enable cursive tracing.</li>
+    <li>Download your PDF — multiple verses come as a ZIP.</li>
+  </ol>
+
+  <p class="muted small">
+    Need help or have a request? Email {% if support_email %}
+    <a href="mailto:{{ support_email }}">{{ support_email }}</a>. {% else %} our
+    support team. {% endif %}
   </p>
-  {% endif %}
-  <h3>Contact & Support</h3>
-  <p class="muted">
-    Questions or feedback? Use the support email in the footer.
-  </p>
+
+  <div class="actions" style="margin-top: 1rem">
+    <a class="button primary" href="{{ url_for('generate') }}"
+      >✍️ Generate a Worksheet</a
+    >
+    <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
+  </div>
 </article>
 {% endblock %}

@@ -1,12 +1,17 @@
-{% extends "base.html" %} {% block head_extra %}<meta
-  name="robots"
-  content="noindex"
-/>{% endblock %} {% block title %}Page Not Found | Faith Sparks Printables{%
-endblock %} {% block content %}
-<h1 class="page-title">404 — Not Found</h1>
-<p class="muted">Oops! That page doesn’t exist.</p>
-<p style="display: flex; gap: 0.5rem; flex-wrap: wrap">
-  <a href="/" class="button">🏠 Home</a>
-  <a href="/browse" class="button ghost">🔎 Browse</a>
-</p>
+{% extends "base.html" %} {% block title %}Page Not Found | Faith Sparks
+Printables{% endblock %} {% block head_extra %}
+<meta name="robots" content="noindex,follow" />
+{% endblock %} {% block content %}
+<section class="empty">
+  <div class="empty-emoji">🤷‍♂️</div>
+  <h1 class="page-title">Page not found</h1>
+  <p class="muted">Sorry — that link doesn’t exist anymore.</p>
+  <div class="actions" style="justify-content: center; margin-top: 0.5rem">
+    <a class="button" href="{{ url_for('generate') }}"
+      >✍️ Generate a Worksheet</a
+    >
+    <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
+    <a class="button ghost" href="{{ url_for('index') }}">🏠 Home</a>
+  </div>
+</section>
 {% endblock %}
