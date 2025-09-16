@@ -2,20 +2,34 @@
 {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
 
-<div class="toolbar">
+<div class="toolbar" role="region" aria-label="Browse filters">
   <input
     id="search"
     type="search"
     placeholder="Search packs…"
     oninput="debounced()"
     aria-label="Search packs"
+    aria-controls="packs"
+    autocomplete="off"
+    spellcheck="false"
+    enterkeyhint="search"
   />
-  <select id="tag" onchange="applyFilters()" aria-label="Filter by access">
+  <select
+    id="tag"
+    onchange="applyFilters()"
+    aria-label="Filter by access"
+    aria-controls="packs"
+  >
     <option value="">All</option>
     <option value="free">Free</option>
     <option value="plus">Included with Plus</option>
   </select>
-  <select id="sort" onchange="applyFilters()" aria-label="Sort">
+  <select
+    id="sort"
+    onchange="applyFilters()"
+    aria-label="Sort packs"
+    aria-controls="packs"
+  >
     <option value="order">Sort: Featured</option>
     <option value="alpha">Sort: A→Z</option>
     <option value="count_desc">Sort: Most verses</option>
@@ -35,6 +49,7 @@
         class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
         data-title="{{ p.title|lower }}"
+        aria-label="View {{ p.title }} details"
       >
         <div class="pack-top">
           <div class="pack-meta">
@@ -62,6 +77,7 @@
         class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
         data-title="{{ p.title|lower }}"
+        aria-label="View {{ p.title }} details"
       >
         <div class="pack-top">
           <div class="pack-meta">
@@ -81,7 +97,12 @@
 <section class="block">
   <div class="section-head">
     <h3>Collections</h3>
-    <span id="countShown" class="small muted"></span>
+    <span
+      id="countShown"
+      class="small muted"
+      aria-live="polite"
+      role="status"
+    ></span>
   </div>
 
   <div id="packs" class="pack-grid">
@@ -106,15 +127,19 @@
       </div>
 
       <h3 class="pack-title">
-        <a href="{{ url_for('browse_detail', slug=c.slug) }}">{{ c.title }}</a>
+        <a
+          href="{{ url_for('browse_detail', slug=c.slug) }}"
+          aria-label="View {{ c.title }} details"
+          >{{ c.title }}</a
+        >
       </h3>
       <div class="pack-sub muted small">
         {{ c.count or (c.verses|length) }} verses • <code>{{ c.slug }}</code>
       </div>
 
       <div class="pack-actions">
-        {# Downloads / billing buttons only if pack has a ZIP #} {% if c.zipUrl
-        %} {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
+        {# Download / billing shown only if pack has a ZIP #} {% if c.zipUrl %}
+        {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
         pack_effective_price_id(c) %} {% if pid %}
         <a class="button small" href="{{ url_for('buy_pack', slug=c.slug) }}"
           >💳 Buy $2.50</a
@@ -136,11 +161,12 @@
           href="{{ url_for('google.login', next=next_url) }}"
           >🔐 Sign in</a
         >
-        {% endif %} {% endif %} {# Always show Use Pack, with verses (preferred)
-        or collection fallback #}
+        {% endif %} {% endif %} {# Always show Use Pack (prefer explicit verses;
+        fallback to collection) #}
         <a
           class="button small"
           href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate') }}?collection={{ c.slug|urlencode }}{% endif %}"
+          aria-label="Use {{ c.title }} in Generate"
           >✍️ Use Pack</a
         >
       </div>
@@ -162,7 +188,9 @@
     </summary>
 
     <div id="recentMount" class="mt10">
-      <div class="empty muted small">Loading…</div>
+      <div class="empty muted small" role="status" aria-live="polite">
+        Loading…
+      </div>
     </div>
 
     <template id="recentTpl">
@@ -350,8 +378,8 @@
 
   function applyFilters() {
     const q = ($("#search").value || "").toLowerCase().trim();
-    const tag = $("#tag").value,
-      sort = $("#sort").value;
+    const tag = $("#tag").value;
+    const sort = $("#sort").value;
     const grid = $("#packs");
     const cards = $$("#packs .pack-card");
     const visible = [];
@@ -380,11 +408,14 @@
       })
       .forEach((el) => el.parentNode.appendChild(el));
 
-    $("#countShown").textContent = `${visible.length} shown`;
+    const countNode = $("#countShown");
+    if (countNode) countNode.textContent = `${visible.length} shown`;
 
     if (!visible.length) {
       const div = document.createElement("div");
       div.className = "empty-state muted small";
+      div.setAttribute("role", "status");
+      div.setAttribute("aria-live", "polite");
       div.textContent = "No matches. Clear filters to see all collections.";
       grid.appendChild(div);
     }
