@@ -1,11 +1,62 @@
-{% extends "base.html" %}
-{% block title %}Worksheet Ready | Faith Sparks Printables{% endblock %}
-{% block content %}
-  <h1 class="page-title">✅ Your worksheet is ready!</h1>
-  <p class="muted">You can download it below or create another.</p>
+{% extends "base.html" %} {% block title %}Worksheet Ready | Faith Sparks
+Printables{% endblock %} {% block head_extra %}
+<meta name="robots" content="noindex,follow" />
+{% endblock %} {% block content %} {% set parts =
+filename|default('')|split('.') %} {% set ext = (parts[-1]|lower if parts|length
+> 1 else '') %} {% set is_zip = (ext == 'zip') %} {% set base =
+parts[:-1]|join('.') %}
 
-  <p>
-    <a class="button" href="{{ url_for('download', filename=filename) }}">📥 Download Again</a>
-    <a class="button ghost" href="/generate">🔁 Make Another Worksheet</a>
-  </p>
+<h1 class="page-title">✅ Your worksheet is ready!</h1>
+<p class="muted" id="autoMsg" aria-live="polite">
+  Your download should start automatically. If not, use the button below.
+</p>
+
+{% if filename %}
+<p class="actions" style="margin-top: 0.5rem">
+  <a
+    id="dlNow"
+    class="button"
+    href="{{ url_for('download', filename=filename) }}"
+  >
+    📥 Download {{ 'ZIP' if is_zip else 'PDF' }} Again
+  </a>
+  <a class="button ghost" href="{{ url_for('generate') }}"
+    >🔁 Make Another Worksheet</a
+  >
+  <a class="button ghost" href="{{ url_for('history') }}">📚 View History</a>
+  <a class="button ghost" href="{{ url_for('regenerate', filename=base) }}"
+    >♻️ Regenerate This</a
+  >
+</p>
+<p class="small muted">
+  Tip: If your browser blocks automatic downloads, right-click the download
+  button and choose
+  <em>“Save link as…”</em>.
+</p>
+{% else %}
+<p class="warn" role="alert">
+  We couldn't find a filename to download. Please return to
+  <a href="{{ url_for('generate') }}">Generate</a> and try again.
+</p>
+{% endif %} {% endblock %} {% block extra_scripts %}
+<script>
+  (function () {
+    // Kick off the download once to be helpful.
+    const a = document.getElementById("dlNow");
+    if (a) {
+      // Nudge the usage chip to refresh (if base wired /api/usage).
+      try {
+        window.refreshUsageChip?.();
+      } catch {}
+      // Set a small marker in case you want cross-page refresh logic.
+      try {
+        sessionStorage.setItem("genPending", "1");
+        sessionStorage.setItem("genPendingFocus", "1");
+      } catch {}
+
+      // Auto-click after paint so the button is still reachable by keyboard users.
+      requestAnimationFrame(() => a.click());
+    }
+  })();
+</script>
 {% endblock %}
