@@ -5,6 +5,19 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {# Canonical + robots #}
+    <link
+      rel="canonical"
+      href="{{ request.url_root.rstrip('/') ~ request.path }}"
+    />
+    {% set path = request.path or '' %} {% if path.startswith('/generate') or
+    path.startswith('/history') or path.startswith('/admin') or
+    request.query_string %}
+    <meta name="robots" content="noindex,follow" />
+    {% else %}
+    <meta name="robots" content="index,follow" />
+    {% endif %}
+
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="{{ favicon_url }}" />
 

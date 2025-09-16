@@ -1,17 +1,25 @@
-<!-- ========== 3) index.html (HOME) – hero SVG sized to avoid CLS ========== -->
-{% extends "base.html" %} {% block title %}Home | Faith Sparks Printables{%
-endblock %} {% block content %}
+{% extends "base.html" %} {% block title %} Printable Bible Copywork Worksheets
+for Homeschool & Church | Faith Sparks {% endblock %} {% block head_extra %}
+<meta
+  name="description"
+  content="Create and download printable Bible copywork worksheets (ESV/KJV) for Christian homeschool, co-ops, and Sunday school. Optional cursive tracing fonts and easy regeneration."
+/>
+{% endblock %} {% block content %}
 <section class="hero">
   <div class="hero-text">
     <h1 class="hero-title">
-      {{ (site_content.home_title or 'Welcome to Faith Sparks Printables') if
-      site_content else 'Welcome to Faith Sparks Printables' }}
+      {{ (site_content.home_title or 'Printable Bible Copywork Worksheets') if
+      site_content else 'Printable Bible Copywork Worksheets' }}
     </h1>
     <p class="hero-sub">
-      {{ (site_content.home_subtitle or 'Sign in with Google to create and track
-      your printable Bible worksheets.') if site_content else 'Sign in with
-      Google to create and track your printable Bible worksheets.' }}
+      {{ (site_content.home_subtitle or 'Make simple, beautiful Bible copywork
+      for Christian homeschool, co-ops, and Sunday school. Sign in with Google
+      to create, track, and regenerate worksheets.') if site_content else 'Make
+      simple, beautiful Bible copywork for Christian homeschool, co-ops, and
+      Sunday school. Sign in with Google to create, track, and regenerate
+      worksheets.' }}
     </p>
+
     <div class="cta-row">
       <a class="button primary" href="{{ url_for('generate') }}"
         >✍️ Generate a Worksheet</a
@@ -24,10 +32,11 @@ endblock %} {% block content %}
       >
     </div>
   </div>
+
   <div class="hero-art" aria-hidden="true">
     <img
       src="{{ url_for('static', filename='hero_john_316.png') }}"
-      alt=""
+      alt="Bible copywork worksheet preview for John 3:16"
       width="360"
       height="465"
       decoding="async"
