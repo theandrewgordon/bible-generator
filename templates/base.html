@@ -1,25 +1,54 @@
-<!-- ========== 1) base.html (DROP-IN) ========== -->
+<!-- ========== base.html (DROP-IN, updated) ========== -->
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     {# Canonical + robots #}
-    <link
-      rel="canonical"
-      href="{{ request.url_root.rstrip('/') ~ request.path }}"
-    />
-    {% set path = request.path or '' %} {% if path.startswith('/generate') or
-    path.startswith('/history') or path.startswith('/admin') or
-    request.query_string %}
-    <meta name="robots" content="noindex,follow" />
+    <link rel="canonical" href="{{ request.url_root.rstrip('/') ~ request.path }}" />
+    {% set path = request.path or '' %}
+    {% if path.startswith('/generate') or path.startswith('/history') or path.startswith('/admin') or request.query_string %}
+      <meta name="robots" content="noindex,follow" />
     {% else %}
-    <meta name="robots" content="index,follow" />
+      <meta name="robots" content="index,follow" />
     {% endif %}
 
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="{{ favicon_url }}" />
+
+    {# ---- Default SEO (overridable) ---- #}
+    {% block seo %}
+      <meta name="description" content="Create and download printable Bible copywork worksheets for Christian homeschool, co-ops, and Sunday school." />
+      <meta property="og:site_name" content="Faith Sparks Printables" />
+      <meta property="og:type" content="{{ 'website' if path == '/' else 'article' }}" />
+      <meta property="og:url" content="{{ request.url }}" />
+      <meta property="og:title" content="Faith Sparks Printables" />
+      <meta property="og:description" content="Create and download printable Bible copywork worksheets for Christian homeschool, co-ops, and Sunday school." />
+      <meta property="og:image" content="{{ url_for('static', filename='hero_john_316.png', _external=True) }}" />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content="Faith Sparks Printables" />
+      <meta name="twitter:description" content="Printable Bible copywork worksheets for homeschool & church." />
+      <meta name="twitter:image" content="{{ url_for('static', filename='hero_john_316.png', _external=True) }}" />
+
+      {# JSON-LD (Website) on homepage only; override this block for per-page schemas #}
+      {% if path == '/' %}
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Faith Sparks Printables",
+          "url": "{{ request.url_root }}",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "{{ request.url_root }}browse?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        }
+        </script>
+      {% endif %}
+    {% endblock %}
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -65,343 +94,4 @@
 
       /* ===== prefers-reduced-motion: reduce heavy effects ===== */
       @media (prefers-reduced-motion: reduce) {
-        :root { --flake-count: 0; --leaf-count: 0; }
-        .snow, .snow-svg, .leaves, .string-lights { display: none !important; }
-      }
-
-      /* Seasonal extras toggles */
-      {% if theme.extras and theme.extras.snow %}
-      .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1;contain:layout paint}
-      .snow::before,.snow::after{content:"";position:absolute;top:-10px;width:100%;height:10px;opacity:.65;background:radial-gradient(2px 2px at 2px 2px,rgba(255,255,255,.95) 50%,transparent 51%) repeat;background-size:20px 20px;animation:snow-fall 12s linear infinite;will-change:transform}
-      .snow::after{animation-duration:18s;opacity:.45}
-      @keyframes snow-fall{to{transform:translateY(110vh)}}
-      body{position:relative}
-      {% endif %}
-
-      {% if theme.extras and theme.extras.lights %}
-      .lights-bar{position:absolute;top:0;left:0;right:0;height:28px;background:repeating-linear-gradient(90deg,#fca5a5 0 16px,#fde68a 16px 32px,#86efac 32px 48px,#93c5fd 48px 64px);box-shadow:0 2px 4px rgba(0,0,0,.08)}
-      .main-header{position:relative;padding-top:44px}
-      {% endif %}
-
-      {% if theme.extras and theme.extras.string_lights %}
-      .string-lights{position:absolute;top:0;left:0;right:0;height:36px;display:flex;justify-content:space-around;align-items:flex-start;pointer-events:none}
-      .string-lights .bulb{width:10px;height:16px;border-radius:50% 50% 60% 60%;background:#fca5a5;box-shadow:0 0 8px rgba(255,255,255,.7);animation:twinkle 2.4s ease-in-out infinite}
-      .string-lights .bulb:nth-child(2n){background:#fde68a;animation-delay:.4s}
-      .string-lights .bulb:nth-child(3n){background:#93c5fd;animation-delay:.8s}
-      .string-lights .bulb:nth-child(4n){background:#86efac;animation-delay:1.2s}
-      @keyframes twinkle{0%,100%{opacity:.7;filter:brightness(1)}50%{opacity:1;filter:brightness(1.5)}}
-      .main-header{position:relative;padding-top:52px}
-      {% endif %}
-
-      {% if theme.extras and theme.extras.snow_svg %}
-      .snow-svg{position:fixed;pointer-events:none;left:0;top:0;width:100%;height:100%;z-index:1;overflow:hidden}
-      {% endif %}
-
-      {% if theme.extras and theme.extras.leaves %}
-      .leaves{pointer-events:none;position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:1}
-      .leaf{position:absolute;top:-40px;width:18px;height:18px;background:radial-gradient(circle at 30% 30%,#f59e0b 40%,#b45309 41%);border-radius:40% 60% 40% 60%;opacity:.85;animation:fall 12s linear infinite;will-change:transform}
-      @keyframes fall{to{transform:translateY(110vh) rotate(360deg)}}
-      {% endif %}
-
-      {# Safer custom CSS: only render sanitized content if present #}
-      {% if theme.extras and theme.extras.custom_css_sanitized %}
-      {{ theme.extras.custom_css_sanitized|safe }}
-      {% endif %}
-
-      /* Layout polish shared */
-      .container{max-width:980px;margin:0 auto;padding:2rem 1.25rem}
-      .page-title{font-size:clamp(1.4rem,2.2vw + 1rem,2rem);font-weight:800;letter-spacing:.2px;margin:.2rem 0 .6rem}
-      .button{border-radius:12px}
-      .muted{color:var(--text-secondary)}
-      .small{font-size:.9em}
-
-      /* Toasts */
-      #toast-container{position:fixed;top:12px;right:12px;display:grid;gap:8px;z-index:9999}
-      .toast{padding:10px 14px;border-radius:10px;background:#def7ec;color:#03543f;box-shadow:var(--card-shadow)}
-      .toast-warning{background:#fef3c7;color:#92400e}
-      .toast-error{background:#fee2e2;color:#7f1d1d}
-      .toast-success{background:#dcfce7;color:#14532d}
-
-      footer{text-align:center;padding:2rem 1rem;font-size:.9em;color:var(--text-secondary);background-color:transparent}
-
-      /* Admin → Content banners */
-      .site-banner{margin:8px auto 8px;max-width:980px;padding:10px 14px;border-radius:12px;line-height:1.25;box-shadow:var(--card-shadow)}
-      .site-banner.strong{background:#fef3c7;border:1px solid #fde68a;color:#7a4a00}
-      .site-banner.subtle{background:var(--box);border:1px solid #e5e7eb;color:var(--text)}
-
-      /* Sticky header shadow */
-      .main-header.is-stuck{box-shadow:0 6px 16px rgba(0,0,0,.06)}
-
-      /* Global overlay (only on real POST submits) */
-      #pageOverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:color-mix(in oklab,var(--background), black 35%);backdrop-filter:blur(2px);z-index:10000}
-      #pageOverlay.show{display:flex}
-      #pageOverlay .panel{background:var(--box);color:var(--text);border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;box-shadow:var(--card-shadow);font-weight:700}
-      body.overlay-open{overflow:hidden}
-
-      /* Skip link */
-      .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
-      .skip-link:focus{left:12px;top:12px;width:auto;height:auto;padding:8px 10px;border-radius:10px;background:var(--box);border:1px solid #e5e7eb;z-index:10001}
-
-      @media (max-width:600px){
-        .container{padding:1.4rem 1rem}
-        footer{font-size:.85em}
-        .site-banner{border-radius:10px}
-      }
-    </style>
-
-    <!-- Small theme helper (JS toggler etc.) -->
-    <script
-      defer
-      src="{{ url_for('static', filename='darkmode.js') }}?v={{ static_v|default(1) }}"
-    ></script>
-
-    {% block head_extra %}{% endblock %}
-  </head>
-
-  <!-- Utilities: mobile nav + sticky header (+ usage chip refresh) -->
-  <script>
-    (function () {
-      // Mobile nav
-      document.addEventListener("DOMContentLoaded", () => {
-        const btn = document.getElementById("menuToggle");
-        const nav = document.getElementById("mainNav");
-        if (!btn || !nav) return;
-        function setOpen(open) {
-          document.body.classList.toggle("nav-open", !!open);
-          btn.setAttribute("aria-expanded", open ? "true" : "false");
-        }
-        btn.addEventListener("click", () =>
-          setOpen(!document.body.classList.contains("nav-open"))
-        );
-        nav.addEventListener("click", (e) => {
-          if (e.target.closest("a")) setOpen(false);
-        });
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") setOpen(false);
-        });
-      });
-
-      // Sticky header shadow
-      const h = document.querySelector(".main-header");
-      const onScroll = () =>
-        h && h.classList.toggle("is-stuck", (window.scrollY || 0) > 2);
-      onScroll();
-      addEventListener("scroll", onScroll, { passive: true });
-
-      // === Usage chip refresher (works if you add /api/usage) ===
-      async function refreshUsageChip() {
-        const chip =
-          document.getElementById("usageChip") ||
-          document.querySelector(".usage-chip");
-        if (!chip) return;
-        try {
-          const res = await fetch("/api/usage", {
-            credentials: "same-origin",
-            headers: { Accept: "application/json" },
-          });
-          if (!res.ok) return;
-          const data = await res.json();
-          if (data && data.text) {
-            chip.textContent = data.text;
-            if (data.title) chip.title = data.title;
-          }
-        } catch {}
-      }
-      window.refreshUsageChip = refreshUsageChip;
-
-      // If we just generated something, refresh a few times as the job settles.
-      if (sessionStorage.getItem("genPending") === "1") {
-        sessionStorage.removeItem("genPending");
-        setTimeout(refreshUsageChip, 1200);
-        setTimeout(refreshUsageChip, 3500);
-        setTimeout(refreshUsageChip, 7000);
-      }
-
-      // When the tab regains focus (download opened a new tab), try once more.
-      addEventListener("focus", () => {
-        if (sessionStorage.getItem("genPendingFocus") === "1") {
-          sessionStorage.removeItem("genPendingFocus");
-          refreshUsageChip();
-        }
-      });
-
-      // Optional hard-reload fallback (leave commented unless you want it):
-      // document.addEventListener("visibilitychange", () => {
-      //   if (document.visibilityState === "visible" && sessionStorage.getItem("genReload") === "1") {
-      //     sessionStorage.removeItem("genReload");
-      //     location.reload();
-      //   }
-      // });
-    })();
-  </script>
-
-  <body class="{% if request.path.startswith('/admin') %}admin{% endif %}">
-    <!-- Apply saved theme ASAP to avoid flash -->
-    <script>
-      if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-      }
-    </script>
-
-    <a href="#maincontent" class="skip-link">Skip to content</a>
-
-    {% include "_navbar.html" %} {% if site_content and
-    site_content.announcement_enabled and site_content.announcement_text %}
-    <div class="site-banner strong">{{ site_content.announcement_text }}</div>
-    {% endif %} {# Per-page banners #} {% set path = request.path %} {% if
-    site_content %} {% if path.startswith('/browse') and
-    site_content.browse_banner_enabled and site_content.browse_banner_text %}
-    <div class="site-banner subtle">{{ site_content.browse_banner_text }}</div>
-    {% elif path.startswith('/generate') and
-    site_content.generate_banner_enabled and site_content.generate_banner_text
-    %}
-    <div class="site-banner subtle">
-      {{ site_content.generate_banner_text }}
-    </div>
-    {% elif path.startswith('/plus') and site_content.plus_banner_enabled and
-    site_content.plus_banner_text %}
-    <div class="site-banner subtle">{{ site_content.plus_banner_text }}</div>
-    {% endif %} {% endif %} {% if theme and theme.extras and theme.extras.snow
-    %}
-    <div class="snow"></div>
-    {% endif %} {% if theme and theme.extras and theme.extras.lights %}
-    <div class="lights-bar"></div>
-    {% endif %} {% if theme and theme.extras and theme.extras.string_lights %}
-    <div class="string-lights">
-      {% for i in range(24) %}
-      <div class="bulb"></div>
-      {% endfor %}
-    </div>
-    {% endif %} {% if theme and theme.extras and theme.extras.snow_svg %}
-    <svg
-      class="snow-svg"
-      viewBox="0 0 100 100"
-      width="100%"
-      height="100%"
-      aria-hidden="true"
-      preserveAspectRatio="none"
-    >
-      <defs><circle id="flake" cx="0" cy="0" r="1" fill="white" /></defs>
-      {% set count = 60 %} {% for i in range(count) %} {% if i < 24 or
-      request.user_agent.platform != 'iphone' %}
-      <use
-        href="#flake"
-        x="{{ (i*7) % 100 }}"
-        y="-2"
-        opacity="{{ 0.4 + (i % 6)/10 }}"
-      >
-        <animate
-          attributeName="y"
-          values="-2;102"
-          dur="{{ 6 + (i % 5) }}s"
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="x"
-          values="{{ (i*7) % 100 }}; {{ ((i*7)+6) % 100 }}"
-          dur="{{ 4 + (i % 3) }}s"
-          repeatCount="indefinite"
-        />
-      </use>
-      {% endif %} {% endfor %}
-    </svg>
-    {% endif %} {% if theme and theme.extras and theme.extras.leaves %}
-    <div class="leaves" aria-hidden="true"></div>
-    <script>
-      (function () {
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-          return;
-        const wrap = document.querySelector(".leaves");
-        if (!wrap) return;
-        const cssVal = getComputedStyle(
-          document.documentElement
-        ).getPropertyValue("--leaf-count");
-        const n = Math.max(0, Math.min(parseInt(cssVal, 10) || 18, 30));
-        const frag = document.createDocumentFragment();
-        for (let i = 0; i < n; i++) {
-          const el = document.createElement("div");
-          el.className = "leaf";
-          el.style.left = Math.random() * 100 + "%";
-          el.style.animationDelay = Math.random() * 8 + "s";
-          el.style.opacity = (0.6 + Math.random() * 0.4).toFixed(2);
-          el.style.transform = `translateY(${(-20 - Math.random() * 60).toFixed(
-            0
-          )}px)`;
-          frag.appendChild(el);
-        }
-        wrap.appendChild(frag);
-      })();
-    </script>
-    {% endif %} {# Flash toasts #} {% with messages =
-    get_flashed_messages(with_categories=true) %} {% if messages %}
-    <div id="toast-container" aria-live="polite">
-      {% for category, message in messages %}
-      <div class="toast toast-{{ category }}">{{ message }}</div>
-      {% endfor %}
-    </div>
-    {% endif %} {% endwith %}
-
-    <!-- GLOBAL OVERLAY (shown only when a real submit proceeds) -->
-    <div
-      id="pageOverlay"
-      aria-live="polite"
-      aria-atomic="true"
-      aria-hidden="true"
-    >
-      <div class="panel">Generating your worksheet…</div>
-    </div>
-
-    <main id="maincontent" class="container">
-      {% block content %}{% endblock %}
-    </main>
-
-    <footer>
-      &copy; 2025 Faith Sparks Printables. All rights reserved. {% if
-      support_email %} • Support:
-      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
-      {% endif %}
-    </footer>
-
-    <script>
-      // Page overlay controller (only show for non-prevented POST)
-      (function () {
-        const overlay = document.getElementById("pageOverlay");
-        function show() {
-          if (!overlay) return;
-          overlay.classList.add("show");
-          overlay.setAttribute("aria-hidden", "false");
-          document.body.classList.add("overlay-open");
-        }
-        function hide() {
-          if (!overlay) return;
-          overlay.classList.remove("show");
-          overlay.setAttribute("aria-hidden", "true");
-          document.body.classList.remove("overlay-open");
-        }
-        window.showOverlay = show;
-        window.hideOverlay = hide;
-
-        addEventListener("DOMContentLoaded", hide);
-        addEventListener("pageshow", hide);
-
-        document.addEventListener(
-          "submit",
-          (ev) => {
-            // Run after anyone else had a chance to preventDefault.
-            Promise.resolve().then(() => {
-              if (ev.defaultPrevented) return hide();
-              const form = ev.target;
-              const method = (
-                form.getAttribute("method") || "GET"
-              ).toUpperCase();
-              if (method === "POST") show();
-            });
-          },
-          true
-        );
-      })();
-    </script>
-
-    {% block extra_scripts %}{% endblock %}
-  </body>
-</html>
+        :roo
