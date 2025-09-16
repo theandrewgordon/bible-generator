@@ -3,6 +3,7 @@ from flask import Flask, Response, render_template, request, send_file, redirect
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re, traceback
+from urllib.parse import urlparse, urljoin
 from zipfile import ZipFile
 import threading
 from datetime import datetime, timedelta, timezone
@@ -35,6 +36,13 @@ app.config.update(
     PREFERRED_URL_SCHEME='https'
 )
 
+def is_safe_url(target: str) -> bool:
+    if not target:
+        return False
+    ref = urlparse(request.host_url)
+    test = urlparse(urljoin(request.host_url, target))
+    return (test.scheme in ("http", "https")) and (ref.netloc == test.netloc)
+
 # Jinja filter for Markdown
 def _md(text: str) -> str:
     try:
@@ -58,20 +66,19 @@ os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
-    redirect_to="index",
+    redirect_to="oauth_finish",                    # <— was "index"
     scope=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"]
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
 @app.before_request
 def load_user_info():
-    """
-    Don't clear the session during the OAuth dance.
-    Only fetch user_info after we're authorized.
-    """
-    # Skip meddling while the Flask-Dance blueprint is doing its work
+    # When Flask-Dance blueprint handles /login/google*, capture ?next=...
     if request.blueprint == "google" or request.path.startswith("/login/google"):
-        return
+        nxt = request.args.get("next")
+        if nxt and is_safe_url(nxt):
+            session["post_login_next"] = nxt
+        return  # don't do user_info fetch mid-dance
 
     if google.authorized:
         if "user_info" not in session:
@@ -79,10 +86,8 @@ def load_user_info():
             if resp.ok:
                 session["user_info"] = resp.json()
                 session["user_email"] = session["user_info"].get("email")
-                # Clear client-side generate form on fresh sign-in
                 session["clear_storage"] = True
     else:
-        # Not authorized: just drop cached user display info (do NOT clear entire session)
         session.pop("user_info", None)
         session.pop("user_email", None)
 
@@ -220,7 +225,9 @@ def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not google.authorized:
-            return redirect(url_for("google.login"))
+            # keep path + query (e.g., /generate?v=John%203:16%20(ESV))
+            next_url = request.full_path.rstrip("?") if request.query_string else request.path
+            return redirect(url_for("google.login", next=next_url))
         return func(*args, **kwargs)
     return wrapper
 
@@ -421,6 +428,21 @@ def get_theme_selection():
         pass
     vars = get_theme_vars(name) or THEMES['teal']
     return name, vars
+
+@app.route("/login/google/start")
+def start_google_login():
+    nxt = request.args.get("next") or request.referrer or url_for("index")
+    if nxt and is_safe_url(nxt):
+        session["post_login_next"] = nxt
+    return redirect(url_for("google.login"))
+
+@app.route("/oauth/finish")
+def oauth_finish():
+    # by now google.authorized is True; @before_request already hydrated user_info
+    nxt = session.pop("post_login_next", None) or request.args.get("next")
+    if nxt and is_safe_url(nxt):
+        return redirect(nxt)
+    return redirect(url_for("index"))
 
 @app.route('/admin/theme/preview', methods=['POST'])
 @admin_required
@@ -2886,8 +2908,16 @@ def health():
 
 @app.get("/api/usage")
 def api_usage():
-    # however you compute these…
-    data = {"text": usage_nav.text, "title": usage_nav.title}
+    email = session.get("user_email")
+    if not db or not email:
+        return jsonify({"text": "", "title": ""}), 200
+    plan = _get_user_plan(email)
+    m_lim, _ = _quota_for_plan(plan)
+    used_life, used_m = _get_usage(email)
+    if m_lim is not None:
+        data = {"text": f"{used_m}/{m_lim}", "title": f"{used_m} of {m_lim} used this month"}
+    else:
+        data = {"text": "∞", "title": "Unlimited this month"}
     resp = jsonify(data)
     resp.headers["Cache-Control"] = "no-store, max-age=0"
     resp.headers["Pragma"] = "no-cache"

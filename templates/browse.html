@@ -161,7 +161,7 @@
         slug=c.slug) if locked else url_for('dl_pack', slug=c.slug)) %}
         <a
           class="button small"
-          href="{{ url_for('google.login', next=next_url) }}"
+          href="{{ url_for('start_google_login', next=next_url) }}"
           >🔐 Sign in</a
         >
         {% endif %} {% endif %} {# Always show Use Pack — if not signed in, send
