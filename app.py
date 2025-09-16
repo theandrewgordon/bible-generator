@@ -1,5 +1,5 @@
 # test08-28-2025
-from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash, jsonify
+from flask import Flask, Response, render_template, request, send_file, redirect, url_for, session, flash, jsonify
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re, traceback
@@ -617,6 +617,13 @@ def logout():
 @app.route("/about")
 def about():
     return render_template("about.html")
+
+@app.route("/healthz", methods=["GET", "HEAD"])
+def healthz():
+    return Response("ok", 200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+    })
 
 @app.route("/generate", methods=["GET", "POST"])
 @login_required
@@ -2876,6 +2883,16 @@ def admin_users_set_plan(uid):
 @app.get("/health")
 def health():
     return {"ok": True}, 200
+
+@app.get("/api/usage")
+def api_usage():
+    # however you compute these…
+    data = {"text": usage_nav.text, "title": usage_nav.title}
+    resp = jsonify(data)
+    resp.headers["Cache-Control"] = "no-store, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
 
 @app.route("/admin/users/<uid>/reset_usage", methods=["POST"])
 @admin_required

@@ -67,7 +67,8 @@
         <span class="user-name" title="{{ session.user_info.email }}">👤 {{ session.user_info.email.split('@')[0] }}</span>
         <a class="auth-link logout" href="/logout">🚪 Logout</a>
       {% else %}
-        <a class="auth-link" href="{{ url_for('google.login') }}">🔐 Login</a>
+        <a class="auth-link" href="{{ url_for('google.login', next=request.full_path) }}">🔐 Login</a>
+
       {% endif %}
 
       <button

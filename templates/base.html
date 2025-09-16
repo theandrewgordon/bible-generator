@@ -225,6 +225,7 @@
           const res = await fetch("/api/usage", {
             credentials: "same-origin",
             headers: { Accept: "application/json" },
+            cache: "no-store", // ← add this
           });
           if (!res.ok) return;
           const data = await res.json();

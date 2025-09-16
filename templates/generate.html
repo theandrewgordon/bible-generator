@@ -559,6 +559,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
       // If the API exists, update usage chip immediately
       window.refreshUsageChip?.();
+      setTimeout(()=>window.refreshUsageChip?.(), 1200);
     } catch (err) {
       console.error(err);
       showToast('❌ Network error. Please try again.');

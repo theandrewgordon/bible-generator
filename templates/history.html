@@ -8,6 +8,9 @@ endblock %} {% block content %}
     <input
       id="searchInput"
       type="search"
+      enterkeyhint="search"
+      autocapitalize="off"
+      spellcheck="false"
       placeholder="🔎 Search verse or version…"
       oninput="debouncedFilter()"
       aria-label="Search worksheets"
@@ -38,7 +41,7 @@ endblock %} {% block content %}
   </div>
 
   <div class="toolbar-right">
-    <span id="resultCount" class="pill">0 shown</span>
+    <span id="resultCount" class="pill" aria-live="polite">0 shown</span>
     <button class="button ghost" type="button" onclick="clearFilters()">
       Clear Filters
     </button>
@@ -121,9 +124,11 @@ endblock %} {% block content %}
             data-file="{{ item.filename }}"
             title="Favorite"
             aria-label="Favorite {{ item.verse }}"
+            aria-pressed="{{ 'true' if item.get('favorite') else 'false' }}"
           >
             {% if item.get('favorite') %}⭐{% else %}☆{% endif %}
           </button>
+
           <a
             class="icon"
             href="{{ url_for('download_file', filename=item.filename) }}"
@@ -286,14 +291,20 @@ endblock %} {% block content %}
       const verse = (li.querySelector(".title")?.dataset.title || "")
         .trim()
         .replace(/"/g, '""');
-      const vbadge = (li.querySelector(".pill.alt")?.textContent || "").trim();
+      const vbadge = (li.querySelector(".pill.alt")?.textContent || "")
+        .trim()
+        .replace(/"/g, '""');
       const hasCursive = !!li.querySelector(".pill:not(.alt)");
-      const date = (li.querySelector(".meta-right")?.textContent || "").trim();
+      const date = (li.querySelector(".meta-right")?.textContent || "")
+        .trim()
+        .replace(/"/g, '""');
       csv += `"${verse}","${vbadge}","${
         hasCursive ? "Yes" : "No"
       }","${date}"\n`;
     });
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\ufeff" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), {
       href: url,
@@ -310,6 +321,8 @@ endblock %} {% block content %}
     const t = document.createElement("div");
     t.className = "toast";
     t.textContent = msg;
+    t.setAttribute("role", "status"); // NEW
+    t.setAttribute("aria-live", "polite"); // NEW
     Object.assign(t.style, {
       position: "fixed",
       bottom: "18px",
@@ -339,9 +352,10 @@ endblock %} {% block content %}
       const li = btn.closest(".card");
       const nowFav = btn.textContent.trim() === "☆";
       btn.textContent = nowFav ? "⭐" : "☆";
+      btn.setAttribute("aria-pressed", nowFav ? "true" : "false"); // NEW
       li.dataset.favorite = nowFav ? "true" : "false";
       toast(nowFav ? "Added to favorites" : "Removed from favorites");
-      applyFilters(); // respect fav-only filter if enabled
+      applyFilters(); // keep your behavior
     } catch (e) {
       console.error(e);
       toast("Failed to update favorite");
