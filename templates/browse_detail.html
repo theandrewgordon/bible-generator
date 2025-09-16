@@ -22,7 +22,10 @@ endblock %} {% block head_extra %}
 {% endblock %} {% block content %} {% set purchased = purchases.get(c.slug) if
 purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro and
 not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
-= (c.verses|join(' | ') if c.verses else '') %}
+= (c.verses|join(' | ') if c.verses else '') %} {# Build the intended Generate
+URL for this pack #} {% if verses_param %} {% set use_url = url_for('generate',
+v=verses_param) %} {% else %} {% set use_url = url_for('generate',
+collection=c.slug) %} {% endif %}
 
 <header class="head">
   <div>
@@ -43,17 +46,24 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
 <div class="grid">
   <aside class="side">
     <div class="sticky-cta">
-      <!-- Prefill Generate: use ?v= when we have explicit verses, else ?collection= -->
+      {# Use Pack → if not signed in, bounce through Google with next=use_url #}
+      {% if is_signed_in %}
       <a
         class="button"
-        href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate') }}?collection={{ c.slug|urlencode }}{% endif %}"
+        href="{{ use_url }}"
         aria-label="Use {{ c.title }} in Generate"
         >✍️ Use Pack in Generate</a
       >
-
-      {% if c.zipUrl %} {% if locked %} {% set display_price = ('$%.2f' %
-      (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %} {% if
-      is_signed_in %}
+      {% else %}
+      <a
+        class="button"
+        href="{{ url_for('google.login', next=use_url) }}"
+        aria-label="Sign in to use {{ c.title }} in Generate"
+        >✍️ Use Pack in Generate</a
+      >
+      {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
+      ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
+      {% if is_signed_in %}
       <a class="button" href="{{ url_for('buy_pack', slug=c.slug) }}"
         >💳 Buy {{ display_price }}</a
       >
@@ -121,7 +131,6 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
     flex-wrap: wrap;
     margin: 0.25rem 0;
   }
-
   .grid {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
@@ -135,7 +144,6 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
       order: -1;
     }
   }
-
   .side {
     position: relative;
   }
@@ -145,7 +153,6 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
     display: grid;
     gap: 0.45rem;
   }
-
   .verse-list {
     columns: 2;
     column-gap: 1rem;

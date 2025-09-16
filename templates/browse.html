@@ -109,7 +109,10 @@
     {% for c in collections %} {% set purchased = purchases.get(c.slug) if
     purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro
     and not purchased) %} {% set verses_param = (c.verses|join(' | ') if
-    c.verses else '') %}
+    c.verses else '') %} {# Build the intended Generate URL properly with query
+    params #} {% if verses_param %} {% set use_url = url_for('generate',
+    v=verses_param) %} {% else %} {% set use_url = url_for('generate',
+    collection=c.slug) %} {% endif %}
 
     <article
       class="pack-card {{ 'locked' if locked }}"
@@ -138,8 +141,8 @@
       </div>
 
       <div class="pack-actions">
-        {# Download / billing shown only if pack has a ZIP #} {% if c.zipUrl %}
-        {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
+        {# Download / billing visible only if pack has a ZIP #} {% if c.zipUrl
+        %} {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
         pack_effective_price_id(c) %} {% if pid %}
         <a class="button small" href="{{ url_for('buy_pack', slug=c.slug) }}"
           >💳 Buy $2.50</a
@@ -161,14 +164,22 @@
           href="{{ url_for('google.login', next=next_url) }}"
           >🔐 Sign in</a
         >
-        {% endif %} {% endif %} {# Always show Use Pack (prefer explicit verses;
-        fallback to collection) #}
+        {% endif %} {% endif %} {# Always show Use Pack — if not signed in, send
+        to Google with next=use_url #} {% if is_signed_in %}
         <a
           class="button small"
-          href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate') }}?collection={{ c.slug|urlencode }}{% endif %}"
+          href="{{ use_url }}"
           aria-label="Use {{ c.title }} in Generate"
           >✍️ Use Pack</a
         >
+        {% else %}
+        <a
+          class="button small"
+          href="{{ url_for('google.login', next=use_url) }}"
+          aria-label="Sign in to use {{ c.title }} in Generate"
+          >✍️ Use Pack</a
+        >
+        {% endif %}
       </div>
     </article>
     {% endfor %}
@@ -256,7 +267,6 @@
     justify-content: space-between;
     align-items: center;
   }
-
   .pack-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -299,7 +309,6 @@
     margin-top: 0.5rem;
     flex-wrap: wrap;
   }
-
   .pill {
     display: inline-block;
     padding: 2px 8px;
@@ -323,7 +332,6 @@
     background: #0b365a;
     border-color: #0b365a;
   }
-
   .thumb-grid {
     list-style: none;
     padding: 0;
@@ -358,7 +366,6 @@
     gap: 0.4rem;
     flex-wrap: wrap;
   }
-
   @media (max-width: 520px) {
     .pack-grid {
       grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
