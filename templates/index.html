@@ -1,12 +1,16 @@
-{% extends "base.html" %} {% block title %}Printable Bible Copywork Worksheets
-for Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
+{% extends "base.html" %} {% block title %}Bible Copywork Worksheets for
+Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
 <meta
   name="description"
-  content="Create and download printable Bible copywork worksheets (ESV/KJV/NIV) for Christian homeschool, co-ops, and Sunday school. Optional cursive tracing and easy regeneration."
+  content="Create printable Bible copywork worksheets (ESV/KJV/NIV and more) for Christian homeschool, co-ops, and Sunday school. Optional cursive tracing, kid-friendly layouts, and easy regeneration."
 />
 
 <!-- Open Graph / Twitter -->
-<meta property="og:title" content="Printable Bible Copywork Worksheets" />
+<meta
+  property="og:title"
+  content="Bible Copywork Worksheets for Homeschool & Church"
+/>
+<meta property="og:site_name" content="Faith Sparks Printables" />
 <meta
   property="og:description"
   content="Make simple, beautiful Bible copywork for homeschool and church classes. Free starter plan; Plus unlocks more."
@@ -18,33 +22,52 @@ for Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
 />
 <meta
   property="og:image"
-  content="{{ url_for('static', filename='hero_john_316.png') }}"
+  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='hero_john_316.png') }}"
 />
+<meta
+  property="og:image:alt"
+  content="Preview of a John 3:16 Bible copywork worksheet"
+/>
+<meta property="og:image:width" content="360" />
+<meta property="og:image:height" content="465" />
 <meta name="twitter:card" content="summary_large_image" />
+<meta
+  name="twitter:image"
+  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='hero_john_316.png') }}"
+/>
 
 <!-- Schema.org -->
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Faith Sparks Printables",
-    "url": "{{ request.url_root.rstrip('/') }}",
-    "logo": "{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}"
+    "name": {{ "Faith Sparks Printables"|tojson }},
+    "url": {{ request.url_root.rstrip('/')|tojson }},
+    "logo": {{ (request.url_root.rstrip('/') ~ (logo_url or url_for('static', filename='faith_sparks_logo.png')))|tojson }}
   }
 </script>
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Faith Sparks Printables",
-    "url": "{{ request.url_root.rstrip('/') }}",
+    "name": {{ "Faith Sparks Printables"|tojson }},
+    "url": {{ request.url_root.rstrip('/')|tojson }},
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "{{ request.url_root.rstrip('/') }}/browse?q={search_term_string}",
+      "target": {{ (request.url_root.rstrip('/') ~ "/browse?q={search_term_string}")|tojson }},
       "query-input": "required name=search_term_string"
     }
   }
 </script>
+
+<!-- Preload hero for faster LCP -->
+<link
+  rel="preload"
+  as="image"
+  href="{{ url_for('static', filename='hero_john_316.png') }}"
+  imagesrcset="{{ url_for('static', filename='hero_john_316.png') }}"
+  imagesizes="(max-width: 860px) 60vw, 360px"
+/>
 
 <!-- Small page-local layout guard so the art never overlaps buttons -->
 <style>
