@@ -1,9 +1,83 @@
-{% extends "base.html" %} {% block title %} Printable Bible Copywork Worksheets
-for Homeschool & Church | Faith Sparks {% endblock %} {% block head_extra %}
+{% extends "base.html" %} {% block title %}Printable Bible Copywork Worksheets
+for Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
 <meta
   name="description"
-  content="Create and download printable Bible copywork worksheets (ESV/KJV) for Christian homeschool, co-ops, and Sunday school. Optional cursive tracing fonts and easy regeneration."
+  content="Create and download printable Bible copywork worksheets (ESV/KJV/NIV) for Christian homeschool, co-ops, and Sunday school. Optional cursive tracing and easy regeneration."
 />
+
+<!-- Open Graph / Twitter -->
+<meta property="og:title" content="Printable Bible Copywork Worksheets" />
+<meta
+  property="og:description"
+  content="Make simple, beautiful Bible copywork for homeschool and church classes. Free starter plan; Plus unlocks more."
+/>
+<meta property="og:type" content="website" />
+<meta
+  property="og:url"
+  content="{{ request.url_root.rstrip('/') ~ request.path }}"
+/>
+<meta
+  property="og:image"
+  content="{{ url_for('static', filename='hero_john_316.png') }}"
+/>
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- Schema.org -->
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Faith Sparks Printables",
+    "url": "{{ request.url_root.rstrip('/') }}",
+    "logo": "{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}"
+  }
+</script>
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Faith Sparks Printables",
+    "url": "{{ request.url_root.rstrip('/') }}",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "{{ request.url_root.rstrip('/') }}/browse?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+</script>
+
+<!-- Small page-local layout guard so the art never overlaps buttons -->
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 1.25rem;
+    align-items: center;
+  }
+  .hero-text {
+    min-width: 0;
+  }
+  .hero .cta-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+  .hero-art img {
+    max-width: 100%;
+    height: auto;
+  }
+  @media (max-width: 860px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+    .hero-art {
+      order: -1;
+      justify-self: start;
+      margin-bottom: 0.5rem;
+    }
+  }
+</style>
 {% endblock %} {% block content %}
 <section class="hero">
   <div class="hero-text">
@@ -24,12 +98,10 @@ for Homeschool & Church | Faith Sparks {% endblock %} {% block head_extra %}
       <a class="button primary" href="{{ url_for('generate') }}"
         >✍️ Generate a Worksheet</a
       >
-      <a class="button ghost" href="{{ url_for('history')  }}"
+      <a class="button ghost" href="{{ url_for('history') }}"
         >📚 View History</a
       >
-      <a class="button ghost" href="{{ url_for('browse')   }}"
-        >🗂️ Browse Packs</a
-      >
+      <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
     </div>
   </div>
 
@@ -49,5 +121,23 @@ for Homeschool & Church | Faith Sparks {% endblock %} {% block head_extra %}
       "
     />
   </div>
+</section>
+
+<section class="prose" style="margin-top: 1.25rem">
+  <h2 style="margin-top: 0">
+    Bible copywork for homeschool & children’s ministry
+  </h2>
+  <p>
+    Build <a href="{{ url_for('generate') }}">Bible copywork worksheets</a> from
+    any verse (ESV, KJV, NIV, NASB, CSB, NLT). Choose manuscript or cursive
+    tracing, then download print-ready PDFs. Browse curated
+    <a href="{{ url_for('browse') }}">copywork collections</a> or regenerate
+    past worksheets from your <a href="{{ url_for('history') }}">history</a>.
+  </p>
+  <ul>
+    <li>Designed for Christian homeschool, church classes, and co-ops</li>
+    <li>Kid-friendly layout with optional coloring prompts</li>
+    <li>Free starter plan; Plus unlocks larger packs and ZIPs</li>
+  </ul>
 </section>
 {% endblock %}
