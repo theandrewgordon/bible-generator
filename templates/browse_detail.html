@@ -1,5 +1,25 @@
 {% extends "base.html" %} {% block title %}{{ c.title }} | Collections{%
-endblock %} {% block content %} {% set purchased = purchases.get(c.slug) if
+endblock %} {% block head_extra %}
+<meta
+  name="description"
+  content="{{ (c.description ~ ' — ' if c.description else '') ~ (c.verses|length) ~ ' Bible copywork verses for Christian homeschool, co-ops, and Sunday school. Use this pack to prefill Generate and download printable worksheets.' }}"
+/>
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "{{ c.title|e }} — Bible Copywork Pack",
+    "numberOfItems": {{ c.verses|length }},
+    "itemListElement": [
+      {% for verse in c.verses %}
+      { "@type": "ListItem", "position": {{ loop.index }}, "name": "{{ verse|e }}" }{{ "," if not loop.last }}
+      {% endfor %}
+    ],
+    "isAccessibleForFree": {{ "true" if c.isFree else "false" }},
+    "inLanguage": "en"
+  }
+</script>
+{% endblock %} {% block content %} {% set purchased = purchases.get(c.slug) if
 purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro and
 not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
 = (c.verses|join(' | ') if c.verses else '') %}
@@ -23,10 +43,11 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
 <div class="grid">
   <aside class="side">
     <div class="sticky-cta">
-      <!-- Match Browse: prefill Generate with ?v= (fallback to collection) -->
+      <!-- Prefill Generate: use ?v= when we have explicit verses, else ?collection= -->
       <a
         class="button"
-        href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate', collection_slug=c.slug) }}{% endif %}"
+        href="{% if verses_param %}{{ url_for('generate') }}?v={{ verses_param|urlencode }}{% else %}{{ url_for('generate') }}?collection={{ c.slug|urlencode }}{% endif %}"
+        aria-label="Use {{ c.title }} in Generate"
         >✍️ Use Pack in Generate</a
       >
 
@@ -65,7 +86,11 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
         </button>
       </form>
       {% if pid %}
-      <a class="button ghost" href="{{ stripe_price_url(pid) }}" target="_blank"
+      <a
+        class="button ghost"
+        href="{{ stripe_price_url(pid) }}"
+        target="_blank"
+        rel="noopener"
         >Open in Stripe</a
       >
       {% endif %} {% endif %}
