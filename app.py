@@ -431,9 +431,11 @@ def get_theme_selection():
 
 @app.route("/login/google/start")
 def start_google_login():
-    nxt = request.args.get("next") or request.referrer or url_for("index")
-    if nxt and is_safe_url(nxt):
-        session["post_login_next"] = nxt
+    nxt = request.args.get("next")
+    # Default to /browse if missing/unsafe
+    if not _is_safe_next(nxt or ""):
+        nxt = url_for("browse")
+    session["after_login_next"] = nxt
     return redirect(url_for("google.login"))
 
 @app.route("/oauth/finish")
@@ -629,6 +631,11 @@ def signed_url_for_path(dst_path: str, minutes: int = 120) -> str | None:
 # --- Routes ---
 @app.route("/")
 def index():
+    # If we just finished OAuth, honor the stored next
+    if google.authorized:
+        nxt = session.pop("after_login_next", None)
+        if nxt:
+            return redirect(nxt)
     return render_template("index.html", user_info=session.get("user_info"))
 
 @app.route("/logout")
@@ -1287,6 +1294,14 @@ def plus_pricing():
     except Exception:
         pass
     return render_template('plus.html', prices=prices, meta=meta, promo_hint='SAVE25')
+
+def _is_safe_next(target: str) -> bool:
+    if not target:
+        return False
+    host_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return (test_url.scheme in ("http", "https") and host_url.netloc == test_url.netloc)
+
 
 def _resolve_price_id(id_or_product: str) -> str:
     """Accepts a price_... or prod_... and returns a valid price id.

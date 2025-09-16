@@ -1,5 +1,35 @@
 {% extends "base.html" %} {% block title %}Browse | Faith Sparks{% endblock %}
-{% block content %}
+{% block head_extra %}
+<link rel="canonical" href="{{ url_for('browse', _external=True) }}" />
+<meta
+  name="description"
+  content="Browse Bible copywork collections for homeschool and church. Free starters, Plus collections, and curated packs with ready-to-print worksheets."
+/>
+
+{# ItemList markup for the grid #}
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Browse Bible Copywork Collections",
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": {{ collections|length }},
+      "itemListElement": [
+        {%- for c in collections %}
+        {
+          "@type": "ListItem",
+          "position": {{ loop.index }},
+          "url": "{{ url_for('browse_detail', slug=c.slug, _external=True) }}",
+          "name": "{{ c.title|e }}",
+          "isAccessibleForFree": {{ "true" if c.isFree else "false" }}
+        }{{ "," if not loop.last }}
+        {%- endfor %}
+      ]
+    }
+  }
+</script>
+{% endblock %} {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
 
 <div class="toolbar" role="region" aria-label="Browse filters">
@@ -111,7 +141,7 @@
     and not purchased) %} {% set verses_param = (c.verses|join(' | ') if
     c.verses else '') %} {# Build the intended Generate URL properly with query
     params #} {% if verses_param %} {% set use_url = url_for('generate',
-    v=verses_param) %} {% else %} {% set use_url = url_for('generate',
+    verse=verses_param) %} {% else %} {% set use_url = url_for('generate',
     collection=c.slug) %} {% endif %}
 
     <article
@@ -166,16 +196,11 @@
         >
         {% endif %} {% endif %} {# Always show Use Pack — if not signed in, send
         to Google with next=use_url #} {% if is_signed_in %}
-        <a
-          class="button small"
-          href="{{ use_url }}"
-          aria-label="Use {{ c.title }} in Generate"
-          >✍️ Use Pack</a
-        >
+        <a class="button small" href="{{ use_url }}">✍️ Use Pack</a>
         {% else %}
         <a
           class="button small"
-          href="{{ url_for('google.login', next=use_url) }}"
+          href="{{ url_for('start_google_login', next=use_url) }}"
           aria-label="Sign in to use {{ c.title }} in Generate"
           >✍️ Use Pack</a
         >
@@ -411,7 +436,7 @@
           return (a.dataset.title || "").localeCompare(b.dataset.title || "");
         if (sort === "count_desc")
           return (+b.dataset.count || 0) - (+a.dataset.count || 0);
-        return 0;
+        return 0; // keep server order
       })
       .forEach((el) => el.parentNode.appendChild(el));
 

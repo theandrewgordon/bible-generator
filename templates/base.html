@@ -73,7 +73,30 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='admin.css') }}?v={{ static_v|default(1) }}"
     />
-    {% endif %}
+    {% endif %} {# Canonical URL #}
+    <link
+      rel="canonical"
+      href="{{ canonical_url or (request.url_root.rstrip('/') ~ request.path) }}"
+    />
+
+    {# Auto noindex for private/utility routes; override via noindex=true #} {%
+    set _p = request.path %} {% set _auto_noindex = ( (_p.startswith('/admin'))
+    or (_p.startswith('/generate')) or (_p.startswith('/history')) or
+    (_p.startswith('/download')) or (_p.startswith('/regenerate')) or
+    (_p.startswith('/thumb')) or (_p.startswith('/packs')) or
+    (_p.startswith('/buy')) or (_p.startswith('/billing')) or
+    (_p.startswith('/plus/success')) or (noindex|default(false)) ) %} {% if
+    _auto_noindex %}
+    <meta name="robots" content="noindex,follow" />
+    {% endif %} {# Prefer absolute OG values #}
+    <meta
+      property="og:url"
+      content="{{ request.url_root.rstrip('/') ~ request.path }}"
+    />
+    <meta
+      property="og:image"
+      content="{{ url_for('static', filename='hero_john_316.png', _external=True) }}"
+    />
 
     <!-- Admin → Theme tokens -->
     <style>
