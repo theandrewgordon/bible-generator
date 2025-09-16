@@ -1,6 +1,27 @@
-{% extends "base.html" %} {% block title %}Generate a Worksheet | Faith Sparks{%
-endblock %} {% block content %}
-<h1 class="page-title">📝 Generate Worksheet</h1>
+{% extends "base.html" %} {% block title %}Generate Printable Bible Copywork |
+Faith Sparks{% endblock %} {% block head_extra %} {# Page-specific SEO (base
+will add noindex for /generate, but these help sharing/consistency) #}
+<meta
+  name="description"
+  content="Generate printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses (ESV, KJV, NIV, more), cursive or manuscript."
+/>
+<meta property="og:title" content="Generate Printable Bible Copywork" />
+<meta
+  property="og:description"
+  content="Create engaging Bible copywork PDFs from your favorite verses. Free starter plan; Plus unlocks more."
+/>
+<meta property="og:type" content="website" />
+<meta
+  property="og:url"
+  content="{{ request.url_root.rstrip('/') ~ request.path }}"
+/>
+<meta
+  property="og:image"
+  content="{{ url_for('static', filename='hero_john_316.png') }}"
+/>
+<meta name="twitter:card" content="summary_large_image" />
+{% endblock %} {% block content %}
+<h1 class="page-title">📝 Generate Printable Bible Copywork</h1>
 
 {# ---------- Usage / Plan Banner ---------- #} {% if usage_info %} {% set m_lim
 = usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %} {% if
@@ -42,11 +63,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   action="{{ url_for('generate') }}"
   novalidate
 >
-  {% if collection_slug %}<input
-    type="hidden"
-    name="collection_slug"
-    value="{{ collection_slug }}"
-  />{% endif %}
+  {% if collection_slug %}
+  <input type="hidden" name="collection_slug" value="{{ collection_slug }}" />
+  {% endif %}
 
   <div class="grid">
     <div class="col-main">
@@ -89,18 +108,21 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         <input
           id="verseInput"
           name="verse"
-          placeholder="e.g., John 3:16 (ESV), Romans 8:28)"
+          placeholder="e.g., John 3:16 (ESV), Romans 8:28"
           autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          enterkeyhint="go"
+          aria-describedby="verseHelp"
         />
-
-        <small class="muted"
-          >Separate multiple with commas or new lines. Add version in
-          parentheses (e.g., “(ESV)”).</small
-        >
+        <small id="verseHelp" class="muted">
+          Separate multiple with commas or new lines. Add version in parentheses
+          (e.g., “(ESV)”).
+        </small>
 
         <div class="quick-picks" role="group" aria-label="Quick pick verses">
           <span class="quick-picks-label small muted">Quick picks:</span>
-          {% set quick = (site_content.generate_quick_picks or ['John 3:16
+          {% set quick = (site_content.generate_quick_picks or [ 'John 3:16
           (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (NIV)','Proverbs 3:5-6
           (ESV)']) %} {% for v in quick %}
           <button type="button" class="chip" data-verse="{{ v }}">
@@ -439,8 +461,14 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   });
 
   /* ===== Persist simple prefs ===== */
-  versionSelect.addEventListener('change', ()=>{ localStorage.setItem('preferredVersion', versionSelect.value); updatePreview(); });
-  cursiveToggle.addEventListener('change', ()=>{ localStorage.setItem('useCursive', cursiveToggle.checked); updateVerseFilenames(); updateCustomFilename(); updatePreview(); });
+  versionSelect.addEventListener('change', ()=>{
+    localStorage.setItem('preferredVersion', versionSelect.value);
+    updatePreview();
+  });
+  cursiveToggle.addEventListener('change', ()=>{
+    localStorage.setItem('useCursive', cursiveToggle.checked);
+    updateVerseFilenames(); updateCustomFilename(); updatePreview();
+  });
 
   /* ===== Custom inputs ===== */
   ['input','change'].forEach(evt=>{
@@ -489,13 +517,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
     try {
       submitBtn.disabled = true;
+      form.setAttribute('aria-busy','true');
       window.showOverlay?.();
 
       // Flag generation so the navbar refreshes usage chip on this and next focus
       sessionStorage.setItem('genPending', '1');
       sessionStorage.setItem('genPendingFocus', '1');
-      // Optional hard reload fallback:
-      // sessionStorage.setItem('genReload', '1');
 
       const fd = new FormData(form);
       const resp = await fetch(form.action, {
@@ -537,6 +564,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       showToast('❌ Network error. Please try again.');
     } finally {
       submitBtn.disabled = false;
+      form.removeAttribute('aria-busy');
       window.hideOverlay?.();
     }
   });
@@ -544,6 +572,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   /* ===== Clear ===== */
   clearBtn.addEventListener('click', ()=>{
     tagify.removeAllTags(); verseInput.value = '';
+    verseInput.removeAttribute('aria-invalid');
     customTitle.value=''; customText.value=''; customPrompt.value='';
     if (agreeTerms) agreeTerms.checked = false;
     filenamePreview.textContent=''; customFilename.textContent='';
@@ -591,13 +620,24 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       if (recent) tagify.addTags(recent.split(',').map(v=>v.trim()).filter(Boolean));
       updateVerseFilenames();
     } else {
-      const t = params.get('title') || ''; const x = params.get('text') || ''; const p = params.get('prompt') || '';
-      if (t) customTitle.value = t; if (x) customText.value = x; if (p) customPrompt.value = p;
+      const t = params.get('title') || '';
+      const x = params.get('text')  || '';
+      const p = params.get('prompt')|| '';
+      if (t) customTitle.value = t;
+      if (x) customText.value  = x;
+      if (p) customPrompt.value= p;
       updateCustomFilename();
     }
 
-    if (defaultVersionOverride) versionSelect.value = String(defaultVersionOverride).toLowerCase();
-    if (urlVer) versionSelect.value = urlVer.toLowerCase();
+    // Version preference order: URL > defaultVersionOverride > localStorage > existing
+    if (urlVer) {
+      versionSelect.value = urlVer.toLowerCase();
+    } else if (defaultVersionOverride) {
+      versionSelect.value = String(defaultVersionOverride).toLowerCase();
+    } else {
+      const stored = localStorage.getItem('preferredVersion');
+      if (stored) versionSelect.value = stored.toLowerCase();
+    }
 
     cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');
     updatePreview();
