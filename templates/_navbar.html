@@ -20,20 +20,22 @@
     <!-- Primary nav -->
     <nav id="mainNav" class="nav-links" aria-label="Primary">
       {% set p = request.path or '' %}
-      <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}>🏠 Home</a>
-      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}>📝 Generate</a>
-      <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>🔎 Browse</a>
-      <a class="nav-link" href="/history"        {% if p.startswith('/history') %}aria-current="page"{% endif %}>📚 History</a>
+      <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}><span aria-hidden="true">🏠</span> Home</a>
+      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}><span aria-hidden="true">📝</span> Generate</a>
+      <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}><span aria-hidden="true">🔎</span> Browse</a>
+      <a class="nav-link" href="/history"        {% if p.startswith('/history') %}aria-current="page"{% endif %}><span aria-hidden="true">📚</span> History</a>
 
       {% if not is_pro %}
-        <a class="nav-link plus" href="/plus"    {% if p.startswith('/plus') %}aria-current="page"{% endif %}>⭐ Plus</a>
+        <a class="nav-link plus" href="/plus"    {% if p.startswith('/plus') %}aria-current="page"{% endif %}><span aria-hidden="true">⭐</span> Plus</a>
       {% else %}
-        <a class="nav-link" href="/billing"      {% if p.startswith('/billing') %}aria-current="page"{% endif %}>🧾 Billing</a>
+        <a class="nav-link" href="/billing"      {% if p.startswith('/billing') %}aria-current="page"{% endif %}><span aria-hidden="true">🧾</span> Billing</a>
       {% endif %}
 
       {% if is_admin %}
         <details class="admin-drop" {% if p.startswith('/admin') %}open{% endif %} aria-label="Admin menu">
-          <summary class="admin-summary" aria-haspopup="menu">🛠️ <span aria-hidden="true">Admin</span></summary>
+          <summary class="admin-summary" aria-haspopup="menu">
+            <span aria-hidden="true">🛠️</span> Admin
+          </summary>
           <div class="admin-panel" role="menu">
             <a class="nav-sublink" href="/admin/collections" role="menuitem" {% if p.startswith('/admin/collections') %}aria-current="page"{% endif %}>Collections</a>
             <a class="nav-sublink" href="/admin/users"        role="menuitem" {% if p.startswith('/admin/users') %}aria-current="page"{% endif %}>Users</a>
@@ -46,7 +48,7 @@
         </details>
       {% endif %}
 
-      <a class="nav-link" href="/about"          {% if p.startswith('/about') %}aria-current="page"{% endif %}>ℹ️ About</a>
+      <a class="nav-link" href="/about"          {% if p.startswith('/about') %}aria-current="page"{% endif %}><span aria-hidden="true">ℹ️</span> About</a>
     </nav>
 
     <!-- Right: usage, auth, theme -->
@@ -70,7 +72,8 @@
 
       <button
         class="theme-toggle" id="themeToggle" type="button"
-        aria-label="Toggle Dark Mode" title="Toggle Dark Mode" aria-pressed="false">🌙
+        aria-label="Toggle Dark Mode" title="Toggle Dark Mode" aria-pressed="false">
+        <span aria-hidden="true">🌙</span>
       </button>
     </div>
   </div>
