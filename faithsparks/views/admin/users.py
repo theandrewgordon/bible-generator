@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from flask import render_template, request, redirect, url_for, flash
 from firebase_admin import firestore
 
@@ -31,6 +33,20 @@ def admin_users():
     for d in docs:
         u = d.to_dict() or {}
         u["id"] = d.id
+        renew_at = u.get("renewAt")
+        if isinstance(renew_at, datetime):
+            try:
+                renew_iso = renew_at.astimezone(timezone.utc).isoformat()
+                renew_display = renew_at.astimezone(timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                renew_iso = renew_at.isoformat()
+                renew_display = renew_at.strftime("%Y-%m-%d")
+        else:
+            renew_iso = ""
+            renew_display = None
+        u["_renew_iso"] = renew_iso
+        u["_renew_display"] = renew_display
+
         if q and q not in ((u.get("email", "") or d.id).lower()):
             continue
         users.append(u)
@@ -67,4 +83,3 @@ def admin_users_reset_usage(uid):
     ref.set({"usage": new_usage, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
     flash(f"Usage reset for {uid} ({plan_label(plan)})", "success")
     return redirect(url_for("admin_users"))
-

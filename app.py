@@ -181,7 +181,7 @@ def oauth_finish():
     nxt = session.pop("post_login_next", None) or request.args.get("next")
     if nxt and is_safe_url(nxt):
         return redirect(nxt)
-    return redirect(url_for("index"))
+    return redirect(url_for("public.index"))
 
 @app.route('/admin/theme/preview', methods=['POST'])
 @admin_required
@@ -209,7 +209,7 @@ except Exception:
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("index"))
+    return redirect(url_for("public.index"))
 
 ## about + healthz moved to public blueprint
 
@@ -608,9 +608,19 @@ def inject_helpers():
                 m_lim, _ = _quota_for_plan(plan)
                 used_life, used_m = _get_usage(email)
                 if m_lim is not None:
+                    try:
+                        used_val = int(used_m)
+                    except Exception:
+                        used_val = 0
+                    try:
+                        limit_val = int(m_lim)
+                    except Exception:
+                        limit_val = 0
+                    remaining = max(0, limit_val - used_val)
+                    label = "credit" if remaining == 1 else "credits"
                     usage_nav = {
-                        'text': f"{used_m}/{m_lim}",
-                        'title': f"{used_m} of {m_lim} used this month",
+                        'text': f"{remaining} {label} left",
+                        'title': f"{used_val} of {limit_val} used this month · {remaining} {label} remaining",
                     }
                 else:
                     usage_nav = { 'text': '∞', 'title': 'Unlimited this month' }
@@ -1173,7 +1183,20 @@ def api_usage():
     m_lim, _ = _quota_for_plan(plan)
     used_life, used_m = _get_usage(email)
     if m_lim is not None:
-        data = {"text": f"{used_m}/{m_lim}", "title": f"{used_m} of {m_lim} used this month"}
+        try:
+            used_val = int(used_m)
+        except Exception:
+            used_val = 0
+        try:
+            limit_val = int(m_lim)
+        except Exception:
+            limit_val = 0
+        remaining = max(0, limit_val - used_val)
+        label = "credit" if remaining == 1 else "credits"
+        data = {
+            "text": f"{remaining} {label} left",
+            "title": f"{used_val} of {limit_val} used this month · {remaining} {label} remaining",
+        }
     else:
         data = {"text": "∞", "title": "Unlimited this month"}
     resp = jsonify(data)

@@ -1,7 +1,9 @@
 import os
 import traceback
+from datetime import datetime, timezone
 from typing import Optional
 
+from firebase_admin import firestore
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 
 from faithsparks.services.firestore import db
@@ -149,7 +151,7 @@ def billing_portal():
         return "Stripe not configured", 500
     email = session.get("user_email")
     if not db or not email:
-        return redirect(url_for("index"))
+        return redirect(url_for("public.index"))
     try:
         u = db.collection("users").document(email).get()
         if not u.exists:
@@ -159,7 +161,7 @@ def billing_portal():
         if not cid:
             flash("No subscription found for your account.", "warning")
             return redirect(url_for("plus_pricing"))
-        ps = stripe.billing_portal.Session.create(customer=cid, return_url=url_for("index", _external=True))
+        ps = stripe.billing_portal.Session.create(customer=cid, return_url=url_for("public.index", _external=True))
         return redirect(ps.url)
     except Exception as e:
         traceback.print_exc()
@@ -193,6 +195,13 @@ def stripe_webhook():
                         price_id = sub["items"]["data"][0]["price"]["id"]
             except Exception:
                 pass
+            renew_at = None
+            period_end = sub.get("current_period_end") if sub else None
+            if period_end:
+                try:
+                    renew_at = datetime.fromtimestamp(int(period_end), tz=timezone.utc)
+                except Exception:
+                    renew_at = None
             if db and email:
                 if subscription_id:
                     plan = (
@@ -202,22 +211,53 @@ def stripe_webhook():
                         if price_id == STRIPE_PRICE_CLASSROOM
                         else "plus"
                     )
-                    db.collection("users").document(email).set(
-                        {
-                            "isPro": True,
-                            "plan": plan,
-                            "stripeCustomerId": customer_id,
-                            "subscriptionId": subscription_id,
-                            "priceId": price_id,
-                            "updatedAt": firestore.SERVER_TIMESTAMP,
-                        },
-                        merge=True,
-                    )
+                    update_data = {
+                        "isPro": True,
+                        "plan": plan,
+                        "stripeCustomerId": customer_id,
+                        "subscriptionId": subscription_id,
+                        "priceId": price_id,
+                        "updatedAt": firestore.SERVER_TIMESTAMP,
+                    }
+                    if renew_at:
+                        update_data["renewAt"] = renew_at
+                    db.collection("users").document(email).set(update_data, merge=True)
                 elif pack_slug:
                     db.collection("users").document(email).set(
                         {"purchases": {pack_slug: True}, "updatedAt": firestore.SERVER_TIMESTAMP},
                         merge=True,
                     )
+        elif et == "customer.subscription.updated":
+            sub = obj
+            customer_id = sub.get("customer")
+            renew_at = None
+            period_end = sub.get("current_period_end")
+            if period_end:
+                try:
+                    renew_at = datetime.fromtimestamp(int(period_end), tz=timezone.utc)
+                except Exception:
+                    renew_at = None
+            price_id = None
+            try:
+                items = (sub.get("items") or {}).get("data") or []
+                if items:
+                    price_id = (items[0].get("price") or {}).get("id")
+            except Exception:
+                price_id = None
+            if db and customer_id:
+                try:
+                    q = db.collection("users").where(filter=firestore.FieldFilter("stripeCustomerId", "==", customer_id)).limit(1).stream()
+                    udoc = next(q, None)
+                    if udoc:
+                        update_data = {"updatedAt": firestore.SERVER_TIMESTAMP}
+                        if renew_at:
+                            update_data["renewAt"] = renew_at
+                        if price_id:
+                            update_data["priceId"] = price_id
+                        if update_data:
+                            udoc.reference.set(update_data, merge=True)
+                except Exception:
+                    pass
         elif et == "customer.subscription.deleted":
             sub = obj
             customer_id = sub.get("customer")
@@ -231,6 +271,8 @@ def stripe_webhook():
                                 "plan": "free",
                                 "isPro": False,
                                 "subscriptionId": None,
+                                "priceId": firestore.DELETE_FIELD,
+                                "renewAt": firestore.DELETE_FIELD,
                                 "updatedAt": firestore.SERVER_TIMESTAMP,
                             },
                             merge=True,

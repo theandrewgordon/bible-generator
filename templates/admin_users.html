@@ -40,6 +40,7 @@
         <tr>
           <th data-sort="text">Email</th>
           <th data-sort="text">Plan</th>
+          <th data-sort="date">Renews</th>
           <th data-sort="num" class="num">Lifetime</th>
           <th data-sort="num" class="num">This&nbsp;Month</th>
           <th data-sort="date">Last&nbsp;Seen</th>
@@ -65,6 +66,8 @@
         {% set lifetime = usage.get('lifetime', 0) %}
         {% set months = usage.get('months', {}) %}
         {% set this_month = (months.get(mkey) if mkey else 0) %}
+        {% set renew_iso = u.get('_renew_iso') %}
+        {% set renew_display = u.get('_renew_display') %}
         {% set last_seen = u.get('lastSeenAt') %}
 
         <tr data-email="{{ email|lower }}">
@@ -92,6 +95,10 @@
               </select>
               <button class="button ghost" type="submit">Save</button>
             </form>
+          </td>
+
+          <td class="small" data-iso="{{ renew_iso }}">
+            {{ renew_display or '—' }}
           </td>
 
           <td class="num"><span class="pill alt">{{ lifetime }}</span></td>
@@ -136,6 +143,7 @@
   .admin-table td.num,.admin-table th.num{text-align:right}
   .admin-table tbody tr:nth-child(odd){background:color-mix(in srgb, var(--box,#0f172a) 88%, #000 12%)}
   .admin-table tbody tr:hover{background:color-mix(in srgb, var(--box,#0f172a) 80%, #000 20%)}
+  .admin-table td.small{font-size:.85rem;color:var(--text-secondary,#cbd5f5)}
 
   .nowrap{white-space:nowrap}
   .email-cell{display:flex;align-items:center;gap:.4rem}
@@ -238,7 +246,7 @@
     const rows = [...table.rows];
     const visible = rows.filter(r => r.style.display !== 'none'); // honor live filter
     const csv = visible.map(r => {
-      return [...r.cells].slice(0,5) // exclude Actions col
+      return [...r.cells].slice(0,6) // exclude Actions col
         .map(td => {
           const txt = td.textContent.replace(/\s+/g,' ').trim();
           return `"${txt.replace(/"/g,'""')}"`;
