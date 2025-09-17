@@ -223,7 +223,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           </label>
         </div>
 
-        <div class="row" style="margin-top: 0.4rem">
+        <div class="row" id="versionRow" style="margin-top: 0.4rem">
           <label for="versionSelect"><strong>📘 Version</strong></label>
           <select
             id="versionSelect"
@@ -349,12 +349,13 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const verseInput     = document.getElementById('verseInput');
   const tagify         = new Tagify(verseInput, {
     enforceWhitelist: false, trim: true, duplicates: false,
-    pasteAsTags: true, delimiters: ",\n",
+    pasteAsTags: true, delimiters: ",|;|\\n",
     dropdown: { enabled: 0 },
     originalInputValueFormat: arr => arr.map(v=>v.value).join(", ")
   });
 
   const versionSelect  = document.getElementById('versionSelect');
+  const versionRow     = document.getElementById('versionRow');
   const cursiveToggle  = document.getElementById('cursiveToggle');
   const submitBtn      = document.getElementById('submitBtn');
   const clearBtn       = document.getElementById('clearBtn');
@@ -394,6 +395,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     verseBlock.classList.toggle('hidden', !isVerse);
     customBlock.classList.toggle('hidden',  isVerse);
 
+    if (versionRow){
+      versionRow.classList.toggle('hidden', !isVerse);
+    }
+    versionSelect.disabled = !isVerse;
+
     if (isVerse){
       customTitle.value = ''; customText.value = ''; customPrompt.value = '';
       if (agreeTerms) agreeTerms.checked = false; customFilename.textContent = '';
@@ -417,7 +423,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       const title = (customTitle.value||'').trim();
       const body  = (customText.value||'').trim();
       previewVerse.textContent   = title || (body ? '(DIY text)' : '—');
-      previewVersion.textContent = (versionSelect.value||'esv').toUpperCase();
+      previewVersion.textContent = 'DIY';
       previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
     }
     previewCursive.hidden = !cursiveToggle.checked;
@@ -593,7 +599,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       params.set('mode','custom');
     }
     if (cursiveToggle.checked) params.set('cursive','1');
-    if (versionSelect.value && versionSelect.value !== 'auto') params.set('version', versionSelect.value);
+    if (modeVerse.checked && versionSelect.value && versionSelect.value !== 'auto') params.set('version', versionSelect.value);
 
     const url = `${location.origin}${location.pathname}?${params.toString()}`;
     try { await navigator.clipboard.writeText(url); } catch {}
@@ -615,10 +621,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     if (urlMode){ modeCustom.checked = true; setMode('custom'); } else { setMode('verse'); }
 
     if (modeVerse.checked){
-      if (prefill)   tagify.addTags(prefill.split(',').map(v=>v.trim()).filter(Boolean));
+      const splitVerses = str => str.split(/[,;\n]+/).map(v=>v.trim()).filter(Boolean);
+      if (prefill)   tagify.addTags(splitVerses(prefill));
       if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
       const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
-      if (recent) tagify.addTags(recent.split(',').map(v=>v.trim()).filter(Boolean));
+      if (recent) tagify.addTags(splitVerses(recent));
       updateVerseFilenames();
     } else {
       const t = params.get('title') || '';
