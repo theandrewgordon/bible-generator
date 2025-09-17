@@ -20,6 +20,15 @@ from faithsparks.services.stripe_svc import (
 )
 
 
+PLUS_TRIAL_CODES = [c.strip().lower() for c in (os.getenv("PLUS_TRIAL_CODES") or "").split(",") if c.strip()]
+
+
+def _is_trial_code_valid(token: str) -> bool:
+    if not token:
+        return False
+    return token.lower() in PLUS_TRIAL_CODES
+
+
 bp = Blueprint("billing", __name__)
 
 
@@ -74,7 +83,18 @@ def plus_pricing():
             meta["classroom"]["save_pct"] = round(save * 100)
     except Exception:
         pass
-    return render_template("plus.html", prices=prices, meta=meta, promo_hint="SAVE25")
+    trial_code = (request.args.get("trial") or "").strip()
+    trial_unlocked = _is_trial_code_valid(trial_code)
+    trial_error = bool(trial_code) and not trial_unlocked
+    return render_template(
+        "plus.html",
+        prices=prices,
+        meta=meta,
+        promo_hint="SAVE25",
+        trial_unlocked=trial_unlocked,
+        trial_code=trial_code,
+        trial_error=trial_error,
+    )
 
 
 def create_checkout_session():
@@ -82,6 +102,7 @@ def create_checkout_session():
         return "Stripe not configured", 500
     id_or_price = (request.form.get("price_id") or "").strip()
     trial_raw = (request.form.get("trial_days") or "").strip()
+    trial_token = (request.form.get("trial_token") or "").strip()
     if not id_or_price:
         return "Missing price", 400
     price_id = resolve_price_id(id_or_price)
@@ -90,7 +111,7 @@ def create_checkout_session():
     if trial_raw:
         try:
             val = int(trial_raw)
-            if 0 < val <= 730:
+            if 0 < val <= 730 and _is_trial_code_valid(trial_token):
                 trial_days = val
         except ValueError:
             pass
@@ -101,6 +122,7 @@ def create_checkout_session():
     session_metadata = {"email": user_email, "plan_price_id": price_id}
     if trial_days is not None:
         session_metadata["trial_days"] = str(trial_days)
+        session_metadata["trial_token"] = trial_token
     try:
         chk = stripe.checkout.Session.create(
             mode="subscription",

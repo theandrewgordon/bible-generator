@@ -7,6 +7,8 @@ site_content.plus_banner_text %}
 </div>
 {% endif %}
 
+{% set plus_target = url_for('plus_pricing', trial=trial_code) if trial_unlocked else url_for('plus_pricing') %}
+
 <header class="plus-hero card-lite">
   <div class="plus-copy">
     <h1 class="page-title">Faith Sparks Plus</h1>
@@ -36,6 +38,26 @@ site_content.plus_banner_text %}
 </header>
 
 <section class="plans">
+  <form class="invite-form card-lite" method="get" action="{{ url_for('plus_pricing') }}">
+    <label for="trialInput"><strong>Have an invite code for a free first period?</strong></label>
+    <div class="invite-row">
+      <input
+        id="trialInput"
+        name="trial"
+        value="{{ trial_code }}"
+        placeholder="Enter invite code"
+        autocapitalize="off"
+        spellcheck="false"
+      />
+      <button class="button" type="submit">Apply</button>
+    </div>
+    {% if trial_unlocked %}
+    <p class="small success-note">Free trial unlocked with code <strong>{{ trial_code }}</strong>.</p>
+    {% elif trial_error %}
+    <p class="small error-note">That code didn’t match an active invite.</p>
+    {% endif %}
+  </form>
+
   <div class="plan-grid">
     {# --------------------- FAMILY --------------------- #}
     <article class="plan-card featured">
@@ -56,7 +78,10 @@ site_content.plus_banner_text %}
         {% if fam.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
+          {% if trial_unlocked %}
           <input type="hidden" name="trial_days" value="30" />
+          <input type="hidden" name="trial_token" value="{{ trial_code }}" />
+          {% endif %}
           <button class="button primary wide">
             Monthly{% if meta.family.monthly %} — {{
             '$%.2f'|format(meta.family.monthly.amount) }}{% endif %}
@@ -65,7 +90,10 @@ site_content.plus_banner_text %}
         {% endif %} {% if fam.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.annual }}" />
+          {% if trial_unlocked %}
           <input type="hidden" name="trial_days" value="365" />
+          <input type="hidden" name="trial_token" value="{{ trial_code }}" />
+          {% endif %}
           <button class="button ghost wide">
             Annual{% if meta.family.annual %} — {{
             '$%.2f'|format(meta.family.annual.amount) }}{% endif %} {% if
@@ -84,7 +112,7 @@ site_content.plus_banner_text %}
       {% else %}
       <a
         class="button primary wide"
-        href="{{ url_for('google.login', next=url_for('plus_pricing')) }}"
+        href="{{ url_for('google.login', next=plus_target) }}"
         >Login to Checkout</a
       >
       {% endif %} {% else %}
@@ -111,7 +139,10 @@ site_content.plus_banner_text %}
         {% if cls.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
+          {% if trial_unlocked %}
           <input type="hidden" name="trial_days" value="30" />
+          <input type="hidden" name="trial_token" value="{{ trial_code }}" />
+          {% endif %}
           <button class="button primary wide">
             Monthly{% if meta.classroom.monthly %} — {{
             '$%.2f'|format(meta.classroom.monthly.amount) }}{% endif %}
@@ -120,7 +151,10 @@ site_content.plus_banner_text %}
         {% endif %} {% if cls.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.annual }}" />
+          {% if trial_unlocked %}
           <input type="hidden" name="trial_days" value="365" />
+          <input type="hidden" name="trial_token" value="{{ trial_code }}" />
+          {% endif %}
           <button class="button ghost wide">
             Annual{% if meta.classroom.annual %} — {{
             '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %} {% if
@@ -139,7 +173,7 @@ site_content.plus_banner_text %}
       {% else %}
       <a
         class="button primary wide"
-        href="{{ url_for('google.login', next=url_for('plus_pricing')) }}"
+        href="{{ url_for('google.login', next=plus_target) }}"
         >Login to Checkout</a
       >
       {% endif %} {% else %}
@@ -149,9 +183,14 @@ site_content.plus_banner_text %}
   </div>
 
   <p class="small muted promo-note">
-    Every subscription starts with a free first period (month or year). Enter
-    promo code <strong>SAVE25</strong> during Stripe checkout for 25% off for
-    life.
+    {% if trial_unlocked %}
+    Free first month/year is unlocked on checkout. Add promo code
+    <strong>SAVE25</strong> at Stripe for 25% off for life.
+    {% else %}
+    Have an invite code? Apply it above to unlock a free first month/year. You
+    can still enter promo code <strong>SAVE25</strong> during Stripe checkout for
+    25% off for life.
+    {% endif %}
   </p>
 </section>
 
@@ -245,6 +284,38 @@ site_content.plus_banner_text %}
     border: 1px dashed #334155;
     border-radius: 14px;
     padding: 0.8rem;
+  }
+  .invite-form {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    border: 1px solid #1d3557;
+    background: #10243b;
+  }
+  .invite-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+  }
+  .invite-row input {
+    flex: 1;
+    padding: 0.45rem 0.6rem;
+    border-radius: 10px;
+    border: 1px solid #314665;
+    background: #0b1727;
+    color: #e2ecff;
+  }
+  .invite-row input:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 0;
+  }
+  .invite-form .success-note {
+    margin-top: 0.5rem;
+    color: #4ade80;
+  }
+  .invite-form .error-note {
+    margin-top: 0.5rem;
+    color: #f87171;
   }
   .mini-preview .lines {
     height: 110px;
