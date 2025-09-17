@@ -81,10 +81,26 @@ def create_checkout_session():
     if not STRIPE_SECRET_KEY or not stripe:
         return "Stripe not configured", 500
     id_or_price = (request.form.get("price_id") or "").strip()
+    trial_raw = (request.form.get("trial_days") or "").strip()
     if not id_or_price:
         return "Missing price", 400
     price_id = resolve_price_id(id_or_price)
     user_email = session.get("user_email")
+    trial_days = None
+    if trial_raw:
+        try:
+            val = int(trial_raw)
+            if 0 < val <= 730:
+                trial_days = val
+        except ValueError:
+            pass
+    subscription_data = {"metadata": {"plan_price_id": price_id}}
+    if trial_days is not None:
+        subscription_data["trial_period_days"] = trial_days
+        subscription_data["metadata"]["trial_days"] = str(trial_days)
+    session_metadata = {"email": user_email, "plan_price_id": price_id}
+    if trial_days is not None:
+        session_metadata["trial_days"] = str(trial_days)
     try:
         chk = stripe.checkout.Session.create(
             mode="subscription",
@@ -93,7 +109,8 @@ def create_checkout_session():
             success_url=url_for("plus_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=url_for("plus_pricing", _external=True),
             allow_promotion_codes=True,
-            metadata={"email": user_email, "plan_price_id": price_id},
+            metadata=session_metadata,
+            subscription_data=subscription_data,
         )
         return redirect(chk.url, code=303)
     except Exception as e:
@@ -242,4 +259,3 @@ def buy_pack(slug):
 def buy_success(slug):
     flash("Purchase successful. You can now download this pack.", "success")
     return redirect(url_for("browse_detail", slug=slug))
-

@@ -56,6 +56,7 @@ site_content.plus_banner_text %}
         {% if fam.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
+          <input type="hidden" name="trial_days" value="30" />
           <button class="button primary wide">
             Monthly{% if meta.family.monthly %} — {{
             '$%.2f'|format(meta.family.monthly.amount) }}{% endif %}
@@ -64,6 +65,7 @@ site_content.plus_banner_text %}
         {% endif %} {% if fam.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.annual }}" />
+          <input type="hidden" name="trial_days" value="365" />
           <button class="button ghost wide">
             Annual{% if meta.family.annual %} — {{
             '$%.2f'|format(meta.family.annual.amount) }}{% endif %} {% if
@@ -109,6 +111,7 @@ site_content.plus_banner_text %}
         {% if cls.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
+          <input type="hidden" name="trial_days" value="30" />
           <button class="button primary wide">
             Monthly{% if meta.classroom.monthly %} — {{
             '$%.2f'|format(meta.classroom.monthly.amount) }}{% endif %}
@@ -117,6 +120,7 @@ site_content.plus_banner_text %}
         {% endif %} {% if cls.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.annual }}" />
+          <input type="hidden" name="trial_days" value="365" />
           <button class="button ghost wide">
             Annual{% if meta.classroom.annual %} — {{
             '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %} {% if
@@ -145,7 +149,9 @@ site_content.plus_banner_text %}
   </div>
 
   <p class="small muted promo-note">
-    You can enter promo codes during Stripe checkout.
+    Every subscription starts with a free first period (month or year). Enter
+    promo code <strong>SAVE25</strong> during Stripe checkout for 25% off for
+    life.
   </p>
 </section>
 
