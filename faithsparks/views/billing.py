@@ -173,6 +173,7 @@ def create_checkout_session():
             subscription_data["metadata"]["trial_kind"] = trial_kind
         if trial_token:
             subscription_data["metadata"]["trial_code"] = trial_token
+            subscription_data["metadata"]["source"] = f"invite:{trial_token.lower()}"
     session_metadata = {"email": user_email, "plan_price_id": price_id}
     if trial_days is not None:
         session_metadata["trial_days"] = str(trial_days)
@@ -180,6 +181,7 @@ def create_checkout_session():
             session_metadata["trial_kind"] = trial_kind
         if trial_token:
             session_metadata["trial_code"] = trial_token
+            session_metadata["source"] = f"invite:{trial_token.lower()}"
     try:
         chk = stripe.checkout.Session.create(
             mode="subscription",

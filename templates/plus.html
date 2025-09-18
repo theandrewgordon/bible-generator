@@ -177,6 +177,18 @@ site_content.plus_banner_text %}
     </article>
   </div>
 
+  <p class="small muted legal-note">
+    By starting a trial you authorize Faith Sparks Printables to charge after the
+    free period unless you cancel. Prices shown in USD; taxes may apply.
+    Lifetime discounts stay active on future invoices and can’t be combined with
+    other recurring discounts.
+  </p>
+  <p class="small muted support-note">
+    Need help? DM me or email <a href="mailto:hello@faithsparksprintables.com"
+      >hello@faithsparksprintables.com</a
+    >.
+  </p>
+
   <p class="small muted promo-note">
     {% if trial_unlocked %}
       {% if trial_kind == 'month' %}
@@ -337,6 +349,14 @@ site_content.plus_banner_text %}
   }
   .dark .invite-form .error-note {
     color: #fca5a5;
+  }
+  .legal-note,
+  .support-note {
+    margin-top: 0.6rem;
+  }
+  .support-note a {
+    color: inherit;
+    text-decoration: underline;
   }
   .mini-preview .lines {
     height: 110px;
