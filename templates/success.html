@@ -1,10 +1,10 @@
 {% extends "base.html" %} {% block title %}Worksheet Ready | Faith Sparks
 Printables{% endblock %} {% block head_extra %}
 <meta name="robots" content="noindex,follow" />
-{% endblock %} {% block content %} {% set parts =
-filename|default('')|split('.') %} {% set ext = (parts[-1]|lower if parts|length
-> 1 else '') %} {% set is_zip = (ext == 'zip') %} {% set base =
-parts[:-1]|join('.') %}
+{% endblock %} {% block content %} {% set name = filename or '' %} {% set ext =
+'' %} {% set base = name %} {% if '.' in name %} {% set base =
+name.rsplit('.', 1)[0] %} {% set ext = name.rsplit('.', 1)[1]|lower %} {% endif
+%} {% set is_zip = (ext == 'zip') %}
 
 <h1 class="page-title">✅ Your worksheet is ready!</h1>
 <p class="muted" id="autoMsg" aria-live="polite">
