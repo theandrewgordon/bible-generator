@@ -5,9 +5,8 @@ site_content.plus_banner_text %}
 <div class="announcement" role="status">
   {{ site_content.plus_banner_text }}
 </div>
-{% endif %}
-
-{% set plus_target = url_for('plus_pricing', trial=trial_code) if trial_code else url_for('plus_pricing') %}
+{% endif %} {% set plus_target = url_for('plus_pricing', trial=trial_code) if
+trial_code else url_for('plus_pricing') %}
 
 <header class="plus-hero card-lite">
   <div class="plus-copy">
@@ -53,7 +52,8 @@ site_content.plus_banner_text %}
     </div>
     {% if trial_unlocked %}
     <p class="small success-note">
-      Invite applied.{% if trial_kind == 'month' %} First month $0, then standard price.{% endif %}
+      Invite applied.{% if trial_kind == 'month' %} First month $0, then
+      standard price.{% endif %}
     </p>
     {% elif trial_error %}
     <p class="small error-note">Invite code not recognized.</p>
@@ -178,28 +178,16 @@ site_content.plus_banner_text %}
   </div>
 
   <p class="small muted legal-note">
-    By starting a trial you authorize Faith Sparks Printables to charge after the
-    free period unless you cancel. Prices shown in USD; taxes may apply.
+    By starting a trial you authorize Faith Sparks Printables to charge after
+    the free period unless you cancel. Prices shown in USD; taxes may apply.
     Lifetime discounts stay active on future invoices and can’t be combined with
     other recurring discounts.
   </p>
   <p class="small muted support-note">
-    Need help? DM me or email <a href="mailto:hello@faithsparksprintables.com"
+    Need help? DM me or email
+    <a href="mailto:hello@faithsparksprintables.com"
       >hello@faithsparksprintables.com</a
     >.
-  </p>
-
-  <p class="small muted promo-note">
-    {% if trial_unlocked %}
-      {% if trial_kind == 'month' %}
-        Invite applied: first month $0, then the regular price. Add promo code
-        <strong>SAVE25</strong> during Stripe checkout for 25% off for life.
-      {% else %}
-        Invite applied. Add promo code <strong>SAVE25</strong> during Stripe checkout for 25% off for life.
-      {% endif %}
-    {% else %}
-      Add promo code <strong>SAVE25</strong> during Stripe checkout for 25% off for life.
-    {% endif %}
   </p>
 </section>
 
