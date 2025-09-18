@@ -1,7 +1,7 @@
 import os
 import traceback
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Tuple
 
 from firebase_admin import firestore
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
@@ -22,14 +22,64 @@ from faithsparks.services.stripe_svc import (
 )
 
 
-PLUS_TRIAL_CODES = [c.strip().lower() for c in (os.getenv("PLUS_TRIAL_CODES") or "").split(",") if c.strip()]
+def _parse_codes(env_var: str) -> set[str]:
+    raw = os.getenv(env_var) or ""
+    return {c.strip().lower() for c in raw.split(",") if c.strip()}
 
 
-def _is_trial_code_valid(token: str) -> bool:
+PLUS_MONTH_TRIAL_CODES = _parse_codes("PLUS_MONTH_TRIAL_CODES")
+PLUS_YEAR_TRIAL_CODES = _parse_codes("PLUS_YEAR_TRIAL_CODES") or set()
+PLUS_YEAR_TRIAL_CODES.update(_parse_codes("PLUS_TRIAL_CODES"))
+
+
+def _trial_kind(token: str) -> Optional[str]:
     if not token:
-        return False
-    return token.lower() in PLUS_TRIAL_CODES
+        return None
+    t = token.strip().lower()
+    if t in PLUS_MONTH_TRIAL_CODES:
+        return "month"
+    if t in PLUS_YEAR_TRIAL_CODES:
+        return "year"
+    return None
 
+
+def _price_kind_map() -> dict[str, Tuple[str, str]]:
+    mapping: dict[str, Tuple[str, str]] = {}
+
+    def _add(pid: Optional[str], plan: str, interval: str) -> None:
+        if pid:
+            mapping[pid.strip().lower()] = (plan, interval)
+
+    _add(STRIPE_PRICE_FAMILY_MONTHLY, "family", "month")
+    _add(STRIPE_PRICE_FAMILY_ANNUAL, "family", "year")
+    _add(STRIPE_PRICE_CLASSROOM_MONTHLY, "classroom", "month")
+    _add(STRIPE_PRICE_CLASSROOM_ANNUAL, "classroom", "year")
+
+    return mapping
+
+
+PRICE_KIND_MAP = _price_kind_map()
+
+
+def _classify_price(price_id: str) -> Optional[Tuple[str, str]]:
+    if not price_id:
+        return None
+    return PRICE_KIND_MAP.get(price_id.strip().lower())
+
+
+def _trial_days_for(token: str, price_id: str) -> Optional[Tuple[int, str]]:
+    kind = _trial_kind(token)
+    if not kind:
+        return None
+    price_info = _classify_price(price_id)
+    if not price_info:
+        return None
+    plan, interval = price_info
+    if kind == "month" and interval == "month":
+        return 30, kind
+    if kind == "year" and interval == "year" and plan == "family":
+        return 365, kind
+    return None
 
 bp = Blueprint("billing", __name__)
 
@@ -86,7 +136,8 @@ def plus_pricing():
     except Exception:
         pass
     trial_code = (request.args.get("trial") or "").strip()
-    trial_unlocked = _is_trial_code_valid(trial_code)
+    trial_kind = _trial_kind(trial_code)
+    trial_unlocked = bool(trial_kind)
     trial_error = bool(trial_code) and not trial_unlocked
     return render_template(
         "plus.html",
@@ -96,6 +147,7 @@ def plus_pricing():
         trial_unlocked=trial_unlocked,
         trial_code=trial_code,
         trial_error=trial_error,
+        trial_kind=trial_kind,
     )
 
 
@@ -103,28 +155,31 @@ def create_checkout_session():
     if not STRIPE_SECRET_KEY or not stripe:
         return "Stripe not configured", 500
     id_or_price = (request.form.get("price_id") or "").strip()
-    trial_raw = (request.form.get("trial_days") or "").strip()
     trial_token = (request.form.get("trial_token") or "").strip()
     if not id_or_price:
         return "Missing price", 400
     price_id = resolve_price_id(id_or_price)
     user_email = session.get("user_email")
-    trial_days = None
-    if trial_raw:
-        try:
-            val = int(trial_raw)
-            if 0 < val <= 730 and _is_trial_code_valid(trial_token):
-                trial_days = val
-        except ValueError:
-            pass
+    trial_info = _trial_days_for(trial_token, price_id)
+    trial_days = trial_kind = None
+    if trial_info:
+        trial_days, trial_kind = trial_info
+
     subscription_data = {"metadata": {"plan_price_id": price_id}}
     if trial_days is not None:
         subscription_data["trial_period_days"] = trial_days
         subscription_data["metadata"]["trial_days"] = str(trial_days)
+        if trial_kind:
+            subscription_data["metadata"]["trial_kind"] = trial_kind
+        if trial_token:
+            subscription_data["metadata"]["trial_code"] = trial_token
     session_metadata = {"email": user_email, "plan_price_id": price_id}
     if trial_days is not None:
         session_metadata["trial_days"] = str(trial_days)
-        session_metadata["trial_token"] = trial_token
+        if trial_kind:
+            session_metadata["trial_kind"] = trial_kind
+        if trial_token:
+            session_metadata["trial_code"] = trial_token
     try:
         chk = stripe.checkout.Session.create(
             mode="subscription",

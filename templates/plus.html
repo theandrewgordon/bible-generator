@@ -7,7 +7,7 @@ site_content.plus_banner_text %}
 </div>
 {% endif %}
 
-{% set plus_target = url_for('plus_pricing', trial=trial_code) if trial_unlocked else url_for('plus_pricing') %}
+{% set plus_target = url_for('plus_pricing', trial=trial_code) if trial_code else url_for('plus_pricing') %}
 
 <header class="plus-hero card-lite">
   <div class="plus-copy">
@@ -38,23 +38,25 @@ site_content.plus_banner_text %}
 </header>
 
 <section class="plans">
-  <form class="invite-form card-lite" method="get" action="{{ url_for('plus_pricing') }}">
-    <label for="trialInput"><strong>Have an invite code for a free first period?</strong></label>
+  <form class="invite-form" method="get" action="{{ url_for('plus_pricing') }}">
+    <label class="invite-label" for="trialInput">Invite code</label>
     <div class="invite-row">
       <input
         id="trialInput"
         name="trial"
         value="{{ trial_code }}"
-        placeholder="Enter invite code"
+        placeholder="Optional"
         autocapitalize="off"
         spellcheck="false"
       />
       <button class="button" type="submit">Apply</button>
     </div>
     {% if trial_unlocked %}
-    <p class="small success-note">Free trial unlocked with code <strong>{{ trial_code }}</strong>.</p>
+    <p class="small success-note">
+      Invite applied.{% if trial_kind == 'month' %} First month $0, then standard price.{% endif %}
+    </p>
     {% elif trial_error %}
-    <p class="small error-note">That code didn’t match an active invite.</p>
+    <p class="small error-note">Invite code not recognized.</p>
     {% endif %}
   </form>
 
@@ -78,8 +80,7 @@ site_content.plus_banner_text %}
         {% if fam.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
-          {% if trial_unlocked %}
-          <input type="hidden" name="trial_days" value="30" />
+          {% if trial_kind == 'month' %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
           <button class="button primary wide">
@@ -90,8 +91,7 @@ site_content.plus_banner_text %}
         {% endif %} {% if fam.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.annual }}" />
-          {% if trial_unlocked %}
-          <input type="hidden" name="trial_days" value="365" />
+          {% if trial_kind == 'year' %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
           <button class="button ghost wide">
@@ -139,8 +139,7 @@ site_content.plus_banner_text %}
         {% if cls.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
-          {% if trial_unlocked %}
-          <input type="hidden" name="trial_days" value="30" />
+          {% if trial_kind == 'month' %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
           <button class="button primary wide">
@@ -151,10 +150,6 @@ site_content.plus_banner_text %}
         {% endif %} {% if cls.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.annual }}" />
-          {% if trial_unlocked %}
-          <input type="hidden" name="trial_days" value="365" />
-          <input type="hidden" name="trial_token" value="{{ trial_code }}" />
-          {% endif %}
           <button class="button ghost wide">
             Annual{% if meta.classroom.annual %} — {{
             '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %} {% if
@@ -184,12 +179,14 @@ site_content.plus_banner_text %}
 
   <p class="small muted promo-note">
     {% if trial_unlocked %}
-    Free first month/year is unlocked on checkout. Add promo code
-    <strong>SAVE25</strong> at Stripe for 25% off for life.
+      {% if trial_kind == 'month' %}
+        Invite applied: first month $0, then the regular price. Add promo code
+        <strong>SAVE25</strong> during Stripe checkout for 25% off for life.
+      {% else %}
+        Invite applied. Add promo code <strong>SAVE25</strong> during Stripe checkout for 25% off for life.
+      {% endif %}
     {% else %}
-    Have an invite code? Apply it above to unlock a free first month/year. You
-    can still enter promo code <strong>SAVE25</strong> during Stripe checkout for
-    25% off for life.
+      Add promo code <strong>SAVE25</strong> during Stripe checkout for 25% off for life.
     {% endif %}
   </p>
 </section>
@@ -286,34 +283,26 @@ site_content.plus_banner_text %}
     padding: 0.8rem;
   }
   .invite-form {
-    margin-bottom: 1.25rem;
-    padding: 0.85rem 1.1rem;
-    border-radius: var(--radius, 12px);
-    border: 1px solid rgba(15, 23, 42, 0.14);
-    background: var(--box, #edf2f7);
-    box-shadow: var(--card-shadow, 0 6px 16px rgba(0, 0, 0, 0.06));
+    margin-bottom: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
   }
-  .dark .invite-form {
-    background: rgba(15, 23, 42, 0.7);
-    border-color: rgba(148, 163, 184, 0.35);
-    box-shadow: none;
-  }
-  .invite-form label {
+  .invite-label {
     font-weight: 600;
     color: var(--text, #2d3748);
   }
-  .dark .invite-form label {
+  .dark .invite-label {
     color: #e2e8f0;
   }
   .invite-row {
     display: flex;
-    gap: 0.6rem;
-    margin-top: 0.55rem;
+    gap: 0.5rem;
     align-items: center;
   }
   .invite-row input {
     flex: 1;
-    padding: 0.55rem 0.8rem;
+    padding: 0.5rem 0.75rem;
     border-radius: 10px;
     border: 1px solid rgba(15, 23, 42, 0.18);
     background: #ffffff;
@@ -335,7 +324,6 @@ site_content.plus_banner_text %}
   }
   .invite-form .success-note,
   .invite-form .error-note {
-    margin-top: 0.55rem;
     font-weight: 500;
   }
   .invite-form .success-note {
