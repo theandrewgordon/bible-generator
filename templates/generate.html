@@ -3,7 +3,7 @@ Faith Sparks{% endblock %} {% block head_extra %} {# Page-specific SEO (base
 will add noindex for /generate, but these help sharing/consistency) #}
 <meta
   name="description"
-  content="Generate printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses (ESV or KJV by default; override by tagging another translation), cursive or manuscript."
+  content="Generate printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses, versions (ESV or KJV), cursive or manuscript."
 />
 <meta property="og:title" content="Generate Printable Bible Copywork" />
 <meta
@@ -242,8 +242,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           <div class="muted small">
             <ul>
               <li>
-                Add “(ESV)”, “(KJV)”, or another translation tag in the verse text
-                to override the dropdown.
+                Add “(ESV)”, “(KJV)”, or another translation tag in the verse
+                text to override the dropdown.
               </li>
               <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
               <li>Custom text is validated and profanity-filtered.</li>
