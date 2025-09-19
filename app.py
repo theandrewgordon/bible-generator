@@ -147,8 +147,9 @@ def _fmt_dt(ts):
 # normalize_slug moved to yourapp.util.slug
 
 def extract_version_from_text(text, fallback_version):
-    fallback_version = "esv" if fallback_version.lower() == "auto" else fallback_version.lower()
-    match = re.search(r'\((\w{2,6})\)$', text.strip())
+    norm_fallback = (fallback_version or "esv").lower().strip()
+    fallback_version = "esv" if norm_fallback in ("", "auto") else norm_fallback
+    match = re.search(r'\(([A-Za-z0-9]{2,12})\)\s*$', text.strip())
     if match:
         version = match.group(1).lower()
         verse = text[:match.start()].strip()

@@ -554,8 +554,9 @@ def toggle_favorite(filename):
 
 
 def extract_version_from_text(text, fallback_version):
-    fallback_version = "esv" if fallback_version.lower() == "auto" else fallback_version.lower()
-    m = re.search(r"\((\w{2,6})\)$", text.strip())
+    norm_fallback = (fallback_version or "esv").lower().strip()
+    fallback_version = "esv" if norm_fallback in ("", "auto") else norm_fallback
+    m = re.search(r"\(([A-Za-z0-9]{2,12})\)\s*$", text.strip())
     if m:
         version = m.group(1).lower()
         verse = text[: m.start()].strip()
@@ -563,4 +564,3 @@ def extract_version_from_text(text, fallback_version):
         version = fallback_version
         verse = text.strip()
     return version, verse.title()
-

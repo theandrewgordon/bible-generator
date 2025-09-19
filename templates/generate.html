@@ -3,7 +3,7 @@ Faith Sparks{% endblock %} {% block head_extra %} {# Page-specific SEO (base
 will add noindex for /generate, but these help sharing/consistency) #}
 <meta
   name="description"
-  content="Generate printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses (ESV, KJV, NIV, more), cursive or manuscript."
+  content="Generate printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses (ESV or KJV by default; override by tagging another translation), cursive or manuscript."
 />
 <meta property="og:title" content="Generate Printable Bible Copywork" />
 <meta
@@ -108,7 +108,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         <input
           id="verseInput"
           name="verse"
-          placeholder="e.g., John 3:16 (ESV), Romans 8:28"
+          placeholder="e.g., John 3:16 (ESV), Psalm 23:1 (KJV)"
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
@@ -123,8 +123,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         <div class="quick-picks" role="group" aria-label="Quick pick verses">
           <span class="quick-picks-label small muted">Quick picks:</span>
           {% set quick = (site_content.generate_quick_picks or [ 'John 3:16
-          (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (NIV)','Proverbs 3:5-6
-          (ESV)']) %} {% for v in quick %}
+          (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (ESV)','Proverbs 3:5-6
+          (KJV)']) %} {% for v in quick %}
           <button type="button" class="chip" data-verse="{{ v }}">
             {{ v.split('(')[0].strip() }}
           </button>
@@ -231,13 +231,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
             class="wide-input"
             style="max-width: 220px"
           >
-            <option value="esv">ESV</option>
+            <option value="esv" selected>ESV</option>
             <option value="kjv">KJV</option>
-            <option value="nlt">NLT</option>
-            <option value="nasb">NASB</option>
-            <option value="niv">NIV</option>
-            <option value="csb">CSB</option>
-            <option value="auto">Auto Detect</option>
+            <option value="" data-role="override" hidden></option>
           </select>
         </div>
 
@@ -246,7 +242,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           <div class="muted small">
             <ul>
               <li>
-                Add “(ESV)” etc. in the verse text to override the dropdown.
+                Add “(ESV)”, “(KJV)”, or another translation tag in the verse text
+                to override the dropdown.
               </li>
               <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
               <li>Custom text is validated and profanity-filtered.</li>
@@ -380,14 +377,75 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const zipHint        = document.getElementById('zipHint');
 
   /* ===== Helpers ===== */
-  const KNOWN = ['ESV','KJV','NLT','NASB','NIV','CSB','AUTO'];
+  const PRIMARY_VERSIONS = ['ESV','KJV'];
   const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
-  const detectVersion = str => {
-    const m = /\((ESV|KJV|NLT|NASB|NIV|CSB)\)/i.exec(str||''); return m ? m[1].toUpperCase() : null;
+  const overrideOption = versionSelect ? versionSelect.querySelector('option[data-role="override"]') : null;
+  const extractTaggedVersion = str => {
+    const m = /\(([A-Z0-9]{2,12})\)/i.exec(str||'');
+    return m ? m[1].toUpperCase() : null;
   };
+  const findLastTaggedVersion = () => {
+    return [...tagify.value].reverse().map(t => extractTaggedVersion(t.value)).find(Boolean) || null;
+  };
+
+  const applyVersionOverride = token => {
+    if (!versionSelect) return;
+    const upper = (token || '').toUpperCase();
+    if (!upper || PRIMARY_VERSIONS.includes(upper)) {
+      return;
+    }
+    if (!versionSelect.dataset.override) {
+      versionSelect.dataset.prevSelection = versionSelect.value || 'esv';
+    }
+    versionSelect.dataset.override = upper;
+    if (overrideOption) {
+      overrideOption.hidden = false;
+      overrideOption.textContent = `Override (${upper})`;
+    }
+    versionSelect.value = '';
+  };
+
+  const clearVersionOverride = () => {
+    if (!versionSelect?.dataset.override) {
+      return;
+    }
+    const prev = versionSelect.dataset.prevSelection || 'esv';
+    delete versionSelect.dataset.override;
+    delete versionSelect.dataset.prevSelection;
+    if (overrideOption) {
+      overrideOption.hidden = true;
+      overrideOption.textContent = '';
+    }
+    versionSelect.value = prev;
+  };
+
+  const syncVersionSelection = detected => {
+    if (!versionSelect) return;
+    const upper = detected ? detected.toUpperCase() : null;
+
+    if (upper && !PRIMARY_VERSIONS.includes(upper)) {
+      applyVersionOverride(upper);
+      return;
+    }
+
+    if (versionSelect.dataset.override) {
+      clearVersionOverride();
+    }
+
+    if (upper && PRIMARY_VERSIONS.includes(upper)) {
+      const desired = upper.toLowerCase();
+      if (versionSelect.value !== desired) {
+        versionSelect.value = desired;
+      }
+    } else if (!versionSelect.value) {
+      versionSelect.value = 'esv';
+    }
+  };
+
   const effectiveVersion = () => {
-    const v = [...tagify.value].reverse().map(t=>detectVersion(t.value)).find(Boolean);
-    return (v || (versionSelect.value||'esv')).toUpperCase();
+    const detected = findLastTaggedVersion();
+    syncVersionSelection(detected);
+    return (detected || (versionSelect.value || 'esv')).toUpperCase();
   };
 
   function setMode(mode){
@@ -400,12 +458,13 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     }
     versionSelect.disabled = !isVerse;
 
-    if (isVerse){
+  if (isVerse){
       customTitle.value = ''; customText.value = ''; customPrompt.value = '';
       if (agreeTerms) agreeTerms.checked = false; customFilename.textContent = '';
     } else {
       tagify.removeAllTags(); verseInput.value = '';
       filenamePreview.textContent = ''; zipHint.style.display = 'none';
+      clearVersionOverride();
     }
     updatePreview();
   }
@@ -468,7 +527,18 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
   /* ===== Persist simple prefs ===== */
   versionSelect.addEventListener('change', ()=>{
-    localStorage.setItem('preferredVersion', versionSelect.value);
+    if (versionSelect.dataset.override && versionSelect.value) {
+      clearVersionOverride();
+    } else if (!versionSelect.value && !versionSelect.dataset.override) {
+      versionSelect.value = 'esv';
+    }
+
+    if (versionSelect.value) {
+      localStorage.setItem('preferredVersion', versionSelect.value);
+    } else {
+      localStorage.removeItem('preferredVersion');
+    }
+
     updatePreview();
   });
   cursiveToggle.addEventListener('change', ()=>{
@@ -583,7 +653,10 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     customTitle.value=''; customText.value=''; customPrompt.value='';
     if (agreeTerms) agreeTerms.checked = false;
     filenamePreview.textContent=''; customFilename.textContent='';
-    zipHint.style.display='none'; updatePreview();
+    zipHint.style.display='none';
+    clearVersionOverride();
+    versionSelect.value = versionSelect.value || 'esv';
+    updatePreview();
   });
 
   /* ===== Share link ===== */
@@ -599,7 +672,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       params.set('mode','custom');
     }
     if (cursiveToggle.checked) params.set('cursive','1');
-    if (modeVerse.checked && versionSelect.value && versionSelect.value !== 'auto') params.set('version', versionSelect.value);
+    if (modeVerse.checked && versionSelect.value) params.set('version', versionSelect.value);
 
     const url = `${location.origin}${location.pathname}?${params.toString()}`;
     try { await navigator.clipboard.writeText(url); } catch {}
@@ -638,13 +711,21 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     }
 
     // Version preference order: URL > defaultVersionOverride > localStorage > existing
-    if (urlVer) {
-      versionSelect.value = urlVer.toLowerCase();
-    } else if (defaultVersionOverride) {
-      versionSelect.value = String(defaultVersionOverride).toLowerCase();
-    } else {
-      const stored = localStorage.getItem('preferredVersion');
-      if (stored) versionSelect.value = stored.toLowerCase();
+    const assignVersionIfAvailable = (val) => {
+      if (!val) return false;
+      const normalized = String(val).toLowerCase();
+      const hasOption = Array.from(versionSelect.options || []).some(opt => opt.value === normalized);
+      if (hasOption) {
+        versionSelect.value = normalized;
+        return true;
+      }
+      return false;
+    };
+
+    if (!assignVersionIfAvailable(urlVer)) {
+      if (!assignVersionIfAvailable(defaultVersionOverride)) {
+        assignVersionIfAvailable(localStorage.getItem('preferredVersion'));
+      }
     }
 
     cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');

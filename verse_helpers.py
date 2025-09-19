@@ -58,7 +58,7 @@ def call_openai(prompt):
         return None
 
 # === Request Verse Data ===
-def request_verse_data(verse_ref, version="nlt"):
+def request_verse_data(verse_ref, version="esv"):
     """Request worksheet data from OpenAI, retrying once if needed."""
     prompt = build_prompt(verse_ref, version)
     content = call_openai(prompt)

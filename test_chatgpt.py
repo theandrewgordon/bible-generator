@@ -17,7 +17,7 @@ load_dotenv("secret.env")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Setup
-version = "nlt"
+version = "esv"
 output_dir = "output"
 pdf_dir = "worksheets"
 os.makedirs(output_dir, exist_ok=True)

@@ -1,7 +1,7 @@
 import os
 from verse_helpers import request_verse_data, parse_and_clean_json, retry_traceable_fix, save_json_to_file
 
-VERSIONS = ["kjv", "nlt", "esv", "nasb"]
+VERSIONS = ["esv", "kjv"]
 INPUT_FILE = "top_200_verses.txt"
 OUTPUT_FOLDER = "batch_output"
 
