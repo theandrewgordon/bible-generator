@@ -90,6 +90,50 @@ Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
     max-width: 100%;
     height: auto;
   }
+  .seasonal-preview {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    background: rgba(37, 99, 235, 0.08);
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .seasonal-preview .button {
+    margin-left: auto;
+  }
+  @media (max-width: 640px) {
+    .seasonal-preview {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .seasonal-preview .button {
+      margin-left: 0;
+    }
+  }
+  .gift-preview {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px dashed rgba(124, 58, 237, 0.35);
+    background: rgba(124, 58, 237, 0.08);
+  }
+  .faq-public {
+    margin-top: 1.5rem;
+  }
+  .faq-public details {
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.6rem;
+    background: var(--box, #fff);
+  }
+  .faq-public summary {
+    font-weight: 600;
+    cursor: pointer;
+  }
   @media (max-width: 860px) {
     .hero {
       grid-template-columns: 1fr;
@@ -115,6 +159,10 @@ Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
       simple, beautiful Bible copywork for Christian homeschool, co-ops, and
       Sunday school. Sign in with Google to create, track, and regenerate
       worksheets.' }}
+    </p>
+    <p class="muted small">
+      Try the Free Starter Pack, then upgrade to Plus Family or Classroom when
+      you’re ready for more.
     </p>
 
     <div class="cta-row">
@@ -146,14 +194,24 @@ Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
   </div>
 </section>
 
+{% set seasonal_banner = site_content.home_seasonal_banner if site_content else None %}
+<section class="seasonal-preview block" role="note">
+  <strong>Seasonal spotlight:</strong>
+  {{ seasonal_banner or 'Advent & Christmas copywork sets are live — preview the festive theme without logging in.' }}
+  <a class="button small ghost" href="{{ url_for('browse', q='advent') }}"
+    >View seasonal packs</a
+  >
+</section>
+
 <section class="prose" style="margin-top: 1.25rem">
   <h2 style="margin-top: 0">
     Bible copywork for homeschool & children’s ministry
   </h2>
   <p>
     Build <a href="{{ url_for('generate') }}">Bible copywork worksheets</a> from
-    any verse. Pick ESV or KJV in the dropdown. Choose manuscript or cursive
-    tracing, then download print-ready PDFs. Browse curated
+    any verse. Pick ESV or KJV in the dropdown, or override by tagging a verse
+    reference with a translation code in parentheses. Choose manuscript or
+    cursive tracing, then download print-ready PDFs. Browse curated
     <a href="{{ url_for('browse') }}">copywork collections</a> or regenerate
     past worksheets from your <a href="{{ url_for('history') }}">history</a>.
   </p>
@@ -162,5 +220,33 @@ Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
     <li>Kid-friendly layout with optional coloring prompts</li>
     <li>Free starter plan; Plus unlocks larger packs and ZIPs</li>
   </ul>
+</section>
+
+<section class="gift-preview block">
+  <h3>Gift Faith Sparks Plus</h3>
+  <p>
+    Share printable Bible copywork with another family. Email
+    <a href="mailto:hello@faithsparksprintables.com"
+      >hello@faithsparksprintables.com</a
+    > to send a digital gift membership.
+  </p>
+</section>
+
+<section class="faq-public block">
+  <h3>FAQs</h3>
+  <details>
+    <summary>How do I use these worksheets?</summary>
+    <p class="muted">
+      Generate a worksheet, print it at home, and let kids trace or copy the
+      verse. Use the reflection prompt for family discussion or journaling.
+    </p>
+  </details>
+  <details>
+    <summary>Do I need a subscription?</summary>
+    <p class="muted">
+      Start with the free tier for the starter pack and monthly generates. Upgrade
+      to Plus anytime for bigger limits and subscriber collections.
+    </p>
+  </details>
 </section>
 {% endblock %}

@@ -32,6 +32,22 @@
 {% endblock %} {% block content %}
 <h1 class="page-title">🔎 Browse Worksheets</h1>
 
+{% set trending_pack = (top_packs_week[0] if top_packs_week else (top_packs[0] if top_packs else None)) %}
+{% if trending_pack %}
+<section class="block popular-highlight" aria-live="polite">
+  <strong>Popular right now:</strong>
+  <a href="{{ url_for('browse_detail', slug=trending_pack.slug) }}">
+    {{ trending_pack.title }}
+  </a>
+  <span class="muted small">— {{ trending_pack.downloads }} downloads this week</span>
+  <a
+    class="button small ghost"
+    href="{{ url_for('generate', collection=trending_pack.slug) }}"
+    >✍️ Generate</a
+  >
+</section>
+{% endif %}
+
 <div class="toolbar" role="region" aria-label="Browse filters">
   <input
     id="search"
@@ -75,11 +91,12 @@
     </summary>
     <div class="pack-grid mt10">
       {% for p in top_packs %}
+      {% set top_title = 'Free Starter Pack' if p.slug == 'starter' else p.title %}
       <a
         class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
-        data-title="{{ p.title|lower }}"
-        aria-label="View {{ p.title }} details"
+        data-title="{{ top_title|lower }}"
+        aria-label="View {{ top_title }} details"
       >
         <div class="pack-top">
           <div class="pack-meta">
@@ -87,7 +104,7 @@
             p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
           </div>
         </div>
-        <h3 class="pack-title">{{ p.title }}</h3>
+        <h3 class="pack-title">{{ top_title }}</h3>
         <div class="pack-sub muted small">{{ p.downloads }} downloads</div>
       </a>
       {% endfor %}
@@ -103,11 +120,12 @@
     </summary>
     <div class="pack-grid mt10">
       {% for p in top_packs_week %}
+      {% set week_title = 'Free Starter Pack' if p.slug == 'starter' else p.title %}
       <a
         class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
-        data-title="{{ p.title|lower }}"
-        aria-label="View {{ p.title }} details"
+        data-title="{{ week_title|lower }}"
+        aria-label="View {{ week_title }} details"
       >
         <div class="pack-top">
           <div class="pack-meta">
@@ -115,7 +133,7 @@
             p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
           </div>
         </div>
-        <h3 class="pack-title">{{ p.title }}</h3>
+        <h3 class="pack-title">{{ week_title }}</h3>
         <div class="pack-sub muted small">{{ p.downloads }} downloads</div>
       </a>
       {% endfor %}
@@ -159,11 +177,12 @@
         </div>
       </div>
 
+      {% set display_title = 'Free Starter Pack' if c.slug == 'starter' else c.title %}
       <h3 class="pack-title">
         <a
           href="{{ url_for('browse_detail', slug=c.slug) }}"
-          aria-label="View {{ c.title }} details"
-          >{{ c.title }}</a
+          aria-label="View {{ display_title }} details"
+          >{{ display_title }}</a
         >
       </h3>
       <div class="pack-sub muted small">
@@ -212,6 +231,20 @@
 
   <p class="small muted">
     Collections are starting points; pick one to prefill ideas in Generate.
+  </p>
+</section>
+
+<section class="block coming-soon">
+  <h3>Collections coming soon</h3>
+  <ul>
+    <li>Jesus’ Words (red-letter copywork)</li>
+    <li>Proverbs for Kids</li>
+    <li>Creation Stories</li>
+    <li>Summer Psalms & Proverbs sampler</li>
+  </ul>
+  <p class="muted small">
+    Have an idea? <a href="mailto:hello@faithsparksprintables.com">Suggest a
+    collection</a> and we’ll add it to the queue.
   </p>
 </section>
 
@@ -310,6 +343,36 @@
     right: 10px;
     top: 10px;
     opacity: 0.7;
+  }
+  .popular-highlight {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    background: rgba(37, 99, 235, 0.08);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .popular-highlight .button {
+    margin-left: auto;
+  }
+  .coming-soon ul {
+    margin: 0.5rem 0;
+    padding-left: 1.2rem;
+  }
+  .coming-soon li {
+    margin-bottom: 0.25rem;
+  }
+  @media (max-width: 640px) {
+    .popular-highlight {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .popular-highlight .button {
+      margin-left: 0;
+    }
   }
   .pack-top {
     display: flex;

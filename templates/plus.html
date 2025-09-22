@@ -36,6 +36,11 @@ trial_code else url_for('plus_pricing') %}
   </aside>
 </header>
 
+<div class="promo-callout" role="note">
+  <strong>Use code SAVE25FOREVER</strong> at checkout to lock in 25% off Plus
+  plans for life.
+</div>
+
 <section class="plans">
   <form class="invite-form" method="get" action="{{ url_for('plus_pricing') }}">
     <label class="invite-label" for="trialInput">Invite code</label>
@@ -61,6 +66,25 @@ trial_code else url_for('plus_pricing') %}
   </form>
 
   <div class="plan-grid">
+    {# --------------------- FREE --------------------- #}
+    <article class="plan-card free">
+      <div class="plan-head">
+        <div class="plan-title">Free Starter Pack</div>
+        <div class="plan-sub">No credit card • keep forever</div>
+      </div>
+
+      <div class="plan-price">$0</div>
+      <ul class="plan-points">
+        <li>10 lifetime generates, then 1/month</li>
+        <li>Includes the free starter worksheets</li>
+        <li>Regenerate and re-download anytime</li>
+      </ul>
+
+      <a class="button ghost wide" href="{{ url_for('generate') }}">
+        Start for Free
+      </a>
+    </article>
+
     {# --------------------- FAMILY --------------------- #}
     <article class="plan-card featured">
       <div class="plan-head">
@@ -192,7 +216,7 @@ trial_code else url_for('plus_pricing') %}
 </section>
 
 <section class="compare block">
-  <h3>Compare plans</h3>
+  <h3>Compare at a glance</h3>
   <div class="cmp-grid small">
     <div class="cmp-row head">
       <div></div>
@@ -203,23 +227,30 @@ trial_code else url_for('plus_pricing') %}
 
     <div class="cmp-row">
       <div class="label">Monthly generates</div>
-      <div>1 (after 10 lifetime)</div>
-      <div>15</div>
-      <div>100</div>
+      <div><span class="metric">1</span></div>
+      <div><span class="metric">15</span></div>
+      <div><span class="metric">100</span></div>
     </div>
 
     <div class="cmp-row">
-      <div class="label">Subscriber packs</div>
-      <div>—</div>
-      <div>Included</div>
-      <div>Included</div>
+      <div class="label">Subscriber packs included</div>
+      <div><span class="icon" aria-hidden="true">—</span></div>
+      <div><span class="icon good" aria-hidden="true">✔</span></div>
+      <div><span class="icon good" aria-hidden="true">✔</span></div>
     </div>
 
     <div class="cmp-row">
-      <div class="label">Giveaways</div>
-      <div>Occasional</div>
-      <div>Occasional</div>
-      <div>Occasional</div>
+      <div class="label">Download ZIP bundles</div>
+      <div><span class="icon" aria-hidden="true">—</span></div>
+      <div><span class="icon good" aria-hidden="true">✔</span></div>
+      <div><span class="icon good" aria-hidden="true">✔</span></div>
+    </div>
+
+    <div class="cmp-row">
+      <div class="label">Giveaways & bonuses</div>
+      <div><span class="icon" aria-hidden="true">•</span> occasional</div>
+      <div><span class="icon good" aria-hidden="true">✔</span></div>
+      <div><span class="icon good" aria-hidden="true">✔</span></div>
     </div>
   </div>
 </section>
@@ -264,6 +295,17 @@ trial_code else url_for('plus_pricing') %}
   </details>
 </section>
 
+<section class="gift block">
+  <h3>Gift Faith Sparks Plus</h3>
+  <p class="muted">
+    Bless a homeschool family or children’s ministry with a year of copywork
+    resources. Email
+    <a href="mailto:hello@faithsparksprintables.com"
+      >hello@faithsparksprintables.com</a
+    > to set up a digital gift.
+  </p>
+</section>
+
 {% endblock %} {% block extra_scripts %}
 <style>
   .announcement {
@@ -273,6 +315,22 @@ trial_code else url_for('plus_pricing') %}
     border: 1px solid #4b3a0f;
     background: #4b3a0f33;
     color: #f8e7c7;
+  }
+
+  .promo-callout {
+    margin: 0.75rem 0 0;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px dashed rgba(37, 99, 235, 0.4);
+    background: rgba(37, 99, 235, 0.08);
+    font-weight: 500;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .promo-callout strong {
+    letter-spacing: 0.03em;
   }
 
   .mini-preview {
@@ -403,6 +461,10 @@ trial_code else url_for('plus_pricing') %}
     display: grid;
     gap: 0.5rem;
   }
+  .plan-card.free {
+    background: rgba(17, 94, 89, 0.08);
+    border: 1px dashed rgba(17, 94, 89, 0.5);
+  }
   .plan-card.featured {
     outline: 2px solid rgba(11, 59, 90, 0.35);
     box-shadow: 0 6px 26px rgba(0, 0, 0, 0.18);
@@ -416,6 +478,10 @@ trial_code else url_for('plus_pricing') %}
   }
   .plan-sub {
     color: var(--text-secondary);
+  }
+  .plan-price {
+    font-size: 2rem;
+    font-weight: 800;
   }
   .plan-points {
     margin: 0.25rem 0 0 1rem;
@@ -456,6 +522,8 @@ trial_code else url_for('plus_pricing') %}
   }
   .cmp-row.head {
     font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.8rem;
   }
   .cmp-row:not(.head) {
     border: 1px solid #2a3441;
@@ -465,12 +533,36 @@ trial_code else url_for('plus_pricing') %}
   .cmp-row .label {
     font-weight: 600;
   }
+  .cmp-row .metric {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  .cmp-row .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    font-size: 0.85rem;
+    margin-right: 0.3rem;
+  }
+  .cmp-row .icon.good {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+    border-color: rgba(34, 197, 94, 0.35);
+  }
   @media (max-width: 720px) {
     .cmp-row {
       grid-template-columns: 1fr;
     }
     .cmp-row.head {
       display: none;
+    }
+    .promo-callout {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 
@@ -495,6 +587,11 @@ trial_code else url_for('plus_pricing') %}
   }
   .faq summary {
     cursor: pointer;
+  }
+  .gift {
+    border: 1px dashed rgba(124, 58, 237, 0.4);
+    border-radius: 12px;
+    background: rgba(124, 58, 237, 0.08);
   }
 </style>
 {% endblock %}
