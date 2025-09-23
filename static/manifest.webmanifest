@@ -1,0 +1,31 @@
+{
+  "name": "Faith Sparks Printables",
+  "short_name": "FaithSparks",
+  "description": "Printable Bible copywork worksheets with custom themes and history tracking.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5a8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/faith_sparks_logo_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/faith_sparks_logo_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/faith_sparks_logo_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

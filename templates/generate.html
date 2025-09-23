@@ -57,6 +57,17 @@ m_lim is not none %}
 usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 %}
 
+{% if out_of_quota %}
+<div class="quota-upsell" role="alert">
+  <div class="quota-copy">
+    <strong>You're out of worksheets for this month.</strong>
+    Keep creating by upgrading to Plus Family or Classroom for bigger monthly
+    limits and subscriber packs.
+  </div>
+  <a class="button small" href="{{ url_for('plus_pricing') }}">View Plus plans</a>
+</div>
+{% endif %}
+
 <form
   id="worksheetForm"
   method="POST"
@@ -767,6 +778,30 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   .preview {
     position: sticky;
     top: 1rem;
+  }
+  .quota-upsell {
+    border: 1px solid rgba(124, 58, 237, 0.35);
+    background: rgba(124, 58, 237, 0.12);
+    color: var(--text, #1f2937);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .quota-upsell .button {
+    margin-left: auto;
+  }
+  @media (max-width: 640px) {
+    .quota-upsell {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .quota-upsell .button {
+      margin-left: 0;
+    }
   }
 
   .block {

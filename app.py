@@ -1,5 +1,5 @@
 # test08-28-2025
-from flask import Flask, Response, render_template, request, send_file, redirect, url_for, session, flash, jsonify
+from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re, traceback
@@ -44,6 +44,24 @@ app.config.update(
     APPLICATION_ROOT='/',
     PREFERRED_URL_SCHEME='https'
 )
+
+
+@app.route('/manifest.webmanifest')
+def pwa_manifest():
+    """Serve the PWA manifest with minimal caching for quick updates."""
+    response = send_from_directory('static', 'manifest.webmanifest')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Content-Type'] = 'application/manifest+json'
+    return response
+
+
+@app.route('/service-worker.js')
+def service_worker():
+    """Serve the service worker from the app root for full-scope control."""
+    response = send_from_directory('static', 'service-worker.js')
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
 
 def is_safe_url(target: str) -> bool:
     if not target:

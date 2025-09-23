@@ -52,7 +52,21 @@
     />
 
     <meta name="color-scheme" content="light dark" />
+    <link
+      rel="manifest"
+      href="{{ url_for('pwa_manifest') }}"
+      crossorigin="use-credentials"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Faith Sparks" />
     <link rel="icon" href="{{ favicon_url }}" />
+    <link
+      rel="apple-touch-icon"
+      sizes="512x512"
+      href="{{ url_for('static', filename='faith_sparks_logo_512.png') }}"
+    />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -454,6 +468,18 @@
           true
         );
       })();
+    </script>
+
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("{{ url_for('service_worker') }}")
+            .catch(() => {
+              /* Ignore registration errors; PWA features remain optional */
+            });
+        });
+      }
     </script>
 
     {% block extra_scripts %}{% endblock %}
