@@ -10,6 +10,12 @@
   "orientation": "portrait",
   "icons": [
     {
+      "src": "/static/faith_sparks_logo_32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/static/faith_sparks_logo_192.png",
       "sizes": "192x192",
       "type": "image/png",

@@ -4,7 +4,9 @@ const PRECACHE_URLS = [
   '/',
   '/static/theme.css',
   '/static/darkmode.js',
-  '/static/faith_sparks_logo.png'
+  '/static/favicon.ico',
+  '/static/faith_sparks_logo_192.png',
+  '/static/faith_sparks_logo_512.png'
 ];
 
 self.addEventListener('install', (event) => {
