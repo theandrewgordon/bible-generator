@@ -84,7 +84,156 @@ def _trial_days_for(token: str, price_id: str) -> Optional[Tuple[int, str]]:
 bp = Blueprint("billing", __name__)
 
 
+REFERRAL_INVITE_CODE = "freesparkmonth"
+REFERRAL_TARGET_COUNT = 3
+
+
+def _increment_metric(metric: str, key: Optional[str] = None) -> None:
+    if not db or not metric:
+        return
+    key_val = (key or "unknown").strip().lower() or "unknown"
+    try:
+        bucket = db.collection("analytics").document(metric)
+        bucket.set({"total": firestore.Increment(1), "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
+        bucket.collection("by_key").document(key_val).set(
+            {
+                "key": key_val,
+                "count": firestore.Increment(1),
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+    except Exception:
+        traceback.print_exc()
+
+
+def _record_referral_completion(referrer_email: Optional[str], redeemer_email: Optional[str]) -> None:
+    """Track successful redemptions and grant rewards when thresholds are hit."""
+    if not db or not referrer_email or not redeemer_email:
+        return
+    referrer_email = referrer_email.strip().lower()
+    redeemer_email = redeemer_email.strip().lower()
+    if not referrer_email or not redeemer_email or referrer_email == redeemer_email:
+        return
+
+    referral_doc = db.collection("referrals").document(referrer_email)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def _txn(txn):
+        snapshot = referral_doc.get(transaction=txn)
+        data = snapshot.to_dict() or {}
+        redeemers: list[str] = list(data.get("redeemers") or [])
+        if redeemer_email in redeemers:
+            return len(redeemers), bool(data.get("rewardGranted"))
+        redeemers.append(redeemer_email)
+        update_payload = {
+            "referrer": referrer_email,
+            "redeemers": redeemers,
+            "count": len(redeemers),
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+        }
+        txn.set(referral_doc, update_payload, merge=True)
+        return len(redeemers), bool(data.get("rewardGranted"))
+
+    try:
+        count, reward_granted = _txn(transaction)
+    except Exception:
+        traceback.print_exc()
+        return
+
+    if count >= REFERRAL_TARGET_COUNT and not reward_granted:
+        if _grant_referral_reward(referrer_email):
+            try:
+                referral_doc.set(
+                    {
+                        "rewardGranted": True,
+                        "rewardGrantedAt": firestore.SERVER_TIMESTAMP,
+                        "count": count,
+                    },
+                    merge=True,
+                )
+            except Exception:
+                traceback.print_exc()
+
+
+def _grant_referral_reward(referrer_email: str) -> bool:
+    """Apply a one-time 100% coupon to the referrer's next invoice."""
+    if not stripe or not STRIPE_SECRET_KEY or not db:
+        return False
+    try:
+        user_doc = db.collection("users").document(referrer_email).get()
+    except Exception:
+        traceback.print_exc()
+        return False
+    if not user_doc or not user_doc.exists:
+        return False
+    info = user_doc.to_dict() or {}
+    subscription_id = (info.get("subscriptionId") or "").strip()
+    customer_id = (info.get("stripeCustomerId") or "").strip()
+    if not subscription_id and not customer_id:
+        return False
+
+    coupon_id = (os.getenv("STRIPE_REFERRAL_COUPON_ID") or "").strip()
+    coupon_created = False
+    try:
+        if not coupon_id:
+            coupon = stripe.Coupon.create(
+                duration="once",
+                percent_off=100,
+                name="Referral Bonus FreeSparkMonth",
+            )
+            coupon_id = coupon.get("id") or ""
+            coupon_created = True
+    except Exception:
+        traceback.print_exc()
+        return False
+
+    if not coupon_id:
+        return False
+
+    try:
+        if subscription_id:
+            stripe.Subscription.modify(subscription_id, coupon=coupon_id)
+        elif customer_id:
+            stripe.Customer.modify(customer_id, coupon=coupon_id)
+    except Exception:
+        traceback.print_exc()
+        if coupon_created:
+            try:
+                stripe.Coupon.delete(coupon_id)
+            except Exception:
+                pass
+        return False
+    return True
+
+
 def plus_pricing():
+    # Capture share link parameters and persist for checkout + analytics.
+    incoming_params = {}
+    param_map = {
+        "invite": "invite",
+        "promo": "promo",
+        "plan": "plan",
+        "interval": "interval",
+        "utm": "utm",
+        "ref": "referrer",
+    }
+    for key, session_key in param_map.items():
+        raw_val = request.args.get(key)
+        cleaned = (raw_val or "").strip()
+        if cleaned:
+            if session_key == "referrer":
+                session[session_key] = cleaned.lower()
+            else:
+                session[session_key] = cleaned
+            incoming_params[key] = cleaned
+
+    if incoming_params.get("utm"):
+        utm_val = incoming_params["utm"].strip().lower()
+        if utm_val:
+            _increment_metric("plus_clicks", utm_val)
+
     prices = {
         "family": {
             "monthly": STRIPE_PRICE_FAMILY_MONTHLY,
@@ -135,7 +284,7 @@ def plus_pricing():
             meta["classroom"]["save_pct"] = round(save * 100)
     except Exception:
         pass
-    trial_code = (request.args.get("trial") or "").strip()
+    trial_code = (request.args.get("trial") or incoming_params.get("invite") or session.get("invite") or "").strip()
     trial_kind = _trial_kind(trial_code)
     trial_unlocked = bool(trial_kind)
     trial_error = bool(trial_code) and not trial_unlocked
@@ -148,6 +297,12 @@ def plus_pricing():
         trial_code=trial_code,
         trial_error=trial_error,
         trial_kind=trial_kind,
+        invite_code=session.get("invite"),
+        promo_code=session.get("promo"),
+        selected_plan=session.get("plan"),
+        selected_interval=session.get("interval"),
+        utm_tag=session.get("utm"),
+        referrer=session.get("referrer"),
     )
 
 
@@ -166,6 +321,17 @@ def create_checkout_session():
         trial_days, trial_kind = trial_info
 
     subscription_data = {"metadata": {"plan_price_id": price_id}}
+    share_attrs = {
+        "invite_code": session.get("invite"),
+        "promo_code": session.get("promo"),
+        "preferred_plan": session.get("plan"),
+        "preferred_interval": session.get("interval"),
+        "utm": session.get("utm"),
+        "referrer": session.get("referrer"),
+    }
+    for meta_key, meta_val in share_attrs.items():
+        if meta_val:
+            subscription_data["metadata"][meta_key] = str(meta_val)
     if trial_days is not None:
         subscription_data["trial_period_days"] = trial_days
         subscription_data["metadata"]["trial_days"] = str(trial_days)
@@ -175,6 +341,9 @@ def create_checkout_session():
             subscription_data["metadata"]["trial_code"] = trial_token
             subscription_data["metadata"]["source"] = f"invite:{trial_token.lower()}"
     session_metadata = {"email": user_email, "plan_price_id": price_id}
+    for meta_key, meta_val in share_attrs.items():
+        if meta_val:
+            session_metadata[meta_key] = str(meta_val)
     if trial_days is not None:
         session_metadata["trial_days"] = str(trial_days)
         if trial_kind:
@@ -240,18 +409,40 @@ def stripe_webhook():
     obj = event.get("data", {}).get("object", {})
     try:
         if et == "checkout.session.completed":
-            email = (obj.get("customer_details") or {}).get("email") or obj.get("customer_email") or (obj.get("metadata") or {}).get("email")
+            checkout_meta = obj.get("metadata") or {}
+            email = (obj.get("customer_details") or {}).get("email") or obj.get("customer_email") or checkout_meta.get("email")
             subscription_id = obj.get("subscription")
             customer_id = obj.get("customer")
-            price_id = (obj.get("metadata") or {}).get("plan_price_id")
-            pack_slug = (obj.get("metadata") or {}).get("pack_slug")
+            price_id = checkout_meta.get("plan_price_id")
+            pack_slug = checkout_meta.get("pack_slug")
+            sub = None
             try:
                 if subscription_id and STRIPE_SECRET_KEY:
                     sub = stripe.Subscription.retrieve(subscription_id, expand=["items.data.price"])
                     if sub and sub.get("items") and sub["items"]["data"]:
                         price_id = sub["items"]["data"][0]["price"]["id"]
             except Exception:
-                pass
+                sub = None
+            subscription_meta = (sub.get("metadata") or {}) if sub else {}
+
+            def _pick(*vals):
+                for val in vals:
+                    if isinstance(val, str):
+                        stripped = val.strip()
+                        if stripped:
+                            return stripped
+                return None
+
+            share_details = {
+                "invite_code": _pick(subscription_meta.get("invite_code"), checkout_meta.get("invite_code")),
+                "promo_code": _pick(subscription_meta.get("promo_code"), checkout_meta.get("promo_code")),
+                "preferred_plan": _pick(subscription_meta.get("preferred_plan"), checkout_meta.get("preferred_plan")),
+                "preferred_interval": _pick(subscription_meta.get("preferred_interval"), checkout_meta.get("preferred_interval")),
+                "utm": _pick(subscription_meta.get("utm"), checkout_meta.get("utm")),
+                "source": _pick(subscription_meta.get("source"), checkout_meta.get("source")),
+                "referrer": _pick(subscription_meta.get("referrer"), checkout_meta.get("referrer")),
+            }
+
             renew_at = None
             period_end = sub.get("current_period_end") if sub else None
             if period_end:
@@ -275,10 +466,46 @@ def stripe_webhook():
                         "subscriptionId": subscription_id,
                         "priceId": price_id,
                         "updatedAt": firestore.SERVER_TIMESTAMP,
+                        "trialStartedAt": firestore.SERVER_TIMESTAMP,
                     }
                     if renew_at:
                         update_data["renewAt"] = renew_at
+                    field_map = {
+                        "utm": "utm",
+                        "invite_code": "inviteCode",
+                        "promo_code": "promoCode",
+                        "preferred_plan": "preferredPlan",
+                        "preferred_interval": "preferredInterval",
+                        "source": "source",
+                        "referrer": "referredBy",
+                    }
+                    for share_key, target_field in field_map.items():
+                        val = share_details.get(share_key)
+                        if val:
+                            update_data[target_field] = val
+                    invite_code = (share_details.get("invite_code") or "").strip().lower()
+                    if invite_code == REFERRAL_INVITE_CODE:
+                        _record_referral_completion(share_details.get("referrer"), email)
                     db.collection("users").document(email).set(update_data, merge=True)
+                    session_id = obj.get("id")
+                    utm_source = share_details.get("utm") or share_details.get("source")
+                    if session_id and db:
+                        sessions_ref = db.collection("analytics").document("trial_starts").collection("sessions").document(session_id)
+                        try:
+                            if not sessions_ref.get().exists:
+                                sessions_ref.set(
+                                    {
+                                        "sessionId": session_id,
+                                        "utm": (utm_source or "unknown").strip().lower() or "unknown",
+                                        "createdAt": firestore.SERVER_TIMESTAMP,
+                                    }
+                                )
+                                _increment_metric("trial_starts", utm_source)
+                        except Exception:
+                            traceback.print_exc()
+                            _increment_metric("trial_starts", utm_source)
+                    else:
+                        _increment_metric("trial_starts", utm_source)
                 elif pack_slug:
                     db.collection("users").document(email).set(
                         {"purchases": {pack_slug: True}, "updatedAt": firestore.SERVER_TIMESTAMP},
@@ -336,6 +563,34 @@ def stripe_webhook():
                         )
                 except Exception:
                     pass
+        elif et == "invoice.payment_succeeded":
+            invoice = obj
+            subscription_id = invoice.get("subscription")
+            billing_reason = invoice.get("billing_reason")
+            amount_paid = invoice.get("amount_paid") or 0
+            if not db or not subscription_id or billing_reason != "subscription_cycle" or amount_paid <= 0:
+                return ("", 200)
+            try:
+                q = db.collection("users").where(filter=firestore.FieldFilter("subscriptionId", "==", subscription_id)).limit(1).stream()
+                user_doc = next(q, None)
+            except Exception:
+                traceback.print_exc()
+                user_doc = None
+            if user_doc:
+                data = user_doc.to_dict() or {}
+                if not data.get("firstConversionAt"):
+                    utm_val = (data.get("utm") or data.get("source") or "").strip()
+                    try:
+                        user_doc.reference.set(
+                            {
+                                "firstConversionAt": firestore.SERVER_TIMESTAMP,
+                                "updatedAt": firestore.SERVER_TIMESTAMP,
+                            },
+                            merge=True,
+                        )
+                    except Exception:
+                        traceback.print_exc()
+                    _increment_metric("trial_conversions", utm_val)
     except Exception:
         traceback.print_exc()
     return ("", 200)
