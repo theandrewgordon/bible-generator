@@ -376,12 +376,13 @@ def create_checkout_session():
         "line_items": [{"price": price_id, "quantity": 1}],
         "success_url": url_for("plus_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
         "cancel_url": url_for("plus_pricing", _external=True),
-        "allow_promotion_codes": True,
         "metadata": session_metadata,
         "subscription_data": subscription_data,
     }
     if promo_id:
         create_kwargs["discounts"] = [{"promotion_code": promo_id}]
+    else:
+        create_kwargs["allow_promotion_codes"] = True
 
     try:
         chk = stripe.checkout.Session.create(**create_kwargs)
