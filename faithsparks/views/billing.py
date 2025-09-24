@@ -84,7 +84,7 @@ def _trial_days_for(token: str, price_id: str) -> Optional[Tuple[int, str]]:
     if not price_info:
         return None
     plan, interval = price_info
-    if kind == "month" and interval == "month":
+    if kind == "month":
         return 30, kind
     if kind == "year" and interval == "year" and plan == "family":
         return 365, kind
@@ -330,9 +330,10 @@ def create_checkout_session():
         trial_days, trial_kind = trial_info
         required_kind = trial_kind
         price_kind = _classify_price(price_id)
-        if not price_kind or price_kind[1] != required_kind:
-            flash(f"Your invite applies to the {required_kind} plan. Please select the matching plan.", "warning")
-            return redirect(url_for("plus_pricing"))
+        if required_kind != "month":
+            if not price_kind or price_kind[1] != required_kind:
+                flash(f"Your invite applies to the {required_kind} plan. Please select the matching plan.", "warning")
+                return redirect(url_for("plus_pricing"))
 
     subscription_data = {"metadata": {"plan_price_id": price_id}}
     share_attrs = {

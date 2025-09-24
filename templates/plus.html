@@ -13,8 +13,15 @@ site_content.plus_banner_text %}
 {% if selected_interval %}{% set _ = _q.update({'interval': selected_interval}) %}{% endif %}
 {% set plus_target = url_for('plus_pricing', **_q) %}
 {% set promo_label = promo_code or promo_hint %}
-{% set trial_badge_family = trial_unlocked %}
-{% set trial_badge_classroom = trial_unlocked and trial_kind == 'month' %}
+{% set trial_badge_family_text = none %}
+{% if trial_unlocked %}
+  {% if trial_kind == 'year' %}
+    {% set trial_badge_family_text = 'First year free' %}
+  {% else %}
+    {% set trial_badge_family_text = 'First 30 days free' %}
+  {% endif %}
+{% endif %}
+{% set trial_badge_classroom_text = 'First 30 days free' if trial_unlocked and trial_kind != 'year' else none %}
 
 <header class="plus-hero card-lite">
   <div class="plus-copy">
@@ -105,8 +112,8 @@ site_content.plus_banner_text %}
     </div>
     {% if trial_unlocked %}
     <p class="small success-note">
-      Invite applied.{% if trial_kind == 'month' %} First month $0, then
-      standard price.{% else %} First year $0, then standard price.{% endif %}
+      Invite applied. Your first 30 days are free; billing begins when the trial
+      ends.
     </p>
     {% elif trial_error %}
     <p class="small error-note">Invite code not recognized.</p>
@@ -151,11 +158,8 @@ site_content.plus_banner_text %}
         <div class="plan-sub">Best for households</div>
       </div>
       <div class="badge-row">
-        {% if trial_badge_family %}
-        <span class="pill alt"
-          >{% if trial_kind == 'year' %}First year free{% else %}First month
-          free{% endif %}</span
-        >
+        {% if trial_badge_family_text %}
+        <span class="pill alt">{{ trial_badge_family_text }}</span>
         {% endif %} {% if promo_label %}
         <span class="pill">25% off for life</span>
         {% endif %}
@@ -198,6 +202,9 @@ site_content.plus_banner_text %}
             >{% endif %}
           </button>
         </form>
+        {% if trial_unlocked and trial_kind != 'year' %}
+        <p class="plan-trial-note">Annual billing starts after your 30-day free trial.</p>
+        {% endif %}
         {% endif %} {% if not fam.monthly and not fam.annual and fam.single %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.single }}" />
@@ -224,8 +231,8 @@ site_content.plus_banner_text %}
         <div class="plan-sub">Best for co-ops and classes</div>
       </div>
       <div class="badge-row">
-        {% if trial_badge_classroom %}
-        <span class="pill alt">First month free</span>
+        {% if trial_badge_classroom_text %}
+        <span class="pill alt">{{ trial_badge_classroom_text }}</span>
         {% endif %} {% if promo_label %}
         <span class="pill">25% off for life</span>
         {% endif %}
@@ -265,6 +272,9 @@ site_content.plus_banner_text %}
             >{% endif %}
           </button>
         </form>
+        {% if trial_badge_classroom_text %}
+        <p class="plan-trial-note">Annual billing starts after your 30-day free trial.</p>
+        {% endif %}
         {% endif %} {% if not cls.monthly and not cls.annual and cls.single %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.single }}" />
@@ -556,6 +566,14 @@ site_content.plus_banner_text %}
   }
   .dark .plan-note {
     color: #e2e8f0;
+  }
+  .plan-trial-note {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #475569);
+  }
+  .dark .plan-trial-note {
+    color: #94a3b8;
   }
   .legal-note,
   .support-note {
