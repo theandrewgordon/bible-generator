@@ -21,6 +21,15 @@ from faithsparks.services.stripe_svc import (
     resolve_price_id,
 )
 
+def _find_promotion_code_id(code_str: Optional[str]) -> Optional[str]:
+    if not code_str or not stripe:
+        return None
+    try:
+        res = stripe.PromotionCode.list(code=code_str.strip(), active=True, limit=1)
+        return res.data[0].id if res.data else None
+    except Exception:
+        traceback.print_exc()
+        return None
 
 def _parse_codes(env_var: str) -> set[str]:
     raw = os.getenv(env_var) or ""
@@ -292,7 +301,7 @@ def plus_pricing():
         "plus.html",
         prices=prices,
         meta=meta,
-        promo_hint="SAVE25",
+        promo_hint="SAVE25FOREVER",
         trial_unlocked=trial_unlocked,
         trial_code=trial_code,
         trial_error=trial_error,
@@ -319,6 +328,11 @@ def create_checkout_session():
     trial_days = trial_kind = None
     if trial_info:
         trial_days, trial_kind = trial_info
+        required_kind = trial_kind
+        price_kind = _classify_price(price_id)
+        if not price_kind or price_kind[1] != required_kind:
+            flash(f"Your invite applies to the {required_kind} plan. Please select the matching plan.", "warning")
+            return redirect(url_for("plus_pricing"))
 
     subscription_data = {"metadata": {"plan_price_id": price_id}}
     share_attrs = {
@@ -340,6 +354,7 @@ def create_checkout_session():
         if trial_token:
             subscription_data["metadata"]["trial_code"] = trial_token
             subscription_data["metadata"]["source"] = f"invite:{trial_token.lower()}"
+
     session_metadata = {"email": user_email, "plan_price_id": price_id}
     for meta_key, meta_val in share_attrs.items():
         if meta_val:
@@ -351,17 +366,25 @@ def create_checkout_session():
         if trial_token:
             session_metadata["trial_code"] = trial_token
             session_metadata["source"] = f"invite:{trial_token.lower()}"
+
+    promo_str = (session.get("promo") or request.form.get("promo") or "").strip()
+    promo_id = _find_promotion_code_id(promo_str) if promo_str else None
+
+    create_kwargs = {
+        "mode": "subscription",
+        "customer_email": user_email,
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "success_url": url_for("plus_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
+        "cancel_url": url_for("plus_pricing", _external=True),
+        "allow_promotion_codes": True,
+        "metadata": session_metadata,
+        "subscription_data": subscription_data,
+    }
+    if promo_id:
+        create_kwargs["discounts"] = [{"promotion_code": promo_id}]
+
     try:
-        chk = stripe.checkout.Session.create(
-            mode="subscription",
-            customer_email=user_email,
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url=url_for("plus_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=url_for("plus_pricing", _external=True),
-            allow_promotion_codes=True,
-            metadata=session_metadata,
-            subscription_data=subscription_data,
-        )
+        chk = stripe.checkout.Session.create(**create_kwargs)
         return redirect(chk.url, code=303)
     except Exception as e:
         traceback.print_exc()
@@ -418,7 +441,10 @@ def stripe_webhook():
             sub = None
             try:
                 if subscription_id and STRIPE_SECRET_KEY:
-                    sub = stripe.Subscription.retrieve(subscription_id, expand=["items.data.price"])
+                    sub = stripe.Subscription.retrieve(
+                        subscription_id,
+                        expand=["items.data.price", "discount.promotion_code"],
+                    )
                     if sub and sub.get("items") and sub["items"]["data"]:
                         price_id = sub["items"]["data"][0]["price"]["id"]
             except Exception:
@@ -468,6 +494,14 @@ def stripe_webhook():
                         "updatedAt": firestore.SERVER_TIMESTAMP,
                         "trialStartedAt": firestore.SERVER_TIMESTAMP,
                     }
+                    disc = (sub or {}).get("discount") or {}
+                    promo_code_obj = disc.get("promotion_code") or {}
+                    coupon_obj = disc.get("coupon") or {}
+                    if coupon_obj.get("id"):
+                        update_data["couponId"] = coupon_obj["id"]
+                    if promo_code_obj.get("id"):
+                        update_data["promotionCodeId"] = promo_code_obj["id"]
+                        update_data["hasLifetimeDiscount"] = True
                     if renew_at:
                         update_data["renewAt"] = renew_at
                     field_map = {
@@ -483,9 +517,6 @@ def stripe_webhook():
                         val = share_details.get(share_key)
                         if val:
                             update_data[target_field] = val
-                    invite_code = (share_details.get("invite_code") or "").strip().lower()
-                    if invite_code == REFERRAL_INVITE_CODE:
-                        _record_referral_completion(share_details.get("referrer"), email)
                     db.collection("users").document(email).set(update_data, merge=True)
                     session_id = obj.get("id")
                     utm_source = share_details.get("utm") or share_details.get("source")
@@ -591,6 +622,15 @@ def stripe_webhook():
                     except Exception:
                         traceback.print_exc()
                     _increment_metric("trial_conversions", utm_val)
+
+                try:
+                    referrer_email = (data.get("referredBy") or "").strip().lower()
+                    invite_code = (data.get("inviteCode") or "").strip().lower()
+                    redeemer_email = (user_doc.id or "").strip().lower()
+                    if referrer_email and invite_code == REFERRAL_INVITE_CODE and redeemer_email:
+                        _record_referral_completion(referrer_email, redeemer_email)
+                except Exception:
+                    traceback.print_exc()
     except Exception:
         traceback.print_exc()
     return ("", 200)
