@@ -22,6 +22,10 @@ site_content.plus_banner_text %}
   {% endif %}
 {% endif %}
 {% set trial_badge_classroom_text = 'First 30 days free' if trial_unlocked and trial_kind != 'year' else none %}
+{% set trial_message = 'Invite applied. Your first 30 days are free; billing begins when the trial ends.' %}
+{% if trial_unlocked and trial_kind == 'year' %}
+  {% set trial_message = 'Invite applied. Your first year is free; billing begins when the trial ends.' %}
+{% endif %}
 
 <header class="plus-hero card-lite">
   <div class="plus-copy">
@@ -111,10 +115,7 @@ site_content.plus_banner_text %}
       <button class="button" type="submit">Apply</button>
     </div>
     {% if trial_unlocked %}
-    <p class="small success-note">
-      Invite applied. Your first 30 days are free; billing begins when the trial
-      ends.
-    </p>
+    <p class="small success-note">{{ trial_message }}</p>
     {% elif trial_error %}
     <p class="small error-note">Invite code not recognized.</p>
     {% endif %}
@@ -179,7 +180,7 @@ site_content.plus_banner_text %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
-          {% if trial_kind == 'month' %}
+          {% if trial_unlocked %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
           <button class="button primary wide">
@@ -191,7 +192,7 @@ site_content.plus_banner_text %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.annual }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
-          {% if trial_kind == 'year' %}
+          {% if trial_unlocked %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
           <button class="button ghost wide">
@@ -252,7 +253,7 @@ site_content.plus_banner_text %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
-          {% if trial_kind == 'month' %}
+          {% if trial_unlocked %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
           <button class="button primary wide">
@@ -264,6 +265,9 @@ site_content.plus_banner_text %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.annual }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
+          {% if trial_unlocked %}
+          <input type="hidden" name="trial_token" value="{{ trial_code }}" />
+          {% endif %}
           <button class="button ghost wide">
             Annual{% if meta.classroom.annual %} — {{
             '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %} {% if
