@@ -5,8 +5,16 @@ site_content.plus_banner_text %}
 <div class="announcement" role="status">
   {{ site_content.plus_banner_text }}
 </div>
-{% endif %} {% set plus_target = url_for('plus_pricing', trial=trial_code) if
-trial_code else url_for('plus_pricing') %}
+{% endif %}
+{% set _q = {} %}
+{% if trial_code %}{% set _ = _q.update({'trial': trial_code}) %}{% endif %}
+{% if promo_code %}{% set _ = _q.update({'promo': promo_code}) %}{% endif %}
+{% if selected_plan %}{% set _ = _q.update({'plan': selected_plan}) %}{% endif %}
+{% if selected_interval %}{% set _ = _q.update({'interval': selected_interval}) %}{% endif %}
+{% set plus_target = url_for('plus_pricing', **_q) %}
+{% set promo_label = promo_code or promo_hint %}
+{% set trial_badge_family = trial_unlocked %}
+{% set trial_badge_classroom = trial_unlocked and trial_kind == 'month' %}
 
 <header class="plus-hero card-lite">
   <div class="plus-copy">
@@ -66,13 +74,19 @@ trial_code else url_for('plus_pricing') %}
 </header>
 
 <div class="promo-callout" role="note">
-  <strong>Free today with code FreeSparkMonth</strong>
-  <span class="dash">→</span>
-  <span>Optional SAVE25FOREVER = 25% off for life.</span>
+  <strong>Step 1:</strong>
+  <span>Use invite <code>FreeSparkMonth</code> for a $0 first month.</span>
+  <span class="divider">•</span>
+  <strong>Step 2:</strong>
+  <span>
+    Lifetime discount <code>{{ promo_label }}</code> is automatically applied at
+    checkout.
+  </span>
 </div>
 
 <div class="referral-callout" role="note">
-  Share FreeSparkMonth with 3 friends → I’ll add a bonus month to your account.
+  Share <strong>FreeSparkMonth</strong> with 3 friends → we’ll add a bonus month
+  to your account after your first paid renewal.
 </div>
 
 <section class="plans">
@@ -92,10 +106,21 @@ trial_code else url_for('plus_pricing') %}
     {% if trial_unlocked %}
     <p class="small success-note">
       Invite applied.{% if trial_kind == 'month' %} First month $0, then
-      standard price.{% endif %}
+      standard price.{% else %} First year $0, then standard price.{% endif %}
     </p>
     {% elif trial_error %}
     <p class="small error-note">Invite code not recognized.</p>
+    {% endif %}
+    {% if promo_label %}
+    <p class="small success-note">
+      Lifetime discount {{ promo_label }} will kick in after your free period—no
+      extra typing at checkout.
+    </p>
+    {% endif %}
+    {% if not trial_unlocked %}
+    <p class="small helper-note">
+      Need a free month? Enter <strong>FreeSparkMonth</strong> above.
+    </p>
     {% endif %}
   </form>
 
@@ -125,6 +150,16 @@ trial_code else url_for('plus_pricing') %}
         <div class="plan-title">Plus Family</div>
         <div class="plan-sub">Best for households</div>
       </div>
+      <div class="badge-row">
+        {% if trial_badge_family %}
+        <span class="pill alt"
+          >{% if trial_kind == 'year' %}First year free{% else %}First month
+          free{% endif %}</span
+        >
+        {% endif %} {% if promo_label %}
+        <span class="pill">25% off for life</span>
+        {% endif %}
+      </div>
 
       <ul class="plan-points">
         <li>15 generates per month</li>
@@ -139,6 +174,7 @@ trial_code else url_for('plus_pricing') %}
         {% if fam.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
+          <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           {% if trial_kind == 'month' %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
@@ -150,6 +186,7 @@ trial_code else url_for('plus_pricing') %}
         {% endif %} {% if fam.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.annual }}" />
+          <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           {% if trial_kind == 'year' %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
@@ -164,6 +201,7 @@ trial_code else url_for('plus_pricing') %}
         {% endif %} {% if not fam.monthly and not fam.annual and fam.single %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ fam.single }}" />
+          <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           <button class="button wide">Checkout</button>
         </form>
         {% endif %}
@@ -185,6 +223,13 @@ trial_code else url_for('plus_pricing') %}
         <div class="plan-title">Plus Classroom</div>
         <div class="plan-sub">Best for co-ops and classes</div>
       </div>
+      <div class="badge-row">
+        {% if trial_badge_classroom %}
+        <span class="pill alt">First month free</span>
+        {% endif %} {% if promo_label %}
+        <span class="pill">25% off for life</span>
+        {% endif %}
+      </div>
 
       <ul class="plan-points">
         <li>100 generates per month</li>
@@ -199,6 +244,7 @@ trial_code else url_for('plus_pricing') %}
         {% if cls.monthly %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
+          <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           {% if trial_kind == 'month' %}
           <input type="hidden" name="trial_token" value="{{ trial_code }}" />
           {% endif %}
@@ -210,6 +256,7 @@ trial_code else url_for('plus_pricing') %}
         {% endif %} {% if cls.annual %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.annual }}" />
+          <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           <button class="button ghost wide">
             Annual{% if meta.classroom.annual %} — {{
             '$%.2f'|format(meta.classroom.annual.amount) }}{% endif %} {% if
@@ -221,6 +268,7 @@ trial_code else url_for('plus_pricing') %}
         {% endif %} {% if not cls.monthly and not cls.annual and cls.single %}
         <form method="post" action="{{ url_for('create_checkout_session') }}">
           <input type="hidden" name="price_id" value="{{ cls.single }}" />
+          <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           <button class="button wide">Checkout</button>
         </form>
         {% endif %}
@@ -368,8 +416,19 @@ trial_code else url_for('plus_pricing') %}
   .promo-callout strong {
     letter-spacing: 0.03em;
   }
+  .promo-callout code {
+    font-family: inherit;
+    font-weight: 700;
+    background: rgba(37, 99, 235, 0.15);
+    color: #1d4ed8;
+    padding: 0.05rem 0.35rem;
+    border-radius: 6px;
+  }
+  .promo-callout .divider {
+    opacity: 0.5;
+  }
   .promo-callout .dash {
-    opacity: 0.7;
+    display: none;
   }
   .referral-callout {
     margin: 0.5rem 0 1.25rem;
@@ -482,6 +541,13 @@ trial_code else url_for('plus_pricing') %}
   }
   .dark .invite-form .error-note {
     color: #fca5a5;
+  }
+  .helper-note {
+    color: var(--text-secondary, #475569);
+    margin-top: 0.35rem;
+  }
+  .dark .helper-note {
+    color: #94a3b8;
   }
   .plan-note {
     margin: 0.4rem 0 0;
