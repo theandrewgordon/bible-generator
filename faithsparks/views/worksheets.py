@@ -12,6 +12,9 @@ from flask import (
     url_for,
     session,
     flash,
+    current_app,
+    g,
+    jsonify,
 )
 from firebase_admin import firestore
 
@@ -35,6 +38,7 @@ from faithsparks.services.usage import (
 )
 from faithsparks.services.collections import get_collection_meta
 from faithsparks.util.slug import normalize_slug
+from faithsparks.util.request_utils import get_request_payload, log_request_summary
 
 
 bp = Blueprint("worksheets", __name__)
@@ -80,6 +84,7 @@ def update_zip_bundle():
 def generate():
     try:
         if request.method == "GET":
+            log_request_summary("worksheets.generate:get")
             clear_storage = session.pop("clear_storage", False)
             prefill = request.args.get("verse", "").strip()
             col = request.args.get("collection")
@@ -123,13 +128,32 @@ def generate():
                 usage_info=usage_info,
             )
 
-        verse_input = request.form.get("verse", "").strip()
-        from_collection = (request.form.get("collection_slug") or "").strip() or None
-        custom_text = request.form.get("custom_text", "").strip()
-        custom_title = request.form.get("custom_title", "").strip()
-        selected_version = request.form.get("version", "esv").strip().lower()
-        use_cursive = request.form.get("cursive") == "on"
-        custom_prompt = request.form.get("custom_prompt", "").strip()
+        payload, payload_mode = get_request_payload()
+        log_request_summary(f"worksheets.generate:post mode={payload_mode}")
+
+        if not payload:
+            req_id = getattr(g, "req_id", "")
+            current_app.logger.warning("[%s] empty request body", req_id)
+            if request.is_json:
+                return jsonify(error="Empty request body"), 400
+            flash("Please enter a verse or custom text to generate.", "warning")
+            return redirect(url_for("generate"))
+
+        verse_input = (payload.get("verse") or "").strip()
+        from_collection = (payload.get("collection_slug") or "").strip() or None
+        custom_text = (payload.get("custom_text") or "").strip()
+        custom_title = (payload.get("custom_title") or "").strip()
+        selected_version = (payload.get("version") or "esv").strip().lower()
+        custom_prompt = (payload.get("custom_prompt") or "").strip()
+
+        cursive_raw = payload.get("cursive")
+        use_cursive = False
+        if isinstance(cursive_raw, bool):
+            use_cursive = cursive_raw
+        elif isinstance(cursive_raw, str):
+            use_cursive = cursive_raw.lower() in {"on", "true", "1", "yes"}
+        else:
+            use_cursive = False
         user_email = session.get("user_email", "anonymous")
 
         tag_list = [v.strip() for v in re.split(r"[,;\n]+", verse_input) if v.strip()]

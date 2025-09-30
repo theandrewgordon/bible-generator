@@ -35,6 +35,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method === 'POST' || url.pathname.startsWith('/generate')) {
+    return;
+  }
 
   if (request.method !== 'GET' || !request.url.startsWith(self.location.origin)) {
     return;

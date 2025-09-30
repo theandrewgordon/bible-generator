@@ -1,8 +1,11 @@
 # test08-28-2025
-from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify
+from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 import os, json, re, traceback
+import logging
+import sys
+import uuid
 from urllib.parse import urlparse, urljoin
 from zipfile import ZipFile
 import threading
@@ -37,6 +40,14 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+
+# Structured logging to stdout for easier aggregation
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+if not app.logger.handlers:
+    app.logger.addHandler(handler)
+app.logger.setLevel(logging.INFO)
+app.logger.propagate = False
 
 # Add near top with other config
 app.config.update(
@@ -101,6 +112,11 @@ google_bp = make_google_blueprint(
 app.register_blueprint(google_bp, url_prefix="/login")
 
 @app.before_request
+def add_request_id():
+    if not getattr(g, "req_id", None):
+        g.req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+
+@app.before_request
 def load_user_info():
     # When Flask-Dance blueprint handles /login/google*, capture ?next=...
     if request.blueprint == "google" or request.path.startswith("/login/google"):
@@ -122,6 +138,14 @@ def load_user_info():
 
 
 from faithsparks.services.firestore import STORAGE_BUCKET, storage_client  # keep available
+
+
+@app.after_request
+def add_correlation_headers(resp):
+    req_id = getattr(g, "req_id", None)
+    if req_id:
+        resp.headers["X-Request-ID"] = req_id
+    return resp
 
 # quotas and usage moved to yourapp.services.usage
 

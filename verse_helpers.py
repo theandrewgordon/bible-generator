@@ -3,6 +3,12 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from faithsparks.util.request_utils import (
+    extract_json_candidate,
+    log_ai_parse_failure,
+    log_ai_parse_recovery,
+)
+
 # --- Load API Key ---
 load_dotenv("secret.env")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -70,10 +76,18 @@ def request_verse_data(verse_ref, version="esv"):
 # === JSON Safety Wrapper ===
 def parse_and_clean_json(content):
     """Safely parse OpenAI's JSON response."""
+    if not content:
+        log_ai_parse_failure("", reason="empty response")
+        return {}
+
     try:
         return json.loads(content)
-    except json.JSONDecodeError as e:
-        print(f"❌ JSON parse error: {e}")
+    except json.JSONDecodeError as exc:
+        log_ai_parse_failure(content, reason=str(exc))
+        candidate = extract_json_candidate(content)
+        if candidate is not None:
+            log_ai_parse_recovery()
+            return candidate
         return {}
 
 # === Retry Shortening for Long Traceable Verses ===
