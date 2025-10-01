@@ -3,6 +3,63 @@ block content %}
 <h1 class="page-title">Admin: Analytics</h1>
 <section class="block">
   <table class="admin-table">
+    <caption>Traffic (Last 7 Days)</caption>
+    <thead>
+      <tr>
+        <th scope="col">Day</th>
+        <th scope="col">Unique Visitors</th>
+        <th scope="col">Logins</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in traffic.series %}
+      <tr>
+        <td>{{ row.day }}</td>
+        <td class="num">{{ row.visitors }}</td>
+        <td class="num">{{ row.logins }}</td>
+      </tr>
+      {% endfor %} {% if not traffic.series %}
+      <tr>
+        <td colspan="3" class="muted">No visits tracked yet.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <div class="small muted" style="margin-top: 0.35rem">
+    Totals (7 days): {{ traffic.total_visitors }} uniques •
+    {{ traffic.total_logins }} distinct logins.
+  </div>
+</section>
+
+<section class="block">
+  <table class="admin-table">
+    <caption>Recent Unique Visits</caption>
+    <thead>
+      <tr>
+        <th scope="col">Last Seen</th>
+        <th scope="col">User Agent</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for hit in recent_hits %}
+      <tr>
+        <td>
+          {{ hit.last_seen.strftime('%Y-%m-%d %H:%M') if hit.last_seen else
+          '—' }}
+        </td>
+        <td class="small">{{ hit.ua or '—' }}</td>
+      </tr>
+      {% endfor %} {% if not recent_hits %}
+      <tr>
+        <td colspan="2" class="muted">No recent visits logged.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+
+<section class="block">
+  <table class="admin-table">
     <caption>
       Top Packs (All Time)
     </caption>

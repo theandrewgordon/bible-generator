@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 from flask import render_template
 from faithsparks.services.firestore import db
 from faithsparks.services.collections import get_collections
+from faithsparks.services import analytics as analytics_svc
 
 
 def admin_analytics():
@@ -11,6 +12,14 @@ def admin_analytics():
     top_packs_week = []
     top_verses = []
     top_verses_week = []
+    traffic = {"series": [], "total_visitors": 0, "total_logins": 0}
+    recent_hits = []
+    try:
+        traffic = analytics_svc.daily_overview()
+        recent_hits = analytics_svc.recent_visits()
+    except Exception:
+        traffic = {"series": [], "total_visitors": 0, "total_logins": 0}
+        recent_hits = []
     if db:
         try:
             doc = db.collection("analytics").document("packs").get()
@@ -56,5 +65,12 @@ def admin_analytics():
                 top_verses_week.append({"key": k, "count": v})
         except Exception:
             pass
-    return render_template("admin_analytics.html", top_packs=top_packs, top_packs_week=top_packs_week, top_verses=top_verses, top_verses_week=top_verses_week)
-
+    return render_template(
+        "admin_analytics.html",
+        top_packs=top_packs,
+        top_packs_week=top_packs_week,
+        top_verses=top_verses,
+        top_verses_week=top_verses_week,
+        traffic=traffic,
+        recent_hits=recent_hits,
+    )

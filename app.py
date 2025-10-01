@@ -34,6 +34,7 @@ from faithsparks.services.stripe_svc import (
     STRIPE_WEBHOOK_SECRET, resolve_price_id as _resolve_price_id
 )
 from faithsparks.util.slug import normalize_slug
+from faithsparks.services import analytics as analytics_svc
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -72,6 +73,19 @@ def service_worker():
     response = send_from_directory('static', 'service-worker.js')
     response.headers['Cache-Control'] = 'no-cache'
     return response
+
+
+@app.route('/robots.txt')
+def robots_txt():
+    body = "\n".join(
+        [
+            "User-agent: *",
+            "Allow: /",
+            "Sitemap: https://faithsparksprintables.com/sitemap.xml",
+            "",
+        ]
+    )
+    return Response(body, mimetype="text/plain")
 
 
 def is_safe_url(target: str) -> bool:
@@ -140,12 +154,36 @@ def load_user_info():
 from faithsparks.services.firestore import STORAGE_BUCKET, storage_client  # keep available
 
 
+@app.before_request
+def track_visit():
+    if request.method not in ("GET", "HEAD"):
+        return
+    endpoint = request.endpoint or ""
+    path = request.path or ""
+    if endpoint == "static" or path.startswith("/static/"):
+        return
+    try:
+        ip = (
+            request.headers.get("CF-Connecting-IP")
+            or (request.headers.get("X-Forwarded-For", "").split(",")[0].strip())
+            or request.remote_addr
+            or "0.0.0.0"
+        )
+        ua = request.headers.get("User-Agent", "")
+        analytics_svc.record_visit(ip, ua)
+    except Exception:
+        app.logger.debug("Failed to record visit", exc_info=True)
+
+
 @app.after_request
 def add_correlation_headers(resp):
     req_id = getattr(g, "req_id", None)
     if req_id:
         resp.headers["X-Request-ID"] = req_id
     return resp
+
+
+app.teardown_appcontext(analytics_svc.close_db)
 
 # quotas and usage moved to yourapp.services.usage
 
@@ -222,6 +260,12 @@ def start_google_login():
 def oauth_finish():
     # by now google.authorized is True; @before_request already hydrated user_info
     nxt = session.pop("post_login_next", None) or request.args.get("next")
+    email = session.get("user_email")
+    if email:
+        try:
+            analytics_svc.record_login(email)
+        except Exception:
+            app.logger.debug("Failed to record login", exc_info=True)
     if nxt and is_safe_url(nxt):
         return redirect(nxt)
     return redirect(url_for("public.index"))
