@@ -1,5 +1,7 @@
 import os
 import json
+import unicodedata
+
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
@@ -8,6 +10,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.pdfbase.pdfdoc import pdfdocEnc
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
@@ -18,8 +21,55 @@ LIGHT_GRAY = 0.95
 line_spacing = 22
 styles = getSampleStyleSheet()
 
+
 def capitalize_first_letter(text):
     return text[0].upper() + text[1:] if text and text[0].islower() else text
+
+
+def _pdf_safe_text(value: str) -> str:
+    """Normalize text so ReportLab's core fonts can encode it."""
+    if not value:
+        return ""
+
+    # Normalize accents and compatibility chars
+    text = unicodedata.normalize("NFKD", value)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+
+    replacements = {
+        "“": '"',
+        "”": '"',
+        "„": '"',
+        "‟": '"',
+        "‘": "'",
+        "’": "'",
+        "‚": "'",
+        "‛": "'",
+        "—": "-",
+        "–": "-",
+        "―": "-",
+        "−": "-",
+        "•": "-",
+        "·": "-",
+        "…": "...",
+        "\u00a0": " ",  # non-breaking space
+        "\u200b": "",  # zero-width space
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+
+    # Drop or replace characters ReportLab still can't encode.
+    cleaned_chars = []
+    for ch in text:
+        try:
+            pdfdocEnc(ch)
+            cleaned_chars.append(ch)
+        except UnicodeEncodeError:
+            # Fallback to a safe substitute for printable chars, else drop.
+            cleaned_chars.append("?") if ch.isprintable() else None
+
+    cleaned = "".join(cleaned_chars)
+    # Collapse excess whitespace introduced during replacements.
+    return " ".join(cleaned.split())
 
 def tokenize_traceable(text):
     return text.split()
@@ -45,7 +95,7 @@ def draw_rounded_box(c, x, y, width, height):
     c.setFillColor(black)
 
 def draw_paragraph_box(c, title, content, x, y, width, padding=10):
-    content = capitalize_first_letter(content)
+    content = capitalize_first_letter(_pdf_safe_text(content))
     para = Paragraph(content, styles['Normal'])
     _, para_height = para.wrap(width - 2 * padding, 1000)
     box_height = para_height + 2 * padding + 20
@@ -59,7 +109,7 @@ def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
     font = 'LearningCurve' if use_cursive else 'KGPrimaryDots'
     font_size = 30
     padding = 10
-    text = capitalize_first_letter(text)
+    text = capitalize_first_letter(_pdf_safe_text(text))
     lines = wrap_text_lines(text, font, font_size, width - 40)
     box_height = len(lines) * (font_size + 10) + 2 * padding + 20
     c.roundRect(x, y - box_height, width, box_height, radius=8, fill=0)
@@ -85,7 +135,7 @@ def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
     box_height = lines_count * line_height + 2 * padding + 20
     c.roundRect(x, y - box_height, width, box_height, radius=8, fill=0)
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(x + padding, y - padding - 2, title)
+    c.drawString(x + padding, y - padding - 2, _pdf_safe_text(title))
     ty = y - padding - 28
     for _ in range(lines_count):
         c.setLineWidth(1)
@@ -119,7 +169,7 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     y -= logo_size + 10
 
     # Reference line
-    verse_display = f"{data['verse']} ({data['version'].upper()})"
+    verse_display = _pdf_safe_text(f"{data['verse']} ({data['version'].upper()})")
     c.setFont("Helvetica-Bold", 14 if len(verse_display) < 25 else 12)
     c.drawCentredString(width / 2, y, verse_display)
     y -= 20
@@ -158,7 +208,9 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     c.setLineWidth(0.5)
     c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
 
-    verse_code = data["verse"].upper().replace(":", "_").replace(" ", "_") + f"_{data['version'].upper()}"
+    verse_code = _pdf_safe_text(
+        data["verse"].upper().replace(":", "_").replace(" ", "_") + f"_{data['version'].upper()}"
+    )
     c.setFillColor(black)
     c.drawRightString(width - margin, 0.32 * inch, f"FS-{verse_code}")
     c.setFont("Helvetica", 8)
