@@ -8,9 +8,10 @@ STORAGE_BUCKET = os.getenv("FIREBASE_STORAGE_BUCKET") or os.getenv("STORAGE_BUCK
 _db = None
 _storage_client = None
 
+
 def init_firebase():
     global _db, _storage_client
-    if _db is not None:        # already inited
+    if _db is not None:  # already inited
         return _db, _storage_client
 
     creds_str = os.getenv("FIREBASE_CREDS_JSON")
@@ -38,9 +39,39 @@ def init_firebase():
 
     return _db, _storage_client
 
-# Public accessors used elsewhere
-def db():
-    return init_firebase()[0]
 
-def storage_client():
-    return init_firebase()[1]
+class _FirestoreAccessor:
+    """Lazy proxy so callers can use `db` like a client or call it."""
+
+    def __call__(self):
+        return init_firebase()[0]
+
+    def __bool__(self):
+        return bool(self())
+
+    def __getattr__(self, name):
+        client = self()
+        if client is None:
+            raise AttributeError("Firestore not configured")
+        return getattr(client, name)
+
+
+class _StorageAccessor:
+    """Lazy proxy so callers can use `storage_client` as callable or object."""
+
+    def __call__(self):
+        return init_firebase()[1]
+
+    def __bool__(self):
+        return bool(self())
+
+    def __getattr__(self, name):
+        client = self()
+        if client is None:
+            raise AttributeError("Storage client not configured")
+        return getattr(client, name)
+
+
+# Public accessors used elsewhere
+db = _FirestoreAccessor()
+storage_client = _StorageAccessor()
