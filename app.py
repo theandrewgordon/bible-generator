@@ -151,9 +151,6 @@ def load_user_info():
         session.pop("user_email", None)
 
 
-from faithsparks.services.firestore import STORAGE_BUCKET, storage_client  # keep available
-
-
 @app.before_request
 def track_visit():
     if request.method not in ("GET", "HEAD"):

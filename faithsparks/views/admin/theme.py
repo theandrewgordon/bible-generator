@@ -6,7 +6,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, s
 from werkzeug.utils import secure_filename
 from firebase_admin import firestore
 
-from faithsparks.services.firestore import db, storage_client, STORAGE_BUCKET
+from faithsparks.services.firestore import db
 from faithsparks.services.storage import upload_to_storage
 from faithsparks.services.themes import (
     THEMES,
@@ -310,9 +310,7 @@ def admin_theme_logo():
     local_path = os.path.join("output", f"logo_{theme}{ext}")
     try:
         f.save(local_path)
-        url = None
-        if storage_client and STORAGE_BUCKET:
-            url = upload_to_storage(local_path, f"branding/{theme}/logo{ext}")
+        url = upload_to_storage(local_path, f"branding/{theme}/logo{ext}")
         if not url:
             url = url_for("static", filename="faith_sparks_logo.png")
         db.collection("config").document("app").set({"logos": {theme: url}}, merge=True)
@@ -340,9 +338,7 @@ def admin_theme_favicon():
     local_path = os.path.join("output", f"favicon_{theme}{ext}")
     try:
         f.save(local_path)
-        url = None
-        if storage_client and STORAGE_BUCKET:
-            url = upload_to_storage(local_path, f"branding/{theme}/favicon{ext}")
+        url = upload_to_storage(local_path, f"branding/{theme}/favicon{ext}")
         if not url:
             url = url_for("static", filename="favicon.ico")
         db.collection("config").document("app").set({"favicons": {theme: url}}, merge=True)
@@ -388,4 +384,3 @@ def admin_theme_clone_activate():
         traceback.print_exc()
         flash(f"Clone failed: {e}", "error")
     return redirect(url_for("admin_theme"))
-

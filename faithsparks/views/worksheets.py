@@ -27,8 +27,8 @@ from verse_helpers import (
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
 
-from faithsparks.services.firestore import db, storage_client, STORAGE_BUCKET
-from faithsparks.services.storage import upload_to_storage
+from faithsparks.services.firestore import db
+from faithsparks.services.storage import upload_to_storage, signed_url_for_path
 from faithsparks.services.usage import (
     _get_user_plan,
     _quota_for_plan,
@@ -439,15 +439,9 @@ def thumb(filename):
     path = os.path.join("output", "thumbs", filename)
     no_gen = request.args.get("skip") in ("1", "true", "True", "yes")
     if os.path.exists(path):
-        if storage_client and STORAGE_BUCKET:
-            try:
-                bucket = storage_client.bucket(STORAGE_BUCKET)
-                blob = bucket.blob(f"thumbs/{filename}")
-                if blob.exists():
-                    blob.make_public()
-                    return redirect(blob.public_url)
-            except Exception:
-                pass
+        remote_url = signed_url_for_path(f"thumbs/{filename}")
+        if remote_url:
+            return redirect(remote_url)
         resp = send_file(path, conditional=True)
         try:
             resp.headers["Cache-Control"] = "public, max-age=86400"
@@ -475,15 +469,9 @@ def thumb(filename):
             out = make_thumbnail(verse_ref, version, base)
             if out and os.path.exists(out):
                 upload_to_storage(out, f"thumbs/{filename}")
-                if storage_client and STORAGE_BUCKET:
-                    try:
-                        bucket = storage_client.bucket(STORAGE_BUCKET)
-                        blob = bucket.blob(f"thumbs/{filename}")
-                        if blob.exists():
-                            blob.make_public()
-                            return redirect(blob.public_url)
-                    except Exception:
-                        pass
+                remote_url = signed_url_for_path(f"thumbs/{filename}")
+                if remote_url:
+                    return redirect(remote_url)
                 resp = send_file(out, conditional=True)
                 try:
                     resp.headers["Cache-Control"] = "public, max-age=86400"
