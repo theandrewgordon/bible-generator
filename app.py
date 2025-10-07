@@ -35,7 +35,7 @@ from faithsparks.services.stripe_svc import (
 )
 from faithsparks.util.slug import normalize_slug
 from faithsparks.services import analytics as analytics_svc
-from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_BATCH
+from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -429,13 +429,13 @@ def generate():
                 "text": custom_text
             })
 
-        if len(items_to_generate) > MAX_WORKSHEETS_PER_BATCH:
+        if len(items_to_generate) > MAX_WORKSHEETS_PER_REQUEST:
             flash(
-                f"Please generate at most {MAX_WORKSHEETS_PER_BATCH} worksheets at once. "
-                f"Keeping the first {MAX_WORKSHEETS_PER_BATCH}.",
+                f"Please generate at most {MAX_WORKSHEETS_PER_REQUEST} worksheets at once. "
+                f"Keeping the first {MAX_WORKSHEETS_PER_REQUEST}.",
                 "warning",
             )
-            items_to_generate = items_to_generate[:MAX_WORKSHEETS_PER_BATCH]
+            items_to_generate = items_to_generate[:MAX_WORKSHEETS_PER_REQUEST]
 
         last_pdf = None
         free_skip_count = False

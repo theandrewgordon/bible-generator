@@ -2,6 +2,7 @@ import json
 import os
 import re
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from flask import (
@@ -42,7 +43,13 @@ from faithsparks.util.slug import normalize_slug
 from faithsparks.util.request_utils import get_request_payload, log_request_summary
 
 
-MAX_WORKSHEETS_PER_BATCH = 15
+MAX_WORKSHEETS_PER_REQUEST = 50
+OPENAI_BATCH_SIZE = 10
+
+
+def _chunked(seq, size):
+    for i in range(0, len(seq), size):
+        yield seq[i : i + size]
 
 
 bp = Blueprint("worksheets", __name__)
@@ -256,123 +263,194 @@ def generate():
                 "text": custom_text,
             })
 
-        if len(items_to_generate) > MAX_WORKSHEETS_PER_BATCH:
+        total_requested = len(items_to_generate)
+        if total_requested > MAX_WORKSHEETS_PER_REQUEST:
             flash(
-                f"Please generate at most {MAX_WORKSHEETS_PER_BATCH} worksheets at once. "
-                f"Keeping the first {MAX_WORKSHEETS_PER_BATCH}.",
+                f"Processing a large batch ({total_requested}); generating the first {MAX_WORKSHEETS_PER_REQUEST} now.",
                 "warning",
             )
-            items_to_generate = items_to_generate[:MAX_WORKSHEETS_PER_BATCH]
+            items_to_generate = items_to_generate[:MAX_WORKSHEETS_PER_REQUEST]
 
         success_count = 0
         free_skip_count = 0
         free_slugs = _get_free_slugs()
         last_pdf = None
-        bundle_files = []
-        for item in items_to_generate:
-            verse = item["verse"]
-            version = item["version"]
-            is_custom = item["is_custom"]
-            text = item.get("text")
-            slug = item["slug"]
-            suffix = "_cursive" if use_cursive else ""
-            pdf_path = f"output/{slug}_{version}{suffix}.pdf"
-            json_path = f"output/{slug}_{version}.json"
-            reused_existing = False
-            data = None
+        bundle_files: list[str] = []
 
-            if not is_custom and os.path.exists(pdf_path) and os.path.exists(json_path):
-                try:
-                    with open(json_path, "r", encoding="utf-8") as existing_json:
-                        data = json.load(existing_json)
-                        reused_existing = True
-                except Exception:
-                    data = None
+        def _record_existing(path: str | None):
+            nonlocal last_pdf
+            if path and os.path.exists(path):
+                if path not in bundle_files:
+                    bundle_files.append(path)
+                last_pdf = path
 
-            if not is_custom and verse and version:
-                if normalize_slug(verse) in free_slugs:
+        for chunk in _chunked(items_to_generate, OPENAI_BATCH_SIZE):
+            contexts = []
+            need_fetch = []
+
+            for item in chunk:
+                verse = item["verse"]
+                version = item["version"]
+                is_custom = item["is_custom"]
+                text = item.get("text")
+                slug = item["slug"]
+                suffix = "_cursive" if use_cursive else ""
+                pdf_path = f"output/{slug}_{version}{suffix}.pdf"
+                json_path = f"output/{slug}_{version}.json"
+
+                context = {
+                    "verse": verse,
+                    "version": version,
+                    "is_custom": is_custom,
+                    "text": text,
+                    "slug": slug,
+                    "suffix": suffix,
+                    "pdf_path": pdf_path,
+                    "json_path": json_path,
+                    "data": None,
+                    "error": None,
+                    "skip": False,
+                }
+
+                contexts.append(context)
+
+                existing_path = None
+                if db:
+                    try:
+                        existing_stream = (
+                            db.collection("worksheets")
+                            .where(filter=firestore.FieldFilter("email", "==", user_email))
+                            .where(filter=firestore.FieldFilter("verse", "==", verse))
+                            .where(filter=firestore.FieldFilter("version", "==", version))
+                            .where(filter=firestore.FieldFilter("cursive", "==", use_cursive))
+                            .limit(1)
+                            .stream()
+                        )
+                        doc = next(existing_stream, None)
+                        if doc:
+                            filename = doc.to_dict().get("filename")
+                            if filename:
+                                existing_path = os.path.join("output", filename)
+                                try:
+                                    flash("Already generated — using your existing PDF.", "info")
+                                except Exception:
+                                    pass
+                    except Exception:
+                        existing_path = None
+
+                if existing_path and os.path.exists(existing_path):
+                    context["skip"] = True
+                    _record_existing(existing_path)
+                    continue
+
+                if not is_custom and normalize_slug(verse) in free_slugs:
                     free_skip_count += 1
 
-            if is_custom and data is None:
-                data = {
-                    "verse": verse,
-                    "fullVerse": text,
-                    "traceableVerse": text,
-                    "handwritingLines": 3,
-                    "reflectionQuestion": "Why is this meaningful to you?",
-                    "imageIdea": custom_prompt or "An open Bible or prayer hands",
-                    "version": "DIY",
-                    "cursive": use_cursive,
-                }
-            elif data is None:
-                content = request_verse_data(verse, version.lower())
-                if not content:
-                    flash(f"Could not fetch verse for {verse} ({version}).", "error")
+                if not is_custom and os.path.exists(pdf_path) and os.path.exists(json_path):
+                    context["skip"] = True
+                    _record_existing(pdf_path)
                     continue
-                data = parse_and_clean_json(content)
-                data.update({"version": version, "cursive": use_cursive})
-                save_json_to_file(data, f"output/{slug}_{version}.json")
-            else:
-                data["version"] = version
-                data["cursive"] = use_cursive
-                # keep JSON in sync in case older files lack fields
-                try:
-                    save_json_to_file(data, json_path)
-                except Exception:
-                    pass
 
-            try:
-                if not isinstance(data, dict):
-                    raise ValueError("Invalid data from model")
-                if not data.get("verse"):
-                    data["verse"] = verse
-                if not data.get("version"):
-                    data["version"] = version
-                if not data.get("fullVerse"):
-                    flash(f"AI response missing fullVerse for {verse} ({version}); skipping.", "warning")
-                    continue
-                if not reused_existing:
-                    generate_pdf(data, pdf_path, use_cursive=use_cursive)
-            except Exception as e:
-                traceback.print_exc()
-                flash(f"Could not build PDF for {verse} ({version}): {e}", "error")
-                continue
-
-            if not is_custom:
-                canonical_ref = data.get("verse") or verse
-                canonical_slug = normalize_slug(canonical_ref)
-                desired_path = f"output/{canonical_slug}_{version}{suffix}.pdf"
-                if pdf_path != desired_path and os.path.exists(pdf_path):
-                    os.replace(pdf_path, desired_path)
-                pdf_path = desired_path
-                thumb_base = os.path.splitext(os.path.basename(pdf_path))[0]
-                thumb_path = os.path.join("output", "thumbs", f"{thumb_base}.png")
-                if not os.path.exists(thumb_path):
-                    make_thumbnail(canonical_ref, version, thumb_base)
-            else:
-                thumb_base = os.path.splitext(os.path.basename(pdf_path))[0]
-                thumb_path = os.path.join("output", "thumbs", f"{thumb_base}.png")
-                if not os.path.exists(thumb_path):
-                    make_thumbnail(verse, version, thumb_base)
-
-            bundle_files.append(pdf_path)
-
-            if db:
-                db.collection("worksheets").add(
-                    {
-                        "email": user_email,
-                        "verse": (data.get("verse") if not is_custom else verse),
-                        "version": version,
-                        "filename": os.path.basename(pdf_path),
-                        "timestamp": firestore.SERVER_TIMESTAMP,
+                if is_custom:
+                    context["data"] = {
+                        "verse": verse,
+                        "fullVerse": text,
+                        "traceableVerse": text,
+                        "handwritingLines": 3,
+                        "reflectionQuestion": "Why is this meaningful to you?",
+                        "imageIdea": custom_prompt or "An open Bible or prayer hands",
+                        "version": "DIY",
                         "cursive": use_cursive,
-                        "custom": is_custom,
-                        **({"text": text, "imageIdea": custom_prompt} if is_custom else {}),
                     }
-                )
+                else:
+                    need_fetch.append(context)
 
-            last_pdf = pdf_path
-            success_count += 1
+            if need_fetch:
+                with ThreadPoolExecutor(max_workers=min(len(need_fetch), OPENAI_BATCH_SIZE)) as executor:
+                    future_map = {
+                        executor.submit(request_verse_data, ctx["verse"], ctx["version"].lower()): ctx
+                        for ctx in need_fetch
+                    }
+                    for future in as_completed(future_map):
+                        ctx = future_map[future]
+                        try:
+                            content = future.result()
+                        except Exception as exc:
+                            ctx["error"] = str(exc)
+                            continue
+                        data = parse_and_clean_json(content)
+                        if not data:
+                            ctx["error"] = f"Could not fetch verse for {ctx['verse']} ({ctx['version']})."
+                            continue
+                        ctx["data"] = data
+
+            for ctx in contexts:
+                if ctx.get("skip"):
+                    continue
+
+                data = ctx.get("data")
+                if not data:
+                    err = ctx.get("error") or f"Could not fetch verse for {ctx['verse']} ({ctx['version']})."
+                    flash(err, "error")
+                    continue
+
+                try:
+                    if not isinstance(data, dict):
+                        raise ValueError("Invalid data from model")
+                    if not data.get("verse"):
+                        data["verse"] = ctx["verse"]
+                    if not data.get("version"):
+                        data["version"] = ctx["version"]
+                    data["cursive"] = use_cursive
+                    if not data.get("fullVerse"):
+                        flash(
+                            f"AI response missing fullVerse for {ctx['verse']} ({ctx['version']}); skipping.",
+                            "warning",
+                        )
+                        continue
+
+                    save_json_to_file(data, ctx["json_path"])
+                    generate_pdf(data, ctx["pdf_path"], use_cursive=use_cursive)
+                except Exception as e:
+                    traceback.print_exc()
+                    flash(f"Could not build PDF for {ctx['verse']} ({ctx['version']}): {e}", "error")
+                    continue
+
+                if not ctx["is_custom"]:
+                    canonical_ref = data.get("verse") or ctx["verse"]
+                    canonical_slug = normalize_slug(canonical_ref)
+                    desired_path = f"output/{canonical_slug}_{ctx['version']}{ctx['suffix']}.pdf"
+                    if ctx["pdf_path"] != desired_path and os.path.exists(ctx["pdf_path"]):
+                        os.replace(ctx["pdf_path"], desired_path)
+                    pdf_path = desired_path
+                    thumb_base = os.path.splitext(os.path.basename(pdf_path))[0]
+                    thumb_path = os.path.join("output", "thumbs", f"{thumb_base}.png")
+                    if not os.path.exists(thumb_path):
+                        make_thumbnail(canonical_ref, ctx["version"], thumb_base)
+                else:
+                    pdf_path = ctx["pdf_path"]
+                    thumb_base = os.path.splitext(os.path.basename(pdf_path))[0]
+                    thumb_path = os.path.join("output", "thumbs", f"{thumb_base}.png")
+                    if not os.path.exists(thumb_path):
+                        make_thumbnail(ctx["verse"], ctx["version"], thumb_base)
+
+                _record_existing(pdf_path)
+
+                if db:
+                    db.collection("worksheets").add(
+                        {
+                            "email": user_email,
+                            "verse": (data.get("verse") if not ctx["is_custom"] else ctx["verse"]),
+                            "version": ctx["version"],
+                            "filename": os.path.basename(pdf_path),
+                            "timestamp": firestore.SERVER_TIMESTAMP,
+                            "cursive": use_cursive,
+                            "custom": ctx["is_custom"],
+                            **({"text": ctx["text"], "imageIdea": custom_prompt} if ctx["is_custom"] else {}),
+                        }
+                    )
+
+                success_count += 1
 
         if db and from_collection:
             try:
