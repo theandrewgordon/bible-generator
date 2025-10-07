@@ -1,4 +1,5 @@
 # faithsparks/services/storage.py
+import os
 from datetime import timedelta
 
 from .firestore import STORAGE_BUCKET, storage_client  # storage_client is now a callable
@@ -57,5 +58,23 @@ def blob_exists(dst_path: str) -> bool:
         return False
     try:
         return bucket.blob(dst_path).exists()
+    except Exception:
+        return False
+
+
+def download_from_storage(dst_path: str, local_path: str) -> bool:
+    """Download dst_path from the bucket into local_path. Returns True on success."""
+    bucket = _get_bucket()
+    if not bucket:
+        return False
+    try:
+        blob = bucket.blob(dst_path)
+        if not blob.exists():
+            return False
+        local_dir = os.path.dirname(local_path)
+        if local_dir:
+            os.makedirs(local_dir, exist_ok=True)
+        blob.download_to_filename(local_path)
+        return True
     except Exception:
         return False

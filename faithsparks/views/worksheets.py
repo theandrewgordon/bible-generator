@@ -30,7 +30,7 @@ from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
 
 from faithsparks.services.firestore import db
-from faithsparks.services.storage import upload_to_storage, signed_url_for_path
+from faithsparks.services.storage import download_from_storage, upload_to_storage, signed_url_for_path
 from faithsparks.services.usage import (
     _get_user_plan,
     _quota_for_plan,
@@ -338,13 +338,19 @@ def generate():
                     except Exception:
                         existing_path = None
 
-                if existing_path and os.path.exists(existing_path):
-                    context["skip"] = True
-                    _record_existing(existing_path)
-                    continue
+                if existing_path:
+                    if not os.path.exists(existing_path):
+                        download_from_storage(f"worksheets/{os.path.basename(existing_path)}", existing_path)
+                    if os.path.exists(existing_path):
+                        context["skip"] = True
+                        _record_existing(existing_path)
+                        continue
 
                 if not is_custom and normalize_slug(verse) in free_slugs:
                     free_skip_count += 1
+
+                if not os.path.exists(pdf_path):
+                    download_from_storage(f"worksheets/{os.path.basename(pdf_path)}", pdf_path)
 
                 if not is_custom and os.path.exists(pdf_path) and os.path.exists(json_path):
                     context["skip"] = True
@@ -423,6 +429,10 @@ def generate():
                     if ctx["pdf_path"] != desired_path and os.path.exists(ctx["pdf_path"]):
                         os.replace(ctx["pdf_path"], desired_path)
                     pdf_path = desired_path
+                    canonical_json = f"output/{canonical_slug}_{ctx['version']}.json"
+                    if ctx["json_path"] != canonical_json and os.path.exists(ctx["json_path"]):
+                        os.replace(ctx["json_path"], canonical_json)
+                    ctx["json_path"] = canonical_json
                     thumb_base = os.path.splitext(os.path.basename(pdf_path))[0]
                     thumb_path = os.path.join("output", "thumbs", f"{thumb_base}.png")
                     if not os.path.exists(thumb_path):
@@ -434,6 +444,8 @@ def generate():
                     if not os.path.exists(thumb_path):
                         make_thumbnail(ctx["verse"], ctx["version"], thumb_base)
 
+                upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
+                ctx["pdf_path"] = pdf_path
                 _record_existing(pdf_path)
 
                 if db:
