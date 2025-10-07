@@ -437,6 +437,7 @@ def generate():
                 free_skip_count = True
 
         success_count = 0
+        bundle_files = []
         for item in items_to_generate:
             # initial metadata from input
             input_slug = item["slug"]
@@ -461,6 +462,7 @@ def generate():
                     except Exception:
                         pass
                     last_pdf = existing_path
+                    bundle_files.append(existing_path)
                     continue
 
             if is_custom:
@@ -533,6 +535,8 @@ def generate():
                 # custom: thumbnail with provided title
                 make_thumbnail(verse, version, os.path.splitext(os.path.basename(pdf_path))[0])
 
+            bundle_files.append(pdf_path)
+
             if db:
                 db.collection("worksheets").add({
                     "email": user_email,
@@ -556,7 +560,7 @@ def generate():
             except Exception:
                 pass
 
-        update_zip_bundle()
+        update_zip_bundle(bundle_files)
         # Record usage increments (skip if free slug)
         try:
             if not free_skip_count:

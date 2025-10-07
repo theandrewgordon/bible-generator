@@ -73,13 +73,37 @@ def make_thumbnail(verse_ref: str, version: str, base_name: str):
         return None
 
 
-def update_zip_bundle():
+def update_zip_bundle(pdf_paths=None):
     from zipfile import ZipFile
 
-    with ZipFile("output/worksheets_bundle.zip", "w") as zf:
-        for file in os.listdir("output"):
-            if file.endswith(".pdf"):
-                zf.write(os.path.join("output", file), file)
+    bundle_path = "output/worksheets_bundle.zip"
+
+    if pdf_paths is None:
+        pdf_paths = [
+            os.path.join("output", f)
+            for f in os.listdir("output")
+            if f.endswith(".pdf")
+        ]
+
+    files = []
+    for path in pdf_paths:
+        if not path:
+            continue
+        abs_path = path if os.path.isabs(path) else os.path.abspath(path)
+        if os.path.exists(abs_path) and abs_path not in files:
+            files.append(abs_path)
+
+    if len(files) < 2:
+        try:
+            if os.path.exists(bundle_path):
+                os.remove(bundle_path)
+        except Exception:
+            pass
+        return
+
+    with ZipFile(bundle_path, "w") as zf:
+        for file_path in files:
+            zf.write(file_path, os.path.basename(file_path))
 
 
 def generate():
@@ -233,6 +257,7 @@ def generate():
         free_skip_count = 0
         free_slugs = _get_free_slugs()
         last_pdf = None
+        bundle_files = []
         for item in items_to_generate:
             verse = item["verse"]
             version = item["version"]
@@ -319,6 +344,8 @@ def generate():
                 if not os.path.exists(thumb_path):
                     make_thumbnail(verse, version, thumb_base)
 
+            bundle_files.append(pdf_path)
+
             if db:
                 db.collection("worksheets").add(
                     {
@@ -342,7 +369,7 @@ def generate():
             except Exception:
                 pass
 
-        update_zip_bundle()
+        update_zip_bundle(bundle_files)
         try:
             if not free_skip_count:
                 _update_usage(user_email, success_count)
