@@ -42,6 +42,9 @@ from faithsparks.util.slug import normalize_slug
 from faithsparks.util.request_utils import get_request_payload, log_request_summary
 
 
+MAX_WORKSHEETS_PER_BATCH = 15
+
+
 bp = Blueprint("worksheets", __name__)
 
 
@@ -252,6 +255,14 @@ def generate():
                 "is_custom": True,
                 "text": custom_text,
             })
+
+        if len(items_to_generate) > MAX_WORKSHEETS_PER_BATCH:
+            flash(
+                f"Please generate at most {MAX_WORKSHEETS_PER_BATCH} worksheets at once. "
+                f"Keeping the first {MAX_WORKSHEETS_PER_BATCH}.",
+                "warning",
+            )
+            items_to_generate = items_to_generate[:MAX_WORKSHEETS_PER_BATCH]
 
         success_count = 0
         free_skip_count = 0
