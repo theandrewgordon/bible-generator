@@ -14,6 +14,7 @@ Outputs JSON/PDF into the existing `output/` directory.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -64,34 +65,48 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 
 def generate_for_verse(verse: str, version: str, use_cursive: bool, out_dir: Path) -> bool:
     print(f"→ Generating {verse} ({version.upper()})")
-    content = request_verse_data(verse, version.lower())
-    if not content:
-        print(f"  ⚠️ Failed to fetch data for {verse}.")
-        return False
+    slug = normalize_slug(verse)
+    version_tag = version.upper()
+    json_path = out_dir / f"{slug}_{version_tag}.json"
+    pdf_suffix = "_cursive" if use_cursive else ""
+    pdf_path = out_dir / f"{slug}_{version_tag}{pdf_suffix}.pdf"
 
-    data = parse_and_clean_json(content)
-    if not data:
-        print(f"  ⚠️ Could not parse JSON for {verse}.")
-        return False
+    data = None
+    cached = False
+    if json_path.exists():
+        try:
+            data = json.loads(json_path.read_text())
+            cached = True
+        except Exception:
+            data = None
+
+    if data is None:
+        content = request_verse_data(verse, version.lower())
+        if not content:
+            print(f"  ⚠️ Failed to fetch data for {verse}.")
+            return False
+        data = parse_and_clean_json(content)
+        if not data:
+            print(f"  ⚠️ Could not parse JSON for {verse}.")
+            return False
 
     data.setdefault("verse", verse)
-    data.setdefault("version", version.upper())
+    data["version"] = version_tag
     data["cursive"] = use_cursive
-
-    slug = normalize_slug(verse)
-    json_path = out_dir / f"{slug}_{version.upper()}.json"
-    pdf_suffix = "_cursive" if use_cursive else ""
-    pdf_path = out_dir / f"{slug}_{version.upper()}{pdf_suffix}.pdf"
-
     save_json_to_file(data, json_path)
-    try:
-        generate_pdf(data, pdf_path, use_cursive=use_cursive)
-    except Exception as exc:
-        print(f"  ❌ Failed to generate PDF: {exc}")
-        return False
 
-    print(f"  ✅ Saved JSON -> {json_path}")
-    print(f"  ✅ Saved PDF  -> {pdf_path}")
+    if pdf_path.exists():
+        print(f"  ♻️ Reusing cached PDF -> {pdf_path}")
+    else:
+        try:
+            generate_pdf(data, pdf_path, use_cursive=use_cursive)
+        except Exception as exc:
+            print(f"  ❌ Failed to generate PDF: {exc}")
+            return False
+
+    if not cached:
+        print(f"  ✅ Saved JSON -> {json_path}")
+    print(f"  ✅ Ready PDF  -> {pdf_path}")
     return True
 
 

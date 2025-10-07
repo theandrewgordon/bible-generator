@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import traceback
@@ -238,13 +239,25 @@ def generate():
             is_custom = item["is_custom"]
             text = item.get("text")
             slug = item["slug"]
-            pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
+            suffix = "_cursive" if use_cursive else ""
+            pdf_path = f"output/{slug}_{version}{suffix}.pdf"
+            json_path = f"output/{slug}_{version}.json"
+            reused_existing = False
+            data = None
+
+            if not is_custom and os.path.exists(pdf_path) and os.path.exists(json_path):
+                try:
+                    with open(json_path, "r", encoding="utf-8") as existing_json:
+                        data = json.load(existing_json)
+                        reused_existing = True
+                except Exception:
+                    data = None
 
             if not is_custom and verse and version:
                 if normalize_slug(verse) in free_slugs:
                     free_skip_count += 1
 
-            if is_custom:
+            if is_custom and data is None:
                 data = {
                     "verse": verse,
                     "fullVerse": text,
@@ -255,7 +268,7 @@ def generate():
                     "version": "DIY",
                     "cursive": use_cursive,
                 }
-            else:
+            elif data is None:
                 content = request_verse_data(verse, version.lower())
                 if not content:
                     flash(f"Could not fetch verse for {verse} ({version}).", "error")
@@ -263,6 +276,14 @@ def generate():
                 data = parse_and_clean_json(content)
                 data.update({"version": version, "cursive": use_cursive})
                 save_json_to_file(data, f"output/{slug}_{version}.json")
+            else:
+                data["version"] = version
+                data["cursive"] = use_cursive
+                # keep JSON in sync in case older files lack fields
+                try:
+                    save_json_to_file(data, json_path)
+                except Exception:
+                    pass
 
             try:
                 if not isinstance(data, dict):
@@ -274,7 +295,8 @@ def generate():
                 if not data.get("fullVerse"):
                     flash(f"AI response missing fullVerse for {verse} ({version}); skipping.", "warning")
                     continue
-                generate_pdf(data, pdf_path, use_cursive=use_cursive)
+                if not reused_existing:
+                    generate_pdf(data, pdf_path, use_cursive=use_cursive)
             except Exception as e:
                 traceback.print_exc()
                 flash(f"Could not build PDF for {verse} ({version}): {e}", "error")
@@ -283,13 +305,19 @@ def generate():
             if not is_custom:
                 canonical_ref = data.get("verse") or verse
                 canonical_slug = normalize_slug(canonical_ref)
-                desired_path = f"output/{canonical_slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
+                desired_path = f"output/{canonical_slug}_{version}{suffix}.pdf"
                 if pdf_path != desired_path and os.path.exists(pdf_path):
                     os.replace(pdf_path, desired_path)
                 pdf_path = desired_path
-                make_thumbnail(canonical_ref, version, os.path.splitext(os.path.basename(pdf_path))[0])
+                thumb_base = os.path.splitext(os.path.basename(pdf_path))[0]
+                thumb_path = os.path.join("output", "thumbs", f"{thumb_base}.png")
+                if not os.path.exists(thumb_path):
+                    make_thumbnail(canonical_ref, version, thumb_base)
             else:
-                make_thumbnail(verse, version, os.path.splitext(os.path.basename(pdf_path))[0])
+                thumb_base = os.path.splitext(os.path.basename(pdf_path))[0]
+                thumb_path = os.path.join("output", "thumbs", f"{thumb_base}.png")
+                if not os.path.exists(thumb_path):
+                    make_thumbnail(verse, version, thumb_base)
 
             if db:
                 db.collection("worksheets").add(

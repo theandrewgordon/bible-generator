@@ -11,6 +11,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfbase.pdfdoc import pdfdocEnc
+from reportlab.lib.utils import ImageReader
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
@@ -147,6 +148,13 @@ def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
         ty -= line_height
     return y - box_height - 10
 
+def _load_image(path: str):
+    try:
+        return ImageReader(path)
+    except Exception:
+        return None
+
+
 def generate_pdf(data, pdf_path, use_cursive=False):
     width, height = letter
     margin = 0.75 * inch
@@ -155,13 +163,13 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
 
     # Load brand assets
-    logo_path = "faith_sparks_logo.png"
-    qr_path = "faithsparks_qr.png"
-    logo_size = 50
-    if os.path.exists(logo_path):
-        c.drawImage(logo_path, margin, y - logo_size, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
-    if os.path.exists(qr_path):
-        c.drawImage(qr_path, width - margin - logo_size, y - logo_size, width=logo_size, height=logo_size)
+    logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+    qr_reader = _load_image("faithsparks_qr.png")
+    logo_size = 48
+    if logo_reader:
+        c.drawImage(logo_reader, margin, y - logo_size, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
+    if qr_reader:
+        c.drawImage(qr_reader, width - margin - logo_size, y - logo_size, width=logo_size, height=logo_size)
 
     # Title
     c.setFont("Helvetica-Bold", 18)
