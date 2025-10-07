@@ -1,11 +1,12 @@
 import os
 import json
+import re
 import unicodedata
 
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
-from reportlab.lib.colors import black
+from reportlab.lib.colors import black, HexColor
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
@@ -19,8 +20,12 @@ pdfmetrics.registerFont(TTFont('LearningCurve', 'fonts/LearningCurveDashed-w4DP.
 
 # Styles and layout constants
 LIGHT_GRAY = 0.95
+TRACE_BG = HexColor("#f9f9f9")
 line_spacing = 22
 styles = getSampleStyleSheet()
+
+COLORING_STYLE = styles["Normal"].clone("ColoringPrompt")
+COLORING_STYLE.leading = COLORING_STYLE.fontSize + 2
 
 
 def capitalize_first_letter(text):
@@ -72,39 +77,89 @@ def _pdf_safe_text(value: str) -> str:
     # Collapse excess whitespace introduced during replacements.
     return " ".join(cleaned.split())
 
+
+_STYLE_REPLACEMENTS = {
+    "god's word": "God's Word",
+    "his courts": "His courts",
+    "your sight": "Your sight",
+    "his name": "His Name",
+    "his word": "His Word",
+}
+
+
+def format_text_block(value: str, ensure_question: bool = False, ensure_period: bool = False) -> str:
+    text = _pdf_safe_text(value)
+    lowered = text.lower()
+    for needle, replacement in _STYLE_REPLACEMENTS.items():
+        if needle in lowered:
+            # replace case-insensitively
+            text = re.sub(needle, replacement, text, flags=re.IGNORECASE)
+            lowered = text.lower()
+
+    text = capitalize_first_letter(text)
+
+    if ensure_question and not text.endswith("?"):
+        text = text.rstrip(".! ") + "?"
+    elif ensure_period and not text.endswith("."):
+        text = text.rstrip("?! ") + "."
+
+    return text
+
+TRACE_CONNECTORS = {"and", "but", "for", "nor", "or", "so", "yet", "in", "on", "at", "to", "by", "of"}
+
+
 def tokenize_traceable(text):
     return text.split()
 
 def wrap_text_lines(text, font, font_size, max_width):
     words = tokenize_traceable(text)
-    lines = []
-    current_line = ""
+    lines: list[str] = []
+    current_words: list[str] = []
+
+    def flush():
+        if current_words:
+            lines.append(" ".join(current_words))
+
     for word in words:
-        test_line = f"{current_line} {word}".strip() if current_line else word
-        if pdfmetrics.stringWidth(test_line, font, font_size) > max_width:
-            lines.append(current_line.strip())
-            current_line = word
+        tentative = current_words + [word]
+        tentative_line = " ".join(tentative)
+        width = pdfmetrics.stringWidth(tentative_line, font, font_size)
+
+        if width > max_width and current_words:
+            if current_words[-1].lower() in TRACE_CONNECTORS and len(current_words) > 1:
+                connector = current_words.pop()
+                flush()
+                current_words = [connector, word]
+            else:
+                flush()
+                current_words = [word]
         else:
-            current_line = test_line
-    if current_line:
-        lines.append(current_line.strip())
-    return lines
+            current_words = tentative
+
+        soft_line = " ".join(current_words)
+        if len(soft_line) > 55 and len(current_words) > 1:
+            tail = current_words.pop()
+            flush()
+            current_words = [tail]
+    flush()
+    return [ln.strip() for ln in lines if ln.strip()]
 
 def draw_rounded_box(c, x, y, width, height):
     c.setFillGray(LIGHT_GRAY)
     c.roundRect(x, y - height, width, height, radius=8, fill=1)
     c.setFillColor(black)
 
-def draw_paragraph_box(c, title, content, x, y, width, padding=10):
-    content = capitalize_first_letter(_pdf_safe_text(content))
-    para = Paragraph(content, styles['Normal'])
+def draw_paragraph_box(c, title, content, x, y, width, padding=10, style=None, ensure_question=False, ensure_period=False):
+    content = format_text_block(content, ensure_question=ensure_question, ensure_period=ensure_period)
+    para_style = style or styles["Normal"]
+    para = Paragraph(content, para_style)
     _, para_height = para.wrap(width - 2 * padding, 1000)
     box_height = para_height + 2 * padding + 20
     draw_rounded_box(c, x, y, width, box_height)
     c.setFont("Helvetica-Bold", 12)
     c.drawString(x + padding, y - padding - 2, title)
     para.drawOn(c, x + padding, y - padding - para_height - 10)
-    return y - box_height - 10
+    return y - box_height - 12
 
 def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
     font = 'LearningCurve' if use_cursive else 'KGPrimaryDots'
@@ -112,8 +167,10 @@ def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
     padding = 10
     text = capitalize_first_letter(_pdf_safe_text(text))
     lines = wrap_text_lines(text, font, font_size, width - 40)
-    box_height = len(lines) * (font_size + 10) + 2 * padding + 20
-    c.roundRect(x, y - box_height, width, box_height, radius=8, fill=0)
+    box_height = len(lines) * (font_size + 11) + 2 * padding + 20
+    c.setFillColor(TRACE_BG)
+    c.roundRect(x, y - box_height, width, box_height, radius=8, fill=1)
+    c.setFillColor(black)
 
     c.setFont("Helvetica-Bold", 12)
     c.drawString(x + padding, y - padding - 2, title)
@@ -127,14 +184,16 @@ def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
             underline_y = ty - 5
             c.setLineWidth(1)
             c.line(x + padding, underline_y, x + width - padding, underline_y)
-        ty -= font_size + 10
+        ty -= font_size + 11
 
     return y - box_height - 10
 
 def draw_handwriting_box(c, title, x, y, width, lines_count=3, padding=10):
     line_height = line_spacing + 6
     box_height = lines_count * line_height + 2 * padding + 20
-    c.roundRect(x, y - box_height, width, box_height, radius=8, fill=0)
+    c.setFillColor(TRACE_BG)
+    c.roundRect(x, y - box_height, width, box_height, radius=8, fill=1)
+    c.setFillColor(black)
     c.setFont("Helvetica-Bold", 12)
     c.drawString(x + padding, y - padding - 2, _pdf_safe_text(title))
     ty = y - padding - 28
@@ -196,18 +255,38 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     y = draw_tracing_box(c, "Trace it:", trace, margin, y, usable_width, use_cursive=use_cursive)
 
     # Handwriting section
+    y -= 6
     y = draw_handwriting_box(c, "Now write it yourself:", margin, y, usable_width, data["handwritingLines"])
 
     # Reflection
-    y = draw_paragraph_box(c, "Think about this:", data["reflectionQuestion"], margin, y, usable_width)
+    y = draw_paragraph_box(
+        c,
+        "Think about this:",
+        data["reflectionQuestion"],
+        margin,
+        y,
+        usable_width,
+        ensure_question=True,
+    )
 
     # Coloring section
     available_height = y - (0.75 * inch)
     box_h = min(available_height, 2.5 * inch)
     box_w = 4.5 * inch
     gap = 0.4 * inch
-    label_w = usable_width - box_w - gap
-    draw_paragraph_box(c, "Coloring Prompt:", data["imageIdea"], margin, y, label_w)
+    label_w = min(usable_width - box_w - gap, 4.0 * inch)
+    if label_w < 3.2 * inch:
+        label_w = usable_width - box_w - gap
+    draw_paragraph_box(
+        c,
+        "Coloring Prompt:",
+        data["imageIdea"],
+        margin,
+        y,
+        label_w,
+        style=COLORING_STYLE,
+        ensure_question=True,
+    )
     c.setLineWidth(1.25)
     c.roundRect(margin + label_w + gap, y - box_h, box_w, box_h, radius=8)
 
