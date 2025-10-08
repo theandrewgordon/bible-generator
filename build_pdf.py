@@ -105,7 +105,7 @@ def format_text_block(value: str, ensure_question: bool = False, ensure_period: 
 
     return text
 
-TRACE_CONNECTORS = {"and", "but", "for", "nor", "or", "so", "yet", "in", "on", "at", "to", "by", "of"}
+TRACE_CONNECTORS = {"and", "but", "for", "nor", "or", "so", "yet", "in", "on", "at", "to", "by", "of", "that"}
 
 
 def tokenize_traceable(text):
@@ -137,7 +137,7 @@ def wrap_text_lines(text, font, font_size, max_width):
             current_words = tentative
 
         soft_line = " ".join(current_words)
-        if len(soft_line) > 55 and len(current_words) > 1:
+        if len(soft_line) > 60 and len(current_words) > 1:
             tail = current_words.pop()
             flush()
             current_words = [tail]
@@ -237,7 +237,8 @@ def generate_pdf(data, pdf_path, use_cursive=False):
 
     # Reference line
     verse_display = _pdf_safe_text(f"{data['verse']} ({data['version'].upper()})")
-    c.setFont("Helvetica-Bold", 14 if len(verse_display) < 25 else 12)
+    font_size = 15 if len(verse_display) < 28 else 13
+    c.setFont("Helvetica-Bold", font_size)
     c.drawCentredString(width / 2, y, verse_display)
     y -= 20
 
@@ -289,6 +290,7 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     )
     c.setLineWidth(1.25)
     c.roundRect(margin + label_w + gap, y - box_h, box_w, box_h, radius=8)
+    content_bottom = y - box_h
 
     # Border + Footer
     c.setStrokeGray(0.8)
@@ -299,10 +301,13 @@ def generate_pdf(data, pdf_path, use_cursive=False):
         data["verse"].upper().replace(":", "_").replace(" ", "_") + f"_{data['version'].upper()}"
     )
     c.setFillColor(black)
-    c.drawRightString(width - margin, 0.32 * inch, f"FS-{verse_code}")
+    footer_lift = 0
+    if content_bottom and content_bottom > inch:
+        footer_lift = min(8, content_bottom - inch)
+    c.drawRightString(width - margin, 0.32 * inch + footer_lift, f"FS-{verse_code}")
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
-    c.drawCentredString(width / 2, 0.23 * inch, "© 2025 Faith Sparks Printables · For personal use only")
+    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, "© 2025 Faith Sparks Printables · For personal use only")
 
     c.save()
     print(f"✅ Final worksheet saved to: {pdf_path}")
