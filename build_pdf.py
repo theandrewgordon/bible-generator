@@ -3,8 +3,10 @@ import json
 import re
 import unicodedata
 
+from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from reportlab.lib.colors import black
+from reportlab.lib.units import inch
+from reportlab.lib.colors import black, HexColor
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
@@ -18,6 +20,7 @@ from faithsparks.styles import layout
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
 pdfmetrics.registerFont(TTFont('LearningCurve', 'fonts/LearningCurveDashed-w4DP.ttf'))
 
+TRACE_BG = HexColor(layout.TRACE_BACKGROUND)
 line_spacing = layout.HANDWRITING_LINE_SPACING
 styles = getSampleStyleSheet()
 
@@ -142,7 +145,7 @@ def wrap_text_lines(text, font, font_size, max_width):
     return [ln.strip() for ln in lines if ln.strip()]
 
 def draw_rounded_box(c, x, y, width, height):
-    c.setFillGray(LIGHT_GRAY)
+    c.setFillGray(layout.LIGHT_GRAY_FILL)
     c.roundRect(x, y - height, width, height, radius=8, fill=1)
     c.setFillColor(black)
 
@@ -160,11 +163,11 @@ def draw_paragraph_box(c, title, content, x, y, width, padding=10, style=None, e
 
 def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
     font = 'LearningCurve' if use_cursive else 'KGPrimaryDots'
-    font_size = 30
+    font_size = layout.TRACE_FONT_SIZE
     padding = 10
     text = capitalize_first_letter(_pdf_safe_text(text))
     lines = wrap_text_lines(text, font, font_size, width - 40)
-    box_height = len(lines) * (font_size + 11) + 2 * padding + 20
+    box_height = len(lines) * (font_size + layout.TRACE_LINE_SPACING) + 2 * padding + 20
     c.setFillColor(TRACE_BG)
     c.roundRect(x, y - box_height, width, box_height, radius=8, fill=1)
     c.setFillColor(black)
@@ -181,7 +184,7 @@ def draw_tracing_box(c, title, text, x, y, width, use_cursive=False):
             underline_y = ty - 5
             c.setLineWidth(1)
             c.line(x + padding, underline_y, x + width - padding, underline_y)
-        ty -= font_size + 11
+        ty -= font_size + layout.TRACE_LINE_SPACING
 
     return y - box_height - 10
 
@@ -213,7 +216,7 @@ def _load_image(path: str):
 
 def generate_pdf(data, pdf_path, use_cursive=False):
     width, height = letter
-    margin = 0.75 * inch
+    margin = layout.DEFAULT_MARGIN_INCH * inch
     usable_width = width - 2 * margin
     y = height - margin - 10
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
@@ -234,7 +237,7 @@ def generate_pdf(data, pdf_path, use_cursive=False):
 
     # Reference line
     verse_display = _pdf_safe_text(f"{data['verse']} ({data['version'].upper()})")
-    font_size = 15 if len(verse_display) < 28 else 13
+    font_size = layout.VERSE_FONT_MAX if len(verse_display) < 28 else layout.VERSE_FONT_MIN
     c.setFont("Helvetica-Bold", font_size)
     c.drawCentredString(width / 2, y, verse_display)
     y -= 20
@@ -268,12 +271,12 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     )
 
     # Coloring section
-    available_height = y - (0.75 * inch)
+    available_height = y - (layout.DEFAULT_MARGIN_INCH * inch)
     box_h = min(available_height, 2.5 * inch)
     box_w = 4.5 * inch
     gap = 0.4 * inch
-    label_w = min(usable_width - box_w - gap, 4.0 * inch)
-    if label_w < 3.2 * inch:
+    label_w = min(usable_width - box_w - gap, layout.COLORING_PROMPT_WIDTH_MAX * inch)
+    if label_w < layout.COLORING_PROMPT_WIDTH_MIN * inch:
         label_w = usable_width - box_w - gap
     draw_paragraph_box(
         c,
@@ -300,7 +303,7 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     c.setFillColor(black)
     footer_lift = 0
     if content_bottom and content_bottom > inch:
-        footer_lift = min(8, content_bottom - inch)
+        footer_lift = min(layout.FOOTER_LIFT_MAX, content_bottom - inch)
     c.drawRightString(width - margin, 0.32 * inch + footer_lift, f"FS-{verse_code}")
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
