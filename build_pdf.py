@@ -3,10 +3,8 @@ import json
 import re
 import unicodedata
 
-from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
-from reportlab.lib.colors import black, HexColor
+from reportlab.lib.colors import black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
@@ -14,14 +12,13 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfbase.pdfdoc import pdfdocEnc
 from reportlab.lib.utils import ImageReader
 
+from faithsparks.styles import layout
+
 # Register fonts
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
 pdfmetrics.registerFont(TTFont('LearningCurve', 'fonts/LearningCurveDashed-w4DP.ttf'))
 
-# Styles and layout constants
-LIGHT_GRAY = 0.95
-TRACE_BG = HexColor("#f9f9f9")
-line_spacing = 22
+line_spacing = layout.HANDWRITING_LINE_SPACING
 styles = getSampleStyleSheet()
 
 COLORING_STYLE = styles["Normal"].clone("ColoringPrompt")

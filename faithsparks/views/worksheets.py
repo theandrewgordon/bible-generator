@@ -352,10 +352,19 @@ def generate():
                 if not os.path.exists(pdf_path):
                     download_from_storage(f"worksheets/{os.path.basename(pdf_path)}", pdf_path)
 
+                if not os.path.exists(json_path):
+                    download_from_storage(f"worksheets/{os.path.basename(json_path)}", json_path)
+
                 if not is_custom and os.path.exists(pdf_path) and os.path.exists(json_path):
-                    context["skip"] = True
-                    _record_existing(pdf_path)
-                    continue
+                    try:
+                        with open(json_path, "r", encoding="utf-8") as cache_file:
+                            data = json.load(cache_file)
+                            context["data"] = data
+                            context["skip"] = True
+                            _record_existing(pdf_path)
+                            continue
+                    except Exception:
+                        pass
 
                 if is_custom:
                     context["data"] = {
