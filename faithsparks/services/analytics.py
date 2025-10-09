@@ -76,14 +76,16 @@ def close_db(_: object = None) -> None:
         g._analytics_db = None
 
 
-def _hash_key(ip: str, day: str) -> str:
-    token = f"{ip}-{day}".encode("utf-8", "ignore")
+def _hash_key(ip: str, ua: str, day: str) -> str:
+    normalized_ip = ip.strip() or "0.0.0.0"
+    ua_fragment = (ua or "")[:48]
+    token = f"{normalized_ip}-{ua_fragment}-{day}".encode("utf-8", "ignore")
     return sha256(token).hexdigest()[:16]
 
 
 def record_visit(ip: str, ua: str) -> None:
     today = date.today().isoformat()
-    anon_key = _hash_key(ip or "0.0.0.0", today)
+    anon_key = _hash_key(ip, ua, today)
     ts = int(time.time())
     truncated_ua = (ua or "")[:255]
     conn = get_db()

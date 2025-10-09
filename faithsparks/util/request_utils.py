@@ -1,5 +1,6 @@
 import json
 import re
+import ipaddress
 from typing import Any, Dict, Optional, Tuple
 
 from flask import current_app, g, request, session
@@ -52,9 +53,35 @@ def log_request_summary(where: str) -> None:
         request.headers.get("Content-Type"),
         request.headers.get("Content-Length"),
         user,
-        request.headers.get("X-Forwarded-For") or request.remote_addr,
+        get_client_ip(),
         where,
     )
+
+
+def _first_public_ip(header_value: str) -> Optional[str]:
+    if not header_value:
+        return None
+    candidates = [part.strip() for part in header_value.split(",") if part.strip()]
+    for candidate in candidates:
+        try:
+            ip_obj = ipaddress.ip_address(candidate)
+            if not (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_reserved):
+                return candidate
+        except ValueError:
+            continue
+    return candidates[0] if candidates else None
+
+
+def get_client_ip() -> str:
+    ip = request.headers.get("CF-Connecting-IP")
+    if ip:
+        return ip
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        candidate = _first_public_ip(forwarded)
+        if candidate:
+            return candidate
+    return request.remote_addr or "0.0.0.0"
 
 
 def extract_json_candidate(blob: str):

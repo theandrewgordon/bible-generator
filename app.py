@@ -35,6 +35,7 @@ from faithsparks.services.stripe_svc import (
 )
 from faithsparks.util.slug import normalize_slug
 from faithsparks.services import analytics as analytics_svc
+from faithsparks.util.request_utils import get_client_ip
 from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
 
 # --- App Setup ---
@@ -161,12 +162,7 @@ def track_visit():
     if endpoint == "static" or path.startswith("/static/"):
         return
     try:
-        ip = (
-            request.headers.get("CF-Connecting-IP")
-            or (request.headers.get("X-Forwarded-For", "").split(",")[0].strip())
-            or request.remote_addr
-            or "0.0.0.0"
-        )
+        ip = get_client_ip()
         ua = request.headers.get("User-Agent", "")
         analytics_svc.record_visit(ip, ua)
     except Exception:
