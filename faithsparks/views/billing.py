@@ -76,6 +76,19 @@ def _classify_price(price_id: str) -> Optional[Tuple[str, str]]:
     return PRICE_KIND_MAP.get(price_id.strip().lower())
 
 
+def _plan_display_label(plan: Optional[str], interval: Optional[str]) -> str:
+    base_map = {
+        "family": "Faith Sparks Plus Family",
+        "classroom": "Faith Sparks Plus Classroom",
+    }
+    interval_map = {"month": "Monthly", "year": "Annual"}
+    base = base_map.get(plan or "", "Faith Sparks Plus")
+    if interval:
+        pretty_interval = interval_map.get(interval, interval.title())
+        return f"{base} ({pretty_interval})"
+    return base
+
+
 def _trial_days_for(token: str, price_id: str) -> Optional[Tuple[int, str]]:
     kind = _trial_kind(token)
     if not kind:
@@ -394,7 +407,88 @@ def create_checkout_session():
 
 
 def plus_success():
-    return render_template("success.html")
+    plan_context = {
+        "title": "Faith Sparks Plus",
+        "amount": None,
+        "currency": "USD",
+        "interval": None,
+        "trial": False,
+        "trial_days": None,
+    }
+    session_id = (request.args.get("session_id") or "").strip()
+    if session_id and stripe and STRIPE_SECRET_KEY:
+        try:
+            checkout = stripe.checkout.Session.retrieve(
+                session_id,
+                expand=["line_items.data.price.product"],
+            )
+            metadata = checkout.get("metadata") or {}
+            line_items = (checkout.get("line_items") or {}).get("data") or []
+            line = line_items[0] if line_items else None
+            price_obj = (line.get("price") or {}) if line else {}
+            price_id = price_obj.get("id") or metadata.get("plan_price_id")
+            amount_total = line.get("amount_total") if line and line.get("amount_total") is not None else checkout.get("amount_total")
+            currency = (
+                (line.get("currency") if line else checkout.get("currency")) or "USD"
+            ).upper()
+            unit_amount = price_obj.get("unit_amount")
+            quantity = line.get("quantity") if line and line.get("quantity") else 1
+            plan_key = interval_key = None
+            if price_id:
+                classified = _classify_price(price_id)
+                if classified:
+                    plan_key, interval_key = classified
+            product = price_obj.get("product")
+            nickname = price_obj.get("nickname")
+            plan_title = None
+            if isinstance(product, dict):
+                plan_title = product.get("name")
+            if not plan_title and nickname:
+                plan_title = nickname
+            plan_title = plan_title or _plan_display_label(plan_key, interval_key)
+
+            value_amount = round(((amount_total or 0) / 100.0), 2)
+            trial_days_raw = metadata.get("trial_days")
+            try:
+                trial_days = int(trial_days_raw)
+            except (TypeError, ValueError):
+                trial_days = None
+
+            plan_context.update(
+                {
+                    "title": plan_title,
+                    "amount": value_amount,
+                    "currency": currency,
+                    "interval": interval_key,
+                    "trial": value_amount == 0.0,
+                    "trial_days": trial_days,
+                }
+            )
+
+            params = {
+                "value": value_amount,
+                "currency": currency,
+                "content_name": plan_title,
+                "num_items": quantity,
+            }
+            contents = []
+            if price_id:
+                params["content_ids"] = [price_id]
+                params["content_type"] = "product"
+                item = {"id": price_id, "quantity": quantity}
+                if unit_amount is not None:
+                    item["item_price"] = round(unit_amount / 100.0, 2)
+                contents.append(item)
+            if contents:
+                params["contents"] = contents
+            session["fb_purchase"] = {
+                "params": params,
+                "events": ["Purchase", "Subscribe"],
+                "eventID": session_id,
+            }
+        except Exception:
+            traceback.print_exc()
+    return render_template("plus_success.html", plan=plan_context)
 
 
 def billing_portal():
@@ -675,5 +769,59 @@ def buy_pack(slug):
 
 
 def buy_success(slug):
+    session_id = (request.args.get("session_id") or "").strip()
+    if session_id and stripe and STRIPE_SECRET_KEY:
+        try:
+            checkout = stripe.checkout.Session.retrieve(
+                session_id,
+                expand=["line_items.data.price.product"],
+            )
+            line_items = (checkout.get("line_items") or {}).get("data") or []
+            line = line_items[0] if line_items else None
+            price_obj = (line.get("price") or {}) if line else {}
+            price_id = price_obj.get("id")
+            unit_amount = price_obj.get("unit_amount")
+            quantity = line.get("quantity") if line and line.get("quantity") else 1
+            amount_total = line.get("amount_total") if line and line.get("amount_total") is not None else checkout.get("amount_total")
+            currency = (
+                (line.get("currency") if line else checkout.get("currency")) or "USD"
+            ).upper()
+            product_name = None
+            product = price_obj.get("product")
+            if isinstance(product, dict):
+                product_name = product.get("name")
+            value_amount = round(((amount_total or 0) / 100.0), 2)
+            params = {
+                "value": value_amount,
+                "currency": currency,
+                "num_items": quantity,
+            }
+            if price_id:
+                params["content_ids"] = [price_id]
+                params["content_type"] = "product"
+            contents = []
+            if price_id:
+                item = {"id": price_id, "quantity": quantity}
+                if unit_amount is not None:
+                    item["item_price"] = round(unit_amount / 100.0, 2)
+                contents.append(item)
+            if contents:
+                params["contents"] = contents
+            pack_title = None
+            if db:
+                try:
+                    doc = db.collection("collections").document(slug).get()
+                    if doc.exists:
+                        pack_title = (doc.to_dict() or {}).get("title")
+                except Exception:
+                    pack_title = None
+            params["content_name"] = product_name or pack_title or slug.replace("-", " ").title()
+            session["fb_purchase"] = {
+                "params": params,
+                "events": ["Purchase"],
+                "eventID": session_id,
+            }
+        except Exception:
+            traceback.print_exc()
     flash("Purchase successful. You can now download this pack.", "success")
     return redirect(url_for("browse_detail", slug=slug))

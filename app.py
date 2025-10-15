@@ -660,6 +660,7 @@ def admin_seed_collections():
 
 @app.context_processor
 def inject_helpers():
+    fb_purchase = session.pop('fb_purchase', None)
     try:
         email = session.get('user_email')
         is_pro = False
@@ -745,6 +746,7 @@ def inject_helpers():
             return datetime.now(timezone.utc).strftime('%Y-%m')
 
         return {
+            'fb_purchase': fb_purchase,
             'is_admin': is_admin_email(email),
             'is_signed_in': bool(email),
             'is_pro': is_pro,
@@ -764,6 +766,7 @@ def inject_helpers():
         }
     except Exception:
         return {
+            'fb_purchase': fb_purchase,
             'is_admin': False,
             'is_signed_in': False,
             'is_pro': False,

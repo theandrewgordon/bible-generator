@@ -63,14 +63,38 @@ collection=c.slug) %} {% endif %}
       >
       {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
       ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
+      {% set pack_amount = c.priceMeta.amount if c.priceMeta and c.priceMeta.amount is not none else 0 %}
+      {% set pack_currency = c.priceMeta.currency if c.priceMeta and c.priceMeta.currency else 'USD' %}
       {% if is_signed_in %}
-      <a class="button" href="{{ url_for('buy_pack', slug=c.slug) }}"
+      <a
+        class="button"
+        href="{{ url_for('buy_pack', slug=c.slug) }}"
+        data-fb-track="AddToCart,InitiateCheckout"
+        data-fb-value="{{ '%.2f'|format(pack_amount) }}"
+        data-fb-currency="{{ pack_currency }}"
+        data-fb-content-name="{{ c.title }}"
+        data-fb-content-type="product"
+        data-fb-num-items="1"
+        {% if pid %}
+        data-fb-content-ids="{{ pid }}"
+        data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
+        {% endif %}
         >💳 Buy {{ display_price }}</a
       >
       {% else %}
       <a
         class="button"
         href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}"
+        data-fb-track="AddToCart,InitiateCheckout"
+        data-fb-value="{{ '%.2f'|format(pack_amount) }}"
+        data-fb-currency="{{ pack_currency }}"
+        data-fb-content-name="{{ c.title }}"
+        data-fb-content-type="product"
+        data-fb-num-items="1"
+        {% if pid %}
+        data-fb-content-ids="{{ pid }}"
+        data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
+        {% endif %}
         >💳 Buy {{ display_price }}</a
       >
       {% endif %} {% endif %}

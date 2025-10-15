@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Welcome to Faith Sparks Plus{% endblock %}
+{% block head_extra %}
+<meta name="robots" content="noindex,follow" />
+{% endblock %}
+{% block content %}
+<section class="plus-success">
+  <h1 class="page-title">🎉 You're in!</h1>
+  <p>
+    Thanks for joining
+    <strong>{{ plan.title }}</strong>.
+  </p>
+  {% if plan.trial and plan.trial_days %}
+  <p>
+    Your {{ plan.trial_days }}-day free trial is active. We’ll email you before
+    the first charge.
+  </p>
+  {% elif plan.trial %}
+  <p>Your subscription is active. We’ll email you a receipt shortly.</p>
+  {% elif plan.amount is not none %}
+  <p>
+    We’ve confirmed your payment of
+    {{ plan.currency }} {{ '%.2f'|format(plan.amount) }}. A receipt is on its
+    way to your inbox.
+  </p>
+  {% endif %}
+  <p>
+    You can start printing right away—pick a pack below or head straight to the
+    generator.
+  </p>
+  <div class="cta-row">
+    <a class="button" href="{{ url_for('generate') }}">✍️ Generate Worksheets</a>
+    <a class="button ghost" href="{{ url_for('browse') }}">📚 Browse Packs</a>
+  </div>
+</section>
+{% endblock %}
+{% block extra_scripts %}
+<style>
+  .plus-success {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 2rem 0 3rem;
+    text-align: center;
+  }
+  .plus-success p {
+    margin: 0.6rem 0;
+    font-size: 1.05rem;
+  }
+  .plus-success .cta-row {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .plus-success .cta-row .button {
+    min-width: 220px;
+  }
+</style>
+{% endblock %}

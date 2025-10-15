@@ -177,7 +177,21 @@ site_content.plus_banner_text %}
       fam.annual) %} {% if is_signed_in %}
       <div class="btnrow">
         {% if fam.monthly %}
-        <form method="post" action="{{ url_for('create_checkout_session') }}">
+        {% set fam_month_meta = meta.family.monthly if meta.family.monthly else None %}
+        {% set fam_month_amount = fam_month_meta.amount if fam_month_meta and fam_month_meta.amount is not none else 0 %}
+        {% set fam_month_currency = fam_month_meta.currency if fam_month_meta and fam_month_meta.currency else 'USD' %}
+        <form
+          method="post"
+          action="{{ url_for('create_checkout_session') }}"
+          data-fb-track="AddToCart,InitiateCheckout"
+          data-fb-value="{{ '%.2f'|format(fam_month_amount) }}"
+          data-fb-currency="{{ fam_month_currency }}"
+          data-fb-content-name="Plus Family Monthly"
+          data-fb-content-type="product"
+          data-fb-num-items="1"
+          data-fb-content-ids="{{ fam.monthly }}"
+          data-fb-contents='{{ [{"id": fam.monthly, "quantity": 1, "item_price": fam_month_amount}]|tojson }}'
+        >
           <input type="hidden" name="price_id" value="{{ fam.monthly }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           {% if trial_unlocked %}
@@ -189,7 +203,21 @@ site_content.plus_banner_text %}
           </button>
         </form>
         {% endif %} {% if fam.annual %}
-        <form method="post" action="{{ url_for('create_checkout_session') }}">
+        {% set fam_year_meta = meta.family.annual if meta.family.annual else None %}
+        {% set fam_year_amount = fam_year_meta.amount if fam_year_meta and fam_year_meta.amount is not none else 0 %}
+        {% set fam_year_currency = fam_year_meta.currency if fam_year_meta and fam_year_meta.currency else 'USD' %}
+        <form
+          method="post"
+          action="{{ url_for('create_checkout_session') }}"
+          data-fb-track="AddToCart,InitiateCheckout"
+          data-fb-value="{{ '%.2f'|format(fam_year_amount) }}"
+          data-fb-currency="{{ fam_year_currency }}"
+          data-fb-content-name="Plus Family Annual"
+          data-fb-content-type="product"
+          data-fb-num-items="1"
+          data-fb-content-ids="{{ fam.annual }}"
+          data-fb-contents='{{ [{"id": fam.annual, "quantity": 1, "item_price": fam_year_amount}]|tojson }}'
+        >
           <input type="hidden" name="price_id" value="{{ fam.annual }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           {% if trial_unlocked %}
@@ -207,7 +235,21 @@ site_content.plus_banner_text %}
         <p class="plan-trial-note">Annual billing starts after your 30-day free trial.</p>
         {% endif %}
         {% endif %} {% if not fam.monthly and not fam.annual and fam.single %}
-        <form method="post" action="{{ url_for('create_checkout_session') }}">
+        {% set fam_single_meta = meta.family.monthly if meta.family.monthly else None %}
+        {% set fam_single_amount = fam_single_meta.amount if fam_single_meta and fam_single_meta.amount is not none else 0 %}
+        {% set fam_single_currency = fam_single_meta.currency if fam_single_meta and fam_single_meta.currency else 'USD' %}
+        <form
+          method="post"
+          action="{{ url_for('create_checkout_session') }}"
+          data-fb-track="AddToCart,InitiateCheckout"
+          data-fb-value="{{ '%.2f'|format(fam_single_amount) }}"
+          data-fb-currency="{{ fam_single_currency }}"
+          data-fb-content-name="Plus Family"
+          data-fb-content-type="product"
+          data-fb-num-items="1"
+          data-fb-content-ids="{{ fam.single }}"
+          data-fb-contents='{{ [{"id": fam.single, "quantity": 1, "item_price": fam_single_amount}]|tojson }}'
+        >
           <input type="hidden" name="price_id" value="{{ fam.single }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           <button class="button wide">Checkout</button>
@@ -250,7 +292,21 @@ site_content.plus_banner_text %}
       cls.annual) %} {% if is_signed_in %}
       <div class="btnrow">
         {% if cls.monthly %}
-        <form method="post" action="{{ url_for('create_checkout_session') }}">
+        {% set cls_month_meta = meta.classroom.monthly if meta.classroom.monthly else None %}
+        {% set cls_month_amount = cls_month_meta.amount if cls_month_meta and cls_month_meta.amount is not none else 0 %}
+        {% set cls_month_currency = cls_month_meta.currency if cls_month_meta and cls_month_meta.currency else 'USD' %}
+        <form
+          method="post"
+          action="{{ url_for('create_checkout_session') }}"
+          data-fb-track="AddToCart,InitiateCheckout"
+          data-fb-value="{{ '%.2f'|format(cls_month_amount) }}"
+          data-fb-currency="{{ cls_month_currency }}"
+          data-fb-content-name="Plus Classroom Monthly"
+          data-fb-content-type="product"
+          data-fb-num-items="1"
+          data-fb-content-ids="{{ cls.monthly }}"
+          data-fb-contents='{{ [{"id": cls.monthly, "quantity": 1, "item_price": cls_month_amount}]|tojson }}'
+        >
           <input type="hidden" name="price_id" value="{{ cls.monthly }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           {% if trial_unlocked %}
@@ -262,7 +318,21 @@ site_content.plus_banner_text %}
           </button>
         </form>
         {% endif %} {% if cls.annual %}
-        <form method="post" action="{{ url_for('create_checkout_session') }}">
+        {% set cls_year_meta = meta.classroom.annual if meta.classroom.annual else None %}
+        {% set cls_year_amount = cls_year_meta.amount if cls_year_meta and cls_year_meta.amount is not none else 0 %}
+        {% set cls_year_currency = cls_year_meta.currency if cls_year_meta and cls_year_meta.currency else 'USD' %}
+        <form
+          method="post"
+          action="{{ url_for('create_checkout_session') }}"
+          data-fb-track="AddToCart,InitiateCheckout"
+          data-fb-value="{{ '%.2f'|format(cls_year_amount) }}"
+          data-fb-currency="{{ cls_year_currency }}"
+          data-fb-content-name="Plus Classroom Annual"
+          data-fb-content-type="product"
+          data-fb-num-items="1"
+          data-fb-content-ids="{{ cls.annual }}"
+          data-fb-contents='{{ [{"id": cls.annual, "quantity": 1, "item_price": cls_year_amount}]|tojson }}'
+        >
           <input type="hidden" name="price_id" value="{{ cls.annual }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           {% if trial_unlocked %}
@@ -280,7 +350,21 @@ site_content.plus_banner_text %}
         <p class="plan-trial-note">Annual billing starts after your 30-day free trial.</p>
         {% endif %}
         {% endif %} {% if not cls.monthly and not cls.annual and cls.single %}
-        <form method="post" action="{{ url_for('create_checkout_session') }}">
+        {% set cls_single_meta = meta.classroom.monthly if meta.classroom.monthly else None %}
+        {% set cls_single_amount = cls_single_meta.amount if cls_single_meta and cls_single_meta.amount is not none else 0 %}
+        {% set cls_single_currency = cls_single_meta.currency if cls_single_meta and cls_single_meta.currency else 'USD' %}
+        <form
+          method="post"
+          action="{{ url_for('create_checkout_session') }}"
+          data-fb-track="AddToCart,InitiateCheckout"
+          data-fb-value="{{ '%.2f'|format(cls_single_amount) }}"
+          data-fb-currency="{{ cls_single_currency }}"
+          data-fb-content-name="Plus Classroom"
+          data-fb-content-type="product"
+          data-fb-num-items="1"
+          data-fb-content-ids="{{ cls.single }}"
+          data-fb-contents='{{ [{"id": cls.single, "quantity": 1, "item_price": cls_single_amount}]|tojson }}'
+        >
           <input type="hidden" name="price_id" value="{{ cls.single }}" />
           <input type="hidden" name="promo" value="{{ promo_label or '' }}" />
           <button class="button wide">Checkout</button>

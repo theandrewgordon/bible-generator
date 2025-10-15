@@ -267,6 +267,100 @@
       fbq("init", "{{ _meta_pixel_id }}");
       fbq("track", "PageView");
     </script>
+    <script>
+      window.__META_PIXEL_ENABLED__ = true;
+      window.trackFbEvent = function (eventName, params, options) {
+        try {
+          if (typeof fbq !== "function") return;
+          const payload = params || {};
+          if (options && options.eventID) {
+            fbq("track", eventName, payload, { eventID: options.eventID });
+          } else {
+            fbq("track", eventName, payload);
+          }
+        } catch (err) {
+          if (window.console && typeof window.console.debug === "function") {
+            window.console.debug("Meta Pixel track error", err);
+          }
+        }
+      };
+      (function () {
+        if (!window.__META_PIXEL_ENABLED__) return;
+        function buildParams(el) {
+          const params = {};
+          const cur = el.dataset.fbCurrency || "USD";
+          if (cur) params.currency = cur;
+          if (el.dataset.fbValue) {
+            const parsed = Number.parseFloat(el.dataset.fbValue);
+            if (!Number.isNaN(parsed)) params.value = parsed;
+          }
+          if (el.dataset.fbContentName) {
+            params.content_name = el.dataset.fbContentName;
+          }
+          const ids = el.dataset.fbContentIds;
+          if (ids) {
+            const list = ids
+              .split(",")
+              .map((id) => id.trim())
+              .filter(Boolean);
+            if (list.length) {
+              params.content_ids = list;
+              params.content_type = el.dataset.fbContentType || "product";
+            }
+          }
+          if (el.dataset.fbNumItems) {
+            const qty = Number.parseInt(el.dataset.fbNumItems, 10);
+            if (!Number.isNaN(qty)) params.num_items = qty;
+          }
+          if (el.dataset.fbContents) {
+            try {
+              const arr = JSON.parse(el.dataset.fbContents);
+              if (Array.isArray(arr) && arr.length) {
+                params.contents = arr;
+              }
+            } catch (e) {
+              /* ignore malformed JSON */
+            }
+          }
+          return params;
+        }
+        function fire(el) {
+          if (typeof window.trackFbEvent !== "function") return;
+          const attr = el.dataset.fbTrack || "";
+          if (!attr) return;
+          const events = attr
+            .split(",")
+            .map((evt) => evt.trim())
+            .filter(Boolean);
+          if (!events.length) return;
+          const params = buildParams(el);
+          const options = el.dataset.fbEventId
+            ? { eventID: el.dataset.fbEventId }
+            : undefined;
+          events.forEach((evt) => window.trackFbEvent(evt, params, options));
+        }
+        function bind(el) {
+          const trigger =
+            el.dataset.fbTrigger || (el.tagName === "FORM" ? "submit" : "click");
+          const once = el.dataset.fbOnce !== "false";
+          const handler = () => {
+            fire(el);
+            if (once) {
+              el.removeEventListener(trigger, handler);
+            }
+          };
+          el.addEventListener(trigger, handler);
+        }
+        function init() {
+          document.querySelectorAll("[data-fb-track]").forEach(bind);
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", init);
+        } else {
+          init();
+        }
+      })();
+    </script>
     <!-- End Meta Pixel Code -->
     {% endif %}
 
@@ -357,6 +451,27 @@
         alt=""
       />
     </noscript>
+    {% endif %}
+    {% if _meta_pixel_enabled and fb_purchase %}
+    <script>
+      (function () {
+        const data = {{ fb_purchase|tojson }};
+        const fire = () => {
+          if (typeof window.trackFbEvent !== "function") return;
+          const events = Array.isArray(data.events) && data.events.length
+            ? data.events
+            : ["Purchase"];
+          const params = data.params || {};
+          const options = data.eventID ? { eventID: data.eventID } : undefined;
+          events.forEach((evt) => window.trackFbEvent(evt, params, options));
+        };
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", fire, { once: true });
+        } else {
+          fire();
+        }
+      })();
+    </script>
     {% endif %}
 
     <a href="#maincontent" class="skip-link">Skip to content</a>
