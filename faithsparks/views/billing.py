@@ -414,6 +414,7 @@ def plus_success():
         "interval": None,
         "trial": False,
         "trial_days": None,
+        "plan_key": None,
     }
     session_id = (request.args.get("session_id") or "").strip()
     if session_id and stripe and STRIPE_SECRET_KEY:
@@ -462,6 +463,7 @@ def plus_success():
                     "interval": interval_key,
                     "trial": value_amount == 0.0,
                     "trial_days": trial_days,
+                    "plan_key": plan_key,
                 }
             )
 
@@ -471,6 +473,12 @@ def plus_success():
                 "content_name": plan_title,
                 "num_items": quantity,
             }
+            if plan_key:
+                params["subscription_plan"] = plan_key
+            if interval_key:
+                params["subscription_interval"] = interval_key
+            if trial_days is not None:
+                params["trial_days"] = trial_days
             contents = []
             if price_id:
                 params["content_ids"] = [price_id]
@@ -481,9 +489,12 @@ def plus_success():
                 contents.append(item)
             if contents:
                 params["contents"] = contents
+            events = ["Purchase", "Subscribe"]
+            if plan_context["trial"]:
+                events.append("StartTrial")
             session["fb_purchase"] = {
                 "params": params,
-                "events": ["Purchase", "Subscribe"],
+                "events": events,
                 "eventID": session_id,
             }
         except Exception:
@@ -795,6 +806,7 @@ def buy_success(slug):
                 "value": value_amount,
                 "currency": currency,
                 "num_items": quantity,
+                "content_category": "Pack",
             }
             if price_id:
                 params["content_ids"] = [price_id]

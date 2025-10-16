@@ -264,7 +264,11 @@
         s = b.getElementsByTagName(e)[0];
         s.parentNode.insertBefore(t, s);
       })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+      {% if fb_user_match %}
+      fbq("init", "{{ _meta_pixel_id }}", { em: "{{ fb_user_match }}" });
+      {% else %}
       fbq("init", "{{ _meta_pixel_id }}");
+      {% endif %}
       fbq("track", "PageView");
     </script>
     <script>
