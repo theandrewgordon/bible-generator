@@ -1,39 +1,31 @@
-{% extends "base.html" %} {% block title %}Bible Copywork Worksheets for
-Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
+{% extends "base.html" %}
+{% block title %}Bible Copywork Worksheets for Homeschool & Church | Faith Sparks{% endblock %}
+
+{% block head_extra %}
 <meta
   name="description"
-  content="Create printable Bible copywork worksheets (ESV or KJV by default; override with a translation tag) for Christian homeschool, co-ops, and Sunday school. Optional cursive tracing, kid-friendly layouts, and easy regeneration."
+  content="Create printable Bible copywork worksheets (ESV, KJV, or your own translation tag) for Christian homeschool, co-ops, and children’s ministry. Ready-to-print PDFs with tracing, copywork, and reflection prompts."
 />
 
 <!-- Open Graph / Twitter -->
-<meta
-  property="og:title"
-  content="Bible Copywork Worksheets for Homeschool & Church"
-/>
+<meta property="og:title" content="Bible Copywork Worksheets for Homeschool & Church" />
 <meta property="og:site_name" content="Faith Sparks Printables" />
 <meta
   property="og:description"
-  content="Make simple, beautiful Bible copywork for homeschool and church classes. Free starter plan; Plus unlocks more."
+  content="Make beautiful Bible copywork in seconds. Free starter plan plus subscriber-only packs for homeschool families and classrooms."
 />
 <meta property="og:type" content="website" />
-<meta
-  property="og:url"
-  content="{{ request.url_root.rstrip('/') ~ request.path }}"
-/>
+<meta property="og:url" content="{{ request.url_root.rstrip('/') ~ request.path }}" />
 <meta
   property="og:image"
-  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='hero_john_316.png') }}"
+  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='CopyworkStock/Copywork1.png') }}"
 />
-<meta
-  property="og:image:alt"
-  content="Preview of a John 3:16 Bible copywork worksheet"
-/>
-<meta property="og:image:width" content="360" />
-<meta property="og:image:height" content="465" />
+<meta property="og:image:width" content="2400" />
+<meta property="og:image:height" content="1350" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta
   name="twitter:image"
-  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='hero_john_316.png') }}"
+  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='CopyworkStock/Copywork1.png') }}"
 />
 
 <!-- Schema.org -->
@@ -60,72 +52,218 @@ Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
   }
 </script>
 
+{% set hero_images = [
+  url_for('static', filename='CopyworkStock/Copywork1.png'),
+  url_for('static', filename='CopyworkStock/Copywork2.png'),
+  url_for('static', filename='CopyworkStock/Copywork3.png'),
+  url_for('static', filename='CopyworkStock/Copywork4.png'),
+  url_for('static', filename='CopyworkStock/Copywork5.png')
+] %}
+
 <!-- Preload hero for faster LCP -->
 <link
   rel="preload"
   as="image"
-  href="{{ url_for('static', filename='hero_john_316.png') }}"
-  imagesrcset="{{ url_for('static', filename='hero_john_316.png') }}"
-  imagesizes="(max-width: 860px) 60vw, 360px"
+  href="{{ hero_images[0] }}"
+  imagesrcset="{{ hero_images[0] }}"
+  imagesizes="(max-width: 860px) 100vw, 50vw"
 />
 
-<!-- Small page-local layout guard so the art never overlaps buttons -->
+<!-- Homepage hero + sections -->
 <style>
-  .hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 380px;
-    gap: 1.25rem;
-    align-items: center;
+  .hero-rotator {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    min-height: clamp(420px, 65vh, 560px);
+    display: flex;
+    align-items: flex-end;
+    padding: clamp(1.75rem, 3vw, 2.75rem);
+    color: #fff;
+    box-shadow: 0 18px 60px rgba(15, 23, 42, 0.25);
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
   }
-  .hero-text {
-    min-width: 0;
+  .hero-rotator .hero-media {
+    position: absolute;
+    inset: 0;
+    background-position: center;
+    background-size: cover;
+    transition: opacity 0.9s ease;
+  }
+  .hero-media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.7), rgba(14, 165, 233, 0.35));
+  }
+  .hero-media.hero-media--hidden {
+    opacity: 0;
+  }
+  .hero-media.hero-media--visible {
+    opacity: 1;
+  }
+  .hero-rotator .hero-content {
+    position: relative;
+    max-width: 520px;
+    z-index: 1;
+  }
+  .hero-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.35);
+    margin-bottom: 0.75rem;
+  }
+  .hero-title {
+    font-size: clamp(2.1rem, 4vw, 3rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin: 0 0 0.65rem;
+  }
+  .hero-sub {
+    font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+    margin-bottom: 1.2rem;
   }
   .hero .cta-row {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.7rem;
     flex-wrap: wrap;
-    margin-top: 0.75rem;
   }
   .hero .button.primary {
-    background: #4caf50;
-    border-color: #3a863d;
+    background: #10b981;
+    border-color: #0d9466;
     color: #fff;
+    font-weight: 700;
+    padding: 0.85rem 1.4rem;
   }
   .hero .button.primary:hover {
-    background: #43a047;
-    border-color: #2e7d32;
+    background: #0ea271;
+    border-color: #0c7f57;
+  }
+  .hero .button.ghost {
+    border-color: rgba(255, 255, 255, 0.65);
+    color: #fff;
+  }
+  .hero-stat-row {
+    margin-top: clamp(1.4rem, 2vw, 1.8rem);
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .hero-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .hero-stat strong {
+    font-size: 1.4rem;
+    font-weight: 800;
+  }
+  .hero-stat span {
+    font-size: 0.9rem;
+    opacity: 0.9;
   }
   .cta-note {
     margin-top: 0.4rem;
+    color: rgba(255, 255, 255, 0.92);
   }
-  .hero-features {
-    margin-top: 2rem;
+
+  .value-props {
     display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.1rem;
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
   }
-  .hero-feature {
+  .value-card {
     padding: 1rem;
-    border-radius: 12px;
+    border-radius: 16px;
     background: var(--box, #fff);
-    box-shadow: var(--card-shadow, 0 10px 25px rgba(15, 23, 42, 0.08));
+    box-shadow: var(--card-shadow);
   }
-  .hero-feature h3 {
+  .value-card h3 {
     font-size: 1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
-  .hero-feature p {
+  .value-card p {
     margin: 0;
+    font-size: 0.95rem;
   }
-  .hero-art img {
-    max-width: 100%;
+
+  .testimonial-band {
+    padding: clamp(2rem, 3.5vw, 2.75rem);
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(56, 189, 248, 0.18));
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
+  }
+  .testimonial-band h2 {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    text-align: center;
+  }
+  .testimonial-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.2rem;
+  }
+  .testimonial-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 1.1rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  }
+  .testimonial-card p {
+    margin: 0 0 0.8rem;
+    font-size: 0.95rem;
+  }
+  .testimonial-author {
+    font-weight: 600;
+  }
+
+  .how-it-works {
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
+  }
+  .how-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.2rem;
+  }
+  .how-step {
+    padding: 1.2rem;
+    border-radius: 16px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--box, #fff);
+  }
+  .how-step h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.05rem;
+  }
+
+  .about-band {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: center;
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
+  }
+  .about-band img {
+    border-radius: 18px;
+    width: 100%;
     height: auto;
+    box-shadow: var(--card-shadow);
   }
+
   .seasonal-preview {
-    margin-top: 1rem;
+    margin-top: 1.5rem;
     padding: 0.75rem 1rem;
     border-radius: 12px;
     border: 1px solid rgba(15, 23, 42, 0.15);
@@ -147,6 +285,7 @@ Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
       margin-left: 0;
     }
   }
+
   .gift-preview {
     margin-top: 1.5rem;
     padding: 1rem;
@@ -168,133 +307,228 @@ Homeschool & Church | Faith Sparks{% endblock %} {% block head_extra %}
     font-weight: 600;
     cursor: pointer;
   }
+
   @media (max-width: 860px) {
-    .hero {
-      grid-template-columns: 1fr;
+    .hero-rotator {
+      min-height: 440px;
+      padding: 1.75rem;
     }
-    .hero-art {
-      order: -1;
-      justify-self: start;
-      margin-bottom: 0.5rem;
+    .hero-stat-row {
+      gap: 1rem;
     }
-    .hero-features {
+  }
+  @media (max-width: 640px) {
+    .hero .cta-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .about-band {
       grid-template-columns: 1fr;
     }
   }
 </style>
-{% endblock %} {% block content %}
-<section class="hero">
-  <div class="hero-text">
+{% endblock %}
+
+{% block content %}
+<section
+  class="hero hero-rotator"
+  data-hero-images='{{ hero_images|tojson }}'
+  aria-label="Families using Faith Sparks printable Bible copywork worksheets"
+>
+  <div class="hero-media hero-media--visible" style="background-image: url('{{ hero_images[0] }}')"></div>
+  <div class="hero-media hero-media--hidden hero-media--next"></div>
+  <div class="hero-content">
+    <span class="hero-kicker">Homeschool Bible copywork</span>
     <h1 class="hero-title">
-      {{ (site_content.home_title or 'Free Printable Bible Copywork Worksheets') if
-      site_content else 'Free Printable Bible Copywork Worksheets' }}
+      {{ (site_content.home_title or 'Free Printable Bible Copywork Worksheets') if site_content else 'Free Printable Bible Copywork Worksheets' }}
     </h1>
     <p class="hero-sub">
-      {{ (site_content.home_subtitle or 'Fun, faith-based handwriting practice for ages 6–12 — one verse at a time.') if site_content else 'Fun, faith-based handwriting practice for ages 6–12 — one verse at a time.' }}
+      {{ (site_content.home_subtitle or 'Fun, faith-based handwriting practice for ages 6–12—one verse at a time.') if site_content else 'Fun, faith-based handwriting practice for ages 6–12—one verse at a time.' }}
     </p>
-    <p class="muted small">
-      Try the Free Starter Pack, then upgrade to Plus Family or Classroom when
-      you’re ready for more.
-    </p>
-
     <div class="cta-row">
-      <a class="button primary" href="{{ url_for('generate') }}"
-        >🖨️ Start Your Free Worksheet</a
-      >
-      <a class="button ghost" href="{{ url_for('history') }}"
-        >📚 View History</a
-      >
-      <a class="button ghost" href="{{ url_for('browse') }}">🗂️ Browse Packs</a>
+      <a class="button primary" href="{{ url_for('generate') }}">Start free worksheets</a>
+      <a class="button ghost" href="{{ url_for('browse') }}">Browse packs</a>
     </div>
-    <p class="muted tiny cta-note">No sign-up needed — start with a free verse today.</p>
-  </div>
-
-  <div class="hero-art" aria-hidden="true">
-    <img
-      src="{{ url_for('static', filename='hero_john_316.png') }}"
-      alt="Bible copywork worksheet preview for John 3:16"
-      width="360"
-      height="465"
-      decoding="async"
-      loading="eager"
-      fetchpriority="high"
-      style="
-        display: block;
-        border-radius: 12px;
-        box-shadow: var(--card-shadow);
-      "
-    />
+    <div class="hero-stat-row">
+      <div class="hero-stat">
+        <strong>{{ site_content.home_stat_families or '1,200+' }}</strong>
+        <span>families practicing weekly</span>
+      </div>
+      <div class="hero-stat">
+        <strong>{{ site_content.home_stat_worksheets or '6,500+' }}</strong>
+        <span>worksheets created this month</span>
+      </div>
+      <div class="hero-stat">
+        <strong>{{ site_content.home_stat_rating or '4.9 ★' }}</strong>
+        <span>parents say it saves prep time</span>
+      </div>
+    </div>
+    <p class="muted small cta-note">
+      Free Starter Pack included—upgrade to Plus Family or Classroom when you’re ready for more.
+    </p>
   </div>
 </section>
 
-<section class="hero-features" aria-label="How it works">
-  <article class="hero-feature">
-    <h3>✏️ Trace the Verse</h3>
-    <p>Kids build handwriting confidence as they trace dotted letters in a kid-friendly layout.</p>
+<section class="value-props">
+  <article class="value-card">
+    <h3>✍️ Open-and-go lessons</h3>
+    <p>Generate handwriting practice in seconds—tracing, copywork lines, and themed packs for every season.</p>
   </article>
-  <article class="hero-feature">
-    <h3>✍️ Write It Yourself</h3>
-    <p>Blank lines encourage copywork practice and scripture memorization one verse at a time.</p>
+  <article class="value-card">
+    <h3>📖 Rooted in scripture</h3>
+    <p>Choose verses by book, topic, or paste your own. Add tags like <code>[KJV]</code> or <code>[cursive]</code> to customize instantly.</p>
   </article>
-  <article class="hero-feature">
-    <h3>💭 Reflect &amp; Color</h3>
-    <p>Prompts spark short reflections and a coloring box keeps younger learners engaged.</p>
+  <article class="value-card">
+    <h3>🏡 Built for homeschool life</h3>
+    <p>Print for home, co-ops, or children’s ministry. Plus unlocks subscriber-only packs and generous monthly limits.</p>
   </article>
+</section>
+
+<section class="testimonial-band">
+  <h2>Families are weaving scripture into daily handwriting</h2>
+  <div class="testimonial-grid">
+    <div class="testimonial-card">
+      <p>“We replaced a whole handwriting workbook with Faith Sparks. My 9-year-old now asks for copywork first thing.”</p>
+      <div class="testimonial-author">— Megan T., homeschool mom of 3</div>
+    </div>
+    <div class="testimonial-card">
+      <p>“It takes two minutes to prep lessons for our Wednesday night class. The ready-made packs are a lifesaver.”</p>
+      <div class="testimonial-author">— Pastor James, children’s ministry</div>
+    </div>
+    <div class="testimonial-card">
+      <p>“My handwriting-resistant son is excited because the pages feel like they were made for him.”</p>
+      <div class="testimonial-author">— Laura P., Charlotte Mason homeschool</div>
+    </div>
+  </div>
+</section>
+
+<section class="how-it-works">
+  <h2>How Faith Sparks works</h2>
+  <div class="how-grid">
+    <article class="how-step">
+      <h3>1. Pick the verses</h3>
+      <p>Search the library, choose a themed pack, or paste your own scripture. Add translation or cursive tags on the fly.</p>
+    </article>
+    <article class="how-step">
+      <h3>2. Generate & tailor</h3>
+      <p>Instantly preview handwriting lines and tracing prompts. Adjust difficulty for each child with a single click.</p>
+    </article>
+    <article class="how-step">
+      <h3>3. Print for the week</h3>
+      <p>Download crisp PDFs for binders or clipboards. Revisit any worksheet from your history whenever you need a refresh.</p>
+    </article>
+  </div>
+</section>
+
+<section class="about-band">
+  <div>
+    <h2>Who we are</h2>
+    <p>
+      Hi, I’m Andrew—homeschool helper, dad, and creator of Faith Sparks. We built this because we needed copywork that felt simple, beautiful, and fast to prep for our own family.
+    </p>
+    <p>
+      Every feature comes from conversations with other Christian homeschool parents. We’re right here with you, cheering your family on.
+    </p>
+    <div class="cta-row">
+      <a class="button primary" href="{{ url_for('generate') }}">Start free worksheets</a>
+      <a class="button ghost" href="{{ url_for('about') }}">Meet the team</a>
+    </div>
+  </div>
+  <picture>
+    <source srcset="{{ url_for('static', filename='CopyworkStock/Copywork2.png') }}" media="(min-width: 640px)" />
+    <img
+      src="{{ url_for('static', filename='CopyworkStock/Copywork3.png') }}"
+      alt="Family gathered around the table completing Bible copywork together"
+      loading="lazy"
+      width="640"
+      height="480"
+    />
+  </picture>
 </section>
 
 {% set seasonal_banner = site_content.home_seasonal_banner if site_content else None %}
-<section class="seasonal-preview block" role="note">
+<section class="seasonal-preview" role="note">
   <strong>Seasonal spotlight:</strong>
-  {{ seasonal_banner or 'Advent & Christmas copywork sets are live — preview the festive theme without logging in.' }}
-  <a class="button small ghost" href="{{ url_for('browse', q='advent') }}"
-    >View seasonal packs</a
-  >
+  {{ seasonal_banner or 'Advent & Christmas copywork sets are live—preview the festive theme without logging in.' }}
+  <a class="button small ghost" href="{{ url_for('browse', q='advent') }}">View seasonal packs</a>
 </section>
 
 <section class="prose" style="margin-top: 1.25rem">
-  <h2 style="margin-top: 0">
-    Bible copywork for homeschool & children’s ministry
-  </h2>
+  <h2 style="margin-top: 0">Bible copywork for homeschool & children’s ministry</h2>
   <p>
-    Build <a href="{{ url_for('generate') }}">Bible copywork worksheets</a> from
-    any verse. Pick ESV or KJV in the dropdown, or override by tagging a verse
-    reference with a translation code in parentheses. Choose manuscript or
-    cursive tracing, then download print-ready PDFs. Browse curated
-    <a href="{{ url_for('browse') }}">copywork collections</a> or regenerate
-    past worksheets from your <a href="{{ url_for('history') }}">history</a>.
+    Build <a href="{{ url_for('generate') }}">Bible copywork worksheets</a> from any verse. Pick ESV or KJV in the dropdown, or override by tagging a verse reference with a translation code in parentheses. Choose manuscript or cursive tracing, then download print-ready PDFs. Browse curated <a href="{{ url_for('browse') }}">copywork collections</a> or regenerate favorites from your <a href="{{ url_for('history') }}">history</a>.
   </p>
   <ul>
     <li>Designed for Christian homeschool, church classes, and co-ops</li>
     <li>Kid-friendly layout with optional coloring prompts</li>
-    <li>Free starter plan; Plus unlocks larger packs and ZIPs</li>
+    <li>Free starter plan; Plus unlocks larger packs and ZIP downloads</li>
   </ul>
 </section>
 
-<section class="gift-preview block">
+<section class="gift-preview">
   <h3>Gift Faith Sparks Plus</h3>
   <p>
     Share printable Bible copywork with another family. Email
-    <a href="mailto:hello@faithsparksprintables.com"
-      >hello@faithsparksprintables.com</a
-    > to send a digital gift membership.
+    <a href="mailto:hello@faithsparksprintables.com">hello@faithsparksprintables.com</a>
+    to send a digital gift membership.
   </p>
 </section>
 
-<section class="faq-public block">
+<section class="faq-public">
   <h3>FAQs</h3>
-  <details>
-    <summary>How do I use these worksheets?</summary>
-    <p class="muted">
-      Generate a worksheet, print it at home, and let kids trace or copy the
-      verse. Use the reflection prompt for family discussion or journaling.
-    </p>
-  </details>
   <details>
     <summary>Do I need a subscription?</summary>
     <p class="muted">
-      Start with the free tier for the starter pack and monthly generates. Upgrade
-      to Plus anytime for bigger limits and subscriber collections.
+      Start with the free tier for the starter pack and monthly generates. Upgrade to Plus anytime for bigger limits and subscriber-only collections.
+    </p>
+  </details>
+  <details>
+    <summary>How do I use these worksheets?</summary>
+    <p class="muted">
+      Generate a worksheet, print it at home, and let kids trace or copy the verse. Use the reflection prompt for family discussion or journaling.
     </p>
   </details>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const hero = document.querySelector(".hero-rotator");
+    if (!hero) return;
+    let images = [];
+    try {
+      images = JSON.parse(hero.dataset.heroImages || "[]");
+    } catch (_) {
+      images = [];
+    }
+    if (!Array.isArray(images) || images.length < 2) return;
+
+    const current = hero.querySelector(".hero-media--visible");
+    const next = hero.querySelector(".hero-media--next");
+    if (!current || !next) return;
+
+    let index = 0;
+    const intervalMs = 6500;
+
+    setInterval(() => {
+      const nextIndex = (index + 1) % images.length;
+      next.style.backgroundImage = `url('${images[nextIndex]}')`;
+      next.classList.remove("hero-media--hidden");
+      next.classList.add("hero-media--visible");
+      current.classList.remove("hero-media--visible");
+      current.classList.add("hero-media--hidden");
+
+      setTimeout(() => {
+        current.style.backgroundImage = next.style.backgroundImage;
+        current.classList.remove("hero-media--hidden");
+        current.classList.add("hero-media--visible");
+        next.classList.remove("hero-media--visible");
+        next.classList.add("hero-media--hidden");
+      }, 900);
+
+      index = nextIndex;
+    }, intervalMs);
+  })();
+</script>
 {% endblock %}
