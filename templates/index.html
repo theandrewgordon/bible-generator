@@ -158,11 +158,23 @@
   }
   .hero-stat {
     display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    background: rgba(15, 23, 42, 0.25);
+    padding: 0.55rem 0.8rem;
+    border-radius: 12px;
+  }
+  .hero-stat-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+  .hero-stat-content {
+    display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    line-height: 1.2;
   }
   .hero-stat strong {
-    font-size: 1.4rem;
+    font-size: 1.35rem;
     font-weight: 800;
   }
   .hero-stat span {
@@ -174,6 +186,13 @@
     color: rgba(255, 255, 255, 0.92);
   }
 
+  .section-muted {
+    background: linear-gradient(135deg, #f8fbff 0%, #f4f6fb 100%);
+    border-radius: 28px;
+    padding: clamp(2.2rem, 3.5vw, 3rem);
+    margin-bottom: clamp(2.8rem, 4vw, 4rem);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  }
   .value-props {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -185,6 +204,7 @@
     border-radius: 16px;
     background: var(--box, #fff);
     box-shadow: var(--card-shadow);
+    border: 1px solid rgba(15, 23, 42, 0.05);
   }
   .value-card h3 {
     font-size: 1rem;
@@ -200,9 +220,9 @@
 
   .testimonial-band {
     padding: clamp(2rem, 3.5vw, 2.75rem);
-    border-radius: 22px;
+    border-radius: 24px;
     background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(56, 189, 248, 0.18));
-    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
+    margin-bottom: clamp(2.8rem, 4vw, 3.8rem);
   }
   .testimonial-band h2 {
     margin-top: 0;
@@ -241,6 +261,7 @@
     border-radius: 16px;
     border: 1px solid rgba(15, 23, 42, 0.08);
     background: var(--box, #fff);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
   }
   .how-step h3 {
     margin-top: 0;
@@ -262,50 +283,55 @@
     box-shadow: var(--card-shadow);
   }
 
-  .seasonal-preview {
-    margin-top: 1.5rem;
-    padding: 0.75rem 1rem;
-    border-radius: 12px;
-    border: 1px solid rgba(15, 23, 42, 0.15);
-    background: rgba(37, 99, 235, 0.08);
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    flex-wrap: wrap;
+  .closing-band {
+    border-radius: 24px;
+    background: #fdf8f1;
+    border: 1px solid rgba(218, 181, 128, 0.35);
+    padding: clamp(2rem, 3.5vw, 2.75rem);
+    margin-bottom: clamp(2.5rem, 4vw, 3.5rem);
+    display: grid;
+    gap: 1.5rem;
   }
-  .seasonal-preview .button {
-    margin-left: auto;
+  .closing-top {
+    display: grid;
+    gap: 1.2rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
-  @media (max-width: 640px) {
-    .seasonal-preview {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .seasonal-preview .button {
-      margin-left: 0;
-    }
-  }
-
-  .gift-preview {
-    margin-top: 1.5rem;
+  .closing-card {
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 16px;
     padding: 1rem;
+    border: 1px solid rgba(218, 181, 128, 0.25);
+    box-shadow: 0 12px 30px rgba(166, 94, 46, 0.08);
+  }
+  .closing-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.45rem;
+    font-size: 1.05rem;
+  }
+  .closing-card ul {
+    margin: 0.4rem 0 0;
+    padding-left: 1.2rem;
+  }
+  .closing-card ul li {
+    margin-bottom: 0.35rem;
+  }
+  .faq-list details {
+    border: 1px solid rgba(15, 23, 42, 0.12);
     border-radius: 12px;
-    border: 1px dashed rgba(124, 58, 237, 0.35);
-    background: rgba(124, 58, 237, 0.08);
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.7rem;
+    background: #fff;
   }
-  .faq-public {
-    margin-top: 1.5rem;
-  }
-  .faq-public details {
-    border: 1px solid rgba(15, 23, 42, 0.1);
-    border-radius: 10px;
-    padding: 0.75rem;
-    margin-bottom: 0.6rem;
-    background: var(--box, #fff);
-  }
-  .faq-public summary {
+  .faq-list summary {
     font-weight: 600;
     cursor: pointer;
+  }
+
+  @media (max-width: 640px) {
+    .closing-top {
+      grid-template-columns: 1fr;
+    }
   }
 
   @media (max-width: 860px) {
@@ -351,16 +377,25 @@
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
-        <strong>{{ site_content.home_stat_families or '1,200+' }}</strong>
-        <span>families practicing weekly</span>
+        <span class="hero-stat-icon" aria-hidden="true">👨‍👩‍👧</span>
+        <div class="hero-stat-content">
+          <strong>{{ site_content.home_stat_families or '1,200+' }}</strong>
+          <span>families practicing weekly</span>
+        </div>
       </div>
       <div class="hero-stat">
-        <strong>{{ site_content.home_stat_worksheets or '6,500+' }}</strong>
-        <span>worksheets created this month</span>
+        <span class="hero-stat-icon" aria-hidden="true">🗂️</span>
+        <div class="hero-stat-content">
+          <strong>{{ site_content.home_stat_worksheets or '6,500+' }}</strong>
+          <span>worksheets created this month</span>
+        </div>
       </div>
       <div class="hero-stat">
-        <strong>{{ site_content.home_stat_rating or '4.9 ★' }}</strong>
-        <span>parents say it saves prep time</span>
+        <span class="hero-stat-icon" aria-hidden="true">⭐</span>
+        <div class="hero-stat-content">
+          <strong>{{ site_content.home_stat_rating or '4.9 ★' }}</strong>
+          <span>parents say it saves prep time</span>
+        </div>
       </div>
     </div>
     <p class="muted small cta-note">
@@ -369,19 +404,21 @@
   </div>
 </section>
 
-<section class="value-props">
-  <article class="value-card">
-    <h3>✍️ Open-and-go lessons</h3>
-    <p>Generate handwriting practice in seconds—tracing, copywork lines, and themed packs for every season.</p>
-  </article>
-  <article class="value-card">
-    <h3>📖 Rooted in scripture</h3>
-    <p>Choose verses by book, topic, or paste your own. Add tags like <code>[KJV]</code> or <code>[cursive]</code> to customize instantly.</p>
-  </article>
-  <article class="value-card">
-    <h3>🏡 Built for homeschool life</h3>
-    <p>Print for home, co-ops, or children’s ministry. Plus unlocks subscriber-only packs and generous monthly limits.</p>
-  </article>
+<section class="section-muted">
+  <div class="value-props">
+    <article class="value-card">
+      <h3>✍️ Open-and-go lessons</h3>
+      <p>Generate handwriting practice in seconds—tracing, copywork lines, and themed packs for every season.</p>
+    </article>
+    <article class="value-card">
+      <h3>📖 Rooted in scripture</h3>
+      <p>Choose verses by book, topic, or paste your own. Add tags like <code>[KJV]</code> or <code>[cursive]</code> to customize instantly.</p>
+    </article>
+    <article class="value-card">
+      <h3>🏡 Built for homeschool life</h3>
+      <p>Print for home, co-ops, or children’s ministry. Plus unlocks subscriber-only packs and generous monthly limits.</p>
+    </article>
+  </div>
 </section>
 
 <section class="testimonial-band">
@@ -447,47 +484,44 @@
 </section>
 
 {% set seasonal_banner = site_content.home_seasonal_banner if site_content else None %}
-<section class="seasonal-preview" role="note">
-  <strong>Seasonal spotlight:</strong>
-  {{ seasonal_banner or 'Advent & Christmas copywork sets are live—preview the festive theme without logging in.' }}
-  <a class="button small ghost" href="{{ url_for('browse', q='advent') }}">View seasonal packs</a>
-</section>
+<section class="closing-band">
+  <div class="closing-top">
+    <article class="closing-card">
+      <h3>Seasonal spotlight</h3>
+      <p>
+        {{ seasonal_banner or 'Advent & Christmas copywork sets are live—preview the festive theme without logging in.' }}
+      </p>
+      <a class="button small ghost" href="{{ url_for('browse', q='advent') }}">View seasonal packs</a>
+    </article>
+    <article class="closing-card">
+      <h3>Why homeschoolers choose Faith Sparks</h3>
+      <ul>
+        <li>Designed for Christian homeschool, children’s ministry, and co-ops.</li>
+        <li>Kid-friendly layouts with optional tracing and coloring prompts.</li>
+        <li>Free Starter Pack included—Plus unlocks larger packs and ZIP downloads.</li>
+      </ul>
+    </article>
+    <article class="closing-card">
+      <h3>Gift Faith Sparks Plus</h3>
+      <p>Share printable Bible copywork with another family—email <a href="mailto:hello@faithsparksprintables.com">hello@faithsparksprintables.com</a> to send a digital gift membership.</p>
+    </article>
+  </div>
 
-<section class="prose" style="margin-top: 1.25rem">
-  <h2 style="margin-top: 0">Bible copywork for homeschool & children’s ministry</h2>
-  <p>
-    Build <a href="{{ url_for('generate') }}">Bible copywork worksheets</a> from any verse. Pick ESV or KJV in the dropdown, or override by tagging a verse reference with a translation code in parentheses. Choose manuscript or cursive tracing, then download print-ready PDFs. Browse curated <a href="{{ url_for('browse') }}">copywork collections</a> or regenerate favorites from your <a href="{{ url_for('history') }}">history</a>.
-  </p>
-  <ul>
-    <li>Designed for Christian homeschool, church classes, and co-ops</li>
-    <li>Kid-friendly layout with optional coloring prompts</li>
-    <li>Free starter plan; Plus unlocks larger packs and ZIP downloads</li>
-  </ul>
-</section>
-
-<section class="gift-preview">
-  <h3>Gift Faith Sparks Plus</h3>
-  <p>
-    Share printable Bible copywork with another family. Email
-    <a href="mailto:hello@faithsparksprintables.com">hello@faithsparksprintables.com</a>
-    to send a digital gift membership.
-  </p>
-</section>
-
-<section class="faq-public">
-  <h3>FAQs</h3>
-  <details>
-    <summary>Do I need a subscription?</summary>
-    <p class="muted">
-      Start with the free tier for the starter pack and monthly generates. Upgrade to Plus anytime for bigger limits and subscriber-only collections.
-    </p>
-  </details>
-  <details>
-    <summary>How do I use these worksheets?</summary>
-    <p class="muted">
-      Generate a worksheet, print it at home, and let kids trace or copy the verse. Use the reflection prompt for family discussion or journaling.
-    </p>
-  </details>
+  <div class="faq-list">
+    <h3>Quick answers</h3>
+    <details>
+      <summary>Do I need a subscription?</summary>
+      <p class="muted">
+        Start with the free tier for the starter pack and monthly generates. Upgrade to Plus anytime for bigger limits and subscriber-only collections.
+      </p>
+    </details>
+    <details>
+      <summary>How do I use these worksheets?</summary>
+      <p class="muted">
+        Generate a worksheet, print it at home, and let kids trace or copy the verse. Use the reflection prompt for family discussion or journaling.
+      </p>
+    </details>
+  </div>
 </section>
 {% endblock %}
 
