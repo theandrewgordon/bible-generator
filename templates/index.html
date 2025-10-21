@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Bible Copywork Worksheets for Homeschool & Church | Faith Sparks{% endblock %}
 
+{% set hero_images = [
+  url_for('static', filename='CopyworkStock/Copywork1.png'),
+  url_for('static', filename='CopyworkStock/Copywork2.png'),
+  url_for('static', filename='CopyworkStock/Copywork3.png'),
+  url_for('static', filename='CopyworkStock/Copywork4.png'),
+  url_for('static', filename='CopyworkStock/Copywork5.png')
+] %}
+
 {% block head_extra %}
 <meta
   name="description"
@@ -18,14 +26,14 @@
 <meta property="og:url" content="{{ request.url_root.rstrip('/') ~ request.path }}" />
 <meta
   property="og:image"
-  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='CopyworkStock/Copywork1.png') }}"
+  content="{{ request.url_root.rstrip('/') ~ hero_images[0] }}"
 />
 <meta property="og:image:width" content="2400" />
 <meta property="og:image:height" content="1350" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta
   name="twitter:image"
-  content="{{ request.url_root.rstrip('/') ~ url_for('static', filename='CopyworkStock/Copywork1.png') }}"
+  content="{{ request.url_root.rstrip('/') ~ hero_images[0] }}"
 />
 
 <!-- Schema.org -->
@@ -51,14 +59,6 @@
     }
   }
 </script>
-
-{% set hero_images = [
-  url_for('static', filename='CopyworkStock/Copywork1.png'),
-  url_for('static', filename='CopyworkStock/Copywork2.png'),
-  url_for('static', filename='CopyworkStock/Copywork3.png'),
-  url_for('static', filename='CopyworkStock/Copywork4.png'),
-  url_for('static', filename='CopyworkStock/Copywork5.png')
-] %}
 
 <!-- Preload hero for faster LCP -->
 <link
