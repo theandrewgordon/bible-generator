@@ -61,6 +61,16 @@ block content %}
         placeholder="Short, encouraging message"
       />
     </label>
+    <label for="home_hero_image_url"
+      >Hero image URL
+      <input
+        id="home_hero_image_url"
+        type="text"
+        name="home_hero_image_url"
+        value="{{ data.home_hero_image_url or '' }}"
+        placeholder="https://example.com/lifestyle-photo.jpg"
+      />
+    </label>
     <div style="display: flex; gap: 8px">
       <label for="home_cta_text" style="flex: 1"
         >CTA Text
@@ -79,6 +89,38 @@ block content %}
           type="text"
           name="home_cta_url"
           value="{{ data.home_cta_url or '/generate' }}"
+        />
+      </label>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px">
+      <label for="home_stat_families"
+        >Stat: Families
+        <input
+          id="home_stat_families"
+          type="text"
+          name="home_stat_families"
+          value="{{ data.home_stat_families or '' }}"
+          placeholder="e.g., 1,200+"
+        />
+      </label>
+      <label for="home_stat_worksheets"
+        >Stat: Worksheets
+        <input
+          id="home_stat_worksheets"
+          type="text"
+          name="home_stat_worksheets"
+          value="{{ data.home_stat_worksheets or '' }}"
+          placeholder="e.g., 6,500+"
+        />
+      </label>
+      <label for="home_stat_rating"
+        >Stat: Rating
+        <input
+          id="home_stat_rating"
+          type="text"
+          name="home_stat_rating"
+          value="{{ data.home_stat_rating or '' }}"
+          placeholder="e.g., 4.9 ★"
         />
       </label>
     </div>

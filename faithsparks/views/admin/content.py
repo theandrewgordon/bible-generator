@@ -62,8 +62,12 @@ def admin_content():
                     'announcement_text': (request.form.get('announcement_text') or '').strip(),
                     'home_title': (request.form.get('home_title') or '').strip(),
                     'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
+                    'home_hero_image_url': (request.form.get('home_hero_image_url') or '').strip(),
                     'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Generate a Worksheet',
                     'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
+                    'home_stat_families': (request.form.get('home_stat_families') or '').strip(),
+                    'home_stat_worksheets': (request.form.get('home_stat_worksheets') or '').strip(),
+                    'home_stat_rating': (request.form.get('home_stat_rating') or '').strip(),
                     'browse_banner_enabled': request.form.get('browse_banner_enabled') == 'on',
                     'browse_banner_text': (request.form.get('browse_banner_text') or '').strip(),
                     'generate_banner_enabled': request.form.get('generate_banner_enabled') == 'on',
@@ -89,8 +93,12 @@ def admin_content():
                 'announcement_text': (request.form.get('announcement_text') or '').strip(),
                 'home_title': (request.form.get('home_title') or '').strip(),
                 'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
+                'home_hero_image_url': (request.form.get('home_hero_image_url') or '').strip(),
                 'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Generate a Worksheet',
                 'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
+                'home_stat_families': (request.form.get('home_stat_families') or '').strip(),
+                'home_stat_worksheets': (request.form.get('home_stat_worksheets') or '').strip(),
+                'home_stat_rating': (request.form.get('home_stat_rating') or '').strip(),
                 'browse_banner_enabled': request.form.get('browse_banner_enabled') == 'on',
                 'browse_banner_text': (request.form.get('browse_banner_text') or '').strip(),
                 'generate_banner_enabled': request.form.get('generate_banner_enabled') == 'on',
@@ -116,4 +124,3 @@ def admin_content():
                 flash(f'Error saving: {e}', 'error')
             return redirect(url_for('admin_content'))
     return render_template('admin_content.html', data=data, free_slugs=free_slugs, collections_list=collections_list)
-
