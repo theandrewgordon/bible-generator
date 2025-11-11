@@ -638,70 +638,76 @@ def illustrate():
             max_custom_chars=COLORING_MAX_CHARS,
         )
 
-    payload, payload_mode = get_request_payload()
-    log_request_summary(f"illustrate:post mode={payload_mode}")
-    if not payload:
-        return jsonify({"error": "Missing request data."}), 400
-
-    verse_input = (payload.get("verse_input") or payload.get("verse") or "").strip()
-    custom_text = (payload.get("custom_text") or "").strip()
-    title_override = (payload.get("title_override") or "").strip()
-    age_bracket = (payload.get("age_bracket") or "6-8").strip()
-    if age_bracket not in {"3-5", "6-8", "9-10"}:
-        age_bracket = "6-8"
-
-    include_reference = _boolish(payload.get("include_reference"), True)
-    symbols_only = _boolish(payload.get("symbols_only"), True)
-    historical_props = _boolish(payload.get("historical_props"), False)
-
     try:
-        result = create_coloring_sheet(
-            user_email=session.get("user_email", "anonymous"),
-            verse_input=verse_input,
-            custom_text=custom_text,
-            title_override=title_override,
-            age_bracket=age_bracket,
-            include_reference=include_reference,
-            symbols_only=symbols_only,
-            historical_props=historical_props,
-        )
-    except IllustrationError as exc:
-        resp = {"error": str(exc)}
-        if exc.details:
-            resp.update(exc.details)
-        return jsonify(resp), getattr(exc, "status_code", 422)
-    except Exception as exc:
-        app.logger.exception("illustrate: unhandled failure")
-        hint = str(exc)[:300] if exc else ""
-        return jsonify(
-            {
-                "error": "Unexpected error during illustration.",
-                "hint": hint,
-            }
-        ), 500
+        payload, payload_mode = get_request_payload()
+        log_request_summary(f"illustrate:post mode={payload_mode}")
+        if not payload:
+            return jsonify({"error": "Missing request data."}), 400
 
-    pdf_signed = signed_url_for_path(f"worksheets/{result['pdf_filename']}")
-    png_signed = signed_url_for_path(f"worksheets/{result['png_filename']}")
-    response = {
-        "status": "ok",
-        "title": result.get("title"),
-        "summary": result.get("summary"),
-        "references": result.get("references", []),
-        "scene_blueprint": result.get("scene_blueprint"),
-        "forced_symbols_only": result.get("forced_symbols_only", False),
-        "pdf": {
-            "filename": result["pdf_filename"],
-            "download_url": url_for("download_file", filename=result["pdf_filename"]),
-            "signed_url": pdf_signed,
-        },
-        "png": {
-            "filename": result["png_filename"],
-            "download_url": url_for("coloring_image", filename=result["png_filename"]),
-            "signed_url": png_signed,
-        },
-        "history_url": url_for("history"),
-    }
-    return jsonify(response), 201
+        verse_input = (payload.get("verse_input") or payload.get("verse") or "").strip()
+        custom_text = (payload.get("custom_text") or "").strip()
+        title_override = (payload.get("title_override") or "").strip()
+        age_bracket = (payload.get("age_bracket") or "6-8").strip()
+        if age_bracket not in {"3-5", "6-8", "9-10"}:
+            age_bracket = "6-8"
+
+        include_reference = _boolish(payload.get("include_reference"), True)
+        symbols_only = _boolish(payload.get("symbols_only"), True)
+        historical_props = _boolish(payload.get("historical_props"), False)
+
+        try:
+            result = create_coloring_sheet(
+                user_email=session.get("user_email", "anonymous"),
+                verse_input=verse_input,
+                custom_text=custom_text,
+                title_override=title_override,
+                age_bracket=age_bracket,
+                include_reference=include_reference,
+                symbols_only=symbols_only,
+                historical_props=historical_props,
+            )
+        except IllustrationError as exc:
+            resp = {"error": str(exc)}
+            if exc.details:
+                resp.update(exc.details)
+            return jsonify(resp), getattr(exc, "status_code", 422)
+
+        pdf_signed = signed_url_for_path(f"worksheets/{result['pdf_filename']}")
+        png_signed = signed_url_for_path(f"worksheets/{result['png_filename']}")
+        response = {
+            "status": "ok",
+            "title": result.get("title"),
+            "summary": result.get("summary"),
+            "references": result.get("references", []),
+            "scene_blueprint": result.get("scene_blueprint"),
+            "forced_symbols_only": result.get("forced_symbols_only", False),
+            "pdf": {
+                "filename": result["pdf_filename"],
+                "download_url": url_for("download_file", filename=result["pdf_filename"]),
+                "signed_url": pdf_signed,
+            },
+            "png": {
+                "filename": result["png_filename"],
+                "download_url": url_for("coloring_image", filename=result["png_filename"]),
+                "signed_url": png_signed,
+            },
+            "history_url": url_for("history"),
+        }
+        return jsonify(response), 201
+
+    except Exception as exc:
+        req_id = getattr(g, "req_id", "-")
+        app.logger.exception("illustrate: unhandled failure rid=%s", req_id)
+        return (
+            jsonify(
+                {
+                    "error": "Unexpected error during illustration.",
+                    "request_id": req_id,
+                    "hint": (str(exc) or "")[:300],
+                }
+            ),
+            500,
+        )
 
 @app.route("/delete/<filename>")
 @login_required
