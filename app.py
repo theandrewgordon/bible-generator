@@ -12,6 +12,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
@@ -58,12 +59,26 @@ app.logger.setLevel(logging.INFO)
 app.logger.propagate = False
 
 # Add near top with other config
-app.config.update(
-    SERVER_NAME='faithsparksprintables.com',
-    APPLICATION_ROOT='/',
-    PREFERRED_URL_SCHEME='https'
-)
+APP_ENV = os.getenv("APP_ENV", "dev").lower()
+PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "faithsparksprintables.com")
 
+if APP_ENV in {"prod", "production"}:
+    app.config.update(
+        SERVER_NAME=PRIMARY_DOMAIN,
+        APPLICATION_ROOT='/',
+        PREFERRED_URL_SCHEME='https'
+    )
+else:
+    # In previews/local, let Flask bind to whatever host Render assigns.
+    app.config.update(PREFERRED_URL_SCHEME='https')
+
+# Respect proxy headers (Render/Cloudflare) when enabled
+enable_proxy_fix = os.getenv(
+    "ENABLE_PROXY_FIX",
+    "1" if APP_ENV in {"prod", "production"} else "0",
+).lower() in {"1", "true", "yes"}
+if enable_proxy_fix:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 @app.route('/manifest.webmanifest')
 def pwa_manifest():
