@@ -254,7 +254,15 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
             resp = _call_response(model)
             raw = _extract_response_text(resp)
             last_raw = raw
+            if not raw.strip():
+                raise IllustrationError(
+                    "Illustration summary was empty.",
+                    502,
+                    {"details": [f"{model}: empty response"]},
+                )
             return json.loads(raw)
+        except IllustrationError:
+            raise
         except Exception as exc:
             msg = f"{model}: {exc}"
             errors.append(msg)
