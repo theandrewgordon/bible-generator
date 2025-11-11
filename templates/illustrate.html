@@ -84,7 +84,7 @@
       </section>
 
       <section class="block">
-        <button class="button" type="submit">✨ Illustrate</button>
+        <button class="button" type="submit" id="illustrateSubmit">✨ Illustrate</button>
         <button class="button ghost" type="reset">Clear</button>
       </section>
     </form>
@@ -110,9 +110,11 @@
         <dt>Mode</dt>
         <dd id="resultMode">Symbols-only</dd>
       </dl>
+      <div class="result-guardrails muted small" id="resultGuardrails" hidden></div>
       <div class="result-links">
         <a class="button" id="downloadPdf" href="#" target="_blank" rel="noreferrer">⬇️ PDF</a>
         <a class="button ghost" id="downloadPng" href="#" target="_blank" rel="noreferrer">🖼️ PNG</a>
+        <a class="button ghost" id="historyLink" href="{{ url_for('history') }}">📚 View History</a>
       </div>
       <p class="muted micro">
         Files are stored in your worksheet history so you can re-download anytime.
@@ -133,5 +135,17 @@
 <div id="illustrateToast" class="snackbar" role="status" aria-live="polite">Working…</div>
 {% endblock %}
 {% block extra_scripts %}
+<style>
+  #resultPanel .result-guardrails {
+    background: var(--box);
+    padding: 0.6rem 0.75rem;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+  }
+  #illustrateForm .button.is-loading {
+    opacity: 0.75;
+    cursor: not-allowed;
+  }
+</style>
 <script type="module" src="{{ url_for('static', filename='js/illustrate.js') }}?v={{ static_v|default(1) }}"></script>
 {% endblock %}

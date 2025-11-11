@@ -384,6 +384,20 @@ def create_coloring_sheet(
         user_symbols_only=symbols_only,
         allow_historical_props=historical_props,
     )
+    guardrails: List[str] = []
+    if forced_symbols and not symbols_only:
+        guardrails.append("symbols_only_forced")
+        logger.info(
+            "Illustrate guardrail: forcing symbols-only for refs=%s due to sensitivity flags",
+            [v["reference"] for v in verses] or ["custom_text"],
+        )
+    if historical_props and not blueprint["historical_props"]:
+        guardrails.append("historical_props_removed")
+        logger.info(
+            "Illustrate guardrail: removing historical props for refs=%s (symbols_only=%s)",
+            [v["reference"] for v in verses] or ["custom_text"],
+            blueprint["symbols_only"],
+        )
 
     prompt = _prompt_from_blueprint(
         blueprint,
@@ -460,6 +474,7 @@ def create_coloring_sheet(
                 "historicalProps": bool(blueprint["historical_props"]),
             },
             "referenceList": [v["reference"] for v in verses],
+            "guardrails": guardrails,
         }
         try:
             db.collection("worksheets").add(record)
@@ -471,6 +486,7 @@ def create_coloring_sheet(
         "summary": summary.get("summary", ""),
         "scene_blueprint": blueprint,
         "forced_symbols_only": forced_symbols,
+        "guardrails": guardrails,
         "pdf_filename": pdf_filename,
         "png_filename": png_filename,
         "references": [v["reference"] for v in verses],

@@ -14,6 +14,9 @@ const resultRefs      = document.getElementById('resultReferences');
 const resultMode      = document.getElementById('resultMode');
 const downloadPdf     = document.getElementById('downloadPdf');
 const downloadPng     = document.getElementById('downloadPng');
+const illustrateBtn   = document.getElementById('illustrateSubmit');
+const guardrailBox    = document.getElementById('resultGuardrails');
+const historyLink     = document.getElementById('historyLink');
 
 const MAX_CHARS = Number(form?.dataset?.maxChars || 500);
 
@@ -58,8 +61,34 @@ form?.addEventListener('reset', () => {
     titleOverride.value = '';
     updateCharCount();
     resultPanel?.setAttribute('hidden', 'hidden');
+    guardrailBox?.setAttribute('hidden', 'hidden');
   }, 0);
 });
+
+const setLoadingState = (loading) => {
+  if (loading) {
+    illustrateBtn?.classList.add('is-loading');
+    if (illustrateBtn && !illustrateBtn.dataset.originalText) {
+      illustrateBtn.dataset.originalText = illustrateBtn.innerHTML;
+    }
+    if (illustrateBtn) illustrateBtn.innerHTML = '⏳ Illustrating…';
+  } else {
+    illustrateBtn?.classList.remove('is-loading');
+    if (illustrateBtn?.dataset.originalText) {
+      illustrateBtn.innerHTML = illustrateBtn.dataset.originalText;
+    }
+  }
+  const elements = form ? Array.from(form.elements) : [];
+  elements.forEach((el) => {
+    if (!el) return;
+    if (el.type === 'reset') {
+      el.disabled = loading;
+      return;
+    }
+    el.disabled = loading;
+  });
+  tagify?.setReadonly(loading);
+};
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -89,6 +118,7 @@ form?.addEventListener('submit', async (event) => {
 
   try {
     form.setAttribute('aria-busy', 'true');
+    setLoadingState(true);
     showToast('✨ Illustrating…');
     window.showOverlay?.();
 
@@ -101,11 +131,18 @@ form?.addEventListener('submit', async (event) => {
 
     if (!resp.ok) {
       let msg = 'Unable to illustrate right now.';
+      let extra = '';
       try {
         const err = await resp.json();
         if (err?.error) msg = err.error;
+        if (Array.isArray(err?.details) && err.details.length) {
+          extra = err.details.join(' | ');
+        } else if (typeof err?.raw === 'string') {
+          extra = err.raw.slice(0, 120);
+        }
       } catch (_) {}
-      showToast(`❌ ${msg}`);
+      const composed = extra ? `${msg} (${extra})` : msg;
+      showToast(`❌ ${composed}`);
       return;
     }
 
@@ -127,14 +164,34 @@ form?.addEventListener('submit', async (event) => {
     const pngHref = data.png?.signed_url || data.png?.download_url;
     if (pdfHref) downloadPdf.href = pdfHref;
     if (pngHref) downloadPng.href = pngHref;
+    if (historyLink && data.history_url) historyLink.href = data.history_url;
+
+    const guardrailMap = {
+      symbols_only_forced: 'Sensitive passage detected — switched to symbols-only.',
+      historical_props_removed: 'Historical props removed for safety.',
+    };
+    const guardrails = (data.guardrails || [])
+      .map((code) => guardrailMap[code] || code)
+      .filter(Boolean);
+    if (guardrailBox) {
+      if (guardrails.length) {
+        guardrailBox.textContent = guardrails.join(' ');
+        guardrailBox.removeAttribute('hidden');
+      } else {
+        guardrailBox.setAttribute('hidden', 'hidden');
+      }
+    }
 
     resultPanel?.removeAttribute('hidden');
     showToast('✅ Coloring sheet ready!');
+    window.refreshUsageChip?.();
+    setTimeout(() => window.refreshUsageChip?.(), 1200);
   } catch (error) {
     console.error(error);
     showToast('❌ Network hiccup. Try again.');
   } finally {
     form.removeAttribute('aria-busy');
+    setLoadingState(false);
     window.hideOverlay?.();
   }
 });
