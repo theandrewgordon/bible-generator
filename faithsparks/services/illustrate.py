@@ -244,7 +244,7 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
                 if not text.strip():
                     raise IllustrationError(
                         "Illustration summary was empty.",
-                        502,
+                        422,
                         {"details": [f"{model_name}: chat completion returned no text"]},
                     )
                 return _Wrapper(text)
@@ -258,7 +258,7 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
             if not raw.strip():
                 raise IllustrationError(
                     "Illustration summary was empty.",
-                    502,
+                    422,
                     {"details": [f"{model}: empty response"]},
                 )
             return _parse_summary_json(raw)
@@ -273,7 +273,7 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
     detail = {"details": errors}
     if last_raw:
         detail["raw"] = last_raw
-    raise IllustrationError("Unable to summarize passage with available models.", 502, detail)
+    raise IllustrationError("Unable to summarize passage with available models.", 422, detail)
 
 
 def build_scene_blueprint(
