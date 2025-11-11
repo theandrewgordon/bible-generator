@@ -192,24 +192,34 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
         models.append(TEXT_MODEL_FALLBACK)
 
     last_raw = None
+    def _call_response(model_name: str):
+        request_input = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"Age bracket: {age_bracket}\n"
+                    "Summarize the following content for a black-and-white coloring sheet:\n\n"
+                    f"{prompt_text[:4000]}"
+                ),
+            },
+        ]
+        response_kwargs = {
+            "model": model_name,
+            "temperature": 0.3,
+            "response_format": {"type": "json_schema", "json_schema": schema},
+            "input": request_input,
+        }
+        try:
+            return client.responses.create(**response_kwargs)
+        except TypeError as exc:
+            if "response_format" in str(exc) and hasattr(client.responses, "parse"):
+                return client.responses.parse(**response_kwargs)
+            raise
+
     for model in models:
         try:
-            resp = client.responses.create(
-                model=model,
-                temperature=0.3,
-                response_format={"type": "json_schema", "json_schema": schema},
-                input=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Age bracket: {age_bracket}\n"
-                            "Summarize the following content for a black-and-white coloring sheet:\n\n"
-                            f"{prompt_text[:4000]}"
-                        ),
-                    },
-                ],
-            )
+            resp = _call_response(model)
             raw = _extract_response_text(resp)
             last_raw = raw
             return json.loads(raw)
