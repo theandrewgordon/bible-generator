@@ -6,6 +6,7 @@ import base64
 import json
 import os
 import uuid
+import logging
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -26,9 +27,12 @@ from verse_helpers import (
 MAX_CUSTOM_TEXT_CHARS = 500
 MAX_VERSE_REFERENCES = 4
 TEXT_MODEL = os.getenv("ILLUSTRATE_TEXT_MODEL", "gpt-4.1-mini")
+TEXT_MODEL_FALLBACK = os.getenv("ILLUSTRATE_TEXT_FALLBACK", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("ILLUSTRATE_IMAGE_MODEL", "gpt-image-1")
 PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
+
+logger = logging.getLogger(__name__)
 
 SAFE_SYMBOLS = [
     "cross",
@@ -180,31 +184,45 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
         },
     }
 
-    try:
-        resp = client.responses.create(
-            model=TEXT_MODEL,
-            temperature=0.3,
-            response_format={"type": "json_schema", "json_schema": schema},
-            input=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": (
-                        f"Age bracket: {age_bracket}\n"
-                        "Summarize the following content for a black-and-white coloring sheet:\n\n"
-                        f"{prompt_text[:4000]}"
-                    ),
-                },
-            ],
-        )
-    except Exception as exc:
-        raise IllustrationError("Unable to summarize passage", 502) from exc
+    errors: List[str] = []
+    models = []
+    if TEXT_MODEL:
+        models.append(TEXT_MODEL)
+    if TEXT_MODEL_FALLBACK and TEXT_MODEL_FALLBACK not in models:
+        models.append(TEXT_MODEL_FALLBACK)
 
-    raw = _extract_response_text(resp)
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise IllustrationError("AI summary was malformed", 502, {"raw": raw}) from exc
+    last_raw = None
+    for model in models:
+        try:
+            resp = client.responses.create(
+                model=model,
+                temperature=0.3,
+                response_format={"type": "json_schema", "json_schema": schema},
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Age bracket: {age_bracket}\n"
+                            "Summarize the following content for a black-and-white coloring sheet:\n\n"
+                            f"{prompt_text[:4000]}"
+                        ),
+                    },
+                ],
+            )
+            raw = _extract_response_text(resp)
+            last_raw = raw
+            return json.loads(raw)
+        except Exception as exc:
+            msg = f"{model}: {exc}"
+            errors.append(msg)
+            logger.warning("Illustrate summary failed via %s: %s", model, exc)
+            continue
+
+    detail = {"details": errors}
+    if last_raw:
+        detail["raw"] = last_raw
+    raise IllustrationError("Unable to summarize passage with available models.", 502, detail)
 
 
 def build_scene_blueprint(
