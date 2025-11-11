@@ -23,6 +23,7 @@ from verse_helpers import (
     parse_reference_list,
     split_version_from_reference,
 )
+from faithsparks.util.request_utils import extract_json_candidate
 
 MAX_CUSTOM_TEXT_CHARS = 500
 MAX_VERSE_REFERENCES = 4
@@ -260,7 +261,7 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
                     502,
                     {"details": [f"{model}: empty response"]},
                 )
-            return json.loads(raw)
+            return _parse_summary_json(raw)
         except IllustrationError:
             raise
         except Exception as exc:
@@ -541,3 +542,11 @@ def create_coloring_sheet(
         "png_filename": png_filename,
         "references": [v["reference"] for v in verses],
     }
+def _parse_summary_json(raw: str) -> Dict:
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        candidate = extract_json_candidate(raw)
+        if isinstance(candidate, dict):
+            return candidate
+        raise
