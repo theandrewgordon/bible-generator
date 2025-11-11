@@ -6,7 +6,7 @@ import os, json, re, traceback
 import logging
 import sys
 import uuid
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlunparse
 from zipfile import ZipFile
 import threading
 from datetime import datetime, timedelta, timezone
@@ -62,15 +62,12 @@ app.logger.propagate = False
 APP_ENV = os.getenv("APP_ENV", "dev").lower()
 PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "faithsparksprintables.com")
 
+# Always prefer https URLs when generating links
+app.config.update(PREFERRED_URL_SCHEME="https")
+
+# Only pin cookies to the apex domain in production
 if APP_ENV in {"prod", "production"}:
-    app.config.update(
-        SERVER_NAME=PRIMARY_DOMAIN,
-        APPLICATION_ROOT='/',
-        PREFERRED_URL_SCHEME='https'
-    )
-else:
-    # In previews/local, let Flask bind to whatever host Render assigns.
-    app.config.update(PREFERRED_URL_SCHEME='https')
+    app.config["SESSION_COOKIE_DOMAIN"] = f".{PRIMARY_DOMAIN}"
 
 # Respect proxy headers (Render/Cloudflare) when enabled
 enable_proxy_fix = os.getenv(
@@ -151,6 +148,17 @@ app.register_blueprint(google_bp, url_prefix="/login")
 def add_request_id():
     if not getattr(g, "req_id", None):
         g.req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+
+@app.before_request
+def force_primary_domain():
+    if APP_ENV not in {"prod", "production"}:
+        return
+    host = request.host.split(":")[0]
+    if host == PRIMARY_DOMAIN:
+        return
+    parsed = urlparse(request.url)
+    target = parsed._replace(scheme="https", netloc=PRIMARY_DOMAIN)
+    return redirect(urlunparse(target), code=301)
 
 @app.before_request
 def load_user_info():
@@ -661,7 +669,16 @@ def illustrate():
         resp = {"error": str(exc)}
         if exc.details:
             resp.update(exc.details)
-        return jsonify(resp), exc.status_code
+        return jsonify(resp), getattr(exc, "status_code", 422)
+    except Exception as exc:
+        app.logger.exception("illustrate: unhandled failure")
+        hint = str(exc)[:300] if exc else ""
+        return jsonify(
+            {
+                "error": "Unexpected error during illustration.",
+                "hint": hint,
+            }
+        ), 500
 
     pdf_signed = signed_url_for_path(f"worksheets/{result['pdf_filename']}")
     png_signed = signed_url_for_path(f"worksheets/{result['png_filename']}")
