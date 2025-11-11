@@ -207,16 +207,16 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
         base_kwargs = {
             "model": model_name,
             "temperature": 0.3,
-            "response_format": {"type": "json_schema", "json_schema": schema},
             "input": request_input,
         }
+        response_format = {"type": "json_schema", "json_schema": schema}
+        create_kwargs = dict(base_kwargs)
+        create_kwargs["response_format"] = response_format
         try:
-            return client.responses.create(**base_kwargs)
+            return client.responses.create(**create_kwargs)
         except TypeError as exc:
             if "response_format" in str(exc):
                 parse_kwargs = dict(base_kwargs)
-                parse_kwargs.pop("response_format", None)
-                parse_kwargs.setdefault("input", request_input)
                 if hasattr(client.responses, "parse"):
                     try:
                         return client.responses.parse(**parse_kwargs)
@@ -237,8 +237,16 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
                         self.output = []
                         self.output_text = text
 
-                text = completion.choices[0].message.content if completion.choices else ""
-                return _Wrapper(text or "")
+                text = ""
+                if completion.choices:
+                    text = completion.choices[0].message.content or ""
+                if not text.strip():
+                    raise IllustrationError(
+                        "Illustration summary was empty.",
+                        502,
+                        {"details": [f"{model_name}: chat completion returned no text"]},
+                    )
+                return _Wrapper(text)
             raise
 
     for model in models:
