@@ -35,8 +35,13 @@ from faithsparks.services.stripe_svc import (
 )
 from faithsparks.util.slug import normalize_slug
 from faithsparks.services import analytics as analytics_svc
-from faithsparks.util.request_utils import get_client_ip
+from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
+from faithsparks.services.illustrate import (
+    MAX_CUSTOM_TEXT_CHARS as COLORING_MAX_CHARS,
+    IllustrationError,
+    create_coloring_sheet,
+)
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -232,7 +237,15 @@ def extract_version_from_text(text, fallback_version):
         verse = text.strip()
     return version, verse.title()
 
- 
+
+def _boolish(value, default=False):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower().strip() in {"1", "true", "yes", "on"}
+    return bool(value) if value is not None else default
+
+
 
 os.makedirs("output", exist_ok=True)
 os.makedirs("output/thumbs", exist_ok=True)
@@ -590,6 +603,74 @@ def generate():
         return f"Server error: {e}", 500
     """
 
+
+@app.route("/illustrate", methods=["GET", "POST"])
+@login_required
+def illustrate():
+    if request.method == "GET":
+        prefill = request.args.get("verse", "").strip()
+        return render_template(
+            "illustrate.html",
+            prefill_verse=prefill,
+            max_custom_chars=COLORING_MAX_CHARS,
+        )
+
+    payload, payload_mode = get_request_payload()
+    log_request_summary(f"illustrate:post mode={payload_mode}")
+    if not payload:
+        return jsonify({"error": "Missing request data."}), 400
+
+    verse_input = (payload.get("verse_input") or payload.get("verse") or "").strip()
+    custom_text = (payload.get("custom_text") or "").strip()
+    title_override = (payload.get("title_override") or "").strip()
+    age_bracket = (payload.get("age_bracket") or "6-8").strip()
+    if age_bracket not in {"3-5", "6-8", "9-10"}:
+        age_bracket = "6-8"
+
+    include_reference = _boolish(payload.get("include_reference"), True)
+    symbols_only = _boolish(payload.get("symbols_only"), True)
+    historical_props = _boolish(payload.get("historical_props"), False)
+
+    try:
+        result = create_coloring_sheet(
+            user_email=session.get("user_email", "anonymous"),
+            verse_input=verse_input,
+            custom_text=custom_text,
+            title_override=title_override,
+            age_bracket=age_bracket,
+            include_reference=include_reference,
+            symbols_only=symbols_only,
+            historical_props=historical_props,
+        )
+    except IllustrationError as exc:
+        resp = {"error": str(exc)}
+        if exc.details:
+            resp.update(exc.details)
+        return jsonify(resp), exc.status_code
+
+    pdf_signed = signed_url_for_path(f"worksheets/{result['pdf_filename']}")
+    png_signed = signed_url_for_path(f"worksheets/{result['png_filename']}")
+    response = {
+        "status": "ok",
+        "title": result.get("title"),
+        "summary": result.get("summary"),
+        "references": result.get("references", []),
+        "scene_blueprint": result.get("scene_blueprint"),
+        "forced_symbols_only": result.get("forced_symbols_only", False),
+        "pdf": {
+            "filename": result["pdf_filename"],
+            "download_url": url_for("download_file", filename=result["pdf_filename"]),
+            "signed_url": pdf_signed,
+        },
+        "png": {
+            "filename": result["png_filename"],
+            "download_url": url_for("coloring_image", filename=result["png_filename"]),
+            "signed_url": png_signed,
+        },
+        "history_url": url_for("history"),
+    }
+    return jsonify(response), 201
+
 @app.route("/delete/<filename>")
 @login_required
 def delete_worksheet(filename):
@@ -637,6 +718,20 @@ def history():
 def download_file(filename):
     from faithsparks.views.worksheets import download_file as _impl
     return _impl(filename)
+
+
+@app.route("/coloring/image/<path:filename>")
+@login_required
+def coloring_image(filename):
+    safe_name = os.path.basename(filename)
+    local_path = os.path.join("worksheets", safe_name)
+    if os.path.exists(local_path):
+        return send_file(local_path, mimetype="image/png", conditional=True)
+    remote = signed_url_for_path(f"worksheets/{safe_name}")
+    if remote:
+        return redirect(remote)
+    flash("Image not found. It may have been removed.", "error")
+    return redirect(url_for("history"))
 
 @app.route('/thumb/<path:filename>')
 @login_required

@@ -75,6 +75,7 @@ endblock %} {% block content %}
       data-version="{{ item.version|lower }}"
       data-favorite="{{ 'true' if item.get('favorite') else 'false' }}"
       data-date="{{ item.timestamp.isoformat() if item.timestamp else '' }}"
+      data-kind="{{ item.get('type', 'worksheet') }}"
     >
       <div class="row-top">
         <label class="row-check-wrap" title="Select {{ item.verse }}">
@@ -104,11 +105,14 @@ endblock %} {% block content %}
 
           <div class="meta">
             <div class="meta-left">
+              {% if item.get('type') == 'coloring' %}
+              <span class="pill alt">🎨 Coloring</span>
+              {% else %}
               <span class="pill alt">
                 {% if item.custom %}DIY{% else %}{{ item.version }}{% endif %}
               </span>
-              {% if item.cursive %}<span class="pill">✍️ Cursive</span>{% endif
-              %}
+              {% if item.cursive %}<span class="pill">✍️ Cursive</span>{% endif %}
+              {% endif %}
             </div>
             <div class="meta-right">
               {{ item.timestamp.strftime('%Y-%m-%d %H:%M') if item.timestamp
@@ -136,6 +140,16 @@ endblock %} {% block content %}
             aria-label="Download {{ item.verse }}"
             >📥</a
           >
+          {% if item.get('type') == 'coloring' and item.get('imageFilename') %}
+          <a
+            class="icon"
+            href="{{ url_for('coloring_image', filename=item.imageFilename) }}"
+            title="View PNG"
+            aria-label="View PNG for {{ item.verse }}"
+            >🖼️</a
+          >
+          {% endif %}
+          {% if item.get('type') != 'coloring' %}
           <a
             class="icon"
             href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
@@ -143,6 +157,7 @@ endblock %} {% block content %}
             aria-label="Regenerate {{ item.verse }}"
             >♻️</a
           >
+          {% endif %}
           <a
             class="icon danger"
             href="{{ url_for('delete_worksheet', filename=item.filename) }}"

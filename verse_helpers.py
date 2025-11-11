@@ -1,5 +1,8 @@
 import os
 import json
+import re
+from typing import Iterable, List, Tuple
+
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -12,6 +15,11 @@ from faithsparks.util.request_utils import (
 # --- Load API Key ---
 load_dotenv("secret.env")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+def get_openai_client() -> OpenAI:
+    """Expose the shared OpenAI client to other modules."""
+    return client
 
 # === Slug & Normalization ===
 def normalize_slug(verse_ref):
@@ -150,3 +158,77 @@ Text: {text}
     except Exception as e:
         print(f"⚠️ Custom validation failed: {e}")
         return False
+
+
+def parse_reference_list(raw: str) -> List[str]:
+    """Split a blob of references on commas/newlines and normalize whitespace."""
+    if not raw:
+        return []
+    refs = re.split(r"[,;\n]+", raw)
+    cleaned: List[str] = []
+    for ref in refs:
+        fixed = " ".join(ref.split())
+        if fixed:
+            cleaned.append(fixed)
+    return cleaned
+
+
+def normalize_reference_title(ref: str) -> str:
+    """Best-effort title-casing that keeps leading numerals (e.g., '1 John')."""
+    if not ref:
+        return ""
+    trimmed = " ".join(ref.split())
+    if not trimmed:
+        return ""
+    parts = trimmed.split(" ")
+    if parts[0].isdigit() and len(parts) > 1:
+        lead = parts[0]
+        rest = " ".join(parts[1:]).title()
+        return f"{lead} {rest}"
+    return trimmed.title()
+
+
+def split_version_from_reference(text: str, fallback_version: str = "kjv") -> Tuple[str, str]:
+    """Return (version, reference) honoring inline tags like `(KJV)`."""
+    fallback = (fallback_version or "kjv").strip().lower() or "kjv"
+    match = re.search(r"\(([A-Za-z0-9]{2,12})\)\s*$", text or "")
+    if match:
+        version = match.group(1).lower()
+        verse = (text or "")[: match.start()].strip()
+    else:
+        version = fallback
+        verse = (text or "").strip()
+    return version, normalize_reference_title(verse)
+
+
+def fetch_passage_text(reference: str, version: str = "kjv") -> dict:
+    """Fetch full verse text via the existing worksheet helper."""
+    content = request_verse_data(reference, version.lower())
+    data = parse_and_clean_json(content) if content else {}
+    full = (data or {}).get("fullVerse")
+    if not full:
+        raise ValueError(f"Verse text missing for {reference} ({version})")
+    canonical = normalize_reference_title(data.get("verse") or reference)
+    return {
+        "reference": canonical,
+        "text": full.strip(),
+        "version": version.upper(),
+    }
+
+
+def moderate_text_block(text: str) -> dict:
+    """Run OpenAI moderation; returns {flagged: bool, categories: {...}}."""
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return {"flagged": False, "categories": {}}
+    try:
+        model = os.getenv("ILLUSTRATE_MODERATION_MODEL", "omni-moderation-latest")
+        resp = client.moderations.create(model=model, input=cleaned[:2000])
+        result = resp.results[0]
+        return {
+            "flagged": bool(getattr(result, "flagged", False)),
+            "categories": getattr(result, "categories", {}) or {},
+        }
+    except Exception as exc:
+        print(f"⚠️ Moderation failed: {exc}")
+        return {"flagged": True, "categories": {"error": True}}

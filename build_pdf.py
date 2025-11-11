@@ -311,3 +311,78 @@ def generate_pdf(data, pdf_path, use_cursive=False):
 
     c.save()
     print(f"✅ Final worksheet saved to: {pdf_path}")
+
+
+def build_coloring_pdf(
+    pdf_path,
+    *,
+    image_path,
+    title,
+    reference_text="",
+    age_bracket="",
+    summary_text="",
+):
+    width, height = letter
+    margin = layout.DEFAULT_MARGIN_INCH * inch
+    c = canvas.Canvas(str(pdf_path), pagesize=letter)
+
+    logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+    qr_reader = _load_image("faithsparks_qr.png")
+    logo_size = 48
+    top_y = height - margin - 10
+    if logo_reader:
+        c.drawImage(logo_reader, margin, top_y - logo_size, width=logo_size, height=logo_size, mask='auto')
+    if qr_reader:
+        c.drawImage(qr_reader, width - margin - logo_size, top_y - logo_size, width=logo_size, height=logo_size)
+
+    c.setFont("Helvetica-Bold", 20)
+    c.drawCentredString(width / 2, top_y - logo_size / 2, _pdf_safe_text(title))
+    if reference_text:
+        c.setFont("Helvetica", 12)
+        c.drawCentredString(width / 2, top_y - logo_size - 18, _pdf_safe_text(reference_text))
+    if age_bracket:
+        c.setFont("Helvetica", 10)
+        c.drawRightString(width - margin, top_y + 4, f"Ages {age_bracket}")
+
+    art_top = top_y - logo_size - 36
+    summary_block = 1.6 * inch
+    art_bottom = margin + summary_block + 36
+    art_height = max(1.0 * inch, art_top - art_bottom)
+    art_width = width - 2 * margin
+    art_reader = _load_image(str(image_path))
+    if art_reader:
+        iw, ih = art_reader.getSize()
+        scale = min(art_width / iw, art_height / ih)
+        draw_w = iw * scale
+        draw_h = ih * scale
+        draw_x = (width - draw_w) / 2
+        draw_y = art_bottom + (art_height - draw_h) / 2
+        c.drawImage(art_reader, draw_x, draw_y, width=draw_w, height=draw_h, mask='auto')
+        content_bottom = draw_y
+    else:
+        c.setFont("Helvetica-Oblique", 12)
+        c.drawCentredString(width / 2, (art_top + art_bottom) / 2, "Art preview unavailable")
+        content_bottom = art_bottom
+
+    if summary_text:
+        para = Paragraph(_pdf_safe_text(summary_text), styles["Normal"])
+        wrap_w = width - 2 * margin
+        _, para_height = para.wrap(wrap_w, summary_block)
+        para_y = margin + summary_block - 10
+        para.drawOn(c, margin, para_y)
+        content_bottom = min(content_bottom, para_y)
+
+    c.setStrokeGray(0.8)
+    c.setLineWidth(0.5)
+    c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
+
+    verse_code = _pdf_safe_text((title or "coloring").upper().replace(" ", "_"))
+    c.setFillColor(black)
+    footer_lift = 0
+    if content_bottom and content_bottom > inch:
+        footer_lift = min(layout.FOOTER_LIFT_MAX, content_bottom - inch)
+    c.drawRightString(width - margin, 0.32 * inch + footer_lift, f"FS-{verse_code}")
+    c.setFont("Helvetica", 8)
+    c.setFillGray(0.4)
+    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, "© 2025 Faith Sparks Printables · For personal use only")
+    c.save()

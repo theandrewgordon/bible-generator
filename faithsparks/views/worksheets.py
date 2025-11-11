@@ -516,11 +516,20 @@ def delete_worksheet(filename):
             .stream()
         )
         doc = next(docs, None)
+        meta = doc.to_dict() if doc else {}
         if doc:
             doc.reference.delete()
         file_path = os.path.join("output", filename)
         if os.path.exists(file_path):
             os.remove(file_path)
+        if meta.get("type") == "coloring":
+            png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
+            png_path = os.path.join("worksheets", png_name)
+            if os.path.exists(png_path):
+                os.remove(png_path)
+            thumb_path = os.path.join("output", "thumbs", os.path.splitext(filename)[0] + ".png")
+            if os.path.exists(thumb_path):
+                os.remove(thumb_path)
         flash("Worksheet deleted successfully.", "success")
     except Exception as e:
         traceback.print_exc()
@@ -543,11 +552,20 @@ def delete_bulk():
                 .stream()
             )
             doc = next(docs, None)
+            meta = doc.to_dict() if doc else {}
             if doc:
                 doc.reference.delete()
             file_path = os.path.join("output", filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
+            if meta.get("type") == "coloring":
+                png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
+                png_path = os.path.join("worksheets", png_name)
+                if os.path.exists(png_path):
+                    os.remove(png_path)
+                thumb_path = os.path.join("output", "thumbs", os.path.splitext(filename)[0] + ".png")
+                if os.path.exists(thumb_path):
+                    os.remove(thumb_path)
         flash("Selected worksheets deleted.", "success")
     except Exception as e:
         traceback.print_exc()
@@ -664,6 +682,9 @@ def regenerate(filename):
         flash(f"Original data not found for {filename}", "error")
         return redirect(url_for("history"))
     meta = doc.to_dict()
+    if meta.get("type") == "coloring":
+        flash("Coloring sheets cannot be regenerated yet. Please create a new illustration.", "info")
+        return redirect(url_for("illustrate"))
     verse = meta["verse"]
     version = meta["version"]
     use_cursive = meta.get("cursive", False)
