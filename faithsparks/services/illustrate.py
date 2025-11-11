@@ -204,18 +204,24 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
                 ),
             },
         ]
-        response_kwargs = {
+        base_kwargs = {
             "model": model_name,
             "temperature": 0.3,
             "response_format": {"type": "json_schema", "json_schema": schema},
             "input": request_input,
         }
         try:
-            return client.responses.create(**response_kwargs)
+            return client.responses.create(**base_kwargs)
         except TypeError as exc:
             if "response_format" in str(exc):
+                parse_kwargs = dict(base_kwargs)
+                parse_kwargs.pop("response_format", None)
+                parse_kwargs.setdefault("input", request_input)
                 if hasattr(client.responses, "parse"):
-                    return client.responses.parse(**response_kwargs)
+                    try:
+                        return client.responses.parse(**parse_kwargs)
+                    except TypeError:
+                        pass
                 # older SDK: fall back to chat completions asking for JSON
                 chat_messages = [
                     {"role": "system", "content": system_prompt + " Return strict JSON matching the provided schema."},
