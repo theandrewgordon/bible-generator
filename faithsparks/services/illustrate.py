@@ -213,8 +213,26 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
         try:
             return client.responses.create(**response_kwargs)
         except TypeError as exc:
-            if "response_format" in str(exc) and hasattr(client.responses, "parse"):
-                return client.responses.parse(**response_kwargs)
+            if "response_format" in str(exc):
+                if hasattr(client.responses, "parse"):
+                    return client.responses.parse(**response_kwargs)
+                # older SDK: fall back to chat completions asking for JSON
+                chat_messages = [
+                    {"role": "system", "content": system_prompt + " Return strict JSON matching the provided schema."},
+                    request_input[1],
+                ]
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    temperature=0.3,
+                    messages=chat_messages,
+                )
+                class _Wrapper:
+                    def __init__(self, text):
+                        self.output = []
+                        self.output_text = text
+
+                text = completion.choices[0].message.content if completion.choices else ""
+                return _Wrapper(text or "")
             raise
 
     for model in models:
