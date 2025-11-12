@@ -469,12 +469,20 @@ def create_coloring_sheet(
             quality="standard",
         )
     except Exception as exc:
-        raise IllustrationError("Could not render coloring art", 500) from exc
+        raise IllustrationError(
+            "Could not render coloring art",
+            500,
+            {"details": [str(exc)[:200]]},
+        ) from exc
 
     data = img_resp.data[0]
     b64 = getattr(data, "b64_json", None)
     if not b64:
-        raise IllustrationError("Image response missing image data", 500)
+        raise IllustrationError(
+            "Image response missing image data",
+            500,
+            {"details": ["OpenAI response missing b64_json payload"]},
+        )
     _ensure_dirs()
 
     base_title = title_override.strip() or (
