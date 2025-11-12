@@ -34,6 +34,8 @@ TEXT_MODEL_FALLBACK = os.getenv("ILLUSTRATE_TEXT_FALLBACK", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("ILLUSTRATE_IMAGE_MODEL", "gpt-image-1")
 PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
+IMAGE_SIZE = os.getenv("ILLUSTRATE_IMAGE_SIZE", "768")
+IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "25"))
 
 logger = logging.getLogger(__name__)
 IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "1.0"))
@@ -42,10 +44,13 @@ IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "2"))
 
 def _generate_image_with_retry(client, **kwargs):
     """Call OpenAI Images with a small retry window for transient issues."""
+    kwargs.pop("quality", None)  # high quality is slower + error-prone
+    kwargs["n"] = 1
     last_exc: Exception | None = None
+    timed_client = client.with_options(timeout=IMAGE_REQ_TIMEOUT)
     for attempt in range(1, IMAGE_MAX_ATTEMPTS + 1):
         try:
-            return client.images.generate(**kwargs)
+            return timed_client.images.generate(**kwargs)
         except (APITimeoutError, APIConnectionError) as exc:
             last_exc = exc
             logger.warning(
@@ -499,7 +504,7 @@ def create_coloring_sheet(
             client,
             model=IMAGE_MODEL,
             prompt=prompt,
-            size="1024x1024",
+            size=f"{IMAGE_SIZE}x{IMAGE_SIZE}",
             n=1,
         )
     except RateLimitError as exc:
