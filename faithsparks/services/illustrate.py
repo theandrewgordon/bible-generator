@@ -466,7 +466,7 @@ def create_coloring_sheet(
             model=IMAGE_MODEL,
             prompt=prompt,
             size="1024x1024",
-            quality="standard",
+            quality="high",
         )
     except Exception as exc:
         raise IllustrationError(
