@@ -469,12 +469,12 @@ def create_coloring_sheet(
             quality="standard",
         )
     except Exception as exc:
-        raise IllustrationError("Could not render coloring art", 502) from exc
+        raise IllustrationError("Could not render coloring art", 500) from exc
 
     data = img_resp.data[0]
     b64 = getattr(data, "b64_json", None)
     if not b64:
-        raise IllustrationError("Image response missing image data", 502)
+        raise IllustrationError("Image response missing image data", 500)
     _ensure_dirs()
 
     base_title = title_override.strip() or (
