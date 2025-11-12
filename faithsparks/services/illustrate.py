@@ -7,10 +7,12 @@ import json
 import os
 import uuid
 import logging
+import time
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 from PIL import Image
+from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from build_pdf import build_coloring_pdf
 from faithsparks.services.firestore import db, firestore
@@ -34,6 +36,37 @@ PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
 
 logger = logging.getLogger(__name__)
+IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "1.0"))
+IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "2"))
+
+
+def _generate_image_with_retry(client, **kwargs):
+    """Call OpenAI Images with a small retry window for transient issues."""
+    last_exc: Exception | None = None
+    for attempt in range(1, IMAGE_MAX_ATTEMPTS + 1):
+        try:
+            return client.images.generate(**kwargs)
+        except (APITimeoutError, APIConnectionError) as exc:
+            last_exc = exc
+            logger.warning(
+                "Illustrate image attempt %s/%s timed out: %s",
+                attempt,
+                IMAGE_MAX_ATTEMPTS,
+                exc,
+            )
+            if attempt < IMAGE_MAX_ATTEMPTS and IMAGE_RETRY_DELAY > 0:
+                time.sleep(IMAGE_RETRY_DELAY)
+        except RateLimitError as exc:
+            last_exc = exc
+            logger.warning("Illustrate image rate limited: %s", exc)
+            break
+        except Exception as exc:  # pylint: disable=broad-except
+            last_exc = exc
+            logger.exception("Illustrate image failed: %s", exc)
+            break
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("Image generation failed with unknown error")
 
 SAFE_SYMBOLS = [
     "cross",
@@ -462,13 +495,26 @@ def create_coloring_sheet(
         raise IllustrationError("OpenAI client is not configured", 500)
 
     try:
-        img_resp = client.images.generate(
+        img_resp = _generate_image_with_retry(
+            client,
             model=IMAGE_MODEL,
             prompt=prompt,
             size="1024x1024",
-            quality="high",
+            n=1,
         )
-    except Exception as exc:
+    except RateLimitError as exc:
+        raise IllustrationError(
+            "Illustrate is temporarily rate-limited. Please try again shortly.",
+            429,
+            {"details": [str(exc)[:200]]},
+        ) from exc
+    except (APITimeoutError, APIConnectionError) as exc:
+        raise IllustrationError(
+            "Image generation timed out. Please try again.",
+            504,
+            {"details": [str(exc)[:200]]},
+        ) from exc
+    except Exception as exc:  # pylint: disable=broad-except
         raise IllustrationError(
             "Could not render coloring art",
             500,

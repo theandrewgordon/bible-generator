@@ -3,6 +3,7 @@ import json
 import re
 from typing import Iterable, List, Tuple
 
+import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -14,9 +15,11 @@ from faithsparks.util.request_utils import (
 
 # --- Load API Key ---
 load_dotenv("secret.env")
+CLIENT_TIMEOUT = httpx.Timeout(connect=5.0, read=25.0, write=25.0, pool=None)
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     organization=os.getenv("OPENAI_ORG_ID"),
+    timeout=CLIENT_TIMEOUT,
 )
 
 
