@@ -57,6 +57,7 @@ if IMAGE_SIZE_SETTING and IMAGE_SIZE_SETTING not in _ALLOWED_IMAGE_SIZES:
         IMAGE_SIZE_SETTING,
         RESOLVED_IMAGE_SIZE,
     )
+IMAGE_SIZE = RESOLVED_IMAGE_SIZE
 
 
 def _generate_image_with_retry(client, **kwargs):
@@ -167,12 +168,14 @@ class IllustrationError(Exception):
 
 
 def _ensure_dirs():
+    """Make sure the worksheet and output folders exist before saving files."""
     Path("worksheets").mkdir(parents=True, exist_ok=True)
     Path("output").mkdir(parents=True, exist_ok=True)
     Path("output/thumbs").mkdir(parents=True, exist_ok=True)
 
 
 def detect_blocked_term(text: str) -> str | None:
+    """Return a blocked term that appears in the text, if any."""
     lowered = (text or "").lower()
     for term in BLOCKED_WORDS:
         if term in lowered:
@@ -181,6 +184,7 @@ def detect_blocked_term(text: str) -> str | None:
 
 
 def _extract_response_text(resp) -> str:
+    """Flatten OpenAI Responses output into a single text blob."""
     chunks: List[str] = []
     output = getattr(resp, "output", None)
     if output:
@@ -197,6 +201,7 @@ def _extract_response_text(resp) -> str:
 
 
 def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
+    """Use OpenAI Responses to create a safe summary + theological notes for the scene."""
     client = get_openai_client()
     if not client:
         raise IllustrationError("OpenAI client is not configured", 500)
@@ -338,6 +343,7 @@ def build_scene_blueprint(
     user_symbols_only: bool,
     allow_historical_props: bool,
 ) -> Tuple[Dict, bool]:
+    """Translate the AI summary into concrete art direction plus guardrail flags."""
     composition = COMPOSITION_BY_AGE.get(age_bracket, COMPOSITION_BY_AGE["6-8"])
     sensitivity = summary_payload.get("sensitivity", {}) or {}
     forced = any(bool(sensitivity.get(flag)) for flag in SENSITIVITY_FLAGS)
@@ -361,6 +367,7 @@ def build_scene_blueprint(
 
 
 def _prompt_from_blueprint(blueprint: Dict, summary: Dict, references: List[str], include_reference: bool) -> str:
+    """Build the natural-language instruction that is sent to the image model."""
     ref_line = (
         f"Reference focus: {', '.join(references)}. "
         if references and include_reference
@@ -391,6 +398,7 @@ def _prompt_from_blueprint(blueprint: Dict, summary: Dict, references: List[str]
 
 
 def _save_png(b64_data: str, path: Path) -> None:
+    """Persist the generated PNG to disk."""
     binary = base64.b64decode(b64_data)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "wb") as fh:
@@ -398,6 +406,7 @@ def _save_png(b64_data: str, path: Path) -> None:
 
 
 def _make_thumbnail(src: Path, dest: Path) -> None:
+    """Create a small grayscale preview for the worksheet history."""
     try:
         with Image.open(src) as img:
             img = img.convert("L")
@@ -417,6 +426,7 @@ def _coerce_bool(value, default=False):
 
 
 def _compose_source_blocks(verses: List[Dict], custom_text: str) -> str:
+    """Combine Bible text and custom text into a single prompt source string."""
     blocks: List[str] = []
     for item in verses:
         compare = item.get("compare")
@@ -428,6 +438,7 @@ def _compose_source_blocks(verses: List[Dict], custom_text: str) -> str:
 
 
 def _fetch_compare_text(reference: str) -> str | None:
+    """Fetch a comparison translation when configured."""
     if not COMPARE_VERSION:
         return None
     try:
@@ -448,6 +459,7 @@ def create_coloring_sheet(
     symbols_only: bool,
     historical_props: bool,
 ) -> Dict:
+    """Primary entry point for the Illustrate feature."""
     if not (verse_input or custom_text):
         raise IllustrationError("Please provide at least one verse or custom text.")
 
@@ -619,6 +631,7 @@ def create_coloring_sheet(
         "references": [v["reference"] for v in verses],
     }
 def _parse_summary_json(raw: str) -> Dict:
+    """Load JSON, falling back to extracting best-effort dictionary."""
     try:
         return json.loads(raw)
     except json.JSONDecodeError:

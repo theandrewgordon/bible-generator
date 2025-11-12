@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Faith Sparks Printables – Illustrate Coloring Sheet{% endblock %}
+{% block title %}Faith Sparks Illustrate – Gentle Coloring Sheets{% endblock %}
 {% block head_extra %}
 <meta
   name="description"
@@ -12,10 +12,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
 {% endblock %}
 {% block content %}
-<h1 class="page-title">🎨 Illustrate a Coloring Sheet</h1>
+<h1 class="page-title">🎨 Illustrate a Scripture Coloring Page</h1>
 <p class="muted small">
-  Paste verses (Tagify supports multiple) or an optional short poem/prayer. We’ll keep everything
-  age-appropriate and generate black-and-white line art ready for little artists.
+  Gather a favorite Bible verse or short prayer, choose the age level, and we’ll sketch a sweet
+  black-and-white scene that’s safe for little hearts and easy on homeschool printers.
 </p>
 
 <div class="grid illustrate-grid">
@@ -28,17 +28,19 @@
       data-max-chars="{{ max_custom_chars }}"
     >
       <section class="block">
-        <h2 class="step"><span class="step-dot">1</span> Bible verses (optional)</h2>
+        <h2 class="step"><span class="step-dot">1</span> Scripture focus</h2>
         <label for="illustrateVerse" class="sr-only">Bible verses</label>
         <input
           id="illustrateVerse"
           name="verse_input"
-          placeholder="e.g., Psalm 23:1 (KJV), John 3:16"
+          placeholder="Try “Psalm 23:1 (KJV)” or paste a list such as “John 3:16, Psalm 91:1”"
           autocomplete="off"
           spellcheck="false"
           data-prefill="{{ prefill_verse or '' }}"
         />
-        <small class="muted">Add ranges or multiple references — Tagify will keep them tidy.</small>
+        <small class="muted">
+          Tagify keeps every verse tidy—you can paste several at once or include a range (Psalm 23:1-3).
+        </small>
       </section>
 
       <section class="block">
@@ -48,7 +50,7 @@
           name="custom_text"
           rows="4"
           maxlength="{{ max_custom_chars }}"
-          placeholder="Short prayer, poem, or sensitive context ({{ max_custom_chars }} characters max)."
+          placeholder="Short prayer, gentle reminder, or context for sensitive kiddos ({{ max_custom_chars }} characters max)."
         ></textarea>
         <div class="muted micro" id="charCount">0 / {{ max_custom_chars }} characters</div>
       </section>
@@ -59,7 +61,7 @@
         <input
           id="titleOverride"
           name="title_override"
-          placeholder="e.g., Shepherd’s Care Coloring Page"
+          placeholder="“Shepherd’s Care Coloring Page” or leave blank for an automatic title"
         />
 
         <label class="field-label" for="ageBracket">Age bracket</label>
@@ -71,15 +73,15 @@
 
         <label class="checkrow">
           <input type="checkbox" id="includeReference" name="include_reference" checked />
-          Include verse reference line on PDF
+          Add the verse reference beneath the illustration
         </label>
         <label class="checkrow">
           <input type="checkbox" id="symbolsOnly" name="symbols_only" checked />
-          Symbols-only mode (doves, fish, sunbeams, etc.)
+          Symbols-only mode (doves, loaves, light rays, and other soothing imagery)
         </label>
         <label class="checkrow">
           <input type="checkbox" id="historicalProps" name="historical_props" />
-          Allow calm historical props (staff, sling, shield at rest)
+          Sprinkle in calm historical props (staff, sling, shield resting nearby)
         </label>
       </section>
 
@@ -92,10 +94,10 @@
     <section class="block guardrails">
       <h3>Imagery guardrails</h3>
       <ul>
-        <li>No depiction of God the Father; portray Jesus reverently, no blood or wounds.</li>
-        <li>No demons, occult, horror, or combat. Weapons must remain at rest.</li>
-        <li>Sensitive passages (violence, death, adult themes) automatically switch to symbols-only.</li>
-        <li>Historical props are optional and only included if safe for the scene.</li>
+        <li>Jesus is depicted gently—never crucifixion wounds or frightening expressions.</li>
+        <li>No demons, occult, or active combat. Weapons stay resting or absent.</li>
+        <li>Sensitive passages automatically switch to safe symbols so nothing heavy lands in your homeschool room.</li>
+        <li>Historical props only appear if you allow them and the passage feels calm.</li>
       </ul>
     </section>
   </div>
@@ -122,11 +124,11 @@
     </div>
 
     <div class="card-lite notes">
-      <h3>Tips</h3>
+      <h3>Tips from other homeschool moms</h3>
       <ul>
-        <li>Tagify lets you paste multiple references at once.</li>
-        <li>Custom text is optional but great for prayers or memory lines.</li>
-        <li>Symbols-only keeps things safe when passages mention battles or death.</li>
+        <li>Paste the week’s memory verses all at once—Tagify separates them automatically.</li>
+        <li>Use the custom text box for your child’s name, a family prayer, or a gentle reminder.</li>
+        <li>Need a quick quiet-time activity? Keep “Symbols-only” checked for fast, peaceful scenes.</li>
       </ul>
     </div>
   </aside>
