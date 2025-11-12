@@ -34,12 +34,29 @@ TEXT_MODEL_FALLBACK = os.getenv("ILLUSTRATE_TEXT_FALLBACK", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("ILLUSTRATE_IMAGE_MODEL", "gpt-image-1")
 PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
-IMAGE_SIZE = os.getenv("ILLUSTRATE_IMAGE_SIZE", "768")
+IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "1024x1024") or "").lower()
 IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "25"))
 
 logger = logging.getLogger(__name__)
 IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "1.0"))
 IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "2"))
+
+_ALLOWED_IMAGE_SIZES = {
+    "1024": "1024x1024",
+    "1024x1024": "1024x1024",
+    "square": "1024x1024",
+    "landscape": "1536x1024",
+    "1536x1024": "1536x1024",
+    "portrait": "1024x1536",
+    "1024x1536": "1024x1536",
+}
+RESOLVED_IMAGE_SIZE = _ALLOWED_IMAGE_SIZES.get(IMAGE_SIZE_SETTING, "1024x1024")
+if IMAGE_SIZE_SETTING and IMAGE_SIZE_SETTING not in _ALLOWED_IMAGE_SIZES:
+    logger.warning(
+        "ILLUSTRATE_IMAGE_SIZE '%s' is not supported. Falling back to %s.",
+        IMAGE_SIZE_SETTING,
+        RESOLVED_IMAGE_SIZE,
+    )
 
 
 def _generate_image_with_retry(client, **kwargs):
@@ -504,7 +521,7 @@ def create_coloring_sheet(
             client,
             model=IMAGE_MODEL,
             prompt=prompt,
-            size=f"{IMAGE_SIZE}x{IMAGE_SIZE}",
+            size=RESOLVED_IMAGE_SIZE,
             n=1,
         )
     except RateLimitError as exc:
