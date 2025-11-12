@@ -14,7 +14,10 @@ from faithsparks.util.request_utils import (
 
 # --- Load API Key ---
 load_dotenv("secret.env")
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    organization=os.getenv("OPENAI_ORG_ID"),
+)
 
 
 def get_openai_client() -> OpenAI:
