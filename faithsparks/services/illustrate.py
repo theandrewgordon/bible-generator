@@ -35,11 +35,11 @@ IMAGE_MODEL = os.getenv("ILLUSTRATE_IMAGE_MODEL", "gpt-image-1")
 PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
 IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "1024x1024") or "").lower()
-IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "25"))
+IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "12"))
 
 logger = logging.getLogger(__name__)
-IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "1.0"))
-IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "2"))
+IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "0.8"))
+IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "1"))
 
 _ALLOWED_IMAGE_SIZES = {
     "1024": "1024x1024",
@@ -570,9 +570,11 @@ def create_coloring_sheet(
         if verses
         else "Custom Prayer Coloring Sheet"
     )
-    slug = normalize_slug(base_title or f"coloring_{uuid.uuid4().hex[:8]}")
-    png_filename = f"{slug}_coloring.png"
-    pdf_filename = f"{slug}_coloring.pdf"
+    base_slug = normalize_slug(base_title or "coloring")
+    unique_suffix = uuid.uuid4().hex[:6]
+    slug = f"{base_slug}-{unique_suffix}"
+    png_filename = f"{slug}.png"
+    pdf_filename = f"{slug}.pdf"
     png_path = Path("worksheets") / png_filename
     pdf_path = Path("output") / pdf_filename
     thumb_path = Path("output/thumbs") / f"{slug}_coloring.png"
