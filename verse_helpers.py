@@ -27,6 +27,21 @@ def get_openai_client() -> OpenAI:
     """Expose the shared OpenAI client to other modules."""
     return client
 
+
+def strip_fences(text: str) -> str:
+    """Remove leading/trailing ```json fences that some models add."""
+    if not text:
+        return text
+    trimmed = text.strip()
+    if trimmed.startswith("```"):
+        parts = trimmed.split("```", 2)
+        if len(parts) >= 3:
+            trimmed = parts[1] if parts[1] else parts[2]
+            trimmed = trimmed.strip()
+    if trimmed.startswith("{") or trimmed.startswith("["):
+        return trimmed
+    return trimmed
+
 # === Slug & Normalization ===
 def normalize_slug(verse_ref):
     """Convert verse reference to filesystem-safe slug."""
@@ -94,6 +109,7 @@ def parse_and_clean_json(content):
         log_ai_parse_failure("", reason="empty response")
         return {}
 
+    content = strip_fences(content)
     try:
         return json.loads(content)
     except json.JSONDecodeError as exc:
@@ -124,7 +140,7 @@ Only return updated JSON, and keep the original fullVerse as-is.
     new_content = call_openai(retry_prompt)
     if new_content:
         try:
-            fixed = json.loads(new_content)
+            fixed = json.loads(strip_fences(new_content))
             data["traceableVerse"] = fixed.get("traceableVerse", data["traceableVerse"])
         except Exception as e:
             print(f"⚠️ Retry fix parse failed: {e}")
@@ -159,7 +175,7 @@ Text: {text}
     ]
     result = call_openai(prompt)
     try:
-        analysis = json.loads(result)
+        analysis = json.loads(strip_fences(result))
         return analysis.get("safe", False) and analysis.get("isScriptureLike", False)
     except Exception as e:
         print(f"⚠️ Custom validation failed: {e}")

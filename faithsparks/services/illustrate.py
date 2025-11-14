@@ -38,6 +38,16 @@ IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "1024x1024") or "").low
 IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "12"))
 TEXT_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_TEXT_TIMEOUT", "8"))
 
+
+def _brand_asset_path(env_key: str, fallback: str | None) -> Path | None:
+    raw = os.getenv(env_key)
+    candidate = (raw or "").strip() or (fallback or "")
+    return Path(candidate) if candidate else None
+
+
+LOGO_ASSET_PATH = _brand_asset_path("ILLUSTRATE_LOGO_ASSET", "faith_sparks_logo.png")
+QR_ASSET_PATH = _brand_asset_path("ILLUSTRATE_QR_ASSET", "faithsparks_qr.png")
+
 logger = logging.getLogger(__name__)
 IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "0.8"))
 IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "1"))
@@ -426,6 +436,50 @@ def _make_thumbnail(src: Path, dest: Path) -> None:
         pass
 
 
+def _brand_coloring_image(target: Path) -> None:
+    """Overlay Faith Sparks logo + QR onto the generated PNG."""
+    if not target.exists():
+        return
+
+    assets: List[Tuple[str, Path]] = []
+    for alignment, asset_path in (("left", LOGO_ASSET_PATH), ("right", QR_ASSET_PATH)):
+        if asset_path and asset_path.exists():
+            assets.append((alignment, asset_path))
+
+    if not assets:
+        return
+
+    try:
+        with Image.open(target) as base_img:
+            base = base_img.convert("RGBA")
+            width, height = base.size
+            margin = max(24, int(min(width, height) * 0.035))
+            max_dim = max(80, int(min(width, height) * 0.18))
+
+            for alignment, asset_path in assets:
+                try:
+                    with Image.open(asset_path) as overlay_img:
+                        overlay = overlay_img.convert("RGBA")
+                except Exception:
+                    logger.warning("Illustrate branding asset failed to load: %s", asset_path, exc_info=True)
+                    continue
+
+                overlay.thumbnail((max_dim, max_dim), Image.LANCZOS)
+                ow, oh = overlay.size
+                if not ow or not oh:
+                    continue
+                if alignment == "left":
+                    position = (margin, margin)
+                else:
+                    position = (width - margin - ow, margin)
+                base.paste(overlay, position, overlay)
+
+            branded = base.convert("RGB")
+            branded.save(target)
+    except Exception:
+        logger.exception("Failed adding branding overlays to %s", target)
+
+
 def _coerce_bool(value, default=False):
     if isinstance(value, bool):
         return value
@@ -589,6 +643,7 @@ def create_coloring_sheet(
     thumb_path = Path("output/thumbs") / f"{slug}_coloring.png"
 
     _save_png(b64, png_path)
+    _brand_coloring_image(png_path)
     _make_thumbnail(png_path, thumb_path)
 
     reference_line = ", ".join(v["reference"] for v in verses)
