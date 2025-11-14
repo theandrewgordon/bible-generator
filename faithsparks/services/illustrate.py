@@ -36,6 +36,7 @@ PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
 IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "1024x1024") or "").lower()
 IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "12"))
+TEXT_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_TEXT_TIMEOUT", "8"))
 
 logger = logging.getLogger(__name__)
 IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "0.8"))
@@ -274,13 +275,20 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
         create_kwargs = dict(base_kwargs)
         create_kwargs["response_format"] = response_format
         try:
-            return client.responses.create(**create_kwargs)
+            return text_client.responses.create(**create_kwargs)
+        except (APITimeoutError, APIConnectionError) as exc:
+            logger.warning("Illustrate summary via %s timed out: %s", model_name, exc)
+            raise IllustrationError(
+                "Summary generation timed out. Please try again.",
+                504,
+                {"details": [f"{model_name}: {str(exc)[:200]}"]},
+            ) from exc
         except TypeError as exc:
             if "response_format" in str(exc):
                 parse_kwargs = dict(base_kwargs)
-                if hasattr(client.responses, "parse"):
+                if hasattr(text_client.responses, "parse"):
                     try:
-                        return client.responses.parse(**parse_kwargs)
+                        return text_client.responses.parse(**parse_kwargs)
                     except TypeError:
                         pass
                 # older SDK: fall back to chat completions asking for JSON
@@ -288,7 +296,7 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
                     {"role": "system", "content": system_prompt + " Return strict JSON matching the provided schema."},
                     request_input[1],
                 ]
-                completion = client.chat.completions.create(
+                completion = text_client.chat.completions.create(
                     model=model_name,
                     temperature=0.3,
                     messages=chat_messages,
