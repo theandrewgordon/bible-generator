@@ -78,25 +78,51 @@ def _generate_image_with_retry(client, **kwargs):
     last_exc: Exception | None = None
     timed_client = client.with_options(timeout=IMAGE_REQ_TIMEOUT)
     for attempt in range(1, IMAGE_MAX_ATTEMPTS + 1):
+        start = time.perf_counter()
         try:
-            return timed_client.images.generate(**kwargs)
-        except (APITimeoutError, APIConnectionError) as exc:
-            last_exc = exc
-            logger.warning(
-                "Illustrate image attempt %s/%s timed out: %s",
+            response = timed_client.images.generate(**kwargs)
+            elapsed = time.perf_counter() - start
+            logger.info(
+                "Illustrate image attempt %s/%s succeeded in %.2fs (size=%s)",
                 attempt,
                 IMAGE_MAX_ATTEMPTS,
+                elapsed,
+                kwargs.get("size"),
+            )
+            return response
+        except (APITimeoutError, APIConnectionError) as exc:
+            elapsed = time.perf_counter() - start
+            last_exc = exc
+            logger.warning(
+                "Illustrate image attempt %s/%s timed out after %.2fs: %s",
+                attempt,
+                IMAGE_MAX_ATTEMPTS,
+                elapsed,
                 exc,
             )
             if attempt < IMAGE_MAX_ATTEMPTS and IMAGE_RETRY_DELAY > 0:
                 time.sleep(IMAGE_RETRY_DELAY)
         except RateLimitError as exc:
+            elapsed = time.perf_counter() - start
             last_exc = exc
-            logger.warning("Illustrate image rate limited: %s", exc)
+            logger.warning(
+                "Illustrate image attempt %s/%s rate limited after %.2fs: %s",
+                attempt,
+                IMAGE_MAX_ATTEMPTS,
+                elapsed,
+                exc,
+            )
             break
         except Exception as exc:  # pylint: disable=broad-except
+            elapsed = time.perf_counter() - start
             last_exc = exc
-            logger.exception("Illustrate image failed: %s", exc)
+            logger.exception(
+                "Illustrate image attempt %s/%s failed after %.2fs: %s",
+                attempt,
+                IMAGE_MAX_ATTEMPTS,
+                elapsed,
+                exc,
+            )
             break
     if last_exc:
         raise last_exc
