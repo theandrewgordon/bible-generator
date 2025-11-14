@@ -206,6 +206,7 @@ def _summarize_context(prompt_text: str, age_bracket: str) -> Dict:
     client = get_openai_client()
     if not client:
         raise IllustrationError("OpenAI client is not configured", 500)
+    text_client = client.with_options(timeout=TEXT_REQ_TIMEOUT)
 
     system_prompt = (
         "You are a Christian education art director. "
