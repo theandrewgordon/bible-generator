@@ -36,13 +36,13 @@ TEXT_MODEL_FALLBACK = os.getenv("ILLUSTRATE_TEXT_FALLBACK", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("ILLUSTRATE_IMAGE_MODEL", "gpt-image-1")
 PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
-IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "1024x1024") or "").lower()
+IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "auto") or "").lower()
 IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "12"))
 TEXT_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_TEXT_TIMEOUT", "8"))
 CACHE_COLLECTION = os.getenv("ILLUSTRATE_CACHE_COLLECTION", "illustrate_cache")
 RATE_LIMIT_COLLECTION = os.getenv("ILLUSTRATE_RATE_LIMIT_COLLECTION", "illustrate_usage")
 RATE_LIMIT_SECONDS = int(os.getenv("ILLUSTRATE_RATE_LIMIT_SECONDS", "20"))
-IMAGE_FALLBACK_SETTING = (os.getenv("ILLUSTRATE_IMAGE_FALLBACK_SIZE", "auto") or "").lower()
+IMAGE_FALLBACK_SETTING = (os.getenv("ILLUSTRATE_IMAGE_FALLBACK_SIZE", "1024x1024") or "").lower()
 
 
 def _brand_asset_path(env_key: str, fallback: str | None) -> Path | None:
