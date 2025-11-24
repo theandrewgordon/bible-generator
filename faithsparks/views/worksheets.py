@@ -683,8 +683,8 @@ def regenerate(filename):
         return redirect(url_for("history"))
     meta = doc.to_dict()
     if meta.get("type") == "coloring":
-        flash("Coloring sheets cannot be regenerated yet. Please create a new illustration.", "info")
-        return redirect(url_for("illustrate"))
+        flash("Coloring sheets cannot be regenerated yet. Check the coloring library on the Generate page.", "info")
+        return redirect(url_for("generate") + "#coloring")
     verse = meta["verse"]
     version = meta["version"]
     use_cursive = meta.get("cursive", False)

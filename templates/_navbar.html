@@ -22,7 +22,7 @@
       {% set p = request.path or '' %}
       <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}><span aria-hidden="true">🏠</span> Home</a>
       <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}><span aria-hidden="true">📝</span> Generate</a>
-      <a class="nav-link" href="/illustrate"     {% if p.startswith('/illustrate') %}aria-current="page"{% endif %}><span aria-hidden="true">🎨</span> Illustrate</a>
+      <a class="nav-link" href="/generate#coloring"><span aria-hidden="true">🎨</span> Coloring</a>
       <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}><span aria-hidden="true">🔎</span> Browse</a>
       <a class="nav-link" href="/history"        {% if p.startswith('/history') %}aria-current="page"{% endif %}><span aria-hidden="true">📚</span> History</a>
 
