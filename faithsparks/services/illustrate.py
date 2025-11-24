@@ -42,6 +42,7 @@ TEXT_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_TEXT_TIMEOUT", "8"))
 CACHE_COLLECTION = os.getenv("ILLUSTRATE_CACHE_COLLECTION", "illustrate_cache")
 RATE_LIMIT_COLLECTION = os.getenv("ILLUSTRATE_RATE_LIMIT_COLLECTION", "illustrate_usage")
 RATE_LIMIT_SECONDS = int(os.getenv("ILLUSTRATE_RATE_LIMIT_SECONDS", "20"))
+IMAGE_FALLBACK_SETTING = (os.getenv("ILLUSTRATE_IMAGE_FALLBACK_SIZE", "512x512") or "").lower()
 
 
 def _brand_asset_path(env_key: str, fallback: str | None) -> Path | None:
@@ -58,6 +59,8 @@ IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "0.8"))
 IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "1"))
 
 _ALLOWED_IMAGE_SIZES = {
+    "512": "512x512",
+    "512x512": "512x512",
     "1024": "1024x1024",
     "1024x1024": "1024x1024",
     "square": "1024x1024",
@@ -74,6 +77,9 @@ if IMAGE_SIZE_SETTING and IMAGE_SIZE_SETTING not in _ALLOWED_IMAGE_SIZES:
         RESOLVED_IMAGE_SIZE,
     )
 IMAGE_SIZE = RESOLVED_IMAGE_SIZE
+FALLBACK_IMAGE_SIZE = _ALLOWED_IMAGE_SIZES.get(IMAGE_FALLBACK_SETTING)
+if IMAGE_FALLBACK_SETTING and not FALLBACK_IMAGE_SIZE:
+    logger.warning("ILLUSTRATE_IMAGE_FALLBACK_SIZE '%s' is invalid; fallback disabled.", IMAGE_FALLBACK_SETTING)
 
 
 def _generate_image_with_retry(client, **kwargs):
@@ -785,32 +791,72 @@ def create_coloring_sheet(
         cache_key or "none",
     )
 
-    try:
-        img_resp = _generate_image_with_retry(
-            client,
-            model=IMAGE_MODEL,
-            prompt=prompt,
-            size=RESOLVED_IMAGE_SIZE,
-            n=1,
-        )
-    except RateLimitError as exc:
-        raise IllustrationError(
-            "Illustrate is temporarily rate-limited. Please try again shortly.",
-            429,
-            {"details": [str(exc)[:200]]},
-        ) from exc
-    except (APITimeoutError, APIConnectionError) as exc:
-        raise IllustrationError(
-            "Image generation timed out. Please try again.",
-            504,
-            {"details": [str(exc)[:200]]},
-        ) from exc
-    except Exception as exc:  # pylint: disable=broad-except
+    image_sizes = [RESOLVED_IMAGE_SIZE]
+    if FALLBACK_IMAGE_SIZE and FALLBACK_IMAGE_SIZE not in image_sizes:
+        image_sizes.append(FALLBACK_IMAGE_SIZE)
+    img_resp = None
+    last_exc: Exception | None = None
+    used_size = image_sizes[0]
+    for idx, size in enumerate(image_sizes, start=1):
+        try:
+            logger.info(
+                "Illustrate image call size=%s attempt=%s/%s",
+                size,
+                idx,
+                len(image_sizes),
+            )
+            img_resp = _generate_image_with_retry(
+                client,
+                model=IMAGE_MODEL,
+                prompt=prompt,
+                size=size,
+                n=1,
+            )
+            used_size = size
+            break
+        except RateLimitError as exc:
+            raise IllustrationError(
+                "Illustrate is temporarily rate-limited. Please try again shortly.",
+                429,
+                {"details": [str(exc)[:200]]},
+            ) from exc
+        except (APITimeoutError, APIConnectionError) as exc:
+            last_exc = exc
+            if idx == len(image_sizes):
+                raise IllustrationError(
+                    "Image generation timed out. Please try again.",
+                    504,
+                    {"details": [str(exc)[:200]]},
+                ) from exc
+            logger.warning(
+                "Illustrate size=%s hit timeout (%s). Retrying with fallback size=%s",
+                size,
+                exc,
+                image_sizes[idx],
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            last_exc = exc
+            if idx == len(image_sizes):
+                raise IllustrationError(
+                    "Could not render coloring art",
+                    500,
+                    {"details": [str(exc)[:200]]},
+                ) from exc
+            logger.warning(
+                "Illustrate size=%s failed (%s). Retrying with fallback size=%s",
+                size,
+                exc,
+                image_sizes[idx],
+            )
+    if not img_resp:
+        if last_exc:
+            raise last_exc
         raise IllustrationError(
             "Could not render coloring art",
             500,
-            {"details": [str(exc)[:200]]},
-        ) from exc
+            {"details": ["image response unavailable"]},
+        )
+    logger.info("Illustrate image succeeded at size=%s", used_size)
 
     data = img_resp.data[0]
     b64 = getattr(data, "b64_json", None)
