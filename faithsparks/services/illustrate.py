@@ -42,7 +42,7 @@ TEXT_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_TEXT_TIMEOUT", "8"))
 CACHE_COLLECTION = os.getenv("ILLUSTRATE_CACHE_COLLECTION", "illustrate_cache")
 RATE_LIMIT_COLLECTION = os.getenv("ILLUSTRATE_RATE_LIMIT_COLLECTION", "illustrate_usage")
 RATE_LIMIT_SECONDS = int(os.getenv("ILLUSTRATE_RATE_LIMIT_SECONDS", "20"))
-IMAGE_FALLBACK_SETTING = (os.getenv("ILLUSTRATE_IMAGE_FALLBACK_SIZE", "512x512") or "").lower()
+IMAGE_FALLBACK_SETTING = (os.getenv("ILLUSTRATE_IMAGE_FALLBACK_SIZE", "auto") or "").lower()
 
 
 def _brand_asset_path(env_key: str, fallback: str | None) -> Path | None:
@@ -59,8 +59,7 @@ IMAGE_RETRY_DELAY = float(os.getenv("ILLUSTRATE_IMAGE_RETRY_DELAY", "0.8"))
 IMAGE_MAX_ATTEMPTS = int(os.getenv("ILLUSTRATE_IMAGE_ATTEMPTS", "1"))
 
 _ALLOWED_IMAGE_SIZES = {
-    "512": "512x512",
-    "512x512": "512x512",
+    "auto": "auto",
     "1024": "1024x1024",
     "1024x1024": "1024x1024",
     "square": "1024x1024",
