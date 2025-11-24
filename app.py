@@ -629,6 +629,7 @@ def generate():
 
 @app.route("/illustrate", methods=["GET", "POST"])
 @login_required
+@admin_required
 def illustrate():
     if request.method == "GET":
         prefill = request.args.get("verse", "").strip()

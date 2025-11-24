@@ -56,6 +56,9 @@ class _FakeOpenAI:  # pragma: no cover - test shim
         pass
 
 openai_stub.OpenAI = _FakeOpenAI
+openai_stub.APIConnectionError = type("APIConnectionError", (Exception,), {})
+openai_stub.APITimeoutError = type("APITimeoutError", (Exception,), {})
+openai_stub.RateLimitError = type("RateLimitError", (Exception,), {})
 sys.modules.setdefault("openai", openai_stub)
 
 from faithsparks.services import illustrate

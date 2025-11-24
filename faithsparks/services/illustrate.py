@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
-import os
-import uuid
 import logging
+import os
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -37,6 +39,9 @@ COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
 IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "1024x1024") or "").lower()
 IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "12"))
 TEXT_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_TEXT_TIMEOUT", "8"))
+CACHE_COLLECTION = os.getenv("ILLUSTRATE_CACHE_COLLECTION", "illustrate_cache")
+RATE_LIMIT_COLLECTION = os.getenv("ILLUSTRATE_RATE_LIMIT_COLLECTION", "illustrate_usage")
+RATE_LIMIT_SECONDS = int(os.getenv("ILLUSTRATE_RATE_LIMIT_SECONDS", "20"))
 
 
 def _brand_asset_path(env_key: str, fallback: str | None) -> Path | None:
@@ -506,6 +511,110 @@ def _brand_coloring_image(target: Path) -> None:
         logger.exception("Failed adding branding overlays to %s", target)
 
 
+def _build_cache_key(
+    *,
+    references: List[str],
+    custom_text: str,
+    age_bracket: str,
+    include_reference: bool,
+    symbols_only: bool,
+    historical_props: bool,
+) -> str | None:
+    if not references and not custom_text:
+        return None
+
+    base_version = (PRIMARY_VERSION or "primary").lower()
+    parts = [
+        "ILLUSTRATE",
+        base_version,
+        f"age={age_bracket or '6-8'}",
+        f"ref={'1' if include_reference else '0'}",
+        f"sym={'1' if symbols_only else '0'}",
+        f"props={'1' if historical_props else '0'}",
+    ]
+    if references:
+        normalized = "|".join(normalize_slug(ref, max_len=48) for ref in references)
+        parts.append(f"verses={normalized}")
+    if custom_text:
+        digest = hashlib.sha1(custom_text.encode("utf-8")).hexdigest()
+        parts.append(f"custom={digest}")
+    return ":".join(parts)
+
+
+def _fetch_cached_sheet(cache_key: str) -> Dict | None:
+    if not (db and cache_key and CACHE_COLLECTION):
+        return None
+    try:
+        snapshot = db.collection(CACHE_COLLECTION).document(cache_key).get()
+    except Exception as exc:
+        logger.warning("Illustrate cache lookup failed for %s: %s", cache_key, exc)
+        return None
+    if snapshot and getattr(snapshot, "exists", False):
+        data = snapshot.to_dict() or {}
+        data.pop("cached_at", None)
+        if data.get("pdf_filename") and data.get("png_filename"):
+            return data
+    return None
+
+
+def _store_cached_sheet(cache_key: str, result: Dict) -> None:
+    if not (db and cache_key and CACHE_COLLECTION):
+        return
+    payload = {
+        "title": result.get("title"),
+        "summary": result.get("summary"),
+        "scene_blueprint": result.get("scene_blueprint"),
+        "forced_symbols_only": result.get("forced_symbols_only"),
+        "guardrails": result.get("guardrails"),
+        "pdf_filename": result.get("pdf_filename"),
+        "png_filename": result.get("png_filename"),
+        "references": result.get("references"),
+        "age_bracket": result.get("age_bracket"),
+        "cached_at": datetime.now(timezone.utc),
+    }
+    try:
+        db.collection(CACHE_COLLECTION).document(cache_key).set(payload)
+    except Exception:
+        logger.warning("Illustrate cache store failed for %s", cache_key, exc_info=True)
+
+
+def _enforce_rate_limit(user_email: str) -> None:
+    if not (db and RATE_LIMIT_COLLECTION and RATE_LIMIT_SECONDS > 0):
+        return
+    key = (user_email or "anonymous").strip().lower() or "anonymous"
+    doc_ref = db.collection(RATE_LIMIT_COLLECTION).document(key)
+    now = datetime.now(timezone.utc)
+    try:
+        snapshot = doc_ref.get()
+    except Exception as exc:
+        logger.warning("Illustrate rate-limit lookup failed for %s: %s", key, exc)
+        snapshot = None
+
+    if snapshot and getattr(snapshot, "exists", False):
+        data = snapshot.to_dict() or {}
+        last = data.get("lastIllustrateAt")
+        if isinstance(last, datetime):
+            elapsed = (now - last).total_seconds()
+            if elapsed < RATE_LIMIT_SECONDS:
+                wait = int(max(1, RATE_LIMIT_SECONDS - elapsed))
+                logger.warning(
+                    "Illustrate rate limit hit for %s (elapsed=%.1fs limit=%ss)",
+                    key,
+                    elapsed,
+                    RATE_LIMIT_SECONDS,
+                )
+                raise IllustrationError(
+                    f"Please wait {wait} seconds before generating another page.",
+                    429,
+                    {"details": [f"cooldown={RATE_LIMIT_SECONDS}s"]},
+                )
+
+    try:
+        doc_ref.set({"lastIllustrateAt": now}, merge=True)
+    except Exception as exc:
+        logger.warning("Illustrate rate-limit update failed for %s: %s", key, exc)
+
+
 def _coerce_bool(value, default=False):
     if isinstance(value, bool):
         return value
@@ -583,13 +692,60 @@ def create_coloring_sheet(
     if not verses and not custom_text:
         raise IllustrationError("Unable to build scene without content.")
 
+    reference_list = [v["reference"] for v in verses]
+    cache_key = _build_cache_key(
+        references=reference_list,
+        custom_text=custom_text,
+        age_bracket=age_bracket,
+        include_reference=include_reference,
+        symbols_only=symbols_only,
+        historical_props=historical_props,
+    )
+    logger.info(
+        "Illustrate request params user=%s refs=%s custom=%s age=%s include_ref=%s symbols=%s props=%s cache=%s",
+        user_email,
+        reference_list or ["custom_text"],
+        bool(custom_text),
+        age_bracket,
+        include_reference,
+        symbols_only,
+        historical_props,
+        cache_key or "none",
+    )
+    cached_result = _fetch_cached_sheet(cache_key) if cache_key else None
+    if cached_result:
+        cached_result.setdefault("references", reference_list or ["custom_text"])
+        cached_result.setdefault("age_bracket", age_bracket)
+        cached_result.setdefault("guardrails", cached_result.get("guardrails") or [])
+        logger.info(
+            "Illustrate cache hit key=%s -> pdf=%s",
+            cache_key,
+            cached_result.get("pdf_filename"),
+        )
+        return cached_result
+
+    if cache_key:
+        logger.info("Illustrate cache miss key=%s -> generating fresh assets", cache_key)
     source_blob = _compose_source_blocks(verses, custom_text)
+    summary_start = time.perf_counter()
     summary = _summarize_context(source_blob, age_bracket)
+    summary_elapsed = time.perf_counter() - summary_start
+    logger.info(
+        "Illustrate summary finished in %.2fs (len=%s)",
+        summary_elapsed,
+        len((summary or {}).get("summary", "")) if summary else 0,
+    )
     blueprint, forced_symbols = build_scene_blueprint(
         summary,
         age_bracket=age_bracket,
         user_symbols_only=symbols_only,
         allow_historical_props=historical_props,
+    )
+    logger.info(
+        "Illustrate blueprint ready symbols_only=%s props=%s forced=%s",
+        blueprint["symbols_only"],
+        bool(blueprint["historical_props"]),
+        forced_symbols,
     )
     guardrails: List[str] = []
     if forced_symbols and not symbols_only:
@@ -609,13 +765,25 @@ def create_coloring_sheet(
     prompt = _prompt_from_blueprint(
         blueprint,
         summary,
-        [v["reference"] for v in verses],
+        reference_list,
         include_reference,
     )
 
     client = get_openai_client()
     if not client:
         raise IllustrationError("OpenAI client is not configured", 500)
+
+    _enforce_rate_limit(user_email)
+    logger.info(
+        "Illustrate image request user=%s refs=%s age=%s size=%s symbols=%s props=%s cache=%s",
+        user_email,
+        reference_list or ["custom_text"],
+        age_bracket,
+        RESOLVED_IMAGE_SIZE,
+        blueprint["symbols_only"],
+        bool(blueprint["historical_props"]),
+        cache_key or "none",
+    )
 
     try:
         img_resp = _generate_image_with_retry(
@@ -681,6 +849,7 @@ def create_coloring_sheet(
         age_bracket=age_bracket,
         summary_text=summary.get("summary", ""),
     )
+    logger.info("Illustrate files rendered slug=%s pdf=%s png=%s", slug, pdf_filename, png_filename)
 
     upload_to_storage(str(pdf_path), f"worksheets/{pdf_filename}")
     upload_to_storage(str(png_path), f"worksheets/{png_filename}")
@@ -712,7 +881,7 @@ def create_coloring_sheet(
         except Exception:
             pass
 
-    return {
+    result = {
         "title": base_title,
         "summary": summary.get("summary", ""),
         "scene_blueprint": blueprint,
@@ -720,8 +889,13 @@ def create_coloring_sheet(
         "guardrails": guardrails,
         "pdf_filename": pdf_filename,
         "png_filename": png_filename,
-        "references": [v["reference"] for v in verses],
+        "references": reference_list,
+        "age_bracket": age_bracket,
     }
+    if cache_key:
+        _store_cached_sheet(cache_key, result)
+        logger.info("Illustrate cache store complete key=%s -> pdf=%s", cache_key, pdf_filename)
+    return result
 def _parse_summary_json(raw: str) -> Dict:
     """Load JSON, falling back to extracting best-effort dictionary."""
     try:
