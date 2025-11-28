@@ -43,7 +43,7 @@ from faithsparks.util.slug import normalize_slug
 from faithsparks.util.request_utils import get_request_payload, log_request_summary
 
 
-MAX_WORKSHEETS_PER_REQUEST = 50
+MAX_WORKSHEETS_PER_REQUEST = 30
 OPENAI_BATCH_SIZE = 10
 
 

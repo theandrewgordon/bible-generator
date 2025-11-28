@@ -127,8 +127,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           aria-describedby="verseHelp"
         />
         <small id="verseHelp" class="muted">
-          Separate multiple with commas or new lines. Add version in parentheses
-          (e.g., “(ESV)”).
+          Paste up to 30 references; separate with commas or new lines. Add
+          version in parentheses (e.g., “(ESV)”).
         </small>
 
         <div class="quick-picks" role="group" aria-label="Quick pick verses">
@@ -376,7 +376,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
   const verseInput     = document.getElementById('verseInput');
   const tagify         = new Tagify(verseInput, {
-    enforceWhitelist: false, trim: true, duplicates: false,
+    enforceWhitelist: false, trim: true, duplicates: false, maxTags: 30,
     pasteAsTags: true, delimiters: ",|;|\\n",
     dropdown: { enabled: 0 },
     originalInputValueFormat: arr => arr.map(v=>v.value).join(", ")
