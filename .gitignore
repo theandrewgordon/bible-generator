@@ -14,3 +14,7 @@ firebase-creds.json
 # PDF and logs
 *.pdf
 *.log
+
+# Allow shipping purchased bundles
+!static/bundles/*.pdf
+!static/bundles/*.zip
