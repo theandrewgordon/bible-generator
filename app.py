@@ -39,6 +39,40 @@ from faithsparks.services import analytics as analytics_svc
 from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
 
+# Map passwords to pack metadata
+PACKS = {
+    # ESV – Print
+    "sparks-esv-print": {
+        "id": "esv_print",
+        "name": "ESV Print Handwriting (30 Worksheets)",
+        "filename": "30_Pack_ESV.pdf",
+    },
+    # ESV – Cursive
+    "sparks-esv-cursive": {
+        "id": "esv_cursive",
+        "name": "ESV Cursive Handwriting (30 Worksheets)",
+        "filename": "30_Pack_ESV_Cursive.pdf",
+    },
+    # KJV – Print
+    "sparks-kjv-print": {
+        "id": "kjv_print",
+        "name": "KJV Print Handwriting (30 Worksheets)",
+        "filename": "30_Pack_KJV.pdf",
+    },
+    # KJV – Cursive
+    "sparks-kjv-cursive": {
+        "id": "kjv_cursive",
+        "name": "KJV Cursive Handwriting (30 Worksheets)",
+        "filename": "30_Pack_KJV_Cursive.pdf",
+    },
+    # Mega bundle (all 4)
+    "sparks-mega-bundle": {
+        "id": "mega_bundle",
+        "name": "Mega Bundle – All 4 Packs (120 Worksheets)",
+        "filename": "30_Pack_MegaPack.zip",
+    },
+}
+
 # --- App Setup ---
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
@@ -79,6 +113,99 @@ def pwa_manifest():
     response.headers['Cache-Control'] = 'no-cache'
     response.headers['Content-Type'] = 'application/manifest+json'
     return response
+
+# --- Downloads portal ---
+@app.route("/downloads", methods=["GET", "POST"])
+def downloads():
+    """
+    Password-gated portal for pre-made worksheet packs.
+    """
+    error = None
+    pack = None
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        pack = get_pack_by_password(password)
+        if not pack:
+            error = "That password doesn’t match any product. Please double-check and try again."
+        else:
+            session["unlocked_pack_id"] = pack["id"]
+
+    if not pack:
+        unlocked = session.get("unlocked_pack_id")
+        if unlocked:
+            pack = get_pack_by_id(unlocked)
+
+    user_email = session.get("user_email")
+
+    return render_template("downloads.html", error=error, pack=pack, user_email=user_email)
+
+
+@app.route("/downloads/file/<pack_id>")
+def download_file_pack(pack_id):
+    """
+    Serve the actual bundle for the unlocked pack.
+    """
+    unlocked_id = session.get("unlocked_pack_id")
+    if not unlocked_id or unlocked_id != pack_id:
+        flash("Please enter your product password first.")
+        return redirect(url_for("downloads"))
+
+    pack = get_pack_by_id(pack_id)
+    if not pack:
+        flash("We couldn’t find that product.")
+        return redirect(url_for("downloads"))
+
+    bundles_dir = os.path.join(app.root_path, "static", "bundles")
+    filename = pack["filename"]
+    return send_from_directory(
+        bundles_dir,
+        filename,
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@app.route("/downloads/claim", methods=["POST"])
+@login_required
+def claim_pack():
+    """
+    Save the unlocked pack to the signed-in user's library.
+    """
+    user_email = session.get("user_email")
+    pack_id = request.form.get("pack_id")
+    if not pack_id:
+        flash("We couldn’t tell which pack to save.")
+        return redirect(url_for("downloads"))
+
+    pack_meta = get_pack_by_id(pack_id)
+    if not pack_meta:
+        flash("That pack doesn’t exist.")
+        return redirect(url_for("downloads"))
+
+    try:
+        doc_ref = (
+            db.collection("users")
+            .document(user_email)
+            .collection("purchases")
+            .document(pack_id)
+        )
+        doc_ref.set(
+            {
+                "pack_id": pack_id,
+                "name": pack_meta["name"],
+                "filename": pack_meta["filename"],
+                "created_at": firestore.SERVER_TIMESTAMP,
+                "source": "downloads_portal",
+            },
+            merge=True,
+        )
+        flash("Pack saved to your Faith Sparks Library! You can access it anytime from your account.")
+    except Exception as e:
+        app.logger.exception("Failed to save pack to library: %s", e)
+        flash("We couldn’t save this to your library. Please try again.")
+
+    return redirect(url_for("downloads"))
 
 
 @app.route('/service-worker.js')
@@ -240,6 +367,22 @@ def _fmt_dt(ts):
             return str(ts)
         except Exception:
             return None
+
+
+def get_pack_by_password(raw_password: str):
+    """Normalize and resolve a pack from a user-entered password."""
+    if not raw_password:
+        return None
+    key = raw_password.strip().lower()
+    return PACKS.get(key)
+
+
+def get_pack_by_id(pack_id: str):
+    """Return pack metadata by its id."""
+    for data in PACKS.values():
+        if data.get("id") == pack_id:
+            return data
+    return None
 
 # normalize_slug moved to yourapp.util.slug
 
