@@ -335,6 +335,13 @@ def download_file_pack(pack_id):
 
     bundles_dir = os.path.join(app.root_path, "static", "bundles")
     filename = pack["filename"]
+    file_path = os.path.join(bundles_dir, filename)
+
+    if not os.path.exists(file_path):
+        app.logger.warning("Bundle missing on disk: %s", file_path)
+        flash("We couldn’t find your download file. Please contact support.")
+        return redirect(url_for("downloads"))
+
     return send_from_directory(
         bundles_dir,
         filename,
