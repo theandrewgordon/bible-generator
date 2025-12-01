@@ -114,100 +114,6 @@ def pwa_manifest():
     response.headers['Content-Type'] = 'application/manifest+json'
     return response
 
-# --- Downloads portal ---
-@app.route("/downloads", methods=["GET", "POST"])
-def downloads():
-    """
-    Password-gated portal for pre-made worksheet packs.
-    """
-    error = None
-    pack = None
-
-    if request.method == "POST":
-        password = request.form.get("password", "")
-        pack = get_pack_by_password(password)
-        if not pack:
-            error = "That password doesn’t match any product. Please double-check and try again."
-        else:
-            session["unlocked_pack_id"] = pack["id"]
-
-    if not pack:
-        unlocked = session.get("unlocked_pack_id")
-        if unlocked:
-            pack = get_pack_by_id(unlocked)
-
-    user_email = session.get("user_email")
-
-    return render_template("downloads.html", error=error, pack=pack, user_email=user_email)
-
-
-@app.route("/downloads/file/<pack_id>")
-def download_file_pack(pack_id):
-    """
-    Serve the actual bundle for the unlocked pack.
-    """
-    unlocked_id = session.get("unlocked_pack_id")
-    if not unlocked_id or unlocked_id != pack_id:
-        flash("Please enter your product password first.")
-        return redirect(url_for("downloads"))
-
-    pack = get_pack_by_id(pack_id)
-    if not pack:
-        flash("We couldn’t find that product.")
-        return redirect(url_for("downloads"))
-
-    bundles_dir = os.path.join(app.root_path, "static", "bundles")
-    filename = pack["filename"]
-    return send_from_directory(
-        bundles_dir,
-        filename,
-        as_attachment=True,
-        download_name=filename,
-    )
-
-
-@app.route("/downloads/claim", methods=["POST"])
-@login_required
-def claim_pack():
-    """
-    Save the unlocked pack to the signed-in user's library.
-    """
-    user_email = session.get("user_email")
-    pack_id = request.form.get("pack_id")
-    if not pack_id:
-        flash("We couldn’t tell which pack to save.")
-        return redirect(url_for("downloads"))
-
-    pack_meta = get_pack_by_id(pack_id)
-    if not pack_meta:
-        flash("That pack doesn’t exist.")
-        return redirect(url_for("downloads"))
-
-    try:
-        doc_ref = (
-            db.collection("users")
-            .document(user_email)
-            .collection("purchases")
-            .document(pack_id)
-        )
-        doc_ref.set(
-            {
-                "pack_id": pack_id,
-                "name": pack_meta["name"],
-                "filename": pack_meta["filename"],
-                "created_at": firestore.SERVER_TIMESTAMP,
-                "source": "downloads_portal",
-            },
-            merge=True,
-        )
-        flash("Pack saved to your Faith Sparks Library! You can access it anytime from your account.")
-    except Exception as e:
-        app.logger.exception("Failed to save pack to library: %s", e)
-        flash("We couldn’t save this to your library. Please try again.")
-
-    return redirect(url_for("downloads"))
-
-
 @app.route('/service-worker.js')
 def service_worker():
     """Serve the service worker from the app root for full-scope control."""
@@ -383,6 +289,100 @@ def get_pack_by_id(pack_id: str):
         if data.get("id") == pack_id:
             return data
     return None
+
+
+# --- Downloads portal ---
+@app.route("/downloads", methods=["GET", "POST"])
+def downloads():
+    """
+    Password-gated portal for pre-made worksheet packs.
+    """
+    error = None
+    pack = None
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        pack = get_pack_by_password(password)
+        if not pack:
+            error = "That password doesn’t match any product. Please double-check and try again."
+        else:
+            session["unlocked_pack_id"] = pack["id"]
+
+    if not pack:
+        unlocked = session.get("unlocked_pack_id")
+        if unlocked:
+            pack = get_pack_by_id(unlocked)
+
+    user_email = session.get("user_email")
+
+    return render_template("downloads.html", error=error, pack=pack, user_email=user_email)
+
+
+@app.route("/downloads/file/<pack_id>")
+def download_file_pack(pack_id):
+    """
+    Serve the actual bundle for the unlocked pack.
+    """
+    unlocked_id = session.get("unlocked_pack_id")
+    if not unlocked_id or unlocked_id != pack_id:
+        flash("Please enter your product password first.")
+        return redirect(url_for("downloads"))
+
+    pack = get_pack_by_id(pack_id)
+    if not pack:
+        flash("We couldn’t find that product.")
+        return redirect(url_for("downloads"))
+
+    bundles_dir = os.path.join(app.root_path, "static", "bundles")
+    filename = pack["filename"]
+    return send_from_directory(
+        bundles_dir,
+        filename,
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@app.route("/downloads/claim", methods=["POST"])
+@login_required
+def claim_pack():
+    """
+    Save the unlocked pack to the signed-in user's library.
+    """
+    user_email = session.get("user_email")
+    pack_id = request.form.get("pack_id")
+    if not pack_id:
+        flash("We couldn’t tell which pack to save.")
+        return redirect(url_for("downloads"))
+
+    pack_meta = get_pack_by_id(pack_id)
+    if not pack_meta:
+        flash("That pack doesn’t exist.")
+        return redirect(url_for("downloads"))
+
+    try:
+        doc_ref = (
+            db.collection("users")
+            .document(user_email)
+            .collection("purchases")
+            .document(pack_id)
+        )
+        doc_ref.set(
+            {
+                "pack_id": pack_id,
+                "name": pack_meta["name"],
+                "filename": pack_meta["filename"],
+                "created_at": firestore.SERVER_TIMESTAMP,
+                "source": "downloads_portal",
+            },
+            merge=True,
+        )
+        flash("Pack saved to your Faith Sparks Library! You can access it anytime from your account.")
+    except Exception as e:
+        app.logger.exception("Failed to save pack to library: %s", e)
+        flash("We couldn’t save this to your library. Please try again.")
+
+    return redirect(url_for("downloads"))
 
 # normalize_slug moved to yourapp.util.slug
 
