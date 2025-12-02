@@ -3,6 +3,32 @@ endblock %} {% block content %}
 <h1 class="page-title">📚 Worksheet History</h1>
 <p class="muted small page-sub">Logged in as: <strong>{{ email }}</strong></p>
 
+{% if purchases %}
+<section class="card-lite" style="margin-bottom: 1rem;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
+    <div>
+      <h3 style="margin:0;">🧺 My Library (Packs)</h3>
+      <p class="muted small" style="margin:0;">Re-download packs you’ve saved to your account.</p>
+    </div>
+  </div>
+  <ul class="cards" style="margin-top:0.75rem;">
+    {% for p in purchases %}
+    <li class="card" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+      <div>
+        <div class="title">{{ p.name or p.pack_id }}</div>
+        <div class="meta small muted">
+          Saved {{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '' }}
+        </div>
+      </div>
+      <div class="actions" style="display:flex; gap:0.5rem;">
+        <a class="button" href="{{ url_for('restore_pack', pack_id=p.pack_id) }}">⬇️ Download</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <div class="toolbar">
   <div class="toolbar-left">
     <input

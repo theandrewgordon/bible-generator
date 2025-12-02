@@ -585,7 +585,28 @@ def history():
             .stream()
         )
         history_items = [doc.to_dict() | {"timestamp": doc.get("timestamp")} for doc in docs]
-        return render_template("history.html", history=history_items, email=user_email)
+        purchases = []
+        try:
+            purchase_docs = (
+                db.collection("users")
+                .document(user_email)
+                .collection("purchases")
+                .order_by("created_at", direction=firestore.Query.DESCENDING)
+                .stream()
+            )
+        except Exception:
+            purchase_docs = (
+                db.collection("users")
+                .document(user_email)
+                .collection("purchases")
+                .stream()
+            )
+        for d in purchase_docs:
+            data = d.to_dict() or {}
+            data["pack_id"] = data.get("pack_id") or d.id
+            data["created_at"] = data.get("created_at")
+            purchases.append(data)
+        return render_template("history.html", history=history_items, purchases=purchases, email=user_email)
     except Exception as e:
         traceback.print_exc()
         return f"Error fetching history: {e}", 500

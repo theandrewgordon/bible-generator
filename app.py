@@ -291,6 +291,22 @@ def get_pack_by_id(pack_id: str):
     return None
 
 
+def _user_has_pack(user_email: str | None, pack_id: str) -> bool:
+    if not (db and user_email and pack_id):
+        return False
+    try:
+        doc = (
+            db.collection("users")
+            .document(user_email)
+            .collection("purchases")
+            .document(pack_id)
+            .get()
+        )
+        return doc.exists
+    except Exception:
+        return False
+
+
 # --- Downloads portal ---
 @app.route("/downloads", methods=["GET", "POST"])
 def downloads():
@@ -324,9 +340,12 @@ def download_file_pack(pack_id):
     Serve the actual bundle for the unlocked pack.
     """
     unlocked_id = session.get("unlocked_pack_id")
-    if not unlocked_id or unlocked_id != pack_id:
+    user_email = session.get("user_email")
+    if not ((unlocked_id and unlocked_id == pack_id) or _user_has_pack(user_email, pack_id)):
         flash("Please enter your product password first.")
         return redirect(url_for("downloads"))
+    if not unlocked_id and _user_has_pack(user_email, pack_id):
+        session["unlocked_pack_id"] = pack_id
 
     pack = get_pack_by_id(pack_id)
     if not pack:
@@ -389,6 +408,21 @@ def claim_pack():
         app.logger.exception("Failed to save pack to library: %s", e)
         flash("We couldn’t save this to your library. Please try again.")
 
+    return redirect(url_for("downloads"))
+
+
+@app.route("/downloads/restore/<pack_id>")
+@login_required
+def restore_pack(pack_id):
+    """
+    Restore an owned pack from Library, set session unlock, and bounce to portal.
+    """
+    user_email = session.get("user_email")
+    if not _user_has_pack(user_email, pack_id):
+        flash("That pack is not in your library yet.")
+        return redirect(url_for("history"))
+    session["unlocked_pack_id"] = pack_id
+    flash("Pack ready to download.")
     return redirect(url_for("downloads"))
 
 # normalize_slug moved to yourapp.util.slug
