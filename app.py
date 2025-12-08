@@ -19,6 +19,7 @@ from verse_helpers import (
     save_json_to_file,
     ai_validate_custom_text,
     normalize_reference_title,
+    preserve_letter_suffix,
 )
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
@@ -735,6 +736,8 @@ def generate():
                 # Ensure required fields or skip
                 if not data.get("verse"):
                     data["verse"] = verse
+                # Preserve letter suffix from user input even if the model drops it.
+                data["verse"] = preserve_letter_suffix(verse, data.get("verse"))
                 if not data.get("version"):
                     data["version"] = version
                 if not data.get("fullVerse"):
@@ -748,7 +751,8 @@ def generate():
 
             # If this is a Bible verse (not custom), prefer the canonical verse reference
             if not is_custom:
-                canonical_ref = data.get("verse") or verse
+                canonical_ref = preserve_letter_suffix(verse, data.get("verse") or verse)
+                data["verse"] = canonical_ref
                 canonical_slug = normalize_slug(canonical_ref)
                 # update pdf path and rename if necessary
                 desired_path = f"output/{canonical_slug}_{version}{'_cursive' if use_cursive else ''}.pdf"

@@ -26,6 +26,7 @@ from verse_helpers import (
     save_json_to_file,
     ai_validate_custom_text,
     normalize_reference_title,
+    preserve_letter_suffix,
 )
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
@@ -415,6 +416,8 @@ def generate():
                         raise ValueError("Invalid data from model")
                     if not data.get("verse"):
                         data["verse"] = ctx["verse"]
+                    # Keep any letter suffix from the user input even if the model drops it.
+                    data["verse"] = preserve_letter_suffix(ctx["verse"], data.get("verse"))
                     if not data.get("version"):
                         data["version"] = ctx["version"]
                     data["cursive"] = use_cursive
@@ -433,7 +436,8 @@ def generate():
                     continue
 
                 if not ctx["is_custom"]:
-                    canonical_ref = data.get("verse") or ctx["verse"]
+                    canonical_ref = preserve_letter_suffix(ctx["verse"], data.get("verse") or ctx["verse"])
+                    data["verse"] = canonical_ref
                     canonical_slug = normalize_slug(canonical_ref)
                     desired_path = f"output/{canonical_slug}_{ctx['version']}{ctx['suffix']}.pdf"
                     if ctx["pdf_path"] != desired_path and os.path.exists(ctx["pdf_path"]):

@@ -73,6 +73,9 @@ Rules:
 - Use Unicode quotes for internal quotes: “ ” and ‘ ’
 - No ASCII straight quotes, no quotes around whole verse
 - No extra spaces before punctuation
+- If the verse reference ends with a letter suffix (e.g., "a" or "b"), return ONLY that portion:
+  - "a" = the first clause/segment; stop before the natural break.
+  - "b" = the remaining clause/segment after that break.
 - Return JSON only, no explanation
 
 Verse: {verse_ref}
@@ -221,6 +224,25 @@ def normalize_reference_title(ref: str) -> str:
     if verse_part:
         return f"{book_title} {verse_part}".strip()
     return book_title
+
+
+def preserve_letter_suffix(original_ref: str, candidate_ref: str) -> str:
+    """Ensure a/b suffix from the original ref is kept on the candidate reference."""
+    orig = (original_ref or "").strip()
+    cand = (candidate_ref or "").strip()
+    letter_match = re.search(r":\d+([a-z])\b", orig.lower())
+    if not letter_match:
+        return normalize_reference_title(cand)
+
+    letter = letter_match.group(1)
+    if re.search(r":\d+[a-z]\b", cand.lower()):
+        return normalize_reference_title(cand)
+
+    if re.search(r":\d+\b", cand):
+        fixed = re.sub(r"(:\d+)\b", rf"\1{letter}", cand, count=1)
+        return normalize_reference_title(fixed)
+
+    return normalize_reference_title(orig)
 
 
 def split_version_from_reference(text: str, fallback_version: str = "kjv") -> Tuple[str, str]:
