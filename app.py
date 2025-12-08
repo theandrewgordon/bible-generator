@@ -13,7 +13,13 @@ from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
-from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, ai_validate_custom_text
+from verse_helpers import (
+    request_verse_data,
+    parse_and_clean_json,
+    save_json_to_file,
+    ai_validate_custom_text,
+    normalize_reference_title,
+)
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
 try:
@@ -437,7 +443,7 @@ def extract_version_from_text(text, fallback_version):
     else:
         version = fallback_version
         verse = text.strip()
-    return version, verse.title()
+    return version, normalize_reference_title(verse)
 
 
 def _boolish(value, default=False):

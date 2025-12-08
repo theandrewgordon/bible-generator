@@ -25,6 +25,7 @@ from verse_helpers import (
     parse_and_clean_json,
     save_json_to_file,
     ai_validate_custom_text,
+    normalize_reference_title,
 )
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
@@ -782,4 +783,4 @@ def extract_version_from_text(text, fallback_version):
     else:
         version = fallback_version
         verse = text.strip()
-    return version, verse.title()
+    return version, normalize_reference_title(verse)

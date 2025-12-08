@@ -202,12 +202,25 @@ def normalize_reference_title(ref: str) -> str:
     trimmed = " ".join(ref.split())
     if not trimmed:
         return ""
-    parts = trimmed.split(" ")
-    if parts[0].isdigit() and len(parts) > 1:
-        lead = parts[0]
-        rest = " ".join(parts[1:]).title()
-        return f"{lead} {rest}"
-    return trimmed.title()
+    # Title-case the book name but leave the verse portion untouched so suffixes
+    # like "18a" or "18b" stay lowercase.
+    parts = re.search(r"\s\d", trimmed)
+    if parts:
+        book = trimmed[: parts.start()].strip()
+        verse_part = trimmed[parts.start() :].strip()
+    else:
+        book = trimmed
+        verse_part = ""
+
+    book_words = book.split(" ")
+    if book_words and book_words[0].isdigit() and len(book_words) > 1:
+        book_title = f"{book_words[0]} {' '.join(book_words[1:]).title()}"
+    else:
+        book_title = book.title()
+
+    if verse_part:
+        return f"{book_title} {verse_part}".strip()
+    return book_title
 
 
 def split_version_from_reference(text: str, fallback_version: str = "kjv") -> Tuple[str, str]:
