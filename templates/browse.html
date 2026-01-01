@@ -30,7 +30,7 @@
   }
 </script>
 {% endblock %} {% block content %}
-<h1 class="page-title">🔎 Browse Worksheets</h1>
+<h1 class="page-title">Browse Worksheets</h1>
 
 {% set trending_pack = (top_packs_week[0] if top_packs_week else (top_packs[0] if top_packs else None)) %}
 {% if trending_pack %}
@@ -43,7 +43,7 @@
   <a
     class="button small ghost"
     href="{{ url_for('generate', collection=trending_pack.slug) }}"
-    >✍️ Generate</a
+    >Make a Worksheet</a
   >
 </section>
 {% endif %}
@@ -220,7 +220,7 @@
         <a
           class="button small"
           href="{{ url_for('start_google_login', next=use_url) }}"
-          aria-label="Sign in to use {{ c.title }} in Generate"
+          aria-label="Sign in to use {{ c.title }} to make a worksheet"
           >Use Pack</a
         >
         {% endif %}
@@ -230,7 +230,7 @@
   </div>
 
   <p class="small muted">
-    Collections are starting points; pick one to prefill ideas in Generate.
+    Collections are starting points; pick one to prefill ideas for a worksheet.
   </p>
 </section>
 

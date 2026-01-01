@@ -6,7 +6,7 @@ Printables{% endblock %} {% block head_extra %}
 name.rsplit('.', 1)[0] %} {% set ext = name.rsplit('.', 1)[1]|lower %} {% endif
 %} {% set is_zip = (ext == 'zip') %}
 
-<h1 class="page-title">✅ Your worksheet is ready!</h1>
+<h1 class="page-title">Your worksheet is ready!</h1>
 <p class="muted" id="autoMsg" aria-live="polite">
   Your download should start automatically. If not, use the button below.
 </p>
@@ -23,9 +23,9 @@ name.rsplit('.', 1)[0] %} {% set ext = name.rsplit('.', 1)[1]|lower %} {% endif
   <a class="button ghost" href="{{ url_for('generate') }}"
     >Make Another Worksheet</a
   >
-  <a class="button ghost" href="{{ url_for('history') }}">View History</a>
+  <a class="button ghost" href="{{ url_for('history') }}">My Downloads</a>
   <a class="button ghost" href="{{ url_for('regenerate', filename=base) }}"
-    >♻️ Regenerate This</a
+    >Regenerate This</a
   >
 </p>
 <p class="small muted">
@@ -33,10 +33,18 @@ name.rsplit('.', 1)[0] %} {% set ext = name.rsplit('.', 1)[1]|lower %} {% endif
   button and choose
   <em>“Save link as…”</em>.
 </p>
+<section class="card-lite" style="margin-top: 1rem;">
+  <h2 style="margin-top: 0;">Print-friendly tips</h2>
+  <ul class="muted small" style="margin: 0.5rem 0 0 1rem;">
+    <li>Print at 100% for the cleanest handwriting lines.</li>
+    <li>Use black-and-white to save ink.</li>
+    <li>Slip pages into a binder so kids can reuse favorites.</li>
+  </ul>
+</section>
 {% else %}
 <p class="warn" role="alert">
   We couldn't find a filename to download. Please return to
-  <a href="{{ url_for('generate') }}">Generate</a> and try again.
+  <a href="{{ url_for('generate') }}">Make a worksheet</a> and try again.
 </p>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>

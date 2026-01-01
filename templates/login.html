@@ -4,7 +4,7 @@
   <h1 class="page-title">Login</h1>
   {% if session.user_info %}
     <p class="muted">You’re already signed in as <strong>{{ session.user_info.email }}</strong>.</p>
-    <p><a class="button" href="/generate">Go to Generate</a></p>
+    <p><a class="button" href="/generate">Make a Worksheet</a></p>
   {% else %}
     <p class="muted">Sign in with Google to continue.</p>
     <p><a class="button" href="{{ url_for('google.login') }}">Login with Google</a></p>

@@ -19,10 +19,14 @@ def about():
     return render_template('about.html')
 
 
+@bp.route('/start-here')
+def start_here():
+    return render_template('start_here.html')
+
+
 @bp.route('/healthz', methods=['GET', 'HEAD'])
 def healthz():
     return Response("ok", 200, {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
     })
-

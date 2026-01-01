@@ -2,7 +2,7 @@
 endblock %} {% block head_extra %}
 <meta
   name="description"
-  content="{{ (c.description ~ ' — ' if c.description else '') ~ (c.verses|length) ~ ' Bible copywork verses for Christian homeschool, co-ops, and Sunday school. Use this pack to prefill Generate and download printable worksheets.' }}"
+  content="{{ (c.description ~ ' — ' if c.description else '') ~ (c.verses|length) ~ ' Bible copywork verses for Christian homeschool, co-ops, and Sunday school. Use this pack to make printable worksheets.' }}"
 />
 <script type="application/ld+json">
   {
@@ -56,15 +56,15 @@ collection=c.slug) %} {% endif %}
     <a
       class="button"
       href="{{ use_url }}"
-      aria-label="Use {{ c.title }} in Generate"
-      >Use Pack in Generate</a
+      aria-label="Use {{ c.title }} to make a worksheet"
+      >Use Pack</a
     >
     {% else %}
     <a
       class="button"
       href="{{ url_for('google.login', next=use_url) }}"
-      aria-label="Sign in to use {{ c.title }} in Generate"
-      >Use Pack in Generate</a
+      aria-label="Sign in to use {{ c.title }} to make a worksheet"
+      >Use Pack</a
     >
     {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
     ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
@@ -144,15 +144,15 @@ collection=c.slug) %} {% endif %}
       <a
         class="button"
         href="{{ use_url }}"
-        aria-label="Use {{ c.title }} in Generate"
-        >Use Pack in Generate</a
+        aria-label="Use {{ c.title }} to make a worksheet"
+        >Use Pack</a
       >
       {% else %}
       <a
         class="button"
         href="{{ url_for('google.login', next=use_url) }}"
-        aria-label="Sign in to use {{ c.title }} in Generate"
-        >Use Pack in Generate</a
+        aria-label="Sign in to use {{ c.title }} to make a worksheet"
+        >Use Pack</a
       >
       {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
       ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}

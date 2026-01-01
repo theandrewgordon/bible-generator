@@ -1,7 +1,22 @@
-{% extends "base.html" %} {% block title %}Worksheet History | Faith Sparks{%
+{% extends "base.html" %} {% block title %}My Downloads | Faith Sparks{%
 endblock %} {% block content %}
-<h1 class="page-title">Worksheet History</h1>
+<h1 class="page-title">My Downloads</h1>
 <p class="muted small page-sub">Logged in as: <strong>{{ email }}</strong></p>
+
+<section class="quick-actions">
+  <button class="quick-card" type="button" id="recentBtn">
+    <div class="quick-title">Most recent worksheets</div>
+    <div class="quick-sub">Jump to your latest prints.</div>
+  </button>
+  <button class="quick-card" type="button" id="favBtn">
+    <div class="quick-title">Favorites</div>
+    <div class="quick-sub">Show the verses you loved.</div>
+  </button>
+  <a class="quick-card" href="{{ url_for('downloads') }}">
+    <div class="quick-title">Redeem a new code</div>
+    <div class="quick-sub">Unlock a new bundle in seconds.</div>
+  </a>
+</section>
 
 {% if purchases %}
 <section class="card-lite" style="margin-bottom: 1rem;">
@@ -22,7 +37,7 @@ endblock %} {% block content %}
         </div>
       </div>
       <div class="actions" style="display:flex; gap:0.5rem;">
-        <a class="button" href="{{ url_for('restore_pack', pack_id=p.pack_id) }}">⬇️ Download</a>
+      <a class="button" href="{{ url_for('restore_pack', pack_id=p.pack_id) }}">Download</a>
       </div>
     </li>
     {% endfor %}
@@ -435,6 +450,12 @@ endblock %} {% block content %}
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", () => {
     const simpleToggle = document.getElementById("simpleToggle");
+    const recentBtn = document.getElementById("recentBtn");
+    const favBtn = document.getElementById("favBtn");
+    const favOnly = document.getElementById("favOnly");
+    const sortSelect = document.getElementById("sortSelect");
+    const searchInput = document.getElementById("searchInput");
+    const cardList = document.getElementById("cards");
     const saved = localStorage.getItem("historySimpleMode");
     const defaultSimple = saved === null ? true : saved === "1";
 
@@ -450,6 +471,25 @@ endblock %} {% block content %}
     if (simpleToggle) {
       simpleToggle.addEventListener("click", () => {
         setSimpleMode(!document.body.classList.contains("simple-history"));
+      });
+    }
+
+    if (recentBtn) {
+      recentBtn.addEventListener("click", () => {
+        if (searchInput) searchInput.value = "";
+        if (favOnly) favOnly.checked = false;
+        if (sortSelect) sortSelect.value = "date_desc";
+        applySort();
+        applyFilters();
+        cardList?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    if (favBtn) {
+      favBtn.addEventListener("click", () => {
+        if (searchInput) searchInput.value = "";
+        if (favOnly) favOnly.checked = true;
+        applyFilters();
+        cardList?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
 
@@ -471,6 +511,34 @@ endblock %} {% block content %}
     gap: 0.5rem;
     flex-wrap: wrap;
     margin-bottom: 0.75rem;
+  }
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin: 0.6rem 0 1rem;
+  }
+  .quick-card {
+    text-align: left;
+    border: 1px solid #e5e7eb;
+    background: var(--box);
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    box-shadow: var(--card-shadow);
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  .quick-card:hover {
+    border-color: #cbd5e1;
+  }
+  .quick-title {
+    font-weight: 800;
+    margin-bottom: 0.2rem;
+  }
+  .quick-sub {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
   }
   .toolbar-left {
     display: flex;

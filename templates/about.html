@@ -30,10 +30,10 @@ Printables{% endblock %} {% block content %}
   <h2>How it works</h2>
   <ol>
     <li>
-      Go to <a href="{{ url_for('generate') }}">Generate</a> and enter verse(s).
+      Go to <a href="{{ url_for('generate') }}">Make a worksheet</a> and enter verse(s).
     </li>
     <li>Pick a Bible version, and optionally enable cursive tracing.</li>
-    <li>Download your PDF — multiple verses come as a ZIP.</li>
+    <li>Download your PDF — multiple verses download together.</li>
   </ol>
 
   <p class="muted small">
@@ -48,7 +48,7 @@ Printables{% endblock %} {% block content %}
 
   <div class="actions" style="margin-top: 1rem">
     <a class="button primary" href="{{ url_for('generate') }}"
-      >✍️ Generate a Worksheet</a
+      >Make a Worksheet</a
     >
     <a class="button ghost" href="{{ url_for('browse') }}">Browse Packs</a>
   </div>

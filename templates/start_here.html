@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Start Here | Faith Sparks Printables{% endblock %}
+
+{% block content %}
+<section class="start-here">
+  <h1 class="page-title">Start Here</h1>
+  <p class="muted">
+    You can make your first worksheet in minutes. Pick a verse, click once, and print.
+  </p>
+
+  <div class="start-steps">
+    <article class="start-card">
+      <div class="step-num">1</div>
+      <h2>Choose a verse</h2>
+      <p>Type a reference or pick a bundle you already love.</p>
+      <a class="button ghost" href="{{ url_for('generate') }}">Make a worksheet</a>
+    </article>
+    <article class="start-card">
+      <div class="step-num">2</div>
+      <h2>We format it</h2>
+      <p>Clean handwriting lines and a gentle layout, ready to print.</p>
+      <a class="button ghost" href="{{ url_for('browse') }}">Browse bundles</a>
+    </article>
+    <article class="start-card">
+      <div class="step-num">3</div>
+      <h2>Print and use today</h2>
+      <p>Keep your favorites in My Downloads so you can reprint anytime.</p>
+      <a class="button ghost" href="{{ url_for('history') }}">My Downloads</a>
+    </article>
+  </div>
+
+  <div class="start-visual">
+    <img
+      src="{{ url_for('static', filename='CopyworkStock/Copywork3.png') }}"
+      alt="Children working on a worksheet together"
+      loading="lazy"
+      width="840"
+      height="560"
+    />
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+  .start-here {
+    display: grid;
+    gap: 1.2rem;
+  }
+  .start-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  .start-card {
+    border: 1px solid #e5e7eb;
+    background: var(--box);
+    border-radius: 14px;
+    padding: 1rem;
+    box-shadow: var(--card-shadow);
+  }
+  .step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+  }
+  .start-visual img {
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: var(--card-shadow);
+  }
+</style>
+{% endblock %}
