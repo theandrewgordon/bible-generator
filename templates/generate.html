@@ -146,10 +146,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           <div class="muted small">
             <ul>
               <li>
-                Add “(ESV)”, “(KJV)”, or another translation tag in the verse
-                text to override the dropdown.
+                Add “(ESV)” or “(KJV)” in the verse text to choose a version.
               </li>
-              <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
+              <li>Multiple verses download together in one file.</li>
             </ul>
           </div>
         </details>
@@ -418,8 +417,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       previewVersion.textContent = effectiveVersion();
       previewPrompt.textContent  = '—';
     } else if (title || body){
-      previewVerse.textContent   = title || '(DIY text)';
-      previewVersion.textContent = 'DIY';
+      previewVerse.textContent   = title || '(Custom text)';
+      previewVersion.textContent = 'Custom';
       previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
     } else {
       previewVerse.textContent   = '—';
@@ -427,6 +426,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       previewPrompt.textContent  = '—';
     }
     previewCursive.hidden = !cursiveToggle.checked;
+    document.body.classList.toggle('has-preview-data', Boolean(verse || title || body));
   }
 
   function updateVerseFilenames(){
@@ -821,6 +821,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   @media (max-width: 600px) {
     .block {
       padding: 0.85rem;
+    }
+    body:not(.has-preview-data) .col-side {
+      display: none;
     }
   }
 

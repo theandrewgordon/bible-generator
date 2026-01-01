@@ -27,7 +27,7 @@
       {% if session.user_info %}
         <a class="nav-link" href="/history"      {% if p.startswith('/history') %}aria-current="page"{% endif %}>My Downloads</a>
       {% else %}
-        <a class="nav-link" href="{{ url_for('google.login', next=request.full_path) }}">Login</a>
+        <a class="nav-link" href="{{ url_for('google.login', next=url_for('history')) }}">My Downloads</a>
       {% endif %}
 
       {% if is_admin %}

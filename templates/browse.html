@@ -194,7 +194,7 @@
         %} {% if is_signed_in or c.isFree %} {% if locked %} {% set pid =
         pack_effective_price_id(c) %} {% if pid %}
         <a class="button small" href="{{ url_for('buy_pack', slug=c.slug) }}"
-          >💳 Buy $2.50</a
+          >Buy $2.50</a
         >
         {% endif %}
         <a class="button ghost small" href="{{ url_for('plus_pricing') }}"
@@ -204,24 +204,24 @@
         <a
           class="button ghost small"
           href="{{ url_for('dl_pack', slug=c.slug) }}"
-          >⬇️ Download</a
+          >Download</a
         >
         {% endif %} {% else %} {% set next_url = (url_for('buy_pack',
         slug=c.slug) if locked else url_for('dl_pack', slug=c.slug)) %}
         <a
           class="button small"
           href="{{ url_for('start_google_login', next=next_url) }}"
-          >🔐 Sign in</a
+          >Sign in</a
         >
         {% endif %} {% endif %} {# Always show Use Pack — if not signed in, send
         to Google with next=use_url #} {% if is_signed_in %}
-        <a class="button small" href="{{ use_url }}">✍️ Use Pack</a>
+        <a class="button small" href="{{ use_url }}">Use Pack</a>
         {% else %}
         <a
           class="button small"
           href="{{ url_for('start_google_login', next=use_url) }}"
           aria-label="Sign in to use {{ c.title }} in Generate"
-          >✍️ Use Pack</a
+          >Use Pack</a
         >
         {% endif %}
       </div>

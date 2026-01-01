@@ -50,6 +50,92 @@ collection=c.slug) %} {% endif %}
   </div>
 </header>
 
+<div class="mobile-cta">
+  <div class="sticky-cta">
+    {% if is_signed_in %}
+    <a
+      class="button"
+      href="{{ use_url }}"
+      aria-label="Use {{ c.title }} in Generate"
+      >Use Pack in Generate</a
+    >
+    {% else %}
+    <a
+      class="button"
+      href="{{ url_for('google.login', next=use_url) }}"
+      aria-label="Sign in to use {{ c.title }} in Generate"
+      >Use Pack in Generate</a
+    >
+    {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
+    ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
+    {% set pack_amount = c.priceMeta.amount if c.priceMeta and c.priceMeta.amount is not none else 0 %}
+    {% set pack_currency = c.priceMeta.currency if c.priceMeta and c.priceMeta.currency else 'USD' %}
+    {% if is_signed_in %}
+    <a
+      class="button"
+      href="{{ url_for('buy_pack', slug=c.slug) }}"
+      data-fb-track="AddToCart,InitiateCheckout"
+      data-fb-value="{{ '%.2f'|format(pack_amount) }}"
+      data-fb-currency="{{ pack_currency }}"
+      data-fb-content-name="{{ c.title }}"
+      data-fb-content-type="product"
+      data-fb-num-items="1"
+      {% if pid %}
+      data-fb-content-ids="{{ pid }}"
+      data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
+      {% endif %}
+      >Buy {{ display_price }}</a
+    >
+    {% else %}
+    <a
+      class="button"
+      href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}"
+      data-fb-track="AddToCart,InitiateCheckout"
+      data-fb-value="{{ '%.2f'|format(pack_amount) }}"
+      data-fb-currency="{{ pack_currency }}"
+      data-fb-content-name="{{ c.title }}"
+      data-fb-content-type="product"
+      data-fb-num-items="1"
+      {% if pid %}
+      data-fb-content-ids="{{ pid }}"
+      data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
+      {% endif %}
+      >Buy {{ display_price }}</a
+    >
+    {% endif %} {% endif %}
+    <a class="button ghost" href="{{ url_for('plus_pricing') }}">Get Plus</a>
+    {% else %} {% if is_signed_in or c.isFree %}
+    <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
+      >Download Pack</a
+    >
+    {% else %}
+    <a
+      class="button ghost"
+      href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
+      >Sign in to Download</a
+    >
+    {% endif %} {% endif %} {% endif %} {% if is_admin %}
+    <form
+      method="post"
+      action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}"
+      onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');"
+    >
+      <button class="button" style="background: #e0e7ff; color: #111827">
+        Prewarm & Build ZIP
+      </button>
+    </form>
+    {% if pid %}
+    <a
+      class="button ghost"
+      href="{{ stripe_price_url(pid) }}"
+      target="_blank"
+      rel="noopener"
+      >Open in Stripe</a
+    >
+    {% endif %} {% endif %}
+  </div>
+</div>
+
 <div class="grid">
   <aside class="side">
     <div class="sticky-cta">
@@ -59,14 +145,14 @@ collection=c.slug) %} {% endif %}
         class="button"
         href="{{ use_url }}"
         aria-label="Use {{ c.title }} in Generate"
-        >✍️ Use Pack in Generate</a
+        >Use Pack in Generate</a
       >
       {% else %}
       <a
         class="button"
         href="{{ url_for('google.login', next=use_url) }}"
         aria-label="Sign in to use {{ c.title }} in Generate"
-        >✍️ Use Pack in Generate</a
+        >Use Pack in Generate</a
       >
       {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
       ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
@@ -86,7 +172,7 @@ collection=c.slug) %} {% endif %}
         data-fb-content-ids="{{ pid }}"
         data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
         {% endif %}
-        >💳 Buy {{ display_price }}</a
+        >Buy {{ display_price }}</a
       >
       {% else %}
       <a
@@ -102,19 +188,19 @@ collection=c.slug) %} {% endif %}
         data-fb-content-ids="{{ pid }}"
         data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
         {% endif %}
-        >💳 Buy {{ display_price }}</a
+        >Buy {{ display_price }}</a
       >
       {% endif %} {% endif %}
       <a class="button ghost" href="{{ url_for('plus_pricing') }}">Get Plus</a>
       {% else %} {% if is_signed_in or c.isFree %}
       <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
-        >⬇️ Download Pack</a
+        >Download Pack</a
       >
       {% else %}
       <a
         class="button ghost"
         href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
-        >🔐 Sign in to Download</a
+        >Sign in to Download</a
       >
       {% endif %} {% endif %} {% endif %} {% if is_admin %}
       <form
@@ -123,7 +209,7 @@ collection=c.slug) %} {% endif %}
         onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');"
       >
         <button class="button" style="background: #e0e7ff; color: #111827">
-          ⚙️ Prewarm & Build ZIP
+          Prewarm & Build ZIP
         </button>
       </form>
       {% if pid %}
@@ -192,12 +278,22 @@ collection=c.slug) %} {% endif %}
     grid-template-columns: 320px minmax(0, 1fr);
     gap: 1rem;
   }
+  .mobile-cta {
+    display: none;
+  }
   @media (max-width: 980px) {
     .grid {
       grid-template-columns: 1fr;
     }
     .side {
       order: -1;
+    }
+    .side {
+      display: none;
+    }
+    .mobile-cta {
+      display: block;
+      margin-bottom: 1rem;
     }
   }
   .side {

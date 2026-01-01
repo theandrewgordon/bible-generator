@@ -18,12 +18,12 @@ name.rsplit('.', 1)[0] %} {% set ext = name.rsplit('.', 1)[1]|lower %} {% endif
     class="button"
     href="{{ url_for('download', filename=filename) }}"
   >
-    📥 Download {{ 'ZIP' if is_zip else 'PDF' }} Again
+    Download {{ 'ZIP' if is_zip else 'PDF' }} Again
   </a>
   <a class="button ghost" href="{{ url_for('generate') }}"
-    >🔁 Make Another Worksheet</a
+    >Make Another Worksheet</a
   >
-  <a class="button ghost" href="{{ url_for('history') }}">📚 View History</a>
+  <a class="button ghost" href="{{ url_for('history') }}">View History</a>
   <a class="button ghost" href="{{ url_for('regenerate', filename=base) }}"
     >♻️ Regenerate This</a
   >

@@ -24,7 +24,7 @@
         {% if user_email %}
           <form method="post" action="{{ url_for('claim_pack') }}">
             <input type="hidden" name="pack_id" value="{{ pack.id or pack['id'] }}">
-            <button type="submit" class="button">💾 Save to My Library</button>
+            <button type="submit" class="button">Save to My Library</button>
           </form>
         {% else %}
           <p class="muted small" style="margin: 0;">

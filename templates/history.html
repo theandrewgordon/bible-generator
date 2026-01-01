@@ -1,13 +1,13 @@
 {% extends "base.html" %} {% block title %}Worksheet History | Faith Sparks{%
 endblock %} {% block content %}
-<h1 class="page-title">📚 Worksheet History</h1>
+<h1 class="page-title">Worksheet History</h1>
 <p class="muted small page-sub">Logged in as: <strong>{{ email }}</strong></p>
 
 {% if purchases %}
 <section class="card-lite" style="margin-bottom: 1rem;">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
     <div>
-      <h3 style="margin:0;">🧺 My Library (Packs)</h3>
+      <h3 style="margin:0;">My Library (Packs)</h3>
       <p class="muted small" style="margin:0;">Re-download packs you’ve saved to your account.</p>
     </div>
   </div>
@@ -37,12 +37,13 @@ endblock %} {% block content %}
       enterkeyhint="search"
       autocapitalize="off"
       spellcheck="false"
-      placeholder="🔎 Search verse or version…"
+      placeholder="Search verse or version…"
       oninput="debouncedFilter()"
       aria-label="Search worksheets"
     />
     <select
       id="versionFilter"
+      class="advanced-only"
       onchange="applyFilters()"
       aria-label="Filter by version"
     >
@@ -52,34 +53,37 @@ endblock %} {% block content %}
       {% endfor %}
     </select>
 
-    <label class="checkrow">
+    <label class="checkrow advanced-only">
       <input type="checkbox" id="favOnly" onchange="applyFilters()" />
       ★ Favorites only
     </label>
 
-    <select id="sortSelect" onchange="applySort()" aria-label="Sort results">
+    <select id="sortSelect" class="advanced-only" onchange="applySort()" aria-label="Sort results">
       <option value="date_desc">Sort: Date (newest)</option>
       <option value="date_asc">Sort: Date (oldest)</option>
       <option value="verse_asc">Sort: Verse A→Z</option>
       <option value="verse_desc">Sort: Verse Z→A</option>
       <option value="version_asc">Sort: Version A→Z</option>
     </select>
+    <button class="button ghost" type="button" id="simpleToggle" aria-pressed="true">
+      More options
+    </button>
   </div>
 
   <div class="toolbar-right">
     <span id="resultCount" class="pill" aria-live="polite">0 shown</span>
-    <button class="button ghost" type="button" onclick="clearFilters()">
+    <button class="button ghost advanced-only" type="button" onclick="clearFilters()">
       Clear Filters
     </button>
-    <button class="button ghost" type="button" onclick="exportCSV()">
-      📤 Export CSV
+    <button class="button ghost advanced-only" type="button" onclick="exportCSV()">
+      Export CSV
     </button>
   </div>
 </div>
 
 {% if history %}
 <form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
-  <div class="bulkbar card-lite">
+  <div class="bulkbar card-lite advanced-only">
     <label class="checkrow">
       <input type="checkbox" id="selectAll" onclick="toggleAll(this)" />
       <span>Select visible</span>
@@ -89,7 +93,7 @@ endblock %} {% block content %}
       class="button delete"
       onclick="return confirmDeleteSelected()"
     >
-      🗑️ Delete selected
+      Delete selected
     </button>
   </div>
 
@@ -132,10 +136,10 @@ endblock %} {% block content %}
           <div class="meta">
             <div class="meta-left">
               {% if item.get('type') == 'coloring' %}
-              <span class="pill alt">🎨 Coloring</span>
+              <span class="pill alt">Coloring</span>
               {% else %}
               <span class="pill alt">
-                {% if item.custom %}DIY{% else %}{{ item.version }}{% endif %}
+                {% if item.custom %}Custom{% else %}{{ item.version }}{% endif %}
               </span>
               {% if item.cursive %}<span class="pill">✍️ Cursive</span>{% endif %}
               {% endif %}
@@ -327,7 +331,7 @@ endblock %} {% block content %}
   // ---------- CSV export of visible ----------
   function exportCSV() {
     const rows = $$("#cards .card:not([hidden])");
-    let csv = "Verse,Version/DIY,Cursive,Date\n";
+    let csv = "Verse,Version/Custom,Cursive,Date\n";
     rows.forEach((li) => {
       const verse = (li.querySelector(".title")?.dataset.title || "")
         .trim()
@@ -429,6 +433,26 @@ endblock %} {% block content %}
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", () => {
+    const simpleToggle = document.getElementById("simpleToggle");
+    const saved = localStorage.getItem("historySimpleMode");
+    const defaultSimple = saved === null ? true : saved === "1";
+
+    function setSimpleMode(enabled) {
+      document.body.classList.toggle("simple-history", enabled);
+      if (simpleToggle) {
+        simpleToggle.textContent = enabled ? "More options" : "Simple view";
+        simpleToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
+      }
+      localStorage.setItem("historySimpleMode", enabled ? "1" : "0");
+    }
+
+    if (simpleToggle) {
+      simpleToggle.addEventListener("click", () => {
+        setSimpleMode(!document.body.classList.contains("simple-history"));
+      });
+    }
+
+    setSimpleMode(defaultSimple);
     applyFilters();
     $("#cards")?.addEventListener("change", (e) => {
       if (e.target.classList.contains("row-check")) updateSelectAllState();
@@ -483,6 +507,15 @@ endblock %} {% block content %}
     align-items: center;
     margin: 0.5rem 0;
     padding: 0.5rem 0.75rem;
+  }
+  body.simple-history .advanced-only {
+    display: none !important;
+  }
+  body.simple-history .row-check-wrap {
+    display: none;
+  }
+  body.simple-history .row-top {
+    grid-template-columns: 1fr auto;
   }
   .cards {
     display: grid;
