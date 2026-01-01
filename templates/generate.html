@@ -669,6 +669,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     .col-side {
       order: -1;
     }
+    .preview {
+      position: static;
+    }
   }
   .col-side {
     position: relative;
@@ -813,6 +816,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       padding: 0.5rem;
       backdrop-filter: blur(6px);
       z-index: 5;
+    }
+  }
+  @media (max-width: 600px) {
+    .block {
+      padding: 0.85rem;
     }
   }
 
