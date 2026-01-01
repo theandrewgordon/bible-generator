@@ -167,50 +167,50 @@ endblock %} {% block content %}
           </div>
         </div>
 
-        <div class="actions">
+        <div class="actions simple-actions">
+          <a
+            class="button ghost tiny"
+            href="{{ url_for('download_file', filename=item.filename) }}"
+            title="Download"
+            aria-label="Download {{ item.verse }}"
+            >Download</a
+          >
           <button
             type="button"
-            class="icon fav-btn"
+            class="button ghost tiny fav-btn"
             data-file="{{ item.filename }}"
             title="Favorite"
             aria-label="Favorite {{ item.verse }}"
             aria-pressed="{{ 'true' if item.get('favorite') else 'false' }}"
           >
-            {% if item.get('favorite') %}⭐{% else %}☆{% endif %}
+            {% if item.get('favorite') %}Favorited{% else %}Favorite{% endif %}
           </button>
 
-          <a
-            class="icon"
-            href="{{ url_for('download_file', filename=item.filename) }}"
-            title="Download"
-            aria-label="Download {{ item.verse }}"
-            >📥</a
-          >
           {% if item.get('type') == 'coloring' and item.get('imageFilename') %}
           <a
-            class="icon"
+            class="button ghost tiny advanced-only"
             href="{{ url_for('coloring_image', filename=item.imageFilename) }}"
             title="View PNG"
             aria-label="View PNG for {{ item.verse }}"
-            >🖼️</a
+            >View image</a
           >
           {% endif %}
           {% if item.get('type') != 'coloring' %}
           <a
-            class="icon"
+            class="button ghost tiny advanced-only"
             href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
             title="Regenerate"
             aria-label="Regenerate {{ item.verse }}"
-            >♻️</a
+            >Regenerate</a
           >
           {% endif %}
           <a
-            class="icon danger"
+            class="button ghost tiny advanced-only danger"
             href="{{ url_for('delete_worksheet', filename=item.filename) }}"
             title="Delete"
             aria-label="Delete {{ item.verse }}"
             onclick="return confirm('Delete this worksheet?')"
-            >🗑️</a
+            >Delete</a
           >
         </div>
       </div>
@@ -220,7 +220,7 @@ endblock %} {% block content %}
 </form>
 {% else %}
 <div class="empty card-lite">
-  <div class="empty-emoji">🧺</div>
+  <div class="empty-emoji">No downloads yet</div>
   <h3>No worksheets yet</h3>
   <p class="muted">When you create worksheets, they’ll show up here.</p>
   <a class="button" href="{{ url_for('generate') }}">✨ Create one</a>
@@ -592,6 +592,20 @@ endblock %} {% block content %}
     gap: 0.75rem;
     padding: 0;
     list-style: none;
+  }
+  .simple-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .button.tiny {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.82rem;
+    border-radius: 10px;
+  }
+  .button.tiny.danger {
+    color: #b91c1c;
+    border-color: rgba(185, 28, 28, 0.3);
   }
   .card {
     border: 1px solid var(--border-color, #2a3441);

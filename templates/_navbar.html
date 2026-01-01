@@ -23,6 +23,7 @@
       <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}>Home</a>
       <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}>Worksheets</a>
       <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>Bundles</a>
+      <a class="nav-link" href="/start-here"     {% if p.startswith('/start-here') %}aria-current="page"{% endif %}>Start Here</a>
       <a class="nav-link" href="/#how-it-works">How It Works</a>
       {% if session.user_info %}
         <a class="nav-link" href="/history"      {% if p.startswith('/history') %}aria-current="page"{% endif %}>My Downloads</a>

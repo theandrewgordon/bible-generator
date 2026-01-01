@@ -173,8 +173,12 @@
     border-radius: 12px;
   }
   .hero-stat-icon {
-    font-size: 1.35rem;
-    line-height: 1;
+    font-size: 0.85rem;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+    opacity: 0.85;
   }
   .hero-stat-content {
     display: flex;
@@ -398,14 +402,14 @@
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
-        <span class="hero-stat-icon" aria-hidden="true">👨‍👩‍👧</span>
+        <span class="hero-stat-icon" aria-hidden="true">Families</span>
         <div class="hero-stat-content">
           <strong>{{ site_content.home_stat_families or '1,200+' }}</strong>
           <span>families practicing weekly</span>
         </div>
       </div>
       <div class="hero-stat">
-        <span class="hero-stat-icon" aria-hidden="true">🗂️</span>
+        <span class="hero-stat-icon" aria-hidden="true">Worksheets</span>
         <div class="hero-stat-content">
           <strong>{{ site_content.home_stat_worksheets or '6,500+' }}</strong>
           <span>worksheets created this month</span>
@@ -433,11 +437,11 @@
       <p>No prep required—ready-to-print pages for handwriting, copywork, and gentle reflection.</p>
     </article>
     <article class="value-card">
-      <h3>📖 Rooted in Scripture</h3>
+      <h3>Rooted in Scripture</h3>
       <p>Use a single verse or a themed bundle. Clean layouts that feel peaceful and trustworthy.</p>
     </article>
     <article class="value-card">
-      <h3>🏡 Made for homeschool life</h3>
+      <h3>Made for homeschool life</h3>
       <p>Perfect for morning basket, quiet time, or co-op—simple enough to use right now.</p>
     </article>
   </div>
