@@ -10,6 +10,7 @@ endblock %} {% block content %}
       <h3 style="margin:0;">My Library (Packs)</h3>
       <p class="muted small" style="margin:0;">Re-download packs you’ve saved to your account.</p>
     </div>
+    <a class="button ghost" href="{{ url_for('downloads') }}">Redeem a new code</a>
   </div>
   <ul class="cards" style="margin-top:0.75rem;">
     {% for p in purchases %}
