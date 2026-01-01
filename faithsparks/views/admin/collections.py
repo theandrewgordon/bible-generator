@@ -87,6 +87,10 @@ def admin_collections_new():
     if not db:
         return "Firestore not configured", 500
     if request.method == "POST":
+        def _split_list(raw: str):
+            parts = re.split(r"[\n,]+", raw or "")
+            return [p.strip() for p in parts if p.strip()]
+
         slug = (request.form.get("slug") or "").strip().lower()
         title = (request.form.get("title") or slug.replace("-", " ").title()).strip()
         is_public = request.form.get("isPublic") == "on"
@@ -98,6 +102,10 @@ def admin_collections_new():
         description = (request.form.get("description") or "").strip()
         is_sub_only = request.form.get("isSubscriberOnly") == "on"
         price_id = (request.form.get("priceId") or "").strip() or None
+        age_range = (request.form.get("ageRange") or "").strip() or None
+        skills = _split_list(request.form.get("skills") or "")
+        use_cases = _split_list(request.form.get("useCases") or "")
+        preview_images = _split_list(request.form.get("previewImages") or "")
         verses_raw = request.form.get("verses") or ""
         parts = re.split(r"[\n,]+", verses_raw)
         verses = [p.strip() for p in parts if p.strip()]
@@ -112,6 +120,10 @@ def admin_collections_new():
             "description": description,
             "isSubscriberOnly": is_sub_only,
             "priceId": price_id,
+            "ageRange": age_range,
+            "skills": skills,
+            "useCases": use_cases,
+            "previewImages": preview_images,
         }
         data["defaultVersion"] = default_version or "esv"
         if order_val is not None:
@@ -132,11 +144,19 @@ def admin_collections_edit(slug):
         return "Not found", 404
     current = doc.to_dict()
     if request.method == "POST":
+        def _split_list(raw: str):
+            parts = re.split(r"[\n,]+", raw or "")
+            return [p.strip() for p in parts if p.strip()]
+
         title = (request.form.get("title") or "").strip() or current.get("title")
         is_public = request.form.get("isPublic") == "on"
         is_free = request.form.get("isFree") == "on"
         is_sub_only = request.form.get("isSubscriberOnly") == "on"
         price_id = (request.form.get("priceId") or "").strip() or None
+        age_range = (request.form.get("ageRange") or "").strip() or None
+        skills = _split_list(request.form.get("skills") or "")
+        use_cases = _split_list(request.form.get("useCases") or "")
+        preview_images = _split_list(request.form.get("previewImages") or "")
         if is_free:
             is_sub_only = False
             price_id = None
@@ -148,6 +168,10 @@ def admin_collections_edit(slug):
             "description": current.get("description", ""),
             "isSubscriberOnly": is_sub_only,
             "priceId": price_id,
+            "ageRange": age_range,
+            "skills": skills,
+            "useCases": use_cases,
+            "previewImages": preview_images,
         }
         db.collection("collections").document(slug).set(data, merge=True)
         flash("Collection updated", "success")
@@ -164,6 +188,10 @@ def admin_collections_edit(slug):
         "zipUrl": current.get("zipUrl", ""),
         "description": current.get("description", ""),
         "verses": "\n".join(current.get("verses", [])),
+        "ageRange": current.get("ageRange", ""),
+        "skills": ", ".join(current.get("skills", []) or []),
+        "useCases": ", ".join(current.get("useCases", []) or []),
+        "previewImages": "\n".join(current.get("previewImages", []) or []),
     }
     return render_template("admin_collection_form.html", mode="edit", data=form_data)
 

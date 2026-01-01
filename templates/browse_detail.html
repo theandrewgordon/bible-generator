@@ -26,6 +26,13 @@ not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
 URL for this pack #} {% if verses_param %} {% set use_url = url_for('generate',
 v=verses_param) %} {% else %} {% set use_url = url_for('generate',
 collection=c.slug) %} {% endif %}
+{% set age_range = c.ageRange or 'Ages 6–10' %}
+{% set skills = c.skills or ['Copywork', 'Scripture memory', 'Handwriting'] %}
+{% set use_cases = c.useCases or ['Morning basket', 'Quiet time', 'Sunday school'] %}
+{% set preview_images = c.previewImages or [
+  url_for('static', filename='CopyworkStock/Copywork2.png'),
+  url_for('static', filename='CopyworkStock/Copywork4.png')
+] %}
 
 <header class="head">
   <div>
@@ -132,6 +139,31 @@ collection=c.slug) %} {% endif %}
   </aside>
 
   <main class="main">
+    <section class="pack-intro">
+      <div class="pack-previews">
+        {% for img in preview_images[:2] %}
+        <img
+          src="{{ img }}"
+          alt="Preview of {{ c.title }}"
+          loading="lazy"
+          width="520"
+          height="360"
+        />
+        {% endfor %}
+      </div>
+      <div class="pack-details">
+        <div class="detail-row">
+          <strong>Best for ages:</strong> {{ age_range }}
+        </div>
+        <div class="detail-row">
+          <strong>Skills:</strong> {{ skills|join(', ') }}
+        </div>
+        <div class="detail-row">
+          <strong>Great for:</strong> {{ use_cases|join(', ') }}
+        </div>
+        <div class="detail-row muted small">Instant download. Print & go.</div>
+      </div>
+    </section>
     <h2>Verses ({{ c.verses|length }})</h2>
     <ul class="verse-list" id="verseList">
       {% for verse in c.verses %}
@@ -187,9 +219,42 @@ collection=c.slug) %} {% endif %}
     break-inside: avoid;
     margin: 0.15rem 0;
   }
+  .pack-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .pack-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.6rem;
+  }
+  .pack-previews img {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: var(--card-shadow);
+  }
+  .pack-details {
+    background: var(--box);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    box-shadow: var(--card-shadow);
+  }
+  .detail-row {
+    margin-bottom: 0.4rem;
+  }
   @media (max-width: 720px) {
     .verse-list {
       columns: 1;
+    }
+  }
+  @media (max-width: 980px) {
+    .pack-intro {
+      grid-template-columns: 1fr;
     }
   }
 </style>

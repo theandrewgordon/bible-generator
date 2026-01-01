@@ -330,6 +330,7 @@ def downloads():
             error = "That password doesn’t match any product. Please double-check and try again."
         else:
             session["unlocked_pack_id"] = pack["id"]
+            flash(f"Unlocked {pack['name']}.", "success")
 
     if not pack:
         unlocked = session.get("unlocked_pack_id")

@@ -21,7 +21,7 @@ will add noindex for /generate, but these help sharing/consistency) #}
 />
 <meta name="twitter:card" content="summary_large_image" />
 {% endblock %} {% block content %}
-<h1 class="page-title">📝 Generate Printable Bible Copywork</h1>
+<h1 class="page-title">Make a Bible Worksheet</h1>
 
 {# ---------- Usage / Plan Banner ---------- #} {% if usage_info %} {% set m_lim
 = usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %} {% if
@@ -80,46 +80,14 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
   <div class="grid">
     <div class="col-main">
-      <!-- Step 1 -->
-      <section class="block">
-        <h2 class="step"><span class="step-dot">1</span> Choose input</h2>
-
-        <fieldset class="segmented" role="radiogroup" aria-label="Input mode">
-          <label class="seg-item">
-            <input
-              type="radio"
-              name="mode"
-              value="verse"
-              id="modeVerse"
-              checked
-            />
-            <span>📖 Verse(s)</span>
-          </label>
-          <label class="seg-item">
-            <input type="radio" name="mode" value="custom" id="modeCustom" />
-            <span>✍️ Your text</span>
-          </label>
-        </fieldset>
-        <p class="help">
-          Pick one mode. Switching clears the other to avoid conflicts.
-        </p>
-      </section>
-
-      <!-- Step 2A: Verse mode -->
-      <section
-        class="block mode-block"
-        id="verseBlock"
-        aria-labelledby="verseHeading"
-      >
-        <h2 id="verseHeading" class="step">
-          <span class="step-dot">2</span> Enter verse(s)
-        </h2>
+      <section class="block" aria-labelledby="verseHeading">
+        <h2 id="verseHeading" class="step">Enter a Bible verse or reference</h2>
 
         <label for="verseInput" class="sr-only">Bible Verse(s)</label>
         <input
           id="verseInput"
           name="verse"
-          placeholder="e.g., John 3:16 (ESV), Psalm 23:1 (KJV)"
+          placeholder="e.g., John 3:16"
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
@@ -127,8 +95,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           aria-describedby="verseHelp"
         />
         <small id="verseHelp" class="muted">
-          Paste up to 30 references; separate with commas or new lines. Add
-          version in parentheses (e.g., “(ESV)”).
+          Add more than one verse with commas or new lines. We’ll format the rest.
         </small>
 
         <div class="quick-picks" role="group" aria-label="Quick pick verses">
@@ -151,16 +118,49 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         <div id="zipHint" class="small muted" style="display: none"></div>
       </section>
 
-      <!-- Step 2B: Custom mode -->
-      <section
-        class="block mode-block hidden"
-        id="customBlock"
-        aria-labelledby="customHeading"
-      >
-        <h2 id="customHeading" class="step">
-          <span class="step-dot">2</span> Use your own text
-        </h2>
+      <details class="advanced block">
+        <summary>Optional settings</summary>
+        <div class="row">
+          <label class="checkbox-row">
+            <input type="checkbox" name="cursive" id="cursiveToggle" /> Use
+            cursive tracing font
+          </label>
+        </div>
 
+        <div class="row" id="versionRow" style="margin-top: 0.4rem">
+          <label for="versionSelect"><strong>Version</strong></label>
+          <select
+            id="versionSelect"
+            name="version"
+            class="wide-input"
+            style="max-width: 220px"
+          >
+            <option value="esv" selected>ESV</option>
+            <option value="kjv">KJV</option>
+            <option value="" data-role="override" hidden></option>
+          </select>
+        </div>
+
+        <details class="advanced" style="margin-top: 0.35rem">
+          <summary>Tips</summary>
+          <div class="muted small">
+            <ul>
+              <li>
+                Add “(ESV)”, “(KJV)”, or another translation tag in the verse
+                text to override the dropdown.
+              </li>
+              <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
+            </ul>
+          </div>
+        </details>
+
+        <button type="button" class="button ghost" id="clearBtn" style="margin-top: 0.6rem;">
+          Clear form
+        </button>
+      </details>
+
+      <details class="advanced block" id="customBlock">
+        <summary>Use your own text (optional)</summary>
         <input
           id="customTitle"
           name="custom_title"
@@ -221,47 +221,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           </label>
         </div>
         <div id="customFilename" class="muted small"></div>
-      </section>
-
-      <!-- Step 3 -->
-      <section class="block">
-        <h2 class="step"><span class="step-dot">3</span> Options</h2>
-
-        <div class="row">
-          <label class="checkbox-row">
-            <input type="checkbox" name="cursive" id="cursiveToggle" /> Use
-            cursive tracing font
-          </label>
-        </div>
-
-        <div class="row" id="versionRow" style="margin-top: 0.4rem">
-          <label for="versionSelect"><strong>📘 Version</strong></label>
-          <select
-            id="versionSelect"
-            name="version"
-            class="wide-input"
-            style="max-width: 220px"
-          >
-            <option value="esv" selected>ESV</option>
-            <option value="kjv">KJV</option>
-            <option value="" data-role="override" hidden></option>
-          </select>
-        </div>
-
-        <details class="advanced" style="margin-top: 0.35rem">
-          <summary>Tips</summary>
-          <div class="muted small">
-            <ul>
-              <li>
-                Add “(ESV)”, “(KJV)”, or another translation tag in the verse
-                text to override the dropdown.
-              </li>
-              <li>Multiple verses generate a <strong>ZIP</strong> of PDFs.</li>
-              <li>Custom text is validated and profanity-filtered.</li>
-            </ul>
-          </div>
-        </details>
-      </section>
+      </details>
 
       <!-- Actions -->
       <div class="actions">
@@ -279,13 +239,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           endif
           %}
         >
-          🚀 Generate Worksheet
-        </button>
-
-        <button type="button" class="button" id="clearBtn">🧹 Clear</button>
-        <a class="button ghost" href="{{ url_for('history') }}">📚 History</a>
-        <button type="button" class="button ghost" id="shareLinkBtn">
-          🔗 Share this setup
+          Create Worksheet
         </button>
 
         {% if usage_info %}
@@ -335,26 +289,6 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   </div>
 </form>
 
-<section id="coloring" class="block coloring-callout">
-  <h2>🎨 Coloring Pages Library (coming soon)</h2>
-  <p>
-    We’re moving the Illustrate experience into this page with a curated set of
-    pre-generated, kid-safe coloring sheets. This new library will include Bible
-    scenes, animals, holidays, and symbol-only options so families can grab a
-    page instantly—no waiting on live AI calls.
-  </p>
-  <ul class="muted small">
-    <li>Search by story, keyword, or theme.</li>
-    <li>Preview the artwork before downloading.</li>
-    <li>Tap once to drop the coloring image into your worksheet PDF.</li>
-  </ul>
-  <p class="muted">
-    We’re pre-seeding the first few hundred sheets now. Check back soon, or peek
-    at your <a href="{{ url_for('history') }}">history</a> for earlier
-    illustrations.
-  </p>
-</section>
-
 <!-- Snackbar -->
 <div id="toast" class="snackbar" role="status" aria-live="polite">
   ✅ Worksheet request sent…
@@ -369,11 +303,6 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 {% endblock %} {% block extra_scripts %}
 <script>
   /* ===== Elements ===== */
-  const modeVerse      = document.getElementById('modeVerse');
-  const modeCustom     = document.getElementById('modeCustom');
-  const verseBlock     = document.getElementById('verseBlock');
-  const customBlock    = document.getElementById('customBlock');
-
   const verseInput     = document.getElementById('verseInput');
   const tagify         = new Tagify(verseInput, {
     enforceWhitelist: false, trim: true, duplicates: false, maxTags: 30,
@@ -383,11 +312,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   });
 
   const versionSelect  = document.getElementById('versionSelect');
-  const versionRow     = document.getElementById('versionRow');
   const cursiveToggle  = document.getElementById('cursiveToggle');
   const submitBtn      = document.getElementById('submitBtn');
   const clearBtn       = document.getElementById('clearBtn');
-  const shareBtn       = document.getElementById('shareLinkBtn');
   const toastEl        = document.getElementById('toast');
 
   // Custom fields
@@ -479,42 +406,25 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     return (detected || (versionSelect.value || 'esv')).toUpperCase();
   };
 
-  function setMode(mode){
-    const isVerse  = mode === 'verse';
-    verseBlock.classList.toggle('hidden', !isVerse);
-    customBlock.classList.toggle('hidden',  isVerse);
-
-    if (versionRow){
-      versionRow.classList.toggle('hidden', !isVerse);
-    }
-    versionSelect.disabled = !isVerse;
-
-  if (isVerse){
-      customTitle.value = ''; customText.value = ''; customPrompt.value = '';
-      if (agreeTerms) agreeTerms.checked = false; customFilename.textContent = '';
-    } else {
-      tagify.removeAllTags(); verseInput.value = '';
-      filenamePreview.textContent = ''; zipHint.style.display = 'none';
-      clearVersionOverride();
-    }
-    updatePreview();
-  }
-
   const firstTagText = () => (tagify.value.map(t=>t.value.trim()).find(Boolean) || '');
 
   function updatePreview(){
-    const isVerse = !customBlock || customBlock.classList.contains('hidden');
-    if (isVerse){
-      const verse = firstTagText() || '—';
+    const verse = firstTagText();
+    const title = (customTitle.value||'').trim();
+    const body  = (customText.value||'').trim();
+
+    if (verse){
       previewVerse.textContent   = verse;
       previewVersion.textContent = effectiveVersion();
       previewPrompt.textContent  = '—';
-    } else {
-      const title = (customTitle.value||'').trim();
-      const body  = (customText.value||'').trim();
-      previewVerse.textContent   = title || (body ? '(DIY text)' : '—');
+    } else if (title || body){
+      previewVerse.textContent   = title || '(DIY text)';
       previewVersion.textContent = 'DIY';
       previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
+    } else {
+      previewVerse.textContent   = '—';
+      previewVersion.textContent = effectiveVersion();
+      previewPrompt.textContent  = '—';
     }
     previewCursive.hidden = !cursiveToggle.checked;
   }
@@ -535,17 +445,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     customFilename.textContent = `Will create: ${slug(name)}${suffix}`;
   }
 
-  /* ===== Mode toggle ===== */
-  modeVerse.addEventListener('change', ()=> setMode('verse'));
-  modeCustom.addEventListener('change', ()=> setMode('custom'));
-
   /* ===== Quick picks (verses & prompts) ===== */
   document.addEventListener('click', (e)=>{
     const chip = e.target.closest('.chip'); if (!chip) return;
     const v = chip.getAttribute('data-verse');
     const p = chip.getAttribute('data-prompt');
     if (v){
-      if (!modeVerse.checked) { modeVerse.checked = true; setMode('verse'); }
       tagify.addTags([v]); updateVerseFilenames(); updatePreview();
     }
     if (p){ customPrompt.value = p; updatePreview(); }
@@ -602,21 +507,20 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   /* ===== Submit (fetch → download; keep on page) ===== */
   document.getElementById('worksheetForm').addEventListener('submit', async (e) => {
     const form = e.currentTarget;
-    const isVerse   = modeVerse.checked;
     const tags      = tagify.value.map(t=>t.value.trim()).filter(Boolean);
     const customBody= (customText.value||'').trim();
 
     // Validate like before
-    if (isVerse){
-      if (!tags.length){
-        e.preventDefault(); alert('Please add at least one verse.');
-        verseInput.setAttribute('aria-invalid','true'); return;
-      }
+    if (!tags.length && !customBody){
+      e.preventDefault(); alert('Please add a verse or paste your own text.');
+      verseInput.setAttribute('aria-invalid','true'); return;
+    }
+    if (tags.length){
       verseInput.value = tags.join(', ');
       localStorage.setItem('recentVerses', verseInput.value);
-    } else {
-      if (!customBody){ e.preventDefault(); alert('Please paste your text.'); return; }
-      if (!(agreeTerms && agreeTerms.checked)){ e.preventDefault(); alert('Please confirm your content is appropriate.'); return; }
+    }
+    if (customBody && !(agreeTerms && agreeTerms.checked)){
+      e.preventDefault(); alert('Please confirm your content is appropriate.'); return;
     }
 
     // Intercept normal navigation
@@ -690,56 +594,30 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     updatePreview();
   });
 
-  /* ===== Share link ===== */
-  shareBtn.addEventListener('click', async ()=>{
-    const params = new URLSearchParams();
-    if (modeVerse.checked){
-      const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
-      if (tags.length) params.set('v', tags.join(' | '));
-    } else {
-      if (customTitle.value.trim()) params.set('title', customTitle.value.trim());
-      if (customText.value.trim())  params.set('text',  customText.value.trim().slice(0,120));
-      if (customPrompt.value.trim()) params.set('prompt', customPrompt.value.trim());
-      params.set('mode','custom');
-    }
-    if (cursiveToggle.checked) params.set('cursive','1');
-    if (modeVerse.checked && versionSelect.value) params.set('version', versionSelect.value);
-
-    const url = `${location.origin}${location.pathname}?${params.toString()}`;
-    try { await navigator.clipboard.writeText(url); } catch {}
-    toastEl.textContent = '🔗 Link copied!'; toastEl.classList.add('show');
-    setTimeout(()=>toastEl.classList.remove('show'), 1800);
-  });
-
   /* ===== Hydrate on load ===== */
   window.addEventListener('DOMContentLoaded', ()=>{
     const params = new URLSearchParams(location.search);
     const urlVerses = params.get('v');
-    const urlMode   = params.get('mode') === 'custom';
     const urlVer    = params.get('version');
     const urlCur    = params.get('cursive') === '1';
 
     const prefill   = {{ prefill_verse|tojson|default('""') }};
     const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
 
-    if (urlMode){ modeCustom.checked = true; setMode('custom'); } else { setMode('verse'); }
+    const splitVerses = str => str.split(/[,;\n]+/).map(v=>v.trim()).filter(Boolean);
+    if (prefill)   tagify.addTags(splitVerses(prefill));
+    if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
+    const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
+    if (recent) tagify.addTags(splitVerses(recent));
+    updateVerseFilenames();
 
-    if (modeVerse.checked){
-      const splitVerses = str => str.split(/[,;\n]+/).map(v=>v.trim()).filter(Boolean);
-      if (prefill)   tagify.addTags(splitVerses(prefill));
-      if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
-      const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
-      if (recent) tagify.addTags(splitVerses(recent));
-      updateVerseFilenames();
-    } else {
-      const t = params.get('title') || '';
-      const x = params.get('text')  || '';
-      const p = params.get('prompt')|| '';
-      if (t) customTitle.value = t;
-      if (x) customText.value  = x;
-      if (p) customPrompt.value= p;
-      updateCustomFilename();
-    }
+    const t = params.get('title') || '';
+    const x = params.get('text')  || '';
+    const p = params.get('prompt')|| '';
+    if (t) customTitle.value = t;
+    if (x) customText.value  = x;
+    if (p) customPrompt.value= p;
+    if (t || x) updateCustomFilename();
 
     // Version preference order: URL > defaultVersionOverride > localStorage > existing
     const assignVersionIfAvailable = (val) => {

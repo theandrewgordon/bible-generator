@@ -583,7 +583,7 @@
       aria-atomic="true"
       aria-hidden="true"
     >
-      <div class="panel">Generating your worksheet…</div>
+      <div class="panel">Creating your worksheet…</div>
     </div>
 
     <main id="maincontent" class="container">
@@ -591,8 +591,10 @@
     </main>
 
     <footer>
-      &copy; 2025 Faith Sparks Printables. All rights reserved. {% if
-      support_email %} • Support:
+      &copy; 2025 Faith Sparks Printables. All rights reserved.
+      <a href="/about">About</a> • <a href="/#how-it-works">How It Works</a> •
+      <a href="/plus">Plans</a>{% if is_pro %} • <a href="/billing">Manage Plan</a>{% endif %}
+      {% if support_email %} • Support:
       <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
     </footer>
 

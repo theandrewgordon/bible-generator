@@ -372,16 +372,15 @@
   <div class="hero-media hero-media--visible" style="background-image: url('{{ hero_images[0] }}')"></div>
   <div class="hero-media hero-media--hidden hero-media--next"></div>
   <div class="hero-content">
-    <span class="hero-kicker">Homeschool Bible copywork</span>
+    <span class="hero-kicker">Faith-filled learning made easy</span>
     <h1 class="hero-title">
-      {{ (site_content.home_title or 'Free Printable Bible Copywork Worksheets') if site_content else 'Free Printable Bible Copywork Worksheets' }}
+      {{ (site_content.home_title or 'Printable Bible worksheets for busy homeschool days') if site_content else 'Printable Bible worksheets for busy homeschool days' }}
     </h1>
     <p class="hero-sub">
-      {{ (site_content.home_subtitle or 'Fun, faith-based handwriting practice for ages 6–12—one verse at a time.') if site_content else 'Fun, faith-based handwriting practice for ages 6–12—one verse at a time.' }}
+      {{ (site_content.home_subtitle or 'Type a verse, click once, and print a beautiful worksheet in seconds.') if site_content else 'Type a verse, click once, and print a beautiful worksheet in seconds.' }}
     </p>
     <div class="cta-row">
       <a class="button primary" href="{{ hero_cta_url }}">{{ hero_cta_text }}</a>
-      <a class="button ghost" href="{{ url_for('browse') }}">Browse packs</a>
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
@@ -407,7 +406,7 @@
       </div>
     </div>
     <p class="muted small cta-note">
-      Free Starter Pack included—upgrade to Plus Family or Classroom when you’re ready for more.
+      Free Starter Pack included. Instant downloads for homeschool, co-op, or Sunday school.
     </p>
   </div>
 </section>
@@ -415,16 +414,16 @@
 <section class="section-muted">
   <div class="value-props">
     <article class="value-card">
-      <h3>✍️ Open-and-go lessons</h3>
-      <p>Generate handwriting practice in seconds—tracing, copywork lines, and themed packs for every season.</p>
+      <h3>✍️ Print & go worksheets</h3>
+      <p>No prep required—ready-to-print pages for handwriting, copywork, and gentle reflection.</p>
     </article>
     <article class="value-card">
-      <h3>📖 Rooted in scripture</h3>
-      <p>Choose verses by book, topic, or paste your own. Add tags like <code>[KJV]</code> or <code>[cursive]</code> to customize instantly.</p>
+      <h3>📖 Rooted in Scripture</h3>
+      <p>Use a single verse or a themed bundle. Clean layouts that feel peaceful and trustworthy.</p>
     </article>
     <article class="value-card">
-      <h3>🏡 Built for homeschool life</h3>
-      <p>Print for home, co-ops, or children’s ministry. Plus unlocks subscriber-only packs and generous monthly limits.</p>
+      <h3>🏡 Made for homeschool life</h3>
+      <p>Perfect for morning basket, quiet time, or co-op—simple enough to use right now.</p>
     </article>
   </div>
 </section>
@@ -447,20 +446,20 @@
   </div>
 </section>
 
-<section class="how-it-works">
+<section class="how-it-works" id="how-it-works">
   <h2>How Faith Sparks works</h2>
   <div class="how-grid">
     <article class="how-step">
-      <h3>1. Pick the verses</h3>
-      <p>Search the library, choose a themed pack, or paste your own scripture. Add translation or cursive tags on the fly.</p>
+      <h3>1. Pick a verse</h3>
+      <p>Type a reference or choose from a bundle.</p>
     </article>
     <article class="how-step">
-      <h3>2. Generate & tailor</h3>
-      <p>Instantly preview handwriting lines and tracing prompts. Adjust difficulty for each child with a single click.</p>
+      <h3>2. Click to create</h3>
+      <p>We format it beautifully for handwriting practice.</p>
     </article>
     <article class="how-step">
-      <h3>3. Print for the week</h3>
-      <p>Download crisp PDFs for binders or clipboards. Revisit any worksheet from your history whenever you need a refresh.</p>
+      <h3>3. Print & use today</h3>
+      <p>Download the PDF and print right away.</p>
     </article>
   </div>
 </section>
@@ -474,10 +473,9 @@
     <p>
       Every feature comes from conversations with other Christian homeschool parents. We’re right here with you, cheering your family on.
     </p>
-    <div class="cta-row">
-      <a class="button primary" href="{{ url_for('generate') }}">Start free worksheets</a>
-      <a class="button ghost" href="{{ url_for('public.about') }}">Meet the team</a>
-    </div>
+  <p class="muted small">
+    Meet the team behind Faith Sparks in <a href="{{ url_for('public.about') }}">About</a>.
+  </p>
   </div>
   <picture>
     <source srcset="{{ url_for('static', filename='CopyworkStock/Copywork2.png') }}" media="(min-width: 640px)" />
@@ -497,9 +495,11 @@
     <article class="closing-card">
       <h3>Seasonal spotlight</h3>
       <p>
-        {{ seasonal_banner or 'Advent & Christmas copywork sets are live—preview the festive theme without logging in.' }}
+        {{ seasonal_banner or 'Seasonal copywork sets are ready—easy wins for busy weeks.' }}
       </p>
-      <a class="button small ghost" href="{{ url_for('browse', q='advent') }}">View seasonal packs</a>
+      <p class="muted small" style="margin: 0.5rem 0 0;">
+        <a href="{{ url_for('browse', q='advent') }}">View seasonal packs</a>
+      </p>
     </article>
     <article class="closing-card">
       <h3>Why homeschoolers choose Faith Sparks</h3>

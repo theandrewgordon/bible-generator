@@ -18,6 +18,73 @@ def load_collections() -> dict:
 
 COLLECTIONS = load_collections()
 
+_BUNDLE_DEFAULTS = {
+    "starter": {
+        "ageRange": "Ages 6-10",
+        "skills": ["Copywork", "Handwriting", "Scripture memory"],
+        "useCases": ["Morning basket", "Quiet time", "Family worship"],
+        "previewImages": ["Copywork1.png", "Copywork2.png"],
+    },
+    "psalms": {
+        "ageRange": "Ages 6-12",
+        "skills": ["Copywork", "Reflection", "Handwriting"],
+        "useCases": ["Quiet time", "Morning basket", "Memory work"],
+        "previewImages": ["Copywork3.png", "Copywork4.png"],
+    },
+    "advent": {
+        "ageRange": "Ages 5-11",
+        "skills": ["Copywork", "Seasonal devotions", "Handwriting"],
+        "useCases": ["Advent", "Morning basket", "Family worship"],
+        "previewImages": ["Copywork4.png", "Copywork5.png"],
+    },
+    "easter": {
+        "ageRange": "Ages 5-11",
+        "skills": ["Copywork", "Reflection", "Handwriting"],
+        "useCases": ["Easter week", "Sunday school", "Family worship"],
+        "previewImages": ["Copywork2.png", "Copywork5.png"],
+    },
+    "back-to-school": {
+        "ageRange": "Ages 6-12",
+        "skills": ["Copywork", "Character", "Handwriting"],
+        "useCases": ["Back to school", "Morning basket", "Co-op"],
+        "previewImages": ["Copywork2.png", "Copywork3.png"],
+    },
+    "memory-verses": {
+        "ageRange": "Ages 6-12",
+        "skills": ["Scripture memory", "Copywork", "Handwriting"],
+        "useCases": ["Memory work", "Quiet time", "Morning basket"],
+        "previewImages": ["Copywork1.png", "Copywork4.png"],
+    },
+}
+
+
+def _apply_bundle_defaults(meta: dict) -> dict:
+    slug = meta.get("slug")
+    defaults = _BUNDLE_DEFAULTS.get(slug, {})
+    if not meta.get("ageRange") and defaults.get("ageRange"):
+        meta["ageRange"] = defaults["ageRange"]
+    if not meta.get("skills") and defaults.get("skills"):
+        meta["skills"] = list(defaults["skills"])
+    if not meta.get("useCases") and defaults.get("useCases"):
+        meta["useCases"] = list(defaults["useCases"])
+    if not meta.get("previewImages") and defaults.get("previewImages"):
+        meta["previewImages"] = list(defaults["previewImages"])
+    meta["previewImages"] = _normalize_preview_images(meta.get("previewImages") or [])
+    return meta
+
+
+def _normalize_preview_images(items: list[str]) -> list[str]:
+    normalized = []
+    for img in items or []:
+        if not img:
+            continue
+        normalized.append(
+            img
+            if img.startswith(("http://", "https://", "/static/"))
+            else f"/static/CopyworkStock/{img}"
+        )
+    return normalized
+
 
 def _fmt_dt(ts):
     try:
@@ -41,7 +108,7 @@ def get_collections(show_all: bool = False):
             for d in docs:
                 data = d.to_dict()
                 pr = data.get('prewarm') or {}
-                items.append({
+                items.append(_apply_bundle_defaults({
                     'slug': d.id,
                     'title': data.get('title') or d.id.replace('-', ' ').title(),
                     'verses': data.get('verses') or [],
@@ -51,17 +118,21 @@ def get_collections(show_all: bool = False):
                     'isFree': data.get('isFree', False),
                     'isSubscriberOnly': data.get('isSubscriberOnly', False),
                     'priceId': data.get('priceId'),
+                    'ageRange': data.get('ageRange'),
+                    'skills': data.get('skills') or [],
+                    'useCases': data.get('useCases') or [],
+                    'previewImages': data.get('previewImages') or [],
                     'prewarm': pr,
                     'lastBuilt': _fmt_dt(pr.get('finishedAt')) if isinstance(pr, dict) else None,
                     'order': int(data.get('order') or 9999),
-                })
+                }))
             if items:
                 return items
         except Exception:
             pass
     items = []
     for slug, verses in (COLLECTIONS or {}).items():
-        items.append({
+        items.append(_apply_bundle_defaults({
             'slug': slug,
             'title': slug.replace('-', ' ').title(),
             'verses': verses,
@@ -71,10 +142,14 @@ def get_collections(show_all: bool = False):
             'isFree': False,
             'isSubscriberOnly': False,
             'priceId': None,
+            'ageRange': None,
+            'skills': [],
+            'useCases': [],
+            'previewImages': [],
             'prewarm': None,
             'lastBuilt': None,
             'order': 9999,
-        })
+        }))
     return items
 
 
@@ -84,7 +159,7 @@ def get_collection_meta(slug: str):
             d = db.collection('collections').document(slug).get()
             if d.exists:
                 data = d.to_dict()
-                return {
+                return _apply_bundle_defaults({
                     'slug': slug,
                     'title': data.get('title') or slug.replace('-', ' ').title(),
                     'verses': data.get('verses') or [],
@@ -95,13 +170,17 @@ def get_collection_meta(slug: str):
                     'priceId': data.get('priceId'),
                     'prewarm': data.get('prewarm'),
                     'isFree': data.get('isFree', False),
-                }
+                    'ageRange': data.get('ageRange'),
+                    'skills': data.get('skills') or [],
+                    'useCases': data.get('useCases') or [],
+                    'previewImages': data.get('previewImages') or [],
+                })
         except Exception:
             pass
     verses = (COLLECTIONS or {}).get(slug)
     if verses is None:
         return None
-    return {
+    return _apply_bundle_defaults({
         'slug': slug,
         'title': slug.replace('-', ' ').title(),
         'verses': verses,
@@ -112,10 +191,13 @@ def get_collection_meta(slug: str):
         'isFree': False,
         'isSubscriberOnly': False,
         'priceId': None,
-    }
+        'ageRange': None,
+        'skills': [],
+        'useCases': [],
+        'previewImages': [],
+    })
 
 
 def get_collection_verses(slug: str):
     meta = get_collection_meta(slug)
     return meta['verses'] if meta else []
-

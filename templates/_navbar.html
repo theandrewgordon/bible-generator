@@ -20,16 +20,14 @@
     <!-- Primary nav -->
     <nav id="mainNav" class="nav-links" aria-label="Primary">
       {% set p = request.path or '' %}
-      <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}><span aria-hidden="true">🏠</span> Home</a>
-      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}><span aria-hidden="true">📝</span> Generate</a>
-      <a class="nav-link" href="/generate#coloring"><span aria-hidden="true">🎨</span> Coloring</a>
-      <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}><span aria-hidden="true">🔎</span> Browse</a>
-      <a class="nav-link" href="/history"        {% if p.startswith('/history') %}aria-current="page"{% endif %}><span aria-hidden="true">📚</span> History</a>
-
-      {% if not is_pro %}
-        <a class="nav-link plus" href="/plus"    {% if p.startswith('/plus') %}aria-current="page"{% endif %}><span aria-hidden="true">⭐</span> Plus</a>
+      <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}>Home</a>
+      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}>Worksheets</a>
+      <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>Bundles</a>
+      <a class="nav-link" href="/#how-it-works">How It Works</a>
+      {% if session.user_info %}
+        <a class="nav-link" href="/history"      {% if p.startswith('/history') %}aria-current="page"{% endif %}>My Downloads</a>
       {% else %}
-        <a class="nav-link" href="/billing"      {% if p.startswith('/billing') %}aria-current="page"{% endif %}><span aria-hidden="true">🧾</span> Billing</a>
+        <a class="nav-link" href="{{ url_for('google.login', next=request.full_path) }}">Login</a>
       {% endif %}
 
       {% if is_admin %}
@@ -49,7 +47,6 @@
         </details>
       {% endif %}
 
-      <a class="nav-link" href="/about"          {% if p.startswith('/about') %}aria-current="page"{% endif %}><span aria-hidden="true">ℹ️</span> About</a>
     </nav>
 
     <!-- Right: usage, auth, theme -->
@@ -66,10 +63,7 @@
 
       {% if session.user_info %}
         <span class="user-name" title="{{ session.user_info.email }}">👤 {{ session.user_info.email.split('@')[0] }}</span>
-        <a class="auth-link logout" href="/logout">🚪 Logout</a>
-      {% else %}
-        <a class="auth-link" href="{{ url_for('google.login', next=request.full_path) }}">🔐 Login</a>
-
+        <a class="auth-link logout" href="/logout">Logout</a>
       {% endif %}
 
       <button
