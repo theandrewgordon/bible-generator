@@ -30,7 +30,7 @@
   }
 </script>
 {% endblock %} {% block content %}
-<h1 class="page-title">Browse Worksheets</h1>
+<h1 class="page-title">Browse Bundles</h1>
 
 {% set trending_pack = (top_packs_week[0] if top_packs_week else (top_packs[0] if top_packs else None)) %}
 {% if trending_pack %}
@@ -86,7 +86,7 @@
 <section class="block">
   <details id="topPacks">
     <summary>
-      <h3 style="display: inline">Top Packs</h3>
+      <h3 style="display: inline">Top Bundles</h3>
       <span class="small muted">(click to expand)</span>
     </summary>
     <div class="pack-grid mt10">
@@ -213,15 +213,15 @@
           href="{{ url_for('start_google_login', next=next_url) }}"
           >Sign in</a
         >
-        {% endif %} {% endif %} {# Always show Use Pack — if not signed in, send
+        {% endif %} {% endif %} {# Always show Use Bundle — if not signed in, send
         to Google with next=use_url #} {% if is_signed_in %}
-        <a class="button small" href="{{ use_url }}">Use Pack</a>
+        <a class="button small" href="{{ use_url }}">Use Bundle</a>
         {% else %}
         <a
           class="button small"
           href="{{ url_for('start_google_login', next=use_url) }}"
           aria-label="Sign in to use {{ c.title }} to make a worksheet"
-          >Use Pack</a
+          >Use Bundle</a
         >
         {% endif %}
       </div>
@@ -230,7 +230,7 @@
   </div>
 
   <p class="small muted">
-    Collections are starting points; pick one to prefill ideas for a worksheet.
+    Bundles are starting points; pick one to prefill ideas for a worksheet.
   </p>
 </section>
 

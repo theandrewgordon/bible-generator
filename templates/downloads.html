@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Download Your Bible Copywork Pack{% endblock %}
+{% block title %}Redeem Your Bible Copywork Bundle{% endblock %}
 
 {% block content %}
 <div class="page downloads">
-  <h1>Download Your Bible Copywork Pack</h1>
-  <p class="muted">Enter the password from your receipt or instruction PDF to unlock your pack.</p>
+  <h1>Redeem Your Bible Copywork Bundle</h1>
+  <p class="muted">Enter the password from your receipt or instruction PDF to unlock your bundle.</p>
 
   {% if error %}
     <div class="alert alert-warning">{{ error }}</div>
@@ -15,11 +15,11 @@
       <h2>Unlocked: {{ pack.name }}</h2>
       <p>Your download is ready.</p>
       <p class="muted small" style="margin-top: -0.25rem;">
-        Redeeming multiple packs? Enter another code below.
+        Redeeming multiple bundles? Enter another code below.
       </p>
       <div class="row" style="align-items: center; gap: 0.75rem; flex-wrap: wrap;">
         <a class="button primary" href="{{ url_for('download_file_pack', pack_id=pack.id or pack['id']) }}">
-          ⬇️ Download Pack
+          Download Bundle
         </a>
         {% if user_email %}
           <form method="post" action="{{ url_for('claim_pack') }}">
@@ -44,9 +44,9 @@
         required
         autocomplete="off"
       />
-      <button type="submit" class="button primary" style="margin-top: 0.75rem;">Unlock Another Pack</button>
+      <button type="submit" class="button primary" style="margin-top: 0.75rem;">Unlock Another Bundle</button>
       <p class="muted small" style="margin: 0.5rem 0 0;">
-        Bought more than one pack? Enter each code here to unlock them back-to-back.
+        Bought more than one bundle? Enter each code here to unlock them back-to-back.
       </p>
     </form>
   {% else %}
@@ -61,10 +61,10 @@
         required
         autocomplete="off"
       />
-      <button type="submit" class="button primary" style="margin-top: 0.75rem;">Unlock Pack</button>
+      <button type="submit" class="button primary" style="margin-top: 0.75rem;">Unlock Bundle</button>
     </form>
     <p class="muted small" style="max-width: 640px;">
-      Bought more than one pack? Redeem each code here, one at a time.
+      Bought more than one bundle? Redeem each code here, one at a time.
       <br />
       Trouble finding your password? Check the instruction PDF that came with your order,
       or email <a href="mailto:support@faithsparksprintables.com">support@faithsparksprintables.com</a>.
