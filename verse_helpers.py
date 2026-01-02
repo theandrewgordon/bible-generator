@@ -33,11 +33,15 @@ def strip_fences(text: str) -> str:
     if not text:
         return text
     trimmed = text.strip()
+    # Handle responses that start with a bare "json" line.
+    trimmed = re.sub(r"^json\s*", "", trimmed, flags=re.IGNORECASE)
     if trimmed.startswith("```"):
         parts = trimmed.split("```", 2)
         if len(parts) >= 3:
             trimmed = parts[1] if parts[1] else parts[2]
             trimmed = trimmed.strip()
+    # Collapse JS-style string concatenation into valid JSON strings.
+    trimmed = re.sub(r"\"\s*\+\s*\n\s*\"", "", trimmed)
     if trimmed.startswith("{") or trimmed.startswith("["):
         return trimmed
     return trimmed
