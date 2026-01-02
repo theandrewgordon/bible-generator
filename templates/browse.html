@@ -87,8 +87,8 @@
 {% if top_packs and top_packs|length %}
 <section class="block">
   <details id="topPacks">
-    <summary>
-      <h3 style="display: inline">Top Bundles</h3>
+    <summary class="section-summary">
+      <span class="summary-title">Top Bundles</span>
       <span class="small muted">(click to expand)</span>
     </summary>
     <div class="pack-grid mt10">
@@ -116,8 +116,8 @@
 {% endif %} {% if top_packs_week and top_packs_week|length %}
 <section class="block">
   <details id="topWeek">
-    <summary>
-      <h3 style="display: inline">Top This Week</h3>
+    <summary class="section-summary">
+      <span class="summary-title">Top This Week</span>
       <span class="small muted">(click to expand)</span>
     </summary>
     <div class="pack-grid mt10">
@@ -253,8 +253,8 @@
 {% if items and items|length %}
 <section class="block">
   <details id="recentPdfs">
-    <summary>
-      <h3 style="display: inline">Recent</h3>
+    <summary class="section-summary">
+      <span class="summary-title">Recent</span>
       <span class="small muted">(click to expand)</span>
     </summary>
 
@@ -318,6 +318,16 @@
   }
   .toolbar input[type="search"] {
     min-width: 240px;
+  }
+  .section-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .summary-title {
+    font-weight: 600;
+    letter-spacing: 0.01em;
   }
   .mt10 {
     margin-top: 10px;
@@ -456,8 +466,8 @@
     gap: 0.75rem;
   }
   .thumb-card {
-    border: 1px solid #2a3441;
-    background: var(--box, #0f172a);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    background: var(--box);
     border-radius: 12px;
     padding: 0.6rem;
   }
@@ -466,7 +476,7 @@
     aspect-ratio: 4/3;
     object-fit: cover;
     border-radius: 8px;
-    background: #0b1220;
+    background: #f1f5f9;
   }
   .t-title {
     font-weight: 600;
@@ -482,6 +492,10 @@
     display: flex;
     gap: 0.4rem;
     flex-wrap: wrap;
+  }
+  .t-actions .button {
+    padding: 5px 9px;
+    font-size: 0.85rem;
   }
   @media (max-width: 520px) {
     .pack-grid {
