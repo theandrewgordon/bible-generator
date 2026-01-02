@@ -197,6 +197,31 @@
     margin-top: 0.4rem;
     color: rgba(255, 255, 255, 0.92);
   }
+  .daily-proverb {
+    margin-top: 0.9rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1rem;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+  }
+  .daily-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    opacity: 0.8;
+    margin-bottom: 0.25rem;
+  }
+  .daily-text {
+    font-weight: 700;
+  }
+  .daily-ref {
+    font-size: 0.85rem;
+    opacity: 0.9;
+  }
 
   .section-muted {
     background: linear-gradient(135deg, #f8fbff 0%, #f4f6fb 100%);
@@ -377,6 +402,10 @@
       flex-direction: column;
       align-items: stretch;
     }
+    .daily-proverb {
+      align-items: stretch;
+      flex-direction: column;
+    }
   }
 </style>
 {% endblock %}
@@ -427,6 +456,19 @@
       Free Starter Bundle included. Instant downloads for homeschool, co-op, or Sunday school.
       <a href="{{ url_for('public.start_here') }}">Start here</a>.
     </p>
+    {% if proverb_of_day %}
+    <div class="daily-proverb">
+      <div class="daily-copy">
+        <div class="daily-label">Proverb of the day</div>
+        <div class="daily-text">{{ proverb_of_day.text }}</div>
+        <div class="daily-ref">{{ proverb_of_day.reference }}</div>
+      </div>
+      <a class="button ghost" data-proverb-link data-proverb-ref="{{ proverb_of_day.reference }}"
+         href="{{ url_for('generate', verse=proverb_of_day.verse_param) }}">
+        Print today’s proverb
+      </a>
+    </div>
+    {% endif %}
   </div>
 </section>
 
@@ -554,6 +596,17 @@
 
 {% block extra_scripts %}
 <script>
+  (function () {
+    const link = document.querySelector("[data-proverb-link]");
+    if (!link) return;
+    const ref = link.getAttribute("data-proverb-ref");
+    const pref = localStorage.getItem("preferredVersion") || "esv";
+    const version = String(pref).toUpperCase();
+    if (!ref || !version) return;
+    const params = new URLSearchParams({ verse: `${ref} (${version})` });
+    link.href = `${link.pathname}?${params.toString()}`;
+  })();
+
   (function () {
     const hero = document.querySelector(".hero-rotator");
     if (!hero) return;

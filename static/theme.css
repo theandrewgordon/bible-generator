@@ -400,6 +400,24 @@ input[type="checkbox"] + label,
   align-items: center;
   gap: 10px;
 }
+.version-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--header-fg);
+  font-weight: 700;
+}
+.version-toggle select {
+  border-radius: 8px;
+  border: 1px solid var(--header-border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--header-fg);
+  padding: 4px 8px;
+}
+.version-label {
+  opacity: 0.9;
+}
 .user-name {
   color: var(--header-fg-subtle);
   font-weight: 800;

@@ -12,6 +12,12 @@ endblock %} {% block content %}
     <div class="quick-title">Favorites</div>
     <div class="quick-sub">Show the verses you loved.</div>
   </button>
+  {% if proverb_of_day %}
+  <a class="quick-card" href="{{ url_for('generate', verse=proverb_of_day.verse_param) }}">
+    <div class="quick-title">Proverb of the day</div>
+    <div class="quick-sub">{{ proverb_of_day.text }}</div>
+  </a>
+  {% endif %}
   <a class="quick-card" href="{{ url_for('downloads') }}">
     <div class="quick-title">Redeem a new code</div>
     <div class="quick-sub">Unlock a new bundle in seconds.</div>

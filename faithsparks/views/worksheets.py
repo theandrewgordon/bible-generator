@@ -43,6 +43,7 @@ from faithsparks.services.usage import (
 from faithsparks.services.collections import get_collection_meta
 from faithsparks.util.slug import normalize_slug
 from faithsparks.util.request_utils import get_request_payload, log_request_summary
+from faithsparks.util.proverb import get_proverb_of_day
 
 
 MAX_WORKSHEETS_PER_REQUEST = 30
@@ -611,7 +612,13 @@ def history():
             data["pack_id"] = data.get("pack_id") or d.id
             data["created_at"] = data.get("created_at")
             purchases.append(data)
-        return render_template("history.html", history=history_items, purchases=purchases, email=user_email)
+        return render_template(
+            "history.html",
+            history=history_items,
+            purchases=purchases,
+            email=user_email,
+            proverb_of_day=get_proverb_of_day(),
+        )
     except Exception as e:
         traceback.print_exc()
         return f"Error fetching history: {e}", 500

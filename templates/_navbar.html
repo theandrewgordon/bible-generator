@@ -67,6 +67,14 @@
         <a class="auth-link logout" href="/logout">Logout</a>
       {% endif %}
 
+      <label class="version-toggle" for="versionPref">
+        <span class="version-label">Default version</span>
+        <select id="versionPref" aria-label="Default Bible version">
+          <option value="esv">ESV</option>
+          <option value="kjv">KJV</option>
+        </select>
+      </label>
+
       <button
         class="theme-toggle" id="themeToggle" type="button"
         aria-label="Toggle Dark Mode" title="Toggle Dark Mode" aria-pressed="false">

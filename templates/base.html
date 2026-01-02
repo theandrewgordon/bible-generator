@@ -636,6 +636,16 @@
     </script>
 
     <script>
+      (function () {
+        const sel = document.getElementById("versionPref");
+        if (!sel) return;
+        const saved = localStorage.getItem("preferredVersion") || "esv";
+        sel.value = saved;
+        sel.addEventListener("change", () => {
+          localStorage.setItem("preferredVersion", sel.value);
+        });
+      })();
+
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker
