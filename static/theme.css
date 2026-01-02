@@ -581,20 +581,26 @@ input[type="checkbox"] + label,
 .site-banner {
   margin: 8px auto 8px;
   max-width: 980px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: var(--radius);
   line-height: 1.25;
-  box-shadow: var(--card-shadow);
+  font-size: 0.92rem;
+  box-shadow: none;
 }
 .site-banner.strong {
-  background: #fef3c7;
-  border: 1px solid #fde68a;
-  color: #7a4a00;
+  background: #fff6dc;
+  border: 1px solid #f5e2b3;
+  color: #6a3a00;
 }
 .site-banner.subtle {
   background: var(--box);
   border: 1px solid #e5e7eb;
   color: var(--text);
+}
+.dark .site-banner.strong {
+  background: #26241c;
+  border-color: #342f20;
+  color: #f4d08a;
 }
 
 /* ---------- Chips ---------- */
@@ -942,16 +948,16 @@ body.dark,
   font-size: 0.9rem;
 }
 .quick-picks .chip {
-  --qp-bg: #f8fafc;
-  --qp-bd: #cbd5e1;
+  --qp-bg: #f5f7fb;
+  --qp-bd: rgba(148, 163, 184, 0.5);
   --qp-fg: #0f172a;
-  --qp-bg-hover: #eef2ff;
-  --qp-bd-hover: #c7d2fe;
+  --qp-bg-hover: #eef2f7;
+  --qp-bd-hover: rgba(148, 163, 184, 0.7);
   background: var(--qp-bg);
   border-color: var(--qp-bd);
   color: var(--qp-fg);
-  padding: 5px 10px;
-  font-weight: 700;
+  padding: 4px 10px;
+  font-weight: 600;
   line-height: 1;
   user-select: none;
   transition: background 0.15s, border-color 0.15s, transform 0.03s;
@@ -964,7 +970,7 @@ body.dark,
   transform: translateY(1px);
 }
 .quick-picks .chip:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid rgba(99, 102, 241, 0.6);
   outline-offset: 2px;
 }
 
@@ -982,11 +988,11 @@ body.dark,
   --qp-bd: #bbf7d0;
 } /* Gospels */
 .dark .quick-picks .chip {
-  --qp-bg: #0f172a;
-  --qp-bd: #334155;
+  --qp-bg: #0f1a2b;
+  --qp-bd: rgba(148, 163, 184, 0.35);
   --qp-fg: #e5e7eb;
-  --qp-bg-hover: #111827;
-  --qp-bd-hover: #475569;
+  --qp-bg-hover: #122036;
+  --qp-bd-hover: rgba(148, 163, 184, 0.6);
 }
 .dark .quick-picks .chip.nt {
   --qp-bg: #11183a;

@@ -780,10 +780,10 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   }
 
   .preview-card {
-    border: 1px dashed #cbd5e1;
+    border: 1px solid #d1d5db;
     border-radius: 12px;
     padding: 0.8rem;
-    background: color-mix(in oklab, var(--box), white 12%);
+    background: color-mix(in oklab, var(--box), white 6%);
   }
   .preview-header {
     display: flex;
@@ -800,18 +800,19 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     height: 80px;
     border-radius: 8px;
     background: repeating-linear-gradient(
-      #fff,
-      #fff 18px,
-      #e5e7eb 18px,
-      #e5e7eb 20px
+      #f8fafc,
+      #f8fafc 18px,
+      #e2e8f0 18px,
+      #e2e8f0 20px
     );
-    border: 1px solid #e5e7eb;
+    border: 1px solid #e2e8f0;
   }
   .preview-draw {
-    border: 1px solid #e5e7eb;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 0.5rem;
     min-height: 56px;
+    background: #f8fafc;
   }
   .left-chip {
     margin-left: auto;
