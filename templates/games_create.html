@@ -161,6 +161,26 @@
       "word-search": "Word Search",
       crossword: "Crossword",
     };
+    const allDefaultTitles = Object.values(defaults);
+    let autoTitle = true;
+    if (titleInput) {
+      const current = titleInput.value.trim();
+      autoTitle = !current || allDefaultTitles.includes(current);
+      titleInput.addEventListener("input", () => {
+        autoTitle = !titleInput.value.trim() || allDefaultTitles.includes(titleInput.value.trim());
+      });
+    }
+    function inferThemeFromRefs() {
+      if (!refsInput) return "";
+      const first = refsInput.value.split(/\n+/).map((r) => r.trim()).find(Boolean);
+      if (!first) return "";
+      const parts = first.split(" ");
+      if (!parts.length) return "";
+      if (/^\d+$/.test(parts[0]) && parts.length > 1) {
+        return `${parts[0]} ${parts[1]}`;
+      }
+      return parts[0];
+    }
     function sync() {
       const type = (typeSel?.value || "match").toLowerCase();
       if (matchFields) matchFields.style.display = type === "word-search" || type === "crossword" ? "none" : "block";
@@ -195,8 +215,14 @@
       const defaultTitle = defaults[type] || "Match the Verse";
       if (titleInput) {
         titleInput.placeholder = defaultTitle;
-        if (!titleInput.value.trim()) {
+        if (autoTitle || !titleInput.value.trim()) {
           titleInput.value = defaultTitle;
+        }
+      }
+      if ((type === "word-search" || type === "crossword") && themeInput) {
+        if (!themeInput.value.trim()) {
+          const inferred = inferThemeFromRefs();
+          if (inferred) themeInput.value = inferred;
         }
       }
     }

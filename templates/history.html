@@ -3,6 +3,19 @@ endblock %} {% block content %}
 <h1 class="page-title">My Downloads</h1>
 <p class="muted small page-sub">Signed in as: <strong>{{ email }}</strong></p>
 
+{% if history %}
+<section class="quick-start card-lite">
+  <div class="quick-start-row">
+    <div>
+      <div class="title">Print your latest worksheet</div>
+      <div class="muted small">One tap to reprint the most recent file.</div>
+    </div>
+    <a class="button" href="{{ url_for('download_file', filename=history[0].filename) }}">Print latest</a>
+  </div>
+  <button class="button ghost" type="button" id="toggleHistory">Show full history</button>
+</section>
+{% endif %}
+
 <section class="quick-actions">
   <button class="quick-card" type="button" id="recentBtn">
     <div class="quick-title">Recent worksheets</div>
@@ -51,6 +64,7 @@ endblock %} {% block content %}
 </section>
 {% endif %}
 
+<div class="history-full" hidden>
 <div class="toolbar">
   <div class="toolbar-left">
     <input
@@ -224,6 +238,7 @@ endblock %} {% block content %}
     {% endfor %}
   </ul>
 </form>
+</div>
 {% else %}
 <div class="empty card-lite">
   <div class="empty-emoji">No downloads yet</div>
@@ -458,6 +473,8 @@ endblock %} {% block content %}
     const simpleToggle = document.getElementById("simpleToggle");
     const recentBtn = document.getElementById("recentBtn");
     const favBtn = document.getElementById("favBtn");
+    const toggleHistory = document.getElementById("toggleHistory");
+    const historyFull = document.querySelector(".history-full");
     const favOnly = document.getElementById("favOnly");
     const sortSelect = document.getElementById("sortSelect");
     const searchInput = document.getElementById("searchInput");
@@ -501,6 +518,14 @@ endblock %} {% block content %}
     }
 
     setSimpleMode(defaultSimple);
+    if (toggleHistory && historyFull) {
+      toggleHistory.addEventListener("click", () => {
+        const isHidden = historyFull.hasAttribute("hidden");
+        if (isHidden) historyFull.removeAttribute("hidden");
+        else historyFull.setAttribute("hidden", "");
+        toggleHistory.textContent = isHidden ? "Hide full history" : "Show full history";
+      });
+    }
     applyFilters();
     $("#cards")?.addEventListener("change", (e) => {
       if (e.target.classList.contains("row-check")) updateSelectAllState();
@@ -512,6 +537,21 @@ endblock %} {% block content %}
 </script>
 
 <style>
+  .quick-start {
+    margin-bottom: 1rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .quick-start-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .history-full[hidden] {
+    display: none;
+  }
   .toolbar {
     display: flex;
     justify-content: space-between;

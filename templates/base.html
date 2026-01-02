@@ -481,18 +481,13 @@
     <a href="#maincontent" class="skip-link">Skip to content</a>
 
     {% include "_navbar.html" %} {% if site_content and
-    site_content.announcement_enabled and site_content.announcement_text %}
+    site_content.announcement_enabled and site_content.announcement_text and
+    (path == '/' or path.startswith('/browse') or path.startswith('/plus')) %}
     <div class="site-banner strong">{{ site_content.announcement_text }}</div>
     {% endif %} {# Per-page banners #} {% if site_content %} {% if
     path.startswith('/browse') and site_content.browse_banner_enabled and
     site_content.browse_banner_text %}
     <div class="site-banner subtle">{{ site_content.browse_banner_text }}</div>
-    {% elif path.startswith('/generate') and
-    site_content.generate_banner_enabled and site_content.generate_banner_text
-    %}
-    <div class="site-banner subtle">
-      {{ site_content.generate_banner_text }}
-    </div>
     {% elif path.startswith('/plus') and site_content.plus_banner_enabled and
     site_content.plus_banner_text %}
     <div class="site-banner subtle">{{ site_content.plus_banner_text }}</div>
