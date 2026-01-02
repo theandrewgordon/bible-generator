@@ -41,12 +41,12 @@ m_lim is not none %}
   </div>
   <div class="row">
     <span class="small muted">Membership: {{ usage_info.plan|title }}</span>
-    <span class="small">{{ m_used }} of {{ m_lim }} this month</span>
+    <span class="small">{{ m_used }} of {{ m_lim }} worksheets this month</span>
   </div>
   {% if usage_info.plan == 'free' and usage_info.monthly_pct_used >= 70 %}
   <div class="upgrade" id="upgradeCta" hidden>
-    You’re close to your monthly limit.
-    <a href="{{ url_for('plus_pricing') }}">Upgrade to Plus</a> for more.
+    You’re close to your monthly amount.
+    <a href="{{ url_for('plus_pricing') }}">View membership options</a> for more.
     <button type="button" class="dismiss" aria-label="Dismiss upgrade notice">
       ✕
     </button>
@@ -60,11 +60,10 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 {% if out_of_quota %}
 <div class="quota-upsell" role="alert">
   <div class="quota-copy">
-    <strong>You're out of worksheets for this month.</strong>
-    Keep creating by upgrading to Plus Family or Classroom for bigger monthly
-    limits and subscriber packs.
+    <strong>You’ve reached your monthly amount.</strong>
+    Keep creating with a membership upgrade for bigger monthly limits and member bundles.
   </div>
-  <a class="button small" href="{{ url_for('plus_pricing') }}">View Plus plans</a>
+  <a class="button small" href="{{ url_for('plus_pricing') }}">View membership</a>
 </div>
 {% endif %}
 
@@ -244,7 +243,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         {% if usage_info %}
         <span id="quotaNote" class="small muted left-chip">
           {% if usage_info.monthly_limit is not none %} {{
-          usage_info.monthly_remaining }} left this month {% else %} Unlimited
+          usage_info.monthly_remaining }} remaining this month {% else %} Unlimited
           this month {% endif %}
         </span>
         {% endif %}
