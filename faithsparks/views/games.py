@@ -706,6 +706,23 @@ def _unique_words(words: list[str]) -> list[str]:
 def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
     if not words:
         return []
+    def _fallback(word: str) -> str:
+        clean = (word or "").strip().upper()
+        if not clean:
+            return "Word in this puzzle"
+        return f"Starts with {clean[0]}, {len(clean)} letters"
+
+    def _bad_clue(word: str, clue: str) -> bool:
+        clean_word = (word or "").strip().lower()
+        clean_clue = (clue or "").strip().lower()
+        if not clean_word or not clean_clue:
+            return True
+        if clean_clue in {"a bible word", "bible word", "god's word"}:
+            return True
+        if clean_word in clean_clue:
+            return True
+        return False
+
     try:
         content = request_crossword_clues(words, theme=theme)
         data = parse_and_clean_json(content)
@@ -713,15 +730,14 @@ def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
         for item in (data.get("clues") or []):
             word = (item.get("word") or "").strip().upper()
             clue = (item.get("clue") or "").strip()
-            if word and clue:
+            if word and clue and not _bad_clue(word, clue):
                 clues.append((word, clue))
         if clues:
             clue_map = {w: c for w, c in clues}
-            return [clue_map.get(w, "A Bible word") for w in words]
+            return [clue_map.get(w, _fallback(w)) for w in words]
     except Exception:
         pass
-    fallback = "A Bible word"
-    return [fallback for _ in words]
+    return [_fallback(w) for w in words]
 
 
 def _build_word_search_words(meta, version: str, difficulty: str = "standard") -> list[str]:

@@ -265,26 +265,29 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
     <!-- Side preview -->
     <aside class="col-side">
-      <div class="preview card-lite" aria-live="polite">
-        <h3 class="muted">Preview</h3>
-        <div class="preview-card">
-          <div class="preview-header">
-            <div class="preview-verse" id="previewVerse">—</div>
-            <div class="preview-badges">
-              <span class="pill alt" id="previewVersion">ESV</span>
-              <span class="pill" id="previewCursive" hidden>✍️ Cursive</span>
+      <details class="preview-toggle">
+        <summary>Show preview</summary>
+        <div class="preview card-lite" aria-live="polite">
+          <h3 class="muted">Preview</h3>
+          <div class="preview-card">
+            <div class="preview-header">
+              <div class="preview-verse" id="previewVerse">—</div>
+              <div class="preview-badges">
+                <span class="pill alt" id="previewVersion">ESV</span>
+                <span class="pill" id="previewCursive" hidden>✍️ Cursive</span>
+              </div>
+            </div>
+            <div class="preview-body">
+              <div class="preview-lines"></div>
+              <div class="preview-draw">
+                <span class="muted small">Coloring prompt:</span>
+                <div id="previewPrompt" class="muted small">—</div>
+              </div>
             </div>
           </div>
-          <div class="preview-body">
-            <div class="preview-lines"></div>
-            <div class="preview-draw">
-              <span class="muted small">Coloring prompt:</span>
-              <div id="previewPrompt" class="muted small">—</div>
-            </div>
-          </div>
+          <p class="muted micro">Layout preview (not full fidelity).</p>
         </div>
-        <p class="muted micro">Layout preview (not full fidelity).</p>
-      </div>
+      </details>
     </aside>
   </div>
 </form>
@@ -680,6 +683,28 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   .preview {
     position: sticky;
     top: 1rem;
+  }
+  .preview-toggle {
+    border: 1px solid #e5e7eb;
+    background: var(--box);
+    border-radius: 12px;
+    padding: 0.4rem 0.6rem;
+  }
+  .preview-toggle summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text);
+    list-style: none;
+    padding: 0.4rem 0.5rem;
+  }
+  .preview-toggle summary::-webkit-details-marker {
+    display: none;
+  }
+  .preview-toggle[open] {
+    padding-bottom: 0.8rem;
+  }
+  .preview-toggle[open] summary {
+    margin-bottom: 0.6rem;
   }
   .quota-upsell {
     border: 1px solid rgba(124, 58, 237, 0.35);

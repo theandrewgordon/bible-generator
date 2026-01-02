@@ -18,19 +18,6 @@
   <a class="button" href="{{ url_for('games_create') }}">Create a game</a>
 </div>
 
-  {% if usage_info %}
-  <div class="card-lite credit-note">
-    <strong>Credits:</strong>
-    Each game download uses 1 credit.
-    <span class="muted small" data-version-display></span>
-    {% if usage_info.monthly_limit %}
-      <span class="muted small">
-        {{ usage_info.monthly_remaining }} left this month.
-      </span>
-    {% endif %}
-  </div>
-{% endif %}
-
 {% if not signed_in %}
   <div class="card-lite sign-in-note">
     <span>Sign in to download games and save them in My Prints.</span>
@@ -41,7 +28,26 @@
 {% if games and games|length %}
   <section class="game-grid">
     {% for g in games %}
-      <article class="game-card {{ 'locked' if g.locked }}">
+      {% set action_url = None %}
+      {% set action_label = None %}
+      {% if g.can_download %}
+        {% set action_url = url_for('dl_game', slug=g.slug) %}
+        {% set action_label = "Download" %}
+      {% elif not signed_in %}
+        {% set action_url = url_for('google.login', next=url_for('games')) %}
+        {% set action_label = "Sign in to download" %}
+      {% elif g.isSubscriberOnly %}
+        {% set action_url = url_for('plus_pricing') %}
+        {% set action_label = "See membership" %}
+      {% else %}
+        {% set action_url = url_for('games_detail', slug=g.slug) %}
+        {% set action_label = "Open" %}
+      {% endif %}
+      <a
+        class="game-card {{ 'locked' if g.locked }}"
+        href="{{ action_url }}"
+        {% if g.can_download %}data-game-download{% endif %}
+      >
         <div class="game-meta">
           {% if g.isFree %}<span class="pill ok">Free</span>{% endif %}
           {% if g.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
@@ -61,16 +67,8 @@
         <p class="muted small">
           {{ g.description or "Ready to print." }}
         </p>
-        <div class="game-actions">
-          {% if g.can_download %}
-            <a class="button" data-game-download href="{{ url_for('dl_game', slug=g.slug) }}">Download</a>
-          {% elif signed_in and g.isSubscriberOnly %}
-            <a class="button" href="{{ url_for('plus_pricing') }}">See membership</a>
-          {% else %}
-            <a class="button ghost" href="{{ url_for('games_detail', slug=g.slug) }}">View details</a>
-          {% endif %}
-        </div>
-      </article>
+        <div class="game-action">{{ action_label }}</div>
+      </a>
     {% endfor %}
   </section>
 {% else %}
@@ -114,10 +112,21 @@
     gap: 1rem;
   }
   .game-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: inherit;
     border: 1px solid rgba(15, 23, 42, 0.06);
     background: var(--box);
     border-radius: 14px;
     padding: 1rem;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .game-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
   }
   .game-title {
     margin: 0.6rem 0 0.4rem;
@@ -129,11 +138,15 @@
     gap: 0.35rem;
     flex-wrap: wrap;
   }
-  .game-actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-top: 0.75rem;
+  .game-action {
+    margin-top: auto;
+    align-self: flex-start;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
   }
   @media (max-width: 640px) {
     .game-grid {

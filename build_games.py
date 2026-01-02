@@ -536,10 +536,19 @@ def generate_crossword_pdf(
         seen.add(w)
         word_list.append(w)
     grid, entries = _build_crossword_layout(word_list, size=size)
-    clues = clues or ["A Bible word" for _ in word_list]
-    clue_map = {w.upper(): clues[idx] if idx < len(clues) else "A Bible word" for idx, w in enumerate(word_list)}
+    def _fallback_clue(word: str) -> str:
+        clean = (word or "").strip().upper()
+        if not clean:
+            return "Word in this puzzle"
+        return f"Starts with {clean[0]}, {len(clean)} letters"
+
+    clues = clues or [_fallback_clue(w) for w in word_list]
+    clue_map = {
+        w.upper(): clues[idx] if idx < len(clues) else _fallback_clue(w)
+        for idx, w in enumerate(word_list)
+    }
     for entry in entries:
-        entry.clue = clue_map.get(entry.word, "A Bible word")
+        entry.clue = clue_map.get(entry.word, _fallback_clue(entry.word))
 
     # Draw grid
     cell = 0.28 * inch

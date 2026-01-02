@@ -18,34 +18,79 @@
   {% endif %}
 
   <form method="post" class="card-lite" data-no-overlay>
-    <label for="title">Title</label>
-    <input
-      id="title"
-      name="title"
-      class="wide-input"
-      placeholder="Match the Verse"
-    />
+    <div class="step-block">
+      <div class="step-title">
+        <span class="step-dot">1</span>
+        Pick a game
+      </div>
+      <label for="gameType">Game type</label>
+      <select id="gameType" name="gameType" class="wide-input">
+        <option value="match" selected>Match the Verse</option>
+        <option value="match-meaning">Match the Meaning</option>
+        <option value="word-search">Word Search</option>
+        <option value="crossword">Crossword</option>
+      </select>
+      <p class="small muted" id="gameTypeHelp">
+        Match the Meaning can auto-generate kid-friendly meanings from the verse text.
+      </p>
 
-    <label for="version">Version</label>
-    <select id="version" name="version" class="wide-input version-pref">
-      <option value="esv">ESV</option>
-      <option value="kjv">KJV</option>
-    </select>
-    <p class="small muted">Uses your default version unless you choose another.</p>
+      <label for="version">Version</label>
+      <select id="version" name="version" class="wide-input version-pref">
+        <option value="esv">ESV</option>
+        <option value="kjv">KJV</option>
+      </select>
+      <p class="small muted">Uses your default version unless you choose another.</p>
+    </div>
 
-    <label for="gameType">Game type</label>
-    <select id="gameType" name="gameType" class="wide-input">
-      <option value="match" selected>Match the Verse</option>
-      <option value="match-meaning">Match the Meaning</option>
-      <option value="word-search">Word Search</option>
-      <option value="crossword">Crossword</option>
-    </select>
-    <p class="small muted" id="gameTypeHelp">
-      Match the Meaning can auto-generate kid-friendly meanings from the verse text.
-    </p>
+    <div class="step-block">
+      <div class="step-title">
+        <span class="step-dot">2</span>
+        Add references
+      </div>
+      <div class="topic-row">
+        <div class="quick-topics">
+          <label class="small muted">Quick topics (Match the Verse only):</label>
+          <div class="quick-topic-grid">
+            <button type="button" class="pill ghost" data-topic="Love" data-refs="John 3:16&#10;1 John 4:19&#10;John 13:34-35&#10;Romans 5:8&#10;1 Corinthians 13:4-7&#10;1 John 4:7-8&#10;Psalm 136:1">Love</button>
+            <button type="button" class="pill ghost" data-topic="Kindness &amp; Patience" data-refs="Ephesians 4:2&#10;Colossians 3:12&#10;Galatians 5:22-23&#10;Proverbs 15:1&#10;Proverbs 19:11&#10;1 Thessalonians 5:15&#10;1 Peter 3:8">Kindness &amp; Patience</button>
+            <button type="button" class="pill ghost" data-topic="Honesty &amp; Integrity" data-refs="Proverbs 12:22&#10;Proverbs 10:9&#10;Proverbs 11:3&#10;Ephesians 4:25&#10;Colossians 3:9&#10;Psalm 15:1-2&#10;Proverbs 20:7">Honesty &amp; Integrity</button>
+            <button type="button" class="pill ghost" data-topic="Obedience" data-refs="John 14:15&#10;Deuteronomy 5:33&#10;James 1:22&#10;1 Samuel 15:22&#10;Luke 11:28&#10;Colossians 3:20&#10;Psalm 119:9">Obedience</button>
+            <button type="button" class="pill ghost" data-topic="Wisdom &amp; Guidance" data-refs="Proverbs 3:5-6&#10;James 1:5&#10;Proverbs 2:6&#10;Proverbs 9:10&#10;Psalm 111:10&#10;Proverbs 4:7&#10;Colossians 1:9">Wisdom &amp; Guidance</button>
+            <button type="button" class="pill ghost" data-topic="Forgiveness" data-refs="1 John 1:9&#10;Colossians 3:13&#10;Ephesians 4:32&#10;Matthew 6:14-15&#10;Luke 17:3-4&#10;Psalm 103:12&#10;Micah 7:18">Forgiveness</button>
+          </div>
+          <p class="small muted">Clicking a topic switches to Match the Verse and replaces your references.</p>
+        </div>
 
-    <details class="advanced" style="margin-top: 0.5rem;">
-      <summary>Details (optional)</summary>
+        <div class="suggested-topics card-lite">
+          <div class="suggested-head">
+            <span class="small muted">Suggested story topics</span>
+            <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
+          </div>
+          <div class="suggested-topic-list" id="suggestedTopicList"></div>
+          <p class="small muted">Suggestions do not change your form until you click one.</p>
+        </div>
+      </div>
+
+      <label for="references">References (one per line)</label>
+      <textarea
+        id="references"
+        name="references"
+        class="wide-input"
+        rows="6"
+        placeholder="Proverbs 20:7&#10;Psalm 25:21&#10;Job 27:5"
+      ></textarea>
+    </div>
+
+    <details class="advanced step-block" style="margin-top: 0.5rem;">
+      <summary>Step 3 (optional): Customize</summary>
+      <label for="title" class="small muted" style="margin-top: 0.5rem;">Title</label>
+      <input
+        id="title"
+        name="title"
+        class="wide-input"
+        placeholder="Match the Verse"
+      />
+
       <label for="theme" class="small muted" style="margin-top: 0.5rem;">Theme</label>
       <input
         id="theme"
@@ -82,56 +127,23 @@
           <div class="word-chip-list" id="wordChipList"></div>
         </details>
       </div>
+
+      <div id="matchCreateFields">
+        <details class="advanced" style="margin-top: 0.5rem;">
+          <summary id="matchItemsSummary">Use custom verse text (optional)</summary>
+          <label for="gameItems" id="matchItemsLabel" class="small muted" style="margin-top: 0.5rem;">
+            One per line: Reference | Verse text | Version (optional)
+          </label>
+          <textarea
+            id="gameItems"
+            name="gameItems"
+            class="wide-input"
+            rows="6"
+            placeholder="Proverbs 20:7 | The godly walk with integrity; blessed are their children who follow them. | ESV"
+          ></textarea>
+        </details>
+      </div>
     </details>
-
-    <div class="topic-row" style="margin-top: 0.75rem;">
-      <div class="quick-topics">
-        <label class="small muted">Quick topics (Match the Verse only):</label>
-        <div class="quick-topic-grid">
-          <button type="button" class="pill ghost" data-topic="Love" data-refs="John 3:16&#10;1 John 4:19&#10;John 13:34-35&#10;Romans 5:8&#10;1 Corinthians 13:4-7&#10;1 John 4:7-8&#10;Psalm 136:1">Love</button>
-          <button type="button" class="pill ghost" data-topic="Kindness &amp; Patience" data-refs="Ephesians 4:2&#10;Colossians 3:12&#10;Galatians 5:22-23&#10;Proverbs 15:1&#10;Proverbs 19:11&#10;1 Thessalonians 5:15&#10;1 Peter 3:8">Kindness &amp; Patience</button>
-          <button type="button" class="pill ghost" data-topic="Honesty &amp; Integrity" data-refs="Proverbs 12:22&#10;Proverbs 10:9&#10;Proverbs 11:3&#10;Ephesians 4:25&#10;Colossians 3:9&#10;Psalm 15:1-2&#10;Proverbs 20:7">Honesty &amp; Integrity</button>
-          <button type="button" class="pill ghost" data-topic="Obedience" data-refs="John 14:15&#10;Deuteronomy 5:33&#10;James 1:22&#10;1 Samuel 15:22&#10;Luke 11:28&#10;Colossians 3:20&#10;Psalm 119:9">Obedience</button>
-          <button type="button" class="pill ghost" data-topic="Wisdom &amp; Guidance" data-refs="Proverbs 3:5-6&#10;James 1:5&#10;Proverbs 2:6&#10;Proverbs 9:10&#10;Psalm 111:10&#10;Proverbs 4:7&#10;Colossians 1:9">Wisdom &amp; Guidance</button>
-          <button type="button" class="pill ghost" data-topic="Forgiveness" data-refs="1 John 1:9&#10;Colossians 3:13&#10;Ephesians 4:32&#10;Matthew 6:14-15&#10;Luke 17:3-4&#10;Psalm 103:12&#10;Micah 7:18">Forgiveness</button>
-        </div>
-        <p class="small muted">Clicking a topic switches to Match the Verse and replaces your references.</p>
-      </div>
-
-      <div class="suggested-topics card-lite">
-        <div class="suggested-head">
-          <span class="small muted">Suggested story topics</span>
-          <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
-        </div>
-        <div class="suggested-topic-list" id="suggestedTopicList"></div>
-        <p class="small muted">Suggestions do not change your form until you click one.</p>
-      </div>
-    </div>
-
-    <label for="references">References (one per line)</label>
-    <textarea
-      id="references"
-      name="references"
-      class="wide-input"
-      rows="6"
-      placeholder="Proverbs 20:7&#10;Psalm 25:21&#10;Job 27:5"
-    ></textarea>
-
-    <div id="matchCreateFields">
-      <details class="advanced" style="margin-top: 0.5rem;">
-        <summary id="matchItemsSummary">Use custom verse text (optional)</summary>
-        <label for="gameItems" id="matchItemsLabel" class="small muted" style="margin-top: 0.5rem;">
-          One per line: Reference | Verse text | Version (optional)
-        </label>
-        <textarea
-          id="gameItems"
-          name="gameItems"
-          class="wide-input"
-          rows="6"
-          placeholder="Proverbs 20:7 | The godly walk with integrity; blessed are their children who follow them. | ESV"
-        ></textarea>
-      </details>
-    </div>
 
     <button class="button primary" type="submit" style="margin-top: 0.75rem;">
       Create game
@@ -365,6 +377,31 @@
   })();
 </script>
 <style>
+  .step-block {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    padding: 1rem;
+    margin-bottom: 0.85rem;
+    background: var(--box);
+  }
+  .step-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+  }
+  .step-dot {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--primary-dark);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
   .topic-row {
     display: grid;
     gap: 1rem;

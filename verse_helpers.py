@@ -180,9 +180,12 @@ Return valid JSON with:
 
 Rules:
 - Use the exact words provided.
-- Clues should be 3–6 words, kid-friendly.
+- Clues should be 3–7 words, kid-friendly, and specific.
+- Each clue should give a simple meaning or synonym for the word.
+- Do not include the answer word or close variants in the clue.
+- Avoid generic filler like "Bible word" or "God's word".
 - No Bible references in the clues.
-- Return JSON only.
+- Return JSON only (no markdown, no "json" prefix).
 
 {theme_text}Words:
 {", ".join(words)}
