@@ -52,7 +52,7 @@
 
     <!-- Right: usage, auth, theme -->
     <div class="auth-theme">
-      {% if is_signed_in and usage_nav %}
+      {% if is_signed_in and usage_nav and usage_nav.get('pct', 0) >= 70 %}
         <span
           class="usage-chip"
           id="usageChip"

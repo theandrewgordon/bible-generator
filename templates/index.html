@@ -472,41 +472,6 @@
   </div>
 </section>
 
-<section class="section-muted">
-  <div class="value-props">
-    <article class="value-card">
-      <h3>Print & go worksheets</h3>
-      <p>No prep required—ready-to-print pages for handwriting, copywork, and gentle reflection.</p>
-    </article>
-    <article class="value-card">
-      <h3>Rooted in Scripture</h3>
-      <p>Use a single verse or a themed bundle. Clean layouts that feel peaceful and trustworthy.</p>
-    </article>
-    <article class="value-card">
-      <h3>Made for homeschool life</h3>
-      <p>Perfect for morning basket, quiet time, or co-op—simple enough to use right now.</p>
-    </article>
-  </div>
-</section>
-
-<section class="testimonial-band">
-  <h2>Families are weaving scripture into daily handwriting</h2>
-  <div class="testimonial-grid">
-    <div class="testimonial-card">
-      <p>“We replaced a whole handwriting workbook with Faith Sparks. My 9-year-old now asks for copywork first thing.”</p>
-      <div class="testimonial-author">— Megan T., homeschool mom of 3</div>
-    </div>
-    <div class="testimonial-card">
-      <p>“It takes two minutes to prep lessons for our Wednesday night class. The ready-made packs are a lifesaver.”</p>
-      <div class="testimonial-author">— Pastor James, children’s ministry</div>
-    </div>
-    <div class="testimonial-card">
-      <p>“My handwriting-resistant son is excited because the pages feel like they were made for him.”</p>
-      <div class="testimonial-author">— Laura P., Charlotte Mason homeschool</div>
-    </div>
-  </div>
-</section>
-
 <section class="how-it-works" id="how-it-works">
   <h2>How Faith Sparks works</h2>
   <div class="how-grid">
@@ -522,74 +487,6 @@
       <h3>3. Print & use today</h3>
       <p>Download the PDF and print right away.</p>
     </article>
-  </div>
-</section>
-
-<section class="about-band">
-  <div>
-    <h2>Who we are</h2>
-    <p>
-      Hi, I’m Andrew—homeschool helper, dad, and creator of Faith Sparks. We built this because we needed copywork that felt simple, beautiful, and fast to prep for our own family.
-    </p>
-    <p>
-      Every feature comes from conversations with other Christian homeschool parents. We’re right here with you, cheering your family on.
-    </p>
-  <p class="muted small">
-    Meet the team behind Faith Sparks in <a href="{{ url_for('public.about') }}">About</a>.
-  </p>
-  </div>
-  <picture>
-    <source srcset="{{ url_for('static', filename='CopyworkStock/Copywork2.png') }}" media="(min-width: 640px)" />
-    <img
-      src="{{ url_for('static', filename='CopyworkStock/Copywork3.png') }}"
-      alt="Family gathered around the table completing Bible copywork together"
-      loading="lazy"
-      width="640"
-      height="480"
-    />
-  </picture>
-</section>
-
-{% set seasonal_banner = site_content.home_seasonal_banner if site_content else None %}
-<section class="closing-band">
-  <div class="closing-top">
-    <article class="closing-card">
-      <h3>Seasonal spotlight</h3>
-      <p>
-        {{ seasonal_banner or 'Seasonal copywork sets are ready—easy wins for busy weeks.' }}
-      </p>
-      <p class="muted small" style="margin: 0.5rem 0 0;">
-        <a href="{{ url_for('browse', q='advent') }}">View seasonal packs</a>
-      </p>
-    </article>
-    <article class="closing-card">
-      <h3>Why homeschoolers choose Faith Sparks</h3>
-      <ul>
-        <li>Designed for Christian homeschool, children’s ministry, and co-ops.</li>
-        <li>Kid-friendly layouts with optional tracing and coloring prompts.</li>
-        <li>Free Starter Bundle included—membership unlocks larger bundles and bulk downloads.</li>
-      </ul>
-    </article>
-    <article class="closing-card">
-      <h3>Gift a membership</h3>
-      <p>Share printable Bible copywork with another family—email <a href="mailto:hello@faithsparksprintables.com">hello@faithsparksprintables.com</a> to send a digital gift membership.</p>
-    </article>
-  </div>
-
-  <div class="faq-list">
-    <h3>Quick answers</h3>
-    <details>
-      <summary>Do I need a subscription?</summary>
-      <p class="muted">
-        Start with the free tier for the starter bundle and monthly worksheets. Upgrade to membership anytime for bigger limits and subscriber-only collections.
-      </p>
-    </details>
-    <details>
-      <summary>How do I use these worksheets?</summary>
-      <p class="muted">
-        Make a worksheet, print it at home, and let kids trace or copy the verse. Use the reflection prompt for family discussion or journaling.
-      </p>
-    </details>
   </div>
 </section>
 {% endblock %}

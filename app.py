@@ -964,12 +964,19 @@ def inject_helpers():
                         limit_val = 0
                     remaining = max(0, limit_val - used_val)
                     label = "credit" if remaining == 1 else "credits"
+                    pct_used = 0
+                    try:
+                        if limit_val > 0:
+                            pct_used = int(round((used_val / float(limit_val)) * 100))
+                    except Exception:
+                        pct_used = 0
                     usage_nav = {
                         'text': f"{remaining} {label} left",
                         'title': f"{used_val} of {limit_val} used this month · {remaining} {label} remaining",
+                        'pct': pct_used,
                     }
                 else:
-                    usage_nav = { 'text': '∞', 'title': 'Unlimited this month' }
+                    usage_nav = { 'text': '∞', 'title': 'Unlimited this month', 'pct': 0 }
             except Exception:
                 usage_nav = None
         if email:

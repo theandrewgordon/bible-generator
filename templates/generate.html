@@ -25,7 +25,7 @@ SEO (base will add noindex for /generate, but these help sharing/consistency) #}
 
 {# ---------- Usage / Plan Banner ---------- #} {% if usage_info %} {% set m_lim
 = usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %} {% if
-m_lim is not none %}
+m_lim is not none and usage_info.monthly_pct_used >= 70 %}
 <div class="usage-banner" aria-live="polite">
   <div
     class="bar"
