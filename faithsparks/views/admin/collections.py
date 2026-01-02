@@ -35,7 +35,8 @@ def admin_seed_collections():
         batch = db.batch()
         order = 1
         for slug, verses in data.items():
-            kind = "game" if slug in ("match-the-verse",) else "bundle"
+            kind = "game" if slug in ("match-the-verse", "word-search-psalms") else "bundle"
+            game_type = "match" if slug == "match-the-verse" else "word-search" if slug == "word-search-psalms" else ""
             ref = db.collection("collections").document(slug)
             batch.set(
                 ref,
@@ -47,6 +48,7 @@ def admin_seed_collections():
                     "defaultVersion": "esv",
                     "isFree": True if slug == "starter" else False,
                     "kind": kind,
+                    "gameType": game_type,
                 },
             )
             order += 1
@@ -109,6 +111,13 @@ def admin_collections_new():
                     "version": version,
                 })
             return items
+        def _parse_game_words(raw: str):
+            words = []
+            for line in (raw or "").splitlines():
+                word = line.strip()
+                if word:
+                    words.append(word)
+            return words
 
         slug = (request.form.get("slug") or "").strip().lower()
         title = (request.form.get("title") or slug.replace("-", " ").title()).strip()
@@ -127,6 +136,8 @@ def admin_collections_new():
         use_cases = _split_list(request.form.get("useCases") or "")
         preview_images = _split_list(request.form.get("previewImages") or "")
         game_items = _parse_game_items(request.form.get("gameItems") or "")
+        game_words = _parse_game_words(request.form.get("gameWords") or "")
+        game_type = (request.form.get("gameType") or "").strip().lower()
         verses_raw = request.form.get("verses") or ""
         parts = re.split(r"[\n,]+", verses_raw)
         verses = [p.strip() for p in parts if p.strip()]
@@ -147,6 +158,8 @@ def admin_collections_new():
             "useCases": use_cases,
             "previewImages": preview_images,
             "gameItems": game_items,
+            "gameWords": game_words,
+            "gameType": game_type,
         }
         data["defaultVersion"] = default_version or "esv"
         if order_val is not None:
@@ -187,6 +200,13 @@ def admin_collections_edit(slug):
                     "version": version,
                 })
             return items
+        def _parse_game_words(raw: str):
+            words = []
+            for line in (raw or "").splitlines():
+                word = line.strip()
+                if word:
+                    words.append(word)
+            return words
 
         title = (request.form.get("title") or "").strip() or current.get("title")
         is_public = request.form.get("isPublic") == "on"
@@ -199,6 +219,8 @@ def admin_collections_edit(slug):
         use_cases = _split_list(request.form.get("useCases") or "")
         preview_images = _split_list(request.form.get("previewImages") or "")
         game_items = _parse_game_items(request.form.get("gameItems") or "")
+        game_words = _parse_game_words(request.form.get("gameWords") or "")
+        game_type = (request.form.get("gameType") or "").strip().lower()
         if is_free:
             is_sub_only = False
             price_id = None
@@ -216,6 +238,8 @@ def admin_collections_edit(slug):
             "useCases": use_cases,
             "previewImages": preview_images,
             "gameItems": game_items,
+            "gameWords": game_words,
+            "gameType": game_type,
         }
         db.collection("collections").document(slug).set(data, merge=True)
         flash("Item updated", "success")
@@ -241,6 +265,8 @@ def admin_collections_edit(slug):
             " | ".join([item.get("reference", ""), item.get("text", ""), item.get("version", "")]).strip(" |")
             for item in (current.get("gameItems") or [])
         ]),
+        "gameWords": "\n".join(current.get("gameWords", []) or []),
+        "gameType": current.get("gameType", ""),
     }
     return render_template("admin_collection_form.html", mode="edit", data=form_data)
 

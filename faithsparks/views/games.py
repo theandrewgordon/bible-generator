@@ -13,8 +13,8 @@ from faithsparks.services.collections import get_collections, get_collection_met
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
-from build_games import generate_match_game_pdf, MatchItem
-from verse_helpers import request_verse_data, parse_and_clean_json
+from build_games import generate_match_game_pdf, generate_word_search_pdf, MatchItem
+from verse_helpers import request_verse_data, request_verse_meaning, parse_and_clean_json
 
 
 def _is_public_games_enabled() -> bool:
@@ -52,6 +52,19 @@ def _usage_snapshot(email: str):
         "lifetime_limit": l_limit,
         "monthly_remaining": remain_m,
     }
+
+
+def _match_render_options(game_type: str):
+    game_type = (game_type or "match").strip().lower()
+    if game_type == "match-meaning":
+        return (
+            "Draw a line to connect each Bible reference (left) to the correct meaning (right).",
+            False,
+        )
+    return (
+        "Draw a line to match each Bible reference (left) to the correct verse (right).",
+        True,
+    )
 
 
 def games():
@@ -94,6 +107,7 @@ def games():
             "isFree": is_free,
             "isSubscriberOnly": is_sub_only,
             "priceId": c.get("priceId"),
+            "gameType": c.get("gameType") or "match",
             "ageRange": c.get("ageRange"),
             "skills": c.get("skills") or [],
             "useCases": c.get("useCases") or [],
@@ -186,10 +200,16 @@ def games_create():
         usage_info = _usage_snapshot(email)
         return render_template("games_create.html", usage_info=usage_info)
 
-    title = (request.form.get("title") or "Match the Verse").strip()
+    raw_title = (request.form.get("title") or "").strip()
     version = (request.form.get("version") or "esv").strip().lower()
+    game_type = (request.form.get("gameType") or "match").strip().lower()
+    if raw_title:
+        title = raw_title
+    else:
+        title = "Word Search" if game_type == "word-search" else "Match the Verse"
     refs_raw = request.form.get("references") or ""
     game_items_raw = request.form.get("gameItems") or ""
+    game_words_raw = request.form.get("gameWords") or ""
 
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
     game_items = []
@@ -204,8 +224,13 @@ def games_create():
         v = parts[2] if len(parts) > 2 else ""
         game_items.append({"reference": ref, "text": text, "version": v})
 
-    if not refs and not game_items:
+    game_words = [w.strip() for w in (game_words_raw or "").splitlines() if w.strip()]
+
+    if not refs and not game_items and not game_words:
         flash("Add at least one reference or match item.", "warning")
+        return redirect(url_for("games_create"))
+    if game_type == "match-meaning" and not game_items and not refs:
+        flash("Add references or match items for Match the Meaning.", "warning")
         return redirect(url_for("games_create"))
 
     plan = _get_user_plan(email)
@@ -221,8 +246,30 @@ def games_create():
     pdf_path = os.path.join(pdf_dir, f"custom-{safe_title}-{version}.pdf")
 
     try:
-        refs, verses, key = _build_match_game_from_inputs(refs, version, game_items)
-        generate_match_game_pdf(title, refs, verses, key, pdf_path)
+        if game_type == "word-search":
+            words = _build_word_search_words_from_inputs(refs, version, game_words)
+            generate_word_search_pdf(title, words, pdf_path)
+        else:
+            refs, verses, key = _build_match_game_from_inputs(
+                refs,
+                version,
+                game_items,
+                allow_fetch=True,
+                use_meaning=game_type == "match-meaning",
+            )
+            if not refs:
+                flash("Could not create this game yet.", "warning")
+                return redirect(url_for("games_create"))
+            directions_text, show_version = _match_render_options(game_type)
+            generate_match_game_pdf(
+                title,
+                refs,
+                verses,
+                key,
+                pdf_path,
+                directions_text=directions_text,
+                show_version=show_version,
+            )
         _update_usage(email, 1)
         return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
     except Exception:
@@ -301,29 +348,44 @@ def dl_game(slug):
     version = (request.args.get("version") or meta.get("defaultVersion") or "esv").lower()
     pdf_path = os.path.join(pdf_dir, f"{slug}-{version}.pdf")
     try:
-        refs, verses, key = _build_match_game_items(meta, version)
-        generate_match_game_pdf(
-            meta.get("title") or "Match the Verse",
-            refs,
-            verses,
-            key,
-            pdf_path,
-        )
+        game_type = (meta.get("gameType") or "match").strip().lower()
+        if game_type == "word-search":
+            words = _build_word_search_words(meta, version)
+            generate_word_search_pdf(meta.get("title") or "Word Search", words, pdf_path)
+        else:
+            refs, verses, key = _build_match_game_items(
+                meta,
+                version,
+                allow_fetch=True,
+                use_meaning=game_type == "match-meaning",
+            )
+            if not refs:
+                return "Game not available", 404
+            directions_text, show_version = _match_render_options(game_type)
+            generate_match_game_pdf(
+                meta.get("title") or "Match the Verse",
+                refs,
+                verses,
+                key,
+                pdf_path,
+                directions_text=directions_text,
+                show_version=show_version,
+            )
         _update_usage(email, 1)
         return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
     except Exception:
         return "Game not available", 404
 
 
-def _build_match_game_items(meta, version: str):
+def _build_match_game_items(meta, version: str, allow_fetch: bool = True, use_meaning: bool = False):
     base_refs = list(meta.get("verses") or [])
     version = (version or meta.get("defaultVersion") or "esv").lower()
-    refs = base_refs[:6]
+    refs = base_refs[:8]
     verses = []
     game_items = meta.get("gameItems") or []
     if game_items:
         refs = []
-        for item in game_items[:6]:
+        for item in game_items[:8]:
             ref = (item.get("reference") or "").strip()
             text = (item.get("text") or "").strip()
             v = (item.get("version") or version).strip().lower() or version
@@ -338,13 +400,26 @@ def _build_match_game_items(meta, version: str):
             shuffled = [verses[i] for i in order]
             answer_key = [order.index(i) + 1 for i in range(len(verses))]
             return refs, shuffled, answer_key
-        refs = base_refs[:6]
+        refs = base_refs[:8]
+    if not allow_fetch:
+        return [], [], []
     for ref in refs:
         text = "Verse text unavailable."
         try:
             content = request_verse_data(ref, version)
             data = parse_and_clean_json(content)
-            text = (data.get("fullVerse") or "").strip() or text
+            full_verse = (data.get("fullVerse") or "").strip()
+            if use_meaning:
+                meaning = ""
+                try:
+                    meaning_content = request_verse_meaning(ref, full_verse, version)
+                    meaning_data = parse_and_clean_json(meaning_content)
+                    meaning = (meaning_data.get("meaning") or "").strip()
+                except Exception:
+                    meaning = ""
+                text = meaning or "Meaning unavailable."
+            else:
+                text = full_verse or text
         except Exception:
             pass
         verses.append(MatchItem(text=text, version=version))
@@ -357,13 +432,13 @@ def _build_match_game_items(meta, version: str):
     return refs, shuffled, answer_key
 
 
-def _build_match_game_from_inputs(refs, version, game_items):
-    refs = list(refs or [])[:6]
+def _build_match_game_from_inputs(refs, version, game_items, allow_fetch: bool = True, use_meaning: bool = False):
+    refs = list(refs or [])[:8]
     version = (version or "esv").lower()
     verses = []
     if game_items:
         refs = []
-        for item in game_items[:6]:
+        for item in game_items[:8]:
             ref = (item.get("reference") or "").strip()
             text = (item.get("text") or "").strip()
             v = (item.get("version") or version).strip().lower() or version
@@ -378,13 +453,26 @@ def _build_match_game_from_inputs(refs, version, game_items):
             shuffled = [verses[i] for i in order]
             answer_key = [order.index(i) + 1 for i in range(len(verses))]
             return refs, shuffled, answer_key
+    if not allow_fetch:
+        return [], [], []
 
     for ref in refs:
         text = "Verse text unavailable."
         try:
             content = request_verse_data(ref, version)
             data = parse_and_clean_json(content)
-            text = (data.get("fullVerse") or "").strip() or text
+            full_verse = (data.get("fullVerse") or "").strip()
+            if use_meaning:
+                meaning = ""
+                try:
+                    meaning_content = request_verse_meaning(ref, full_verse, version)
+                    meaning_data = parse_and_clean_json(meaning_content)
+                    meaning = (meaning_data.get("meaning") or "").strip()
+                except Exception:
+                    meaning = ""
+                text = meaning or "Meaning unavailable."
+            else:
+                text = full_verse or text
         except Exception:
             pass
         verses.append(MatchItem(text=text, version=version))
@@ -395,3 +483,72 @@ def _build_match_game_from_inputs(refs, version, game_items):
     shuffled = [verses[i] for i in order]
     answer_key = [order.index(i) + 1 for i in range(len(verses))]
     return refs, shuffled, answer_key
+
+
+_STOPWORDS = {
+    "the", "and", "for", "with", "that", "this", "your", "you", "from", "into",
+    "will", "shall", "lord", "god", "his", "her", "him", "their", "they",
+    "them", "are", "was", "were", "who", "whom", "what", "when", "where",
+    "why", "how", "but", "not", "all", "any", "our", "out", "over", "under",
+    "have", "has", "had", "let", "may", "can", "one", "two", "three", "four",
+}
+
+
+def _extract_words(text: str, limit: int = 12) -> list[str]:
+    words = []
+    for raw in re.findall(r"[A-Za-z]{4,}", text or ""):
+        w = raw.lower()
+        if w in _STOPWORDS:
+            continue
+        if w not in words:
+            words.append(w)
+        if len(words) >= limit:
+            break
+    return [w.upper() for w in words]
+
+
+def _build_word_search_words(meta, version: str) -> list[str]:
+    version = (version or meta.get("defaultVersion") or "esv").lower()
+    game_words = [w.strip() for w in (meta.get("gameWords") or []) if w.strip()]
+    if game_words:
+        return [w.upper() for w in game_words[:12]]
+
+    refs = list(meta.get("verses") or [])[:6]
+    words = []
+    for ref in refs:
+        try:
+            content = request_verse_data(ref, version)
+            data = parse_and_clean_json(content)
+            full = (data.get("fullVerse") or "").strip()
+            words.extend(_extract_words(full, limit=12))
+        except Exception:
+            pass
+        if len(words) >= 12:
+            break
+    if not words:
+        for ref in refs:
+            book = ref.split()[0]
+            if book and book.upper() not in words:
+                words.append(book.upper())
+            if len(words) >= 8:
+                break
+    return words[:12]
+
+
+def _build_word_search_words_from_inputs(refs, version, game_words):
+    if game_words:
+        return [w.upper() for w in game_words[:12]]
+    refs = list(refs or [])[:6]
+    version = (version or "esv").lower()
+    words = []
+    for ref in refs:
+        try:
+            content = request_verse_data(ref, version)
+            data = parse_and_clean_json(content)
+            full = (data.get("fullVerse") or "").strip()
+            words.extend(_extract_words(full, limit=12))
+        except Exception:
+            pass
+        if len(words) >= 12:
+            break
+    return words[:12] if words else [w.upper() for w in refs[:8]]

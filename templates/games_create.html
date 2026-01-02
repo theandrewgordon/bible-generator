@@ -5,7 +5,7 @@
 <section class="game-create">
   <h1 class="page-title">Create a game</h1>
   <p class="muted">
-    Make a printable Match the Verse game from any list of references.
+    Make a printable Bible game from any list of references.
   </p>
 
   {% if usage_info %}
@@ -17,7 +17,7 @@
   </div>
   {% endif %}
 
-  <form method="post" class="card-lite">
+  <form method="post" class="card-lite" data-no-overlay>
     <label for="title">Title</label>
     <input
       id="title"
@@ -33,6 +33,16 @@
     </select>
     <p class="small muted">Uses your default version unless you choose another.</p>
 
+    <label for="gameType">Game type</label>
+    <select id="gameType" name="gameType" class="wide-input">
+      <option value="match" selected>Match the Verse</option>
+      <option value="match-meaning">Match the Meaning</option>
+      <option value="word-search">Word Search</option>
+    </select>
+    <p class="small muted" id="gameTypeHelp">
+      Match the Meaning can auto-generate kid-friendly meanings from the verse text.
+    </p>
+
     <label for="references">References (one per line)</label>
     <textarea
       id="references"
@@ -42,23 +52,79 @@
       placeholder="Proverbs 20:7&#10;Psalm 25:21&#10;Job 27:5"
     ></textarea>
 
-    <details class="advanced" style="margin-top: 0.5rem;">
-      <summary>Use custom verse text (optional)</summary>
-      <label for="gameItems" class="small muted" style="margin-top: 0.5rem;">
-        One per line: Reference | Verse text | Version (optional)
-      </label>
-      <textarea
-        id="gameItems"
-        name="gameItems"
-        class="wide-input"
-        rows="6"
-        placeholder="Proverbs 20:7 | The godly walk with integrity; blessed are their children who follow them. | ESV"
-      ></textarea>
-    </details>
+    <div id="matchCreateFields">
+      <details class="advanced" style="margin-top: 0.5rem;">
+        <summary id="matchItemsSummary">Use custom verse text (optional)</summary>
+        <label for="gameItems" id="matchItemsLabel" class="small muted" style="margin-top: 0.5rem;">
+          One per line: Reference | Verse text | Version (optional)
+        </label>
+        <textarea
+          id="gameItems"
+          name="gameItems"
+          class="wide-input"
+          rows="6"
+          placeholder="Proverbs 20:7 | The godly walk with integrity; blessed are their children who follow them. | ESV"
+        ></textarea>
+      </details>
+    </div>
+
+    <div id="wordCreateFields">
+      <details class="advanced" style="margin-top: 0.5rem;">
+        <summary>Use custom word list (word search only)</summary>
+        <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
+          One word per line
+        </label>
+        <textarea
+          id="gameWords"
+          name="gameWords"
+          class="wide-input"
+          rows="5"
+          placeholder="Faith&#10;Grace&#10;Hope"
+        ></textarea>
+      </details>
+    </div>
 
     <button class="button primary" type="submit" style="margin-top: 0.75rem;">
       Create game
     </button>
   </form>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const typeSel = document.getElementById("gameType");
+    const matchFields = document.getElementById("matchCreateFields");
+    const wordFields = document.getElementById("wordCreateFields");
+    const matchSummary = document.getElementById("matchItemsSummary");
+    const matchLabel = document.getElementById("matchItemsLabel");
+    const gameTypeHelp = document.getElementById("gameTypeHelp");
+    function sync() {
+      const type = (typeSel?.value || "match").toLowerCase();
+      if (matchFields) matchFields.style.display = type === "word-search" ? "none" : "block";
+      if (wordFields) wordFields.style.display = type === "word-search" ? "block" : "none";
+      if (matchSummary) {
+        matchSummary.textContent =
+          type === "match-meaning" ? "Add the meaning lines (optional)" : "Use custom verse text (optional)";
+      }
+      if (matchLabel) {
+        matchLabel.textContent =
+          type === "match-meaning"
+            ? "One per line: Reference | Meaning text"
+            : "One per line: Reference | Verse text | Version (optional)";
+      }
+      if (gameTypeHelp) {
+        gameTypeHelp.textContent =
+          type === "word-search"
+            ? "Word Search builds a word list from the verses (or your custom list)."
+            : type === "match-meaning"
+              ? "Match the Meaning can auto-generate kid-friendly meanings from the verse text."
+              : "Match the Verse uses the full verse text.";
+      }
+    }
+    if (typeSel) typeSel.addEventListener("change", sync);
+    sync();
+  })();
+</script>
 {% endblock %}

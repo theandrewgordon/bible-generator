@@ -628,7 +628,10 @@
               const method = (
                 form.getAttribute("method") || "GET"
               ).toUpperCase();
-              if (method === "POST") show();
+              if (method === "POST") {
+                if (form.hasAttribute("data-no-overlay")) return;
+                show();
+              }
             });
           },
           true

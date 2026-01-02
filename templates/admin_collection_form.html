@@ -181,17 +181,40 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
     <!-- Game content -->
     <section class="card" id="gameFields">
       <h2>Game Content</h2>
-      <label for="gameItems">Match items (one per line)</label>
-      <textarea
-        id="gameItems"
-        class="wide-input"
-        name="gameItems"
-        rows="6"
-        placeholder="Reference | Verse text | ESV"
-      >{{ data.get('gameItems','') }}</textarea>
-      <p class="small muted">
-        Format: Reference | Verse text | Version (optional). If you leave this empty, we’ll fetch verse text automatically.
-      </p>
+      <label for="gameType">Game type</label>
+      <select id="gameType" name="gameType" class="wide-input">
+        <option value="match" {% if data.get('gameType') == 'match' %}selected{% endif %}>Match the Verse</option>
+        <option value="match-meaning" {% if data.get('gameType') == 'match-meaning' %}selected{% endif %}>Match the Meaning</option>
+        <option value="word-search" {% if data.get('gameType') == 'word-search' %}selected{% endif %}>Word Search</option>
+      </select>
+
+      <div id="matchFields">
+        <label for="gameItems">Match items (one per line)</label>
+        <textarea
+          id="gameItems"
+          class="wide-input"
+          name="gameItems"
+          rows="6"
+          placeholder="Reference | Verse text | ESV"
+        >{{ data.get('gameItems','') }}</textarea>
+        <p class="small muted" id="matchItemsHelp">
+          Format: Reference | Verse text | Version (optional). If you leave this empty, we’ll fetch verse text automatically.
+        </p>
+      </div>
+
+      <div id="wordFields">
+        <label for="gameWords">Word search words (optional)</label>
+        <textarea
+          id="gameWords"
+          class="wide-input"
+          name="gameWords"
+          rows="5"
+          placeholder="Faith&#10;Grace&#10;Hope"
+        >{{ data.get('gameWords','') }}</textarea>
+        <p class="small muted">
+          One word per line. If empty, we’ll build a word list from the verses.
+        </p>
+      </div>
     </section>
 
     <!-- Ordering / Bundle file -->
@@ -471,9 +494,25 @@ Romans 8:28
   function updateGameFields() {
     const kind = ($("#kind").value || "bundle").toLowerCase();
     const gameFields = document.getElementById("gameFields");
+    const gameType = ($("#gameType").value || "match").toLowerCase();
+    const matchFields = document.getElementById("matchFields");
+    const wordFields = document.getElementById("wordFields");
     if (gameFields) {
       gameFields.style.display = kind === "game" ? "block" : "none";
     }
+    if (matchFields) {
+      matchFields.style.display = gameType === "word-search" ? "none" : "block";
+    }
+      if (wordFields) {
+        wordFields.style.display = gameType === "word-search" ? "block" : "none";
+        const matchHelp = document.getElementById("matchItemsHelp");
+        if (matchHelp) {
+          matchHelp.textContent =
+            gameType === "match-meaning"
+            ? "Format: Reference | Meaning text. If empty, meanings are generated from verse text."
+            : "Format: Reference | Verse text | Version (optional). If you leave this empty, we’ll fetch verse text automatically.";
+        }
+      }
   }
 
   // On load
@@ -488,6 +527,8 @@ Romans 8:28
   });
   const kindEl = document.getElementById("kind");
   if (kindEl) kindEl.addEventListener("change", updateGameFields);
+  const gameTypeEl = document.getElementById("gameType");
+  if (gameTypeEl) gameTypeEl.addEventListener("change", updateGameFields);
   document.getElementById("verses").addEventListener("input", updateVerseCount);
 
   // Normalize verses and enforce slug pattern on submit

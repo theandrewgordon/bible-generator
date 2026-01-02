@@ -63,11 +63,21 @@ _GAME_DEFAULTS = {
         "skills": ["Bible knowledge", "Reading", "Matching"],
         "useCases": ["Morning basket", "Family night", "Co-op"],
         "previewImages": ["Copywork2.png", "Copywork3.png"],
-    }
+    },
+    "word-search-psalms": {
+        "ageRange": "Ages 6-12",
+        "skills": ["Bible knowledge", "Word recognition", "Focus"],
+        "useCases": ["Morning basket", "Quiet time", "Co-op"],
+        "previewImages": ["Copywork1.png", "Copywork4.png"],
+    },
 }
 
-_GAME_SLUGS = {"match-the-verse"}
-_GAME_TITLES = {"match-the-verse": "Match the Verse"}
+_GAME_SLUGS = {"match-the-verse", "word-search-psalms"}
+_GAME_TITLES = {
+    "match-the-verse": "Match the Verse",
+    "word-search-psalms": "Psalms Word Search",
+}
+_GAME_TYPES = {"match-the-verse": "match", "word-search-psalms": "word-search"}
 
 
 def _apply_bundle_defaults(meta: dict) -> dict:
@@ -77,6 +87,8 @@ def _apply_bundle_defaults(meta: dict) -> dict:
         default_title = slug.replace("-", " ").title() if slug else ""
         if _GAME_TITLES.get(slug) and (not meta.get("title") or meta.get("title") == default_title):
             meta["title"] = _GAME_TITLES[slug]
+        if not meta.get("gameType") and _GAME_TYPES.get(slug):
+            meta["gameType"] = _GAME_TYPES[slug]
         defaults = _GAME_DEFAULTS.get(slug, {})
         if not meta.get("ageRange") and defaults.get("ageRange"):
             meta["ageRange"] = defaults["ageRange"]
@@ -151,6 +163,8 @@ def get_collections(show_all: bool = False):
                     'useCases': data.get('useCases') or [],
                     'previewImages': data.get('previewImages') or [],
                     'gameItems': data.get('gameItems') or [],
+                    'gameWords': data.get('gameWords') or [],
+                    'gameType': (data.get('gameType') or '').strip().lower(),
                     'prewarm': pr,
                     'lastBuilt': _fmt_dt(pr.get('finishedAt')) if isinstance(pr, dict) else None,
                     'order': int(data.get('order') or 9999),
@@ -178,6 +192,8 @@ def get_collections(show_all: bool = False):
             'useCases': [],
             'previewImages': [],
             'gameItems': [],
+            'gameWords': [],
+            'gameType': '',
             'prewarm': None,
             'lastBuilt': None,
             'order': 9999,
@@ -208,6 +224,8 @@ def get_collection_meta(slug: str):
                     'useCases': data.get('useCases') or [],
                     'previewImages': data.get('previewImages') or [],
                     'gameItems': data.get('gameItems') or [],
+                    'gameWords': data.get('gameWords') or [],
+                    'gameType': (data.get('gameType') or '').strip().lower(),
                 })
         except Exception:
             pass
@@ -232,6 +250,8 @@ def get_collection_meta(slug: str):
         'useCases': [],
         'previewImages': [],
         'gameItems': [],
+        'gameWords': [],
+        'gameType': '',
     })
 
 

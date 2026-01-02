@@ -45,6 +45,15 @@
         <div class="game-meta">
           {% if g.isFree %}<span class="pill ok">Free</span>{% endif %}
           {% if g.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
+          <span class="pill alt">
+            {% if g.gameType == 'word-search' %}
+              Word Search
+            {% elif g.gameType == 'match-meaning' %}
+              Match the Meaning
+            {% else %}
+              Match the Verse
+            {% endif %}
+          </span>
         </div>
         <h2 class="game-title">{{ g.title }}</h2>
         <p class="muted small">

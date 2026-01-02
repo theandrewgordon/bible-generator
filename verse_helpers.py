@@ -82,6 +82,27 @@ Verse: {verse_ref}
 """}
     ]
 
+
+def build_meaning_prompt(verse_ref, full_verse, version):
+    """Generate OpenAI prompt to summarize a verse meaning for matching games."""
+    return [
+        {"role": "system", "content": "You help Christian homeschoolers create Bible games."},
+        {"role": "user", "content": f"""
+Return valid JSON with:
+- "meaning": a kid-friendly, plain-English meaning of the verse (6–10 words).
+
+Rules:
+- Do not quote the verse.
+- No Bible references.
+- Use simple, present-tense phrasing.
+- No quotes around the meaning.
+- Return JSON only.
+
+Verse reference: {verse_ref}
+Verse text ({version.upper()}): {full_verse}
+"""}
+    ]
+
 # === GPT Call Wrapper ===
 def call_openai(prompt):
     """Call OpenAI API with a given prompt."""
@@ -103,6 +124,16 @@ def request_verse_data(verse_ref, version="esv"):
     if content:
         return content
     print("🔁 Retrying OpenAI call...")
+    return call_openai(prompt)
+
+
+def request_verse_meaning(verse_ref, full_verse, version="esv"):
+    """Request a short meaning summary for a verse."""
+    prompt = build_meaning_prompt(verse_ref, full_verse, version)
+    content = call_openai(prompt)
+    if content:
+        return content
+    print("🔁 Retrying OpenAI meaning call...")
     return call_openai(prompt)
 
 # === JSON Safety Wrapper ===
