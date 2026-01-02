@@ -35,6 +35,7 @@ def admin_seed_collections():
         batch = db.batch()
         order = 1
         for slug, verses in data.items():
+            kind = "game" if slug in ("match-the-verse",) else "bundle"
             ref = db.collection("collections").document(slug)
             batch.set(
                 ref,
@@ -45,6 +46,7 @@ def admin_seed_collections():
                     "order": order,
                     "defaultVersion": "esv",
                     "isFree": True if slug == "starter" else False,
+                    "kind": kind,
                 },
             )
             order += 1
@@ -90,11 +92,29 @@ def admin_collections_new():
         def _split_list(raw: str):
             parts = re.split(r"[\n,]+", raw or "")
             return [p.strip() for p in parts if p.strip()]
+        def _parse_game_items(raw: str):
+            items = []
+            for line in (raw or "").splitlines():
+                if not line.strip():
+                    continue
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) < 2:
+                    continue
+                ref = parts[0]
+                text = parts[1]
+                version = parts[2] if len(parts) > 2 else ""
+                items.append({
+                    "reference": ref,
+                    "text": text,
+                    "version": version,
+                })
+            return items
 
         slug = (request.form.get("slug") or "").strip().lower()
         title = (request.form.get("title") or slug.replace("-", " ").title()).strip()
         is_public = request.form.get("isPublic") == "on"
         is_free = request.form.get("isFree") == "on"
+        kind = (request.form.get("kind") or "bundle").strip().lower()
         default_version = (request.form.get("defaultVersion") or "").strip().lower() or None
         order = request.form.get("order")
         order_val = int(order) if order and order.isdigit() else None
@@ -106,6 +126,7 @@ def admin_collections_new():
         skills = _split_list(request.form.get("skills") or "")
         use_cases = _split_list(request.form.get("useCases") or "")
         preview_images = _split_list(request.form.get("previewImages") or "")
+        game_items = _parse_game_items(request.form.get("gameItems") or "")
         verses_raw = request.form.get("verses") or ""
         parts = re.split(r"[\n,]+", verses_raw)
         verses = [p.strip() for p in parts if p.strip()]
@@ -120,10 +141,12 @@ def admin_collections_new():
             "description": description,
             "isSubscriberOnly": is_sub_only,
             "priceId": price_id,
+            "kind": kind,
             "ageRange": age_range,
             "skills": skills,
             "useCases": use_cases,
             "previewImages": preview_images,
+            "gameItems": game_items,
         }
         data["defaultVersion"] = default_version or "esv"
         if order_val is not None:
@@ -131,7 +154,7 @@ def admin_collections_new():
         if zip_url:
             data["zipUrl"] = zip_url
         db.collection("collections").document(slug).set(data)
-        flash("Collection created", "success")
+        flash("Item created", "success")
         return redirect(url_for("admin_collections"))
     return render_template("admin_collection_form.html", mode="new", data={})
 
@@ -147,16 +170,35 @@ def admin_collections_edit(slug):
         def _split_list(raw: str):
             parts = re.split(r"[\n,]+", raw or "")
             return [p.strip() for p in parts if p.strip()]
+        def _parse_game_items(raw: str):
+            items = []
+            for line in (raw or "").splitlines():
+                if not line.strip():
+                    continue
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) < 2:
+                    continue
+                ref = parts[0]
+                text = parts[1]
+                version = parts[2] if len(parts) > 2 else ""
+                items.append({
+                    "reference": ref,
+                    "text": text,
+                    "version": version,
+                })
+            return items
 
         title = (request.form.get("title") or "").strip() or current.get("title")
         is_public = request.form.get("isPublic") == "on"
         is_free = request.form.get("isFree") == "on"
         is_sub_only = request.form.get("isSubscriberOnly") == "on"
+        kind = (request.form.get("kind") or current.get("kind") or "bundle").strip().lower()
         price_id = (request.form.get("priceId") or "").strip() or None
         age_range = (request.form.get("ageRange") or "").strip() or None
         skills = _split_list(request.form.get("skills") or "")
         use_cases = _split_list(request.form.get("useCases") or "")
         preview_images = _split_list(request.form.get("previewImages") or "")
+        game_items = _parse_game_items(request.form.get("gameItems") or "")
         if is_free:
             is_sub_only = False
             price_id = None
@@ -168,13 +210,15 @@ def admin_collections_edit(slug):
             "description": current.get("description", ""),
             "isSubscriberOnly": is_sub_only,
             "priceId": price_id,
+            "kind": kind,
             "ageRange": age_range,
             "skills": skills,
             "useCases": use_cases,
             "previewImages": preview_images,
+            "gameItems": game_items,
         }
         db.collection("collections").document(slug).set(data, merge=True)
-        flash("Collection updated", "success")
+        flash("Item updated", "success")
         return redirect(url_for("admin_collections"))
     form_data = {
         "slug": slug,
@@ -182,6 +226,7 @@ def admin_collections_edit(slug):
         "isPublic": current.get("isPublic", True),
         "isFree": current.get("isFree", False),
         "isSubscriberOnly": current.get("isSubscriberOnly", False),
+        "kind": current.get("kind", "bundle"),
         "priceId": current.get("priceId", ""),
         "defaultVersion": current.get("defaultVersion", ""),
         "order": current.get("order", ""),
@@ -192,6 +237,10 @@ def admin_collections_edit(slug):
         "skills": ", ".join(current.get("skills", []) or []),
         "useCases": ", ".join(current.get("useCases", []) or []),
         "previewImages": "\n".join(current.get("previewImages", []) or []),
+        "gameItems": "\n".join([
+            " | ".join([item.get("reference", ""), item.get("text", ""), item.get("version", "")]).strip(" |")
+            for item in (current.get("gameItems") or [])
+        ]),
     }
     return render_template("admin_collection_form.html", mode="edit", data=form_data)
 

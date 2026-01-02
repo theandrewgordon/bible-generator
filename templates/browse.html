@@ -273,7 +273,7 @@
         <li class="thumb-card">
           <a
             href="{{ url_for('download_file', filename=item.filename) }}"
-            title="Download"
+            title="Download PDF"
           >
             <img
               src="{{ url_for('thumb', filename=item.filename[:-4] + '.png') }}"
@@ -294,7 +294,7 @@
             <a
               class="button"
               href="{{ url_for('download_file', filename=item.filename) }}"
-              >Download</a
+              >Download PDF</a
             >
             <a
               class="button ghost"
@@ -389,12 +389,28 @@
     margin-bottom: 0.25rem;
   }
   @media (max-width: 640px) {
+    .page-title {
+      font-size: 2rem;
+    }
+    .toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .toolbar input[type="search"],
+    .toolbar select {
+      width: 100%;
+    }
+    .pack-grid {
+      grid-template-columns: 1fr;
+    }
     .popular-highlight {
       flex-direction: column;
       align-items: flex-start;
     }
     .popular-highlight .button {
       margin-left: 0;
+      width: 100%;
+      text-align: center;
     }
   }
   .pack-top {

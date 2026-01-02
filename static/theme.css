@@ -355,6 +355,9 @@ input[type="checkbox"] + label,
   align-items: center;
   gap: 6px;
 }
+.mobile-tools {
+  display: none;
+}
 .nav-links a {
   --pad-x: 6px;
   --pad-y: 6px;
@@ -526,6 +529,10 @@ input[type="checkbox"] + label,
 
 /* Mobile nav layout */
 @media (max-width: 880px) {
+  .main-header {
+    grid-template-columns: 1fr;
+    padding: 8px 12px;
+  }
   .logo img {
     height: 34px;
   }
@@ -534,13 +541,14 @@ input[type="checkbox"] + label,
   }
   .logo-nav {
     grid-template-columns: auto 1fr auto;
-    gap: 10px;
+    gap: 8px;
   }
 
   .nav-links {
     grid-auto-flow: row;
     gap: 4px;
     width: 100%;
+    grid-column: 1 / -1;
     overflow: hidden;
     max-height: 0;
     opacity: 0;
@@ -550,26 +558,42 @@ input[type="checkbox"] + label,
     padding-top: 8px;
   }
   body.nav-open .nav-links {
-    max-height: 420px;
+    max-height: 720px;
     opacity: 1;
   }
 
   .nav-links a {
     padding: 10px 12px;
     border-radius: var(--radius);
-    font-size: 0.98rem;
+    font-size: 0.96rem;
+    width: 100%;
+    white-space: normal;
+    line-height: 1.2;
   }
 
   .auth-theme {
-    grid-auto-flow: row;
-    justify-items: start;
+    display: none !important;
+  }
+  .mobile-tools {
+    display: grid;
     gap: 8px;
     border-top: 1px dashed var(--header-border);
-    padding-top: 8px;
+    padding-top: 10px;
     margin-top: 8px;
+    grid-column: 1 / -1;
   }
-  .auth-theme .user-name {
-    display: none;
+  .mobile-tool-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .mobile-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .mobile-tools .version-pref {
+    min-width: 110px;
   }
 
   /* Admin panel flows inline on mobile */
@@ -580,6 +604,20 @@ input[type="checkbox"] + label,
     position: static;
     box-shadow: none;
     border: 1px dashed #e5e7eb;
+    width: 100%;
+  }
+  .admin-summary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-banner {
+    margin: 6px 12px;
+    font-size: 0.88rem;
+  }
+  .mobile-hide {
+    display: none !important;
   }
 }
 

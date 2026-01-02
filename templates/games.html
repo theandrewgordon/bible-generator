@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Printable Bible Games | Faith Sparks Printables{% endblock %}
+
+{% block head_extra %}
+<link rel="canonical" href="{{ url_for('games', _external=True) }}" />
+<meta
+  name="description"
+  content="Printable Bible games for homeschool, family nights, and co-ops. Easy to download, ready to print."
+/>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Games</h1>
+<p class="muted">
+  Printable Bible games for family time, co-op, and quiet mornings.
+</p>
+
+  {% if usage_info %}
+  <div class="card-lite credit-note">
+    <strong>Credits:</strong>
+    Each game download uses 1 credit.
+    <span class="muted small" data-version-display></span>
+    {% if usage_info.monthly_limit %}
+      <span class="muted small">
+        {{ usage_info.monthly_remaining }} left this month.
+      </span>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if not signed_in %}
+  <div class="card-lite sign-in-note">
+    <span>Sign in to download games and save them in My Downloads.</span>
+    <a class="button ghost" href="{{ url_for('google.login', next=url_for('games')) }}">Sign in</a>
+  </div>
+{% endif %}
+
+{% if games and games|length %}
+  <section class="game-grid">
+    {% for g in games %}
+      <article class="game-card {{ 'locked' if g.locked }}">
+        <div class="game-meta">
+          {% if g.isFree %}<span class="pill ok">Free</span>{% endif %}
+          {% if g.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
+        </div>
+        <h2 class="game-title">{{ g.title }}</h2>
+        <p class="muted small">
+          {{ g.description or "Printable Bible game, ready to print." }}
+        </p>
+        <div class="game-actions">
+          <a class="button ghost" href="{{ url_for('games_detail', slug=g.slug) }}">View details</a>
+          {% if g.can_download %}
+            <a class="button" data-game-download href="{{ url_for('dl_game', slug=g.slug) }}">Download game</a>
+          {% elif signed_in %}
+            {% if g.isSubscriberOnly %}
+              <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% else %}
+  <div class="empty card-lite">
+    <h3>No games yet</h3>
+    <p class="muted">We’re building printable Bible games now.</p>
+    <a class="button ghost" href="mailto:hello@faithsparksprintables.com">Request a game</a>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const pref = localStorage.getItem("preferredVersion") || "esv";
+    const version = String(pref).toUpperCase();
+    document.querySelectorAll("[data-game-download]").forEach((link) => {
+      const params = new URLSearchParams({ version });
+      link.href = `${link.pathname}?${params.toString()}`;
+    });
+    const display = document.querySelector("[data-version-display]");
+    if (display) display.textContent = `Uses your default version (${version}).`;
+  })();
+</script>
+<style>
+  .credit-note,
+  .sign-in-note {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0.75rem 0 1rem;
+    flex-wrap: wrap;
+  }
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+  .game-card {
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    background: var(--box);
+    border-radius: 14px;
+    padding: 1rem;
+  }
+  .game-title {
+    margin: 0.6rem 0 0.4rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .game-meta {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .game-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+  @media (max-width: 640px) {
+    .game-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}

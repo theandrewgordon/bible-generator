@@ -44,21 +44,21 @@
   }
 
   function updateButtonUI(isDark) {
-    const btn = document.getElementById("themeToggle");
-    if (!btn) return;
+    const buttons = document.querySelectorAll(".theme-toggle");
+    if (!buttons.length) return;
 
-    // Keep SR-friendly structure: update icon span if present
-    const icon = btn.querySelector('[aria-hidden="true"]');
-    if (icon) {
-      icon.textContent = isDark ? "☀️" : "🌙";
-    } else {
-      // Fallback for old markup without a child span
-      btn.textContent = isDark ? "☀️" : "🌙";
-    }
+    buttons.forEach((btn) => {
+      const icon = btn.querySelector('[aria-hidden="true"]');
+      if (icon) {
+        icon.textContent = isDark ? "☀️" : "🌙";
+      } else {
+        btn.textContent = isDark ? "☀️" : "🌙";
+      }
 
-    btn.setAttribute("aria-pressed", String(isDark));
-    btn.title = isDark ? "Toggle light mode" : "Toggle dark mode";
-    btn.setAttribute("aria-label", btn.title);
+      btn.setAttribute("aria-pressed", String(isDark));
+      btn.title = isDark ? "Toggle light mode" : "Toggle dark mode";
+      btn.setAttribute("aria-label", btn.title);
+    });
   }
 
   function init() {
@@ -78,8 +78,9 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     init();
-    const btn = document.getElementById("themeToggle");
-    if (btn) btn.addEventListener("click", onClick);
+    document.querySelectorAll(".theme-toggle").forEach((btn) => {
+      btn.addEventListener("click", onClick);
+    });
   });
 
   if (window.matchMedia) {

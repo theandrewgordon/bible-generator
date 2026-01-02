@@ -46,6 +46,22 @@
     </a>
   </div>
   {% endif %}
+  {% if game_of_week %}
+  <div class="start-proverb">
+    <div>
+      <div class="daily-label">Game of the week</div>
+      <div class="daily-text">{{ game_of_week.title }}</div>
+      <div class="daily-ref">Printable Bible game</div>
+    </div>
+    <a
+      class="button ghost"
+      data-game-link
+      href="{{ url_for('games_detail', slug=game_of_week.slug) }}"
+    >
+      Play {{ game_of_week.title }}
+    </a>
+  </div>
+  {% endif %}
 
   <div class="start-visual">
     <img
@@ -123,6 +139,15 @@
     const version = String(pref).toUpperCase();
     if (!ref || !version) return;
     const params = new URLSearchParams({ verse: `${ref} (${version})` });
+    link.href = `${link.pathname}?${params.toString()}`;
+  })();
+
+  (function () {
+    const link = document.querySelector("[data-game-link]");
+    if (!link) return;
+    const pref = localStorage.getItem("preferredVersion") || "esv";
+    const version = String(pref).toUpperCase();
+    const params = new URLSearchParams({ version });
     link.href = `${link.pathname}?${params.toString()}`;
   })();
 </script>

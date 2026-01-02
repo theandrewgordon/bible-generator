@@ -9,7 +9,7 @@ endblock %} {% block content %}
     <div class="quick-sub">Jump to your latest print.</div>
   </button>
   <button class="quick-card" type="button" id="favBtn">
-    <div class="quick-title">Favorites</div>
+    <div class="quick-title">Saved verses</div>
     <div class="quick-sub">See the verses you loved.</div>
   </button>
   {% if proverb_of_day %}
@@ -31,7 +31,7 @@ endblock %} {% block content %}
       <h3 style="margin:0;">My bundles</h3>
       <p class="muted small" style="margin:0;">Re-download bundles you’ve saved.</p>
     </div>
-    <a class="button ghost" href="{{ url_for('downloads') }}">Redeem a new code</a>
+    <a class="button ghost mobile-hide" href="{{ url_for('downloads') }}">Redeem a new code</a>
   </div>
   <ul class="cards" style="margin-top:0.75rem;">
     {% for p in purchases %}
@@ -77,7 +77,7 @@ endblock %} {% block content %}
 
     <label class="checkrow advanced-only">
       <input type="checkbox" id="favOnly" onchange="applyFilters()" />
-      Favorites only
+      Saved only
     </label>
 
     <select id="sortSelect" class="advanced-only" onchange="applySort()" aria-label="Sort results">
@@ -177,19 +177,19 @@ endblock %} {% block content %}
           <a
             class="button ghost tiny"
             href="{{ url_for('download_file', filename=item.filename) }}"
-            title="Download"
-            aria-label="Download {{ item.verse }}"
-            >Download</a
+            title="Download PDF"
+            aria-label="Download PDF for {{ item.verse }}"
+            >Download PDF</a
           >
           <button
             type="button"
             class="button ghost tiny fav-btn"
             data-file="{{ item.filename }}"
-            title="Favorite"
-            aria-label="Favorite {{ item.verse }}"
+            title="Save"
+            aria-label="Save {{ item.verse }}"
             aria-pressed="{{ 'true' if item.get('favorite') else 'false' }}"
           >
-            {% if item.get('favorite') %}Favorited{% else %}Favorite{% endif %}
+            {% if item.get('favorite') %}Saved{% else %}Save{% endif %}
           </button>
 
           {% if item.get('type') == 'coloring' and item.get('imageFilename') %}
@@ -463,7 +463,8 @@ endblock %} {% block content %}
     const searchInput = document.getElementById("searchInput");
     const cardList = document.getElementById("cards");
     const saved = localStorage.getItem("historySimpleMode");
-    const defaultSimple = saved === null ? true : saved === "1";
+    const defaultSimple =
+      saved === null ? window.innerWidth < 820 : saved === "1";
 
     function setSimpleMode(enabled) {
       document.body.classList.toggle("simple-history", enabled);
@@ -695,6 +696,34 @@ endblock %} {% block content %}
     }
     .actions {
       margin-top: 0.35rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .quick-actions {
+      grid-template-columns: 1fr;
+    }
+    .quick-card {
+      padding: 0.75rem 0.85rem;
+    }
+    .toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .toolbar-left,
+    .toolbar-right {
+      width: 100%;
+      justify-content: space-between;
+    }
+    #searchInput {
+      min-width: 0;
+      width: 100%;
+    }
+    .cards {
+      grid-template-columns: 1fr;
+    }
+    .simple-actions {
+      justify-content: flex-start;
     }
   }
 </style>

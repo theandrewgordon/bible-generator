@@ -593,7 +593,8 @@
     <footer>
       &copy; 2025 Faith Sparks Printables. All rights reserved.
       <a href="/start-here">Start Here</a> • <a href="/about">About</a> •
-      <a href="/#how-it-works">How It Works</a> • <a href="/plus">Membership</a>{% if is_pro %} • <a href="/billing">Manage Membership</a>{% endif %}
+      <a href="/#how-it-works">How It Works</a> • <a href="/games">Games</a> •
+      <a href="/plus">Membership</a>{% if is_pro %} • <a href="/billing">Manage Membership</a>{% endif %}
       {% if support_email %} • Support:
       <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
     </footer>
@@ -637,12 +638,19 @@
 
     <script>
       (function () {
-        const sel = document.getElementById("versionPref");
-        if (!sel) return;
+        const selects = Array.from(
+          document.querySelectorAll(".version-pref")
+        );
+        if (!selects.length) return;
         const saved = localStorage.getItem("preferredVersion") || "esv";
-        sel.value = saved;
-        sel.addEventListener("change", () => {
-          localStorage.setItem("preferredVersion", sel.value);
+        selects.forEach((sel) => {
+          sel.value = saved;
+          sel.addEventListener("change", () => {
+            localStorage.setItem("preferredVersion", sel.value);
+            selects.forEach((other) => {
+              if (other !== sel) other.value = sel.value;
+            });
+          });
         });
       })();
 

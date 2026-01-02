@@ -1380,6 +1380,24 @@ def browse_detail(slug):
     from faithsparks.views.browse import browse_detail as _impl
     return _impl(slug)
 
+
+@app.route('/games')
+def games():
+    from faithsparks.views.games import games as _impl
+    return _impl()
+
+
+@app.route('/games/<slug>')
+def games_detail(slug):
+    from faithsparks.views.games import games_detail as _impl
+    return _impl(slug)
+
+
+@app.route('/games/download/<slug>')
+def dl_game(slug):
+    from faithsparks.views.games import dl_game as _impl
+    return _impl(slug)
+
 @app.post("/admin/reset_credits/<uid>")
 @admin_required
 def admin_reset_credits(uid):

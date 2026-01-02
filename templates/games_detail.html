@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}{{ c.title }} | Games{% endblock %}
+
+{% block content %}
+<section class="pack-page">
+  <header class="head">
+    <div>
+      <a class="muted small" href="{{ url_for('games') }}">← Back to games</a>
+      <h1 class="page-title">{{ c.title }}</h1>
+      <p class="muted">{{ c.description or "Printable Bible game, ready to print." }}</p>
+      <div class="muted small credit-note">
+        Each game download uses 1 credit.
+        <span data-version-display></span>
+        {% if usage_info and usage_info.monthly_limit %}
+          {{ usage_info.monthly_remaining }} left this month.
+        {% endif %}
+      </div>
+    </div>
+    <div class="actions">
+      {% if can_download %}
+        <a class="button" data-game-download href="{{ url_for('dl_game', slug=c.slug) }}">Download game</a>
+      {% elif not signed_in %}
+        <a class="button" href="{{ url_for('google.login', next=request.path) }}">Sign in to download</a>
+      {% elif needs_member %}
+        <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="pack-intro">
+    {% if c.previewImages %}
+    <div class="pack-previews">
+      {% for img in c.previewImages[:2] %}
+      <img
+        src="{{ img }}"
+        alt="Preview of {{ c.title }}"
+        loading="lazy"
+        width="520"
+        height="360"
+      />
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="pack-details">
+      {% if c.ageRange %}
+      <div class="detail-row">
+        <span class="detail-label">Best for ages:</span>
+        <span class="detail-value">{{ c.ageRange }}</span>
+      </div>
+      {% endif %}
+      {% if c.skills %}
+      <div class="detail-row">
+        <span class="detail-label">Skills:</span>
+        <span class="detail-value">{{ c.skills|join(', ') }}</span>
+      </div>
+      {% endif %}
+      {% if c.useCases %}
+      <div class="detail-row">
+        <span class="detail-label">Great for:</span>
+        <span class="detail-value">{{ c.useCases|join(', ') }}</span>
+      </div>
+      {% endif %}
+      <div class="detail-row muted small">Instant download. Ready to print.</div>
+    </div>
+  </div>
+
+  {% if c.verses %}
+  <h2>Verses</h2>
+  <ul class="verse-list">
+    {% for verse in c.verses %}
+    <li>{{ verse }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const pref = localStorage.getItem("preferredVersion") || "esv";
+    const version = String(pref).toUpperCase();
+    document.querySelectorAll("[data-game-download]").forEach((link) => {
+      const params = new URLSearchParams({ version });
+      link.href = `${link.pathname}?${params.toString()}`;
+    });
+    const display = document.querySelector("[data-version-display]");
+    if (display) display.textContent = ` Uses your default version (${version}).`;
+  })();
+</script>
+<style>
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .head .actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .credit-note {
+    margin-top: 0.25rem;
+  }
+  .pack-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .pack-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.6rem;
+  }
+  .pack-previews img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+  }
+  .pack-details {
+    background: var(--box);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+  .detail-row {
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+  .detail-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-right: 0.2rem;
+  }
+  .detail-value {
+    color: var(--text);
+  }
+  .verse-list {
+    columns: 2;
+    column-gap: 1rem;
+    list-style: disc;
+    padding-left: 1.1rem;
+  }
+  .verse-list li {
+    break-inside: avoid;
+    margin: 0.15rem 0;
+  }
+  @media (max-width: 980px) {
+    .pack-intro {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 720px) {
+    .verse-list {
+      columns: 1;
+    }
+  }
+</style>
+{% endblock %}

@@ -54,6 +54,13 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
         required
       />
 
+      <label for="kind">Type</label>
+      <select id="kind" name="kind" class="wide-input">
+        <option value="bundle" {% if data.get('kind', 'bundle') == 'bundle' %}selected{% endif %}>Bundle</option>
+        <option value="game" {% if data.get('kind') == 'game' %}selected{% endif %}>Game</option>
+      </select>
+      <p class="small muted">Games show under the Games tab; bundles show under Bundles.</p>
+
       <label for="description">Description</label>
       <textarea
         id="description"
@@ -169,6 +176,22 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
         <span id="statusPreview" class="pill" aria-live="polite">—</span>
       </div>
       </fieldset>
+    </section>
+
+    <!-- Game content -->
+    <section class="card" id="gameFields">
+      <h2>Game Content</h2>
+      <label for="gameItems">Match items (one per line)</label>
+      <textarea
+        id="gameItems"
+        class="wide-input"
+        name="gameItems"
+        rows="6"
+        placeholder="Reference | Verse text | ESV"
+      >{{ data.get('gameItems','') }}</textarea>
+      <p class="small muted">
+        Format: Reference | Verse text | Version (optional). If you leave this empty, we’ll fetch verse text automatically.
+      </p>
     </section>
 
     <!-- Ordering / Bundle file -->
@@ -445,15 +468,26 @@ Romans 8:28
     }
   }
 
+  function updateGameFields() {
+    const kind = ($("#kind").value || "bundle").toLowerCase();
+    const gameFields = document.getElementById("gameFields");
+    if (gameFields) {
+      gameFields.style.display = kind === "game" ? "block" : "none";
+    }
+  }
+
   // On load
   updateMonetization();
   updateVerseCount();
+  updateGameFields();
 
   // Keep preview live
   ["isFree", "isSubscriberOnly", "priceId"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("input", updateMonetization);
   });
+  const kindEl = document.getElementById("kind");
+  if (kindEl) kindEl.addEventListener("change", updateGameFields);
   document.getElementById("verses").addEventListener("input", updateVerseCount);
 
   // Normalize verses and enforce slug pattern on submit

@@ -1,11 +1,11 @@
-{% extends "base.html" %} {% block title %}Admin • Bundles{% endblock %} {%
+{% extends "base.html" %} {% block title %}Admin • Bundles & Games{% endblock %} {%
 block content %}
-<h1 class="page-title">Admin: Bundles</h1>
+<h1 class="page-title">Admin: Bundles & Games</h1>
 
 <div class="toolbar">
   <div class="left">
     <a class="button" href="{{ url_for('admin_collections_new') }}"
-      >➕ New Collection</a
+      >➕ New Bundle</a
     >
   </div>
 
@@ -49,13 +49,14 @@ block content %}
 <div class="table-wrap">
   <table class="admin-table" id="collectionsTable">
     <caption class="small muted" style="text-align: left; padding: 0.5rem 1rem">
-      Bundles
+      Bundles & Games
     </caption>
     <thead>
       <tr>
         <th scope="col" data-sort="num" class="num" aria-sort="none">Order</th>
         <th scope="col" data-sort="text" aria-sort="none">Slug</th>
         <th scope="col" data-sort="text" aria-sort="none">Title</th>
+        <th scope="col" data-sort="text" aria-sort="none">Type</th>
         <th scope="col" data-sort="num" class="num" aria-sort="none">Verses</th>
         <th scope="col" data-sort="text" aria-sort="none">Visibility</th>
         <th scope="col" data-sort="text" aria-sort="none">Free</th>
@@ -104,6 +105,10 @@ block content %}
         </td>
 
         <td>{{ c.title }}</td>
+
+        <td>
+          <span class="pill alt">{{ (c.get('kind') or 'bundle')|title }}</span>
+        </td>
 
         <td class="num">{{ c.verses|length }}</td>
 

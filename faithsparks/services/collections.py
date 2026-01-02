@@ -57,10 +57,37 @@ _BUNDLE_DEFAULTS = {
     },
 }
 
+_GAME_DEFAULTS = {
+    "match-the-verse": {
+        "ageRange": "Ages 6-12",
+        "skills": ["Bible knowledge", "Reading", "Matching"],
+        "useCases": ["Morning basket", "Family night", "Co-op"],
+        "previewImages": ["Copywork2.png", "Copywork3.png"],
+    }
+}
+
+_GAME_SLUGS = {"match-the-verse"}
+_GAME_TITLES = {"match-the-verse": "Match the Verse"}
+
 
 def _apply_bundle_defaults(meta: dict) -> dict:
     slug = meta.get("slug")
     defaults = _BUNDLE_DEFAULTS.get(slug, {})
+    if (meta.get("kind") or "bundle") != "bundle":
+        default_title = slug.replace("-", " ").title() if slug else ""
+        if _GAME_TITLES.get(slug) and (not meta.get("title") or meta.get("title") == default_title):
+            meta["title"] = _GAME_TITLES[slug]
+        defaults = _GAME_DEFAULTS.get(slug, {})
+        if not meta.get("ageRange") and defaults.get("ageRange"):
+            meta["ageRange"] = defaults["ageRange"]
+        if not meta.get("skills") and defaults.get("skills"):
+            meta["skills"] = list(defaults["skills"])
+        if not meta.get("useCases") and defaults.get("useCases"):
+            meta["useCases"] = list(defaults["useCases"])
+        if not meta.get("previewImages") and defaults.get("previewImages"):
+            meta["previewImages"] = list(defaults["previewImages"])
+        meta["previewImages"] = _normalize_preview_images(meta.get("previewImages") or [])
+        return meta
     if not meta.get("ageRange") and defaults.get("ageRange"):
         meta["ageRange"] = defaults["ageRange"]
     if not meta.get("skills") and defaults.get("skills"):
@@ -118,10 +145,12 @@ def get_collections(show_all: bool = False):
                     'isFree': data.get('isFree', False),
                     'isSubscriberOnly': data.get('isSubscriberOnly', False),
                     'priceId': data.get('priceId'),
+                    'kind': (data.get('kind') or 'bundle').strip().lower(),
                     'ageRange': data.get('ageRange'),
                     'skills': data.get('skills') or [],
                     'useCases': data.get('useCases') or [],
                     'previewImages': data.get('previewImages') or [],
+                    'gameItems': data.get('gameItems') or [],
                     'prewarm': pr,
                     'lastBuilt': _fmt_dt(pr.get('finishedAt')) if isinstance(pr, dict) else None,
                     'order': int(data.get('order') or 9999),
@@ -132,6 +161,7 @@ def get_collections(show_all: bool = False):
             pass
     items = []
     for slug, verses in (COLLECTIONS or {}).items():
+        kind = "game" if slug in _GAME_SLUGS else "bundle"
         items.append(_apply_bundle_defaults({
             'slug': slug,
             'title': slug.replace('-', ' ').title(),
@@ -142,10 +172,12 @@ def get_collections(show_all: bool = False):
             'isFree': False,
             'isSubscriberOnly': False,
             'priceId': None,
+            'kind': kind,
             'ageRange': None,
             'skills': [],
             'useCases': [],
             'previewImages': [],
+            'gameItems': [],
             'prewarm': None,
             'lastBuilt': None,
             'order': 9999,
@@ -170,16 +202,19 @@ def get_collection_meta(slug: str):
                     'priceId': data.get('priceId'),
                     'prewarm': data.get('prewarm'),
                     'isFree': data.get('isFree', False),
+                    'kind': (data.get('kind') or 'bundle').strip().lower(),
                     'ageRange': data.get('ageRange'),
                     'skills': data.get('skills') or [],
                     'useCases': data.get('useCases') or [],
                     'previewImages': data.get('previewImages') or [],
+                    'gameItems': data.get('gameItems') or [],
                 })
         except Exception:
             pass
     verses = (COLLECTIONS or {}).get(slug)
     if verses is None:
         return None
+    kind = "game" if slug in _GAME_SLUGS else "bundle"
     return _apply_bundle_defaults({
         'slug': slug,
         'title': slug.replace('-', ' ').title(),
@@ -191,10 +226,12 @@ def get_collection_meta(slug: str):
         'isFree': False,
         'isSubscriberOnly': False,
         'priceId': None,
+        'kind': kind,
         'ageRange': None,
         'skills': [],
         'useCases': [],
         'previewImages': [],
+        'gameItems': [],
     })
 
 

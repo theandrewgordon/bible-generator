@@ -43,6 +43,7 @@ def browse():
         items = [doc.to_dict() for doc in recent]
     is_admin = _is_admin_email(session.get("user_email"))
     col_items = get_collections(show_all=is_admin)
+    col_items = [c for c in col_items if (c.get("kind") or "bundle") == "bundle"]
     col_items.sort(key=lambda c: (int(c.get("order") or 9999), c.get("title", "")))
     collections = [
         {
@@ -122,6 +123,8 @@ def browse_detail(slug):
     meta = get_collection_meta(slug)
     if not meta:
         return "Not found", 404
+    if (meta.get("kind") or "bundle") == "game":
+        return redirect(url_for("games_detail", slug=slug))
     can_download = False
     needs_purchase = False
     if google.authorized and db:
@@ -207,4 +210,3 @@ def dl_pack(slug):
     if os.path.exists(path):
         return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
     return "Pack not available", 404
-
