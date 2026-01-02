@@ -1,6 +1,7 @@
-{% extends "base.html" %} {% block title %}My Downloads | Faith Sparks{%
+{% extends "base.html" %} {% block title %}My Prints | Faith Sparks{%
 endblock %} {% block content %}
-<h1 class="page-title">My Downloads</h1>
+<p class="muted small" style="margin-bottom:0.25rem;"><a href="/" class="muted">Home</a> → My Prints</p>
+<h1 class="page-title">My Prints</h1>
 <p class="muted small page-sub">Signed in as: <strong>{{ email }}</strong></p>
 
 {% if history %}
@@ -101,9 +102,11 @@ endblock %} {% block content %}
       <option value="verse_desc">Verse Z→A</option>
       <option value="version_asc">Version A→Z</option>
     </select>
+    {% if history|length >= 6 %}
     <button class="button ghost" type="button" id="simpleToggle" aria-pressed="true">
-      Filters
+      Show filters
     </button>
+    {% endif %}
   </div>
 
   <div class="toolbar-right">
@@ -481,12 +484,12 @@ endblock %} {% block content %}
     const cardList = document.getElementById("cards");
     const saved = localStorage.getItem("historySimpleMode");
     const defaultSimple =
-      saved === null ? window.innerWidth < 820 : saved === "1";
+      saved === null ? true : saved === "1";
 
     function setSimpleMode(enabled) {
       document.body.classList.toggle("simple-history", enabled);
       if (simpleToggle) {
-        simpleToggle.textContent = enabled ? "More options" : "Simple view";
+        simpleToggle.textContent = enabled ? "Show filters" : "Hide filters";
         simpleToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
       }
       localStorage.setItem("historySimpleMode", enabled ? "1" : "0");

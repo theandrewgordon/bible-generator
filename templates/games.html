@@ -33,7 +33,7 @@
 
 {% if not signed_in %}
   <div class="card-lite sign-in-note">
-    <span>Sign in to download games and save them in My Downloads.</span>
+    <span>Sign in to download games and save them in My Prints.</span>
     <a class="button ghost" href="{{ url_for('google.login', next=url_for('games')) }}">Sign in</a>
   </div>
 {% endif %}

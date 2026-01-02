@@ -11,7 +11,7 @@
       href="{{ request.url_root.rstrip('/') ~ request.path }}"
     />
     {% set path = request.path or '' %} {% if path.startswith('/generate') or
-    path.startswith('/history') or path.startswith('/admin') or
+    path.startswith('/prints') or path.startswith('/admin') or
     request.query_string %}
     <meta name="robots" content="noindex,follow" />
     {% else %}
@@ -101,7 +101,7 @@
 
     {# Auto noindex for private/utility routes; override via noindex=true #} {%
     set _p = request.path %} {% set _auto_noindex = ( (_p.startswith('/admin'))
-    or (_p.startswith('/generate')) or (_p.startswith('/history')) or
+    or (_p.startswith('/generate')) or (_p.startswith('/prints')) or
     (_p.startswith('/download')) or (_p.startswith('/regenerate')) or
     (_p.startswith('/thumb')) or (_p.startswith('/packs')) or
     (_p.startswith('/buy')) or (_p.startswith('/billing')) or

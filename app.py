@@ -428,7 +428,7 @@ def restore_pack(pack_id):
     user_email = session.get("user_email")
     if not _user_has_pack(user_email, pack_id):
         flash("That pack is not in your library yet.")
-        return redirect(url_for("history"))
+        return redirect(url_for("prints"))
     session["unlocked_pack_id"] = pack_id
     flash("Pack ready to download.")
     return redirect(url_for("downloads"))
@@ -862,13 +862,17 @@ def delete_bulk():
         traceback.print_exc()
         flash(f"Error deleting worksheets: {e}", "error")
 
-    return redirect(url_for("history"))
+    return redirect(url_for("prints"))
 
-@app.route("/history")
+@app.route("/prints")
 @login_required
-def history():
+def prints():
     from faithsparks.views.worksheets import history as _impl
     return _impl()
+
+@app.route("/history")
+def history():
+    return redirect(url_for("prints"))
 @app.route("/download/<filename>")
 @login_required
 def download_file(filename):
@@ -887,7 +891,7 @@ def coloring_image(filename):
     if remote:
         return redirect(remote)
     flash("Image not found. It may have been removed.", "error")
-    return redirect(url_for("history"))
+    return redirect(url_for("prints"))
 
 @app.route('/thumb/<path:filename>')
 @login_required
@@ -1461,7 +1465,7 @@ def regenerate(filename):
     doc = next(docs, None)
     if not doc:
         flash(f"Original data not found for {filename}", "error")
-        return redirect(url_for("history"))
+        return redirect(url_for("prints"))
 
     meta = doc.to_dict()
     verse = meta["verse"]
@@ -1490,7 +1494,7 @@ def regenerate(filename):
             content = request_verse_data(verse, version.lower())
             if not content:
                 flash("Verse fetch failed during regeneration.", "error")
-                return redirect(url_for("history"))
+                return redirect(url_for("prints"))
             data = parse_and_clean_json(content)
             data.update({
                 "version": version.upper(),

@@ -23,7 +23,7 @@ name.rsplit('.', 1)[0] %} {% set ext = name.rsplit('.', 1)[1]|lower %} {% endif
   <a class="button ghost" href="{{ url_for('generate') }}"
     >Make Another Worksheet</a
   >
-  <a class="button ghost" href="{{ url_for('history') }}">My Downloads</a>
+  <a class="button ghost" href="{{ url_for('prints') }}">My Prints</a>
   <a class="button ghost" href="{{ url_for('regenerate', filename=base) }}"
     >Regenerate This</a
   >

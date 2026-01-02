@@ -548,7 +548,7 @@ def delete_worksheet(filename):
     except Exception as e:
         traceback.print_exc()
         flash(f"Error deleting worksheet: {e}", "error")
-    return redirect(url_for("history"))
+    return redirect(url_for("prints"))
 
 
 def delete_bulk():
@@ -584,7 +584,7 @@ def delete_bulk():
     except Exception as e:
         traceback.print_exc()
         flash(f"Error deleting worksheets: {e}", "error")
-    return redirect(url_for("history"))
+    return redirect(url_for("prints"))
 
 
 def history():
@@ -655,7 +655,7 @@ def download_file(filename):
     doc = next(docs, None)
     if not doc:
         flash("⚠️ File missing and original data not found.", "error")
-        return redirect(url_for("history"))
+        return redirect(url_for("prints"))
     return redirect(url_for("regenerate", filename=filename))
 
 
@@ -721,7 +721,7 @@ def regenerate(filename):
     doc = next(docs, None)
     if not doc:
         flash(f"Original data not found for {filename}", "error")
-        return redirect(url_for("history"))
+        return redirect(url_for("prints"))
     meta = doc.to_dict()
     if meta.get("type") == "coloring":
         flash("Coloring sheets cannot be regenerated yet. Check the coloring library on the Generate page.", "info")
@@ -751,7 +751,7 @@ def regenerate(filename):
             content = request_verse_data(verse, version.lower())
             if not content:
                 flash("Verse fetch failed during regeneration.", "error")
-                return redirect(url_for("history"))
+                return redirect(url_for("prints"))
             data = parse_and_clean_json(content)
             data.update({"version": version.upper(), "cursive": use_cursive})
         generate_pdf(data, pdf_path, use_cursive=use_cursive)
@@ -786,10 +786,10 @@ def toggle_favorite(filename):
     )
     doc = next(docs, None)
     if not doc:
-        return redirect(url_for("history"))
+        return redirect(url_for("prints"))
     current = bool(doc.to_dict().get("favorite"))
     doc.reference.update({"favorite": not current})
-    return redirect(url_for("history"))
+    return redirect(url_for("prints"))
 
 
 def extract_version_from_text(text, fallback_version):
