@@ -34,20 +34,11 @@
 
 {% set trending_pack = (top_packs_week[0] if top_packs_week else (top_packs[0] if top_packs else None)) %}
 {% if trending_pack %}
-  <section class="block popular-highlight" aria-live="polite">
-    <div>
-      <strong>Popular right now:</strong>
-      <a href="{{ url_for('browse_detail', slug=trending_pack.slug) }}">
-        {{ trending_pack.title }}
-      </a>
-      <span class="muted small">— {{ trending_pack.downloads }} downloads this week</span>
-    </div>
-    <a
-      class="button ghost small"
-      href="{{ url_for('generate', collection=trending_pack.slug) }}"
-      >Make a worksheet</a
-    >
-  </section>
+  <p class="muted small" aria-live="polite">
+    Popular right now:
+    <a href="{{ url_for('browse_detail', slug=trending_pack.slug) }}">{{ trending_pack.title }}</a>
+    <span class="muted small">— {{ trending_pack.downloads }} downloads this week</span>
+  </p>
 {% endif %}
 
 <div class="toolbar" role="region" aria-label="Browse filters">
@@ -120,33 +111,36 @@
       </div>
 
       {% set display_title = 'Free Starter Bundle' if c.slug == 'starter' else c.title %}
-      <h3 class="pack-title">
-        <a
-          href="{{ url_for('browse_detail', slug=c.slug) }}"
-          aria-label="View {{ display_title }} details"
-          >{{ display_title }}</a
-        >
-      </h3>
-      <div class="pack-sub muted small">
-        {{ c.count or (c.verses|length) }} verses
-      </div>
-
-      <div class="pack-actions">
-        {% if locked %}
+      {% if locked %}
+        <h3 class="pack-title">
+          <a
+            href="{{ url_for('plus_pricing') }}"
+            aria-label="View membership to unlock {{ display_title }}"
+          >{{ display_title }}</a>
+        </h3>
+        <div class="pack-sub muted small">
+          {{ c.count or (c.verses|length) }} verses
+        </div>
+        <div class="pack-actions">
           <a class="button small" href="{{ url_for('plus_pricing') }}">See membership</a>
+        </div>
+      {% else %}
+        {% if is_signed_in %}
+          <a class="pack-link" href="{{ use_url }}" aria-label="Use {{ display_title }} to make a worksheet">
+            <h3 class="pack-title">{{ display_title }}</h3>
+            <div class="pack-sub muted small">{{ c.count or (c.verses|length) }} verses</div>
+          </a>
         {% else %}
-          {% if is_signed_in %}
-            <a class="button small" href="{{ use_url }}">Use this bundle</a>
-          {% else %}
-            <a
-              class="button small"
-              href="{{ url_for('start_google_login', next=use_url) }}"
-              aria-label="Sign in to use {{ c.title }} to make a worksheet"
-              >Use this bundle</a
-            >
-          {% endif %}
+          <a
+            class="pack-link"
+            href="{{ url_for('start_google_login', next=use_url) }}"
+            aria-label="Sign in to use {{ c.title }} to make a worksheet"
+          >
+            <h3 class="pack-title">{{ display_title }}</h3>
+            <div class="pack-sub muted small">{{ c.count or (c.verses|length) }} verses</div>
+          </a>
         {% endif %}
-      </div>
+      {% endif %}
     </article>
     {% endfor %}
   </div>
@@ -157,16 +151,9 @@
 </section>
 
 <section class="block coming-soon">
-  <h3>Bundles coming soon</h3>
-  <ul>
-    <li>Jesus’ Words (red-letter copywork)</li>
-    <li>Proverbs for Kids</li>
-    <li>Creation Stories</li>
-    <li>Summer Psalms & Proverbs sampler</li>
-  </ul>
   <p class="muted small">
     Have an idea? <a href="mailto:hello@faithsparksprintables.com">Suggest a
-    collection</a> and we’ll add it to the queue.
+    bundle</a> and we’ll add it to the queue.
   </p>
 </section>
 
@@ -211,16 +198,8 @@
     opacity: 0.85;
   }
   .popular-highlight {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    align-items: center;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: color-mix(in oklab, var(--box), white 4%);
-    border-radius: 12px;
-    padding: 0.55rem 0.75rem;
-    margin-bottom: 1rem;
-    font-size: 0.92rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
   }
   .popular-highlight strong {
     font-weight: 600;
@@ -296,6 +275,14 @@
     gap: 0.4rem;
     margin-top: 0.75rem;
     flex-wrap: wrap;
+  }
+  .pack-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+  .pack-link:hover .pack-title {
+    text-decoration: underline;
   }
   .pill {
     display: inline-block;
