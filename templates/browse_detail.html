@@ -239,13 +239,16 @@ collection=c.slug) %} {% endif %}
       </div>
       <div class="pack-details">
         <div class="detail-row">
-          <strong>Best for ages:</strong> {{ age_range }}
+          <span class="detail-label">Best for ages:</span>
+          <span class="detail-value">{{ age_range }}</span>
         </div>
         <div class="detail-row">
-          <strong>Skills:</strong> {{ skills|join(', ') }}
+          <span class="detail-label">Skills:</span>
+          <span class="detail-value">{{ skills|join(', ') }}</span>
         </div>
         <div class="detail-row">
-          <strong>Great for:</strong> {{ use_cases|join(', ') }}
+          <span class="detail-label">Great for:</span>
+          <span class="detail-value">{{ use_cases|join(', ') }}</span>
         </div>
         <div class="detail-row muted small">Instant download. Print & go.</div>
       </div>
@@ -332,18 +335,27 @@ collection=c.slug) %} {% endif %}
     aspect-ratio: 4 / 3;
     object-fit: cover;
     border-radius: 12px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    box-shadow: var(--card-shadow);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: none;
   }
   .pack-details {
     background: var(--box);
-    border: 1px solid #e5e7eb;
+    border: 1px solid rgba(15, 23, 42, 0.06);
     border-radius: 12px;
-    padding: 0.85rem 1rem;
-    box-shadow: var(--card-shadow);
+    padding: 1rem;
+    box-shadow: none;
   }
   .detail-row {
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+  .detail-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-right: 0.2rem;
+  }
+  .detail-value {
+    color: var(--text);
   }
   @media (max-width: 720px) {
     .verse-list {
