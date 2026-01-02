@@ -18,6 +18,15 @@ class MatchItem:
     version: str
 
 
+@dataclass
+class CrosswordEntry:
+    word: str
+    clue: str
+    row: int
+    col: int
+    direction: str
+
+
 def _wrap_text(text: str, font: str, size: int, max_width: float) -> List[str]:
     words = (text or "").split()
     if not words:
@@ -42,6 +51,107 @@ def _load_image(path: str):
         return ImageReader(path)
     except Exception:
         return None
+
+
+def _can_place_word(grid, word: str, row: int, col: int, direction: str) -> bool:
+    size = len(grid)
+    dr = 0 if direction == "across" else 1
+    dc = 1 if direction == "across" else 0
+    for i, ch in enumerate(word):
+        r = row + dr * i
+        c = col + dc * i
+        if r < 0 or c < 0 or r >= size or c >= size:
+            return False
+        existing = grid[r][c]
+        if existing not in ("", ch):
+            return False
+    # Ensure word does not run into another letter on either end
+    before_r = row - dr
+    before_c = col - dc
+    after_r = row + dr * len(word)
+    after_c = col + dc * len(word)
+    if 0 <= before_r < size and 0 <= before_c < size and grid[before_r][before_c]:
+        return False
+    if 0 <= after_r < size and 0 <= after_c < size and grid[after_r][after_c]:
+        return False
+    return True
+
+
+def _place_word(grid, word: str, row: int, col: int, direction: str) -> None:
+    dr = 0 if direction == "across" else 1
+    dc = 1 if direction == "across" else 0
+    for i, ch in enumerate(word):
+        r = row + dr * i
+        c = col + dc * i
+        grid[r][c] = ch
+
+
+def _build_crossword_layout(words: List[str], size: int = 13) -> Tuple[List[List[str]], List[CrosswordEntry]]:
+    grid = [["" for _ in range(size)] for _ in range(size)]
+    entries: List[CrosswordEntry] = []
+    if not words:
+        return grid, entries
+
+    sorted_words = sorted(words, key=len, reverse=True)
+    first = sorted_words[0].upper()
+    start_col = max(0, (size - len(first)) // 2)
+    start_row = size // 2
+    if _can_place_word(grid, first, start_row, start_col, "across"):
+        _place_word(grid, first, start_row, start_col, "across")
+        entries.append(CrosswordEntry(word=first, clue="", row=start_row, col=start_col, direction="across"))
+
+    for word in sorted_words[1:]:
+        word = word.upper()
+        placed = False
+        for r in range(size):
+            for c in range(size):
+                if grid[r][c] and grid[r][c] in word:
+                    for idx, ch in enumerate(word):
+                        if ch != grid[r][c]:
+                            continue
+                        # Try place vertically
+                        row = r - idx
+                        col = c
+                        if _can_place_word(grid, word, row, col, "down"):
+                            _place_word(grid, word, row, col, "down")
+                            entries.append(CrosswordEntry(word=word, clue="", row=row, col=col, direction="down"))
+                            placed = True
+                            break
+                        # Try place horizontally
+                        row = r
+                        col = c - idx
+                        if _can_place_word(grid, word, row, col, "across"):
+                            _place_word(grid, word, row, col, "across")
+                            entries.append(CrosswordEntry(word=word, clue="", row=row, col=col, direction="across"))
+                            placed = True
+                            break
+                    if placed:
+                        break
+            if placed:
+                break
+    return grid, entries
+
+
+def _number_crossword_entries(entries: List[CrosswordEntry]) -> Tuple[dict, List[CrosswordEntry], List[CrosswordEntry]]:
+    positions = {}
+    for entry in entries:
+        positions.setdefault((entry.row, entry.col), []).append(entry)
+    numbered = {}
+    number = 1
+    for (row, col) in sorted(positions.keys()):
+        numbered[(row, col)] = number
+        number += 1
+    across = []
+    down = []
+    for entry in entries:
+        num = numbered.get((entry.row, entry.col), 0)
+        if entry.direction == "across":
+            across.append((num, entry))
+        else:
+            down.append((num, entry))
+    across.sort(key=lambda x: x[0])
+    down.sort(key=lambda x: x[0])
+    return numbered, [e for _, e in across], [e for _, e in down]
 
 
 def generate_match_game_pdf(
@@ -343,6 +453,133 @@ def generate_word_search_pdf(
     for word in clean_words:
         c.drawString(list_x, list_y, word.title())
         list_y -= 12
+
+    # Border + Footer
+    c.setStrokeGray(0.8)
+    c.setLineWidth(0.5)
+    c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
+    code = "".join([ch for ch in title.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
+    c.setFont("Helvetica", 8)
+    c.setFillGray(0.4)
+    c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
+    c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+    c.save()
+
+
+def generate_crossword_pdf(
+    title: str,
+    words: List[str],
+    clues: List[str],
+    pdf_path: str,
+    size: int = 13,
+    subtitle: str | None = None,
+    print_tip: str = "Print tip: Use pencil so kids can erase.",
+    difficulty_note: str | None = None,
+) -> None:
+    width, height = letter
+    margin = 0.6 * inch
+    usable_width = width - 2 * margin
+    y = height - margin - 10
+    c = canvas.Canvas(str(pdf_path), pagesize=letter)
+
+    logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+    qr_reader = _load_image("faithsparks_qr.png")
+    logo_size = 42
+    if logo_reader:
+        c.drawImage(logo_reader, margin, y - logo_size + 4, width=logo_size, height=logo_size, preserveAspectRatio=True, mask="auto")
+    if qr_reader:
+        c.drawImage(qr_reader, width - margin - logo_size, y - logo_size + 4, width=logo_size, height=logo_size)
+
+    # Title block
+    c.setFont("Helvetica-Bold", 18)
+    c.drawCentredString(width / 2, y, title)
+    y -= 12
+    c.setFont("Helvetica", 9)
+    c.setFillGray(0.4)
+    c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+    if subtitle:
+        y -= 12
+        c.setFont("Helvetica-Oblique", 9)
+        c.setFillGray(0.35)
+        c.drawCentredString(width / 2, y, subtitle)
+    c.setFillGray(0)
+    y -= logo_size + 4
+
+    # Directions
+    directions_h = 0.38 * inch
+    c.roundRect(margin, y - directions_h + 4, usable_width, directions_h, radius=10)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin + 10, y - 14, "Directions:")
+    c.setFont("Helvetica", 10)
+    c.drawString(margin + 80, y - 14, "Fill in the crossword using the clues below.")
+    y -= directions_h + 6
+    if print_tip:
+        c.setFont("Helvetica", 8)
+        c.setFillGray(0.45)
+        c.drawString(margin + 10, y - 4, print_tip)
+        c.setFillGray(0)
+        y -= 12
+    if difficulty_note:
+        c.setFont("Helvetica", 8)
+        c.setFillGray(0.45)
+        c.drawString(margin + 10, y - 4, difficulty_note)
+        c.setFillGray(0)
+        y -= 12
+
+    # Build grid
+    word_list = [w.upper() for w in words]
+    grid, entries = _build_crossword_layout(word_list, size=size)
+    clues = clues or ["A Bible word" for _ in word_list]
+    clue_map = {w.upper(): clues[idx] if idx < len(clues) else "A Bible word" for idx, w in enumerate(word_list)}
+    for entry in entries:
+        entry.clue = clue_map.get(entry.word, "A Bible word")
+
+    # Draw grid
+    cell = 0.28 * inch
+    grid_size_px = size * cell
+    start_x = margin
+    start_y = y - grid_size_px
+    numbers, across_entries, down_entries = _number_crossword_entries(entries)
+
+    for row in range(size):
+        for col in range(size):
+            if not grid[row][col]:
+                continue
+            x = start_x + col * cell
+            y_pos = start_y + (size - row - 1) * cell
+            c.rect(x, y_pos, cell, cell)
+            number = numbers.get((row, col))
+            if number:
+                c.setFont("Helvetica", 6)
+                c.drawString(x + 2, y_pos + cell - 8, str(number))
+
+    # Clues
+    clues_y = start_y - 0.35 * inch
+    col_gap = 0.4 * inch
+    col_width = (usable_width - col_gap) / 2
+    left_x = margin
+    right_x = margin + col_width + col_gap
+
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(left_x, clues_y, "Across")
+    c.drawString(right_x, clues_y, "Down")
+    clues_y -= 12
+    c.setFont("Helvetica", 8)
+
+    def draw_clue_list(items, x, y_start):
+        y_cursor = y_start
+        for num, entry in items:
+            text = f"{num}. {entry.clue}"
+            lines = _wrap_text(text, "Helvetica", 8, col_width)
+            for line in lines:
+                c.drawString(x, y_cursor, line)
+                y_cursor -= 10
+        return y_cursor
+
+    across = [(numbers.get((e.row, e.col), 0), e) for e in across_entries]
+    down = [(numbers.get((e.row, e.col), 0), e) for e in down_entries]
+    draw_clue_list(across, left_x, clues_y)
+    draw_clue_list(down, right_x, clues_y)
 
     # Border + Footer
     c.setStrokeGray(0.8)

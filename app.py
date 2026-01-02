@@ -1403,6 +1403,11 @@ def dl_game(slug):
     from faithsparks.views.games import dl_game as _impl
     return _impl(slug)
 
+@app.post('/games/words')
+def games_words():
+    from faithsparks.views.games import games_words as _impl
+    return _impl()
+
 @app.post("/admin/reset_credits/<uid>")
 @admin_required
 def admin_reset_credits(uid):

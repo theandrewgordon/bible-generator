@@ -186,6 +186,7 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
         <option value="match" {% if data.get('gameType') == 'match' %}selected{% endif %}>Match the Verse</option>
         <option value="match-meaning" {% if data.get('gameType') == 'match-meaning' %}selected{% endif %}>Match the Meaning</option>
         <option value="word-search" {% if data.get('gameType') == 'word-search' %}selected{% endif %}>Word Search</option>
+        <option value="crossword" {% if data.get('gameType') == 'crossword' %}selected{% endif %}>Crossword</option>
       </select>
 
       <label for="theme">Theme (optional)</label>
@@ -517,11 +518,11 @@ Romans 8:28
     if (gameFields) {
       gameFields.style.display = kind === "game" ? "block" : "none";
     }
-    if (matchFields) {
-      matchFields.style.display = gameType === "word-search" ? "none" : "block";
-    }
+      if (matchFields) {
+        matchFields.style.display = gameType === "word-search" || gameType === "crossword" ? "none" : "block";
+      }
       if (wordFields) {
-        wordFields.style.display = gameType === "word-search" ? "block" : "none";
+        wordFields.style.display = gameType === "word-search" || gameType === "crossword" ? "block" : "none";
         const matchHelp = document.getElementById("matchItemsHelp");
         if (matchHelp) {
           matchHelp.textContent =

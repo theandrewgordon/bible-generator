@@ -164,6 +164,39 @@ def request_theme_label(source_text, context_label: str = "verse"):
     print("🔁 Retrying OpenAI theme call...")
     return call_openai(prompt)
 
+
+def build_crossword_clues_prompt(words: list[str], theme: str | None = None):
+    """Generate OpenAI prompt for short crossword clues."""
+    theme_text = f"Theme: {theme}\n" if theme else ""
+    return [
+        {"role": "system", "content": "You help Christian homeschoolers create Bible games."},
+        {"role": "user", "content": f"""
+Return valid JSON with:
+- "clues": an array of objects with "word" and "clue".
+
+Rules:
+- Use the exact words provided.
+- Clues should be 3–6 words, kid-friendly.
+- No Bible references in the clues.
+- Return JSON only.
+
+{theme_text}Words:
+{", ".join(words)}
+"""}
+    ]
+
+
+def request_crossword_clues(words: list[str], theme: str | None = None):
+    """Request short clue lines for a list of words."""
+    if not words:
+        return None
+    prompt = build_crossword_clues_prompt(words, theme=theme)
+    content = call_openai(prompt)
+    if content:
+        return content
+    print("🔁 Retrying OpenAI crossword clue call...")
+    return call_openai(prompt)
+
 # === JSON Safety Wrapper ===
 def parse_and_clean_json(content):
     """Safely parse OpenAI's JSON response."""

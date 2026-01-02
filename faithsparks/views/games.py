@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone, timedelta
 from typing import Dict
 
-from flask import render_template, redirect, url_for, request, session, flash, send_file
+from flask import render_template, redirect, url_for, request, session, flash, send_file, jsonify
 from flask_dance.contrib.google import google
 from firebase_admin import firestore
 
@@ -13,8 +13,14 @@ from faithsparks.services.collections import get_collections, get_collection_met
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
-from build_games import generate_match_game_pdf, generate_word_search_pdf, MatchItem
-from verse_helpers import request_verse_data, request_verse_meaning, request_theme_label, parse_and_clean_json
+from build_games import generate_match_game_pdf, generate_word_search_pdf, generate_crossword_pdf, MatchItem
+from verse_helpers import (
+    request_verse_data,
+    request_verse_meaning,
+    request_theme_label,
+    request_crossword_clues,
+    parse_and_clean_json,
+)
 
 
 def _is_public_games_enabled() -> bool:
@@ -71,6 +77,8 @@ def _default_game_title(game_type: str) -> str:
     game_type = (game_type or "match").strip().lower()
     if game_type == "word-search":
         return "Word Search"
+    if game_type == "crossword":
+        return "Crossword"
     if game_type == "match-meaning":
         return "Match the Meaning"
     return "Match the Verse"
@@ -321,6 +329,21 @@ def games_create():
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
             )
+        elif game_type == "crossword":
+            words = _build_word_search_words_from_inputs(refs, version, game_words, difficulty)
+            if not theme:
+                theme = _derive_theme(game_type, refs, [], words)
+            subtitle = f"Theme: {theme}" if theme else None
+            clues = _build_crossword_clues(words, theme)
+            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            generate_crossword_pdf(
+                title,
+                words,
+                clues,
+                pdf_path,
+                subtitle=subtitle,
+                difficulty_note=difficulty_note,
+            )
         else:
             refs, verses, key = _build_match_game_from_inputs(
                 refs,
@@ -354,6 +377,20 @@ def games_create():
     except Exception:
         flash("Could not create this game yet.", "warning")
         return redirect(url_for("games_create"))
+
+
+def games_words():
+    if not google.authorized:
+        return jsonify({"error": "signin"}), 401
+    payload = request.get_json(silent=True) or {}
+    refs_raw = payload.get("refs") or ""
+    version = (payload.get("version") or "esv").strip().lower()
+    difficulty = _normalize_difficulty(payload.get("difficulty") or "standard")
+    refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
+    if not refs:
+        return jsonify({"words": []}), 200
+    words = _build_word_search_words_from_inputs(refs, version, [], difficulty)
+    return jsonify({"words": words}), 200
 
 
 def dl_game(slug):
@@ -440,6 +477,21 @@ def dl_game(slug):
             generate_word_search_pdf(
                 title,
                 words,
+                pdf_path,
+                subtitle=subtitle,
+                difficulty_note=difficulty_note,
+            )
+        elif game_type == "crossword":
+            words = _build_word_search_words(meta, version, difficulty)
+            if not theme:
+                theme = _derive_theme(game_type, meta.get("verses") or [], [], words)
+            subtitle = f"Theme: {theme}" if theme else None
+            clues = _build_crossword_clues(words, theme)
+            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            generate_crossword_pdf(
+                title,
+                words,
+                clues,
                 pdf_path,
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
@@ -641,6 +693,27 @@ def _unique_words(words: list[str]) -> list[str]:
         seen.add(w)
         ordered.append(w)
     return ordered
+
+
+def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
+    if not words:
+        return []
+    try:
+        content = request_crossword_clues(words, theme=theme)
+        data = parse_and_clean_json(content)
+        clues = []
+        for item in (data.get("clues") or []):
+            word = (item.get("word") or "").strip().upper()
+            clue = (item.get("clue") or "").strip()
+            if word and clue:
+                clues.append((word, clue))
+        if clues:
+            clue_map = {w: c for w, c in clues}
+            return [clue_map.get(w, "A Bible word") for w in words]
+    except Exception:
+        pass
+    fallback = "A Bible word"
+    return [fallback for _ in words]
 
 
 def _build_word_search_words(meta, version: str, difficulty: str = "standard") -> list[str]:

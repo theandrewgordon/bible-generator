@@ -11,6 +11,8 @@
       <div class="muted small">
         {% if c.gameType == "word-search" %}
           Word Search
+        {% elif c.gameType == "crossword" %}
+          Crossword
         {% elif c.gameType == "match-meaning" %}
           Match the Meaning
         {% else %}
@@ -73,7 +75,7 @@
     </div>
   </div>
 
-  {% if c.verses and c.gameType not in ["word-search", "match-meaning"] %}
+  {% if c.verses and c.gameType not in ["word-search", "match-meaning", "crossword"] %}
   <h2>Verses</h2>
   <ul class="verse-list">
     {% for verse in c.verses %}

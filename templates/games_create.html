@@ -47,6 +47,7 @@
       <option value="match" selected>Match the Verse</option>
       <option value="match-meaning">Match the Meaning</option>
       <option value="word-search">Word Search</option>
+      <option value="crossword">Crossword</option>
     </select>
     <p class="small muted" id="gameTypeHelp">
       Match the Meaning can auto-generate kid-friendly meanings from the verse text.
@@ -112,7 +113,7 @@
 
     <div id="wordCreateFields">
       <details class="advanced" style="margin-top: 0.5rem;">
-        <summary>Use custom word list (word search only)</summary>
+        <summary>Use custom word list (word search + crossword)</summary>
         <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
           One word per line
         </label>
@@ -123,6 +124,10 @@
           rows="5"
           placeholder="Faith&#10;Grace&#10;Hope"
         ></textarea>
+        <div class="word-list-actions">
+          <button type="button" class="button ghost tiny" id="generateWords">Generate from references</button>
+        </div>
+        <div class="word-chip-list" id="wordChipList"></div>
       </details>
     </div>
 
@@ -146,15 +151,19 @@
     const themeInput = document.getElementById("theme");
     const refsInput = document.getElementById("references");
     const quickTopics = document.querySelector(".quick-topics");
+    const wordArea = document.getElementById("gameWords");
+    const wordChipList = document.getElementById("wordChipList");
+    const generateWordsBtn = document.getElementById("generateWords");
     const defaults = {
       match: "Match the Verse",
       "match-meaning": "Match the Meaning",
       "word-search": "Word Search",
+      crossword: "Crossword",
     };
     function sync() {
       const type = (typeSel?.value || "match").toLowerCase();
-      if (matchFields) matchFields.style.display = type === "word-search" ? "none" : "block";
-      if (wordFields) wordFields.style.display = type === "word-search" ? "block" : "none";
+      if (matchFields) matchFields.style.display = type === "word-search" || type === "crossword" ? "none" : "block";
+      if (wordFields) wordFields.style.display = type === "word-search" || type === "crossword" ? "block" : "none";
       if (matchSummary) {
         matchSummary.textContent =
           type === "match-meaning" ? "Add the meaning lines (optional)" : "Use custom verse text (optional)";
@@ -169,9 +178,11 @@
         gameTypeHelp.textContent =
           type === "word-search"
             ? "Word Search builds a word list from the verses (or your custom list)."
-            : type === "match-meaning"
-              ? "Match the Meaning can auto-generate kid-friendly meanings from the verse text."
-              : "Match the Verse uses the full verse text.";
+            : type === "crossword"
+              ? "Crossword uses a word list from the verses (or your custom list)."
+              : type === "match-meaning"
+                ? "Match the Meaning can auto-generate kid-friendly meanings from the verse text."
+                : "Match the Verse uses the full verse text.";
       }
       if (quickTopics) {
         quickTopics.style.display = type === "match" ? "block" : "none";
@@ -187,8 +198,8 @@
     if (typeSel) typeSel.addEventListener("change", sync);
     sync();
 
-    function applyTopic(topic, refs) {
-      if (typeSel) {
+    function applyTopic(topic, refs, keepType) {
+      if (!keepType && typeSel) {
         typeSel.value = "match";
         sync();
       }
@@ -198,7 +209,7 @@
 
     document.querySelectorAll("[data-topic]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        applyTopic(btn.getAttribute("data-topic"), btn.getAttribute("data-refs"));
+        applyTopic(btn.getAttribute("data-topic"), btn.getAttribute("data-refs"), false);
       });
     });
 
@@ -256,7 +267,7 @@
         btn.type = "button";
         btn.className = "pill ghost";
         btn.textContent = item.label;
-        btn.addEventListener("click", () => applyTopic(item.label, item.refs));
+        btn.addEventListener("click", () => applyTopic(item.label, item.refs, true));
         list.appendChild(btn);
       });
     }
@@ -264,6 +275,60 @@
     const shuffleBtn = document.getElementById("shuffleTopics");
     if (shuffleBtn) shuffleBtn.addEventListener("click", renderSuggestedTopics);
     renderSuggestedTopics();
+
+    function renderWordChips() {
+      if (!wordArea || !wordChipList) return;
+      const words = wordArea.value
+        .split(/\n+/)
+        .map((w) => w.trim())
+        .filter(Boolean);
+      wordChipList.innerHTML = "";
+      words.forEach((word) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "pill ghost";
+        chip.innerHTML = `${word} <span aria-hidden="true">×</span>`;
+        chip.addEventListener("click", () => {
+          const next = words.filter((w) => w !== word);
+          wordArea.value = next.join("\n");
+          renderWordChips();
+        });
+        wordChipList.appendChild(chip);
+      });
+    }
+
+    if (wordArea) {
+      wordArea.addEventListener("input", renderWordChips);
+      renderWordChips();
+    }
+
+    async function fetchWordSuggestions() {
+      if (!refsInput || !typeSel) return;
+      const refs = refsInput.value.trim();
+      if (!refs) return;
+      const version = (document.getElementById("version")?.value || "esv").toLowerCase();
+      const difficulty = (document.getElementById("difficulty")?.value || "standard").toLowerCase();
+      if (generateWordsBtn) generateWordsBtn.disabled = true;
+      try {
+        const res = await fetch("/games/words", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refs, version, difficulty }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.words) && wordArea) {
+          wordArea.value = data.words.join("\n");
+          renderWordChips();
+        }
+      } finally {
+        if (generateWordsBtn) generateWordsBtn.disabled = false;
+      }
+    }
+
+    if (generateWordsBtn) {
+      generateWordsBtn.addEventListener("click", fetchWordSuggestions);
+    }
   })();
 </script>
 <style>
@@ -286,6 +351,18 @@
     border-radius: 999px;
     padding: 0.35rem 0.75rem;
     cursor: pointer;
+  }
+  .word-list-actions {
+    margin-top: 0.5rem;
+  }
+  .word-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+  }
+  .word-chip-list .pill {
+    border: 1px dashed rgba(15, 23, 42, 0.25);
   }
   .suggested-topics {
     padding: 0.75rem;
