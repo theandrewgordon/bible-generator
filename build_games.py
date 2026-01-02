@@ -110,8 +110,20 @@ def generate_match_game_pdf(
     line_h_right = font_right[1] + 2
 
     table_top = y
+    row_heights = []
     for left_lines, right_lines in rows:
         row_height = max(len(left_lines) * line_h_left, len(right_lines) * line_h_right) + pad_y * 2
+        row_heights.append(row_height)
+
+    bottom_limit = 1.6 * inch
+    available_height = table_top - bottom_limit
+    if available_height > 0:
+        total_height = sum(row_heights)
+        if total_height < available_height and row_heights:
+            extra = (available_height - total_height) / len(row_heights)
+            row_heights = [h + extra for h in row_heights]
+
+    for (left_lines, right_lines), row_height in zip(rows, row_heights):
         y_next = y - row_height
 
         # Row border
@@ -135,16 +147,24 @@ def generate_match_game_pdf(
 
         y = y_next
 
+    # Divider line above answer key
+    divider_y = 1.22 * inch
+    c.setStrokeGray(0.8)
+    c.setLineWidth(0.5)
+    c.line(margin, divider_y, width - margin, divider_y)
+
     # Upside-down answer key at bottom (easy cut/flip)
     key = ", ".join(
         [f"{chr(64 + i)} -> {answer_key[i - 1]}" for i in range(1, len(references) + 1)]
     )
+    key_lines = _wrap_text(f"Answer key: {key}", "Helvetica", 8, width - 2 * margin)
     c.saveState()
-    c.translate(width / 2, 0.5 * inch)
+    c.translate(width / 2, 0.75 * inch)
     c.rotate(180)
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
-    c.drawCentredString(0, 0, f"Answer key: {key}")
+    for idx, line in enumerate(key_lines):
+        c.drawCentredString(0, idx * 10, line)
     c.restoreState()
 
     # Border + Footer
