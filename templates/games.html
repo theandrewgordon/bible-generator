@@ -59,16 +59,15 @@
         </div>
         <h2 class="game-title">{{ g.title }}</h2>
         <p class="muted small">
-          {{ g.description or "Printable Bible game, ready to print." }}
+          {{ g.description or "Ready to print." }}
         </p>
         <div class="game-actions">
-          <a class="button ghost" href="{{ url_for('games_detail', slug=g.slug) }}">View details</a>
           {% if g.can_download %}
-            <a class="button" data-game-download href="{{ url_for('dl_game', slug=g.slug) }}">Download game</a>
-          {% elif signed_in %}
-            {% if g.isSubscriberOnly %}
-              <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>
-            {% endif %}
+            <a class="button" data-game-download href="{{ url_for('dl_game', slug=g.slug) }}">Download</a>
+          {% elif signed_in and g.isSubscriberOnly %}
+            <a class="button" href="{{ url_for('plus_pricing') }}">See membership</a>
+          {% else %}
+            <a class="button ghost" href="{{ url_for('games_detail', slug=g.slug) }}">View details</a>
           {% endif %}
         </div>
       </article>
