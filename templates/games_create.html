@@ -61,17 +61,28 @@
       Simple uses shorter verses/meanings and fewer word-search words.
     </p>
 
-    <div class="quick-topics" style="margin-top: 0.75rem;">
-      <label class="small muted">Quick topics (Match the Verse only):</label>
-      <div class="quick-topic-grid">
-        <button type="button" class="pill ghost" data-topic="Love" data-refs="John 3:16&#10;1 John 4:19&#10;John 13:34-35&#10;Romans 5:8&#10;1 Corinthians 13:4-7&#10;1 John 4:7-8&#10;Psalm 136:1">Love</button>
-        <button type="button" class="pill ghost" data-topic="Kindness &amp; Patience" data-refs="Ephesians 4:2&#10;Colossians 3:12&#10;Galatians 5:22-23&#10;Proverbs 15:1&#10;Proverbs 19:11&#10;1 Thessalonians 5:15&#10;1 Peter 3:8">Kindness &amp; Patience</button>
-        <button type="button" class="pill ghost" data-topic="Honesty &amp; Integrity" data-refs="Proverbs 12:22&#10;Proverbs 10:9&#10;Proverbs 11:3&#10;Ephesians 4:25&#10;Colossians 3:9&#10;Psalm 15:1-2&#10;Proverbs 20:7">Honesty &amp; Integrity</button>
-        <button type="button" class="pill ghost" data-topic="Obedience" data-refs="John 14:15&#10;Deuteronomy 5:33&#10;James 1:22&#10;1 Samuel 15:22&#10;Luke 11:28&#10;Colossians 3:20&#10;Psalm 119:9">Obedience</button>
-        <button type="button" class="pill ghost" data-topic="Wisdom &amp; Guidance" data-refs="Proverbs 3:5-6&#10;James 1:5&#10;Proverbs 2:6&#10;Proverbs 9:10&#10;Psalm 111:10&#10;Proverbs 4:7&#10;Colossians 1:9">Wisdom &amp; Guidance</button>
-        <button type="button" class="pill ghost" data-topic="Forgiveness" data-refs="1 John 1:9&#10;Colossians 3:13&#10;Ephesians 4:32&#10;Matthew 6:14-15&#10;Luke 17:3-4&#10;Psalm 103:12&#10;Micah 7:18">Forgiveness</button>
+    <div class="topic-row" style="margin-top: 0.75rem;">
+      <div class="quick-topics">
+        <label class="small muted">Quick topics (Match the Verse only):</label>
+        <div class="quick-topic-grid">
+          <button type="button" class="pill ghost" data-topic="Love" data-refs="John 3:16&#10;1 John 4:19&#10;John 13:34-35&#10;Romans 5:8&#10;1 Corinthians 13:4-7&#10;1 John 4:7-8&#10;Psalm 136:1">Love</button>
+          <button type="button" class="pill ghost" data-topic="Kindness &amp; Patience" data-refs="Ephesians 4:2&#10;Colossians 3:12&#10;Galatians 5:22-23&#10;Proverbs 15:1&#10;Proverbs 19:11&#10;1 Thessalonians 5:15&#10;1 Peter 3:8">Kindness &amp; Patience</button>
+          <button type="button" class="pill ghost" data-topic="Honesty &amp; Integrity" data-refs="Proverbs 12:22&#10;Proverbs 10:9&#10;Proverbs 11:3&#10;Ephesians 4:25&#10;Colossians 3:9&#10;Psalm 15:1-2&#10;Proverbs 20:7">Honesty &amp; Integrity</button>
+          <button type="button" class="pill ghost" data-topic="Obedience" data-refs="John 14:15&#10;Deuteronomy 5:33&#10;James 1:22&#10;1 Samuel 15:22&#10;Luke 11:28&#10;Colossians 3:20&#10;Psalm 119:9">Obedience</button>
+          <button type="button" class="pill ghost" data-topic="Wisdom &amp; Guidance" data-refs="Proverbs 3:5-6&#10;James 1:5&#10;Proverbs 2:6&#10;Proverbs 9:10&#10;Psalm 111:10&#10;Proverbs 4:7&#10;Colossians 1:9">Wisdom &amp; Guidance</button>
+          <button type="button" class="pill ghost" data-topic="Forgiveness" data-refs="1 John 1:9&#10;Colossians 3:13&#10;Ephesians 4:32&#10;Matthew 6:14-15&#10;Luke 17:3-4&#10;Psalm 103:12&#10;Micah 7:18">Forgiveness</button>
+        </div>
+        <p class="small muted">Clicking a topic switches to Match the Verse and replaces your references.</p>
       </div>
-      <p class="small muted">Clicking a topic switches to Match the Verse and replaces your references.</p>
+
+      <div class="suggested-topics card-lite">
+        <div class="suggested-head">
+          <span class="small muted">Suggested story topics</span>
+          <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
+        </div>
+        <div class="suggested-topic-list" id="suggestedTopicList"></div>
+        <p class="small muted">Suggestions do not change your form until you click one.</p>
+      </div>
     </div>
 
     <label for="references">References (one per line)</label>
@@ -176,21 +187,90 @@
     if (typeSel) typeSel.addEventListener("change", sync);
     sync();
 
+    function applyTopic(topic, refs) {
+      if (typeSel) {
+        typeSel.value = "match";
+        sync();
+      }
+      if (themeInput) themeInput.value = topic || "";
+      if (refsInput) refsInput.value = refs || "";
+    }
+
     document.querySelectorAll("[data-topic]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        if (typeSel) {
-          typeSel.value = "match";
-          sync();
-        }
-        const topic = btn.getAttribute("data-topic") || "";
-        const refs = btn.getAttribute("data-refs") || "";
-        if (themeInput) themeInput.value = topic;
-        if (refsInput) refsInput.value = refs;
+        applyTopic(btn.getAttribute("data-topic"), btn.getAttribute("data-refs"));
       });
     });
+
+    const suggestedTopics = [
+      {
+        label: "Creation",
+        refs: "Genesis 1:1\nGenesis 1:27\nGenesis 1:31\nPsalm 19:1\nJohn 1:3\nColossians 1:16\nPsalm 104:24",
+      },
+      {
+        label: "Noah's Ark",
+        refs: "Genesis 6:9\nGenesis 6:22\nGenesis 7:1\nGenesis 7:16\nGenesis 8:1\nGenesis 9:13\nHebrews 11:7",
+      },
+      {
+        label: "Joseph",
+        refs: "Genesis 37:28\nGenesis 39:2\nGenesis 41:41\nGenesis 45:5\nGenesis 50:20\nPsalm 105:17\nActs 7:9",
+      },
+      {
+        label: "David & Goliath",
+        refs: "1 Samuel 17:4\n1 Samuel 17:45\n1 Samuel 17:47\n1 Samuel 17:50\nPsalm 27:1\nPsalm 56:3\n2 Samuel 22:33",
+      },
+      {
+        label: "Jesus' Miracles",
+        refs: "Matthew 8:26\nMark 4:39\nJohn 6:11\nJohn 6:19\nMark 1:34\nLuke 5:13\nJohn 9:7",
+      },
+      {
+        label: "Parables of Jesus",
+        refs: "Luke 10:33\nLuke 15:20\nMatthew 13:3\nLuke 15:4\nMatthew 13:31\nMatthew 13:44\nMatthew 25:21",
+      },
+      {
+        label: "Prayer",
+        refs: "Matthew 6:9-10\nPhilippians 4:6\n1 Thessalonians 5:17\nJeremiah 33:3\nPsalm 145:18\nMark 1:35\nJames 5:16",
+      },
+      {
+        label: "God's Word",
+        refs: "Psalm 119:105\nJoshua 1:8\n2 Timothy 3:16\nPsalm 119:11\nHebrews 4:12\nMatthew 4:4\nPsalm 1:2",
+      },
+    ];
+
+    function shuffleArray(list) {
+      const arr = list.slice();
+      for (let i = arr.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function renderSuggestedTopics() {
+      const list = document.getElementById("suggestedTopicList");
+      if (!list) return;
+      list.innerHTML = "";
+      const picks = shuffleArray(suggestedTopics).slice(0, 6);
+      picks.forEach((item) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "pill ghost";
+        btn.textContent = item.label;
+        btn.addEventListener("click", () => applyTopic(item.label, item.refs));
+        list.appendChild(btn);
+      });
+    }
+
+    const shuffleBtn = document.getElementById("shuffleTopics");
+    if (shuffleBtn) shuffleBtn.addEventListener("click", renderSuggestedTopics);
+    renderSuggestedTopics();
   })();
 </script>
 <style>
+  .topic-row {
+    display: grid;
+    gap: 1rem;
+  }
   .quick-topics {
     margin-bottom: 0.75rem;
   }
@@ -206,6 +286,31 @@
     border-radius: 999px;
     padding: 0.35rem 0.75rem;
     cursor: pointer;
+  }
+  .suggested-topics {
+    padding: 0.75rem;
+  }
+  .suggested-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .suggested-topic-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 0.5rem;
+  }
+  .button.tiny {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  @media (min-width: 980px) {
+    .topic-row {
+      grid-template-columns: 1.2fr 0.8fr;
+      align-items: start;
+    }
   }
 </style>
 {% endblock %}
