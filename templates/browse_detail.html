@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% block title %}{{ c.title }} | Collections{%
+{% extends "base.html" %} {% block title %}{{ c.title }} | Bundles{%
 endblock %} {% block head_extra %}
 <meta
   name="description"
@@ -57,15 +57,15 @@ collection=c.slug) %} {% endif %}
       class="button"
       href="{{ use_url }}"
       aria-label="Use {{ c.title }} to make a worksheet"
-      >Use Bundle</a
-    >
+      >Use this bundle</a
+      >
     {% else %}
     <a
       class="button"
       href="{{ url_for('google.login', next=use_url) }}"
       aria-label="Sign in to use {{ c.title }} to make a worksheet"
-      >Use Bundle</a
-    >
+      >Use this bundle</a
+      >
     {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
     ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
     {% set pack_amount = c.priceMeta.amount if c.priceMeta and c.priceMeta.amount is not none else 0 %}
@@ -103,16 +103,16 @@ collection=c.slug) %} {% endif %}
       >Buy {{ display_price }}</a
     >
     {% endif %} {% endif %}
-    <a class="button ghost" href="{{ url_for('plus_pricing') }}">View Membership</a>
+    <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>
     {% else %} {% if is_signed_in or c.isFree %}
     <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
-      >Download Bundle</a
-    >
+      >Download bundle</a
+      >
     {% else %}
     <a
       class="button ghost"
       href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
-      >Sign in to Download</a
+      >Sign in to download</a
     >
     {% endif %} {% endif %} {% endif %} {% if is_admin %}
     <form
@@ -145,15 +145,15 @@ collection=c.slug) %} {% endif %}
         class="button"
         href="{{ use_url }}"
         aria-label="Use {{ c.title }} to make a worksheet"
-        >Use Bundle</a
-      >
+        >Use this bundle</a
+        >
       {% else %}
       <a
         class="button"
         href="{{ url_for('google.login', next=use_url) }}"
         aria-label="Sign in to use {{ c.title }} to make a worksheet"
-        >Use Bundle</a
-      >
+        >Use this bundle</a
+        >
       {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
       ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
       {% set pack_amount = c.priceMeta.amount if c.priceMeta and c.priceMeta.amount is not none else 0 %}
@@ -191,17 +191,17 @@ collection=c.slug) %} {% endif %}
         >Buy {{ display_price }}</a
       >
       {% endif %} {% endif %}
-      <a class="button ghost" href="{{ url_for('plus_pricing') }}">View Membership</a>
+      <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>
       {% else %} {% if is_signed_in or c.isFree %}
       <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
-        >Download Bundle</a
-      >
+        >Download bundle</a
+        >
       {% else %}
       <a
         class="button ghost"
         href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
-        >Sign in to Download</a
-      >
+        >Sign in to download</a
+        >
       {% endif %} {% endif %} {% endif %} {% if is_admin %}
       <form
         method="post"

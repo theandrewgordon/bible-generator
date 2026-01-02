@@ -14,13 +14,13 @@
 {% if hero_og_image and not hero_og_image.startswith('http') %}
   {% set hero_og_image = request.url_root.rstrip('/') ~ hero_og_image %}
 {% endif %}
-{% set hero_cta_text = site_content.home_cta_text if site_content and site_content.home_cta_text else 'Start free worksheets' %}
+{% set hero_cta_text = site_content.home_cta_text if site_content and site_content.home_cta_text else 'Make a worksheet' %}
 {% set hero_cta_url = site_content.home_cta_url if site_content and site_content.home_cta_url else url_for('generate') %}
 
 {% block head_extra %}
 <meta
   name="description"
-  content="Create printable Bible copywork worksheets (ESV, KJV, or your own translation tag) for Christian homeschool, co-ops, and children’s ministry. Ready-to-print PDFs with tracing, copywork, and reflection prompts."
+  content="Make printable Bible copywork worksheets (ESV, KJV, or your own translation tag) for Christian homeschool, co-ops, and children’s ministry. Ready-to-print PDFs with tracing, copywork, and reflection prompts."
 />
 
 <!-- Open Graph / Twitter -->
@@ -476,23 +476,23 @@
 </section>
 
 <section class="how-it-works" id="how-it-works">
-  <h2>How Faith Sparks works</h2>
+  <h2>How it works</h2>
   <div class="how-grid">
     <article class="how-step">
       <h3>1. Pick a verse</h3>
-      <p>Type a reference or choose from a bundle.</p>
+      <p>Type a reference or choose a bundle.</p>
     </article>
     <article class="how-step">
-      <h3>2. Click to create</h3>
-      <p>We format it beautifully for handwriting practice.</p>
+      <h3>2. We format it</h3>
+      <p>Clean handwriting lines, ready to print.</p>
     </article>
     <article class="how-step">
-      <h3>3. Print & use today</h3>
-      <p>Download the PDF and print right away.</p>
+      <h3>3. Print today</h3>
+      <p>Download the PDF and go.</p>
     </article>
   </div>
   <p class="muted small" style="margin-top: 0.6rem;">
-    Simple, Scripture‑honoring worksheets made for homeschool mornings.
+    Simple, Scripture‑honoring worksheets for homeschool mornings.
   </p>
 </section>
 {% endblock %}

@@ -21,7 +21,7 @@
     <nav id="mainNav" class="nav-links" aria-label="Primary">
       {% set p = request.path or '' %}
       <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}>Home</a>
-      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}>Make Worksheet</a>
+      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}>Make a worksheet</a>
       <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>Bundles</a>
       <a class="nav-link" href="/start-here"     {% if p.startswith('/start-here') %}aria-current="page"{% endif %}>Start Here</a>
       <a class="nav-link" href="/#how-it-works">How It Works</a>
@@ -37,11 +37,11 @@
             <span aria-hidden="true">🛠️</span> Admin
           </summary>
           <div class="admin-panel" role="menu">
-            <a class="nav-sublink" href="/admin/collections" role="menuitem" {% if p.startswith('/admin/collections') %}aria-current="page"{% endif %}>Collections</a>
-            <a class="nav-sublink" href="/admin/users"        role="menuitem" {% if p.startswith('/admin/users') %}aria-current="page"{% endif %}>Users</a>
-            <a class="nav-sublink" href="/admin/theme"        role="menuitem" {% if p.startswith('/admin/theme') %}aria-current="page"{% endif %}>Theme</a>
-            <a class="nav-sublink" href="/admin/content"      role="menuitem" {% if p.startswith('/admin/content') %}aria-current="page"{% endif %}>Content</a>
-            <a class="nav-sublink" href="/admin/gift"         role="menuitem" {% if p.startswith('/admin/gift') %}aria-current="page"{% endif %}>Gift</a>
+            <a class="nav-sublink" href="/admin/collections" role="menuitem" {% if p.startswith('/admin/collections') %}aria-current="page"{% endif %}>Bundles</a>
+            <a class="nav-sublink" href="/admin/users"        role="menuitem" {% if p.startswith('/admin/users') %}aria-current="page"{% endif %}>Accounts</a>
+            <a class="nav-sublink" href="/admin/theme"        role="menuitem" {% if p.startswith('/admin/theme') %}aria-current="page"{% endif %}>Themes</a>
+            <a class="nav-sublink" href="/admin/content"      role="menuitem" {% if p.startswith('/admin/content') %}aria-current="page"{% endif %}>Site content</a>
+            <a class="nav-sublink" href="/admin/gift"         role="menuitem" {% if p.startswith('/admin/gift') %}aria-current="page"{% endif %}>Gifts</a>
             <a class="nav-sublink" href="/admin/help"         role="menuitem" {% if p.startswith('/admin/help') %}aria-current="page"{% endif %}>Help</a>
             <a class="nav-sublink" href="/admin/analytics"    role="menuitem" {% if p.startswith('/admin/analytics') %}aria-current="page"{% endif %}>Analytics</a>
           </div>

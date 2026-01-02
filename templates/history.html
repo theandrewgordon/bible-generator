@@ -5,12 +5,12 @@ endblock %} {% block content %}
 
 <section class="quick-actions">
   <button class="quick-card" type="button" id="recentBtn">
-    <div class="quick-title">Most recent worksheets</div>
-    <div class="quick-sub">Jump to your latest prints.</div>
+    <div class="quick-title">Recent worksheets</div>
+    <div class="quick-sub">Jump to your latest print.</div>
   </button>
   <button class="quick-card" type="button" id="favBtn">
     <div class="quick-title">Favorites</div>
-    <div class="quick-sub">Show the verses you loved.</div>
+    <div class="quick-sub">See the verses you loved.</div>
   </button>
   {% if proverb_of_day %}
   <a class="quick-card" href="{{ url_for('generate', verse=proverb_of_day.verse_param) }}">
@@ -19,8 +19,8 @@ endblock %} {% block content %}
   </a>
   {% endif %}
   <a class="quick-card" href="{{ url_for('downloads') }}">
-    <div class="quick-title">Redeem a new code</div>
-    <div class="quick-sub">Unlock a new bundle in seconds.</div>
+    <div class="quick-title">Redeem a code</div>
+    <div class="quick-sub">Unlock a new bundle.</div>
   </a>
 </section>
 
@@ -28,8 +28,8 @@ endblock %} {% block content %}
 <section class="card-lite" style="margin-bottom: 1rem;">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
     <div>
-      <h3 style="margin:0;">My Library (Bundles)</h3>
-      <p class="muted small" style="margin:0;">Re-download packs you’ve saved to your account.</p>
+      <h3 style="margin:0;">My bundles</h3>
+      <p class="muted small" style="margin:0;">Re-download bundles you’ve saved.</p>
     </div>
     <a class="button ghost" href="{{ url_for('downloads') }}">Redeem a new code</a>
   </div>
@@ -43,7 +43,7 @@ endblock %} {% block content %}
         </div>
       </div>
       <div class="actions" style="display:flex; gap:0.5rem;">
-      <a class="button" href="{{ url_for('restore_pack', pack_id=p.pack_id) }}">Download</a>
+      <a class="button" href="{{ url_for('restore_pack', pack_id=p.pack_id) }}">Download bundle</a>
       </div>
     </li>
     {% endfor %}
@@ -77,7 +77,7 @@ endblock %} {% block content %}
 
     <label class="checkrow advanced-only">
       <input type="checkbox" id="favOnly" onchange="applyFilters()" />
-      ★ Favorites only
+      Favorites only
     </label>
 
     <select id="sortSelect" class="advanced-only" onchange="applySort()" aria-label="Sort results">
@@ -88,17 +88,17 @@ endblock %} {% block content %}
       <option value="version_asc">Sort: Version A→Z</option>
     </select>
     <button class="button ghost" type="button" id="simpleToggle" aria-pressed="true">
-      More options
+      Filters
     </button>
   </div>
 
   <div class="toolbar-right">
     <span id="resultCount" class="pill" aria-live="polite">0 shown</span>
     <button class="button ghost advanced-only" type="button" onclick="clearFilters()">
-      Clear Filters
+      Clear filters
     </button>
     <button class="button ghost advanced-only" type="button" onclick="exportCSV()">
-      Export CSV
+      Export list
     </button>
   </div>
 </div>
@@ -205,9 +205,9 @@ endblock %} {% block content %}
           <a
             class="button ghost tiny advanced-only"
             href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
-            title="Regenerate"
-            aria-label="Regenerate {{ item.verse }}"
-            >Regenerate</a
+            title="Make again"
+            aria-label="Make again {{ item.verse }}"
+            >Make again</a
           >
           {% endif %}
           <a
@@ -228,8 +228,8 @@ endblock %} {% block content %}
 <div class="empty card-lite">
   <div class="empty-emoji">No downloads yet</div>
   <h3>No worksheets yet</h3>
-  <p class="muted">When you create worksheets, they’ll show up here.</p>
-  <a class="button" href="{{ url_for('generate') }}">✨ Create one</a>
+  <p class="muted">When you make worksheets, they’ll show up here.</p>
+  <a class="button" href="{{ url_for('generate') }}">Make a worksheet</a>
 </div>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>

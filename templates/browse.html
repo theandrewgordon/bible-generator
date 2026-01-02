@@ -11,7 +11,7 @@
   {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "name": "Browse Bible Copywork Collections",
+    "name": "Browse Bible Copywork Bundles",
     "mainEntity": {
       "@type": "ItemList",
       "numberOfItems": {{ collections|length }},
@@ -45,7 +45,7 @@
     <a
       class="button ghost small"
       href="{{ url_for('generate', collection=trending_pack.slug) }}"
-      >Make a Worksheet</a
+      >Make a worksheet</a
     >
   </section>
 {% endif %}
@@ -200,7 +200,7 @@
         >
         {% endif %}
         <a class="button ghost small" href="{{ url_for('plus_pricing') }}"
-          >View Membership</a
+          >See membership</a
         >
         {% else %}
         <a
@@ -217,13 +217,13 @@
         >
         {% endif %} {% endif %} {# Always show Use Bundle — if not signed in, send
         to Google with next=use_url #} {% if is_signed_in %}
-        <a class="button small" href="{{ use_url }}">Use Bundle</a>
+        <a class="button small" href="{{ use_url }}">Use this bundle</a>
         {% else %}
         <a
           class="button small"
           href="{{ url_for('start_google_login', next=use_url) }}"
           aria-label="Sign in to use {{ c.title }} to make a worksheet"
-          >Use Bundle</a
+          >Use this bundle</a
         >
         {% endif %}
       </div>
@@ -232,12 +232,12 @@
   </div>
 
   <p class="small muted">
-    Bundles are starting points; pick one to prefill ideas for a worksheet.
+    Bundles are starting points—pick one to prefill a worksheet.
   </p>
 </section>
 
 <section class="block coming-soon">
-  <h3>Collections coming soon</h3>
+  <h3>Bundles coming soon</h3>
   <ul>
     <li>Jesus’ Words (red-letter copywork)</li>
     <li>Proverbs for Kids</li>
@@ -299,7 +299,7 @@
             <a
               class="button ghost"
               href="{{ url_for('regenerate', filename=item.filename[:-4]) }}"
-              >Regenerate</a
+              >Make again</a
             >
           </div>
         </li>
