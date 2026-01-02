@@ -3,7 +3,7 @@
 <link rel="canonical" href="{{ url_for('browse', _external=True) }}" />
 <meta
   name="description"
-  content="Browse Bible copywork collections for homeschool and church. Free starters, Plus collections, and curated packs with ready-to-print worksheets."
+  content="Browse Bible copywork collections for homeschool and church. Free starters, member collections, and curated bundles with ready-to-print worksheets."
 />
 
 {# ItemList markup for the grid #}
@@ -68,7 +68,7 @@
   >
     <option value="">All</option>
     <option value="free">Free</option>
-    <option value="plus">Included with Plus</option>
+    <option value="plus">Included with membership</option>
   </select>
   <select
     id="sort"
@@ -91,7 +91,7 @@
     </summary>
     <div class="pack-grid mt10">
       {% for p in top_packs %}
-      {% set top_title = 'Free Starter Pack' if p.slug == 'starter' else p.title %}
+      {% set top_title = 'Free Starter Bundle' if p.slug == 'starter' else p.title %}
       <a
         class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
@@ -101,7 +101,7 @@
         <div class="pack-top">
           <div class="pack-meta">
             {% if p.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
-            p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
+            p.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
           </div>
         </div>
         <h3 class="pack-title">{{ top_title }}</h3>
@@ -120,7 +120,7 @@
     </summary>
     <div class="pack-grid mt10">
       {% for p in top_packs_week %}
-      {% set week_title = 'Free Starter Pack' if p.slug == 'starter' else p.title %}
+      {% set week_title = 'Free Starter Bundle' if p.slug == 'starter' else p.title %}
       <a
         class="pack-card"
         href="{{ url_for('browse_detail', slug=p.slug) }}"
@@ -130,7 +130,7 @@
         <div class="pack-top">
           <div class="pack-meta">
             {% if p.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
-            p.isSubscriberOnly %}<span class="pill info">Plus</span>{% endif %}
+            p.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
           </div>
         </div>
         <h3 class="pack-title">{{ week_title }}</h3>
@@ -173,11 +173,11 @@
         <div class="pack-meta">
           {% if c.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
           purchased %}<span class="pill alt">Purchased</span>{% endif %} {% if
-          locked %}<span class="pill info">Plus</span>{% endif %}
+          locked %}<span class="pill info">Member</span>{% endif %}
         </div>
       </div>
 
-      {% set display_title = 'Free Starter Pack' if c.slug == 'starter' else c.title %}
+      {% set display_title = 'Free Starter Bundle' if c.slug == 'starter' else c.title %}
       <h3 class="pack-title">
         <a
           href="{{ url_for('browse_detail', slug=c.slug) }}"
@@ -198,7 +198,7 @@
         >
         {% endif %}
         <a class="button ghost small" href="{{ url_for('plus_pricing') }}"
-          >Get Plus</a
+          >View Membership</a
         >
         {% else %}
         <a

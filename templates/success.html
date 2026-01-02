@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% block title %}Worksheet Ready | Faith Sparks
+{% extends "base.html" %} {% block title %}Your Worksheet Is Ready | Faith Sparks
 Printables{% endblock %} {% block head_extra %}
 <meta name="robots" content="noindex,follow" />
 {% endblock %} {% block content %} {% set name = filename or '' %} {% set ext =
@@ -18,7 +18,7 @@ name.rsplit('.', 1)[0] %} {% set ext = name.rsplit('.', 1)[1]|lower %} {% endif
     class="button"
     href="{{ url_for('download', filename=filename) }}"
   >
-    Download {{ 'ZIP' if is_zip else 'PDF' }} Again
+    Download Again
   </a>
   <a class="button ghost" href="{{ url_for('generate') }}"
     >Make Another Worksheet</a

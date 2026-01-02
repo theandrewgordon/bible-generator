@@ -40,7 +40,7 @@ m_lim is not none %}
     ></div>
   </div>
   <div class="row">
-    <span class="small muted">Plan: {{ usage_info.plan|title }}</span>
+    <span class="small muted">Membership: {{ usage_info.plan|title }}</span>
     <span class="small">{{ m_used }} of {{ m_lim }} this month</span>
   </div>
   {% if usage_info.plan == 'free' and usage_info.monthly_pct_used >= 70 %}
@@ -290,7 +290,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
 <!-- Snackbar -->
 <div id="toast" class="snackbar" role="status" aria-live="polite">
-  ✅ Worksheet request sent…
+  Creating your worksheet…
 </div>
 
 <!-- Tagify -->
@@ -434,7 +434,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
     filenamePreview.textContent = tags.length ? tags.map(v => slug(v) + suffix).join(", ") : "";
     if (zipHint){
-      if (tags.length > 1){ zipHint.style.display='block'; zipHint.textContent = `Will create a ZIP with ${tags.length} worksheets.`; }
+      if (tags.length > 1){ zipHint.style.display='block'; zipHint.textContent = `Will download ${tags.length} worksheets together in one file.`; }
       else { zipHint.style.display='none'; }
     }
   }

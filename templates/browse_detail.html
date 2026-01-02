@@ -40,7 +40,7 @@ collection=c.slug) %} {% endif %}
     <div class="badges">
       {% if c.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
       purchased %}<span class="pill alt">Purchased</span>{% endif %} {% if
-      locked %}<span class="pill info">Included with Plus</span>{% endif %}
+      locked %}<span class="pill info">Included with membership</span>{% endif %}
       <span class="pill">{{ c.verses|length }} verses</span>
     </div>
 
@@ -103,7 +103,7 @@ collection=c.slug) %} {% endif %}
       >Buy {{ display_price }}</a
     >
     {% endif %} {% endif %}
-    <a class="button ghost" href="{{ url_for('plus_pricing') }}">Get Plus</a>
+    <a class="button ghost" href="{{ url_for('plus_pricing') }}">View Membership</a>
     {% else %} {% if is_signed_in or c.isFree %}
     <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
       >Download Bundle</a
@@ -191,7 +191,7 @@ collection=c.slug) %} {% endif %}
         >Buy {{ display_price }}</a
       >
       {% endif %} {% endif %}
-      <a class="button ghost" href="{{ url_for('plus_pricing') }}">Get Plus</a>
+      <a class="button ghost" href="{{ url_for('plus_pricing') }}">View Membership</a>
       {% else %} {% if is_signed_in or c.isFree %}
       <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
         >Download Bundle</a
