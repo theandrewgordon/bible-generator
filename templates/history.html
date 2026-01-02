@@ -1,7 +1,7 @@
 {% extends "base.html" %} {% block title %}My Downloads | Faith Sparks{%
 endblock %} {% block content %}
 <h1 class="page-title">My Downloads</h1>
-<p class="muted small page-sub">Logged in as: <strong>{{ email }}</strong></p>
+<p class="muted small page-sub">Signed in as: <strong>{{ email }}</strong></p>
 
 <section class="quick-actions">
   <button class="quick-card" type="button" id="recentBtn">
@@ -59,7 +59,7 @@ endblock %} {% block content %}
       enterkeyhint="search"
       autocapitalize="off"
       spellcheck="false"
-      placeholder="Search verse or version…"
+      placeholder="Search verses or versions…"
       oninput="debouncedFilter()"
       aria-label="Search worksheets"
     />
@@ -81,11 +81,11 @@ endblock %} {% block content %}
     </label>
 
     <select id="sortSelect" class="advanced-only" onchange="applySort()" aria-label="Sort results">
-      <option value="date_desc">Sort: Date (newest)</option>
-      <option value="date_asc">Sort: Date (oldest)</option>
-      <option value="verse_asc">Sort: Verse A→Z</option>
-      <option value="verse_desc">Sort: Verse Z→A</option>
-      <option value="version_asc">Sort: Version A→Z</option>
+      <option value="date_desc">Newest first</option>
+      <option value="date_asc">Oldest first</option>
+      <option value="verse_asc">Verse A→Z</option>
+      <option value="verse_desc">Verse Z→A</option>
+      <option value="version_asc">Version A→Z</option>
     </select>
     <button class="button ghost" type="button" id="simpleToggle" aria-pressed="true">
       Filters
