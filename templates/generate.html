@@ -123,7 +123,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       </section>
 
       <details class="advanced block">
-        <summary>Options</summary>
+        <summary>Extras (optional)</summary>
         <div class="row">
           <label class="checkbox-row">
             <input type="checkbox" name="cursive" id="cursiveToggle" /> Use
@@ -145,15 +145,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           </select>
         </div>
 
-        <details class="advanced" style="margin-top: 0.35rem">
-          <summary>Helpful tips</summary>
-          <div class="muted small">
-            <ul>
-              <li>Add “(ESV)” or “(KJV)” to choose a version.</li>
-              <li>Multiple verses download together in one file.</li>
-            </ul>
-          </div>
-        </details>
+        <div class="muted small" style="margin-top: 0.35rem">
+          Add “(ESV)” or “(KJV)” to choose a version. Multiple verses download together in one file.
+        </div>
 
         <button
           type="button"
@@ -166,7 +160,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       </details>
 
       <details class="advanced block" id="customBlock">
-        <summary>Use your own text</summary>
+        <summary>Use your own text (optional)</summary>
         <input
           id="customTitle"
           name="custom_title"

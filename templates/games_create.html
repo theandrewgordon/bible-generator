@@ -26,15 +26,6 @@
       placeholder="Match the Verse"
     />
 
-    <label for="theme">Theme (optional)</label>
-    <input
-      id="theme"
-      name="theme"
-      class="wide-input"
-      placeholder="Peace, Integrity, Wisdom..."
-    />
-    <p class="small muted">Shows as a subtitle on the printable.</p>
-
     <label for="version">Version</label>
     <select id="version" name="version" class="wide-input version-pref">
       <option value="esv">ESV</option>
@@ -53,14 +44,45 @@
       Match the Meaning can auto-generate kid-friendly meanings from the verse text.
     </p>
 
-    <label for="difficulty">Difficulty</label>
-    <select id="difficulty" name="difficulty" class="wide-input">
-      <option value="simple">Simple</option>
-      <option value="standard" selected>Standard</option>
-    </select>
-    <p class="small muted" id="difficultyHelp">
-      Simple uses shorter verses/meanings and fewer word-search words.
-    </p>
+    <details class="advanced" style="margin-top: 0.5rem;">
+      <summary>Details (optional)</summary>
+      <label for="theme" class="small muted" style="margin-top: 0.5rem;">Theme</label>
+      <input
+        id="theme"
+        name="theme"
+        class="wide-input"
+        placeholder="Peace, Integrity, Wisdom..."
+      />
+      <p class="small muted">Shows as a subtitle on the printable.</p>
+
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty" name="difficulty" class="wide-input">
+        <option value="simple">Simple</option>
+        <option value="standard" selected>Standard</option>
+      </select>
+      <p class="small muted" id="difficultyHelp">
+        Simple uses shorter verses/meanings and fewer word-search words.
+      </p>
+      <div id="wordCreateFields">
+        <details class="advanced" style="margin-top: 0.5rem;">
+          <summary>Word list (optional)</summary>
+          <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
+            One word per line
+          </label>
+          <textarea
+            id="gameWords"
+            name="gameWords"
+            class="wide-input"
+            rows="5"
+            placeholder="Faith&#10;Grace&#10;Hope"
+          ></textarea>
+          <div class="word-list-actions">
+            <button type="button" class="button ghost tiny" id="generateWords">Generate from references</button>
+          </div>
+          <div class="word-chip-list" id="wordChipList"></div>
+        </details>
+      </div>
+    </details>
 
     <div class="topic-row" style="margin-top: 0.75rem;">
       <div class="quick-topics">
@@ -108,26 +130,6 @@
           rows="6"
           placeholder="Proverbs 20:7 | The godly walk with integrity; blessed are their children who follow them. | ESV"
         ></textarea>
-      </details>
-    </div>
-
-    <div id="wordCreateFields">
-      <details class="advanced" style="margin-top: 0.5rem;">
-        <summary>Use custom word list (word search + crossword)</summary>
-        <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
-          One word per line
-        </label>
-        <textarea
-          id="gameWords"
-          name="gameWords"
-          class="wide-input"
-          rows="5"
-          placeholder="Faith&#10;Grace&#10;Hope"
-        ></textarea>
-        <div class="word-list-actions">
-          <button type="button" class="button ghost tiny" id="generateWords">Generate from references</button>
-        </div>
-        <div class="word-chip-list" id="wordChipList"></div>
       </details>
     </div>
 
