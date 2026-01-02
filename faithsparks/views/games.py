@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone, timedelta
 from typing import Dict
 
-from flask import render_template, redirect, url_for, request, session, flash, send_file, jsonify
+from flask import render_template, redirect, url_for, request, session, flash, send_file, jsonify, current_app
 from flask_dance.contrib.google import google
 from firebase_admin import firestore
 
@@ -376,7 +376,11 @@ def games_create():
             )
         _update_usage(email, 1)
         return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
-    except Exception:
+    except Exception as exc:
+        try:
+            current_app.logger.exception("Game create failed: %s", exc)
+        except Exception:
+            pass
         flash("Could not create this game yet.", "warning")
         return redirect(url_for("games_create"))
 

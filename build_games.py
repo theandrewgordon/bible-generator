@@ -53,7 +53,7 @@ def _load_image(path: str):
         return None
 
 
-def _can_place_word(grid, word: str, row: int, col: int, direction: str) -> bool:
+def _can_place_crossword_word(grid, word: str, row: int, col: int, direction: str) -> bool:
     size = len(grid)
     dr = 0 if direction == "across" else 1
     dc = 1 if direction == "across" else 0
@@ -77,7 +77,7 @@ def _can_place_word(grid, word: str, row: int, col: int, direction: str) -> bool
     return True
 
 
-def _place_word(grid, word: str, row: int, col: int, direction: str) -> None:
+def _place_crossword_word(grid, word: str, row: int, col: int, direction: str) -> None:
     dr = 0 if direction == "across" else 1
     dc = 1 if direction == "across" else 0
     for i, ch in enumerate(word):
@@ -96,8 +96,8 @@ def _build_crossword_layout(words: List[str], size: int = 13) -> Tuple[List[List
     first = sorted_words[0].upper()
     start_col = max(0, (size - len(first)) // 2)
     start_row = size // 2
-    if _can_place_word(grid, first, start_row, start_col, "across"):
-        _place_word(grid, first, start_row, start_col, "across")
+    if _can_place_crossword_word(grid, first, start_row, start_col, "across"):
+        _place_crossword_word(grid, first, start_row, start_col, "across")
         entries.append(CrosswordEntry(word=first, clue="", row=start_row, col=start_col, direction="across"))
 
     for word in sorted_words[1:]:
@@ -112,16 +112,16 @@ def _build_crossword_layout(words: List[str], size: int = 13) -> Tuple[List[List
                         # Try place vertically
                         row = r - idx
                         col = c
-                        if _can_place_word(grid, word, row, col, "down"):
-                            _place_word(grid, word, row, col, "down")
+                        if _can_place_crossword_word(grid, word, row, col, "down"):
+                            _place_crossword_word(grid, word, row, col, "down")
                             entries.append(CrosswordEntry(word=word, clue="", row=row, col=col, direction="down"))
                             placed = True
                             break
                         # Try place horizontally
                         row = r
                         col = c - idx
-                        if _can_place_word(grid, word, row, col, "across"):
-                            _place_word(grid, word, row, col, "across")
+                        if _can_place_crossword_word(grid, word, row, col, "across"):
+                            _place_crossword_word(grid, word, row, col, "across")
                             entries.append(CrosswordEntry(word=word, clue="", row=row, col=col, direction="across"))
                             placed = True
                             break
@@ -312,7 +312,7 @@ def generate_match_game_pdf(
     c.save()
 
 
-def _place_word(grid, word, rng, directions):
+def _place_word_search_word(grid, word, rng, directions):
     size = len(grid)
     attempts = 120
     word = word.upper()
@@ -424,7 +424,7 @@ def generate_word_search_pdf(
     clean_words = clean_words[:12]
 
     for w in clean_words:
-        _place_word(grid, w, rng, directions)
+        _place_word_search_word(grid, w, rng, directions)
     for y_idx in range(size):
         for x_idx in range(size):
             if not grid[y_idx][x_idx]:
@@ -527,7 +527,14 @@ def generate_crossword_pdf(
         y -= 12
 
     # Build grid
-    word_list = [w.upper() for w in words]
+    word_list = []
+    seen = set()
+    for raw in words:
+        w = "".join([ch for ch in (raw or "").upper() if ch.isalpha()])
+        if not w or w in seen or len(w) > size:
+            continue
+        seen.add(w)
+        word_list.append(w)
     grid, entries = _build_crossword_layout(word_list, size=size)
     clues = clues or ["A Bible word" for _ in word_list]
     clue_map = {w.upper(): clues[idx] if idx < len(clues) else "A Bible word" for idx, w in enumerate(word_list)}
