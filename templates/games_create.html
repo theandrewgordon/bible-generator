@@ -151,6 +151,7 @@
     const themeInput = document.getElementById("theme");
     const refsInput = document.getElementById("references");
     const quickTopics = document.querySelector(".quick-topics");
+    const suggestedPanel = document.querySelector(".suggested-topics");
     const wordArea = document.getElementById("gameWords");
     const wordChipList = document.getElementById("wordChipList");
     const generateWordsBtn = document.getElementById("generateWords");
@@ -186,6 +187,10 @@
       }
       if (quickTopics) {
         quickTopics.style.display = type === "match" ? "block" : "none";
+      }
+      if (suggestedPanel) {
+        suggestedPanel.style.display =
+          type === "word-search" || type === "crossword" ? "block" : "none";
       }
       const defaultTitle = defaults[type] || "Match the Verse";
       if (titleInput) {

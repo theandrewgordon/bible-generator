@@ -428,14 +428,6 @@ input[type="checkbox"] + label,
   color: var(--header-fg-subtle);
   font-weight: 800;
 }
-.auth-link {
-  color: var(--header-fg);
-  text-decoration: none;
-  font-weight: 800;
-}
-.auth-link.logout {
-  color: #ffe1e1;
-}
 
 /* Theme toggle */
 .theme-toggle {
@@ -527,6 +519,83 @@ input[type="checkbox"] + label,
   text-decoration: underline;
 }
 
+/* Profile dropdown */
+.profile-drop {
+  position: relative;
+  display: inline-block;
+}
+.profile-summary {
+  color: var(--header-fg);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  list-style: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 10px;
+}
+.profile-summary:hover {
+  background: var(--header-hover-bg);
+}
+.profile-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--box);
+  color: var(--text);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  min-width: 220px;
+  z-index: 20;
+}
+.profile-drop[open] .profile-panel {
+  display: grid;
+  gap: 8px;
+}
+.profile-panel .version-toggle {
+  justify-content: space-between;
+}
+.profile-panel .version-toggle select {
+  min-width: 100px;
+}
+.profile-panel .nav-sublink {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+.profile-panel .nav-sublink.logout {
+  color: #b91c1c;
+}
+.profile-panel .nav-sublink:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.profile-section {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.profile-row {
+  line-height: 1.3;
+}
+.desktop-only {
+  display: inline-block;
+}
+.mobile-only {
+  display: none;
+}
+
 /* Mobile nav layout */
 @media (max-width: 880px) {
   .main-header {
@@ -574,39 +643,25 @@ input[type="checkbox"] + label,
   .auth-theme {
     display: none !important;
   }
-  .mobile-tools {
-    display: grid;
-    gap: 8px;
-    border-top: 1px dashed var(--header-border);
-    padding-top: 10px;
-    margin-top: 8px;
-    grid-column: 1 / -1;
+  .desktop-only {
+    display: none !important;
   }
-  .mobile-tool-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .mobile-label {
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-  .mobile-tools .version-pref {
-    min-width: 110px;
+  .mobile-only {
+    display: inline-block;
   }
 
   /* Admin panel flows inline on mobile */
-  .admin-drop {
+  .profile-drop {
     position: static;
+    width: 100%;
   }
-  .admin-panel {
+  .profile-panel {
     position: static;
     box-shadow: none;
     border: 1px dashed #e5e7eb;
     width: 100%;
   }
-  .admin-summary {
+  .profile-summary {
     width: 100%;
   }
 }

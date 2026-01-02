@@ -331,11 +331,13 @@ def games_create():
             )
         elif game_type == "crossword":
             words = _build_word_search_words_from_inputs(refs, version, game_words, difficulty)
+            limit = 6 if difficulty == "simple" else 10
+            words = words[:limit]
             if not theme:
                 theme = _derive_theme(game_type, refs, [], words)
             subtitle = f"Theme: {theme}" if theme else None
             clues = _build_crossword_clues(words, theme)
-            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            difficulty_note = "Word list: Simple uses 6 words. Standard uses 10 words."
             generate_crossword_pdf(
                 title,
                 words,
@@ -483,11 +485,13 @@ def dl_game(slug):
             )
         elif game_type == "crossword":
             words = _build_word_search_words(meta, version, difficulty)
+            limit = 6 if difficulty == "simple" else 10
+            words = words[:limit]
             if not theme:
                 theme = _derive_theme(game_type, meta.get("verses") or [], [], words)
             subtitle = f"Theme: {theme}" if theme else None
             clues = _build_crossword_clues(words, theme)
-            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            difficulty_note = "Word list: Simple uses 6 words. Standard uses 10 words."
             generate_crossword_pdf(
                 title,
                 words,

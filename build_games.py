@@ -433,7 +433,7 @@ def generate_word_search_pdf(
     # Draw grid
     cell = 0.32 * inch
     grid_size_px = size * cell
-    start_x = margin
+    start_x = margin + max(0, (usable_width - grid_size_px) / 2)
     start_y = y - grid_size_px
     c.setFont("Helvetica-Bold", 9)
     for row in range(size):
