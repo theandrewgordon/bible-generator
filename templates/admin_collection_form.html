@@ -171,7 +171,7 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
       </fieldset>
     </section>
 
-    <!-- Ordering / ZIP -->
+    <!-- Ordering / Bundle file -->
     <section class="card">
       <fieldset>
 
@@ -188,7 +188,7 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
       />
       <p class="small muted">Lower numbers appear first.</p>
 
-      <label for="zipUrl">ZIP URL (optional)</label>
+      <label for="zipUrl">Bundle file URL (optional)</label>
       <div class="row">
         <input
           id="zipUrl"
@@ -199,7 +199,7 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
         />
         {% if has_zip %}
         <a class="button ghost" href="{{ data.get('zipUrl') }}" target="_blank"
-          >Open ZIP</a
+          >Open bundle file</a
         >
         {% endif %}
       </div>
