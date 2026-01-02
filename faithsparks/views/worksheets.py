@@ -223,6 +223,13 @@ def generate():
                 "text": custom_text,
             })
 
+        daily = get_proverb_of_day()
+        daily_ref = normalize_slug(daily.get("reference") or "")
+        is_daily_proverb = False
+        if not is_custom and len(tag_list) == 1:
+            _, daily_input = extract_version_from_text(tag_list[0], selected_version)
+            is_daily_proverb = normalize_slug(daily_input) == daily_ref
+
         generated_target = (len(tag_list) if tag_list else 0) + (1 if is_custom else 0)
         user_plan = _get_user_plan(user_email)
         monthly_limit, lifetime_limit = _quota_for_plan(user_plan)
@@ -231,18 +238,19 @@ def generate():
         def _remaining(limit, used):
             return 10**9 if limit is None else max(0, int(limit) - int(used))
 
-        allowed = min(_remaining(monthly_limit, used_monthly), _remaining(lifetime_limit, used_lifetime))
-        if allowed <= 0:
-            flash("You've reached your monthly limit. Consider Plus for more.", "warning")
-            return redirect(url_for("browse"))
+        if not is_daily_proverb:
+            allowed = min(_remaining(monthly_limit, used_monthly), _remaining(lifetime_limit, used_lifetime))
+            if allowed <= 0:
+                flash("You've reached your monthly limit. Consider Plus for more.", "warning")
+                return redirect(url_for("browse"))
 
-        if generated_target > allowed:
-            flash(f"Your plan allows {allowed} more this month; generating the first {allowed}.", "warning")
-            keep = allowed
-            tag_list = tag_list[:keep]
-            keep -= len(tag_list)
-            if is_custom and keep <= 0:
-                is_custom = False
+            if generated_target > allowed:
+                flash(f"Your plan allows {allowed} more this month; generating the first {allowed}.", "warning")
+                keep = allowed
+                tag_list = tag_list[:keep]
+                keep -= len(tag_list)
+                if is_custom and keep <= 0:
+                    is_custom = False
 
         items_to_generate = []
         for v in tag_list:
@@ -487,7 +495,7 @@ def generate():
 
         update_zip_bundle(bundle_files)
         try:
-            if not free_skip_count:
+            if not free_skip_count and not is_daily_proverb:
                 _update_usage(user_email, success_count)
         except Exception:
             pass

@@ -1,6 +1,6 @@
-{% extends "base.html" %} {% block title %}Faith Sparks Printables –
-Make Printable Bible Worksheets{% endblock %} {% block head_extra %} {# Page-specific SEO (base
-will add noindex for /generate, but these help sharing/consistency) #}
+{% extends "base.html" %} {% block title %}Faith Sparks Printables – Make
+Printable Bible Worksheets{% endblock %} {% block head_extra %} {# Page-specific
+SEO (base will add noindex for /generate, but these help sharing/consistency) #}
 <meta
   name="description"
   content="Make printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses, versions (ESV or KJV), cursive or manuscript."
@@ -46,7 +46,8 @@ m_lim is not none %}
   {% if usage_info.plan == 'free' and usage_info.monthly_pct_used >= 70 %}
   <div class="upgrade" id="upgradeCta" hidden>
     You’re close to your monthly amount.
-    <a href="{{ url_for('plus_pricing') }}">View membership options</a> for more.
+    <a href="{{ url_for('plus_pricing') }}">View membership options</a> for
+    more.
     <button type="button" class="dismiss" aria-label="Dismiss upgrade notice">
       ✕
     </button>
@@ -55,15 +56,16 @@ m_lim is not none %}
 </div>
 {% endif %} {% endif %} {% set out_of_quota = usage_info and
 usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
-%}
-
-{% if out_of_quota %}
+%} {% if out_of_quota %}
 <div class="quota-upsell" role="alert">
   <div class="quota-copy">
     <strong>You’ve reached your monthly amount.</strong>
-    Keep creating with a membership upgrade for bigger monthly limits and member bundles.
+    Keep creating with a membership upgrade for bigger monthly limits and member
+    bundles.
   </div>
-  <a class="button small" href="{{ url_for('plus_pricing') }}">View membership</a>
+  <a class="button small" href="{{ url_for('plus_pricing') }}"
+    >View membership</a
+  >
 </div>
 {% endif %}
 
@@ -94,8 +96,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           aria-describedby="verseHelp"
         />
         <small id="verseHelp" class="muted">
-          Add more than one verse with commas or new lines. We’ll format the rest.
+          Add more than one verse with commas or new lines. We’ll format the
+          rest.
         </small>
+        <div class="muted small" style="margin-top: 0.4rem">
+          Proverb of the day is always free.
+        </div>
 
         <div class="quick-picks" role="group" aria-label="Quick pick verses">
           <span class="quick-picks-label small muted">Quick picks:</span>
@@ -152,7 +158,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           </div>
         </details>
 
-        <button type="button" class="button ghost" id="clearBtn" style="margin-top: 0.6rem;">
+        <button
+          type="button"
+          class="button ghost"
+          id="clearBtn"
+          style="margin-top: 0.6rem"
+        >
           Clear form
         </button>
       </details>
@@ -243,8 +254,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         {% if usage_info %}
         <span id="quotaNote" class="small muted left-chip">
           {% if usage_info.monthly_limit is not none %} {{
-          usage_info.monthly_remaining }} remaining this month {% else %} Unlimited
-          this month {% endif %}
+          usage_info.monthly_remaining }} remaining this month {% else %}
+          Unlimited this month {% endif %}
         </span>
         {% endif %}
       </div>
