@@ -152,6 +152,9 @@ def generate_match_game_pdf(
     c.setStrokeGray(0.8)
     c.setLineWidth(0.5)
     c.line(margin, divider_y, width - margin, divider_y)
+    c.setFont("Helvetica", 8)
+    c.setFillGray(0.4)
+    c.drawCentredString(width / 2, divider_y + 6, "Answer key (flip page)")
 
     # Upside-down answer key at bottom (easy cut/flip)
     key = ", ".join(
