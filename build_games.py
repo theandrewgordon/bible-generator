@@ -52,6 +52,9 @@ def generate_match_game_pdf(
     pdf_path: str,
     directions_text: str = "Draw a line to match each Bible reference (left) to the correct verse (right).",
     show_version: bool = True,
+    subtitle: str | None = None,
+    print_tip: str = "Print tip: Use pencil so kids can erase.",
+    difficulty_note: str | None = None,
 ) -> None:
     width, height = letter
     margin = 0.6 * inch
@@ -71,10 +74,15 @@ def generate_match_game_pdf(
     # Title block
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2, y, title)
-    y -= 10
+    y -= 12
     c.setFont("Helvetica", 9)
     c.setFillGray(0.4)
     c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+    if subtitle:
+        y -= 12
+        c.setFont("Helvetica-Oblique", 9)
+        c.setFillGray(0.35)
+        c.drawCentredString(width / 2, y, subtitle)
     c.setFillGray(0)
     y -= logo_size + 4
 
@@ -85,7 +93,19 @@ def generate_match_game_pdf(
     c.drawString(margin + 10, y - 14, "Directions:")
     c.setFont("Helvetica", 10)
     c.drawString(margin + 80, y - 14, directions_text)
-    y -= directions_h + 10
+    y -= directions_h + 6
+    if print_tip:
+        c.setFont("Helvetica", 8)
+        c.setFillGray(0.45)
+        c.drawString(margin + 10, y - 4, print_tip)
+        c.setFillGray(0)
+        y -= 12
+    if difficulty_note:
+        c.setFont("Helvetica", 8)
+        c.setFillGray(0.45)
+        c.drawString(margin + 10, y - 4, difficulty_note)
+        c.setFillGray(0)
+        y -= 12
 
     # Table layout
     left_width = 1.7 * inch
@@ -215,7 +235,15 @@ def _place_word(grid, word, rng, directions):
     return False
 
 
-def generate_word_search_pdf(title: str, words: List[str], pdf_path: str, size: int = 12) -> None:
+def generate_word_search_pdf(
+    title: str,
+    words: List[str],
+    pdf_path: str,
+    size: int = 12,
+    subtitle: str | None = None,
+    print_tip: str = "Print tip: Use pencil so kids can erase.",
+    difficulty_note: str | None = None,
+) -> None:
     width, height = letter
     margin = 0.6 * inch
     usable_width = width - 2 * margin
@@ -233,10 +261,15 @@ def generate_word_search_pdf(title: str, words: List[str], pdf_path: str, size: 
     # Title block
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2, y, title)
-    y -= 10
+    y -= 12
     c.setFont("Helvetica", 9)
     c.setFillGray(0.4)
     c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+    if subtitle:
+        y -= 12
+        c.setFont("Helvetica-Oblique", 9)
+        c.setFillGray(0.35)
+        c.drawCentredString(width / 2, y, subtitle)
     c.setFillGray(0)
     y -= logo_size + 4
 
@@ -251,17 +284,33 @@ def generate_word_search_pdf(title: str, words: List[str], pdf_path: str, size: 
         y - 14,
         "Circle each word in the puzzle. Words can go forward, backward, or diagonal.",
     )
-    y -= directions_h + 10
+    y -= directions_h + 6
+    if print_tip:
+        c.setFont("Helvetica", 8)
+        c.setFillGray(0.45)
+        c.drawString(margin + 10, y - 4, print_tip)
+        c.setFillGray(0)
+        y -= 12
+    if difficulty_note:
+        c.setFont("Helvetica", 8)
+        c.setFillGray(0.45)
+        c.drawString(margin + 10, y - 4, difficulty_note)
+        c.setFillGray(0)
+        y -= 12
 
     # Build grid
     rng = random.Random(title)
     grid = [["" for _ in range(size)] for _ in range(size)]
     directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
     clean_words = []
-    for w in words:
-        w = "".join([ch for ch in w.upper() if ch.isalpha()])
+    seen = set()
+    for raw in words:
+        w = "".join([ch for ch in (raw or "").upper() if ch.isalpha()])
+        if not w or w in seen:
+            continue
         if 3 <= len(w) <= size:
             clean_words.append(w)
+            seen.add(w)
     clean_words = clean_words[:12]
 
     for w in clean_words:
@@ -288,7 +337,7 @@ def generate_word_search_pdf(title: str, words: List[str], pdf_path: str, size: 
     list_x = start_x + grid_size_px + 0.4 * inch
     list_y = start_y + grid_size_px - 10
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(list_x, list_y, "Find these words:")
+    c.drawString(list_x, list_y, f"Find these words ({len(clean_words)}):")
     list_y -= 12
     c.setFont("Helvetica", 9)
     for word in clean_words:

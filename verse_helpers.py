@@ -83,13 +83,13 @@ Verse: {verse_ref}
     ]
 
 
-def build_meaning_prompt(verse_ref, full_verse, version):
+def build_meaning_prompt(verse_ref, full_verse, version, min_words: int = 6, max_words: int = 10):
     """Generate OpenAI prompt to summarize a verse meaning for matching games."""
     return [
         {"role": "system", "content": "You help Christian homeschoolers create Bible games."},
         {"role": "user", "content": f"""
 Return valid JSON with:
-- "meaning": a kid-friendly, plain-English meaning of the verse (6–10 words).
+- "meaning": a kid-friendly, plain-English meaning of the verse ({min_words}–{max_words} words).
 
 Rules:
 - Do not quote the verse.
@@ -103,6 +103,24 @@ Verse text ({version.upper()}): {full_verse}
 """}
     ]
 
+
+def build_theme_prompt(source_text, context_label: str = "verse"):
+    """Generate OpenAI prompt for a short topic label."""
+    return [
+        {"role": "system", "content": "You help Christian homeschoolers create Bible games."},
+        {"role": "user", "content": f"""
+Return valid JSON with:
+- "theme": a 1–3 word topic label in Title Case.
+
+Rules:
+- Keep it kid-friendly and simple.
+- No punctuation, no quotes, no Bible references.
+- Return JSON only.
+
+Context ({context_label}):
+{source_text}
+"""}
+    ]
 # === GPT Call Wrapper ===
 def call_openai(prompt):
     """Call OpenAI API with a given prompt."""
@@ -127,13 +145,23 @@ def request_verse_data(verse_ref, version="esv"):
     return call_openai(prompt)
 
 
-def request_verse_meaning(verse_ref, full_verse, version="esv"):
+def request_verse_meaning(verse_ref, full_verse, version="esv", min_words: int = 6, max_words: int = 10):
     """Request a short meaning summary for a verse."""
-    prompt = build_meaning_prompt(verse_ref, full_verse, version)
+    prompt = build_meaning_prompt(verse_ref, full_verse, version, min_words=min_words, max_words=max_words)
     content = call_openai(prompt)
     if content:
         return content
     print("🔁 Retrying OpenAI meaning call...")
+    return call_openai(prompt)
+
+
+def request_theme_label(source_text, context_label: str = "verse"):
+    """Request a short theme label from OpenAI."""
+    prompt = build_theme_prompt(source_text, context_label=context_label)
+    content = call_openai(prompt)
+    if content:
+        return content
+    print("🔁 Retrying OpenAI theme call...")
     return call_openai(prompt)
 
 # === JSON Safety Wrapper ===

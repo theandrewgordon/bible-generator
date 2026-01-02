@@ -14,7 +14,7 @@ from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
 from build_games import generate_match_game_pdf, generate_word_search_pdf, MatchItem
-from verse_helpers import request_verse_data, request_verse_meaning, parse_and_clean_json
+from verse_helpers import request_verse_data, request_verse_meaning, request_theme_label, parse_and_clean_json
 
 
 def _is_public_games_enabled() -> bool:
@@ -67,6 +67,63 @@ def _match_render_options(game_type: str):
     )
 
 
+def _default_game_title(game_type: str) -> str:
+    game_type = (game_type or "match").strip().lower()
+    if game_type == "word-search":
+        return "Word Search"
+    if game_type == "match-meaning":
+        return "Match the Meaning"
+    return "Match the Verse"
+
+
+def _derive_theme_from_text(text: str) -> str:
+    words = _extract_words(text or "", limit=5)
+    return words[0].title() if words else ""
+
+
+def _derive_theme_from_refs(refs: list[str]) -> str:
+    if not refs:
+        return ""
+    book = (refs[0] or "").split()[0]
+    return book.title() if book else ""
+
+
+def _ai_theme_from_text(text: str) -> str:
+    if not text:
+        return ""
+    try:
+        content = request_theme_label(text, context_label="verse")
+        data = parse_and_clean_json(content)
+        return (data.get("theme") or "").strip()
+    except Exception:
+        return ""
+
+
+def _ai_theme_from_words(words: list[str]) -> str:
+    if not words:
+        return ""
+    try:
+        sample = ", ".join(words[:12])
+        content = request_theme_label(sample, context_label="word list")
+        data = parse_and_clean_json(content)
+        return (data.get("theme") or "").strip()
+    except Exception:
+        return ""
+
+
+def _derive_theme(game_type: str, refs: list[str], verses: list[MatchItem], words: list[str]) -> str:
+    if words:
+        return _ai_theme_from_words(words) or (words[0] or "").title()
+    if verses:
+        return _ai_theme_from_text(verses[0].text) or _derive_theme_from_text(verses[0].text)
+    return _derive_theme_from_refs(refs)
+
+
+def _normalize_difficulty(raw: str) -> str:
+    val = (raw or "standard").strip().lower()
+    return val if val in ("simple", "standard") else "standard"
+
+
 def games():
     if not _is_public_games_enabled() and not google.authorized:
         return redirect(url_for("google.login", next=request.url))
@@ -99,15 +156,16 @@ def games():
         purchased = bool(purchases.get(slug))
         locked = is_sub_only and not is_member and not purchased
         can_download = signed_in and not locked
+        game_type = c.get("gameType") or "match"
         games_list.append({
             "slug": slug,
-            "title": c.get("title"),
+            "title": c.get("title") or _default_game_title(game_type),
             "description": c.get("description", ""),
             "zipUrl": c.get("zipUrl"),
             "isFree": is_free,
             "isSubscriberOnly": is_sub_only,
             "priceId": c.get("priceId"),
-            "gameType": c.get("gameType") or "match",
+            "gameType": game_type,
             "ageRange": c.get("ageRange"),
             "skills": c.get("skills") or [],
             "useCases": c.get("useCases") or [],
@@ -153,6 +211,8 @@ def games_detail(slug):
         return "Not found", 404
     if (meta.get("kind") or "bundle") != "game":
         return redirect(url_for("browse_detail", slug=slug))
+    if not meta.get("title"):
+        meta["title"] = _default_game_title(meta.get("gameType") or "match")
 
     signed_in = bool(google.authorized)
     can_download = False
@@ -206,8 +266,10 @@ def games_create():
     if raw_title:
         title = raw_title
     else:
-        title = "Word Search" if game_type == "word-search" else "Match the Verse"
+        title = _default_game_title(game_type)
     refs_raw = request.form.get("references") or ""
+    theme = (request.form.get("theme") or "").strip()
+    difficulty = _normalize_difficulty(request.form.get("difficulty") or "standard")
     game_items_raw = request.form.get("gameItems") or ""
     game_words_raw = request.form.get("gameWords") or ""
 
@@ -247,8 +309,18 @@ def games_create():
 
     try:
         if game_type == "word-search":
-            words = _build_word_search_words_from_inputs(refs, version, game_words)
-            generate_word_search_pdf(title, words, pdf_path)
+            words = _build_word_search_words_from_inputs(refs, version, game_words, difficulty)
+            if not theme:
+                theme = _derive_theme(game_type, refs, [], words)
+            subtitle = f"Theme: {theme}" if theme else None
+            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            generate_word_search_pdf(
+                title,
+                words,
+                pdf_path,
+                subtitle=subtitle,
+                difficulty_note=difficulty_note,
+            )
         else:
             refs, verses, key = _build_match_game_from_inputs(
                 refs,
@@ -256,11 +328,16 @@ def games_create():
                 game_items,
                 allow_fetch=True,
                 use_meaning=game_type == "match-meaning",
+                difficulty=difficulty,
             )
             if not refs:
                 flash("Could not create this game yet.", "warning")
                 return redirect(url_for("games_create"))
             directions_text, show_version = _match_render_options(game_type)
+            if not theme:
+                theme = _derive_theme(game_type, refs, verses, [])
+            subtitle = f"Theme: {theme}" if theme else None
+            difficulty_note = "Difficulty: Simple uses shorter text. Standard uses full text."
             generate_match_game_pdf(
                 title,
                 refs,
@@ -269,6 +346,8 @@ def games_create():
                 pdf_path,
                 directions_text=directions_text,
                 show_version=show_version,
+                subtitle=subtitle,
+                difficulty_note=difficulty_note,
             )
         _update_usage(email, 1)
         return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
@@ -349,27 +428,47 @@ def dl_game(slug):
     pdf_path = os.path.join(pdf_dir, f"{slug}-{version}.pdf")
     try:
         game_type = (meta.get("gameType") or "match").strip().lower()
+        title = meta.get("title") or _default_game_title(game_type)
+        theme = (meta.get("theme") or "").strip()
+        difficulty = _normalize_difficulty(meta.get("difficulty") or "standard")
         if game_type == "word-search":
-            words = _build_word_search_words(meta, version)
-            generate_word_search_pdf(meta.get("title") or "Word Search", words, pdf_path)
+            words = _build_word_search_words(meta, version, difficulty)
+            if not theme:
+                theme = _derive_theme(game_type, meta.get("verses") or [], [], words)
+            subtitle = f"Theme: {theme}" if theme else None
+            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            generate_word_search_pdf(
+                title,
+                words,
+                pdf_path,
+                subtitle=subtitle,
+                difficulty_note=difficulty_note,
+            )
         else:
             refs, verses, key = _build_match_game_items(
                 meta,
                 version,
                 allow_fetch=True,
                 use_meaning=game_type == "match-meaning",
+                difficulty=difficulty,
             )
             if not refs:
                 return "Game not available", 404
             directions_text, show_version = _match_render_options(game_type)
+            if not theme:
+                theme = _derive_theme(game_type, refs, verses, [])
+            subtitle = f"Theme: {theme}" if theme else None
+            difficulty_note = "Difficulty: Simple uses shorter text. Standard uses full text."
             generate_match_game_pdf(
-                meta.get("title") or "Match the Verse",
+                title,
                 refs,
                 verses,
                 key,
                 pdf_path,
                 directions_text=directions_text,
                 show_version=show_version,
+                subtitle=subtitle,
+                difficulty_note=difficulty_note,
             )
         _update_usage(email, 1)
         return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
@@ -377,7 +476,13 @@ def dl_game(slug):
         return "Game not available", 404
 
 
-def _build_match_game_items(meta, version: str, allow_fetch: bool = True, use_meaning: bool = False):
+def _build_match_game_items(
+    meta,
+    version: str,
+    allow_fetch: bool = True,
+    use_meaning: bool = False,
+    difficulty: str = "standard",
+):
     base_refs = list(meta.get("verses") or [])
     version = (version or meta.get("defaultVersion") or "esv").lower()
     refs = base_refs[:8]
@@ -412,14 +517,20 @@ def _build_match_game_items(meta, version: str, allow_fetch: bool = True, use_me
             if use_meaning:
                 meaning = ""
                 try:
-                    meaning_content = request_verse_meaning(ref, full_verse, version)
+                    if difficulty == "simple":
+                        meaning_content = request_verse_meaning(ref, full_verse, version, min_words=4, max_words=6)
+                    else:
+                        meaning_content = request_verse_meaning(ref, full_verse, version)
                     meaning_data = parse_and_clean_json(meaning_content)
                     meaning = (meaning_data.get("meaning") or "").strip()
                 except Exception:
                     meaning = ""
                 text = meaning or "Meaning unavailable."
             else:
-                text = full_verse or text
+                if difficulty == "simple":
+                    text = (data.get("traceableVerse") or full_verse or text).strip()
+                else:
+                    text = full_verse or text
         except Exception:
             pass
         verses.append(MatchItem(text=text, version=version))
@@ -432,7 +543,14 @@ def _build_match_game_items(meta, version: str, allow_fetch: bool = True, use_me
     return refs, shuffled, answer_key
 
 
-def _build_match_game_from_inputs(refs, version, game_items, allow_fetch: bool = True, use_meaning: bool = False):
+def _build_match_game_from_inputs(
+    refs,
+    version,
+    game_items,
+    allow_fetch: bool = True,
+    use_meaning: bool = False,
+    difficulty: str = "standard",
+):
     refs = list(refs or [])[:8]
     version = (version or "esv").lower()
     verses = []
@@ -465,14 +583,20 @@ def _build_match_game_from_inputs(refs, version, game_items, allow_fetch: bool =
             if use_meaning:
                 meaning = ""
                 try:
-                    meaning_content = request_verse_meaning(ref, full_verse, version)
+                    if difficulty == "simple":
+                        meaning_content = request_verse_meaning(ref, full_verse, version, min_words=4, max_words=6)
+                    else:
+                        meaning_content = request_verse_meaning(ref, full_verse, version)
                     meaning_data = parse_and_clean_json(meaning_content)
                     meaning = (meaning_data.get("meaning") or "").strip()
                 except Exception:
                     meaning = ""
                 text = meaning or "Meaning unavailable."
             else:
-                text = full_verse or text
+                if difficulty == "simple":
+                    text = (data.get("traceableVerse") or full_verse or text).strip()
+                else:
+                    text = full_verse or text
         except Exception:
             pass
         verses.append(MatchItem(text=text, version=version))
@@ -507,11 +631,24 @@ def _extract_words(text: str, limit: int = 12) -> list[str]:
     return [w.upper() for w in words]
 
 
-def _build_word_search_words(meta, version: str) -> list[str]:
+def _unique_words(words: list[str]) -> list[str]:
+    seen = set()
+    ordered = []
+    for word in words:
+        w = (word or "").strip().upper()
+        if not w or w in seen:
+            continue
+        seen.add(w)
+        ordered.append(w)
+    return ordered
+
+
+def _build_word_search_words(meta, version: str, difficulty: str = "standard") -> list[str]:
     version = (version or meta.get("defaultVersion") or "esv").lower()
     game_words = [w.strip() for w in (meta.get("gameWords") or []) if w.strip()]
+    limit = 8 if difficulty == "simple" else 12
     if game_words:
-        return [w.upper() for w in game_words[:12]]
+        return _unique_words([w.upper() for w in game_words])[:limit]
 
     refs = list(meta.get("verses") or [])[:6]
     words = []
@@ -523,7 +660,7 @@ def _build_word_search_words(meta, version: str) -> list[str]:
             words.extend(_extract_words(full, limit=12))
         except Exception:
             pass
-        if len(words) >= 12:
+        if len(words) >= limit:
             break
     if not words:
         for ref in refs:
@@ -532,12 +669,13 @@ def _build_word_search_words(meta, version: str) -> list[str]:
                 words.append(book.upper())
             if len(words) >= 8:
                 break
-    return words[:12]
+    return _unique_words(words)[:limit]
 
 
-def _build_word_search_words_from_inputs(refs, version, game_words):
+def _build_word_search_words_from_inputs(refs, version, game_words, difficulty: str = "standard"):
+    limit = 8 if difficulty == "simple" else 12
     if game_words:
-        return [w.upper() for w in game_words[:12]]
+        return _unique_words([w.upper() for w in game_words])[:limit]
     refs = list(refs or [])[:6]
     version = (version or "esv").lower()
     words = []
@@ -549,6 +687,8 @@ def _build_word_search_words_from_inputs(refs, version, game_words):
             words.extend(_extract_words(full, limit=12))
         except Exception:
             pass
-        if len(words) >= 12:
+        if len(words) >= limit:
             break
-    return words[:12] if words else [w.upper() for w in refs[:8]]
+    if words:
+        return _unique_words(words)[:limit]
+    return _unique_words([w.upper() for w in refs[:8]])[:limit]

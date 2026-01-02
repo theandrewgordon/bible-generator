@@ -138,6 +138,8 @@ def admin_collections_new():
         game_items = _parse_game_items(request.form.get("gameItems") or "")
         game_words = _parse_game_words(request.form.get("gameWords") or "")
         game_type = (request.form.get("gameType") or "").strip().lower()
+        theme = (request.form.get("theme") or "").strip() or None
+        difficulty = (request.form.get("difficulty") or "standard").strip().lower()
         verses_raw = request.form.get("verses") or ""
         parts = re.split(r"[\n,]+", verses_raw)
         verses = [p.strip() for p in parts if p.strip()]
@@ -160,6 +162,8 @@ def admin_collections_new():
             "gameItems": game_items,
             "gameWords": game_words,
             "gameType": game_type,
+            "theme": theme,
+            "difficulty": difficulty,
         }
         data["defaultVersion"] = default_version or "esv"
         if order_val is not None:
@@ -221,6 +225,8 @@ def admin_collections_edit(slug):
         game_items = _parse_game_items(request.form.get("gameItems") or "")
         game_words = _parse_game_words(request.form.get("gameWords") or "")
         game_type = (request.form.get("gameType") or "").strip().lower()
+        theme = (request.form.get("theme") or "").strip() or None
+        difficulty = (request.form.get("difficulty") or "standard").strip().lower()
         if is_free:
             is_sub_only = False
             price_id = None
@@ -240,6 +246,8 @@ def admin_collections_edit(slug):
             "gameItems": game_items,
             "gameWords": game_words,
             "gameType": game_type,
+            "theme": theme,
+            "difficulty": difficulty,
         }
         db.collection("collections").document(slug).set(data, merge=True)
         flash("Item updated", "success")
@@ -267,6 +275,8 @@ def admin_collections_edit(slug):
         ]),
         "gameWords": "\n".join(current.get("gameWords", []) or []),
         "gameType": current.get("gameType", ""),
+        "theme": current.get("theme", ""),
+        "difficulty": current.get("difficulty", ""),
     }
     return render_template("admin_collection_form.html", mode="edit", data=form_data)
 

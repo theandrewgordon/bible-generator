@@ -188,6 +188,23 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
         <option value="word-search" {% if data.get('gameType') == 'word-search' %}selected{% endif %}>Word Search</option>
       </select>
 
+      <label for="theme">Theme (optional)</label>
+      <input
+        id="theme"
+        class="wide-input"
+        name="theme"
+        value="{{ data.get('theme','') }}"
+        placeholder="Peace, Integrity, Wisdom"
+      />
+      <p class="small muted">Shows as a subtitle on the printable.</p>
+
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty" name="difficulty" class="wide-input">
+        <option value="standard" {% if data.get('difficulty') == 'standard' or not data.get('difficulty') %}selected{% endif %}>Standard</option>
+        <option value="simple" {% if data.get('difficulty') == 'simple' %}selected{% endif %}>Simple</option>
+      </select>
+      <p class="small muted">Simple uses shorter verses/meanings and fewer word-search words.</p>
+
       <div id="matchFields">
         <label for="gameItems">Match items (one per line)</label>
         <textarea

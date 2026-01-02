@@ -165,6 +165,8 @@ def get_collections(show_all: bool = False):
                     'gameItems': data.get('gameItems') or [],
                     'gameWords': data.get('gameWords') or [],
                     'gameType': (data.get('gameType') or '').strip().lower(),
+                    'theme': data.get('theme') or '',
+                    'difficulty': data.get('difficulty') or '',
                     'prewarm': pr,
                     'lastBuilt': _fmt_dt(pr.get('finishedAt')) if isinstance(pr, dict) else None,
                     'order': int(data.get('order') or 9999),
@@ -194,6 +196,8 @@ def get_collections(show_all: bool = False):
             'gameItems': [],
             'gameWords': [],
             'gameType': '',
+            'theme': '',
+            'difficulty': '',
             'prewarm': None,
             'lastBuilt': None,
             'order': 9999,
@@ -226,6 +230,8 @@ def get_collection_meta(slug: str):
                     'gameItems': data.get('gameItems') or [],
                     'gameWords': data.get('gameWords') or [],
                     'gameType': (data.get('gameType') or '').strip().lower(),
+                    'theme': data.get('theme') or '',
+                    'difficulty': data.get('difficulty') or '',
                 })
         except Exception:
             pass
@@ -252,6 +258,8 @@ def get_collection_meta(slug: str):
         'gameItems': [],
         'gameWords': [],
         'gameType': '',
+        'theme': '',
+        'difficulty': '',
     })
 
 
