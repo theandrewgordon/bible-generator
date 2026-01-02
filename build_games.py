@@ -50,23 +50,25 @@ def generate_match_game_pdf(
     # Title block
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2, y, title)
-    y -= 18
+    y -= 14
     c.setFont("Helvetica", 9)
     c.setFillGray(0.4)
     c.drawCentredString(width / 2, y, "Faith Sparks Printables")
     c.setFillGray(0)
-    y -= 18
+    y -= 20
 
     # Directions
+    directions_h = 0.45 * inch
+    c.roundRect(margin, y - directions_h + 4, usable_width, directions_h, radius=10)
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(margin, y, "Directions:")
+    c.drawString(margin + 10, y - 14, "Directions:")
     c.setFont("Helvetica", 10)
     c.drawString(
-        margin + 70,
-        y,
+        margin + 80,
+        y - 14,
         "Draw a line to match each Bible reference (left) to the correct verse (right).",
     )
-    y -= 16
+    y -= directions_h + 10
 
     # Table layout
     left_width = 1.7 * inch
@@ -117,11 +119,14 @@ def generate_match_game_pdf(
 
     # Answer key
     y -= 18
+    c.roundRect(margin, y - 16, usable_width, 0.3 * inch, radius=8)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(margin + 10, y - 6, "Answer key:")
     c.setFont("Helvetica", 9)
     key = ", ".join(
         [f"{chr(64 + i)} → {answer_key[i - 1]}" for i in range(1, len(references) + 1)]
     )
-    c.drawString(margin, y, f"Answer key: {key}")
+    c.drawString(margin + 80, y - 6, key)
 
     # Footer
     c.setFont("Helvetica", 8)

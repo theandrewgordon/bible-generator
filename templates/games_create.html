@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Create a Game | Faith Sparks Printables{% endblock %}
+
+{% block content %}
+<section class="game-create">
+  <h1 class="page-title">Create a game</h1>
+  <p class="muted">
+    Make a printable Match the Verse game from any list of references.
+  </p>
+
+  {% if usage_info %}
+  <div class="card-lite credit-note">
+    <strong>Credits:</strong> Each game download uses 1 credit.
+    {% if usage_info.monthly_limit %}
+      <span class="muted small">{{ usage_info.monthly_remaining }} left this month.</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <form method="post" class="card-lite">
+    <label for="title">Title</label>
+    <input
+      id="title"
+      name="title"
+      class="wide-input"
+      placeholder="Match the Verse"
+    />
+
+    <label for="version">Version</label>
+    <select id="version" name="version" class="wide-input version-pref">
+      <option value="esv">ESV</option>
+      <option value="kjv">KJV</option>
+    </select>
+    <p class="small muted">Uses your default version unless you choose another.</p>
+
+    <label for="references">References (one per line)</label>
+    <textarea
+      id="references"
+      name="references"
+      class="wide-input"
+      rows="6"
+      placeholder="Proverbs 20:7&#10;Psalm 25:21&#10;Job 27:5"
+    ></textarea>
+
+    <details class="advanced" style="margin-top: 0.5rem;">
+      <summary>Use custom verse text (optional)</summary>
+      <label for="gameItems" class="small muted" style="margin-top: 0.5rem;">
+        One per line: Reference | Verse text | Version (optional)
+      </label>
+      <textarea
+        id="gameItems"
+        name="gameItems"
+        class="wide-input"
+        rows="6"
+        placeholder="Proverbs 20:7 | The godly walk with integrity; blessed are their children who follow them. | ESV"
+      ></textarea>
+    </details>
+
+    <button class="button primary" type="submit" style="margin-top: 0.75rem;">
+      Create game
+    </button>
+  </form>
+</section>
+{% endblock %}

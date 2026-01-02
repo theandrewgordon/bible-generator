@@ -1392,6 +1392,11 @@ def games_detail(slug):
     from faithsparks.views.games import games_detail as _impl
     return _impl(slug)
 
+@app.route('/games/create', methods=['GET', 'POST'])
+def games_create():
+    from faithsparks.views.games import games_create as _impl
+    return _impl()
+
 
 @app.route('/games/download/<slug>')
 def dl_game(slug):

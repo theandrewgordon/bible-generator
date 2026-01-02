@@ -1,5 +1,6 @@
 import os
 import random
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Dict
 
@@ -175,6 +176,60 @@ def games_detail(slug):
     )
 
 
+def games_create():
+    if not google.authorized:
+        flash("Please sign in to create a game.", "warning")
+        return redirect(url_for("google.login", next=request.url))
+
+    email = session.get("user_email")
+    if request.method == "GET":
+        usage_info = _usage_snapshot(email)
+        return render_template("games_create.html", usage_info=usage_info)
+
+    title = (request.form.get("title") or "Match the Verse").strip()
+    version = (request.form.get("version") or "esv").strip().lower()
+    refs_raw = request.form.get("references") or ""
+    game_items_raw = request.form.get("gameItems") or ""
+
+    refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
+    game_items = []
+    for line in (game_items_raw or "").splitlines():
+        if not line.strip():
+            continue
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) < 2:
+            continue
+        ref = parts[0]
+        text = parts[1]
+        v = parts[2] if len(parts) > 2 else ""
+        game_items.append({"reference": ref, "text": text, "version": v})
+
+    if not refs and not game_items:
+        flash("Add at least one reference or match item.", "warning")
+        return redirect(url_for("games_create"))
+
+    plan = _get_user_plan(email)
+    m_limit, l_limit = _quota_for_plan(plan)
+    used_life, used_m = _get_usage(email)
+    if (m_limit is not None and used_m >= m_limit) or (l_limit is not None and used_life >= l_limit):
+        flash("You’ve used all your credits for this month.", "warning")
+        return redirect(url_for("games_create"))
+
+    pdf_dir = os.path.join("output", "games")
+    os.makedirs(pdf_dir, exist_ok=True)
+    safe_title = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "match-the-verse"
+    pdf_path = os.path.join(pdf_dir, f"custom-{safe_title}-{version}.pdf")
+
+    try:
+        refs, verses, key = _build_match_game_from_inputs(refs, version, game_items)
+        generate_match_game_pdf(title, refs, verses, key, pdf_path)
+        _update_usage(email, 1)
+        return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
+    except Exception:
+        flash("Could not create this game yet.", "warning")
+        return redirect(url_for("games_create"))
+
+
 def dl_game(slug):
     if not db:
         return "Firestore not configured", 500
@@ -296,6 +351,46 @@ def _build_match_game_items(meta, version: str):
 
     rng = random.Random(meta.get("slug") or "")
     order = list(range(len(verses)))
+    rng.shuffle(order)
+    shuffled = [verses[i] for i in order]
+    answer_key = [order.index(i) + 1 for i in range(len(verses))]
+    return refs, shuffled, answer_key
+
+
+def _build_match_game_from_inputs(refs, version, game_items):
+    refs = list(refs or [])[:6]
+    version = (version or "esv").lower()
+    verses = []
+    if game_items:
+        refs = []
+        for item in game_items[:6]:
+            ref = (item.get("reference") or "").strip()
+            text = (item.get("text") or "").strip()
+            v = (item.get("version") or version).strip().lower() or version
+            if not ref or not text:
+                continue
+            refs.append(ref)
+            verses.append(MatchItem(text=text, version=v))
+        if refs:
+            order = list(range(len(verses)))
+            rng = random.Random("custom-game")
+            rng.shuffle(order)
+            shuffled = [verses[i] for i in order]
+            answer_key = [order.index(i) + 1 for i in range(len(verses))]
+            return refs, shuffled, answer_key
+
+    for ref in refs:
+        text = "Verse text unavailable."
+        try:
+            content = request_verse_data(ref, version)
+            data = parse_and_clean_json(content)
+            text = (data.get("fullVerse") or "").strip() or text
+        except Exception:
+            pass
+        verses.append(MatchItem(text=text, version=version))
+
+    order = list(range(len(verses)))
+    rng = random.Random("custom-game")
     rng.shuffle(order)
     shuffled = [verses[i] for i in order]
     answer_key = [order.index(i) + 1 for i in range(len(verses))]
