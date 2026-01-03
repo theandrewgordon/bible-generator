@@ -2,6 +2,7 @@
 {% block title %}Create a Game | Faith Sparks Printables{% endblock %}
 
 {% block content %}
+{% set fs = form_state or {} %}
 <section class="game-create">
   <h1 class="page-title">Create a game</h1>
   <p class="muted">
@@ -18,6 +19,7 @@
   {% endif %}
 
   <form method="post" class="card-lite" data-no-overlay>
+    <input type="hidden" name="wordAction" id="wordAction" value="" />
     <div class="step-block">
       <div class="step-title">
         <span class="step-dot">1</span>
@@ -25,10 +27,10 @@
       </div>
       <label for="gameType">Game type</label>
       <select id="gameType" name="gameType" class="wide-input">
-        <option value="match" selected>Match the Verse</option>
-        <option value="match-meaning">Match the Meaning</option>
-        <option value="word-search">Word Search</option>
-        <option value="crossword">Crossword</option>
+        <option value="match" {% if fs.game_type == "match" or not fs.game_type %}selected{% endif %}>Match the Verse</option>
+        <option value="match-meaning" {% if fs.game_type == "match-meaning" %}selected{% endif %}>Match the Meaning</option>
+        <option value="word-search" {% if fs.game_type == "word-search" %}selected{% endif %}>Word Search</option>
+        <option value="crossword" {% if fs.game_type == "crossword" %}selected{% endif %}>Crossword</option>
       </select>
       <p class="small muted" id="gameTypeHelp">
         Match the Meaning can auto-generate kid-friendly meanings from the verse text.
@@ -36,8 +38,8 @@
 
       <label for="version">Version</label>
       <select id="version" name="version" class="wide-input version-pref">
-        <option value="esv">ESV</option>
-        <option value="kjv">KJV</option>
+        <option value="esv" {% if fs.version == "esv" or not fs.version %}selected{% endif %}>ESV</option>
+        <option value="kjv" {% if fs.version == "kjv" %}selected{% endif %}>KJV</option>
       </select>
       <p class="small muted">Uses your default version unless you choose another.</p>
     </div>
@@ -49,7 +51,7 @@
       </div>
       <div class="topic-ideas">
         <div class="suggested-head">
-          <span class="small muted" id="topicLabel">Topic ideas</span>
+          <span class="small muted" id="topicLabel">Warm topics</span>
           <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
         </div>
         <div class="suggested-topic-list" id="suggestedTopicList">
@@ -59,7 +61,8 @@
               class="pill ghost topic-pill"
               data-topic="{{ item.label }}"
               data-refs="{{ item.refs | replace('\n', '\\n') | e }}"
-              onclick="var refs=(this.dataset.refs||'').split('\\n').join('\n');var r=document.getElementById('references');if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}var t=document.getElementById('theme');if(t){t.value=this.dataset.topic||this.textContent.trim();}return false;"
+              data-words="{{ item.words | default([]) | join('\n') | replace('\n', '\\n') | e }}"
+              onclick="var refs=(this.dataset.refs||'').split('\\\\n').join('\\n');var r=document.getElementById('references');if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}var t=document.getElementById('theme');if(t){t.value=this.dataset.topic||this.textContent.trim();}var w=(this.dataset.words||'');var wa=document.getElementById('gameWords');if(wa&&w){wa.value=w.split('\\\\n').join('\\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}var c=document.getElementById('confirmWords');if(c){c.checked=false;}return false;"
             >
               {{ item.label }}
             </button>
@@ -75,18 +78,32 @@
         class="wide-input"
         rows="6"
         placeholder="Proverbs 20:7&#10;Psalm 25:21&#10;Job 27:5"
-      ></textarea>
+      >{{ fs.references | default("", true) | e }}</textarea>
 
       <div id="wordCreateFields" class="word-list-panel">
         <label class="small muted">Word list (word search + crossword)</label>
         <div class="word-list-actions">
-          <button type="button" class="button ghost tiny" id="generateWords" onclick="return window.fsBuildWordList && window.fsBuildWordList();">Build word list</button>
-          <button type="button" class="button ghost tiny" id="clearWords" onclick="return window.fsClearWordList && window.fsClearWordList();">Clear list</button>
+          <button
+            type="button"
+            class="button ghost tiny"
+            id="generateWords"
+            onclick="document.getElementById('wordAction').value='build'; this.form.submit(); return false;"
+          >
+            Build word list
+          </button>
+          <button
+            type="button"
+            class="button ghost tiny"
+            id="clearWords"
+            onclick="document.getElementById('wordAction').value='clear'; this.form.submit(); return false;"
+          >
+            Clear list
+          </button>
         </div>
         <p class="small muted" id="wordListMessage" style="margin-top: 0.35rem;"></p>
         <div class="word-chip-list" id="wordChipList"></div>
         <label class="word-review-check">
-          <input type="checkbox" id="confirmWords" name="confirmWords" value="1" />
+          <input type="checkbox" id="confirmWords" name="confirmWords" value="1" {% if fs.confirm_words %}checked{% endif %} />
           I reviewed the word list.
         </label>
         <details class="advanced" style="margin-top: 0.5rem;">
@@ -100,7 +117,7 @@
             class="wide-input"
             rows="5"
             placeholder="Faith&#10;Grace&#10;Hope"
-          ></textarea>
+          >{{ fs.game_words | default("", true) | e }}</textarea>
         </details>
       </div>
     </div>
@@ -113,6 +130,7 @@
         name="title"
         class="wide-input"
         placeholder="Match the Verse"
+        value="{{ fs.title | default('', true) | e }}"
       />
 
       <label for="theme" class="small muted" style="margin-top: 0.5rem;">Theme</label>
@@ -121,13 +139,14 @@
         name="theme"
         class="wide-input"
         placeholder="Peace, Integrity, Wisdom..."
+        value="{{ fs.theme | default('', true) | e }}"
       />
       <p class="small muted">Shows as a subtitle on the printable.</p>
 
       <label for="difficulty">Difficulty</label>
       <select id="difficulty" name="difficulty" class="wide-input">
-        <option value="simple">Simple</option>
-        <option value="standard" selected>Standard</option>
+        <option value="simple" {% if fs.difficulty == "simple" %}selected{% endif %}>Simple</option>
+        <option value="standard" {% if fs.difficulty == "standard" or not fs.difficulty %}selected{% endif %}>Standard</option>
       </select>
       <p class="small muted" id="difficultyHelp">
         Simple uses shorter verses/meanings and fewer word-search words.
@@ -145,7 +164,7 @@
             class="wide-input"
             rows="6"
             placeholder="Proverbs 20:7 | The godly walk with integrity; blessed are their children who follow them. | ESV"
-          ></textarea>
+          >{{ fs.game_items | default("", true) | e }}</textarea>
         </details>
       </div>
     </details>
@@ -180,6 +199,7 @@
     const wordListMessage = document.getElementById("wordListMessage");
     const confirmWords = document.getElementById("confirmWords");
     const form = document.querySelector("form[data-no-overlay]");
+    const wordActionInput = document.getElementById("wordAction");
     const defaults = {
       match: "Match the Verse",
       "match-meaning": "Match the Meaning",
@@ -231,11 +251,13 @@
                 : "Match the Verse uses the full verse text.";
       }
       if (topicLabel) {
-        topicLabel.textContent =
-          type === "word-search" || type === "crossword" ? "Story topics" : "Topic ideas";
+        topicLabel.textContent = "Warm topics";
       }
       if (topicHelp) {
-        topicHelp.textContent = "Pick one to fill the references below.";
+        topicHelp.textContent =
+          type === "word-search" || type === "crossword"
+            ? "Pick one to fill the references and word list."
+            : "Pick one to fill the references below.";
       }
       renderSuggestedTopics();
       const defaultTitle = defaults[type] || "Match the Verse";
@@ -255,9 +277,17 @@
     if (typeSel) typeSel.addEventListener("change", sync);
     sync();
 
-    function applyTopic(topic, refs, keepType) {
+    function applyTopic(topic, refs, words) {
       if (themeInput) themeInput.value = topic || "";
       if (refsInput) refsInput.value = refs || "";
+      if (wordArea && words) {
+        wordArea.value = words;
+        renderWordChips();
+        if (confirmWords) confirmWords.checked = false;
+      }
+      if (wordListMessage && words) {
+        wordListMessage.textContent = "Word list filled from this topic. Review or edit below.";
+      }
     }
 
     function loadTopicData(id) {
@@ -286,7 +316,9 @@
     function applyTopicFromButton(btn) {
       const refsRaw = btn.dataset.refs || "";
       const refs = refsRaw.replace(/\\n/g, "\n");
-      applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, true);
+      const wordsRaw = btn.dataset.words || "";
+      const words = wordsRaw ? wordsRaw.replace(/\\n/g, "\n") : "";
+      applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, words);
       if (refsInput) {
         refsInput.dispatchEvent(new Event("input", { bubbles: true }));
         refsInput.dispatchEvent(new Event("change", { bubbles: true }));
@@ -301,6 +333,11 @@
       "if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}" +
       "var t=document.getElementById('theme');" +
       "if(t){t.value=this.dataset.topic||this.textContent.trim();}" +
+      "var w=(this.dataset.words||'');" +
+      "var wa=document.getElementById('gameWords');" +
+      "if(wa&&w){wa.value=w.split('\\\\n').join('\\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}" +
+      "var c=document.getElementById('confirmWords');" +
+      "if(c){c.checked=false;}" +
       "return false;";
 
     function bindTopicButtons(buttons) {
@@ -329,6 +366,7 @@
         btn.textContent = item.label;
         btn.dataset.topic = item.label;
         btn.dataset.refs = (item.refs || "").replace(/\n/g, "\\n");
+        btn.dataset.words = (item.words || []).join("\\n");
         btn.setAttribute("onclick", inlineTopicHandler);
         list.appendChild(btn);
       });
@@ -356,6 +394,9 @@
         .filter(Boolean);
       wordChipList.innerHTML = "";
       if (confirmWords) confirmWords.checked = false;
+      if (wordListMessage && !words.length) {
+        wordListMessage.textContent = "";
+      }
       words.forEach((word) => {
         const chip = document.createElement("button");
         chip.type = "button";
@@ -375,59 +416,11 @@
       renderWordChips();
     }
 
-    async function fetchWordSuggestions() {
-      if (!refsInput || !typeSel) return;
-      const refs = refsInput.value.trim();
-      if (!refs) {
-        if (wordListMessage) wordListMessage.textContent = "Add references to build a word list.";
-        return;
-      }
-      if (wordListMessage) wordListMessage.textContent = "Building word list...";
-      const version = (document.getElementById("version")?.value || "esv").toLowerCase();
-      const difficulty = (document.getElementById("difficulty")?.value || "standard").toLowerCase();
-      if (generateWordsBtn) generateWordsBtn.disabled = true;
-      try {
-        const res = await fetch("/games/words", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ refs, version, difficulty }),
-        });
-        if (!res.ok) {
-          if (wordListMessage) wordListMessage.textContent = "Could not build a word list yet.";
-          return;
-        }
-        const data = await res.json();
-        if (Array.isArray(data.words) && wordArea) {
-          wordArea.value = data.words.join("\n");
-          renderWordChips();
-          if (wordListMessage) wordListMessage.textContent = "Word list ready. Edit or remove any words.";
-        } else if (wordListMessage) {
-          wordListMessage.textContent = "No words found for those references.";
-        }
-      } catch (err) {
-        if (wordListMessage) wordListMessage.textContent = "Could not reach the word builder. Please try again.";
-      } finally {
-        if (generateWordsBtn) generateWordsBtn.disabled = false;
-      }
+    function fetchWordSuggestions() {
+      return;
     }
 
     window.fsBuildWordList = fetchWordSuggestions;
-    window.fsClearWordList = () => {
-      if (wordArea) wordArea.value = "";
-      renderWordChips();
-      if (wordListMessage) wordListMessage.textContent = "";
-      return false;
-    };
-
-    if (generateWordsBtn) {
-      generateWordsBtn.addEventListener("click", fetchWordSuggestions);
-      generateWordsBtn.onclick = fetchWordSuggestions;
-    }
-    if (clearWordsBtn) {
-      clearWordsBtn.addEventListener("click", window.fsClearWordList);
-      clearWordsBtn.onclick = window.fsClearWordList;
-    }
 
     function requiresWordReview() {
       const type = (typeSel?.value || "match").toLowerCase();
@@ -437,6 +430,9 @@
     if (form) {
       form.addEventListener("submit", (event) => {
         if (!requiresWordReview()) return;
+        if (wordActionInput && (wordActionInput.value === "build" || wordActionInput.value === "clear")) {
+          return;
+        }
         if (confirmWords && !confirmWords.checked) {
           event.preventDefault();
           if (wordListMessage) {

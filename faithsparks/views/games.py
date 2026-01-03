@@ -22,67 +22,111 @@ from verse_helpers import (
     parse_and_clean_json,
 )
 
-MATCH_TOPIC_SUGGESTIONS = [
+WARM_TOPIC_SUGGESTIONS = [
     {
-        "label": "Love",
-        "refs": "John 3:16\n1 John 4:19\nJohn 13:34-35\nRomans 5:8\n1 Corinthians 13:4-7\n1 John 4:7-8\nPsalm 136:1",
+        "label": "God's Names & Attributes",
+        "refs": "Genesis 1:1\nPsalm 23:1\nPsalm 27:1\n1 John 4:8\nPsalm 46:1\nIsaiah 9:6\nPsalm 47:7\nMatthew 6:9",
+        "words": ["GOD", "LORD", "CREATOR", "FATHER", "KING", "LIGHT", "LOVE", "HELPER", "SHEPHERD", "MIGHTY"],
     },
     {
-        "label": "Kindness & Patience",
-        "refs": "Ephesians 4:2\nColossians 3:12\nGalatians 5:22-23\nProverbs 15:1\nProverbs 19:11\n1 Thessalonians 5:15\n1 Peter 3:8",
+        "label": "Jesus",
+        "refs": "Matthew 1:21\nJohn 14:6\nJohn 10:11\nJohn 15:15\nRevelation 19:16\nJohn 1:29\nActs 2:36\nMatthew 16:16",
+        "words": ["JESUS", "SAVIOR", "SON", "TEACHER", "HEALER", "FRIEND", "KING", "LAMB", "MESSIAH", "LORD"],
     },
-    {
-        "label": "Honesty & Integrity",
-        "refs": "Proverbs 12:22\nProverbs 10:9\nProverbs 11:3\nEphesians 4:25\nColossians 3:9\nPsalm 15:1-2\nProverbs 20:7",
-    },
-    {
-        "label": "Obedience",
-        "refs": "John 14:15\nDeuteronomy 5:33\nJames 1:22\n1 Samuel 15:22\nLuke 11:28\nColossians 3:20\nPsalm 119:9",
-    },
-    {
-        "label": "Wisdom & Guidance",
-        "refs": "Proverbs 3:5-6\nJames 1:5\nProverbs 2:6\nProverbs 9:10\nPsalm 111:10\nProverbs 4:7\nColossians 1:9",
-    },
-    {
-        "label": "Forgiveness",
-        "refs": "1 John 1:9\nColossians 3:13\nEphesians 4:32\nMatthew 6:14-15\nLuke 17:3-4\nPsalm 103:12\nMicah 7:18",
-    },
-]
-
-STORY_TOPIC_SUGGESTIONS = [
     {
         "label": "Creation",
-        "refs": "Genesis 1:1\nGenesis 1:27\nGenesis 1:31\nPsalm 19:1\nJohn 1:3\nColossians 1:16\nPsalm 104:24",
+        "refs": "Genesis 1:1\nGenesis 1:16\nGenesis 1:10\nGenesis 1:20\nGenesis 1:24\nPsalm 19:1\nGenesis 1:31\nPsalm 104:24",
+        "words": ["CREATION", "EARTH", "SKY", "SEA", "LAND", "SUN", "MOON", "STARS", "ANIMALS", "PLANTS"],
     },
     {
-        "label": "Noah's Ark",
-        "refs": "Genesis 6:9\nGenesis 6:22\nGenesis 7:1\nGenesis 7:16\nGenesis 8:1\nGenesis 9:13\nHebrews 11:7",
-    },
-    {
-        "label": "Joseph",
-        "refs": "Genesis 37:28\nGenesis 39:2\nGenesis 41:41\nGenesis 45:5\nGenesis 50:20\nPsalm 105:17\nActs 7:9",
-    },
-    {
-        "label": "David & Goliath",
-        "refs": "1 Samuel 17:4\n1 Samuel 17:45\n1 Samuel 17:47\n1 Samuel 17:50\nPsalm 27:1\nPsalm 56:3\n2 Samuel 22:33",
-    },
-    {
-        "label": "Jesus' Miracles",
-        "refs": "Matthew 8:26\nMark 4:39\nJohn 6:11\nJohn 6:19\nMark 1:34\nLuke 5:13\nJohn 9:7",
-    },
-    {
-        "label": "Parables of Jesus",
-        "refs": "Luke 10:33\nLuke 15:20\nMatthew 13:3\nLuke 15:4\nMatthew 13:31\nMatthew 13:44\nMatthew 25:21",
+        "label": "Bible",
+        "refs": "2 Timothy 3:16\nPsalm 119:105\nPsalm 119:11\nHebrews 4:12\nJoshua 1:8\nPsalm 119:97\nMatthew 4:4\nJohn 17:17",
+        "words": ["BIBLE", "SCRIPTURE", "WORD", "BOOK", "VERSE", "CHAPTER", "READ", "TRUTH", "LAW", "PSALMS"],
     },
     {
         "label": "Prayer",
-        "refs": "Matthew 6:9-10\nPhilippians 4:6\n1 Thessalonians 5:17\nJeremiah 33:3\nPsalm 145:18\nMark 1:35\nJames 5:16",
+        "refs": "Matthew 6:9-10\nPhilippians 4:6\n1 Thessalonians 5:17\nJeremiah 33:3\nPsalm 145:18\nJames 5:16\nMark 1:35\nLuke 11:9",
+        "words": ["PRAY", "PRAYER", "ASK", "THANKS", "PRAISE", "LISTEN", "AMEN", "KNEEL", "TALK", "HEART"],
     },
     {
-        "label": "God's Word",
-        "refs": "Psalm 119:105\nJoshua 1:8\n2 Timothy 3:16\nPsalm 119:11\nHebrews 4:12\nMatthew 4:4\nPsalm 1:2",
+        "label": "Worship",
+        "refs": "Psalm 95:1-2\nPsalm 100:2\nPsalm 150:6\nPsalm 34:1\nHebrews 13:15\nPsalm 47:1\nPsalm 98:4\nColossians 3:16",
+        "words": ["WORSHIP", "PRAISE", "SING", "SONG", "JOY", "THANKS", "CLAP", "DANCE", "SHOUT", "MUSIC"],
+    },
+    {
+        "label": "Love",
+        "refs": "John 3:16\n1 John 4:19\n1 Corinthians 13:4-7\nJohn 13:34-35\nRomans 5:8\n1 John 4:7-8\nEphesians 4:32\nPsalm 136:1",
+        "words": ["LOVE", "CARE", "KIND", "GIVE", "HELP", "SERVE", "SHARE", "FORGIVE", "FRIEND", "MERCY"],
+    },
+    {
+        "label": "Kindness",
+        "refs": "Ephesians 4:32\nColossians 3:12\nGalatians 5:22-23\nProverbs 15:1\nProverbs 19:11\nMicah 6:8\n1 Peter 3:8\nLuke 6:35",
+        "words": ["KIND", "NICE", "HELP", "CARE", "SHARE", "SMILE", "GENTLE", "GIVE", "SERVE", "LOVE"],
+    },
+    {
+        "label": "Obedience",
+        "refs": "John 14:15\nDeuteronomy 5:33\nJames 1:22\n1 Samuel 15:22\nLuke 11:28\nColossians 3:20\nPsalm 119:9\nRomans 12:1",
+        "words": ["OBEY", "LISTEN", "FOLLOW", "RULES", "RIGHT", "CHOICE", "YES", "TRUST", "DO", "WILL"],
+    },
+    {
+        "label": "Forgiveness",
+        "refs": "1 John 1:9\nColossians 3:13\nEphesians 4:32\nMatthew 6:14-15\nLuke 17:3-4\nPsalm 103:12\nMicah 7:18-19\nIsaiah 1:18",
+        "words": ["FORGIVE", "SORRY", "MERCY", "LOVE", "CLEAN", "HEART", "GRACE", "AGAIN", "PEACE"],
+    },
+    {
+        "label": "Faith & Trust",
+        "refs": "Hebrews 11:1\nProverbs 3:5-6\nPsalm 56:3\nIsaiah 41:10\nRomans 10:17\nMark 9:23\nPsalm 37:5\nJames 1:6",
+        "words": ["FAITH", "TRUST", "BELIEVE", "HOPE", "STRONG", "PROMISE", "WAIT", "PRAY", "SEE"],
+    },
+    {
+        "label": "Courage",
+        "refs": "Joshua 1:9\nPsalm 27:1\nDeuteronomy 31:6\n1 Corinthians 16:13\nIsaiah 41:13\n2 Timothy 1:7\nPsalm 56:3\n1 Samuel 17:47",
+        "words": ["BRAVE", "STRONG", "BOLD", "FEAR", "TRUST", "HELP", "STAND", "FIGHT", "WIN"],
+    },
+    {
+        "label": "Thankfulness",
+        "refs": "1 Thessalonians 5:18\nPsalm 107:1\nColossians 3:17\nPhilippians 4:6\nPsalm 100:4\nEphesians 5:20\nJames 1:17\nPsalm 136:1",
+        "words": ["THANKS", "GRATEFUL", "JOY", "BLESS", "GIFT", "PRAISE", "HAPPY", "GIVE"],
+    },
+    {
+        "label": "God's Protection",
+        "refs": "Psalm 91:1-2\nPsalm 46:1\nProverbs 18:10\nPsalm 121:7-8\nIsaiah 41:10\nPsalm 34:7\nNahum 1:7\n2 Thessalonians 3:3",
+        "words": ["SAFE", "HELP", "SHIELD", "ARMOR", "WALL", "ROCK", "REFUGE", "PEACE"],
+    },
+    {
+        "label": "Armor of God",
+        "refs": "Ephesians 6:10-11\nEphesians 6:14\nEphesians 6:16\nEphesians 6:17\nEphesians 6:18\n1 Thessalonians 5:8\nIsaiah 59:17",
+        "words": ["ARMOR", "BELT", "TRUTH", "SHIELD", "FAITH", "HELMET", "SWORD", "WORD", "PEACE"],
+    },
+    {
+        "label": "Fruit of the Spirit",
+        "refs": "Galatians 5:22-23\nJohn 15:5\nJohn 15:11\nColossians 3:12\nEphesians 4:2\nRomans 15:13\n2 Timothy 1:7\nMatthew 7:17",
+        "words": ["LOVE", "JOY", "PEACE", "KIND", "GOOD", "FAITH", "GENTLE", "SELF", "CONTROL"],
+    },
+    {
+        "label": "Angels",
+        "refs": "Psalm 91:11\nLuke 2:10-11\nHebrews 1:14\nPsalm 103:20\nMatthew 18:10\nLuke 1:19\nActs 12:7\nRevelation 5:11",
+        "words": ["ANGEL", "WINGS", "LIGHT", "HEAVEN", "MESSENGER", "SONG", "JOY", "GLORY"],
+    },
+    {
+        "label": "Heaven",
+        "refs": "John 14:2-3\nRevelation 21:4\nRevelation 21:1\nPhilippians 3:20\n1 Peter 1:4\nMatthew 5:12\nColossians 3:1-2\nPsalm 16:11",
+        "words": ["HEAVEN", "HOME", "JOY", "PEACE", "LIGHT", "CROWN", "GOLD", "GLORY"],
+    },
+    {
+        "label": "Church",
+        "refs": "Acts 2:42\nHebrews 10:24-25\n1 Corinthians 12:27\nEphesians 2:19-22\nColossians 3:16\nMatthew 18:20\nActs 2:47\nRomans 12:5",
+        "words": ["CHURCH", "PEOPLE", "FAMILY", "PRAY", "SING", "LOVE", "HELP", "GIVE"],
+    },
+    {
+        "label": "Bible Heroes",
+        "refs": "Genesis 6:9\nExodus 3:10\n1 Samuel 17:47\nEsther 4:14\nRuth 1:16\nDaniel 6:22\nLuke 1:38\nActs 9:15\nMatthew 16:16\nRomans 1:16",
+        "words": ["NOAH", "MOSES", "DAVID", "ESTHER", "RUTH", "DANIEL", "MARY", "PAUL", "PETER"],
     },
 ]
+
+MATCH_TOPIC_SUGGESTIONS = WARM_TOPIC_SUGGESTIONS
+STORY_TOPIC_SUGGESTIONS = WARM_TOPIC_SUGGESTIONS
 
 
 def _is_public_games_enabled() -> bool:
@@ -348,6 +392,7 @@ def games_create():
     confirm_words = bool(request.form.get("confirmWords"))
     game_items_raw = request.form.get("gameItems") or ""
     game_words_raw = request.form.get("gameWords") or ""
+    word_action = (request.form.get("wordAction") or "").strip().lower()
 
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
     game_items = []
@@ -363,6 +408,34 @@ def games_create():
         game_items.append({"reference": ref, "text": text, "version": v})
 
     game_words = [w.strip() for w in (game_words_raw or "").splitlines() if w.strip()]
+
+    if word_action in ("build", "clear"):
+        if word_action == "build":
+            if not refs:
+                flash("Add references to build a word list.", "warning")
+                return redirect(url_for("games_create"))
+            game_words = _build_word_search_words_from_inputs(refs, version, [], difficulty)
+        else:
+            game_words = []
+        usage_info = _usage_snapshot(email)
+        form_state = {
+            "title": title if raw_title else "",
+            "theme": theme,
+            "version": version,
+            "game_type": game_type,
+            "difficulty": difficulty,
+            "references": refs_raw,
+            "game_items": game_items_raw,
+            "game_words": "\n".join(game_words),
+            "confirm_words": False,
+        }
+        return render_template(
+            "games_create.html",
+            usage_info=usage_info,
+            match_topics=MATCH_TOPIC_SUGGESTIONS,
+            story_topics=STORY_TOPIC_SUGGESTIONS,
+            form_state=form_state,
+        )
 
     if not refs and not game_items and not game_words:
         flash("Add at least one reference or match item.", "warning")
