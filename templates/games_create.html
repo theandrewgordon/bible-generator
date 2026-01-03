@@ -64,6 +64,28 @@
         rows="6"
         placeholder="Proverbs 20:7&#10;Psalm 25:21&#10;Job 27:5"
       ></textarea>
+
+      <div id="wordCreateFields" class="word-list-panel">
+        <label class="small muted">Word list (word search + crossword)</label>
+        <div class="word-list-actions">
+          <button type="button" class="button ghost tiny" id="generateWords">Build word list</button>
+          <button type="button" class="button ghost tiny" id="clearWords">Clear list</button>
+        </div>
+        <div class="word-chip-list" id="wordChipList"></div>
+        <details class="advanced" style="margin-top: 0.5rem;">
+          <summary>Edit list</summary>
+          <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
+            One word per line
+          </label>
+          <textarea
+            id="gameWords"
+            name="gameWords"
+            class="wide-input"
+            rows="5"
+            placeholder="Faith&#10;Grace&#10;Hope"
+          ></textarea>
+        </details>
+      </div>
     </div>
 
     <details class="advanced step-block" style="margin-top: 0.5rem;">
@@ -93,25 +115,6 @@
       <p class="small muted" id="difficultyHelp">
         Simple uses shorter verses/meanings and fewer word-search words.
       </p>
-      <div id="wordCreateFields">
-        <details class="advanced" style="margin-top: 0.5rem;">
-          <summary>Word list (optional)</summary>
-          <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
-            One word per line
-          </label>
-          <textarea
-            id="gameWords"
-            name="gameWords"
-            class="wide-input"
-            rows="5"
-            placeholder="Faith&#10;Grace&#10;Hope"
-          ></textarea>
-          <div class="word-list-actions">
-            <button type="button" class="button ghost tiny" id="generateWords">Generate from references</button>
-          </div>
-          <div class="word-chip-list" id="wordChipList"></div>
-        </details>
-      </div>
 
       <div id="matchCreateFields">
         <details class="advanced" style="margin-top: 0.5rem;">
@@ -154,6 +157,7 @@
     const wordArea = document.getElementById("gameWords");
     const wordChipList = document.getElementById("wordChipList");
     const generateWordsBtn = document.getElementById("generateWords");
+    const clearWordsBtn = document.getElementById("clearWords");
     const defaults = {
       match: "Match the Verse",
       "match-meaning": "Match the Meaning",
@@ -379,6 +383,12 @@
     if (generateWordsBtn) {
       generateWordsBtn.addEventListener("click", fetchWordSuggestions);
     }
+    if (clearWordsBtn) {
+      clearWordsBtn.addEventListener("click", () => {
+        if (wordArea) wordArea.value = "";
+        renderWordChips();
+      });
+    }
   })();
 </script>
 <style>
@@ -412,6 +422,9 @@
   }
   .word-list-actions {
     margin-top: 0.5rem;
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
   }
   .word-chip-list {
     display: flex;
@@ -440,10 +453,21 @@
   }
   .suggested-topic-list .pill {
     border: 1px solid rgba(15, 23, 42, 0.18);
-    background: var(--box);
+    background: color-mix(in oklab, var(--box), white 24%);
+    color: var(--text);
     border-radius: 999px;
     padding: 0.35rem 0.75rem;
     cursor: pointer;
+  }
+  .topic-ideas {
+    margin-bottom: 0.75rem;
+  }
+  .word-list-panel {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--box), white 6%);
   }
 </style>
 {% endblock %}
