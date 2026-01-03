@@ -59,7 +59,7 @@
               class="pill ghost topic-pill"
               data-topic="{{ item.label }}"
               data-refs="{{ item.refs | replace('\n', '\\n') | e }}"
-              onclick="return window.fsApplyTopicFromButton && window.fsApplyTopicFromButton(this);"
+              onclick="var refs=(this.dataset.refs||'').split('\\n').join('\n');var r=document.getElementById('references');if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}var t=document.getElementById('theme');if(t){t.value=this.dataset.topic||this.textContent.trim();}return false;"
             >
               {{ item.label }}
             </button>
@@ -295,6 +295,13 @@
     }
 
     window.fsApplyTopicFromButton = applyTopicFromButton;
+    const inlineTopicHandler =
+      "var refs=(this.dataset.refs||'').split('\\\\n').join('\\n');" +
+      "var r=document.getElementById('references');" +
+      "if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}" +
+      "var t=document.getElementById('theme');" +
+      "if(t){t.value=this.dataset.topic||this.textContent.trim();}" +
+      "return false;";
 
     function bindTopicButtons(buttons) {
       buttons.forEach((btn) => {
@@ -322,6 +329,7 @@
         btn.textContent = item.label;
         btn.dataset.topic = item.label;
         btn.dataset.refs = (item.refs || "").replace(/\n/g, "\\n");
+        btn.setAttribute("onclick", inlineTopicHandler);
         list.appendChild(btn);
       });
       bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
