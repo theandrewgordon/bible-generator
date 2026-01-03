@@ -728,8 +728,8 @@ def generate_crossword_pdf(
     # Word bank (above grid)
     bank_padding = 6
     bank_rows = int(math.ceil(len(word_list) / 2)) if word_list else 1
-    bank_line_h = 12
-    bank_header_h = 14
+    bank_line_h = 11
+    bank_header_h = 10
     bank_h = bank_padding * 2 + bank_header_h + bank_rows * bank_line_h
     bank_top = y
     bank_bottom = y - bank_h
@@ -738,7 +738,6 @@ def generate_crossword_pdf(
     c.setFillGray(0)
     _draw_section_label(c, margin + 4, bank_top - 2, "Word bank")
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(margin + bank_padding, bank_top - bank_padding - 10, "Word bank:")
     col_gap = 0.5 * inch
     col_width = (usable_width - col_gap) / 2
     left_x = margin + bank_padding
@@ -755,7 +754,7 @@ def generate_crossword_pdf(
     # Draw grid (light panel)
     cell = 0.28 * inch
     grid_size_px = size * cell
-    start_x = margin
+    start_x = margin + max(0, (usable_width - grid_size_px) / 2)
     start_y = y - grid_size_px
     c.setFillGray(0.98)
     c.roundRect(start_x - 8, start_y - 8, grid_size_px + 16, grid_size_px + 16, radius=12, fill=1, stroke=0)
@@ -831,7 +830,7 @@ def generate_crossword_pdf(
 
     cell = 0.28 * inch
     grid_size_px = size * cell
-    start_x = margin
+    start_x = margin + max(0, (usable_width - grid_size_px) / 2)
     start_y = y - grid_size_px
     c.setFillGray(0.98)
     c.roundRect(start_x - 8, start_y - 8, grid_size_px + 16, grid_size_px + 16, radius=12, fill=1, stroke=0)

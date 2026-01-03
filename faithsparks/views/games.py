@@ -409,43 +409,73 @@ def games_create():
 
     game_words = [w.strip() for w in (game_words_raw or "").splitlines() if w.strip()]
 
-    if word_action in ("build", "clear"):
-        if word_action == "build":
-            if not refs:
-                flash("Add references to build a word list.", "warning")
-                return redirect(url_for("games_create"))
-            game_words = _build_word_search_words_from_inputs(refs, version, [], difficulty)
-        else:
-            game_words = []
-        usage_info = _usage_snapshot(email)
-        form_state = {
-            "title": title if raw_title else "",
+    def build_form_state(game_words_list: list[str], confirmed: bool = False):
+        return {
+            "title": raw_title,
             "theme": theme,
             "version": version,
             "game_type": game_type,
             "difficulty": difficulty,
             "references": refs_raw,
             "game_items": game_items_raw,
-            "game_words": "\n".join(game_words),
-            "confirm_words": False,
+            "game_words": "\n".join(game_words_list),
+            "confirm_words": confirmed,
         }
+
+    if word_action in ("build", "clear"):
+        if word_action == "build":
+            if not refs:
+                flash("Add references to build a word list.", "warning")
+                usage_info = _usage_snapshot(email)
+                return render_template(
+                    "games_create.html",
+                    usage_info=usage_info,
+                    match_topics=MATCH_TOPIC_SUGGESTIONS,
+                    story_topics=STORY_TOPIC_SUGGESTIONS,
+                    form_state=build_form_state(game_words, confirmed=False),
+                )
+            game_words = _build_word_search_words_from_inputs(refs, version, [], difficulty)
+        else:
+            game_words = []
+        usage_info = _usage_snapshot(email)
         return render_template(
             "games_create.html",
             usage_info=usage_info,
             match_topics=MATCH_TOPIC_SUGGESTIONS,
             story_topics=STORY_TOPIC_SUGGESTIONS,
-            form_state=form_state,
+            form_state=build_form_state(game_words, confirmed=False),
         )
 
     if not refs and not game_items and not game_words:
         flash("Add at least one reference or match item.", "warning")
-        return redirect(url_for("games_create"))
+        usage_info = _usage_snapshot(email)
+        return render_template(
+            "games_create.html",
+            usage_info=usage_info,
+            match_topics=MATCH_TOPIC_SUGGESTIONS,
+            story_topics=STORY_TOPIC_SUGGESTIONS,
+            form_state=build_form_state(game_words, confirmed=confirm_words),
+        )
     if game_type in ("word-search", "crossword") and not confirm_words:
         flash("Please review the word list before creating the game.", "warning")
-        return redirect(url_for("games_create"))
+        usage_info = _usage_snapshot(email)
+        return render_template(
+            "games_create.html",
+            usage_info=usage_info,
+            match_topics=MATCH_TOPIC_SUGGESTIONS,
+            story_topics=STORY_TOPIC_SUGGESTIONS,
+            form_state=build_form_state(game_words, confirmed=False),
+        )
     if game_type == "match-meaning" and not game_items and not refs:
         flash("Add references or match items for Match the Meaning.", "warning")
-        return redirect(url_for("games_create"))
+        usage_info = _usage_snapshot(email)
+        return render_template(
+            "games_create.html",
+            usage_info=usage_info,
+            match_topics=MATCH_TOPIC_SUGGESTIONS,
+            story_topics=STORY_TOPIC_SUGGESTIONS,
+            form_state=build_form_state(game_words, confirmed=confirm_words),
+        )
 
     plan = _get_user_plan(email)
     m_limit, l_limit = _quota_for_plan(plan)
