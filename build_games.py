@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Tuple
+import math
 import random
 import string
 
@@ -44,6 +45,17 @@ def _wrap_text(text: str, font: str, size: int, max_width: float) -> List[str]:
     if current:
         lines.append(current)
     return lines
+
+
+def _draw_section_label(c, x: float, y: float, text: str):
+    label_w = stringWidth(text, "Helvetica-Bold", 9) + 16
+    label_h = 16
+    c.setFillGray(0.92)
+    c.roundRect(x, y - label_h + 4, label_w, label_h, radius=8, fill=1, stroke=0)
+    c.setFillGray(0)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(x + 8, y - 8, text)
+    return label_w
 
 
 def _load_image(path: str):
@@ -171,11 +183,26 @@ def generate_match_game_pdf(
     usable_width = width - 2 * margin
     y = height - margin - 10
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
+    logo_size = 42
+
+    def draw_footer(title_text: str):
+        c.setStrokeGray(0.8)
+        c.setLineWidth(0.6)
+        c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
+        band_h = 0.35 * inch
+        c.setFillGray(0.96)
+        c.roundRect(0.5 * inch, height - 0.5 * inch - band_h, width - inch, band_h, radius=12, fill=1, stroke=0)
+        c.setFillGray(0.35)
+        c.setFont("Helvetica", 8)
+        c.drawString(0.6 * inch, height - 0.5 * inch - band_h + 10, "Faith Sparks Printables")
+        c.setFillGray(0.4)
+        code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
+        c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
+        c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
 
     # Brand assets
     logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
     qr_reader = _load_image("faithsparks_qr.png")
-    logo_size = 42
     if logo_reader:
         c.drawImage(logo_reader, margin, y - logo_size + 4, width=logo_size, height=logo_size, preserveAspectRatio=True, mask="auto")
     if qr_reader:
@@ -216,6 +243,11 @@ def generate_match_game_pdf(
         c.drawString(margin + 10, y - 4, difficulty_note)
         c.setFillGray(0)
         y -= 12
+    c.setFont("Helvetica", 8)
+    c.setFillGray(0.45)
+    c.drawString(margin + 10, y - 4, "Answer key on next page.")
+    c.setFillGray(0)
+    y -= 12
 
     # Table layout
     left_width = 1.7 * inch
@@ -277,38 +309,41 @@ def generate_match_game_pdf(
 
         y = y_next
 
-    # Divider line above answer key
-    divider_y = 1.22 * inch
-    c.setStrokeGray(0.8)
-    c.setLineWidth(0.5)
-    c.line(margin, divider_y, width - margin, divider_y)
-    c.setFont("Helvetica", 8)
-    c.setFillGray(0.4)
-    c.drawCentredString(width / 2, divider_y + 6, "Answer key (flip page)")
-
-    # Upside-down answer key at bottom (easy cut/flip)
-    key = ", ".join(
-        [f"{chr(64 + i)} -> {answer_key[i - 1]}" for i in range(1, len(references) + 1)]
-    )
-    key_lines = _wrap_text(f"Answer key: {key}", "Helvetica", 8, width - 2 * margin)
-    c.saveState()
-    c.translate(width / 2, 0.75 * inch)
-    c.rotate(180)
-    c.setFont("Helvetica", 8)
-    c.setFillGray(0.4)
-    for idx, line in enumerate(key_lines):
-        c.drawCentredString(0, idx * 10, line)
-    c.restoreState()
-
     # Border + Footer
-    c.setStrokeGray(0.8)
-    c.setLineWidth(0.5)
-    c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
-    code = "".join([ch for ch in title.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
-    c.setFont("Helvetica", 8)
+    draw_footer(title)
+    c.showPage()
+
+    # Answer key page (no logo/QR)
+    y = height - margin - 10
+    c.setFont("Helvetica-Bold", 18)
+    c.drawCentredString(width / 2, y, "Answer Key")
+    y -= 12
+    c.setFont("Helvetica", 9)
     c.setFillGray(0.4)
-    c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-    c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+    c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+    if subtitle:
+        y -= 12
+        c.setFont("Helvetica-Oblique", 9)
+        c.setFillGray(0.35)
+        c.drawCentredString(width / 2, y, subtitle)
+    c.setFillGray(0)
+    y -= logo_size + 4
+
+    key_lines = []
+    for idx, ref in enumerate(references, start=1):
+        key_lines.append(f"{chr(64 + idx)} -> {answer_key[idx - 1]}")
+    c.setFont("Helvetica", 11)
+    col_gap = 0.5 * inch
+    col_width = (usable_width - col_gap) / 2
+    left_x = margin
+    right_x = margin + col_width + col_gap
+    y_cursor = y
+    for i, line in enumerate(key_lines):
+        x = left_x if i % 2 == 0 else right_x
+        if i % 2 == 0 and i > 0:
+            y_cursor -= 14
+        c.drawString(x, y_cursor, line)
+    draw_footer(title)
     c.save()
 
 
@@ -337,12 +372,14 @@ def _place_word_search_word(grid, word, rng, directions):
                 break
         if not ok:
             continue
+        positions = []
         for i, ch in enumerate(word):
             xx = x + dx * i
             yy = y + dy * i
             grid[yy][xx] = ch
-        return True
-    return False
+            positions.append((xx, yy))
+        return positions
+    return None
 
 
 def generate_word_search_pdf(
@@ -360,28 +397,72 @@ def generate_word_search_pdf(
     y = height - margin - 10
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
 
-    logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
-    qr_reader = _load_image("faithsparks_qr.png")
-    logo_size = 42
-    if logo_reader:
-        c.drawImage(logo_reader, margin, y - logo_size + 4, width=logo_size, height=logo_size, preserveAspectRatio=True, mask="auto")
-    if qr_reader:
-        c.drawImage(qr_reader, width - margin - logo_size, y - logo_size + 4, width=logo_size, height=logo_size)
+    def draw_header(title_text: str, subtitle_text: str | None):
+        nonlocal y
+        y = height - margin - 10
+        logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+        qr_reader = _load_image("faithsparks_qr.png")
+        logo_size = 42
+        if logo_reader:
+            c.drawImage(
+                logo_reader,
+                margin,
+                y - logo_size + 4,
+                width=logo_size,
+                height=logo_size,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        if qr_reader:
+            c.drawImage(qr_reader, width - margin - logo_size, y - logo_size + 4, width=logo_size, height=logo_size)
 
-    # Title block
-    c.setFont("Helvetica-Bold", 18)
-    c.drawCentredString(width / 2, y, title)
-    y -= 12
-    c.setFont("Helvetica", 9)
-    c.setFillGray(0.4)
-    c.drawCentredString(width / 2, y, "Faith Sparks Printables")
-    if subtitle:
+        c.setFont("Helvetica-Bold", 18)
+        c.drawCentredString(width / 2, y, title_text)
         y -= 12
-        c.setFont("Helvetica-Oblique", 9)
+        c.setFont("Helvetica", 9)
+        c.setFillGray(0.4)
+        c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+        if subtitle_text:
+            y -= 12
+            c.setFont("Helvetica-Oblique", 9)
+            c.setFillGray(0.35)
+            c.drawCentredString(width / 2, y, subtitle_text)
+        c.setFillGray(0)
+        y -= logo_size + 4
+
+    def draw_answer_header(title_text: str, subtitle_text: str | None):
+        nonlocal y
+        y = height - margin - 10
+        c.setFont("Helvetica-Bold", 18)
+        c.drawCentredString(width / 2, y, title_text)
+        y -= 12
+        c.setFont("Helvetica", 9)
+        c.setFillGray(0.4)
+        c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+        if subtitle_text:
+            y -= 12
+            c.setFont("Helvetica-Oblique", 9)
+            c.setFillGray(0.35)
+            c.drawCentredString(width / 2, y, subtitle_text)
+        c.setFillGray(0)
+        y -= 18
+
+    def draw_footer(title_text: str):
+        c.setStrokeGray(0.8)
+        c.setLineWidth(0.6)
+        c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
+        band_h = 0.35 * inch
+        c.setFillGray(0.96)
+        c.roundRect(0.5 * inch, height - 0.5 * inch - band_h, width - inch, band_h, radius=12, fill=1, stroke=0)
         c.setFillGray(0.35)
-        c.drawCentredString(width / 2, y, subtitle)
-    c.setFillGray(0)
-    y -= logo_size + 4
+        c.setFont("Helvetica", 8)
+        c.drawString(0.6 * inch, height - 0.5 * inch - band_h + 10, "Faith Sparks Printables")
+        c.setFillGray(0.4)
+        code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
+        c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
+        c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+
+    draw_header(title, subtitle)
 
     # Directions
     directions_h = 0.38 * inch
@@ -407,6 +488,11 @@ def generate_word_search_pdf(
         c.drawString(margin + 10, y - 4, difficulty_note)
         c.setFillGray(0)
         y -= 12
+    c.setFont("Helvetica", 8)
+    c.setFillGray(0.45)
+    c.drawString(margin + 10, y - 4, "Answer key on next page.")
+    c.setFillGray(0)
+    y -= 12
 
     # Build grid
     rng = random.Random(title)
@@ -423,18 +509,25 @@ def generate_word_search_pdf(
             seen.add(w)
     clean_words = clean_words[:12]
 
+    solution_positions = set()
     for w in clean_words:
-        _place_word_search_word(grid, w, rng, directions)
+        placed = _place_word_search_word(grid, w, rng, directions)
+        if placed:
+            solution_positions.update(placed)
     for y_idx in range(size):
         for x_idx in range(size):
             if not grid[y_idx][x_idx]:
                 grid[y_idx][x_idx] = rng.choice(string.ascii_uppercase)
 
-    # Draw grid
+    # Draw grid (light panel)
     cell = 0.32 * inch
     grid_size_px = size * cell
     start_x = margin + max(0, (usable_width - grid_size_px) / 2)
     start_y = y - grid_size_px
+    c.setFillGray(0.96)
+    c.roundRect(start_x - 6, start_y - 6, grid_size_px + 12, grid_size_px + 12, radius=10, fill=1, stroke=0)
+    c.setFillGray(0)
+    _draw_section_label(c, start_x - 4, start_y + grid_size_px + 18, "Puzzle")
     c.setFont("Helvetica-Bold", 9)
     for row in range(size):
         for col in range(size):
@@ -443,9 +536,15 @@ def generate_word_search_pdf(
             c.rect(x, y_pos, cell, cell)
             c.drawCentredString(x + cell / 2, y_pos + cell / 2 - 3, grid[row][col])
 
-    # Word list
+    # Word list (boxed)
     list_x = start_x + grid_size_px + 0.4 * inch
     list_y = start_y + grid_size_px - 10
+    list_box_w = width - margin - list_x + 8
+    list_box_h = max(90, (len(clean_words) + 2) * 12 + 18)
+    c.setFillGray(0.96)
+    c.roundRect(list_x - 8, list_y - list_box_h + 10, list_box_w, list_box_h, radius=10, fill=1, stroke=0)
+    c.setFillGray(0)
+    _draw_section_label(c, list_x - 4, list_y + 18, "Word list")
     c.setFont("Helvetica-Bold", 10)
     c.drawString(list_x, list_y, f"Find these words ({len(clean_words)}):")
     list_y -= 12
@@ -454,15 +553,52 @@ def generate_word_search_pdf(
         c.drawString(list_x, list_y, word.title())
         list_y -= 12
 
-    # Border + Footer
-    c.setStrokeGray(0.8)
-    c.setLineWidth(0.5)
-    c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
-    code = "".join([ch for ch in title.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
-    c.setFont("Helvetica", 8)
-    c.setFillGray(0.4)
-    c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-    c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+    draw_footer(title)
+    c.showPage()
+
+    # Answer key page (no logo/QR)
+    draw_answer_header("Answer Key", subtitle)
+    if print_tip:
+        c.setFont("Helvetica", 8)
+        c.setFillGray(0.45)
+        c.drawString(margin + 10, y - 4, "Word search solution")
+        c.setFillGray(0)
+        y -= 12
+
+    cell = 0.32 * inch
+    grid_size_px = size * cell
+    start_x = margin + max(0, (usable_width - grid_size_px) / 2)
+    start_y = y - grid_size_px
+    _draw_section_label(c, start_x - 4, start_y + grid_size_px + 18, "Answer key")
+    c.setFont("Helvetica-Bold", 9)
+    for row in range(size):
+        for col in range(size):
+            x = start_x + col * cell
+            y_pos = start_y + (size - row - 1) * cell
+            if (col, row) in solution_positions:
+                c.setFillGray(0.88)
+                c.rect(x, y_pos, cell, cell, fill=1, stroke=0)
+                c.setFillGray(0)
+            c.rect(x, y_pos, cell, cell)
+            c.drawCentredString(x + cell / 2, y_pos + cell / 2 - 3, grid[row][col])
+
+    list_x = start_x + grid_size_px + 0.4 * inch
+    list_y = start_y + grid_size_px - 10
+    list_box_w = width - margin - list_x + 8
+    list_box_h = max(90, (len(clean_words) + 2) * 12 + 18)
+    c.setFillGray(0.96)
+    c.roundRect(list_x - 8, list_y - list_box_h + 10, list_box_w, list_box_h, radius=10, fill=1, stroke=0)
+    c.setFillGray(0)
+    _draw_section_label(c, list_x - 4, list_y + 18, "Answer words")
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(list_x, list_y, "Answer words:")
+    list_y -= 12
+    c.setFont("Helvetica", 9)
+    for word in clean_words:
+        c.drawString(list_x, list_y, word.title())
+        list_y -= 12
+
+    draw_footer(title)
     c.save()
 
 
@@ -481,10 +617,25 @@ def generate_crossword_pdf(
     usable_width = width - 2 * margin
     y = height - margin - 10
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
+    logo_size = 42
+
+    def draw_footer(title_text: str):
+        c.setStrokeGray(0.8)
+        c.setLineWidth(0.6)
+        c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
+        band_h = 0.35 * inch
+        c.setFillGray(0.96)
+        c.roundRect(0.5 * inch, height - 0.5 * inch - band_h, width - inch, band_h, radius=12, fill=1, stroke=0)
+        c.setFillGray(0.35)
+        c.setFont("Helvetica", 8)
+        c.drawString(0.6 * inch, height - 0.5 * inch - band_h + 10, "Faith Sparks Printables")
+        c.setFillGray(0.4)
+        code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
+        c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
+        c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
 
     logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
     qr_reader = _load_image("faithsparks_qr.png")
-    logo_size = 42
     if logo_reader:
         c.drawImage(logo_reader, margin, y - logo_size + 4, width=logo_size, height=logo_size, preserveAspectRatio=True, mask="auto")
     if qr_reader:
@@ -525,6 +676,11 @@ def generate_crossword_pdf(
         c.drawString(margin + 10, y - 4, difficulty_note)
         c.setFillGray(0)
         y -= 12
+    c.setFont("Helvetica", 8)
+    c.setFillGray(0.45)
+    c.drawString(margin + 10, y - 4, "Answer key on next page.")
+    c.setFillGray(0)
+    y -= 12
 
     # Build grid
     word_list = []
@@ -550,11 +706,42 @@ def generate_crossword_pdf(
     for entry in entries:
         entry.clue = clue_map.get(entry.word, _fallback_clue(entry.word))
 
-    # Draw grid
+    # Word bank (above grid)
+    bank_padding = 8
+    bank_rows = int(math.ceil(len(word_list) / 2)) if word_list else 1
+    bank_line_h = 12
+    bank_header_h = 14
+    bank_h = bank_padding * 2 + bank_header_h + bank_rows * bank_line_h
+    bank_top = y
+    bank_bottom = y - bank_h
+    c.setFillGray(0.96)
+    c.roundRect(margin, bank_bottom, usable_width, bank_h, radius=10, fill=1, stroke=0)
+    c.setFillGray(0)
+    _draw_section_label(c, margin + 4, bank_top - 2, "Word bank")
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin + bank_padding, bank_top - bank_padding - 10, "Word bank:")
+    col_gap = 0.5 * inch
+    col_width = (usable_width - col_gap) / 2
+    left_x = margin + bank_padding
+    right_x = margin + bank_padding + col_width + col_gap
+    y_cursor = bank_top - bank_padding - bank_header_h
+    c.setFont("Helvetica", 9)
+    for idx, word in enumerate(word_list):
+        x = left_x if idx % 2 == 0 else right_x
+        if idx % 2 == 0 and idx > 0:
+            y_cursor -= bank_line_h
+        c.drawString(x, y_cursor, word.title())
+    y = bank_bottom - 12
+
+    # Draw grid (light panel)
     cell = 0.28 * inch
     grid_size_px = size * cell
     start_x = margin
     start_y = y - grid_size_px
+    c.setFillGray(0.96)
+    c.roundRect(start_x - 6, start_y - 6, grid_size_px + 12, grid_size_px + 12, radius=10, fill=1, stroke=0)
+    c.setFillGray(0)
+    _draw_section_label(c, start_x - 4, start_y + grid_size_px + 18, "Puzzle")
     numbers, across_entries, down_entries = _number_crossword_entries(entries)
 
     for row in range(size):
@@ -569,13 +756,19 @@ def generate_crossword_pdf(
                 c.setFont("Helvetica", 6)
                 c.drawString(x + 2, y_pos + cell - 8, str(number))
 
-    # Clues
-    clues_y = start_y - 0.35 * inch
+    # Clues (boxed)
+    clues_y = start_y - 0.45 * inch
     col_gap = 0.4 * inch
     col_width = (usable_width - col_gap) / 2
     left_x = margin
     right_x = margin + col_width + col_gap
-
+    panel_top = clues_y + 10
+    panel_bottom = 1.25 * inch
+    c.setFillGray(0.96)
+    c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=10, fill=1, stroke=0)
+    c.setFillGray(0)
+    _draw_section_label(c, margin + 4, panel_top + 6, "Clues")
+    clues_y = panel_top - 12
     c.setFont("Helvetica-Bold", 10)
     c.drawString(left_x, clues_y, "Across")
     c.drawString(right_x, clues_y, "Down")
@@ -597,13 +790,48 @@ def generate_crossword_pdf(
     draw_clue_list(across, left_x, clues_y)
     draw_clue_list(down, right_x, clues_y)
 
-    # Border + Footer
-    c.setStrokeGray(0.8)
-    c.setLineWidth(0.5)
-    c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
-    code = "".join([ch for ch in title.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
-    c.setFont("Helvetica", 8)
+    draw_footer(title)
+    c.showPage()
+
+    # Answer key page
+    y = height - margin - 10
+    # no logo/QR
+    c.setFont("Helvetica-Bold", 18)
+    c.drawCentredString(width / 2, y, "Answer Key")
+    y -= 12
+    c.setFont("Helvetica", 9)
     c.setFillGray(0.4)
-    c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-    c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+    c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+    if subtitle:
+        y -= 12
+        c.setFont("Helvetica-Oblique", 9)
+        c.setFillGray(0.35)
+        c.drawCentredString(width / 2, y, subtitle)
+    c.setFillGray(0)
+    y -= logo_size + 4
+
+    cell = 0.28 * inch
+    grid_size_px = size * cell
+    start_x = margin
+    start_y = y - grid_size_px
+    c.setFillGray(0.96)
+    c.roundRect(start_x - 6, start_y - 6, grid_size_px + 12, grid_size_px + 12, radius=10, fill=1, stroke=0)
+    c.setFillGray(0)
+    _draw_section_label(c, start_x - 4, start_y + grid_size_px + 18, "Answer key")
+    c.setFont("Helvetica", 8)
+    for row in range(size):
+        for col in range(size):
+            if not grid[row][col]:
+                continue
+            x = start_x + col * cell
+            y_pos = start_y + (size - row - 1) * cell
+            c.rect(x, y_pos, cell, cell)
+            c.drawCentredString(x + cell / 2, y_pos + cell / 2 - 3, grid[row][col])
+            number = numbers.get((row, col))
+            if number:
+                c.setFont("Helvetica", 6)
+                c.drawString(x + 2, y_pos + cell - 8, str(number))
+                c.setFont("Helvetica", 8)
+
+    draw_footer(title)
     c.save()
