@@ -43,25 +43,8 @@
                 <option value="kjv">KJV</option>
               </select>
             </label>
-            <button
-              class="theme-toggle"
-              id="themeToggleMobile"
-              type="button"
-              aria-label="Toggle Dark Mode"
-              title="Toggle Dark Mode"
-              aria-pressed="false"
-            >
-              <span aria-hidden="true">🌙</span>
-            </button>
             {% if is_admin %}
-              <div class="profile-section">Admin</div>
-              <a class="nav-sublink" href="/admin/collections" role="menuitem">Bundles</a>
-              <a class="nav-sublink" href="/admin/users" role="menuitem">Accounts</a>
-              <a class="nav-sublink" href="/admin/theme" role="menuitem">Themes</a>
-              <a class="nav-sublink" href="/admin/content" role="menuitem">Site content</a>
-              <a class="nav-sublink" href="/admin/gift" role="menuitem">Gifts</a>
-              <a class="nav-sublink" href="/admin/help" role="menuitem">Help</a>
-              <a class="nav-sublink" href="/admin/analytics" role="menuitem">Analytics</a>
+              <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
             {% endif %}
             <a class="nav-sublink logout" href="/logout">Logout</a>
           </div>
@@ -95,47 +78,14 @@
                 <option value="kjv">KJV</option>
               </select>
             </label>
-            <button
-              class="theme-toggle"
-              id="themeToggle"
-              type="button"
-              aria-label="Toggle Dark Mode"
-              title="Toggle Dark Mode"
-              aria-pressed="false"
-            >
-              <span aria-hidden="true">🌙</span>
-            </button>
             {% if is_admin %}
-              <div class="profile-section">Admin</div>
-              <a class="nav-sublink" href="/admin/collections" role="menuitem">Bundles</a>
-              <a class="nav-sublink" href="/admin/users" role="menuitem">Accounts</a>
-              <a class="nav-sublink" href="/admin/theme" role="menuitem">Themes</a>
-              <a class="nav-sublink" href="/admin/content" role="menuitem">Site content</a>
-              <a class="nav-sublink" href="/admin/gift" role="menuitem">Gifts</a>
-              <a class="nav-sublink" href="/admin/help" role="menuitem">Help</a>
-              <a class="nav-sublink" href="/admin/analytics" role="menuitem">Analytics</a>
+              <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
             {% endif %}
             <a class="nav-sublink logout" href="/logout">Logout</a>
           </div>
         </details>
       {% else %}
-        <label class="version-toggle" for="versionPref">
-          <span class="version-label">Default version</span>
-          <select id="versionPref" class="version-pref" aria-label="Default Bible version">
-            <option value="esv">ESV</option>
-            <option value="kjv">KJV</option>
-          </select>
-        </label>
-        <button
-          class="theme-toggle"
-          id="themeToggle"
-          type="button"
-          aria-label="Toggle Dark Mode"
-          title="Toggle Dark Mode"
-          aria-pressed="false"
-        >
-          <span aria-hidden="true">🌙</span>
-        </button>
+        <a class="nav-link" href="{{ url_for('google.login', next=request.path) }}">Sign in</a>
       {% endif %}
     </div>
   </div>
