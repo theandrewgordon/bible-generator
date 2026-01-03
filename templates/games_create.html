@@ -62,7 +62,7 @@
               data-topic="{{ item.label }}"
               data-refs="{{ item.refs | replace('\n', '\\n') | e }}"
               data-words="{{ item.words | default([]) | join('\n') | replace('\n', '\\n') | e }}"
-              onclick="var refs=(this.dataset.refs||'').split('\\\\n').join('\\n');var r=document.getElementById('references');if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}var t=document.getElementById('theme');if(t){t.value=this.dataset.topic||this.textContent.trim();}var w=(this.dataset.words||'');var wa=document.getElementById('gameWords');if(wa&&w){wa.value=w.split('\\\\n').join('\\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}var c=document.getElementById('confirmWords');if(c){c.checked=false;}return false;"
+              onclick="var refs=(this.dataset.refs||'').replace(/\\\\n|\\n/g,'\n');var r=document.getElementById('references');if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}var t=document.getElementById('theme');if(t){t.value=this.dataset.topic||this.textContent.trim();}var w=(this.dataset.words||'');var wa=document.getElementById('gameWords');if(wa&&w){wa.value=w.replace(/\\\\n|\\n/g,'\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}var c=document.getElementById('confirmWords');if(c){c.checked=false;}return false;"
             >
               {{ item.label }}
             </button>
@@ -315,9 +315,9 @@
 
     function applyTopicFromButton(btn) {
       const refsRaw = btn.dataset.refs || "";
-      const refs = refsRaw.replace(/\\n/g, "\n");
+      const refs = refsRaw.replace(/\\\\n|\\n/g, "\n");
       const wordsRaw = btn.dataset.words || "";
-      const words = wordsRaw ? wordsRaw.replace(/\\n/g, "\n") : "";
+      const words = wordsRaw ? wordsRaw.replace(/\\\\n|\\n/g, "\n") : "";
       applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, words);
       if (refsInput) {
         refsInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -328,14 +328,14 @@
 
     window.fsApplyTopicFromButton = applyTopicFromButton;
     const inlineTopicHandler =
-      "var refs=(this.dataset.refs||'').split('\\\\n').join('\\n');" +
+      "var refs=(this.dataset.refs||'').replace(/\\\\\\\\n|\\\\n/g,'\\n');" +
       "var r=document.getElementById('references');" +
       "if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}" +
       "var t=document.getElementById('theme');" +
       "if(t){t.value=this.dataset.topic||this.textContent.trim();}" +
       "var w=(this.dataset.words||'');" +
       "var wa=document.getElementById('gameWords');" +
-      "if(wa&&w){wa.value=w.split('\\\\n').join('\\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}" +
+      "if(wa&&w){wa.value=w.replace(/\\\\\\\\n|\\\\n/g,'\\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}" +
       "var c=document.getElementById('confirmWords');" +
       "if(c){c.checked=false;}" +
       "return false;";
