@@ -84,6 +84,10 @@
         </div>
         <p class="small muted" id="wordListMessage" style="margin-top: 0.35rem;"></p>
         <div class="word-chip-list" id="wordChipList"></div>
+        <label class="word-review-check">
+          <input type="checkbox" id="confirmWords" name="confirmWords" value="1" />
+          I reviewed the word list.
+        </label>
         <details class="advanced" style="margin-top: 0.5rem;">
           <summary>Edit list</summary>
           <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
@@ -173,6 +177,8 @@
     const generateWordsBtn = document.getElementById("generateWords");
     const clearWordsBtn = document.getElementById("clearWords");
     const wordListMessage = document.getElementById("wordListMessage");
+    const confirmWords = document.getElementById("confirmWords");
+    const form = document.querySelector("form[data-no-overlay]");
     const defaults = {
       match: "Match the Verse",
       "match-meaning": "Match the Meaning",
@@ -282,7 +288,6 @@
       const type = (typeSel?.value || "match").toLowerCase();
       const pool = (type === "word-search" || type === "crossword") ? storyTopics : matchTopics;
       if (!pool.length) {
-        attachTopicHandlers();
         return;
       }
       list.innerHTML = "";
@@ -294,24 +299,25 @@
         btn.textContent = item.label;
         btn.dataset.topic = item.label;
         btn.dataset.refs = (item.refs || "").replace(/\n/g, "\\n");
-        btn.addEventListener("click", () => applyTopic(item.label, item.refs, true));
         list.appendChild(btn);
       });
     }
 
     const shuffleBtn = document.getElementById("shuffleTopics");
     if (shuffleBtn) shuffleBtn.addEventListener("click", renderSuggestedTopics);
-    function attachTopicHandlers() {
-      document.querySelectorAll(".topic-pill").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const refsRaw = btn.dataset.refs || "";
-          const refs = refsRaw.replace(/\\n/g, "\n");
-          applyTopic(btn.dataset.topic || "", refs, true);
-        });
-      });
-    }
 
     renderSuggestedTopics();
+
+    const topicList = document.getElementById("suggestedTopicList");
+    if (topicList) {
+      topicList.addEventListener("click", (event) => {
+        const btn = event.target.closest(".topic-pill");
+        if (!btn) return;
+        const refsRaw = btn.dataset.refs || "";
+        const refs = refsRaw.replace(/\\n/g, "\n");
+        applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, true);
+      });
+    }
 
     function renderWordChips() {
       if (!wordArea || !wordChipList) return;
@@ -320,6 +326,7 @@
         .map((w) => w.trim())
         .filter(Boolean);
       wordChipList.innerHTML = "";
+      if (confirmWords) confirmWords.checked = false;
       words.forEach((word) => {
         const chip = document.createElement("button");
         chip.type = "button";
@@ -382,6 +389,24 @@
         if (wordArea) wordArea.value = "";
         renderWordChips();
         if (wordListMessage) wordListMessage.textContent = "";
+      });
+    }
+
+    function requiresWordReview() {
+      const type = (typeSel?.value || "match").toLowerCase();
+      return type === "word-search" || type === "crossword";
+    }
+
+    if (form) {
+      form.addEventListener("submit", (event) => {
+        if (!requiresWordReview()) return;
+        if (confirmWords && !confirmWords.checked) {
+          event.preventDefault();
+          if (wordListMessage) {
+            wordListMessage.textContent = "Please review the word list before creating the game.";
+          }
+          confirmWords?.focus();
+        }
       });
     }
   })();
@@ -469,6 +494,13 @@
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 12px;
     background: color-mix(in oklab, var(--box), white 6%);
+  }
+  .word-review-check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
   }
 </style>
 {% endblock %}

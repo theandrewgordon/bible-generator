@@ -345,6 +345,7 @@ def games_create():
     refs_raw = request.form.get("references") or ""
     theme = (request.form.get("theme") or "").strip()
     difficulty = _normalize_difficulty(request.form.get("difficulty") or "standard")
+    confirm_words = bool(request.form.get("confirmWords"))
     game_items_raw = request.form.get("gameItems") or ""
     game_words_raw = request.form.get("gameWords") or ""
 
@@ -365,6 +366,9 @@ def games_create():
 
     if not refs and not game_items and not game_words:
         flash("Add at least one reference or match item.", "warning")
+        return redirect(url_for("games_create"))
+    if game_type in ("word-search", "crossword") and not confirm_words:
+        flash("Please review the word list before creating the game.", "warning")
         return redirect(url_for("games_create"))
     if game_type == "match-meaning" and not game_items and not refs:
         flash("Add references or match items for Match the Meaning.", "warning")
