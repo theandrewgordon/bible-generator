@@ -59,6 +59,7 @@
               class="pill ghost topic-pill"
               data-topic="{{ item.label }}"
               data-refs="{{ item.refs | replace('\n', '\\n') | e }}"
+              onclick="return window.fsApplyTopicFromButton && window.fsApplyTopicFromButton(this);"
             >
               {{ item.label }}
             </button>
@@ -282,15 +283,24 @@
       return arr;
     }
 
+    function applyTopicFromButton(btn) {
+      const refsRaw = btn.dataset.refs || "";
+      const refs = refsRaw.replace(/\\n/g, "\n");
+      applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, true);
+      if (refsInput) {
+        refsInput.dispatchEvent(new Event("input", { bubbles: true }));
+        refsInput.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return false;
+    }
+
+    window.fsApplyTopicFromButton = applyTopicFromButton;
+
     function bindTopicButtons(buttons) {
       buttons.forEach((btn) => {
         if (btn.dataset.bound === "1") return;
         btn.dataset.bound = "1";
-        btn.addEventListener("click", () => {
-          const refsRaw = btn.dataset.refs || "";
-          const refs = refsRaw.replace(/\\n/g, "\n");
-          applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, true);
-        });
+        btn.addEventListener("click", () => applyTopicFromButton(btn));
       });
     }
 
@@ -327,13 +337,7 @@
     document.addEventListener("click", (event) => {
       const btn = event.target.closest(".topic-pill");
       if (!btn) return;
-      const refsRaw = btn.dataset.refs || "";
-      const refs = refsRaw.replace(/\\n/g, "\n");
-      applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, true);
-      if (refsInput) {
-        refsInput.dispatchEvent(new Event("input", { bubbles: true }));
-        refsInput.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      applyTopicFromButton(btn);
     });
 
     function renderWordChips() {
