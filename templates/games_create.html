@@ -80,8 +80,8 @@
       <div id="wordCreateFields" class="word-list-panel">
         <label class="small muted">Word list (word search + crossword)</label>
         <div class="word-list-actions">
-          <button type="button" class="button ghost tiny" id="generateWords">Build word list</button>
-          <button type="button" class="button ghost tiny" id="clearWords">Clear list</button>
+          <button type="button" class="button ghost tiny" id="generateWords" onclick="return window.fsBuildWordList && window.fsBuildWordList();">Build word list</button>
+          <button type="button" class="button ghost tiny" id="clearWords" onclick="return window.fsClearWordList && window.fsClearWordList();">Clear list</button>
         </div>
         <p class="small muted" id="wordListMessage" style="margin-top: 0.35rem;"></p>
         <div class="word-chip-list" id="wordChipList"></div>
@@ -412,15 +412,21 @@
       }
     }
 
+    window.fsBuildWordList = fetchWordSuggestions;
+    window.fsClearWordList = () => {
+      if (wordArea) wordArea.value = "";
+      renderWordChips();
+      if (wordListMessage) wordListMessage.textContent = "";
+      return false;
+    };
+
     if (generateWordsBtn) {
       generateWordsBtn.addEventListener("click", fetchWordSuggestions);
+      generateWordsBtn.onclick = fetchWordSuggestions;
     }
     if (clearWordsBtn) {
-      clearWordsBtn.addEventListener("click", () => {
-        if (wordArea) wordArea.value = "";
-        renderWordChips();
-        if (wordListMessage) wordListMessage.textContent = "";
-      });
+      clearWordsBtn.addEventListener("click", window.fsClearWordList);
+      clearWordsBtn.onclick = window.fsClearWordList;
     }
 
     function requiresWordReview() {

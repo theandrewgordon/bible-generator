@@ -465,6 +465,16 @@ def games_words():
     if not refs:
         return jsonify({"words": []}), 200
     words = _build_word_search_words_from_inputs(refs, version, [], difficulty)
+    try:
+        current_app.logger.info(
+            "games_words refs=%s words=%s version=%s difficulty=%s",
+            len(refs),
+            len(words),
+            version,
+            difficulty,
+        )
+    except Exception:
+        pass
     return jsonify({"words": words}), 200
 
 
