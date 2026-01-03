@@ -205,6 +205,11 @@ def generate_match_game_pdf(
     # Brand assets
     logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
     qr_reader = _load_image("faithsparks_qr.png")
+    panel_top = y + 10
+    panel_bottom = y - logo_size - 10
+    c.setFillGray(0.96)
+    c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=14, fill=1, stroke=0)
+    c.setFillGray(0)
     if logo_reader:
         c.drawImage(logo_reader, margin, y - logo_size + 4, width=logo_size, height=logo_size, preserveAspectRatio=True, mask="auto")
     if qr_reader:
@@ -410,6 +415,7 @@ def generate_word_search_pdf(
     subtitle: str | None = None,
     print_tip: str = "Print tip: Use pencil so kids can erase.",
     difficulty_note: str | None = None,
+    show_word_list: bool = True,
 ) -> None:
     width, height = letter
     margin = 0.6 * inch
@@ -423,6 +429,11 @@ def generate_word_search_pdf(
         logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
         qr_reader = _load_image("faithsparks_qr.png")
         logo_size = 42
+        panel_top = y + 10
+        panel_bottom = y - logo_size - 10
+        c.setFillGray(0.96)
+        c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=14, fill=1, stroke=0)
+        c.setFillGray(0)
         if logo_reader:
             c.drawImage(
                 logo_reader,
@@ -453,6 +464,11 @@ def generate_word_search_pdf(
     def draw_answer_header(title_text: str, subtitle_text: str | None):
         nonlocal y
         y = height - margin - 10
+        panel_top = y + 10
+        panel_bottom = y - 22
+        c.setFillGray(0.96)
+        c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=14, fill=1, stroke=0)
+        c.setFillGray(0)
         c.setFont("Helvetica-Bold", 18)
         c.drawCentredString(width / 2, y, title_text)
         y -= 12
@@ -530,22 +546,26 @@ def generate_word_search_pdf(
             clean_words.append(w)
             seen.add(w)
     clean_words = clean_words[:12]
-    display_words = sorted(clean_words)
-
+    placed_words = []
     solution_positions = set()
     for w in clean_words:
         placed = _place_word_search_word(grid, w, rng, directions)
         if placed:
             solution_positions.update(placed)
+            placed_words.append(w)
+    display_words = sorted(placed_words)
     for y_idx in range(size):
         for x_idx in range(size):
             if not grid[y_idx][x_idx]:
                 grid[y_idx][x_idx] = rng.choice(string.ascii_uppercase)
 
     # Draw grid (light panel)
-    cell = 0.34 * inch
+    cell = 0.35 * inch
     grid_size_px = size * cell
-    start_x = margin
+    if show_word_list:
+        start_x = margin
+    else:
+        start_x = margin + max(0, (usable_width - grid_size_px) / 2)
     start_y = y - grid_size_px
     c.setFillGray(0.98)
     c.roundRect(start_x - 8, start_y - 8, grid_size_px + 16, grid_size_px + 16, radius=12, fill=1, stroke=0)
@@ -560,30 +580,31 @@ def generate_word_search_pdf(
             c.drawCentredString(x + cell / 2, y_pos + cell / 2 - 3, grid[row][col])
 
     # Word list (boxed)
-    list_x = start_x + grid_size_px + 0.4 * inch
-    list_y = start_y + grid_size_px - 10
-    list_box_w = width - margin - list_x + 8
-    list_cols = 2 if len(display_words) > 6 else 1
-    list_rows = max(1, int(math.ceil(len(display_words) / list_cols)))
-    list_box_h = max(88, (list_rows + 2) * 11 + 16)
-    c.setFillGray(0.98)
-    c.roundRect(list_x - 10, list_y - list_box_h + 12, list_box_w + 4, list_box_h, radius=12, fill=1, stroke=0)
-    c.setFillGray(0)
-    _draw_section_label(c, list_x - 4, list_y + 18, "Word list")
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(list_x, list_y, f"Find these words ({len(display_words)}):")
-    list_y -= 12
-    c.setFont("Helvetica", 9)
-    col_gap = 0.3 * inch
-    col_width = (list_box_w - 12 - (col_gap * (list_cols - 1))) / list_cols
-    max_word_width = col_width - 6
-    left_x = list_x
-    for idx, word in enumerate(display_words):
-        col = idx % list_cols
-        row = idx // list_cols
-        x = left_x + (col * (col_width + col_gap))
-        y_pos = list_y - (row * 11)
-        draw_word_fit(x, y_pos, word.title(), max_word_width, base_size=9)
+    if show_word_list and display_words:
+        list_x = start_x + grid_size_px + 0.4 * inch
+        list_y = start_y + grid_size_px - 10
+        list_box_w = width - margin - list_x + 8
+        list_cols = 2 if len(display_words) > 6 else 1
+        list_rows = max(1, int(math.ceil(len(display_words) / list_cols)))
+        list_box_h = max(88, (list_rows + 2) * 11 + 16)
+        c.setFillGray(0.98)
+        c.roundRect(list_x - 10, list_y - list_box_h + 12, list_box_w + 4, list_box_h, radius=12, fill=1, stroke=0)
+        c.setFillGray(0)
+        _draw_section_label(c, list_x - 4, list_y + 18, "Word list")
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(list_x, list_y, f"Find these words ({len(display_words)}):")
+        list_y -= 12
+        c.setFont("Helvetica", 9)
+        col_gap = 0.3 * inch
+        col_width = (list_box_w - 12 - (col_gap * (list_cols - 1))) / list_cols
+        max_word_width = col_width - 6
+        left_x = list_x
+        for idx, word in enumerate(display_words):
+            col = idx % list_cols
+            row = idx // list_cols
+            x = left_x + (col * (col_width + col_gap))
+            y_pos = list_y - (row * 11)
+            draw_word_fit(x, y_pos, word.title(), max_word_width, base_size=9)
 
     draw_footer(title)
     c.showPage()
@@ -597,7 +618,7 @@ def generate_word_search_pdf(
         c.setFillGray(0)
         y -= 12
 
-    cell = 0.34 * inch
+    cell = 0.35 * inch
     grid_size_px = size * cell
     start_x = margin
     start_y = y - grid_size_px
@@ -655,6 +676,7 @@ def generate_crossword_pdf(
     subtitle: str | None = None,
     print_tip: str = "Print tip: Use pencil so kids can erase.",
     difficulty_note: str | None = None,
+    show_word_bank: bool = True,
 ) -> None:
     width, height = letter
     margin = 0.6 * inch
@@ -738,17 +760,19 @@ def generate_crossword_pdf(
             continue
         seen.add(w)
         word_list.append(w)
-    grid, entries = _build_crossword_layout(word_list, size=size)
+    word_list_full = list(word_list)
+    grid, entries = _build_crossword_layout(word_list_full, size=size)
+    word_list = [entry.word for entry in entries]
     def _fallback_clue(word: str) -> str:
         clean = (word or "").strip().upper()
         if not clean:
             return "Word in this puzzle"
         return f"Starts with {clean[0]}, {len(clean)} letters"
 
-    clues = clues or [_fallback_clue(w) for w in word_list]
+    clues = clues or [_fallback_clue(w) for w in word_list_full]
     clue_map = {
         w.upper(): clues[idx] if idx < len(clues) else _fallback_clue(w)
-        for idx, w in enumerate(word_list)
+        for idx, w in enumerate(word_list_full)
     }
     for entry in entries:
         entry.clue = clue_map.get(entry.word, _fallback_clue(entry.word))
@@ -756,30 +780,33 @@ def generate_crossword_pdf(
     display_words = sorted(word_list)
 
     # Word bank (above grid)
-    bank_padding = 6
-    bank_rows = int(math.ceil(len(word_list) / 2)) if word_list else 1
-    bank_line_h = 12
-    bank_header_h = 10
-    bank_h = bank_padding * 2 + bank_header_h + bank_rows * bank_line_h
-    bank_top = y
-    bank_bottom = y - bank_h
-    c.setFillGray(0.98)
-    c.roundRect(margin, bank_bottom, usable_width, bank_h, radius=12, fill=1, stroke=0)
-    c.setFillGray(0)
-    _draw_section_label(c, margin + 4, bank_top - 2, "Word bank")
-    c.setFont("Helvetica-Bold", 10)
-    col_gap = 0.5 * inch
-    col_width = (usable_width - col_gap) / 2
-    left_x = margin + bank_padding
-    right_x = margin + bank_padding + col_width + col_gap
-    y_cursor = bank_top - bank_padding - bank_header_h
-    c.setFont("Helvetica", 9)
-    for idx, word in enumerate(display_words):
-        x = left_x if idx % 2 == 0 else right_x
-        if idx % 2 == 0 and idx > 0:
-            y_cursor -= bank_line_h
-        draw_word_fit(x, y_cursor, word.title(), col_width - 6, base_size=9)
-    y = bank_bottom - 8
+    if show_word_bank and display_words:
+        bank_padding = 6
+        bank_rows = int(math.ceil(len(word_list) / 2)) if word_list else 1
+        bank_line_h = 12
+        bank_header_h = 10
+        bank_h = bank_padding * 2 + bank_header_h + bank_rows * bank_line_h
+        bank_top = y
+        bank_bottom = y - bank_h
+        c.setFillGray(0.98)
+        c.roundRect(margin, bank_bottom, usable_width, bank_h, radius=12, fill=1, stroke=0)
+        c.setFillGray(0)
+        _draw_section_label(c, margin + 4, bank_top - 2, "Word bank")
+        c.setFont("Helvetica-Bold", 10)
+        col_gap = 0.5 * inch
+        col_width = (usable_width - col_gap) / 2
+        left_x = margin + bank_padding
+        right_x = margin + bank_padding + col_width + col_gap
+        y_cursor = bank_top - bank_padding - bank_header_h
+        c.setFont("Helvetica", 9)
+        for idx, word in enumerate(display_words):
+            x = left_x if idx % 2 == 0 else right_x
+            if idx % 2 == 0 and idx > 0:
+                y_cursor -= bank_line_h
+            draw_word_fit(x, y_cursor, word.title(), col_width - 6, base_size=9)
+        y = bank_bottom - 28
+    else:
+        y -= 12
 
     # Draw grid (light panel)
     cell = 0.32 * inch
@@ -833,8 +860,8 @@ def generate_crossword_pdf(
                 y_cursor -= 11
         return y_cursor
 
-    across = [(numbers.get((e.row, e.col), 0), e) for e in across_entries]
-    down = [(numbers.get((e.row, e.col), 0), e) for e in down_entries]
+    across = sorted([(numbers.get((e.row, e.col), 0), e) for e in across_entries], key=lambda item: item[0])
+    down = sorted([(numbers.get((e.row, e.col), 0), e) for e in down_entries], key=lambda item: item[0])
     draw_clue_list(across, left_x, clues_y)
     draw_clue_list(down, right_x, clues_y)
 
@@ -844,6 +871,11 @@ def generate_crossword_pdf(
     # Answer key page
     y = height - margin - 10
     # no logo/QR
+    panel_top = y + 10
+    panel_bottom = y - 22
+    c.setFillGray(0.96)
+    c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=14, fill=1, stroke=0)
+    c.setFillGray(0)
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2, y, "Answer Key")
     y -= 12

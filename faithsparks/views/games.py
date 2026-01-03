@@ -369,7 +369,7 @@ def _derive_theme(game_type: str, refs: list[str], verses: list[MatchItem], word
 
 def _normalize_difficulty(raw: str) -> str:
     val = (raw or "standard").strip().lower()
-    return val if val in ("simple", "standard") else "standard"
+    return val if val in ("simple", "standard", "hard") else "standard"
 
 
 def games():
@@ -513,6 +513,9 @@ def games_create():
             story_topics=STORY_TOPIC_SUGGESTIONS,
         )
 
+    def normalize_multiline(text: str) -> str:
+        return (text or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
+
     raw_title = (request.form.get("title") or "").strip()
     version = (request.form.get("version") or "esv").strip().lower()
     game_type = (request.form.get("gameType") or "match").strip().lower()
@@ -520,12 +523,12 @@ def games_create():
         title = raw_title
     else:
         title = _default_game_title(game_type)
-    refs_raw = request.form.get("references") or ""
+    refs_raw = normalize_multiline(request.form.get("references") or "")
     theme = (request.form.get("theme") or "").strip()
     difficulty = _normalize_difficulty(request.form.get("difficulty") or "standard")
     confirm_words = bool(request.form.get("confirmWords"))
-    game_items_raw = request.form.get("gameItems") or ""
-    game_words_raw = request.form.get("gameWords") or ""
+    game_items_raw = normalize_multiline(request.form.get("gameItems") or "")
+    game_words_raw = normalize_multiline(request.form.get("gameWords") or "")
     word_action = (request.form.get("wordAction") or "").strip().lower()
 
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
@@ -629,13 +632,15 @@ def games_create():
             if not theme:
                 theme = _derive_theme(game_type, refs, [], words)
             subtitle = f"Theme: {theme}" if theme else None
-            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words. Hard hides the word list."
+            show_word_list = difficulty != "hard"
             generate_word_search_pdf(
                 title,
                 words,
                 pdf_path,
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
+                show_word_list=show_word_list,
             )
         elif game_type == "crossword":
             words = _build_word_search_words_from_inputs(refs, version, game_words, difficulty)
@@ -645,7 +650,8 @@ def games_create():
                 theme = _derive_theme(game_type, refs, [], words)
             subtitle = f"Theme: {theme}" if theme else None
             clues = _build_crossword_clues(words, theme)
-            difficulty_note = "Word list: Simple uses 6 words. Standard uses 10 words."
+            difficulty_note = "Word list: Simple uses 6 words. Standard uses 10 words. Hard hides the word bank."
+            show_word_bank = difficulty != "hard"
             generate_crossword_pdf(
                 title,
                 words,
@@ -653,6 +659,7 @@ def games_create():
                 pdf_path,
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
+                show_word_bank=show_word_bank,
             )
         else:
             refs, verses, key = _build_match_game_from_inputs(
@@ -695,7 +702,7 @@ def games_create():
 
 def games_words():
     payload = request.get_json(silent=True) or {}
-    refs_raw = payload.get("refs") or ""
+    refs_raw = (payload.get("refs") or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
     version = (payload.get("version") or "esv").strip().lower()
     difficulty = _normalize_difficulty(payload.get("difficulty") or "standard")
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
@@ -795,13 +802,15 @@ def dl_game(slug):
             if not theme:
                 theme = _derive_theme(game_type, meta.get("verses") or [], [], words)
             subtitle = f"Theme: {theme}" if theme else None
-            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words."
+            difficulty_note = "Word list: Simple uses 8 words. Standard uses 12 words. Hard hides the word list."
+            show_word_list = difficulty != "hard"
             generate_word_search_pdf(
                 title,
                 words,
                 pdf_path,
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
+                show_word_list=show_word_list,
             )
         elif game_type == "crossword":
             words = _build_word_search_words(meta, version, difficulty)
@@ -811,7 +820,8 @@ def dl_game(slug):
                 theme = _derive_theme(game_type, meta.get("verses") or [], [], words)
             subtitle = f"Theme: {theme}" if theme else None
             clues = _build_crossword_clues(words, theme)
-            difficulty_note = "Word list: Simple uses 6 words. Standard uses 10 words."
+            difficulty_note = "Word list: Simple uses 6 words. Standard uses 10 words. Hard hides the word bank."
+            show_word_bank = difficulty != "hard"
             generate_crossword_pdf(
                 title,
                 words,
@@ -819,6 +829,7 @@ def dl_game(slug):
                 pdf_path,
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
+                show_word_bank=show_word_bank,
             )
         else:
             refs, verses, key = _build_match_game_items(
@@ -1029,8 +1040,6 @@ def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
             return "Word in this puzzle"
         if clean in clue_bank:
             return clue_bank[clean]
-        if theme:
-            return f"{theme} word, {len(clean)} letters"
         return f"{len(clean)} letters, starts with {clean[0]}"
 
     def _bad_clue(word: str, clue: str) -> bool:

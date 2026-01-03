@@ -87,7 +87,6 @@
             type="button"
             class="button ghost tiny"
             id="generateWords"
-            onclick="document.getElementById('wordAction').value='build'; this.form.submit(); return false;"
           >
             Build word list
           </button>
@@ -95,7 +94,6 @@
             type="button"
             class="button ghost tiny"
             id="clearWords"
-            onclick="document.getElementById('wordAction').value='clear'; this.form.submit(); return false;"
           >
             Clear list
           </button>
@@ -147,9 +145,10 @@
       <select id="difficulty" name="difficulty" class="wide-input">
         <option value="simple" {% if fs.difficulty == "simple" %}selected{% endif %}>Simple</option>
         <option value="standard" {% if fs.difficulty == "standard" or not fs.difficulty %}selected{% endif %}>Standard</option>
+        <option value="hard" {% if fs.difficulty == "hard" %}selected{% endif %}>Hard</option>
       </select>
       <p class="small muted" id="difficultyHelp">
-        Simple uses shorter verses/meanings and fewer word-search words.
+        Simple uses shorter verses/meanings and fewer words. Hard hides the word list on printables.
       </p>
 
       <div id="matchCreateFields">
@@ -200,6 +199,8 @@
     const confirmWords = document.getElementById("confirmWords");
     const form = document.querySelector("form[data-no-overlay]");
     const wordActionInput = document.getElementById("wordAction");
+    const versionSelect = document.getElementById("version");
+    const difficultySelect = document.getElementById("difficulty");
     const defaults = {
       match: "Match the Verse",
       "match-meaning": "Match the Meaning",
@@ -416,11 +417,89 @@
       renderWordChips();
     }
 
-    function fetchWordSuggestions() {
-      return;
+    function submitWordAction(action) {
+      if (!form || !wordActionInput) return;
+      wordActionInput.value = action;
+      form.submit();
+    }
+
+    async function fetchWordSuggestions() {
+      if (!refsInput || !wordArea) return;
+      const refs = refsInput.value.trim();
+      if (!refs) {
+        if (wordListMessage) {
+          wordListMessage.textContent = "Add references above to build a word list.";
+        }
+        refsInput.focus();
+        return;
+      }
+      if (generateWordsBtn) {
+        generateWordsBtn.disabled = true;
+        generateWordsBtn.textContent = "Building...";
+      }
+      if (wordListMessage) {
+        wordListMessage.textContent = "Building a word list from your references...";
+      }
+      try {
+        const res = await fetch("/games/words", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            refs,
+            version: versionSelect?.value || "esv",
+            difficulty: difficultySelect?.value || "standard",
+          }),
+        });
+        if (!res.ok) {
+          throw new Error("request failed");
+        }
+        const data = await res.json();
+        const words = Array.isArray(data?.words) ? data.words : [];
+        if (words.length) {
+          wordArea.value = words.join("\n");
+          renderWordChips();
+          if (confirmWords) confirmWords.checked = false;
+          if (wordListMessage) {
+            wordListMessage.textContent = "Word list updated. Review or edit below.";
+          }
+        } else if (wordListMessage) {
+          wordListMessage.textContent = "No words found from those references yet.";
+        }
+      } catch (err) {
+        if (wordListMessage) {
+          wordListMessage.textContent = "Could not build a word list right now. Please try again.";
+        }
+        submitWordAction("build");
+      } finally {
+        if (generateWordsBtn) {
+          generateWordsBtn.disabled = false;
+          generateWordsBtn.textContent = "Build word list";
+        }
+      }
     }
 
     window.fsBuildWordList = fetchWordSuggestions;
+
+    if (generateWordsBtn) {
+      generateWordsBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        fetchWordSuggestions();
+      });
+    }
+
+    if (clearWordsBtn) {
+      clearWordsBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (wordArea) {
+          wordArea.value = "";
+          renderWordChips();
+        }
+        if (confirmWords) confirmWords.checked = false;
+        if (wordListMessage) {
+          wordListMessage.textContent = "Word list cleared.";
+        }
+      });
+    }
 
     function requiresWordReview() {
       const type = (typeSel?.value || "match").toLowerCase();
