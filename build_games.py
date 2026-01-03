@@ -704,9 +704,10 @@ def generate_crossword_pdf(
     # Build grid
     word_list = []
     seen = set()
+    min_len = 3
     for raw in words:
         w = "".join([ch for ch in (raw or "").upper() if ch.isalpha()])
-        if not w or w in seen or len(w) > size:
+        if not w or w in seen or len(w) > size or len(w) < min_len:
             continue
         seen.add(w)
         word_list.append(w)
@@ -752,7 +753,7 @@ def generate_crossword_pdf(
     y = bank_bottom - 8
 
     # Draw grid (light panel)
-    cell = 0.28 * inch
+    cell = 0.3 * inch
     grid_size_px = size * cell
     start_x = margin + max(0, (usable_width - grid_size_px) / 2)
     start_y = y - grid_size_px
@@ -775,13 +776,13 @@ def generate_crossword_pdf(
                 c.drawString(x + 2, y_pos + cell - 8, str(number))
 
     # Clues (boxed)
-    clues_y = start_y - 0.45 * inch
+    clues_y = start_y - 0.35 * inch
     col_gap = 0.4 * inch
     col_width = (usable_width - col_gap) / 2
     left_x = margin
     right_x = margin + col_width + col_gap
     panel_top = clues_y + 10
-    panel_bottom = 1.25 * inch
+    panel_bottom = 1.1 * inch
     c.setFillGray(0.98)
     c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=12, fill=1, stroke=0)
     c.setFillGray(0)
@@ -826,9 +827,9 @@ def generate_crossword_pdf(
         c.setFillGray(0.35)
         c.drawCentredString(width / 2, y, subtitle)
     c.setFillGray(0)
-    y -= logo_size + 4
+    y -= 24
 
-    cell = 0.28 * inch
+    cell = 0.3 * inch
     grid_size_px = size * cell
     start_x = margin + max(0, (usable_width - grid_size_px) / 2)
     start_y = y - grid_size_px
