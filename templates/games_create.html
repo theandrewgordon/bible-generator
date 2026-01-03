@@ -52,7 +52,18 @@
           <span class="small muted" id="topicLabel">Topic ideas</span>
           <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
         </div>
-        <div class="suggested-topic-list" id="suggestedTopicList"></div>
+        <div class="suggested-topic-list" id="suggestedTopicList">
+          {% for item in (match_topics | default([]))[:6] %}
+            <button
+              type="button"
+              class="pill ghost topic-pill"
+              data-topic="{{ item.label }}"
+              data-refs="{{ item.refs | replace('\n', '\\n') | e }}"
+            >
+              {{ item.label }}
+            </button>
+          {% endfor %}
+        </div>
         <p class="small muted" id="topicHelp">Pick one to fill the references below.</p>
       </div>
 
@@ -71,6 +82,7 @@
           <button type="button" class="button ghost tiny" id="generateWords">Build word list</button>
           <button type="button" class="button ghost tiny" id="clearWords">Clear list</button>
         </div>
+        <p class="small muted" id="wordListMessage" style="margin-top: 0.35rem;"></p>
         <div class="word-chip-list" id="wordChipList"></div>
         <details class="advanced" style="margin-top: 0.5rem;">
           <summary>Edit list</summary>
@@ -141,6 +153,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script type="application/json" id="matchTopicsData">{{ match_topics | default([]) | tojson }}</script>
+<script type="application/json" id="storyTopicsData">{{ story_topics | default([]) | tojson }}</script>
 <script>
   (function () {
     const typeSel = document.getElementById("gameType");
@@ -158,6 +172,7 @@
     const wordChipList = document.getElementById("wordChipList");
     const generateWordsBtn = document.getElementById("generateWords");
     const clearWordsBtn = document.getElementById("clearWords");
+    const wordListMessage = document.getElementById("wordListMessage");
     const defaults = {
       match: "Match the Verse",
       "match-meaning": "Match the Meaning",
@@ -238,67 +253,19 @@
       if (refsInput) refsInput.value = refs || "";
     }
 
-    const matchTopics = [
-      {
-        label: "Love",
-        refs: "John 3:16\n1 John 4:19\nJohn 13:34-35\nRomans 5:8\n1 Corinthians 13:4-7\n1 John 4:7-8\nPsalm 136:1",
-      },
-      {
-        label: "Kindness & Patience",
-        refs: "Ephesians 4:2\nColossians 3:12\nGalatians 5:22-23\nProverbs 15:1\nProverbs 19:11\n1 Thessalonians 5:15\n1 Peter 3:8",
-      },
-      {
-        label: "Honesty & Integrity",
-        refs: "Proverbs 12:22\nProverbs 10:9\nProverbs 11:3\nEphesians 4:25\nColossians 3:9\nPsalm 15:1-2\nProverbs 20:7",
-      },
-      {
-        label: "Obedience",
-        refs: "John 14:15\nDeuteronomy 5:33\nJames 1:22\n1 Samuel 15:22\nLuke 11:28\nColossians 3:20\nPsalm 119:9",
-      },
-      {
-        label: "Wisdom & Guidance",
-        refs: "Proverbs 3:5-6\nJames 1:5\nProverbs 2:6\nProverbs 9:10\nPsalm 111:10\nProverbs 4:7\nColossians 1:9",
-      },
-      {
-        label: "Forgiveness",
-        refs: "1 John 1:9\nColossians 3:13\nEphesians 4:32\nMatthew 6:14-15\nLuke 17:3-4\nPsalm 103:12\nMicah 7:18",
-      },
-    ];
+    function loadTopicData(id) {
+      const el = document.getElementById(id);
+      if (!el) return [];
+      try {
+        const parsed = JSON.parse(el.textContent || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (err) {
+        return [];
+      }
+    }
 
-    const storyTopics = [
-      {
-        label: "Creation",
-        refs: "Genesis 1:1\nGenesis 1:27\nGenesis 1:31\nPsalm 19:1\nJohn 1:3\nColossians 1:16\nPsalm 104:24",
-      },
-      {
-        label: "Noah's Ark",
-        refs: "Genesis 6:9\nGenesis 6:22\nGenesis 7:1\nGenesis 7:16\nGenesis 8:1\nGenesis 9:13\nHebrews 11:7",
-      },
-      {
-        label: "Joseph",
-        refs: "Genesis 37:28\nGenesis 39:2\nGenesis 41:41\nGenesis 45:5\nGenesis 50:20\nPsalm 105:17\nActs 7:9",
-      },
-      {
-        label: "David & Goliath",
-        refs: "1 Samuel 17:4\n1 Samuel 17:45\n1 Samuel 17:47\n1 Samuel 17:50\nPsalm 27:1\nPsalm 56:3\n2 Samuel 22:33",
-      },
-      {
-        label: "Jesus' Miracles",
-        refs: "Matthew 8:26\nMark 4:39\nJohn 6:11\nJohn 6:19\nMark 1:34\nLuke 5:13\nJohn 9:7",
-      },
-      {
-        label: "Parables of Jesus",
-        refs: "Luke 10:33\nLuke 15:20\nMatthew 13:3\nLuke 15:4\nMatthew 13:31\nMatthew 13:44\nMatthew 25:21",
-      },
-      {
-        label: "Prayer",
-        refs: "Matthew 6:9-10\nPhilippians 4:6\n1 Thessalonians 5:17\nJeremiah 33:3\nPsalm 145:18\nMark 1:35\nJames 5:16",
-      },
-      {
-        label: "God's Word",
-        refs: "Psalm 119:105\nJoshua 1:8\n2 Timothy 3:16\nPsalm 119:11\nHebrews 4:12\nMatthew 4:4\nPsalm 1:2",
-      },
-    ];
+    const matchTopics = loadTopicData("matchTopicsData");
+    const storyTopics = loadTopicData("storyTopicsData");
 
     function shuffleArray(list) {
       const arr = list.slice();
@@ -312,15 +279,21 @@
     function renderSuggestedTopics() {
       const list = document.getElementById("suggestedTopicList");
       if (!list) return;
-      list.innerHTML = "";
       const type = (typeSel?.value || "match").toLowerCase();
       const pool = (type === "word-search" || type === "crossword") ? storyTopics : matchTopics;
+      if (!pool.length) {
+        attachTopicHandlers();
+        return;
+      }
+      list.innerHTML = "";
       const picks = shuffleArray(pool).slice(0, 6);
       picks.forEach((item) => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "pill ghost";
+        btn.className = "pill ghost topic-pill";
         btn.textContent = item.label;
+        btn.dataset.topic = item.label;
+        btn.dataset.refs = (item.refs || "").replace(/\n/g, "\\n");
         btn.addEventListener("click", () => applyTopic(item.label, item.refs, true));
         list.appendChild(btn);
       });
@@ -328,6 +301,16 @@
 
     const shuffleBtn = document.getElementById("shuffleTopics");
     if (shuffleBtn) shuffleBtn.addEventListener("click", renderSuggestedTopics);
+    function attachTopicHandlers() {
+      document.querySelectorAll(".topic-pill").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const refsRaw = btn.dataset.refs || "";
+          const refs = refsRaw.replace(/\\n/g, "\n");
+          applyTopic(btn.dataset.topic || "", refs, true);
+        });
+      });
+    }
+
     renderSuggestedTopics();
 
     function renderWordChips() {
@@ -359,7 +342,11 @@
     async function fetchWordSuggestions() {
       if (!refsInput || !typeSel) return;
       const refs = refsInput.value.trim();
-      if (!refs) return;
+      if (!refs) {
+        if (wordListMessage) wordListMessage.textContent = "Add references to build a word list.";
+        return;
+      }
+      if (wordListMessage) wordListMessage.textContent = "Building word list...";
       const version = (document.getElementById("version")?.value || "esv").toLowerCase();
       const difficulty = (document.getElementById("difficulty")?.value || "standard").toLowerCase();
       if (generateWordsBtn) generateWordsBtn.disabled = true;
@@ -367,13 +354,20 @@
         const res = await fetch("/games/words", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({ refs, version, difficulty }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (wordListMessage) wordListMessage.textContent = "Could not build a word list yet.";
+          return;
+        }
         const data = await res.json();
         if (Array.isArray(data.words) && wordArea) {
           wordArea.value = data.words.join("\n");
           renderWordChips();
+          if (wordListMessage) wordListMessage.textContent = "Word list ready. Edit or remove any words.";
+        } else if (wordListMessage) {
+          wordListMessage.textContent = "No words found for those references.";
         }
       } finally {
         if (generateWordsBtn) generateWordsBtn.disabled = false;
@@ -387,6 +381,7 @@
       clearWordsBtn.addEventListener("click", () => {
         if (wordArea) wordArea.value = "";
         renderWordChips();
+        if (wordListMessage) wordListMessage.textContent = "";
       });
     }
   })();
@@ -446,6 +441,7 @@
     flex-wrap: wrap;
     gap: 0.45rem;
     margin-bottom: 0.5rem;
+    min-height: 2rem;
   }
   .button.tiny {
     padding: 0.2rem 0.5rem;
@@ -453,11 +449,16 @@
   }
   .suggested-topic-list .pill {
     border: 1px solid rgba(15, 23, 42, 0.18);
-    background: color-mix(in oklab, var(--box), white 24%);
+    background: rgba(15, 23, 42, 0.04);
     color: var(--text);
     border-radius: 999px;
     padding: 0.35rem 0.75rem;
     cursor: pointer;
+  }
+  .dark .suggested-topic-list .pill {
+    background: rgba(148, 163, 184, 0.18);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: #e2e8f0;
   }
   .topic-ideas {
     margin-bottom: 0.75rem;

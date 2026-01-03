@@ -22,6 +22,68 @@ from verse_helpers import (
     parse_and_clean_json,
 )
 
+MATCH_TOPIC_SUGGESTIONS = [
+    {
+        "label": "Love",
+        "refs": "John 3:16\n1 John 4:19\nJohn 13:34-35\nRomans 5:8\n1 Corinthians 13:4-7\n1 John 4:7-8\nPsalm 136:1",
+    },
+    {
+        "label": "Kindness & Patience",
+        "refs": "Ephesians 4:2\nColossians 3:12\nGalatians 5:22-23\nProverbs 15:1\nProverbs 19:11\n1 Thessalonians 5:15\n1 Peter 3:8",
+    },
+    {
+        "label": "Honesty & Integrity",
+        "refs": "Proverbs 12:22\nProverbs 10:9\nProverbs 11:3\nEphesians 4:25\nColossians 3:9\nPsalm 15:1-2\nProverbs 20:7",
+    },
+    {
+        "label": "Obedience",
+        "refs": "John 14:15\nDeuteronomy 5:33\nJames 1:22\n1 Samuel 15:22\nLuke 11:28\nColossians 3:20\nPsalm 119:9",
+    },
+    {
+        "label": "Wisdom & Guidance",
+        "refs": "Proverbs 3:5-6\nJames 1:5\nProverbs 2:6\nProverbs 9:10\nPsalm 111:10\nProverbs 4:7\nColossians 1:9",
+    },
+    {
+        "label": "Forgiveness",
+        "refs": "1 John 1:9\nColossians 3:13\nEphesians 4:32\nMatthew 6:14-15\nLuke 17:3-4\nPsalm 103:12\nMicah 7:18",
+    },
+]
+
+STORY_TOPIC_SUGGESTIONS = [
+    {
+        "label": "Creation",
+        "refs": "Genesis 1:1\nGenesis 1:27\nGenesis 1:31\nPsalm 19:1\nJohn 1:3\nColossians 1:16\nPsalm 104:24",
+    },
+    {
+        "label": "Noah's Ark",
+        "refs": "Genesis 6:9\nGenesis 6:22\nGenesis 7:1\nGenesis 7:16\nGenesis 8:1\nGenesis 9:13\nHebrews 11:7",
+    },
+    {
+        "label": "Joseph",
+        "refs": "Genesis 37:28\nGenesis 39:2\nGenesis 41:41\nGenesis 45:5\nGenesis 50:20\nPsalm 105:17\nActs 7:9",
+    },
+    {
+        "label": "David & Goliath",
+        "refs": "1 Samuel 17:4\n1 Samuel 17:45\n1 Samuel 17:47\n1 Samuel 17:50\nPsalm 27:1\nPsalm 56:3\n2 Samuel 22:33",
+    },
+    {
+        "label": "Jesus' Miracles",
+        "refs": "Matthew 8:26\nMark 4:39\nJohn 6:11\nJohn 6:19\nMark 1:34\nLuke 5:13\nJohn 9:7",
+    },
+    {
+        "label": "Parables of Jesus",
+        "refs": "Luke 10:33\nLuke 15:20\nMatthew 13:3\nLuke 15:4\nMatthew 13:31\nMatthew 13:44\nMatthew 25:21",
+    },
+    {
+        "label": "Prayer",
+        "refs": "Matthew 6:9-10\nPhilippians 4:6\n1 Thessalonians 5:17\nJeremiah 33:3\nPsalm 145:18\nMark 1:35\nJames 5:16",
+    },
+    {
+        "label": "God's Word",
+        "refs": "Psalm 119:105\nJoshua 1:8\n2 Timothy 3:16\nPsalm 119:11\nHebrews 4:12\nMatthew 4:4\nPsalm 1:2",
+    },
+]
+
 
 def _is_public_games_enabled() -> bool:
     return os.getenv("PUBLIC_GAMES", os.getenv("PUBLIC_BROWSE", "0")) in (
@@ -266,7 +328,12 @@ def games_create():
     email = session.get("user_email")
     if request.method == "GET":
         usage_info = _usage_snapshot(email)
-        return render_template("games_create.html", usage_info=usage_info)
+        return render_template(
+            "games_create.html",
+            usage_info=usage_info,
+            match_topics=MATCH_TOPIC_SUGGESTIONS,
+            story_topics=STORY_TOPIC_SUGGESTIONS,
+        )
 
     raw_title = (request.form.get("title") or "").strip()
     version = (request.form.get("version") or "esv").strip().lower()
@@ -386,8 +453,6 @@ def games_create():
 
 
 def games_words():
-    if not google.authorized:
-        return jsonify({"error": "signin"}), 401
     payload = request.get_json(silent=True) or {}
     refs_raw = payload.get("refs") or ""
     version = (payload.get("version") or "esv").strip().lower()
@@ -710,7 +775,9 @@ def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
         clean = (word or "").strip().upper()
         if not clean:
             return "Word in this puzzle"
-        return f"Starts with {clean[0]}, {len(clean)} letters"
+        if theme:
+            return f"{theme} word, {len(clean)} letters"
+        return f"{len(clean)} letters, starts with {clean[0]}"
 
     def _bad_clue(word: str, clue: str) -> bool:
         clean_word = (word or "").strip().lower()
@@ -718,6 +785,10 @@ def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
         if not clean_word or not clean_clue:
             return True
         if clean_clue in {"a bible word", "bible word", "god's word"}:
+            return True
+        if "bible word" in clean_clue or "god's word" in clean_clue:
+            return True
+        if len(clean_clue.split()) < 2:
             return True
         if clean_word in clean_clue:
             return True

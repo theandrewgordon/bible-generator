@@ -182,8 +182,9 @@ Rules:
 - Use the exact words provided.
 - Clues should be 3–7 words, kid-friendly, and specific.
 - Each clue should give a simple meaning or synonym for the word.
+- If a theme is provided, make clues feel on-theme.
 - Do not include the answer word or close variants in the clue.
-- Avoid generic filler like "Bible word" or "God's word".
+- Avoid generic filler like "Bible word", "God's word", or "a Bible word".
 - No Bible references in the clues.
 - Return JSON only (no markdown, no "json" prefix).
 

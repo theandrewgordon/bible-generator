@@ -190,12 +190,6 @@ def generate_match_game_pdf(
         c.setStrokeGray(0.88)
         c.setLineWidth(0.6)
         c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
-        band_h = 0.35 * inch
-        c.setFillGray(0.98)
-        c.roundRect(0.5 * inch, height - 0.5 * inch - band_h, width - inch, band_h, radius=12, fill=1, stroke=0)
-        c.setFillGray(0.5)
-        c.setFont("Helvetica", 8)
-        c.drawString(0.6 * inch, height - 0.5 * inch - band_h + 10, "Faith Sparks Printables")
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
@@ -470,16 +464,18 @@ def generate_word_search_pdf(
         c.setStrokeGray(0.88)
         c.setLineWidth(0.6)
         c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
-        band_h = 0.35 * inch
-        c.setFillGray(0.98)
-        c.roundRect(0.5 * inch, height - 0.5 * inch - band_h, width - inch, band_h, radius=12, fill=1, stroke=0)
-        c.setFillGray(0.5)
-        c.setFont("Helvetica", 8)
-        c.drawString(0.6 * inch, height - 0.5 * inch - band_h + 10, "Faith Sparks Printables")
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
         c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+
+    def draw_word_fit(x: float, y_pos: float, text: str, max_width: float, base_size: int = 9) -> None:
+        size = base_size
+        while size >= 7 and c.stringWidth(text, "Helvetica", size) > max_width:
+            size -= 1
+        c.setFont("Helvetica", size)
+        c.drawString(x, y_pos, text)
+        c.setFont("Helvetica", base_size)
 
     draw_header(title, subtitle)
 
@@ -568,8 +564,9 @@ def generate_word_search_pdf(
     c.drawString(list_x, list_y, f"Find these words ({len(clean_words)}):")
     list_y -= 12
     c.setFont("Helvetica", 9)
+    max_word_width = list_box_w - 12
     for word in clean_words:
-        c.drawString(list_x, list_y, word.title())
+        draw_word_fit(list_x, list_y, word.title(), max_word_width, base_size=9)
         list_y -= 12
 
     draw_footer(title)
@@ -613,8 +610,9 @@ def generate_word_search_pdf(
     c.drawString(list_x, list_y, "Answer words:")
     list_y -= 12
     c.setFont("Helvetica", 9)
+    max_word_width = list_box_w - 12
     for word in clean_words:
-        c.drawString(list_x, list_y, word.title())
+        draw_word_fit(list_x, list_y, word.title(), max_word_width, base_size=9)
         list_y -= 12
 
     draw_footer(title)
@@ -642,16 +640,18 @@ def generate_crossword_pdf(
         c.setStrokeGray(0.88)
         c.setLineWidth(0.6)
         c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
-        band_h = 0.35 * inch
-        c.setFillGray(0.98)
-        c.roundRect(0.5 * inch, height - 0.5 * inch - band_h, width - inch, band_h, radius=12, fill=1, stroke=0)
-        c.setFillGray(0.5)
-        c.setFont("Helvetica", 8)
-        c.drawString(0.6 * inch, height - 0.5 * inch - band_h + 10, "Faith Sparks Printables")
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
         c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+
+    def draw_word_fit(x: float, y_pos: float, text: str, max_width: float, base_size: int = 9) -> None:
+        size = base_size
+        while size >= 7 and c.stringWidth(text, "Helvetica", size) > max_width:
+            size -= 1
+        c.setFont("Helvetica", size)
+        c.drawString(x, y_pos, text)
+        c.setFont("Helvetica", base_size)
 
     logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
     qr_reader = _load_image("faithsparks_qr.png")
@@ -749,7 +749,7 @@ def generate_crossword_pdf(
         x = left_x if idx % 2 == 0 else right_x
         if idx % 2 == 0 and idx > 0:
             y_cursor -= bank_line_h
-        c.drawString(x, y_cursor, word.title())
+        draw_word_fit(x, y_cursor, word.title(), col_width - 6, base_size=9)
     y = bank_bottom - 8
 
     # Draw grid (light panel)
