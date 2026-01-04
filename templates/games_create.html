@@ -201,6 +201,16 @@
     const wordActionInput = document.getElementById("wordAction");
     const versionSelect = document.getElementById("version");
     const difficultySelect = document.getElementById("difficulty");
+    function normalizeEscapedNewlines(value) {
+      return (value || "").replace(/\\n/g, "\n");
+    }
+    function normalizeTextarea(el) {
+      if (!el) return;
+      const next = normalizeEscapedNewlines(el.value);
+      if (next !== el.value) {
+        el.value = next;
+      }
+    }
     const defaults = {
       match: "Match the Verse",
       "match-meaning": "Match the Meaning",
@@ -280,9 +290,9 @@
 
     function applyTopic(topic, refs, words) {
       if (themeInput) themeInput.value = topic || "";
-      if (refsInput) refsInput.value = refs || "";
+      if (refsInput) refsInput.value = normalizeEscapedNewlines(refs || "");
       if (wordArea && words) {
-        wordArea.value = words;
+        wordArea.value = normalizeEscapedNewlines(words);
         renderWordChips();
         if (confirmWords) confirmWords.checked = false;
       }
@@ -389,6 +399,7 @@
 
     function renderWordChips() {
       if (!wordArea || !wordChipList) return;
+      normalizeTextarea(wordArea);
       const words = wordArea.value
         .split(/\n+/)
         .map((w) => w.trim())
@@ -417,6 +428,11 @@
       renderWordChips();
     }
 
+    if (refsInput) {
+      normalizeTextarea(refsInput);
+      refsInput.addEventListener("blur", () => normalizeTextarea(refsInput));
+    }
+
     function submitWordAction(action) {
       if (!form || !wordActionInput) return;
       wordActionInput.value = action;
@@ -425,6 +441,7 @@
 
     async function fetchWordSuggestions() {
       if (!refsInput || !wordArea) return;
+      normalizeTextarea(refsInput);
       const refs = refsInput.value.trim();
       if (!refs) {
         if (wordListMessage) {
@@ -444,6 +461,7 @@
         const res = await fetch("/games/words", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({
             refs,
             version: versionSelect?.value || "esv",

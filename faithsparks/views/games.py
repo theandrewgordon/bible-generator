@@ -18,7 +18,6 @@ from verse_helpers import (
     request_verse_data,
     request_verse_meaning,
     request_theme_label,
-    request_crossword_clues,
     parse_and_clean_json,
 )
 
@@ -1041,36 +1040,6 @@ def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
         if clean in clue_bank:
             return clue_bank[clean]
         return f"{len(clean)} letters, starts with {clean[0]}"
-
-    def _bad_clue(word: str, clue: str) -> bool:
-        clean_word = (word or "").strip().lower()
-        clean_clue = (clue or "").strip().lower()
-        if not clean_word or not clean_clue:
-            return True
-        if clean_clue in {"a bible word", "bible word", "god's word"}:
-            return True
-        if "bible word" in clean_clue or "god's word" in clean_clue:
-            return True
-        if len(clean_clue.split()) < 2:
-            return True
-        if clean_word in clean_clue:
-            return True
-        return False
-
-    try:
-        content = request_crossword_clues(words, theme=theme)
-        data = parse_and_clean_json(content)
-        clues = []
-        for item in (data.get("clues") or []):
-            word = (item.get("word") or "").strip().upper()
-            clue = (item.get("clue") or "").strip()
-            if word and clue and not _bad_clue(word, clue):
-                clues.append((word, clue))
-        if clues:
-            clue_map = {w: c for w, c in clues}
-            return [clue_map.get(w, _fallback(w)) for w in words]
-    except Exception:
-        pass
     return [_fallback(w) for w in words]
 
 
