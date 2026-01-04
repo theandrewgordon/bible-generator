@@ -264,7 +264,7 @@ def generate_match_game_pdf(
     c.setFillGray(0.45)
     c.drawString(margin + 10, y - 4, "Answer key on next page.")
     c.setFillGray(0)
-    y -= 18
+    y -= 26
 
     # Table layout
     left_width = 1.7 * inch
@@ -885,7 +885,7 @@ def generate_crossword_pdf(
         bank_padding = 6
         bank_rows = int(math.ceil(len(word_list) / 2)) if word_list else 1
         bank_line_h = 12
-        bank_header_h = 10
+        bank_header_h = 14
         bank_h = bank_padding * 2 + bank_header_h + bank_rows * bank_line_h
         bank_top = y
         bank_bottom = y - bank_h
@@ -896,13 +896,13 @@ def generate_crossword_pdf(
         c.setStrokeGray(0)
         c.setLineWidth(1)
         c.setFillGray(0)
-        _draw_section_label(c, margin + 4, bank_top - 2, "Word bank")
+        _draw_section_label(c, margin + 4, bank_top - 6, "Word bank")
         c.setFont("Helvetica-Bold", 10)
         col_gap = 0.5 * inch
         col_width = (usable_width - col_gap) / 2
         left_x = margin + bank_padding
         right_x = margin + bank_padding + col_width + col_gap
-        y_cursor = bank_top - bank_padding - bank_header_h
+        y_cursor = bank_top - bank_padding - bank_header_h - 2
         c.setFont("Helvetica", 9)
         for idx, word in enumerate(display_words):
             x = left_x if idx % 2 == 0 else right_x

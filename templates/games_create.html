@@ -324,6 +324,27 @@
       return arr;
     }
 
+    const lastPicksByType = {};
+    const shuffleOffsets = {};
+
+    function pickTopics(pool, type) {
+      if (!pool.length) return [];
+      if (pool.length <= 6) {
+        const offset = (shuffleOffsets[type] || 0) % pool.length;
+        const rotated = pool.slice(offset).concat(pool.slice(0, offset));
+        return rotated.slice(0, 6);
+      }
+      let picks = shuffleArray(pool).slice(0, 6);
+      const last = lastPicksByType[type] || [];
+      let tries = 0;
+      while (tries < 5 && picks.map((item) => item.label).join("|") === last.join("|")) {
+        picks = shuffleArray(pool).slice(0, 6);
+        tries += 1;
+      }
+      lastPicksByType[type] = picks.map((item) => item.label);
+      return picks;
+    }
+
     function applyTopicFromButton(btn) {
       const refsRaw = btn.dataset.refs || "";
       const refs = refsRaw.replace(/\\\\n|\\n/g, "\n");
@@ -369,7 +390,7 @@
         return;
       }
       list.innerHTML = "";
-      const picks = shuffleArray(pool).slice(0, 6);
+      const picks = pickTopics(pool, type);
       picks.forEach((item) => {
         const btn = document.createElement("button");
         btn.type = "button";
@@ -385,7 +406,13 @@
     }
 
     const shuffleBtn = document.getElementById("shuffleTopics");
-    if (shuffleBtn) shuffleBtn.addEventListener("click", renderSuggestedTopics);
+    if (shuffleBtn) {
+      shuffleBtn.addEventListener("click", () => {
+        const type = (typeSel?.value || "match").toLowerCase();
+        shuffleOffsets[type] = (shuffleOffsets[type] || 0) + 1;
+        renderSuggestedTopics();
+      });
+    }
 
     renderSuggestedTopics();
     const initialButtons = document.querySelectorAll(".topic-pill");

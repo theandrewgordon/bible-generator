@@ -104,9 +104,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
         <div class="quick-picks" role="group" aria-label="Quick pick verses">
           <span class="quick-picks-label small muted">Quick picks:</span>
-          {% set quick = (site_content.generate_quick_picks or [ 'John 3:16
-          (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (ESV)','Proverbs 3:5-6
-          (KJV)']) %} {% for v in quick %}
+          {% set quick = (site_content.generate_quick_picks or ['John 3:16 (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (ESV)','Proverbs 3:5-6 (KJV)']) %}
+          {% for v in quick %}
           <button type="button" class="chip" data-verse="{{ v }}">
             {{ v.split('(')[0].strip() }}
           </button>
@@ -341,12 +340,34 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const PRIMARY_VERSIONS = ['ESV','KJV'];
   const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
   const overrideOption = versionSelect ? versionSelect.querySelector('option[data-role="override"]') : null;
+  const normalizeVerseText = (value) => {
+    if (!value) return "";
+    let text = String(value).replace(/\s+/g, " ").trim();
+    text = text.replace(/\(\s*(ESV|KJV)\s*\)$/i, " ($1)");
+    return text;
+  };
+  const isVersionOnly = value => /^\(?\s*(ESV|KJV)\s*\)?$/i.test((value || "").trim());
+  const getNormalizedTags = () => {
+    const values = tagify.value.map(t => (t.value || "").trim()).filter(Boolean);
+    const merged = [];
+    values.forEach((val) => {
+      if (isVersionOnly(val) && merged.length) {
+        const token = val.replace(/[()]/g, "").trim().toUpperCase();
+        merged[merged.length - 1] = normalizeVerseText(`${merged[merged.length - 1]} (${token})`);
+        return;
+      }
+      if (!isVersionOnly(val)) {
+        merged.push(normalizeVerseText(val));
+      }
+    });
+    return merged.filter(Boolean);
+  };
   const extractTaggedVersion = str => {
     const m = /\(([A-Z0-9]{2,12})\)/i.exec(str||'');
     return m ? m[1].toUpperCase() : null;
   };
   const findLastTaggedVersion = () => {
-    return [...tagify.value].reverse().map(t => extractTaggedVersion(t.value)).find(Boolean) || null;
+    return getNormalizedTags().reverse().map(t => extractTaggedVersion(t)).find(Boolean) || null;
   };
 
   const applyVersionOverride = token => {
@@ -409,7 +430,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     return (detected || (versionSelect.value || 'esv')).toUpperCase();
   };
 
-  const firstTagText = () => (tagify.value.map(t=>t.value.trim()).find(Boolean) || '');
+  const firstTagText = () => (getNormalizedTags()[0] || '');
 
   function updatePreview(){
     const verse = firstTagText();
@@ -434,7 +455,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   }
 
   function updateVerseFilenames(){
-    const tags = tagify.value.map(t => t.value.trim()).filter(Boolean);
+    const tags = getNormalizedTags();
     const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
     filenamePreview.textContent = tags.length ? tags.map(v => slug(v) + suffix).join(", ") : "";
     if (zipHint){
@@ -452,7 +473,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   /* ===== Quick picks (verses & prompts) ===== */
   document.addEventListener('click', (e)=>{
     const chip = e.target.closest('.chip'); if (!chip) return;
-    const v = chip.getAttribute('data-verse');
+    const v = normalizeVerseText(chip.getAttribute('data-verse'));
     const p = chip.getAttribute('data-prompt');
     if (v){
       tagify.addTags([v]); updateVerseFilenames(); updatePreview();
@@ -511,7 +532,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   /* ===== Submit (fetch → download; keep on page) ===== */
   document.getElementById('worksheetForm').addEventListener('submit', async (e) => {
     const form = e.currentTarget;
-    const tags      = tagify.value.map(t=>t.value.trim()).filter(Boolean);
+    const tags      = getNormalizedTags();
     const customBody= (customText.value||'').trim();
 
     // Validate like before
@@ -608,9 +629,21 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const prefill   = {{ prefill_verse|tojson|default('""') }};
     const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
 
-    const splitVerses = str => str.split(/[,;\n]+/).map(v=>v.trim()).filter(Boolean);
+    const splitVerses = str => {
+      const parts = String(str || "").split(/[,;\n]+/).map(v => v.trim()).filter(Boolean);
+      const merged = [];
+      parts.forEach((part) => {
+        if (isVersionOnly(part) && merged.length) {
+          const token = part.replace(/[()]/g, "").trim().toUpperCase();
+          merged[merged.length - 1] = normalizeVerseText(`${merged[merged.length - 1]} (${token})`);
+          return;
+        }
+        merged.push(normalizeVerseText(part));
+      });
+      return merged.filter(Boolean);
+    };
     if (prefill)   tagify.addTags(splitVerses(prefill));
-    if (urlVerses) tagify.addTags(urlVerses.split('|').map(v=>v.trim()).filter(Boolean));
+    if (urlVerses) tagify.addTags(splitVerses(urlVerses.split('|').join('\n')));
     const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
     if (recent) tagify.addTags(splitVerses(recent));
     updateVerseFilenames();
@@ -738,6 +771,39 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     padding: 1rem;
     margin-bottom: 0.85rem;
     box-shadow: var(--card-shadow);
+  }
+  #customBlock .row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  #customBlock .wide-input {
+    width: 100%;
+  }
+  #customBlock .prompt-ideas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #customBlock .prompt-ideas .chip {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #customBlock .prompt-ideas .chip:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+  }
+  .dark #customBlock .prompt-ideas .chip {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e5e7eb;
   }
   .step {
     display: flex;
