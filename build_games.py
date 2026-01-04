@@ -264,7 +264,7 @@ def generate_match_game_pdf(
     c.setFillGray(0.45)
     c.drawString(margin + 10, y - 4, "Answer key on next page.")
     c.setFillGray(0)
-    y -= 12
+    y -= 18
 
     # Table layout
     left_width = 1.7 * inch
@@ -362,20 +362,20 @@ def generate_match_game_pdf(
         key_lines.append(f"{chr(64 + idx)} -> {answer_key[idx - 1]}")
     rows = int(math.ceil(len(key_lines) / 2)) if key_lines else 1
     panel_pad = 6
-    panel_h = rows * 13 + panel_pad * 2 + 6
+    panel_h = rows * 13 + panel_pad * 2 + 18
     panel_top = y + 6
     panel_bottom = panel_top - panel_h
     c.setFillGray(0.985)
     c.roundRect(margin, panel_bottom, usable_width, panel_h, radius=12, fill=1, stroke=0)
     c.setFillGray(0)
-    _draw_section_label(c, margin + 4, panel_top + 6, "Answer key")
+    _draw_section_label(c, margin + 4, panel_top + 10, "Answer key")
 
     c.setFont("Helvetica", 11)
     col_gap = 0.5 * inch
     col_width = (usable_width - col_gap) / 2
     left_x = margin + panel_pad
     right_x = margin + panel_pad + col_width + col_gap
-    y_cursor = panel_top - panel_pad - 6
+    y_cursor = panel_top - panel_pad - 18
     for i, line in enumerate(key_lines):
         x = left_x if i % 2 == 0 else right_x
         if i % 2 == 0 and i > 0:
@@ -557,7 +557,7 @@ def generate_word_search_pdf(
     c.setFillGray(0.45)
     c.drawString(margin + 10, y - 4, "Answer key on next page.")
     c.setFillGray(0)
-    y -= 12
+    y -= 18
 
     # Build grid
     rng = random.Random(title)
@@ -661,7 +661,7 @@ def generate_word_search_pdf(
     c.setFillGray(0.985)
     c.roundRect(start_x - 8, start_y - 8, grid_size_px + 16, grid_size_px + 16, radius=12, fill=1, stroke=0)
     c.setFillGray(0)
-    _draw_section_label(c, start_x - 4, start_y + grid_size_px + 18, "Answer key")
+    # Keep answer key header clean; avoid overlapping the grid.
     c.setFont("Helvetica-Bold", 10)
     c.setStrokeGray(0.7)
     c.setLineWidth(0.55)
@@ -691,7 +691,6 @@ def generate_word_search_pdf(
     c.setStrokeGray(0)
     c.setLineWidth(1)
     c.setFillGray(0)
-    _draw_section_label(c, list_x - 4, list_y + 18, "Answer words")
     c.setFont("Helvetica-Bold", 10)
     c.drawString(list_x, list_y, "Answer words:")
     list_y -= 12
@@ -845,7 +844,7 @@ def generate_crossword_pdf(
     c.setFillGray(0.45)
     c.drawString(margin + 10, y - 4, "Answer key on next page.")
     c.setFillGray(0)
-    y -= 12
+    y -= 18
 
     # Build grid
     word_list = []
@@ -999,7 +998,7 @@ def generate_crossword_pdf(
     c.setFillGray(0.985)
     c.roundRect(start_x - 8, start_y - 8, grid_size_px + 16, grid_size_px + 16, radius=12, fill=1, stroke=0)
     c.setFillGray(0)
-    _draw_section_label(c, start_x - 4, start_y + grid_size_px + 18, "Answer key")
+    # Keep answer key header clean; avoid overlapping the grid.
     c.setFont("Helvetica", 8)
     c.setStrokeGray(0.7)
     c.setLineWidth(0.55)
@@ -1031,7 +1030,6 @@ def generate_crossword_pdf(
     c.setStrokeGray(0)
     c.setLineWidth(1)
     c.setFillGray(0)
-    _draw_section_label(c, list_x + 4, list_y + 18, "Answer words")
     c.setFont("Helvetica-Bold", 10)
     c.drawString(list_x + 8, list_y, "Answer words:")
     c.setFont("Helvetica", 9)
