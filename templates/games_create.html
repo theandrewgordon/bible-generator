@@ -55,18 +55,6 @@
           <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
         </div>
         <div class="suggested-topic-list" id="suggestedTopicList">
-          {% for item in (match_topics | default([]))[:6] %}
-            <button
-              type="button"
-              class="pill ghost topic-pill"
-              data-topic="{{ item.label }}"
-              data-refs="{{ item.refs | replace('\n', '\\n') | e }}"
-              data-words="{{ item.words | default([]) | join('\n') | replace('\n', '\\n') | e }}"
-              onclick="var refs=(this.dataset.refs||'').replace(/\\\\n|\\n/g,'\n');var r=document.getElementById('references');if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}var t=document.getElementById('theme');if(t){t.value=this.dataset.topic||this.textContent.trim();}var w=(this.dataset.words||'');var wa=document.getElementById('gameWords');if(wa&&w){wa.value=w.replace(/\\\\n|\\n/g,'\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}var c=document.getElementById('confirmWords');if(c){c.checked=false;}return false;"
-            >
-              {{ item.label }}
-            </button>
-          {% endfor %}
         </div>
         <p class="small muted" id="topicHelp">Pick one to fill the references below.</p>
       </div>
@@ -202,7 +190,21 @@
     const versionSelect = document.getElementById("version");
     const difficultySelect = document.getElementById("difficulty");
     function normalizeEscapedNewlines(value) {
-      return (value || "").replace(/\\n/g, "\n");
+      return (value || "")
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\\\n/g, "\n")
+        .replace(/\\n/g, "\n");
+    }
+    function decodeTopicValue(raw) {
+      if (!raw) return "";
+      if (raw.startsWith("b64:")) {
+        try {
+          return atob(raw.slice(4));
+        } catch (err) {
+          return "";
+        }
+      }
+      return normalizeEscapedNewlines(raw);
     }
     function normalizeTextarea(el) {
       if (!el) return;
@@ -290,13 +292,16 @@
 
     function applyTopic(topic, refs, words) {
       if (themeInput) themeInput.value = topic || "";
-      if (refsInput) refsInput.value = normalizeEscapedNewlines(refs || "");
+      if (refsInput) {
+        refsInput.value = normalizeEscapedNewlines(refs || "");
+        normalizeTextarea(refsInput);
+      }
       if (wordArea && words) {
         wordArea.value = normalizeEscapedNewlines(words);
         renderWordChips();
         if (confirmWords) confirmWords.checked = false;
       }
-      if (wordListMessage && words) {
+      if (wordListMessage && (words || (wordArea && wordArea.value.trim()))) {
         wordListMessage.textContent = "Word list filled from this topic. Review or edit below.";
       }
     }
@@ -346,12 +351,11 @@
     }
 
     function applyTopicFromButton(btn) {
-      const refsRaw = btn.dataset.refs || "";
-      const refs = refsRaw.replace(/\\\\n|\\n/g, "\n");
-      const wordsRaw = btn.dataset.words || "";
-      const words = wordsRaw ? wordsRaw.replace(/\\\\n|\\n/g, "\n") : "";
+      const refs = decodeTopicValue(btn.dataset.refs || "");
+      const words = decodeTopicValue(btn.dataset.words || "");
       applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, words);
       if (refsInput) {
+        normalizeTextarea(refsInput);
         refsInput.dispatchEvent(new Event("input", { bubbles: true }));
         refsInput.dispatchEvent(new Event("change", { bubbles: true }));
       }
@@ -359,18 +363,6 @@
     }
 
     window.fsApplyTopicFromButton = applyTopicFromButton;
-    const inlineTopicHandler =
-      "var refs=(this.dataset.refs||'').replace(/\\\\\\\\n|\\\\n/g,'\\n');" +
-      "var r=document.getElementById('references');" +
-      "if(r){r.value=refs;r.dispatchEvent(new Event('input',{bubbles:true}));}" +
-      "var t=document.getElementById('theme');" +
-      "if(t){t.value=this.dataset.topic||this.textContent.trim();}" +
-      "var w=(this.dataset.words||'');" +
-      "var wa=document.getElementById('gameWords');" +
-      "if(wa&&w){wa.value=w.replace(/\\\\\\\\n|\\\\n/g,'\\n');wa.dispatchEvent(new Event('input',{bubbles:true}));}" +
-      "var c=document.getElementById('confirmWords');" +
-      "if(c){c.checked=false;}" +
-      "return false;";
 
     function bindTopicButtons(buttons) {
       buttons.forEach((btn) => {
@@ -397,9 +389,10 @@
         btn.className = "pill ghost topic-pill";
         btn.textContent = item.label;
         btn.dataset.topic = item.label;
-        btn.dataset.refs = (item.refs || "").replace(/\n/g, "\\n");
-        btn.dataset.words = (item.words || []).join("\\n");
-        btn.setAttribute("onclick", inlineTopicHandler);
+        const refsValue = normalizeEscapedNewlines(item.refs || "");
+        const wordsValue = (item.words || []).join("\n");
+        btn.dataset.refs = refsValue ? `b64:${btoa(refsValue)}` : "";
+        btn.dataset.words = wordsValue ? `b64:${btoa(wordsValue)}` : "";
         list.appendChild(btn);
       });
       bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
@@ -514,7 +507,6 @@
         if (wordListMessage) {
           wordListMessage.textContent = "Could not build a word list right now. Please try again.";
         }
-        submitWordAction("build");
       } finally {
         if (generateWordsBtn) {
           generateWordsBtn.disabled = false;

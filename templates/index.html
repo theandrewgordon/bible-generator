@@ -1,48 +1,44 @@
-{% extends "base.html" %}
-{% block title %}Bible Copywork Worksheets for Homeschool & Church | Faith Sparks{% endblock %}
-
-{% set _default_hero_image = url_for('static', filename='CopyworkStock/Copywork1.png') %}
-{% set hero_primary_image = (site_content.home_hero_image_url if site_content and site_content.home_hero_image_url else _default_hero_image) %}
-{% set hero_images = [
-  hero_primary_image,
-  url_for('static', filename='CopyworkStock/Copywork2.png'),
-  url_for('static', filename='CopyworkStock/Copywork3.png'),
-  url_for('static', filename='CopyworkStock/Copywork4.png'),
-  url_for('static', filename='CopyworkStock/Copywork5.png')
-] %}
-{% set hero_og_image = hero_images[0] %}
-{% if hero_og_image and not hero_og_image.startswith('http') %}
-  {% set hero_og_image = request.url_root.rstrip('/') ~ hero_og_image %}
-{% endif %}
-{% set hero_cta_text = site_content.home_cta_text if site_content and site_content.home_cta_text else 'Make a worksheet' %}
-{% set hero_cta_url = site_content.home_cta_url if site_content and site_content.home_cta_url else url_for('generate') %}
-
-{% block head_extra %}
+{% extends "base.html" %} {% block title %}Bible Copywork Worksheets for
+Homeschool & Church | Faith Sparks{% endblock %} {% set _default_hero_image =
+url_for('static', filename='CopyworkStock/Copywork1.png') %} {% set
+hero_primary_image = (site_content.home_hero_image_url if site_content and
+site_content.home_hero_image_url else _default_hero_image) %} {% set hero_images
+= [ hero_primary_image, url_for('static',
+filename='CopyworkStock/Copywork2.png'), url_for('static',
+filename='CopyworkStock/Copywork3.png'), url_for('static',
+filename='CopyworkStock/Copywork4.png'), url_for('static',
+filename='CopyworkStock/Copywork5.png') ] %} {% set hero_og_image =
+hero_images[0] %} {% if hero_og_image and not hero_og_image.startswith('http')
+%} {% set hero_og_image = request.url_root.rstrip('/') ~ hero_og_image %} {%
+endif %} {% set hero_cta_text = site_content.home_cta_text if site_content and
+site_content.home_cta_text else 'Make a worksheet' %} {% set hero_cta_url =
+site_content.home_cta_url if site_content and site_content.home_cta_url else
+url_for('generate') %} {% block head_extra %}
 <meta
   name="description"
   content="Make printable Bible copywork worksheets (ESV, KJV, or your own translation tag) for Christian homeschool, co-ops, and children’s ministry. Ready-to-print PDFs with tracing, copywork, and reflection prompts."
 />
 
 <!-- Open Graph / Twitter -->
-<meta property="og:title" content="Bible Copywork Worksheets for Homeschool & Church" />
+<meta
+  property="og:title"
+  content="Bible Copywork Worksheets for Homeschool & Church"
+/>
 <meta property="og:site_name" content="Faith Sparks Printables" />
 <meta
   property="og:description"
   content="Make beautiful Bible copywork in seconds. Free starter plan plus subscriber-only packs for homeschool families and classrooms."
 />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="{{ request.url_root.rstrip('/') ~ request.path }}" />
 <meta
-  property="og:image"
-  content="{{ hero_og_image }}"
+  property="og:url"
+  content="{{ request.url_root.rstrip('/') ~ request.path }}"
 />
+<meta property="og:image" content="{{ hero_og_image }}" />
 <meta property="og:image:width" content="2400" />
 <meta property="og:image:height" content="1350" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta
-  name="twitter:image"
-  content="{{ hero_og_image }}"
-/>
+<meta name="twitter:image" content="{{ hero_og_image }}" />
 
 <!-- Schema.org -->
 <script type="application/ld+json">
@@ -102,13 +98,21 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.7), rgba(14, 165, 233, 0.35));
+    background: linear-gradient(
+      135deg,
+      rgba(15, 23, 42, 0.7),
+      rgba(14, 165, 233, 0.35)
+    );
   }
   .hero-media.hero-media--hidden {
     opacity: 0;
   }
   .hero-media.hero-media--visible {
     opacity: 1;
+  }
+  .hero-clarifier {
+    margin-top: 0.25rem;
+    max-width: 38rem;
   }
   .hero-rotator .hero-content {
     position: relative;
@@ -258,7 +262,11 @@
   .testimonial-band {
     padding: clamp(2rem, 3.5vw, 2.75rem);
     border-radius: 24px;
-    background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(56, 189, 248, 0.18));
+    background: linear-gradient(
+      135deg,
+      rgba(15, 118, 110, 0.12),
+      rgba(56, 189, 248, 0.18)
+    );
     margin-bottom: clamp(2.8rem, 4vw, 3.8rem);
   }
   .testimonial-band h2 {
@@ -411,26 +419,40 @@
     }
   }
 </style>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <section
   class="hero hero-rotator"
-  data-hero-images='{{ hero_images|tojson }}'
+  data-hero-images="{{ hero_images|tojson }}"
   aria-label="Families using Faith Sparks printable Bible copywork worksheets"
 >
-  <div class="hero-media hero-media--visible" style="background-image: url('{{ hero_images[0] }}')"></div>
+  <div
+    class="hero-media hero-media--visible"
+    style="background-image: url('{{ hero_images[0] }}')"
+  ></div>
   <div class="hero-media hero-media--hidden hero-media--next"></div>
   <div class="hero-content">
     <span class="hero-kicker">Faith-filled learning made easy</span>
     <h1 class="hero-title">
-      {{ (site_content.home_title or 'Printable Bible worksheets for busy homeschool days') if site_content else 'Printable Bible worksheets for busy homeschool days' }}
+      {{ (site_content.home_title or 'Printable Bible worksheets for busy
+      homeschool days') if site_content else 'Printable Bible worksheets for
+      busy homeschool days' }}
     </h1>
+
     <p class="hero-sub">
-      {{ (site_content.home_subtitle or 'Type a verse, click once, and print a beautiful worksheet in seconds.') if site_content else 'Type a verse, click once, and print a beautiful worksheet in seconds.' }}
+      {{ (site_content.home_subtitle or 'Type a verse, click once, and print a
+      beautiful worksheet in seconds.') if site_content else 'Type a verse,
+      click once, and print a beautiful worksheet in seconds.' }}
     </p>
+
+    <p class="hero-clarifier muted small">
+      Create free sample worksheets instantly, or explore our ready-to-print
+      bundles.
+    </p>
+
     <div class="cta-row">
-      <a class="button primary" href="{{ hero_cta_url }}">{{ hero_cta_text }}</a>
+      <a class="button primary" href="{{ hero_cta_url }}"
+        >{{ hero_cta_text }}</a
+      >
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
@@ -456,7 +478,8 @@
       </div>
     </div>
     <p class="muted small cta-note">
-      Free Starter Bundle included. Instant downloads for homeschool, co-op, or Sunday school.
+      Free Starter Bundle included. Instant downloads for homeschool, co-op, or
+      Sunday school.
       <a href="{{ url_for('public.start_here') }}">Start here</a>.
     </p>
     {% if proverb_of_day %}
@@ -466,20 +489,27 @@
         <div class="daily-text">{{ proverb_of_day.text }}</div>
         <div class="daily-ref">{{ proverb_of_day.reference }}</div>
       </div>
-      <a class="button ghost" data-proverb-link data-proverb-ref="{{ proverb_of_day.reference }}"
-         href="{{ url_for('generate', verse=proverb_of_day.verse_param) }}">
+      <a
+        class="button ghost"
+        data-proverb-link
+        data-proverb-ref="{{ proverb_of_day.reference }}"
+        href="{{ url_for('generate', verse=proverb_of_day.verse_param) }}"
+      >
         Print today’s proverb
       </a>
     </div>
-    {% endif %}
-    {% if game_of_week %}
+    {% endif %} {% if game_of_week %}
     <div class="daily-proverb game-of-week">
       <div class="daily-copy">
         <div class="daily-label">Game of the week</div>
         <div class="daily-text">{{ game_of_week.title }}</div>
         <div class="daily-ref">Printable Bible game</div>
       </div>
-      <a class="button ghost" data-game-link href="{{ url_for('games_detail', slug=game_of_week.slug) }}">
+      <a
+        class="button ghost"
+        data-game-link
+        href="{{ url_for('games_detail', slug=game_of_week.slug) }}"
+      >
         Play {{ game_of_week.title }}
       </a>
     </div>
@@ -503,13 +533,11 @@
       <p>Download the PDF and go.</p>
     </article>
   </div>
-  <p class="muted small" style="margin-top: 0.6rem;">
+  <p class="muted small" style="margin-top: 0.6rem">
     Simple, Scripture‑honoring worksheets for homeschool mornings.
   </p>
 </section>
-{% endblock %}
-
-{% block extra_scripts %}
+{% endblock %} {% block extra_scripts %}
 <script>
   (function () {
     const link = document.querySelector("[data-proverb-link]");

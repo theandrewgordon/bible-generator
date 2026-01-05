@@ -482,6 +482,28 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   });
 
   /* ===== Tagify events ===== */
+  tagify.on('add', (e)=>{
+    const raw = (e.detail?.data?.value || '').trim();
+    if (!isVersionOnly(raw)) {
+      return;
+    }
+    const versionToken = raw.replace(/[()]/g, '').trim().toUpperCase();
+    const tags = tagify.value;
+    const prevIndex = tags.length - 2;
+    if (prevIndex >= 0) {
+      const prev = normalizeVerseText(tags[prevIndex].value || '');
+      const merged = normalizeVerseText(`${prev} (${versionToken})`);
+      const tagEls = tagify.getTagElms();
+      if (tagEls && tagEls[prevIndex]) {
+        tagify.replaceTag(tagEls[prevIndex], { value: merged });
+      } else {
+        tagify.addTags([merged]);
+      }
+    }
+    tagify.removeTag(e.detail.tag);
+    updateVerseFilenames();
+    updatePreview();
+  });
   ['add','remove','input','blur'].forEach(evt=>{
     tagify.on(evt, ()=>{ updateVerseFilenames(); updatePreview(); });
   });
