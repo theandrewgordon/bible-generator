@@ -65,13 +65,7 @@ url_for('generate') %} {% block head_extra %}
 </script>
 
 <!-- Preload hero for faster LCP -->
-<link
-  rel="preload"
-  as="image"
-  href="{{ hero_images[0] }}"
-  imagesrcset="{{ hero_images[0] }}"
-  imagesizes="(max-width: 860px) 100vw, 50vw"
-/>
+<link rel="preload" as="image" href="{{ hero_images[0] }}" />
 
 <!-- Homepage hero + sections -->
 <style>
@@ -94,7 +88,7 @@ url_for('generate') %} {% block head_extra %}
     background-size: cover;
     transition: opacity 0.9s ease;
   }
-  .hero-media::after {
+  .hero-rotator .hero-media::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -114,6 +108,14 @@ url_for('generate') %} {% block head_extra %}
     margin-top: 0.25rem;
     max-width: 38rem;
   }
+  .hero-rotator .hero-clarifier {
+    color: rgba(255, 255, 255, 0.92);
+    opacity: 1; /* defeats "muted" dimming */
+    font-size: 0.95rem; /* readable but still secondary */
+    line-height: 1.35;
+    margin-bottom: 0.9rem; /* gives breathing room before CTA */
+  }
+
   .hero-rotator .hero-content {
     position: relative;
     max-width: 520px;
@@ -140,7 +142,7 @@ url_for('generate') %} {% block head_extra %}
   }
   .hero-sub {
     font-size: clamp(1.05rem, 1.6vw, 1.25rem);
-    margin-bottom: 1.2rem;
+    margin-bottom: 0.6rem;
   }
   .hero .cta-row {
     display: flex;
