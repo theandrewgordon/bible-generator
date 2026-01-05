@@ -69,6 +69,23 @@ url_for('generate') %} {% block head_extra %}
 
 <!-- Homepage hero + sections -->
 <style>
+  .hero .cta-row {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .hero .button.ghost {
+    background: rgba(15, 23, 42, 0.28);
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #fff;
+  }
+  .hero .button.ghost:hover {
+    background: rgba(15, 23, 42, 0.38);
+    border-color: rgba(255, 255, 255, 0.7);
+  }
+
   /* =========================
    HERO (rotator)
    ========================= */
@@ -95,12 +112,14 @@ url_for('generate') %} {% block head_extra %}
     background-position: center;
     background-size: cover;
     transition: opacity 0.9s ease;
+    will-change: opacity;
   }
 
   .hero-rotator .hero-media::after {
     content: "";
     position: absolute;
     inset: 0;
+    pointer-events: none;
     background: linear-gradient(
       135deg,
       rgba(15, 23, 42, 0.7),
@@ -447,6 +466,11 @@ url_for('generate') %} {% block head_extra %}
    RESPONSIVE
    ========================= */
 
+  @media (prefers-reduced-motion: reduce) {
+    .hero-rotator .hero-media {
+      transition: none !important;
+    }
+  }
   @media (max-width: 860px) {
     .hero-rotator {
       min-height: 440px;
@@ -529,6 +553,8 @@ url_for('generate') %} {% block head_extra %}
       <a class="button primary" href="{{ hero_cta_url }}"
         >{{ hero_cta_text }}</a
       >
+      <a class="button ghost" href="{{ url_for('browse') }}">Browse bundles</a>
+      <a class="button ghost" href="{{ url_for('games') }}">Try a Bible game</a>
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
@@ -616,28 +642,12 @@ url_for('generate') %} {% block head_extra %}
 {% endblock %} {% block extra_scripts %}
 <script>
   (function () {
-    const link = document.querySelector("[data-proverb-link]");
-    if (!link) return;
-    const ref = link.getAttribute("data-proverb-ref");
-    const pref = localStorage.getItem("preferredVersion") || "esv";
-    const version = String(pref).toUpperCase();
-    if (!ref || !version) return;
-    const params = new URLSearchParams({ verse: `${ref} (${version})` });
-    link.href = `${link.pathname}?${params.toString()}`;
-  })();
-
-  (function () {
-    const link = document.querySelector("[data-game-link]");
-    if (!link) return;
-    const pref = localStorage.getItem("preferredVersion") || "esv";
-    const version = String(pref).toUpperCase();
-    const params = new URLSearchParams({ version });
-    link.href = `${link.pathname}?${params.toString()}`;
-  })();
-
-  (function () {
     const hero = document.querySelector(".hero-rotator");
     if (!hero) return;
+
+    // Respect reduced motion
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     let images = [];
     try {
       images = JSON.parse(hero.dataset.heroImages || "[]");
@@ -646,31 +656,40 @@ url_for('generate') %} {% block head_extra %}
     }
     if (!Array.isArray(images) || images.length < 2) return;
 
-    const current = hero.querySelector(".hero-media--visible");
-    const next = hero.querySelector(".hero-media--next");
-    if (!current || !next) return;
+    let front = hero.querySelector(".hero-media--visible");
+    let back = hero.querySelector(".hero-media--next");
+    if (!front || !back) return;
 
-    let index = 0;
+    let idx = 0;
     const intervalMs = 10000;
 
-    setInterval(() => {
-      const nextIndex = (index + 1) % images.length;
-      next.style.backgroundImage = `url('${images[nextIndex]}')`;
-      next.classList.remove("hero-media--hidden");
-      next.classList.add("hero-media--visible");
-      current.classList.remove("hero-media--visible");
-      current.classList.add("hero-media--hidden");
+    const tick = () => {
+      const nextIdx = (idx + 1) % images.length;
 
+      back.style.backgroundImage = `url('${images[nextIdx]}')`;
+
+      // fade in back, fade out front
+      back.classList.remove("hero-media--hidden");
+      back.classList.add("hero-media--visible");
+      front.classList.remove("hero-media--visible");
+      front.classList.add("hero-media--hidden");
+
+      // after transition, swap references & reset the back layer
       setTimeout(() => {
-        current.style.backgroundImage = next.style.backgroundImage;
-        current.classList.remove("hero-media--hidden");
-        current.classList.add("hero-media--visible");
-        next.classList.remove("hero-media--visible");
-        next.classList.add("hero-media--hidden");
-      }, 900);
+        const tmp = front;
+        front = back;
+        back = tmp;
 
-      index = nextIndex;
-    }, intervalMs);
+        back.classList.remove("hero-media--visible");
+        back.classList.add("hero-media--hidden");
+        back.style.backgroundImage = "";
+      }, 950);
+
+      idx = nextIdx;
+    };
+
+    setInterval(tick, intervalMs);
   })();
 </script>
+
 {% endblock %}

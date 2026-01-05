@@ -421,7 +421,13 @@ def games():
             "can_download": can_download,
             "purchased": purchased,
         })
+    selected_type = (request.args.get("type") or "").strip()
+    allowed_types = {"match", "word-search", "crossword", "match-meaning"}
 
+    if selected_type in allowed_types:
+        games_list = [g for g in games_list if (g.get("gameType") or "match") == selected_type]
+    else:
+        selected_type = ""
     if stripe and STRIPE_SECRET_KEY:
         seen: Dict[str, dict] = {}
         for g in games_list:
@@ -446,6 +452,7 @@ def games():
         games=games_list,
         signed_in=signed_in,
         usage_info=usage_info,
+        selected_type=selected_type,
     )
 
 

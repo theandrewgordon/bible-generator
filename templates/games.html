@@ -1,15 +1,11 @@
-{% extends "base.html" %}
-{% block title %}Printable Bible Games | Faith Sparks Printables{% endblock %}
-
-{% block head_extra %}
+{% extends "base.html" %} {% block title %}Printable Bible Games | Faith Sparks
+Printables{% endblock %} {% block head_extra %}
 <link rel="canonical" href="{{ url_for('games', _external=True) }}" />
 <meta
   name="description"
   content="Printable Bible games for homeschool, family nights, and co-ops. Easy to download, ready to print."
 />
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <h1 class="page-title">Games</h1>
 <p class="muted">
   Printable Bible games for family time, co-op, and quiet mornings.
@@ -17,80 +13,108 @@
 <div class="game-cta">
   <a class="button" href="{{ url_for('games_create') }}">Create a game</a>
 </div>
+<div class="game-filters">
+  <span class="muted small">Filter:</span>
+
+  <a
+    class="chip {{ '' if selected_type else 'active' }}"
+    href="{{ url_for('games') }}"
+    >All</a
+  >
+
+  <a
+    class="chip {{ 'active' if selected_type=='match' else '' }}"
+    href="{{ url_for('games', type='match') }}"
+    >Match the Verse</a
+  >
+
+  <a
+    class="chip {{ 'active' if selected_type=='word-search' else '' }}"
+    href="{{ url_for('games', type='word-search') }}"
+    >Word Search</a
+  >
+
+  <a
+    class="chip {{ 'active' if selected_type=='crossword' else '' }}"
+    href="{{ url_for('games', type='crossword') }}"
+    >Crossword</a
+  >
+
+  <a
+    class="chip {{ 'active' if selected_type=='match-meaning' else '' }}"
+    href="{{ url_for('games', type='match-meaning') }}"
+    >Match Meaning</a
+  >
+</div>
 
 {% if not signed_in %}
-  <div class="card-lite sign-in-note">
-    <span>Sign in to download games and save them in My Prints.</span>
-    <a class="button ghost" href="{{ url_for('google.login', next=url_for('games')) }}">Sign in</a>
-  </div>
+<div class="card-lite sign-in-note">
+  <span>Sign in to download games and save them in My Prints.</span>
+  <a
+    class="button ghost"
+    href="{{ url_for('google.login', next=url_for('games')) }}"
+    >Sign in</a
+  >
+</div>
+{% endif %} {% if games and games|length %}
+<section class="game-grid">
+  {% for g in games %} {% set action_url = None %} {% set action_label = None %}
+  {% if g.can_download %} {% set action_url = url_for('dl_game', slug=g.slug) %}
+  {% set action_label = "Download" %} {% elif not signed_in %} {% set action_url
+  = url_for('google.login', next=url_for('games')) %} {% set action_label =
+  "Sign in to download" %} {% elif g.isSubscriberOnly %} {% set action_url =
+  url_for('plus_pricing') %} {% set action_label = "See membership" %} {% else
+  %} {% set action_url = url_for('games_detail', slug=g.slug) %} {% set
+  action_label = "Open" %} {% endif %}
+  <a
+  {% if g.previewImages and g.previewImages|length %}
+  <img class="game-thumb" src="{{ g.previewImages[0] }}" alt="" loading="lazy" />
 {% endif %}
-
-{% if games and games|length %}
-  <section class="game-grid">
-    {% for g in games %}
-      {% set action_url = None %}
-      {% set action_label = None %}
-      {% if g.can_download %}
-        {% set action_url = url_for('dl_game', slug=g.slug) %}
-        {% set action_label = "Download" %}
-      {% elif not signed_in %}
-        {% set action_url = url_for('google.login', next=url_for('games')) %}
-        {% set action_label = "Sign in to download" %}
-      {% elif g.isSubscriberOnly %}
-        {% set action_url = url_for('plus_pricing') %}
-        {% set action_label = "See membership" %}
-      {% else %}
-        {% set action_url = url_for('games_detail', slug=g.slug) %}
-        {% set action_label = "Open" %}
-      {% endif %}
-      <a
-        class="game-card {{ 'locked' if g.locked }}"
-        href="{{ action_url }}"
-        {% if g.can_download %}data-game-download{% endif %}
-      >
-        <div class="game-meta">
-          {% if g.isFree %}<span class="pill ok">Free</span>{% endif %}
-          {% if g.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
-          <span class="pill alt">
-            {% if g.gameType == 'word-search' %}
-              Word Search
-            {% elif g.gameType == 'crossword' %}
-              Crossword
-            {% elif g.gameType == 'match-meaning' %}
-              Match the Meaning
-            {% else %}
-              Match the Verse
-            {% endif %}
-          </span>
-        </div>
-        <h2 class="game-title">{{ g.title }}</h2>
-        <p class="muted small">
-          {{ g.description or "Ready to print." }}
-        </p>
-        <div class="game-action">{{ action_label }}</div>
-      </a>
-    {% endfor %}
-  </section>
+    class="game-card {{ 'locked' if g.locked }}"
+    href="{{ action_url }}"
+    {%
+    if
+    g.can_download
+    %}data-game-download{%
+    endif
+    %}
+  >
+    <div class="game-meta">
+      {% if g.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
+      g.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
+      <span class="pill alt">
+        {% if g.gameType == 'word-search' %} Word Search {% elif g.gameType ==
+        'crossword' %} Crossword {% elif g.gameType == 'match-meaning' %} Match
+        the Meaning {% else %} Match the Verse {% endif %}
+      </span>
+    </div>
+    <h2 class="game-title">{{ g.title }}</h2>
+    <p class="muted small">{{ g.description or "Ready to print." }}</p>
+    <div class="game-action">{{ action_label }}</div>
+  </a>
+  {% endfor %}
+</section>
 {% else %}
-  <div class="empty card-lite">
-    <h3>No games yet</h3>
-    <p class="muted">We’re building printable Bible games now.</p>
-    <a class="button ghost" href="mailto:hello@faithsparksprintables.com">Request a game</a>
-  </div>
-{% endif %}
-{% endblock %}
-
-{% block extra_scripts %}
+<div class="empty card-lite">
+  <h3>No games yet</h3>
+  <p class="muted">We’re building printable Bible games now.</p>
+  <a class="button ghost" href="mailto:hello@faithsparksprintables.com"
+    >Request a game</a
+  >
+</div>
+{% endif %} {% endblock %} {% block extra_scripts %}
 <script>
   (function () {
     const pref = localStorage.getItem("preferredVersion") || "esv";
     const version = String(pref).toUpperCase();
     document.querySelectorAll("[data-game-download]").forEach((link) => {
       const params = new URLSearchParams({ version });
-      link.href = `${link.pathname}?${params.toString()}`;
-    });
+const u = new URL(link.href, window.location.origin);
+u.search = params.toString();
+link.href = u.toString();    });
     const display = document.querySelector("[data-version-display]");
-    if (display) display.textContent = `Uses your default version (${version}).`;
+    if (display)
+      display.textContent = `Uses your default version (${version}).`;
   })();
 </script>
 <style>
@@ -111,6 +135,13 @@
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 1rem;
   }
+  .game-thumb{
+  width:100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
   .game-card {
     display: flex;
     flex-direction: column;
@@ -121,7 +152,8 @@
     background: var(--box);
     border-radius: 14px;
     padding: 1rem;
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
   .game-card:hover {
     transform: translateY(-2px);
@@ -152,6 +184,35 @@
     .game-grid {
       grid-template-columns: 1fr;
     }
+  }
+  .game-filters {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0.5rem 0 1rem;
+  }
+
+  .game-filters .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: inherit;
+  }
+
+  .game-filters .chip:hover {
+    border-color: rgba(15, 23, 42, 0.25);
+  }
+  .game-filters .chip.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
   }
 </style>
 {% endblock %}
