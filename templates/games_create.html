@@ -54,8 +54,20 @@
           <span class="small muted" id="topicLabel">Warm topics</span>
           <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
         </div>
-        <div class="suggested-topic-list" id="suggestedTopicList">
-        </div>
+<div class="suggested-topic-list" id="suggestedTopicList">
+  {# Server-render fallback so topics still show even if JS fails #}
+  {% for t in match_topics[:12] %}
+    <button
+      type="button"
+      class="pill ghost topic-pill"
+      data-topic='{{ t|tojson|forceescape }}'
+      aria-label="Use topic: {{ t.label }}"
+    >
+      {{ t.label }}
+    </button>
+  {% endfor %}
+</div>
+
         <p class="small muted" id="topicHelp">Pick one to fill the references below.</p>
       </div>
 
@@ -351,16 +363,35 @@
     }
 
     function applyTopicFromButton(btn) {
-      const refs = decodeTopicValue(btn.dataset.refs || "");
-      const words = decodeTopicValue(btn.dataset.words || "");
-      applyTopic(btn.dataset.topic || btn.textContent.trim(), refs, words);
-      if (refsInput) {
-        normalizeTextarea(refsInput);
-        refsInput.dispatchEvent(new Event("input", { bubbles: true }));
-        refsInput.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      return false;
-    }
+  // 1) Prefer JSON payload (server-render fallback uses this)
+  let payload = null;
+  try {
+    payload = btn.dataset.topic ? JSON.parse(btn.dataset.topic) : null;
+  } catch (e) {
+    payload = null;
+  }
+
+  // 2) If JSON exists, use it
+  if (payload && typeof payload === "object") {
+    const label = String(payload.label || btn.textContent || "").trim();
+    const refs = normalizeEscapedNewlines(payload.refs || "");
+    const words = Array.isArray(payload.words) ? payload.words.join("\n") : "";
+
+    applyTopic(label, refs, words);
+  } else {
+    // 3) Otherwise fall back to the old b64 dataset (JS-generated buttons)
+    const refs = decodeTopicValue(btn.dataset.refs || "");
+    const words = decodeTopicValue(btn.dataset.words || "");
+applyTopic(btn.dataset.topicLabel || btn.textContent.trim(), refs, words);
+  }
+
+  if (refsInput) {
+    normalizeTextarea(refsInput);
+    refsInput.dispatchEvent(new Event("input", { bubbles: true }));
+    refsInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  return false;
+}
 
     window.fsApplyTopicFromButton = applyTopicFromButton;
 
@@ -388,7 +419,7 @@
         btn.type = "button";
         btn.className = "pill ghost topic-pill";
         btn.textContent = item.label;
-        btn.dataset.topic = item.label;
+btn.dataset.topicLabel = item.label;
         const refsValue = normalizeEscapedNewlines(item.refs || "");
         const wordsValue = (item.words || []).join("\n");
         btn.dataset.refs = refsValue ? `b64:${btoa(refsValue)}` : "";
@@ -411,11 +442,6 @@
     const initialButtons = document.querySelectorAll(".topic-pill");
     bindTopicButtons(Array.from(initialButtons));
 
-    document.addEventListener("click", (event) => {
-      const btn = event.target.closest(".topic-pill");
-      if (!btn) return;
-      applyTopicFromButton(btn);
-    });
 
     function renderWordChips() {
       if (!wordArea || !wordChipList) return;
