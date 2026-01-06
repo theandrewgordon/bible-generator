@@ -17,7 +17,7 @@
   </div>
   {% endif %}
 
-  <form method="post" class="card-lite" data-no-overlay>
+  <form method="post" class="card-lite" data-overlay-text="Creating your game…">
     <input type="hidden" name="wordAction" id="wordAction" value="" />
 
     <!-- Step 1 -->
@@ -92,7 +92,7 @@
           <button type="button" class="button ghost tiny" id="clearWords">Clear list</button>
         </div>
 
-        <p class="small muted" id="wordListMessage" style="margin-top: 0.35rem;"></p>
+        <p class="small muted" id="wordListMessage" role="alert" style="margin-top: 0.35rem;"></p>
         <div class="word-chip-list" id="wordChipList"></div>
 
         <label class="word-review-check">
@@ -192,7 +192,7 @@
   const clearWordsBtn = document.getElementById("clearWords");
   const wordListMessage = document.getElementById("wordListMessage");
   const confirmWords = document.getElementById("confirmWords");
-  const form = document.querySelector("form[data-no-overlay]");
+  const form = document.querySelector('form[data-overlay-text]'); // ✅ FIX (was data-no-overlay)
   const wordActionInput = document.getElementById("wordAction");
   const versionSelect = document.getElementById("version");
   const difficultySelect = document.getElementById("difficulty");
@@ -253,12 +253,6 @@
   const matchTopics = loadTopicData("matchTopicsData");
   const storyTopics = loadTopicData("storyTopicsData");
 
-  // ---- Warm topics: FIX ----
-  // Problem: fallback buttons are server-rendered from match_topics, but when gameType is word-search/crossword
-  // you want storyTopics to be used AND the fallback buttons should still apply correctly.
-  // Solution: store JSON payload on *both* server-rendered buttons (already there), and ensure apply uses it.
-  // Also: when switching game type, re-render the pill list from the right pool.
-
   function shuffleArray(list) {
     const arr = list.slice();
     for (let i = arr.length - 1; i > 0; i -= 1) {
@@ -289,6 +283,12 @@
     return picks;
   }
 
+  function setMessage(text, isWarn) {
+    if (!wordListMessage) return;
+    wordListMessage.textContent = text || "";
+    wordListMessage.classList.toggle("warn", !!isWarn);
+  }
+
   function applyTopic(topicLabelValue, refs, words) {
     if (themeInput) themeInput.value = topicLabelValue || "";
     if (refsInput) {
@@ -298,21 +298,21 @@
       refsInput.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    // Only fill word list if provided (topics include it)
     if (wordArea && words) {
       wordArea.value = normalizeEscapedNewlines(words);
       renderWordChips();
       if (confirmWords) confirmWords.checked = false;
-      if (wordListMessage) wordListMessage.textContent = "Word list filled from this topic. Review or edit below.";
+      setMessage("Word list filled from this topic. Review or edit below.", false);
     } else {
-      if (wordListMessage && wordArea && wordArea.value.trim()) {
-        wordListMessage.textContent = "Review or edit the word list below.";
+      if (wordArea && wordArea.value.trim()) {
+        setMessage("Review or edit the word list below.", false);
+      } else {
+        setMessage("", false);
       }
     }
   }
 
   function applyTopicFromButton(btn) {
-    // Prefer JSON payload (works for server-render fallback + any future)
     let payload = null;
     try {
       payload = btn.dataset.topic ? JSON.parse(btn.dataset.topic) : null;
@@ -328,7 +328,6 @@
       return;
     }
 
-    // Legacy b64 (JS-built buttons)
     const decode = (raw) => {
       if (!raw) return "";
       if (raw.startsWith("b64:")) {
@@ -359,7 +358,6 @@
     const type = (typeSel?.value || "match").toLowerCase();
     const pool = (type === "word-search" || type === "crossword") ? storyTopics : matchTopics;
 
-    // If no JSON topics came through, keep server-render fallback + just bind clicks.
     if (!pool.length) {
       bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
       return;
@@ -374,21 +372,17 @@
       btn.className = "pill ghost topic-pill";
       btn.textContent = item.label;
       btn.setAttribute("aria-label", `Use topic: ${item.label}`);
-
-      // Store full JSON payload (no b64 needed; avoids atob/unicode issues)
       btn.dataset.topic = JSON.stringify({
         label: item.label,
         refs: item.refs || "",
         words: Array.isArray(item.words) ? item.words : [],
       });
-
       list.appendChild(btn);
     });
 
     bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
   }
 
-  // ---- Word chips ----
   function renderWordChips() {
     if (!wordArea || !wordChipList) return;
 
@@ -397,7 +391,7 @@
 
     wordChipList.innerHTML = "";
     if (confirmWords) confirmWords.checked = false;
-    if (wordListMessage && !words.length) wordListMessage.textContent = "";
+    if (!words.length) setMessage("", false);
 
     words.forEach((word) => {
       const chip = document.createElement("button");
@@ -413,7 +407,6 @@
     });
   }
 
-  // ---- Build word list (API) ----
   async function fetchWordSuggestions() {
     if (!refsInput || !wordArea) return;
 
@@ -421,7 +414,7 @@
     const refs = refsInput.value.trim();
 
     if (!refs) {
-      if (wordListMessage) wordListMessage.textContent = "Add references above to build a word list.";
+      setMessage("Add references above to build a word list.", true);
       refsInput.focus();
       return;
     }
@@ -430,7 +423,7 @@
       generateWordsBtn.disabled = true;
       generateWordsBtn.textContent = "Building...";
     }
-    if (wordListMessage) wordListMessage.textContent = "Building a word list from your references...";
+    setMessage("Building a word list from your references...", false);
 
     try {
       const res = await fetch("/games/words", {
@@ -451,12 +444,12 @@
         wordArea.value = words.join("\n");
         renderWordChips();
         if (confirmWords) confirmWords.checked = false;
-        if (wordListMessage) wordListMessage.textContent = "Word list updated. Review or edit below.";
-      } else if (wordListMessage) {
-        wordListMessage.textContent = "No words found from those references yet.";
+        setMessage("Word list updated. Review or edit below.", false);
+      } else {
+        setMessage("No words found from those references yet.", true);
       }
     } catch (err) {
-      if (wordListMessage) wordListMessage.textContent = "Could not build a word list right now. Please try again.";
+      setMessage("Could not build a word list right now. Please try again.", true);
     } finally {
       if (generateWordsBtn) {
         generateWordsBtn.disabled = false;
@@ -465,7 +458,6 @@
     }
   }
 
-  // ---- UI sync ----
   function requiresWordReview() {
     const type = (typeSel?.value || "match").toLowerCase();
     return type === "word-search" || type === "crossword";
@@ -473,8 +465,8 @@
 
   function sync() {
     const type = (typeSel?.value || "match").toLowerCase();
-
     const isWordMode = type === "word-search" || type === "crossword";
+
     if (matchFields) matchFields.style.display = isWordMode ? "none" : "block";
     if (wordFields) wordFields.style.display = isWordMode ? "block" : "none";
 
@@ -483,7 +475,6 @@
         ? "Add the meaning lines (optional)"
         : "Use custom verse text (optional)";
     }
-
     if (matchLabel) {
       matchLabel.textContent = type === "match-meaning"
         ? "One per line: Reference | Meaning text"
@@ -506,24 +497,20 @@
       ? "Pick one to fill the references and word list."
       : "Pick one to fill the references below.";
 
-    // FIX: ensure the pill list swaps pools when game type changes
     renderSuggestedTopics();
 
-    // Title handling
     const defaultTitle = defaults[type] || "Match the Verse";
     if (titleInput) {
       titleInput.placeholder = defaultTitle;
       if (autoTitle || !titleInput.value.trim()) titleInput.value = defaultTitle;
     }
 
-    // Theme default (word/crossword)
     if (isWordMode && themeInput && !themeInput.value.trim()) {
       const inferred = inferThemeFromRefs();
       if (inferred) themeInput.value = inferred;
     }
   }
 
-  // ---- Wire up events ----
   if (typeSel) typeSel.addEventListener("change", sync);
 
   const shuffleBtn = document.getElementById("shuffleTopics");
@@ -560,7 +547,14 @@
         renderWordChips();
       }
       if (confirmWords) confirmWords.checked = false;
-      if (wordListMessage) wordListMessage.textContent = "Word list cleared.";
+      setMessage("Word list cleared.", false);
+    });
+  }
+
+  // ✅ Make the warning clear when user checks "I reviewed..."
+  if (confirmWords) {
+    confirmWords.addEventListener("change", () => {
+      if (confirmWords.checked) setMessage("", false);
     });
   }
 
@@ -568,24 +562,29 @@
     form.addEventListener("submit", (event) => {
       if (!requiresWordReview()) return;
       if (wordActionInput && (wordActionInput.value === "build" || wordActionInput.value === "clear")) return;
+
       if (confirmWords && !confirmWords.checked) {
         event.preventDefault();
-        if (wordListMessage) wordListMessage.textContent = "Please review the word list before creating the game.";
-        confirmWords?.focus();
+        setMessage("Please review the word list before creating the game.", true);
+        confirmWords.scrollIntoView({ behavior: "smooth", block: "center" });
+        confirmWords.focus();
       }
     });
   }
 
-  // Initial bind for server-render fallback pills, then sync re-renders as needed
   bindTopicButtons(Array.from(document.querySelectorAll(".topic-pill")));
   sync();
 
-  // expose for debugging if you want
   window.fsBuildWordList = fetchWordSuggestions;
 })();
 </script>
 
 <style>
+  #wordListMessage.warn {
+    color: #b45309;
+    font-weight: 700;
+  }
+
   .step-block {
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 14px;

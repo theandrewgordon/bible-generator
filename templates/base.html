@@ -53,7 +53,10 @@
     />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="Faith Sparks" />
     <link rel="icon" href="{{ favicon_url }}" />
     <link
@@ -87,19 +90,17 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='admin.css') }}?v={{ static_v|default(1) }}"
     />
-    {% endif %}
-
-    {# Auto noindex for private/utility routes; override via noindex=true #} {%
-    set _p = request.path %} {% set _auto_noindex = ( (_p.startswith('/admin'))
-    or (_p.startswith('/generate')) or (_p.startswith('/prints')) or
-    (_p.startswith('/download')) or (_p.startswith('/regenerate')) or
-    (_p.startswith('/thumb')) or (_p.startswith('/packs')) or
-    (_p.startswith('/buy')) or (_p.startswith('/billing')) or
-    (_p.startswith('/plus/success')) or (noindex|default(false)) ) %} {% if
-    _auto_noindex %}
+    {% endif %} {# Auto noindex for private/utility routes; override via
+    noindex=true #} {% set _p = request.path %} {% set _auto_noindex = (
+    (_p.startswith('/admin')) or (_p.startswith('/generate')) or
+    (_p.startswith('/prints')) or (_p.startswith('/download')) or
+    (_p.startswith('/regenerate')) or (_p.startswith('/thumb')) or
+    (_p.startswith('/packs')) or (_p.startswith('/buy')) or
+    (_p.startswith('/billing')) or (_p.startswith('/plus/success')) or
+    (noindex|default(false)) ) %} {% if _auto_noindex %}
     <meta name="robots" content="noindex,follow" />
-    {% endif %} {# Prefer absolute OG values #}
-    {# OG tags above already cover url/image #}
+    {% endif %} {# Prefer absolute OG values #} {# OG tags above already cover
+    url/image #}
 
     <!-- Admin → Theme tokens -->
     <style>
@@ -226,9 +227,9 @@
       src="{{ url_for('static', filename='darkmode.js') }}?v={{ static_v|default(1) }}"
     ></script>
 
-    {% set _meta_pixel_id = env('META_PIXEL_ID') %}
-    {% set _meta_pixel_enabled = _meta_pixel_id and not request.path.startswith('/admin') %}
-    {% if _meta_pixel_enabled %}
+    {% set _meta_pixel_id = env('META_PIXEL_ID') %} {% set _meta_pixel_enabled =
+    _meta_pixel_id and not request.path.startswith('/admin') %} {% if
+    _meta_pixel_enabled %}
     <!-- Meta Pixel Code -->
     <script>
       !(function (f, b, e, v, n, t, s) {
@@ -328,7 +329,8 @@
         }
         function bind(el) {
           const trigger =
-            el.dataset.fbTrigger || (el.tagName === "FORM" ? "submit" : "click");
+            el.dataset.fbTrigger ||
+            (el.tagName === "FORM" ? "submit" : "click");
           const once = el.dataset.fbOnce !== "false";
           const handler = () => {
             fire(el);
@@ -349,9 +351,7 @@
       })();
     </script>
     <!-- End Meta Pixel Code -->
-    {% endif %}
-
-    {% block head_extra %}{% endblock %}
+    {% endif %} {% block head_extra %}{% endblock %}
   </head>
 
   <!-- Utilities: mobile nav + sticky header (+ usage chip refresh) -->
@@ -433,13 +433,12 @@
       <img
         height="1"
         width="1"
-        style="display:none"
+        style="display: none"
         src="https://www.facebook.com/tr?id={{ _meta_pixel_id }}&ev=PageView&noscript=1"
         alt=""
       />
     </noscript>
-    {% endif %}
-    {% if _meta_pixel_enabled and fb_purchase %}
+    {% endif %} {% if _meta_pixel_enabled and fb_purchase %}
     <script>
       (function () {
         const data = {{ fb_purchase|tojson }};
@@ -462,11 +461,10 @@
     {% endif %}
 
     <a href="#maincontent" class="skip-link">Skip to content</a>
-    {% set path = request.path or '' %}
-
-    {% include "_navbar.html" %} {% if site_content and
-    site_content.announcement_enabled and site_content.announcement_text and
-    (path == '/' or path.startswith('/browse') or path.startswith('/plus')) %}
+    {% set path = request.path or '' %} {% include "_navbar.html" %} {% if
+    site_content and site_content.announcement_enabled and
+    site_content.announcement_text and (path == '/' or
+    path.startswith('/browse') or path.startswith('/plus')) %}
     <div class="site-banner strong">{{ site_content.announcement_text }}</div>
     {% endif %} {# Per-page banners #} {% if site_content %} {% if
     path.startswith('/browse') and site_content.browse_banner_enabled and
@@ -562,7 +560,7 @@
       aria-atomic="true"
       aria-hidden="true"
     >
-      <div class="panel">Creating your worksheet…</div>
+      <div class="panel" id="overlayText">Working…</div>
     </div>
 
     <main id="maincontent" class="container">
@@ -571,8 +569,9 @@
 
     <footer>
       &copy; 2025 Faith Sparks Printables. All rights reserved.
-      <a href="/about">About</a> • <a href="/plus">Membership</a>{% if is_pro %} • <a href="/billing">Manage Membership</a>{% endif %}
-      {% if support_email %} • Support:
+      <a href="/about">About</a> • <a href="/plus">Membership</a>{% if is_pro %}
+      • <a href="/billing">Manage Membership</a>{% endif %} {% if support_email
+      %} • Support:
       <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
     </footer>
 
@@ -580,35 +579,47 @@
       // Page overlay controller (only show for non-prevented POST)
       (function () {
         const overlay = document.getElementById("pageOverlay");
-        function show() {
+        const overlayText = document.getElementById("overlayText");
+
+        function show(text) {
           if (!overlay) return;
+          if (overlayText && text) overlayText.textContent = text;
           overlay.classList.add("show");
           overlay.setAttribute("aria-hidden", "false");
           document.body.classList.add("overlay-open");
         }
+
         function hide() {
           if (!overlay) return;
           overlay.classList.remove("show");
           overlay.setAttribute("aria-hidden", "true");
           document.body.classList.remove("overlay-open");
         }
+
         window.showOverlay = show;
         window.hideOverlay = hide;
         addEventListener("DOMContentLoaded", hide);
         addEventListener("pageshow", hide);
+
         document.addEventListener(
           "submit",
           (ev) => {
             Promise.resolve().then(() => {
               if (ev.defaultPrevented) return hide();
+
               const form = ev.target;
               const method = (
                 form.getAttribute("method") || "GET"
               ).toUpperCase();
-              if (method === "POST") {
-                if (form.hasAttribute("data-no-overlay")) return;
-                show();
-              }
+              if (method !== "POST") return;
+
+              // allow per-form overlay text
+              const msg = form.getAttribute("data-overlay-text") || "Working…";
+
+              // if form opts out, do nothing
+              if (form.hasAttribute("data-no-overlay")) return;
+
+              show(msg);
             });
           },
           true
@@ -618,9 +629,7 @@
 
     <script>
       (function () {
-        const selects = Array.from(
-          document.querySelectorAll(".version-pref")
-        );
+        const selects = Array.from(document.querySelectorAll(".version-pref"));
         if (!selects.length) return;
         const saved = localStorage.getItem("preferredVersion") || "esv";
         selects.forEach((sel) => {
