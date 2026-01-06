@@ -576,7 +576,7 @@
     </footer>
 
     <script>
-      // Page overlay controller (only show for non-prevented POST)
+      // Page overlay controller (show for non-prevented POST)
       (function () {
         const overlay = document.getElementById("pageOverlay");
         const overlayText = document.getElementById("overlayText");
@@ -596,10 +596,20 @@
           document.body.classList.remove("overlay-open");
         }
 
+        // Expose
         window.showOverlay = show;
         window.hideOverlay = hide;
+
+        // Always start hidden (handles BFCache too)
         addEventListener("DOMContentLoaded", hide);
         addEventListener("pageshow", hide);
+
+        // If a POST triggers a file download, there is no navigation event.
+        // Use visibility/focus + a failsafe timeout to prevent "stuck forever".
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") hide();
+        });
+        addEventListener("focus", hide);
 
         document.addEventListener(
           "submit",
@@ -608,18 +618,21 @@
               if (ev.defaultPrevented) return hide();
 
               const form = ev.target;
+              if (!form || form.tagName !== "FORM") return;
+
               const method = (
                 form.getAttribute("method") || "GET"
               ).toUpperCase();
               if (method !== "POST") return;
 
-              // allow per-form overlay text
-              const msg = form.getAttribute("data-overlay-text") || "Working…";
-
-              // if form opts out, do nothing
+              // If form opts out, do nothing
               if (form.hasAttribute("data-no-overlay")) return;
 
+              const msg = form.getAttribute("data-overlay-text") || "Working…";
               show(msg);
+
+              // failsafe: clear overlay in case no navigation occurs (downloads)
+              setTimeout(hide, 20000);
             });
           },
           true
