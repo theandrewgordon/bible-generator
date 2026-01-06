@@ -599,10 +599,16 @@
         // Expose
         window.showOverlay = show;
         window.hideOverlay = hide;
-
-        // Always start hidden (handles BFCache too)
         addEventListener("DOMContentLoaded", hide);
         addEventListener("pageshow", hide);
+
+        // ✅ Fix: downloads don't navigate; focus clears the overlay
+        addEventListener("focus", hide);
+
+        // ✅ Safety: never trap the user forever
+        setInterval(() => {
+          if (overlay && overlay.classList.contains("show")) hide();
+        }, 45000);
 
         // If a POST triggers a file download, there is no navigation event.
         // Use visibility/focus + a failsafe timeout to prevent "stuck forever".
