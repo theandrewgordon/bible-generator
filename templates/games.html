@@ -10,9 +10,11 @@ Printables{% endblock %} {% block head_extra %}
 <p class="muted">
   Printable Bible games for family time, co-op, and quiet mornings.
 </p>
+
 <div class="game-cta">
   <a class="button" href="{{ url_for('games_create') }}">Create a game</a>
 </div>
+
 <div class="game-filters">
   <span class="muted small">Filter:</span>
 
@@ -21,25 +23,21 @@ Printables{% endblock %} {% block head_extra %}
     href="{{ url_for('games') }}"
     >All</a
   >
-
   <a
     class="chip {{ 'active' if selected_type=='match' else '' }}"
     href="{{ url_for('games', type='match') }}"
     >Match the Verse</a
   >
-
   <a
     class="chip {{ 'active' if selected_type=='word-search' else '' }}"
     href="{{ url_for('games', type='word-search') }}"
     >Word Search</a
   >
-
   <a
     class="chip {{ 'active' if selected_type=='crossword' else '' }}"
     href="{{ url_for('games', type='crossword') }}"
     >Crossword</a
   >
-
   <a
     class="chip {{ 'active' if selected_type=='match-meaning' else '' }}"
     href="{{ url_for('games', type='match-meaning') }}"
@@ -47,7 +45,10 @@ Printables{% endblock %} {% block head_extra %}
   >
 </div>
 
-{% if not signed_in %}
+{# "Warm topics" belongs on /games/create, not the browse grid. So "fix warm
+topics" here means: make sure nothing in this page breaks the create page, and
+fix any HTML errors that could cause layout/script issues site-wide. #} {% if
+not signed_in %}
 <div class="card-lite sign-in-note">
   <span>Sign in to download games and save them in My Prints.</span>
   <a
@@ -66,10 +67,8 @@ Printables{% endblock %} {% block head_extra %}
   url_for('plus_pricing') %} {% set action_label = "See membership" %} {% else
   %} {% set action_url = url_for('games_detail', slug=g.slug) %} {% set
   action_label = "Open" %} {% endif %}
+
   <a
-  {% if g.previewImages and g.previewImages|length %}
-  <img class="game-thumb" src="{{ g.previewImages[0] }}" alt="" loading="lazy" />
-{% endif %}
     class="game-card {{ 'locked' if g.locked }}"
     href="{{ action_url }}"
     {%
@@ -78,7 +77,17 @@ Printables{% endblock %} {% block head_extra %}
     %}data-game-download{%
     endif
     %}
+    aria-label="{{ g.title }} ({{ action_label }})"
   >
+    {% if g.previewImages and g.previewImages|length %}
+    <img
+      class="game-thumb"
+      src="{{ g.previewImages[0] }}"
+      alt=""
+      loading="lazy"
+    />
+    {% endif %}
+
     <div class="game-meta">
       {% if g.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
       g.isSubscriberOnly %}<span class="pill info">Member</span>{% endif %}
@@ -88,6 +97,7 @@ Printables{% endblock %} {% block head_extra %}
         the Meaning {% else %} Match the Verse {% endif %}
       </span>
     </div>
+
     <h2 class="game-title">{{ g.title }}</h2>
     <p class="muted small">{{ g.description or "Ready to print." }}</p>
     <div class="game-action">{{ action_label }}</div>
@@ -107,20 +117,26 @@ Printables{% endblock %} {% block head_extra %}
   (function () {
     const pref = localStorage.getItem("preferredVersion") || "esv";
     const version = String(pref).toUpperCase();
+
     document.querySelectorAll("[data-game-download]").forEach((link) => {
       const params = new URLSearchParams({ version });
-const u = new URL(link.href, window.location.origin);
-u.search = params.toString();
-link.href = u.toString();    });
+      const u = new URL(link.href, window.location.origin);
+      u.search = params.toString();
+      link.href = u.toString();
+    });
+
+    // (Optional) If you later add a small note somewhere, this won't error.
     const display = document.querySelector("[data-version-display]");
     if (display)
       display.textContent = `Uses your default version (${version}).`;
   })();
 </script>
+
 <style>
   .game-cta {
     margin: 0.5rem 0 1rem;
   }
+
   .credit-note,
   .sign-in-note {
     display: flex;
@@ -130,61 +146,7 @@ link.href = u.toString();    });
     margin: 0.75rem 0 1rem;
     flex-wrap: wrap;
   }
-  .game-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 1rem;
-  }
-  .game-thumb{
-  width:100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-}
-  .game-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    text-decoration: none;
-    color: inherit;
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    background: var(--box);
-    border-radius: 14px;
-    padding: 1rem;
-    transition: transform 0.15s ease, border-color 0.15s ease,
-      box-shadow 0.15s ease;
-  }
-  .game-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(15, 23, 42, 0.12);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  }
-  .game-title {
-    margin: 0.6rem 0 0.4rem;
-    font-size: 1.05rem;
-    font-weight: 600;
-  }
-  .game-meta {
-    display: flex;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-  }
-  .game-action {
-    margin-top: auto;
-    align-self: flex-start;
-    padding: 0.4rem 0.8rem;
-    border-radius: 999px;
-    background: var(--primary);
-    color: #fff;
-    font-weight: 600;
-    font-size: 0.85rem;
-  }
-  @media (max-width: 640px) {
-    .game-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+
   .game-filters {
     display: flex;
     gap: 0.5rem;
@@ -209,10 +171,74 @@ link.href = u.toString();    });
   .game-filters .chip:hover {
     border-color: rgba(15, 23, 42, 0.25);
   }
+
   .game-filters .chip.active {
     background: var(--primary);
     border-color: var(--primary);
     color: #fff;
+  }
+
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+
+  .game-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    background: var(--box);
+    border-radius: 14px;
+    padding: 1rem;
+    transition: transform 0.15s ease, border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .game-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .game-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .game-title {
+    margin: 0.6rem 0 0.4rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .game-meta {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .game-action {
+    margin-top: auto;
+    align-self: flex-start;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 640px) {
+    .game-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
 {% endblock %}

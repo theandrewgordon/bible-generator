@@ -3,11 +3,10 @@
 
 {% block content %}
 {% set fs = form_state or {} %}
+
 <section class="game-create">
   <h1 class="page-title">Create a game</h1>
-  <p class="muted">
-    Make a printable Bible game from any list of references.
-  </p>
+  <p class="muted">Make a printable Bible game from any list of references.</p>
 
   {% if usage_info %}
   <div class="card-lite credit-note">
@@ -20,11 +19,14 @@
 
   <form method="post" class="card-lite" data-no-overlay>
     <input type="hidden" name="wordAction" id="wordAction" value="" />
+
+    <!-- Step 1 -->
     <div class="step-block">
       <div class="step-title">
         <span class="step-dot">1</span>
         Pick a game
       </div>
+
       <label for="gameType">Game type</label>
       <select id="gameType" name="gameType" class="wide-input">
         <option value="match" {% if fs.game_type == "match" or not fs.game_type %}selected{% endif %}>Match the Verse</option>
@@ -32,9 +34,7 @@
         <option value="word-search" {% if fs.game_type == "word-search" %}selected{% endif %}>Word Search</option>
         <option value="crossword" {% if fs.game_type == "crossword" %}selected{% endif %}>Crossword</option>
       </select>
-      <p class="small muted" id="gameTypeHelp">
-        Match the Meaning can auto-generate kid-friendly meanings from the verse text.
-      </p>
+      <p class="small muted" id="gameTypeHelp">Match the Meaning can auto-generate kid-friendly meanings from the verse text.</p>
 
       <label for="version">Version</label>
       <select id="version" name="version" class="wide-input version-pref">
@@ -44,29 +44,32 @@
       <p class="small muted">Uses your default version unless you choose another.</p>
     </div>
 
+    <!-- Step 2 -->
     <div class="step-block">
       <div class="step-title">
         <span class="step-dot">2</span>
         Add references
       </div>
+
       <div class="topic-ideas">
         <div class="suggested-head">
           <span class="small muted" id="topicLabel">Warm topics</span>
           <button type="button" class="button ghost tiny" id="shuffleTopics">Shuffle</button>
         </div>
-<div class="suggested-topic-list" id="suggestedTopicList">
-  {# Server-render fallback so topics still show even if JS fails #}
-  {% for t in match_topics[:12] %}
-    <button
-      type="button"
-      class="pill ghost topic-pill"
-      data-topic='{{ t|tojson|forceescape }}'
-      aria-label="Use topic: {{ t.label }}"
-    >
-      {{ t.label }}
-    </button>
-  {% endfor %}
-</div>
+
+        <div class="suggested-topic-list" id="suggestedTopicList">
+          {# Server-render fallback so topics still show even if JS fails #}
+          {% for t in match_topics[:12] %}
+            <button
+              type="button"
+              class="pill ghost topic-pill"
+              data-topic='{{ t|tojson|forceescape }}'
+              aria-label="Use topic: {{ t.label }}"
+            >
+              {{ t.label }}
+            </button>
+          {% endfor %}
+        </div>
 
         <p class="small muted" id="topicHelp">Pick one to fill the references below.</p>
       </div>
@@ -80,35 +83,26 @@
         placeholder="Proverbs 20:7&#10;Psalm 25:21&#10;Job 27:5"
       >{{ fs.references | default("", true) | e }}</textarea>
 
+      <!-- Word list panel (only for word-search/crossword via JS) -->
       <div id="wordCreateFields" class="word-list-panel">
         <label class="small muted">Word list (word search + crossword)</label>
+
         <div class="word-list-actions">
-          <button
-            type="button"
-            class="button ghost tiny"
-            id="generateWords"
-          >
-            Build word list
-          </button>
-          <button
-            type="button"
-            class="button ghost tiny"
-            id="clearWords"
-          >
-            Clear list
-          </button>
+          <button type="button" class="button ghost tiny" id="generateWords">Build word list</button>
+          <button type="button" class="button ghost tiny" id="clearWords">Clear list</button>
         </div>
+
         <p class="small muted" id="wordListMessage" style="margin-top: 0.35rem;"></p>
         <div class="word-chip-list" id="wordChipList"></div>
+
         <label class="word-review-check">
           <input type="checkbox" id="confirmWords" name="confirmWords" value="1" {% if fs.confirm_words %}checked{% endif %} />
           I reviewed the word list.
         </label>
+
         <details class="advanced" style="margin-top: 0.5rem;">
           <summary>Edit list</summary>
-          <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">
-            One word per line
-          </label>
+          <label for="gameWords" class="small muted" style="margin-top: 0.5rem;">One word per line</label>
           <textarea
             id="gameWords"
             name="gameWords"
@@ -120,8 +114,10 @@
       </div>
     </div>
 
+    <!-- Step 3 -->
     <details class="advanced step-block" style="margin-top: 0.5rem;">
       <summary>Step 3 (optional): Customize</summary>
+
       <label for="title" class="small muted" style="margin-top: 0.5rem;">Title</label>
       <input
         id="title"
@@ -168,9 +164,7 @@
       </div>
     </details>
 
-    <button class="button primary" type="submit" style="margin-top: 0.75rem;">
-      Create game
-    </button>
+    <button class="button primary" type="submit" style="margin-top: 0.75rem;">Create game</button>
   </form>
 </section>
 {% endblock %}
@@ -178,414 +172,419 @@
 {% block extra_scripts %}
 <script type="application/json" id="matchTopicsData">{{ match_topics | default([]) | tojson }}</script>
 <script type="application/json" id="storyTopicsData">{{ story_topics | default([]) | tojson }}</script>
+
 <script>
-  (function () {
-    const typeSel = document.getElementById("gameType");
-    const matchFields = document.getElementById("matchCreateFields");
-    const wordFields = document.getElementById("wordCreateFields");
-    const matchSummary = document.getElementById("matchItemsSummary");
-    const matchLabel = document.getElementById("matchItemsLabel");
-    const gameTypeHelp = document.getElementById("gameTypeHelp");
-    const titleInput = document.getElementById("title");
-    const themeInput = document.getElementById("theme");
-    const refsInput = document.getElementById("references");
-    const topicLabel = document.getElementById("topicLabel");
-    const topicHelp = document.getElementById("topicHelp");
-    const wordArea = document.getElementById("gameWords");
-    const wordChipList = document.getElementById("wordChipList");
-    const generateWordsBtn = document.getElementById("generateWords");
-    const clearWordsBtn = document.getElementById("clearWords");
-    const wordListMessage = document.getElementById("wordListMessage");
-    const confirmWords = document.getElementById("confirmWords");
-    const form = document.querySelector("form[data-no-overlay]");
-    const wordActionInput = document.getElementById("wordAction");
-    const versionSelect = document.getElementById("version");
-    const difficultySelect = document.getElementById("difficulty");
-    function normalizeEscapedNewlines(value) {
-      return (value || "")
-        .replace(/\\r\\n/g, "\n")
-        .replace(/\\\\n/g, "\n")
-        .replace(/\\n/g, "\n");
-    }
-    function decodeTopicValue(raw) {
-      if (!raw) return "";
-      if (raw.startsWith("b64:")) {
-        try {
-          return atob(raw.slice(4));
-        } catch (err) {
-          return "";
-        }
-      }
-      return normalizeEscapedNewlines(raw);
-    }
-    function normalizeTextarea(el) {
-      if (!el) return;
-      const next = normalizeEscapedNewlines(el.value);
-      if (next !== el.value) {
-        el.value = next;
-      }
-    }
-    const defaults = {
-      match: "Match the Verse",
-      "match-meaning": "Match the Meaning",
-      "word-search": "Word Search",
-      crossword: "Crossword",
-    };
-    const allDefaultTitles = Object.values(defaults);
-    let autoTitle = true;
-    if (titleInput) {
-      const current = titleInput.value.trim();
-      autoTitle = !current || allDefaultTitles.includes(current);
-      titleInput.addEventListener("input", () => {
-        autoTitle = !titleInput.value.trim() || allDefaultTitles.includes(titleInput.value.trim());
-      });
-    }
-    function inferThemeFromRefs() {
-      if (!refsInput) return "";
-      const first = refsInput.value.split(/\n+/).map((r) => r.trim()).find(Boolean);
-      if (!first) return "";
-      const parts = first.split(" ");
-      if (!parts.length) return "";
-      if (/^\d+$/.test(parts[0]) && parts.length > 1) {
-        return `${parts[0]} ${parts[1]}`;
-      }
-      return parts[0];
-    }
-    function sync() {
-      const type = (typeSel?.value || "match").toLowerCase();
-      if (matchFields) matchFields.style.display = type === "word-search" || type === "crossword" ? "none" : "block";
-      if (wordFields) wordFields.style.display = type === "word-search" || type === "crossword" ? "block" : "none";
-      if (matchSummary) {
-        matchSummary.textContent =
-          type === "match-meaning" ? "Add the meaning lines (optional)" : "Use custom verse text (optional)";
-      }
-      if (matchLabel) {
-        matchLabel.textContent =
-          type === "match-meaning"
-            ? "One per line: Reference | Meaning text"
-            : "One per line: Reference | Verse text | Version (optional)";
-      }
-      if (gameTypeHelp) {
-        gameTypeHelp.textContent =
-          type === "word-search"
-            ? "Word Search builds a word list from the verses (or your custom list)."
-            : type === "crossword"
-              ? "Crossword uses a word list from the verses (or your custom list)."
-              : type === "match-meaning"
-                ? "Match the Meaning can auto-generate kid-friendly meanings from the verse text."
-                : "Match the Verse uses the full verse text.";
-      }
-      if (topicLabel) {
-        topicLabel.textContent = "Warm topics";
-      }
-      if (topicHelp) {
-        topicHelp.textContent =
-          type === "word-search" || type === "crossword"
-            ? "Pick one to fill the references and word list."
-            : "Pick one to fill the references below.";
-      }
-      renderSuggestedTopics();
-      const defaultTitle = defaults[type] || "Match the Verse";
-      if (titleInput) {
-        titleInput.placeholder = defaultTitle;
-        if (autoTitle || !titleInput.value.trim()) {
-          titleInput.value = defaultTitle;
-        }
-      }
-      if ((type === "word-search" || type === "crossword") && themeInput) {
-        if (!themeInput.value.trim()) {
-          const inferred = inferThemeFromRefs();
-          if (inferred) themeInput.value = inferred;
-        }
-      }
-    }
-    if (typeSel) typeSel.addEventListener("change", sync);
-    sync();
+(function () {
+  const typeSel = document.getElementById("gameType");
+  const matchFields = document.getElementById("matchCreateFields");
+  const wordFields = document.getElementById("wordCreateFields");
+  const matchSummary = document.getElementById("matchItemsSummary");
+  const matchLabel = document.getElementById("matchItemsLabel");
+  const gameTypeHelp = document.getElementById("gameTypeHelp");
+  const titleInput = document.getElementById("title");
+  const themeInput = document.getElementById("theme");
+  const refsInput = document.getElementById("references");
+  const topicLabel = document.getElementById("topicLabel");
+  const topicHelp = document.getElementById("topicHelp");
+  const wordArea = document.getElementById("gameWords");
+  const wordChipList = document.getElementById("wordChipList");
+  const generateWordsBtn = document.getElementById("generateWords");
+  const clearWordsBtn = document.getElementById("clearWords");
+  const wordListMessage = document.getElementById("wordListMessage");
+  const confirmWords = document.getElementById("confirmWords");
+  const form = document.querySelector("form[data-no-overlay]");
+  const wordActionInput = document.getElementById("wordAction");
+  const versionSelect = document.getElementById("version");
+  const difficultySelect = document.getElementById("difficulty");
 
-    function applyTopic(topic, refs, words) {
-      if (themeInput) themeInput.value = topic || "";
-      if (refsInput) {
-        refsInput.value = normalizeEscapedNewlines(refs || "");
-        normalizeTextarea(refsInput);
-      }
-      if (wordArea && words) {
-        wordArea.value = normalizeEscapedNewlines(words);
-        renderWordChips();
-        if (confirmWords) confirmWords.checked = false;
-      }
-      if (wordListMessage && (words || (wordArea && wordArea.value.trim()))) {
-        wordListMessage.textContent = "Word list filled from this topic. Review or edit below.";
-      }
-    }
-
-    function loadTopicData(id) {
-      const el = document.getElementById(id);
-      if (!el) return [];
-      try {
-        const parsed = JSON.parse(el.textContent || "[]");
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (err) {
-        return [];
-      }
-    }
-
-    const matchTopics = loadTopicData("matchTopicsData");
-    const storyTopics = loadTopicData("storyTopicsData");
-
-    function shuffleArray(list) {
-      const arr = list.slice();
-      for (let i = arr.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    }
-
-    const lastPicksByType = {};
-    const shuffleOffsets = {};
-
-    function pickTopics(pool, type) {
-      if (!pool.length) return [];
-      if (pool.length <= 6) {
-        const offset = (shuffleOffsets[type] || 0) % pool.length;
-        const rotated = pool.slice(offset).concat(pool.slice(0, offset));
-        return rotated.slice(0, 6);
-      }
-      let picks = shuffleArray(pool).slice(0, 6);
-      const last = lastPicksByType[type] || [];
-      let tries = 0;
-      while (tries < 5 && picks.map((item) => item.label).join("|") === last.join("|")) {
-        picks = shuffleArray(pool).slice(0, 6);
-        tries += 1;
-      }
-      lastPicksByType[type] = picks.map((item) => item.label);
-      return picks;
-    }
-
-    function applyTopicFromButton(btn) {
-  // 1) Prefer JSON payload (server-render fallback uses this)
-  let payload = null;
-  try {
-    payload = btn.dataset.topic ? JSON.parse(btn.dataset.topic) : null;
-  } catch (e) {
-    payload = null;
+  function normalizeEscapedNewlines(value) {
+    return (value || "")
+      .replace(/\\r\\n/g, "\n")
+      .replace(/\\\\n/g, "\n")
+      .replace(/\\n/g, "\n");
   }
 
-  // 2) If JSON exists, use it
-  if (payload && typeof payload === "object") {
-    const label = String(payload.label || btn.textContent || "").trim();
-    const refs = normalizeEscapedNewlines(payload.refs || "");
-    const words = Array.isArray(payload.words) ? payload.words.join("\n") : "";
+  function normalizeTextarea(el) {
+    if (!el) return;
+    const next = normalizeEscapedNewlines(el.value);
+    if (next !== el.value) el.value = next;
+  }
 
-    applyTopic(label, refs, words);
-  } else {
-    // 3) Otherwise fall back to the old b64 dataset (JS-generated buttons)
-    const refs = decodeTopicValue(btn.dataset.refs || "");
-    const words = decodeTopicValue(btn.dataset.words || "");
-applyTopic(btn.dataset.topicLabel || btn.textContent.trim(), refs, words);
+  // ---- Titles (auto-fill until user edits) ----
+  const defaults = {
+    match: "Match the Verse",
+    "match-meaning": "Match the Meaning",
+    "word-search": "Word Search",
+    crossword: "Crossword",
+  };
+  const allDefaultTitles = Object.values(defaults);
+
+  let autoTitle = true;
+  if (titleInput) {
+    const current = titleInput.value.trim();
+    autoTitle = !current || allDefaultTitles.includes(current);
+    titleInput.addEventListener("input", () => {
+      const v = titleInput.value.trim();
+      autoTitle = !v || allDefaultTitles.includes(v);
+    });
+  }
+
+  function inferThemeFromRefs() {
+    if (!refsInput) return "";
+    const first = refsInput.value.split(/\n+/).map((r) => r.trim()).find(Boolean);
+    if (!first) return "";
+    const parts = first.split(" ");
+    if (!parts.length) return "";
+    if (/^\d+$/.test(parts[0]) && parts.length > 1) return `${parts[0]} ${parts[1]}`;
+    return parts[0];
+  }
+
+  function loadTopicData(id) {
+    const el = document.getElementById(id);
+    if (!el) return [];
+    try {
+      const parsed = JSON.parse(el.textContent || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  const matchTopics = loadTopicData("matchTopicsData");
+  const storyTopics = loadTopicData("storyTopicsData");
+
+  // ---- Warm topics: FIX ----
+  // Problem: fallback buttons are server-rendered from match_topics, but when gameType is word-search/crossword
+  // you want storyTopics to be used AND the fallback buttons should still apply correctly.
+  // Solution: store JSON payload on *both* server-rendered buttons (already there), and ensure apply uses it.
+  // Also: when switching game type, re-render the pill list from the right pool.
+
+  function shuffleArray(list) {
+    const arr = list.slice();
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  const lastPicksByType = {};
+  const shuffleOffsets = {};
+
+  function pickTopics(pool, type) {
+    if (!pool.length) return [];
+    if (pool.length <= 6) {
+      const offset = (shuffleOffsets[type] || 0) % pool.length;
+      const rotated = pool.slice(offset).concat(pool.slice(0, offset));
+      return rotated.slice(0, 6);
+    }
+    let picks = shuffleArray(pool).slice(0, 6);
+    const last = lastPicksByType[type] || [];
+    let tries = 0;
+    while (tries < 5 && picks.map((item) => item.label).join("|") === last.join("|")) {
+      picks = shuffleArray(pool).slice(0, 6);
+      tries += 1;
+    }
+    lastPicksByType[type] = picks.map((item) => item.label);
+    return picks;
+  }
+
+  function applyTopic(topicLabelValue, refs, words) {
+    if (themeInput) themeInput.value = topicLabelValue || "";
+    if (refsInput) {
+      refsInput.value = normalizeEscapedNewlines(refs || "");
+      normalizeTextarea(refsInput);
+      refsInput.dispatchEvent(new Event("input", { bubbles: true }));
+      refsInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    // Only fill word list if provided (topics include it)
+    if (wordArea && words) {
+      wordArea.value = normalizeEscapedNewlines(words);
+      renderWordChips();
+      if (confirmWords) confirmWords.checked = false;
+      if (wordListMessage) wordListMessage.textContent = "Word list filled from this topic. Review or edit below.";
+    } else {
+      if (wordListMessage && wordArea && wordArea.value.trim()) {
+        wordListMessage.textContent = "Review or edit the word list below.";
+      }
+    }
+  }
+
+  function applyTopicFromButton(btn) {
+    // Prefer JSON payload (works for server-render fallback + any future)
+    let payload = null;
+    try {
+      payload = btn.dataset.topic ? JSON.parse(btn.dataset.topic) : null;
+    } catch (e) {
+      payload = null;
+    }
+
+    if (payload && typeof payload === "object") {
+      const label = String(payload.label || btn.textContent || "").trim();
+      const refs = normalizeEscapedNewlines(payload.refs || "");
+      const words = Array.isArray(payload.words) ? payload.words.join("\n") : "";
+      applyTopic(label, refs, words);
+      return;
+    }
+
+    // Legacy b64 (JS-built buttons)
+    const decode = (raw) => {
+      if (!raw) return "";
+      if (raw.startsWith("b64:")) {
+        try { return atob(raw.slice(4)); } catch (e) { return ""; }
+      }
+      return normalizeEscapedNewlines(raw);
+    };
+
+    applyTopic(
+      btn.dataset.topicLabel || btn.textContent.trim(),
+      decode(btn.dataset.refs || ""),
+      decode(btn.dataset.words || "")
+    );
+  }
+
+  function bindTopicButtons(buttons) {
+    buttons.forEach((btn) => {
+      if (btn.dataset.bound === "1") return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => applyTopicFromButton(btn));
+    });
+  }
+
+  function renderSuggestedTopics() {
+    const list = document.getElementById("suggestedTopicList");
+    if (!list) return;
+
+    const type = (typeSel?.value || "match").toLowerCase();
+    const pool = (type === "word-search" || type === "crossword") ? storyTopics : matchTopics;
+
+    // If no JSON topics came through, keep server-render fallback + just bind clicks.
+    if (!pool.length) {
+      bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
+      return;
+    }
+
+    list.innerHTML = "";
+    const picks = pickTopics(pool, type);
+
+    picks.forEach((item) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pill ghost topic-pill";
+      btn.textContent = item.label;
+      btn.setAttribute("aria-label", `Use topic: ${item.label}`);
+
+      // Store full JSON payload (no b64 needed; avoids atob/unicode issues)
+      btn.dataset.topic = JSON.stringify({
+        label: item.label,
+        refs: item.refs || "",
+        words: Array.isArray(item.words) ? item.words : [],
+      });
+
+      list.appendChild(btn);
+    });
+
+    bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
+  }
+
+  // ---- Word chips ----
+  function renderWordChips() {
+    if (!wordArea || !wordChipList) return;
+
+    normalizeTextarea(wordArea);
+    const words = wordArea.value.split(/\n+/).map((w) => w.trim()).filter(Boolean);
+
+    wordChipList.innerHTML = "";
+    if (confirmWords) confirmWords.checked = false;
+    if (wordListMessage && !words.length) wordListMessage.textContent = "";
+
+    words.forEach((word) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "pill ghost";
+      chip.innerHTML = `${word} <span aria-hidden="true">×</span>`;
+      chip.addEventListener("click", () => {
+        const next = words.filter((w) => w !== word);
+        wordArea.value = next.join("\n");
+        renderWordChips();
+      });
+      wordChipList.appendChild(chip);
+    });
+  }
+
+  // ---- Build word list (API) ----
+  async function fetchWordSuggestions() {
+    if (!refsInput || !wordArea) return;
+
+    normalizeTextarea(refsInput);
+    const refs = refsInput.value.trim();
+
+    if (!refs) {
+      if (wordListMessage) wordListMessage.textContent = "Add references above to build a word list.";
+      refsInput.focus();
+      return;
+    }
+
+    if (generateWordsBtn) {
+      generateWordsBtn.disabled = true;
+      generateWordsBtn.textContent = "Building...";
+    }
+    if (wordListMessage) wordListMessage.textContent = "Building a word list from your references...";
+
+    try {
+      const res = await fetch("/games/words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          refs,
+          version: versionSelect?.value || "esv",
+          difficulty: difficultySelect?.value || "standard",
+        }),
+      });
+      if (!res.ok) throw new Error("request failed");
+      const data = await res.json();
+      const words = Array.isArray(data?.words) ? data.words : [];
+
+      if (words.length) {
+        wordArea.value = words.join("\n");
+        renderWordChips();
+        if (confirmWords) confirmWords.checked = false;
+        if (wordListMessage) wordListMessage.textContent = "Word list updated. Review or edit below.";
+      } else if (wordListMessage) {
+        wordListMessage.textContent = "No words found from those references yet.";
+      }
+    } catch (err) {
+      if (wordListMessage) wordListMessage.textContent = "Could not build a word list right now. Please try again.";
+    } finally {
+      if (generateWordsBtn) {
+        generateWordsBtn.disabled = false;
+        generateWordsBtn.textContent = "Build word list";
+      }
+    }
+  }
+
+  // ---- UI sync ----
+  function requiresWordReview() {
+    const type = (typeSel?.value || "match").toLowerCase();
+    return type === "word-search" || type === "crossword";
+  }
+
+  function sync() {
+    const type = (typeSel?.value || "match").toLowerCase();
+
+    const isWordMode = type === "word-search" || type === "crossword";
+    if (matchFields) matchFields.style.display = isWordMode ? "none" : "block";
+    if (wordFields) wordFields.style.display = isWordMode ? "block" : "none";
+
+    if (matchSummary) {
+      matchSummary.textContent = type === "match-meaning"
+        ? "Add the meaning lines (optional)"
+        : "Use custom verse text (optional)";
+    }
+
+    if (matchLabel) {
+      matchLabel.textContent = type === "match-meaning"
+        ? "One per line: Reference | Meaning text"
+        : "One per line: Reference | Verse text | Version (optional)";
+    }
+
+    if (gameTypeHelp) {
+      gameTypeHelp.textContent =
+        type === "word-search"
+          ? "Word Search builds a word list from the verses (or your custom list)."
+          : type === "crossword"
+            ? "Crossword uses a word list from the verses (or your custom list)."
+            : type === "match-meaning"
+              ? "Match the Meaning can auto-generate kid-friendly meanings from the verse text."
+              : "Match the Verse uses the full verse text.";
+    }
+
+    if (topicLabel) topicLabel.textContent = "Warm topics";
+    if (topicHelp) topicHelp.textContent = isWordMode
+      ? "Pick one to fill the references and word list."
+      : "Pick one to fill the references below.";
+
+    // FIX: ensure the pill list swaps pools when game type changes
+    renderSuggestedTopics();
+
+    // Title handling
+    const defaultTitle = defaults[type] || "Match the Verse";
+    if (titleInput) {
+      titleInput.placeholder = defaultTitle;
+      if (autoTitle || !titleInput.value.trim()) titleInput.value = defaultTitle;
+    }
+
+    // Theme default (word/crossword)
+    if (isWordMode && themeInput && !themeInput.value.trim()) {
+      const inferred = inferThemeFromRefs();
+      if (inferred) themeInput.value = inferred;
+    }
+  }
+
+  // ---- Wire up events ----
+  if (typeSel) typeSel.addEventListener("change", sync);
+
+  const shuffleBtn = document.getElementById("shuffleTopics");
+  if (shuffleBtn) {
+    shuffleBtn.addEventListener("click", () => {
+      const type = (typeSel?.value || "match").toLowerCase();
+      shuffleOffsets[type] = (shuffleOffsets[type] || 0) + 1;
+      renderSuggestedTopics();
+    });
+  }
+
+  if (wordArea) {
+    wordArea.addEventListener("input", renderWordChips);
+    renderWordChips();
   }
 
   if (refsInput) {
     normalizeTextarea(refsInput);
-    refsInput.dispatchEvent(new Event("input", { bubbles: true }));
-    refsInput.dispatchEvent(new Event("change", { bubbles: true }));
+    refsInput.addEventListener("blur", () => normalizeTextarea(refsInput));
   }
-  return false;
-}
 
-    window.fsApplyTopicFromButton = applyTopicFromButton;
+  if (generateWordsBtn) {
+    generateWordsBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      fetchWordSuggestions();
+    });
+  }
 
-    function bindTopicButtons(buttons) {
-      buttons.forEach((btn) => {
-        if (btn.dataset.bound === "1") return;
-        btn.dataset.bound = "1";
-        btn.addEventListener("click", () => applyTopicFromButton(btn));
-      });
-    }
-
-    function renderSuggestedTopics() {
-      const list = document.getElementById("suggestedTopicList");
-      if (!list) return;
-      const type = (typeSel?.value || "match").toLowerCase();
-      const pool = (type === "word-search" || type === "crossword") ? storyTopics : matchTopics;
-      if (!pool.length) {
-        bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
-        return;
+  if (clearWordsBtn) {
+    clearWordsBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (wordArea) {
+        wordArea.value = "";
+        renderWordChips();
       }
-      list.innerHTML = "";
-      const picks = pickTopics(pool, type);
-      picks.forEach((item) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "pill ghost topic-pill";
-        btn.textContent = item.label;
-btn.dataset.topicLabel = item.label;
-        const refsValue = normalizeEscapedNewlines(item.refs || "");
-        const wordsValue = (item.words || []).join("\n");
-        btn.dataset.refs = refsValue ? `b64:${btoa(refsValue)}` : "";
-        btn.dataset.words = wordsValue ? `b64:${btoa(wordsValue)}` : "";
-        list.appendChild(btn);
-      });
-      bindTopicButtons(Array.from(list.querySelectorAll(".topic-pill")));
-    }
-
-    const shuffleBtn = document.getElementById("shuffleTopics");
-    if (shuffleBtn) {
-      shuffleBtn.addEventListener("click", () => {
-        const type = (typeSel?.value || "match").toLowerCase();
-        shuffleOffsets[type] = (shuffleOffsets[type] || 0) + 1;
-        renderSuggestedTopics();
-      });
-    }
-
-    renderSuggestedTopics();
-    const initialButtons = document.querySelectorAll(".topic-pill");
-    bindTopicButtons(Array.from(initialButtons));
-
-
-    function renderWordChips() {
-      if (!wordArea || !wordChipList) return;
-      normalizeTextarea(wordArea);
-      const words = wordArea.value
-        .split(/\n+/)
-        .map((w) => w.trim())
-        .filter(Boolean);
-      wordChipList.innerHTML = "";
       if (confirmWords) confirmWords.checked = false;
-      if (wordListMessage && !words.length) {
-        wordListMessage.textContent = "";
-      }
-      words.forEach((word) => {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "pill ghost";
-        chip.innerHTML = `${word} <span aria-hidden="true">×</span>`;
-        chip.addEventListener("click", () => {
-          const next = words.filter((w) => w !== word);
-          wordArea.value = next.join("\n");
-          renderWordChips();
-        });
-        wordChipList.appendChild(chip);
-      });
-    }
+      if (wordListMessage) wordListMessage.textContent = "Word list cleared.";
+    });
+  }
 
-    if (wordArea) {
-      wordArea.addEventListener("input", renderWordChips);
-      renderWordChips();
-    }
-
-    if (refsInput) {
-      normalizeTextarea(refsInput);
-      refsInput.addEventListener("blur", () => normalizeTextarea(refsInput));
-    }
-
-    function submitWordAction(action) {
-      if (!form || !wordActionInput) return;
-      wordActionInput.value = action;
-      form.submit();
-    }
-
-    async function fetchWordSuggestions() {
-      if (!refsInput || !wordArea) return;
-      normalizeTextarea(refsInput);
-      const refs = refsInput.value.trim();
-      if (!refs) {
-        if (wordListMessage) {
-          wordListMessage.textContent = "Add references above to build a word list.";
-        }
-        refsInput.focus();
-        return;
-      }
-      if (generateWordsBtn) {
-        generateWordsBtn.disabled = true;
-        generateWordsBtn.textContent = "Building...";
-      }
-      if (wordListMessage) {
-        wordListMessage.textContent = "Building a word list from your references...";
-      }
-      try {
-        const res = await fetch("/games/words", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            refs,
-            version: versionSelect?.value || "esv",
-            difficulty: difficultySelect?.value || "standard",
-          }),
-        });
-        if (!res.ok) {
-          throw new Error("request failed");
-        }
-        const data = await res.json();
-        const words = Array.isArray(data?.words) ? data.words : [];
-        if (words.length) {
-          wordArea.value = words.join("\n");
-          renderWordChips();
-          if (confirmWords) confirmWords.checked = false;
-          if (wordListMessage) {
-            wordListMessage.textContent = "Word list updated. Review or edit below.";
-          }
-        } else if (wordListMessage) {
-          wordListMessage.textContent = "No words found from those references yet.";
-        }
-      } catch (err) {
-        if (wordListMessage) {
-          wordListMessage.textContent = "Could not build a word list right now. Please try again.";
-        }
-      } finally {
-        if (generateWordsBtn) {
-          generateWordsBtn.disabled = false;
-          generateWordsBtn.textContent = "Build word list";
-        }
-      }
-    }
-
-    window.fsBuildWordList = fetchWordSuggestions;
-
-    if (generateWordsBtn) {
-      generateWordsBtn.addEventListener("click", (event) => {
+  if (form) {
+    form.addEventListener("submit", (event) => {
+      if (!requiresWordReview()) return;
+      if (wordActionInput && (wordActionInput.value === "build" || wordActionInput.value === "clear")) return;
+      if (confirmWords && !confirmWords.checked) {
         event.preventDefault();
-        fetchWordSuggestions();
-      });
-    }
+        if (wordListMessage) wordListMessage.textContent = "Please review the word list before creating the game.";
+        confirmWords?.focus();
+      }
+    });
+  }
 
-    if (clearWordsBtn) {
-      clearWordsBtn.addEventListener("click", (event) => {
-        event.preventDefault();
-        if (wordArea) {
-          wordArea.value = "";
-          renderWordChips();
-        }
-        if (confirmWords) confirmWords.checked = false;
-        if (wordListMessage) {
-          wordListMessage.textContent = "Word list cleared.";
-        }
-      });
-    }
+  // Initial bind for server-render fallback pills, then sync re-renders as needed
+  bindTopicButtons(Array.from(document.querySelectorAll(".topic-pill")));
+  sync();
 
-    function requiresWordReview() {
-      const type = (typeSel?.value || "match").toLowerCase();
-      return type === "word-search" || type === "crossword";
-    }
-
-    if (form) {
-      form.addEventListener("submit", (event) => {
-        if (!requiresWordReview()) return;
-        if (wordActionInput && (wordActionInput.value === "build" || wordActionInput.value === "clear")) {
-          return;
-        }
-        if (confirmWords && !confirmWords.checked) {
-          event.preventDefault();
-          if (wordListMessage) {
-            wordListMessage.textContent = "Please review the word list before creating the game.";
-          }
-          confirmWords?.focus();
-        }
-      });
-    }
-  })();
+  // expose for debugging if you want
+  window.fsBuildWordList = fetchWordSuggestions;
+})();
 </script>
+
 <style>
   .step-block {
     border: 1px solid rgba(15, 23, 42, 0.08);
@@ -612,24 +611,7 @@ btn.dataset.topicLabel = item.label;
     font-size: 0.85rem;
     font-weight: 700;
   }
-  .topic-ideas {
-    margin-bottom: 0.75rem;
-  }
-  .word-list-actions {
-    margin-top: 0.5rem;
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-  }
-  .word-chip-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin-top: 0.5rem;
-  }
-  .word-chip-list .pill {
-    border: 1px dashed rgba(15, 23, 42, 0.25);
-  }
+  .topic-ideas { margin-bottom: 0.75rem; }
   .suggested-head {
     display: flex;
     justify-content: space-between;
@@ -643,10 +625,8 @@ btn.dataset.topicLabel = item.label;
     margin-bottom: 0.5rem;
     min-height: 2rem;
   }
-  .button.tiny {
-    padding: 0.2rem 0.5rem;
-    font-size: 0.75rem;
-  }
+  .button.tiny { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+
   .suggested-topic-list .pill {
     border: 1px solid rgba(15, 23, 42, 0.18);
     background: rgba(15, 23, 42, 0.04);
@@ -660,9 +640,7 @@ btn.dataset.topicLabel = item.label;
     border-color: rgba(148, 163, 184, 0.35);
     color: #e2e8f0;
   }
-  .topic-ideas {
-    margin-bottom: 0.75rem;
-  }
+
   .word-list-panel {
     margin-top: 0.75rem;
     padding: 0.75rem;
@@ -670,6 +648,20 @@ btn.dataset.topicLabel = item.label;
     border-radius: 12px;
     background: color-mix(in oklab, var(--box), white 6%);
   }
+  .word-list-actions {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .word-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+  }
+  .word-chip-list .pill { border: 1px dashed rgba(15, 23, 42, 0.25); }
+
   .word-review-check {
     display: flex;
     align-items: center;
