@@ -199,6 +199,39 @@
 
       footer{text-align:center;padding:2rem 1rem;font-size:.9em;color:var(--text-secondary);background-color:transparent}
 
+      .site-footer {
+        text-align: center;
+        padding: 2rem 1rem;
+        font-size: .9em;
+        color: var(--text-secondary);
+        background: transparent;
+      }
+
+      .footer-links {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0;
+        margin-left: .6rem;
+      }
+
+      .footer-links a {
+        color: inherit;
+        text-decoration: none;
+        padding: 0 .45rem;
+      }
+
+      .footer-links a:hover {
+        text-decoration: underline;
+      }
+
+      /* Add the dot separators automatically */
+      .footer-links a + a::before {
+        content: "•";
+        margin-right: .45rem;
+        opacity: .7;
+      }
+
+
       .site-banner{margin:8px auto 8px;max-width:980px;padding:10px 14px;border-radius:12px;line-height:1.25;box-shadow:var(--card-shadow)}
       .site-banner.strong{background:#fef3c7;border:1px solid #fde68a;color:#7a4a00}
       .site-banner.subtle{background:var(--box);border:1px solid #e5e7eb;color:var(--text)}
@@ -567,22 +600,32 @@
       {% block content %}{% endblock %}
     </main>
 
-    <footer>
-      &copy; 2025 Faith Sparks Printables. All rights reserved.
-      <a href="/about">About</a> • <a href="/plus">Membership</a>{% if is_pro %}
-      • <a href="/billing">Manage Membership</a>{% endif %} {% if support_email
-      %} • Support:
-      <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}
+    <footer class="site-footer">
+      <span
+        >&copy; {{ current_year }} Faith Sparks Printables. All rights
+        reserved.</span
+      >
+
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/about">About</a>
+        <a href="/plus">Membership</a>
+        {% if is_pro %}
+        <a href="/billing">Manage Membership</a>
+        {% endif %} {% if support_email %}
+        <a href="mailto:{{ support_email }}">Support</a>
+        {% endif %}
+      </nav>
     </footer>
 
     <script>
-      // Page overlay controller (show for non-prevented POST)
+      // Page overlay controller (show for eligible POST submits)
       (function () {
         const overlay = document.getElementById("pageOverlay");
         const overlayText = document.getElementById("overlayText");
 
+        if (!overlay) return;
+
         function show(text) {
-          if (!overlay) return;
           if (overlayText && text) overlayText.textContent = text;
           overlay.classList.add("show");
           overlay.setAttribute("aria-hidden", "false");
@@ -590,55 +633,74 @@
         }
 
         function hide() {
-          if (!overlay) return;
           overlay.classList.remove("show");
           overlay.setAttribute("aria-hidden", "true");
           document.body.classList.remove("overlay-open");
         }
 
-        // Expose
+        // Expose (pages/scripts can call explicitly)
         window.showOverlay = show;
         window.hideOverlay = hide;
-        addEventListener("DOMContentLoaded", hide);
-        addEventListener("pageshow", hide);
 
-        // ✅ Fix: downloads don't navigate; focus clears the overlay
-        addEventListener("focus", hide);
+        // Always clear overlay on page lifecycle events
+        const clear = () => hide();
+        window.addEventListener("pageshow", clear, { passive: true });
+        window.addEventListener("focus", clear, { passive: true });
+        document.addEventListener(
+          "visibilitychange",
+          () => {
+            if (document.visibilityState === "visible") hide();
+          },
+          { passive: true }
+        );
 
-        // ✅ Safety: never trap the user forever
-        setInterval(() => {
-          if (overlay && overlay.classList.contains("show")) hide();
-        }, 45000);
+        // Boot-safe: never start with overlay stuck
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", hide, { once: true });
+        } else {
+          hide();
+        }
 
-        // If a POST triggers a file download, there is no navigation event.
-        // Use visibility/focus + a failsafe timeout to prevent "stuck forever".
-        document.addEventListener("visibilitychange", () => {
-          if (document.visibilityState === "visible") hide();
-        });
-        addEventListener("focus", hide);
+        function shouldShowForForm(form) {
+          if (!form || form.tagName !== "FORM") return false;
 
+          // Opt-out flags
+          if (form.hasAttribute("data-no-overlay")) return false;
+
+          // Downloads do not navigate → avoid overlay by default
+          if (form.getAttribute("data-download") === "1") return false;
+
+          // Don't show overlay for new tab targets
+          const target = (form.getAttribute("target") || "").toLowerCase();
+          if (target === "_blank") return false;
+
+          // Only POST
+          const method = (form.getAttribute("method") || "GET").toUpperCase();
+          if (method !== "POST") return false;
+
+          return true;
+        }
+
+        // Capture submit across the site
         document.addEventListener(
           "submit",
           (ev) => {
+            // Let page-level JS prevent default first; then react.
             Promise.resolve().then(() => {
-              if (ev.defaultPrevented) return hide();
+              if (ev.defaultPrevented) {
+                hide();
+                return;
+              }
 
               const form = ev.target;
-              if (!form || form.tagName !== "FORM") return;
-
-              const method = (
-                form.getAttribute("method") || "GET"
-              ).toUpperCase();
-              if (method !== "POST") return;
-
-              // If form opts out, do nothing
-              if (form.hasAttribute("data-no-overlay")) return;
+              if (!shouldShowForForm(form)) return;
 
               const msg = form.getAttribute("data-overlay-text") || "Working…";
               show(msg);
 
-              // failsafe: clear overlay in case no navigation occurs (downloads)
-              setTimeout(hide, 20000);
+              // Failsafe: never trap user if download/no navigation happens.
+              // (If navigation happens, pageshow/focus/visibility will clear it anyway.)
+              window.setTimeout(hide, 25000);
             });
           },
           true

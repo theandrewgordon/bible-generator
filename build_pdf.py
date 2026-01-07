@@ -16,6 +16,9 @@ from reportlab.lib.utils import ImageReader
 
 from faithsparks.styles import layout
 
+from datetime import datetime
+COPYRIGHT_YEAR = datetime.now().year
+
 # Register fonts
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
 pdfmetrics.registerFont(TTFont('LearningCurve', 'fonts/LearningCurveDashed-w4DP.ttf'))
@@ -222,7 +225,7 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
 
     # Load brand assets
-    logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+    logo_reader = _load_image("static/faith_sparks_logo_192.png")
     qr_reader = _load_image("faithsparks_qr.png")
     logo_size = 48
     if logo_reader:
@@ -307,7 +310,8 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     c.drawRightString(width - margin, 0.32 * inch + footer_lift, f"FS-{verse_code}")
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
-    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, "© 2025 Faith Sparks Printables · For personal use only")
+
+    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
 
     c.save()
     print(f"✅ Final worksheet saved to: {pdf_path}")
@@ -326,7 +330,7 @@ def build_coloring_pdf(
     margin = layout.DEFAULT_MARGIN_INCH * inch
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
 
-    logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+    logo_reader = _load_image("static/faith_sparks_logo_192.png")
     qr_reader = _load_image("faithsparks_qr.png")
     logo_size = 48
     top_y = height - margin - 10
@@ -384,5 +388,5 @@ def build_coloring_pdf(
     c.drawRightString(width - margin, 0.32 * inch + footer_lift, f"FS-{verse_code}")
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
-    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, "© 2025 Faith Sparks Printables · For personal use only")
+    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
     c.save()

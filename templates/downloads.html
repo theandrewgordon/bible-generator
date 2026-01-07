@@ -1,74 +1,94 @@
-{% extends "base.html" %}
-{% block title %}Redeem Your Bible Copywork Bundle{% endblock %}
+{% extends "base.html" %} {% block title %}Redeem Your Bible Copywork Bundle{%
+endblock %} {% block content %}
 
-{% block content %}
 <div class="page downloads">
   <h1>Redeem your bundle</h1>
-  <p class="muted">Enter the code from your receipt or instruction PDF to unlock your bundle.</p>
+  <p class="muted">
+    Enter the code from your receipt or instruction PDF to unlock your bundle.
+  </p>
 
   {% if error %}
-    <div class="alert alert-warning">{{ error }}</div>
-  {% endif %}
-
-  {% if pack %}
-    <div class="card">
-      <h2>Unlocked: {{ pack.name }}</h2>
-      <p>Your download is ready.</p>
-      <p class="muted small" style="margin-top: -0.25rem;">
-        Have another code? Enter it below.
-      </p>
-      <div class="row" style="align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-        <a class="button primary" href="{{ url_for('download_file_pack', pack_id=pack.id or pack['id']) }}">
-          Download bundle
-        </a>
-        {% if user_email %}
-          <form method="post" action="{{ url_for('claim_pack') }}">
-            <input type="hidden" name="pack_id" value="{{ pack.id or pack['id'] }}">
-            <button type="submit" class="button">Save to My Prints</button>
-          </form>
-        {% else %}
-          <p class="muted small" style="margin: 0;">
-            Want to keep this handy? <a href="{{ url_for('google.login', next=url_for('downloads')) }}">Sign in</a> to save it to My Prints.
-          </p>
-        {% endif %}
-      </div>
-    </div>
-    <form method="post" class="card" style="max-width: 520px;">
-      <label for="password"><strong>Redeem code</strong></label>
-      <input
-        id="password"
-        name="password"
-        type="text"
-        class="wide-input"
-        placeholder="Enter another code"
-        required
-        autocomplete="off"
-      />
-      <button type="submit" class="button primary" style="margin-top: 0.75rem;">Unlock another bundle</button>
-      <p class="muted small" style="margin: 0.5rem 0 0;">
-        Bought more than one bundle? Enter each code here to unlock them back-to-back.
-      </p>
-    </form>
-  {% else %}
-    <form method="post" class="card" style="max-width: 520px;">
-      <label for="password"><strong>Redeem code</strong></label>
-      <input
-        id="password"
-        name="password"
-        type="text"
-        class="wide-input"
-        placeholder="Enter password"
-        required
-        autocomplete="off"
-      />
-      <button type="submit" class="button primary" style="margin-top: 0.75rem;">Unlock bundle</button>
-    </form>
-    <p class="muted small" style="max-width: 640px;">
-      Bought more than one bundle? Redeem each code here, one at a time.
-      <br />
-      Trouble finding your code? Check the instruction PDF that came with your order,
-      or email <a href="mailto:support@faithsparksprintables.com">support@faithsparksprintables.com</a>.
+  <div class="alert alert-warning">{{ error }}</div>
+  {% endif %} {% if pack %}
+  <div class="card">
+    <h2>Unlocked: {{ pack.name }}</h2>
+    <p>Your download is ready.</p>
+    <p class="muted small" style="margin-top: -0.25rem">
+      Have another code? Enter it below.
     </p>
+    <div class="row" style="align-items: center; gap: 0.75rem; flex-wrap: wrap">
+      <a
+        class="button primary"
+        href="{{ url_for('download_file_pack', pack_id=pack.id or pack['id']) }}"
+      >
+        Download bundle
+      </a>
+      {% if user_email %}
+      <form method="post" action="{{ url_for('claim_pack') }}" data-no-overlay>
+        <input
+          type="hidden"
+          name="pack_id"
+          value="{{ pack.id or pack['id'] }}"
+        />
+        <button type="submit" class="button">Save to My Prints</button>
+      </form>
+      {% else %}
+      <p class="muted small" style="margin: 0">
+        Want to keep this handy?
+        <a href="{{ url_for('google.login', next=url_for('downloads')) }}"
+          >Sign in</a
+        >
+        to save it to My Prints.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+  <form method="post" class="card" style="max-width: 520px" data-no-overlay>
+    <label for="password"><strong>Redeem code</strong></label>
+    <input
+      id="password"
+      name="password"
+      type="text"
+      class="wide-input"
+      placeholder="Enter another code"
+      required
+      autocomplete="off"
+    />
+    <button type="submit" class="button primary" style="margin-top: 0.75rem">
+      Unlock another bundle
+    </button>
+    <p class="muted small" style="margin: 0.5rem 0 0">
+      Bought more than one bundle? Enter each code here to unlock them
+      back-to-back.
+    </p>
+  </form>
+  {% else %}
+  <form method="post" class="card" style="max-width: 520px" data-no-overlay>
+    <label for="password"><strong>Redeem code</strong></label>
+    <input
+      id="password"
+      name="password"
+      type="text"
+      class="wide-input"
+      placeholder="Enter password"
+      required
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck="false"
+    />
+    <button type="submit" class="button primary" style="margin-top: 0.75rem">
+      Unlock bundle
+    </button>
+  </form>
+  <p class="muted small" style="max-width: 640px">
+    Bought more than one bundle? Redeem each code here, one at a time.
+    <br />
+    Trouble finding your code? Check the instruction PDF that came with your
+    order, or email
+    <a href="mailto:support@faithsparksprintables.com"
+      >support@faithsparksprintables.com</a
+    >.
+  </p>
   {% endif %}
 </div>
 {% endblock %}

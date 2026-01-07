@@ -707,6 +707,10 @@ def games_create():
 
 
 def games_words():
+    if not _is_public_games_enabled() and not google.authorized:
+        return jsonify({"error": "unauthorized"}), 401
+
+
     payload = request.get_json(silent=True) or {}
     refs_raw = (payload.get("refs") or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
     version = (payload.get("version") or "esv").strip().lower()

@@ -12,6 +12,8 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
+from datetime import datetime
+COPYRIGHT_YEAR = datetime.now().year
 
 @dataclass
 class MatchItem:
@@ -205,10 +207,11 @@ def generate_match_game_pdf(
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-        c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+        c.drawCentredString(width / 2, 0.35 * inch, f"© {COPYRIGHT_YEAR} Faith Sparks Printables")
+
 
     # Brand assets
-    logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+    logo_reader = _load_image("static/faith_sparks_logo_192.png")
     qr_reader = _load_image("faithsparks_qr.png")
     panel_top = y + 10
     panel_bottom = y - logo_size - 10
@@ -387,29 +390,47 @@ def generate_match_game_pdf(
 
 def _place_word_search_word(grid, word, rng, directions):
     size = len(grid)
-    attempts = 120
+    attempts = 200
     word = word.upper()
+    L = len(word)
+
     for _ in range(attempts):
         dx, dy = rng.choice(directions)
         if dx == 0 and dy == 0:
             continue
-        max_x = size - 1 if dx <= 0 else size - len(word)
-        max_y = size - 1 if dy <= 0 else size - len(word)
-        x = rng.randint(0, max_x)
-        y = rng.randint(0, max_y)
+
+        # start bounds so word always fits
+        if dx == 1:
+            min_x, max_x = 0, size - L
+        elif dx == -1:
+            min_x, max_x = L - 1, size - 1
+        else:  # dx == 0
+            min_x, max_x = 0, size - 1
+
+        if dy == 1:
+            min_y, max_y = 0, size - L
+        elif dy == -1:
+            min_y, max_y = L - 1, size - 1
+        else:  # dy == 0
+            min_y, max_y = 0, size - 1
+
+        if max_x < min_x or max_y < min_y:
+            continue
+
+        x = rng.randint(min_x, max_x)
+        y = rng.randint(min_y, max_y)
+
         ok = True
         for i, ch in enumerate(word):
             xx = x + dx * i
             yy = y + dy * i
-            if not (0 <= xx < size and 0 <= yy < size):
-                ok = False
-                break
             existing = grid[yy][xx]
             if existing not in ("", ch):
                 ok = False
                 break
         if not ok:
             continue
+
         positions = []
         for i, ch in enumerate(word):
             xx = x + dx * i
@@ -417,7 +438,9 @@ def _place_word_search_word(grid, word, rng, directions):
             grid[yy][xx] = ch
             positions.append((xx, yy))
         return positions
+
     return None
+
 
 
 def generate_word_search_pdf(
@@ -439,7 +462,7 @@ def generate_word_search_pdf(
     def draw_header(title_text: str, subtitle_text: str | None):
         nonlocal y
         y = height - margin - 10
-        logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+        logo_reader = _load_image("static/faith_sparks_logo_192.png")
         qr_reader = _load_image("faithsparks_qr.png")
         logo_size = 42
         panel_top = y + 10
@@ -511,7 +534,8 @@ def generate_word_search_pdf(
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-        c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+        c.drawCentredString(width / 2, 0.35 * inch, f"© {COPYRIGHT_YEAR} Faith Sparks Printables")
+
 
     def draw_word_fit(x: float, y_pos: float, text: str, max_width: float, base_size: int = 9) -> None:
         size = base_size
@@ -735,7 +759,7 @@ def generate_crossword_pdf(
     def draw_header(title_text: str, subtitle_text: str | None):
         nonlocal y
         y = height - margin - 10
-        logo_reader = _load_image("static/faith_sparks_logo_small.jpg")
+        logo_reader = _load_image("static/faith_sparks_logo_192.png")
         qr_reader = _load_image("faithsparks_qr.png")
         panel_top = y + 10
         panel_bottom = y - logo_size - 10
@@ -806,7 +830,8 @@ def generate_crossword_pdf(
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-        c.drawCentredString(width / 2, 0.35 * inch, "© 2025 Faith Sparks Printables")
+        c.drawCentredString(width / 2, 0.35 * inch, f"© {COPYRIGHT_YEAR} Faith Sparks Printables")
+
 
     def draw_word_fit(x: float, y_pos: float, text: str, max_width: float, base_size: int = 9) -> None:
         size = base_size

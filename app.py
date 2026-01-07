@@ -2,6 +2,8 @@
 from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
+from datetime import datetime
+
 import os, json, re, traceback
 import logging
 import sys
@@ -1033,6 +1035,8 @@ def inject_helpers():
             'stripe_price_url': stripe_price_url,
             'month_key': month_key,
             'plan_label': plan_label,
+            'current_year': datetime.now().year,
+
         }
     except Exception:
         return {

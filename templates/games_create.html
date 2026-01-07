@@ -17,7 +17,7 @@
   </div>
   {% endif %}
 
-  <form method="post" class="card-lite" data-overlay-text="Creating your game…">
+  <form method="post" class="card-lite" data-overlay-text="Creating your game…" data-download="1">
     <input type="hidden" name="wordAction" id="wordAction" value="" />
 
     <!-- Step 1 -->
@@ -84,12 +84,32 @@
       >{{ fs.references | default("", true) | e }}</textarea>
 
       <!-- Word list panel (only for word-search/crossword via JS) -->
-      <div id="wordCreateFields" class="word-list-panel">
+      <div id="wordCreateFields" class="word-list-panel" style="display:none;">
         <label class="small muted">Word list (word search + crossword)</label>
 
         <div class="word-list-actions">
-          <button type="button" class="button ghost tiny" id="generateWords">Build word list</button>
-          <button type="button" class="button ghost tiny" id="clearWords">Clear list</button>
+          <button
+            type="submit"
+            class="button ghost tiny"
+            id="generateWords"
+            name="wordAction"
+            value="build"
+            formnovalidate
+          >
+            Build word list
+          </button>
+
+          <button
+            type="submit"
+            class="button ghost tiny"
+            id="clearWords"
+            name="wordAction"
+            value="clear"
+            formnovalidate
+          >
+            Clear list
+          </button>
+
         </div>
 
         <p class="small muted" id="wordListMessage" role="alert" style="margin-top: 0.35rem;"></p>
@@ -187,18 +207,22 @@
   const refsInput = document.getElementById("references");
   const topicLabel = document.getElementById("topicLabel");
   const topicHelp = document.getElementById("topicHelp");
+
   const wordArea = document.getElementById("gameWords");
   const wordChipList = document.getElementById("wordChipList");
   const generateWordsBtn = document.getElementById("generateWords");
   const clearWordsBtn = document.getElementById("clearWords");
   const wordListMessage = document.getElementById("wordListMessage");
   const confirmWords = document.getElementById("confirmWords");
-  const form = document.querySelector("form.card-lite"); // ✅ FIX: always find the form
+
+  const form = document.querySelector("form.card-lite");
   const createBtn = document.getElementById("createGameBtn");
+
   const wordActionInput = document.getElementById("wordAction");
   const versionSelect = document.getElementById("version");
   const difficultySelect = document.getElementById("difficulty");
 
+  // ---------- small utils ----------
   function normalizeEscapedNewlines(value) {
     return (value || "")
       .replace(/\\r\\n/g, "\n")
@@ -210,6 +234,42 @@
     if (!el) return;
     const next = normalizeEscapedNewlines(el.value);
     if (next !== el.value) el.value = next;
+  }
+
+  function setWordMessage(text, warn) {
+    if (!wordListMessage) return;
+    wordListMessage.textContent = text || "";
+    wordListMessage.classList.toggle("warn", !!warn);
+  }
+
+  function isWordMode() {
+    const type = (typeSel?.value || "match").toLowerCase();
+    return type === "word-search" || type === "crossword";
+  }
+
+  function setCreateEnabled(enabled) {
+    if (!createBtn) return;
+    createBtn.disabled = !enabled;
+    createBtn.setAttribute("aria-disabled", enabled ? "false" : "true");
+    createBtn.classList.toggle("disabled", !enabled);
+  }
+
+  function enforceGate(reasonText) {
+    if (!isWordMode()) {
+      // No gate for match / match-meaning
+      setCreateEnabled(true);
+      setWordMessage("", false);
+      return;
+    }
+
+    const checked = !!(confirmWords && confirmWords.checked);
+    if (checked) {
+      setCreateEnabled(true);
+      setWordMessage("✅ Looks good. You can create the game.", false);
+    } else {
+      setCreateEnabled(false);
+      setWordMessage(reasonText || "Please review the word list before creating the game.", true);
+    }
   }
 
   // ---- Titles (auto-fill until user edits) ----
@@ -241,6 +301,7 @@
     return parts[0];
   }
 
+  // ---- Topic data ----
   function loadTopicData(id) {
     const el = document.getElementById(id);
     if (!el) return [];
@@ -271,8 +332,7 @@
     if (!pool.length) return [];
     if (pool.length <= 6) {
       const offset = (shuffleOffsets[type] || 0) % pool.length;
-      const rotated = pool.slice(offset).concat(pool.slice(0, offset));
-      return rotated.slice(0, 6);
+      return pool.slice(offset).concat(pool.slice(0, offset)).slice(0, 6);
     }
     let picks = shuffleArray(pool).slice(0, 6);
     const last = lastPicksByType[type] || [];
@@ -297,19 +357,14 @@
     if (wordArea && words) {
       wordArea.value = normalizeEscapedNewlines(words);
       renderWordChips();
-      if (confirmWords) confirmWords.checked = false; // ✅ gate re-engages
-      setWordMessage("Word list filled from this topic. Review or edit below.", false);
+      if (confirmWords) confirmWords.checked = false; // gate re-engages
+      enforceGate("Word list filled from this topic. Please review it.");
     }
   }
 
   function applyTopicFromButton(btn) {
     let payload = null;
-    try {
-      payload = btn.dataset.topic ? JSON.parse(btn.dataset.topic) : null;
-    } catch {
-      payload = null;
-    }
-
+    try { payload = btn.dataset.topic ? JSON.parse(btn.dataset.topic) : null; } catch {}
     if (payload && typeof payload === "object") {
       const label = String(payload.label || btn.textContent || "").trim();
       const refs = normalizeEscapedNewlines(payload.refs || "");
@@ -317,8 +372,6 @@
       applyTopic(label, refs, words);
       return;
     }
-
-    // Legacy fallback
     applyTopic(btn.textContent.trim(), "", "");
   }
 
@@ -351,13 +404,11 @@
       btn.className = "pill ghost topic-pill";
       btn.textContent = item.label;
       btn.setAttribute("aria-label", `Use topic: ${item.label}`);
-
       btn.dataset.topic = JSON.stringify({
         label: item.label,
         refs: item.refs || "",
         words: Array.isArray(item.words) ? item.words : [],
       });
-
       list.appendChild(btn);
     });
 
@@ -375,8 +426,15 @@
       .filter(Boolean);
 
     wordChipList.innerHTML = "";
-    if (confirmWords) confirmWords.checked = false; // ✅ any edit requires re-review
-    if (!words.length) setWordMessage("", false);
+
+    // Any edit means: must re-review (word modes only)
+    if (isWordMode() && confirmWords) confirmWords.checked = false;
+
+    if (!words.length) {
+      if (isWordMode()) enforceGate("Add or build a word list, then review it.");
+      else setWordMessage("", false);
+      return;
+    }
 
     words.forEach((word) => {
       const chip = document.createElement("button");
@@ -390,23 +448,9 @@
       });
       wordChipList.appendChild(chip);
     });
-  }
 
-  function setWordMessage(text, warn) {
-    if (!wordListMessage) return;
-    wordListMessage.textContent = text || "";
-    wordListMessage.classList.toggle("warn", !!warn);
-  }
-
-  // ✅ FIX: if they uncheck, bring the gate back visibly
-  if (confirmWords) {
-    confirmWords.addEventListener("change", () => {
-      if (confirmWords.checked) {
-        setWordMessage("✅ Looks good. You can create the game.", false);
-      } else {
-        setWordMessage("Please review the word list before creating the game.", true);
-      }
-    });
+    // After chips render, enforce the gate
+    enforceGate();
   }
 
   // ---- Build word list (API) ----
@@ -417,7 +461,7 @@
     const refs = refsInput.value.trim();
 
     if (!refs) {
-      setWordMessage("Add references above to build a word list.", true);
+      enforceGate("Add references above to build a word list.");
       refsInput.focus();
       return;
     }
@@ -426,6 +470,7 @@
       generateWordsBtn.disabled = true;
       generateWordsBtn.textContent = "Building...";
     }
+
     setWordMessage("Building a word list from your references...", false);
 
     try {
@@ -439,20 +484,21 @@
           difficulty: difficultySelect?.value || "standard",
         }),
       });
+
       if (!res.ok) throw new Error("request failed");
       const data = await res.json();
       const words = Array.isArray(data?.words) ? data.words : [];
 
       if (words.length) {
         wordArea.value = words.join("\n");
-        renderWordChips();
         if (confirmWords) confirmWords.checked = false;
-        setWordMessage("Word list updated. Review or edit below.", false);
+        renderWordChips();
+        enforceGate("Word list updated. Please review it.");
       } else {
-        setWordMessage("No words found from those references yet.", true);
+        enforceGate("No words found from those references yet.");
       }
     } catch {
-      setWordMessage("Could not build a word list right now. Please try again.", true);
+      enforceGate("Could not build a word list right now. Please try again.");
     } finally {
       if (generateWordsBtn) {
         generateWordsBtn.disabled = false;
@@ -462,17 +508,12 @@
   }
 
   // ---- UI sync ----
-  function requiresWordReview() {
-    const type = (typeSel?.value || "match").toLowerCase();
-    return type === "word-search" || type === "crossword";
-  }
-
   function sync() {
     const type = (typeSel?.value || "match").toLowerCase();
-    const isWordMode = type === "word-search" || type === "crossword";
+    const wordMode = (type === "word-search" || type === "crossword");
 
-    if (matchFields) matchFields.style.display = isWordMode ? "none" : "block";
-    if (wordFields) wordFields.style.display = isWordMode ? "block" : "none";
+    if (matchFields) matchFields.style.display = wordMode ? "none" : "block";
+    if (wordFields) wordFields.style.display = wordMode ? "block" : "none";
 
     if (matchSummary) {
       matchSummary.textContent = type === "match-meaning"
@@ -498,7 +539,7 @@
     }
 
     if (topicLabel) topicLabel.textContent = "Warm topics";
-    if (topicHelp) topicHelp.textContent = isWordMode
+    if (topicHelp) topicHelp.textContent = wordMode
       ? "Pick one to fill the references and word list."
       : "Pick one to fill the references below.";
 
@@ -510,20 +551,16 @@
       if (autoTitle || !titleInput.value.trim()) titleInput.value = defaultTitle;
     }
 
-    if (isWordMode && themeInput && !themeInput.value.trim()) {
+    if (wordMode && themeInput && !themeInput.value.trim()) {
       const inferred = inferThemeFromRefs();
       if (inferred) themeInput.value = inferred;
     }
 
-    // If switching into word-mode, make the gate visible
-    if (isWordMode && confirmWords && !confirmWords.checked) {
-      setWordMessage("Please review the word list before creating the game.", false);
-    } else if (!isWordMode) {
-      setWordMessage("", false);
-    }
+    // Gate enforcement when switching modes
+    enforceGate(wordMode ? "Please review the word list before creating the game." : "");
   }
 
-  // ---- Wire up events ----
+  // ---- Events ----
   if (typeSel) typeSel.addEventListener("change", sync);
 
   const shuffleBtn = document.getElementById("shuffleTopics");
@@ -535,56 +572,56 @@
     });
   }
 
-  if (wordArea) {
-    wordArea.addEventListener("input", renderWordChips);
-    renderWordChips();
-  }
-
   if (refsInput) {
     normalizeTextarea(refsInput);
     refsInput.addEventListener("blur", () => normalizeTextarea(refsInput));
   }
 
+  if (wordMode) renderWordChips();
+
+  if (wordArea) {
+    wordArea.addEventListener("input", renderWordChips);
+    renderWordChips();
+  }
+
+  if (confirmWords) {
+    // ✅ fix: unchecking re-disables Create (real gate)
+    confirmWords.addEventListener("change", () => enforceGate());
+  }
+
   if (generateWordsBtn) {
     generateWordsBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (wordActionInput) wordActionInput.value = "build";
-      fetchWordSuggestions().finally(() => { if (wordActionInput) wordActionInput.value = ""; });
+      if (!isWordMode()) return; // optional
+      event.preventDefault();     // IMPORTANT: stop form submit
+      fetchWordSuggestions();
     });
   }
 
   if (clearWordsBtn) {
     clearWordsBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (wordActionInput) wordActionInput.value = "clear";
-
+      event.preventDefault();     // IMPORTANT: stop form submit
       if (wordArea) {
         wordArea.value = "";
         renderWordChips();
       }
       if (confirmWords) confirmWords.checked = false;
-      setWordMessage("Word list cleared.", false);
-
-      if (wordActionInput) wordActionInput.value = "";
+      enforceGate("Word list cleared. Build or enter words, then review.");
     });
   }
 
-  // ✅ FIX: submit validation is now actually bound + overlay won't trap user
+
+  // ✅ submit validation + overlay fallback (downloads don't navigate)
   if (form) {
     form.addEventListener("submit", (event) => {
-      const type = (typeSel?.value || "match").toLowerCase();
-      const isWordMode = (type === "word-search" || type === "crossword");
-
-      if (isWordMode && confirmWords && !confirmWords.checked) {
+      if (isWordMode() && confirmWords && !confirmWords.checked) {
         event.preventDefault();
-        setWordMessage("Please review the word list before creating the game.", true);
+        enforceGate("Please review the word list before creating the game.");
         confirmWords.scrollIntoView({ behavior: "smooth", block: "center" });
         confirmWords.focus();
         return;
       }
 
-      // If we get here, form is allowed to submit.
-      // Download responses won't trigger a page navigation, so hide overlay on focus + fallback timer.
+      // overlay fallback: hide on focus (download completed) + timer
       try {
         if (typeof window.showOverlay === "function") {
           window.showOverlay(form.getAttribute("data-overlay-text") || "Creating your game…");
@@ -607,8 +644,6 @@
 
   bindTopicButtons(Array.from(document.querySelectorAll(".topic-pill")));
   sync();
-
-  window.fsBuildWordList = fetchWordSuggestions;
 })();
 </script>
 
@@ -617,6 +652,7 @@
     color: #b45309;
     font-weight: 800;
   }
+  .button.primary.disabled { opacity: 0.7; cursor: not-allowed; }
 
   .step-block {
     border: 1px solid rgba(15, 23, 42, 0.08);
