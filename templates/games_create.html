@@ -577,7 +577,7 @@
     refsInput.addEventListener("blur", () => normalizeTextarea(refsInput));
   }
 
-  if (wordMode) renderWordChips();
+if (isWordMode()) renderWordChips();
 
   if (wordArea) {
     wordArea.addEventListener("input", renderWordChips);

@@ -13,7 +13,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
 from datetime import datetime
-COPYRIGHT_YEAR = datetime.now().year
 
 @dataclass
 class MatchItem:
@@ -201,13 +200,14 @@ def generate_match_game_pdf(
     logo_size = 42
 
     def draw_footer(title_text: str):
+        year = datetime.now().year
         c.setStrokeGray(0.92)
         c.setLineWidth(0.5)
         c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-        c.drawCentredString(width / 2, 0.35 * inch, f"© {COPYRIGHT_YEAR} Faith Sparks Printables")
+        c.drawCentredString(width / 2, 0.35 * inch, f"© {year} Faith Sparks Printables")
 
 
     # Brand assets
@@ -528,13 +528,14 @@ def generate_word_search_pdf(
         y -= 18
 
     def draw_footer(title_text: str):
+        year = datetime.now().year  
         c.setStrokeGray(0.88)
         c.setLineWidth(0.6)
         c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-        c.drawCentredString(width / 2, 0.35 * inch, f"© {COPYRIGHT_YEAR} Faith Sparks Printables")
+        c.drawCentredString(width / 2, 0.35 * inch, f"© {year} Faith Sparks Printables")
 
 
     def draw_word_fit(x: float, y_pos: float, text: str, max_width: float, base_size: int = 9) -> None:
@@ -824,13 +825,14 @@ def generate_crossword_pdf(
         y -= 24
 
     def draw_footer(title_text: str):
+        year = datetime.now().year
         c.setStrokeGray(0.88)
         c.setLineWidth(0.6)
         c.roundRect(0.5 * inch, 0.5 * inch, width - inch, height - inch, radius=12)
         c.setFillGray(0.4)
         code = "".join([ch for ch in title_text.upper().replace(" ", "_") if ch.isalnum() or ch == "_"])
         c.drawRightString(width - margin, 0.35 * inch, f"FS-GAME-{code[:18]}")
-        c.drawCentredString(width / 2, 0.35 * inch, f"© {COPYRIGHT_YEAR} Faith Sparks Printables")
+        c.drawCentredString(width / 2, 0.35 * inch, f"© {year} Faith Sparks Printables")
 
 
     def draw_word_fit(x: float, y_pos: float, text: str, max_width: float, base_size: int = 9) -> None:
