@@ -218,7 +218,6 @@
   const form = document.querySelector("form.card-lite");
   const createBtn = document.getElementById("createGameBtn");
 
-  const wordActionInput = document.getElementById("wordAction");
   const versionSelect = document.getElementById("version");
   const difficultySelect = document.getElementById("difficulty");
 
@@ -247,6 +246,21 @@
     return type === "word-search" || type === "crossword";
   }
 
+  function countWords() {
+    if (!wordArea) return 0;
+    normalizeTextarea(wordArea);
+    return wordArea.value
+      .split(/\n+/)
+      .map(w => w.trim())
+      .filter(Boolean).length;
+  }
+
+  function hasRefs() {
+    if (!refsInput) return false;
+    normalizeTextarea(refsInput);
+    return !!refsInput.value.trim();
+  }
+
   function setCreateEnabled(enabled) {
     if (!createBtn) return;
     createBtn.disabled = !enabled;
@@ -254,22 +268,41 @@
     createBtn.classList.toggle("disabled", !enabled);
   }
 
+  // Gate rules:
+  // - match / match-meaning: always allowed
+  // - word-search / crossword: needs refs + at least 1 word + confirm checked
   function enforceGate(reasonText) {
     if (!isWordMode()) {
-      // No gate for match / match-meaning
       setCreateEnabled(true);
       setWordMessage("", false);
       return;
     }
 
+    const refsOk = hasRefs();
+    const wordsOk = countWords() > 0;
     const checked = !!(confirmWords && confirmWords.checked);
-    if (checked) {
+
+    if (refsOk && wordsOk && checked) {
       setCreateEnabled(true);
       setWordMessage("✅ Looks good. You can create the game.", false);
+      return;
+    }
+
+    setCreateEnabled(false);
+
+    // Choose best message
+    if (!refsOk) {
+      setWordMessage("Add at least one reference above.", true);
+    } else if (!wordsOk) {
+      setWordMessage("Build or enter a word list, then review it.", true);
     } else {
-      setCreateEnabled(false);
       setWordMessage(reasonText || "Please review the word list before creating the game.", true);
     }
+  }
+
+  function requireRereview(message) {
+    if (confirmWords) confirmWords.checked = false;
+    enforceGate(message || "Changes detected. Please review the word list again.");
   }
 
   // ---- Titles (auto-fill until user edits) ----
@@ -347,6 +380,7 @@
 
   function applyTopic(topicLabelValue, refs, words) {
     if (themeInput) themeInput.value = topicLabelValue || "";
+
     if (refsInput) {
       refsInput.value = normalizeEscapedNewlines(refs || "");
       normalizeTextarea(refsInput);
@@ -354,12 +388,14 @@
       refsInput.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    if (wordArea && words) {
+    if (wordArea && typeof words === "string") {
       wordArea.value = normalizeEscapedNewlines(words);
       renderWordChips();
-      if (confirmWords) confirmWords.checked = false; // gate re-engages
-      enforceGate("Word list filled from this topic. Please review it.");
     }
+
+    // Topic changes should always force re-review for word modes
+    if (isWordMode()) requireRereview("Topic applied. Please review the word list.");
+    else enforceGate();
   }
 
   function applyTopicFromButton(btn) {
@@ -427,12 +463,8 @@
 
     wordChipList.innerHTML = "";
 
-    // Any edit means: must re-review (word modes only)
-    if (isWordMode() && confirmWords) confirmWords.checked = false;
-
     if (!words.length) {
-      if (isWordMode()) enforceGate("Add or build a word list, then review it.");
-      else setWordMessage("", false);
+      enforceGate("Add or build a word list, then review it.");
       return;
     }
 
@@ -444,12 +476,14 @@
       chip.addEventListener("click", () => {
         const next = words.filter((w) => w !== word);
         wordArea.value = next.join("\n");
+        // removing a word should require re-review
+        if (isWordMode()) requireRereview("Word removed. Please review the updated list.");
         renderWordChips();
       });
       wordChipList.appendChild(chip);
     });
 
-    // After chips render, enforce the gate
+    // After chips render, enforce the gate (refs + words + confirm)
     enforceGate();
   }
 
@@ -491,10 +525,11 @@
 
       if (words.length) {
         wordArea.value = words.join("\n");
-        if (confirmWords) confirmWords.checked = false;
         renderWordChips();
-        enforceGate("Word list updated. Please review it.");
+        requireRereview("Word list updated. Please review it.");
       } else {
+        wordArea.value = "";
+        renderWordChips();
         enforceGate("No words found from those references yet.");
       }
     } catch {
@@ -556,12 +591,16 @@
       if (inferred) themeInput.value = inferred;
     }
 
-    // Gate enforcement when switching modes
+    // Mode change should enforce correct gating
     enforceGate(wordMode ? "Please review the word list before creating the game." : "");
   }
 
   // ---- Events ----
-  if (typeSel) typeSel.addEventListener("change", sync);
+  if (typeSel) typeSel.addEventListener("change", () => {
+    // switching into word mode should require re-review
+    if (isWordMode()) requireRereview("Please review the word list before creating the game.");
+    sync();
+  });
 
   const shuffleBtn = document.getElementById("shuffleTopics");
   if (shuffleBtn) {
@@ -575,50 +614,60 @@
   if (refsInput) {
     normalizeTextarea(refsInput);
     refsInput.addEventListener("blur", () => normalizeTextarea(refsInput));
+
+    // Any manual edit to refs should force re-review in word mode
+    refsInput.addEventListener("input", () => {
+      if (isWordMode()) requireRereview("References changed. Please review the word list again.");
+      else enforceGate();
+    });
   }
 
-if (isWordMode()) renderWordChips();
-
   if (wordArea) {
-    wordArea.addEventListener("input", renderWordChips);
-    renderWordChips();
+    wordArea.addEventListener("input", () => {
+      if (isWordMode()) requireRereview("Word list edited. Please review again.");
+      renderWordChips();
+    });
   }
 
   if (confirmWords) {
-    // ✅ fix: unchecking re-disables Create (real gate)
     confirmWords.addEventListener("change", () => enforceGate());
   }
 
   if (generateWordsBtn) {
     generateWordsBtn.addEventListener("click", (event) => {
-      if (!isWordMode()) return; // optional
-      event.preventDefault();     // IMPORTANT: stop form submit
+      if (!isWordMode()) return;
+      event.preventDefault(); // stop form submit
       fetchWordSuggestions();
     });
   }
 
   if (clearWordsBtn) {
     clearWordsBtn.addEventListener("click", (event) => {
-      event.preventDefault();     // IMPORTANT: stop form submit
-      if (wordArea) {
-        wordArea.value = "";
-        renderWordChips();
-      }
-      if (confirmWords) confirmWords.checked = false;
-      enforceGate("Word list cleared. Build or enter words, then review.");
+      event.preventDefault(); // stop form submit
+      if (wordArea) wordArea.value = "";
+      renderWordChips();
+      if (isWordMode()) requireRereview("Word list cleared. Build or enter words, then review.");
+      else enforceGate();
     });
   }
 
-
-  // ✅ submit validation + overlay fallback (downloads don't navigate)
+  // Submit validation + overlay fallback
   if (form) {
     form.addEventListener("submit", (event) => {
-      if (isWordMode() && confirmWords && !confirmWords.checked) {
-        event.preventDefault();
-        enforceGate("Please review the word list before creating the game.");
-        confirmWords.scrollIntoView({ behavior: "smooth", block: "center" });
-        confirmWords.focus();
-        return;
+      // Block invalid create in word mode even if button gets enabled manually
+      if (isWordMode()) {
+        const refsOk = hasRefs();
+        const wordsOk = countWords() > 0;
+        const checked = !!(confirmWords && confirmWords.checked);
+        if (!(refsOk && wordsOk && checked)) {
+          event.preventDefault();
+          enforceGate("Please review the word list before creating the game.");
+          if (confirmWords) {
+            confirmWords.scrollIntoView({ behavior: "smooth", block: "center" });
+            confirmWords.focus();
+          }
+          return;
+        }
       }
 
       // overlay fallback: hide on focus (download completed) + timer
@@ -635,14 +684,18 @@ if (isWordMode()) renderWordChips();
         createBtn.disabled = true;
         createBtn.textContent = "Creating…";
         setTimeout(() => {
+          // If download or navigation didn't happen, restore
           createBtn.disabled = false;
           createBtn.textContent = "Create game";
+          enforceGate();
         }, 12000);
       }
     });
   }
 
   bindTopicButtons(Array.from(document.querySelectorAll(".topic-pill")));
+  // Initial render
+  renderWordChips();
   sync();
 })();
 </script>
