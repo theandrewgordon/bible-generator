@@ -739,48 +739,30 @@
 
     {% block extra_scripts %}{% endblock %}
     <script>
-      (function () {
-        const token =
-          document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute("content") || "";
-        if (!token) return;
-
-        const _fetch = window.fetch;
-        window.fetch = function (input, init) {
-          init = init || {};
-          init.headers = init.headers || {};
-          // normalize Headers vs plain object
-          if (init.headers instanceof Headers) {
-            if (!init.headers.get("X-CSRF-Token"))
-              init.headers.set("X-CSRF-Token", token);
-          } else {
-            if (!init.headers["X-CSRF-Token"])
-              init.headers["X-CSRF-Token"] = token;
-          }
-          return _fetch(input, init);
-        };
-      })();
-    </script>
-    <script>
       (() => {
         const token = document.querySelector(
           'meta[name="csrf-token"]'
         )?.content;
         if (!token) return;
 
-        const _fetch = window.fetch;
+        const _fetch = window.fetch.bind(window);
+
         window.fetch = function (input, init = {}) {
-          init.headers = init.headers || {};
-          if (init.headers instanceof Headers) {
-            if (!init.headers.get("X-CSRF-Token")) {
-              init.headers.set("X-CSRF-Token", token);
+          const method = (init.method || "GET").toUpperCase();
+
+          // only attach for mutating methods
+          if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+            init.headers = init.headers || {};
+            if (init.headers instanceof Headers) {
+              if (!init.headers.get("X-CSRF-Token"))
+                init.headers.set("X-CSRF-Token", token);
+            } else {
+              if (!init.headers["X-CSRF-Token"])
+                init.headers["X-CSRF-Token"] = token;
             }
-          } else {
-            if (!init.headers["X-CSRF-Token"]) {
-              init.headers["X-CSRF-Token"] = token;
-            }
+            init.credentials = init.credentials || "same-origin";
           }
+
           return _fetch(input, init);
         };
       })();

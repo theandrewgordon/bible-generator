@@ -97,9 +97,24 @@
     if(previewTag){ previewTag.remove(); previewTag = null; }
   });
   // Session-based live preview
-  async function post(url, data){
-    await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data||{}) });
-  }
+function getCsrf(){
+  return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")
+      || document.querySelector('input[name="csrf_token"]')?.value
+      || "";
+}
+
+async function post(url, data){
+  await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': getCsrf(),
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify(data || {})
+  });
+}
+
   document.getElementById('startLivePreviewBtn').addEventListener('click', async ()=>{
     const sel = document.getElementById('theme').value;
     const ttl = parseInt(document.getElementById('livePreviewMinutes').value || '0', 10);
@@ -176,39 +191,71 @@
 {% set rules = (auto.rules if auto and auto.rules else []) %}
 <table style="width:100%; border-collapse: collapse; margin-top:8px;">
   <thead>
-    <tr><th style="text-align:left; padding:6px;">Theme</th><th style="text-align:left; padding:6px;">Start</th><th style="text-align:left; padding:6px;">End</th><th style="text-align:left; padding:6px;">Time</th><th style="text-align:left; padding:6px;">Weekdays</th><th style="text-align:left; padding:6px;">Priority</th><th style="text-align:left; padding:6px;">Enabled</th><th style="text-align:left; padding:6px;">Actions</th></tr>
+    <tr>
+      <th style="text-align:left; padding:6px;">Theme</th>
+      <th style="text-align:left; padding:6px;">Start</th>
+      <th style="text-align:left; padding:6px;">End</th>
+      <th style="text-align:left; padding:6px;">Time</th>
+      <th style="text-align:left; padding:6px;">Weekdays</th>
+      <th style="text-align:left; padding:6px;">Priority</th>
+      <th style="text-align:left; padding:6px;">Enabled</th>
+      <th style="text-align:left; padding:6px;">Actions</th>
+    </tr>
   </thead>
+
   <tbody>
   {% for r in (autoThemes or []) %}
+    {% set fid = 'ruleForm_' ~ r.id %}
     <tr style="border-top:1px solid #e5e7eb;">
-      <form method="post" action="{{ url_for('admin_theme_update_rule') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <td style="padding:6px;">
-        <select name="name">{% for key, cfg in themes.items() %}<option value="{{ key }}"{% if r.name==key %} selected{% endif %}>{{ key|title }}</option>{% endfor %}</select>
-      </td>
-      <td style="padding:6px;"><input type="date" name="start" value="{{ r.start }}"/></td>
-      <td style="padding:6px;"><input type="date" name="end" value="{{ r.end }}"/></td>
+      {# hidden "real" update form lives in the row (valid HTML) #}
       <td style="padding:6px;">
-        <input type="time" name="time_start" value="{{ r.timeStart or '' }}" style="width:120px;"/>
-        <input type="time" name="time_end" value="{{ r.timeEnd or '' }}" style="width:120px;"/>
+        <select name="name" form="{{ fid }}">
+          {% for key, cfg in themes.items() %}
+            <option value="{{ key }}"{% if r.name==key %} selected{% endif %}>{{ key|title }}</option>
+          {% endfor %}
+        </select>
       </td>
+
+      <td style="padding:6px;">
+        <input type="date" name="start" value="{{ r.start }}" form="{{ fid }}"/>
+      </td>
+
+      <td style="padding:6px;">
+        <input type="date" name="end" value="{{ r.end }}" form="{{ fid }}"/>
+      </td>
+
+      <td style="padding:6px;">
+        <input type="time" name="time_start" value="{{ r.timeStart or '' }}" style="width:120px;" form="{{ fid }}"/>
+        <input type="time" name="time_end" value="{{ r.timeEnd or '' }}" style="width:120px;" form="{{ fid }}"/>
+      </td>
+
       <td style="padding:6px;">
         {% set w = r.weekdays or [] %}
         {% for i, lbl in [(0,'Sun'),(1,'Mon'),(2,'Tue'),(3,'Wed'),(4,'Thu'),(5,'Fri'),(6,'Sat')] %}
           <label style="margin-right:6px;">
-            <input type="checkbox" name="weekdays" value="{{ i }}" {% if i in w %}checked{% endif %}/> {{ lbl }}
+            <input type="checkbox" name="weekdays" value="{{ i }}" {% if i in w %}checked{% endif %} form="{{ fid }}"/> {{ lbl }}
           </label>
         {% endfor %}
       </td>
-      <td style="padding:6px;"><input type="number" name="priority" value="{{ r.priority or 0 }}" style="width:80px;"/></td>
-      <td style="padding:6px;"><input type="checkbox" name="enabled" {% if r.enabled %}checked{% endif %}/></td>
+
       <td style="padding:6px;">
-        <input type="hidden" name="rid" value="{{ r.id }}"/>
-        <button class="button ghost" type="submit">Update</button>
+        <input type="number" name="priority" value="{{ r.priority or 0 }}" style="width:80px;" form="{{ fid }}"/>
       </td>
-      </form>
+
       <td style="padding:6px;">
-        <form method="post" action="{{ url_for('admin_theme_delete_rule') }}" onsubmit="return confirm('Delete this rule?');">
+        <input type="checkbox" name="enabled" {% if r.enabled %}checked{% endif %} form="{{ fid }}"/>
+      </td>
+
+      <td style="padding:6px; display:flex; gap:8px; align-items:center;">
+        {# Update form (valid) #}
+        <form id="{{ fid }}" method="post" action="{{ url_for('admin_theme_update_rule') }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="rid" value="{{ r.id }}"/>
+          <button class="button ghost" type="submit">Update</button>
+        </form>
+
+        {# Delete form (valid) #}
+        <form method="post" action="{{ url_for('admin_theme_delete_rule') }}" onsubmit="return confirm('Delete this rule?');" style="display:inline;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="rid" value="{{ r.id }}"/>
           <button class="button" style="background:#fecaca; color:#111827;">Delete</button>
@@ -216,9 +263,13 @@
       </td>
     </tr>
   {% endfor %}
+
   {% if not autoThemes %}
-    <tr><td colspan="6" class="muted" style="padding:6px;">No rules configured.</td></tr>
+    <tr>
+      <td colspan="8" class="muted" style="padding:6px;">No rules configured.</td>
+    </tr>
   {% endif %}
   </tbody>
 </table>
+
 {% endblock %}

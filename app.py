@@ -83,6 +83,11 @@ PACKS = {
 }
 
 # --- App Setup ---
+# --- Environment / config flags (MUST be defined before use) ---
+APP_ENV = os.getenv("APP_ENV", "dev").lower()
+PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "faithsparksprintables.com")
+
+# --- App Setup ---
 app = Flask(__name__)
 
 # Fail fast in production if secret is missing
@@ -102,9 +107,6 @@ if not app.logger.handlers:
 app.logger.setLevel(logging.INFO)
 app.logger.propagate = False
 
-# Add near top with other config
-APP_ENV = os.getenv("APP_ENV", "dev").lower()
-PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "faithsparksprintables.com")
 
 # Always prefer https URLs when generating links
 app.config.update(PREFERRED_URL_SCHEME="https")
@@ -196,6 +198,13 @@ def force_primary_domain():
     parsed = urlparse(request.url)
     target = parsed._replace(scheme="https", netloc=PRIMARY_DOMAIN)
     return redirect(urlunparse(target), code=301)
+
+def is_safe_url(target: str) -> bool:
+    if not target:
+        return False
+    ref = urlparse(request.host_url)
+    test = urlparse(urljoin(request.host_url, target))
+    return (test.scheme in ("http", "https")) and (ref.netloc == test.netloc)
 
 @app.before_request
 def load_user_info():
@@ -590,7 +599,9 @@ except Exception:
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("public.index"))
+    if "public.index" in app.view_functions:
+        return redirect(url_for("public.index"))
+    return redirect(url_for("browse"))
 
 ## about + healthz moved to public blueprint
 
@@ -915,31 +926,7 @@ def delete_worksheet(filename):
 def delete_bulk():
     from faithsparks.views.worksheets import delete_bulk as _impl
     return _impl()
-    if not db:
-        return "Firestore not configured", 500
-
-    user_email = session.get("user_email")
-    selected = request.form.getlist("selected_files")
-
-    try:
-        for filename in selected:
-            docs = db.collection("worksheets") \
-                .where(filter=firestore.FieldFilter("email", "==", user_email)) \
-                .where(filter=firestore.FieldFilter("filename", "==", filename)) \
-                .limit(1).stream()
-            doc = next(docs, None)
-            if doc:
-                doc.reference.delete()
-            file_path = os.path.join("output", filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-
-        flash("Selected worksheets deleted.", "success")
-    except Exception as e:
-        traceback.print_exc()
-        flash(f"Error deleting worksheets: {e}", "error")
-
-    return redirect(url_for("prints"))
+    
 
 @app.route("/prints")
 @login_required
@@ -1144,7 +1131,7 @@ def _is_safe_next(target: str) -> bool:
     return (test_url.scheme in ("http", "https") and host_url.netloc == test_url.netloc)
 
 
-def _resolve_price_id(id_or_product: str) -> str:
+def resolve_price_id_local(id_or_product: str) -> str:
     """Accepts a price_... or prod_... and returns a valid price id.
     If a product id is given, tries product.default_price else the first active recurring price.
     """
@@ -1529,77 +1516,7 @@ def admin_reset_credits(uid):
 def regenerate(filename):
     from faithsparks.views.worksheets import regenerate as _impl
     return _impl(filename)
-    if not db:
-        return "Firestore not configured", 500
 
-    user_email = session.get("user_email")
-
-    if not filename.lower().endswith(".pdf"):
-        filename += ".pdf"
-
-    docs = db.collection("worksheets") \
-        .where(filter=firestore.FieldFilter("email", "==", user_email)) \
-        .where(filter=firestore.FieldFilter("filename", "==", filename)) \
-        .limit(1).stream()
-    doc = next(docs, None)
-    if not doc:
-        flash(f"Original data not found for {filename}", "error")
-        return redirect(url_for("prints"))
-
-    meta = doc.to_dict()
-    verse = meta["verse"]
-    version = meta["version"]
-    use_cursive = meta.get("cursive", False)
-    is_custom = meta.get("custom", False)
-    original_text = meta.get("text", verse)
-    custom_prompt = meta.get("imageIdea", "An open Bible or prayer hands")
-    slug = normalize_slug(verse)
-    pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
-
-    try:
-        if is_custom:
-            data = {
-                "verse": verse,
-                "fullVerse": original_text,
-                "traceableVerse": original_text,
-                "handwritingLines": 3,
-                "reflectionQuestion": "Why is this meaningful to you?",
-                "imageIdea": custom_prompt,
-                "version": "DIY",
-                "cursive": use_cursive,
-                "disclaimer": "This content was submitted by the user and not verified as Scripture."
-            }
-        else:
-            content = request_verse_data(verse, version.lower())
-            if not content:
-                flash("Verse fetch failed during regeneration.", "error")
-                return redirect(url_for("prints"))
-            data = parse_and_clean_json(content)
-            data.update({
-                "version": version.upper(),
-                "cursive": use_cursive
-            })
-
-        generate_pdf(data, pdf_path, use_cursive=use_cursive)
-
-        if os.path.exists(pdf_path):
-            # analytics per-verse on regenerated download
-            try:
-                if db:
-                    base = os.path.splitext(os.path.basename(pdf_path))[0]
-                    db.collection('analytics').document('verses').set({ base: firestore.Increment(1) }, merge=True)
-                    today = datetime.now(timezone.utc).strftime('%Y%m%d')
-                    db.collection('analytics_daily').document(f'verses_{today}').set({ base: firestore.Increment(1) }, merge=True)
-            except Exception:
-                pass
-            flash(f"Regenerated: {filename}", "success")
-            return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
-        else:
-            return f"PDF not created: {pdf_path}", 500
-
-    except Exception as e:
-        traceback.print_exc()
-        return f"Regenerate error: {e}", 500
 
 # --- Error Handlers ---
 @app.errorhandler(403)
