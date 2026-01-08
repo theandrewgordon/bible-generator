@@ -18,6 +18,7 @@
   {% endif %}
 
   <form method="post" class="card-lite" data-overlay-text="Creating your game…" data-download="1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="wordAction" id="wordAction" value="" />
 
     <!-- Step 1 -->
@@ -510,7 +511,10 @@
     try {
       const res = await fetch("/games/words", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": (document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "")
+        },
         credentials: "same-origin",
         body: JSON.stringify({
           refs,

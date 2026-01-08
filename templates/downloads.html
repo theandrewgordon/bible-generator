@@ -25,6 +25,7 @@ endblock %} {% block content %}
       </a>
       {% if user_email %}
       <form method="post" action="{{ url_for('claim_pack') }}" data-no-overlay>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <input
           type="hidden"
           name="pack_id"
@@ -44,6 +45,7 @@ endblock %} {% block content %}
     </div>
   </div>
   <form method="post" class="card" style="max-width: 520px" data-no-overlay>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     <label for="password"><strong>Redeem code</strong></label>
     <input
       id="password"
@@ -64,6 +66,7 @@ endblock %} {% block content %}
   </form>
   {% else %}
   <form method="post" class="card" style="max-width: 520px" data-no-overlay>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     <label for="password"><strong>Redeem code</strong></label>
     <input
       id="password"

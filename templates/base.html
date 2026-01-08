@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+
     <meta charset="UTF-8" />
     <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -736,5 +738,52 @@
     </script>
 
     {% block extra_scripts %}{% endblock %}
+    <script>
+      (function () {
+        const token =
+          document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content") || "";
+        if (!token) return;
+
+        const _fetch = window.fetch;
+        window.fetch = function (input, init) {
+          init = init || {};
+          init.headers = init.headers || {};
+          // normalize Headers vs plain object
+          if (init.headers instanceof Headers) {
+            if (!init.headers.get("X-CSRF-Token"))
+              init.headers.set("X-CSRF-Token", token);
+          } else {
+            if (!init.headers["X-CSRF-Token"])
+              init.headers["X-CSRF-Token"] = token;
+          }
+          return _fetch(input, init);
+        };
+      })();
+    </script>
+    <script>
+      (() => {
+        const token = document.querySelector(
+          'meta[name="csrf-token"]'
+        )?.content;
+        if (!token) return;
+
+        const _fetch = window.fetch;
+        window.fetch = function (input, init = {}) {
+          init.headers = init.headers || {};
+          if (init.headers instanceof Headers) {
+            if (!init.headers.get("X-CSRF-Token")) {
+              init.headers.set("X-CSRF-Token", token);
+            }
+          } else {
+            if (!init.headers["X-CSRF-Token"]) {
+              init.headers["X-CSRF-Token"] = token;
+            }
+          }
+          return _fetch(input, init);
+        };
+      })();
+    </script>
   </body>
 </html>

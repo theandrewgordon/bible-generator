@@ -5,7 +5,7 @@
 <h1 class="page-title">Admin: Accounts</h1>
 
 <form method="get" action="{{ url_for('admin_users') }}" class="search-form" role="search" aria-label="Search users">
-  <div class="input-wrap">
+    <div class="input-wrap">
     <input
       name="q"
       value="{{ q or '' }}"
@@ -88,6 +88,8 @@
                   action="{{ url_for('admin_users_set_plan', uid=u.get('id') or u.get('uid') or email) }}"
                   class="plan-form"
                   aria-label="Change plan for {{ email }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+   
               <select name="plan" aria-label="Select plan">
                 <option value="free" {{ 'selected' if plan=='free' else '' }}>Free</option>
                 <option value="plus_family" {{ 'selected' if plan in ['family','plus','plus_family'] else '' }}>Plus Family</option>
@@ -112,6 +114,7 @@
             <form method="post"
                   onsubmit="return confirm('Reset usage for {{ email }}?')"
                   action="{{ url_for('admin_users_reset_usage', uid=u.get('id') or u.get('uid') or email) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="button accent" type="submit">♻️ Reset Usage</button>
             </form>
           </td>

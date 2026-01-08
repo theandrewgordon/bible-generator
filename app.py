@@ -84,9 +84,15 @@ PACKS = {
 
 # --- App Setup ---
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecret")
+
+# Fail fast in production if secret is missing
+if APP_ENV in {"prod", "production"} and not os.getenv("FLASK_SECRET_KEY"):
+    raise RuntimeError("FLASK_SECRET_KEY must be set in production")
+
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-secret")
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
+
 
 # Structured logging to stdout for easier aggregation
 handler = logging.StreamHandler(sys.stdout)
@@ -144,29 +150,23 @@ def robots_txt():
     return Response(body, mimetype="text/plain")
 
 
-def is_safe_url(target: str) -> bool:
-    if not target:
-        return False
-    ref = urlparse(request.host_url)
-    test = urlparse(urljoin(request.host_url, target))
-    return (test.scheme in ("http", "https")) and (ref.netloc == test.netloc)
-
 # Jinja filter for Markdown
 def _md(text: str) -> str:
-    # (delegated implementation lives in faithsparks.views.worksheets.generate)
-    return _impl()
     try:
         if not text:
-            return ''
+            return ""
         if markdown2:
             return markdown2.markdown(text)
         return text
     except Exception:
         return text
-app.jinja_env.filters['markdown'] = _md
-# Recommended cookie settings for HTTPS
-app.config["SESSION_COOKIE_SECURE"] = True
+
+app.jinja_env.filters["markdown"] = _md
+
+# Recommended cookie settings (don't break localhost/dev)
+app.config["SESSION_COOKIE_SECURE"] = (APP_ENV in {"prod", "production"})
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
 
 # Helpful OAuth env flags (no-op if already set)
 os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
@@ -216,6 +216,74 @@ def load_user_info():
     else:
         session.pop("user_info", None)
         session.pop("user_email", None)
+
+
+# -----------------------------
+# CSRF (lightweight, no Flask-WTF)
+# -----------------------------
+import secrets
+from flask import abort
+
+CSRF_SESSION_KEY = "_csrf_token"
+CSRF_HEADER_NAME = "X-CSRF-Token"
+CSRF_FORM_FIELD = "csrf_token"
+
+def _get_csrf_token() -> str:
+    """Return (and create if missing) a session-bound CSRF token."""
+    tok = session.get(CSRF_SESSION_KEY)
+    if not tok:
+        tok = secrets.token_urlsafe(32)
+        session[CSRF_SESSION_KEY] = tok
+    return tok
+
+def _constant_time_eq(a: str, b: str) -> bool:
+    try:
+        return secrets.compare_digest(a or "", b or "")
+    except Exception:
+        return False
+
+# Routes/endpoints to skip CSRF checks (webhooks + OAuth + static)
+_CSRF_EXEMPT_PREFIXES = (
+    "/stripe/webhook",
+    "/login/google",     # flask-dance endpoints under this prefix
+    "/oauth",            # your /oauth/finish etc
+    "/static/",
+    "/service-worker.js",
+    "/manifest.webmanifest",
+)
+
+@app.before_request
+def csrf_protect():
+    """Validate CSRF token on mutating requests."""
+    if request.method in ("GET", "HEAD", "OPTIONS", "TRACE"):
+        return
+
+    path = request.path or ""
+    for p in _CSRF_EXEMPT_PREFIXES:
+        if path.startswith(p):
+            return
+
+    # Accept token from header (AJAX/fetch) or form field
+    sent = (
+        request.headers.get(CSRF_HEADER_NAME)
+        or request.form.get(CSRF_FORM_FIELD)
+        or request.args.get(CSRF_FORM_FIELD)  # last-resort (avoid using in new code)
+    )
+
+    expected = session.get(CSRF_SESSION_KEY)
+
+    if not expected:
+        # session missing token -> force creation and fail this request
+        _get_csrf_token()
+        abort(403)
+
+    if not _constant_time_eq(sent, expected):
+        abort(403)
+
+@app.context_processor
+def inject_csrf():
+    """Expose csrf_token() helper to all templates."""
+    return {"csrf_token": _get_csrf_token}
 
 
 @app.before_request
@@ -470,24 +538,31 @@ os.makedirs("output/packs", exist_ok=True)
 def start_google_login():
     nxt = request.args.get("next")
     # Default to /browse if missing/unsafe
-    if not _is_safe_next(nxt or ""):
+    if not is_safe_url(nxt or ""):
         nxt = url_for("browse")
-    session["after_login_next"] = nxt
-    return redirect(url_for("google.login"))
+    session["post_login_next"] = nxt
+    return redirect(url_for("google.login", next=nxt))
 
 @app.route("/oauth/finish")
 def oauth_finish():
     # by now google.authorized is True; @before_request already hydrated user_info
     nxt = session.pop("post_login_next", None) or request.args.get("next")
+
     email = session.get("user_email")
     if email:
         try:
             analytics_svc.record_login(email)
         except Exception:
             app.logger.debug("Failed to record login", exc_info=True)
+
     if nxt and is_safe_url(nxt):
         return redirect(nxt)
-    return redirect(url_for("public.index"))
+
+    # Safe fallback if public blueprint isn't available for any reason
+    if "public.index" in app.view_functions:
+        return redirect(url_for("public.index"))
+    return redirect(url_for("browse"))
+
 
 @app.route('/admin/theme/preview', methods=['POST'])
 @admin_required
@@ -1527,6 +1602,14 @@ def regenerate(filename):
         return f"Regenerate error: {e}", 500
 
 # --- Error Handlers ---
+@app.errorhandler(403)
+def handle_403(e):
+    try:
+        return render_template("403.html"), 403
+    except Exception:
+        return "Forbidden (CSRF)", 403
+
+
 @app.errorhandler(404)
 def handle_404(e):
     try:

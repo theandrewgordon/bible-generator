@@ -10,6 +10,7 @@ data.get('isFree', False) %} {% set is_sub = data.get('isSubscriberOnly', False)
 %} {% set effective_version = data.get('defaultVersion','') %}
 
 <form method="post" id="collectionForm" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="grid">
     <!-- Meta -->
     <section class="card">

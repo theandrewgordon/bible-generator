@@ -4,6 +4,7 @@
 <h1 class="page-title">Admin: Themes</h1>
 
 <form method="post" action="{{ url_for('admin_theme') }}" class="toolbar">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label for="theme">Current:</label>
   <select id="theme" name="theme">
     {% for key, cfg in themes.items() %}
@@ -51,21 +52,25 @@
         <a class="button ghost" href="{{ url_for('admin_theme_edit', slug=key) }}">Edit</a>
         <a class="button ghost" href="{{ url_for('admin_theme_new') }}?from={{ key }}">Clone</a>
         <form method="post" action="{{ url_for('admin_theme_clone_activate') }}" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="from" value="{{ key }}"/>
           <button class="button" style="background:#d1fae5; color:#065f46;">Clone & Activate</button>
         </form>
         <form method="post" action="{{ url_for('admin_theme_delete', slug=key) }}" onsubmit="return confirm('Delete this theme?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="button" style="background:#fecaca; color:#111827;">Delete</button>
         </form>
       </div>
     {% endif %}
     <div class="upload-row">
       <form method="post" action="{{ url_for('admin_theme_logo') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="theme" value="{{ key }}"/>
         <input type="file" name="file" accept="image/*"/>
         <button class="button">Upload Logo</button>
       </form>
       <form method="post" action="{{ url_for('admin_theme_favicon') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="theme" value="{{ key }}"/>
         <input type="file" name="file" accept="image/x-icon,image/png,image/jpeg"/>
         <button class="button ghost">Upload Favicon</button>
@@ -140,6 +145,7 @@
 
 <h3 style="margin-top:12px;">Multiple Rules</h3>
 <form method="post" action="{{ url_for('admin_theme_add_rule') }}" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Name
     <select name="name">
       {% for key, cfg in themes.items() %}<option value="{{ key }}">{{ key|title }}</option>{% endfor %}
@@ -176,7 +182,8 @@
   {% for r in (autoThemes or []) %}
     <tr style="border-top:1px solid #e5e7eb;">
       <form method="post" action="{{ url_for('admin_theme_update_rule') }}">
-      <td style="padding:6px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <td style="padding:6px;">
         <select name="name">{% for key, cfg in themes.items() %}<option value="{{ key }}"{% if r.name==key %} selected{% endif %}>{{ key|title }}</option>{% endfor %}</select>
       </td>
       <td style="padding:6px;"><input type="date" name="start" value="{{ r.start }}"/></td>
@@ -202,6 +209,7 @@
       </form>
       <td style="padding:6px;">
         <form method="post" action="{{ url_for('admin_theme_delete_rule') }}" onsubmit="return confirm('Delete this rule?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="rid" value="{{ r.id }}"/>
           <button class="button" style="background:#fecaca; color:#111827;">Delete</button>
         </form>
