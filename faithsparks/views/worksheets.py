@@ -164,6 +164,7 @@ def generate():
                 default_version_override=default_version_override,
                 collection_slug=col,
                 usage_info=usage_info,
+                proverb_of_day=get_proverb_of_day(),
             )
 
         payload, payload_mode = get_request_payload()

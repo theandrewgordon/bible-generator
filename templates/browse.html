@@ -39,6 +39,26 @@
     <a href="{{ url_for('browse_detail', slug=trending_pack.slug) }}">{{ trending_pack.title }}</a>
     <span class="muted small">— {{ trending_pack.downloads }} downloads this week</span>
   </p>
+  <section class="browse-highlight block">
+    <div>
+      <strong>{{ trending_pack.title }}</strong>
+      <p class="muted small">Ready-to-print copywork with {{ trending_pack.count or (trending_pack.verses|length) }} verses.</p>
+    </div>
+    <div class="highlight-actions">
+      {% if signed_in %}
+      <a class="button small" href="{{ url_for('generate', collection=trending_pack.slug) }}">
+        Start worksheet
+      </a>
+      {% else %}
+      <a class="button small" href="{{ url_for('start_google_login', next=url_for('generate', collection=trending_pack.slug)) }}">
+        Sign in to use this bundle
+      </a>
+      {% endif %}
+      <a class="button ghost small" href="{{ url_for('browse_detail', slug=trending_pack.slug) }}">
+        See details
+      </a>
+    </div>
+  </section>
 {% endif %}
 
 <div class="toolbar" role="region" aria-label="Browse filters">
@@ -159,12 +179,12 @@
 
 {% endblock %} {% block extra_scripts %}
 <style>
-  .toolbar {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.6rem;
-  }
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
   .toolbar input[type="search"] {
     min-width: 240px;
   }
@@ -173,10 +193,25 @@
     justify-content: space-between;
     align-items: center;
   }
-  .pack-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+.pack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+  .browse-highlight {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 1rem;
+    padding: 1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    margin-bottom: 1rem;
+  }
+  .browse-highlight .highlight-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
   .pack-card {
     border: 1px solid rgba(15, 23, 42, 0.06);

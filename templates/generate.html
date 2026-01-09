@@ -23,6 +23,34 @@ SEO (base will add noindex for /generate, but these help sharing/consistency) #}
 {% endblock %} {% block content %}
 <h1 class="page-title">Make a Bible Worksheet</h1>
 
+<div class="generate-hero">
+  <div>
+    <strong>Need something quick?</strong>
+    <p class="muted small">Use today’s proverb or repeat your last worksheet without retyping verses.</p>
+  </div>
+  <div class="hero-actions">
+    {% if proverb_of_day %}
+    <button
+      type="button"
+      class="button ghost tiny"
+      id="todayProverbBtn"
+      data-verse="{{ proverb_of_day.verse_param }}"
+      data-label="{{ proverb_of_day.reference }}"
+    >
+      Use today’s proverb ({{ proverb_of_day.reference }})
+    </button>
+    {% endif %}
+    <button
+      type="button"
+      class="button ghost tiny"
+      id="repeatLastBtn"
+      hidden
+    >
+      Repeat last verse
+    </button>
+  </div>
+</div>
+
 {# ---------- Usage / Plan Banner ---------- #} {% if usage_info %} {% set m_lim
 = usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %} {% if
 m_lim is not none and usage_info.monthly_pct_used >= 70 %}
@@ -117,8 +145,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           {% endfor %} {% endif %}
         </div>
 
+        <div id="recentVerses" class="recent-verses" aria-live="polite" hidden></div>
+
         <div id="filenamePreview" class="muted small"></div>
         <div id="zipHint" class="small muted" style="display: none"></div>
+        <div id="repeatHint" class="muted small repeat-hint"></div>
       </section>
 
       <details class="advanced block">
@@ -335,6 +366,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   // Hints
   const filenamePreview= document.getElementById('filenamePreview');
   const zipHint        = document.getElementById('zipHint');
+  const recentVersesEl = document.getElementById('recentVerses');
+  const repeatHint     = document.getElementById('repeatHint');
+  const repeatBtn      = document.getElementById('repeatLastBtn');
+  const proverbBtn     = document.getElementById('todayProverbBtn');
+  const RECENT_KEY     = 'recentVerseList';
+  const MAX_RECENT     = 4;
 
   /* ===== Helpers ===== */
   const PRIMARY_VERSIONS = ['ESV','KJV'];
@@ -368,6 +405,62 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   };
   const findLastTaggedVersion = () => {
     return getNormalizedTags().reverse().map(t => extractTaggedVersion(t)).find(Boolean) || null;
+  };
+
+  const getRecentVerses = () => {
+    if (!recentVersesEl) return [];
+    try {
+      const stored = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+      return Array.isArray(stored) ? stored.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveRecentVerse = (value) => {
+    if (!value) return;
+    const list = getRecentVerses();
+    const normalized = value.trim();
+    const updated = [normalized, ...list.filter((item) => item !== normalized)].slice(0, MAX_RECENT);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+    renderRecentVerses();
+    updateRepeatHint();
+  };
+
+  const renderRecentVerses = () => {
+    if (!recentVersesEl) return;
+    const list = getRecentVerses();
+    if (!list.length) {
+      recentVersesEl.hidden = true;
+      return;
+    }
+    recentVersesEl.hidden = false;
+    recentVersesEl.innerHTML = '';
+    list.forEach((entry) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.textContent = entry;
+      btn.addEventListener('click', () => {
+        tagify.removeAllTags();
+        tagify.addTags(entry.split(/[,;\n]+/).map(v => normalizeVerseText(v)));
+        updateVerseFilenames();
+        updatePreview();
+      });
+      recentVersesEl.appendChild(btn);
+    });
+  };
+
+  const updateRepeatHint = () => {
+    if (!repeatHint) return;
+    const list = getRecentVerses();
+    if (!list.length) {
+      repeatHint.textContent = '';
+      if (repeatBtn) repeatBtn.hidden = true;
+      return;
+    }
+    repeatHint.textContent = `Repeat: ${list[0]}`;
+    if (repeatBtn) repeatBtn.hidden = false;
   };
 
   const applyVersionOverride = token => {
@@ -473,12 +566,33 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   /* ===== Quick picks (verses & prompts) ===== */
   document.addEventListener('click', (e)=>{
     const chip = e.target.closest('.chip'); if (!chip) return;
+    if (chip.closest('#recentVerses')) return;
     const v = normalizeVerseText(chip.getAttribute('data-verse'));
     const p = chip.getAttribute('data-prompt');
     if (v){
       tagify.addTags([v]); updateVerseFilenames(); updatePreview();
     }
     if (p){ customPrompt.value = p; updatePreview(); }
+  });
+
+  repeatBtn?.addEventListener('click', () => {
+    const list = getRecentVerses();
+    if (!list.length) return;
+    tagify.removeAllTags();
+    tagify.addTags(list[0].split(/[,;\n]+/).map(v => normalizeVerseText(v)));
+    updateVerseFilenames();
+    updatePreview();
+  });
+
+  proverbBtn?.addEventListener('click', () => {
+    const verse = proverbBtn.getAttribute('data-verse') || '';
+    const label = proverbBtn.getAttribute('data-label') || '';
+    if (!verse) return;
+    tagify.removeAllTags();
+    tagify.addTags([normalizeVerseText(verse)]);
+    updateVerseFilenames();
+    updatePreview();
+    showToast(`Loaded ${label}`);
   });
 
   /* ===== Tagify events ===== */
@@ -564,7 +678,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     }
     if (tags.length){
       verseInput.value = tags.join(', ');
-      localStorage.setItem('recentVerses', verseInput.value);
+      saveRecentVerse(tags[0]);
     }
     if (customBody && !(agreeTerms && agreeTerms.checked)){
       e.preventDefault(); alert('Please confirm your content is appropriate.'); return;
@@ -639,6 +753,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     clearVersionOverride();
     versionSelect.value = versionSelect.value || 'esv';
     updatePreview();
+    renderRecentVerses();
+    updateRepeatHint();
   });
 
   /* ===== Hydrate on load ===== */
@@ -666,8 +782,10 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     };
     if (prefill)   tagify.addTags(splitVerses(prefill));
     if (urlVerses) tagify.addTags(splitVerses(urlVerses.split('|').join('\n')));
-    const recent = (!prefill && !urlVerses) ? localStorage.getItem('recentVerses') : null;
+    const recent = (!prefill && !urlVerses) ? getRecentVerses()[0] : null;
     if (recent) tagify.addTags(splitVerses(recent));
+    renderRecentVerses();
+    updateRepeatHint();
     updateVerseFilenames();
 
     const t = params.get('title') || '';
@@ -784,6 +902,39 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     .quota-upsell .button {
       margin-left: 0;
     }
+  }
+
+  .generate-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    background: rgba(14, 165, 168, 0.08);
+    margin-bottom: 0.85rem;
+  }
+  .generate-hero .hero-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .recent-verses {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .recent-verses button {
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    background: rgba(255, 255, 255, 0.65);
+    padding: 0.3rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .repeat-hint {
+    margin-top: 0.35rem;
   }
 
   .block {

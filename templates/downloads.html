@@ -24,7 +24,13 @@ endblock %} {% block content %}
         Download bundle
       </a>
       {% if user_email %}
-      <form method="post" action="{{ url_for('claim_pack') }}" data-no-overlay>
+      <form
+        id="claimPackForm"
+        method="post"
+        action="{{ url_for('claim_pack') }}"
+        data-no-overlay
+        data-pack-id="{{ pack.id or pack['id'] }}"
+      >
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <input
           type="hidden"
@@ -94,4 +100,30 @@ endblock %} {% block content %}
   </p>
   {% endif %}
 </div>
+
+{% block extra_scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("claimPackForm");
+    const userEmail = "{{ user_email|default('', true)|e }}";
+    if (!form || !userEmail) return;
+
+    const packId = form.dataset.packId;
+    if (!packId) return;
+
+    const key = `autoClaimPack_${packId}`;
+    if (sessionStorage.getItem(key)) return;
+
+    setTimeout(() => {
+      if (!form) return;
+      sessionStorage.setItem(key, "1");
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+      } else {
+        form.submit();
+      }
+    }, 1200);
+  });
+</script>
+{% endblock %}
 {% endblock %}

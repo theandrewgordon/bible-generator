@@ -5,7 +5,7 @@ endblock %} {% block content %}
 <p class="muted small page-sub">Signed in as: <strong>{{ email }}</strong></p>
 
 {% if history %}
-<section class="quick-start card-lite">
+<section class="quick-start card-lite sticky-actions">
   <div class="quick-start-row">
     <div>
       <div class="title">Print your latest worksheet</div>
@@ -13,6 +13,16 @@ endblock %} {% block content %}
     </div>
     <a class="button" href="{{ url_for('download_file', filename=history[0].filename) }}">Print latest</a>
   </div>
+  {% if history %}
+  <div class="quick-start-row">
+    <a
+      class="button ghost"
+      href="{{ url_for('generate', verse=history[0].verse) }}"
+      >Repeat latest verse</a
+    >
+    <span class="muted small">No extra typing.</span>
+  </div>
+  {% endif %}
   <button class="button ghost" type="button" id="toggleHistory">Show full history</button>
 </section>
 {% endif %}
@@ -250,6 +260,19 @@ endblock %} {% block content %}
   <a class="button" href="{{ url_for('generate') }}">Make a worksheet</a>
 </div>
 {% endif %} {% endblock %} {% block extra_scripts %}
+<style>
+  .sticky-actions {
+    position: sticky;
+    top: 72px;
+    z-index: 5;
+    background: var(--box);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  .sticky-actions .quick-start-row + .quick-start-row {
+    margin-top: 0.25rem;
+  }
+</style>
 <script>
   // ---------- Filtering, Sorting, Highlighting ----------
   let _t;

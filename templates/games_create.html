@@ -306,6 +306,13 @@
     enforceGate(message || "Changes detected. Please review the word list again.");
   }
 
+  generateWordsBtn?.addEventListener("click", () => {
+    if (confirmWords) {
+      confirmWords.checked = true;
+    }
+    setTimeout(() => enforceGate("Word list updated — thank you for reviewing!"), 0);
+  });
+
   // ---- Titles (auto-fill until user edits) ----
   const defaults = {
     match: "Match the Verse",
