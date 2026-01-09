@@ -442,6 +442,16 @@ input[type="checkbox"] + label,
 .theme-toggle:hover {
   background: var(--header-hover-bg);
 }
+.profile-panel .theme-toggle {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 6px;
+  font-size: 0.9rem;
+  padding: 8px 10px;
+}
+.profile-theme-toggle span {
+  font-size: 1.1rem;
+}
 
 /* Mobile menu */
 .menu-toggle {

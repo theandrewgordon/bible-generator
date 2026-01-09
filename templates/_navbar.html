@@ -35,7 +35,7 @@
             👤 {{ session.user_info.email.split('@')[0] }}
           </summary>
           <div class="profile-panel" role="menu">
-            <div class="profile-row muted small">Signed in as {{ session.user_info.email }}</div>
+          <div class="profile-row muted small">Signed in as {{ session.user_info.email }}</div>
             <label class="version-toggle" for="versionPrefMobile">
               <span class="version-label">Default version</span>
               <select id="versionPrefMobile" class="version-pref" aria-label="Default Bible version">
@@ -43,6 +43,15 @@
                 <option value="kjv">KJV</option>
               </select>
             </label>
+            <button
+              class="theme-toggle profile-theme-toggle"
+              type="button"
+              aria-pressed="false"
+              aria-label="Toggle dark mode"
+            >
+              <span aria-hidden="true">🌙</span>
+              Theme
+            </button>
             {% if is_admin %}
               <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
             {% endif %}
@@ -79,7 +88,7 @@
             👤 {{ session.user_info.email.split('@')[0] }}
           </summary>
           <div class="profile-panel" role="menu">
-            <div class="profile-row muted small">Signed in as {{ session.user_info.email }}</div>
+          <div class="profile-row muted small">Signed in as {{ session.user_info.email }}</div>
             <label class="version-toggle" for="versionPref">
               <span class="version-label">Default version</span>
               <select id="versionPref" class="version-pref" aria-label="Default Bible version">
@@ -87,6 +96,15 @@
                 <option value="kjv">KJV</option>
               </select>
             </label>
+            <button
+              class="theme-toggle profile-theme-toggle"
+              type="button"
+              aria-pressed="false"
+              aria-label="Toggle dark mode"
+            >
+              <span aria-hidden="true">🌙</span>
+              Theme
+            </button>
             {% if is_admin %}
               <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
             {% endif %}

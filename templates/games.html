@@ -127,19 +127,60 @@ not signed_in %}
 
   <div class="game-ideas" aria-label="Planned game types">
     <article class="game-idea">
-      <strong>Word Search</strong>
-      <p>Choose themes like “Advent” or “Pauline letters” and we’ll hide
-        verses, names, or vocabulary for a fun hunt.</p>
+      <div class="game-idea-label">
+        <span class="pill alt">Coming soon</span>
+        <strong>Word Search</strong>
+      </div>
+      <p>
+        Choose themes like “Advent” or “Pauline letters” and we’ll hide verses,
+        names, or vocabulary so Scripture hides in plain sight.
+      </p>
+      <div class="pill-group">
+        <span class="pill ok">Theme-driven</span>
+        <span class="pill">Kid friendly</span>
+      </div>
     </article>
     <article class="game-idea">
-      <strong>Crossword</strong>
-      <p>Clues that connect verses to their meaning keep little hands and
-        minds engaged with Scripture.</p>
+      <div class="game-idea-label">
+        <span class="pill alt">Coming soon</span>
+        <strong>Crossword</strong>
+      </div>
+      <p>
+        Verse clues that gently nudge memory and meaning keep little hands and
+        minds engaged with Scripture.
+      </p>
+      <div class="pill-group">
+        <span class="pill info">Vocabulary focus</span>
+        <span class="pill">Ink-friendly</span>
+      </div>
     </article>
     <article class="game-idea">
-      <strong>Verse Match</strong>
-      <p>Pairs of verse fragments and references to match, perfect for family
-        night or Sunday school review.</p>
+      <div class="game-idea-label">
+        <span class="pill alt">Coming soon</span>
+        <strong>Verse Match</strong>
+      </div>
+      <p>
+        Match verse fragments with references for cozy devotions, family night,
+        or Sunday school review.
+      </p>
+      <div class="pill-group">
+        <span class="pill info">Memory boost</span>
+        <span class="pill">Quick setup</span>
+      </div>
+    </article>
+    <article class="game-idea">
+      <div class="game-idea-label">
+        <span class="pill alt">Coming soon</span>
+        <strong>Match Meaning</strong>
+      </div>
+      <p>
+        Pair passages with paraphrases or picture clues so younger readers can
+        connect truth with everyday life.
+      </p>
+      <div class="pill-group">
+        <span class="pill ok">Story-based</span>
+        <span class="pill">Reflective</span>
+      </div>
     </article>
   </div>
 
@@ -316,6 +357,28 @@ not signed_in %}
     margin: 0;
     font-size: 0.85rem;
     color: var(--text-secondary);
+  }
+
+  .game-idea-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .pill-group {
+    margin-top: 0.7rem;
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .pill-group .pill {
+    padding: 0.15rem 0.55rem;
+    font-size: 0.75rem;
+    text-transform: none;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
   }
 
   .empty-actions {
