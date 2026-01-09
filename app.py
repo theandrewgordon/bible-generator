@@ -15,6 +15,8 @@ from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
+import time
+import pathlib
 from verse_helpers import (
     request_verse_data,
     parse_and_clean_json,
@@ -82,6 +84,70 @@ PACKS = {
     },
 }
 
+_CONFIG_CACHE: dict[str, dict] = {}
+_CONFIG_TTL_SECS = 60
+CLEANUP_INTERVAL_S = 60 * 60
+CLEANUP_MAX_AGE_S = 7 * 24 * 60 * 60
+_LAST_CLEANUP: float = 0.0
+
+def _get_cached_config(doc_id: str) -> dict | None:
+    """Cache repeated config reads for a short TTL."""
+    now = time.time()
+    entry = _CONFIG_CACHE.get(doc_id)
+    if entry and now - entry.get("ts", 0) < _CONFIG_TTL_SECS:
+        return entry["data"]
+    if not db:
+        return {}
+    try:
+        snap = db.collection("config").document(doc_id).get()
+        data = snap.to_dict() if snap.exists else {}
+    except Exception:
+        data = {}
+    _CONFIG_CACHE[doc_id] = {"data": data, "ts": now}
+    return data
+
+def _refresh_owned_packs(email: str | None) -> set[str]:
+    """Cache the list of user-owned packs in session to avoid repeated reads."""
+    if not (db and email):
+        session.pop("user_owned_packs", None)
+        return set()
+    try:
+        docs = db.collection("users").document(email).collection("purchases").stream()
+        packs = {doc.id for doc in docs}
+    except Exception:
+        packs = set()
+    session["user_owned_packs"] = list(packs)
+    return packs
+
+def _should_fetch_usage(path: str) -> bool:
+    """Only refresh usage info for high-traffic pages."""
+    if not path:
+        return False
+    for prefix in ("/generate", "/browse", "/prints", "/history", "/plus", "/games"):
+        if path.startswith(prefix):
+            return True
+    return False
+
+def _cleanup_output_dirs():
+    global _LAST_CLEANUP
+    now = time.time()
+    if now - _LAST_CLEANUP < CLEANUP_INTERVAL_S:
+        return
+    _LAST_CLEANUP = now
+    dirs = ["output", "output/thumbs", "output/packs"]
+    cutoff = now - CLEANUP_MAX_AGE_S
+    for base in dirs:
+        path = pathlib.Path(base)
+        if not path.exists():
+            continue
+        for child in path.iterdir():
+            try:
+                if child.is_dir():
+                    continue
+                if child.stat().st_mtime < cutoff:
+                    child.unlink()
+            except Exception:
+                continue
 # --- App Setup ---
 # --- Environment / config flags (MUST be defined before use) ---
 APP_ENV = os.getenv("APP_ENV", "dev").lower()
@@ -189,6 +255,10 @@ def add_request_id():
         g.req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
 
 @app.before_request
+def cleanup_old_outputs():
+    _cleanup_output_dirs()
+
+@app.before_request
 def force_primary_domain():
     if APP_ENV not in {"prod", "production"}:
         return
@@ -222,9 +292,13 @@ def load_user_info():
                 session["user_info"] = resp.json()
                 session["user_email"] = session["user_info"].get("email")
                 session["clear_storage"] = True
+                _refresh_owned_packs(session["user_email"])
+        elif not session.get("user_owned_packs"):
+            _refresh_owned_packs(session.get("user_email"))
     else:
         session.pop("user_info", None)
         session.pop("user_email", None)
+        session.pop("user_owned_packs", None)
 
 
 # -----------------------------
@@ -378,7 +452,12 @@ def get_pack_by_id(pack_id: str):
 
 
 def _user_has_pack(user_email: str | None, pack_id: str) -> bool:
-    if not (db and user_email and pack_id):
+    if not (user_email and pack_id):
+        return False
+    owned = set(session.get("user_owned_packs") or [])
+    if pack_id in owned:
+        return True
+    if not db:
         return False
     try:
         doc = (
@@ -388,7 +467,11 @@ def _user_has_pack(user_email: str | None, pack_id: str) -> bool:
             .document(pack_id)
             .get()
         )
-        return doc.exists
+        exists = doc.exists
+        if exists:
+            owned.add(pack_id)
+            session["user_owned_packs"] = list(owned)
+        return exists
     except Exception:
         return False
 
@@ -491,6 +574,9 @@ def claim_pack():
             merge=True,
         )
         flash("Pack saved to your Faith Sparks Library! You can access it anytime from your account.")
+        owned = set(session.get("user_owned_packs") or [])
+        owned.add(pack_id)
+        session["user_owned_packs"] = list(owned)
     except Exception as e:
         app.logger.exception("Failed to save pack to library: %s", e)
         flash("We couldn’t save this to your library. Please try again.")
@@ -988,27 +1074,16 @@ def inject_helpers():
         # Resolve themed logo and favicon
         logo_url = url_for('static', filename='faith_sparks_logo.png')
         favicon_url = url_for('static', filename='favicon.ico')
-        if db:
-            try:
-                conf = db.collection('config').document('app').get()
-                if conf.exists:
-                    logos = (conf.to_dict() or {}).get('logos') or {}
-                    if isinstance(logos, dict):
-                        logo_url = logos.get(theme_name) or logos.get('default') or logo_url
-                    favs = (conf.to_dict() or {}).get('favicons') or {}
-                    if isinstance(favs, dict):
-                        favicon_url = favs.get(theme_name) or favs.get('default') or favicon_url
-            except Exception:
-                pass
-        site_content = {}
-        if db:
-            try:
-                cdoc = db.collection('config').document('content').get()
-                if cdoc.exists:
-                    site_content = cdoc.to_dict() or {}
-            except Exception:
-                pass
+        conf = _get_cached_config('app') or {}
+        logos = (conf or {}).get('logos') or {}
+        if isinstance(logos, dict):
+            logo_url = logos.get(theme_name) or logos.get('default') or logo_url
+        favs = (conf or {}).get('favicons') or {}
+        if isinstance(favs, dict):
+            favicon_url = favs.get(theme_name) or favs.get('default') or favicon_url
+        site_content = _get_cached_config('content') or {}
         usage_nav = None
+        path = request.path or ""
         if db and email:
             try:
                 u = db.collection('users').document(email).get()
@@ -1016,37 +1091,38 @@ def inject_helpers():
                     is_pro = bool((u.to_dict() or {}).get('isPro'))
             except Exception:
                 pass
-            # usage chip
-            try:
-                plan = _get_user_plan(email)
-                m_lim, _ = _quota_for_plan(plan)
-                used_life, used_m = _get_usage(email)
-                if m_lim is not None:
-                    try:
-                        used_val = int(used_m)
-                    except Exception:
-                        used_val = 0
-                    try:
-                        limit_val = int(m_lim)
-                    except Exception:
-                        limit_val = 0
-                    remaining = max(0, limit_val - used_val)
-                    label = "credit" if remaining == 1 else "credits"
-                    pct_used = 0
-                    try:
-                        if limit_val > 0:
-                            pct_used = int(round((used_val / float(limit_val)) * 100))
-                    except Exception:
+            # usage chip (sometimes expensive)
+            if _should_fetch_usage(path):
+                try:
+                    plan = _get_user_plan(email)
+                    m_lim, _ = _quota_for_plan(plan)
+                    used_life, used_m = _get_usage(email)
+                    if m_lim is not None:
+                        try:
+                            used_val = int(used_m)
+                        except Exception:
+                            used_val = 0
+                        try:
+                            limit_val = int(m_lim)
+                        except Exception:
+                            limit_val = 0
+                        remaining = max(0, limit_val - used_val)
+                        label = "credit" if remaining == 1 else "credits"
                         pct_used = 0
-                    usage_nav = {
-                        'text': f"{remaining} {label} left",
-                        'title': f"{used_val} of {limit_val} used this month · {remaining} {label} remaining",
-                        'pct': pct_used,
-                    }
-                else:
-                    usage_nav = { 'text': '∞', 'title': 'Unlimited this month', 'pct': 0 }
-            except Exception:
-                usage_nav = None
+                        try:
+                            if limit_val > 0:
+                                pct_used = int(round((used_val / float(limit_val)) * 100))
+                        except Exception:
+                            pct_used = 0
+                        usage_nav = {
+                            'text': f"{remaining} {label} left",
+                            'title': f"{used_val} of {limit_val} used this month · {remaining} {label} remaining",
+                            'pct': pct_used,
+                        }
+                    else:
+                        usage_nav = { 'text': '∞', 'title': 'Unlimited this month', 'pct': 0 }
+                except Exception:
+                    usage_nav = None
         if email:
             try:
                 import hashlib
