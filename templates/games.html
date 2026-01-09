@@ -107,10 +107,35 @@ not signed_in %}
 {% else %}
 <div class="empty card-lite">
   <h3>No games yet</h3>
-  <p class="muted">We’re building printable Bible games now.</p>
-  <a class="button ghost" href="mailto:hello@faithsparksprintables.com"
-    >Request a game</a
-  >
+  <p class="muted">
+    We’re still building printable Bible games, but here are the ones we
+    expect to ship soon.
+  </p>
+
+  <div class="game-ideas" aria-label="Planned game types">
+    <article class="game-idea">
+      <strong>Word Search</strong>
+      <p>Choose themes like “Advent” or “Pauline letters” and we’ll hide
+        verses, names, or vocabulary for a fun hunt.</p>
+    </article>
+    <article class="game-idea">
+      <strong>Crossword</strong>
+      <p>Clues that connect verses to their meaning keep little hands and
+        minds engaged with Scripture.</p>
+    </article>
+    <article class="game-idea">
+      <strong>Verse Match</strong>
+      <p>Pairs of verse fragments and references to match, perfect for family
+        night or Sunday school review.</p>
+    </article>
+  </div>
+
+  <div class="empty-actions">
+    <a class="button" href="{{ url_for('games_create') }}">Mock up a game</a>
+    <a class="button ghost" href="mailto:hello@faithsparksprintables.com"
+      >Request a game</a
+    >
+  </div>
 </div>
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
@@ -233,6 +258,41 @@ not signed_in %}
     color: #fff;
     font-weight: 600;
     font-size: 0.85rem;
+  }
+
+  .game-ideas {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .game-idea {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    background: var(--box);
+    min-height: 120px;
+  }
+
+  .game-idea strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.95rem;
+    color: var(--primary);
+  }
+
+  .game-idea p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .empty-actions {
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   @media (max-width: 640px) {

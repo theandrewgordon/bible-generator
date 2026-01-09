@@ -195,16 +195,10 @@ def generate():
         user_email = session.get("user_email", "anonymous")
 
         tag_list = [v.strip() for v in re.split(r"[,;\n]+", verse_input) if v.strip()]
-        is_custom = bool(custom_text)
-
-        if not tag_list and not is_custom:
-            flash("Please enter a verse or custom text to generate.", "warning")
-            return redirect(url_for("generate"))
-
-        items_to_generate = []
+        verse_items = []
         for v in tag_list:
             version, verse = extract_version_from_text(v, selected_version)
-            items_to_generate.append({
+            verse_items.append({
                 "slug": normalize_slug(verse),
                 "verse": verse,
                 "version": version.upper(),
@@ -212,25 +206,29 @@ def generate():
                 "text": None,
             })
 
-        if is_custom:
+        custom_item = None
+        if custom_text:
             ai_validate_custom_text(custom_text)
             title = custom_title or "Custom Text (User Submitted)"
-            items_to_generate.append({
+            custom_item = {
                 "slug": normalize_slug(title),
                 "verse": title,
                 "version": "DIY",
                 "is_custom": True,
                 "text": custom_text,
-            })
+            }
+
+        if not verse_items and not custom_item:
+            flash("Please enter a verse or custom text to generate.", "warning")
+            return redirect(url_for("generate"))
 
         daily = get_proverb_of_day()
         daily_ref = normalize_slug(daily.get("reference") or "")
         is_daily_proverb = False
-        if not is_custom and len(tag_list) == 1:
-            _, daily_input = extract_version_from_text(tag_list[0], selected_version)
-            is_daily_proverb = normalize_slug(daily_input) == daily_ref
+        if not custom_item and len(verse_items) == 1:
+            is_daily_proverb = normalize_slug(verse_items[0]["verse"]) == daily_ref
 
-        generated_target = (len(tag_list) if tag_list else 0) + (1 if is_custom else 0)
+        generated_target = len(verse_items) + (1 if custom_item else 0)
         user_plan = _get_user_plan(user_email)
         monthly_limit, lifetime_limit = _quota_for_plan(user_plan)
         used_lifetime, used_monthly = _get_usage(user_email)
@@ -246,33 +244,12 @@ def generate():
 
             if generated_target > allowed:
                 flash(f"Your plan allows {allowed} more this month; generating the first {allowed}.", "warning")
-                keep = allowed
-                tag_list = tag_list[:keep]
-                keep -= len(tag_list)
-                if is_custom and keep <= 0:
-                    is_custom = False
+                kept = min(len(verse_items), allowed)
+                verse_items = verse_items[:kept]
+                if custom_item and allowed <= len(verse_items):
+                    custom_item = None
 
-        items_to_generate = []
-        for v in tag_list:
-            version, verse = extract_version_from_text(v, selected_version)
-            items_to_generate.append({
-                "slug": normalize_slug(verse),
-                "verse": verse,
-                "version": version.upper(),
-                "is_custom": False,
-                "text": None,
-            })
-
-        if is_custom:
-            ai_validate_custom_text(custom_text)
-            title = custom_title or "Custom Text (User Submitted)"
-            items_to_generate.append({
-                "slug": normalize_slug(title),
-                "verse": title,
-                "version": "DIY",
-                "is_custom": True,
-                "text": custom_text,
-            })
+        items_to_generate = verse_items + ([custom_item] if custom_item else [])
 
         total_requested = len(items_to_generate)
         if total_requested > MAX_WORKSHEETS_PER_REQUEST:

@@ -1,6 +1,8 @@
 import os
 import random
 import re
+import time
+import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Dict
 
@@ -126,6 +128,28 @@ WARM_TOPIC_SUGGESTIONS = [
 
 MATCH_TOPIC_SUGGESTIONS = WARM_TOPIC_SUGGESTIONS
 STORY_TOPIC_SUGGESTIONS = WARM_TOPIC_SUGGESTIONS
+
+_PRICE_META_CACHE: dict[str, tuple[float, dict | None]] = {}
+_PRICE_META_TTL = 300
+
+def _get_cached_price_meta(pid: str) -> dict | None:
+    now = time.time()
+    entry = _PRICE_META_CACHE.get(pid)
+    if entry and now - entry[0] < _PRICE_META_TTL:
+        return entry[1]
+    if not stripe or not STRIPE_SECRET_KEY:
+        meta = None
+    else:
+        try:
+            p = stripe.Price.retrieve(pid)
+            meta = {
+                "amount": (p.get("unit_amount") or 0) / 100.0,
+                "currency": (p.get("currency") or "usd").upper(),
+            }
+        except Exception:
+            meta = None
+    _PRICE_META_CACHE[pid] = (now, meta)
+    return meta
 
 CROSSWORD_FALLBACK_CLUES = {
     "AGAIN": "One more time",
@@ -429,7 +453,7 @@ def games():
     else:
         selected_type = ""
     if stripe and STRIPE_SECRET_KEY:
-        seen: Dict[str, dict] = {}
+        seen: Dict[str, dict | None] = {}
         for g in games_list:
             pid = g.get("priceId")
             if not pid:
@@ -437,13 +461,9 @@ def games():
             if pid in seen:
                 g["priceMeta"] = seen[pid]
                 continue
-            try:
-                p = stripe.Price.retrieve(pid)
-                meta = {"amount": (p.get("unit_amount") or 0) / 100.0, "currency": (p.get("currency") or "usd").upper()}
-                g["priceMeta"] = meta
-                seen[pid] = meta
-            except Exception:
-                g["priceMeta"] = None
+            meta = _get_cached_price_meta(pid)
+            g["priceMeta"] = meta
+            seen[pid] = meta
 
     usage_info = _usage_snapshot(user_email) if signed_in else None
 
@@ -630,7 +650,8 @@ def games_create():
     pdf_dir = os.path.join("output", "games")
     os.makedirs(pdf_dir, exist_ok=True)
     safe_title = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "match-the-verse"
-    pdf_path = os.path.join(pdf_dir, f"custom-{safe_title}-{version}.pdf")
+    unique_id = uuid.uuid4().hex[:8]
+    pdf_path = os.path.join(pdf_dir, f"custom-{safe_title}-{version}-{unique_id}.pdf")
 
     try:
         if game_type == "word-search":

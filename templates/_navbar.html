@@ -64,6 +64,15 @@
         >{{ usage_nav.text }}</span>
       {% endif %}
 
+      <button
+        class="theme-toggle"
+        type="button"
+        aria-pressed="false"
+        aria-label="Toggle dark mode"
+      >
+        <span aria-hidden="true">🌙</span>
+      </button>
+
       {% if session.user_info %}
         <details class="profile-drop desktop-only" aria-label="Account menu">
           <summary class="profile-summary" aria-haspopup="menu">
