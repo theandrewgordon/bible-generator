@@ -42,8 +42,18 @@ block content %}
       <button class="button ghost" type="button" onclick="exportCsv()">
         Export CSV
       </button>
-    </div>
-  </div>
+</div>
+</div>
+
+<div class="admin-shortcuts">
+  <span class="small muted">Quick links:</span>
+  <a class="button ghost tiny" href="{{ url_for('admin_users') }}">Accounts</a>
+  <a class="button ghost tiny" href="{{ url_for('admin_theme') }}">Themes</a>
+  <a class="button ghost tiny" href="{{ url_for('admin_content') }}">Site content</a>
+  <a class="button ghost tiny" href="{{ url_for('admin_gift') }}">Gifts</a>
+  <a class="button ghost tiny" href="{{ url_for('admin_analytics') }}">Analytics</a>
+  <a class="button ghost tiny" href="{{ url_for('admin_help') }}">Help & FAQs</a>
+</div>
 </div>
 
 <div class="table-wrap">
@@ -238,6 +248,17 @@ block content %}
 </div>
 
 <style>
+  .admin-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0 0 1rem;
+  }
+  .admin-shortcuts .button {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
   .toolbar {
     display: flex;
     gap: 1rem;
