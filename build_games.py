@@ -505,27 +505,29 @@ def generate_word_search_pdf(
         nonlocal y
         y = height - margin - 10
         panel_top = y + 10
-        panel_bottom = y - 22
+        header_height = 58 + (12 if subtitle_text else 0)
+        panel_bottom = panel_top - header_height
         c.setFillGray(0.96)
         c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=14, fill=1, stroke=0)
         c.setFillGray(0)
+        text_y = y
         c.setFont("Helvetica-Bold", 18)
-        c.drawCentredString(width / 2, y, title_text)
-        y -= 12
+        c.drawCentredString(width / 2, text_y, title_text)
+        text_y -= 12
         c.setFont("Helvetica", 9)
         c.setFillGray(0.4)
-        c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+        c.drawCentredString(width / 2, text_y, "Faith Sparks Printables")
         if subtitle_text:
-            y -= 12
+            text_y -= 12
             c.setFont("Helvetica-Oblique", 9)
             c.setFillGray(0.35)
-            c.drawCentredString(width / 2, y, subtitle_text)
+            c.drawCentredString(width / 2, text_y, subtitle_text)
         c.setFillGray(0)
         c.setStrokeGray(0.86)
         c.setLineWidth(0.6)
         c.line(margin + 10, panel_bottom - 8, width - margin - 10, panel_bottom - 8)
         c.setStrokeGray(0)
-        y -= 18
+        y = panel_bottom - 10
 
     def draw_footer(title_text: str):
         year = datetime.now().year  
@@ -802,27 +804,29 @@ def generate_crossword_pdf(
         nonlocal y
         y = height - margin - 10
         panel_top = y + 10
-        panel_bottom = y - 22
+        header_height = 58 + (12 if subtitle_text else 0)
+        panel_bottom = panel_top - header_height
         c.setFillGray(0.96)
         c.roundRect(margin, panel_bottom, usable_width, panel_top - panel_bottom, radius=14, fill=1, stroke=0)
         c.setFillGray(0)
+        text_y = y
         c.setFont("Helvetica-Bold", 18)
-        c.drawCentredString(width / 2, y, title_text)
-        y -= 12
+        c.drawCentredString(width / 2, text_y, title_text)
+        text_y -= 12
         c.setFont("Helvetica", 9)
         c.setFillGray(0.4)
-        c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+        c.drawCentredString(width / 2, text_y, "Faith Sparks Printables")
         if subtitle_text:
-            y -= 12
+            text_y -= 12
             c.setFont("Helvetica-Oblique", 9)
             c.setFillGray(0.35)
-            c.drawCentredString(width / 2, y, subtitle_text)
+            c.drawCentredString(width / 2, text_y, subtitle_text)
         c.setFillGray(0)
         c.setStrokeGray(0.86)
         c.setLineWidth(0.6)
         c.line(margin + 10, panel_bottom - 8, width - margin - 10, panel_bottom - 8)
         c.setStrokeGray(0)
-        y -= 24
+        y = panel_bottom - 12
 
     def draw_footer(title_text: str):
         year = datetime.now().year
@@ -996,8 +1000,8 @@ def generate_crossword_pdf(
     c.setStrokeGray(0)
     c.setLineWidth(1)
     c.setFillGray(0)
-    _draw_section_label(c, margin + 4, panel_top, "Clues")
-    clues_y = panel_top - 18
+    label_h = _draw_section_label(c, margin + 4, panel_top, "Clues")
+    clues_y = panel_top - label_h - 10
     c.setFont("Helvetica-Bold", 10)
     c.drawString(left_x, clues_y, "Across")
     c.drawString(right_x, clues_y, "Down")
