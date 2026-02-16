@@ -194,7 +194,7 @@ not signed_in %}
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
   (function () {
-    const pref = localStorage.getItem("preferredVersion") || "esv";
+    const pref = localStorage.getItem("preferredVersion") || "nlt";
     const version = String(pref).toUpperCase();
 
     document.querySelectorAll("[data-game-download]").forEach((link) => {

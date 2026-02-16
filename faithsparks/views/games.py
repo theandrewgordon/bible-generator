@@ -543,7 +543,7 @@ def games_create():
         return (text or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
 
     raw_title = (request.form.get("title") or "").strip()
-    version = (request.form.get("version") or "esv").strip().lower()
+    version = (request.form.get("version") or "nlt").strip().lower()
     game_type = (request.form.get("gameType") or "match").strip().lower()
     if raw_title:
         title = raw_title
@@ -668,6 +668,7 @@ def games_create():
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
                 show_word_list=show_word_list,
+                scripture_versions=[version],
             )
         elif game_type == "crossword":
             words = _build_word_search_words_from_inputs(refs, version, game_words, difficulty)
@@ -687,6 +688,7 @@ def games_create():
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
                 show_word_bank=show_word_bank,
+                scripture_versions=[version],
             )
         else:
             refs, verses, key = _build_match_game_from_inputs(
@@ -734,7 +736,7 @@ def games_words():
 
     payload = request.get_json(silent=True) or {}
     refs_raw = (payload.get("refs") or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
-    version = (payload.get("version") or "esv").strip().lower()
+    version = (payload.get("version") or "nlt").strip().lower()
     difficulty = _normalize_difficulty(payload.get("difficulty") or "standard")
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
     if not refs:
@@ -821,7 +823,7 @@ def dl_game(slug):
     # Build a fresh PDF if no ZIP exists yet
     pdf_dir = os.path.join("output", "games")
     os.makedirs(pdf_dir, exist_ok=True)
-    version = (request.args.get("version") or meta.get("defaultVersion") or "esv").lower()
+    version = (request.args.get("version") or meta.get("defaultVersion") or "nlt").lower()
     pdf_path = os.path.join(pdf_dir, f"{slug}-{version}.pdf")
     try:
         game_type = (meta.get("gameType") or "match").strip().lower()
@@ -842,6 +844,7 @@ def dl_game(slug):
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
                 show_word_list=show_word_list,
+                scripture_versions=[version],
             )
         elif game_type == "crossword":
             words = _build_word_search_words(meta, version, difficulty)
@@ -861,6 +864,7 @@ def dl_game(slug):
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
                 show_word_bank=show_word_bank,
+                scripture_versions=[version],
             )
         else:
             refs, verses, key = _build_match_game_items(
@@ -902,7 +906,7 @@ def _build_match_game_items(
     difficulty: str = "standard",
 ):
     base_refs = list(meta.get("verses") or [])
-    version = (version or meta.get("defaultVersion") or "esv").lower()
+    version = (version or meta.get("defaultVersion") or "nlt").lower()
     refs = base_refs[:8]
     verses = []
     game_items = meta.get("gameItems") or []
@@ -970,7 +974,7 @@ def _build_match_game_from_inputs(
     difficulty: str = "standard",
 ):
     refs = list(refs or [])[:8]
-    version = (version or "esv").lower()
+    version = (version or "nlt").lower()
     verses = []
     if game_items:
         refs = []
@@ -1076,7 +1080,7 @@ def _build_crossword_clues(words: list[str], theme: str | None) -> list[str]:
 
 
 def _build_word_search_words(meta, version: str, difficulty: str = "standard") -> list[str]:
-    version = (version or meta.get("defaultVersion") or "esv").lower()
+    version = (version or meta.get("defaultVersion") or "nlt").lower()
     game_words = [w.strip() for w in (meta.get("gameWords") or []) if w.strip()]
     limit = 8 if difficulty == "simple" else 12
     if game_words:
@@ -1109,7 +1113,7 @@ def _build_word_search_words_from_inputs(refs, version, game_words, difficulty: 
     if game_words:
         return _unique_words([w.upper() for w in game_words])[:limit]
     refs = list(refs or [])[:6]
-    version = (version or "esv").lower()
+    version = (version or "nlt").lower()
     words = []
     for ref in refs:
         try:

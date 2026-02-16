@@ -36,6 +36,11 @@ def start_here():
     )
 
 
+@bp.route('/scripture-attribution')
+def scripture_attribution():
+    return render_template('scripture_attribution.html')
+
+
 @bp.route('/healthz', methods=['GET', 'HEAD'])
 def healthz():
     return Response("ok", 200, {

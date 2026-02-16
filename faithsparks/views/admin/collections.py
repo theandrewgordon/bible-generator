@@ -45,7 +45,7 @@ def admin_seed_collections():
                     "verses": verses,
                     "isPublic": True,
                     "order": order,
-                    "defaultVersion": "esv",
+                    "defaultVersion": "nlt",
                     "isFree": True if slug == "starter" else False,
                     "kind": kind,
                     "gameType": game_type,
@@ -165,7 +165,7 @@ def admin_collections_new():
             "theme": theme,
             "difficulty": difficulty,
         }
-        data["defaultVersion"] = default_version or "esv"
+        data["defaultVersion"] = default_version or "nlt"
         if order_val is not None:
             data["order"] = order_val
         if zip_url:
@@ -343,7 +343,7 @@ def admin_prewarm_pack(slug):
                 ref.set({"prewarm": {"status": "error", "error": "Not found", "finishedAt": firestore.SERVER_TIMESTAMP}}, merge=True)
                 return
             verses = meta.get("verses", [])
-            default_version = (meta.get("defaultVersion") or "esv").lower()
+            default_version = (meta.get("defaultVersion") or "nlt").lower()
             use_cursive = False
             ref.set({"prewarm": {"status": "running", "total": len(verses), "done": 0, "startedAt": firestore.SERVER_TIMESTAMP}}, merge=True)
             generated_files = []

@@ -610,6 +610,7 @@
 
       <nav class="footer-links" aria-label="Footer">
         <a href="/about">About</a>
+        <a href="/scripture-attribution">Scripture Attribution</a>
         <a href="/plus">Membership</a>
         {% if is_pro %}
         <a href="/billing">Manage Membership</a>
@@ -617,6 +618,9 @@
         <a href="mailto:{{ support_email }}">Support</a>
         {% endif %}
       </nav>
+      <div class="small muted" style="margin-top:0.5rem">
+        Scripture quotations are marked by translation (KJV, NLT, CSB, ESV).
+      </div>
     </footer>
 
     <script>
@@ -714,7 +718,7 @@
       (function () {
         const selects = Array.from(document.querySelectorAll(".version-pref"));
         if (!selects.length) return;
-        const saved = localStorage.getItem("preferredVersion") || "esv";
+        const saved = localStorage.getItem("preferredVersion") || "nlt";
         selects.forEach((sel) => {
           sel.value = saved;
           sel.addEventListener("change", () => {

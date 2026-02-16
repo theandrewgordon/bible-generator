@@ -3,7 +3,7 @@ Printable Bible Worksheets{% endblock %} {% block head_extra %} {# Page-specific
 SEO (base will add noindex for /generate, but these help sharing/consistency) #}
 <meta
   name="description"
-  content="Make printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses, versions (ESV or KJV), cursive or manuscript."
+  content="Make printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses, versions (NLT,ESV, or KJV), cursive or manuscript."
 />
 <meta property="og:title" content="Make Printable Bible Worksheets" />
 <meta
@@ -26,7 +26,9 @@ SEO (base will add noindex for /generate, but these help sharing/consistency) #}
 <div class="generate-hero">
   <div>
     <strong>Need something quick?</strong>
-    <p class="muted small">Use today’s proverb or repeat your last worksheet without retyping verses.</p>
+    <p class="muted small">
+      Use today’s proverb or repeat your last worksheet without retyping verses.
+    </p>
   </div>
   <div class="hero-actions">
     {% if proverb_of_day %}
@@ -40,12 +42,7 @@ SEO (base will add noindex for /generate, but these help sharing/consistency) #}
       Use today’s proverb ({{ proverb_of_day.reference }})
     </button>
     {% endif %}
-    <button
-      type="button"
-      class="button ghost tiny"
-      id="repeatLastBtn"
-      hidden
-    >
+    <button type="button" class="button ghost tiny" id="repeatLastBtn" hidden>
       Repeat last verse
     </button>
   </div>
@@ -132,8 +129,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
         <div class="quick-picks" role="group" aria-label="Quick pick verses">
           <span class="quick-picks-label small muted">Quick picks:</span>
-          {% set quick = (site_content.generate_quick_picks or ['John 3:16 (ESV)','Psalm 23:1 (KJV)','Philippians 4:13 (ESV)','Proverbs 3:5-6 (KJV)']) %}
-          {% for v in quick %}
+          {% set quick = (site_content.generate_quick_picks or ['John 3:16
+          (NLT)','Psalm 23:1 (ESV)','Philippians 4:13 (NLT)','Proverbs 3:5-6
+          (KJV)']) %} {% for v in quick %}
           <button type="button" class="chip" data-verse="{{ v }}">
             {{ v.split('(')[0].strip() }}
           </button>
@@ -145,7 +143,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           {% endfor %} {% endif %}
         </div>
 
-        <div id="recentVerses" class="recent-verses" aria-live="polite" hidden></div>
+        <div
+          id="recentVerses"
+          class="recent-verses"
+          aria-live="polite"
+          hidden
+        ></div>
 
         <div id="filenamePreview" class="muted small"></div>
         <div id="zipHint" class="small muted" style="display: none"></div>
@@ -169,14 +172,16 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
             class="wide-input"
             style="max-width: 220px"
           >
-            <option value="esv" selected>ESV</option>
+            <option value="nlt" selected>NLT</option>
+            <option value="esv">ESV</option>
             <option value="kjv">KJV</option>
             <option value="" data-role="override" hidden></option>
           </select>
         </div>
 
         <div class="muted small" style="margin-top: 0.35rem">
-          Add “(ESV)” or “(KJV)” to choose a version. Multiple verses download together in one file.
+          Add “(NLT)”, “(ESV)”, or “(KJV)” to choose a version. Multiple verses
+          download together in one file.
         </div>
 
         <button
@@ -374,16 +379,16 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const MAX_RECENT     = 4;
 
   /* ===== Helpers ===== */
-  const PRIMARY_VERSIONS = ['ESV','KJV'];
+  const PRIMARY_VERSIONS = ['NLT','ESV','KJV'];
   const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
   const overrideOption = versionSelect ? versionSelect.querySelector('option[data-role="override"]') : null;
   const normalizeVerseText = (value) => {
     if (!value) return "";
     let text = String(value).replace(/\s+/g, " ").trim();
-    text = text.replace(/\(\s*(ESV|KJV)\s*\)$/i, " ($1)");
+    text = text.replace(/\(\s*(NLT|ESV|KJV)\s*\)$/i, " ($1)");
     return text;
   };
-  const isVersionOnly = value => /^\(?\s*(ESV|KJV)\s*\)?$/i.test((value || "").trim());
+  const isVersionOnly = value => /^\(?\s*(NLT|ESV|KJV)\s*\)?$/i.test((value || "").trim());
   const getNormalizedTags = () => {
     const values = tagify.value.map(t => (t.value || "").trim()).filter(Boolean);
     const merged = [];
@@ -470,7 +475,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       return;
     }
     if (!versionSelect.dataset.override) {
-      versionSelect.dataset.prevSelection = versionSelect.value || 'esv';
+      versionSelect.dataset.prevSelection = versionSelect.value || 'nlt';
     }
     versionSelect.dataset.override = upper;
     if (overrideOption) {
@@ -484,7 +489,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     if (!versionSelect?.dataset.override) {
       return;
     }
-    const prev = versionSelect.dataset.prevSelection || 'esv';
+    const prev = versionSelect.dataset.prevSelection || 'nlt';
     delete versionSelect.dataset.override;
     delete versionSelect.dataset.prevSelection;
     if (overrideOption) {
@@ -513,14 +518,14 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         versionSelect.value = desired;
       }
     } else if (!versionSelect.value) {
-      versionSelect.value = 'esv';
+      versionSelect.value = 'nlt';
     }
   };
 
   const effectiveVersion = () => {
     const detected = findLastTaggedVersion();
     syncVersionSelection(detected);
-    return (detected || (versionSelect.value || 'esv')).toUpperCase();
+    return (detected || (versionSelect.value || 'nlt')).toUpperCase();
   };
 
   const firstTagText = () => (getNormalizedTags()[0] || '');
@@ -627,7 +632,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     if (versionSelect.dataset.override && versionSelect.value) {
       clearVersionOverride();
     } else if (!versionSelect.value && !versionSelect.dataset.override) {
-      versionSelect.value = 'esv';
+      versionSelect.value = 'nlt';
     }
 
     if (versionSelect.value) {
@@ -751,7 +756,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     filenamePreview.textContent=''; customFilename.textContent='';
     zipHint.style.display='none';
     clearVersionOverride();
-    versionSelect.value = versionSelect.value || 'esv';
+    versionSelect.value = versionSelect.value || 'nlt';
     updatePreview();
     renderRecentVerses();
     updateRepeatHint();
@@ -1128,7 +1133,10 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     line-height: 1;
     cursor: pointer;
     user-select: none;
-    transition: background 0.15s, border-color 0.15s, transform 0.03s;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      transform 0.03s;
   }
   .quick-picks .chip:hover {
     background: var(--qp-bg-hover);

@@ -15,6 +15,7 @@ from reportlab.pdfbase.pdfdoc import pdfdocEnc
 from reportlab.lib.utils import ImageReader
 
 from faithsparks.styles import layout
+from faithsparks.pdf_notices import append_scripture_notices_page
 
 from datetime import datetime
 COPYRIGHT_YEAR = datetime.now().year
@@ -313,6 +314,7 @@ def generate_pdf(data, pdf_path, use_cursive=False):
 
     c.drawCentredString(width / 2, 0.23 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
 
+    append_scripture_notices_page(c, versions_used=[data.get("version")], margin=margin)
     c.save()
     print(f"✅ Final worksheet saved to: {pdf_path}")
 
@@ -325,6 +327,7 @@ def build_coloring_pdf(
     reference_text="",
     age_bracket="",
     summary_text="",
+    versions_used=None,
 ):
     width, height = letter
     margin = layout.DEFAULT_MARGIN_INCH * inch
@@ -389,4 +392,5 @@ def build_coloring_pdf(
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
     c.drawCentredString(width / 2, 0.23 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
+    append_scripture_notices_page(c, versions_used=versions_used, margin=margin)
     c.save()

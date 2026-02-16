@@ -135,7 +135,7 @@
     const link = document.querySelector("[data-proverb-link]");
     if (!link) return;
     const ref = link.getAttribute("data-proverb-ref");
-    const pref = localStorage.getItem("preferredVersion") || "esv";
+    const pref = localStorage.getItem("preferredVersion") || "nlt";
     const version = String(pref).toUpperCase();
     if (!ref || !version) return;
     const params = new URLSearchParams({ verse: `${ref} (${version})` });
@@ -145,7 +145,7 @@
   (function () {
     const link = document.querySelector("[data-game-link]");
     if (!link) return;
-    const pref = localStorage.getItem("preferredVersion") || "esv";
+    const pref = localStorage.getItem("preferredVersion") || "nlt";
     const version = String(pref).toUpperCase();
     const params = new URLSearchParams({ version });
     link.href = `${link.pathname}?${params.toString()}`;

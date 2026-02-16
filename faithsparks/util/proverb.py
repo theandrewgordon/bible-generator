@@ -34,7 +34,7 @@ PROVERBS_OF_THE_DAY = [
     ("The Lord blesses the house of the righteous.", "Proverbs 3:33"),
 ]
 
-DEFAULT_PROVERB_VERSION = "ESV"
+DEFAULT_PROVERB_VERSION = "NLT"
 
 
 def get_proverb_of_day(day: int | None = None) -> dict:

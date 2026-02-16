@@ -182,7 +182,7 @@ def generate():
         from_collection = (payload.get("collection_slug") or "").strip() or None
         custom_text = (payload.get("custom_text") or "").strip()
         custom_title = (payload.get("custom_title") or "").strip()
-        selected_version = (payload.get("version") or "esv").strip().lower()
+        selected_version = (payload.get("version") or "nlt").strip().lower()
         custom_prompt = (payload.get("custom_prompt") or "").strip()
 
         cursive_raw = payload.get("cursive")
@@ -771,8 +771,8 @@ def toggle_favorite(filename):
 
 
 def extract_version_from_text(text, fallback_version):
-    norm_fallback = (fallback_version or "esv").lower().strip()
-    fallback_version = "esv" if norm_fallback in ("", "auto") else norm_fallback
+    norm_fallback = (fallback_version or "nlt").lower().strip()
+    fallback_version = "nlt" if norm_fallback in ("", "auto") else norm_fallback
     m = re.search(r"\(([A-Za-z0-9]{2,12})\)\s*$", text.strip())
     if m:
         version = m.group(1).lower()

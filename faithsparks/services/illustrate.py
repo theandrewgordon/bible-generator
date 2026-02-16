@@ -34,7 +34,7 @@ MAX_VERSE_REFERENCES = 4
 TEXT_MODEL = os.getenv("ILLUSTRATE_TEXT_MODEL", "gpt-4.1-mini")
 TEXT_MODEL_FALLBACK = os.getenv("ILLUSTRATE_TEXT_FALLBACK", "gpt-4o-mini")
 IMAGE_MODEL = os.getenv("ILLUSTRATE_IMAGE_MODEL", "gpt-image-1")
-PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "kjv")
+PRIMARY_VERSION = os.getenv("ILLUSTRATE_PRIMARY_VERSION", "nlt")
 COMPARE_VERSION = os.getenv("ILLUSTRATE_COMPARE_VERSION")
 IMAGE_SIZE_SETTING = (os.getenv("ILLUSTRATE_IMAGE_SIZE", "auto") or "").lower()
 IMAGE_REQ_TIMEOUT = float(os.getenv("ILLUSTRATE_IMAGE_TIMEOUT", "12"))
@@ -893,6 +893,7 @@ def create_coloring_sheet(
         reference_text=reference_line if include_reference else "",
         age_bracket=age_bracket,
         summary_text=summary.get("summary", ""),
+        versions_used=[v.get("version") for v in verses],
     )
     logger.info("Illustrate files rendered slug=%s pdf=%s png=%s", slug, pdf_filename, png_filename)
 

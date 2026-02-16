@@ -13,6 +13,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
 from datetime import datetime
+from faithsparks.pdf_notices import append_scripture_notices_page
 
 @dataclass
 class MatchItem:
@@ -191,6 +192,7 @@ def generate_match_game_pdf(
     subtitle: str | None = None,
     print_tip: str = "Print tip: Use pencil so kids can erase.",
     difficulty_note: str | None = None,
+    scripture_versions: List[str] | None = None,
 ) -> None:
     width, height = letter
     margin = 0.6 * inch
@@ -385,6 +387,8 @@ def generate_match_game_pdf(
             y_cursor -= 15
         c.drawString(x, y_cursor, line)
     draw_footer(title)
+    version_list = scripture_versions or [v.version for v in verses if getattr(v, "version", None)]
+    append_scripture_notices_page(c, versions_used=version_list, margin=margin)
     c.save()
 
 
@@ -452,6 +456,7 @@ def generate_word_search_pdf(
     print_tip: str = "Print tip: Use pencil so kids can erase.",
     difficulty_note: str | None = None,
     show_word_list: bool = True,
+    scripture_versions: List[str] | None = None,
 ) -> None:
     width, height = letter
     margin = 0.6 * inch
@@ -738,6 +743,7 @@ def generate_word_search_pdf(
         draw_word_fit(x, y_pos, word.title(), max_word_width, base_size=9)
 
     draw_footer(title)
+    append_scripture_notices_page(c, versions_used=scripture_versions, margin=margin)
     c.save()
 
 
@@ -751,6 +757,7 @@ def generate_crossword_pdf(
     print_tip: str = "Print tip: Use pencil so kids can erase.",
     difficulty_note: str | None = None,
     show_word_bank: bool = True,
+    scripture_versions: List[str] | None = None,
 ) -> None:
     width, height = letter
     margin = 0.6 * inch
@@ -1080,4 +1087,5 @@ def generate_crossword_pdf(
         draw_word_fit(x, y_cursor, word.title(), col_width - 6, base_size=9)
 
     draw_footer(title)
+    append_scripture_notices_page(c, versions_used=scripture_versions, margin=margin)
     c.save()
