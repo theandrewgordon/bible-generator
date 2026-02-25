@@ -216,40 +216,19 @@ Printables{% endblock %} {% block content %} {% set fs = form_state or {} %}
       <select id="difficulty" name="difficulty" class="wide-input">
         <option
           value="simple"
-          {%
-          if
-          fs.difficulty=""
-          ="simple"
-          %}selected{%
-          endif
-          %}
+          {% if fs.difficulty == "simple" %}selected{% endif %}
         >
           Simple
         </option>
         <option
           value="standard"
-          {%
-          if
-          fs.difficulty=""
-          ="standard"
-          or
-          not
-          fs.difficulty
-          %}selected{%
-          endif
-          %}
+          {% if fs.difficulty == "standard" or not fs.difficulty %}selected{% endif %}
         >
           Standard
         </option>
         <option
           value="hard"
-          {%
-          if
-          fs.difficulty=""
-          ="hard"
-          %}selected{%
-          endif
-          %}
+          {% if fs.difficulty == "hard" %}selected{% endif %}
         >
           Hard
         </option>
