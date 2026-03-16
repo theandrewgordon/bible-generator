@@ -11,12 +11,17 @@ import uuid
 from urllib.parse import urlparse, urljoin, urlunparse
 from zipfile import ZipFile
 import threading
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 import time
 import pathlib
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.dml.color import RGBColor
 from verse_helpers import (
     request_verse_data,
     parse_and_clean_json,
@@ -621,6 +626,108 @@ def _boolish(value, default=False):
     return bool(value) if value is not None else default
 
 
+SONGS_DIR = os.path.join(app.root_path, "songs")
+
+
+def _load_worship_items() -> list[dict]:
+    items = []
+    if not os.path.isdir(SONGS_DIR):
+        return items
+
+    for name in sorted(os.listdir(SONGS_DIR)):
+        if not name.lower().endswith(".json"):
+            continue
+        path = os.path.join(SONGS_DIR, name)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                item = json.load(f)
+        except Exception:
+            continue
+
+        if not isinstance(item, dict):
+            continue
+        if not item.get("id") or not item.get("title"):
+            continue
+        if not isinstance(item.get("parts"), dict):
+            continue
+        if not isinstance(item.get("arrangement"), list):
+            continue
+
+        items.append(
+            {
+                "id": str(item.get("id", "")).strip(),
+                "title": str(item.get("title", "")).strip(),
+                "artist": str(item.get("artist", "")).strip(),
+                "key": str(item.get("key", "")).strip(),
+                "type": str(item.get("type", "song")).strip().lower(),
+                "parts": item.get("parts", {}),
+                "arrangement": item.get("arrangement", []),
+            }
+        )
+
+    return sorted(items, key=lambda x: (x.get("title", "").lower(), x.get("id", "").lower()))
+
+
+def _chunk_lines(lines: list[str], size: int = 4) -> list[list[str]]:
+    clean = [str(line).strip() for line in lines if str(line).strip()]
+    if not clean:
+        return []
+    return [clean[i : i + size] for i in range(0, len(clean), size)]
+
+
+def _add_dark_slide_with_text(prs: Presentation, lines: list[str], font_size: int = 48) -> None:
+    slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = RGBColor(10, 10, 10)
+
+    box = slide.shapes.add_textbox(Inches(0.8), Inches(0.8), Inches(11.733), Inches(5.9))
+    tf = box.text_frame
+    tf.clear()
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = "\n".join(lines)
+    run.font.size = Pt(font_size)
+    run.font.bold = True
+    run.font.color.rgb = RGBColor(255, 255, 255)
+
+
+def _add_divider_slide(prs: Presentation, item: dict) -> None:
+    subtitle_bits = []
+    if item.get("artist"):
+        subtitle_bits.append(item["artist"])
+    if item.get("key"):
+        subtitle_bits.append(f"Key: {item['key']}")
+
+    _add_dark_slide_with_text(prs, [item.get("title", ""), " | ".join(subtitle_bits)] if subtitle_bits else [item.get("title", "")], font_size=54)
+
+
+def _build_worship_deck(selected_items: list[dict]) -> BytesIO:
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+
+    for item in selected_items:
+        _add_divider_slide(prs, item)
+        parts = item.get("parts", {}) or {}
+        arrangement = item.get("arrangement", []) or []
+
+        for part_name in arrangement:
+            part_lines = parts.get(part_name, [])
+            if not isinstance(part_lines, list):
+                continue
+            for chunk in _chunk_lines(part_lines, size=4):
+                _add_dark_slide_with_text(prs, chunk, font_size=48)
+
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    return output
+
+
 
 os.makedirs("output", exist_ok=True)
 os.makedirs("output/thumbs", exist_ok=True)
@@ -688,6 +795,58 @@ def logout():
     if "public.index" in app.view_functions:
         return redirect(url_for("public.index"))
     return redirect(url_for("browse"))
+
+import json
+from pathlib import Path
+
+@app.route('/worship', methods=['GET'])
+def worship():
+    songs = []
+    songs_folder = Path(app.root_path) / 'songs'
+
+    if not songs_folder.exists():
+        return "Songs folder does not exist", 404
+
+    for file_path in sorted(songs_folder.glob('*.json')):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                song_data = json.load(f)
+                songs.append({
+                    'id': song_data.get('id', file_path.stem),
+                    'title': song_data.get('title', file_path.stem.replace('-', ' ').title()),
+                    'type': song_data.get('type', ''),
+                    'artist': song_data.get('artist', ''),
+                    'key': song_data.get('key', '')
+                })
+        except Exception as e:
+            print(f"Skipping invalid song file {file_path.name}: {e}")
+
+    return render_template('worship.html', songs=songs)
+
+
+@app.route("/worship/build", methods=["POST"])
+@login_required
+def worship_build():
+    selected_ids = request.form.getlist("item_ids")
+    if not selected_ids:
+        flash("Select at least one item to build a deck.", "warning")
+        return redirect(url_for("worship_builder"))
+
+    all_items = _load_worship_items()
+    by_id = {item["id"]: item for item in all_items}
+    selected_items = [by_id[item_id] for item_id in selected_ids if item_id in by_id]
+
+    if not selected_items:
+        flash("No valid items were selected.", "warning")
+        return redirect(url_for("worship_builder"))
+
+    ppt_stream = _build_worship_deck(selected_items)
+    return send_file(
+        ppt_stream,
+        as_attachment=True,
+        download_name="house_church_worship.pptx",
+        mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )
 
 ## about + healthz moved to public blueprint
 

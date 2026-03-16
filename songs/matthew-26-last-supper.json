@@ -1,0 +1,22 @@
+{
+  "id": "matthew-26-last-supper",
+  "title": "Matthew 26 - The Last Supper",
+  "artist": "",
+  "key": "",
+  "type": "scripture",
+  "parts": {
+    "reading1": [
+      "Now as they were eating, Jesus took bread,",
+      "and after blessing it broke it",
+      "and gave it to the disciples, and said,",
+      "Take, eat; this is my body."
+    ],
+    "reading2": [
+      "And he took a cup,",
+      "and when he had given thanks",
+      "he gave it to them, saying,",
+      "Drink of it, all of you."
+    ]
+  },
+  "arrangement": ["reading1", "reading2"]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "holy-forever",
+  "title": "Holy Forever",
+  "artist": "Chris Tomlin",
+  "key": "D",
+  "type": "song",
+  "parts": {
+    "verse1": [
+      "A thousand generations",
+      "Falling down in worship",
+      "To sing the song of ages",
+      "To the Lamb"
+    ],
+    "chorus": [
+      "Holy holy holy Lord",
+      "God Almighty",
+      "Who was and is and is to come",
+      "Holy forever"
+    ]
+  },
+  "arrangement": ["verse1", "chorus"]
+}

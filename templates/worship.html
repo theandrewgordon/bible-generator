@@ -1,0 +1,23 @@
+{% extends "base.html" %} {% block content %}
+<h1>Worship Slide Builder</h1>
+
+<form action="/worship/build" method="post">
+  <ul>
+    {% for song in songs %}
+    <li>
+      <label>
+        <input type="checkbox" name="song_ids" value="{{ song.id }}" />
+        <strong>{{ song.title }}</strong>
+        {% if song.artist %} — {{ song.artist }}{% endif %} {% if song.key %}
+        (Key: {{ song.key }}){% endif %} {% if song.type %} [{{ song.type }}]{%
+        endif %}
+      </label>
+    </li>
+    {% else %}
+    <li>No songs found.</li>
+    {% endfor %}
+  </ul>
+
+  <button type="submit">Build Deck</button>
+</form>
+{% endblock %}

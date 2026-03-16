@@ -1,0 +1,22 @@
+{
+  "id": "lord-of-hosts",
+  "title": "Lord of Hosts",
+  "artist": "Shane & Shane",
+  "key": "G",
+  "type": "song",
+  "parts": {
+    "verse1": [
+      "O trampled down in battle",
+      "O harried and oppressed",
+      "My battered weary people",
+      "I will be your rest"
+    ],
+    "chorus": [
+      "You are Lord of Hosts",
+      "You're with us in the fire",
+      "With us as a shelter",
+      "With us in the storm"
+    ]
+  },
+  "arrangement": ["verse1", "chorus"]
+}
