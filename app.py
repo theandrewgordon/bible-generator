@@ -740,6 +740,36 @@ def delete_worship_song(song_id: str) -> bool:
     return deleted
 
 
+def _load_recent_setlists() -> list[dict]:
+    """Return up to 10 most recent setlists, newest first."""
+    if db:
+        try:
+            results = []
+            for doc in db.collection("worship_setlists").stream():
+                data = doc.to_dict()
+                if data and data.get("date") and isinstance(data.get("songs"), list):
+                    results.append({"date": data["date"], "songs": data["songs"]})
+            results.sort(key=lambda x: x["date"], reverse=True)
+            return results[:10]
+        except Exception as exc:
+            app.logger.warning("_load_recent_setlists Firestore error: %s", exc)
+    setlists_dir = Path(app.root_path) / "setlists"
+    if not setlists_dir.is_dir():
+        return []
+    results = []
+    for fp in sorted(setlists_dir.glob("*.json"), reverse=True):
+        try:
+            with open(fp, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("date") and isinstance(data.get("songs"), list):
+                results.append({"date": data["date"], "songs": data["songs"]})
+        except Exception:
+            pass
+        if len(results) >= 10:
+            break
+    return results
+
+
 def chunk_lines(lines: list[str], max_lines: int = 4) -> list[list[str]]:
     clean = [str(line).strip() for line in lines if str(line).strip()]
     if not clean:
@@ -865,7 +895,8 @@ import json
 def worship():
     _seed_worship_from_files()
     songs = list_worship_songs()
-    return render_template('worship.html', songs=songs)
+    setlists = _load_recent_setlists()
+    return render_template('worship.html', songs=songs, setlists=setlists)
 
 
 @app.route("/worship/build", methods=["POST"])
@@ -1122,6 +1153,33 @@ def worship_edit(song_id):
         return redirect(url_for("worship"))
 
     return render_template("worship_edit.html", song=song)
+
+
+@app.route("/worship/setlist/save", methods=["POST"])
+@login_required
+def worship_setlist_save():
+    song_ids = request.form.getlist("song_ids")
+    if not song_ids:
+        return jsonify({"ok": False, "error": "No songs"}), 400
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    data = {"date": today, "songs": song_ids}
+
+    if db:
+        try:
+            db.collection("worship_setlists").document(today).set(data)
+        except Exception as exc:
+            app.logger.warning("worship_setlist_save Firestore error: %s", exc)
+
+    setlists_dir = Path(app.root_path) / "setlists"
+    try:
+        setlists_dir.mkdir(exist_ok=True)
+        with open(setlists_dir / f"{today}.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception as exc:
+        app.logger.warning("worship_setlist_save file error: %s", exc)
+
+    return jsonify({"ok": True})
 
 
 ## about + healthz moved to public blueprint

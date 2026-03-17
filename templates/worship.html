@@ -1,61 +1,246 @@
-{% extends "base.html" %} {% block content %}
-<h1>Worship Slide Builder</h1>
+{% extends "base.html" %}
 
-<p><a href="{{ url_for('worship_add') }}">+ Add Song</a></p>
+{% block head_extra %}
+<style>
+  .ws-set-card{background:var(--box);border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;box-shadow:var(--card-shadow)}
+  .ws-section-label{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:0 0 .85rem}
+  .set-item{display:flex;align-items:center;gap:.6rem;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:6px;background:var(--background);user-select:none}
+  .drag-handle{color:#94a3b8;cursor:grab;font-size:1.1rem;flex-shrink:0;line-height:1;padding:0 2px}
+  .drag-handle:active{cursor:grabbing}
+  .set-remove{background:none;border:none;cursor:pointer;color:#ef4444;font-size:1em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;flex-shrink:0}
+  .set-remove:hover{background:#fee2e2}
+  .lib-row{display:flex;align-items:center;gap:.5rem;padding:6px 0;border-bottom:1px solid #f1f5f9}
+  .lib-row:last-child{border-bottom:none}
+  .ws-add{padding:3px 11px;border-radius:999px;border:1px solid var(--primary);background:transparent;color:var(--primary);cursor:pointer;font-size:.8rem;font-weight:600;white-space:nowrap;transition:background .12s,color .12s}
+  .ws-add:hover:not(:disabled){background:var(--primary);color:#fff}
+  .ws-add:disabled{opacity:.38;cursor:default}
+  .setlist-chip{padding:4px 13px;border-radius:999px;border:1px solid #cbd5e1;background:var(--background);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text);transition:background .12s,border-color .12s}
+  .setlist-chip:hover{background:var(--box);border-color:var(--primary);color:var(--primary)}
+  .ws-btn-primary{padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.95rem;transition:background .15s}
+  .ws-btn-primary:hover{background:var(--primary-dark)}
+  .ws-btn-ghost{padding:8px 18px;border:1px solid #cbd5e1;border-radius:9px;background:transparent;cursor:pointer;font-size:.9rem;color:var(--text-secondary);font-weight:600;transition:border-color .12s,color .12s}
+  .ws-btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .ws-del{background:none;border:none;cursor:pointer;color:#ef4444;font-size:.9em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;white-space:nowrap;flex-shrink:0}
+  .ws-del:hover{background:#fee2e2}
+</style>
+{% endblock %}
 
-<form action="/worship/build" method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-  <ul id="song-list" style="list-style:none;padding:0;cursor:grab">
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem">
+  <h1 style="margin:0">Worship Slide Builder</h1>
+  <a href="{{ url_for('worship_add') }}"
+    style="font-size:.9rem;font-weight:600;color:var(--primary);text-decoration:none;padding:5px 12px;border:1px solid var(--primary);border-radius:8px">
+    + Add Song
+  </a>
+</div>
+
+<!-- ── This Week's Set ── -->
+<div class="ws-set-card">
+  <p class="ws-section-label">This Week's Set</p>
+
+  <form id="build-form" action="/worship/build" method="post" data-download="1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <ul id="set-list" style="list-style:none;padding:0;margin:0"></ul>
+    <div id="set-hidden-inputs"></div>
+    <input type="hidden" name="song_order" id="song-order-input">
+  </form>
+
+  <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
+    Add songs from the library below to build your set.
+  </p>
+
+  <div id="set-actions" style="display:none;margin-top:1rem;gap:.75rem;flex-wrap:wrap;align-items:center">
+    <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn">Build Deck</button>
+    <button type="button" class="ws-btn-ghost" id="save-setlist-btn">Save Setlist</button>
+    <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
+  </div>
+</div>
+
+<!-- ── Saved Setlists ── -->
+{% if setlists %}
+<div style="margin-bottom:1.25rem">
+  <p class="ws-section-label" style="margin-bottom:.5rem">Saved Setlists</p>
+  <div id="setlist-chips" style="display:flex;flex-wrap:wrap;gap:6px">
+    {% for sl in setlists %}
+    <button class="setlist-chip" data-songs='{{ sl.songs | tojson }}'>{{ sl.date }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Song Library ── -->
+<div>
+  <p class="ws-section-label" style="margin-bottom:.75rem">Song Library</p>
+  <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
-    <li data-id="{{ song.id }}" style="padding:4px 0;user-select:none;display:flex;align-items:center;gap:.5rem">
-      <label style="flex:1;cursor:inherit;margin:0">
-        <input type="checkbox" name="song_ids" value="{{ song.id }}" />
+    <li class="lib-row" data-id="{{ song.id }}">
+      <span style="flex:1;font-size:.95rem;min-width:0">
         <strong>{{ song.title }}</strong>
-        {% if song.artist %} — {{ song.artist }}{% endif %} {% if song.key %}
-        (Key: {{ song.key }}){% endif %} {% if song.type %} [{{ song.type }}]{%
-        endif %}
-      </label>
+        {% if song.artist %} — <span class="muted">{{ song.artist }}</span>{% endif %}
+        {% if song.key %} <span class="muted small">({{ song.key }})</span>{% endif %}
+        {% if song.type and song.type != 'song' %} <span class="muted small">[{{ song.type }}]</span>{% endif %}
+      </span>
+      <button type="button" class="ws-add" data-id="{{ song.id }}">+ Add</button>
       <a href="{{ url_for('worship_edit', song_id=song.id) }}"
-        style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px"
+        style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0"
         title="Edit {{ song.title }}">Edit</a>
       <button type="button" class="ws-del"
         data-id="{{ song.id }}" data-title="{{ song.title }}"
-        style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:.9em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;white-space:nowrap"
         title="Delete {{ song.title }}">×</button>
     </li>
     {% endfor %}
   </ul>
-  <input type="hidden" name="song_order" id="song-order-input">
-  <button type="submit">Build Deck</button>
-</form>
+</div>
+
+<script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}
 
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 (function () {
-  var list = document.getElementById('song-list');
-  var input = document.getElementById('song-order-input');
   var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
 
+  // Index songs by id for O(1) lookup
+  var SONGS_BY_ID = {};
+  LIBRARY_SONGS.forEach(function (s) { SONGS_BY_ID[s.id] = s; });
+
+  var setListEl      = document.getElementById('set-list');
+  var hiddenInputs   = document.getElementById('set-hidden-inputs');
+  var orderInput     = document.getElementById('song-order-input');
+  var emptyState     = document.getElementById('set-empty');
+  var setActions     = document.getElementById('set-actions');
+  var setlistStatus  = document.getElementById('setlist-status');
+  var libraryEl      = document.getElementById('library-list');
+  var chipsEl        = document.getElementById('setlist-chips');
+
+  // Which ids are currently in the set
+  var inSet = {};
+
+  // ── UI sync ──────────────────────────────────────────────────────────────
+
   function syncOrder() {
-    var ids = Array.from(list.querySelectorAll('[data-id]'))
+    var ids = Array.from(setListEl.querySelectorAll('[data-id]'))
       .map(function (el) { return el.dataset.id; });
-    input.value = ids.join(',');
+    orderInput.value = ids.join(',');
+    // Keep hidden song_ids inputs in same order as visual list
+    ids.forEach(function (id) {
+      var inp = hiddenInputs.querySelector('input[data-sid="' + id + '"]');
+      if (inp) hiddenInputs.appendChild(inp); // move to end = re-sort
+    });
   }
 
-  Sortable.create(list, {
+  function syncUI() {
+    var hasItems = setListEl.children.length > 0;
+    emptyState.style.display = hasItems ? 'none' : 'block';
+    setActions.style.display = hasItems ? 'flex' : 'none';
+  }
+
+  function markLibrary(id, added) {
+    var row = libraryEl.querySelector('.lib-row[data-id="' + id + '"]');
+    if (!row) return;
+    var btn = row.querySelector('.ws-add');
+    if (btn) {
+      btn.textContent = added ? 'Added' : '+ Add';
+      btn.disabled = added;
+    }
+    row.style.opacity = added ? '0.45' : '1';
+  }
+
+  // ── Set operations ────────────────────────────────────────────────────────
+
+  function addToSet(id) {
+    if (inSet[id]) return;
+    var song = SONGS_BY_ID[id];
+    if (!song) return;
+    inSet[id] = true;
+
+    // Build list item
+    var li = document.createElement('li');
+    li.className = 'set-item';
+    li.dataset.id = id;
+
+    var handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.textContent = '⠿';
+    handle.setAttribute('aria-hidden', 'true');
+
+    var info = document.createElement('span');
+    info.style.cssText = 'flex:1;font-size:.95rem;min-width:0';
+    var strong = document.createElement('strong');
+    strong.textContent = song.title;
+    info.appendChild(strong);
+    if (song.artist) {
+      var artist = document.createTextNode(' — ' + song.artist);
+      info.appendChild(artist);
+    }
+    if (song.key) {
+      var key = document.createElement('span');
+      key.className = 'muted small';
+      key.textContent = ' (' + song.key + ')';
+      info.appendChild(key);
+    }
+
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'set-remove';
+    removeBtn.dataset.id = id;
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('aria-label', 'Remove ' + song.title + ' from set');
+    removeBtn.addEventListener('click', function () { removeFromSet(id); });
+
+    li.appendChild(handle);
+    li.appendChild(info);
+    li.appendChild(removeBtn);
+    setListEl.appendChild(li);
+
+    // Add hidden input
+    var inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = 'song_ids';
+    inp.value = id;
+    inp.dataset.sid = id;
+    hiddenInputs.appendChild(inp);
+
+    markLibrary(id, true);
+    syncOrder();
+    syncUI();
+  }
+
+  function removeFromSet(id) {
+    var li = setListEl.querySelector('[data-id="' + id + '"]');
+    if (li) li.remove();
+    var inp = hiddenInputs.querySelector('input[data-sid="' + id + '"]');
+    if (inp) inp.remove();
+    delete inSet[id];
+    markLibrary(id, false);
+    syncOrder();
+    syncUI();
+  }
+
+  // ── SortableJS (set only) ─────────────────────────────────────────────────
+
+  Sortable.create(setListEl, {
     animation: 150,
-    filter: '.ws-del, a',
-    preventOnFilter: false,
+    handle: '.drag-handle',
     onEnd: syncOrder
   });
 
-  list.addEventListener('click', function (e) {
-    var btn = e.target.closest('.ws-del');
-    if (!btn) return;
-    var id = btn.dataset.id;
-    var title = btn.dataset.title;
+  // ── Library click delegation ──────────────────────────────────────────────
+
+  libraryEl.addEventListener('click', function (e) {
+    // + Add
+    var addBtn = e.target.closest('.ws-add');
+    if (addBtn && !addBtn.disabled) {
+      addToSet(addBtn.dataset.id);
+      return;
+    }
+
+    // Delete (× from library)
+    var delBtn = e.target.closest('.ws-del');
+    if (!delBtn) return;
+    var id = delBtn.dataset.id;
+    var title = delBtn.dataset.title;
     if (!confirm('Delete "' + title + '"?')) return;
     var fd = new FormData();
     fd.append('song_id', id);
@@ -63,9 +248,10 @@
     fetch('/worship/delete', { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(function (r) {
         if (r.ok) {
-          var li = btn.closest('li');
+          removeFromSet(id); // also remove from set if present
+          var li = delBtn.closest('li');
           if (li) li.remove();
-          syncOrder();
+          delete SONGS_BY_ID[id];
         } else {
           alert('Delete failed.');
         }
@@ -73,7 +259,47 @@
       .catch(function () { alert('Delete failed.'); });
   });
 
-  syncOrder();
+  // ── Setlist chips ─────────────────────────────────────────────────────────
+
+  if (chipsEl) {
+    chipsEl.addEventListener('click', function (e) {
+      var chip = e.target.closest('.setlist-chip');
+      if (!chip) return;
+      var songIds = JSON.parse(chip.dataset.songs);
+      // Clear current set
+      Object.keys(inSet).slice().forEach(removeFromSet);
+      // Load in saved order
+      songIds.forEach(function (id) {
+        if (SONGS_BY_ID[id]) addToSet(id);
+      });
+    });
+  }
+
+  // ── Save Setlist ──────────────────────────────────────────────────────────
+
+  document.getElementById('save-setlist-btn').addEventListener('click', function () {
+    var ids = Array.from(setListEl.querySelectorAll('[data-id]'))
+      .map(function (el) { return el.dataset.id; });
+    if (!ids.length) return;
+    var fd = new FormData();
+    fd.append('csrf_token', csrfToken);
+    ids.forEach(function (id) { fd.append('song_ids', id); });
+    fetch('/worship/setlist/save', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          setlistStatus.style.display = 'inline';
+          setTimeout(function () { setlistStatus.style.display = 'none'; }, 2500);
+        } else {
+          alert('Save failed.');
+        }
+      })
+      .catch(function () { alert('Save failed.'); });
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  syncUI();
 })();
 </script>
 {% endblock %}
