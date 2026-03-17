@@ -1,6 +1,8 @@
 {% extends "base.html" %} {% block content %}
 <h1>Worship Slide Builder</h1>
 
+<p><a href="{{ url_for('worship_add') }}">+ Add Song</a></p>
+
 <form action="/worship/build" method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
   <ul>

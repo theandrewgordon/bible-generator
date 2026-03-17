@@ -823,6 +823,146 @@ def worship_build():
         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
     )
 
+@app.route("/worship/add", methods=["GET", "POST"])
+@login_required
+def worship_add():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        artist = request.form.get("artist", "").strip()
+        key = request.form.get("key", "").strip()
+        song_type = request.form.get("type", "song").strip() or "song"
+
+        part_names = request.form.getlist("part_name")
+        part_lines_raw = request.form.getlist("part_lines")
+        arrangement_raw = request.form.get("arrangement", "")
+
+        if not title:
+            flash("Title is required.", "warning")
+            return redirect(url_for("worship_add"))
+
+        parts = {}
+        for name, lines_text in zip(part_names, part_lines_raw):
+            name = name.strip()
+            if not name:
+                continue
+            lines = [l.strip() for l in lines_text.splitlines() if l.strip()]
+            if lines:
+                parts[name] = lines
+
+        arrangement = [
+            a.strip() for a in arrangement_raw.split(",")
+            if a.strip() and a.strip() in parts
+        ]
+
+        song_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+        song = {
+            "id": song_id,
+            "title": title,
+            "artist": artist,
+            "key": key,
+            "type": song_type,
+            "parts": parts,
+            "arrangement": arrangement,
+        }
+
+        songs_folder = Path(app.root_path) / "songs"
+        songs_folder.mkdir(exist_ok=True)
+        with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
+            json.dump(song, f, indent=2, ensure_ascii=False)
+
+        flash(f"'{title}' saved.", "success")
+        return redirect(url_for("worship"))
+
+    return render_template("worship_add.html")
+
+
+@app.route("/worship/add/parse", methods=["POST"])
+@login_required
+def worship_add_parse():
+    from openai import OpenAI
+
+    raw_lyrics = request.form.get("raw_lyrics", "").strip()
+    title = request.form.get("title", "").strip()
+    artist = request.form.get("artist", "").strip()
+    key = request.form.get("key", "").strip()
+
+    if not raw_lyrics:
+        flash("Paste some lyrics to parse.", "warning")
+        return redirect(url_for("worship_add"))
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        flash("OPENAI_API_KEY is not set in the environment.", "error")
+        return redirect(url_for("worship_add"))
+
+    prompt = f"""Parse the following song lyrics into structured JSON.
+
+Title: {title or '(infer from lyrics)'}
+Artist: {artist or '(unknown)'}
+Key: {key or '(unknown)'}
+
+Lyrics:
+{raw_lyrics}
+
+Return ONLY valid JSON — no markdown fences, no explanation — in this exact format:
+{{
+  "id": "<slugified-title>",
+  "title": "<title>",
+  "artist": "<artist or empty string>",
+  "key": "<key or empty string>",
+  "type": "song",
+  "parts": {{
+    "verse1": ["line 1", "line 2"],
+    "chorus": ["line 1", "line 2"]
+  }},
+  "arrangement": ["verse1", "chorus"]
+}}
+
+Rules:
+- id: title lowercased, spaces and special characters replaced by hyphens, no leading/trailing hyphens
+- parts keys: use verse1, verse2, chorus, bridge, pre_chorus, outro, intro as appropriate
+- arrangement: list of part keys in the order they appear in the song
+- each part value is an array of individual lyric lines (no blank strings)
+- type is always "song"
+"""
+
+    try:
+        client = OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
+        raw_json = response.choices[0].message.content.strip()
+        # Strip markdown code fences if model wraps the response anyway
+        raw_json = re.sub(r"^```[a-z]*\n?", "", raw_json)
+        raw_json = re.sub(r"\n?```$", "", raw_json).strip()
+        song = json.loads(raw_json)
+    except json.JSONDecodeError as e:
+        flash(f"AI returned invalid JSON: {e}", "error")
+        return redirect(url_for("worship_add"))
+    except Exception as e:
+        flash(f"AI parse failed: {e}", "error")
+        return redirect(url_for("worship_add"))
+
+    if not isinstance(song.get("parts"), dict) or not isinstance(song.get("arrangement"), list):
+        flash("AI response was missing required fields (parts/arrangement).", "error")
+        return redirect(url_for("worship_add"))
+
+    song_id = song.get("id") or re.sub(
+        r"[^a-z0-9]+", "-", song.get("title", "unknown").lower()
+    ).strip("-")
+    song["id"] = song_id
+
+    songs_folder = Path(app.root_path) / "songs"
+    songs_folder.mkdir(exist_ok=True)
+    with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
+        json.dump(song, f, indent=2, ensure_ascii=False)
+
+    flash(f"'{song.get('title', song_id)}' parsed and saved.", "success")
+    return redirect(url_for("worship"))
+
+
 ## about + healthz moved to public blueprint
 
 @app.route("/generate", methods=["GET", "POST"])
