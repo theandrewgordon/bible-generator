@@ -626,7 +626,118 @@ def _boolish(value, default=False):
     return bool(value) if value is not None else default
 
 
-SONGS_DIR = os.path.join(app.root_path, "songs")
+SONGS_DIR = os.path.join(app.root_path, "songs")  # kept for local fallback
+
+# --- Worship song persistence helpers ---
+_WORSHIP_COLLECTION = "worship_songs"
+_worship_seeded = False
+
+
+def _seed_worship_from_files() -> None:
+    """One-time per-process seed: load /songs/*.json into Firestore if collection is empty."""
+    global _worship_seeded
+    if _worship_seeded:
+        return
+    _worship_seeded = True
+    if not db:
+        return
+    try:
+        if list(db.collection(_WORSHIP_COLLECTION).limit(1).stream()):
+            return  # already has documents
+        songs_folder = Path(app.root_path) / "songs"
+        if not songs_folder.is_dir():
+            return
+        for fp in sorted(songs_folder.glob("*.json")):
+            try:
+                with open(fp, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                song_id = data.get("id") or fp.stem
+                data["id"] = song_id
+                db.collection(_WORSHIP_COLLECTION).document(song_id).set(data)
+                app.logger.info("Seeded worship song: %s", song_id)
+            except Exception as exc:
+                app.logger.warning("Worship seed skip %s: %s", fp.name, exc)
+    except Exception as exc:
+        app.logger.warning("Worship seed failed: %s", exc)
+
+
+def list_worship_songs() -> list[dict]:
+    """List all worship songs sorted by title. Firestore first, file fallback."""
+    if db:
+        try:
+            results = []
+            for doc in db.collection(_WORSHIP_COLLECTION).stream():
+                data = doc.to_dict()
+                if data and data.get("id"):
+                    results.append(data)
+            return sorted(results, key=lambda s: s.get("title", "").lower())
+        except Exception as exc:
+            app.logger.warning("list_worship_songs Firestore error: %s", exc)
+    songs_folder = Path(app.root_path) / "songs"
+    songs = []
+    if songs_folder.is_dir():
+        for fp in sorted(songs_folder.glob("*.json")):
+            try:
+                with open(fp, "r", encoding="utf-8") as f:
+                    songs.append(json.load(f))
+            except Exception:
+                pass
+    return songs
+
+
+def get_worship_song(song_id: str) -> dict | None:
+    """Load one song by id. Firestore first, file fallback."""
+    if db:
+        try:
+            doc = db.collection(_WORSHIP_COLLECTION).document(song_id).get()
+            if doc.exists:
+                return doc.to_dict()
+        except Exception as exc:
+            app.logger.warning("get_worship_song(%s) Firestore error: %s", song_id, exc)
+    fp = Path(app.root_path) / "songs" / f"{song_id}.json"
+    if fp.exists():
+        try:
+            with open(fp, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
+
+
+def save_worship_song(song: dict) -> None:
+    """Persist a song. Firestore when available, local file fallback."""
+    song_id = song["id"]
+    if db:
+        try:
+            db.collection(_WORSHIP_COLLECTION).document(song_id).set(song)
+            return
+        except Exception as exc:
+            app.logger.warning("save_worship_song(%s) Firestore error: %s", song_id, exc)
+    songs_folder = Path(app.root_path) / "songs"
+    songs_folder.mkdir(exist_ok=True)
+    with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
+        json.dump(song, f, indent=2, ensure_ascii=False)
+
+
+def delete_worship_song(song_id: str) -> bool:
+    """Delete a song from Firestore and local file if present. Returns True if anything was deleted."""
+    deleted = False
+    if db:
+        try:
+            ref = db.collection(_WORSHIP_COLLECTION).document(song_id)
+            if ref.get().exists:
+                ref.delete()
+                deleted = True
+        except Exception as exc:
+            app.logger.warning("delete_worship_song(%s) Firestore error: %s", song_id, exc)
+    fp = Path(app.root_path) / "songs" / f"{song_id}.json"
+    if fp.exists():
+        try:
+            fp.unlink()
+            deleted = True
+        except Exception:
+            pass
+    return deleted
 
 
 def chunk_lines(lines: list[str], max_lines: int = 4) -> list[list[str]]:
@@ -752,26 +863,8 @@ import json
 
 @app.route('/worship', methods=['GET'])
 def worship():
-    songs = []
-    songs_folder = Path(app.root_path) / 'songs'
-
-    if not songs_folder.exists():
-        return "Songs folder does not exist", 404
-
-    for file_path in sorted(songs_folder.glob('*.json')):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                song_data = json.load(f)
-                songs.append({
-                    'id': song_data.get('id', file_path.stem),
-                    'title': song_data.get('title', file_path.stem.replace('-', ' ').title()),
-                    'type': song_data.get('type', ''),
-                    'artist': song_data.get('artist', ''),
-                    'key': song_data.get('key', '')
-                })
-        except Exception as e:
-            print(f"Skipping invalid song file {file_path.name}: {e}")
-
+    _seed_worship_from_files()
+    songs = list_worship_songs()
     return render_template('worship.html', songs=songs)
 
 
@@ -784,16 +877,11 @@ def worship_build():
         flash("Select at least one item to build a deck.", "warning")
         return redirect(url_for("worship"))
 
-    songs_folder = Path(app.root_path) / "songs"
     selected_items = []
     for song_id in selected_ids:
-        file_path = songs_folder / f"{song_id}.json"
-        if file_path.exists():
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    selected_items.append(json.load(f))
-            except Exception:
-                continue
+        song = get_worship_song(song_id)
+        if song:
+            selected_items.append(song)
 
     if not selected_items:
         flash("No valid items were selected.", "warning")
@@ -874,11 +962,7 @@ def worship_add():
             "arrangement": arrangement,
         }
 
-        songs_folder = Path(app.root_path) / "songs"
-        songs_folder.mkdir(exist_ok=True)
-        with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
-            json.dump(song, f, indent=2, ensure_ascii=False)
-
+        save_worship_song(song)
         flash(f"'{title}' saved.", "success")
         return redirect(url_for("worship"))
 
@@ -963,11 +1047,7 @@ Rules:
     ).strip("-")
     song["id"] = song_id
 
-    songs_folder = Path(app.root_path) / "songs"
-    songs_folder.mkdir(exist_ok=True)
-    with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
-        json.dump(song, f, indent=2, ensure_ascii=False)
-
+    save_worship_song(song)
     flash(f"'{song.get('title', song_id)}' parsed and saved.", "success")
     return redirect(url_for("worship"))
 
@@ -980,9 +1060,7 @@ def worship_delete():
         flash("Invalid song id.", "warning")
         return redirect(url_for("worship"))
 
-    file_path = Path(app.root_path) / "songs" / f"{song_id}.json"
-    if file_path.exists():
-        file_path.unlink()
+    if delete_worship_song(song_id):
         flash("Song deleted.", "success")
     else:
         flash("Song not found.", "warning")
@@ -996,8 +1074,8 @@ def worship_edit(song_id):
         flash("Invalid song id.", "warning")
         return redirect(url_for("worship"))
 
-    file_path = Path(app.root_path) / "songs" / f"{song_id}.json"
-    if not file_path.exists():
+    song = get_worship_song(song_id)
+    if not song:
         flash("Song not found.", "warning")
         return redirect(url_for("worship"))
 
@@ -1039,14 +1117,9 @@ def worship_edit(song_id):
             "arrangement": arrangement,
         }
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(song, f, indent=2, ensure_ascii=False)
-
+        save_worship_song(song)
         flash(f"'{title}' updated.", "success")
         return redirect(url_for("worship"))
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        song = json.load(f)
 
     return render_template("worship_edit.html", song=song)
 
