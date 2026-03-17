@@ -2,10 +2,7 @@
 <h1>Worship Slide Builder</h1>
 
 <form action="/worship/build" method="post">
-  {% if csrf_token %}
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-  {% endif %}
-
   <ul>
     {% for song in songs %}
     <li>
@@ -17,11 +14,8 @@
         endif %}
       </label>
     </li>
-    {% else %}
-    <li>No songs found.</li>
     {% endfor %}
   </ul>
-
   <button type="submit">Build Deck</button>
 </form>
 {% endblock %}

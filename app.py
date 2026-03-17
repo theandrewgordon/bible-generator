@@ -20,7 +20,7 @@ import time
 import pathlib
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from verse_helpers import (
     request_verse_data,
@@ -629,103 +629,52 @@ def _boolish(value, default=False):
 SONGS_DIR = os.path.join(app.root_path, "songs")
 
 
-def _load_worship_items() -> list[dict]:
-    items = []
-    if not os.path.isdir(SONGS_DIR):
-        return items
-
-    for name in sorted(os.listdir(SONGS_DIR)):
-        if not name.lower().endswith(".json"):
-            continue
-        path = os.path.join(SONGS_DIR, name)
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                item = json.load(f)
-        except Exception:
-            continue
-
-        if not isinstance(item, dict):
-            continue
-        if not item.get("id") or not item.get("title"):
-            continue
-        if not isinstance(item.get("parts"), dict):
-            continue
-        if not isinstance(item.get("arrangement"), list):
-            continue
-
-        items.append(
-            {
-                "id": str(item.get("id", "")).strip(),
-                "title": str(item.get("title", "")).strip(),
-                "artist": str(item.get("artist", "")).strip(),
-                "key": str(item.get("key", "")).strip(),
-                "type": str(item.get("type", "song")).strip().lower(),
-                "parts": item.get("parts", {}),
-                "arrangement": item.get("arrangement", []),
-            }
-        )
-
-    return sorted(items, key=lambda x: (x.get("title", "").lower(), x.get("id", "").lower()))
-
-
-def _chunk_lines(lines: list[str], size: int = 4) -> list[list[str]]:
+def chunk_lines(lines: list[str], max_lines: int = 4) -> list[list[str]]:
     clean = [str(line).strip() for line in lines if str(line).strip()]
     if not clean:
         return []
-    return [clean[i : i + size] for i in range(0, len(clean), size)]
+    return [clean[i : i + max_lines] for i in range(0, len(clean), max_lines)]
 
 
-def _add_dark_slide_with_text(prs: Presentation, lines: list[str], font_size: int = 48) -> None:
-    slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
+def apply_dark_background(slide) -> None:
     slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = RGBColor(10, 10, 10)
+    slide.background.fill.fore_color.rgb = RGBColor(20, 20, 20)
 
-    box = slide.shapes.add_textbox(Inches(0.8), Inches(0.8), Inches(11.733), Inches(5.9))
+
+def add_centered_textbox(slide, text: str, top: float, height: float, font_size: int, bold: bool):
+    box = slide.shapes.add_textbox(Inches(0.5), Inches(top), Inches(12.333), Inches(height))
     tf = box.text_frame
     tf.clear()
     tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
     run = p.add_run()
-    run.text = "\n".join(lines)
+    run.text = text
     run.font.size = Pt(font_size)
-    run.font.bold = True
+    run.font.bold = bold
     run.font.color.rgb = RGBColor(255, 255, 255)
+    return box
 
 
-def _add_divider_slide(prs: Presentation, item: dict) -> None:
-    subtitle_bits = []
-    if item.get("artist"):
-        subtitle_bits.append(item["artist"])
-    if item.get("key"):
-        subtitle_bits.append(f"Key: {item['key']}")
+def create_divider_slide(prs: Presentation, title: str, artist: str, key: str):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    apply_dark_background(slide)
+    add_centered_textbox(slide, title, top=2.5, height=1.5, font_size=54, bold=True)
+    subtitle_parts = []
+    if artist:
+        subtitle_parts.append(artist)
+    if key:
+        subtitle_parts.append(f"Key: {key}")
+    if subtitle_parts:
+        add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.2, height=1.0, font_size=32, bold=False)
+    return slide
 
-    _add_dark_slide_with_text(prs, [item.get("title", ""), " | ".join(subtitle_bits)] if subtitle_bits else [item.get("title", "")], font_size=54)
 
-
-def _build_worship_deck(selected_items: list[dict]) -> BytesIO:
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
-
-    for item in selected_items:
-        _add_divider_slide(prs, item)
-        parts = item.get("parts", {}) or {}
-        arrangement = item.get("arrangement", []) or []
-
-        for part_name in arrangement:
-            part_lines = parts.get(part_name, [])
-            if not isinstance(part_lines, list):
-                continue
-            for chunk in _chunk_lines(part_lines, size=4):
-                _add_dark_slide_with_text(prs, chunk, font_size=48)
-
-    output = BytesIO()
-    prs.save(output)
-    output.seek(0)
-    return output
+def create_content_slide(prs: Presentation, lines: list[str]):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    apply_dark_background(slide)
+    add_centered_textbox(slide, "\n".join(lines), top=1.5, height=4.5, font_size=48, bold=True)
+    return slide
 
 
 
@@ -796,8 +745,10 @@ def logout():
         return redirect(url_for("public.index"))
     return redirect(url_for("browse"))
 
-import json
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+import json
+
 
 @app.route('/worship', methods=['GET'])
 def worship():
@@ -827,22 +778,46 @@ def worship():
 @app.route("/worship/build", methods=["POST"])
 @login_required
 def worship_build():
-    selected_ids = request.form.getlist("item_ids")
+    selected_ids = request.form.getlist("song_ids")
     if not selected_ids:
         flash("Select at least one item to build a deck.", "warning")
-        return redirect(url_for("worship_builder"))
+        return redirect(url_for("worship"))
 
-    all_items = _load_worship_items()
-    by_id = {item["id"]: item for item in all_items}
-    selected_items = [by_id[item_id] for item_id in selected_ids if item_id in by_id]
+    songs_folder = Path(app.root_path) / "songs"
+    selected_items = []
+    for song_id in selected_ids:
+        file_path = songs_folder / f"{song_id}.json"
+        if file_path.exists():
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    selected_items.append(json.load(f))
+            except Exception:
+                continue
 
     if not selected_items:
         flash("No valid items were selected.", "warning")
-        return redirect(url_for("worship_builder"))
+        return redirect(url_for("worship"))
 
-    ppt_stream = _build_worship_deck(selected_items)
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+
+    for item in selected_items:
+        create_divider_slide(prs, item.get("title", ""), item.get("artist", ""), item.get("key", ""))
+        parts = item.get("parts", {}) or {}
+        arrangement = item.get("arrangement", []) or []
+        for part_name in arrangement:
+            part_lines = parts.get(part_name, [])
+            if not isinstance(part_lines, list):
+                continue
+            for chunk in chunk_lines(part_lines, max_lines=4):
+                create_content_slide(prs, chunk)
+
+    tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
+    prs.save(tmp.name)
+    tmp.close()
     return send_file(
-        ppt_stream,
+        tmp.name,
         as_attachment=True,
         download_name="house_church_worship.pptx",
         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
