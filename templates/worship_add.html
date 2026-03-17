@@ -1,88 +1,120 @@
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wa-panels{display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start;margin-top:1.5rem}
+  .wa-card{flex:1;min-width:300px;background:var(--box);border-radius:14px;padding:1.5rem;box-shadow:var(--card-shadow)}
+  .wa-card h2{margin:0 0 1.25rem;font-size:1.1rem;font-weight:700;letter-spacing:.2px;color:var(--text)}
+  .wa-field{margin-bottom:1rem}
+  .wa-label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px;color:var(--text)}
+  .wa-label-muted{display:block;font-weight:600;font-size:.85rem;margin-bottom:4px;color:var(--text-secondary)}
+  .wa-input{width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;background:var(--background);color:var(--text);font-size:.95rem;font-family:inherit}
+  .wa-input:focus{outline:2px solid var(--primary);outline-offset:1px;border-color:transparent}
+  textarea.wa-input{font-family:monospace;font-size:.85rem;resize:vertical}
+  .wa-input-key{width:80px}
+  .wa-row{display:flex;gap:.75rem;flex-wrap:wrap}
+  .wa-row .wa-field{flex:1;min-width:120px}
+  .wa-btn-primary{display:block;width:100%;padding:11px 24px;background:var(--primary);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:1rem;letter-spacing:.2px;text-align:center;transition:background .15s}
+  .wa-btn-primary:hover{background:var(--primary-dark)}
+  .wa-btn-ghost{padding:6px 14px;border:1px dashed #94a3b8;border-radius:8px;background:transparent;cursor:pointer;font-size:.9rem;color:var(--text-secondary);margin-bottom:1.25rem;transition:border-color .12s,color .12s}
+  .wa-btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .wa-section-label{font-size:.95rem;font-weight:700;margin:1.25rem 0 .35rem;color:var(--text)}
+  .wa-helper{font-size:.82rem;color:var(--text-secondary);margin:.1rem 0 .75rem}
+  .wa-part-row{border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:var(--background)}
+  .wa-part-header{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .wa-part-name{flex:1;padding:5px 9px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;font-size:.9rem;background:var(--background);color:var(--text)}
+  .wa-part-name:focus{outline:2px solid var(--primary);outline-offset:1px;border-color:transparent}
+  .wa-remove-btn{background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.1em;line-height:1;padding:2px 4px;border-radius:4px}
+  .wa-remove-btn:hover{background:#fee2e2}
+  .wa-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:24px}
+  .wa-chip{padding:5px 14px;border-radius:999px;border:1px solid #cbd5e1;background:var(--background);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text);transition:background .12s,border-color .12s,color .12s}
+  .wa-chip:hover{background:var(--primary);border-color:var(--primary);color:#fff}
+  .wa-order-zone{display:flex;flex-wrap:wrap;gap:6px;min-height:46px;padding:10px;border:1.5px dashed #cbd5e1;border-radius:10px;margin-bottom:1.5rem;background:var(--background);align-items:center}
+  .wa-order-tag{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:999px;background:var(--primary);color:#fff;font-size:.82rem;font-weight:600}
+  .wa-order-tag button{background:none;border:none;color:#fff;cursor:pointer;font-size:1.1em;line-height:1;padding:0;opacity:.7}
+  .wa-order-tag button:hover{opacity:1}
+  .wa-optional-header{font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:1.25rem 0 .6rem;padding-top:1rem;border-top:1px solid #e2e8f0}
+</style>
+{% endblock %}
+
+{% block content %}
 <h1>Add Song</h1>
-<p><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
+<p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
 
-<div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start;margin-top:1.5rem">
+<div class="wa-panels">
 
-  <!-- Manual Entry -->
-  <div style="flex:1;min-width:320px">
-    <h2 style="margin-top:0">Manual Entry</h2>
+  <!-- ── Manual Entry ── -->
+  <div class="wa-card">
+    <h2>Manual Entry</h2>
     <form method="post" action="{{ url_for('worship_add') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-      <div style="margin-bottom:1rem">
-        <label style="display:block;font-weight:600;margin-bottom:4px">Title *</label>
-        <input type="text" name="title" required style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box">
+      <div class="wa-field">
+        <label class="wa-label">Title *</label>
+        <input type="text" name="title" required class="wa-input">
       </div>
-      <div style="margin-bottom:1rem">
-        <label style="display:block;font-weight:600;margin-bottom:4px">Artist</label>
-        <input type="text" name="artist" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:1rem">
-        <label style="display:block;font-weight:600;margin-bottom:4px">Key</label>
-        <input type="text" name="key" style="width:80px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px">
+      <div class="wa-row">
+        <div class="wa-field">
+          <label class="wa-label">Artist</label>
+          <input type="text" name="artist" class="wa-input">
+        </div>
+        <div class="wa-field" style="flex:0 0 90px">
+          <label class="wa-label">Key</label>
+          <input type="text" name="key" class="wa-input wa-input-key">
+        </div>
       </div>
       <input type="hidden" name="type" value="song">
 
-      <h3 style="margin-bottom:.5rem">Parts</h3>
+      <p class="wa-section-label">Parts</p>
       <div id="parts-list"></div>
-      <button type="button" id="add-part-btn"
-        style="padding:6px 14px;border:1px dashed #94a3b8;border-radius:6px;background:transparent;cursor:pointer;margin-bottom:1.5rem">
-        + Add Part
-      </button>
+      <button type="button" id="add-part-btn" class="wa-btn-ghost">+ Add Part</button>
 
-      <h3 style="margin-bottom:.25rem">Arrangement</h3>
-      <p style="font-size:.85em;color:var(--text-secondary);margin-top:0">
-        Click parts below to add them to the arrangement in order.
-        Click × to remove from sequence.
-      </p>
-      <div id="arrangement-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
-      <div id="arrangement-order"
-        style="display:flex;flex-wrap:wrap;gap:6px;min-height:40px;padding:8px;border:1px dashed #cbd5e1;border-radius:8px;margin-bottom:1.5rem">
-        <span id="arrangement-placeholder" style="color:var(--text-secondary);font-size:.85em;align-self:center">
-          Arrangement will appear here…
-        </span>
+      <p class="wa-section-label">Arrangement</p>
+      <p class="wa-helper">Click a part chip to add it to the sequence. Click × to remove.</p>
+      <div id="arrangement-chips" class="wa-chips"></div>
+      <div id="arrangement-order" class="wa-order-zone">
+        <span id="arrangement-placeholder" class="small muted">Arrangement will appear here…</span>
       </div>
       <input type="hidden" name="arrangement" id="arrangement-input">
 
-      <button type="submit"
-        style="padding:8px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">
-        Save Song
-      </button>
+      <button type="submit" class="wa-btn-primary">Save Song</button>
     </form>
   </div>
 
-  <!-- AI Parse -->
-  <div style="flex:1;min-width:320px">
-    <h2 style="margin-top:0">AI Parse</h2>
+  <!-- ── AI Parse ── -->
+  <div class="wa-card">
+    <h2>AI Parse</h2>
     <form method="post" action="{{ url_for('worship_add_parse') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-      <div style="margin-bottom:1rem">
-        <label style="display:block;font-weight:600;margin-bottom:4px">
-          Title <span style="font-weight:400;color:var(--text-secondary)">(optional — AI will infer)</span>
-        </label>
-        <input type="text" name="title" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:1rem">
-        <label style="display:block;font-weight:600;margin-bottom:4px">Artist</label>
-        <input type="text" name="artist" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:1rem">
-        <label style="display:block;font-weight:600;margin-bottom:4px">Key</label>
-        <input type="text" name="key" style="width:80px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px">
-      </div>
-      <div style="margin-bottom:1rem">
-        <label style="display:block;font-weight:600;margin-bottom:4px">Paste Lyrics *</label>
-        <textarea name="raw_lyrics" rows="18" required
-          style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-family:monospace;font-size:.85em;box-sizing:border-box"
+      <div class="wa-field">
+        <label class="wa-label">Paste Lyrics *</label>
+        <textarea name="raw_lyrics" rows="20" required class="wa-input"
           placeholder="[Verse 1]&#10;Line one&#10;Line two&#10;&#10;[Chorus]&#10;Holy holy holy…"></textarea>
       </div>
 
-      <button type="submit"
-        style="padding:8px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">
-        Parse with AI →
-      </button>
+      <button type="submit" class="wa-btn-primary">Parse with AI →</button>
+
+      <p class="wa-optional-header">Optional — AI will infer from lyrics</p>
+      <p class="wa-helper" style="margin-top:-.4rem">
+        Fill these in to override what the AI infers, or leave them blank.
+      </p>
+
+      <div class="wa-field">
+        <label class="wa-label-muted">Title</label>
+        <input type="text" name="title" class="wa-input">
+      </div>
+      <div class="wa-row">
+        <div class="wa-field">
+          <label class="wa-label-muted">Artist</label>
+          <input type="text" name="artist" class="wa-input">
+        </div>
+        <div class="wa-field" style="flex:0 0 90px">
+          <label class="wa-label-muted">Key</label>
+          <input type="text" name="key" class="wa-input wa-input-key">
+        </div>
+      </div>
+
     </form>
   </div>
 
@@ -115,14 +147,13 @@
 
   function addToOrder(name) {
     const tag = document.createElement('span');
+    tag.className = 'wa-order-tag';
     tag.dataset.name = name;
-    tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff;font-size:.85em';
     const label = document.createTextNode(name + ' ');
     const x = document.createElement('button');
     x.type = 'button';
     x.textContent = '×';
     x.setAttribute('aria-label', 'Remove ' + name + ' from arrangement');
-    x.style.cssText = 'background:none;border:none;color:#fff;cursor:pointer;font-size:1.1em;line-height:1;padding:0';
     x.addEventListener('click', function (e) {
       e.stopPropagation();
       tag.remove();
@@ -136,12 +167,12 @@
 
   function upsertChip(name) {
     if (!name) return;
-    if (findChip(name)) return; // already exists
+    if (findChip(name)) return;
     const chip = document.createElement('button');
     chip.type = 'button';
+    chip.className = 'wa-chip';
     chip.dataset.name = name;
     chip.textContent = name;
-    chip.style.cssText = 'padding:4px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-size:.85em';
     chip.addEventListener('click', function () { addToOrder(name); });
     chipsWrap.appendChild(chip);
   }
@@ -152,47 +183,34 @@
     removeFromOrder(name);
   }
 
-  function rebuildChips() {
-    const currentNames = new Set(
-      Array.from(partsList.querySelectorAll('.part-name-input')).map(el => el.value.trim()).filter(Boolean)
-    );
-    // Remove chips whose part was deleted/renamed
-    Array.from(chipsWrap.children).forEach(chip => {
-      if (!currentNames.has(chip.dataset.name)) chip.remove();
-    });
-    // Add chips for any new names
-    currentNames.forEach(name => upsertChip(name));
-  }
-
   let partCount = 0;
 
   function addPart(defaultName) {
     partCount++;
     const row = document.createElement('div');
-    row.style.cssText = 'border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:10px';
+    row.className = 'wa-part-row';
 
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px';
+    header.className = 'wa-part-header';
 
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.name = 'part_name';
-    nameInput.className = 'part-name-input';
+    nameInput.className = 'part-name-input wa-part-name';
     nameInput.placeholder = 'e.g. verse1, chorus, bridge';
     nameInput.value = defaultName || '';
-    nameInput.style.cssText = 'flex:1;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600';
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
+    removeBtn.className = 'wa-remove-btn';
     removeBtn.textContent = '✕';
     removeBtn.setAttribute('aria-label', 'Remove part');
-    removeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.1em';
 
     const textarea = document.createElement('textarea');
     textarea.name = 'part_lines';
     textarea.rows = 4;
     textarea.placeholder = 'One lyric line per line';
-    textarea.style.cssText = 'width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-family:monospace;font-size:.85em;box-sizing:border-box';
+    textarea.className = 'wa-input';
 
     let prevName = defaultName || '';
 
@@ -222,7 +240,6 @@
 
   document.getElementById('add-part-btn').addEventListener('click', function () { addPart(''); });
 
-  // Seed with verse1 and chorus
   addPart('verse1');
   addPart('chorus');
 

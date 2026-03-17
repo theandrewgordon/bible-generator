@@ -5,9 +5,9 @@
 
 <form action="/worship/build" method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-  <ul>
+  <ul id="song-list" style="list-style:none;padding:0;cursor:grab">
     {% for song in songs %}
-    <li>
+    <li data-id="{{ song.id }}" style="padding:4px 0;user-select:none">
       <label>
         <input type="checkbox" name="song_ids" value="{{ song.id }}" />
         <strong>{{ song.title }}</strong>
@@ -18,6 +18,29 @@
     </li>
     {% endfor %}
   </ul>
+  <input type="hidden" name="song_order" id="song-order-input">
   <button type="submit">Build Deck</button>
 </form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function () {
+  var input = document.getElementById('song-order-input');
+
+  function syncOrder() {
+    var ids = Array.from(document.querySelectorAll('#song-list [data-id]'))
+      .map(function (el) { return el.dataset.id; });
+    input.value = ids.join(',');
+  }
+
+  Sortable.create(document.getElementById('song-list'), {
+    animation: 150,
+    onEnd: syncOrder
+  });
+
+  syncOrder();
+})();
+</script>
 {% endblock %}

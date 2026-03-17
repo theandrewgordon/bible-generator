@@ -779,6 +779,7 @@ def worship():
 @login_required
 def worship_build():
     selected_ids = request.form.getlist("song_ids")
+    song_order = request.form.get("song_order", "")
     if not selected_ids:
         flash("Select at least one item to build a deck.", "warning")
         return redirect(url_for("worship"))
@@ -797,6 +798,14 @@ def worship_build():
     if not selected_items:
         flash("No valid items were selected.", "warning")
         return redirect(url_for("worship"))
+
+    if song_order:
+        order = [s.strip() for s in song_order.split(",") if s.strip()]
+        id_to_item = {item["id"]: item for item in selected_items}
+        reordered = [id_to_item[sid] for sid in order if sid in id_to_item]
+        in_order = {item["id"] for item in reordered}
+        reordered += [item for item in selected_items if item["id"] not in in_order]
+        selected_items = reordered
 
     prs = Presentation()
     prs.slide_width = Inches(13.333)
