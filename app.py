@@ -972,6 +972,85 @@ Rules:
     return redirect(url_for("worship"))
 
 
+@app.route("/worship/delete", methods=["POST"])
+@login_required
+def worship_delete():
+    song_id = request.form.get("song_id", "").strip()
+    if not song_id or ".." in song_id or "/" in song_id or "\\" in song_id:
+        flash("Invalid song id.", "warning")
+        return redirect(url_for("worship"))
+
+    file_path = Path(app.root_path) / "songs" / f"{song_id}.json"
+    if file_path.exists():
+        file_path.unlink()
+        flash("Song deleted.", "success")
+    else:
+        flash("Song not found.", "warning")
+    return redirect(url_for("worship"))
+
+
+@app.route("/worship/edit/<song_id>", methods=["GET", "POST"])
+@login_required
+def worship_edit(song_id):
+    if ".." in song_id or "/" in song_id or "\\" in song_id:
+        flash("Invalid song id.", "warning")
+        return redirect(url_for("worship"))
+
+    file_path = Path(app.root_path) / "songs" / f"{song_id}.json"
+    if not file_path.exists():
+        flash("Song not found.", "warning")
+        return redirect(url_for("worship"))
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        artist = request.form.get("artist", "").strip()
+        key = request.form.get("key", "").strip()
+        song_type = request.form.get("type", "song").strip() or "song"
+
+        part_names = request.form.getlist("part_name")
+        part_lines_raw = request.form.getlist("part_lines")
+        arrangement_raw = request.form.get("arrangement", "")
+
+        if not title:
+            flash("Title is required.", "warning")
+            return redirect(url_for("worship_edit", song_id=song_id))
+
+        parts = {}
+        for name, lines_text in zip(part_names, part_lines_raw):
+            name = name.strip()
+            if not name:
+                continue
+            lines = [l.strip() for l in lines_text.splitlines() if l.strip()]
+            if lines:
+                parts[name] = lines
+
+        arrangement = [
+            a.strip() for a in arrangement_raw.split(",")
+            if a.strip() and a.strip() in parts
+        ]
+
+        song = {
+            "id": song_id,
+            "title": title,
+            "artist": artist,
+            "key": key,
+            "type": song_type,
+            "parts": parts,
+            "arrangement": arrangement,
+        }
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(song, f, indent=2, ensure_ascii=False)
+
+        flash(f"'{title}' updated.", "success")
+        return redirect(url_for("worship"))
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        song = json.load(f)
+
+    return render_template("worship_edit.html", song=song)
+
+
 ## about + healthz moved to public blueprint
 
 @app.route("/generate", methods=["GET", "POST"])

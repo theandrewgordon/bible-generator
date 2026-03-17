@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wa-card{background:var(--box);border-radius:14px;padding:1.5rem;box-shadow:var(--card-shadow);max-width:600px}
+  .wa-card h2{margin:0 0 1.25rem;font-size:1.1rem;font-weight:700;letter-spacing:.2px;color:var(--text)}
+  .wa-field{margin-bottom:1rem}
+  .wa-label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px;color:var(--text)}
+  .wa-input{width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;background:var(--background);color:var(--text);font-size:.95rem;font-family:inherit}
+  .wa-input:focus{outline:2px solid var(--primary);outline-offset:1px;border-color:transparent}
+  textarea.wa-input{font-family:monospace;font-size:.85rem;resize:vertical}
+  .wa-row{display:flex;gap:.75rem;flex-wrap:wrap}
+  .wa-row .wa-field{flex:1;min-width:120px}
+  .wa-btn-primary{display:block;width:100%;padding:11px 24px;background:var(--primary);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:1rem;letter-spacing:.2px;text-align:center;transition:background .15s}
+  .wa-btn-primary:hover{background:var(--primary-dark)}
+  .wa-btn-ghost{padding:6px 14px;border:1px dashed #94a3b8;border-radius:8px;background:transparent;cursor:pointer;font-size:.9rem;color:var(--text-secondary);margin-bottom:1.25rem;transition:border-color .12s,color .12s}
+  .wa-btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .wa-section-label{font-size:.95rem;font-weight:700;margin:1.25rem 0 .35rem;color:var(--text)}
+  .wa-helper{font-size:.82rem;color:var(--text-secondary);margin:.1rem 0 .75rem}
+  .wa-part-row{border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:var(--background)}
+  .wa-part-header{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .wa-part-name{flex:1;padding:5px 9px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;font-size:.9rem;background:var(--background);color:var(--text)}
+  .wa-part-name:focus{outline:2px solid var(--primary);outline-offset:1px;border-color:transparent}
+  .wa-remove-btn{background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.1em;line-height:1;padding:2px 4px;border-radius:4px}
+  .wa-remove-btn:hover{background:#fee2e2}
+  .wa-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:24px}
+  .wa-chip{padding:5px 14px;border-radius:999px;border:1px solid #cbd5e1;background:var(--background);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text);transition:background .12s,border-color .12s,color .12s}
+  .wa-chip:hover{background:var(--primary);border-color:var(--primary);color:#fff}
+  .wa-order-zone{display:flex;flex-wrap:wrap;gap:6px;min-height:46px;padding:10px;border:1.5px dashed #cbd5e1;border-radius:10px;margin-bottom:1.5rem;background:var(--background);align-items:center}
+  .wa-order-tag{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:999px;background:var(--primary);color:#fff;font-size:.82rem;font-weight:600}
+  .wa-order-tag button{background:none;border:none;color:#fff;cursor:pointer;font-size:1.1em;line-height:1;padding:0;opacity:.7}
+  .wa-order-tag button:hover{opacity:1}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Edit Song</h1>
+<p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
+
+<div class="wa-card" style="margin-top:1.5rem">
+  <h2>{{ song.title }}</h2>
+  <form method="post" action="{{ url_for('worship_edit', song_id=song.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="wa-field">
+      <label class="wa-label">Title *</label>
+      <input type="text" name="title" required class="wa-input" value="{{ song.title }}">
+    </div>
+    <div class="wa-row">
+      <div class="wa-field">
+        <label class="wa-label">Artist</label>
+        <input type="text" name="artist" class="wa-input" value="{{ song.artist }}">
+      </div>
+      <div class="wa-field" style="flex:0 0 90px">
+        <label class="wa-label">Key</label>
+        <input type="text" name="key" class="wa-input" value="{{ song.key }}">
+      </div>
+    </div>
+    <input type="hidden" name="type" value="{{ song.type }}">
+
+    <p class="wa-section-label">Parts</p>
+    <div id="parts-list"></div>
+    <button type="button" id="add-part-btn" class="wa-btn-ghost">+ Add Part</button>
+
+    <p class="wa-section-label">Arrangement</p>
+    <p class="wa-helper">Click a part chip to add it to the sequence. Click × to remove.</p>
+    <div id="arrangement-chips" class="wa-chips"></div>
+    <div id="arrangement-order" class="wa-order-zone">
+      <span id="arrangement-placeholder" class="small muted">Arrangement will appear here…</span>
+    </div>
+    <input type="hidden" name="arrangement" id="arrangement-input">
+
+    <button type="submit" class="wa-btn-primary">Save Changes</button>
+  </form>
+</div>
+
+<script>
+var SONG_DATA = {{ song | tojson }};
+</script>
+<script>
+(function () {
+  var partsList = document.getElementById('parts-list');
+  var chipsWrap = document.getElementById('arrangement-chips');
+  var orderWrap = document.getElementById('arrangement-order');
+  var orderInput = document.getElementById('arrangement-input');
+  var placeholder = document.getElementById('arrangement-placeholder');
+
+  function updateHidden() {
+    var names = Array.from(orderWrap.querySelectorAll('[data-name]')).map(function (el) { return el.dataset.name; });
+    orderInput.value = names.join(',');
+    placeholder.style.display = names.length ? 'none' : 'inline';
+  }
+
+  function findChip(name) {
+    return Array.from(chipsWrap.children).find(function (el) { return el.dataset.name === name; }) || null;
+  }
+
+  function removeFromOrder(name) {
+    orderWrap.querySelectorAll('[data-name]').forEach(function (el) {
+      if (el.dataset.name === name) el.remove();
+    });
+    updateHidden();
+  }
+
+  function addToOrder(name) {
+    var tag = document.createElement('span');
+    tag.className = 'wa-order-tag';
+    tag.dataset.name = name;
+    var label = document.createTextNode(name + ' ');
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '×';
+    x.setAttribute('aria-label', 'Remove ' + name + ' from arrangement');
+    x.addEventListener('click', function (e) {
+      e.stopPropagation();
+      tag.remove();
+      updateHidden();
+    });
+    tag.appendChild(label);
+    tag.appendChild(x);
+    orderWrap.appendChild(tag);
+    updateHidden();
+  }
+
+  function upsertChip(name) {
+    if (!name) return;
+    if (findChip(name)) return;
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'wa-chip';
+    chip.dataset.name = name;
+    chip.textContent = name;
+    chip.addEventListener('click', function () { addToOrder(name); });
+    chipsWrap.appendChild(chip);
+  }
+
+  function removeChip(name) {
+    var chip = findChip(name);
+    if (chip) chip.remove();
+    removeFromOrder(name);
+  }
+
+  var partCount = 0;
+
+  function addPart(defaultName, defaultLines) {
+    partCount++;
+    var row = document.createElement('div');
+    row.className = 'wa-part-row';
+
+    var header = document.createElement('div');
+    header.className = 'wa-part-header';
+
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.name = 'part_name';
+    nameInput.className = 'part-name-input wa-part-name';
+    nameInput.placeholder = 'e.g. verse1, chorus, bridge';
+    nameInput.value = defaultName || '';
+
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'wa-remove-btn';
+    removeBtn.textContent = '✕';
+    removeBtn.setAttribute('aria-label', 'Remove part');
+
+    var textarea = document.createElement('textarea');
+    textarea.name = 'part_lines';
+    textarea.rows = 4;
+    textarea.placeholder = 'One lyric line per line';
+    textarea.className = 'wa-input';
+    if (defaultLines) textarea.value = defaultLines;
+
+    var prevName = defaultName || '';
+
+    nameInput.addEventListener('blur', function () {
+      var newName = nameInput.value.trim();
+      if (newName !== prevName) {
+        if (prevName) removeChip(prevName);
+        if (newName) upsertChip(newName);
+        prevName = newName;
+      }
+    });
+
+    removeBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      if (name) removeChip(name);
+      row.remove();
+    });
+
+    header.appendChild(nameInput);
+    header.appendChild(removeBtn);
+    row.appendChild(header);
+    row.appendChild(textarea);
+    partsList.appendChild(row);
+
+    if (defaultName) upsertChip(defaultName);
+  }
+
+  document.getElementById('add-part-btn').addEventListener('click', function () { addPart(''); });
+
+  // Seed from SONG_DATA
+  var parts = SONG_DATA.parts || {};
+  var arrangement = SONG_DATA.arrangement || [];
+  var seeded = {};
+
+  // Parts in arrangement order first
+  arrangement.forEach(function (name) {
+    if (parts[name] && !seeded[name]) {
+      addPart(name, (parts[name] || []).join('\n'));
+      seeded[name] = true;
+    }
+  });
+  // Any orphan parts not in arrangement
+  Object.keys(parts).forEach(function (name) {
+    if (!seeded[name]) {
+      addPart(name, (parts[name] || []).join('\n'));
+    }
+  });
+  // Seed arrangement order chips
+  arrangement.forEach(function (name) {
+    if (parts[name]) addToOrder(name);
+  });
+
+  updateHidden();
+})();
+</script>
+{% endblock %}

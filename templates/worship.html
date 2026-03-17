@@ -7,14 +7,21 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
   <ul id="song-list" style="list-style:none;padding:0;cursor:grab">
     {% for song in songs %}
-    <li data-id="{{ song.id }}" style="padding:4px 0;user-select:none">
-      <label>
+    <li data-id="{{ song.id }}" style="padding:4px 0;user-select:none;display:flex;align-items:center;gap:.5rem">
+      <label style="flex:1;cursor:inherit;margin:0">
         <input type="checkbox" name="song_ids" value="{{ song.id }}" />
         <strong>{{ song.title }}</strong>
         {% if song.artist %} — {{ song.artist }}{% endif %} {% if song.key %}
         (Key: {{ song.key }}){% endif %} {% if song.type %} [{{ song.type }}]{%
         endif %}
       </label>
+      <a href="{{ url_for('worship_edit', song_id=song.id) }}"
+        style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px"
+        title="Edit {{ song.title }}">Edit</a>
+      <button type="button" class="ws-del"
+        data-id="{{ song.id }}" data-title="{{ song.title }}"
+        style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:.9em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;white-space:nowrap"
+        title="Delete {{ song.title }}">×</button>
     </li>
     {% endfor %}
   </ul>
@@ -27,17 +34,43 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 (function () {
+  var list = document.getElementById('song-list');
   var input = document.getElementById('song-order-input');
+  var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
 
   function syncOrder() {
-    var ids = Array.from(document.querySelectorAll('#song-list [data-id]'))
+    var ids = Array.from(list.querySelectorAll('[data-id]'))
       .map(function (el) { return el.dataset.id; });
     input.value = ids.join(',');
   }
 
-  Sortable.create(document.getElementById('song-list'), {
+  Sortable.create(list, {
     animation: 150,
+    filter: '.ws-del, a',
+    preventOnFilter: false,
     onEnd: syncOrder
+  });
+
+  list.addEventListener('click', function (e) {
+    var btn = e.target.closest('.ws-del');
+    if (!btn) return;
+    var id = btn.dataset.id;
+    var title = btn.dataset.title;
+    if (!confirm('Delete "' + title + '"?')) return;
+    var fd = new FormData();
+    fd.append('song_id', id);
+    fd.append('csrf_token', csrfToken);
+    fetch('/worship/delete', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) {
+        if (r.ok) {
+          var li = btn.closest('li');
+          if (li) li.remove();
+          syncOrder();
+        } else {
+          alert('Delete failed.');
+        }
+      })
+      .catch(function () { alert('Delete failed.'); });
   });
 
   syncOrder();
