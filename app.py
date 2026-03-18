@@ -1270,8 +1270,7 @@ def worship_edit(song_id):
             if a.strip() and a.strip() in parts
         ]
 
-        song = {
-            "id": song_id,
+        song.update({
             "title": title,
             "artist": artist,
             "key": key,
@@ -1279,7 +1278,7 @@ def worship_edit(song_id):
             "background": background,
             "parts": parts,
             "arrangement": arrangement,
-        }
+        })
 
         save_worship_song(song)
         flash(f"'{title}' updated.", "success")
