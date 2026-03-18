@@ -129,6 +129,37 @@
   // Which ids are currently in the set
   var inSet = {};
 
+  // ── Set draft persistence (localStorage) ─────────────────────────────────
+
+  var DRAFT_KEY = 'worship_set_draft';
+
+  function saveSetDraft() {
+    var items = Array.from(setListEl.querySelectorAll('[data-id]')).map(function (li) {
+      var noteEl = li.querySelector('.set-note');
+      return { id: li.dataset.id, note: noteEl ? noteEl.value : '' };
+    });
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+
+  function restoreSetDraft() {
+    var raw;
+    try { raw = localStorage.getItem(DRAFT_KEY); } catch (e) { return; }
+    if (!raw) return;
+    var items;
+    try { items = JSON.parse(raw); } catch (e) { return; }
+    if (!Array.isArray(items) || !items.length) return;
+    items.forEach(function (item) {
+      if (SONGS_BY_ID[item.id]) {
+        addToSet(item.id);
+        if (item.note) {
+          var li = setListEl.querySelector('[data-id="' + item.id + '"]');
+          var noteEl = li ? li.querySelector('.set-note') : null;
+          if (noteEl) noteEl.value = item.note;
+        }
+      }
+    });
+  }
+
   // ── UI sync ──────────────────────────────────────────────────────────────
 
   function syncOrder() {
@@ -140,6 +171,7 @@
       var inp = hiddenInputs.querySelector('input[data-sid="' + id + '"]');
       if (inp) hiddenInputs.appendChild(inp);
     });
+    saveSetDraft();
   }
 
   function syncUI() {
@@ -331,6 +363,12 @@
       .catch(function () { alert('Save failed.'); });
   });
 
+  // ── Save draft when notes change ─────────────────────────────────────────
+
+  setListEl.addEventListener('input', function (e) {
+    if (e.target.classList.contains('set-note')) saveSetDraft();
+  });
+
   // ── Library search ────────────────────────────────────────────────────────
 
   document.getElementById('library-search').addEventListener('input', function () {
@@ -343,6 +381,7 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
+  restoreSetDraft();
   syncUI();
 })();
 </script>
