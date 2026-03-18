@@ -2,7 +2,7 @@
 
 {% block head_extra %}
 <style>
-  .ws-set-card{background:var(--box);border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;box-shadow:var(--card-shadow)}
+  .ws-set-card{background:var(--box);border-radius:14px;padding:1.25rem 1.5rem;margin-top:1.5rem;box-shadow:var(--card-shadow)}
   .ws-section-label{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:0 0 .85rem}
   .set-item{display:flex;align-items:center;gap:.6rem;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:6px;background:var(--background);user-select:none}
   .drag-handle{color:#94a3b8;cursor:grab;font-size:1.1rem;flex-shrink:0;line-height:1;padding:0 2px}
@@ -17,9 +17,11 @@
   .setlist-chip{padding:4px 13px;border-radius:999px;border:1px solid #cbd5e1;background:var(--background);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text);transition:background .12s,border-color .12s}
   .setlist-chip:hover{background:var(--box);border-color:var(--primary);color:var(--primary)}
   .ws-btn-primary{padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.95rem;transition:background .15s}
-  .ws-btn-primary:hover{background:var(--primary-dark)}
+  .ws-btn-primary:hover:not(:disabled){background:var(--primary-dark)}
+  .ws-btn-primary:disabled{opacity:.4;cursor:default}
   .ws-btn-ghost{padding:8px 18px;border:1px solid #cbd5e1;border-radius:9px;background:transparent;cursor:pointer;font-size:.9rem;color:var(--text-secondary);font-weight:600;transition:border-color .12s,color .12s}
-  .ws-btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .ws-btn-ghost:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+  .ws-btn-ghost:disabled{opacity:.4;cursor:default}
   .ws-del{background:none;border:none;cursor:pointer;color:#ef4444;font-size:.9em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;white-space:nowrap;flex-shrink:0}
   .ws-del:hover{background:#fee2e2}
 </style>
@@ -34,43 +36,9 @@
   </a>
 </div>
 
-<!-- ── This Week's Set ── -->
-<div class="ws-set-card">
-  <p class="ws-section-label">This Week's Set</p>
-
-  <form id="build-form" action="/worship/build" method="post" data-download="1">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-    <ul id="set-list" style="list-style:none;padding:0;margin:0"></ul>
-    <div id="set-hidden-inputs"></div>
-    <input type="hidden" name="song_order" id="song-order-input">
-  </form>
-
-  <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
-    Add songs from the library below to build your set.
-  </p>
-
-  <div id="set-actions" style="display:none;margin-top:1rem;gap:.75rem;flex-wrap:wrap;align-items:center">
-    <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn">Build Deck</button>
-    <button type="button" class="ws-btn-ghost" id="save-setlist-btn">Save Setlist</button>
-    <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
-  </div>
-</div>
-
-<!-- ── Saved Setlists ── -->
-{% if setlists %}
-<div style="margin-bottom:1.25rem">
-  <p class="ws-section-label" style="margin-bottom:.5rem">Saved Setlists</p>
-  <div id="setlist-chips" style="display:flex;flex-wrap:wrap;gap:6px">
-    {% for sl in setlists %}
-    <button class="setlist-chip" data-songs='{{ sl.songs | tojson }}'>{{ sl.date }}</button>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
 <!-- ── Song Library ── -->
 <div>
-  <p class="ws-section-label" style="margin-bottom:.75rem">Song Library</p>
+  <p class="ws-section-label">Song Library</p>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
     <li class="lib-row" data-id="{{ song.id }}">
@@ -92,6 +60,40 @@
   </ul>
 </div>
 
+<!-- ── Saved Setlists ── -->
+{% if setlists %}
+<div style="margin-top:1.25rem">
+  <p class="ws-section-label" style="margin-bottom:.5rem">Saved Setlists</p>
+  <div id="setlist-chips" style="display:flex;flex-wrap:wrap;gap:6px">
+    {% for sl in setlists %}
+    <button class="setlist-chip" data-songs='{{ sl.songs | tojson }}'>{{ sl.date }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── This Week's Set ── -->
+<div class="ws-set-card">
+  <p class="ws-section-label">This Week's Set</p>
+
+  <form id="build-form" action="/worship/build" method="post" data-download="1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <ul id="set-list" style="list-style:none;padding:0;margin:0"></ul>
+    <div id="set-hidden-inputs"></div>
+    <input type="hidden" name="song_order" id="song-order-input">
+  </form>
+
+  <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
+    Add songs from the library above to build your set.
+  </p>
+
+  <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+    <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Build Deck</button>
+    <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled>Save Setlist</button>
+    <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
+  </div>
+</div>
+
 <script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}
 
@@ -105,14 +107,15 @@
   var SONGS_BY_ID = {};
   LIBRARY_SONGS.forEach(function (s) { SONGS_BY_ID[s.id] = s; });
 
-  var setListEl      = document.getElementById('set-list');
-  var hiddenInputs   = document.getElementById('set-hidden-inputs');
-  var orderInput     = document.getElementById('song-order-input');
-  var emptyState     = document.getElementById('set-empty');
-  var setActions     = document.getElementById('set-actions');
-  var setlistStatus  = document.getElementById('setlist-status');
-  var libraryEl      = document.getElementById('library-list');
-  var chipsEl        = document.getElementById('setlist-chips');
+  var setListEl     = document.getElementById('set-list');
+  var hiddenInputs  = document.getElementById('set-hidden-inputs');
+  var orderInput    = document.getElementById('song-order-input');
+  var emptyState    = document.getElementById('set-empty');
+  var buildBtn      = document.getElementById('build-btn');
+  var saveBtn       = document.getElementById('save-setlist-btn');
+  var setlistStatus = document.getElementById('setlist-status');
+  var libraryEl     = document.getElementById('library-list');
+  var chipsEl       = document.getElementById('setlist-chips');
 
   // Which ids are currently in the set
   var inSet = {};
@@ -126,14 +129,15 @@
     // Keep hidden song_ids inputs in same order as visual list
     ids.forEach(function (id) {
       var inp = hiddenInputs.querySelector('input[data-sid="' + id + '"]');
-      if (inp) hiddenInputs.appendChild(inp); // move to end = re-sort
+      if (inp) hiddenInputs.appendChild(inp);
     });
   }
 
   function syncUI() {
     var hasItems = setListEl.children.length > 0;
     emptyState.style.display = hasItems ? 'none' : 'block';
-    setActions.style.display = hasItems ? 'flex' : 'none';
+    buildBtn.disabled = !hasItems;
+    saveBtn.disabled = !hasItems;
   }
 
   function markLibrary(id, added) {
@@ -155,7 +159,6 @@
     if (!song) return;
     inSet[id] = true;
 
-    // Build list item
     var li = document.createElement('li');
     li.className = 'set-item';
     li.dataset.id = id;
@@ -171,8 +174,7 @@
     strong.textContent = song.title;
     info.appendChild(strong);
     if (song.artist) {
-      var artist = document.createTextNode(' — ' + song.artist);
-      info.appendChild(artist);
+      info.appendChild(document.createTextNode(' — ' + song.artist));
     }
     if (song.key) {
       var key = document.createElement('span');
@@ -184,7 +186,6 @@
     var removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'set-remove';
-    removeBtn.dataset.id = id;
     removeBtn.textContent = '×';
     removeBtn.setAttribute('aria-label', 'Remove ' + song.title + ' from set');
     removeBtn.addEventListener('click', function () { removeFromSet(id); });
@@ -194,7 +195,6 @@
     li.appendChild(removeBtn);
     setListEl.appendChild(li);
 
-    // Add hidden input
     var inp = document.createElement('input');
     inp.type = 'hidden';
     inp.name = 'song_ids';
@@ -229,14 +229,12 @@
   // ── Library click delegation ──────────────────────────────────────────────
 
   libraryEl.addEventListener('click', function (e) {
-    // + Add
     var addBtn = e.target.closest('.ws-add');
     if (addBtn && !addBtn.disabled) {
       addToSet(addBtn.dataset.id);
       return;
     }
 
-    // Delete (× from library)
     var delBtn = e.target.closest('.ws-del');
     if (!delBtn) return;
     var id = delBtn.dataset.id;
@@ -248,7 +246,7 @@
     fetch('/worship/delete', { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(function (r) {
         if (r.ok) {
-          removeFromSet(id); // also remove from set if present
+          removeFromSet(id);
           var li = delBtn.closest('li');
           if (li) li.remove();
           delete SONGS_BY_ID[id];
@@ -266,9 +264,7 @@
       var chip = e.target.closest('.setlist-chip');
       if (!chip) return;
       var songIds = JSON.parse(chip.dataset.songs);
-      // Clear current set
       Object.keys(inSet).slice().forEach(removeFromSet);
-      // Load in saved order
       songIds.forEach(function (id) {
         if (SONGS_BY_ID[id]) addToSet(id);
       });
@@ -277,7 +273,7 @@
 
   // ── Save Setlist ──────────────────────────────────────────────────────────
 
-  document.getElementById('save-setlist-btn').addEventListener('click', function () {
+  saveBtn.addEventListener('click', function () {
     var ids = Array.from(setListEl.querySelectorAll('[data-id]'))
       .map(function (el) { return el.dataset.id; });
     if (!ids.length) return;
