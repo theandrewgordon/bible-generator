@@ -1050,6 +1050,15 @@ def worship_build():
     tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
     prs.save(tmp.name)
     tmp.close()
+
+    @app.after_this_request
+    def _cleanup(response):
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
+        return response
+
     return send_file(
         tmp.name,
         as_attachment=True,
