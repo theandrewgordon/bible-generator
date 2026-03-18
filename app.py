@@ -850,10 +850,10 @@ def apply_dark_background(slide, rgb: RGBColor = _DEFAULT_BG) -> None:
 
 
 def add_centered_textbox(slide, text: str, top: float, height: float, font_size: int, bold: bool,
-                          font_color: RGBColor = None, overlay: bool = False, overlay_opacity: float = 0.5):
+                          font_color: RGBColor = None, overlay: bool = False, overlay_opacity: float = 0.5,
+                          left: float = 0.5, width: float = 12.333):
     if font_color is None:
         font_color = RGBColor(255, 255, 255)
-    left, width = 0.5, 12.333
     if overlay:
         _add_overlay_rect(slide, left, top, width, height, overlay_opacity)
     box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
@@ -881,16 +881,18 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
     font_color = RGBColor(*cfg["font_color"])
     overlay = cfg.get("overlay", False)
     overlay_opacity = cfg.get("overlay_opacity", 0.5)
-    add_centered_textbox(slide, title, top=2.5, height=1.5, font_size=54, bold=True,
-                          font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
+    add_centered_textbox(slide, title, top=2.2, height=1.65, font_size=60, bold=True,
+                          font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity,
+                          left=1.5, width=10.333)
     subtitle_parts = []
     if artist:
         subtitle_parts.append(artist)
     if key:
         subtitle_parts.append(f"Key: {key}")
     if subtitle_parts:
-        add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.2, height=1.0, font_size=32, bold=False,
-                              font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
+        add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.05, height=0.85, font_size=26, bold=False,
+                              font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity,
+                              left=1.5, width=10.333)
     return slide
 
 
@@ -904,7 +906,7 @@ def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "
     font_color = RGBColor(*cfg["font_color"])
     overlay = cfg.get("overlay", False)
     overlay_opacity = cfg.get("overlay_opacity", 0.5)
-    add_centered_textbox(slide, "\n".join(lines), top=1.5, height=4.5, font_size=48, bold=True,
+    add_centered_textbox(slide, "\n".join(lines), top=1.25, height=5.0, font_size=48, bold=True,
                           font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
     return slide
 
