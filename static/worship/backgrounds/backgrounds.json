@@ -1,0 +1,67 @@
+{
+  "dark-gradient.png": {
+    "font_color": [255, 255, 255],
+    "overlay": false,
+    "overlay_opacity": 0
+  },
+  "dark-green-abstract.png": {
+    "font_color": [255, 255, 255],
+    "overlay": false,
+    "overlay_opacity": 0
+  },
+  "deep-blue-abstract.png": {
+    "font_color": [255, 255, 255],
+    "overlay": false,
+    "overlay_opacity": 0
+  },
+  "desert-wilderness.png": {
+    "font_color": [255, 255, 255],
+    "overlay": true,
+    "overlay_opacity": 0.45
+  },
+  "forest-mist.png": {
+    "font_color": [255, 255, 255],
+    "overlay": true,
+    "overlay_opacity": 0.4
+  },
+  "mountain-silhouette.png": {
+    "font_color": [255, 255, 255],
+    "overlay": true,
+    "overlay_opacity": 0.4
+  },
+  "ocean-waves.png": {
+    "font_color": [255, 255, 255],
+    "overlay": true,
+    "overlay_opacity": 0.45
+  },
+  "parchment-texture.png": {
+    "font_color": [0, 0, 0],
+    "overlay": false,
+    "overlay_opacity": 0
+  },
+  "parchment-texture2.png": {
+    "font_color": [0, 0, 0],
+    "overlay": false,
+    "overlay_opacity": 0
+  },
+  "soft-clouds.png": {
+    "font_color": [0, 0, 0],
+    "overlay": true,
+    "overlay_opacity": 0.25
+  },
+  "stars-night.png": {
+    "font_color": [255, 255, 255],
+    "overlay": false,
+    "overlay_opacity": 0
+  },
+  "stone-texture.png": {
+    "font_color": [255, 255, 255],
+    "overlay": true,
+    "overlay_opacity": 0.35
+  },
+  "sunrise-glow.png": {
+    "font_color": [255, 255, 255],
+    "overlay": true,
+    "overlay_opacity": 0.5
+  }
+}
