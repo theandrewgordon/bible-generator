@@ -1,5 +1,5 @@
 # test08-28-2025
-from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g
+from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g, after_this_request
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_session import Session
 from datetime import datetime
@@ -1051,7 +1051,7 @@ def worship_build():
     prs.save(tmp.name)
     tmp.close()
 
-    @app.after_this_request
+    @after_this_request
     def _cleanup(response):
         try:
             os.unlink(tmp.name)
