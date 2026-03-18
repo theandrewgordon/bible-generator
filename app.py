@@ -765,11 +765,301 @@ def _load_recent_setlists() -> list[dict]:
     return results
 
 
-def chunk_lines(lines: list[str], max_lines: int = 4) -> list[list[str]]:
-    clean = [str(line).strip() for line in lines if str(line).strip()]
-    if not clean:
-        return []
-    return [clean[i : i + max_lines] for i in range(0, len(clean), max_lines)]
+_CONTINUATION_STARTS = (
+    "and ",
+    "but ",
+    "or ",
+    "so ",
+    "for ",
+    "nor ",
+    "yet ",
+    "because ",
+    "cause ",
+    "'cause ",
+    "inside ",
+    "with ",
+    "to ",
+    "of ",
+    "in ",
+    "on ",
+)
+
+
+def _line_continues_to_next(line: str) -> bool:
+    text = (line or "").strip().lower()
+    if not text:
+        return False
+    if text.endswith((",", ";", ":", "-", "(", "...", "—")):
+        return True
+    if text.endswith(("and", "or", "but", "so", "cause", "because", "to", "of", "in", "with")):
+        return True
+    return False
+
+
+def _line_starts_as_continuation(line: str) -> bool:
+    text = (line or "").strip().lower()
+    return any(text.startswith(prefix) for prefix in _CONTINUATION_STARTS)
+
+
+def _is_protected_phrase_pair(prev_line: str, next_line: str) -> bool:
+    prev = (prev_line or "").strip().lower()
+    nxt = (next_line or "").strip().lower()
+    protected_pairs = [
+        ("cause you've got a lion", "inside of those lungs"),
+        ("get up and", "praise the lord"),
+    ]
+    return any(prev.endswith(a) and nxt.startswith(b) for a, b in protected_pairs)
+
+
+def _is_phrase_boundary(line: str) -> bool:
+    text = (line or "").strip()
+    if not text:
+        return False
+    return text.endswith((".", "!", "?", ":", ";"))
+
+
+MAX_LINES = 4
+TARGET_LINES = 3
+FONT_SCALE_DEFAULT = 1.00
+FONT_SCALE_STEP_1 = 0.92
+FONT_SCALE_STEP_2 = 0.88
+FONT_SCALE_MIN = 0.85
+FOUR_LINE_CHAR_THRESHOLD = 145
+
+
+def _join_required(prev_line: str, next_line: str) -> bool:
+    return (
+        _is_protected_phrase_pair(prev_line, next_line)
+        or _line_continues_to_next(prev_line)
+        or _line_starts_as_continuation(next_line)
+    )
+
+
+def _split_long_slide(lines: list[str], max_lines: int = MAX_LINES, target_lines: int = TARGET_LINES) -> list[list[str]]:
+    """Split oversized slides at the best phrase boundary near target_lines."""
+    chunks: list[list[str]] = []
+    start = 0
+    n = len(lines)
+
+    while start < n:
+        remaining = n - start
+        if remaining <= max_lines:
+            chunks.append(lines[start:])
+            break
+
+        min_end = start + 2
+        max_end = min(start + max_lines, n - 1)
+        pref_end = min(start + target_lines, max_end)
+
+        best_end = None
+        best_score = 10**9
+        for end in range(min_end, max_end + 1):
+            prev_line = lines[end - 1]
+            next_line = lines[end]
+            if _join_required(prev_line, next_line):
+                continue
+
+            score = abs(end - pref_end) * 10
+            if not _is_phrase_boundary(prev_line):
+                score += 4
+            if _line_starts_as_continuation(next_line):
+                score += 4
+
+            if score < best_score:
+                best_score = score
+                best_end = end
+
+        if best_end is None:
+            best_end = min(start + max_lines, n)
+
+        chunks.append(lines[start:best_end])
+        start = best_end
+
+    return chunks
+
+
+def _looks_overflowing(lines: list[str], scale: float = FONT_SCALE_DEFAULT) -> bool:
+    if not lines:
+        return False
+    line_count = len(lines)
+    total_chars = sum(len(line) for line in lines)
+    max_line_chars = max(len(line) for line in lines)
+    base_per_line = {1: 72, 2: 60, 3: 50, 4: 42}.get(line_count, 40)
+    base_total = {1: 72, 2: 120, 3: 150, 4: 168}.get(line_count, 168)
+    cap_multiplier = 1.0 / max(scale, FONT_SCALE_MIN)
+    allowed_per_line = int(base_per_line * cap_multiplier)
+    allowed_total = int(base_total * cap_multiplier)
+    return max_line_chars > allowed_per_line or total_chars > allowed_total
+
+
+def _split_dense_four_line_slide(lines: list[str]) -> list[list[str]] | None:
+    if len(lines) != 4:
+        return None
+    for end in (2, 3):
+        if end < len(lines) and not _join_required(lines[end - 1], lines[end]):
+            left = lines[:end]
+            right = lines[end:]
+            if len(left) >= 2 and len(right) >= 1:
+                return [left, right]
+    return None
+
+
+def _slides_with_font_scale(slides: list[dict]) -> list[dict]:
+    final_slides: list[dict] = []
+    for slide in slides:
+        slide_lines = slide["lines"]
+        font_scale = FONT_SCALE_DEFAULT
+        total_chars = sum(len(line) for line in slide_lines)
+
+        if len(slide_lines) == 4 and total_chars > FOUR_LINE_CHAR_THRESHOLD:
+            # Prefer splitting a dense slide over shrinking text.
+            split_chunks = _split_dense_four_line_slide(slide_lines)
+            if split_chunks:
+                for chunk in split_chunks:
+                    final_slides.append({"lines": chunk, "font_scale": FONT_SCALE_DEFAULT})
+                continue
+
+            font_scale = FONT_SCALE_STEP_1
+            if _looks_overflowing(slide_lines, scale=font_scale):
+                font_scale = FONT_SCALE_STEP_2
+
+        font_scale = max(FONT_SCALE_MIN, font_scale)
+        final_slides.append({"lines": slide_lines, "font_scale": font_scale})
+    return final_slides
+
+
+def lyric_lines_to_slides(lines: list[str], min_lines: int = 2, target_lines: int = TARGET_LINES, max_lines: int = MAX_LINES) -> list[dict]:
+    """
+    Build lyric slides as [{"lines": [...]}] using phrase-aware rules.
+    - Prefer 2-4 lines
+    - Keep continuation phrases together
+    - Blank lines are hard break hints
+    - Repeated lines are break hints
+    """
+    slides: list[dict] = []
+    current: list[str] = []
+
+    def _flush():
+        nonlocal current
+        if current:
+            slides.append({"lines": current})
+            current = []
+
+    raw = [str(line) if line is not None else "" for line in lines]
+    total = len(raw)
+
+    for idx, raw_line in enumerate(raw):
+        line = raw_line.strip()
+        if not line:
+            _flush()
+            continue
+
+        if not current:
+            current.append(line)
+            continue
+
+        prev = current[-1]
+        repeat_hint = any(line.lower() == existing.lower() for existing in current)
+        join_required = _join_required(prev, line)
+
+        if repeat_hint and len(current) >= min_lines and not join_required:
+            _flush()
+            current.append(line)
+        elif len(current) >= max_lines and not join_required:
+            _flush()
+            current.append(line)
+        else:
+            current.append(line)
+
+        if not current:
+            continue
+
+        # Look ahead to decide whether to end this slide naturally.
+        next_line = ""
+        for look in raw[idx + 1 : total]:
+            candidate = look.strip()
+            if candidate:
+                next_line = candidate
+                break
+
+        if len(current) >= min_lines:
+            if not next_line:
+                _flush()
+                continue
+            next_join_required = _join_required(current[-1], next_line)
+            next_is_repeat_hint = any(next_line.lower() == existing.lower() for existing in current)
+
+            if not next_join_required and (
+                len(current) >= target_lines
+                or _is_phrase_boundary(current[-1])
+                or next_is_repeat_hint
+            ):
+                _flush()
+
+    _flush()
+    normalized: list[dict] = []
+    for slide in slides:
+        slide_lines = slide["lines"]
+        if len(slide_lines) <= max_lines:
+            normalized.append({"lines": slide_lines})
+            continue
+        for chunk in _split_long_slide(slide_lines, max_lines=max_lines, target_lines=target_lines):
+            normalized.append({"lines": chunk})
+    return _slides_with_font_scale(normalized)
+
+
+def _split_at_midpoint(lines: list[str]) -> tuple[list[str], list[str]]:
+    """Split near midpoint, preferring phrase boundaries."""
+    n = len(lines)
+    mid = n // 2
+    for offset in range(n):
+        for sign in (0, 1, -1):
+            idx = mid + sign * offset
+            if idx <= 0 or idx >= n:
+                continue
+            if not _join_required(lines[idx - 1], lines[idx]):
+                return lines[:idx], lines[idx:]
+    return lines[:mid], lines[mid:]  # fallback: hard split
+
+
+def chunk_lines(lines: list[str]) -> list[dict]:
+    """
+    Lyric-aware chunking for PPTX slides.
+
+    Rules:
+      1. Blank lines are hard slide-break hints.
+      2. Groups of ≤4 lines → one slide, font_size=48.
+      3. A group of 5 lines → one slide, font_size=42.
+      4. Groups of 6+ lines → split near midpoint (phrase-boundary-aware),
+         recursively until ≤5 lines; font_size derived from final chunk size.
+      5. Never splits mid-phrase (_join_required respected throughout).
+    """
+    groups: list[list[str]] = []
+    current: list[str] = []
+    for raw in lines:
+        line = raw.strip() if isinstance(raw, str) else ""
+        if not line:
+            if current:
+                groups.append(current)
+                current = []
+        else:
+            current.append(line)
+    if current:
+        groups.append(current)
+
+    def _chunks(grp: list[str]) -> list[list[str]]:
+        if len(grp) <= 5:
+            return [grp]
+        left, right = _split_at_midpoint(grp)
+        return _chunks(left) + _chunks(right)
+
+    slides: list[dict] = []
+    for group in groups:
+        for chunk in _chunks(group):
+            n = len(chunk)
+            font_size = 48 if n <= 4 else 42 if n == 5 else 38
+            slides.append({"lines": chunk, "font_size": font_size})
+    return slides
 
 
 _TYPE_BG = {
@@ -891,7 +1181,7 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
     return slide
 
 
-def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None):
+def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None, font_size: int = 48):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     img_path, cfg = _resolve_bg(item_type, song_bg)
     if img_path:
@@ -901,7 +1191,7 @@ def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "
     font_color = RGBColor(*cfg["font_color"])
     overlay = cfg.get("overlay", False)
     overlay_opacity = cfg.get("overlay_opacity", 0.5)
-    add_centered_textbox(slide, "\n".join(lines), top=1.25, height=5.0, font_size=48, bold=True,
+    add_centered_textbox(slide, "\n".join(lines), top=1.25, height=5.0, font_size=font_size, bold=True,
                           font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
     return slide
 
@@ -1036,8 +1326,8 @@ def worship_build():
             part_lines = parts.get(part_name, [])
             if not isinstance(part_lines, list):
                 continue
-            for chunk in chunk_lines(part_lines, max_lines=4):
-                create_content_slide(prs, chunk, item_type, song_bg)
+            for slide in chunk_lines(part_lines):
+                create_content_slide(prs, slide["lines"], item_type, song_bg, font_size=slide.get("font_size", 48))
 
     today = datetime.now(timezone.utc).date().isoformat()
     for item in selected_items:
