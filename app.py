@@ -777,9 +777,18 @@ def chunk_lines(lines: list[str], max_lines: int = 4) -> list[list[str]]:
     return [clean[i : i + max_lines] for i in range(0, len(clean), max_lines)]
 
 
-def apply_dark_background(slide) -> None:
+_TYPE_BG = {
+    "song":      RGBColor(28, 28, 28),
+    "scripture": RGBColor(10, 20, 55),
+    "prayer":    RGBColor(10, 40, 20),
+    "reading":   RGBColor(10, 40, 20),
+}
+_DEFAULT_BG = RGBColor(28, 28, 28)
+
+
+def apply_dark_background(slide, rgb: RGBColor = _DEFAULT_BG) -> None:
     slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = RGBColor(20, 20, 20)
+    slide.background.fill.fore_color.rgb = rgb
 
 
 def add_centered_textbox(slide, text: str, top: float, height: float, font_size: int, bold: bool):
@@ -797,9 +806,9 @@ def add_centered_textbox(slide, text: str, top: float, height: float, font_size:
     return box
 
 
-def create_divider_slide(prs: Presentation, title: str, artist: str, key: str):
+def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, item_type: str = "song"):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    apply_dark_background(slide)
+    apply_dark_background(slide, _TYPE_BG.get(item_type, _DEFAULT_BG))
     add_centered_textbox(slide, title, top=2.5, height=1.5, font_size=54, bold=True)
     subtitle_parts = []
     if artist:
@@ -811,9 +820,9 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str):
     return slide
 
 
-def create_content_slide(prs: Presentation, lines: list[str]):
+def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song"):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    apply_dark_background(slide)
+    apply_dark_background(slide, _TYPE_BG.get(item_type, _DEFAULT_BG))
     add_centered_textbox(slide, "\n".join(lines), top=1.5, height=4.5, font_size=48, bold=True)
     return slide
 
@@ -938,7 +947,8 @@ def worship_build():
     prs.slide_height = Inches(7.5)
 
     for item in selected_items:
-        create_divider_slide(prs, item.get("title", ""), item.get("artist", ""), item.get("key", ""))
+        item_type = item.get("type", "song")
+        create_divider_slide(prs, item.get("title", ""), item.get("artist", ""), item.get("key", ""), item_type)
         parts = item.get("parts", {}) or {}
         arrangement = item.get("arrangement", []) or []
         for part_name in arrangement:
@@ -946,7 +956,7 @@ def worship_build():
             if not isinstance(part_lines, list):
                 continue
             for chunk in chunk_lines(part_lines, max_lines=4):
-                create_content_slide(prs, chunk)
+                create_content_slide(prs, chunk, item_type)
 
     tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
     prs.save(tmp.name)
