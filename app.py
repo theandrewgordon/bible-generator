@@ -748,7 +748,7 @@ def _load_recent_setlists() -> list[dict]:
             for doc in db.collection("worship_setlists").stream():
                 data = doc.to_dict()
                 if data and data.get("date") and isinstance(data.get("songs"), list):
-                    results.append({"date": data["date"], "songs": data["songs"]})
+                    results.append({"date": data["date"], "songs": data["songs"], "notes": data.get("notes", {})})
             results.sort(key=lambda x: x["date"], reverse=True)
             return results[:10]
         except Exception as exc:
@@ -762,7 +762,7 @@ def _load_recent_setlists() -> list[dict]:
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if data.get("date") and isinstance(data.get("songs"), list):
-                results.append({"date": data["date"], "songs": data["songs"]})
+                results.append({"date": data["date"], "songs": data["songs"], "notes": data.get("notes", {})})
         except Exception:
             pass
         if len(results) >= 10:
@@ -1206,8 +1206,16 @@ def worship_setlist_save():
     if not song_ids:
         return jsonify({"ok": False, "error": "No songs"}), 400
 
+    notes_json = request.form.get("notes_json", "{}")
+    try:
+        notes = json.loads(notes_json)
+        if not isinstance(notes, dict):
+            notes = {}
+    except (json.JSONDecodeError, ValueError):
+        notes = {}
+
     today = datetime.now().strftime("%Y-%m-%d")
-    data = {"date": today, "songs": song_ids}
+    data = {"date": today, "songs": song_ids, "notes": notes}
 
     if db:
         try:
