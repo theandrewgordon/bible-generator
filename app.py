@@ -901,6 +901,7 @@ import json
 
 
 @app.route('/worship', methods=['GET'])
+@login_required
 def worship():
     _seed_worship_from_files()
     songs = list_worship_songs()
