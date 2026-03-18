@@ -27,6 +27,7 @@
   .set-note{display:block;width:100%;margin-top:4px;padding:2px 4px;font-size:.78rem;color:var(--text-secondary);border:none;border-bottom:1px solid transparent;background:transparent;outline:none;font-family:inherit}
   .set-note:focus{border-bottom-color:#cbd5e1}
   .set-note::placeholder{color:#94a3b8}
+  .lib-row--in-set{background:color-mix(in srgb, var(--primary) 6%, var(--background));border-left:3px solid var(--primary);padding-left:7px}
 </style>
 {% endblock %}
 
@@ -153,10 +154,10 @@
     if (!row) return;
     var btn = row.querySelector('.ws-add');
     if (btn) {
-      btn.textContent = added ? 'Added' : '+ Add';
+      btn.textContent = added ? 'In Set' : '+ Add';
       btn.disabled = added;
     }
-    row.style.opacity = added ? '0.45' : '1';
+    row.classList.toggle('lib-row--in-set', added);
   }
 
   // ── Set operations ────────────────────────────────────────────────────────
