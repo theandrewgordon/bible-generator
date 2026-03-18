@@ -269,7 +269,9 @@
       var chip = e.target.closest('.setlist-chip');
       if (!chip) return;
       var songIds = JSON.parse(chip.dataset.songs);
-      Object.keys(inSet).slice().forEach(removeFromSet);
+      Array.from(setListEl.querySelectorAll('[data-id]'))
+        .map(function (el) { return el.dataset.id; })
+        .forEach(removeFromSet);
       songIds.forEach(function (id) {
         if (SONGS_BY_ID[id]) addToSet(id);
       });
@@ -279,8 +281,7 @@
   // ── Save Setlist ──────────────────────────────────────────────────────────
 
   saveBtn.addEventListener('click', function () {
-    var ids = Array.from(setListEl.querySelectorAll('[data-id]'))
-      .map(function (el) { return el.dataset.id; });
+    var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     if (!ids.length) return;
     var fd = new FormData();
     fd.append('csrf_token', csrfToken);
