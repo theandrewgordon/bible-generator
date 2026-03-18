@@ -56,6 +56,15 @@
         <input type="text" name="key" class="wa-input" value="{{ song.key }}">
       </div>
     </div>
+    <div class="wa-field">
+      <label class="wa-label">Background</label>
+      <select name="background" class="wa-input">
+        <option value="">Default</option>
+        {% for bg in backgrounds %}
+        <option value="{{ bg }}"{% if song.background == bg %} selected{% endif %}>{{ bg }}</option>
+        {% endfor %}
+      </select>
+    </div>
     <input type="hidden" name="type" value="{{ song.type }}">
 
     <p class="wa-section-label">Parts</p>

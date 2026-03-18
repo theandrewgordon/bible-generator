@@ -83,6 +83,15 @@
           <input type="text" name="key" class="wa-input wa-input-key">
         </div>
       </div>
+      <div class="wa-field">
+        <label class="wa-label">Background</label>
+        <select name="background" class="wa-input">
+          <option value="">Default</option>
+          {% for bg in backgrounds %}
+          <option value="{{ bg }}">{{ bg }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <input type="hidden" name="type" value="song">
 
       <p class="wa-section-label">Parts</p>

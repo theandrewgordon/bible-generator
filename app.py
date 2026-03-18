@@ -1075,6 +1075,7 @@ def worship_add():
         artist = request.form.get("artist", "").strip()
         key = request.form.get("key", "").strip()
         song_type = request.form.get("type", "song").strip() or "song"
+        background = request.form.get("background", "").strip()
 
         part_names = request.form.getlist("part_name")
         part_lines_raw = request.form.getlist("part_lines")
@@ -1105,6 +1106,7 @@ def worship_add():
             "artist": artist,
             "key": key,
             "type": song_type,
+            "background": background,
             "parts": parts,
             "arrangement": arrangement,
         }
@@ -1121,7 +1123,8 @@ def worship_add():
     conflict_id = request.args.get("conflict", "")
     if conflict_id:
         conflict_song = get_worship_song(conflict_id)
-    return render_template("worship_add.html", conflict_song=conflict_song)
+    return render_template("worship_add.html", conflict_song=conflict_song,
+                            backgrounds=list(_load_bg_config().keys()))
 
 
 @app.route("/worship/add/parse", methods=["POST"])
@@ -1243,6 +1246,7 @@ def worship_edit(song_id):
         artist = request.form.get("artist", "").strip()
         key = request.form.get("key", "").strip()
         song_type = request.form.get("type", "song").strip() or "song"
+        background = request.form.get("background", "").strip()
 
         part_names = request.form.getlist("part_name")
         part_lines_raw = request.form.getlist("part_lines")
@@ -1272,6 +1276,7 @@ def worship_edit(song_id):
             "artist": artist,
             "key": key,
             "type": song_type,
+            "background": background,
             "parts": parts,
             "arrangement": arrangement,
         }
@@ -1280,7 +1285,8 @@ def worship_edit(song_id):
         flash(f"'{title}' updated.", "success")
         return redirect(url_for("worship"))
 
-    return render_template("worship_edit.html", song=song)
+    return render_template("worship_edit.html", song=song,
+                            backgrounds=list(_load_bg_config().keys()))
 
 
 @app.route("/worship/setlist/save", methods=["POST"])
