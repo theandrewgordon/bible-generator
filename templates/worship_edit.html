@@ -65,7 +65,15 @@
         {% endfor %}
       </select>
     </div>
-    <input type="hidden" name="type" value="{{ song.type }}">
+    <div class="wa-field">
+      <label class="wa-label">Type</label>
+      <select name="type" class="wa-input">
+        <option value="song"{% if song.type == 'song' %} selected{% endif %}>song</option>
+        <option value="scripture"{% if song.type == 'scripture' %} selected{% endif %}>scripture</option>
+        <option value="prayer"{% if song.type == 'prayer' %} selected{% endif %}>prayer</option>
+        <option value="reading"{% if song.type == 'reading' %} selected{% endif %}>reading</option>
+      </select>
+    </div>
 
     <p class="wa-section-label">Parts</p>
     <div id="parts-list"></div>

@@ -92,7 +92,15 @@
           {% endfor %}
         </select>
       </div>
-      <input type="hidden" name="type" value="song">
+      <div class="wa-field">
+        <label class="wa-label">Type</label>
+        <select name="type" class="wa-input">
+          <option value="song">song</option>
+          <option value="scripture">scripture</option>
+          <option value="prayer">prayer</option>
+          <option value="reading">reading</option>
+        </select>
+      </div>
 
       <p class="wa-section-label">Parts</p>
       <div id="parts-list"></div>
