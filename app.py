@@ -902,14 +902,29 @@ def worship():
 @app.route("/worship/build", methods=["POST"])
 @login_required
 def worship_build():
-    selected_ids = request.form.getlist("song_ids")
     song_order = request.form.get("song_order", "")
-    if not selected_ids:
+
+    # song_order is the authoritative source (set by JS drag order).
+    # Fall back to song_ids[] only when song_order is absent (e.g. non-JS submit).
+    if song_order:
+        raw_ids = [s.strip() for s in song_order.split(",") if s.strip()]
+    else:
+        raw_ids = request.form.getlist("song_ids")
+
+    # Deduplicate while preserving order
+    seen: set = set()
+    ordered_ids = []
+    for sid in raw_ids:
+        if sid not in seen:
+            seen.add(sid)
+            ordered_ids.append(sid)
+
+    if not ordered_ids:
         flash("Select at least one item to build a deck.", "warning")
         return redirect(url_for("worship"))
 
     selected_items = []
-    for song_id in selected_ids:
+    for song_id in ordered_ids:
         song = get_worship_song(song_id)
         if song:
             selected_items.append(song)
@@ -917,14 +932,6 @@ def worship_build():
     if not selected_items:
         flash("No valid items were selected.", "warning")
         return redirect(url_for("worship"))
-
-    if song_order:
-        order = [s.strip() for s in song_order.split(",") if s.strip()]
-        id_to_item = {item["id"]: item for item in selected_items}
-        reordered = [id_to_item[sid] for sid in order if sid in id_to_item]
-        in_order = {item["id"] for item in reordered}
-        reordered += [item for item in selected_items if item["id"] not in in_order]
-        selected_items = reordered
 
     prs = Presentation()
     prs.slide_width = Inches(13.333)
