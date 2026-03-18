@@ -741,7 +741,7 @@ def delete_worship_song(song_id: str) -> bool:
 
 
 def _load_recent_setlists() -> list[dict]:
-    """Return up to 10 most recent setlists, newest first."""
+    """Return all setlists, newest first."""
     if db:
         try:
             results = []
@@ -750,7 +750,7 @@ def _load_recent_setlists() -> list[dict]:
                 if data and data.get("date") and isinstance(data.get("songs"), list):
                     results.append({"date": data["date"], "songs": data["songs"], "notes": data.get("notes", {})})
             results.sort(key=lambda x: x["date"], reverse=True)
-            return results[:10]
+            return results
         except Exception as exc:
             app.logger.warning("_load_recent_setlists Firestore error: %s", exc)
     setlists_dir = Path(app.root_path) / "setlists"
@@ -765,8 +765,6 @@ def _load_recent_setlists() -> list[dict]:
                 results.append({"date": data["date"], "songs": data["songs"], "notes": data.get("notes", {})})
         except Exception:
             pass
-        if len(results) >= 10:
-            break
     return results
 
 
@@ -1331,6 +1329,26 @@ def worship_setlist_save():
     except Exception as exc:
         app.logger.warning("worship_setlist_save file error: %s", exc)
 
+    return jsonify({"ok": True})
+
+
+@app.route("/worship/setlist/delete", methods=["POST"])
+@login_required
+def worship_setlist_delete():
+    date = request.form.get("date", "").strip()
+    if not date or not re.match(r'^\d{4}-\d{2}-\d{2}$', date):
+        return jsonify({"ok": False, "error": "Invalid date"}), 400
+    if db:
+        try:
+            db.collection("worship_setlists").document(date).delete()
+        except Exception as exc:
+            app.logger.warning("worship_setlist_delete Firestore error: %s", exc)
+    fp = Path(app.root_path) / "setlists" / f"{date}.json"
+    if fp.exists():
+        try:
+            fp.unlink()
+        except Exception:
+            pass
     return jsonify({"ok": True})
 
 

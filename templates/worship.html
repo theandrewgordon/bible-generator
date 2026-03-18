@@ -16,6 +16,9 @@
   .ws-add:disabled{opacity:.38;cursor:default}
   .setlist-chip{padding:4px 13px;border-radius:999px;border:1px solid #cbd5e1;background:var(--background);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text);transition:background .12s,border-color .12s}
   .setlist-chip:hover{background:var(--box);border-color:var(--primary);color:var(--primary)}
+  .setlist-chip-wrap{display:inline-flex;align-items:center}
+  .setlist-chip-del{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:.9em;padding:2px 4px;line-height:1;border-radius:4px;margin-left:1px}
+  .setlist-chip-del:hover{color:#ef4444;background:#fee2e2}
   .ws-btn-primary{padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.95rem;transition:background .15s}
   .ws-btn-primary:hover:not(:disabled){background:var(--primary-dark)}
   .ws-btn-primary:disabled{opacity:.4;cursor:default}
@@ -79,12 +82,19 @@
 <!-- ── Saved Setlists ── -->
 {% if setlists %}
 <div style="margin-top:1.25rem">
-  <p class="ws-section-label" style="margin-bottom:.5rem">Saved Setlists</p>
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
+    <p class="ws-section-label" style="margin:0">Saved Setlists</p>
+    <input id="setlist-search" type="search" placeholder="Search by date…"
+      style="flex:1;max-width:200px;padding:4px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:.85rem;background:var(--background);color:var(--text)">
+  </div>
   <div id="setlist-chips" style="display:flex;flex-wrap:wrap;gap:6px">
     {% for sl in setlists %}
-    <button class="setlist-chip" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.date }}</button>
+    <span class="setlist-chip-wrap">
+      <button class="setlist-chip" data-date="{{ sl.date }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.date }}</button><button class="setlist-chip-del" data-date="{{ sl.date }}" title="Delete setlist">×</button>
+    </span>
     {% endfor %}
   </div>
+  <button id="setlist-show-more" style="display:none;background:none;border:none;cursor:pointer;margin-top:6px;padding:2px 0;font-size:.82rem;color:var(--text-secondary)">Show more…</button>
 </div>
 {% endif %}
 
@@ -326,26 +336,75 @@
 
   // ── Setlist chips ─────────────────────────────────────────────────────────
 
+  var SETLIST_LIMIT = 10;
+  var setlistSearchEl = document.getElementById('setlist-search');
+  var showMoreEl = document.getElementById('setlist-show-more');
+
+  function getChipWraps() {
+    return chipsEl ? Array.from(chipsEl.querySelectorAll('.setlist-chip-wrap')) : [];
+  }
+
+  function filterSetlistChips() {
+    var q = setlistSearchEl ? setlistSearchEl.value.trim() : '';
+    var wraps = getChipWraps();
+    var visible = 0;
+    wraps.forEach(function (wrap, i) {
+      var chip = wrap.querySelector('.setlist-chip');
+      var date = chip ? (chip.dataset.date || '') : '';
+      var show = q ? date.includes(q) : (i < SETLIST_LIMIT);
+      wrap.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    if (showMoreEl) showMoreEl.style.display = (!q && wraps.length > SETLIST_LIMIT) ? '' : 'none';
+  }
+
   if (chipsEl) {
     chipsEl.addEventListener('click', function (e) {
       var chip = e.target.closest('.setlist-chip');
-      if (!chip) return;
-      var songIds = JSON.parse(chip.dataset.songs);
-      var notes = JSON.parse(chip.dataset.notes || '{}');
-      Array.from(setListEl.querySelectorAll('[data-id]'))
-        .map(function (el) { return el.dataset.id; })
-        .forEach(removeFromSet);
-      songIds.forEach(function (id) {
-        if (SONGS_BY_ID[id]) {
-          addToSet(id);
-          if (notes[id]) {
-            var li = setListEl.querySelector('[data-id="' + id + '"]');
-            var noteEl = li ? li.querySelector('.set-note') : null;
-            if (noteEl) noteEl.value = notes[id];
+      if (chip) {
+        var songIds = JSON.parse(chip.dataset.songs);
+        var notes = JSON.parse(chip.dataset.notes || '{}');
+        Array.from(setListEl.querySelectorAll('[data-id]'))
+          .map(function (el) { return el.dataset.id; })
+          .forEach(removeFromSet);
+        songIds.forEach(function (id) {
+          if (SONGS_BY_ID[id]) {
+            addToSet(id);
+            if (notes[id]) {
+              var li = setListEl.querySelector('[data-id="' + id + '"]');
+              var noteEl = li ? li.querySelector('.set-note') : null;
+              if (noteEl) noteEl.value = notes[id];
+            }
           }
-        }
-      });
+        });
+        return;
+      }
+      var delBtn = e.target.closest('.setlist-chip-del');
+      if (!delBtn) return;
+      var date = delBtn.dataset.date;
+      if (!confirm('Delete setlist for ' + date + '?')) return;
+      var fd = new FormData();
+      fd.append('csrf_token', csrfToken);
+      fd.append('date', date);
+      fetch('/worship/setlist/delete', { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            var wrap = delBtn.closest('.setlist-chip-wrap');
+            if (wrap) wrap.remove();
+            filterSetlistChips();
+          } else {
+            alert('Delete failed.');
+          }
+        })
+        .catch(function () { alert('Delete failed.'); });
     });
+    if (setlistSearchEl) setlistSearchEl.addEventListener('input', filterSetlistChips);
+    if (showMoreEl) showMoreEl.addEventListener('click', function () {
+      getChipWraps().forEach(function (w) { w.style.display = ''; });
+      showMoreEl.style.display = 'none';
+    });
+    filterSetlistChips();
   }
 
   // ── Save Setlist ──────────────────────────────────────────────────────────
