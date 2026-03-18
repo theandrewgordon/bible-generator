@@ -972,6 +972,16 @@ def worship_build():
 @login_required
 def worship_add():
     if request.method == "POST":
+        # Overwrite confirmation branch
+        if request.form.get("overwrite"):
+            pending = session.pop("pending_worship_song", None)
+            if pending:
+                save_worship_song(pending)
+                flash(f"'{pending['title']}' overwritten.", "success")
+                return redirect(url_for("worship"))
+            flash("Nothing to overwrite.", "warning")
+            return redirect(url_for("worship_add"))
+
         title = request.form.get("title", "").strip()
         artist = request.form.get("artist", "").strip()
         key = request.form.get("key", "").strip()
@@ -1010,11 +1020,19 @@ def worship_add():
             "arrangement": arrangement,
         }
 
+        if get_worship_song(song_id):
+            session["pending_worship_song"] = song
+            return redirect(url_for("worship_add", conflict=song_id))
+
         save_worship_song(song)
         flash(f"'{title}' saved.", "success")
         return redirect(url_for("worship"))
 
-    return render_template("worship_add.html")
+    conflict_song = None
+    conflict_id = request.args.get("conflict", "")
+    if conflict_id:
+        conflict_song = get_worship_song(conflict_id)
+    return render_template("worship_add.html", conflict_song=conflict_song)
 
 
 @app.route("/worship/add/parse", methods=["POST"])
@@ -1094,6 +1112,10 @@ Rules:
         r"[^a-z0-9]+", "-", song.get("title", "unknown").lower()
     ).strip("-")
     song["id"] = song_id
+
+    if get_worship_song(song_id):
+        session["pending_worship_song"] = song
+        return redirect(url_for("worship_add", conflict=song_id))
 
     save_worship_song(song)
     flash(f"'{song.get('title', song_id)}' parsed and saved.", "success")
