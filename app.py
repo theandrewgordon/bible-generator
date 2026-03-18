@@ -785,14 +785,78 @@ _TYPE_BG = {
 }
 _DEFAULT_BG = RGBColor(28, 28, 28)
 
+_BG_DIR = pathlib.Path(__file__).parent / "static" / "worship" / "backgrounds"
+_DEFAULT_BACKGROUNDS = {
+    "song":      "deep-blue-abstract.png",
+    "scripture": "parchment-texture.png",
+    "prayer":    "dark-green-abstract.png",
+    "reading":   "soft-clouds.png",
+}
+_FALLBACK_BG = "dark-gradient.png"
+_bg_config_cache: dict | None = None
+
+
+def _load_bg_config() -> dict:
+    global _bg_config_cache
+    if _bg_config_cache is not None:
+        return _bg_config_cache
+    try:
+        with open(_BG_DIR / "backgrounds.json", "r", encoding="utf-8") as f:
+            _bg_config_cache = json.load(f)
+    except Exception:
+        _bg_config_cache = {}
+    return _bg_config_cache
+
+
+def _resolve_bg(item_type: str, song_bg: str | None) -> tuple:
+    """Return (Path | None, config dict) for the best available background."""
+    cfg = _load_bg_config()
+    for filename in (song_bg, _DEFAULT_BACKGROUNDS.get(item_type), _FALLBACK_BG):
+        if not filename:
+            continue
+        path = _BG_DIR / filename
+        if path.exists():
+            defaults = {"font_color": [255, 255, 255], "overlay": False, "overlay_opacity": 0}
+            return path, {**defaults, **cfg.get(filename, {})}
+    return None, {"font_color": [255, 255, 255], "overlay": False, "overlay_opacity": 0}
+
+
+def _apply_image_background(slide, img_path) -> None:
+    """Add image as full-slide background, behind all other shapes."""
+    pic = slide.shapes.add_picture(str(img_path), Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    sp_tree = slide.shapes._spTree
+    sp_tree.remove(pic._element)
+    sp_tree.insert(2, pic._element)
+
+
+def _add_overlay_rect(slide, left: float, top: float, width: float, height: float, opacity: float) -> None:
+    """Add a semi-transparent black rectangle matching textbox bounds."""
+    from lxml import etree
+    from pptx.oxml.ns import qn
+    rect = slide.shapes.add_shape(1, Inches(left), Inches(top), Inches(width), Inches(height))
+    rect.fill.solid()
+    rect.fill.fore_color.rgb = RGBColor(0, 0, 0)
+    rect.line.fill.background()
+    solidFill = rect.fill._xPr.find('.//' + qn('a:solidFill'))
+    if solidFill is not None:
+        srgbClr = solidFill.find(qn('a:srgbClr'))
+        if srgbClr is not None:
+            etree.SubElement(srgbClr, qn('a:alpha')).set('val', str(int(opacity * 100000)))
+
 
 def apply_dark_background(slide, rgb: RGBColor = _DEFAULT_BG) -> None:
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = rgb
 
 
-def add_centered_textbox(slide, text: str, top: float, height: float, font_size: int, bold: bool):
-    box = slide.shapes.add_textbox(Inches(0.5), Inches(top), Inches(12.333), Inches(height))
+def add_centered_textbox(slide, text: str, top: float, height: float, font_size: int, bold: bool,
+                          font_color: RGBColor = None, overlay: bool = False, overlay_opacity: float = 0.5):
+    if font_color is None:
+        font_color = RGBColor(255, 255, 255)
+    left, width = 0.5, 12.333
+    if overlay:
+        _add_overlay_rect(slide, left, top, width, height, overlay_opacity)
+    box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
     tf = box.text_frame
     tf.clear()
     tf.word_wrap = True
@@ -802,28 +866,46 @@ def add_centered_textbox(slide, text: str, top: float, height: float, font_size:
     run.text = text
     run.font.size = Pt(font_size)
     run.font.bold = bold
-    run.font.color.rgb = RGBColor(255, 255, 255)
+    run.font.name = "Arial"
+    run.font.color.rgb = font_color
     return box
 
 
-def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, item_type: str = "song"):
+def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, item_type: str = "song", song_bg: str = None):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    apply_dark_background(slide, _TYPE_BG.get(item_type, _DEFAULT_BG))
-    add_centered_textbox(slide, title, top=2.5, height=1.5, font_size=54, bold=True)
+    img_path, cfg = _resolve_bg(item_type, song_bg)
+    if img_path:
+        _apply_image_background(slide, img_path)
+    else:
+        apply_dark_background(slide, _TYPE_BG.get(item_type, _DEFAULT_BG))
+    font_color = RGBColor(*cfg["font_color"])
+    overlay = cfg.get("overlay", False)
+    overlay_opacity = cfg.get("overlay_opacity", 0.5)
+    add_centered_textbox(slide, title, top=2.5, height=1.5, font_size=54, bold=True,
+                          font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
     subtitle_parts = []
     if artist:
         subtitle_parts.append(artist)
     if key:
         subtitle_parts.append(f"Key: {key}")
     if subtitle_parts:
-        add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.2, height=1.0, font_size=32, bold=False)
+        add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.2, height=1.0, font_size=32, bold=False,
+                              font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
     return slide
 
 
-def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song"):
+def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    apply_dark_background(slide, _TYPE_BG.get(item_type, _DEFAULT_BG))
-    add_centered_textbox(slide, "\n".join(lines), top=1.5, height=4.5, font_size=48, bold=True)
+    img_path, cfg = _resolve_bg(item_type, song_bg)
+    if img_path:
+        _apply_image_background(slide, img_path)
+    else:
+        apply_dark_background(slide, _TYPE_BG.get(item_type, _DEFAULT_BG))
+    font_color = RGBColor(*cfg["font_color"])
+    overlay = cfg.get("overlay", False)
+    overlay_opacity = cfg.get("overlay_opacity", 0.5)
+    add_centered_textbox(slide, "\n".join(lines), top=1.5, height=4.5, font_size=48, bold=True,
+                          font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
     return slide
 
 
@@ -949,7 +1031,8 @@ def worship_build():
 
     for item in selected_items:
         item_type = item.get("type", "song")
-        create_divider_slide(prs, item.get("title", ""), item.get("artist", ""), item.get("key", ""), item_type)
+        song_bg = item.get("background")
+        create_divider_slide(prs, item.get("title", ""), item.get("artist", ""), item.get("key", ""), item_type, song_bg)
         parts = item.get("parts", {}) or {}
         arrangement = item.get("arrangement", []) or []
         for part_name in arrangement:
@@ -957,7 +1040,7 @@ def worship_build():
             if not isinstance(part_lines, list):
                 continue
             for chunk in chunk_lines(part_lines, max_lines=4):
-                create_content_slide(prs, chunk, item_type)
+                create_content_slide(prs, chunk, item_type, song_bg)
 
     today = datetime.now(timezone.utc).date().isoformat()
     for item in selected_items:
