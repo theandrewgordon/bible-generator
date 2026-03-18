@@ -28,6 +28,10 @@
   .set-note:focus{border-bottom-color:#cbd5e1}
   .set-note::placeholder{color:#94a3b8}
   .lib-row--in-set{background:color-mix(in srgb, var(--primary) 6%, var(--background));border-left:3px solid var(--primary);padding-left:7px}
+  .ws-workspace{display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start}
+  .ws-library-panel{min-width:0}
+  .ws-set-panel{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow-y:auto}
+  @media(max-width:640px){.ws-workspace{display:block}.ws-set-panel{position:static;margin-top:1.5rem;max-height:none;overflow-y:visible}}
 </style>
 {% endblock %}
 
@@ -39,6 +43,9 @@
     + Add Song
   </a>
 </div>
+
+<div class="ws-workspace">
+<div class="ws-library-panel">
 
 <!-- ── Song Library ── -->
 <div>
@@ -81,8 +88,11 @@
 </div>
 {% endif %}
 
+</div>{# end ws-library-panel #}
+<div class="ws-set-panel">
+
 <!-- ── This Week's Set ── -->
-<div class="ws-set-card">
+<div class="ws-set-card" style="margin-top:0">
   <p class="ws-section-label">This Week's Set</p>
 
   <form id="build-form" action="/worship/build" method="post" data-download="1">
@@ -93,7 +103,7 @@
   </form>
 
   <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
-    Add songs from the library above to build your set.
+    Add songs from the library to build your set.
   </p>
 
   <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
@@ -102,6 +112,9 @@
     <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
   </div>
 </div>
+
+</div>{# end ws-set-panel #}
+</div>{# end ws-workspace #}
 
 <script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}
