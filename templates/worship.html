@@ -51,6 +51,7 @@
         {% if song.artist %} — <span class="muted">{{ song.artist }}</span>{% endif %}
         {% if song.key %} <span class="muted small">({{ song.key }})</span>{% endif %}
         {% if song.type and song.type != 'song' %} <span class="muted small">[{{ song.type }}]</span>{% endif %}
+        {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
       </span>
       <button type="button" class="ws-add" data-id="{{ song.id }}">+ Add</button>
       <a href="{{ url_for('worship_edit', song_id=song.id) }}"

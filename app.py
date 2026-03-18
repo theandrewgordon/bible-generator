@@ -958,6 +958,11 @@ def worship_build():
             for chunk in chunk_lines(part_lines, max_lines=4):
                 create_content_slide(prs, chunk, item_type)
 
+    today = datetime.now(timezone.utc).date().isoformat()
+    for item in selected_items:
+        item["last_used"] = today
+        save_worship_song(item)
+
     tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
     prs.save(tmp.name)
     tmp.close()
