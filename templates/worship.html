@@ -38,7 +38,11 @@
 
 <!-- ── Song Library ── -->
 <div>
-  <p class="ws-section-label">Song Library</p>
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+    <p class="ws-section-label" style="margin:0">Song Library</p>
+    <input id="library-search" type="search" placeholder="Search…"
+      style="flex:1;max-width:260px;padding:5px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:.9rem;background:var(--background);color:var(--text)">
+  </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
     <li class="lib-row" data-id="{{ song.id }}">
@@ -291,6 +295,16 @@
         }
       })
       .catch(function () { alert('Save failed.'); });
+  });
+
+  // ── Library search ────────────────────────────────────────────────────────
+
+  document.getElementById('library-search').addEventListener('input', function () {
+    var q = this.value.trim().toLowerCase();
+    libraryEl.querySelectorAll('.lib-row').forEach(function (row) {
+      var title = (SONGS_BY_ID[row.dataset.id] || {}).title || '';
+      row.style.display = (!q || title.toLowerCase().includes(q)) ? '' : 'none';
+    });
   });
 
   // ── Init ──────────────────────────────────────────────────────────────────
