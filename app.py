@@ -1,7 +1,6 @@
 # test08-28-2025
 from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g, after_this_request
 from flask_dance.contrib.google import make_google_blueprint, google
-from flask_session import Session
 from datetime import datetime
 
 import os, json, re, traceback
@@ -166,8 +165,6 @@ if APP_ENV in {"prod", "production"} and not os.getenv("FLASK_SECRET_KEY"):
     raise RuntimeError("FLASK_SECRET_KEY must be set in production")
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-secret")
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
 
 
 # Structured logging to stdout for easier aggregation
