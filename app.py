@@ -701,8 +701,111 @@ def get_worship_song(song_id: str) -> dict | None:
     return None
 
 
+def _canonical_part_key(name: str | None) -> str:
+    raw = str(name or "").strip().lower()
+    if not raw:
+        return ""
+    raw = raw.replace("&", "and")
+    raw = re.sub(r"[^a-z0-9]+", "_", raw).strip("_")
+    alias_map = {
+        "prechorus": "pre_chorus",
+        "pre_chorus_1": "pre_chorus",
+        "pre_chorus_2": "pre_chorus",
+        "chorus_1": "chorus",
+        "chorus_2": "chorus",
+        "chorus_3": "chorus",
+        "refrain": "chorus",
+        "verse_1": "verse1",
+        "verse_2": "verse2",
+        "verse_3": "verse3",
+        "verse_4": "verse4",
+        "bridge_1": "bridge",
+        "bridge_2": "bridge",
+        "tag_1": "tag",
+        "tag_2": "tag",
+        "ending": "outro",
+    }
+    return alias_map.get(raw, raw)
+
+
+_REUSABLE_LYRIC_SHEET_PARTS = {"chorus", "pre_chorus", "bridge", "tag", "refrain"}
+
+
+def normalize_worship_song(song: dict) -> dict:
+    normalized = dict(song or {})
+    title = str(normalized.get("title") or "").strip()
+    normalized["title"] = title
+    normalized["artist"] = str(normalized.get("artist") or "").strip()
+    normalized["key"] = str(normalized.get("key") or "").strip()
+    normalized["type"] = str(normalized.get("type") or "song").strip() or "song"
+    normalized["background"] = str(normalized.get("background") or "").strip()
+    song_id = str(normalized.get("id") or "").strip()
+    if not song_id:
+        song_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "untitled-song"
+    normalized["id"] = song_id
+
+    raw_parts = normalized.get("parts") if isinstance(normalized.get("parts"), dict) else {}
+    parts: dict[str, list[str]] = {}
+    for raw_name, raw_lines in raw_parts.items():
+        part_name = _canonical_part_key(raw_name)
+        if not part_name:
+            continue
+        if isinstance(raw_lines, list):
+            cleaned_lines = [str(line).strip() for line in raw_lines if str(line).strip()]
+        else:
+            cleaned_lines = [str(raw_lines).strip()] if str(raw_lines).strip() else []
+        if not cleaned_lines:
+            continue
+        if part_name in parts:
+            existing = parts[part_name]
+            if existing != cleaned_lines:
+                merged = existing + [line for line in cleaned_lines if line not in existing]
+                parts[part_name] = merged
+        else:
+            parts[part_name] = cleaned_lines
+
+    raw_arrangement = normalized.get("arrangement") if isinstance(normalized.get("arrangement"), list) else []
+    arrangement: list[str] = []
+    for raw_part in raw_arrangement:
+        part_name = _canonical_part_key(raw_part)
+        if part_name and part_name in parts:
+            arrangement.append(part_name)
+
+    if not arrangement:
+        arrangement = list(parts.keys())
+
+    normalized["parts"] = parts
+    normalized["arrangement"] = arrangement
+    return normalized
+
+
+def build_lyric_sheet_blocks(song: dict) -> list[dict]:
+    normalized = normalize_worship_song(song)
+    parts = normalized.get("parts", {}) or {}
+    arrangement = normalized.get("arrangement", []) or []
+    blocks: list[dict] = []
+    seen_parts: set[str] = set()
+    for part_name in arrangement:
+        lines = parts.get(part_name, [])
+        if not lines:
+            continue
+        repeated = part_name in seen_parts
+        reference_only = repeated and part_name in _REUSABLE_LYRIC_SHEET_PARTS
+        blocks.append(
+            {
+                "part": part_name,
+                "label": part_name.replace("_", " ").title(),
+                "lines": [] if reference_only else list(lines),
+                "reference_only": reference_only,
+            }
+        )
+        seen_parts.add(part_name)
+    return blocks
+
+
 def save_worship_song(song: dict) -> None:
     """Persist a song. Firestore when available, local file fallback."""
+    song = normalize_worship_song(song)
     song_id = song["id"]
     if db:
         try:
@@ -1278,19 +1381,12 @@ def worship():
     return render_template('worship.html', songs=songs, setlists=setlists)
 
 
-@app.route("/worship/build", methods=["POST"])
-@login_required
-def worship_build():
-    song_order = request.form.get("song_order", "")
-
-    # song_order is the authoritative source (set by JS drag order).
-    # Fall back to song_ids[] only when song_order is absent (e.g. non-JS submit).
+def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str]) -> list[dict]:
     if song_order:
         raw_ids = [s.strip() for s in song_order.split(",") if s.strip()]
     else:
-        raw_ids = request.form.getlist("song_ids")
+        raw_ids = fallback_song_ids
 
-    # Deduplicate while preserving order
     seen: set = set()
     ordered_ids = []
     for sid in raw_ids:
@@ -1298,18 +1394,65 @@ def worship_build():
             seen.add(sid)
             ordered_ids.append(sid)
 
-    if not ordered_ids:
-        flash("Select at least one item to build a deck.", "warning")
-        return redirect(url_for("worship"))
-
     selected_items = []
     for song_id in ordered_ids:
         song = get_worship_song(song_id)
         if song:
             selected_items.append(song)
+    return selected_items
+
+
+@app.route("/worship/export/lyric-sheet", methods=["POST"])
+@login_required
+def worship_export_lyric_sheet():
+    selected_items = _resolve_selected_worship_items(
+        request.form.get("song_order", ""),
+        request.form.getlist("song_ids"),
+    )
+    if not selected_items:
+        flash("Select at least one item to export a lyric sheet.", "warning")
+        return redirect(url_for("worship"))
+
+    chunks: list[str] = []
+    for item in selected_items:
+        normalized = normalize_worship_song(item)
+        chunks.append(normalized.get("title", "Untitled"))
+        subtitle_bits = []
+        if normalized.get("artist"):
+            subtitle_bits.append(normalized["artist"])
+        if normalized.get("key"):
+            subtitle_bits.append(f"Key: {normalized['key']}")
+        if subtitle_bits:
+            chunks.append(" | ".join(subtitle_bits))
+        chunks.append("")
+        for block in build_lyric_sheet_blocks(normalized):
+            chunks.append(block["label"])
+            if block["reference_only"]:
+                chunks.append("")
+                continue
+            chunks.extend(block["lines"])
+            chunks.append("")
+        chunks.append("")
+
+    payload = "\n".join(chunks).strip() + "\n"
+    return send_file(
+        BytesIO(payload.encode("utf-8")),
+        as_attachment=True,
+        download_name="worship_lyric_sheet.txt",
+        mimetype="text/plain; charset=utf-8",
+    )
+
+
+@app.route("/worship/build", methods=["POST"])
+@login_required
+def worship_build():
+    selected_items = _resolve_selected_worship_items(
+        request.form.get("song_order", ""),
+        request.form.getlist("song_ids"),
+    )
 
     if not selected_items:
-        flash("No valid items were selected.", "warning")
+        flash("Select at least one item to build a deck.", "warning")
         return redirect(url_for("worship"))
 
     prs = Presentation()
@@ -1484,7 +1627,7 @@ Rules:
         # Strip markdown code fences if model wraps the response anyway
         raw_json = re.sub(r"^```[a-z]*\n?", "", raw_json)
         raw_json = re.sub(r"\n?```$", "", raw_json).strip()
-        song = json.loads(raw_json)
+        song = normalize_worship_song(json.loads(raw_json))
     except json.JSONDecodeError as e:
         flash(f"AI returned invalid JSON: {e}", "error")
         return redirect(url_for("worship_add"))
@@ -1561,10 +1704,7 @@ def worship_edit(song_id):
             if lines:
                 parts[name] = lines
 
-        arrangement = [
-            a.strip() for a in arrangement_raw.split(",")
-            if a.strip() and a.strip() in parts
-        ]
+        arrangement = [a.strip() for a in arrangement_raw.split(",") if a.strip()]
 
         song.update({
             "title": title,

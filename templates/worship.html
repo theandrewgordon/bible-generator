@@ -118,9 +118,17 @@
 
   <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
     <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Build Deck</button>
+    <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Export Lyric Sheet</button>
     <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled>Save Setlist</button>
     <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
   </div>
+</div>
+
+<form id="lyric-sheet-form" action="/worship/export/lyric-sheet" method="post" data-download="1" style="display:none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  <div id="lyric-sheet-hidden-inputs"></div>
+  <input type="hidden" name="song_order" id="lyric-song-order-input">
+</form>
 </div>
 
 </div>{# end ws-set-panel #}
@@ -142,8 +150,11 @@
   var setListEl     = document.getElementById('set-list');
   var hiddenInputs  = document.getElementById('set-hidden-inputs');
   var orderInput    = document.getElementById('song-order-input');
+  var lyricHiddenInputs = document.getElementById('lyric-sheet-hidden-inputs');
+  var lyricOrderInput = document.getElementById('lyric-song-order-input');
   var emptyState    = document.getElementById('set-empty');
   var buildBtn      = document.getElementById('build-btn');
+  var lyricBtn      = document.getElementById('lyric-sheet-btn');
   var saveBtn       = document.getElementById('save-setlist-btn');
   var setlistStatus = document.getElementById('setlist-status');
   var libraryEl     = document.getElementById('library-list');
@@ -189,10 +200,12 @@
     var ids = Array.from(setListEl.querySelectorAll('[data-id]'))
       .map(function (el) { return el.dataset.id; });
     orderInput.value = ids.join(',');
-    // Keep hidden song_ids inputs in same order as visual list
+    if (lyricOrderInput) lyricOrderInput.value = ids.join(',');
     ids.forEach(function (id) {
       var inp = hiddenInputs.querySelector('input[data-sid="' + id + '"]');
       if (inp) hiddenInputs.appendChild(inp);
+      var lyricInp = lyricHiddenInputs ? lyricHiddenInputs.querySelector('input[data-sid="' + id + '"]') : null;
+      if (lyricInp && lyricHiddenInputs) lyricHiddenInputs.appendChild(lyricInp);
     });
     saveSetDraft();
   }
@@ -201,6 +214,7 @@
     var hasItems = setListEl.children.length > 0;
     emptyState.style.display = hasItems ? 'none' : 'block';
     buildBtn.disabled = !hasItems;
+    if (lyricBtn) lyricBtn.disabled = !hasItems;
     saveBtn.disabled = !hasItems;
   }
 
@@ -279,6 +293,15 @@
     inp.dataset.sid = id;
     hiddenInputs.appendChild(inp);
 
+    if (lyricHiddenInputs) {
+      var lyricInp = document.createElement('input');
+      lyricInp.type = 'hidden';
+      lyricInp.name = 'song_ids';
+      lyricInp.value = id;
+      lyricInp.dataset.sid = id;
+      lyricHiddenInputs.appendChild(lyricInp);
+    }
+
     markLibrary(id, true);
     syncOrder();
     syncUI();
@@ -289,6 +312,8 @@
     if (li) li.remove();
     var inp = hiddenInputs.querySelector('input[data-sid="' + id + '"]');
     if (inp) inp.remove();
+    var lyricInp = lyricHiddenInputs ? lyricHiddenInputs.querySelector('input[data-sid="' + id + '"]') : null;
+    if (lyricInp) lyricInp.remove();
     delete inSet[id];
     markLibrary(id, false);
     syncOrder();
