@@ -236,6 +236,12 @@ def generate_pdf(data, pdf_path, use_cursive=False):
 
     # Title
     worksheet_title = _pdf_safe_text(data.get("title") or data.get("verse") or "Bible Copywork Worksheet")
+    c.setTitle(worksheet_title)
+    c.setAuthor("Faith Sparks Printables")
+    c.setSubject(f"Bible copywork worksheet for {data.get('verse', '')}")
+    c.setCreator("Faith Sparks Printables")
+    keywords = [worksheet_title, data.get("verse", ""), data.get("version", "").upper(), "Bible", "Copywork"]
+    c.setKeywords(", ".join(filter(None, keywords)))
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2, y - 12, "Bible Copywork Worksheet")
     c.setFont("Helvetica-Bold", 14)

@@ -119,6 +119,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           spellcheck="false"
           enterkeyhint="go"
           aria-describedby="verseHelp"
+          autofocus
         />
         <small id="verseHelp" class="muted">
           Add more than one verse with commas or new lines. We’ll format them.
@@ -141,6 +142,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
             {{ v.split('(')[0].strip() }}
           </button>
           {% endfor %} {% endif %}
+        </div>
+        <div class="muted small" style="margin-top: 0.35rem">
+          New here? Type one verse and press Enter, or tap a quick pick.
         </div>
 
         <div

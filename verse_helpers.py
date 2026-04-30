@@ -127,13 +127,25 @@ Context ({context_label}):
 """}
     ]
 # === GPT Call Wrapper ===
+WORKSHEET_MODEL = os.getenv("OPENAI_WORKSHEET_MODEL", "gpt-4o-mini")
+
+
 def call_openai(prompt):
     """Call OpenAI API with a given prompt."""
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=prompt
-        )
+        try:
+            response = client.chat.completions.create(
+                model=WORKSHEET_MODEL,
+                messages=prompt,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+        except Exception:
+            response = client.chat.completions.create(
+                model=WORKSHEET_MODEL,
+                messages=prompt,
+                temperature=0.1,
+            )
         return response.choices[0].message.content
     except Exception as e:
         print(f"⚠️ OpenAI error: {e}")

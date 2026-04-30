@@ -60,6 +60,10 @@ openai_stub.APIConnectionError = type("APIConnectionError", (Exception,), {})
 openai_stub.APITimeoutError = type("APITimeoutError", (Exception,), {})
 openai_stub.RateLimitError = type("RateLimitError", (Exception,), {})
 sys.modules.setdefault("openai", openai_stub)
+openai_mod = sys.modules["openai"]
+for _name in ("APIConnectionError", "APITimeoutError", "RateLimitError"):
+    if not hasattr(openai_mod, _name):
+        setattr(openai_mod, _name, type(_name, (Exception,), {}))
 
 from faithsparks.services import illustrate
 
