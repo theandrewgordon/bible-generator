@@ -235,9 +235,12 @@ def generate_pdf(data, pdf_path, use_cursive=False):
         c.drawImage(qr_reader, width - margin - logo_size, y - logo_size, width=logo_size, height=logo_size)
 
     # Title
+    worksheet_title = _pdf_safe_text(data.get("title") or data.get("verse") or "Bible Copywork Worksheet")
     c.setFont("Helvetica-Bold", 18)
     c.drawCentredString(width / 2, y - 12, "Bible Copywork Worksheet")
-    y -= logo_size + 10
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(width / 2, y - 30, worksheet_title)
+    y -= logo_size + 16
 
     # Reference line
     verse_display = _pdf_safe_text(f"{data['verse']} ({data['version'].upper()})")
