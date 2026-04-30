@@ -65,7 +65,7 @@
   <input
     id="search"
     type="search"
-    placeholder="Search bundles…"
+    placeholder="Search titles, topics, or use cases…"
     oninput="debounced()"
     aria-label="Search bundles"
     aria-controls="packs"
@@ -118,6 +118,7 @@
     <article
       class="pack-card {{ 'locked' if locked }}"
       data-title="{{ c.title|lower }}"
+      data-search="{{ (c.searchText or c.title)|lower }}"
       data-free="{{ 'true' if c.isFree else 'false' }}"
       data-plus="{{ 'true' if c.isSubscriberOnly else 'false' }}"
       data-count="{{ c.count or (c.verses|length) }}"
@@ -376,7 +377,8 @@
       const isFree = el.dataset.free === "true";
       const isPlus = el.dataset.plus === "true";
       let ok = true;
-      if (q && !title.includes(q)) ok = false;
+      const search = el.dataset.search || title;
+      if (q && !search.includes(q)) ok = false;
       if (tag === "free" && !isFree) ok = false;
       if (tag === "plus" && !isPlus) ok = false;
       el.hidden = !ok;
@@ -401,7 +403,7 @@
       div.className = "empty-state muted small";
       div.setAttribute("role", "status");
       div.setAttribute("aria-live", "polite");
-      div.textContent = "No matches. Clear filters to see all collections.";
+      div.textContent = "No matches. Try a different title, topic, or use case.";
       grid.appendChild(div);
     }
   }

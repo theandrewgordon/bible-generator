@@ -477,6 +477,17 @@ def generate():
 
         update_zip_bundle(bundle_files)
         try:
+            current_app.logger.info(
+                "worksheets.generate summary requested=%s success=%s skipped=%s free_skips=%s collection=%s",
+                len(items_to_generate),
+                success_count,
+                len(items_to_generate) - success_count,
+                free_skip_count,
+                from_collection or "direct",
+            )
+        except Exception:
+            pass
+        try:
             if not free_skip_count and not is_daily_proverb:
                 _update_usage(user_email, success_count)
         except Exception:

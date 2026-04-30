@@ -80,6 +80,41 @@ _GAME_TITLES = {
 _GAME_TYPES = {"match-the-verse": "match", "word-search-psalms": "word-search"}
 
 
+def _display_title(slug: str, title: str | None) -> str:
+    if title and title.strip():
+        return title.strip()
+    return slug.replace("-", " ").title() if slug else ""
+
+
+def _search_text(*parts) -> str:
+    values = []
+    for part in parts:
+        if isinstance(part, (list, tuple, set)):
+            values.extend(str(item) for item in part if item)
+        elif part:
+            values.append(str(part))
+    return " ".join(values).strip().lower()
+
+
+def _normalize_collection_shape(meta: dict) -> dict:
+    slug = meta.get("slug") or ""
+    title = _display_title(slug, meta.get("title"))
+    verses = meta.get("verses") or []
+    meta["title"] = title
+    meta["displayTitle"] = title
+    meta["count"] = len(verses)
+    meta["searchText"] = _search_text(
+        title,
+        meta.get("description", ""),
+        meta.get("theme", ""),
+        meta.get("skills") or [],
+        meta.get("useCases") or [],
+        verses,
+        meta.get("gameType", ""),
+    )
+    return meta
+
+
 def _apply_bundle_defaults(meta: dict) -> dict:
     slug = meta.get("slug")
     defaults = _BUNDLE_DEFAULTS.get(slug, {})
@@ -99,7 +134,7 @@ def _apply_bundle_defaults(meta: dict) -> dict:
         if not meta.get("previewImages") and defaults.get("previewImages"):
             meta["previewImages"] = list(defaults["previewImages"])
         meta["previewImages"] = _normalize_preview_images(meta.get("previewImages") or [])
-        return meta
+        return _normalize_collection_shape(meta)
     if not meta.get("ageRange") and defaults.get("ageRange"):
         meta["ageRange"] = defaults["ageRange"]
     if not meta.get("skills") and defaults.get("skills"):
@@ -109,7 +144,7 @@ def _apply_bundle_defaults(meta: dict) -> dict:
     if not meta.get("previewImages") and defaults.get("previewImages"):
         meta["previewImages"] = list(defaults["previewImages"])
     meta["previewImages"] = _normalize_preview_images(meta.get("previewImages") or [])
-    return meta
+    return _normalize_collection_shape(meta)
 
 
 def _normalize_preview_images(items: list[str]) -> list[str]:

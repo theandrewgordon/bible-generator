@@ -44,16 +44,18 @@ def browse():
     is_admin = _is_admin_email(session.get("user_email"))
     col_items = get_collections(show_all=is_admin)
     col_items = [c for c in col_items if (c.get("kind") or "bundle") == "bundle"]
-    col_items.sort(key=lambda c: (int(c.get("order") or 9999), c.get("title", "")))
+    col_items.sort(key=lambda c: (int(c.get("order") or 9999), c.get("displayTitle") or c.get("title", "")))
     collections = [
         {
             "slug": c["slug"],
-            "title": c["title"],
-            "count": len(c["verses"]),
+            "title": c.get("displayTitle") or c["title"],
+            "displayTitle": c.get("displayTitle") or c["title"],
+            "count": c.get("count") or len(c["verses"]),
             "zipUrl": c.get("zipUrl"),
             "isFree": c.get("isFree"),
             "isSubscriberOnly": c.get("isSubscriberOnly"),
             "priceId": c.get("priceId"),
+            "searchText": c.get("searchText") or "",
         }
         for c in col_items
     ]
@@ -85,7 +87,7 @@ def browse():
                 for slug, cnt in sorted_slugs[:6]:
                     meta = by_slug.get(slug)
                     if meta:
-                        top_packs.append({"slug": slug, "title": meta["title"], "downloads": cnt, "zipUrl": meta.get("zipUrl"), "isFree": meta.get("isFree")})
+                        top_packs.append({"slug": slug, "title": meta.get("displayTitle") or meta["title"], "downloads": cnt, "zipUrl": meta.get("zipUrl"), "isFree": meta.get("isFree"), "count": meta.get("count") or len(meta.get("verses") or [])})
         except Exception:
             pass
         try:
@@ -103,7 +105,7 @@ def browse():
             for slug, cnt in sorted_slugs[:6]:
                 meta = by_slug.get(slug)
                 if meta:
-                    top_packs_week.append({"slug": slug, "title": meta["title"], "downloads": cnt, "zipUrl": meta.get("zipUrl"), "isFree": meta.get("isFree")})
+                    top_packs_week.append({"slug": slug, "title": meta.get("displayTitle") or meta["title"], "downloads": cnt, "zipUrl": meta.get("zipUrl"), "isFree": meta.get("isFree"), "count": meta.get("count") or len(meta.get("verses") or [])})
         except Exception:
             pass
     purchases = {}
