@@ -64,6 +64,7 @@ def build_prompt(verse_ref, version):
         {"role": "system", "content": "You help Christian homeschoolers create Bible worksheets."},
         {"role": "user", "content": f"""
 Return valid JSON with:
+- "title": a short display title for the worksheet, using the normalized verse reference.
 - "verse": the reference
 - "fullVerse": full Bible verse from the {version.upper()} version (no reference, capitalize first letter, full sentence).
 - "traceableVerse": If fullVerse has 26 words or fewer, return it exactly. If longer, return the most important self-contained 27-word-or-less excerpt that preserves the spiritual message.
@@ -138,15 +139,36 @@ def call_openai(prompt):
         print(f"⚠️ OpenAI error: {e}")
         return None
 
+
+def normalize_verse_data(data, verse_ref: str, version: str):
+    """Fill in required worksheet fields without mutating saved raw values."""
+    normalized = dict(data or {})
+    verse_ref = normalize_reference_title(verse_ref)
+    normalized["verse"] = preserve_letter_suffix(verse_ref, normalized.get("verse") or verse_ref)
+    normalized["version"] = (normalized.get("version") or version or "esv").strip().lower()
+    normalized["title"] = (normalized.get("title") or normalize_reference_title(normalized["verse"])).strip()
+    normalized["fullVerse"] = (normalized.get("fullVerse") or "").strip()
+    normalized["traceableVerse"] = (normalized.get("traceableVerse") or normalized["fullVerse"]).strip()
+    normalized["handwritingLines"] = int(normalized.get("handwritingLines") or 3)
+    normalized["reflectionQuestion"] = (normalized.get("reflectionQuestion") or "Why is this meaningful to you?").strip()
+    normalized["imageIdea"] = (normalized.get("imageIdea") or "An open Bible or prayer hands").strip()
+    return normalized
+
+
 # === Request Verse Data ===
 def request_verse_data(verse_ref, version="esv"):
     """Request worksheet data from OpenAI, retrying once if needed."""
     prompt = build_prompt(verse_ref, version)
-    content = call_openai(prompt)
-    if content:
-        return content
-    print("🔁 Retrying OpenAI call...")
-    return call_openai(prompt)
+
+    for attempt in range(2):
+        content = call_openai(prompt)
+        if not content:
+            continue
+        data = parse_and_clean_json(content)
+        if data:
+            return json.dumps(normalize_verse_data(data, verse_ref, version), ensure_ascii=False)
+
+    return None
 
 
 def request_verse_meaning(verse_ref, full_verse, version="esv", min_words: int = 6, max_words: int = 10):

@@ -27,6 +27,7 @@ from verse_helpers import (
     save_json_to_file,
     ai_validate_custom_text,
     normalize_reference_title,
+    normalize_verse_data,
     preserve_letter_suffix,
 )
 from build_pdf import generate_pdf
@@ -1958,17 +1959,21 @@ def generate():
                     continue
 
             if is_custom:
-                data = {
-                    "verse": verse,
-                    "fullVerse": text,
-                    "traceableVerse": text,
-                    "handwritingLines": 3,
-                    "reflectionQuestion": "Why is this meaningful to you?",
-                    "imageIdea": custom_prompt,
-                    "version": "DIY",
-                    "cursive": use_cursive,
-                    "disclaimer": "This content was submitted by the user and not verified as Scripture."
-                }
+                data = normalize_verse_data(
+                    {
+                        "verse": verse,
+                        "fullVerse": text,
+                        "traceableVerse": text,
+                        "handwritingLines": 3,
+                        "reflectionQuestion": "Why is this meaningful to you?",
+                        "imageIdea": custom_prompt,
+                        "version": "DIY",
+                        "cursive": use_cursive,
+                        "disclaimer": "This content was submitted by the user and not verified as Scripture."
+                    },
+                    verse,
+                    "DIY",
+                )
             else:
                 # Try cache by input slug first
                 cached = db.collection("verse_cache").document(f"{input_slug}_{version}").get() if db else None
@@ -1980,6 +1985,7 @@ def generate():
                         flash(f"Verse fetch failed for {verse} ({version})", "error")
                         continue
                     data = parse_and_clean_json(content)
+                    data = normalize_verse_data(data, verse, version)
                     data.update({"version": version, "cursive": use_cursive})
                     # Save cache under canonical reference slug if available
                     canonical_ref = data.get("verse") or verse
@@ -2003,8 +2009,7 @@ def generate():
                     data["verse"] = verse
                 # Preserve letter suffix from user input even if the model drops it.
                 data["verse"] = preserve_letter_suffix(verse, data.get("verse"))
-                if not data.get("version"):
-                    data["version"] = version
+                data = normalize_verse_data(data, verse, version)
                 if not data.get("fullVerse"):
                     flash(f"AI response missing fullVerse for {verse} ({version}); skipping.", "warning")
                     continue

@@ -2,6 +2,7 @@ import os
 import json
 from pathlib import Path
 from build_pdf import generate_pdf
+from verse_helpers import normalize_verse_data
 import zipfile
 
 
@@ -40,6 +41,7 @@ def process_file(json_file):
             print(f"❌ Both are too long in {json_file.name}. Please regenerate manually.")
 
     use_cursive = data.get("cursive", True)  # Default to True if not specified
+    data = normalize_verse_data(data, data.get("verse") or slug, data.get("version") or "esv")
     generate_pdf(data, str(pdf_path), use_cursive=use_cursive)
     print(f"✅ Saved: {pdf_path.name}")
 

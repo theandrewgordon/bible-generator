@@ -26,6 +26,7 @@ from verse_helpers import (
     save_json_to_file,
     ai_validate_custom_text,
     normalize_reference_title,
+    normalize_verse_data,
     preserve_letter_suffix,
 )
 from build_pdf import generate_pdf
@@ -356,16 +357,20 @@ def generate():
                         pass
 
                 if is_custom:
-                    context["data"] = {
-                        "verse": verse,
-                        "fullVerse": text,
-                        "traceableVerse": text,
-                        "handwritingLines": 3,
-                        "reflectionQuestion": "Why is this meaningful to you?",
-                        "imageIdea": custom_prompt or "An open Bible or prayer hands",
-                        "version": "DIY",
-                        "cursive": use_cursive,
-                    }
+                    context["data"] = normalize_verse_data(
+                        {
+                            "verse": verse,
+                            "fullVerse": text,
+                            "traceableVerse": text,
+                            "handwritingLines": 3,
+                            "reflectionQuestion": "Why is this meaningful to you?",
+                            "imageIdea": custom_prompt or "An open Bible or prayer hands",
+                            "version": "DIY",
+                            "cursive": use_cursive,
+                        },
+                        verse,
+                        "DIY",
+                    )
                 else:
                     need_fetch.append(context)
 
@@ -386,7 +391,7 @@ def generate():
                         if not data:
                             ctx["error"] = f"Could not fetch verse for {ctx['verse']} ({ctx['version']})."
                             continue
-                        ctx["data"] = data
+                        ctx["data"] = normalize_verse_data(data, ctx["verse"], ctx["version"])
 
             for ctx in contexts:
                 if ctx.get("skip"):
@@ -405,8 +410,7 @@ def generate():
                         data["verse"] = ctx["verse"]
                     # Keep any letter suffix from the user input even if the model drops it.
                     data["verse"] = preserve_letter_suffix(ctx["verse"], data.get("verse"))
-                    if not data.get("version"):
-                        data["version"] = ctx["version"]
+                    data = normalize_verse_data(data, ctx["verse"], ctx["version"])
                     data["cursive"] = use_cursive
                     if not data.get("fullVerse"):
                         flash(

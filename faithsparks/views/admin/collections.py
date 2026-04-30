@@ -22,7 +22,7 @@ from faithsparks.services.storage import upload_to_storage
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.util.slug import normalize_slug
 from faithsparks.views.worksheets import extract_version_from_text
-from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file
+from verse_helpers import request_verse_data, parse_and_clean_json, save_json_to_file, normalize_verse_data
 from build_pdf import generate_pdf
 
 
@@ -364,6 +364,7 @@ def admin_prewarm_pack(slug):
                         data = parse_and_clean_json(content)
                         if not data or not data.get("fullVerse"):
                             continue
+                        data = normalize_verse_data(data, verse, version_up)
                         data.update({"version": version_up, "cursive": use_cursive})
                         db.collection("verse_cache").document(f"{input_slug}_{version_up}").set(
                             {
