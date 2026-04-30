@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Faith Sparks Copilot | Lesson Pack Builder{% endblock %}
+
+{% block content %}
+<section class="lesson-pack">
+  <div class="lesson-pack__hero">
+    <p class="kicker">Faith Sparks Copilot</p>
+    <h1 class="page-title">Build a full Bible lesson pack from one verse</h1>
+    <p class="muted">
+      One verse in. A worksheet, coloring page, word search, and parent guide out.
+      The theme is inferred automatically.
+    </p>
+
+    <form method="post" class="lesson-pack__form">
+      <label>
+        Verse reference
+        <input type="text" name="verse" value="{{ verse_prefill }}" placeholder="John 3:16" autofocus />
+      </label>
+
+      <div class="lesson-pack__grid">
+        <label>
+          Version
+          <select name="version" data-version-select>
+            <option value="nlt">NLT</option>
+            <option value="esv">ESV</option>
+            <option value="kjv">KJV</option>
+          </select>
+        </label>
+
+        <label>
+          Age range
+          <select name="age_bracket" data-age-select>
+            <option value="3-5">3–5</option>
+            <option value="6-8">6–8</option>
+            <option value="9-10">9–10</option>
+            <option value="10+">10+</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="lesson-pack__checkbox">
+        <input type="checkbox" name="use_cursive" data-cursive-check />
+        Use cursive tracing on the worksheet
+      </label>
+
+      <div class="cta-row">
+        <button class="button primary" type="submit">Build my pack</button>
+        <a class="button ghost" href="{{ url_for('generate') }}">Just make a worksheet</a>
+      </div>
+    </form>
+
+    <div class="lesson-pack__quick">
+      {% if proverb_of_day %}
+      <a class="button ghost" href="{{ url_for('public.lesson_pack', verse=proverb_of_day.verse_param) }}">
+        Use today’s proverb: {{ proverb_of_day.reference }}
+      </a>
+      {% endif %}
+      <a class="button ghost" href="{{ url_for('start_here') }}">Back to start</a>
+    </div>
+  </div>
+
+  <div class="lesson-pack__card">
+    <h2>What’s inside</h2>
+    <ul>
+      <li>Worksheet with tracing and reflection</li>
+      <li>Coloring page generated from the verse</li>
+      <li>Word search built from the theme</li>
+      <li>Parent guide with a 5-day mini plan</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+  .lesson-pack {
+    display: grid;
+    gap: 1rem;
+    max-width: 860px;
+  }
+  .lesson-pack__hero,
+  .lesson-pack__card {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--box);
+    border-radius: 18px;
+    padding: 1.1rem;
+    box-shadow: var(--card-shadow);
+  }
+  .kicker {
+    display: inline-flex;
+    margin: 0 0 0.4rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(14, 165, 233, 0.12);
+    color: var(--primary-dark);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .lesson-pack__form {
+    display: grid;
+    gap: 0.9rem;
+    margin-top: 1rem;
+  }
+  .lesson-pack__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.9rem;
+  }
+  .lesson-pack__checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .lesson-pack__quick {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+  .lesson-pack input[type="text"],
+  .lesson-pack select {
+    width: 100%;
+    padding: 0.8rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #fff;
+  }
+  .lesson-pack label {
+    display: grid;
+    gap: 0.35rem;
+    font-weight: 600;
+  }
+  .lesson-pack ul {
+    margin: 0.5rem 0 0;
+    padding-left: 1.2rem;
+  }
+</style>
+
+<script>
+  (function () {
+    const versionSelect = document.querySelector('[data-version-select]');
+    const ageSelect = document.querySelector('[data-age-select]');
+    const cursiveCheck = document.querySelector('[data-cursive-check]');
+    if (versionSelect) {
+      versionSelect.value = localStorage.getItem('preferredVersion') || '{{ version_prefill }}';
+      versionSelect.addEventListener('change', () => localStorage.setItem('preferredVersion', versionSelect.value));
+    }
+    if (ageSelect) {
+      ageSelect.value = localStorage.getItem('lessonPackAge') || '{{ age_prefill }}';
+      ageSelect.addEventListener('change', () => localStorage.setItem('lessonPackAge', ageSelect.value));
+    }
+    if (cursiveCheck) {
+      cursiveCheck.checked = localStorage.getItem('lessonPackCursive') === '1';
+      cursiveCheck.addEventListener('change', () => localStorage.setItem('lessonPackCursive', cursiveCheck.checked ? '1' : '0'));
+    }
+  })();
+</script>
+{% endblock %}

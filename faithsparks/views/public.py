@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, session, Response
+from flask import Blueprint, render_template, redirect, url_for, session, Response, request, flash, send_file
 from flask_dance.contrib.google import google
 from faithsparks.util.proverb import get_proverb_of_day
 from faithsparks.services.collections import get_collections
+from faithsparks.services.lesson_pack import create_lesson_pack
 
 
 bp = Blueprint('public', __name__)
@@ -33,6 +34,45 @@ def start_here():
         'start_here.html',
         proverb_of_day=get_proverb_of_day(),
         game_of_week=_get_game_of_week(),
+    )
+
+
+@bp.route('/lesson-pack', methods=['GET', 'POST'])
+def lesson_pack():
+    if request.method == 'GET':
+        return render_template(
+            'lesson_pack.html',
+            verse_prefill=(request.args.get('verse') or '').strip(),
+            version_prefill=(request.args.get('version') or 'nlt').strip().lower(),
+            age_prefill=(request.args.get('age') or '6-8').strip(),
+            proverb_of_day=get_proverb_of_day(),
+        )
+
+    verse_input = (request.form.get('verse') or '').strip()
+    version = (request.form.get('version') or 'nlt').strip().lower()
+    age_bracket = (request.form.get('age_bracket') or '6-8').strip()
+    use_cursive = (request.form.get('use_cursive') or '').lower() in {'1', 'true', 'yes', 'on'}
+    if not verse_input:
+        flash('Please enter a verse reference.', 'warning')
+        return redirect(url_for('public.lesson_pack'))
+
+    try:
+        result = create_lesson_pack(
+            user_email=session.get('user_email', 'anonymous'),
+            verse_input=verse_input,
+            version=version,
+            age_bracket=age_bracket,
+            use_cursive=use_cursive,
+        )
+    except Exception as exc:
+        flash(str(exc), 'warning')
+        return redirect(url_for('public.lesson_pack', verse=verse_input, version=version, age=age_bracket))
+
+    return send_file(
+        result['zip_path'],
+        as_attachment=True,
+        download_name=f"{result['slug']}.zip",
+        mimetype='application/zip',
     )
 
 
