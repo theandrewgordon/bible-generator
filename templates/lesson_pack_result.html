@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Faith Sparks Copilot | Pack Ready{% endblock %}
+
+{% block content %}
+<section class="lesson-pack">
+  <div class="lesson-pack__hero">
+    <p class="kicker">Faith Sparks Copilot</p>
+    <h1 class="page-title">Your lesson pack is ready</h1>
+    <p class="muted">{{ title }}</p>
+
+    <div class="lpr-actions">
+      <a class="button primary" href="{{ url_for('public.lesson_pack_download', slug=slug) }}">
+        Download pack (.zip)
+      </a>
+      <a class="button ghost" href="{{ url_for('public.lesson_pack') }}">Build another</a>
+    </div>
+
+    <div class="lpr-contents card flat mt-4">
+      <div class="settings-owner-section-title" style="font-size:0.9rem;font-weight:700;margin-bottom:0.5rem;">What's inside</div>
+      <ul>
+        <li>Worksheet with tracing and reflection</li>
+        {% if has_coloring %}<li>Coloring page</li>{% endif %}
+        <li>Word search built from the theme</li>
+        <li>Parent guide with a 5-day mini plan</li>
+        <li>Manifest (JSON)</li>
+      </ul>
+      <p class="field-hint mt-2">The download link stays active until the server restarts. Bookmark this page or download now.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+  .lesson-pack {
+    display: grid;
+    gap: 1rem;
+    max-width: 860px;
+  }
+  .lesson-pack__hero {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--box);
+    border-radius: 18px;
+    padding: 1.1rem;
+    box-shadow: var(--card-shadow);
+  }
+  .lpr-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1.25rem;
+  }
+  .lpr-contents {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    padding: 1rem;
+    background: var(--box);
+  }
+  .lpr-contents ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.2rem;
+  }
+  .kicker {
+    display: inline-flex;
+    margin: 0 0 0.4rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(14, 165, 233, 0.12);
+    color: var(--primary-dark);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .mt-2 { margin-top: 0.5rem; }
+  .mt-4 { margin-top: 1rem; }
+  .field-hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0;
+  }
+  .flat {
+    box-shadow: none;
+  }
+</style>
+
+<script>
+  // Auto-trigger the download once on page load
+  (function () {
+    const a = document.createElement('a');
+    a.href = {{ url_for('public.lesson_pack_download', slug=slug) | tojson }};
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  })();
+</script>
+{% endblock %}

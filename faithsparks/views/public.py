@@ -1,4 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, session, Response, request, flash, send_file
+import re
+from pathlib import Path
+
+from flask import Blueprint, render_template, redirect, url_for, session, Response, request, flash, send_file, abort
 from flask_dance.contrib.google import google
 from faithsparks.util.proverb import get_proverb_of_day
 from faithsparks.services.collections import get_collections
@@ -68,10 +71,38 @@ def lesson_pack():
         flash(str(exc), 'warning')
         return redirect(url_for('public.lesson_pack', verse=verse_input, version=version, age=age_bracket))
 
+    return redirect(url_for('public.lesson_pack_result', slug=result['slug']))
+
+
+@bp.route('/lesson-pack/result/<slug>')
+def lesson_pack_result(slug):
+    # Sanitize slug — only allow safe filesystem characters
+    if not re.fullmatch(r'[a-z0-9\-]+', slug):
+        abort(404)
+    zip_path = Path('output') / 'lesson_packs' / slug / f'{slug}.zip'
+    if not zip_path.exists():
+        flash('That pack is no longer available — packs are kept until the server restarts. Build a new one below.', 'warning')
+        return redirect(url_for('public.lesson_pack'))
+    title = slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
+    return render_template(
+        'lesson_pack_result.html',
+        slug=slug,
+        title=title,
+        has_coloring=(zip_path.stat().st_size > 50_000),  # rough proxy
+    )
+
+
+@bp.route('/lesson-pack/download/<slug>')
+def lesson_pack_download(slug):
+    if not re.fullmatch(r'[a-z0-9\-]+', slug):
+        abort(404)
+    zip_path = Path('output') / 'lesson_packs' / slug / f'{slug}.zip'
+    if not zip_path.exists():
+        abort(404)
     return send_file(
-        result['zip_path'],
+        zip_path,
         as_attachment=True,
-        download_name=f"{result['slug']}.zip",
+        download_name=f'{slug}.zip',
         mimetype='application/zip',
     )
 
