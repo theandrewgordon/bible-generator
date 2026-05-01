@@ -74,6 +74,36 @@ endblock %} {% block content %}
   </ul>
 </section>
 {% endif %}
+{% if lesson_packs %}
+<section class="card-lite" style="margin-bottom: 1rem;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
+    <div>
+      <h3 style="margin:0;">Lesson packs</h3>
+      <p class="muted small" style="margin:0;">Your generated packs show up here too.</p>
+    </div>
+    <a class="button ghost mobile-hide" href="{{ url_for('public.lesson_pack') }}">Build a new pack</a>
+  </div>
+  <ul class="cards" style="margin-top:0.75rem;">
+    {% for pack in lesson_packs %}
+    <li class="card" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+      <div>
+        <div class="title">{{ pack.title }}</div>
+        <div class="meta small muted">
+          {{ pack.verse }} • {{ pack.version }}{% if pack.age_bracket %} • Ages {{ pack.age_bracket }}{% endif %}
+        </div>
+        <div class="meta small muted">
+          Created {{ pack.timestamp.strftime('%Y-%m-%d %H:%M') if pack.timestamp else '' }}
+        </div>
+      </div>
+      <div class="actions" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <a class="button ghost" href="{{ url_for('public.lesson_pack_result', slug=pack.slug) }}">View</a>
+        <a class="button" href="{{ url_for('public.lesson_pack_download', slug=pack.slug) }}">Download zip</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 <div class="history-full" hidden>
 <div class="toolbar">

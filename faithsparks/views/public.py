@@ -6,6 +6,7 @@ from flask_dance.contrib.google import google
 from faithsparks.util.proverb import get_proverb_of_day
 from faithsparks.services.collections import get_collections
 from faithsparks.services.lesson_pack import create_lesson_pack
+from faithsparks.services.firestore import db
 
 
 bp = Blueprint('public', __name__)
@@ -84,6 +85,14 @@ def lesson_pack_result(slug):
         flash('That pack is no longer available — packs are kept until the server restarts. Build a new one below.', 'warning')
         return redirect(url_for('public.lesson_pack'))
     title = slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
+    if db:
+        try:
+            doc = db.collection('lesson_packs').document(slug).get()
+            if doc.exists:
+                data = doc.to_dict() or {}
+                title = data.get('title') or title
+        except Exception:
+            pass
     return render_template(
         'lesson_pack_result.html',
         slug=slug,

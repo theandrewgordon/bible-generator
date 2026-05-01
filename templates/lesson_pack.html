@@ -15,7 +15,8 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <label>
         Verse reference
-        <input type="text" name="verse" value="{{ verse_prefill }}" placeholder="John 3:16" autofocus />
+        <input type="text" name="verse" value="{{ verse_prefill }}" placeholder="Enter a verse reference" autofocus />
+        <span class="muted small">Example: John 3:16</span>
       </label>
 
       <div class="lesson-pack__grid">

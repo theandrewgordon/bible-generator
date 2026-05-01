@@ -592,6 +592,28 @@ def history():
             .stream()
         )
         history_items = [doc.to_dict() | {"timestamp": doc.get("timestamp")} for doc in docs]
+
+        lesson_pack_items = []
+        try:
+            pack_docs = (
+                db.collection("lesson_packs")
+                .where(filter=firestore.FieldFilter("email", "==", user_email))
+                .order_by("timestamp", direction=firestore.Query.DESCENDING)
+                .stream()
+            )
+        except Exception:
+            pack_docs = (
+                db.collection("lesson_packs")
+                .where(filter=firestore.FieldFilter("email", "==", user_email))
+                .stream()
+            )
+        for d in pack_docs:
+            data = d.to_dict() or {}
+            data["slug"] = data.get("slug") or d.id
+            data["title"] = data.get("title") or d.id
+            data["timestamp"] = data.get("timestamp")
+            lesson_pack_items.append(data)
+
         purchases = []
         try:
             purchase_docs = (
@@ -616,6 +638,7 @@ def history():
         return render_template(
             "history.html",
             history=history_items,
+            lesson_packs=lesson_pack_items,
             purchases=purchases,
             email=user_email,
             proverb_of_day=get_proverb_of_day(),

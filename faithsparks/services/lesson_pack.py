@@ -3,7 +3,16 @@ from __future__ import annotations
 import json
 import re
 import zipfile
+from html import escape
 from pathlib import Path
+
+from firebase_admin import firestore
+from faithsparks.services.firestore import db
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from verse_helpers import (
     fetch_passage_text,
@@ -125,7 +134,109 @@ def _build_parent_guide(
         "Print tip:",
         "Use the worksheet first, then the coloring page, then the word search as a review.",
     ]
-    return "\n".join(lines).strip() + "\n"
+    return "\\n".join(lines).strip() + "\\n"
+
+
+def _write_parent_guide_pdf(
+    pdf_path: Path,
+    *,
+    title: str,
+    verse: str,
+    version: str,
+    meaning: str,
+    age_bracket: str,
+    theme_label: str,
+    words: list[str],
+) -> None:
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "LessonPackTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        leading=24,
+        alignment=TA_CENTER,
+        spaceAfter=12,
+    )
+    subtitle_style = ParagraphStyle(
+        "LessonPackSubtitle",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=10.5,
+        leading=14,
+        textColor="#4B5563",
+        spaceAfter=8,
+    )
+    section_style = ParagraphStyle(
+        "LessonPackSection",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=12.5,
+        leading=16,
+        textColor="#111827",
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+    body_style = ParagraphStyle(
+        "LessonPackBody",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=10.5,
+        leading=14,
+        spaceAfter=4,
+    )
+    small_style = ParagraphStyle(
+        "LessonPackSmall",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=9.5,
+        leading=12,
+        textColor="#6B7280",
+        spaceAfter=4,
+    )
+
+    def p(text: str) -> Paragraph:
+        return Paragraph(escape((text or "").replace("\n", "<br/>")), body_style)
+
+    def bullet(text: str) -> Paragraph:
+        return Paragraph(f"&bull; {escape(text)}", body_style)
+
+    big_idea = meaning.strip() or f"Talk about {theme_label.lower()} and how God shows it here."
+    prompt_words = ", ".join(words[:6]) if words else theme_label
+
+    story = [
+        Paragraph(escape(title), title_style),
+        Paragraph(escape(f"Verse: {verse} ({version.upper()})"), subtitle_style),
+        Paragraph(escape(f"Age focus: {age_bracket or 'mixed ages'}"), subtitle_style),
+        Spacer(1, 0.12 * inch),
+        Paragraph("Big idea", section_style),
+        p(big_idea),
+        Paragraph("5-day mini plan", section_style),
+        bullet("Day 1 — Read it together and underline the key word."),
+        bullet("Day 2 — Ask: What does this show us about God?"),
+        bullet("Day 3 — Pray the verse back to God in simple words."),
+        bullet("Day 4 — Do one tiny action that matches the verse."),
+        bullet("Day 5 — Recite it, then choose your favorite page from the pack."),
+        Paragraph("Quick talk prompts", section_style),
+        bullet(f"Which words should we notice: {prompt_words}"),
+        bullet("How would you explain this to a friend?"),
+        bullet("What can we do today that fits this verse?"),
+        Paragraph("Print tip", section_style),
+        p("Use the worksheet first, then the coloring page, then the word search as a review."),
+        Spacer(1, 0.08 * inch),
+        Paragraph(escape("Built for easy parent-led use."), small_style),
+    ]
+    doc = SimpleDocTemplate(
+        str(pdf_path),
+        pagesize=letter,
+        leftMargin=0.75 * inch,
+        rightMargin=0.75 * inch,
+        topMargin=0.7 * inch,
+        bottomMargin=0.7 * inch,
+        title=title,
+        author="Faith Sparks Printables",
+    )
+    doc.build(story)
 
 
 def create_lesson_pack(
@@ -196,7 +307,9 @@ def create_lesson_pack(
         scripture_versions=[normalized["version"].upper()],
     )
 
-    guide_text = _build_parent_guide(
+    guide_pdf = pack_dir / f"{slug}-parent-guide.pdf"
+    _write_parent_guide_pdf(
+        guide_pdf,
         title=pack_title,
         verse=normalized["verse"],
         version=normalized["version"],
@@ -205,10 +318,8 @@ def create_lesson_pack(
         theme_label=theme_label,
         words=word_search_words,
     )
-    guide_txt = pack_dir / f"{slug}-parent-guide.txt"
-    guide_txt.write_text(guide_text, encoding="utf-8")
 
-    _coloring_files = [p.name for p in [coloring_pdf, coloring_png] if p]
+    _coloring_files = [p.name for p in [coloring_pdf] if p]
     manifest = {
         "title": pack_title,
         "theme": theme_label,
@@ -216,16 +327,39 @@ def create_lesson_pack(
         "version": normalized["version"],
         "ageBracket": age_bracket,
         "useCursive": bool(use_cursive),
-        "files": [worksheet_pdf.name, *_coloring_files, word_search_pdf.name, guide_txt.name],
+        "files": [worksheet_pdf.name, *_coloring_files, word_search_pdf.name, guide_pdf.name],
     }
     manifest_json = pack_dir / f"{slug}-manifest.json"
     manifest_json.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
     zip_path = pack_dir / f"{slug}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for path in [worksheet_pdf, coloring_pdf, coloring_png, word_search_pdf, guide_txt, manifest_json]:
+        for path in [worksheet_pdf, coloring_pdf, word_search_pdf, guide_pdf]:
             if path and path.exists():
                 zf.write(path, arcname=path.name)
+
+    if db:
+        try:
+            db.collection("lesson_packs").document(slug).set(
+                {
+                    "email": user_email or "anonymous",
+                    "slug": slug,
+                    "title": pack_title,
+                    "theme": theme_label,
+                    "verse": normalized["verse"],
+                    "version": normalized["version"].upper(),
+                    "age_bracket": age_bracket,
+                    "use_cursive": bool(use_cursive),
+                    "zip_filename": f"{slug}.zip",
+                    "zip_path": str(zip_path),
+                    "created_at": firestore.SERVER_TIMESTAMP,
+                    "timestamp": firestore.SERVER_TIMESTAMP,
+                    "type": "lesson_pack",
+                },
+                merge=True,
+            )
+        except Exception:
+            pass
 
     return {
         "slug": slug,
@@ -239,7 +373,7 @@ def create_lesson_pack(
         "coloring_pdf": str(coloring_pdf) if coloring_pdf else None,
         "coloring_png": str(coloring_png) if coloring_png else None,
         "word_search_pdf": str(word_search_pdf),
-        "guide_txt": str(guide_txt),
+        "guide_pdf": str(guide_pdf),
         "manifest_json": str(manifest_json),
         "zip_path": str(zip_path),
         "word_search_words": word_search_words,

@@ -13,6 +13,7 @@
         Download pack (.zip)
       </a>
       <a class="button ghost" href="{{ url_for('public.lesson_pack') }}">Build another</a>
+      <a class="button ghost" href="{{ url_for('prints') }}">See in My Prints</a>
     </div>
 
     <div class="lpr-contents card flat mt-4">
@@ -21,8 +22,7 @@
         <li>Worksheet with tracing and reflection</li>
         {% if has_coloring %}<li>Coloring page</li>{% endif %}
         <li>Word search built from the theme</li>
-        <li>Parent guide with a 5-day mini plan</li>
-        <li>Manifest (JSON)</li>
+        <li>Parent guide PDF with a 5-day mini plan</li>
       </ul>
       <p class="field-hint mt-2">The download link stays active until the server restarts. Bookmark this page or download now.</p>
     </div>
