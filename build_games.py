@@ -249,7 +249,7 @@ def generate_match_game_pdf(
     c.setFillGray(0)
     c.setStrokeGray(0)
     c.setLineWidth(1)
-    c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica-Bold", 9.5)
     c.drawString(margin + 10, y - 14, "Directions:")
     c.setFont("Helvetica", 10)
     c.drawString(margin + 80, y - 14, directions_text)
@@ -463,7 +463,7 @@ def generate_word_search_pdf(
     usable_width = width - 2 * margin
     y = height - margin - 10
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
-    logo_size = 40
+    logo_size = 36
 
     def draw_header(title_text: str, subtitle_text: str | None):
         nonlocal y
@@ -488,15 +488,15 @@ def generate_word_search_pdf(
         if qr_reader:
             c.drawImage(qr_reader, width - margin - logo_size, y - logo_size + 4, width=logo_size, height=logo_size)
 
-        c.setFont("Helvetica-Bold", 17)
+        c.setFont("Helvetica-Bold", 16)
         c.drawCentredString(width / 2, y, title_text)
         y -= 12
         c.setFont("Helvetica", 9)
         c.setFillGray(0.4)
         c.drawCentredString(width / 2, y, "Faith Sparks Printables")
         if subtitle_text:
-            y -= 11
-            c.setFont("Helvetica-Oblique", 9)
+            y -= 10
+            c.setFont("Helvetica-Oblique", 8.5)
             c.setFillGray(0.35)
             c.drawCentredString(width / 2, y, subtitle_text)
         c.setFillGray(0)
@@ -526,7 +526,7 @@ def generate_word_search_pdf(
 
     draw_header(title, subtitle)
 
-    directions_h = 0.32 * inch
+    directions_h = 0.28 * inch
     c.setFillGray(1)
     c.setStrokeGray(0.84)
     c.setLineWidth(0.8)
@@ -534,19 +534,19 @@ def generate_word_search_pdf(
     c.setFillGray(0)
     c.setStrokeGray(0)
     c.setLineWidth(1)
-    c.setFont("Helvetica-Bold", 9.5)
-    c.drawString(margin + 10, y - 13, "Directions:")
-    c.setFont("Helvetica", 9.5)
-    c.drawString(margin + 78, y - 13, "Find each word in the puzzle. Words may go forward, backward, or diagonal.")
-    y -= directions_h + 5
+    c.setFont("Helvetica-Bold", 8.8)
+    c.drawString(margin + 10, y - 12, "Directions:")
+    c.setFont("Helvetica", 9)
+    c.drawString(margin + 72, y - 12, "Find each word. Words may go forward, backward, or diagonal.")
+    y -= directions_h + 4
     if print_tip:
-        c.setFont("Helvetica", 7.8)
+        c.setFont("Helvetica", 7.5)
         c.setFillGray(0.45)
         c.drawString(margin + 10, y - 4, print_tip)
         c.setFillGray(0)
         y -= 10
     if difficulty_note:
-        c.setFont("Helvetica", 7.8)
+        c.setFont("Helvetica", 7.5)
         c.setFillGray(0.45)
         c.drawString(margin + 10, y - 4, difficulty_note)
         c.setFillGray(0)
@@ -555,7 +555,7 @@ def generate_word_search_pdf(
     c.setFillGray(0.45)
     c.drawString(margin + 10, y - 4, "Answer key on next page.")
     c.setFillGray(0)
-    y -= 18
+    y -= 14
 
     rng = random.Random(title)
     grid = [["" for _ in range(size)] for _ in range(size)]
@@ -585,7 +585,7 @@ def generate_word_search_pdf(
 
     # Puzzle grid centered and slightly larger when the word list is below it.
     grid_max_width = usable_width
-    grid_max_height = y - (1.85 * inch if show_word_list and display_words else 0.3 * inch)
+    grid_max_height = y - (1.7 * inch if show_word_list and display_words else 0.3 * inch)
     cell = max(0.3 * inch, min(0.42 * inch, min(grid_max_width, grid_max_height) / max(1, size)))
     grid_size_px = size * cell
     start_x = margin + max(0, (usable_width - grid_size_px) / 2)
@@ -595,7 +595,7 @@ def generate_word_search_pdf(
     c.setFillGray(0)
     c.setFont("Helvetica-Bold", 9)
     c.setStrokeGray(0.62)
-    c.setLineWidth(0.7)
+    c.setLineWidth(0.6)
     for row in range(size):
         for col in range(size):
             x = start_x + col * cell
@@ -609,9 +609,9 @@ def generate_word_search_pdf(
         list_box_top = start_y - 12
         list_cols = 2 if len(display_words) > 6 else 1
         list_rows = int(math.ceil(len(display_words) / list_cols))
-        line_h = 12
-        label_h = 14
-        list_box_h = max(54, label_h + 18 + list_rows * line_h)
+        line_h = 11
+        label_h = 13
+        list_box_h = max(50, label_h + 14 + list_rows * line_h)
         list_box_bottom = list_box_top - list_box_h
         c.setFillColorRGB(1, 1, 1)
         c.setStrokeGray(0.84)
@@ -621,14 +621,14 @@ def generate_word_search_pdf(
         c.setLineWidth(1)
         c.setFillGray(0)
         _draw_section_label(c, margin + 4, list_box_top, "Word list")
-        c.setFont("Helvetica-Bold", 9.5)
-        c.drawString(margin + 12, list_box_top - 17, f"Find these words ({len(display_words)}):")
-        c.setFont("Helvetica", 9)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(margin + 12, list_box_top - 16, f"Find these words ({len(display_words)}):")
+        c.setFont("Helvetica", 8.8)
         col_gap = 0.32 * inch
         col_width = (usable_width - 24 - (col_gap * (list_cols - 1))) / list_cols
         max_word_width = col_width - 6
         left_x = margin + 12
-        y_cursor = list_box_top - 30
+        y_cursor = list_box_top - 28
         for idx, word in enumerate(display_words):
             col = idx % list_cols
             row = idx // list_cols
@@ -641,15 +641,15 @@ def generate_word_search_pdf(
 
     # Answer key page: just the solution grid, centered and uncluttered.
     y = height - margin - 10
-    c.setFont("Helvetica-Bold", 17)
+    c.setFont("Helvetica-Bold", 16)
     c.drawCentredString(width / 2, y, "Answer Key")
     y -= 12
     c.setFont("Helvetica", 9)
     c.setFillGray(0.4)
     c.drawCentredString(width / 2, y, "Faith Sparks Printables")
     if subtitle:
-        y -= 11
-        c.setFont("Helvetica-Oblique", 9)
+        y -= 10
+        c.setFont("Helvetica-Oblique", 8.5)
         c.setFillGray(0.35)
         c.drawCentredString(width / 2, y, subtitle)
     c.setFillGray(0)
