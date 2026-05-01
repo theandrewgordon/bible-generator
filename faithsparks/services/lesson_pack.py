@@ -169,18 +169,22 @@ def create_lesson_pack(
     generate_pdf({**normalized, "title": pack_title}, worksheet_pdf, use_cursive=use_cursive)
 
     coloring_title = f"{theme_label} Coloring Page"
-    coloring_result = create_coloring_sheet(
-        user_email=user_email or "anonymous",
-        verse_input=normalized["verse"],
-        custom_text="",
-        title_override=coloring_title,
-        age_bracket=age_bracket,
-        include_reference=True,
-        symbols_only=True,
-        historical_props=False,
-    )
-    coloring_pdf = Path("output") / coloring_result["pdf_filename"]
-    coloring_png = Path("worksheets") / coloring_result["png_filename"]
+    try:
+        coloring_result = create_coloring_sheet(
+            user_email=user_email or "anonymous",
+            verse_input=normalized["verse"],
+            custom_text="",
+            title_override=coloring_title,
+            age_bracket=age_bracket,
+            include_reference=True,
+            symbols_only=True,
+            historical_props=False,
+        )
+        coloring_pdf: Path | None = Path("output") / coloring_result["pdf_filename"]
+        coloring_png: Path | None = Path("worksheets") / coloring_result["png_filename"]
+    except Exception:
+        coloring_pdf = None
+        coloring_png = None
 
     word_search_words = _pick_pack_words(theme_label, normalized["title"], normalized["fullVerse"], meaning)
     word_search_pdf = pack_dir / f"{slug}-word-search.pdf"
@@ -204,6 +208,7 @@ def create_lesson_pack(
     guide_txt = pack_dir / f"{slug}-parent-guide.txt"
     guide_txt.write_text(guide_text, encoding="utf-8")
 
+    _coloring_files = [p.name for p in [coloring_pdf, coloring_png] if p]
     manifest = {
         "title": pack_title,
         "theme": theme_label,
@@ -211,13 +216,7 @@ def create_lesson_pack(
         "version": normalized["version"],
         "ageBracket": age_bracket,
         "useCursive": bool(use_cursive),
-        "files": [
-            worksheet_pdf.name,
-            coloring_pdf.name,
-            coloring_png.name,
-            word_search_pdf.name,
-            guide_txt.name,
-        ],
+        "files": [worksheet_pdf.name, *_coloring_files, word_search_pdf.name, guide_txt.name],
     }
     manifest_json = pack_dir / f"{slug}-manifest.json"
     manifest_json.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -225,7 +224,7 @@ def create_lesson_pack(
     zip_path = pack_dir / f"{slug}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in [worksheet_pdf, coloring_pdf, coloring_png, word_search_pdf, guide_txt, manifest_json]:
-            if path.exists():
+            if path and path.exists():
                 zf.write(path, arcname=path.name)
 
     return {
@@ -237,8 +236,8 @@ def create_lesson_pack(
         "age_bracket": age_bracket,
         "meaning": meaning,
         "worksheet_pdf": str(worksheet_pdf),
-        "coloring_pdf": str(coloring_pdf),
-        "coloring_png": str(coloring_png),
+        "coloring_pdf": str(coloring_pdf) if coloring_pdf else None,
+        "coloring_png": str(coloring_png) if coloring_png else None,
         "word_search_pdf": str(word_search_pdf),
         "guide_txt": str(guide_txt),
         "manifest_json": str(manifest_json),
