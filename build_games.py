@@ -348,96 +348,48 @@ def generate_match_game_pdf(
     draw_footer(title)
     c.showPage()
 
-    # Answer key page (solution only)
-    draw_answer_header("Answer Key", subtitle)
-
-    cell = max(0.3 * inch, min(0.42 * inch, usable_width / max(1, size)))
-    grid_size_px = size * cell
-    start_x = margin + max(0, (usable_width - grid_size_px) / 2)
-    start_y = y - grid_size_px
-    c.setFillColorRGB(1, 1, 1)
-    c.roundRect(start_x - 8, start_y - 8, grid_size_px + 16, grid_size_px + 16, radius=12, fill=1, stroke=0)
+    # Answer key page (no logo/QR)
+    y = height - margin - 10
+    c.setFont("Helvetica-Bold", 18)
+    c.drawCentredString(width / 2, y, "Answer Key")
+    y -= 12
+    c.setFont("Helvetica", 9)
+    c.setFillGray(0.4)
+    c.drawCentredString(width / 2, y, "Faith Sparks Printables")
+    if subtitle:
+        y -= 12
+        c.setFont("Helvetica-Oblique", 9)
+        c.setFillGray(0.35)
+        c.drawCentredString(width / 2, y, subtitle)
     c.setFillGray(0)
-    c.setFont("Helvetica-Bold", 10)
-    c.setStrokeGray(0.62)
-    c.setLineWidth(0.7)
-    for row in range(size):
-        for col in range(size):
-            x = start_x + col * cell
-            y_pos = start_y + (size - row - 1) * cell
-            if (col, row) in solution_positions:
-                c.setFillGray(0.9)
-                c.rect(x, y_pos, cell, cell, fill=1, stroke=0)
-                c.setFillGray(0)
-            c.rect(x, y_pos, cell, cell)
-            c.drawCentredString(x + cell / 2, y_pos + cell / 2 - 3, grid[row][col])
-            number = numbers.get((row, col))
-            if number:
-                c.setFont("Helvetica", 6)
-                c.drawString(x + 2, y_pos + cell - 8, str(number))
-                c.setFont("Helvetica", 8)
-    c.setStrokeGray(0)
-    c.setLineWidth(1)
+    y -= logo_size + 4
 
+    key_lines = []
+    for idx, ref in enumerate(references, start=1):
+        key_lines.append(f"{chr(64 + idx)} -> {answer_key[idx - 1]}")
+    rows = int(math.ceil(len(key_lines) / 2)) if key_lines else 1
+    panel_pad = 6
+    panel_h = rows * 13 + panel_pad * 2 + 18
+    panel_top = y + 6
+    panel_bottom = panel_top - panel_h
+    c.setFillGray(0.985)
+    c.roundRect(margin, panel_bottom, usable_width, panel_h, radius=12, fill=1, stroke=0)
+    c.setFillGray(0)
+    c.setFont("Helvetica", 11)
+    col_gap = 0.5 * inch
+    col_width = (usable_width - col_gap) / 2
+    left_x = margin + panel_pad
+    right_x = margin + panel_pad + col_width + col_gap
+    y_cursor = panel_top - panel_pad - 6
+    for i, line in enumerate(key_lines):
+        x = left_x if i % 2 == 0 else right_x
+        if i % 2 == 0 and i > 0:
+            y_cursor -= 15
+        c.drawString(x, y_cursor, line)
     draw_footer(title)
-    append_scripture_notices_page(c, versions_used=scripture_versions, margin=margin)
+    version_list = scripture_versions or [v.version for v in verses if getattr(v, "version", None)]
+    append_scripture_notices_page(c, versions_used=version_list, margin=margin)
     c.save()
-
-
-def _place_word_search_word(grid, word, rng, directions):
-    size = len(grid)
-    attempts = 200
-    word = word.upper()
-    L = len(word)
-
-    for _ in range(attempts):
-        dx, dy = rng.choice(directions)
-        if dx == 0 and dy == 0:
-            continue
-
-        # start bounds so word always fits
-        if dx == 1:
-            min_x, max_x = 0, size - L
-        elif dx == -1:
-            min_x, max_x = L - 1, size - 1
-        else:  # dx == 0
-            min_x, max_x = 0, size - 1
-
-        if dy == 1:
-            min_y, max_y = 0, size - L
-        elif dy == -1:
-            min_y, max_y = L - 1, size - 1
-        else:  # dy == 0
-            min_y, max_y = 0, size - 1
-
-        if max_x < min_x or max_y < min_y:
-            continue
-
-        x = rng.randint(min_x, max_x)
-        y = rng.randint(min_y, max_y)
-
-        ok = True
-        for i, ch in enumerate(word):
-            xx = x + dx * i
-            yy = y + dy * i
-            existing = grid[yy][xx]
-            if existing not in ("", ch):
-                ok = False
-                break
-        if not ok:
-            continue
-
-        positions = []
-        for i, ch in enumerate(word):
-            xx = x + dx * i
-            yy = y + dy * i
-            grid[yy][xx] = ch
-            positions.append((xx, yy))
-        return positions
-
-    return None
-
-
 
 
 def _place_word_search_word(grid, word, rng, directions):
@@ -795,7 +747,6 @@ def generate_word_search_pdf(
     c.save()
 
 
-
 def generate_crossword_pdf(
     title: str,
     words: List[str],
@@ -1109,6 +1060,32 @@ def generate_crossword_pdf(
                 c.setFont("Helvetica", 8)
     c.setStrokeGray(0)
     c.setLineWidth(1)
+
+    # Answer words box (fills page and keeps key clear)
+    list_box_w = usable_width
+    list_box_h = max(76, (len(display_words) + 2) * 11 + 10)
+    list_x = margin
+    list_y = start_y - 0.4 * inch
+    c.setFillColorRGB(1, 1, 1)
+    c.setStrokeGray(0.84)
+    c.setLineWidth(0.7)
+    c.roundRect(list_x, list_y - list_box_h + 12, list_box_w, list_box_h, radius=12, fill=1, stroke=1)
+    c.setStrokeGray(0)
+    c.setLineWidth(1)
+    c.setFillGray(0)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(list_x + 8, list_y, "Answer words:")
+    c.setFont("Helvetica", 9)
+    col_gap = 0.5 * inch
+    col_width = (list_box_w - col_gap - 16) / 2
+    left_x = list_x + 8
+    right_x = list_x + 8 + col_width + col_gap
+    y_cursor = list_y - 12
+    for idx, word in enumerate(display_words):
+        x = left_x if idx % 2 == 0 else right_x
+        if idx % 2 == 0 and idx > 0:
+            y_cursor -= 11
+        draw_word_fit(x, y_cursor, word.title(), col_width - 6, base_size=9)
 
     draw_footer(title)
     append_scripture_notices_page(c, versions_used=scripture_versions, margin=margin)
