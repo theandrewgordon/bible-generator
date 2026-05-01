@@ -109,7 +109,7 @@ def _build_parent_guide(
     words: list[str],
 ) -> str:
     big_idea = meaning.strip() or f"Talk about {theme_label.lower()} and how God shows it here."
-    prompt_words = ", ".join(words[:6]) if words else theme_label
+    prompt_words = ", ".join(words[:4]) if words else theme_label
     lines = [
         title,
         "",
@@ -120,14 +120,14 @@ def _build_parent_guide(
         big_idea,
         "",
         "5-day mini plan:",
-        "Day 1 — Read it together and underline the key word.",
-        "Day 2 — Ask: What does this show us about God?",
-        "Day 3 — Pray the verse back to God in simple words.",
-        "Day 4 — Do one tiny action that matches the verse.",
-        "Day 5 — Recite it, then choose your favorite page from the pack.",
+        "Day 1 — Read it together and circle one key word.",
+        "Day 2 — Ask: What does this tell us about God?",
+        "Day 3 — Pray the verse back in your own words.",
+        "Day 4 — Do one small action that fits the verse.",
+        "Day 5 — Recite it and pick a favorite page.",
         "",
         "Quick talk prompts:",
-        f"- Which words should we notice: {prompt_words}",
+        f"- Words to notice: {prompt_words}",
         "- How would you explain this to a friend?",
         "- What can we do today that fits this verse?",
         "",
@@ -181,16 +181,16 @@ def _write_parent_guide_pdf(
         "LessonPackBody",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=10.5,
-        leading=14,
-        spaceAfter=4,
+        fontSize=9.8,
+        leading=12.8,
+        spaceAfter=5,
     )
     small_style = ParagraphStyle(
         "LessonPackSmall",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=9.5,
-        leading=12,
+        fontSize=8.8,
+        leading=11,
         textColor="#6B7280",
         spaceAfter=4,
     )
@@ -202,7 +202,7 @@ def _write_parent_guide_pdf(
         return Paragraph(f"&bull; {escape(text)}", body_style)
 
     big_idea = meaning.strip() or f"Talk about {theme_label.lower()} and how God shows it here."
-    prompt_words = ", ".join(words[:6]) if words else theme_label
+    prompt_words = ", ".join(words[:4]) if words else theme_label
 
     story = [
         Paragraph(escape(title), title_style),
@@ -212,13 +212,13 @@ def _write_parent_guide_pdf(
         Paragraph("Big idea", section_style),
         p(big_idea),
         Paragraph("5-day mini plan", section_style),
-        bullet("Day 1 — Read it together and underline the key word."),
-        bullet("Day 2 — Ask: What does this show us about God?"),
-        bullet("Day 3 — Pray the verse back to God in simple words."),
-        bullet("Day 4 — Do one tiny action that matches the verse."),
-        bullet("Day 5 — Recite it, then choose your favorite page from the pack."),
+        bullet("Day 1 — Read it together and circle one key word."),
+        bullet("Day 2 — Ask: What does this tell us about God?"),
+        bullet("Day 3 — Pray the verse back in your own words."),
+        bullet("Day 4 — Do one small action that fits the verse."),
+        bullet("Day 5 — Recite it and pick a favorite page."),
         Paragraph("Quick talk prompts", section_style),
-        bullet(f"Which words should we notice: {prompt_words}"),
+        bullet(f"Words to notice: {prompt_words}"),
         bullet("How would you explain this to a friend?"),
         bullet("What can we do today that fits this verse?"),
         Paragraph("Print tip", section_style),
