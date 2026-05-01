@@ -256,7 +256,7 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     y -= 20
 
     # Full verse box
-    y = draw_paragraph_box(c, "Verse:", data["fullVerse"], margin, y, usable_width)
+    y = draw_paragraph_box(c, "Copy this verse:", data["fullVerse"], margin, y, usable_width)
 
     # Traceable text logic
     full = data.get("fullVerse", "")
@@ -266,11 +266,11 @@ def generate_pdf(data, pdf_path, use_cursive=False):
 
     # Cursive toggle (from JSON payload)
 # use_cursive now comes from function param instead of inside the data
-    y = draw_tracing_box(c, "Trace it:", trace, margin, y, usable_width, use_cursive=use_cursive)
+    y = draw_tracing_box(c, "Trace the verse:", trace, margin, y, usable_width, use_cursive=use_cursive)
 
     # Handwriting section
     y -= 6
-    y = draw_handwriting_box(c, "Now write it yourself:", margin, y, usable_width, data["handwritingLines"])
+    y = draw_handwriting_box(c, "Write the verse yourself:", margin, y, usable_width, data["handwritingLines"])
 
     # Reflection
     y = draw_paragraph_box(
