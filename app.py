@@ -290,7 +290,13 @@ def load_user_info():
 
     if google.authorized:
         if "user_info" not in session:
-            resp = google.get("/oauth2/v1/userinfo")
+            try:
+                resp = google.get("/oauth2/v1/userinfo")
+            except Exception:
+                session.pop("user_info", None)
+                session.pop("user_email", None)
+                session.pop("user_owned_packs", None)
+                return
             if resp.ok:
                 session["user_info"] = resp.json()
                 session["user_email"] = session["user_info"].get("email")
