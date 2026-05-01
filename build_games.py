@@ -384,6 +384,62 @@ def generate_match_game_pdf(
     c.save()
 
 
+def _place_word_search_word(grid, word, rng, directions):
+    size = len(grid)
+    attempts = 200
+    word = word.upper()
+    L = len(word)
+
+    for _ in range(attempts):
+        dx, dy = rng.choice(directions)
+        if dx == 0 and dy == 0:
+            continue
+
+        # start bounds so word always fits
+        if dx == 1:
+            min_x, max_x = 0, size - L
+        elif dx == -1:
+            min_x, max_x = L - 1, size - 1
+        else:  # dx == 0
+            min_x, max_x = 0, size - 1
+
+        if dy == 1:
+            min_y, max_y = 0, size - L
+        elif dy == -1:
+            min_y, max_y = L - 1, size - 1
+        else:  # dy == 0
+            min_y, max_y = 0, size - 1
+
+        if max_x < min_x or max_y < min_y:
+            continue
+
+        x = rng.randint(min_x, max_x)
+        y = rng.randint(min_y, max_y)
+
+        ok = True
+        for i, ch in enumerate(word):
+            xx = x + dx * i
+            yy = y + dy * i
+            existing = grid[yy][xx]
+            if existing not in ("", ch):
+                ok = False
+                break
+        if not ok:
+            continue
+
+        positions = []
+        for i, ch in enumerate(word):
+            xx = x + dx * i
+            yy = y + dy * i
+            grid[yy][xx] = ch
+            positions.append((xx, yy))
+        return positions
+
+    return None
+
+
+
+
 def generate_crossword_pdf(
     title: str,
     words: List[str],
