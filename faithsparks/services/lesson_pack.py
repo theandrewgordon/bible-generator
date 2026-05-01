@@ -239,6 +239,36 @@ def _write_parent_guide_pdf(
     doc.build(story)
 
 
+LESSON_PACK_CACHE_COLLECTION = "lesson_pack_cache"
+
+
+def _lesson_pack_cache_key(verse: str, version: str, age_bracket: str, use_cursive: bool) -> str:
+    raw = f"{verse}-{(version or 'nlt').strip().lower()}-{(age_bracket or '').strip().lower()}-{'cursive' if use_cursive else 'print'}"
+    return re.sub(r"[^a-z0-9]+", "-", raw.lower()).strip("-")
+
+
+def _load_cached_lesson_pack(cache_key: str) -> dict | None:
+    if not (db and cache_key and LESSON_PACK_CACHE_COLLECTION):
+        return None
+    try:
+        snap = db.collection(LESSON_PACK_CACHE_COLLECTION).document(cache_key).get()
+    except Exception:
+        return None
+    if not snap or not snap.exists:
+        return None
+    data = snap.to_dict() or {}
+    return data if isinstance(data, dict) else None
+
+
+def _store_cached_lesson_pack(cache_key: str, payload: dict) -> None:
+    if not (db and cache_key and LESSON_PACK_CACHE_COLLECTION and payload):
+        return
+    try:
+        db.collection(LESSON_PACK_CACHE_COLLECTION).document(cache_key).set(payload, merge=True)
+    except Exception:
+        pass
+
+
 def create_lesson_pack(
     *,
     user_email: str,
@@ -265,6 +295,15 @@ def create_lesson_pack(
             normalized["fullVerse"] = fetch_passage_text(normalized["verse"], normalized["version"])
         except Exception:
             normalized["fullVerse"] = ""
+
+    cache_key = _lesson_pack_cache_key(normalized["verse"], normalized["version"], age_bracket, use_cursive)
+    cached_pack = _load_cached_lesson_pack(cache_key)
+    if cached_pack:
+        cached_zip = Path(cached_pack.get("zip_path") or "")
+        if not cached_zip and cached_pack.get("slug"):
+            cached_zip = Path("output") / "lesson_packs" / cached_pack["slug"] / f"{cached_pack['slug']}.zip"
+        if cached_zip.exists():
+            return cached_pack
 
     meaning = (request_verse_meaning(normalized["verse"], normalized["fullVerse"], version=normalized["version"]) or "").strip()
     theme_label = _clean_theme_label(
@@ -338,6 +377,25 @@ def create_lesson_pack(
             if path and path.exists():
                 zf.write(path, arcname=path.name)
 
+    result = {
+        "slug": slug,
+        "title": pack_title,
+        "theme": theme_label,
+        "verse": normalized["verse"],
+        "version": normalized["version"],
+        "age_bracket": age_bracket,
+        "meaning": meaning,
+        "worksheet_pdf": str(worksheet_pdf),
+        "coloring_pdf": str(coloring_pdf) if coloring_pdf else None,
+        "coloring_png": str(coloring_png) if coloring_png else None,
+        "word_search_pdf": str(word_search_pdf),
+        "guide_pdf": str(guide_pdf),
+        "manifest_json": str(manifest_json),
+        "zip_path": str(zip_path),
+        "word_search_words": word_search_words,
+        "cache_key": cache_key,
+    }
+
     if db:
         try:
             db.collection("lesson_packs").document(slug).set(
@@ -361,20 +419,16 @@ def create_lesson_pack(
         except Exception:
             pass
 
-    return {
-        "slug": slug,
-        "title": pack_title,
-        "theme": theme_label,
-        "verse": normalized["verse"],
-        "version": normalized["version"],
-        "age_bracket": age_bracket,
-        "meaning": meaning,
-        "worksheet_pdf": str(worksheet_pdf),
-        "coloring_pdf": str(coloring_pdf) if coloring_pdf else None,
-        "coloring_png": str(coloring_png) if coloring_png else None,
-        "word_search_pdf": str(word_search_pdf),
-        "guide_pdf": str(guide_pdf),
-        "manifest_json": str(manifest_json),
-        "zip_path": str(zip_path),
-        "word_search_words": word_search_words,
-    }
+        _store_cached_lesson_pack(
+            cache_key,
+            {
+                **result,
+                "cache_key": cache_key,
+                "zip_filename": f"{slug}.zip",
+                "created_at": firestore.SERVER_TIMESTAMP,
+                "timestamp": firestore.SERVER_TIMESTAMP,
+                "type": "lesson_pack",
+            },
+        )
+
+    return result

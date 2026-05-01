@@ -6,6 +6,9 @@ from typing import Iterable, List, Tuple
 import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
+from firebase_admin import firestore as fb_firestore
+
+from faithsparks.services.firestore import db
 
 from faithsparks.util.request_utils import (
     extract_json_candidate,
@@ -126,6 +129,49 @@ Context ({context_label}):
 {source_text}
 """}
     ]
+
+
+VERSE_CACHE_COLLECTION = os.getenv("VERSE_CACHE_COLLECTION", "verse_cache")
+
+
+def _verse_cache_key(verse_ref: str, version: str) -> str:
+    verse_ref = normalize_reference_title(verse_ref)
+    raw = f"{verse_ref}-{(version or 'esv').strip().lower()}"
+    return re.sub(r"[^a-z0-9]+", "-", raw.lower()).strip("-")
+
+
+def _load_cached_verse_data(verse_ref: str, version: str):
+    cache_key = _verse_cache_key(verse_ref, version)
+    if not (db and cache_key and VERSE_CACHE_COLLECTION):
+        return None
+    try:
+        snap = db.collection(VERSE_CACHE_COLLECTION).document(cache_key).get()
+    except Exception:
+        return None
+    if not snap or not snap.exists:
+        return None
+    data = (snap.to_dict() or {}).get("data")
+    return data if isinstance(data, dict) else None
+
+
+def _store_cached_verse_data(verse_ref: str, version: str, data: dict) -> None:
+    if not (db and VERSE_CACHE_COLLECTION and verse_ref and data):
+        return
+    cache_key = _verse_cache_key(verse_ref, version)
+    try:
+        db.collection(VERSE_CACHE_COLLECTION).document(cache_key).set(
+            {
+                "verse": normalize_reference_title(verse_ref),
+                "version": (version or "esv").strip().lower(),
+                "data": data,
+                "cached_at": fb_firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+    except Exception:
+        pass
+
+
 # === GPT Call Wrapper ===
 WORKSHEET_MODEL = os.getenv("OPENAI_WORKSHEET_MODEL", "gpt-4o-mini")
 
@@ -170,6 +216,10 @@ def normalize_verse_data(data, verse_ref: str, version: str):
 # === Request Verse Data ===
 def request_verse_data(verse_ref, version="esv"):
     """Request worksheet data from OpenAI, retrying once if needed."""
+    cached = _load_cached_verse_data(verse_ref, version)
+    if cached:
+        return json.dumps(normalize_verse_data(cached, verse_ref, version), ensure_ascii=False)
+
     prompt = build_prompt(verse_ref, version)
 
     for attempt in range(2):
@@ -178,7 +228,9 @@ def request_verse_data(verse_ref, version="esv"):
             continue
         data = parse_and_clean_json(content)
         if data:
-            return json.dumps(normalize_verse_data(data, verse_ref, version), ensure_ascii=False)
+            normalized = normalize_verse_data(data, verse_ref, version)
+            _store_cached_verse_data(verse_ref, version, normalized)
+            return json.dumps(normalized, ensure_ascii=False)
 
     return None
 
