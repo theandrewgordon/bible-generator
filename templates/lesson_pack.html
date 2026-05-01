@@ -126,8 +126,14 @@
     padding: 0.8rem 0.9rem;
     border-radius: 12px;
     border: 1px solid rgba(15, 23, 42, 0.12);
-    background: var(--background);
+    background-color: var(--background);
     color: var(--text);
+    -webkit-text-fill-color: var(--text);
+    color-scheme: light;
+  }
+  .dark .lesson-pack input[type="text"],
+  .dark .lesson-pack select {
+    color-scheme: dark;
   }
   .lesson-pack label {
     display: grid;
