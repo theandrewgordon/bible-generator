@@ -137,6 +137,33 @@ def _build_parent_guide(
     return "\\n".join(lines).strip() + "\\n"
 
 
+
+
+def _merge_pdf_files(output_path: Path, source_paths: list[Path]) -> bool:
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except Exception:
+        return False
+
+    writer = PdfWriter()
+    added = False
+    for source in source_paths:
+        if not source or not Path(source).exists():
+            continue
+        try:
+            reader = PdfReader(str(source))
+            for page in reader.pages:
+                writer.add_page(page)
+            added = True
+        except Exception:
+            continue
+    if not added:
+        return False
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, 'wb') as fh:
+        writer.write(fh)
+    return output_path.exists() and output_path.stat().st_size > 0
+
 def _write_parent_guide_pdf(
     pdf_path: Path,
     *,
@@ -298,10 +325,13 @@ def create_lesson_pack(
     cache_key = _lesson_pack_cache_key(normalized["verse"], normalized["version"], age_bracket, use_cursive)
     cached_pack = _load_cached_lesson_pack(cache_key)
     if cached_pack:
+        cached_pdf = Path(cached_pack.get("combined_pdf") or cached_pack.get("pdf_path") or "")
         cached_zip = Path(cached_pack.get("zip_path") or "")
+        if not cached_pdf and cached_pack.get("slug"):
+            cached_pdf = Path("output") / "lesson_packs" / cached_pack["slug"] / f"{cached_pack['slug']}.pdf"
         if not cached_zip and cached_pack.get("slug"):
             cached_zip = Path("output") / "lesson_packs" / cached_pack["slug"] / f"{cached_pack['slug']}.zip"
-        if cached_zip.exists():
+        if (cached_pdf and cached_pdf.exists()) or (cached_zip and cached_zip.exists()):
             return cached_pack
 
     meaning = (request_verse_meaning(normalized["verse"], normalized["fullVerse"], version=normalized["version"]) or "").strip()
@@ -370,9 +400,12 @@ def create_lesson_pack(
     manifest_json = pack_dir / f"{slug}-manifest.json"
     manifest_json.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
+    combined_pdf = pack_dir / f"{slug}.pdf"
+    combined_ok = _merge_pdf_files(combined_pdf, [worksheet_pdf, coloring_pdf, word_search_pdf, guide_pdf])
+
     zip_path = pack_dir / f"{slug}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for path in [worksheet_pdf, coloring_pdf, word_search_pdf, guide_pdf]:
+        for path in [worksheet_pdf, coloring_pdf, word_search_pdf, guide_pdf, combined_pdf if combined_ok else None]:
             if path and path.exists():
                 zf.write(path, arcname=path.name)
 
@@ -390,6 +423,7 @@ def create_lesson_pack(
         "word_search_pdf": str(word_search_pdf),
         "guide_pdf": str(guide_pdf),
         "manifest_json": str(manifest_json),
+        "combined_pdf": str(combined_pdf) if combined_ok else None,
         "zip_path": str(zip_path),
         "word_search_words": word_search_words,
         "cache_key": cache_key,
@@ -407,6 +441,8 @@ def create_lesson_pack(
                     "version": normalized["version"].upper(),
                     "age_bracket": age_bracket,
                     "use_cursive": bool(use_cursive),
+                    "pdf_filename": f"{slug}.pdf" if combined_ok else None,
+                    "pdf_path": str(combined_pdf) if combined_ok else None,
                     "zip_filename": f"{slug}.zip",
                     "zip_path": str(zip_path),
                     "created_at": firestore.SERVER_TIMESTAMP,

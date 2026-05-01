@@ -105,15 +105,24 @@ def lesson_pack_result(slug):
 def lesson_pack_download(slug):
     if not re.fullmatch(r'[a-z0-9\-]+', slug):
         abort(404)
-    zip_path = Path('output') / 'lesson_packs' / slug / f'{slug}.zip'
-    if not zip_path.exists():
-        abort(404)
-    return send_file(
-        zip_path,
-        as_attachment=True,
-        download_name=f'{slug}.zip',
-        mimetype='application/zip',
-    )
+    pack_dir = Path('output') / 'lesson_packs' / slug
+    pdf_path = pack_dir / f'{slug}.pdf'
+    zip_path = pack_dir / f'{slug}.zip'
+    if pdf_path.exists():
+        return send_file(
+            pdf_path,
+            as_attachment=True,
+            download_name=f'{slug}.pdf',
+            mimetype='application/pdf',
+        )
+    if zip_path.exists():
+        return send_file(
+            zip_path,
+            as_attachment=True,
+            download_name=f'{slug}.zip',
+            mimetype='application/zip',
+        )
+    abort(404)
 
 
 @bp.route('/scripture-attribution')
