@@ -77,6 +77,28 @@ def _clean_theme_label(raw: str | None, fallback: str) -> str:
     return text or fallback
 
 
+def _clean_meaning_text(raw: str | None, fallback: str) -> str:
+    text = (raw or "").strip()
+    if not text:
+        return fallback
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            text = str(data.get("meaning") or data.get("summary") or data.get("label") or "").strip()
+    except Exception:
+        pass
+    try:
+        parsed = parse_and_clean_json(text)
+        if isinstance(parsed, dict):
+            text = str(parsed.get("meaning") or parsed.get("summary") or parsed.get("label") or text).strip()
+    except Exception:
+        pass
+    text = re.sub(r"^[\s\-:•]+", "", text)
+    text = text.replace('"', "").replace("'", "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text or fallback
+
+
 def _pick_pack_words(*parts: str, minimum: int = 8, maximum: int = 12) -> list[str]:
     words: list[str] = []
     seen: set[str] = set()
@@ -334,7 +356,10 @@ def create_lesson_pack(
         if (cached_pdf and cached_pdf.exists()) or (cached_zip and cached_zip.exists()):
             return cached_pack
 
-    meaning = (request_verse_meaning(normalized["verse"], normalized["fullVerse"], version=normalized["version"]) or "").strip()
+    meaning = _clean_meaning_text(
+        request_verse_meaning(normalized["verse"], normalized["fullVerse"], version=normalized["version"]),
+        fallback=f"Talk about {normalized['title'].lower()} and how God shows it here.",
+    )
     theme_label = _clean_theme_label(
         request_theme_label(f"{normalized['fullVerse']}\n\n{meaning}", context_label="lesson pack"),
         fallback=normalized["title"],
