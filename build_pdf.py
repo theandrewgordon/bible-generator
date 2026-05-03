@@ -19,6 +19,8 @@ from faithsparks.pdf_notices import append_scripture_notices_page
 
 from datetime import datetime
 COPYRIGHT_YEAR = datetime.now().year
+WEBSITE_URL = "https://faithsparksprintables.com"
+WEBSITE_LABEL = "faithsparksprintables.com"
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'fonts/KGPrimaryDotsLined.ttf'))
@@ -218,6 +220,16 @@ def _load_image(path: str):
         return None
 
 
+def _draw_site_link(c, x_center: float, y: float, label: str = WEBSITE_LABEL):
+    """Draw a small clickable site link in the PDF footer."""
+    c.setFont("Helvetica", 8)
+    c.setFillGray(0.35)
+    text_width = c.stringWidth(label, "Helvetica", 8)
+    x = x_center - text_width / 2
+    c.drawString(x, y, label)
+    c.linkURL(WEBSITE_URL, (x, y - 1, x + text_width, y + 9), relative=0)
+
+
 def generate_pdf(data, pdf_path, use_cursive=False):
     width, height = letter
     margin = layout.DEFAULT_MARGIN_INCH * inch
@@ -318,10 +330,10 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     if content_bottom and content_bottom > inch:
         footer_lift = min(layout.FOOTER_LIFT_MAX, content_bottom - inch)
     c.drawRightString(width - margin, 0.32 * inch + footer_lift, f"FS-{verse_code}")
+    _draw_site_link(c, width / 2, 0.30 * inch + footer_lift)
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
-
-    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
+    c.drawCentredString(width / 2, 0.20 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
 
     append_scripture_notices_page(c, versions_used=[data.get("version")], margin=margin)
     c.save()
@@ -398,8 +410,9 @@ def build_coloring_pdf(
     if content_bottom and content_bottom > inch:
         footer_lift = min(layout.FOOTER_LIFT_MAX, content_bottom - inch)
     c.drawRightString(width - margin, 0.32 * inch + footer_lift, f"FS-{verse_code}")
+    _draw_site_link(c, width / 2, 0.30 * inch + footer_lift)
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
-    c.drawCentredString(width / 2, 0.23 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
+    c.drawCentredString(width / 2, 0.20 * inch + footer_lift, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
     append_scripture_notices_page(c, versions_used=versions_used, margin=margin)
     c.save()
