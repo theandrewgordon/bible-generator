@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wm-shell{display:flex;flex-direction:column;min-height:100vh}
+  .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10}
+  .wm-title{font-size:1.15rem;font-weight:800;margin:0}
+  .wm-sub{margin:.15rem 0 0;color:var(--text-secondary);font-size:.9rem}
+  .wm-actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .wm-link,.wm-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;border:1px solid var(--primary);background:var(--primary);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem;cursor:pointer}
+  .wm-link.secondary,.wm-btn.secondary{background:transparent;color:var(--primary)}
+  .wm-link:hover,.wm-btn:hover{background:var(--primary-dark);color:#fff}
+  .wm-link.secondary:hover,.wm-btn.secondary:hover{background:var(--primary);color:#fff}
+  .wm-stage{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:color-mix(in srgb, var(--primary) 2%, var(--background))}
+  .wm-stage::-webkit-scrollbar{display:none}
+  .wm-slide{scroll-snap-align:start;flex:0 0 100vw;min-width:100vw;display:flex;align-items:center;justify-content:center;padding:1rem}
+  .wm-card{width:min(680px, 100%);min-height:min(72vh, 780px);border-radius:28px;background:var(--box);box-shadow:var(--card-shadow);padding:1.4rem 1.2rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
+  .wm-kind{font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.75rem}
+  .wm-song{font-size:1.7rem;line-height:1.1;font-weight:900;margin:0 0 .55rem}
+  .wm-meta{font-size:.95rem;color:var(--text-secondary);margin:0 0 1rem}
+  .wm-lines{font-size:clamp(1.8rem, 5vw, 3rem);line-height:1.25;font-weight:800;white-space:pre-wrap}
+  .wm-slide--lyric .wm-card{justify-content:center}
+  .wm-part{font-size:.9rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);margin:0 0 .8rem}
+  .wm-footer{padding:0 1.25rem 1rem;color:var(--text-secondary);font-size:.85rem}
+  @media (min-width: 900px){
+    .wm-card{min-height:70vh}
+    .wm-lines{font-size:clamp(2rem, 4vw, 3.3rem)}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wm-shell">
+  <div class="wm-topbar">
+    <div>
+      <h1 class="wm-title">Worship mobile view</h1>
+      <p class="wm-sub">Swipe horizontally through the set.</p>
+    </div>
+    <div class="wm-actions">
+      <a class="wm-link secondary" href="{{ url_for('worship') }}">Back to builder</a>
+      <button class="wm-btn secondary" type="button" id="wm-copy-link">Copy link</button>
+    </div>
+  </div>
+
+  <div class="wm-stage" id="wm-stage" tabindex="0" aria-label="Worship slides">
+    {% for slide in slides %}
+      <section class="wm-slide wm-slide--{{ slide.kind }}">
+        <div class="wm-card">
+          {% if slide.kind == 'divider' %}
+            <div class="wm-kind">Song</div>
+            <h2 class="wm-song">{{ slide.title }}</h2>
+            {% if slide.artist or slide.key %}
+              <p class="wm-meta">
+                {% if slide.artist %}{{ slide.artist }}{% endif %}
+                {% if slide.artist and slide.key %} · {% endif %}
+                {% if slide.key %}Key {{ slide.key }}{% endif %}
+              </p>
+            {% endif %}
+          {% else %}
+            <div class="wm-kind">Lyrics</div>
+            <h2 class="wm-song">{{ slide.title }}</h2>
+            <p class="wm-part">{{ slide.part }}</p>
+            <div class="wm-lines" style="font-size: clamp({{ (slide.font_size or 48) * 0.045 }}rem, 5vw, {{ (slide.font_size or 48) * 0.0625 }}rem)">
+              {{ slide.lines | join('\n') }}
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+
+  <div class="wm-footer">{{ slides|length }} slide{% if slides|length != 1 %}s{% endif %} · song order: {{ song_order }}</div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  var copyBtn = document.getElementById('wm-copy-link');
+  var stage = document.getElementById('wm-stage');
+  var url = window.location.href;
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () {
+          copyBtn.textContent = 'Copied';
+          setTimeout(function () { copyBtn.textContent = 'Copy link'; }, 1400);
+        }).catch(function () {
+          copyBtn.textContent = 'Copy failed';
+          setTimeout(function () { copyBtn.textContent = 'Copy link'; }, 1400);
+        });
+      }
+    });
+  }
+  if (stage) {
+    stage.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') stage.scrollBy({ left: stage.clientWidth, behavior: 'smooth' });
+      if (e.key === 'ArrowLeft') stage.scrollBy({ left: -stage.clientWidth, behavior: 'smooth' });
+    });
+  }
+})();
+</script>
+{% endblock %}

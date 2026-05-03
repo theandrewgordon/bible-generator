@@ -290,13 +290,7 @@ def load_user_info():
 
     if google.authorized:
         if "user_info" not in session:
-            try:
-                resp = google.get("/oauth2/v1/userinfo")
-            except Exception:
-                session.pop("user_info", None)
-                session.pop("user_email", None)
-                session.pop("user_owned_packs", None)
-                return
+            resp = google.get("/oauth2/v1/userinfo")
             if resp.ok:
                 session["user_info"] = resp.json()
                 session["user_email"] = session["user_info"].get("email")
@@ -1266,6 +1260,21 @@ def add_centered_textbox(slide, text: str, top: float, height: float, font_size:
     return box
 
 
+def add_link_footer(slide, label: str = "faithsparksprintables.com", url: str = "https://faithsparksprintables.com"):
+    box = slide.shapes.add_textbox(Inches(0.4), Inches(7.02), Inches(12.5), Inches(0.18))
+    tf = box.text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = label
+    run.font.size = Pt(9)
+    run.font.name = "Arial"
+    run.font.color.rgb = RGBColor(235, 235, 235)
+    run.hyperlink.address = url
+    return box
+
+
 def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, item_type: str = "song", song_bg: str = None):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     img_path, cfg = _resolve_bg(item_type, song_bg)
@@ -1288,6 +1297,7 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
         add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.05, height=0.85, font_size=26, bold=False,
                               font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity,
                               left=1.5, width=10.333)
+    add_link_footer(slide)
     return slide
 
 
@@ -1303,6 +1313,7 @@ def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "
     overlay_opacity = cfg.get("overlay_opacity", 0.5)
     add_centered_textbox(slide, "\n".join(lines), top=1.25, height=5.0, font_size=font_size, bold=True,
                           font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
+    add_link_footer(slide)
     return slide
 
 
@@ -1409,6 +1420,64 @@ def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str
     return selected_items
 
 
+def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
+    slides: list[dict] = []
+    for item in selected_items:
+        normalized = normalize_worship_song(item)
+        song_title = normalized.get("title", "Untitled")
+        item_type = normalized.get("type", "song")
+        song_bg = normalized.get("background")
+        slides.append(
+            {
+                "kind": "divider",
+                "title": song_title,
+                "artist": normalized.get("artist", ""),
+                "key": normalized.get("key", ""),
+                "type": item_type,
+                "background": song_bg,
+            }
+        )
+        parts = normalized.get("parts", {}) or {}
+        arrangement = normalized.get("arrangement", []) or []
+        for part_name in arrangement:
+            part_lines = parts.get(part_name, [])
+            if not isinstance(part_lines, list):
+                continue
+            for chunk in chunk_lines(part_lines):
+                slides.append(
+                    {
+                        "kind": "lyric",
+                        "title": song_title,
+                        "part": part_name,
+                        "lines": chunk["lines"],
+                        "font_size": chunk.get("font_size", 48),
+                        "type": item_type,
+                        "background": song_bg,
+                    }
+                )
+    return slides
+
+
+@app.route("/worship/mobile", methods=["GET"])
+@login_required
+def worship_mobile():
+    selected_items = _resolve_selected_worship_items(
+        request.args.get("song_order", ""),
+        request.args.getlist("song_ids"),
+    )
+    if not selected_items:
+        flash("Select at least one item to preview the mobile slides.", "warning")
+        return redirect(url_for("worship"))
+    slides = _build_worship_mobile_slides(selected_items)
+    song_order = ",".join(item.get("id", "") for item in selected_items if item.get("id"))
+    return render_template(
+        "worship_mobile.html",
+        slides=slides,
+        selected_items=selected_items,
+        song_order=song_order,
+    )
+
+
 @app.route("/worship/export/lyric-sheet", methods=["POST"])
 @login_required
 def worship_export_lyric_sheet():
@@ -1441,6 +1510,12 @@ def worship_export_lyric_sheet():
             chunks.append("")
         chunks.append("")
 
+    mobile_url = url_for(
+        "worship_mobile",
+        _external=True,
+        song_order=",".join(item.get("id", "") for item in selected_items if item.get("id")),
+    )
+    chunks.extend(["", f"Mobile view: {mobile_url}"])
     payload = "\n".join(chunks).strip() + "\n"
     return send_file(
         BytesIO(payload.encode("utf-8")),

@@ -26,6 +26,12 @@
   .ws-btn-ghost:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
   .ws-btn-ghost:disabled{opacity:.4;cursor:default}
   .ws-del{background:none;border:none;cursor:pointer;color:#ef4444;font-size:.9em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;white-space:nowrap;flex-shrink:0}
+  .ws-share-card{margin-top:1rem;padding:1rem;border:1px solid #e2e8f0;border-radius:12px;background:color-mix(in srgb, var(--primary) 3%, var(--background))}
+  .ws-share-row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+  .ws-share-url{flex:1;min-width:220px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:var(--background);color:var(--text);font-size:.9rem}
+  .ws-share-qr{width:132px;height:132px;border-radius:10px;border:1px solid #e2e8f0;background:#fff}
+  .ws-share-open{display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:8px;background:var(--primary);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem}
+  .ws-share-open:hover{background:var(--primary-dark);color:#fff}
   .ws-del:hover{background:#fee2e2}
   .set-note{display:block;width:100%;margin-top:4px;padding:2px 4px;font-size:.78rem;color:var(--text-secondary);border:none;border-bottom:1px solid transparent;background:transparent;outline:none;font-family:inherit}
   .set-note:focus{border-bottom-color:#cbd5e1}
@@ -122,6 +128,16 @@
     <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled>Save Setlist</button>
     <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
   </div>
+
+  <div class="ws-share-card" data-mobile-share>
+    <div class="ws-section-label" style="margin-bottom:.4rem">Mobile slide link</div>
+    <p class="muted small" style="margin:.1rem 0 .75rem">Open this on a phone and swipe through the set.</p>
+    <div class="ws-share-row">
+      <input class="ws-share-url" type="text" readonly value="" data-mobile-url aria-label="Mobile slide link">
+      <a class="ws-share-open" href="#" target="_blank" rel="noopener" data-mobile-open>Open</a>
+      <img class="ws-share-qr" src="" alt="QR code for mobile slide link" data-mobile-qr>
+    </div>
+  </div>
 </div>
 
 <form id="lyric-sheet-form" action="/worship/export/lyric-sheet" method="post" data-download="1" style="display:none">
@@ -159,6 +175,11 @@
   var setlistStatus = document.getElementById('setlist-status');
   var libraryEl     = document.getElementById('library-list');
   var chipsEl       = document.getElementById('setlist-chips');
+  var mobileShareEl = document.querySelector('[data-mobile-share]');
+  var mobileUrlEl   = document.querySelector('[data-mobile-url]');
+  var mobileOpenEl  = document.querySelector('[data-mobile-open]');
+  var mobileQrEl    = document.querySelector('[data-mobile-qr]');
+  var mobileBaseUrl = window.location.origin + '/worship/mobile';
 
   // Which ids are currently in the set
   var inSet = {};
@@ -208,6 +229,7 @@
       if (lyricInp && lyricHiddenInputs) lyricHiddenInputs.appendChild(lyricInp);
     });
     saveSetDraft();
+    updateMobileShare();
   }
 
   function syncUI() {
@@ -216,6 +238,7 @@
     buildBtn.disabled = !hasItems;
     if (lyricBtn) lyricBtn.disabled = !hasItems;
     saveBtn.disabled = !hasItems;
+    if (mobileShareEl) mobileShareEl.style.display = hasItems ? '' : 'none';
   }
 
   function markLibrary(id, added) {
@@ -227,6 +250,21 @@
       btn.disabled = added;
     }
     row.classList.toggle('lib-row--in-set', added);
+  }
+
+  function updateMobileShare() {
+    if (!mobileShareEl || !mobileUrlEl || !mobileOpenEl || !mobileQrEl) return;
+    var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
+    if (!ids.length) {
+      mobileUrlEl.value = '';
+      mobileOpenEl.href = '#';
+      mobileQrEl.removeAttribute('src');
+      return;
+    }
+    var url = mobileBaseUrl + '?song_order=' + encodeURIComponent(ids.join(','));
+    mobileUrlEl.value = url;
+    mobileOpenEl.href = url;
+    mobileQrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(url);
   }
 
   // ── Set operations ────────────────────────────────────────────────────────
@@ -305,6 +343,7 @@
     markLibrary(id, true);
     syncOrder();
     syncUI();
+    updateMobileShare();
   }
 
   function removeFromSet(id) {
@@ -318,6 +357,7 @@
     markLibrary(id, false);
     syncOrder();
     syncUI();
+    updateMobileShare();
   }
 
   // ── SortableJS (set only) ─────────────────────────────────────────────────
@@ -480,6 +520,7 @@
 
   restoreSetDraft();
   syncUI();
+  updateMobileShare();
 })();
 </script>
 {% endblock %}
