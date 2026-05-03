@@ -2,28 +2,30 @@
 
 {% block head_extra %}
 <style>
-  .wm-shell{display:flex;flex-direction:column;min-height:100vh}
-  .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;padding:1rem 1.25rem;border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10}
-  .wm-title{font-size:1.15rem;font-weight:800;margin:0}
-  .wm-sub{margin:.15rem 0 0;color:var(--text-secondary);font-size:.9rem}
-  .wm-actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-  .wm-link,.wm-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;border:1px solid var(--primary);background:var(--primary);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem;cursor:pointer}
+  :root,html,body{height:100%}
+  body{margin:0;background:var(--background)}
+  .wm-shell{display:flex;flex-direction:column;min-height:100dvh;height:100dvh;overflow:hidden}
+  .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;padding:.75rem 1rem;border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10;flex:0 0 auto}
+  .wm-title{font-size:1.05rem;font-weight:800;margin:0}
+  .wm-sub{margin:.1rem 0 0;color:var(--text-secondary);font-size:.85rem}
+  .wm-actions{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center}
+  .wm-link,.wm-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;border:1px solid var(--primary);background:var(--primary);color:#fff;text-decoration:none;font-weight:700;font-size:.86rem;cursor:pointer}
   .wm-link.secondary,.wm-btn.secondary{background:transparent;color:var(--primary)}
   .wm-link:hover,.wm-btn:hover{background:var(--primary-dark);color:#fff}
   .wm-link.secondary:hover,.wm-btn.secondary:hover{background:var(--primary);color:#fff}
-  .wm-stage{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:color-mix(in srgb, var(--primary) 2%, var(--background))}
+  .wm-stage{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:color-mix(in srgb, var(--primary) 2%, var(--background));height:100%}
   .wm-stage::-webkit-scrollbar{display:none}
-  .wm-slide{scroll-snap-align:start;flex:0 0 100vw;min-width:100vw;display:flex;align-items:center;justify-content:center;padding:1rem}
-  .wm-card{width:min(680px, 100%);min-height:min(72vh, 780px);border-radius:28px;background:var(--box);box-shadow:var(--card-shadow);padding:1.4rem 1.2rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
-  .wm-kind{font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.75rem}
-  .wm-song{font-size:1.7rem;line-height:1.1;font-weight:900;margin:0 0 .55rem}
-  .wm-meta{font-size:.95rem;color:var(--text-secondary);margin:0 0 1rem}
-  .wm-lines{font-size:clamp(1.8rem, 5vw, 3rem);line-height:1.25;font-weight:800;white-space:pre-wrap}
+  .wm-slide{scroll-snap-align:start;flex:0 0 100vw;min-width:100vw;display:flex;align-items:center;justify-content:center;padding:.75rem}
+  .wm-card{width:min(720px, 100%);height:calc(100dvh - 7.25rem);border-radius:28px;background:var(--box);box-shadow:var(--card-shadow);padding:1.1rem 1rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
+  .wm-kind{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.6rem}
+  .wm-song{font-size:clamp(1.4rem, 4vw, 1.9rem);line-height:1.1;font-weight:900;margin:0 0 .5rem}
+  .wm-meta{font-size:.9rem;color:var(--text-secondary);margin:0 0 .9rem}
+  .wm-lines{font-size:clamp(1.6rem, 4.6vw, 3.1rem);line-height:1.2;font-weight:800;white-space:pre-wrap}
   .wm-slide--lyric .wm-card{justify-content:center}
-  .wm-part{font-size:.9rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);margin:0 0 .8rem}
-  .wm-footer{padding:0 1.25rem 1rem;color:var(--text-secondary);font-size:.85rem}
+  .wm-part{font-size:.85rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);margin:0 0 .7rem}
+  .wm-footer{padding:.45rem 1rem .75rem;color:var(--text-secondary);font-size:.8rem;flex:0 0 auto}
   @media (min-width: 900px){
-    .wm-card{min-height:70vh}
+    .wm-card{height:calc(100dvh - 7rem)}
     .wm-lines{font-size:clamp(2rem, 4vw, 3.3rem)}
   }
 </style>
@@ -39,6 +41,7 @@
     <div class="wm-actions">
       <a class="wm-link secondary" href="{{ url_for('worship') }}">Back to builder</a>
       <button class="wm-btn secondary" type="button" id="wm-copy-link">Copy link</button>
+      <button class="wm-btn" type="button" id="wm-fullscreen-btn">Fullscreen</button>
     </div>
   </div>
 
@@ -77,25 +80,41 @@
 <script>
 (function () {
   var copyBtn = document.getElementById('wm-copy-link');
+  var fsBtn = document.getElementById('wm-fullscreen-btn');
   var stage = document.getElementById('wm-stage');
+  var shell = document.querySelector('.wm-shell');
   var url = window.location.href;
+  function copyUrl() {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        copyBtn.textContent = 'Copied';
+        setTimeout(function () { copyBtn.textContent = 'Copy link'; }, 1400);
+      }).catch(function () {
+        copyBtn.textContent = 'Copy failed';
+        setTimeout(function () { copyBtn.textContent = 'Copy link'; }, 1400);
+      });
+    }
+  }
+
   if (copyBtn) {
-    copyBtn.addEventListener('click', function () {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(function () {
-          copyBtn.textContent = 'Copied';
-          setTimeout(function () { copyBtn.textContent = 'Copy link'; }, 1400);
-        }).catch(function () {
-          copyBtn.textContent = 'Copy failed';
-          setTimeout(function () { copyBtn.textContent = 'Copy link'; }, 1400);
-        });
+    copyBtn.addEventListener('click', copyUrl);
+  }
+  if (fsBtn) {
+    fsBtn.addEventListener('click', function () {
+      var target = shell || document.documentElement;
+      if (document.fullscreenElement) {
+        document.exitFullscreen && document.exitFullscreen();
+        return;
       }
+      if (target.requestFullscreen) target.requestFullscreen().catch(function () {});
     });
   }
   if (stage) {
     stage.addEventListener('keydown', function (e) {
       if (e.key === 'ArrowRight') stage.scrollBy({ left: stage.clientWidth, behavior: 'smooth' });
       if (e.key === 'ArrowLeft') stage.scrollBy({ left: -stage.clientWidth, behavior: 'smooth' });
+      if ((e.key === 'f' || e.key === 'F') && fsBtn) fsBtn.click();
+      if ((e.key === 'c' || e.key === 'C') && copyBtn) copyBtn.click();
     });
   }
 })();
