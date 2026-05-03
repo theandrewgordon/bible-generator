@@ -1399,6 +1399,10 @@ def worship():
     return render_template('worship.html', songs=songs, setlists=setlists)
 
 
+def _slugify_worship_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().lower()).strip("-")
+
+
 def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str]) -> list[dict]:
     if song_order:
         raw_ids = [s.strip() for s in song_order.split(",") if s.strip()]
@@ -1412,9 +1416,22 @@ def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str
             seen.add(sid)
             ordered_ids.append(sid)
 
+    # Build a forgiving lookup from all known worship songs so mobile/share URLs
+    # still work if the stored id is missing or the request token is title-derived.
+    song_lookup: dict[str, dict] = {}
+    try:
+        for song in list_worship_songs():
+            normalized = normalize_worship_song(song)
+            song_lookup[normalized.get("id", "")] = song
+            title = normalized.get("title", "")
+            if title:
+                song_lookup.setdefault(_slugify_worship_token(title), song)
+    except Exception:
+        pass
+
     selected_items = []
     for song_id in ordered_ids:
-        song = get_worship_song(song_id)
+        song = get_worship_song(song_id) or song_lookup.get(song_id) or song_lookup.get(_slugify_worship_token(song_id))
         if song:
             selected_items.append(song)
     return selected_items
@@ -1461,6 +1478,7 @@ def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
 @app.route("/worship/mobile", methods=["GET"])
 @login_required
 def worship_mobile():
+    _seed_worship_from_files()
     selected_items = _resolve_selected_worship_items(
         request.args.get("song_order", ""),
         request.args.getlist("song_ids"),
@@ -1481,6 +1499,7 @@ def worship_mobile():
 @app.route("/worship/export/lyric-sheet", methods=["POST"])
 @login_required
 def worship_export_lyric_sheet():
+    _seed_worship_from_files()
     selected_items = _resolve_selected_worship_items(
         request.form.get("song_order", ""),
         request.form.getlist("song_ids"),
@@ -1528,6 +1547,7 @@ def worship_export_lyric_sheet():
 @app.route("/worship/build", methods=["POST"])
 @login_required
 def worship_build():
+    _seed_worship_from_files()
     selected_items = _resolve_selected_worship_items(
         request.form.get("song_order", ""),
         request.form.getlist("song_ids"),

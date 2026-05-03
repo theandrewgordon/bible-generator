@@ -23,14 +23,20 @@ class WorshipMobileViewTests(unittest.TestCase):
             }
         ]
 
-        original_resolve = app._resolve_selected_worship_items
+        original_seed = app._seed_worship_from_files
+        original_get = app.get_worship_song
+        original_list = app.list_worship_songs
         try:
-            app._resolve_selected_worship_items = lambda *_args, **_kwargs: selected
+            app._seed_worship_from_files = lambda: None
+            app.get_worship_song = lambda *_args, **_kwargs: None
+            app.list_worship_songs = lambda: selected
             with app.app.test_request_context("/worship/mobile?song_order=holy-forever", method="GET"):
                 g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
                 html = app.worship_mobile()
         finally:
-            app._resolve_selected_worship_items = original_resolve
+            app._seed_worship_from_files = original_seed
+            app.get_worship_song = original_get
+            app.list_worship_songs = original_list
 
         self.assertIn("Worship mobile view", html)
         self.assertIn("Holy Forever", html)
