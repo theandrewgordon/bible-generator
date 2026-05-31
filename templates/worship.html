@@ -618,14 +618,20 @@
 
   // ── SortableJS (set only) ─────────────────────────────────────────────────
 
-  Sortable.create(setListEl, {
-    animation: 150,
-    handle: '.drag-handle',
-    onEnd: function () {
-      syncOrder();
-      syncUI();
+  if (window.Sortable && setListEl) {
+    try {
+      Sortable.create(setListEl, {
+        animation: 150,
+        handle: '.drag-handle',
+        onEnd: function () {
+          syncOrder();
+          syncUI();
+        }
+      });
+    } catch (e) {
+      console.warn('Worship drag sorting unavailable.', e);
     }
-  });
+  }
 
   // ── Library click delegation ──────────────────────────────────────────────
 
