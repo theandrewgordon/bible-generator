@@ -1097,13 +1097,135 @@ def _worship_setlist_id(date_label: str, name: str = "") -> str:
     return f"{date_label}-{name_slug}" if name_slug else date_label
 
 
+def _worship_timestamp() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
 def _normalize_worship_setlist(data: dict, fallback_id: str = "") -> dict:
     date_label = str(data.get("date") or fallback_id[:10] or "").strip()
     songs = data.get("songs") if isinstance(data.get("songs"), list) else []
     notes = data.get("notes") if isinstance(data.get("notes"), dict) else {}
     name = str(data.get("name") or "").strip()
     setlist_id = str(data.get("id") or fallback_id or _worship_setlist_id(date_label, name)).strip()
-    return {"id": setlist_id, "date": date_label, "name": name, "songs": songs, "notes": notes}
+    return {
+        "id": setlist_id,
+        "date": date_label,
+        "name": name,
+        "songs": songs,
+        "notes": notes,
+        "created_at": data.get("created_at") or data.get("createdAt") or "",
+        "updated_at": data.get("updated_at") or data.get("updatedAt") or "",
+        "created_by": data.get("created_by") or data.get("createdBy") or "",
+        "updated_by": data.get("updated_by") or data.get("updatedBy") or "",
+        "song_count": int(data.get("song_count") or len(songs)),
+        "worship_scope": data.get("worship_scope") or data.get("worshipScope") or _current_worship_scope(),
+    }
+
+
+def _worship_setlist_visible_in_scope(data: dict) -> bool:
+    scope = data.get("worship_scope") or data.get("worshipScope") or _DEFAULT_WORSHIP_SCOPE
+    current = _current_worship_scope()
+    return scope == current or (current == _DEFAULT_WORSHIP_SCOPE and scope in ("", _DEFAULT_WORSHIP_SCOPE))
+
+
+def _valid_worship_setlist_id(setlist_id: str) -> bool:
+    return bool(setlist_id) and ".." not in setlist_id and "/" not in setlist_id and "\\" not in setlist_id
+
+
+def _get_worship_setlist(setlist_id: str) -> dict | None:
+    if not _valid_worship_setlist_id(setlist_id):
+        return None
+    if db:
+        try:
+            for collection_ref in _worship_setlist_refs_for_read():
+                doc = collection_ref.document(setlist_id).get()
+                if doc.exists:
+                    return _normalize_worship_setlist(doc.to_dict() or {}, doc.id)
+        except Exception as exc:
+            app.logger.warning("_get_worship_setlist(%s) Firestore error: %s", setlist_id, exc)
+    fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
+    if fp.exists():
+        try:
+            with open(fp, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if _worship_setlist_visible_in_scope(data):
+                return _normalize_worship_setlist(data, fp.stem)
+        except Exception:
+            pass
+    return None
+
+
+def _make_unique_worship_setlist_id(date_label: str, name: str, existing_id: str = "") -> str:
+    base = _worship_setlist_id(date_label, name)
+    candidate = base
+    suffix = 2
+    while candidate != existing_id and _get_worship_setlist(candidate):
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _persist_worship_setlist(data: dict, previous_id: str = "") -> bool:
+    setlist_id = data["id"]
+    existed = bool(_get_worship_setlist(setlist_id))
+    if db:
+        try:
+            scoped_ref = _worship_setlists_ref().document(setlist_id)
+            scoped_ref.set(data)
+            if previous_id and previous_id != setlist_id:
+                _worship_setlists_ref().document(previous_id).delete()
+                if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
+                    _legacy_worship_setlists_ref().document(previous_id).delete()
+        except Exception as exc:
+            app.logger.warning("_persist_worship_setlist Firestore error: %s", exc)
+    try:
+        setlists_dir = Path(app.root_path) / "setlists"
+        setlists_dir.mkdir(exist_ok=True)
+        with open(setlists_dir / f"{setlist_id}.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        if previous_id and previous_id != setlist_id:
+            old_fp = setlists_dir / f"{previous_id}.json"
+            if old_fp.exists():
+                old_fp.unlink()
+    except Exception as exc:
+        app.logger.warning("_persist_worship_setlist file error: %s", exc)
+    return existed
+
+
+def _delete_worship_setlist(setlist_id: str) -> bool:
+    if not _valid_worship_setlist_id(setlist_id):
+        return False
+    deleted = False
+    if db:
+        try:
+            ref = _worship_setlists_ref().document(setlist_id)
+            if ref.get().exists:
+                deleted = True
+            ref.delete()
+            if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
+                legacy_ref = _legacy_worship_setlists_ref().document(setlist_id)
+                if legacy_ref.get().exists:
+                    deleted = True
+                legacy_ref.delete()
+        except Exception as exc:
+            app.logger.warning("_delete_worship_setlist Firestore error: %s", exc)
+    fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
+    if fp.exists():
+        try:
+            fp.unlink()
+            deleted = True
+        except Exception:
+            pass
+    return deleted
+
+
+def _touch_worship_songs_last_used(song_ids: list[str], date_label: str) -> None:
+    for song_id in dict.fromkeys(song_ids):
+        song = get_worship_song(song_id)
+        if not song:
+            continue
+        song["last_used"] = date_label
+        save_worship_song(song)
 
 
 def _load_recent_setlists() -> list[dict]:
@@ -1130,7 +1252,7 @@ def _load_recent_setlists() -> list[dict]:
         try:
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            if data.get("date") and isinstance(data.get("songs"), list):
+            if data.get("date") and isinstance(data.get("songs"), list) and _worship_setlist_visible_in_scope(data):
                 results.append(_normalize_worship_setlist(data, fp.stem))
         except Exception:
             pass
@@ -1686,23 +1808,28 @@ def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str
     return selected_items
 
 
-def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
+def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None = None) -> list[dict]:
+    notes = notes if isinstance(notes, dict) else {}
     slides: list[dict] = []
     for item in selected_items:
         normalized = normalize_worship_song(item)
+        song_id = normalized.get("id", "")
         song_title = normalized.get("title", "Untitled")
         song_version = normalized.get("version", "")
         item_type = normalized.get("type", "song")
         song_bg = normalized.get("background")
+        song_note = str(notes.get(song_id) or "").strip()
         slides.append(
             {
                 "kind": "divider",
+                "id": song_id,
                 "title": song_title,
                 "artist": normalized.get("artist", ""),
                 "version": song_version,
                 "key": normalized.get("key", ""),
                 "type": item_type,
                 "background": song_bg,
+                "note": song_note,
             }
         )
         parts = normalized.get("parts", {}) or {}
@@ -1715,6 +1842,7 @@ def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
                 slides.append(
                     {
                         "kind": "lyric",
+                        "id": song_id,
                         "title": song_title,
                         "version": song_version,
                         "part": part_name,
@@ -1723,6 +1851,7 @@ def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
                         "font_size": chunk.get("font_size", 48),
                         "type": item_type,
                         "background": song_bg,
+                        "note": song_note,
                     }
                 )
     return slides
@@ -1732,20 +1861,28 @@ def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
 @login_required
 def worship_mobile():
     _seed_worship_from_files()
-    selected_items = _resolve_selected_worship_items(
-        request.args.get("song_order", ""),
-        request.args.getlist("song_ids"),
-    )
+    setlist_id = request.args.get("setlist_id", "").strip()
+    setlist = _get_worship_setlist(setlist_id) if setlist_id else None
+    if setlist:
+        selected_items = _resolve_selected_worship_items("", setlist.get("songs", []))
+        notes = setlist.get("notes", {})
+    else:
+        selected_items = _resolve_selected_worship_items(
+            request.args.get("song_order", ""),
+            request.args.getlist("song_ids"),
+        )
+        notes = {}
     if not selected_items:
         flash("Select at least one item to preview the mobile slides.", "warning")
         return redirect(url_for("worship"))
-    slides = _build_worship_mobile_slides(selected_items)
+    slides = _build_worship_mobile_slides(selected_items, notes)
     song_order = ",".join(item.get("id", "") for item in selected_items if item.get("id"))
     return render_template(
         "worship_mobile.html",
         slides=slides,
         selected_items=selected_items,
         song_order=song_order,
+        setlist=setlist,
     )
 
 
@@ -1839,9 +1976,7 @@ def worship_build():
                 )
 
     today = datetime.now(timezone.utc).date().isoformat()
-    for item in selected_items:
-        item["last_used"] = today
-        save_worship_song(item)
+    _touch_worship_songs_last_used([item.get("id", "") for item in selected_items if item.get("id")], today)
 
     tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
     prs.save(tmp.name)
@@ -2149,6 +2284,7 @@ def worship_setlist_save():
     if not song_ids:
         return jsonify({"ok": False, "error": "No songs"}), 400
     setlist_name = request.form.get("setlist_name", "").strip()
+    existing_id = request.form.get("setlist_id", "").strip()
 
     notes_json = request.form.get("notes_json", "{}")
     try:
@@ -2158,53 +2294,96 @@ def worship_setlist_save():
     except (json.JSONDecodeError, ValueError):
         notes = {}
 
+    existing = _get_worship_setlist(existing_id) if existing_id else None
     today = datetime.now().strftime("%Y-%m-%d")
-    setlist_id = _worship_setlist_id(today, setlist_name)
-    data = {"id": setlist_id, "date": today, "name": setlist_name, "songs": song_ids, "notes": notes, "worship_scope": _current_worship_scope()}
-    setlist_path = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
-    existed = setlist_path.exists()
+    date_label = existing.get("date") if existing else today
+    setlist_id = existing_id if existing else _worship_setlist_id(today, setlist_name)
+    created_at = existing.get("created_at") if existing else ""
+    created_by = existing.get("created_by") if existing else ""
+    now = _worship_timestamp()
+    data = {
+        "id": setlist_id,
+        "date": date_label,
+        "name": setlist_name,
+        "songs": song_ids,
+        "notes": notes,
+        "worship_scope": _current_worship_scope(),
+        "created_at": created_at or now,
+        "updated_at": now,
+        "created_by": created_by or session.get("user_email", ""),
+        "updated_by": session.get("user_email", ""),
+        "song_count": len(song_ids),
+    }
+    existed = _persist_worship_setlist(data, existing_id if existing else "")
+    _touch_worship_songs_last_used(song_ids, today)
 
-    if db:
-        try:
-            scoped_ref = _worship_setlists_ref().document(setlist_id)
-            existed = existed or scoped_ref.get().exists
-            if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
-                existed = existed or _legacy_worship_setlists_ref().document(setlist_id).get().exists
-            scoped_ref.set(data)
-        except Exception as exc:
-            app.logger.warning("worship_setlist_save Firestore error: %s", exc)
-
-    try:
-        setlists_dir = setlist_path.parent
-        setlists_dir.mkdir(exist_ok=True)
-        with open(setlist_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-    except Exception as exc:
-        app.logger.warning("worship_setlist_save file error: %s", exc)
-
-    return jsonify({"ok": True, "id": setlist_id, "date": today, "name": setlist_name, "songs": song_ids, "notes": notes, "updated": existed})
+    return jsonify({"ok": True, **_normalize_worship_setlist(data), "updated": existed})
 
 
 @app.route("/worship/setlist/delete", methods=["POST"])
 @login_required
 def worship_setlist_delete():
     setlist_id = request.form.get("setlist_id", "").strip() or request.form.get("date", "").strip()
-    if not setlist_id or ".." in setlist_id or "/" in setlist_id or "\\" in setlist_id:
+    if not _valid_worship_setlist_id(setlist_id):
         return jsonify({"ok": False, "error": "Invalid setlist"}), 400
-    if db:
-        try:
-            _worship_setlists_ref().document(setlist_id).delete()
-            if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
-                _legacy_worship_setlists_ref().document(setlist_id).delete()
-        except Exception as exc:
-            app.logger.warning("worship_setlist_delete Firestore error: %s", exc)
-    fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
-    if fp.exists():
-        try:
-            fp.unlink()
-        except Exception:
-            pass
+    _delete_worship_setlist(setlist_id)
     return jsonify({"ok": True})
+
+
+@app.route("/worship/setlist/rename", methods=["POST"])
+@login_required
+def worship_setlist_rename():
+    setlist_id = request.form.get("setlist_id", "").strip()
+    new_name = request.form.get("setlist_name", "").strip()
+    if not _valid_worship_setlist_id(setlist_id) or not new_name:
+        return jsonify({"ok": False, "error": "Invalid setlist"}), 400
+    existing = _get_worship_setlist(setlist_id)
+    if not existing:
+        return jsonify({"ok": False, "error": "Setlist not found"}), 404
+    new_id = _make_unique_worship_setlist_id(existing["date"], new_name, setlist_id)
+    existing.update(
+        {
+            "id": new_id,
+            "name": new_name,
+            "updated_at": _worship_timestamp(),
+            "updated_by": session.get("user_email", ""),
+            "song_count": len(existing.get("songs", [])),
+            "worship_scope": _current_worship_scope(),
+        }
+    )
+    _persist_worship_setlist(existing, setlist_id)
+    return jsonify({"ok": True, **_normalize_worship_setlist(existing), "updated": True})
+
+
+@app.route("/worship/setlist/duplicate", methods=["POST"])
+@login_required
+def worship_setlist_duplicate():
+    setlist_id = request.form.get("setlist_id", "").strip()
+    duplicate_name = request.form.get("setlist_name", "").strip()
+    if not _valid_worship_setlist_id(setlist_id):
+        return jsonify({"ok": False, "error": "Invalid setlist"}), 400
+    existing = _get_worship_setlist(setlist_id)
+    if not existing:
+        return jsonify({"ok": False, "error": "Setlist not found"}), 404
+    today = datetime.now().strftime("%Y-%m-%d")
+    base_name = existing.get("name") or existing.get("date") or setlist_id
+    duplicate_name = duplicate_name or f"Copy of {base_name}"
+    new_id = _make_unique_worship_setlist_id(today, duplicate_name)
+    now = _worship_timestamp()
+    duplicate = {
+        **existing,
+        "id": new_id,
+        "date": today,
+        "name": duplicate_name,
+        "created_at": now,
+        "updated_at": now,
+        "created_by": session.get("user_email", ""),
+        "updated_by": session.get("user_email", ""),
+        "song_count": len(existing.get("songs", [])),
+        "worship_scope": _current_worship_scope(),
+    }
+    _persist_worship_setlist(duplicate)
+    return jsonify({"ok": True, **_normalize_worship_setlist(duplicate), "updated": False})
 
 
 ## about + healthz moved to public blueprint

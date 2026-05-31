@@ -20,6 +20,7 @@
   .wm-kind{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.55rem}
   .wm-song{font-size:1.35rem;line-height:1.08;font-weight:900;margin:0 0 .45rem;max-width:18ch;overflow-wrap:anywhere}
   .wm-meta{font-size:.88rem;color:var(--text-secondary);margin:0 0 .85rem}
+  .wm-note{font-size:.9rem;line-height:1.32;color:var(--text-secondary);margin:.4rem auto 0;max-width:28ch;padding:.45rem .6rem;border-radius:10px;background:color-mix(in srgb, var(--primary) 6%, transparent)}
   .wm-lines{font-size:1.65rem;line-height:1.16;font-weight:800;white-space:pre-wrap;max-width:16ch;hyphens:auto;overflow-wrap:anywhere}
   .wm-slide--divider .wm-card{background:linear-gradient(180deg,var(--box) 0%, color-mix(in srgb, var(--primary) 3%, var(--box)) 100%)}
   .wm-slide--lyric .wm-card{justify-content:center}
@@ -59,7 +60,7 @@
 <div class="wm-shell">
   <div class="wm-topbar">
     <div>
-      <h1 class="wm-title">Worship mobile view</h1>
+      <h1 class="wm-title">{% if setlist %}{{ setlist.name or setlist.date }}{% else %}Worship mobile view{% endif %}</h1>
       <p class="wm-sub">Swipe horizontally through the set.</p>
     </div>
     <div class="wm-actions">
@@ -87,6 +88,7 @@
                 {% if slide.key %}Key {{ slide.key }}{% endif %}
               </p>
             {% endif %}
+            {% if slide.note %}<p class="wm-note">{{ slide.note }}</p>{% endif %}
           {% else %}
             <div class="wm-kind">Lyrics</div>
             <h2 class="wm-song">{{ slide.title }}</h2>

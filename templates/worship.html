@@ -19,6 +19,11 @@
   .setlist-chip-wrap{display:inline-flex;align-items:center}
   .setlist-chip-del{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:.9em;padding:2px 4px;line-height:1;border-radius:4px;margin-left:1px}
   .setlist-chip-del:hover{color:#ef4444;background:#fee2e2}
+  .setlist-chip-wrap{border:1px solid #e2e8f0;border-radius:10px;padding:6px;background:var(--background);gap:3px;flex-wrap:wrap}
+  .setlist-chip{border-radius:8px;text-align:left}
+  .setlist-meta{flex-basis:100%;font-size:.74rem;color:var(--text-secondary);padding:0 7px}
+  .setlist-action{background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:.78rem;font-weight:700;padding:4px 6px;border-radius:6px}
+  .setlist-action:hover{background:color-mix(in srgb, var(--primary) 8%, transparent);color:var(--primary)}
   .ws-btn-primary{padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.95rem;transition:background .15s}
   .ws-btn-primary:hover:not(:disabled){background:var(--primary-dark)}
   .ws-btn-primary:disabled{opacity:.4;cursor:default}
@@ -56,11 +61,21 @@
   .ws-church-actions input,.ws-church-actions select{padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px;background:var(--background);color:var(--text);font-size:.85rem}
   .ws-church-actions button{padding:6px 10px;border-radius:8px;border:1px solid var(--primary);background:var(--primary);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer}
   .ws-church-actions button.secondary{background:transparent;color:var(--primary)}
+  .ws-modal-backdrop{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.42);padding:1rem}
+  .ws-modal-backdrop.is-open{display:flex}
+  .ws-modal{width:min(420px,100%);background:var(--box);border-radius:14px;padding:1rem;box-shadow:0 22px 70px rgba(15,23,42,.24);border:1px solid #e2e8f0}
+  .ws-modal h2{font-size:1.05rem;margin:0 0 .25rem}
+  .ws-modal p{margin:.15rem 0 .85rem;color:var(--text-secondary);font-size:.86rem}
+  .ws-modal label{display:block;font-weight:800;font-size:.82rem;margin-bottom:.35rem}
+  .ws-modal input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}
+  .ws-modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
   @media(max-width:640px){
     .ws-church-card{display:block}
     .ws-church-actions{justify-content:flex-start;margin-top:.75rem}
     .ws-church-actions form{width:100%;display:grid;grid-template-columns:1fr auto}
     .ws-church-actions form.switch-form{grid-template-columns:1fr auto}
+    .setlist-chip-wrap{width:100%;display:grid;grid-template-columns:1fr auto auto auto auto}
+    .setlist-meta{grid-column:1 / -1}
     .ws-workspace{display:flex;flex-direction:column;gap:1rem}
     .ws-set-panel{position:static;order:-1;max-height:none;overflow-y:visible}
     .ws-set-card{padding:1rem;margin-top:0;border-radius:10px}
@@ -175,7 +190,12 @@
   <div id="setlist-chips" style="display:flex;flex-wrap:wrap;gap:6px">
     {% for sl in setlists %}
     <span class="setlist-chip-wrap">
-      <button class="setlist-chip" data-id="{{ sl.id }}" data-date="{{ sl.date }}" data-name="{{ sl.name }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.name or sl.date }}</button><button class="setlist-chip-del" data-id="{{ sl.id }}" data-date="{{ sl.date }}" title="Delete setlist">×</button>
+      <button class="setlist-chip" data-id="{{ sl.id }}" data-date="{{ sl.date }}" data-name="{{ sl.name }}" data-updated="{{ sl.updated_at }}" data-count="{{ sl.song_count }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.name or sl.date }}</button>
+      <button class="setlist-action setlist-mobile" data-id="{{ sl.id }}" title="Open mobile link">Mobile</button>
+      <button class="setlist-action setlist-rename" data-id="{{ sl.id }}" title="Rename setlist">Rename</button>
+      <button class="setlist-action setlist-copy" data-id="{{ sl.id }}" title="Duplicate setlist">Copy</button>
+      <button class="setlist-chip-del" data-id="{{ sl.id }}" data-date="{{ sl.date }}" title="Delete setlist">×</button>
+      <span class="setlist-meta">{{ sl.song_count }} song{% if sl.song_count != 1 %}s{% endif %}{% if sl.updated_at %} · Updated {{ sl.updated_at[:10] }}{% endif %}</span>
     </span>
     {% endfor %}
   </div>
@@ -207,14 +227,13 @@
   <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
     <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Build Deck</button>
     <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Export Lyric Sheet</button>
+    <button type="button" class="ws-btn-ghost" id="copy-last-set-btn" {% if not setlists %}disabled{% endif %}>Copy Last Set</button>
     <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled>Save Setlist</button>
     <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
   </div>
 
   <div class="ws-share-card" data-mobile-share>
     <div class="ws-section-label" style="margin-bottom:.4rem">Mobile slide link</div>
-    <input id="setlist-name" type="text" placeholder="Setlist name, e.g. Sunday AM"
-      style="width:100%;box-sizing:border-box;margin:.1rem 0 .65rem;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:var(--background);color:var(--text);font-size:.9rem">
     <p class="muted small" style="margin:.1rem 0 .75rem">Open this on a phone and swipe through the set.</p>
     <div class="ws-share-row">
       <a class="ws-share-link" href="#" target="_blank" rel="noopener" data-mobile-link aria-label="Mobile slide link"></a>
@@ -235,6 +254,19 @@
 
 </div>{# end ws-set-panel #}
 </div>{# end ws-workspace #}
+
+<div class="ws-modal-backdrop" id="save-set-modal" aria-hidden="true">
+  <div class="ws-modal" role="dialog" aria-modal="true" aria-labelledby="save-set-title">
+    <h2 id="save-set-title">Save set</h2>
+    <p>Saving to {{ worship_church.name }}. The name defaults to today's date.</p>
+    <label for="save-set-name">Set name</label>
+    <input id="save-set-name" type="text" autocomplete="off">
+    <div class="ws-modal-actions">
+      <button type="button" class="ws-btn-ghost" id="save-set-cancel">Cancel</button>
+      <button type="button" class="ws-btn-primary" id="save-set-confirm">Save</button>
+    </div>
+  </div>
+</div>
 
 <script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}
@@ -258,8 +290,8 @@
   var buildBtn      = document.getElementById('build-btn');
   var lyricBtn      = document.getElementById('lyric-sheet-btn');
   var saveBtn       = document.getElementById('save-setlist-btn');
+  var copyLastBtn   = document.getElementById('copy-last-set-btn');
   var setlistStatus = document.getElementById('setlist-status');
-  var setlistNameEl = document.getElementById('setlist-name');
   var setSummaryEl  = document.getElementById('set-summary');
   var setSummaryCountEl = document.getElementById('set-summary-count');
   var setSummaryTitlesEl = document.getElementById('set-summary-titles');
@@ -273,6 +305,14 @@
   var mobileNativeEl = document.querySelector('[data-mobile-native]');
   var mobileQrEl    = document.querySelector('[data-mobile-qr]');
   var mobileBaseUrl = window.location.origin + '/worship/mobile';
+  var saveModal     = document.getElementById('save-set-modal');
+  var saveNameInput = document.getElementById('save-set-name');
+  var saveConfirmBtn = document.getElementById('save-set-confirm');
+  var saveCancelBtn = document.getElementById('save-set-cancel');
+  var currentSetlistId = '';
+  var currentSetlistName = '';
+  var loadingSet = false;
+  var setDirty = true;
 
   // Which ids are currently in the set
   var inSet = {};
@@ -287,6 +327,10 @@
       return { id: li.dataset.id, note: noteEl ? noteEl.value : '' };
     });
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+
+  function todayLabel() {
+    return new Date().toLocaleDateString('en-CA');
   }
 
   function pruneSetDraftId(id) {
@@ -330,6 +374,7 @@
   // ── UI sync ──────────────────────────────────────────────────────────────
 
   function syncOrder() {
+    if (!loadingSet) setDirty = true;
     var ids = Array.from(setListEl.querySelectorAll('[data-id]'))
       .map(function (el) { return el.dataset.id; });
     orderInput.value = ids.join(',');
@@ -399,7 +444,9 @@
       if (mobileNativeEl) mobileNativeEl.disabled = true;
       return;
     }
-    var url = mobileBaseUrl + '?song_order=' + encodeURIComponent(ids.join(','));
+    var url = (currentSetlistId && !setDirty)
+      ? mobileBaseUrl + '?setlist_id=' + encodeURIComponent(currentSetlistId)
+      : mobileBaseUrl + '?song_order=' + encodeURIComponent(ids.join(','));
     mobileLinkEl.textContent = url;
     mobileLinkEl.href = url;
     mobileOpenEl.href = url;
@@ -614,7 +661,35 @@
     if (showMoreEl) showMoreEl.style.display = (!q && wraps.length > SETLIST_LIMIT) ? '' : 'none';
   }
 
-  function upsertSetlistChip(id, date, name, songIds, notes) {
+  function loadSetlistFromChip(chip) {
+    if (!chip) return;
+    var songIds = JSON.parse(chip.dataset.songs || '[]');
+    var notes = JSON.parse(chip.dataset.notes || '{}');
+    loadingSet = true;
+    Array.from(setListEl.querySelectorAll('[data-id]'))
+      .map(function (el) { return el.dataset.id; })
+      .forEach(removeFromSet);
+    songIds.forEach(function (id) {
+      if (SONGS_BY_ID[id]) {
+        addToSet(id);
+        if (notes[id]) {
+          var li = setListEl.querySelector('[data-id="' + id + '"]');
+          var noteEl = li ? li.querySelector('.set-note') : null;
+          if (noteEl) noteEl.value = notes[id];
+        }
+      }
+    });
+    currentSetlistId = chip.dataset.id || '';
+    currentSetlistName = chip.dataset.name || chip.dataset.date || '';
+    setDirty = false;
+    syncOrder();
+    syncUI();
+    loadingSet = false;
+    setDirty = false;
+    updateMobileShare();
+  }
+
+  function upsertSetlistChip(id, date, name, songIds, notes, updatedAt) {
     if (!chipsEl || !id) return;
     var existing = chipsEl.querySelector('.setlist-chip[data-id="' + id + '"]');
     var wrap = existing ? existing.closest('.setlist-chip-wrap') : document.createElement('span');
@@ -627,6 +702,8 @@
     chip.dataset.id = id;
     chip.dataset.date = date;
     chip.dataset.name = name || '';
+    chip.dataset.updated = updatedAt || '';
+    chip.dataset.count = String((songIds || []).length);
     chip.dataset.songs = JSON.stringify(songIds || []);
     chip.dataset.notes = JSON.stringify(notes || {});
     chip.textContent = name || date;
@@ -637,15 +714,38 @@
       delBtn.className = 'setlist-chip-del';
       delBtn.textContent = '×';
     }
+    var mobileBtn = wrap.querySelector('.setlist-mobile') || document.createElement('button');
+    mobileBtn.type = 'button';
+    mobileBtn.className = 'setlist-action setlist-mobile';
+    mobileBtn.textContent = 'Mobile';
+    mobileBtn.dataset.id = id;
+    var renameBtn = wrap.querySelector('.setlist-rename') || document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.className = 'setlist-action setlist-rename';
+    renameBtn.textContent = 'Rename';
+    renameBtn.dataset.id = id;
+    var copyBtn = wrap.querySelector('.setlist-copy') || document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'setlist-action setlist-copy';
+    copyBtn.textContent = 'Copy';
+    copyBtn.dataset.id = id;
+    var meta = wrap.querySelector('.setlist-meta') || document.createElement('span');
+    meta.className = 'setlist-meta';
+    meta.textContent = (songIds || []).length + ' song' + ((songIds || []).length === 1 ? '' : 's') + (chip.dataset.updated ? ' · Updated ' + chip.dataset.updated.slice(0, 10) : '');
     delBtn.dataset.id = id;
     delBtn.dataset.date = date;
     delBtn.title = 'Delete setlist';
 
     if (!existing) {
       wrap.appendChild(chip);
+      wrap.appendChild(mobileBtn);
+      wrap.appendChild(renameBtn);
+      wrap.appendChild(copyBtn);
       wrap.appendChild(delBtn);
+      wrap.appendChild(meta);
       chipsEl.insertBefore(wrap, chipsEl.firstChild);
     }
+    if (copyLastBtn) copyLastBtn.disabled = false;
     filterSetlistChips();
   }
 
@@ -653,22 +753,57 @@
     chipsEl.addEventListener('click', function (e) {
       var chip = e.target.closest('.setlist-chip');
       if (chip) {
-        var songIds = JSON.parse(chip.dataset.songs);
-        var notes = JSON.parse(chip.dataset.notes || '{}');
-        if (setlistNameEl) setlistNameEl.value = chip.dataset.name || '';
-        Array.from(setListEl.querySelectorAll('[data-id]'))
-          .map(function (el) { return el.dataset.id; })
-          .forEach(removeFromSet);
-        songIds.forEach(function (id) {
-          if (SONGS_BY_ID[id]) {
-            addToSet(id);
-            if (notes[id]) {
-              var li = setListEl.querySelector('[data-id="' + id + '"]');
-              var noteEl = li ? li.querySelector('.set-note') : null;
-              if (noteEl) noteEl.value = notes[id];
+        loadSetlistFromChip(chip);
+        return;
+      }
+      var mobileBtn = e.target.closest('.setlist-mobile');
+      if (mobileBtn) {
+        window.open(mobileBaseUrl + '?setlist_id=' + encodeURIComponent(mobileBtn.dataset.id), '_blank', 'noopener');
+        return;
+      }
+      var renameBtn = e.target.closest('.setlist-rename');
+      if (renameBtn) {
+        var renameChip = chipsEl.querySelector('.setlist-chip[data-id="' + renameBtn.dataset.id + '"]');
+        var newName = window.prompt('Rename set', renameChip ? (renameChip.dataset.name || renameChip.dataset.date) : '');
+        if (!newName || !newName.trim()) return;
+        var renameFd = new FormData();
+        renameFd.append('csrf_token', csrfToken);
+        renameFd.append('setlist_id', renameBtn.dataset.id);
+        renameFd.append('setlist_name', newName.trim());
+        fetch('/worship/setlist/rename', { method: 'POST', body: renameFd, credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) { alert(data.error || 'Rename failed.'); return; }
+            var oldWrap = renameBtn.closest('.setlist-chip-wrap');
+            if (oldWrap) oldWrap.remove();
+            upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes, data.updated_at);
+            if (currentSetlistId === renameBtn.dataset.id) {
+              currentSetlistId = data.id;
+              currentSetlistName = data.name || data.date;
+              setDirty = false;
+              updateMobileShare();
             }
-          }
-        });
+          })
+          .catch(function () { alert('Rename failed.'); });
+        return;
+      }
+      var copyBtn = e.target.closest('.setlist-copy');
+      if (copyBtn) {
+        var copyChip = chipsEl.querySelector('.setlist-chip[data-id="' + copyBtn.dataset.id + '"]');
+        var sourceName = copyChip ? (copyChip.dataset.name || copyChip.dataset.date || 'set') : 'set';
+        var copyName = window.prompt('Name the copy', 'Copy of ' + sourceName);
+        if (!copyName || !copyName.trim()) return;
+        var copyFd = new FormData();
+        copyFd.append('csrf_token', csrfToken);
+        copyFd.append('setlist_id', copyBtn.dataset.id);
+        copyFd.append('setlist_name', copyName.trim());
+        fetch('/worship/setlist/duplicate', { method: 'POST', body: copyFd, credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.ok) { alert(data.error || 'Copy failed.'); return; }
+            upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes, data.updated_at);
+          })
+          .catch(function () { alert('Copy failed.'); });
         return;
       }
       var delBtn = e.target.closest('.setlist-chip-del');
@@ -702,13 +837,34 @@
 
   // ── Save Setlist ──────────────────────────────────────────────────────────
 
-  saveBtn.addEventListener('click', function () {
+  function openSaveModal() {
+    if (!saveModal || !saveNameInput) {
+      saveCurrentSet(todayLabel());
+      return;
+    }
+    saveNameInput.value = currentSetlistName || todayLabel();
+    saveModal.classList.add('is-open');
+    saveModal.setAttribute('aria-hidden', 'false');
+    setTimeout(function () { saveNameInput.focus(); saveNameInput.select(); }, 0);
+  }
+
+  function closeSaveModal() {
+    if (!saveModal) return;
+    saveModal.classList.remove('is-open');
+    saveModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function saveCurrentSet(enteredName) {
     var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     if (!ids.length) return;
+    var today = todayLabel();
+    enteredName = (enteredName || '').trim();
+    var setlistName = enteredName && enteredName !== today ? enteredName : '';
     var fd = new FormData();
     fd.append('csrf_token', csrfToken);
+    if (currentSetlistId) fd.append('setlist_id', currentSetlistId);
     ids.forEach(function (id) { fd.append('song_ids', id); });
-    if (setlistNameEl) fd.append('setlist_name', setlistNameEl.value.trim());
+    fd.append('setlist_name', setlistName);
     var notes = {};
     ids.forEach(function (id) {
       var li = setListEl.querySelector('[data-id="' + id + '"]');
@@ -720,8 +876,12 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.ok) {
-          upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes);
-          setlistStatus.textContent = data.updated ? "Updated today's setlist" : 'Saved setlist';
+          currentSetlistId = data.id;
+          currentSetlistName = data.name || data.date;
+          setDirty = false;
+          upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes, data.updated_at);
+          updateMobileShare();
+          setlistStatus.textContent = (data.updated ? 'Updated ' : 'Saved ') + (data.name || data.date) + ' · last saved just now';
           setlistStatus.style.display = 'inline';
           setTimeout(function () { setlistStatus.style.display = 'none'; }, 2500);
         } else {
@@ -729,12 +889,55 @@
         }
       })
       .catch(function () { alert('Save failed.'); });
+  }
+
+  saveBtn.addEventListener('click', openSaveModal);
+  if (saveCancelBtn) saveCancelBtn.addEventListener('click', closeSaveModal);
+  if (saveModal) {
+    saveModal.addEventListener('click', function (e) {
+      if (e.target === saveModal) closeSaveModal();
+    });
+  }
+  if (saveConfirmBtn) {
+    saveConfirmBtn.addEventListener('click', function () {
+      saveCurrentSet(saveNameInput ? saveNameInput.value : todayLabel());
+      closeSaveModal();
+    });
+  }
+  if (saveNameInput) {
+    saveNameInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveCurrentSet(saveNameInput.value);
+        closeSaveModal();
+      } else if (e.key === 'Escape') {
+        closeSaveModal();
+      }
+    });
+  }
+
+  if (copyLastBtn) {
+    copyLastBtn.addEventListener('click', function () {
+      var firstChip = chipsEl ? chipsEl.querySelector('.setlist-chip') : null;
+      if (!firstChip) return;
+      loadSetlistFromChip(firstChip);
+      currentSetlistId = '';
+      currentSetlistName = '';
+      setDirty = true;
+      setlistStatus.textContent = 'Copied last set into this week. Save when ready.';
+      setlistStatus.style.display = 'inline';
+      setTimeout(function () { setlistStatus.style.display = 'none'; }, 3000);
+    });
   });
 
   // ── Save draft when notes change ─────────────────────────────────────────
 
   setListEl.addEventListener('input', function (e) {
-    if (e.target.classList.contains('set-note')) saveSetDraft();
+    if (e.target.classList.contains('set-note')) {
+      setDirty = true;
+      saveSetDraft();
+      updateMobileShare();
+    }
   });
 
   // ── Library search ────────────────────────────────────────────────────────
