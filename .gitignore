@@ -20,3 +20,5 @@ firebase-creds.json
 !static/bundles/*.zip
 .venv/
 analytics.sqlite
+.venv/
+analytics.sqlite
