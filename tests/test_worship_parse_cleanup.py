@@ -59,6 +59,21 @@ Shared chorus second line
         self.assertIn("chorus", parsed["parts"])
         self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus"])
 
+    def test_extract_readable_text_from_html_skips_scripts_and_preserves_lines(self):
+        html = """<html><head><style>.x{}</style><script>bad()</script></head>
+<body><h1>Sample Song</h1><p>Verse line<br>Second line</p><footer>Submit Lyrics</footer></body></html>"""
+
+        text = app._extract_readable_text_from_html(html)
+
+        self.assertIn("Sample Song", text)
+        self.assertIn("Verse line", text)
+        self.assertIn("Second line", text)
+        self.assertNotIn("bad()", text)
+
+    def test_import_url_rejects_localhost(self):
+        self.assertFalse(app._is_safe_worship_import_url("http://127.0.0.1:5000/worship"))
+        self.assertFalse(app._is_safe_worship_import_url("file:///tmp/song.txt"))
+
 
 if __name__ == "__main__":
     unittest.main()

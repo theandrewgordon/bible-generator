@@ -7,7 +7,11 @@ import os, json, re, traceback
 import logging
 import sys
 import uuid
+import socket
+import ipaddress
+from html.parser import HTMLParser
 from urllib.parse import urlparse, urljoin, urlunparse
+from urllib.request import Request, urlopen
 from zipfile import ZipFile
 import threading
 from io import BytesIO
@@ -1923,6 +1927,87 @@ def _fallback_parse_worship_lyrics(
     }
 
 
+class _ReadableHTMLTextParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self._skip_depth = 0
+        self._chunks: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript", "svg", "canvas"}:
+            self._skip_depth += 1
+        if tag in {"br", "p", "div", "section", "article", "header", "footer", "li", "tr", "h1", "h2", "h3"}:
+            self._chunks.append("\n")
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript", "svg", "canvas"} and self._skip_depth:
+            self._skip_depth -= 1
+        if tag in {"p", "div", "section", "article", "li", "tr", "h1", "h2", "h3"}:
+            self._chunks.append("\n")
+
+    def handle_data(self, data):
+        if not self._skip_depth and data and data.strip():
+            self._chunks.append(data.strip())
+            self._chunks.append("\n")
+
+    def text(self) -> str:
+        lines: list[str] = []
+        for raw_line in "\n".join(self._chunks).splitlines():
+            line = re.sub(r"\s+", " ", raw_line).strip()
+            if line:
+                lines.append(line)
+            elif lines and lines[-1] != "":
+                lines.append("")
+        while lines and lines[-1] == "":
+            lines.pop()
+        return "\n".join(lines)
+
+
+def _extract_readable_text_from_html(html_text: str) -> str:
+    parser = _ReadableHTMLTextParser()
+    parser.feed(str(html_text or ""))
+    return parser.text()
+
+
+def _is_safe_worship_import_url(import_url: str) -> bool:
+    parsed = urlparse(str(import_url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+    try:
+        addresses = socket.getaddrinfo(parsed.hostname, None)
+    except OSError:
+        return False
+    for address in addresses:
+        ip = ipaddress.ip_address(address[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+            return False
+    return True
+
+
+def _fetch_worship_import_text(import_url: str) -> str:
+    import_url = str(import_url or "").strip()
+    if not _is_safe_worship_import_url(import_url):
+        raise ValueError("Enter a public http or https song page URL.")
+    req = Request(
+        import_url,
+        headers={
+            "User-Agent": "FaithSparksWorshipImporter/1.0 (+https://faithsparksprintables.com)",
+            "Accept": "text/html,text/plain;q=0.9,*/*;q=0.6",
+        },
+    )
+    with urlopen(req, timeout=10) as response:
+        content_type = response.headers.get("Content-Type", "")
+        raw_body = response.read(800_000)
+    charset_match = re.search(r"charset=([^;]+)", content_type, flags=re.I)
+    charset = charset_match.group(1).strip() if charset_match else "utf-8"
+    body = raw_body.decode(charset, errors="replace")
+    if "html" in content_type.lower() or "<html" in body[:500].lower():
+        body = _extract_readable_text_from_html(body)
+    return body.strip()
+
+
 def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str]) -> list[dict]:
     if song_order:
         raw_ids = [s.strip() for s in song_order.split(",") if s.strip()]
@@ -2247,13 +2332,22 @@ def worship_add_parse():
     from openai import OpenAI
 
     raw_lyrics = request.form.get("raw_lyrics", "").strip()
+    import_url = request.form.get("import_url", "").strip()
     title = request.form.get("title", "").strip()
     artist = request.form.get("artist", "").strip()
     version = request.form.get("version", "").strip()
     key = request.form.get("key", "").strip()
 
+    if import_url:
+        try:
+            fetched_text = _fetch_worship_import_text(import_url)
+        except Exception as e:
+            flash(f"Could not read that song link: {e}", "error")
+            return redirect(url_for("worship_add"))
+        raw_lyrics = "\n\n".join(part for part in [raw_lyrics, fetched_text] if part)
+
     if not raw_lyrics:
-        flash("Paste some lyrics to parse.", "warning")
+        flash("Paste lyrics or enter a song page link to parse.", "warning")
         return redirect(url_for("worship_add"))
 
     cleaned_paste = _clean_lyrics_site_paste(raw_lyrics, title, artist)
@@ -2263,8 +2357,17 @@ def worship_add_parse():
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        flash("OPENAI_API_KEY is not set in the environment.", "error")
-        return redirect(url_for("worship_add"))
+        parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
+        if not parsed:
+            flash("OPENAI_API_KEY is not set, and the local parser could not find song sections.", "error")
+            return redirect(url_for("worship_add"))
+        song = normalize_worship_song(parsed)
+        if version:
+            song["version"] = version
+        song["id"] = _make_unique_worship_song_id(song.get("title", ""), song.get("artist", ""), song.get("version", ""))
+        save_worship_song(song)
+        flash(f"'{song.get('title', song['id'])}' parsed with the local fallback and saved. Please review the sections.", "success")
+        return redirect(url_for("worship"))
 
     prompt = f"""Parse the following song lyrics into structured JSON.
 

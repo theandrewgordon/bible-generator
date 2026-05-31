@@ -18,6 +18,11 @@
   .wa-btn-primary:hover{background:var(--primary-dark)}
   .wa-btn-ghost{padding:6px 14px;border:1px dashed #94a3b8;border-radius:8px;background:transparent;cursor:pointer;font-size:.9rem;color:var(--text-secondary);margin-bottom:1.25rem;transition:border-color .12s,color .12s}
   .wa-btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .wa-import-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:1rem;padding:4px;border:1px solid #e2e8f0;border-radius:10px;background:var(--background)}
+  .wa-import-tab{border:none;border-radius:8px;background:transparent;color:var(--text-secondary);font-weight:800;font-size:.88rem;padding:8px 10px;cursor:pointer}
+  .wa-import-tab.is-active{background:var(--primary);color:#fff}
+  .wa-import-panel[hidden]{display:none}
+  .wa-link-input-row{display:grid;grid-template-columns:1fr;gap:.5rem}
   .wa-section-label{font-size:.95rem;font-weight:700;margin:1.25rem 0 .35rem;color:var(--text)}
   .wa-helper{font-size:.82rem;color:var(--text-secondary);margin:.1rem 0 .75rem}
   .wa-part-row{border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:var(--background)}
@@ -127,17 +132,35 @@
 
   <!-- ── AI Parse ── -->
   <div class="wa-card">
-    <h2>AI Parse</h2>
+    <h2>Import with AI</h2>
     <form method="post" action="{{ url_for('worship_add_parse') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input type="hidden" name="import_mode" id="import-mode" value="paste" />
 
-      <div class="wa-field">
-        <label class="wa-label">Paste Lyrics *</label>
-        <textarea name="raw_lyrics" rows="20" required class="wa-input"
-          placeholder="[Verse 1]&#10;Line one&#10;Line two&#10;&#10;[Chorus]&#10;Holy holy holy…"></textarea>
+      <div class="wa-import-tabs" role="tablist" aria-label="Import source">
+        <button type="button" class="wa-import-tab is-active" data-import-tab="paste" role="tab" aria-selected="true">Paste page</button>
+        <button type="button" class="wa-import-tab" data-import-tab="link" role="tab" aria-selected="false">Paste link</button>
       </div>
 
-      <button type="submit" class="wa-btn-primary">Parse with AI →</button>
+      <div class="wa-import-panel" data-import-panel="paste">
+        <div class="wa-field">
+          <label class="wa-label">Paste lyrics or whole page *</label>
+          <textarea name="raw_lyrics" rows="18" required class="wa-input"
+            placeholder="Paste a whole lyrics page or plain lyrics. The importer will ignore navigation, recommendations, and footer text."></textarea>
+        </div>
+        <p class="wa-helper">Fastest path: copy the page text, keep blank lines between sections when you can, then review after save.</p>
+      </div>
+
+      <div class="wa-import-panel" data-import-panel="link" hidden>
+        <div class="wa-field">
+          <label class="wa-label">Song page link *</label>
+          <input type="url" name="import_url" class="wa-input"
+            placeholder="https://example.com/song-lyrics">
+        </div>
+        <p class="wa-helper">Works best with public lyrics pages. Some sites block imports; if that happens, use Paste page.</p>
+      </div>
+
+      <button type="submit" class="wa-btn-primary">Import Song</button>
 
       <p class="wa-optional-header">Optional — AI will infer from lyrics</p>
       <p class="wa-helper" style="margin-top:-.4rem">
@@ -170,11 +193,37 @@
 
 <script>
 (function () {
+  const importModeInput = document.getElementById('import-mode');
+  const importTabs = Array.from(document.querySelectorAll('[data-import-tab]'));
+  const importPanels = Array.from(document.querySelectorAll('[data-import-panel]'));
+  const pasteTextarea = document.querySelector('textarea[name="raw_lyrics"]');
+  const linkInput = document.querySelector('input[name="import_url"]');
   const partsList = document.getElementById('parts-list');
   const chipsWrap = document.getElementById('arrangement-chips');
   const orderWrap = document.getElementById('arrangement-order');
   const orderInput = document.getElementById('arrangement-input');
   const placeholder = document.getElementById('arrangement-placeholder');
+
+  function setImportMode(mode) {
+    if (importModeInput) importModeInput.value = mode;
+    importTabs.forEach(tab => {
+      const active = tab.dataset.importTab === mode;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    importPanels.forEach(panel => {
+      panel.hidden = panel.dataset.importPanel !== mode;
+    });
+    if (pasteTextarea) pasteTextarea.required = mode === 'paste';
+    if (linkInput) linkInput.required = mode === 'link';
+  }
+
+  importTabs.forEach(tab => {
+    tab.addEventListener('click', function () {
+      setImportMode(tab.dataset.importTab || 'paste');
+    });
+  });
+  setImportMode('paste');
 
   function updateHidden() {
     const names = Array.from(orderWrap.querySelectorAll('[data-name]')).map(el => el.dataset.name);
