@@ -1047,6 +1047,37 @@ def delete_worship_song(song_id: str) -> bool:
     return deleted
 
 
+def _delete_all_worship_library_data() -> dict:
+    """Delete songs and saved setlists for the active worship scope."""
+    deleted = {"songs": 0, "setlists": 0}
+    if db:
+        try:
+            for collection_ref in _worship_song_refs_for_read():
+                for doc in collection_ref.stream():
+                    doc.reference.delete()
+                    deleted["songs"] += 1
+            for collection_ref in _worship_setlist_refs_for_read():
+                for doc in collection_ref.stream():
+                    doc.reference.delete()
+                    deleted["setlists"] += 1
+        except Exception as exc:
+            app.logger.warning("_delete_all_worship_library_data Firestore error: %s", exc)
+    if not db:
+        for folder_name, key in (("songs", "songs"), ("setlists", "setlists")):
+            folder = Path(app.root_path) / folder_name
+            if not folder.is_dir():
+                continue
+            for fp in folder.glob("*.json"):
+                try:
+                    fp.unlink()
+                    deleted[key] += 1
+                except Exception as exc:
+                    app.logger.warning("Could not delete %s: %s", fp, exc)
+    if deleted["songs"] or deleted["setlists"]:
+        _invalidate_worship_cache()
+    return deleted
+
+
 def _remove_song_from_worship_setlists(song_id: str) -> int:
     """Remove a deleted song id from saved setlists. Empty setlists are deleted."""
     changed = 0
@@ -1873,6 +1904,75 @@ def _split_clean_lyric_blocks(lyrics_text: str) -> list[list[str]]:
     return blocks
 
 
+def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str = "", version: str = "", key: str = "") -> dict | None:
+    cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
+    lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
+    label_re = re.compile(
+        r"^\s*(?:\[|\()?((?:verse|v|chorus|ch|bridge|pre[-\s]?chorus|tag|intro|outro|ending|refrain)(?:\s*\d+)?)\s*(?:\]|\))?:?\s*$",
+        flags=re.I,
+    )
+    raw_sections: list[tuple[str, list[str]]] = []
+    current_label = ""
+    current_lines: list[str] = []
+
+    def flush_current():
+        nonlocal current_label, current_lines
+        if current_label and current_lines:
+            raw_sections.append((current_label, current_lines))
+        current_label = ""
+        current_lines = []
+
+    for raw_line in lyric_body.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = label_re.match(line)
+        if match:
+            flush_current()
+            current_label = match.group(1)
+            continue
+        if not current_label:
+            continue
+        current_lines.append(line)
+    flush_current()
+
+    if not raw_sections:
+        return None
+
+    parts: dict[str, list[str]] = {}
+    arrangement: list[str] = []
+    used_counts: dict[str, int] = {}
+    content_to_part: dict[str, str] = {}
+    for raw_label, lines in raw_sections:
+        base_key = _canonical_part_key(raw_label)
+        if not base_key:
+            base_key = "verse"
+        content_key = "\n".join(lines).lower()
+        if content_key in content_to_part:
+            part_name = content_to_part[content_key]
+        else:
+            used_counts[base_key] = used_counts.get(base_key, 0) + 1
+            part_name = base_key if used_counts[base_key] == 1 else f"{base_key}{used_counts[base_key]}"
+            parts[part_name] = lines
+            content_to_part[content_key] = part_name
+        arrangement.append(part_name)
+
+    if not parts or not arrangement:
+        return None
+
+    parsed_title = cleaned.get("title") or str(title or "").strip() or "Untitled Song"
+    return {
+        "id": re.sub(r"[^a-z0-9]+", "-", parsed_title.lower()).strip("-") or "untitled-song",
+        "title": parsed_title,
+        "artist": cleaned.get("artist") or str(artist or "").strip(),
+        "version": str(version or "").strip(),
+        "key": str(key or "").strip(),
+        "type": "song",
+        "parts": parts,
+        "arrangement": arrangement,
+    }
+
+
 def _fallback_parse_worship_lyrics(
     lyrics_text: str,
     title: str = "",
@@ -1880,6 +1980,10 @@ def _fallback_parse_worship_lyrics(
     version: str = "",
     key: str = "",
 ) -> dict | None:
+    labeled = _parse_labeled_worship_lyrics(lyrics_text, title, artist, version, key)
+    if labeled:
+        return labeled
+
     cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
     lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
     blocks = _split_clean_lyric_blocks(lyric_body)
@@ -2495,6 +2599,16 @@ def worship_delete():
             return jsonify({"ok": False, "error": "Song not found"}), 404
         flash("Song not found.", "warning")
     return redirect(url_for("worship"))
+
+
+@app.route("/worship/library/reset", methods=["POST"])
+@login_required
+def worship_library_reset():
+    confirmation = request.form.get("confirmation", "").strip().upper()
+    if confirmation != "DELETE":
+        return jsonify({"ok": False, "error": "Type DELETE to reset this worship library."}), 400
+    deleted = _delete_all_worship_library_data()
+    return jsonify({"ok": True, **deleted})
 
 
 @app.route("/worship/duplicate/<song_id>", methods=["POST"])

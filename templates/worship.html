@@ -24,6 +24,8 @@
   .setlist-meta{flex-basis:100%;font-size:.74rem;color:var(--text-secondary);padding:0 7px}
   .setlist-action{background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:.78rem;font-weight:700;padding:4px 6px;border-radius:6px}
   .setlist-action:hover{background:color-mix(in srgb, var(--primary) 8%, transparent);color:var(--primary)}
+  .ws-reset-library{border:none;background:transparent;color:#b91c1c;cursor:pointer;font-size:.78rem;font-weight:800;padding:4px 0;white-space:nowrap}
+  .ws-reset-library:hover{text-decoration:underline}
   .ws-btn-primary{padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.95rem;transition:background .15s}
   .ws-btn-primary:hover:not(:disabled){background:var(--primary-dark)}
   .ws-btn-primary:disabled{opacity:.4;cursor:default}
@@ -147,7 +149,7 @@
 
 <!-- ── Song Library ── -->
 <div>
-  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
     <p class="ws-section-label" style="margin:0">Song Library</p>
     <input id="library-search" type="search" placeholder="Search…"
       style="flex:1;max-width:260px;padding:5px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:.9rem;background:var(--background);color:var(--text)">
@@ -156,6 +158,7 @@
       <option value="artist">Artist</option>
       <option value="last_used">Last Played</option>
     </select>
+    <button type="button" class="ws-reset-library" id="reset-library-btn">Reset library</button>
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
@@ -176,9 +179,13 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="ws-copy" title="Duplicate {{ song.title }}">Copy</button>
       </form>
-      <button type="button" class="ws-del"
-        data-id="{{ song.id }}" data-title="{{ song.title }}" data-artist="{{ song.artist or '' }}" data-version="{{ song.version or '' }}" data-key="{{ song.key or '' }}"
-        title="Delete {{ song.title }}">×</button>
+      <form method="post" action="{{ url_for('worship_delete') }}" style="display:contents">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="song_id" value="{{ song.id }}">
+        <button type="submit" class="ws-del"
+          data-id="{{ song.id }}" data-title="{{ song.title }}" data-artist="{{ song.artist or '' }}" data-version="{{ song.version or '' }}" data-key="{{ song.key or '' }}"
+          title="Delete {{ song.title }}">×</button>
+      </form>
     </li>
     {% endfor %}
   </ul>
@@ -302,6 +309,7 @@
   var setSummaryTitlesEl = document.getElementById('set-summary-titles');
   var libraryEl     = document.getElementById('library-list');
   var librarySortEl = document.getElementById('library-sort');
+  var resetLibraryBtn = document.getElementById('reset-library-btn');
   var chipsEl       = document.getElementById('setlist-chips');
   var mobileShareEl = document.querySelector('[data-mobile-share]');
   var mobileLinkEl  = document.querySelector('[data-mobile-link]');
@@ -611,6 +619,7 @@
 
     var delBtn = e.target.closest('.ws-del');
     if (!delBtn) return;
+    e.preventDefault();
     var id = delBtn.dataset.id;
     var title = delBtn.dataset.title;
     var label = title;
@@ -656,6 +665,47 @@
       })
       .catch(function () { alert('Delete failed.'); });
   });
+
+  if (resetLibraryBtn) {
+    resetLibraryBtn.addEventListener('click', function () {
+      var first = confirm('Delete every song and saved setlist in this worship library? This only affects the current church/library.');
+      if (!first) return;
+      var typed = window.prompt('Type DELETE to reset this worship library.');
+      if (!typed || typed.trim().toUpperCase() !== 'DELETE') return;
+      var fd = new FormData();
+      fd.append('csrf_token', csrfToken);
+      fd.append('confirmation', 'DELETE');
+      resetLibraryBtn.disabled = true;
+      fetch('/worship/library/reset', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'X-Requested-With': 'fetch' }
+      })
+        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (result) {
+          if (!result.ok || !result.data.ok) {
+            alert((result.data && result.data.error) || 'Reset failed.');
+            return;
+          }
+          Array.from(setListEl.querySelectorAll('[data-id]')).forEach(function (li) {
+            removeFromSet(li.dataset.id);
+          });
+          libraryEl.innerHTML = '';
+          if (chipsEl) chipsEl.innerHTML = '';
+          Object.keys(SONGS_BY_ID).forEach(function (id) { delete SONGS_BY_ID[id]; });
+          localStorage.removeItem(DRAFT_KEY);
+          currentSetlistId = '';
+          currentSetlistName = '';
+          setDirty = true;
+          syncUI();
+          updateMobileShare();
+          alert('Deleted ' + result.data.songs + ' songs and ' + result.data.setlists + ' saved setlists.');
+        })
+        .catch(function () { alert('Reset failed.'); })
+        .finally(function () { resetLibraryBtn.disabled = false; });
+    });
+  }
 
   // ── Setlist chips ─────────────────────────────────────────────────────────
 

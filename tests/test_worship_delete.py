@@ -59,6 +59,32 @@ class WorshipDeleteTests(unittest.TestCase):
         self.assertEqual(changed, 1)
         self.assertFalse(exists)
 
+    def test_reset_library_deletes_local_songs_and_setlists(self):
+        original_root = app.app.root_path
+        original_db = app.db
+        with tempfile.TemporaryDirectory() as tmp:
+            songs_dir = Path(tmp) / "songs"
+            setlists_dir = Path(tmp) / "setlists"
+            songs_dir.mkdir()
+            setlists_dir.mkdir()
+            (songs_dir / "song-a.json").write_text(json.dumps({"id": "song-a", "title": "Song A"}), encoding="utf-8")
+            (songs_dir / "song-b.json").write_text(json.dumps({"id": "song-b", "title": "Song B"}), encoding="utf-8")
+            (setlists_dir / "2026-05-31.json").write_text(json.dumps({"songs": ["song-a"]}), encoding="utf-8")
+            try:
+                app.app.root_path = tmp
+                app.db = None
+                deleted = app._delete_all_worship_library_data()
+            finally:
+                app.app.root_path = original_root
+                app.db = original_db
+
+            remaining_songs = list(songs_dir.glob("*.json"))
+            remaining_setlists = list(setlists_dir.glob("*.json"))
+
+        self.assertEqual(deleted, {"songs": 2, "setlists": 1})
+        self.assertEqual(remaining_songs, [])
+        self.assertEqual(remaining_setlists, [])
+
 
 if __name__ == "__main__":
     unittest.main()

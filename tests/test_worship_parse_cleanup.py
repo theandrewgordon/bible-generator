@@ -74,6 +74,30 @@ Shared chorus second line
         self.assertFalse(app._is_safe_worship_import_url("http://127.0.0.1:5000/worship"))
         self.assertFalse(app._is_safe_worship_import_url("file:///tmp/song.txt"))
 
+    def test_labeled_fallback_parse_uses_section_headers(self):
+        pasted = """Example Song
+
+[Verse 1]
+First verse line
+Second verse line
+
+[Chorus]
+Shared chorus line
+
+[Verse 2]
+Another verse line
+
+[Chorus]
+Shared chorus line
+"""
+
+        parsed = app._fallback_parse_worship_lyrics(pasted, title="Example Song")
+
+        self.assertIsNotNone(parsed)
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus"])
+        self.assertEqual(parsed["parts"]["verse1"], ["First verse line", "Second verse line"])
+        self.assertEqual(parsed["parts"]["chorus"], ["Shared chorus line"])
+
 
 if __name__ == "__main__":
     unittest.main()
