@@ -352,25 +352,22 @@
   function refreshPreview(linesText, container) {
     var lines = linesText.trim();
     if (!lines) { container.innerHTML = ''; return; }
-    var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
-    fetch('/worship/preview-slides', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ lines: lines }),
-      credentials: 'same-origin'
-    }).then(function (r) { return r.json(); }).then(function (data) {
-      container.innerHTML = '';
-      (data.slides || []).forEach(function (slide, i) {
-        var thumb = document.createElement('div');
-        thumb.className = 'wa-slide-thumb';
-        var num = document.createElement('div');
-        num.className = 'wa-slide-thumb-num';
-        num.textContent = 'Slide ' + (i + 1);
-        thumb.appendChild(num);
-        thumb.appendChild(document.createTextNode((slide.lines || []).join('\n')));
-        container.appendChild(thumb);
-      });
-    }).catch(function () {});
+    var lyricLines = lines.split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
+    var slides = [];
+    for (var i = 0; i < lyricLines.length; i += 4) {
+      slides.push({ lines: lyricLines.slice(i, i + 4) });
+    }
+    container.innerHTML = '';
+    (slides || []).forEach(function (slide, i) {
+      var thumb = document.createElement('div');
+      thumb.className = 'wa-slide-thumb';
+      var num = document.createElement('div');
+      num.className = 'wa-slide-thumb-num';
+      num.textContent = 'Slide ' + (i + 1);
+      thumb.appendChild(num);
+      thumb.appendChild(document.createTextNode((slide.lines || []).join('\n')));
+      container.appendChild(thumb);
+    });
   }
 
   document.getElementById('add-part-btn').addEventListener('click', function () { addPart(''); });
