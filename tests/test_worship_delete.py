@@ -7,6 +7,27 @@ import app
 
 
 class WorshipDeleteTests(unittest.TestCase):
+    def test_delete_finds_local_file_by_song_id(self):
+        original_root = app.app.root_path
+        original_db = app.db
+        with tempfile.TemporaryDirectory() as tmp:
+            songs_dir = Path(tmp) / "songs"
+            songs_dir.mkdir()
+            fp = songs_dir / "delete-song.json"
+            fp.write_text(json.dumps({"id": "delete-song", "title": "Delete Song"}), encoding="utf-8")
+            try:
+                app.app.root_path = tmp
+                app.db = None
+                deleted = app.delete_worship_song("delete-song")
+            finally:
+                app.app.root_path = original_root
+                app.db = original_db
+
+            exists = fp.exists()
+
+        self.assertTrue(deleted)
+        self.assertFalse(exists)
+
     def test_delete_prunes_song_from_saved_setlists(self):
         original_root = app.app.root_path
         original_db = app.db

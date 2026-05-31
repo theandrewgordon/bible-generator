@@ -26,6 +26,8 @@
   .setlist-action:hover{background:color-mix(in srgb, var(--primary) 8%, transparent);color:var(--primary)}
   .ws-reset-library{border:none;background:transparent;color:#b91c1c;cursor:pointer;font-size:.78rem;font-weight:800;padding:4px 0;white-space:nowrap}
   .ws-reset-library:hover{text-decoration:underline}
+  .ws-btn-danger{padding:9px 18px;background:#dc2626;color:#fff;border:none;border-radius:9px;cursor:pointer;font-weight:800;font-size:.9rem}
+  .ws-btn-danger:hover{background:#b91c1c}
   .ws-btn-primary{padding:9px 22px;background:var(--primary);color:#fff;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.95rem;transition:background .15s}
   .ws-btn-primary:hover:not(:disabled){background:var(--primary-dark)}
   .ws-btn-primary:disabled{opacity:.4;cursor:default}
@@ -280,6 +282,20 @@
   </div>
 </div>
 
+<div class="ws-modal-backdrop" id="reset-library-modal" aria-hidden="true">
+  <form class="ws-modal" method="post" action="{{ url_for('worship_library_reset') }}" role="dialog" aria-modal="true" aria-labelledby="reset-library-title">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 id="reset-library-title">Reset worship library</h2>
+    <p>This deletes every song and saved setlist in {{ worship_church.name }}. Type DELETE to confirm.</p>
+    <label for="reset-library-confirmation">Confirmation</label>
+    <input id="reset-library-confirmation" name="confirmation" type="text" autocomplete="off" placeholder="DELETE">
+    <div class="ws-modal-actions">
+      <button type="button" class="ws-btn-ghost" id="reset-library-cancel">Cancel</button>
+      <button type="submit" class="ws-btn-danger">Reset library</button>
+    </div>
+  </form>
+</div>
+
 <script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}
 
@@ -323,6 +339,9 @@
   var saveNameInput = document.getElementById('save-set-name');
   var saveConfirmBtn = document.getElementById('save-set-confirm');
   var saveCancelBtn = document.getElementById('save-set-cancel');
+  var resetModal = document.getElementById('reset-library-modal');
+  var resetInput = document.getElementById('reset-library-confirmation');
+  var resetCancelBtn = document.getElementById('reset-library-cancel');
   var currentSetlistId = '';
   var currentSetlistName = '';
   var loadingSet = false;
@@ -668,42 +687,26 @@
 
   if (resetLibraryBtn) {
     resetLibraryBtn.addEventListener('click', function () {
-      var first = confirm('Delete every song and saved setlist in this worship library? This only affects the current church/library.');
-      if (!first) return;
-      var typed = window.prompt('Type DELETE to reset this worship library.');
-      if (!typed || typed.trim().toUpperCase() !== 'DELETE') return;
-      var fd = new FormData();
-      fd.append('csrf_token', csrfToken);
-      fd.append('confirmation', 'DELETE');
-      resetLibraryBtn.disabled = true;
-      fetch('/worship/library/reset', {
-        method: 'POST',
-        body: fd,
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'X-Requested-With': 'fetch' }
-      })
-        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
-        .then(function (result) {
-          if (!result.ok || !result.data.ok) {
-            alert((result.data && result.data.error) || 'Reset failed.');
-            return;
-          }
-          Array.from(setListEl.querySelectorAll('[data-id]')).forEach(function (li) {
-            removeFromSet(li.dataset.id);
-          });
-          libraryEl.innerHTML = '';
-          if (chipsEl) chipsEl.innerHTML = '';
-          Object.keys(SONGS_BY_ID).forEach(function (id) { delete SONGS_BY_ID[id]; });
-          localStorage.removeItem(DRAFT_KEY);
-          currentSetlistId = '';
-          currentSetlistName = '';
-          setDirty = true;
-          syncUI();
-          updateMobileShare();
-          alert('Deleted ' + result.data.songs + ' songs and ' + result.data.setlists + ' saved setlists.');
-        })
-        .catch(function () { alert('Reset failed.'); })
-        .finally(function () { resetLibraryBtn.disabled = false; });
+      if (!resetModal) return;
+      resetModal.classList.add('is-open');
+      resetModal.setAttribute('aria-hidden', 'false');
+      if (resetInput) {
+        resetInput.value = '';
+        setTimeout(function () { resetInput.focus(); }, 0);
+      }
+    });
+  }
+
+  function closeResetModal() {
+    if (!resetModal) return;
+    resetModal.classList.remove('is-open');
+    resetModal.setAttribute('aria-hidden', 'true');
+  }
+
+  if (resetCancelBtn) resetCancelBtn.addEventListener('click', closeResetModal);
+  if (resetModal) {
+    resetModal.addEventListener('click', function (e) {
+      if (e.target === resetModal) closeResetModal();
     });
   }
 

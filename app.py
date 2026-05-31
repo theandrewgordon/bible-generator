@@ -1033,6 +1033,13 @@ def delete_worship_song(song_id: str) -> bool:
                 if ref.get().exists:
                     ref.delete()
                     deleted = True
+                    continue
+                for doc in collection_ref.stream():
+                    data = doc.to_dict() or {}
+                    if str(data.get("id") or "").strip() == song_id:
+                        doc.reference.delete()
+                        deleted = True
+                        break
         except Exception as exc:
             app.logger.warning("delete_worship_song(%s) Firestore error: %s", song_id, exc)
     fp = Path(app.root_path) / "songs" / f"{song_id}.json"
@@ -2606,9 +2613,15 @@ def worship_delete():
 def worship_library_reset():
     confirmation = request.form.get("confirmation", "").strip().upper()
     if confirmation != "DELETE":
-        return jsonify({"ok": False, "error": "Type DELETE to reset this worship library."}), 400
+        if _worship_wants_json_response():
+            return jsonify({"ok": False, "error": "Type DELETE to reset this worship library."}), 400
+        flash("Type DELETE to reset this worship library.", "warning")
+        return redirect(url_for("worship"))
     deleted = _delete_all_worship_library_data()
-    return jsonify({"ok": True, **deleted})
+    if _worship_wants_json_response():
+        return jsonify({"ok": True, **deleted})
+    flash(f"Reset worship library: deleted {deleted['songs']} songs and {deleted['setlists']} saved setlists.", "success")
+    return redirect(url_for("worship"))
 
 
 @app.route("/worship/duplicate/<song_id>", methods=["POST"])
