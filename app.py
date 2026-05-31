@@ -631,6 +631,7 @@ SONGS_DIR = os.path.join(app.root_path, "songs")  # kept for local fallback
 _WORSHIP_COLLECTION = "worship_songs"
 _WORSHIP_SETLIST_COLLECTION = "worship_setlists"
 _WORSHIP_SCOPE_COLLECTION = "worship_scopes"
+_WORSHIP_CHURCH_COLLECTION = "worship_churches"
 _DEFAULT_WORSHIP_SCOPE = "default"
 _worship_seeded = False
 _worship_songs_cache: list[dict] | None = None
@@ -640,9 +641,109 @@ _WORSHIP_CACHE_TTL = 60.0  # seconds
 
 
 def _current_worship_scope() -> str:
-    raw = (session.get("worship_scope") if has_request_context() else None) or os.getenv("WORSHIP_SCOPE_ID") or _DEFAULT_WORSHIP_SCOPE
+    raw = None
+    if has_request_context():
+        raw = session.get("worship_church_id") or session.get("worship_scope")
+        if not raw and db and session.get("user_email"):
+            try:
+                user_doc = db.collection("users").document(session["user_email"]).get()
+                data = user_doc.to_dict() if user_doc.exists else {}
+                candidate = data.get("worshipChurchId")
+                if candidate and _user_can_access_worship_church(candidate):
+                    raw = candidate
+                    session["worship_church_id"] = candidate
+            except Exception:
+                raw = None
+    raw = raw or os.getenv("WORSHIP_SCOPE_ID") or _DEFAULT_WORSHIP_SCOPE
     scope = _slugify_worship_token(str(raw))
     return scope or _DEFAULT_WORSHIP_SCOPE
+
+
+def _normalize_worship_invite_code(value: str) -> str:
+    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())[:24]
+
+
+def _make_worship_invite_code(name: str) -> str:
+    prefix = re.sub(r"[^A-Z0-9]+", "", str(name or "").upper())[:4] or "FS"
+    return f"{prefix}{secrets.token_hex(3).upper()}"
+
+
+def _user_can_access_worship_church(church_id: str) -> bool:
+    if not (db and church_id and session.get("user_email")):
+        return False
+    try:
+        member = (
+            db.collection(_WORSHIP_CHURCH_COLLECTION)
+            .document(_slugify_worship_token(church_id))
+            .collection("members")
+            .document(session["user_email"])
+            .get()
+        )
+        return member.exists
+    except Exception:
+        return False
+
+
+def _load_worship_churches() -> list[dict]:
+    if not (db and session.get("user_email")):
+        return []
+    email = session["user_email"]
+    memberships: list[dict] = []
+    try:
+        user_doc = db.collection("users").document(email).get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        church_ids = list(dict.fromkeys(user_data.get("worshipChurchIds") or []))
+        if not church_ids:
+            try:
+                member_docs = db.collection_group("members").where(filter=firestore.FieldFilter("email", "==", email)).stream()
+                for member_doc in member_docs:
+                    church_ref = member_doc.reference.parent.parent
+                    if church_ref:
+                        church_ids.append(church_ref.id)
+            except Exception:
+                church_ids = []
+            church_ids = list(dict.fromkeys(church_ids))
+        for church_id in church_ids:
+            church_ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(_slugify_worship_token(church_id))
+            church_doc = church_ref.get()
+            if not church_doc.exists:
+                continue
+            member_doc = church_ref.collection("members").document(email).get()
+            if not member_doc.exists:
+                continue
+            church = church_doc.to_dict() or {}
+            church_id = church.get("id") or church_doc.id
+            memberships.append(
+                {
+                    "id": church_id,
+                    "name": church.get("name") or church_id.replace("-", " ").title(),
+                    "invite_code": church.get("invite_code") or church.get("inviteCode") or "",
+                    "role": (member_doc.to_dict() or {}).get("role") or "member",
+                }
+            )
+    except Exception as exc:
+        app.logger.warning("_load_worship_churches error: %s", exc)
+    memberships.sort(key=lambda item: item["name"].lower())
+    return memberships
+
+
+def _current_worship_church_context() -> dict:
+    churches = _load_worship_churches()
+    current_id = _current_worship_scope()
+    current = next((church for church in churches if church["id"] == current_id), None)
+    if not current:
+        current = {"id": _DEFAULT_WORSHIP_SCOPE, "name": "Shared Library", "invite_code": "", "role": "member"}
+    return {"current": current, "churches": churches}
+
+
+def _set_current_worship_church(church_id: str) -> None:
+    church_id = _slugify_worship_token(church_id)
+    session["worship_church_id"] = church_id
+    if db and session.get("user_email"):
+        update_data = {"worshipChurchId": church_id}
+        if church_id != _DEFAULT_WORSHIP_SCOPE:
+            update_data["worshipChurchIds"] = firestore.ArrayUnion([church_id])
+        db.collection("users").document(session["user_email"]).set(update_data, merge=True)
 
 
 def _worship_songs_ref():
@@ -661,6 +762,20 @@ def _legacy_worship_setlists_ref():
     return db.collection(_WORSHIP_SETLIST_COLLECTION)
 
 
+def _worship_song_refs_for_read():
+    refs = [_worship_songs_ref()]
+    if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
+        refs.insert(0, _legacy_worship_songs_ref())
+    return refs
+
+
+def _worship_setlist_refs_for_read():
+    refs = [_worship_setlists_ref()]
+    if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
+        refs.insert(0, _legacy_worship_setlists_ref())
+    return refs
+
+
 def _seed_worship_from_files() -> None:
     """One-time per-process seed: load /songs/*.json into Firestore if collection is empty."""
     global _worship_seeded
@@ -670,7 +785,9 @@ def _seed_worship_from_files() -> None:
     if not db:
         return
     try:
-        if list(_worship_songs_ref().limit(1).stream()) or list(_legacy_worship_songs_ref().limit(1).stream()):
+        if list(_worship_songs_ref().limit(1).stream()) or (
+            _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE and list(_legacy_worship_songs_ref().limit(1).stream())
+        ):
             return  # already has documents
         songs_folder = Path(app.root_path) / "songs"
         if not songs_folder.is_dir():
@@ -718,7 +835,7 @@ def list_worship_songs() -> list[dict]:
     if db:
         try:
             by_id = {}
-            for ref in (_legacy_worship_songs_ref(), _worship_songs_ref()):
+            for ref in _worship_song_refs_for_read():
                 for doc in ref.order_by("title").stream():
                     data = doc.to_dict()
                     if data and data.get("id"):
@@ -751,7 +868,7 @@ def get_worship_song(song_id: str) -> dict | None:
     """Load one song by id. Firestore first, file fallback."""
     if db:
         try:
-            for ref in (_worship_songs_ref(), _legacy_worship_songs_ref()):
+            for ref in _worship_song_refs_for_read():
                 doc = ref.document(song_id).get()
                 if doc.exists:
                     return doc.to_dict()
@@ -904,7 +1021,10 @@ def delete_worship_song(song_id: str) -> bool:
     deleted = False
     if db:
         try:
-            for collection_ref in (_worship_songs_ref(), _legacy_worship_songs_ref()):
+            collection_refs = [_worship_songs_ref()]
+            if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
+                collection_refs.append(_legacy_worship_songs_ref())
+            for collection_ref in collection_refs:
                 ref = collection_ref.document(song_id)
                 if ref.get().exists:
                     ref.delete()
@@ -928,7 +1048,7 @@ def _remove_song_from_worship_setlists(song_id: str) -> int:
     changed = 0
     if db:
         try:
-            for collection_ref in (_legacy_worship_setlists_ref(), _worship_setlists_ref()):
+            for collection_ref in _worship_setlist_refs_for_read():
                 for doc in collection_ref.stream():
                     data = doc.to_dict() or {}
                     songs = data.get("songs")
@@ -991,7 +1111,7 @@ def _load_recent_setlists() -> list[dict]:
     if db:
         try:
             by_id = {}
-            for collection_ref in (_legacy_worship_setlists_ref(), _worship_setlists_ref()):
+            for collection_ref in _worship_setlist_refs_for_read():
                 for doc in collection_ref.stream():
                     data = doc.to_dict()
                     if data and data.get("date") and isinstance(data.get("songs"), list):
@@ -1385,7 +1505,101 @@ def worship():
     _seed_worship_from_files()
     songs = list_worship_songs()
     setlists = _load_recent_setlists()
-    return render_template('worship.html', songs=songs, setlists=setlists)
+    church_context = _current_worship_church_context()
+    return render_template('worship.html', songs=songs, setlists=setlists, worship_church=church_context["current"], worship_churches=church_context["churches"])
+
+
+@app.route("/worship/church/create", methods=["POST"])
+@login_required
+def worship_church_create():
+    if not db:
+        flash("Church sharing needs Firestore.", "warning")
+        return redirect(url_for("worship"))
+    name = request.form.get("church_name", "").strip()
+    if not name:
+        flash("Church name is required.", "warning")
+        return redirect(url_for("worship"))
+    church_id = _slugify_worship_token(name) or f"church-{secrets.token_hex(3)}"
+    base_id = church_id
+    suffix = 2
+    try:
+        while db.collection(_WORSHIP_CHURCH_COLLECTION).document(church_id).get().exists:
+            church_id = f"{base_id}-{suffix}"
+            suffix += 1
+        invite_code = _make_worship_invite_code(name)
+        church_ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(church_id)
+        church_ref.set(
+            {
+                "id": church_id,
+                "name": name,
+                "invite_code": invite_code,
+                "created_by": session.get("user_email"),
+                "created_at": firestore.SERVER_TIMESTAMP,
+                "updated_at": firestore.SERVER_TIMESTAMP,
+            }
+        )
+        church_ref.collection("members").document(session["user_email"]).set(
+            {"email": session["user_email"], "role": "owner", "joined_at": firestore.SERVER_TIMESTAMP},
+            merge=True,
+        )
+        _set_current_worship_church(church_id)
+        _invalidate_worship_cache()
+        flash(f"Created {name}. Invite code: {invite_code}", "success")
+    except Exception as exc:
+        app.logger.warning("worship_church_create error: %s", exc)
+        flash("We couldn't create that church. Please try again.", "error")
+    return redirect(url_for("worship"))
+
+
+@app.route("/worship/church/join", methods=["POST"])
+@login_required
+def worship_church_join():
+    if not db:
+        flash("Church sharing needs Firestore.", "warning")
+        return redirect(url_for("worship"))
+    invite_code = _normalize_worship_invite_code(request.form.get("invite_code", ""))
+    if not invite_code:
+        flash("Enter a church invite code.", "warning")
+        return redirect(url_for("worship"))
+    try:
+        matches = (
+            db.collection(_WORSHIP_CHURCH_COLLECTION)
+            .where(filter=firestore.FieldFilter("invite_code", "==", invite_code))
+            .limit(1)
+            .stream()
+        )
+        church_doc = next(matches, None)
+        if not church_doc:
+            flash("That church code was not found.", "error")
+            return redirect(url_for("worship"))
+        church = church_doc.to_dict() or {}
+        church_doc.reference.collection("members").document(session["user_email"]).set(
+            {"email": session["user_email"], "role": "member", "joined_at": firestore.SERVER_TIMESTAMP},
+            merge=True,
+        )
+        _set_current_worship_church(church_doc.id)
+        _invalidate_worship_cache()
+        flash(f"Joined {church.get('name') or church_doc.id}.", "success")
+    except Exception as exc:
+        app.logger.warning("worship_church_join error: %s", exc)
+        flash("We couldn't join that church. Please try again.", "error")
+    return redirect(url_for("worship"))
+
+
+@app.route("/worship/church/switch", methods=["POST"])
+@login_required
+def worship_church_switch():
+    church_id = _slugify_worship_token(request.form.get("church_id", ""))
+    if not church_id:
+        flash("Choose a church library.", "warning")
+        return redirect(url_for("worship"))
+    if church_id != _DEFAULT_WORSHIP_SCOPE and not _user_can_access_worship_church(church_id):
+        flash("You are not a member of that church library.", "error")
+        return redirect(url_for("worship"))
+    _set_current_worship_church(church_id)
+    _invalidate_worship_cache()
+    flash("Switched worship library.", "success")
+    return redirect(url_for("worship"))
 
 
 def _slugify_worship_token(value: str) -> str:
@@ -1953,8 +2167,9 @@ def worship_setlist_save():
     if db:
         try:
             scoped_ref = _worship_setlists_ref().document(setlist_id)
-            legacy_ref = _legacy_worship_setlists_ref().document(setlist_id)
-            existed = existed or scoped_ref.get().exists or legacy_ref.get().exists
+            existed = existed or scoped_ref.get().exists
+            if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
+                existed = existed or _legacy_worship_setlists_ref().document(setlist_id).get().exists
             scoped_ref.set(data)
         except Exception as exc:
             app.logger.warning("worship_setlist_save Firestore error: %s", exc)
@@ -1979,7 +2194,8 @@ def worship_setlist_delete():
     if db:
         try:
             _worship_setlists_ref().document(setlist_id).delete()
-            _legacy_worship_setlists_ref().document(setlist_id).delete()
+            if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
+                _legacy_worship_setlists_ref().document(setlist_id).delete()
         except Exception as exc:
             app.logger.warning("worship_setlist_delete Firestore error: %s", exc)
     fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
