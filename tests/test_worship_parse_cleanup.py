@@ -33,6 +33,31 @@ Copyright 2000-2026 AZLyrics.com
         self.assertNotIn("You May Also Like", cleaned["lyrics"])
         self.assertNotIn("Copyright", cleaned["lyrics"])
 
+    def test_clean_lyrics_site_paste_stops_at_azlyrics_footer(self):
+        pasted = '''"Gratitude" lyrics
+Brandon Lake Lyrics
+"Gratitude"
+
+All my words fall short
+I got nothing new
+
+So I throw up my hands
+And praise You again
+
+Submit Corrections
+Writer(s): Someone
+AZLyrics
+album:
+"House Of Miracles"
+'''
+
+        cleaned = app._clean_lyrics_site_paste(pasted)
+
+        self.assertIn("So I throw up my hands", cleaned["lyrics"])
+        self.assertNotIn("Submit Corrections", cleaned["lyrics"])
+        self.assertNotIn("Writer(s)", cleaned["lyrics"])
+        self.assertNotIn("House Of Miracles", cleaned["lyrics"])
+
     def test_fallback_parse_creates_parts_and_arrangement(self):
         pasted = '''"Sample Song" lyrics
 Example Artist Lyrics
@@ -97,6 +122,14 @@ Shared chorus line
         self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus"])
         self.assertEqual(parsed["parts"]["verse1"], ["First verse line", "Second verse line"])
         self.assertEqual(parsed["parts"]["chorus"], ["Shared chorus line"])
+
+    def test_detects_line_exploded_ai_parse(self):
+        parsed = {
+            "parts": {f"verse{i}": [f"Line {i}"] for i in range(1, 14)},
+            "arrangement": [f"verse{i}" for i in range(1, 14)],
+        }
+
+        self.assertTrue(app._looks_like_line_exploded_worship_parse(parsed))
 
 
 if __name__ == "__main__":

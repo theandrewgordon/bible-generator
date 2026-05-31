@@ -1809,6 +1809,7 @@ def _clean_ai_json_response(raw: str) -> str:
 
 _LYRICS_SITE_STOP_LINES = {
     "you may also like",
+    "submit corrections",
     "submit lyrics",
     "soundtracks",
     "facebook",
@@ -1827,7 +1828,9 @@ def _is_lyrics_site_boilerplate_line(line: str) -> bool:
         return False
     if lowered in _LYRICS_SITE_STOP_LINES:
         return True
-    if lowered.startswith("azlyrics ") or lowered == "azlyrics.com":
+    if lowered.startswith("azlyrics ") or lowered in {"azlyrics", "azlyrics.com"}:
+        return True
+    if lowered.startswith("writer(s):") or lowered.startswith("album:"):
         return True
     if lowered.startswith("play ") and ("apple music" in lowered or "spotify" in lowered):
         return True
@@ -1874,7 +1877,7 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
             blank_pending = bool(cleaned)
             continue
         lowered = line.lower()
-        if lowered in _LYRICS_SITE_STOP_LINES or lowered.startswith("you may also like"):
+        if lowered in _LYRICS_SITE_STOP_LINES or lowered.startswith("you may also like") or lowered.startswith("writer(s):"):
             break
         if _is_lyrics_site_boilerplate_line(line):
             continue
@@ -2036,6 +2039,25 @@ def _fallback_parse_worship_lyrics(
         "parts": parts,
         "arrangement": arrangement,
     }
+
+
+def _looks_like_line_exploded_worship_parse(parsed: dict) -> bool:
+    parts = parsed.get("parts") if isinstance(parsed, dict) else None
+    arrangement = parsed.get("arrangement") if isinstance(parsed, dict) else None
+    if not isinstance(parts, dict) or not isinstance(arrangement, list):
+        return False
+    verse_like = [
+        name for name, lines in parts.items()
+        if re.match(r"^verse\d+$", str(name or "")) and isinstance(lines, list)
+    ]
+    if len(verse_like) < 10:
+        return False
+    one_line_parts = 0
+    for name in verse_like:
+        lines = parts.get(name) or []
+        if isinstance(lines, list) and len([line for line in lines if str(line).strip()]) <= 1:
+            one_line_parts += 1
+    return one_line_parts / max(len(verse_like), 1) >= 0.75 and len(arrangement) >= 12
 
 
 class _ReadableHTMLTextParser(HTMLParser):
@@ -2555,7 +2577,12 @@ Malformed response:
             return redirect(url_for("worship_add"))
         used_fallback_parser = True
 
-    if not isinstance(parsed, dict) or not isinstance(parsed.get("parts"), dict) or not isinstance(parsed.get("arrangement"), list):
+    if (
+        not isinstance(parsed, dict)
+        or not isinstance(parsed.get("parts"), dict)
+        or not isinstance(parsed.get("arrangement"), list)
+        or _looks_like_line_exploded_worship_parse(parsed)
+    ):
         fallback = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not fallback:
             flash("AI response was missing required fields (parts/arrangement).", "error")
