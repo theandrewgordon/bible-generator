@@ -4,6 +4,7 @@ import re
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from pathlib import Path
 
 from flask import (
     Blueprint,
@@ -17,6 +18,7 @@ from flask import (
     current_app,
     g,
     jsonify,
+    abort,
 )
 from firebase_admin import firestore
 
@@ -49,6 +51,50 @@ from faithsparks.util.proverb import get_proverb_of_day
 
 MAX_WORKSHEETS_PER_REQUEST = 30
 OPENAI_BATCH_SIZE = 10
+
+
+def _safe_local_path(base_dir: str, filename: str, allowed_exts: set[str] | None = None) -> Path | None:
+    if not filename:
+        return None
+    if allowed_exts and Path(filename).suffix.lower() not in allowed_exts:
+        return None
+    base = Path(base_dir).resolve()
+    candidate = (base / filename).resolve()
+    if candidate != base and base not in candidate.parents:
+        return None
+    return candidate
+
+
+def _worksheet_doc_for_user(filename: str):
+    if not db:
+        return None
+    user_email = session.get("user_email")
+    if not user_email or not filename:
+        return None
+    docs = (
+        db.collection("worksheets")
+        .where(filter=firestore.FieldFilter("email", "==", user_email))
+        .where(filter=firestore.FieldFilter("filename", "==", filename))
+        .limit(1)
+        .stream()
+    )
+    return next(docs, None)
+
+
+def _delete_owned_worksheet_file(filename: str, meta: dict | None = None) -> None:
+    file_path = _safe_local_path("output", filename, {".pdf"})
+    if file_path and file_path.exists():
+        file_path.unlink()
+    meta = meta or {}
+    if meta.get("type") == "coloring":
+        png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
+        png_path = _safe_local_path("worksheets", png_name, {".png"})
+        if png_path and png_path.exists():
+            png_path.unlink()
+    thumb_name = os.path.splitext(os.path.basename(filename))[0] + ".png"
+    thumb_path = _safe_local_path(os.path.join("output", "thumbs"), thumb_name, {".png"})
+    if thumb_path and thumb_path.exists():
+        thumb_path.unlink()
 
 
 def _chunked(seq, size):
@@ -513,30 +559,14 @@ def generate():
 def delete_worksheet(filename):
     if not db:
         return "Firestore not configured", 500
-    user_email = session.get("user_email")
     try:
-        docs = (
-            db.collection("worksheets")
-            .where(filter=firestore.FieldFilter("email", "==", user_email))
-            .where(filter=firestore.FieldFilter("filename", "==", filename))
-            .limit(1)
-            .stream()
-        )
-        doc = next(docs, None)
-        meta = doc.to_dict() if doc else {}
-        if doc:
-            doc.reference.delete()
-        file_path = os.path.join("output", filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if meta.get("type") == "coloring":
-            png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
-            png_path = os.path.join("worksheets", png_name)
-            if os.path.exists(png_path):
-                os.remove(png_path)
-            thumb_path = os.path.join("output", "thumbs", os.path.splitext(filename)[0] + ".png")
-            if os.path.exists(thumb_path):
-                os.remove(thumb_path)
+        doc = _worksheet_doc_for_user(filename)
+        if not doc:
+            flash("Worksheet not found.", "error")
+            return redirect(url_for("prints"))
+        meta = doc.to_dict() or {}
+        doc.reference.delete()
+        _delete_owned_worksheet_file(filename, meta)
         flash("Worksheet deleted successfully.", "success")
     except Exception as e:
         traceback.print_exc()
@@ -547,32 +577,15 @@ def delete_worksheet(filename):
 def delete_bulk():
     if not db:
         return "Firestore not configured", 500
-    user_email = session.get("user_email")
     selected = request.form.getlist("selected_files")
     try:
         for filename in selected:
-            docs = (
-                db.collection("worksheets")
-                .where(filter=firestore.FieldFilter("email", "==", user_email))
-                .where(filter=firestore.FieldFilter("filename", "==", filename))
-                .limit(1)
-                .stream()
-            )
-            doc = next(docs, None)
-            meta = doc.to_dict() if doc else {}
-            if doc:
-                doc.reference.delete()
-            file_path = os.path.join("output", filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            if meta.get("type") == "coloring":
-                png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
-                png_path = os.path.join("worksheets", png_name)
-                if os.path.exists(png_path):
-                    os.remove(png_path)
-                thumb_path = os.path.join("output", "thumbs", os.path.splitext(filename)[0] + ".png")
-                if os.path.exists(thumb_path):
-                    os.remove(thumb_path)
+            doc = _worksheet_doc_for_user(filename)
+            if not doc:
+                continue
+            meta = doc.to_dict() or {}
+            doc.reference.delete()
+            _delete_owned_worksheet_file(filename, meta)
         flash("Selected worksheets deleted.", "success")
     except Exception as e:
         traceback.print_exc()
@@ -649,36 +662,38 @@ def history():
 
 
 def download_file(filename):
-    file_path = os.path.join("output", filename)
-    if os.path.exists(file_path):
-        try:
-            if db:
-                base = os.path.splitext(filename)[0]
-                db.collection("analytics").document("verses").set({base: firestore.Increment(1)}, merge=True)
-                today = datetime.now(timezone.utc).strftime("%Y%m%d")
-                db.collection("analytics_daily").document(f"verses_{today}").set({base: firestore.Increment(1)}, merge=True)
-        except Exception:
-            pass
-        return send_file(file_path, as_attachment=True, download_name=os.path.basename(file_path), conditional=True)
-    user_email = session.get("user_email")
-    docs = (
-        db.collection("worksheets")
-        .where(filter=firestore.FieldFilter("email", "==", user_email))
-        .where(filter=firestore.FieldFilter("filename", "==", filename))
-        .limit(1)
-        .stream()
-    )
-    doc = next(docs, None)
+    if not db:
+        return "Firestore not configured", 500
+    file_path = _safe_local_path("output", filename, {".pdf", ".zip"})
+    if not file_path:
+        abort(404)
+    doc = _worksheet_doc_for_user(filename)
     if not doc:
         flash("⚠️ File missing and original data not found.", "error")
         return redirect(url_for("prints"))
+    if file_path.exists():
+        try:
+            base = os.path.splitext(filename)[0]
+            db.collection("analytics").document("verses").set({base: firestore.Increment(1)}, merge=True)
+            today = datetime.now(timezone.utc).strftime("%Y%m%d")
+            db.collection("analytics_daily").document(f"verses_{today}").set({base: firestore.Increment(1)}, merge=True)
+        except Exception:
+            pass
+        return send_file(file_path, as_attachment=True, download_name=file_path.name, conditional=True)
     return redirect(url_for("regenerate", filename=filename))
 
 
 def thumb(filename):
-    path = os.path.join("output", "thumbs", filename)
+    path = _safe_local_path(os.path.join("output", "thumbs"), filename, {".png"})
+    if not path:
+        abort(404)
     no_gen = request.args.get("skip") in ("1", "true", "True", "yes")
-    if os.path.exists(path):
+    base = os.path.splitext(os.path.basename(filename))[0]
+    pdf_name = base + ".pdf"
+    doc = _worksheet_doc_for_user(pdf_name)
+    if not doc:
+        return ("", 404)
+    if path.exists():
         remote_url = signed_url_for_path(f"thumbs/{filename}")
         if remote_url:
             return redirect(remote_url)
@@ -690,51 +705,32 @@ def thumb(filename):
         return resp
     if no_gen:
         return ("", 404)
-    base = os.path.splitext(os.path.basename(filename))[0]
-    pdf_name = base + ".pdf"
-    if db:
-        user_email = session.get("user_email")
-        docs = (
-            db.collection("worksheets")
-            .where(filter=firestore.FieldFilter("email", "==", user_email))
-            .where(filter=firestore.FieldFilter("filename", "==", pdf_name))
-            .limit(1)
-            .stream()
-        )
-        doc = next(docs, None)
-        if doc:
-            meta = doc.to_dict()
-            verse_ref = meta.get("verse", base)
-            version = meta.get("version", "ESV")
-            out = make_thumbnail(verse_ref, version, base)
-            if out and os.path.exists(out):
-                upload_to_storage(out, f"thumbs/{filename}")
-                remote_url = signed_url_for_path(f"thumbs/{filename}")
-                if remote_url:
-                    return redirect(remote_url)
-                resp = send_file(out, conditional=True)
-                try:
-                    resp.headers["Cache-Control"] = "public, max-age=86400"
-                except Exception:
-                    pass
-                return resp
+    meta = doc.to_dict()
+    verse_ref = meta.get("verse", base)
+    version = meta.get("version", "ESV")
+    out = make_thumbnail(verse_ref, version, base)
+    if out and os.path.exists(out):
+        upload_to_storage(out, f"thumbs/{filename}")
+        remote_url = signed_url_for_path(f"thumbs/{filename}")
+        if remote_url:
+            return redirect(remote_url)
+        resp = send_file(out, conditional=True)
+        try:
+            resp.headers["Cache-Control"] = "public, max-age=86400"
+        except Exception:
+            pass
+        return resp
     return ("", 404)
 
 
 def regenerate(filename):
     if not db:
         return "Firestore not configured", 500
-    user_email = session.get("user_email")
     if not filename.lower().endswith(".pdf"):
         filename += ".pdf"
-    docs = (
-        db.collection("worksheets")
-        .where(filter=firestore.FieldFilter("email", "==", user_email))
-        .where(filter=firestore.FieldFilter("filename", "==", filename))
-        .limit(1)
-        .stream()
-    )
-    doc = next(docs, None)
+    if not _safe_local_path("output", filename, {".pdf"}):
+        abort(404)
+    doc = _worksheet_doc_for_user(filename)
     if not doc:
         flash(f"Original data not found for {filename}", "error")
         return redirect(url_for("prints"))
@@ -792,15 +788,7 @@ def regenerate(filename):
 def toggle_favorite(filename):
     if not db:
         return ("Firestore not configured", 500)
-    user_email = session.get("user_email")
-    docs = (
-        db.collection("worksheets")
-        .where(filter=firestore.FieldFilter("email", "==", user_email))
-        .where(filter=firestore.FieldFilter("filename", "==", filename))
-        .limit(1)
-        .stream()
-    )
-    doc = next(docs, None)
+    doc = _worksheet_doc_for_user(filename)
     if not doc:
         return redirect(url_for("prints"))
     current = bool(doc.to_dict().get("favorite"))

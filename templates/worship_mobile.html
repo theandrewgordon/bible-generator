@@ -5,7 +5,7 @@
   :root,html,body{height:100%}
   body{margin:0;background:var(--background)}
   .wm-shell{display:flex;flex-direction:column;min-height:100dvh;height:100dvh;overflow:hidden}
-  .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;padding:.75rem 1rem;border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10;flex:0 0 auto}
+  .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;padding:.65rem .9rem;border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10;flex:0 0 auto}
   .wm-title{font-size:1.05rem;font-weight:800;margin:0}
   .wm-sub{margin:.1rem 0 0;color:var(--text-secondary);font-size:.85rem}
   .wm-actions{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center}
@@ -13,24 +13,44 @@
   .wm-link.secondary,.wm-btn.secondary{background:transparent;color:var(--primary)}
   .wm-link:hover,.wm-btn:hover{background:var(--primary-dark);color:#fff}
   .wm-link.secondary:hover,.wm-btn.secondary:hover{background:var(--primary);color:#fff}
-  .wm-stage{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,color-mix(in srgb, var(--primary) 5%, var(--background)) 0%, var(--background) 100%);height:100%;padding-bottom:.35rem}
+  .wm-stage{position:relative;flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,color-mix(in srgb, var(--primary) 5%, var(--background)) 0%, var(--background) 100%);height:100%;padding-bottom:.35rem;touch-action:pan-x}
   .wm-stage::-webkit-scrollbar{display:none}
   .wm-slide{scroll-snap-align:start;flex:0 0 100vw;min-width:100vw;display:flex;align-items:center;justify-content:center;padding:.55rem .55rem .75rem}
-  .wm-card{width:min(760px, 100%);height:calc(100dvh - 7rem);border-radius:30px;background:var(--box);box-shadow:0 18px 50px rgba(15,23,42,.16);border:1px solid rgba(148,163,184,.18);padding:1rem .95rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
-  .wm-card::after{content:'';position:absolute;inset:auto 0 0 0;height:12px;background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--primary) 20%, transparent) 50%, transparent 100%);opacity:.55}
+  .wm-card{width:min(760px, 100%);height:calc(100dvh - 7.25rem);border-radius:22px;background:var(--box);box-shadow:0 18px 50px rgba(15,23,42,.16);border:1px solid rgba(148,163,184,.18);padding:1rem .95rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
   .wm-kind{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.55rem}
-  .wm-song{font-size:clamp(1.35rem, 3.8vw, 2rem);line-height:1.06;font-weight:900;margin:0 0 .45rem;max-width:14ch}
+  .wm-song{font-size:1.35rem;line-height:1.08;font-weight:900;margin:0 0 .45rem;max-width:18ch;overflow-wrap:anywhere}
   .wm-meta{font-size:.88rem;color:var(--text-secondary);margin:0 0 .85rem}
-  .wm-lines{font-size:clamp(1.5rem, 4.35vw, 2.95rem);line-height:1.18;font-weight:800;white-space:pre-wrap;max-width:14ch;hyphens:auto}
+  .wm-lines{font-size:1.65rem;line-height:1.16;font-weight:800;white-space:pre-wrap;max-width:16ch;hyphens:auto;overflow-wrap:anywhere}
   .wm-slide--divider .wm-card{background:linear-gradient(180deg,var(--box) 0%, color-mix(in srgb, var(--primary) 3%, var(--box)) 100%)}
   .wm-slide--lyric .wm-card{justify-content:center}
   .wm-part{font-size:.82rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin:0 0 .65rem}
-  .wm-footer{padding:.4rem 1rem .7rem;color:var(--text-secondary);font-size:.78rem;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .wm-nav{position:absolute;inset:0;display:flex;align-items:stretch;justify-content:space-between;pointer-events:none;z-index:2}
+  .wm-nav-btn{width:24%;min-width:76px;border:none;background:transparent;color:transparent;cursor:pointer;pointer-events:auto}
+  .wm-nav-btn:focus-visible{outline:3px solid var(--primary);outline-offset:-8px}
+  .wm-progress-bar{height:4px;background:#e2e8f0;flex:0 0 auto}
+  .wm-progress-fill{height:100%;width:0;background:var(--primary);transition:width .18s ease}
+  .wm-footer{padding:.45rem .9rem .65rem;color:var(--text-secondary);font-size:.78rem;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
   .wm-progress{font-size:.82rem;font-weight:700;color:var(--text);white-space:nowrap}
   .wm-progress-song{font-size:.78rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .wm-shell.is-fullscreen .wm-topbar,.wm-shell.is-fullscreen .wm-footer{display:none}
+  .wm-shell.is-fullscreen .wm-card{height:calc(100dvh - 1.65rem);border-radius:18px}
+  .wm-shell.is-fullscreen .wm-lines{font-size:2rem}
   @media (min-width: 900px){
-    .wm-card{height:calc(100dvh - 6.8rem)}
-    .wm-lines{font-size:clamp(1.95rem, 3.8vw, 3.2rem)}
+    .wm-card{height:calc(100dvh - 7.05rem)}
+    .wm-song{font-size:2rem}
+    .wm-lines{font-size:2.55rem;max-width:18ch}
+  }
+  @media (max-width: 520px){
+    .wm-topbar{align-items:flex-start}
+    .wm-sub{display:none}
+    .wm-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem}
+    .wm-link,.wm-btn{min-height:40px;padding:7px 8px;font-size:.8rem}
+    .wm-slide{padding:.35rem .35rem .55rem}
+    .wm-card{height:calc(100dvh - 8.55rem);border-radius:16px;padding:.8rem .65rem}
+    .wm-kind{font-size:.66rem;margin-bottom:.4rem}
+    .wm-song{font-size:1.12rem;max-width:20ch}
+    .wm-part{font-size:.72rem;margin-bottom:.45rem}
+    .wm-lines{font-size:1.46rem;line-height:1.14;max-width:15ch}
   }
 </style>
 {% endblock %}
@@ -49,24 +69,28 @@
     </div>
   </div>
 
+  <div class="wm-progress-bar" aria-hidden="true"><div class="wm-progress-fill" id="wm-progress-fill"></div></div>
+
   <div class="wm-stage" id="wm-stage" tabindex="0" aria-label="Worship slides">
     {% for slide in slides %}
-      <section class="wm-slide wm-slide--{{ slide.kind }}">
+      <section class="wm-slide wm-slide--{{ slide.kind }}" data-title="{{ slide.title }}">
         <div class="wm-card">
           {% if slide.kind == 'divider' %}
             <div class="wm-kind">Song</div>
             <h2 class="wm-song">{{ slide.title }}</h2>
-            {% if slide.artist or slide.key %}
+            {% if slide.artist or slide.version or slide.key %}
               <p class="wm-meta">
                 {% if slide.artist %}{{ slide.artist }}{% endif %}
-                {% if slide.artist and slide.key %} · {% endif %}
+                {% if slide.artist and (slide.version or slide.key) %} · {% endif %}
+                {% if slide.version %}{{ slide.version }}{% endif %}
+                {% if slide.version and slide.key %} · {% endif %}
                 {% if slide.key %}Key {{ slide.key }}{% endif %}
               </p>
             {% endif %}
           {% else %}
             <div class="wm-kind">Lyrics</div>
             <h2 class="wm-song">{{ slide.title }}</h2>
-            <p class="wm-part">{{ slide.part }}</p>
+            <p class="wm-part">{{ slide.part_label }}</p>
             <div class="wm-lines" style="font-size: clamp({{ (slide.font_size or 48) * 0.04 }}rem, 4.6vw, {{ (slide.font_size or 48) * 0.058 }}rem)">
               {{ slide.lines | join('\n') }}
             </div>
@@ -74,6 +98,10 @@
         </div>
       </section>
     {% endfor %}
+    <div class="wm-nav" aria-hidden="true">
+      <button class="wm-nav-btn" type="button" data-wm-prev tabindex="-1">Previous</button>
+      <button class="wm-nav-btn" type="button" data-wm-next tabindex="-1">Next</button>
+    </div>
   </div>
 
   <div class="wm-footer">
@@ -91,7 +119,13 @@
   var fsBtn = document.getElementById('wm-fullscreen-btn');
   var stage = document.getElementById('wm-stage');
   var shell = document.querySelector('.wm-shell');
+  var progressFill = document.getElementById('wm-progress-fill');
   var url = window.location.href;
+  function scrollToIndex(idx) {
+    if (!stage || !slides.length) return;
+    idx = Math.max(0, Math.min(slides.length - 1, idx));
+    stage.scrollTo({ left: idx * stage.clientWidth, behavior: 'smooth' });
+  }
   function copyUrl() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(function () {
@@ -117,10 +151,15 @@
       if (target.requestFullscreen) target.requestFullscreen().catch(function () {});
     });
   }
+  document.addEventListener('fullscreenchange', function () {
+    if (shell) shell.classList.toggle('is-fullscreen', !!document.fullscreenElement);
+    if (fsBtn) fsBtn.textContent = document.fullscreenElement ? 'Exit' : 'Fullscreen';
+    updateProgress();
+  });
   if (stage) {
     stage.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowRight') stage.scrollBy({ left: stage.clientWidth, behavior: 'smooth' });
-      if (e.key === 'ArrowLeft') stage.scrollBy({ left: -stage.clientWidth, behavior: 'smooth' });
+      if (e.key === 'ArrowRight') scrollToIndex(currentIndex() + 1);
+      if (e.key === 'ArrowLeft') scrollToIndex(currentIndex() - 1);
       if ((e.key === 'f' || e.key === 'F') && fsBtn) fsBtn.click();
       if ((e.key === 'c' || e.key === 'C') && copyBtn) copyBtn.click();
     });
@@ -132,20 +171,28 @@
   var slides = Array.from(stage ? stage.querySelectorAll('.wm-slide') : []);
   var total = slides.length;
 
+  function currentIndex() {
+    if (!stage || !total) return 0;
+    return Math.max(0, Math.min(total - 1, Math.round(stage.scrollLeft / stage.clientWidth)));
+  }
+
   function updateProgress() {
     if (!stage || !total) return;
-    var idx = Math.round(stage.scrollLeft / stage.clientWidth);
-    idx = Math.max(0, Math.min(total - 1, idx));
+    var idx = currentIndex();
     if (progressEl) progressEl.textContent = (idx + 1) + ' / ' + total;
+    if (progressFill) progressFill.style.width = (((idx + 1) / total) * 100) + '%';
     if (progressSongEl) {
       var slide = slides[idx];
-      var titleEl = slide ? slide.querySelector('.wm-song') : null;
-      progressSongEl.textContent = titleEl ? titleEl.textContent.trim() : '';
+      progressSongEl.textContent = slide ? (slide.dataset.title || '') : '';
     }
   }
 
   if (stage) {
     stage.addEventListener('scroll', updateProgress, { passive: true });
+    stage.addEventListener('click', function (e) {
+      if (e.target.closest('[data-wm-prev]')) scrollToIndex(currentIndex() - 1);
+      if (e.target.closest('[data-wm-next]')) scrollToIndex(currentIndex() + 1);
+    });
     updateProgress();
   }
 })();

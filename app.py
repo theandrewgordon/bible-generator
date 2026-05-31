@@ -1,5 +1,5 @@
 # test08-28-2025
-from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g, after_this_request
+from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g, after_this_request, has_request_context
 from flask_dance.contrib.google import make_google_blueprint, google
 from datetime import datetime
 
@@ -312,6 +312,7 @@ from flask import abort
 
 CSRF_SESSION_KEY = "_csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
+CSRF_ALT_HEADER_NAME = "X-CSRFToken"
 CSRF_FORM_FIELD = "csrf_token"
 
 def _get_csrf_token() -> str:
@@ -352,8 +353,8 @@ def csrf_protect():
     # Accept token from header (AJAX/fetch) or form field
     sent = (
         request.headers.get(CSRF_HEADER_NAME)
+        or request.headers.get(CSRF_ALT_HEADER_NAME)
         or request.form.get(CSRF_FORM_FIELD)
-        or request.args.get(CSRF_FORM_FIELD)  # last-resort (avoid using in new code)
     )
 
     expected = session.get(CSRF_SESSION_KEY)
@@ -628,10 +629,36 @@ SONGS_DIR = os.path.join(app.root_path, "songs")  # kept for local fallback
 
 # --- Worship song persistence helpers ---
 _WORSHIP_COLLECTION = "worship_songs"
+_WORSHIP_SETLIST_COLLECTION = "worship_setlists"
+_WORSHIP_SCOPE_COLLECTION = "worship_scopes"
+_DEFAULT_WORSHIP_SCOPE = "default"
 _worship_seeded = False
 _worship_songs_cache: list[dict] | None = None
 _worship_songs_cache_ts: float = 0.0
+_worship_songs_cache_scope: str | None = None
 _WORSHIP_CACHE_TTL = 60.0  # seconds
+
+
+def _current_worship_scope() -> str:
+    raw = (session.get("worship_scope") if has_request_context() else None) or os.getenv("WORSHIP_SCOPE_ID") or _DEFAULT_WORSHIP_SCOPE
+    scope = _slugify_worship_token(str(raw))
+    return scope or _DEFAULT_WORSHIP_SCOPE
+
+
+def _worship_songs_ref():
+    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_COLLECTION)
+
+
+def _legacy_worship_songs_ref():
+    return db.collection(_WORSHIP_COLLECTION)
+
+
+def _worship_setlists_ref():
+    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_SETLIST_COLLECTION)
+
+
+def _legacy_worship_setlists_ref():
+    return db.collection(_WORSHIP_SETLIST_COLLECTION)
 
 
 def _seed_worship_from_files() -> None:
@@ -643,7 +670,7 @@ def _seed_worship_from_files() -> None:
     if not db:
         return
     try:
-        if list(db.collection(_WORSHIP_COLLECTION).limit(1).stream()):
+        if list(_worship_songs_ref().limit(1).stream()) or list(_legacy_worship_songs_ref().limit(1).stream()):
             return  # already has documents
         songs_folder = Path(app.root_path) / "songs"
         if not songs_folder.is_dir():
@@ -654,7 +681,7 @@ def _seed_worship_from_files() -> None:
                     data = json.load(f)
                 song_id = data.get("id") or fp.stem
                 data["id"] = song_id
-                db.collection(_WORSHIP_COLLECTION).document(song_id).set(data)
+                _worship_songs_ref().document(song_id).set(data)
                 app.logger.info("Seeded worship song: %s", song_id)
             except Exception as exc:
                 app.logger.warning("Worship seed skip %s: %s", fp.name, exc)
@@ -663,28 +690,44 @@ def _seed_worship_from_files() -> None:
 
 
 def _invalidate_worship_cache() -> None:
-    global _worship_songs_cache, _worship_songs_cache_ts
+    global _worship_songs_cache, _worship_songs_cache_ts, _worship_songs_cache_scope
     _worship_songs_cache = None
     _worship_songs_cache_ts = 0.0
+    _worship_songs_cache_scope = None
+
+
+def _worship_song_sort_key(song: dict) -> tuple[str, str, str]:
+    normalized = normalize_worship_song(song)
+    return (
+        normalized.get("title", "").lower(),
+        normalized.get("artist", "").lower(),
+        normalized.get("version", "").lower(),
+        normalized.get("id", "").lower(),
+    )
 
 
 def list_worship_songs() -> list[dict]:
     """List all worship songs sorted by title. Cached for _WORSHIP_CACHE_TTL seconds."""
     import time
-    global _worship_songs_cache, _worship_songs_cache_ts
+    global _worship_songs_cache, _worship_songs_cache_ts, _worship_songs_cache_scope
     now = time.monotonic()
-    if _worship_songs_cache is not None and (now - _worship_songs_cache_ts) < _WORSHIP_CACHE_TTL:
+    scope = _current_worship_scope()
+    if _worship_songs_cache is not None and _worship_songs_cache_scope == scope and (now - _worship_songs_cache_ts) < _WORSHIP_CACHE_TTL:
         return _worship_songs_cache
 
     if db:
         try:
-            results = []
-            for doc in db.collection(_WORSHIP_COLLECTION).order_by("title").stream():
-                data = doc.to_dict()
-                if data and data.get("id"):
-                    results.append(data)
+            by_id = {}
+            for ref in (_legacy_worship_songs_ref(), _worship_songs_ref()):
+                for doc in ref.order_by("title").stream():
+                    data = doc.to_dict()
+                    if data and data.get("id"):
+                        by_id[data["id"]] = data
+            results = list(by_id.values())
+            results.sort(key=_worship_song_sort_key)
             _worship_songs_cache = results
             _worship_songs_cache_ts = now
+            _worship_songs_cache_scope = scope
             return results
         except Exception as exc:
             app.logger.warning("list_worship_songs Firestore error: %s", exc)
@@ -697,8 +740,10 @@ def list_worship_songs() -> list[dict]:
                     songs.append(json.load(f))
             except Exception:
                 pass
+    songs.sort(key=_worship_song_sort_key)
     _worship_songs_cache = songs
     _worship_songs_cache_ts = now
+    _worship_songs_cache_scope = scope
     return songs
 
 
@@ -706,9 +751,10 @@ def get_worship_song(song_id: str) -> dict | None:
     """Load one song by id. Firestore first, file fallback."""
     if db:
         try:
-            doc = db.collection(_WORSHIP_COLLECTION).document(song_id).get()
-            if doc.exists:
-                return doc.to_dict()
+            for ref in (_worship_songs_ref(), _legacy_worship_songs_ref()):
+                doc = ref.document(song_id).get()
+                if doc.exists:
+                    return doc.to_dict()
         except Exception as exc:
             app.logger.warning("get_worship_song(%s) Firestore error: %s", song_id, exc)
     fp = Path(app.root_path) / "songs" / f"{song_id}.json"
@@ -755,11 +801,18 @@ def _is_reusable_part(part_name: str) -> bool:
     return any(part_name == p or part_name.startswith(p) for p in _REUSABLE_LYRIC_SHEET_PART_PREFIXES)
 
 
+def _worship_part_label(part_name: str) -> str:
+    label = str(part_name or "").replace("_", " ")
+    label = re.sub(r"([a-zA-Z])(\d+)", r"\1 \2", label)
+    return label.title()
+
+
 def normalize_worship_song(song: dict) -> dict:
     normalized = dict(song or {})
     title = str(normalized.get("title") or "").strip()
     normalized["title"] = title
     normalized["artist"] = str(normalized.get("artist") or "").strip()
+    normalized["version"] = str(normalized.get("version") or "").strip()
     normalized["key"] = str(normalized.get("key") or "").strip()
     normalized["type"] = str(normalized.get("type") or "song").strip() or "song"
     normalized["background"] = str(normalized.get("background") or "").strip()
@@ -818,7 +871,7 @@ def build_lyric_sheet_blocks(song: dict) -> list[dict]:
         blocks.append(
             {
                 "part": part_name,
-                "label": part_name.replace("_", " ").title(),
+                "label": _worship_part_label(part_name),
                 "lines": [] if reference_only else list(lines),
                 "reference_only": reference_only,
             }
@@ -833,7 +886,8 @@ def save_worship_song(song: dict) -> None:
     song_id = song["id"]
     if db:
         try:
-            db.collection(_WORSHIP_COLLECTION).document(song_id).set(song)
+            song["worship_scope"] = _current_worship_scope()
+            _worship_songs_ref().document(song_id).set(song)
             _invalidate_worship_cache()
             return
         except Exception as exc:
@@ -850,10 +904,11 @@ def delete_worship_song(song_id: str) -> bool:
     deleted = False
     if db:
         try:
-            ref = db.collection(_WORSHIP_COLLECTION).document(song_id)
-            if ref.get().exists:
-                ref.delete()
-                deleted = True
+            for collection_ref in (_worship_songs_ref(), _legacy_worship_songs_ref()):
+                ref = collection_ref.document(song_id)
+                if ref.get().exists:
+                    ref.delete()
+                    deleted = True
         except Exception as exc:
             app.logger.warning("delete_worship_song(%s) Firestore error: %s", song_id, exc)
     fp = Path(app.root_path) / "songs" / f"{song_id}.json"
@@ -868,16 +923,82 @@ def delete_worship_song(song_id: str) -> bool:
     return deleted
 
 
+def _remove_song_from_worship_setlists(song_id: str) -> int:
+    """Remove a deleted song id from saved setlists. Empty setlists are deleted."""
+    changed = 0
+    if db:
+        try:
+            for collection_ref in (_legacy_worship_setlists_ref(), _worship_setlists_ref()):
+                for doc in collection_ref.stream():
+                    data = doc.to_dict() or {}
+                    songs = data.get("songs")
+                    if not isinstance(songs, list) or song_id not in songs:
+                        continue
+                    notes = data.get("notes") if isinstance(data.get("notes"), dict) else {}
+                    data["songs"] = [sid for sid in songs if sid != song_id]
+                    data["notes"] = {sid: note for sid, note in notes.items() if sid != song_id}
+                    if data["songs"]:
+                        doc.reference.set(data)
+                    else:
+                        doc.reference.delete()
+                    changed += 1
+        except Exception as exc:
+            app.logger.warning("_remove_song_from_worship_setlists(%s) Firestore error: %s", song_id, exc)
+
+    setlists_dir = Path(app.root_path) / "setlists"
+    if setlists_dir.is_dir():
+        for fp in setlists_dir.glob("*.json"):
+            try:
+                with open(fp, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                songs = data.get("songs")
+                if not isinstance(songs, list) or song_id not in songs:
+                    continue
+                notes = data.get("notes") if isinstance(data.get("notes"), dict) else {}
+                data["songs"] = [sid for sid in songs if sid != song_id]
+                data["notes"] = {sid: note for sid, note in notes.items() if sid != song_id}
+                if data["songs"]:
+                    with open(fp, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2)
+                else:
+                    fp.unlink()
+                changed += 1
+            except Exception as exc:
+                app.logger.warning("_remove_song_from_worship_setlists(%s) file error: %s", song_id, exc)
+    return changed
+
+
+def _worship_wants_json_response() -> bool:
+    return request.accept_mimetypes.best == "application/json" or request.headers.get("X-Requested-With") == "fetch"
+
+
+def _worship_setlist_id(date_label: str, name: str = "") -> str:
+    name_slug = _slugify_worship_token(name)
+    return f"{date_label}-{name_slug}" if name_slug else date_label
+
+
+def _normalize_worship_setlist(data: dict, fallback_id: str = "") -> dict:
+    date_label = str(data.get("date") or fallback_id[:10] or "").strip()
+    songs = data.get("songs") if isinstance(data.get("songs"), list) else []
+    notes = data.get("notes") if isinstance(data.get("notes"), dict) else {}
+    name = str(data.get("name") or "").strip()
+    setlist_id = str(data.get("id") or fallback_id or _worship_setlist_id(date_label, name)).strip()
+    return {"id": setlist_id, "date": date_label, "name": name, "songs": songs, "notes": notes}
+
+
 def _load_recent_setlists() -> list[dict]:
     """Return all setlists, newest first."""
     if db:
         try:
-            results = []
-            for doc in db.collection("worship_setlists").stream():
-                data = doc.to_dict()
-                if data and data.get("date") and isinstance(data.get("songs"), list):
-                    results.append({"date": data["date"], "songs": data["songs"], "notes": data.get("notes", {})})
-            results.sort(key=lambda x: x["date"], reverse=True)
+            by_id = {}
+            for collection_ref in (_legacy_worship_setlists_ref(), _worship_setlists_ref()):
+                for doc in collection_ref.stream():
+                    data = doc.to_dict()
+                    if data and data.get("date") and isinstance(data.get("songs"), list):
+                        normalized = _normalize_worship_setlist(data, doc.id)
+                        by_id[normalized["id"]] = normalized
+            results = list(by_id.values())
+            results.sort(key=lambda x: (x["date"], x["name"], x["id"]), reverse=True)
             return results
         except Exception as exc:
             app.logger.warning("_load_recent_setlists Firestore error: %s", exc)
@@ -890,9 +1011,10 @@ def _load_recent_setlists() -> list[dict]:
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if data.get("date") and isinstance(data.get("songs"), list):
-                results.append({"date": data["date"], "songs": data["songs"], "notes": data.get("notes", {})})
+                results.append(_normalize_worship_setlist(data, fp.stem))
         except Exception:
             pass
+    results.sort(key=lambda x: (x["date"], x["name"], x["id"]), reverse=True)
     return results
 
 
@@ -1148,7 +1270,26 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
     return slide
 
 
-def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None, font_size: int = 48):
+def _add_part_label(slide, label: str, font_color: RGBColor) -> None:
+    if not label:
+        return
+    box = slide.shapes.add_textbox(Inches(0.42), Inches(0.34), Inches(4.0), Inches(0.3))
+    tf = box.text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    run = p.add_run()
+    run.text = label.upper()
+    run.font.size = Pt(12)
+    run.font.bold = True
+    run.font.name = "Arial"
+    r = int(font_color[0] * 0.4)
+    g = int(font_color[1] * 0.4)
+    b = int(font_color[2] * 0.4)
+    run.font.color.rgb = RGBColor(r, g, b)
+
+
+def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None, font_size: int = 48, part_label: str = ""):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     img_path, cfg = _resolve_bg(item_type, song_bg)
     if img_path:
@@ -1158,6 +1299,7 @@ def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "
     font_color = RGBColor(*cfg["font_color"])
     overlay = cfg.get("overlay", False)
     overlay_opacity = cfg.get("overlay_opacity", 0.5)
+    _add_part_label(slide, part_label, font_color)
     add_centered_textbox(slide, "\n".join(lines), top=1.25, height=5.0, font_size=font_size, bold=True,
                           font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
     add_link_footer(slide)
@@ -1250,6 +1392,43 @@ def _slugify_worship_token(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().lower()).strip("-")
 
 
+def _worship_song_id_base(title: str, artist: str = "", version: str = "") -> str:
+    title_slug = _slugify_worship_token(title)
+    artist_slug = _slugify_worship_token(artist)
+    version_slug = _slugify_worship_token(version)
+    bits = [bit for bit in (title_slug, artist_slug, version_slug) if bit]
+    return "-".join(bits) or "untitled-song"
+
+
+def _make_unique_worship_song_id(title: str, artist: str = "", version: str = "") -> str:
+    base = _worship_song_id_base(title, artist, version)
+    candidate = base
+    suffix = 2
+    while get_worship_song(candidate):
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _worship_set_filename(selected_items: list[dict], date_label: str) -> str:
+    title_slugs = []
+    for item in selected_items[:2]:
+        normalized = normalize_worship_song(item)
+        slug = _slugify_worship_token(normalized.get("title", ""))
+        if slug:
+            title_slugs.append(slug)
+    if title_slugs:
+        return f"worship-{'-'.join(title_slugs)}.pptx"
+    return f"worship-{date_label}.pptx"
+
+
+def _clean_ai_json_response(raw: str) -> str:
+    raw = str(raw or "").strip()
+    raw = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", raw)
+    raw = re.sub(r"\n?```$", "", raw).strip()
+    return raw
+
+
 def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str]) -> list[dict]:
     if song_order:
         raw_ids = [s.strip() for s in song_order.split(",") if s.strip()]
@@ -1263,22 +1442,31 @@ def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str
             seen.add(sid)
             ordered_ids.append(sid)
 
-    # Build a forgiving lookup from all known worship songs so mobile/share URLs
-    # still work if the stored id is missing or the request token is title-derived.
+    # Resolve exact ids from the cached list first. Title-derived fallback is
+    # allowed only when it is unambiguous, so duplicate song titles do not pick
+    # whichever version happened to sort first.
     song_lookup: dict[str, dict] = {}
+    title_lookup: dict[str, list[dict]] = {}
     try:
         for song in list_worship_songs():
             normalized = normalize_worship_song(song)
-            song_lookup[normalized.get("id", "")] = song
+            song_id = normalized.get("id", "")
+            if song_id:
+                song_lookup[song_id] = song
             title = normalized.get("title", "")
             if title:
-                song_lookup.setdefault(_slugify_worship_token(title), song)
+                title_lookup.setdefault(_slugify_worship_token(title), []).append(song)
     except Exception:
         pass
 
     selected_items = []
     for song_id in ordered_ids:
-        song = get_worship_song(song_id) or song_lookup.get(song_id) or song_lookup.get(_slugify_worship_token(song_id))
+        title_matches = title_lookup.get(_slugify_worship_token(song_id), [])
+        song = song_lookup.get(song_id)
+        if not song and len(title_matches) == 1:
+            song = title_matches[0]
+        if not song:
+            song = get_worship_song(song_id)
         if song:
             selected_items.append(song)
     return selected_items
@@ -1289,6 +1477,7 @@ def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
     for item in selected_items:
         normalized = normalize_worship_song(item)
         song_title = normalized.get("title", "Untitled")
+        song_version = normalized.get("version", "")
         item_type = normalized.get("type", "song")
         song_bg = normalized.get("background")
         slides.append(
@@ -1296,6 +1485,7 @@ def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
                 "kind": "divider",
                 "title": song_title,
                 "artist": normalized.get("artist", ""),
+                "version": song_version,
                 "key": normalized.get("key", ""),
                 "type": item_type,
                 "background": song_bg,
@@ -1312,7 +1502,9 @@ def _build_worship_mobile_slides(selected_items: list[dict]) -> list[dict]:
                     {
                         "kind": "lyric",
                         "title": song_title,
+                        "version": song_version,
                         "part": part_name,
+                        "part_label": _worship_part_label(part_name),
                         "lines": chunk["lines"],
                         "font_size": chunk.get("font_size", 48),
                         "type": item_type,
@@ -1362,6 +1554,8 @@ def worship_export_lyric_sheet():
         subtitle_bits = []
         if normalized.get("artist"):
             subtitle_bits.append(normalized["artist"])
+        if normalized.get("version"):
+            subtitle_bits.append(normalized["version"])
         if normalized.get("key"):
             subtitle_bits.append(f"Key: {normalized['key']}")
         if subtitle_bits:
@@ -1412,7 +1606,8 @@ def worship_build():
         normalized = normalize_worship_song(item)
         item_type = normalized.get("type", "song")
         song_bg = normalized.get("background")
-        create_divider_slide(prs, normalized.get("title", ""), normalized.get("artist", ""), normalized.get("key", ""), item_type, song_bg)
+        artist_bits = [bit for bit in (normalized.get("artist", ""), normalized.get("version", "")) if bit]
+        create_divider_slide(prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg)
         parts = normalized.get("parts", {}) or {}
         arrangement = normalized.get("arrangement", []) or []
         for part_name in arrangement:
@@ -1420,7 +1615,14 @@ def worship_build():
             if not isinstance(part_lines, list):
                 continue
             for slide in chunk_lines(part_lines):
-                create_content_slide(prs, slide["lines"], item_type, song_bg, font_size=slide.get("font_size", 48))
+                create_content_slide(
+                    prs,
+                    slide["lines"],
+                    item_type,
+                    song_bg,
+                    font_size=slide.get("font_size", 48),
+                    part_label=_worship_part_label(part_name),
+                )
 
     today = datetime.now(timezone.utc).date().isoformat()
     for item in selected_items:
@@ -1442,7 +1644,7 @@ def worship_build():
     return send_file(
         tmp.name,
         as_attachment=True,
-        download_name="house_church_worship.pptx",
+        download_name=_worship_set_filename(selected_items, today),
         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
     )
 
@@ -1462,6 +1664,7 @@ def worship_add():
 
         title = request.form.get("title", "").strip()
         artist = request.form.get("artist", "").strip()
+        version = request.form.get("version", "").strip()
         key = request.form.get("key", "").strip()
         song_type = request.form.get("type", "song").strip() or "song"
         background = request.form.get("background", "").strip()
@@ -1485,21 +1688,18 @@ def worship_add():
 
         arrangement = [a.strip() for a in arrangement_raw.split(",") if a.strip()]
 
-        song_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+        song_id = _make_unique_worship_song_id(title, artist, version)
         song = {
             "id": song_id,
             "title": title,
             "artist": artist,
+            "version": version,
             "key": key,
             "type": song_type,
             "background": background,
             "parts": parts,
             "arrangement": arrangement,
         }
-
-        if get_worship_song(song_id):
-            session["pending_worship_song"] = song
-            return redirect(url_for("worship_add", conflict=song_id))
 
         save_worship_song(song)
         flash(f"'{title}' saved.", "success")
@@ -1521,6 +1721,7 @@ def worship_add_parse():
     raw_lyrics = request.form.get("raw_lyrics", "").strip()
     title = request.form.get("title", "").strip()
     artist = request.form.get("artist", "").strip()
+    version = request.form.get("version", "").strip()
     key = request.form.get("key", "").strip()
 
     if not raw_lyrics:
@@ -1536,6 +1737,7 @@ def worship_add_parse():
 
 Title: {title or '(infer from lyrics)'}
 Artist: {artist or '(unknown)'}
+Version/arrangement note: {version or '(unknown)'}
 Key: {key or '(unknown)'}
 
 Lyrics:
@@ -1546,6 +1748,7 @@ Return ONLY valid JSON — no markdown fences, no explanation — in this exact 
   "id": "<slugified-title>",
   "title": "<title>",
   "artist": "<artist or empty string>",
+  "version": "<version or arrangement note, or empty string>",
   "key": "<key or empty string>",
   "type": "song",
   "parts": {{
@@ -1556,7 +1759,7 @@ Return ONLY valid JSON — no markdown fences, no explanation — in this exact 
 }}
 
 Rules:
-- id: title lowercased, spaces and special characters replaced by hyphens, no leading/trailing hyphens
+- id: title lowercased, spaces and special characters replaced by hyphens, no leading/trailing hyphens; the app may replace this with a unique library id
 - parts keys: use verse1, verse2, chorus, chorus2, bridge, pre_chorus, outro, intro as appropriate — if the song has two distinct choruses use chorus and chorus2, not chorus for both
 - arrangement: list of part keys in the order they appear in the song
 - each part value is an array of individual lyric lines (no blank strings)
@@ -1569,11 +1772,27 @@ Rules:
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
+            response_format={"type": "json_object"},
         )
-        raw_json = response.choices[0].message.content.strip()
-        raw_json = re.sub(r"^```[a-z]*\n?", "", raw_json)
-        raw_json = re.sub(r"\n?```$", "", raw_json).strip()
-        parsed = json.loads(raw_json)
+        raw_json = _clean_ai_json_response(response.choices[0].message.content)
+        try:
+            parsed = json.loads(raw_json)
+        except json.JSONDecodeError:
+            repair_prompt = f"""Repair this malformed response into valid JSON only.
+
+Return the same worship song schema with id, title, artist, version, key, type, parts, and arrangement.
+Do not add markdown or explanation.
+
+Malformed response:
+{raw_json}
+"""
+            repaired = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": repair_prompt}],
+                temperature=0,
+                response_format={"type": "json_object"},
+            )
+            parsed = json.loads(_clean_ai_json_response(repaired.choices[0].message.content))
     except json.JSONDecodeError as e:
         flash(f"AI returned invalid JSON: {e}", "error")
         return redirect(url_for("worship_add"))
@@ -1586,14 +1805,12 @@ Rules:
         return redirect(url_for("worship_add"))
 
     song = normalize_worship_song(parsed)
-    song_id = song["id"]
-
-    if get_worship_song(song_id):
-        session["pending_worship_song"] = song
-        return redirect(url_for("worship_add", conflict=song_id))
+    if version:
+        song["version"] = version
+    song["id"] = _make_unique_worship_song_id(song.get("title", ""), song.get("artist", ""), song.get("version", ""))
 
     save_worship_song(song)
-    flash(f"'{song.get('title', song_id)}' parsed and saved.", "success")
+    flash(f"'{song.get('title', song['id'])}' parsed and saved.", "success")
     return redirect(url_for("worship"))
 
 
@@ -1612,14 +1829,45 @@ def worship_preview_slides():
 def worship_delete():
     song_id = request.form.get("song_id", "").strip()
     if not song_id or ".." in song_id or "/" in song_id or "\\" in song_id:
+        if _worship_wants_json_response():
+            return jsonify({"ok": False, "error": "Invalid song id"}), 400
         flash("Invalid song id.", "warning")
         return redirect(url_for("worship"))
 
     if delete_worship_song(song_id):
+        setlists_changed = _remove_song_from_worship_setlists(song_id)
+        if _worship_wants_json_response():
+            return jsonify({"ok": True, "song_id": song_id, "setlists_changed": setlists_changed})
         flash("Song deleted.", "success")
     else:
+        if _worship_wants_json_response():
+            return jsonify({"ok": False, "error": "Song not found"}), 404
         flash("Song not found.", "warning")
     return redirect(url_for("worship"))
+
+
+@app.route("/worship/duplicate/<song_id>", methods=["POST"])
+@login_required
+def worship_duplicate(song_id):
+    if ".." in song_id or "/" in song_id or "\\" in song_id:
+        flash("Invalid song id.", "warning")
+        return redirect(url_for("worship"))
+    song = get_worship_song(song_id)
+    if not song:
+        flash("Song not found.", "warning")
+        return redirect(url_for("worship"))
+    duplicate = normalize_worship_song(song)
+    base_version = duplicate.get("version", "")
+    duplicate["version"] = f"{base_version} Copy".strip() if base_version else "Copy"
+    duplicate.pop("last_used", None)
+    duplicate["id"] = _make_unique_worship_song_id(
+        duplicate.get("title", ""),
+        duplicate.get("artist", ""),
+        duplicate.get("version", ""),
+    )
+    save_worship_song(duplicate)
+    flash(f"'{duplicate.get('title', duplicate['id'])}' duplicated.", "success")
+    return redirect(url_for("worship_edit", song_id=duplicate["id"]))
 
 
 @app.route("/worship/edit/<song_id>", methods=["GET", "POST"])
@@ -1637,6 +1885,7 @@ def worship_edit(song_id):
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         artist = request.form.get("artist", "").strip()
+        version = request.form.get("version", "").strip()
         key = request.form.get("key", "").strip()
         song_type = request.form.get("type", "song").strip() or "song"
         background = request.form.get("background", "").strip()
@@ -1663,6 +1912,7 @@ def worship_edit(song_id):
         song.update({
             "title": title,
             "artist": artist,
+            "version": version,
             "key": key,
             "type": song_type,
             "background": background,
@@ -1684,6 +1934,7 @@ def worship_setlist_save():
     song_ids = request.form.getlist("song_ids")
     if not song_ids:
         return jsonify({"ok": False, "error": "No songs"}), 400
+    setlist_name = request.form.get("setlist_name", "").strip()
 
     notes_json = request.form.get("notes_json", "{}")
     try:
@@ -1694,37 +1945,44 @@ def worship_setlist_save():
         notes = {}
 
     today = datetime.now().strftime("%Y-%m-%d")
-    data = {"date": today, "songs": song_ids, "notes": notes}
+    setlist_id = _worship_setlist_id(today, setlist_name)
+    data = {"id": setlist_id, "date": today, "name": setlist_name, "songs": song_ids, "notes": notes, "worship_scope": _current_worship_scope()}
+    setlist_path = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
+    existed = setlist_path.exists()
 
     if db:
         try:
-            db.collection("worship_setlists").document(today).set(data)
+            scoped_ref = _worship_setlists_ref().document(setlist_id)
+            legacy_ref = _legacy_worship_setlists_ref().document(setlist_id)
+            existed = existed or scoped_ref.get().exists or legacy_ref.get().exists
+            scoped_ref.set(data)
         except Exception as exc:
             app.logger.warning("worship_setlist_save Firestore error: %s", exc)
 
-    setlists_dir = Path(app.root_path) / "setlists"
     try:
+        setlists_dir = setlist_path.parent
         setlists_dir.mkdir(exist_ok=True)
-        with open(setlists_dir / f"{today}.json", "w", encoding="utf-8") as f:
+        with open(setlist_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
     except Exception as exc:
         app.logger.warning("worship_setlist_save file error: %s", exc)
 
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "id": setlist_id, "date": today, "name": setlist_name, "songs": song_ids, "notes": notes, "updated": existed})
 
 
 @app.route("/worship/setlist/delete", methods=["POST"])
 @login_required
 def worship_setlist_delete():
-    date = request.form.get("date", "").strip()
-    if not date or not re.match(r'^\d{4}-\d{2}-\d{2}$', date):
-        return jsonify({"ok": False, "error": "Invalid date"}), 400
+    setlist_id = request.form.get("setlist_id", "").strip() or request.form.get("date", "").strip()
+    if not setlist_id or ".." in setlist_id or "/" in setlist_id or "\\" in setlist_id:
+        return jsonify({"ok": False, "error": "Invalid setlist"}), 400
     if db:
         try:
-            db.collection("worship_setlists").document(date).delete()
+            _worship_setlists_ref().document(setlist_id).delete()
+            _legacy_worship_setlists_ref().document(setlist_id).delete()
         except Exception as exc:
             app.logger.warning("worship_setlist_delete Firestore error: %s", exc)
-    fp = Path(app.root_path) / "setlists" / f"{date}.json"
+    fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
     if fp.exists():
         try:
             fp.unlink()
@@ -2049,7 +2307,7 @@ def illustrate():
         return jsonify({"redirect": target, "message": "Coloring moved to /generate"}), 410
     return redirect(target)
 
-@app.route("/delete/<filename>")
+@app.route("/delete/<filename>", methods=["POST"])
 @login_required
 def delete_worksheet(filename):
     from faithsparks.views.worksheets import delete_worksheet as _impl
@@ -2082,6 +2340,21 @@ def download_file(filename):
 @login_required
 def coloring_image(filename):
     safe_name = os.path.basename(filename)
+    if not safe_name or os.path.splitext(safe_name)[1].lower() != ".png":
+        abort(404)
+    if db:
+        try:
+            docs = (
+                db.collection("worksheets")
+                .where(filter=firestore.FieldFilter("email", "==", session.get("user_email")))
+                .where(filter=firestore.FieldFilter("imageFilename", "==", safe_name))
+                .limit(1)
+                .stream()
+            )
+            if not next(docs, None):
+                abort(404)
+        except Exception:
+            abort(404)
     local_path = os.path.join("worksheets", safe_name)
     if os.path.exists(local_path):
         return send_file(local_path, mimetype="image/png", conditional=True)
@@ -2106,7 +2379,7 @@ def is_admin_email(email: str) -> bool:
     return (email or '').lower() in allowed
 
 @app.route('/admin/seed_collections')
-@login_required
+@admin_required
 def admin_seed_collections():
     from faithsparks.views.admin.collections import admin_seed_collections as _impl
     return _impl()
@@ -2536,7 +2809,7 @@ def admin_prewarm_status(slug):
     return _impl(slug)
 
 @app.route('/packs/<path:filename>')
-@login_required
+@admin_required
 def serve_pack(filename):
     from faithsparks.views.browse import serve_pack as _impl
     return _impl(filename)

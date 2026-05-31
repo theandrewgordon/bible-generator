@@ -54,6 +54,10 @@
         <label class="wa-label">Artist</label>
         <input type="text" name="artist" class="wa-input" value="{{ song.artist }}">
       </div>
+      <div class="wa-field">
+        <label class="wa-label">Version</label>
+        <input type="text" name="version" class="wa-input" value="{{ song.version }}" placeholder="Acoustic, bridge cut, kids">
+      </div>
       <div class="wa-field" style="flex:0 0 90px">
         <label class="wa-label">Key</label>
         <input type="text" name="key" class="wa-input" value="{{ song.key }}">
@@ -91,6 +95,10 @@
     <input type="hidden" name="arrangement" id="arrangement-input">
 
     <button type="submit" class="wa-btn-primary">Save Changes</button>
+  </form>
+  <form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}" style="margin-top:.75rem">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="wa-btn-ghost" style="width:100%;margin-bottom:0">Duplicate as New Version</button>
   </form>
 </div>
 

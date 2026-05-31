@@ -162,6 +162,7 @@ endblock %} {% block content %}
 
 {% if history %}
 <form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
   <div class="bulkbar card-lite advanced-only">
     <label class="checkrow">
       <input type="checkbox" id="selectAll" onclick="toggleAll(this)" />
@@ -267,14 +268,15 @@ endblock %} {% block content %}
             >Make again</a
           >
           {% endif %}
-          <a
+          <button
+            type="submit"
+            formaction="{{ url_for('delete_worksheet', filename=item.filename) }}"
+            formmethod="post"
             class="button ghost tiny advanced-only danger"
-            href="{{ url_for('delete_worksheet', filename=item.filename) }}"
             title="Delete"
             aria-label="Delete {{ item.verse }}"
             onclick="return confirm('Delete this worksheet?')"
-            >Delete</a
-          >
+          >Delete</button>
         </div>
       </div>
     </li>
@@ -479,17 +481,21 @@ endblock %} {% block content %}
 
   async function toggleFavorite(btn) {
     const file = btn.dataset.file;
+    const csrfToken =
+      document.querySelector('meta[name="csrf-token"]')?.content ||
+      document.querySelector('input[name="csrf_token"]')?.value ||
+      "";
     try {
       await fetch(
         `{{ url_for('toggle_favorite', filename='__F__') }}`.replace(
           "__F__",
           file
         ),
-        { method: "POST" }
+        { method: "POST", headers: { "X-CSRFToken": csrfToken } }
       );
       const li = btn.closest(".card");
-      const nowFav = btn.textContent.trim() === "☆";
-      btn.textContent = nowFav ? "⭐" : "☆";
+      const nowFav = btn.textContent.trim() !== "Saved";
+      btn.textContent = nowFav ? "Saved" : "Save";
       btn.setAttribute("aria-pressed", nowFav ? "true" : "false"); // NEW
       li.dataset.favorite = nowFav ? "true" : "false";
       toast(nowFav ? "Added to favorites" : "Removed from favorites");

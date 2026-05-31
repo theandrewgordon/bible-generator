@@ -45,6 +45,21 @@ class WorshipSongFormattingTests(unittest.TestCase):
         self.assertEqual(blocks[3]["lines"], [])
         self.assertEqual(blocks[3]["label"], "Chorus")
 
+    def test_worship_part_label_formats_canonical_key(self):
+        self.assertEqual(app._worship_part_label("pre_chorus"), "Pre Chorus")
+        self.assertEqual(app._worship_part_label("chorus2"), "Chorus 2")
+
+    def test_unique_worship_song_id_uses_artist_and_suffix(self):
+        existing = {"same-song-artist-a", "same-song-artist-a-2"}
+        original_get = app.get_worship_song
+        try:
+            app.get_worship_song = lambda song_id: {"id": song_id} if song_id in existing else None
+            song_id = app._make_unique_worship_song_id("Same Song", "Artist A")
+        finally:
+            app.get_worship_song = original_get
+
+        self.assertEqual(song_id, "same-song-artist-a-3")
+
 
 if __name__ == "__main__":
     unittest.main()

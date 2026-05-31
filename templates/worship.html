@@ -43,7 +43,28 @@
   .ws-workspace{display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start}
   .ws-library-panel{min-width:0}
   .ws-set-panel{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow-y:auto}
-  @media(max-width:640px){.ws-workspace{display:block}.ws-set-panel{position:static;margin-top:1.5rem;max-height:none;overflow-y:visible}}
+  .ws-set-summary{display:none;margin:.4rem 0 .75rem;padding:.6rem .75rem;border:1px solid #e2e8f0;border-radius:8px;background:var(--background)}
+  .ws-set-summary strong{display:block;font-size:.84rem;margin-bottom:.2rem}
+  .ws-set-summary span{display:block;font-size:.78rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ws-copy{font-size:.8em;color:var(--text-secondary);background:none;border:none;cursor:pointer;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0}
+  .ws-copy:hover{color:var(--primary);background:color-mix(in srgb, var(--primary) 8%, transparent)}
+  @media(max-width:640px){
+    .ws-workspace{display:flex;flex-direction:column;gap:1rem}
+    .ws-set-panel{position:static;order:-1;max-height:none;overflow-y:visible}
+    .ws-set-card{padding:1rem;margin-top:0;border-radius:10px}
+    .ws-library-panel{width:100%}
+    .lib-row{align-items:flex-start;padding:10px 0;gap:.45rem}
+    .lib-row > span{display:block;line-height:1.25}
+    .ws-add{min-height:34px;padding:5px 10px}
+    .ws-del,.set-remove{min-width:34px;min-height:34px;font-size:1rem}
+    .set-item{align-items:flex-start;gap:.45rem;padding:10px 8px}
+    .set-note{font-size:.85rem;margin-top:6px;padding:6px 0}
+    .ws-btn-primary,.ws-btn-ghost{flex:1 1 100%;min-height:42px}
+    .ws-share-card{padding:.85rem;border-radius:10px}
+    .ws-share-row{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
+    .ws-share-link{grid-column:1 / -1;min-width:0;width:100%;box-sizing:border-box}
+    .ws-share-qr{justify-self:start;width:104px;height:104px}
+  }
 </style>
 {% endblock %}
 
@@ -65,6 +86,11 @@
     <p class="ws-section-label" style="margin:0">Song Library</p>
     <input id="library-search" type="search" placeholder="Search…"
       style="flex:1;max-width:260px;padding:5px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:.9rem;background:var(--background);color:var(--text)">
+    <select id="library-sort" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;font-size:.85rem;background:var(--background);color:var(--text)">
+      <option value="title">Title</option>
+      <option value="artist">Artist</option>
+      <option value="last_used">Last Played</option>
+    </select>
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
@@ -72,6 +98,7 @@
       <span style="flex:1;font-size:.95rem;min-width:0">
         <strong>{{ song.title }}</strong>
         {% if song.artist %} — <span class="muted">{{ song.artist }}</span>{% endif %}
+        {% if song.version %} <span class="muted small">· {{ song.version }}</span>{% endif %}
         {% if song.key %} <span class="muted small">({{ song.key }})</span>{% endif %}
         {% if song.type and song.type != 'song' %} <span class="muted small">[{{ song.type }}]</span>{% endif %}
         {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
@@ -80,8 +107,12 @@
       <a href="{{ url_for('worship_edit', song_id=song.id) }}"
         style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0"
         title="Edit {{ song.title }}">Edit</a>
+      <form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}" style="display:contents">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="ws-copy" title="Duplicate {{ song.title }}">Copy</button>
+      </form>
       <button type="button" class="ws-del"
-        data-id="{{ song.id }}" data-title="{{ song.title }}"
+        data-id="{{ song.id }}" data-title="{{ song.title }}" data-artist="{{ song.artist or '' }}" data-version="{{ song.version or '' }}" data-key="{{ song.key or '' }}"
         title="Delete {{ song.title }}">×</button>
     </li>
     {% endfor %}
@@ -89,7 +120,6 @@
 </div>
 
 <!-- ── Saved Setlists ── -->
-{% if setlists %}
 <div style="margin-top:1.25rem">
   <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
     <p class="ws-section-label" style="margin:0">Saved Setlists</p>
@@ -99,13 +129,12 @@
   <div id="setlist-chips" style="display:flex;flex-wrap:wrap;gap:6px">
     {% for sl in setlists %}
     <span class="setlist-chip-wrap">
-      <button class="setlist-chip" data-date="{{ sl.date }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.date }}</button><button class="setlist-chip-del" data-date="{{ sl.date }}" title="Delete setlist">×</button>
+      <button class="setlist-chip" data-id="{{ sl.id }}" data-date="{{ sl.date }}" data-name="{{ sl.name }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.name or sl.date }}</button><button class="setlist-chip-del" data-id="{{ sl.id }}" data-date="{{ sl.date }}" title="Delete setlist">×</button>
     </span>
     {% endfor %}
   </div>
   <button id="setlist-show-more" style="display:none;background:none;border:none;cursor:pointer;margin-top:6px;padding:2px 0;font-size:.82rem;color:var(--text-secondary)">Show more…</button>
 </div>
-{% endif %}
 
 </div>{# end ws-library-panel #}
 <div class="ws-set-panel">
@@ -124,6 +153,10 @@
   <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
     Add songs from the library to build your set.
   </p>
+  <div id="set-summary" class="ws-set-summary" aria-live="polite">
+    <strong id="set-summary-count"></strong>
+    <span id="set-summary-titles"></span>
+  </div>
 
   <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
     <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Build Deck</button>
@@ -134,6 +167,8 @@
 
   <div class="ws-share-card" data-mobile-share>
     <div class="ws-section-label" style="margin-bottom:.4rem">Mobile slide link</div>
+    <input id="setlist-name" type="text" placeholder="Setlist name, e.g. Sunday AM"
+      style="width:100%;box-sizing:border-box;margin:.1rem 0 .65rem;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:var(--background);color:var(--text);font-size:.9rem">
     <p class="muted small" style="margin:.1rem 0 .75rem">Open this on a phone and swipe through the set.</p>
     <div class="ws-share-row">
       <a class="ws-share-link" href="#" target="_blank" rel="noopener" data-mobile-link aria-label="Mobile slide link"></a>
@@ -159,7 +194,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/sortable-lite.js') }}"></script>
 <script>
 (function () {
   var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
@@ -178,7 +213,12 @@
   var lyricBtn      = document.getElementById('lyric-sheet-btn');
   var saveBtn       = document.getElementById('save-setlist-btn');
   var setlistStatus = document.getElementById('setlist-status');
+  var setlistNameEl = document.getElementById('setlist-name');
+  var setSummaryEl  = document.getElementById('set-summary');
+  var setSummaryCountEl = document.getElementById('set-summary-count');
+  var setSummaryTitlesEl = document.getElementById('set-summary-titles');
   var libraryEl     = document.getElementById('library-list');
+  var librarySortEl = document.getElementById('library-sort');
   var chipsEl       = document.getElementById('setlist-chips');
   var mobileShareEl = document.querySelector('[data-mobile-share]');
   var mobileLinkEl  = document.querySelector('[data-mobile-link]');
@@ -201,6 +241,16 @@
       return { id: li.dataset.id, note: noteEl ? noteEl.value : '' };
     });
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+
+  function pruneSetDraftId(id) {
+    try {
+      var raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      var items = JSON.parse(raw);
+      if (!Array.isArray(items)) return;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(items.filter(function (item) { return item.id !== id; })));
+    } catch (e) {}
   }
 
   function restoreSetDraft() {
@@ -250,7 +300,16 @@
 
   function syncUI() {
     var hasItems = setListEl.children.length > 0;
+    var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     emptyState.style.display = hasItems ? 'none' : 'block';
+    if (setSummaryEl) setSummaryEl.style.display = hasItems ? 'block' : 'none';
+    if (setSummaryCountEl) setSummaryCountEl.textContent = ids.length + ' item' + (ids.length === 1 ? '' : 's') + ' in this set';
+    if (setSummaryTitlesEl) {
+      setSummaryTitlesEl.textContent = ids.map(function (id) {
+        var song = SONGS_BY_ID[id] || {};
+        return [song.title, song.version].filter(Boolean).join(' · ');
+      }).join('  •  ');
+    }
     buildBtn.disabled = !hasItems;
     if (lyricBtn) lyricBtn.disabled = !hasItems;
     saveBtn.disabled = !hasItems;
@@ -343,6 +402,12 @@
     if (song.artist) {
       info.appendChild(document.createTextNode(' — ' + song.artist));
     }
+    if (song.version) {
+      var version = document.createElement('span');
+      version.className = 'muted small';
+      version.textContent = ' · ' + song.version;
+      info.appendChild(version);
+    }
     if (song.key) {
       var key = document.createElement('span');
       key.className = 'muted small';
@@ -416,7 +481,10 @@
   Sortable.create(setListEl, {
     animation: 150,
     handle: '.drag-handle',
-    onEnd: syncOrder
+    onEnd: function () {
+      syncOrder();
+      syncUI();
+    }
   });
 
   // ── Library click delegation ──────────────────────────────────────────────
@@ -432,19 +500,45 @@
     if (!delBtn) return;
     var id = delBtn.dataset.id;
     var title = delBtn.dataset.title;
-    if (!confirm('Delete "' + title + '"?')) return;
+    var label = title;
+    if (delBtn.dataset.artist) label += ' — ' + delBtn.dataset.artist;
+    if (delBtn.dataset.version) label += ' · ' + delBtn.dataset.version;
+    if (delBtn.dataset.key) label += ' (' + delBtn.dataset.key + ')';
+    if (!confirm('Delete "' + label + '"?')) return;
     var fd = new FormData();
     fd.append('song_id', id);
     fd.append('csrf_token', csrfToken);
-    fetch('/worship/delete', { method: 'POST', body: fd, credentials: 'same-origin' })
-      .then(function (r) {
-        if (r.ok) {
+    fetch('/worship/delete', {
+      method: 'POST',
+      body: fd,
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'fetch' }
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (result) {
+        if (result.ok && result.data.ok) {
           removeFromSet(id);
           var li = delBtn.closest('li');
           if (li) li.remove();
           delete SONGS_BY_ID[id];
+          pruneSetDraftId(id);
+          if (result.data.setlists_changed) {
+            document.querySelectorAll('.setlist-chip').forEach(function (chip) {
+              var songs = JSON.parse(chip.dataset.songs || '[]').filter(function (sid) { return sid !== id; });
+              var notes = JSON.parse(chip.dataset.notes || '{}');
+              delete notes[id];
+              if (songs.length) {
+                chip.dataset.songs = JSON.stringify(songs);
+                chip.dataset.notes = JSON.stringify(notes);
+              } else {
+                var wrap = chip.closest('.setlist-chip-wrap');
+                if (wrap) wrap.remove();
+              }
+            });
+            filterSetlistChips();
+          }
         } else {
-          alert('Delete failed.');
+          alert((result.data && result.data.error) || 'Delete failed.');
         }
       })
       .catch(function () { alert('Delete failed.'); });
@@ -474,12 +568,48 @@
     if (showMoreEl) showMoreEl.style.display = (!q && wraps.length > SETLIST_LIMIT) ? '' : 'none';
   }
 
+  function upsertSetlistChip(id, date, name, songIds, notes) {
+    if (!chipsEl || !id) return;
+    var existing = chipsEl.querySelector('.setlist-chip[data-id="' + id + '"]');
+    var wrap = existing ? existing.closest('.setlist-chip-wrap') : document.createElement('span');
+    var chip = existing || document.createElement('button');
+    var delBtn = wrap.querySelector ? wrap.querySelector('.setlist-chip-del') : null;
+
+    wrap.className = 'setlist-chip-wrap';
+    chip.type = 'button';
+    chip.className = 'setlist-chip';
+    chip.dataset.id = id;
+    chip.dataset.date = date;
+    chip.dataset.name = name || '';
+    chip.dataset.songs = JSON.stringify(songIds || []);
+    chip.dataset.notes = JSON.stringify(notes || {});
+    chip.textContent = name || date;
+
+    if (!delBtn) {
+      delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'setlist-chip-del';
+      delBtn.textContent = '×';
+    }
+    delBtn.dataset.id = id;
+    delBtn.dataset.date = date;
+    delBtn.title = 'Delete setlist';
+
+    if (!existing) {
+      wrap.appendChild(chip);
+      wrap.appendChild(delBtn);
+      chipsEl.insertBefore(wrap, chipsEl.firstChild);
+    }
+    filterSetlistChips();
+  }
+
   if (chipsEl) {
     chipsEl.addEventListener('click', function (e) {
       var chip = e.target.closest('.setlist-chip');
       if (chip) {
         var songIds = JSON.parse(chip.dataset.songs);
         var notes = JSON.parse(chip.dataset.notes || '{}');
+        if (setlistNameEl) setlistNameEl.value = chip.dataset.name || '';
         Array.from(setListEl.querySelectorAll('[data-id]'))
           .map(function (el) { return el.dataset.id; })
           .forEach(removeFromSet);
@@ -497,11 +627,12 @@
       }
       var delBtn = e.target.closest('.setlist-chip-del');
       if (!delBtn) return;
-      var date = delBtn.dataset.date;
-      if (!confirm('Delete setlist for ' + date + '?')) return;
+      var setlistId = delBtn.dataset.id || delBtn.dataset.date;
+      var label = (delBtn.closest('.setlist-chip-wrap') || {}).textContent || delBtn.dataset.date;
+      if (!confirm('Delete setlist "' + label.trim() + '"?')) return;
       var fd = new FormData();
       fd.append('csrf_token', csrfToken);
-      fd.append('date', date);
+      fd.append('setlist_id', setlistId);
       fetch('/worship/setlist/delete', { method: 'POST', body: fd, credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -531,6 +662,7 @@
     var fd = new FormData();
     fd.append('csrf_token', csrfToken);
     ids.forEach(function (id) { fd.append('song_ids', id); });
+    if (setlistNameEl) fd.append('setlist_name', setlistNameEl.value.trim());
     var notes = {};
     ids.forEach(function (id) {
       var li = setListEl.querySelector('[data-id="' + id + '"]');
@@ -542,6 +674,8 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.ok) {
+          upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes);
+          setlistStatus.textContent = data.updated ? "Updated today's setlist" : 'Saved setlist';
           setlistStatus.style.display = 'inline';
           setTimeout(function () { setlistStatus.style.display = 'none'; }, 2500);
         } else {
@@ -560,16 +694,37 @@
   // ── Library search ────────────────────────────────────────────────────────
 
   document.getElementById('library-search').addEventListener('input', function () {
-    var q = this.value.trim().toLowerCase();
-    libraryEl.querySelectorAll('.lib-row').forEach(function (row) {
-      var title = (SONGS_BY_ID[row.dataset.id] || {}).title || '';
-      row.style.display = (!q || title.toLowerCase().includes(q)) ? '' : 'none';
-    });
+    filterAndSortLibrary();
   });
+
+  if (librarySortEl) librarySortEl.addEventListener('change', filterAndSortLibrary);
+
+  function filterAndSortLibrary() {
+    var searchEl = document.getElementById('library-search');
+    var q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+    Array.from(libraryEl.querySelectorAll('.lib-row')).forEach(function (row) {
+      var song = SONGS_BY_ID[row.dataset.id] || {};
+      var haystack = [song.title, song.artist, song.version, song.key, song.type].filter(Boolean).join(' ').toLowerCase();
+      row.style.display = (!q || haystack.includes(q)) ? '' : 'none';
+    });
+    var mode = librarySortEl ? librarySortEl.value : 'title';
+    Array.from(libraryEl.querySelectorAll('.lib-row')).sort(function (a, b) {
+      var sa = SONGS_BY_ID[a.dataset.id] || {};
+      var sb = SONGS_BY_ID[b.dataset.id] || {};
+      if (mode === 'artist') {
+        return [sa.artist || '', sa.title || '', sa.version || ''].join(' ').localeCompare([sb.artist || '', sb.title || '', sb.version || ''].join(' '));
+      }
+      if (mode === 'last_used') {
+        return String(sb.last_used || '').localeCompare(String(sa.last_used || '')) || String(sa.title || '').localeCompare(String(sb.title || ''));
+      }
+      return [sa.title || '', sa.artist || '', sa.version || ''].join(' ').localeCompare([sb.title || '', sb.artist || '', sb.version || ''].join(' '));
+    }).forEach(function (row) { libraryEl.appendChild(row); });
+  }
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
   restoreSetDraft();
+  filterAndSortLibrary();
   syncUI();
   updateMobileShare();
 })();

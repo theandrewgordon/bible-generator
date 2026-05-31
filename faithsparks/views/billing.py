@@ -754,8 +754,9 @@ def buy_pack(slug):
     meta = d.to_dict() or {}
     email = session.get("user_email")
     try:
-        pur = db.collection("purchases").document(email).get().to_dict() if email and db else {}
-        if pur and (pur.get("packs") or {}).get(slug):
+        user_doc = db.collection("users").document(email).get() if email and db else None
+        user_data = user_doc.to_dict() if user_doc and user_doc.exists else {}
+        if (user_data.get("purchases") or {}).get(slug):
             flash("You already own this pack. Download away! 🎉", "success")
             return redirect(url_for("browse_detail", slug=slug))
     except Exception:

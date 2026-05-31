@@ -1,8 +1,11 @@
 import os
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Dict
 
-from flask import Blueprint, render_template, redirect, url_for, request, session, flash, send_file
+from urllib.parse import urlparse
+
+from flask import Blueprint, render_template, redirect, url_for, request, session, flash, send_file, abort
 from flask_dance.contrib.google import google
 from firebase_admin import firestore
 
@@ -13,6 +16,17 @@ from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 
 
 bp = Blueprint("browse_views", __name__)
+
+
+def _safe_pack_path(filename: str):
+    if not filename or Path(filename).suffix.lower() != ".zip":
+        return None
+    base = Path("output") / "packs"
+    base_resolved = base.resolve()
+    candidate = (base / filename).resolve()
+    if candidate != base_resolved and base_resolved not in candidate.parents:
+        return None
+    return candidate
 
 
 def _is_public_browse_enabled() -> bool:
@@ -155,9 +169,11 @@ def browse_detail(slug):
 
 
 def serve_pack(filename):
-    path = os.path.join("output", "packs", filename)
-    if os.path.exists(path):
-        return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
+    path = _safe_pack_path(filename)
+    if not path:
+        abort(404)
+    if path.exists():
+        return send_file(path, as_attachment=True, download_name=path.name, conditional=True)
     return ("", 404)
 
 
@@ -207,7 +223,12 @@ def dl_pack(slug):
     except Exception:
         pass
     if url:
-        return redirect(url)
+        parsed = urlparse(url)
+        local_packs_path = parsed.path.startswith("/packs/") and (
+            not parsed.netloc or parsed.netloc == urlparse(request.host_url).netloc
+        )
+        if not local_packs_path:
+            return redirect(url)
     path = os.path.join("output", "packs", f"{slug}.zip")
     if os.path.exists(path):
         return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
