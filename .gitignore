@@ -18,3 +18,5 @@ firebase-creds.json
 # Allow shipping purchased bundles
 !static/bundles/*.pdf
 !static/bundles/*.zip
+.venv/
+analytics.sqlite
