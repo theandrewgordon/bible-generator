@@ -32,8 +32,12 @@
   .ws-btn-ghost:disabled{opacity:.4;cursor:default}
   .ws-del{background:none;border:none;cursor:pointer;color:#ef4444;font-size:.9em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;white-space:nowrap;flex-shrink:0}
   .ws-share-card{margin-top:1rem;padding:1rem;border:1px solid #e2e8f0;border-radius:12px;background:color-mix(in srgb, var(--primary) 3%, var(--background))}
+  .ws-share-card[data-mobile-share]{display:none}
   .ws-share-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
   .ws-share-qr{width:132px;height:132px;border-radius:10px;border:1px solid #e2e8f0;background:#fff}
+  .ws-share-qr[hidden]{display:none}
+  .ws-share-fallback{display:none;font-size:.8rem;color:var(--text-secondary);max-width:132px}
+  .ws-share-fallback.is-visible{display:block}
   .ws-share-link{display:inline-flex;align-items:center;gap:.4rem;min-width:220px;max-width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:var(--background);color:var(--primary);text-decoration:none;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ws-share-link:hover{border-color:var(--primary);text-decoration:underline}
   .ws-share-open,.ws-share-copy,.ws-share-native{display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:8px;background:var(--primary);color:#fff;text-decoration:none;font-weight:700;font-size:.9rem;border:none;cursor:pointer}
@@ -240,7 +244,8 @@
       <a class="ws-share-open" href="#" target="_blank" rel="noopener" data-mobile-open>Open</a>
       <button type="button" class="ws-share-copy" data-mobile-copy>Copy link</button>
       <button type="button" class="ws-share-native" data-mobile-native style="display:none">Share</button>
-      <img class="ws-share-qr" src="" alt="QR code for mobile slide link" data-mobile-qr>
+      <img class="ws-share-qr" src="" alt="QR code for mobile slide link" data-mobile-qr hidden>
+      <span class="ws-share-fallback" data-mobile-qr-fallback>QR unavailable. Use Copy link.</span>
     </div>
   </div>
 </div>
@@ -304,6 +309,7 @@
   var mobileCopyEl  = document.querySelector('[data-mobile-copy]');
   var mobileNativeEl = document.querySelector('[data-mobile-native]');
   var mobileQrEl    = document.querySelector('[data-mobile-qr]');
+  var mobileQrFallbackEl = document.querySelector('[data-mobile-qr-fallback]');
   var mobileBaseUrl = window.location.origin + '/worship/mobile';
   var saveModal     = document.getElementById('save-set-modal');
   var saveNameInput = document.getElementById('save-set-name');
@@ -404,7 +410,7 @@
     buildBtn.disabled = !hasItems;
     if (lyricBtn) lyricBtn.disabled = !hasItems;
     saveBtn.disabled = !hasItems;
-    if (mobileShareEl) mobileShareEl.style.display = hasItems ? '' : 'none';
+    if (mobileShareEl) mobileShareEl.style.display = hasItems ? 'block' : 'none';
   }
 
   function markLibrary(id, added) {
@@ -436,21 +442,35 @@
     if (!mobileShareEl || !mobileLinkEl || !mobileOpenEl || !mobileQrEl) return;
     var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     if (!ids.length) {
+      mobileShareEl.style.display = 'none';
       mobileLinkEl.textContent = 'Add songs to create a mobile link';
       mobileLinkEl.href = '#';
       mobileOpenEl.href = '#';
       mobileQrEl.removeAttribute('src');
+      mobileQrEl.hidden = true;
+      if (mobileQrFallbackEl) mobileQrFallbackEl.classList.remove('is-visible');
       if (mobileCopyEl) mobileCopyEl.disabled = true;
       if (mobileNativeEl) mobileNativeEl.disabled = true;
       return;
     }
+    mobileShareEl.style.display = 'block';
     var url = (currentSetlistId && !setDirty)
       ? mobileBaseUrl + '?setlist_id=' + encodeURIComponent(currentSetlistId)
       : mobileBaseUrl + '?song_order=' + encodeURIComponent(ids.join(','));
     mobileLinkEl.textContent = url;
     mobileLinkEl.href = url;
     mobileOpenEl.href = url;
-    mobileQrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(url);
+    mobileQrEl.hidden = false;
+    if (mobileQrFallbackEl) mobileQrFallbackEl.classList.remove('is-visible');
+    mobileQrEl.onerror = function () {
+      mobileQrEl.hidden = true;
+      if (mobileQrFallbackEl) mobileQrFallbackEl.classList.add('is-visible');
+    };
+    mobileQrEl.onload = function () {
+      mobileQrEl.hidden = false;
+      if (mobileQrFallbackEl) mobileQrFallbackEl.classList.remove('is-visible');
+    };
+    mobileQrEl.src = '/worship/mobile-qr.png?url=' + encodeURIComponent(url);
     if (mobileCopyEl) mobileCopyEl.disabled = false;
     if (mobileNativeEl) {
       mobileNativeEl.style.display = navigator.share ? '' : 'none';

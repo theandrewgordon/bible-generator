@@ -1765,6 +1765,164 @@ def _clean_ai_json_response(raw: str) -> str:
     return raw
 
 
+_LYRICS_SITE_STOP_LINES = {
+    "you may also like",
+    "submit lyrics",
+    "soundtracks",
+    "facebook",
+    "contact us",
+    "advertise here",
+    "privacy policy",
+    "cookie policy",
+    "dmca policy",
+}
+
+
+def _is_lyrics_site_boilerplate_line(line: str) -> bool:
+    clean = str(line or "").strip()
+    lowered = clean.lower()
+    if not clean:
+        return False
+    if lowered in _LYRICS_SITE_STOP_LINES:
+        return True
+    if lowered.startswith("azlyrics ") or lowered == "azlyrics.com":
+        return True
+    if lowered.startswith("play ") and ("apple music" in lowered or "spotify" in lowered):
+        return True
+    if lowered.startswith("lyrics licensed by") or lowered.startswith("copyright"):
+        return True
+    if lowered.endswith(" lyrics") and len(clean.split()) <= 6:
+        return True
+    return False
+
+
+def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: str = "") -> dict:
+    """Strip common lyric-site chrome while preserving stanza breaks."""
+    lines = [line.strip() for line in str(raw_text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    inferred_title = str(title_hint or "").strip()
+    inferred_artist = str(artist_hint or "").strip()
+
+    for line in lines:
+        if not inferred_title:
+            match = re.match(r'^"(.+?)"\s+lyrics$', line, flags=re.I)
+            if match:
+                inferred_title = match.group(1).strip()
+        if not inferred_artist:
+            match = re.match(r"^(.+?)\s+Lyrics$", line)
+            if match and not line.startswith('"') and "AZLyrics" not in line:
+                inferred_artist = match.group(1).strip()
+
+    start_idx = 0
+    if inferred_title:
+        quoted_title = f'"{inferred_title}"'.lower()
+        for idx, line in enumerate(lines):
+            if line.lower() == quoted_title:
+                start_idx = idx + 1
+                break
+        else:
+            for idx, line in enumerate(lines):
+                if line.lower() == f'{quoted_title} lyrics':
+                    start_idx = idx + 1
+                    break
+
+    cleaned: list[str] = []
+    blank_pending = False
+    for line in lines[start_idx:]:
+        if not line:
+            blank_pending = bool(cleaned)
+            continue
+        lowered = line.lower()
+        if lowered in _LYRICS_SITE_STOP_LINES or lowered.startswith("you may also like"):
+            break
+        if _is_lyrics_site_boilerplate_line(line):
+            continue
+        if blank_pending and cleaned and cleaned[-1] != "":
+            cleaned.append("")
+        cleaned.append(line)
+        blank_pending = False
+
+    while cleaned and cleaned[-1] == "":
+        cleaned.pop()
+
+    return {
+        "title": inferred_title,
+        "artist": inferred_artist,
+        "lyrics": "\n".join(cleaned).strip(),
+    }
+
+
+def _split_clean_lyric_blocks(lyrics_text: str) -> list[list[str]]:
+    blocks: list[list[str]] = []
+    current: list[str] = []
+    for raw_line in str(lyrics_text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw_line.strip()
+        if not line:
+            if current:
+                blocks.append(current)
+                current = []
+            continue
+        if _is_lyrics_site_boilerplate_line(line):
+            continue
+        current.append(line)
+    if current:
+        blocks.append(current)
+    return blocks
+
+
+def _fallback_parse_worship_lyrics(
+    lyrics_text: str,
+    title: str = "",
+    artist: str = "",
+    version: str = "",
+    key: str = "",
+) -> dict | None:
+    cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
+    lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
+    blocks = _split_clean_lyric_blocks(lyric_body)
+    if not blocks:
+        return None
+
+    block_keys = ["\n".join(block).lower() for block in blocks]
+    repeated_keys = {block_key for block_key in block_keys if block_keys.count(block_key) > 1}
+    first_repeated_key = next((block_key for block_key in block_keys if block_key in repeated_keys), "")
+
+    parts: dict[str, list[str]] = {}
+    arrangement: list[str] = []
+    verse_count = 1
+    bridge_count = 1
+    block_to_part: dict[str, str] = {}
+
+    first_repeated_idx = block_keys.index(first_repeated_key) if first_repeated_key else -1
+    for idx, block in enumerate(blocks):
+        block_key = block_keys[idx]
+        if block_key in block_to_part:
+            arrangement.append(block_to_part[block_key])
+            continue
+        if block_key == first_repeated_key:
+            part_name = "chorus"
+        elif first_repeated_key and idx > first_repeated_idx and idx == len(blocks) - 1 and block_key not in repeated_keys and len(block) <= 8:
+            part_name = "bridge" if bridge_count == 1 else f"bridge{bridge_count}"
+            bridge_count += 1
+        else:
+            part_name = f"verse{verse_count}"
+            verse_count += 1
+        block_to_part[block_key] = part_name
+        parts[part_name] = block
+        arrangement.append(part_name)
+
+    parsed_title = cleaned.get("title") or str(title or "").strip() or "Untitled Song"
+    return {
+        "id": re.sub(r"[^a-z0-9]+", "-", parsed_title.lower()).strip("-") or "untitled-song",
+        "title": parsed_title,
+        "artist": cleaned.get("artist") or str(artist or "").strip(),
+        "version": str(version or "").strip(),
+        "key": str(key or "").strip(),
+        "type": "song",
+        "parts": parts,
+        "arrangement": arrangement,
+    }
+
+
 def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str]) -> list[dict]:
     if song_order:
         raw_ids = [s.strip() for s in song_order.split(",") if s.strip()]
@@ -1884,6 +2042,27 @@ def worship_mobile():
         song_order=song_order,
         setlist=setlist,
     )
+
+
+@app.route("/worship/mobile-qr.png", methods=["GET"])
+@login_required
+def worship_mobile_qr():
+    qr_url = request.args.get("url", "").strip()
+    parsed = urlparse(qr_url)
+    host_url = urlparse(request.host_url)
+    if not qr_url or parsed.netloc != host_url.netloc or parsed.path != url_for("worship_mobile"):
+        return Response("Invalid QR target", status=400)
+    try:
+        import qrcode
+    except Exception:
+        app.logger.exception("qrcode package is not available")
+        return Response("QR support is not installed", status=503)
+
+    image = qrcode.make(qr_url)
+    output = BytesIO()
+    image.save(output, format="PNG")
+    output.seek(0)
+    return send_file(output, mimetype="image/png", max_age=300)
 
 
 @app.route("/worship/export/lyric-sheet", methods=["POST"])
@@ -2077,6 +2256,11 @@ def worship_add_parse():
         flash("Paste some lyrics to parse.", "warning")
         return redirect(url_for("worship_add"))
 
+    cleaned_paste = _clean_lyrics_site_paste(raw_lyrics, title, artist)
+    parse_lyrics = cleaned_paste.get("lyrics") or raw_lyrics
+    title = title or cleaned_paste.get("title", "")
+    artist = artist or cleaned_paste.get("artist", "")
+
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         flash("OPENAI_API_KEY is not set in the environment.", "error")
@@ -2090,7 +2274,7 @@ Version/arrangement note: {version or '(unknown)'}
 Key: {key or '(unknown)'}
 
 Lyrics:
-{raw_lyrics}
+{parse_lyrics}
 
 Return ONLY valid JSON — no markdown fences, no explanation — in this exact format:
 {{
@@ -2112,9 +2296,11 @@ Rules:
 - parts keys: use verse1, verse2, chorus, chorus2, bridge, pre_chorus, outro, intro as appropriate — if the song has two distinct choruses use chorus and chorus2, not chorus for both
 - arrangement: list of part keys in the order they appear in the song
 - each part value is an array of individual lyric lines (no blank strings)
+- ignore website boilerplate, recommendations, ads, copyright text, navigation, and "You May Also Like" content
 - type is always "song"
 """
 
+    used_fallback_parser = False
     try:
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
@@ -2143,15 +2329,25 @@ Malformed response:
             )
             parsed = json.loads(_clean_ai_json_response(repaired.choices[0].message.content))
     except json.JSONDecodeError as e:
-        flash(f"AI returned invalid JSON: {e}", "error")
-        return redirect(url_for("worship_add"))
+        parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
+        if not parsed:
+            flash(f"AI returned invalid JSON: {e}", "error")
+            return redirect(url_for("worship_add"))
+        used_fallback_parser = True
     except Exception as e:
-        flash(f"AI parse failed: {e}", "error")
-        return redirect(url_for("worship_add"))
+        parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
+        if not parsed:
+            flash(f"AI parse failed: {e}", "error")
+            return redirect(url_for("worship_add"))
+        used_fallback_parser = True
 
-    if not isinstance(parsed.get("parts"), dict) or not isinstance(parsed.get("arrangement"), list):
-        flash("AI response was missing required fields (parts/arrangement).", "error")
-        return redirect(url_for("worship_add"))
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("parts"), dict) or not isinstance(parsed.get("arrangement"), list):
+        fallback = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
+        if not fallback:
+            flash("AI response was missing required fields (parts/arrangement).", "error")
+            return redirect(url_for("worship_add"))
+        parsed = fallback
+        used_fallback_parser = True
 
     song = normalize_worship_song(parsed)
     if version:
@@ -2159,7 +2355,10 @@ Malformed response:
     song["id"] = _make_unique_worship_song_id(song.get("title", ""), song.get("artist", ""), song.get("version", ""))
 
     save_worship_song(song)
-    flash(f"'{song.get('title', song['id'])}' parsed and saved.", "success")
+    if used_fallback_parser:
+        flash(f"'{song.get('title', song['id'])}' parsed with the local fallback and saved. Please review the sections.", "success")
+    else:
+        flash(f"'{song.get('title', song['id'])}' parsed and saved.", "success")
     return redirect(url_for("worship"))
 
 
