@@ -30,6 +30,9 @@
   .wa-order-tag{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:999px;background:var(--primary);color:#fff;font-size:.82rem;font-weight:600}
   .wa-order-tag button{background:none;border:none;color:#fff;cursor:pointer;font-size:1.1em;line-height:1;padding:0;opacity:.7}
   .wa-order-tag button:hover{opacity:1}
+  .wa-slide-preview{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;min-height:0}
+  .wa-slide-thumb{background:var(--box);border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:.78rem;line-height:1.35;color:var(--text);min-width:80px;max-width:200px;white-space:pre-wrap;font-family:inherit}
+  .wa-slide-thumb-num{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:3px}
 </style>
 {% endblock %}
 
@@ -187,6 +190,20 @@ var SONG_DATA = {{ song | tojson }};
     textarea.className = 'wa-input';
     if (defaultLines) textarea.value = defaultLines;
 
+    var preview = document.createElement('div');
+    preview.className = 'wa-slide-preview';
+    if (defaultLines) refreshPreview(defaultLines, preview);
+
+    var previewTimer = null;
+    textarea.addEventListener('input', function () {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(function () { refreshPreview(textarea.value, preview); }, 400);
+    });
+    textarea.addEventListener('blur', function () {
+      clearTimeout(previewTimer);
+      refreshPreview(textarea.value, preview);
+    });
+
     var prevName = defaultName || '';
 
     nameInput.addEventListener('blur', function () {
@@ -208,9 +225,34 @@ var SONG_DATA = {{ song | tojson }};
     header.appendChild(removeBtn);
     row.appendChild(header);
     row.appendChild(textarea);
+    row.appendChild(preview);
     partsList.appendChild(row);
 
     if (defaultName) upsertChip(defaultName);
+  }
+
+  function refreshPreview(linesText, container) {
+    var lines = (linesText || '').trim();
+    if (!lines) { container.innerHTML = ''; return; }
+    var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+    fetch('/worship/preview-slides', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ lines: lines }),
+      credentials: 'same-origin'
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      container.innerHTML = '';
+      (data.slides || []).forEach(function (slide, i) {
+        var thumb = document.createElement('div');
+        thumb.className = 'wa-slide-thumb';
+        var num = document.createElement('div');
+        num.className = 'wa-slide-thumb-num';
+        num.textContent = 'Slide ' + (i + 1);
+        thumb.appendChild(num);
+        thumb.appendChild(document.createTextNode((slide.lines || []).join('\n')));
+        container.appendChild(thumb);
+      });
+    }).catch(function () {});
   }
 
   document.getElementById('add-part-btn').addEventListener('click', function () { addPart(''); });

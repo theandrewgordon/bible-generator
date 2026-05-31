@@ -25,7 +25,9 @@
   .wm-slide--divider .wm-card{background:linear-gradient(180deg,var(--box) 0%, color-mix(in srgb, var(--primary) 3%, var(--box)) 100%)}
   .wm-slide--lyric .wm-card{justify-content:center}
   .wm-part{font-size:.82rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin:0 0 .65rem}
-  .wm-footer{padding:.4rem 1rem .7rem;color:var(--text-secondary);font-size:.78rem;flex:0 0 auto}
+  .wm-footer{padding:.4rem 1rem .7rem;color:var(--text-secondary);font-size:.78rem;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .wm-progress{font-size:.82rem;font-weight:700;color:var(--text);white-space:nowrap}
+  .wm-progress-song{font-size:.78rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   @media (min-width: 900px){
     .wm-card{height:calc(100dvh - 6.8rem)}
     .wm-lines{font-size:clamp(1.95rem, 3.8vw, 3.2rem)}
@@ -74,7 +76,11 @@
     {% endfor %}
   </div>
 
-  <div class="wm-footer">{{ slides|length }} slide{% if slides|length != 1 %}s{% endif %} · song order: {{ song_order }}</div>
+  <div class="wm-footer">
+    <span class="wm-progress" id="wm-progress">1 / {{ slides|length }}</span>
+    <span class="wm-progress-song" id="wm-progress-song"></span>
+    <span style="color:var(--text-secondary);font-size:.75rem;white-space:nowrap">{{ slides|length }} slide{% if slides|length != 1 %}s{% endif %}</span>
+  </div>
 </div>
 {% endblock %}
 
@@ -118,6 +124,29 @@
       if ((e.key === 'f' || e.key === 'F') && fsBtn) fsBtn.click();
       if ((e.key === 'c' || e.key === 'C') && copyBtn) copyBtn.click();
     });
+  }
+
+  // Progress indicator
+  var progressEl = document.getElementById('wm-progress');
+  var progressSongEl = document.getElementById('wm-progress-song');
+  var slides = Array.from(stage ? stage.querySelectorAll('.wm-slide') : []);
+  var total = slides.length;
+
+  function updateProgress() {
+    if (!stage || !total) return;
+    var idx = Math.round(stage.scrollLeft / stage.clientWidth);
+    idx = Math.max(0, Math.min(total - 1, idx));
+    if (progressEl) progressEl.textContent = (idx + 1) + ' / ' + total;
+    if (progressSongEl) {
+      var slide = slides[idx];
+      var titleEl = slide ? slide.querySelector('.wm-song') : null;
+      progressSongEl.textContent = titleEl ? titleEl.textContent.trim() : '';
+    }
+  }
+
+  if (stage) {
+    stage.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
   }
 })();
 </script>

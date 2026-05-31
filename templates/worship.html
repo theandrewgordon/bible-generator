@@ -210,6 +210,7 @@
     var items;
     try { items = JSON.parse(raw); } catch (e) { return; }
     if (!Array.isArray(items) || !items.length) return;
+    var missing = [];
     items.forEach(function (item) {
       if (SONGS_BY_ID[item.id]) {
         addToSet(item.id);
@@ -218,8 +219,16 @@
           var noteEl = li ? li.querySelector('.set-note') : null;
           if (noteEl) noteEl.value = item.note;
         }
+      } else {
+        missing.push(item.id);
       }
     });
+    if (missing.length) {
+      var banner = document.createElement('p');
+      banner.style.cssText = 'margin:.5rem 0 0;font-size:.82rem;color:#b45309;background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:6px 10px';
+      banner.textContent = missing.length + ' song' + (missing.length > 1 ? 's' : '') + ' from your saved draft could not be found and were skipped: ' + missing.join(', ');
+      emptyState.parentNode.insertBefore(banner, emptyState.nextSibling);
+    }
   }
 
   // ── UI sync ──────────────────────────────────────────────────────────────

@@ -629,6 +629,9 @@ SONGS_DIR = os.path.join(app.root_path, "songs")  # kept for local fallback
 # --- Worship song persistence helpers ---
 _WORSHIP_COLLECTION = "worship_songs"
 _worship_seeded = False
+_worship_songs_cache: list[dict] | None = None
+_worship_songs_cache_ts: float = 0.0
+_WORSHIP_CACHE_TTL = 60.0  # seconds
 
 
 def _seed_worship_from_files() -> None:
@@ -659,16 +662,30 @@ def _seed_worship_from_files() -> None:
         app.logger.warning("Worship seed failed: %s", exc)
 
 
+def _invalidate_worship_cache() -> None:
+    global _worship_songs_cache, _worship_songs_cache_ts
+    _worship_songs_cache = None
+    _worship_songs_cache_ts = 0.0
+
+
 def list_worship_songs() -> list[dict]:
-    """List all worship songs sorted by title. Firestore first, file fallback."""
+    """List all worship songs sorted by title. Cached for _WORSHIP_CACHE_TTL seconds."""
+    import time
+    global _worship_songs_cache, _worship_songs_cache_ts
+    now = time.monotonic()
+    if _worship_songs_cache is not None and (now - _worship_songs_cache_ts) < _WORSHIP_CACHE_TTL:
+        return _worship_songs_cache
+
     if db:
         try:
             results = []
-            for doc in db.collection(_WORSHIP_COLLECTION).stream():
+            for doc in db.collection(_WORSHIP_COLLECTION).order_by("title").stream():
                 data = doc.to_dict()
                 if data and data.get("id"):
                     results.append(data)
-            return sorted(results, key=lambda s: s.get("title", "").lower())
+            _worship_songs_cache = results
+            _worship_songs_cache_ts = now
+            return results
         except Exception as exc:
             app.logger.warning("list_worship_songs Firestore error: %s", exc)
     songs_folder = Path(app.root_path) / "songs"
@@ -680,6 +697,8 @@ def list_worship_songs() -> list[dict]:
                     songs.append(json.load(f))
             except Exception:
                 pass
+    _worship_songs_cache = songs
+    _worship_songs_cache_ts = now
     return songs
 
 
@@ -710,26 +729,30 @@ def _canonical_part_key(name: str | None) -> str:
     raw = re.sub(r"[^a-z0-9]+", "_", raw).strip("_")
     alias_map = {
         "prechorus": "pre_chorus",
-        "pre_chorus_1": "pre_chorus",
-        "pre_chorus_2": "pre_chorus",
-        "chorus_1": "chorus",
-        "chorus_2": "chorus",
-        "chorus_3": "chorus",
+        "pre_chorus_1": "pre_chorus1",
+        "pre_chorus_2": "pre_chorus2",
         "refrain": "chorus",
         "verse_1": "verse1",
         "verse_2": "verse2",
         "verse_3": "verse3",
         "verse_4": "verse4",
-        "bridge_1": "bridge",
-        "bridge_2": "bridge",
-        "tag_1": "tag",
-        "tag_2": "tag",
+        "chorus_1": "chorus1",
+        "chorus_2": "chorus2",
+        "chorus_3": "chorus3",
+        "bridge_1": "bridge1",
+        "bridge_2": "bridge2",
+        "tag_1": "tag1",
+        "tag_2": "tag2",
         "ending": "outro",
     }
     return alias_map.get(raw, raw)
 
 
-_REUSABLE_LYRIC_SHEET_PARTS = {"chorus", "pre_chorus", "bridge", "tag", "refrain"}
+_REUSABLE_LYRIC_SHEET_PART_PREFIXES = ("chorus", "pre_chorus", "bridge", "tag")
+
+
+def _is_reusable_part(part_name: str) -> bool:
+    return any(part_name == p or part_name.startswith(p) for p in _REUSABLE_LYRIC_SHEET_PART_PREFIXES)
 
 
 def normalize_worship_song(song: dict) -> dict:
@@ -791,7 +814,7 @@ def build_lyric_sheet_blocks(song: dict) -> list[dict]:
         if not lines:
             continue
         repeated = part_name in seen_parts
-        reference_only = repeated and part_name in _REUSABLE_LYRIC_SHEET_PARTS
+        reference_only = repeated and _is_reusable_part(part_name)
         blocks.append(
             {
                 "part": part_name,
@@ -811,6 +834,7 @@ def save_worship_song(song: dict) -> None:
     if db:
         try:
             db.collection(_WORSHIP_COLLECTION).document(song_id).set(song)
+            _invalidate_worship_cache()
             return
         except Exception as exc:
             app.logger.warning("save_worship_song(%s) Firestore error: %s", song_id, exc)
@@ -818,6 +842,7 @@ def save_worship_song(song: dict) -> None:
     songs_folder.mkdir(exist_ok=True)
     with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
         json.dump(song, f, indent=2, ensure_ascii=False)
+    _invalidate_worship_cache()
 
 
 def delete_worship_song(song_id: str) -> bool:
@@ -838,6 +863,8 @@ def delete_worship_song(song_id: str) -> bool:
             deleted = True
         except Exception:
             pass
+    if deleted:
+        _invalidate_worship_cache()
     return deleted
 
 
@@ -922,15 +949,6 @@ def _is_phrase_boundary(line: str) -> bool:
     return text.endswith((".", "!", "?", ":", ";"))
 
 
-MAX_LINES = 4
-TARGET_LINES = 3
-FONT_SCALE_DEFAULT = 1.00
-FONT_SCALE_STEP_1 = 0.92
-FONT_SCALE_STEP_2 = 0.88
-FONT_SCALE_MIN = 0.85
-FOUR_LINE_CHAR_THRESHOLD = 145
-
-
 def _join_required(prev_line: str, next_line: str) -> bool:
     return (
         _is_protected_phrase_pair(prev_line, next_line)
@@ -939,177 +957,6 @@ def _join_required(prev_line: str, next_line: str) -> bool:
     )
 
 
-def _split_long_slide(lines: list[str], max_lines: int = MAX_LINES, target_lines: int = TARGET_LINES) -> list[list[str]]:
-    """Split oversized slides at the best phrase boundary near target_lines."""
-    chunks: list[list[str]] = []
-    start = 0
-    n = len(lines)
-
-    while start < n:
-        remaining = n - start
-        if remaining <= max_lines:
-            chunks.append(lines[start:])
-            break
-
-        min_end = start + 2
-        max_end = min(start + max_lines, n - 1)
-        pref_end = min(start + target_lines, max_end)
-
-        best_end = None
-        best_score = 10**9
-        for end in range(min_end, max_end + 1):
-            prev_line = lines[end - 1]
-            next_line = lines[end]
-            if _join_required(prev_line, next_line):
-                continue
-
-            score = abs(end - pref_end) * 10
-            if not _is_phrase_boundary(prev_line):
-                score += 4
-            if _line_starts_as_continuation(next_line):
-                score += 4
-
-            if score < best_score:
-                best_score = score
-                best_end = end
-
-        if best_end is None:
-            best_end = min(start + max_lines, n)
-
-        chunks.append(lines[start:best_end])
-        start = best_end
-
-    return chunks
-
-
-def _looks_overflowing(lines: list[str], scale: float = FONT_SCALE_DEFAULT) -> bool:
-    if not lines:
-        return False
-    line_count = len(lines)
-    total_chars = sum(len(line) for line in lines)
-    max_line_chars = max(len(line) for line in lines)
-    base_per_line = {1: 72, 2: 60, 3: 50, 4: 42}.get(line_count, 40)
-    base_total = {1: 72, 2: 120, 3: 150, 4: 168}.get(line_count, 168)
-    cap_multiplier = 1.0 / max(scale, FONT_SCALE_MIN)
-    allowed_per_line = int(base_per_line * cap_multiplier)
-    allowed_total = int(base_total * cap_multiplier)
-    return max_line_chars > allowed_per_line or total_chars > allowed_total
-
-
-def _split_dense_four_line_slide(lines: list[str]) -> list[list[str]] | None:
-    if len(lines) != 4:
-        return None
-    for end in (2, 3):
-        if end < len(lines) and not _join_required(lines[end - 1], lines[end]):
-            left = lines[:end]
-            right = lines[end:]
-            if len(left) >= 2 and len(right) >= 1:
-                return [left, right]
-    return None
-
-
-def _slides_with_font_scale(slides: list[dict]) -> list[dict]:
-    final_slides: list[dict] = []
-    for slide in slides:
-        slide_lines = slide["lines"]
-        font_scale = FONT_SCALE_DEFAULT
-        total_chars = sum(len(line) for line in slide_lines)
-
-        if len(slide_lines) == 4 and total_chars > FOUR_LINE_CHAR_THRESHOLD:
-            # Prefer splitting a dense slide over shrinking text.
-            split_chunks = _split_dense_four_line_slide(slide_lines)
-            if split_chunks:
-                for chunk in split_chunks:
-                    final_slides.append({"lines": chunk, "font_scale": FONT_SCALE_DEFAULT})
-                continue
-
-            font_scale = FONT_SCALE_STEP_1
-            if _looks_overflowing(slide_lines, scale=font_scale):
-                font_scale = FONT_SCALE_STEP_2
-
-        font_scale = max(FONT_SCALE_MIN, font_scale)
-        final_slides.append({"lines": slide_lines, "font_scale": font_scale})
-    return final_slides
-
-
-def lyric_lines_to_slides(lines: list[str], min_lines: int = 2, target_lines: int = TARGET_LINES, max_lines: int = MAX_LINES) -> list[dict]:
-    """
-    Build lyric slides as [{"lines": [...]}] using phrase-aware rules.
-    - Prefer 2-4 lines
-    - Keep continuation phrases together
-    - Blank lines are hard break hints
-    - Repeated lines are break hints
-    """
-    slides: list[dict] = []
-    current: list[str] = []
-
-    def _flush():
-        nonlocal current
-        if current:
-            slides.append({"lines": current})
-            current = []
-
-    raw = [str(line) if line is not None else "" for line in lines]
-    total = len(raw)
-
-    for idx, raw_line in enumerate(raw):
-        line = raw_line.strip()
-        if not line:
-            _flush()
-            continue
-
-        if not current:
-            current.append(line)
-            continue
-
-        prev = current[-1]
-        repeat_hint = any(line.lower() == existing.lower() for existing in current)
-        join_required = _join_required(prev, line)
-
-        if repeat_hint and len(current) >= min_lines and not join_required:
-            _flush()
-            current.append(line)
-        elif len(current) >= max_lines and not join_required:
-            _flush()
-            current.append(line)
-        else:
-            current.append(line)
-
-        if not current:
-            continue
-
-        # Look ahead to decide whether to end this slide naturally.
-        next_line = ""
-        for look in raw[idx + 1 : total]:
-            candidate = look.strip()
-            if candidate:
-                next_line = candidate
-                break
-
-        if len(current) >= min_lines:
-            if not next_line:
-                _flush()
-                continue
-            next_join_required = _join_required(current[-1], next_line)
-            next_is_repeat_hint = any(next_line.lower() == existing.lower() for existing in current)
-
-            if not next_join_required and (
-                len(current) >= target_lines
-                or _is_phrase_boundary(current[-1])
-                or next_is_repeat_hint
-            ):
-                _flush()
-
-    _flush()
-    normalized: list[dict] = []
-    for slide in slides:
-        slide_lines = slide["lines"]
-        if len(slide_lines) <= max_lines:
-            normalized.append({"lines": slide_lines})
-            continue
-        for chunk in _split_long_slide(slide_lines, max_lines=max_lines, target_lines=target_lines):
-            normalized.append({"lines": chunk})
-    return _slides_with_font_scale(normalized)
 
 
 def _split_at_midpoint(lines: list[str]) -> tuple[list[str], list[str]]:
@@ -1562,11 +1409,12 @@ def worship_build():
     prs.slide_height = Inches(7.5)
 
     for item in selected_items:
-        item_type = item.get("type", "song")
-        song_bg = item.get("background")
-        create_divider_slide(prs, item.get("title", ""), item.get("artist", ""), item.get("key", ""), item_type, song_bg)
-        parts = item.get("parts", {}) or {}
-        arrangement = item.get("arrangement", []) or []
+        normalized = normalize_worship_song(item)
+        item_type = normalized.get("type", "song")
+        song_bg = normalized.get("background")
+        create_divider_slide(prs, normalized.get("title", ""), normalized.get("artist", ""), normalized.get("key", ""), item_type, song_bg)
+        parts = normalized.get("parts", {}) or {}
+        arrangement = normalized.get("arrangement", []) or []
         for part_name in arrangement:
             part_lines = parts.get(part_name, [])
             if not isinstance(part_lines, list):
@@ -1635,10 +1483,7 @@ def worship_add():
             if lines:
                 parts[name] = lines
 
-        arrangement = [
-            a.strip() for a in arrangement_raw.split(",")
-            if a.strip() and a.strip() in parts
-        ]
+        arrangement = [a.strip() for a in arrangement_raw.split(",") if a.strip()]
 
         song_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
         song = {
@@ -1712,7 +1557,7 @@ Return ONLY valid JSON — no markdown fences, no explanation — in this exact 
 
 Rules:
 - id: title lowercased, spaces and special characters replaced by hyphens, no leading/trailing hyphens
-- parts keys: use verse1, verse2, chorus, bridge, pre_chorus, outro, intro as appropriate
+- parts keys: use verse1, verse2, chorus, chorus2, bridge, pre_chorus, outro, intro as appropriate — if the song has two distinct choruses use chorus and chorus2, not chorus for both
 - arrangement: list of part keys in the order they appear in the song
 - each part value is an array of individual lyric lines (no blank strings)
 - type is always "song"
@@ -1726,10 +1571,9 @@ Rules:
             temperature=0.1,
         )
         raw_json = response.choices[0].message.content.strip()
-        # Strip markdown code fences if model wraps the response anyway
         raw_json = re.sub(r"^```[a-z]*\n?", "", raw_json)
         raw_json = re.sub(r"\n?```$", "", raw_json).strip()
-        song = normalize_worship_song(json.loads(raw_json))
+        parsed = json.loads(raw_json)
     except json.JSONDecodeError as e:
         flash(f"AI returned invalid JSON: {e}", "error")
         return redirect(url_for("worship_add"))
@@ -1737,14 +1581,12 @@ Rules:
         flash(f"AI parse failed: {e}", "error")
         return redirect(url_for("worship_add"))
 
-    if not isinstance(song.get("parts"), dict) or not isinstance(song.get("arrangement"), list):
+    if not isinstance(parsed.get("parts"), dict) or not isinstance(parsed.get("arrangement"), list):
         flash("AI response was missing required fields (parts/arrangement).", "error")
         return redirect(url_for("worship_add"))
 
-    song_id = song.get("id") or re.sub(
-        r"[^a-z0-9]+", "-", song.get("title", "unknown").lower()
-    ).strip("-")
-    song["id"] = song_id
+    song = normalize_worship_song(parsed)
+    song_id = song["id"]
 
     if get_worship_song(song_id):
         session["pending_worship_song"] = song
@@ -1753,6 +1595,16 @@ Rules:
     save_worship_song(song)
     flash(f"'{song.get('title', song_id)}' parsed and saved.", "success")
     return redirect(url_for("worship"))
+
+
+@app.route("/worship/preview-slides", methods=["POST"])
+@login_required
+def worship_preview_slides():
+    """Return slide chunks for a block of lyric lines as JSON (used by live preview UI)."""
+    lines_text = request.json.get("lines", "") if request.is_json else request.form.get("lines", "")
+    lines = [l for l in str(lines_text).splitlines() if l.strip()]
+    slides = chunk_lines(lines)
+    return jsonify({"slides": slides})
 
 
 @app.route("/worship/delete", methods=["POST"])

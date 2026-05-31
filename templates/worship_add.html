@@ -37,6 +37,9 @@
   .wa-conflict{background:#fef9c3;border:1px solid #fde047;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.95rem}
   .wa-btn-danger{padding:7px 18px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.9rem;transition:background .15s}
   .wa-btn-danger:hover{background:#dc2626}
+  .wa-slide-preview{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;min-height:0}
+  .wa-slide-thumb{background:var(--box);border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:.78rem;line-height:1.35;color:var(--text);min-width:80px;max-width:200px;white-space:pre-wrap;font-family:inherit}
+  .wa-slide-thumb-num{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:3px}
 </style>
 {% endblock %}
 
@@ -249,6 +252,19 @@
     textarea.placeholder = 'One lyric line per line';
     textarea.className = 'wa-input';
 
+    const preview = document.createElement('div');
+    preview.className = 'wa-slide-preview';
+
+    let previewTimer = null;
+    textarea.addEventListener('input', function () {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(function () { refreshPreview(textarea.value, preview); }, 400);
+    });
+    textarea.addEventListener('blur', function () {
+      clearTimeout(previewTimer);
+      refreshPreview(textarea.value, preview);
+    });
+
     let prevName = defaultName || '';
 
     nameInput.addEventListener('blur', function () {
@@ -270,9 +286,34 @@
     header.appendChild(removeBtn);
     row.appendChild(header);
     row.appendChild(textarea);
+    row.appendChild(preview);
     partsList.appendChild(row);
 
     if (defaultName) upsertChip(defaultName);
+  }
+
+  function refreshPreview(linesText, container) {
+    var lines = linesText.trim();
+    if (!lines) { container.innerHTML = ''; return; }
+    var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+    fetch('/worship/preview-slides', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ lines: lines }),
+      credentials: 'same-origin'
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      container.innerHTML = '';
+      (data.slides || []).forEach(function (slide, i) {
+        var thumb = document.createElement('div');
+        thumb.className = 'wa-slide-thumb';
+        var num = document.createElement('div');
+        num.className = 'wa-slide-thumb-num';
+        num.textContent = 'Slide ' + (i + 1);
+        thumb.appendChild(num);
+        thumb.appendChild(document.createTextNode((slide.lines || []).join('\n')));
+        container.appendChild(thumb);
+      });
+    }).catch(function () {});
   }
 
   document.getElementById('add-part-btn').addEventListener('click', function () { addPart(''); });
