@@ -2780,8 +2780,11 @@ OTHER RULES:
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
+            messages=[
+                {"role": "system", "content": "You are a worship song librarian. Output only valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
             response_format={"type": "json_object"},
             max_tokens=4000,
         )
