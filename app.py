@@ -2603,7 +2603,7 @@ def worship_add_parse():
         flash(f"'{song.get('title', song['id'])}' parsed with the local fallback and saved. Please review the sections.", "success")
         return redirect(url_for("worship"))
 
-    prompt = f"""Parse the following song lyrics into structured JSON.
+    prompt = f"""You are a worship song librarian. Parse the following song lyrics into structured JSON for a slide builder.
 
 Title: {title or '(infer from lyrics)'}
 Artist: {artist or '(unknown)'}
@@ -2622,18 +2622,38 @@ Return ONLY valid JSON — no markdown fences, no explanation — in this exact 
   "key": "<key or empty string>",
   "type": "song",
   "parts": {{
-    "verse1": ["line 1", "line 2"],
-    "chorus": ["line 1", "line 2"]
+    "verse1": ["line 1", "line 2", "line 3", "line 4"],
+    "chorus": ["line 1", "line 2", "line 3", "line 4"],
+    "bridge": ["line 1", "line 2", "line 3", "line 4"]
   }},
-  "arrangement": ["verse1", "chorus"]
+  "arrangement": ["verse1", "chorus", "verse2", "chorus", "bridge", "bridge", "chorus"]
 }}
 
-Rules:
-- id: title lowercased, spaces and special characters replaced by hyphens, no leading/trailing hyphens; the app may replace this with a unique library id
-- parts keys: use verse1, verse2, chorus, chorus2, bridge, pre_chorus, outro, intro as appropriate — if the song has two distinct choruses use chorus and chorus2, not chorus for both
-- arrangement: list of part keys in the order they appear in the song
+CRITICAL RULES — read carefully before outputting:
+
+DEDUPLICATION (most important rule):
+- Each unique lyric section is stored ONCE in parts, then referenced as many times as needed in arrangement.
+- If the chorus appears 3 times in the song, parts has ONE "chorus" entry and arrangement lists "chorus" three times.
+- If a bridge repeats 2-3 times in a row, store it ONCE in parts and repeat the key in arrangement. Do NOT create bridge2, bridge3, bridge4 for repetitions of the same content.
+- Only create numbered variants (chorus2, bridge2) when the lyric content is GENUINELY DIFFERENT — different words, not just a repeat.
+
+STANZA BOUNDARIES:
+- Each blank line in the source separates a stanza. Never combine lines from different stanzas into the same part unless they are labeled as the same section.
+- Blank lines are hard boundaries. Lines before a blank line belong to one stanza; lines after belong to the next.
+
+COMPLETENESS:
+- Every lyric line in the source must appear in exactly one part. Do not drop lines or truncate stanzas.
+- Count the lines. If verse 2 has 4 lines in the source, it must have 4 lines in the output.
+
+NEAR-DUPLICATE SECTIONS:
+- If the same section repeats with only minor lyric variations (e.g., an extra "Oh," at the start, or a slightly different last line), treat them as the SAME part. Use the most complete version as the canonical text.
+
+OTHER RULES:
+- id: title lowercased, spaces/special chars replaced by hyphens, no leading/trailing hyphens
+- parts keys: use verse1, verse2, verse3, chorus, chorus2, bridge, pre_chorus, tag, outro, intro as appropriate
 - each part value is an array of individual lyric lines (no blank strings)
-- ignore website boilerplate, recommendations, ads, copyright text, navigation, and "You May Also Like" content
+- preserve apostrophes and contractions exactly as written
+- ignore ALL website boilerplate: recommendations, ads, copyright, navigation, "You May Also Like", writer credits, album info
 - type is always "song"
 """
 
@@ -2641,7 +2661,7 @@ Rules:
     try:
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
