@@ -1673,6 +1673,51 @@ def worship():
     return render_template('worship.html', songs=songs, setlists=setlists, worship_church=church_context["current"], worship_churches=church_context["churches"])
 
 
+@app.route("/worship/cleanup-duplicates", methods=["POST"])
+@login_required
+def worship_cleanup_duplicates():
+    """Delete duplicate songs (same title+artist), keeping the one with the most lyric content."""
+    songs = list_worship_songs()
+
+    # Group by (title, artist) key — case-insensitive
+    groups: dict[str, list[dict]] = {}
+    for song in songs:
+        normalized = normalize_worship_song(song)
+        key = (normalized.get("title", "").lower().strip(), normalized.get("artist", "").lower().strip())
+        groups.setdefault(key, []).append(normalized)
+
+    deleted_ids: list[str] = []
+    kept_ids: list[str] = []
+
+    for (title, artist), group in groups.items():
+        if len(group) <= 1:
+            continue
+
+        # Score each song: total lyric lines across all parts (more = better parse)
+        def _score(s: dict) -> int:
+            parts = s.get("parts") or {}
+            return sum(len(lines) for lines in parts.values() if isinstance(lines, list))
+
+        group.sort(key=_score, reverse=True)
+        best = group[0]
+        kept_ids.append(best["id"])
+
+        for dupe in group[1:]:
+            if dupe["id"] != best["id"]:
+                delete_worship_song(dupe["id"])
+                deleted_ids.append(dupe["id"])
+
+    if deleted_ids:
+        flash(
+            f"Removed {len(deleted_ids)} duplicate{'s' if len(deleted_ids) != 1 else ''}: {', '.join(deleted_ids)}.",
+            "success",
+        )
+    else:
+        flash("No duplicates found.", "info")
+
+    return redirect(url_for("worship"))
+
+
 @app.route("/worship/church/create", methods=["POST"])
 @login_required
 def worship_church_create():
