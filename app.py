@@ -2681,6 +2681,17 @@ def worship_add_parse():
 
     cleaned_paste = _clean_lyrics_site_paste(raw_lyrics, title, artist)
     parse_lyrics = cleaned_paste.get("lyrics") or raw_lyrics
+
+    # AZLyrics (and similar sites) wrap each lyric line in its own <div>, so a
+    # copy-paste produces a blank line between EVERY lyric line, not just between
+    # stanzas. Detect this: if ≥50% of the lines are blank, we have the
+    # every-line-blank format. Strip all blanks so gpt-4o sees consecutive text.
+    all_lines = parse_lyrics.splitlines()
+    blank_count = sum(1 for ln in all_lines if not ln.strip())
+    if all_lines and blank_count / len(all_lines) >= 0.50:
+        parse_lyrics = "\n".join(ln for ln in all_lines if ln.strip())
+        app.logger.info("worship_add_parse: stripped every-line-blanks (%d blanks removed)", blank_count)
+
     title = title or cleaned_paste.get("title", "")
     artist = artist or cleaned_paste.get("artist", "")
     app.logger.info("worship_add_parse: cleaned lyrics (%d chars, %d lines):\n%s",
