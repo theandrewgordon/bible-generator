@@ -2743,10 +2743,11 @@ def worship_add():
         if request.form.get("overwrite"):
             pending = session.pop("pending_worship_song", None)
             used_fallback = session.pop("pending_worship_used_fallback", False)
+            fallback_reason = session.pop("pending_worship_fallback_reason", "")
             if pending:
                 save_worship_song(pending)
                 if used_fallback:
-                    flash(f"'{pending['title']}' overwritten (local fallback — please review sections).", "success")
+                    flash(f"'{pending['title']}' overwritten. {fallback_reason or 'Faith Sparks auto-structured the sections.'} Please review.", "success")
                 else:
                     flash(f"'{pending['title']}' overwritten.", "success")
                 return redirect(url_for("worship"))
@@ -2848,7 +2849,7 @@ def worship_add_parse():
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        app.logger.warning("worship_add_parse: OPENAI_API_KEY not set, using local fallback")
+        app.logger.warning("worship_add_parse: OPENAI_API_KEY not set, auto-structuring sections")
         parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not parsed:
             flash("OPENAI_API_KEY is not set and the local parser could not find song sections.", "error")
@@ -2858,7 +2859,7 @@ def worship_add_parse():
             song["version"] = version
         song["id"] = _make_unique_worship_song_id(song.get("title", ""), song.get("artist", ""), song.get("version", ""))
         save_worship_song(song)
-        flash(f"'{song.get('title', song['id'])}' parsed with the local fallback (no API key). Please review the sections.", "success")
+        flash(f"'{song.get('title', song['id'])}' auto-structured and saved without AI. Please review the sections.", "success")
         return redirect(url_for("worship"))
 
     app.logger.info("worship_add_parse: using OpenAI gpt-4o, key prefix=%s", api_key[:8])
@@ -2919,6 +2920,7 @@ OTHER RULES:
 """
 
     used_fallback_parser = False
+    fallback_reason = ""
     try:
         client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
@@ -2960,7 +2962,8 @@ Malformed response:
         if not parsed:
             flash(f"AI returned invalid JSON: {e}", "error")
             return redirect(url_for("worship_add"))
-        flash(f"AI returned malformed JSON ({e}), used local fallback instead.", "warning")
+        fallback_reason = f"AI returned malformed JSON, so Faith Sparks auto-structured the sections."
+        flash(fallback_reason, "warning")
         used_fallback_parser = True
     except Exception as e:
         app.logger.error("worship_add_parse: OpenAI call failed: %s", e, exc_info=True)
@@ -2968,7 +2971,8 @@ Malformed response:
         if not parsed:
             flash(f"AI parse failed: {e}", "error")
             return redirect(url_for("worship_add"))
-        flash(f"AI call failed ({type(e).__name__}: {e}), used local fallback instead.", "warning")
+        fallback_reason = f"AI call failed ({type(e).__name__}), so Faith Sparks auto-structured the sections."
+        flash(fallback_reason, "warning")
         used_fallback_parser = True
 
     exploded = _looks_like_line_exploded_worship_parse(parsed)
@@ -2992,6 +2996,7 @@ Malformed response:
             flash("AI response was missing required fields (parts/arrangement).", "error")
             return redirect(url_for("worship_add"))
         parsed = fallback
+        fallback_reason = "AI response was incomplete, so Faith Sparks auto-structured the sections."
         used_fallback_parser = True
 
     song = normalize_worship_song(parsed)
@@ -3004,11 +3009,12 @@ Malformed response:
     if get_worship_song(song["id"]):
         session["pending_worship_song"] = song
         session["pending_worship_used_fallback"] = used_fallback_parser
+        session["pending_worship_fallback_reason"] = fallback_reason
         return redirect(url_for("worship_add", conflict=song["id"]))
 
     save_worship_song(song)
     if used_fallback_parser:
-        flash(f"'{song.get('title', song['id'])}' parsed with the local fallback and saved. Please review the sections.", "success")
+        flash(f"'{song.get('title', song['id'])}' saved. {fallback_reason or 'Faith Sparks auto-structured the sections.'} Please review.", "success")
     else:
         flash(f"'{song.get('title', song['id'])}' parsed and saved.", "success")
     return redirect(url_for("worship"))
