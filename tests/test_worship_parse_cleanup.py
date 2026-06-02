@@ -123,6 +123,44 @@ Shared chorus line
         self.assertEqual(parsed["parts"]["verse1"], ["First verse line", "Second verse line"])
         self.assertEqual(parsed["parts"]["chorus"], ["Shared chorus line"])
 
+    def test_fallback_parse_handles_inline_refrain_markers(self):
+        pasted = """"Hymn With Refrain" lyrics
+Example Artist Lyrics
+"Hymn With Refrain"
+
+Verse one first
+Verse one second
+Verse one third
+Verse one fourth
+Verse one fifth
+[Refrain:]
+Refrain first
+Refrain second
+Verse two first
+Verse two second
+Verse two third
+Verse two fourth
+Verse two fifth
+[Refrain]
+Verse three first
+Verse three second
+Verse three third
+Verse three fourth
+Verse three fifth
+[Refrain]
+Submit Lyrics
+"""
+
+        parsed = app._fallback_parse_worship_lyrics(pasted)
+
+        self.assertIsNotNone(parsed)
+        self.assertEqual(
+            parsed["arrangement"],
+            ["verse1", "chorus", "verse2", "chorus", "verse3", "chorus"],
+        )
+        self.assertEqual(parsed["parts"]["chorus"], ["Refrain first", "Refrain second"])
+        self.assertNotIn("chorus2", parsed["parts"])
+
     def test_detects_line_exploded_ai_parse(self):
         parsed = {
             "parts": {f"verse{i}": [f"Line {i}"] for i in range(1, 14)},

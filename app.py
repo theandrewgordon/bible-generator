@@ -918,7 +918,12 @@ def _canonical_part_key(name: str | None) -> str:
         "tag_2": "tag2",
         "ending": "outro",
     }
-    return alias_map.get(raw, raw)
+    if raw in alias_map:
+        return alias_map[raw]
+    numbered_match = re.match(r"^(verse|chorus|bridge|tag)_(\d+)$", raw)
+    if numbered_match:
+        return f"{numbered_match.group(1)}{numbered_match.group(2)}"
+    return raw
 
 
 _REUSABLE_LYRIC_SHEET_PART_PREFIXES = ("chorus", "pre_chorus", "bridge", "tag")
@@ -2004,6 +2009,94 @@ def _lyric_line_equalish(left: str, right: str) -> bool:
     return bool(left_norm and right_norm and left_norm == right_norm)
 
 
+def _extract_worship_section_label(line: str) -> tuple[str, bool]:
+    text = str(line or "").strip()
+    if not text:
+        return "", False
+    match = re.match(
+        r"^\s*[\[(]?\s*((?:verse|v|chorus|ch|bridge|pre[-\s]?chorus|tag|intro|outro|ending|refrain)(?:\s*\d+)?)\s*(:?)\s*[\])]?\s*$",
+        text,
+        flags=re.I,
+    )
+    if not match:
+        return "", False
+    return _canonical_part_key(match.group(1)), bool(match.group(2))
+
+
+def _parse_refrain_marker_worship_lyrics(
+    lyrics_text: str,
+    title: str = "",
+    artist: str = "",
+    version: str = "",
+    key: str = "",
+) -> dict | None:
+    cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
+    lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
+    raw_lines = [
+        raw_line.strip()
+        for raw_line in lyric_body.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    ]
+    lines = [line for line in raw_lines if line and not _is_lyrics_site_boilerplate_line(line)]
+    marker_indexes: list[int] = []
+    for idx, line in enumerate(lines):
+        label, _has_colon = _extract_worship_section_label(line)
+        if label == "chorus" and re.search(r"refrain", line, flags=re.I):
+            marker_indexes.append(idx)
+
+    if not marker_indexes or marker_indexes[0] <= 0:
+        return None
+
+    first_marker = marker_indexes[0]
+    first_verse = lines[:first_marker]
+    next_marker = marker_indexes[1] if len(marker_indexes) > 1 else len(lines)
+    after_first_marker = lines[first_marker + 1:next_marker]
+    if len(first_verse) < 2 or not after_first_marker:
+        return None
+
+    if len(marker_indexes) > 1 and len(after_first_marker) > len(first_verse):
+        chorus_len = len(after_first_marker) - len(first_verse)
+    else:
+        chorus_len = len(after_first_marker)
+    if chorus_len <= 0:
+        return None
+
+    chorus_lines = after_first_marker[:chorus_len]
+    parts: dict[str, list[str]] = {"verse1": first_verse, "chorus": chorus_lines}
+    arrangement: list[str] = ["verse1", "chorus"]
+    verse_count = 2
+
+    first_following_verse = after_first_marker[chorus_len:]
+    if first_following_verse:
+        part_name = f"verse{verse_count}"
+        parts[part_name] = first_following_verse
+        arrangement.append(part_name)
+        verse_count += 1
+
+    for marker_idx, next_idx in zip(marker_indexes[1:], marker_indexes[2:] + [len(lines)]):
+        arrangement.append("chorus")
+        following_verse = lines[marker_idx + 1:next_idx]
+        if following_verse:
+            part_name = f"verse{verse_count}"
+            parts[part_name] = following_verse
+            arrangement.append(part_name)
+            verse_count += 1
+
+    if len(parts) < 3 or arrangement.count("chorus") < 2:
+        return None
+
+    parsed_title = cleaned.get("title") or str(title or "").strip() or "Untitled Song"
+    return {
+        "id": re.sub(r"[^a-z0-9]+", "-", parsed_title.lower()).strip("-") or "untitled-song",
+        "title": parsed_title,
+        "artist": cleaned.get("artist") or str(artist or "").strip(),
+        "version": str(version or "").strip(),
+        "key": str(key or "").strip(),
+        "type": "song",
+        "parts": parts,
+        "arrangement": arrangement,
+    }
+
+
 def _parse_continuous_worship_lyrics(
     lines: list[str],
     title: str = "",
@@ -2085,10 +2178,6 @@ def _parse_continuous_worship_lyrics(
 def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str = "", version: str = "", key: str = "") -> dict | None:
     cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
     lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
-    label_re = re.compile(
-        r"^\s*(?:\[|\()?((?:verse|v|chorus|ch|bridge|pre[-\s]?chorus|tag|intro|outro|ending|refrain)(?:\s*\d+)?)\s*(?:\]|\))?:?\s*$",
-        flags=re.I,
-    )
     raw_sections: list[tuple[str, list[str]]] = []
     current_label = ""
     current_lines: list[str] = []
@@ -2104,10 +2193,10 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
         line = raw_line.strip()
         if not line:
             continue
-        match = label_re.match(line)
-        if match:
+        section_label, _has_colon = _extract_worship_section_label(line)
+        if section_label:
             flush_current()
-            current_label = match.group(1)
+            current_label = section_label
             continue
         if not current_label:
             continue
@@ -2158,6 +2247,10 @@ def _fallback_parse_worship_lyrics(
     version: str = "",
     key: str = "",
 ) -> dict | None:
+    refrain_markers = _parse_refrain_marker_worship_lyrics(lyrics_text, title, artist, version, key)
+    if refrain_markers:
+        return refrain_markers
+
     labeled = _parse_labeled_worship_lyrics(lyrics_text, title, artist, version, key)
     if labeled:
         return labeled
