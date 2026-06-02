@@ -2008,36 +2008,70 @@ def _fallback_parse_worship_lyrics(
     if not blocks:
         return None
 
-    block_keys = ["\n".join(block).lower() for block in blocks]
-    repeated_keys = {block_key for block_key in block_keys if block_keys.count(block_key) > 1}
-    first_repeated_key = next((block_key for block_key in block_keys if block_key in repeated_keys), "")
+    # --- Pass 1: cluster near-duplicate blocks (similarity ≥ 0.65) ---
+    # Canonical version of each cluster = the longest block seen so far for that cluster.
+    canonicals: list[list[str]] = []
+    block_cluster: list[int] = []
+    for block in blocks:
+        best_cidx, best_sim = -1, 0.0
+        for cidx, canonical in enumerate(canonicals):
+            sim = _lyric_block_similarity(block, canonical)
+            if sim > best_sim:
+                best_sim, best_cidx = sim, cidx
+        if best_sim >= 0.65:
+            block_cluster.append(best_cidx)
+            if len(block) > len(canonicals[best_cidx]):
+                canonicals[best_cidx] = block   # keep the most complete version
+        else:
+            block_cluster.append(len(canonicals))
+            canonicals.append(list(block))
 
+    # --- Pass 2: identify chorus = first cluster that appears more than once ---
+    from collections import Counter
+    cluster_counts = Counter(block_cluster)
+    repeated_clusters = {cidx for cidx, cnt in cluster_counts.items() if cnt > 1}
+    chorus_cluster = next(
+        (block_cluster[i] for i in range(len(blocks)) if block_cluster[i] in repeated_clusters),
+        -1,
+    )
+
+    # Find where the chorus first appears so we can distinguish bridge from verse
+    chorus_first_idx = next(
+        (i for i, cidx in enumerate(block_cluster) if cidx == chorus_cluster),
+        len(blocks),
+    )
+
+    # --- Pass 3: assign part names ---
+    cluster_to_part: dict[int, str] = {}
     parts: dict[str, list[str]] = {}
     arrangement: list[str] = []
     verse_count = 1
     bridge_count = 1
-    block_to_part: dict[str, str] = {}
 
-    first_repeated_idx = block_keys.index(first_repeated_key) if first_repeated_key else -1
-    for idx, block in enumerate(blocks):
-        block_key = block_keys[idx]
-        if block_key in block_to_part:
-            arrangement.append(block_to_part[block_key])
+    for i, block in enumerate(blocks):
+        cidx = block_cluster[i]
+        if cidx in cluster_to_part:
+            arrangement.append(cluster_to_part[cidx])
             continue
-        if "chorus" in parts and _lyric_block_similarity(block, parts["chorus"]) >= 0.6:
-            arrangement.append("chorus")
-            block_to_part[block_key] = "chorus"
-            continue
-        if block_key == first_repeated_key:
+
+        # First occurrence of this cluster — assign a name
+        if cidx == chorus_cluster:
             part_name = "chorus"
-        elif first_repeated_key and idx > first_repeated_idx and idx == len(blocks) - 1 and block_key not in repeated_keys and len(block) <= 8:
-            part_name = "bridge" if bridge_count == 1 else f"bridge{bridge_count}"
-            bridge_count += 1
+        elif cidx in repeated_clusters:
+            # A repeated non-chorus section: bridge if it first appears after the chorus
+            first_occ = next(j for j, c in enumerate(block_cluster) if c == cidx)
+            if first_occ > chorus_first_idx:
+                part_name = "bridge" if bridge_count == 1 else f"bridge{bridge_count}"
+                bridge_count += 1
+            else:
+                part_name = f"verse{verse_count}"
+                verse_count += 1
         else:
             part_name = f"verse{verse_count}"
             verse_count += 1
-        block_to_part[block_key] = part_name
-        parts[part_name] = block
+
+        cluster_to_part[cidx] = part_name
+        parts[part_name] = canonicals[cidx]   # store the canonical (most complete) version
         arrangement.append(part_name)
 
     parsed_title = cleaned.get("title") or str(title or "").strip() or "Untitled Song"
