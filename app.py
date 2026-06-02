@@ -2738,8 +2738,9 @@ DEDUPLICATION (most important rule):
 - Only create numbered variants (chorus2, bridge2) when the lyric content is GENUINELY DIFFERENT — different words, not just a repeat.
 
 STANZA BOUNDARIES:
-- Each blank line in the source separates a stanza. Never combine lines from different stanzas into the same part unless they are labeled as the same section.
-- Blank lines are hard boundaries. Lines before a blank line belong to one stanza; lines after belong to the next.
+- Blank lines, when present, separate stanzas — treat them as hard boundaries.
+- The lyrics may arrive with NO blank line separators (copy-paste from web pages often strips whitespace). In that case, use musical structure and repeated content to identify section breaks: verses typically have 4 lines, choruses are the repeated block, bridges come after the second chorus.
+- Never split a stanza mid-thought across multiple parts.
 
 COMPLETENESS:
 - Every lyric line in the source must appear in exactly one part. Do not drop lines or truncate stanzas.
@@ -2765,7 +2766,11 @@ OTHER RULES:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
+            max_tokens=2000,
         )
+        finish_reason = response.choices[0].finish_reason
+        if finish_reason == "length":
+            app.logger.warning("worship_add_parse: gpt-4o hit max_tokens, response truncated")
         raw_json = _clean_ai_json_response(response.choices[0].message.content)
         app.logger.info("worship_add_parse: gpt-4o raw response (%d chars): %s", len(raw_json), raw_json[:3000])
         try:
@@ -2812,6 +2817,7 @@ Malformed response:
         not isinstance(parsed, dict)
         or not isinstance(parsed.get("parts"), dict)
         or not isinstance(parsed.get("arrangement"), list)
+        or not parsed.get("arrangement")   # empty arrangement = incomplete parse
         or exploded
     ):
         fallback = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
@@ -2926,11 +2932,7 @@ def worship_edit(song_id):
         return redirect(url_for("worship"))
 
     if request.method == "GET":
-        repaired = _repair_line_exploded_worship_song(song)
-        if repaired:
-            save_worship_song(repaired)
-            flash("Cleaned up one-line imported sections. Please review before using.", "success")
-            return redirect(url_for("worship_edit", song_id=repaired["id"]))
+        pass  # auto-repair disabled: it produced worse results than the incomplete parse
 
     if request.method == "POST":
         title = request.form.get("title", "").strip()
