@@ -2683,6 +2683,8 @@ def worship_add_parse():
     parse_lyrics = cleaned_paste.get("lyrics") or raw_lyrics
     title = title or cleaned_paste.get("title", "")
     artist = artist or cleaned_paste.get("artist", "")
+    app.logger.info("worship_add_parse: cleaned lyrics (%d chars, %d lines):\n%s",
+                    len(parse_lyrics), parse_lyrics.count("\n"), parse_lyrics[:2000])
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -2765,6 +2767,7 @@ OTHER RULES:
             response_format={"type": "json_object"},
         )
         raw_json = _clean_ai_json_response(response.choices[0].message.content)
+        app.logger.info("worship_add_parse: gpt-4o raw response (%d chars): %s", len(raw_json), raw_json[:3000])
         try:
             parsed = json.loads(raw_json)
         except json.JSONDecodeError:
@@ -2800,11 +2803,16 @@ Malformed response:
         flash(f"AI call failed ({type(e).__name__}: {e}), used local fallback instead.", "warning")
         used_fallback_parser = True
 
+    exploded = _looks_like_line_exploded_worship_parse(parsed)
+    app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s",
+                    list(parsed.get("parts", {}).keys()) if isinstance(parsed, dict) else "N/A",
+                    len(parsed.get("arrangement", [])) if isinstance(parsed, dict) else 0,
+                    exploded)
     if (
         not isinstance(parsed, dict)
         or not isinstance(parsed.get("parts"), dict)
         or not isinstance(parsed.get("arrangement"), list)
-        or _looks_like_line_exploded_worship_parse(parsed)
+        or exploded
     ):
         fallback = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not fallback:
