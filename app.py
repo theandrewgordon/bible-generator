@@ -1985,6 +1985,93 @@ def _lyric_block_similarity(left: list[str], right: list[str]) -> float:
     return len(left_set & right_set) / max(len(left_set), len(right_set))
 
 
+def _find_repeated_lyric_sequence(lines: list[str], min_len: int = 4, max_len: int = 10) -> tuple[int, int]:
+    normalized = [str(line or "").strip().lower() for line in lines]
+    max_len = min(max_len, len(normalized) // 2)
+    for length in range(max_len, min_len - 1, -1):
+        seen: dict[tuple[str, ...], int] = {}
+        for idx in range(0, len(normalized) - length + 1):
+            key = tuple(normalized[idx:idx + length])
+            if key in seen and idx - seen[key] >= length:
+                return seen[key], length
+            seen.setdefault(key, idx)
+    return -1, 0
+
+
+def _parse_continuous_worship_lyrics(
+    lines: list[str],
+    title: str = "",
+    artist: str = "",
+    version: str = "",
+    key: str = "",
+) -> dict | None:
+    lines = [str(line or "").strip() for line in lines if str(line or "").strip()]
+    if len(lines) < 16:
+        return None
+    chorus_start, chorus_len = _find_repeated_lyric_sequence(lines)
+    if chorus_start < 0 or chorus_len < 4:
+        return None
+
+    chorus_lines = lines[chorus_start:chorus_start + chorus_len]
+    parts: dict[str, list[str]] = {"chorus": chorus_lines}
+    arrangement: list[str] = []
+    verse_count = 1
+    bridge_count = 1
+    chorus_count = 0
+
+    def is_chorus_at(index: int) -> bool:
+        window = lines[index:index + chorus_len]
+        return len(window) >= max(4, chorus_len - 1) and _lyric_block_similarity(window, chorus_lines) >= 0.6
+
+    def add_block(block: list[str]) -> None:
+        nonlocal verse_count, bridge_count, chorus_count
+        if not block:
+            return
+        if chorus_count >= 2:
+            part_name = "bridge" if bridge_count == 1 else f"bridge{bridge_count}"
+            bridge_count += 1
+            parts[part_name] = block
+            arrangement.append(part_name)
+            return
+        for start in range(0, len(block), 4):
+            chunk = block[start:start + 4]
+            if not chunk:
+                continue
+            part_name = f"verse{verse_count}"
+            verse_count += 1
+            parts[part_name] = chunk
+            arrangement.append(part_name)
+
+    idx = 0
+    while idx < len(lines):
+        if is_chorus_at(idx):
+            arrangement.append("chorus")
+            chorus_count += 1
+            idx += chorus_len
+            continue
+        next_chorus = -1
+        for candidate in range(idx + 1, len(lines)):
+            if is_chorus_at(candidate):
+                next_chorus = candidate
+                break
+        end = next_chorus if next_chorus >= 0 else len(lines)
+        add_block(lines[idx:end])
+        idx = end
+
+    if chorus_count < 2 or len(parts) < 3:
+        return None
+    return {
+        "id": re.sub(r"[^a-z0-9]+", "-", str(title or "Untitled Song").lower()).strip("-") or "untitled-song",
+        "title": str(title or "Untitled Song").strip() or "Untitled Song",
+        "artist": str(artist or "").strip(),
+        "version": str(version or "").strip(),
+        "key": str(key or "").strip(),
+        "type": "song",
+        "parts": parts,
+        "arrangement": arrangement,
+    }
+
+
 def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str = "", version: str = "", key: str = "") -> dict | None:
     cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
     lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
@@ -2070,6 +2157,31 @@ def _fallback_parse_worship_lyrics(
     blocks = _split_clean_lyric_blocks(lyric_body)
     if not blocks:
         return None
+    if len(blocks) == 1 and len(blocks[0]) >= 16:
+        continuous = _parse_continuous_worship_lyrics(
+            blocks[0],
+            cleaned.get("title") or title,
+            cleaned.get("artist") or artist,
+            version,
+            key,
+        )
+        if continuous:
+            return continuous
+        chunked_parts = {
+            f"verse{idx + 1}": blocks[0][start:start + 4]
+            for idx, start in enumerate(range(0, len(blocks[0]), 4))
+        }
+        parsed_title = cleaned.get("title") or str(title or "").strip() or "Untitled Song"
+        return {
+            "id": re.sub(r"[^a-z0-9]+", "-", parsed_title.lower()).strip("-") or "untitled-song",
+            "title": parsed_title,
+            "artist": cleaned.get("artist") or str(artist or "").strip(),
+            "version": str(version or "").strip(),
+            "key": str(key or "").strip(),
+            "type": "song",
+            "parts": chunked_parts,
+            "arrangement": list(chunked_parts.keys()),
+        }
 
     # --- Pass 1: cluster near-duplicate blocks (similarity ≥ 0.65) ---
     # Canonical version of each cluster = the longest block seen so far for that cluster.
@@ -2168,6 +2280,25 @@ def _looks_like_line_exploded_worship_parse(parsed: dict) -> bool:
         if isinstance(lines, list) and len([line for line in lines if str(line).strip()]) <= 1:
             one_line_parts += 1
     return one_line_parts / max(len(verse_like), 1) >= 0.75 and len(arrangement) >= 12
+
+
+def _looks_under_arranged_worship_parse(parsed: dict, source_line_count: int) -> bool:
+    if source_line_count < 20 or not isinstance(parsed, dict):
+        return False
+    parts = parsed.get("parts")
+    arrangement = parsed.get("arrangement")
+    if not isinstance(parts, dict) or not isinstance(arrangement, list):
+        return False
+    if len(arrangement) < 4:
+        return True
+    arranged_line_count = 0
+    for part_name in arrangement:
+        lines = parts.get(part_name, [])
+        if isinstance(lines, list):
+            arranged_line_count += len([line for line in lines if str(line).strip()])
+    if arranged_line_count < source_line_count * 0.65:
+        return True
+    return False
 
 
 def _repair_line_exploded_worship_song(song: dict) -> dict | None:
@@ -2829,16 +2960,20 @@ Malformed response:
         used_fallback_parser = True
 
     exploded = _looks_like_line_exploded_worship_parse(parsed)
-    app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s",
+    source_line_count = len([line for line in parse_lyrics.splitlines() if line.strip()])
+    under_arranged = _looks_under_arranged_worship_parse(parsed, source_line_count)
+    app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s under_arranged=%s",
                     list(parsed.get("parts", {}).keys()) if isinstance(parsed, dict) else "N/A",
                     len(parsed.get("arrangement", [])) if isinstance(parsed, dict) else 0,
-                    exploded)
+                    exploded,
+                    under_arranged)
     if (
         not isinstance(parsed, dict)
         or not isinstance(parsed.get("parts"), dict)
         or not isinstance(parsed.get("arrangement"), list)
         or not parsed.get("arrangement")   # empty arrangement = incomplete parse
         or exploded
+        or under_arranged
     ):
         fallback = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not fallback:

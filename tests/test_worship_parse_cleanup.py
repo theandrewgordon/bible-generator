@@ -174,6 +174,65 @@ Chorus line three
         self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus", "verse3", "chorus"])
         self.assertEqual(parsed["parts"]["chorus"], ["Chorus line one", "Chorus line two", "Chorus line three", "Chorus line four"])
 
+    def test_fallback_parse_continuous_text_recovers_repeated_chorus(self):
+        lines = [
+            "Opening verse one",
+            "Opening verse two",
+            "Opening verse three",
+            "Opening verse four",
+            "Second verse one",
+            "Second verse two",
+            "Second verse three",
+            "Second verse four",
+            "Chorus one",
+            "Chorus two",
+            "Chorus three",
+            "Chorus four",
+            "Chorus five",
+            "Chorus six",
+            "Chorus seven",
+            "Chorus eight",
+            "Third verse one",
+            "Third verse two",
+            "Third verse three",
+            "Third verse four",
+            "Chorus one",
+            "Chorus two",
+            "Chorus three",
+            "Chorus four",
+            "Chorus five",
+            "Chorus six",
+            "Chorus seven",
+            "Chorus eight",
+            "Bridge one",
+            "Bridge two",
+            "Bridge three",
+            "Bridge four",
+            "Bridge five",
+            "Bridge six",
+            "Bridge seven",
+            "Bridge eight",
+            "Bridge nine",
+            "Bridge ten",
+            "Bridge eleven",
+            "Bridge twelve",
+            "Chorus one",
+            "Chorus two altered",
+            "Chorus three",
+            "Chorus four",
+            "Chorus five",
+            "Chorus six",
+            "Chorus seven",
+            "Chorus eight",
+        ]
+
+        parsed = app._fallback_parse_worship_lyrics("\n".join(lines), title="Continuous Song")
+
+        self.assertIsNotNone(parsed)
+        self.assertEqual(parsed["arrangement"], ["verse1", "verse2", "chorus", "verse3", "chorus", "bridge", "chorus"])
+        self.assertEqual(len(parsed["parts"]["chorus"]), 8)
+        self.assertEqual(len(parsed["parts"]["bridge"]), 12)
+
     def test_repairs_line_exploded_saved_song(self):
         lines = {
             "verse1": "All my words fall short",
