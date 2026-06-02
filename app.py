@@ -1914,6 +1914,14 @@ def _split_clean_lyric_blocks(lyrics_text: str) -> list[list[str]]:
     return blocks
 
 
+def _lyric_block_similarity(left: list[str], right: list[str]) -> float:
+    left_set = {str(line or "").strip().lower() for line in left if str(line or "").strip()}
+    right_set = {str(line or "").strip().lower() for line in right if str(line or "").strip()}
+    if not left_set or not right_set:
+        return 0.0
+    return len(left_set & right_set) / max(len(left_set), len(right_set))
+
+
 def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str = "", version: str = "", key: str = "") -> dict | None:
     cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
     lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
@@ -2016,6 +2024,10 @@ def _fallback_parse_worship_lyrics(
         if block_key in block_to_part:
             arrangement.append(block_to_part[block_key])
             continue
+        if "chorus" in parts and _lyric_block_similarity(block, parts["chorus"]) >= 0.6:
+            arrangement.append("chorus")
+            block_to_part[block_key] = "chorus"
+            continue
         if block_key == first_repeated_key:
             part_name = "chorus"
         elif first_repeated_key and idx > first_repeated_idx and idx == len(blocks) - 1 and block_key not in repeated_keys and len(block) <= 8:
@@ -2046,10 +2058,11 @@ def _looks_like_line_exploded_worship_parse(parsed: dict) -> bool:
     arrangement = parsed.get("arrangement") if isinstance(parsed, dict) else None
     if not isinstance(parts, dict) or not isinstance(arrangement, list):
         return False
-    verse_like = [
-        name for name, lines in parts.items()
-        if re.match(r"^verse\d+$", str(name or "")) and isinstance(lines, list)
-    ]
+    verse_like = []
+    for name, lines in parts.items():
+        canonical_name = _canonical_part_key(name)
+        if re.match(r"^verse\d+$", canonical_name) and isinstance(lines, list):
+            verse_like.append(name)
     if len(verse_like) < 10:
         return False
     one_line_parts = 0

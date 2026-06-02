@@ -131,6 +131,49 @@ Shared chorus line
 
         self.assertTrue(app._looks_like_line_exploded_worship_parse(parsed))
 
+    def test_detects_line_exploded_ai_parse_before_key_normalization(self):
+        parsed = {
+            "parts": {f"Verse {i}": [f"Line {i}"] for i in range(1, 14)},
+            "arrangement": [f"Verse {i}" for i in range(1, 14)],
+        }
+
+        self.assertTrue(app._looks_like_line_exploded_worship_parse(parsed))
+
+    def test_fallback_parse_reuses_near_repeat_chorus(self):
+        pasted = '''"Near Repeat" lyrics
+Example Artist Lyrics
+"Near Repeat"
+
+Verse line one
+Verse line two
+
+Chorus line one
+Chorus line two
+Chorus line three
+Chorus line four
+
+Second verse line one
+Second verse line two
+
+Chorus line one
+Chorus line two
+Chorus line three
+Chorus line four
+
+Bridge line one
+Bridge line two
+Bridge line three
+
+Chorus line one
+Chorus line two
+Chorus line three
+'''
+
+        parsed = app._fallback_parse_worship_lyrics(pasted)
+
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus", "verse3", "chorus"])
+        self.assertEqual(parsed["parts"]["chorus"], ["Chorus line one", "Chorus line two", "Chorus line three", "Chorus line four"])
+
 
 if __name__ == "__main__":
     unittest.main()
