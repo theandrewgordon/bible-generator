@@ -2593,9 +2593,13 @@ def worship_add():
         # Overwrite confirmation branch
         if request.form.get("overwrite"):
             pending = session.pop("pending_worship_song", None)
+            used_fallback = session.pop("pending_worship_used_fallback", False)
             if pending:
                 save_worship_song(pending)
-                flash(f"'{pending['title']}' overwritten.", "success")
+                if used_fallback:
+                    flash(f"'{pending['title']}' overwritten (local fallback — please review sections).", "success")
+                else:
+                    flash(f"'{pending['title']}' overwritten.", "success")
                 return redirect(url_for("worship"))
             flash("Nothing to overwrite.", "warning")
             return redirect(url_for("worship_add"))
@@ -2812,7 +2816,14 @@ Malformed response:
     song = normalize_worship_song(parsed)
     if version:
         song["version"] = version
-    song["id"] = _make_unique_worship_song_id(song.get("title", ""), song.get("artist", ""), song.get("version", ""))
+    # Use the base ID (not a unique-suffixed one) so re-importing the same song
+    # triggers the conflict/overwrite flow instead of creating gratitude-...-2, -3, etc.
+    song["id"] = _worship_song_id_base(song.get("title", ""), song.get("artist", ""), song.get("version", "")) or "untitled-song"
+
+    if get_worship_song(song["id"]):
+        session["pending_worship_song"] = song
+        session["pending_worship_used_fallback"] = used_fallback_parser
+        return redirect(url_for("worship_add", conflict=song["id"]))
 
     save_worship_song(song)
     if used_fallback_parser:
