@@ -160,7 +160,10 @@
       <option value="artist">Artist</option>
       <option value="last_used">Last Played</option>
     </select>
-    <button type="button" class="ws-reset-library" id="clean-dupes-btn" style="margin-right:.5rem">Clean duplicates</button>
+    <form method="post" action="{{ url_for('worship_cleanup_duplicates') }}" style="display:contents" id="clean-dupes-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="ws-reset-library" style="margin-right:.5rem" onclick="return confirm('Remove duplicate songs (same title + artist + version)? The best-structured parse will be kept.')">Clean duplicates</button>
+    </form>
     <button type="button" class="ws-reset-library" id="reset-library-btn">Reset library</button>
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
@@ -691,20 +694,6 @@
       })
       .catch(function () { alert('Delete failed.'); });
   });
-
-  var cleanDupesBtn = document.getElementById('clean-dupes-btn');
-  if (cleanDupesBtn) {
-    cleanDupesBtn.addEventListener('click', function () {
-      if (!confirm('Remove duplicate songs? For each title+artist pair, only the version with the most lyric content will be kept.')) return;
-      cleanDupesBtn.disabled = true;
-      cleanDupesBtn.textContent = 'Cleaning…';
-      var fd = new FormData();
-      fd.append('csrf_token', csrfToken);
-      fetch('/worship/cleanup-duplicates', { method: 'POST', body: fd, credentials: 'same-origin' })
-        .then(function (r) { if (r.ok || r.redirected) { window.location.href = r.url || '/worship'; } else { cleanDupesBtn.disabled = false; cleanDupesBtn.textContent = 'Clean duplicates'; alert('Cleanup failed.'); } })
-        .catch(function () { cleanDupesBtn.disabled = false; cleanDupesBtn.textContent = 'Clean duplicates'; alert('Cleanup failed.'); });
-    });
-  }
 
   if (resetLibraryBtn) {
     resetLibraryBtn.addEventListener('click', function () {

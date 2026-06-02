@@ -1679,26 +1679,38 @@ def worship_cleanup_duplicates():
     """Delete duplicate songs (same title+artist), keeping the one with the most lyric content."""
     songs = list_worship_songs()
 
-    # Group by (title, artist) key — case-insensitive
-    groups: dict[str, list[dict]] = {}
+    # Group by (title, artist, version) — different versions are intentional arrangements,
+    # never merge them. Only deduplicate true re-imports of the same arrangement.
+    groups: dict[tuple, list[dict]] = {}
     for song in songs:
         normalized = normalize_worship_song(song)
-        key = (normalized.get("title", "").lower().strip(), normalized.get("artist", "").lower().strip())
+        key = (
+            normalized.get("title", "").lower().strip(),
+            normalized.get("artist", "").lower().strip(),
+            normalized.get("version", "").lower().strip(),
+        )
         groups.setdefault(key, []).append(normalized)
 
     deleted_ids: list[str] = []
     kept_ids: list[str] = []
 
-    for (title, artist), group in groups.items():
+    def _parse_quality_score(s: dict) -> int:
+        """Higher = better structured parse. Penalises bridge2/bridge3/verse9-style fragmentation."""
+        parts = s.get("parts") or {}
+        total_lines = sum(len(lines) for lines in parts.values() if isinstance(lines, list))
+        # Count fragmented numbered parts (bridge2, verse9, etc.) — each costs 20 points
+        frag_penalty = sum(
+            20 for name in parts
+            if re.match(r'^(bridge|verse|chorus|tag|pre_chorus)\d{1,2}$', name)
+            and not name in ("verse1", "verse2", "verse3", "chorus", "chorus2", "bridge", "pre_chorus", "tag", "intro", "outro")
+        )
+        return total_lines - frag_penalty
+
+    for key, group in groups.items():
         if len(group) <= 1:
             continue
 
-        # Score each song: total lyric lines across all parts (more = better parse)
-        def _score(s: dict) -> int:
-            parts = s.get("parts") or {}
-            return sum(len(lines) for lines in parts.values() if isinstance(lines, list))
-
-        group.sort(key=_score, reverse=True)
+        group.sort(key=_parse_quality_score, reverse=True)
         best = group[0]
         kept_ids.append(best["id"])
 
