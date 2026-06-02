@@ -294,12 +294,18 @@ def load_user_info():
 
     if google.authorized:
         if "user_info" not in session:
-            resp = google.get("/oauth2/v1/userinfo")
-            if resp.ok:
-                session["user_info"] = resp.json()
-                session["user_email"] = session["user_info"].get("email")
-                session["clear_storage"] = True
-                _refresh_owned_packs(session["user_email"])
+            try:
+                resp = google.get("/oauth2/v1/userinfo")
+                if resp.ok:
+                    session["user_info"] = resp.json()
+                    session["user_email"] = session["user_info"].get("email")
+                    session["clear_storage"] = True
+                    _refresh_owned_packs(session["user_email"])
+            except Exception:
+                # Token expired or revoked — clear session so user is prompted to re-auth
+                session.pop("user_info", None)
+                session.pop("user_email", None)
+                session.pop("user_owned_packs", None)
         elif not session.get("user_owned_packs"):
             _refresh_owned_packs(session.get("user_email"))
     else:
