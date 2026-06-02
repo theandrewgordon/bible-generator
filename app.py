@@ -1998,6 +1998,12 @@ def _find_repeated_lyric_sequence(lines: list[str], min_len: int = 4, max_len: i
     return -1, 0
 
 
+def _lyric_line_equalish(left: str, right: str) -> bool:
+    left_norm = re.sub(r"[^a-z0-9]+", " ", str(left or "").lower()).strip()
+    right_norm = re.sub(r"[^a-z0-9]+", " ", str(right or "").lower()).strip()
+    return bool(left_norm and right_norm and left_norm == right_norm)
+
+
 def _parse_continuous_worship_lyrics(
     lines: list[str],
     title: str = "",
@@ -2021,7 +2027,11 @@ def _parse_continuous_worship_lyrics(
 
     def is_chorus_at(index: int) -> bool:
         window = lines[index:index + chorus_len]
-        return len(window) >= max(4, chorus_len - 1) and _lyric_block_similarity(window, chorus_lines) >= 0.6
+        if len(window) < max(4, chorus_len - 1):
+            return False
+        if not _lyric_line_equalish(window[0], chorus_lines[0]):
+            return False
+        return _lyric_block_similarity(window, chorus_lines) >= 0.6
 
     def add_block(block: list[str]) -> None:
         nonlocal verse_count, bridge_count, chorus_count
@@ -2289,6 +2299,8 @@ def _looks_under_arranged_worship_parse(parsed: dict, source_line_count: int) ->
     arrangement = parsed.get("arrangement")
     if not isinstance(parts, dict) or not isinstance(arrangement, list):
         return False
+    if not arrangement:
+        return True
     if len(arrangement) < 4:
         return True
     arranged_line_count = 0

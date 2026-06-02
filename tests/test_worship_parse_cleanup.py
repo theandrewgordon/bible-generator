@@ -233,6 +233,65 @@ Chorus line three
         self.assertEqual(len(parsed["parts"]["chorus"]), 8)
         self.assertEqual(len(parsed["parts"]["bridge"]), 12)
 
+    def test_continuous_parser_does_not_start_chorus_on_tail_overlap(self):
+        lines = [
+            "Verse A1",
+            "Verse A2",
+            "Verse A3",
+            "Verse A4",
+            "Verse B1",
+            "Verse B2",
+            "Verse B3",
+            "Verse B4",
+            "Chorus start",
+            "Chorus second",
+            "Chorus third",
+            "Chorus fourth",
+            "Chorus fifth",
+            "Chorus sixth",
+            "Chorus seventh",
+            "Chorus eighth",
+            "Verse C1",
+            "Verse C2",
+            "Verse C3",
+            "Verse C4",
+            "Chorus start",
+            "Chorus second",
+            "Chorus third",
+            "Chorus fourth",
+            "Chorus fifth",
+            "Chorus sixth",
+            "Chorus seventh",
+            "Chorus eighth",
+            "Chorus fifth",
+            "Chorus sixth",
+            "Chorus seventh",
+            "Bridge one",
+            "Bridge two",
+            "Bridge three",
+            "Bridge four",
+            "Bridge five",
+            "Bridge six",
+            "Bridge seven",
+            "Bridge eight",
+            "Bridge nine",
+            "Bridge ten",
+            "Chorus start",
+            "Chorus second altered",
+            "Chorus third",
+            "Chorus fourth",
+            "Chorus fifth",
+            "Chorus sixth",
+            "Chorus seventh",
+            "Chorus eighth",
+        ]
+
+        parsed = app._fallback_parse_worship_lyrics("\n".join(lines), title="Tail Overlap")
+
+        self.assertIsNotNone(parsed)
+        self.assertEqual(parsed["arrangement"], ["verse1", "verse2", "chorus", "verse3", "chorus", "bridge", "chorus"])
+        self.assertTrue(parsed["parts"]["bridge"][0].startswith("Chorus fifth"))
+
     def test_repairs_line_exploded_saved_song(self):
         lines = {
             "verse1": "All my words fall short",
