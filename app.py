@@ -2694,7 +2694,7 @@ def worship_add_parse():
     # every-line-blank format. Strip all blanks so gpt-4o sees consecutive text.
     all_lines = parse_lyrics.splitlines()
     blank_count = sum(1 for ln in all_lines if not ln.strip())
-    if all_lines and blank_count / len(all_lines) >= 0.50:
+    if all_lines and blank_count / len(all_lines) >= 0.40:
         parse_lyrics = "\n".join(ln for ln in all_lines if ln.strip())
         app.logger.info("worship_add_parse: stripped every-line-blanks (%d blanks removed)", blank_count)
 
@@ -2783,7 +2783,7 @@ OTHER RULES:
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
             response_format={"type": "json_object"},
-            max_tokens=2000,
+            max_tokens=4000,
         )
         finish_reason = response.choices[0].finish_reason
         if finish_reason == "length":
