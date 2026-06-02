@@ -174,6 +174,61 @@ Chorus line three
         self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus", "verse3", "chorus"])
         self.assertEqual(parsed["parts"]["chorus"], ["Chorus line one", "Chorus line two", "Chorus line three", "Chorus line four"])
 
+    def test_repairs_line_exploded_saved_song(self):
+        lines = {
+            "verse1": "All my words fall short",
+            "verse2": "I got nothing new",
+            "verse3": "How could I express",
+            "verse4": "All my gratitude?",
+            "verse5": "I could sing these songs",
+            "verse6": "As I often do",
+            "verse7": "But every song must end",
+            "verse8": "And You never do",
+            "chorus": "So I throw up my hands",
+            "verse9": "And praise You again and again",
+            "verse10": "Cause all that I have is a",
+            "verse11": "Hallelujah, hallelujah",
+            "verse12": "And I know it is not much",
+            "verse13": "But I have nothing else fit for a king",
+            "verse14": "Except for a heart singing",
+            "verse15": "I have got one response",
+            "verse16": "I have got just one move",
+            "verse17": "With my arms stretched wide",
+            "verse18": "I will worship You",
+            "verse19": "So come on my soul",
+            "verse20": "Lift up your song",
+            "verse21": "Inside of those lungs",
+            "verse22": "Get up and praise the Lord",
+            "verse23": "Oh come on my soul",
+            "verse24": "Come on my soul",
+            "verse25": "Get up and praise the Lord hey",
+            "verse26": "Praise the Lord praise the Lord",
+            "verse27": "Praise the Lord hey",
+            "verse28": "Praise You again and again",
+        }
+        exploded = {
+            "title": "Gratitude",
+            "artist": "Brandon Lake",
+            "parts": {part: [line] for part, line in lines.items()},
+            "arrangement": [
+                "verse1", "verse2", "verse3", "verse4", "verse5", "verse6", "verse7", "verse8",
+                "chorus", "verse9", "verse10", "verse11", "verse12", "verse13", "verse14", "verse11",
+                "verse15", "verse16", "verse17", "verse18",
+                "chorus", "verse9", "verse10", "verse11", "verse12", "verse13", "verse14", "verse11",
+                "verse19", "verse20", "verse21", "verse22", "verse23", "verse20", "verse21", "verse22",
+                "verse24", "verse20", "verse21", "verse25", "verse26", "verse27",
+                "chorus", "verse28", "verse10", "verse11", "verse12", "verse13", "verse14", "verse11",
+            ],
+        }
+
+        repaired = app._repair_line_exploded_worship_song(exploded)
+
+        self.assertIsNotNone(repaired)
+        self.assertLess(len(repaired["parts"]), len(exploded["parts"]))
+        self.assertIn("chorus", repaired["parts"])
+        self.assertIn("bridge", repaired["parts"])
+        self.assertGreaterEqual(len(repaired["parts"]["chorus"]), 6)
+
 
 if __name__ == "__main__":
     unittest.main()

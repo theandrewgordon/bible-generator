@@ -2073,6 +2073,94 @@ def _looks_like_line_exploded_worship_parse(parsed: dict) -> bool:
     return one_line_parts / max(len(verse_like), 1) >= 0.75 and len(arrangement) >= 12
 
 
+def _repair_line_exploded_worship_song(song: dict) -> dict | None:
+    if not _looks_like_line_exploded_worship_parse(song):
+        return None
+    normalized = normalize_worship_song(song)
+    old_parts = normalized.get("parts", {})
+    old_arrangement = normalized.get("arrangement", [])
+
+    ordered_lines: list[str] = []
+    for part_name in old_arrangement:
+        lines = old_parts.get(part_name, [])
+        if isinstance(lines, list) and lines:
+            ordered_lines.append(str(lines[0]).strip())
+    ordered_lines = [line for line in ordered_lines if line]
+    if len(ordered_lines) < 8:
+        return None
+
+    best_start = -1
+    best_length = 0
+    best_distance = 0
+    max_len = min(10, max(4, len(ordered_lines) // 2))
+    for length in range(max_len, 3, -1):
+        seen: dict[tuple[str, ...], int] = {}
+        for idx in range(0, len(ordered_lines) - length + 1):
+            key = tuple(line.lower() for line in ordered_lines[idx:idx + length])
+            if key in seen:
+                distance = idx - seen[key]
+                if distance > best_distance:
+                    best_start = seen[key]
+                    best_length = length
+                    best_distance = distance
+            else:
+                seen[key] = idx
+        if best_start >= 0:
+            break
+
+    if best_start < 0 or best_length < 4:
+        return None
+
+    chorus_lines = ordered_lines[best_start:best_start + best_length]
+    rebuilt_parts: dict[str, list[str]] = {"chorus": chorus_lines}
+    rebuilt_arrangement: list[str] = []
+    verse_count = 1
+    bridge_count = 1
+    idx = 0
+
+    def add_non_chorus_block(block: list[str], after_chorus: bool) -> None:
+        nonlocal verse_count, bridge_count
+        if not block:
+            return
+        chunk_size = 4 if len(block) <= 8 else 4
+        for chunk_start in range(0, len(block), chunk_size):
+            chunk = block[chunk_start:chunk_start + chunk_size]
+            if not chunk:
+                continue
+            if after_chorus and len(chunk) >= 3:
+                part_name = "bridge" if bridge_count == 1 else f"bridge{bridge_count}"
+                bridge_count += 1
+            else:
+                part_name = f"verse{verse_count}"
+                verse_count += 1
+            rebuilt_parts[part_name] = chunk
+            rebuilt_arrangement.append(part_name)
+
+    while idx < len(ordered_lines):
+        window = ordered_lines[idx:idx + best_length]
+        if len(window) == best_length and _lyric_block_similarity(window, chorus_lines) >= 0.6:
+            rebuilt_arrangement.append("chorus")
+            idx += best_length
+            continue
+        next_chorus = -1
+        for candidate in range(idx + 1, len(ordered_lines) - best_length + 1):
+            candidate_window = ordered_lines[candidate:candidate + best_length]
+            if _lyric_block_similarity(candidate_window, chorus_lines) >= 0.6:
+                next_chorus = candidate
+                break
+        end = next_chorus if next_chorus >= 0 else len(ordered_lines)
+        add_non_chorus_block(ordered_lines[idx:end], bool(rebuilt_arrangement))
+        idx = end
+
+    if len(rebuilt_parts) < 2 or "chorus" not in rebuilt_arrangement:
+        return None
+
+    repaired = dict(normalized)
+    repaired["parts"] = rebuilt_parts
+    repaired["arrangement"] = rebuilt_arrangement
+    return normalize_worship_song(repaired)
+
+
 class _ReadableHTMLTextParser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -2699,6 +2787,13 @@ def worship_edit(song_id):
     if not song:
         flash("Song not found.", "warning")
         return redirect(url_for("worship"))
+
+    if request.method == "GET":
+        repaired = _repair_line_exploded_worship_song(song)
+        if repaired:
+            save_worship_song(repaired)
+            flash("Cleaned up one-line imported sections. Please review before using.", "success")
+            return redirect(url_for("worship_edit", song_id=repaired["id"]))
 
     if request.method == "POST":
         title = request.form.get("title", "").strip()
