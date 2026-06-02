@@ -2625,17 +2625,20 @@ def worship_add_parse():
 
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
+        app.logger.warning("worship_add_parse: OPENAI_API_KEY not set, using local fallback")
         parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not parsed:
-            flash("OPENAI_API_KEY is not set, and the local parser could not find song sections.", "error")
+            flash("OPENAI_API_KEY is not set and the local parser could not find song sections.", "error")
             return redirect(url_for("worship_add"))
         song = normalize_worship_song(parsed)
         if version:
             song["version"] = version
         song["id"] = _make_unique_worship_song_id(song.get("title", ""), song.get("artist", ""), song.get("version", ""))
         save_worship_song(song)
-        flash(f"'{song.get('title', song['id'])}' parsed with the local fallback and saved. Please review the sections.", "success")
+        flash(f"'{song.get('title', song['id'])}' parsed with the local fallback (no API key). Please review the sections.", "success")
         return redirect(url_for("worship"))
+
+    app.logger.info("worship_add_parse: using OpenAI gpt-4o, key prefix=%s", api_key[:8])
 
     prompt = f"""You are a worship song librarian. Parse the following song lyrics into structured JSON for a slide builder.
 
@@ -2720,16 +2723,20 @@ Malformed response:
             )
             parsed = json.loads(_clean_ai_json_response(repaired.choices[0].message.content))
     except json.JSONDecodeError as e:
+        app.logger.error("worship_add_parse: AI returned invalid JSON: %s", e)
         parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not parsed:
             flash(f"AI returned invalid JSON: {e}", "error")
             return redirect(url_for("worship_add"))
+        flash(f"AI returned malformed JSON ({e}), used local fallback instead.", "warning")
         used_fallback_parser = True
     except Exception as e:
+        app.logger.error("worship_add_parse: OpenAI call failed: %s", e, exc_info=True)
         parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not parsed:
             flash(f"AI parse failed: {e}", "error")
             return redirect(url_for("worship_add"))
+        flash(f"AI call failed ({type(e).__name__}: {e}), used local fallback instead.", "warning")
         used_fallback_parser = True
 
     if (
