@@ -290,6 +290,42 @@ def _write_parent_guide_pdf(
 LESSON_PACK_CACHE_COLLECTION = "lesson_pack_cache"
 
 
+def _lesson_pack_user_doc_id(user_email: str, slug: str) -> str:
+    email_part = re.sub(r"[^a-z0-9]+", "-", (user_email or "anonymous").strip().lower()).strip("-") or "anonymous"
+    return f"{email_part}-{slug}"[:1400]
+
+
+def _record_user_lesson_pack(user_email: str, result: dict, *, mark_created: bool = False) -> None:
+    if not (db and result and result.get("slug")):
+        return
+    email = (user_email or "anonymous").strip().lower() or "anonymous"
+    slug = result["slug"]
+    payload = {
+        "email": email,
+        "slug": slug,
+        "title": result.get("title") or slug.replace("-", " ").title(),
+        "theme": result.get("theme"),
+        "verse": result.get("verse"),
+        "version": str(result.get("version") or "").upper(),
+        "age_bracket": result.get("age_bracket"),
+        "use_cursive": bool(result.get("use_cursive") or result.get("useCursive")),
+        "pdf_filename": f"{slug}.pdf" if result.get("combined_pdf") or result.get("pdf_path") else None,
+        "pdf_path": result.get("combined_pdf") or result.get("pdf_path"),
+        "zip_filename": f"{slug}.zip",
+        "zip_path": result.get("zip_path"),
+        "cache_key": result.get("cache_key"),
+        "type": "lesson_pack",
+        "updated_at": firestore.SERVER_TIMESTAMP,
+        "timestamp": firestore.SERVER_TIMESTAMP,
+    }
+    if mark_created:
+        payload["created_at"] = firestore.SERVER_TIMESTAMP
+    try:
+        db.collection("lesson_packs").document(_lesson_pack_user_doc_id(email, slug)).set(payload, merge=True)
+    except Exception:
+        pass
+
+
 def _lesson_pack_cache_key(verse: str, version: str, age_bracket: str, use_cursive: bool) -> str:
     raw = f"{verse}-{(version or 'nlt').strip().lower()}-{(age_bracket or '').strip().lower()}-{'cursive' if use_cursive else 'print'}"
     return re.sub(r"[^a-z0-9]+", "-", raw.lower()).strip("-")
@@ -354,6 +390,7 @@ def create_lesson_pack(
         if not cached_zip and cached_pack.get("slug"):
             cached_zip = Path("output") / "lesson_packs" / cached_pack["slug"] / f"{cached_pack['slug']}.zip"
         if (cached_pdf and cached_pdf.exists()) or (cached_zip and cached_zip.exists()):
+            _record_user_lesson_pack(user_email, cached_pack)
             return cached_pack
 
     meaning = _clean_meaning_text(
@@ -441,6 +478,7 @@ def create_lesson_pack(
         "verse": normalized["verse"],
         "version": normalized["version"],
         "age_bracket": age_bracket,
+        "use_cursive": bool(use_cursive),
         "meaning": meaning,
         "worksheet_pdf": str(worksheet_pdf),
         "coloring_pdf": str(coloring_pdf) if coloring_pdf else None,
@@ -455,30 +493,7 @@ def create_lesson_pack(
     }
 
     if db:
-        try:
-            db.collection("lesson_packs").document(slug).set(
-                {
-                    "email": user_email or "anonymous",
-                    "slug": slug,
-                    "title": pack_title,
-                    "theme": theme_label,
-                    "verse": normalized["verse"],
-                    "version": normalized["version"].upper(),
-                    "age_bracket": age_bracket,
-                    "use_cursive": bool(use_cursive),
-                    "pdf_filename": f"{slug}.pdf" if combined_ok else None,
-                    "pdf_path": str(combined_pdf) if combined_ok else None,
-                    "zip_filename": f"{slug}.zip",
-                    "zip_path": str(zip_path),
-                    "created_at": firestore.SERVER_TIMESTAMP,
-                    "timestamp": firestore.SERVER_TIMESTAMP,
-                    "type": "lesson_pack",
-                },
-                merge=True,
-            )
-        except Exception:
-            pass
-
+        _record_user_lesson_pack(user_email, result, mark_created=True)
         _store_cached_lesson_pack(
             cache_key,
             {

@@ -1,15 +1,69 @@
 import re
 from pathlib import Path
 
-from flask import Blueprint, render_template, redirect, url_for, session, Response, request, flash, send_file, abort
+from firebase_admin import firestore
+from flask import Blueprint, render_template, redirect, url_for, session, Response, request, flash, send_file, abort, current_app, g
 from flask_dance.contrib.google import google
 from faithsparks.util.proverb import get_proverb_of_day
 from faithsparks.services.collections import get_collections
 from faithsparks.services.lesson_pack import create_lesson_pack
+from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.firestore import db
+from faithsparks.util.request_utils import get_client_ip
 
 
 bp = Blueprint('public', __name__)
+MAX_LESSON_PACK_VERSE_LEN = 120
+MAX_LESSON_PACK_VERSION_LEN = 12
+MAX_LESSON_PACK_AGE_LEN = 24
+
+
+def _is_signed_in() -> bool:
+    return bool(google.authorized and session.get("user_email"))
+
+
+def _require_login():
+    flash("Please sign in to use your lesson packs.", "warning")
+    return redirect(url_for("google.login", next=request.url))
+
+
+def _valid_lesson_pack_slug(slug: str) -> bool:
+    return bool(re.fullmatch(r'[a-z0-9\-]+', slug or ""))
+
+
+def _owned_lesson_pack(slug: str) -> dict | None:
+    session_owned = set(session.get("owned_lesson_pack_slugs") or [])
+    if not (_valid_lesson_pack_slug(slug) and db and session.get("user_email")):
+        return {"slug": slug} if slug in session_owned else None
+    email = session["user_email"]
+    try:
+        docs = (
+            db.collection("lesson_packs")
+            .where(filter=firestore.FieldFilter("email", "==", email))
+            .where(filter=firestore.FieldFilter("slug", "==", slug))
+            .limit(1)
+            .stream()
+        )
+        doc = next(docs, None)
+        return doc.to_dict() if doc else None
+    except Exception as exc:
+        try:
+            current_app.logger.warning("[%s] lesson pack ownership check failed: %s", getattr(g, "req_id", ""), exc)
+        except Exception:
+            pass
+        return None
+
+
+def _remember_lesson_pack_slug(slug: str) -> None:
+    if not _valid_lesson_pack_slug(slug):
+        return
+    owned = set(session.get("owned_lesson_pack_slugs") or [])
+    owned.add(slug)
+    session["owned_lesson_pack_slugs"] = sorted(owned)[-25:]
+
+
+def _too_long(value: str, max_len: int) -> bool:
+    return len(value or "") > max_len
 
 
 @bp.route('/')
@@ -52,6 +106,17 @@ def lesson_pack():
             proverb_of_day=get_proverb_of_day(),
         )
 
+    if not _is_signed_in():
+        return _require_login()
+
+    user_key = session.get("user_email") or get_client_ip()
+    ip_key = get_client_ip()
+    user_limit = check_rate_limit("lesson_pack:user", user_key, limit=6, window_seconds=60 * 60)
+    ip_limit = check_rate_limit("lesson_pack:ip", ip_key, limit=18, window_seconds=60 * 60)
+    if not user_limit.allowed or not ip_limit.allowed:
+        flash("You've made several lesson packs recently. Please wait a bit before creating another.", "warning")
+        return redirect(url_for('public.lesson_pack'))
+
     verse_input = (request.form.get('verse') or '').strip()
     version = (request.form.get('version') or 'nlt').strip().lower()
     age_bracket = (request.form.get('age_bracket') or '6-8').strip()
@@ -59,40 +124,49 @@ def lesson_pack():
     if not verse_input:
         flash('Please enter a verse reference.', 'warning')
         return redirect(url_for('public.lesson_pack'))
+    if (
+        _too_long(verse_input, MAX_LESSON_PACK_VERSE_LEN)
+        or _too_long(version, MAX_LESSON_PACK_VERSION_LEN)
+        or _too_long(age_bracket, MAX_LESSON_PACK_AGE_LEN)
+    ):
+        flash("Please shorten the lesson pack details and try again.", "warning")
+        return redirect(url_for('public.lesson_pack'))
 
     try:
         result = create_lesson_pack(
-            user_email=session.get('user_email', 'anonymous'),
+            user_email=session.get('user_email'),
             verse_input=verse_input,
             version=version,
             age_bracket=age_bracket,
             use_cursive=use_cursive,
         )
     except Exception as exc:
-        flash(str(exc), 'warning')
+        try:
+            current_app.logger.exception("[%s] lesson pack creation failed: %s", getattr(g, "req_id", ""), exc)
+        except Exception:
+            pass
+        flash("We couldn't create that lesson pack yet. Please check the verse and try again.", 'warning')
         return redirect(url_for('public.lesson_pack', verse=verse_input, version=version, age=age_bracket))
 
+    _remember_lesson_pack_slug(result['slug'])
     return redirect(url_for('public.lesson_pack_result', slug=result['slug']))
 
 
 @bp.route('/lesson-pack/result/<slug>')
 def lesson_pack_result(slug):
-    # Sanitize slug — only allow safe filesystem characters
-    if not re.fullmatch(r'[a-z0-9\-]+', slug):
+    if not _is_signed_in():
+        return _require_login()
+    # Sanitize slug: only allow safe filesystem characters.
+    if not _valid_lesson_pack_slug(slug):
+        abort(404)
+    owned = _owned_lesson_pack(slug)
+    if not owned:
         abort(404)
     zip_path = Path('output') / 'lesson_packs' / slug / f'{slug}.zip'
     if not zip_path.exists():
         flash('That pack is no longer available — packs are kept until the server restarts. Build a new one below.', 'warning')
         return redirect(url_for('public.lesson_pack'))
-    title = slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
-    if db:
-        try:
-            doc = db.collection('lesson_packs').document(slug).get()
-            if doc.exists:
-                data = doc.to_dict() or {}
-                title = data.get('title') or title
-        except Exception:
-            pass
+    title = owned.get('title') or slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
     return render_template(
         'lesson_pack_result.html',
         slug=slug,
@@ -103,7 +177,11 @@ def lesson_pack_result(slug):
 
 @bp.route('/lesson-pack/download/<slug>')
 def lesson_pack_download(slug):
-    if not re.fullmatch(r'[a-z0-9\-]+', slug):
+    if not _is_signed_in():
+        return _require_login()
+    if not _valid_lesson_pack_slug(slug):
+        abort(404)
+    if not _owned_lesson_pack(slug):
         abort(404)
     pack_dir = Path('output') / 'lesson_packs' / slug
     pdf_path = pack_dir / f'{slug}.pdf'

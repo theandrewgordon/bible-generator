@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple
 
 from firebase_admin import firestore
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, g
 
 from faithsparks.services.firestore import db
 from faithsparks.services.stripe_svc import (
@@ -402,8 +402,9 @@ def create_checkout_session():
         chk = stripe.checkout.Session.create(**create_kwargs)
         return redirect(chk.url, code=303)
     except Exception as e:
-        traceback.print_exc()
-        return f"Stripe error: {e}", 500
+        current_app.logger.exception("[%s] Stripe checkout session failed: %s", getattr(g, "req_id", ""), e)
+        flash("We couldn't start checkout yet. Please try again.", "error")
+        return redirect(url_for("plus_pricing"))
 
 
 def plus_success():
@@ -776,8 +777,9 @@ def buy_pack(slug):
         )
         return redirect(chk.url, code=303)
     except Exception as e:
-        traceback.print_exc()
-        return f"Stripe error: {e}", 500
+        current_app.logger.exception("[%s] Stripe pack checkout failed: %s", getattr(g, "req_id", ""), e)
+        flash("We couldn't start checkout yet. Please try again.", "error")
+        return redirect(url_for("browse_detail", slug=slug))
 
 
 def buy_success(slug):

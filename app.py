@@ -909,9 +909,9 @@ def _canonical_part_key(name: str | None) -> str:
         "verse_2": "verse2",
         "verse_3": "verse3",
         "verse_4": "verse4",
-        "chorus_1": "chorus1",
-        "chorus_2": "chorus2",
-        "chorus_3": "chorus3",
+        "chorus_1": "chorus",
+        "chorus_2": "chorus",
+        "chorus_3": "chorus",
         "bridge_1": "bridge1",
         "bridge_2": "bridge2",
         "tag_1": "tag1",
@@ -1904,6 +1904,10 @@ def _is_lyrics_site_boilerplate_line(line: str) -> bool:
         return True
     if lowered.startswith("lyrics licensed by") or lowered.startswith("copyright"):
         return True
+    if re.fullmatch(r"(?:\.|\u2026|\s){3,}", clean):
+        return True
+    if re.fullmatch(r"\(?\s*(?:feat|featuring)\.?\s+.+\)?", clean, flags=re.I):
+        return True
     if lowered.endswith(" lyrics") and len(clean.split()) <= 6:
         return True
     return False
@@ -2575,7 +2579,7 @@ def _fetch_worship_import_text(import_url: str) -> str:
     return body.strip()
 
 
-def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str]) -> list[dict]:
+def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str], *, prefer_direct: bool = False) -> list[dict]:
     if song_order:
         raw_ids = [s.strip() for s in song_order.split(",") if s.strip()]
     else:
@@ -2608,7 +2612,9 @@ def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str
     selected_items = []
     for song_id in ordered_ids:
         title_matches = title_lookup.get(_slugify_worship_token(song_id), [])
-        song = song_lookup.get(song_id)
+        song = get_worship_song(song_id) if prefer_direct else None
+        if not song:
+            song = song_lookup.get(song_id)
         if not song and len(title_matches) == 1:
             song = title_matches[0]
         if not song:
@@ -2724,6 +2730,7 @@ def worship_export_lyric_sheet():
     selected_items = _resolve_selected_worship_items(
         request.form.get("song_order", ""),
         request.form.getlist("song_ids"),
+        prefer_direct=True,
     )
     if not selected_items:
         flash("Select at least one item to export a lyric sheet.", "warning")
@@ -3362,303 +3369,6 @@ def worship_setlist_duplicate():
 def generate():
     from faithsparks.views.worksheets import generate as _impl
     return _impl()
-    """
-    try:
-        if request.method == "GET":
-            clear_storage = session.pop("clear_storage", False)
-            # Collection prefill support
-            prefill = request.args.get("verse", "").strip()
-            col = request.args.get("collection")
-            default_version_override = None
-            if not prefill and col:
-                meta = get_collection_meta(col)
-                if meta and meta.get('verses'):
-                    prefill = ", ".join(meta['verses'])
-                    default_version_override = meta.get('defaultVersion')
-                    # if coming from collection, do not clear immediately
-                    clear_storage = False
-            # Usage/plan info for banner
-            email = session.get('user_email')
-            plan = _get_user_plan(email)
-            m_limit, l_limit = _quota_for_plan(plan)
-            used_life, used_m = _get_usage(email)
-            # Remaining computations
-            def r(limit, used):
-                return None if limit is None else max(0, int(limit) - int(used))
-            remain_m = r(m_limit, used_m)
-            # percent used for monthly (for upgrade banner)
-            pct = 0
-            try:
-                if m_limit is not None and int(m_limit) > 0:
-                    pct = int(round((used_m / float(m_limit)) * 100))
-            except Exception:
-                pct = 0
-            usage_info = {
-                'plan': plan,
-                'monthly_used': int(used_m),
-                'monthly_limit': m_limit,
-                'lifetime_used': int(used_life),
-                'lifetime_limit': l_limit,
-                'monthly_remaining': remain_m,
-                'monthly_pct_used': pct,
-            }
-            return render_template("generate.html", prefill_verse=prefill, clear_storage=clear_storage, default_version_override=default_version_override, collection_slug=col, usage_info=usage_info)
-
-        verse_input = request.form.get("verse", "").strip()
-        from_collection = (request.form.get('collection_slug') or '').strip() or None
-        custom_text = request.form.get("custom_text", "").strip()
-        custom_title = request.form.get("custom_title", "").strip()
-        selected_version = request.form.get("version", "esv").strip().lower()
-        use_cursive = request.form.get("cursive") == "on"
-        custom_prompt = request.form.get("custom_prompt", "").strip()
-        user_email = session.get("user_email", "anonymous")
-
-        tag_list = [v.strip() for v in re.split(r'[,;\n]+', verse_input) if v.strip()]
-        is_custom = bool(custom_text)
-
-        if not tag_list and not is_custom:
-            flash("Please enter a verse or custom text to generate.", "warning")
-            return redirect(url_for("generate"))
-
-        items_to_generate = []
-
-        for v in tag_list:
-            version, verse = extract_version_from_text(v, selected_version)
-            items_to_generate.append({
-                "slug": normalize_slug(verse),
-                "verse": verse,
-                "version": version.upper(),
-                "is_custom": False,
-                "text": None
-            })
-
-        if is_custom:
-            ai_validate_custom_text(custom_text)  # Basic filtering
-            title = custom_title or "Custom Text (User Submitted)"
-            items_to_generate.append({
-                "slug": normalize_slug(title),
-                "verse": title,
-                "version": "DIY",
-                "is_custom": True,
-                "text": custom_text
-            })
-
-        # --- Quota check ---
-        generated_target = (len(tag_list) if tag_list else 0) + (1 if is_custom else 0)
-
-        user_plan = _get_user_plan(user_email)
-        monthly_limit, lifetime_limit = _quota_for_plan(user_plan)
-        used_lifetime, used_monthly = _get_usage(user_email)
-
-        def _remaining(limit, used):
-            return 10**9 if limit is None else max(0, int(limit) - int(used))
-
-        allowed = min(_remaining(monthly_limit, used_monthly), _remaining(lifetime_limit, used_lifetime))
-        if allowed <= 0:
-            flash("You've reached your monthly limit. Consider Plus for more.", "warning")
-            return redirect(url_for("browse"))
-
-        if generated_target > allowed:
-            flash(f"Your plan allows {allowed} more this month; generating the first {allowed}.", "warning")
-            keep = allowed
-            tag_list = tag_list[:keep]
-            keep -= len(tag_list)
-            if is_custom and keep <= 0:
-                is_custom = False
-
-        # Rebuild items_to_generate AFTER trimming
-        items_to_generate = []
-        for v in tag_list:
-            version, verse = extract_version_from_text(v, selected_version)
-            items_to_generate.append({
-                "slug": normalize_slug(verse),
-                "verse": verse,
-                "version": version.upper(),
-                "is_custom": False,
-                "text": None
-            })
-        if is_custom:
-            ai_validate_custom_text(custom_text)
-            title = custom_title or "Custom Text (User Submitted)"
-            items_to_generate.append({
-                "slug": normalize_slug(title),
-                "verse": title,
-                "version": "DIY",
-                "is_custom": True,
-                "text": custom_text
-            })
-
-        if len(items_to_generate) > MAX_WORKSHEETS_PER_REQUEST:
-            flash(
-                f"Please generate at most {MAX_WORKSHEETS_PER_REQUEST} worksheets at once. "
-                f"Keeping the first {MAX_WORKSHEETS_PER_REQUEST}.",
-                "warning",
-            )
-            items_to_generate = items_to_generate[:MAX_WORKSHEETS_PER_REQUEST]
-
-        last_pdf = None
-        free_skip_count = False
-        # If coming from a free collection, skip counting usage
-        if from_collection:
-            free_slugs = _get_free_slugs()
-            if from_collection.strip().lower() in free_slugs:
-                free_skip_count = True
-
-        success_count = 0
-        bundle_files = []
-        for item in items_to_generate:
-            # initial metadata from input
-            input_slug = item["slug"]
-            version = item["version"]
-            verse = item["verse"]  # may be a query string; will be replaced by canonical ref if available
-            is_custom = item["is_custom"]
-            text = item["text"]
-            # temporary path before we possibly update with canonical reference
-            pdf_path = f"output/{input_slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
-            last_pdf = pdf_path
-
-            existing = db.collection("worksheets").where(filter=firestore.FieldFilter("email", "==", user_email))\
-                .where(filter=firestore.FieldFilter("verse", "==", verse))\
-                .where(filter=firestore.FieldFilter("version", "==", version))\
-                .where(filter=firestore.FieldFilter("cursive", "==", use_cursive)).limit(1).stream() if db else []
-            doc = next(existing, None)
-            if doc:
-                existing_path = os.path.join("output", doc.to_dict().get("filename"))
-                if os.path.exists(existing_path):
-                    try:
-                        flash("Already generated — using your existing PDF.", "info")
-                    except Exception:
-                        pass
-                    last_pdf = existing_path
-                    bundle_files.append(existing_path)
-                    continue
-
-            if is_custom:
-                data = normalize_verse_data(
-                    {
-                        "verse": verse,
-                        "fullVerse": text,
-                        "traceableVerse": text,
-                        "handwritingLines": 3,
-                        "reflectionQuestion": "Why is this meaningful to you?",
-                        "imageIdea": custom_prompt,
-                        "version": "DIY",
-                        "cursive": use_cursive,
-                        "disclaimer": "This content was submitted by the user and not verified as Scripture."
-                    },
-                    verse,
-                    "DIY",
-                )
-            else:
-                # Try cache by input slug first
-                cached = db.collection("verse_cache").document(f"{input_slug}_{version}").get() if db else None
-                if cached and cached.exists:
-                    data = cached.to_dict()["data"]
-                else:
-                    content = request_verse_data(verse, version)
-                    if not content:
-                        flash(f"Verse fetch failed for {verse} ({version})", "error")
-                        continue
-                    data = parse_and_clean_json(content)
-                    data = normalize_verse_data(data, verse, version)
-                    data.update({"version": version, "cursive": use_cursive})
-                    # Save cache under canonical reference slug if available
-                    canonical_ref = data.get("verse") or verse
-                    canonical_slug = normalize_slug(canonical_ref)
-                    if db:
-                        db.collection("verse_cache").document(f"{canonical_slug}_{version}").set({
-                            "verse": canonical_ref,
-                            "version": version,
-                            "slug": f"{canonical_slug}_{version}",
-                            "data": data,
-                            "timestamp": firestore.SERVER_TIMESTAMP
-                        })
-                    save_json_to_file(data, f"output/{canonical_slug}_{version}.json")
-
-            # Validate minimum fields before PDF
-            try:
-                if not isinstance(data, dict):
-                    raise ValueError("Invalid data from model")
-                # Ensure required fields or skip
-                if not data.get("verse"):
-                    data["verse"] = verse
-                # Preserve letter suffix from user input even if the model drops it.
-                data["verse"] = preserve_letter_suffix(verse, data.get("verse"))
-                data = normalize_verse_data(data, verse, version)
-                if not data.get("fullVerse"):
-                    flash(f"AI response missing fullVerse for {verse} ({version}); skipping.", "warning")
-                    continue
-                generate_pdf(data, pdf_path, use_cursive=use_cursive)
-            except Exception as e:
-                traceback.print_exc()
-                flash(f"Could not build PDF for {verse} ({version}): {e}", "error")
-                continue
-
-            # If this is a Bible verse (not custom), prefer the canonical verse reference
-            if not is_custom:
-                canonical_ref = preserve_letter_suffix(verse, data.get("verse") or verse)
-                data["verse"] = canonical_ref
-                canonical_slug = normalize_slug(canonical_ref)
-                # update pdf path and rename if necessary
-                desired_path = f"output/{canonical_slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
-                if pdf_path != desired_path and os.path.exists(pdf_path):
-                    os.replace(pdf_path, desired_path)
-                pdf_path = desired_path
-                # make thumbnail
-                make_thumbnail(canonical_ref, version, os.path.splitext(os.path.basename(pdf_path))[0])
-            else:
-                # custom: thumbnail with provided title
-                make_thumbnail(verse, version, os.path.splitext(os.path.basename(pdf_path))[0])
-
-            bundle_files.append(pdf_path)
-
-            if db:
-                db.collection("worksheets").add({
-                    "email": user_email,
-                    "verse": (data.get("verse") if not is_custom else verse),
-                    "version": version,
-                    "filename": os.path.basename(pdf_path),
-                    "timestamp": firestore.SERVER_TIMESTAMP,
-                    "cursive": use_cursive,
-                    "custom": is_custom,
-                    **({"text": text, "imageIdea": custom_prompt} if is_custom else {})
-                })
-
-            # Track last generated path for redirect/download
-            last_pdf = pdf_path
-            success_count += 1
-
-        # analytics: collection generate count
-        if db and from_collection:
-            try:
-                db.collection('analytics').document('pack_generates').set({ from_collection: firestore.Increment(1) }, merge=True)
-            except Exception:
-                pass
-
-        update_zip_bundle(bundle_files)
-        # Record usage increments (skip if free slug)
-        try:
-            if not free_skip_count:
-                _update_usage(user_email, success_count)
-        except Exception:
-            pass
-        session["clear_storage"] = True
-
-        if len(items_to_generate) == 1 and os.path.exists(last_pdf):
-            flash("Worksheet generated successfully!", "success")
-            return send_file(last_pdf, as_attachment=True, download_name=os.path.basename(last_pdf), conditional=True)
-        elif len(items_to_generate) > 1:
-            zip_path = "output/worksheets_bundle.zip"
-            if os.path.exists(zip_path):
-                flash("Bundle generated successfully!", "success")
-                return send_file(zip_path, as_attachment=True, download_name=os.path.basename(zip_path), conditional=True)
-
-        return "No worksheets were generated successfully", 500
-
-    except Exception as e:
-        traceback.print_exc()
-        return f"Server error: {e}", 500
-    """
 
 
 @app.route("/illustrate", methods=["GET", "POST"])

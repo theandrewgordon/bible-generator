@@ -37,15 +37,48 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (request.method === 'POST' || url.pathname.startsWith('/generate')) {
+  const privatePrefixes = [
+    '/admin',
+    '/api',
+    '/billing',
+    '/buy',
+    '/coloring',
+    '/create_checkout_session',
+    '/delete',
+    '/delete_bulk',
+    '/download',
+    '/downloads',
+    '/generate',
+    '/history',
+    '/illustrate',
+    '/lesson-pack/download',
+    '/lesson-pack/result',
+    '/login',
+    '/logout',
+    '/oauth',
+    '/packs',
+    '/plus/success',
+    '/prints',
+    '/regenerate',
+    '/stripe',
+    '/thumb',
+    '/toggle_favorite',
+    '/worship'
+  ];
+  const publicNavigations = new Set(['/', '/about', '/start-here', '/lesson-pack', '/scripture-attribution', '/browse', '/games', '/plus']);
+
+  if (request.method !== 'GET' || privatePrefixes.some((prefix) => url.pathname.startsWith(prefix))) {
     return;
   }
 
-  if (request.method !== 'GET' || !request.url.startsWith(self.location.origin)) {
+  if (!request.url.startsWith(self.location.origin)) {
     return;
   }
 
   if (request.mode === 'navigate') {
+    if (!publicNavigations.has(url.pathname)) {
+      return;
+    }
     event.respondWith(
       fetch(request)
         .then((response) => {

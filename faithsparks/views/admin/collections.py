@@ -13,6 +13,8 @@ from flask import (
     url_for,
     flash,
     jsonify,
+    current_app,
+    g,
 )
 from firebase_admin import firestore
 
@@ -55,8 +57,8 @@ def admin_seed_collections():
         batch.commit()
         return "Seeded collections from collections.json", 200
     except Exception as e:
-        traceback.print_exc()
-        return f"Seed error: {e}", 500
+        current_app.logger.exception("[%s] collection seed failed: %s", getattr(g, "req_id", ""), e)
+        return "Seed error. Check server logs.", 500
 
 
 def admin_collections():

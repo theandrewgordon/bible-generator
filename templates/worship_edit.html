@@ -242,11 +242,17 @@ var SONG_DATA = {{ song | tojson }};
   function refreshPreview(linesText, container) {
     var lines = (linesText || '').trim();
     if (!lines) { container.innerHTML = ''; return; }
-    var lyricLines = lines.split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
     var slides = [];
-    for (var i = 0; i < lyricLines.length; i += 4) {
-      slides.push({ lines: lyricLines.slice(i, i + 4) });
-    }
+    lines.split(/\n\s*\n/).forEach(function (groupText) {
+      var lyricLines = groupText.split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
+      var i = 0;
+      while (i < lyricLines.length) {
+        var remaining = lyricLines.length - i;
+        var size = remaining === 6 ? 3 : 5;
+        slides.push({ lines: lyricLines.slice(i, i + size) });
+        i += size;
+      }
+    });
     container.innerHTML = '';
     slides.forEach(function (slide, i) {
       var thumb = document.createElement('div');

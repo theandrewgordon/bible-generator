@@ -58,6 +58,27 @@ album:
         self.assertNotIn("Writer(s)", cleaned["lyrics"])
         self.assertNotIn("House Of Miracles", cleaned["lyrics"])
 
+    def test_clean_lyrics_site_paste_removes_placeholder_and_feature_credit(self):
+        pasted = '''"Behold Him" lyrics
+Paul Baloche Lyrics
+"Behold Him"
+(feat. Kim Walker-Smith)
+
+Holy, holy, holy
+Is the Lord God Almighty
+...
+
+Jesus
+Son of God, Messiah
+'''
+
+        cleaned = app._clean_lyrics_site_paste(pasted)
+
+        self.assertNotIn("feat.", cleaned["lyrics"])
+        self.assertNotIn("...", cleaned["lyrics"])
+        self.assertIn("Holy, holy, holy", cleaned["lyrics"])
+        self.assertIn("Jesus", cleaned["lyrics"])
+
     def test_fallback_parse_creates_parts_and_arrangement(self):
         pasted = '''"Sample Song" lyrics
 Example Artist Lyrics
@@ -122,6 +143,19 @@ Shared chorus line
         self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus"])
         self.assertEqual(parsed["parts"]["verse1"], ["First verse line", "Second verse line"])
         self.assertEqual(parsed["parts"]["chorus"], ["Shared chorus line"])
+
+    def test_chunk_lines_keeps_five_line_hymn_stanzas_together(self):
+        slides = app.chunk_lines([
+            "Line one",
+            "Line two",
+            "Line three",
+            "Line four",
+            "Line five",
+        ])
+
+        self.assertEqual(len(slides), 1)
+        self.assertEqual(len(slides[0]["lines"]), 5)
+        self.assertEqual(slides[0]["font_size"], 42)
 
     def test_fallback_parse_handles_inline_refrain_markers(self):
         pasted = """"Hymn With Refrain" lyrics

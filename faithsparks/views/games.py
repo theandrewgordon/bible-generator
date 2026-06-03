@@ -15,6 +15,8 @@ from faithsparks.services.collections import get_collections, get_collection_met
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
+from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.util.request_utils import get_client_ip
 from build_games import generate_match_game_pdf, generate_word_search_pdf, generate_crossword_pdf, MatchItem
 from verse_helpers import (
     request_verse_data,
@@ -131,6 +133,12 @@ STORY_TOPIC_SUGGESTIONS = WARM_TOPIC_SUGGESTIONS
 
 _PRICE_META_CACHE: dict[str, tuple[float, dict | None]] = {}
 _PRICE_META_TTL = 300
+MAX_GAME_TITLE_LEN = 120
+MAX_GAME_REFERENCES_LEN = 1200
+MAX_GAME_THEME_LEN = 160
+MAX_GAME_ITEMS_LEN = 3000
+MAX_GAME_WORDS_LEN = 1200
+MAX_GAMES_WORDS_REFS_LEN = 1200
 
 def _get_cached_price_meta(pid: str) -> dict | None:
     now = time.time()
@@ -556,6 +564,20 @@ def games_create():
     game_items_raw = normalize_multiline(request.form.get("gameItems") or "")
     game_words_raw = normalize_multiline(request.form.get("gameWords") or "")
     word_action = (request.form.get("wordAction") or "").strip().lower()
+    if (
+        len(raw_title) > MAX_GAME_TITLE_LEN
+        or len(refs_raw) > MAX_GAME_REFERENCES_LEN
+        or len(theme) > MAX_GAME_THEME_LEN
+        or len(game_items_raw) > MAX_GAME_ITEMS_LEN
+        or len(game_words_raw) > MAX_GAME_WORDS_LEN
+    ):
+        flash("Please shorten the game details and try again.", "warning")
+        return redirect(url_for("games_create"))
+    user_limit = check_rate_limit("games_create:user", email or get_client_ip(), limit=12, window_seconds=60 * 60)
+    ip_limit = check_rate_limit("games_create:ip", get_client_ip(), limit=30, window_seconds=60 * 60)
+    if not user_limit.allowed or not ip_limit.allowed:
+        flash("You've made several game requests recently. Please wait a bit before creating more.", "warning")
+        return redirect(url_for("games_create"))
 
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
     game_items = []
@@ -736,6 +758,13 @@ def games_words():
 
     payload = request.get_json(silent=True) or {}
     refs_raw = (payload.get("refs") or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
+    if len(refs_raw) > MAX_GAMES_WORDS_REFS_LEN:
+        return jsonify({"error": "Please shorten the reference list and try again."}), 400
+    rate_key = session.get("user_email") or get_client_ip()
+    user_limit = check_rate_limit("games_words:user", rate_key, limit=30, window_seconds=60 * 60)
+    ip_limit = check_rate_limit("games_words:ip", get_client_ip(), limit=90, window_seconds=60 * 60)
+    if not user_limit.allowed or not ip_limit.allowed:
+        return jsonify({"error": "Please wait a bit before building another word list."}), 429
     version = (payload.get("version") or "nlt").strip().lower()
     difficulty = _normalize_difficulty(payload.get("difficulty") or "standard")
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]

@@ -44,13 +44,18 @@ from faithsparks.services.usage import (
     _get_free_slugs,
 )
 from faithsparks.services.collections import get_collection_meta
+from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.util.slug import normalize_slug
-from faithsparks.util.request_utils import get_request_payload, log_request_summary
+from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.util.proverb import get_proverb_of_day
 
 
 MAX_WORKSHEETS_PER_REQUEST = 30
 OPENAI_BATCH_SIZE = 10
+MAX_VERSE_INPUT_LEN = 1200
+MAX_CUSTOM_TEXT_LEN = 2500
+MAX_CUSTOM_TITLE_LEN = 120
+MAX_CUSTOM_PROMPT_LEN = 300
 
 
 def _safe_local_path(base_dir: str, filename: str, allowed_exts: set[str] | None = None) -> Path | None:
@@ -231,6 +236,17 @@ def generate():
         custom_title = (payload.get("custom_title") or "").strip()
         selected_version = (payload.get("version") or "nlt").strip().lower()
         custom_prompt = (payload.get("custom_prompt") or "").strip()
+        if (
+            len(verse_input) > MAX_VERSE_INPUT_LEN
+            or len(custom_text) > MAX_CUSTOM_TEXT_LEN
+            or len(custom_title) > MAX_CUSTOM_TITLE_LEN
+            or len(custom_prompt) > MAX_CUSTOM_PROMPT_LEN
+        ):
+            msg = "Please shorten your worksheet request and try again."
+            if request.is_json:
+                return jsonify(error=msg), 400
+            flash(msg, "warning")
+            return redirect(url_for("generate"))
 
         cursive_raw = payload.get("cursive")
         use_cursive = False
@@ -241,6 +257,14 @@ def generate():
         else:
             use_cursive = False
         user_email = session.get("user_email", "anonymous")
+        user_limit = check_rate_limit("worksheet_generate:user", user_email, limit=24, window_seconds=60 * 60)
+        ip_limit = check_rate_limit("worksheet_generate:ip", get_client_ip(), limit=60, window_seconds=60 * 60)
+        if not user_limit.allowed or not ip_limit.allowed:
+            msg = "You've made several worksheet requests recently. Please wait a bit before creating more."
+            if request.is_json:
+                return jsonify(error=msg), 429
+            flash(msg, "warning")
+            return redirect(url_for("generate"))
 
         tag_list = [v.strip() for v in re.split(r"[,;\n]+", verse_input) if v.strip()]
         verse_items = []
@@ -552,8 +576,11 @@ def generate():
         return "No worksheets were generated successfully", 500
 
     except Exception as e:
-        traceback.print_exc()
-        return f"Server error: {e}", 500
+        current_app.logger.exception("[%s] worksheet generation failed: %s", getattr(g, "req_id", ""), e)
+        if request.is_json:
+            return jsonify(error="We couldn't generate that worksheet yet. Please try again."), 500
+        flash("We couldn't generate that worksheet yet. Please try again.", "error")
+        return redirect(url_for("generate"))
 
 
 def delete_worksheet(filename):
@@ -657,8 +684,9 @@ def history():
             proverb_of_day=get_proverb_of_day(),
         )
     except Exception as e:
-        traceback.print_exc()
-        return f"Error fetching history: {e}", 500
+        current_app.logger.exception("[%s] worksheet history failed: %s", getattr(g, "req_id", ""), e)
+        flash("We couldn't load your print history. Please try again.", "error")
+        return redirect(url_for("generate"))
 
 
 def download_file(filename):
@@ -779,10 +807,13 @@ def regenerate(filename):
             flash(f"Regenerated: {filename}", "success")
             return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
         else:
-            return f"PDF not created: {pdf_path}", 500
+            current_app.logger.error("[%s] regenerate produced no PDF: %s", getattr(g, "req_id", ""), pdf_path)
+            flash("We couldn't rebuild that worksheet yet. Please try again.", "error")
+            return redirect(url_for("prints"))
     except Exception as e:
-        traceback.print_exc()
-        return f"Regenerate error: {e}", 500
+        current_app.logger.exception("[%s] regenerate failed: %s", getattr(g, "req_id", ""), e)
+        flash("We couldn't rebuild that worksheet yet. Please try again.", "error")
+        return redirect(url_for("prints"))
 
 
 def toggle_favorite(filename):
