@@ -521,8 +521,8 @@ def billing_portal():
         ps = stripe.billing_portal.Session.create(customer=cid, return_url=url_for("public.index", _external=True))
         return redirect(ps.url)
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Billing portal error: {e}", "error")
+        current_app.logger.exception("[%s] billing portal error: %s", getattr(g, "req_id", ""), e)
+        flash("We couldn't open the billing portal yet. Please try again in a moment.", "error")
         return redirect(url_for("plus_pricing"))
 
 

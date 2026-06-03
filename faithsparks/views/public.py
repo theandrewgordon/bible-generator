@@ -9,6 +9,7 @@ from faithsparks.services.collections import get_collections
 from faithsparks.services.lesson_pack import create_lesson_pack
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.firestore import db
+from faithsparks.services.storage import signed_url_for_path
 from faithsparks.util.request_utils import get_client_ip
 
 
@@ -66,6 +67,28 @@ def _too_long(value: str, max_len: int) -> bool:
     return len(value or "") > max_len
 
 
+def _lesson_pack_storage_paths(owned: dict, slug: str) -> tuple[str | None, str | None]:
+    pdf_storage_path = owned.get("pdf_storage_path") or f"lesson_packs/{slug}/{slug}.pdf"
+    zip_storage_path = owned.get("zip_storage_path") or f"lesson_packs/{slug}/{slug}.zip"
+    return pdf_storage_path, zip_storage_path
+
+
+def _lesson_pack_local_paths(slug: str) -> tuple[Path, Path]:
+    pack_dir = Path('output') / 'lesson_packs' / slug
+    return pack_dir / f'{slug}.pdf', pack_dir / f'{slug}.zip'
+
+
+def _lesson_pack_artifact_available(owned: dict, slug: str) -> bool:
+    pdf_path, zip_path = _lesson_pack_local_paths(slug)
+    if pdf_path.exists() or zip_path.exists():
+        return True
+    pdf_storage_path, zip_storage_path = _lesson_pack_storage_paths(owned, slug)
+    return bool(
+        (pdf_storage_path and signed_url_for_path(pdf_storage_path, minutes=10))
+        or (zip_storage_path and signed_url_for_path(zip_storage_path, minutes=10))
+    )
+
+
 @bp.route('/')
 def index():
     if google.authorized:
@@ -109,14 +132,6 @@ def lesson_pack():
     if not _is_signed_in():
         return _require_login()
 
-    user_key = session.get("user_email") or get_client_ip()
-    ip_key = get_client_ip()
-    user_limit = check_rate_limit("lesson_pack:user", user_key, limit=6, window_seconds=60 * 60)
-    ip_limit = check_rate_limit("lesson_pack:ip", ip_key, limit=18, window_seconds=60 * 60)
-    if not user_limit.allowed or not ip_limit.allowed:
-        flash("You've made several lesson packs recently. Please wait a bit before creating another.", "warning")
-        return redirect(url_for('public.lesson_pack'))
-
     verse_input = (request.form.get('verse') or '').strip()
     version = (request.form.get('version') or 'nlt').strip().lower()
     age_bracket = (request.form.get('age_bracket') or '6-8').strip()
@@ -130,6 +145,14 @@ def lesson_pack():
         or _too_long(age_bracket, MAX_LESSON_PACK_AGE_LEN)
     ):
         flash("Please shorten the lesson pack details and try again.", "warning")
+        return redirect(url_for('public.lesson_pack'))
+
+    user_key = session.get("user_email") or get_client_ip()
+    ip_key = get_client_ip()
+    user_limit = check_rate_limit("lesson_pack:user", user_key, limit=6, window_seconds=60 * 60)
+    ip_limit = check_rate_limit("lesson_pack:ip", ip_key, limit=18, window_seconds=60 * 60)
+    if not user_limit.allowed or not ip_limit.allowed:
+        flash("You've made several lesson packs recently. Please wait a bit before creating another.", "warning")
         return redirect(url_for('public.lesson_pack'))
 
     try:
@@ -162,16 +185,16 @@ def lesson_pack_result(slug):
     owned = _owned_lesson_pack(slug)
     if not owned:
         abort(404)
-    zip_path = Path('output') / 'lesson_packs' / slug / f'{slug}.zip'
-    if not zip_path.exists():
-        flash('That pack is no longer available — packs are kept until the server restarts. Build a new one below.', 'warning')
+    if not _lesson_pack_artifact_available(owned, slug):
+        flash('That pack is no longer available. Build a new one below.', 'warning')
         return redirect(url_for('public.lesson_pack'))
+    _, zip_path = _lesson_pack_local_paths(slug)
     title = owned.get('title') or slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
     return render_template(
         'lesson_pack_result.html',
         slug=slug,
         title=title,
-        has_coloring=(zip_path.stat().st_size > 50_000),  # rough proxy
+        has_coloring=(zip_path.exists() and zip_path.stat().st_size > 50_000),  # rough proxy
     )
 
 
@@ -181,11 +204,10 @@ def lesson_pack_download(slug):
         return _require_login()
     if not _valid_lesson_pack_slug(slug):
         abort(404)
-    if not _owned_lesson_pack(slug):
+    owned = _owned_lesson_pack(slug)
+    if not owned:
         abort(404)
-    pack_dir = Path('output') / 'lesson_packs' / slug
-    pdf_path = pack_dir / f'{slug}.pdf'
-    zip_path = pack_dir / f'{slug}.zip'
+    pdf_path, zip_path = _lesson_pack_local_paths(slug)
     if pdf_path.exists():
         return send_file(
             pdf_path,
@@ -200,6 +222,13 @@ def lesson_pack_download(slug):
             download_name=f'{slug}.zip',
             mimetype='application/zip',
         )
+    pdf_storage_path, zip_storage_path = _lesson_pack_storage_paths(owned, slug)
+    signed_pdf = signed_url_for_path(pdf_storage_path) if pdf_storage_path else None
+    if signed_pdf:
+        return redirect(signed_pdf)
+    signed_zip = signed_url_for_path(zip_storage_path) if zip_storage_path else None
+    if signed_zip:
+        return redirect(signed_zip)
     abort(404)
 
 

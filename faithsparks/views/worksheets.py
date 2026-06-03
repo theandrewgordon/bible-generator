@@ -257,15 +257,6 @@ def generate():
         else:
             use_cursive = False
         user_email = session.get("user_email", "anonymous")
-        user_limit = check_rate_limit("worksheet_generate:user", user_email, limit=24, window_seconds=60 * 60)
-        ip_limit = check_rate_limit("worksheet_generate:ip", get_client_ip(), limit=60, window_seconds=60 * 60)
-        if not user_limit.allowed or not ip_limit.allowed:
-            msg = "You've made several worksheet requests recently. Please wait a bit before creating more."
-            if request.is_json:
-                return jsonify(error=msg), 429
-            flash(msg, "warning")
-            return redirect(url_for("generate"))
-
         tag_list = [v.strip() for v in re.split(r"[,;\n]+", verse_input) if v.strip()]
         verse_items = []
         for v in tag_list:
@@ -277,6 +268,19 @@ def generate():
                 "is_custom": False,
                 "text": None,
             })
+
+        if not verse_items and not custom_text:
+            flash("Please enter a verse or custom text to generate.", "warning")
+            return redirect(url_for("generate"))
+
+        user_limit = check_rate_limit("worksheet_generate:user", user_email, limit=24, window_seconds=60 * 60)
+        ip_limit = check_rate_limit("worksheet_generate:ip", get_client_ip(), limit=60, window_seconds=60 * 60)
+        if not user_limit.allowed or not ip_limit.allowed:
+            msg = "You've made several worksheet requests recently. Please wait a bit before creating more."
+            if request.is_json:
+                return jsonify(error=msg), 429
+            flash(msg, "warning")
+            return redirect(url_for("generate"))
 
         custom_item = None
         if custom_text:
@@ -492,8 +496,14 @@ def generate():
                     save_json_to_file(data, ctx["json_path"])
                     generate_pdf(data, ctx["pdf_path"], use_cursive=use_cursive)
                 except Exception as e:
-                    traceback.print_exc()
-                    flash(f"Could not build PDF for {ctx['verse']} ({ctx['version']}): {e}", "error")
+                    current_app.logger.exception(
+                        "[%s] worksheet pdf build failed for %s (%s): %s",
+                        getattr(g, "req_id", ""),
+                        ctx["verse"],
+                        ctx["version"],
+                        e,
+                    )
+                    flash(f"Could not build PDF for {ctx['verse']} ({ctx['version']}). Please try again.", "error")
                     continue
 
                 if not ctx["is_custom"]:
@@ -596,8 +606,8 @@ def delete_worksheet(filename):
         _delete_owned_worksheet_file(filename, meta)
         flash("Worksheet deleted successfully.", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Error deleting worksheet: {e}", "error")
+        current_app.logger.exception("[%s] worksheet delete failed: %s", getattr(g, "req_id", ""), e)
+        flash("Error deleting worksheet. Please try again.", "error")
     return redirect(url_for("prints"))
 
 
@@ -615,8 +625,8 @@ def delete_bulk():
             _delete_owned_worksheet_file(filename, meta)
         flash("Selected worksheets deleted.", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Error deleting worksheets: {e}", "error")
+        current_app.logger.exception("[%s] bulk worksheet delete failed: %s", getattr(g, "req_id", ""), e)
+        flash("Error deleting worksheets. Please try again.", "error")
     return redirect(url_for("prints"))
 
 

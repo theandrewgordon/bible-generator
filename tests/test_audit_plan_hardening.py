@@ -96,6 +96,34 @@ class AuditPlanHardeningTests(unittest.TestCase):
         self.assertTrue(owner_doc.set_calls)
         self.assertEqual(owner_doc.set_calls[-1][0]["email"], "owner@example.com")
 
+    def test_cached_lesson_pack_rejects_missing_artifact_paths(self):
+        cached = {
+            "slug": "gods-love-john-3-16-nlt",
+            "combined_pdf": "",
+            "zip_path": "",
+            "pdf_storage_path": "",
+            "zip_storage_path": "",
+        }
+
+        with mock.patch.object(lesson_pack, "blob_exists", return_value=False):
+            self.assertFalse(lesson_pack._cached_lesson_pack_has_artifact(cached))
+
+    def test_lesson_pack_download_redirects_to_owned_storage_artifact(self):
+        owned = {
+            "slug": "gods-love-john-3-16-nlt",
+            "pdf_storage_path": "lesson_packs/gods-love-john-3-16-nlt/gods-love-john-3-16-nlt.pdf",
+        }
+        with app.app.test_request_context("/lesson-pack/download/gods-love-john-3-16-nlt"):
+            app.g.flask_dance_google = SimpleNamespace(authorized=True)
+            app.session["user_email"] = "owner@example.com"
+            with mock.patch.object(public, "_owned_lesson_pack", return_value=owned), \
+                mock.patch.object(public.Path, "exists", return_value=False), \
+                mock.patch.object(public, "signed_url_for_path", return_value="https://storage.example/signed.pdf"):
+                response = public.lesson_pack_download("gods-love-john-3-16-nlt")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "https://storage.example/signed.pdf")
+
     def test_memory_rate_limit_blocks_after_limit(self):
         reset_memory_limits()
         self.assertTrue(check_rate_limit("test", "key", limit=1, window_seconds=60).allowed)
@@ -113,11 +141,12 @@ class AuditPlanHardeningTests(unittest.TestCase):
         self.assertEqual(status, 429)
         self.assertIn("Please wait", response.get_json()["error"])
 
-    def test_service_worker_bypasses_private_routes(self):
+    def test_service_worker_caches_assets_only(self):
         sw = Path("static/service-worker.js").read_text()
-        self.assertIn("'/download'", sw)
-        self.assertIn("'/lesson-pack/result'", sw)
-        self.assertIn("privatePrefixes.some", sw)
+        self.assertNotIn("'/'", sw)
+        self.assertIn("request.mode === 'navigate'", sw)
+        self.assertIn("url.pathname.startsWith('/static/')", sw)
+        self.assertNotIn("publicNavigations", sw)
 
     def test_stripe_checkout_error_does_not_echo_exception(self):
         original_stripe = billing.stripe

@@ -458,4 +458,5 @@ def admin_prewarm_status(slug):
             safe["zipUrl"] = data.get("zipUrl")
         return jsonify(safe), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("[%s] admin prewarm status failed: %s", getattr(g, "req_id", ""), e)
+        return jsonify({"error": "Prewarm status failed."}), 500

@@ -1,6 +1,5 @@
 import re
-import traceback
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, current_app, g
 from faithsparks.services.firestore import db
 from faithsparks.services.collections import get_collections
 
@@ -48,8 +47,8 @@ def admin_content():
                     else:
                         flash(f'Applied preset: {name}', 'success')
             except Exception as e:
-                traceback.print_exc()
-                flash(f'Error applying preset: {e}', 'error')
+                current_app.logger.exception("[%s] admin content apply preset failed: %s", getattr(g, "req_id", ""), e)
+                flash('Error applying preset. Please try again.', 'error')
             return redirect(url_for('admin_content'))
         elif action == 'save_preset':
             name = (request.form.get('new_preset_name') or '').strip()
@@ -84,8 +83,8 @@ def admin_content():
                 db.collection('config').document('content').set({ 'contentPresets': presets }, merge=True)
                 flash(f'Saved preset: {name}', 'success')
             except Exception as e:
-                traceback.print_exc()
-                flash(f'Error saving preset: {e}', 'error')
+                current_app.logger.exception("[%s] admin content save preset failed: %s", getattr(g, "req_id", ""), e)
+                flash('Error saving preset. Please try again.', 'error')
             return redirect(url_for('admin_content'))
         else:
             payload = {
@@ -120,7 +119,7 @@ def admin_content():
                     db.collection('config').document('app').set({ 'freeSlugs': sorted(list(set(all_slugs))) }, merge=True)
                 flash('Content saved', 'success')
             except Exception as e:
-                traceback.print_exc()
-                flash(f'Error saving: {e}', 'error')
+                current_app.logger.exception("[%s] admin content save failed: %s", getattr(g, "req_id", ""), e)
+                flash('Error saving content. Please try again.', 'error')
             return redirect(url_for('admin_content'))
     return render_template('admin_content.html', data=data, free_slugs=free_slugs, collections_list=collections_list)

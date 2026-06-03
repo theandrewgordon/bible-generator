@@ -2921,7 +2921,8 @@ def worship_add_parse():
         try:
             fetched_text = _fetch_worship_import_text(import_url)
         except Exception as e:
-            flash(f"Could not read that song link: {e}", "error")
+            app.logger.warning("worship_add_parse: import failed: %s", e, exc_info=True)
+            flash("Could not read that song link. Please paste the lyrics directly and try again.", "error")
             return redirect(url_for("worship_add"))
         raw_lyrics = "\n\n".join(part for part in [raw_lyrics, fetched_text] if part)
 
@@ -3060,7 +3061,7 @@ Malformed response:
         app.logger.error("worship_add_parse: AI returned invalid JSON: %s", e)
         parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not parsed:
-            flash(f"AI returned invalid JSON: {e}", "error")
+            flash("We couldn't structure those lyrics yet. Please check the text and try again.", "error")
             return redirect(url_for("worship_add"))
         fallback_reason = f"AI returned malformed JSON, so Faith Sparks auto-structured the sections."
         flash(fallback_reason, "warning")
@@ -3069,7 +3070,7 @@ Malformed response:
         app.logger.error("worship_add_parse: OpenAI call failed: %s", e, exc_info=True)
         parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not parsed:
-            flash(f"AI parse failed: {e}", "error")
+            flash("We couldn't structure those lyrics yet. Please check the text and try again.", "error")
             return redirect(url_for("worship_add"))
         fallback_reason = f"AI call failed ({type(e).__name__}), so Faith Sparks auto-structured the sections."
         flash(fallback_reason, "warning")

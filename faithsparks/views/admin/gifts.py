@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-import traceback
-from flask import render_template, request, redirect, url_for, session, flash
+from flask import render_template, request, redirect, url_for, session, flash, current_app, g
 from firebase_admin import firestore
 from faithsparks.services.firestore import db
 
@@ -19,8 +18,8 @@ def admin_gift():
                 db.collection('users').document(email).set({ 'plan': 'free', 'isPro': False, 'gifted': False, 'giftExpiresAt': None, 'updatedAt': firestore.SERVER_TIMESTAMP }, merge=True)
                 flash('Gift revoked', 'success')
             except Exception as e:
-                traceback.print_exc()
-                flash(f'Revoke failed: {e}', 'error')
+                current_app.logger.exception("[%s] admin gift revoke failed: %s", getattr(g, "req_id", ""), e)
+                flash('Revoke failed. Please try again.', 'error')
             return redirect(url_for('admin_gift'))
         # default: create/update gift
         email = (request.form.get('email') or '').strip().lower()
@@ -52,8 +51,8 @@ def admin_gift():
                 pass
             flash('Gift plan saved', 'success')
         except Exception as e:
-            traceback.print_exc()
-            flash(f'Gift save failed: {e}', 'error')
+            current_app.logger.exception("[%s] admin gift save failed: %s", getattr(g, "req_id", ""), e)
+            flash('Gift save failed. Please try again.', 'error')
         return redirect(url_for('admin_gift'))
     # GET
     gifts = []
@@ -73,4 +72,3 @@ def admin_gift():
         except Exception:
             gifted_users = []
     return render_template('admin_gift.html', gifts=gifts, gifted_users=gifted_users)
-

@@ -573,12 +573,6 @@ def games_create():
     ):
         flash("Please shorten the game details and try again.", "warning")
         return redirect(url_for("games_create"))
-    user_limit = check_rate_limit("games_create:user", email or get_client_ip(), limit=12, window_seconds=60 * 60)
-    ip_limit = check_rate_limit("games_create:ip", get_client_ip(), limit=30, window_seconds=60 * 60)
-    if not user_limit.allowed or not ip_limit.allowed:
-        flash("You've made several game requests recently. Please wait a bit before creating more.", "warning")
-        return redirect(url_for("games_create"))
-
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
     game_items = []
     for line in (game_items_raw or "").splitlines():
@@ -661,6 +655,12 @@ def games_create():
             story_topics=STORY_TOPIC_SUGGESTIONS,
             form_state=build_form_state(game_words, confirmed=confirm_words),
         )
+
+    user_limit = check_rate_limit("games_create:user", email or get_client_ip(), limit=12, window_seconds=60 * 60)
+    ip_limit = check_rate_limit("games_create:ip", get_client_ip(), limit=30, window_seconds=60 * 60)
+    if not user_limit.allowed or not ip_limit.allowed:
+        flash("You've made several game requests recently. Please wait a bit before creating more.", "warning")
+        return redirect(url_for("games_create"))
 
     plan = _get_user_plan(email)
     m_limit, l_limit = _quota_for_plan(plan)

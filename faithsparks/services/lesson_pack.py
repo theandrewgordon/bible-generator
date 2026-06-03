@@ -8,6 +8,7 @@ from pathlib import Path
 
 from firebase_admin import firestore
 from faithsparks.services.firestore import db
+from faithsparks.services.storage import blob_exists, upload_to_storage
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -288,6 +289,7 @@ def _write_parent_guide_pdf(
 
 
 LESSON_PACK_CACHE_COLLECTION = "lesson_pack_cache"
+LESSON_PACK_OUTPUT_DIR = Path("output") / "lesson_packs"
 
 
 def _lesson_pack_user_doc_id(user_email: str, slug: str) -> str:
@@ -311,8 +313,10 @@ def _record_user_lesson_pack(user_email: str, result: dict, *, mark_created: boo
         "use_cursive": bool(result.get("use_cursive") or result.get("useCursive")),
         "pdf_filename": f"{slug}.pdf" if result.get("combined_pdf") or result.get("pdf_path") else None,
         "pdf_path": result.get("combined_pdf") or result.get("pdf_path"),
+        "pdf_storage_path": result.get("pdf_storage_path"),
         "zip_filename": f"{slug}.zip",
         "zip_path": result.get("zip_path"),
+        "zip_storage_path": result.get("zip_storage_path"),
         "cache_key": result.get("cache_key"),
         "type": "lesson_pack",
         "updated_at": firestore.SERVER_TIMESTAMP,
@@ -353,6 +357,44 @@ def _store_cached_lesson_pack(cache_key: str, payload: dict) -> None:
         pass
 
 
+def _lesson_pack_storage_path(slug: str, filename: str) -> str:
+    return f"lesson_packs/{slug}/{filename}"
+
+
+def _safe_cached_pack_path(raw_path: str | None, slug: str, suffix: str) -> Path | None:
+    if not raw_path:
+        return None
+    candidate = Path(raw_path)
+    if candidate.suffix.lower() != suffix:
+        return None
+    try:
+        base = LESSON_PACK_OUTPUT_DIR.resolve()
+        resolved = candidate.resolve()
+        expected_dir = (LESSON_PACK_OUTPUT_DIR / slug).resolve()
+        if base not in resolved.parents or expected_dir not in resolved.parents:
+            return None
+    except Exception:
+        return None
+    return candidate if candidate.exists() else None
+
+
+def _cached_lesson_pack_has_artifact(cached_pack: dict) -> bool:
+    slug = cached_pack.get("slug")
+    if not slug or not re.fullmatch(r"[a-z0-9\-]+", slug):
+        return False
+    pdf_path = _safe_cached_pack_path(cached_pack.get("combined_pdf") or cached_pack.get("pdf_path"), slug, ".pdf")
+    zip_path = _safe_cached_pack_path(cached_pack.get("zip_path"), slug, ".zip")
+    fallback_pdf = LESSON_PACK_OUTPUT_DIR / slug / f"{slug}.pdf"
+    fallback_zip = LESSON_PACK_OUTPUT_DIR / slug / f"{slug}.zip"
+    if pdf_path or zip_path or fallback_pdf.exists() or fallback_zip.exists():
+        return True
+    storage_paths = [
+        cached_pack.get("pdf_storage_path") or _lesson_pack_storage_path(slug, f"{slug}.pdf"),
+        cached_pack.get("zip_storage_path") or _lesson_pack_storage_path(slug, f"{slug}.zip"),
+    ]
+    return any(blob_exists(path) for path in storage_paths if path)
+
+
 def create_lesson_pack(
     *,
     user_email: str,
@@ -382,16 +424,9 @@ def create_lesson_pack(
 
     cache_key = _lesson_pack_cache_key(normalized["verse"], normalized["version"], age_bracket, use_cursive)
     cached_pack = _load_cached_lesson_pack(cache_key)
-    if cached_pack:
-        cached_pdf = Path(cached_pack.get("combined_pdf") or cached_pack.get("pdf_path") or "")
-        cached_zip = Path(cached_pack.get("zip_path") or "")
-        if not cached_pdf and cached_pack.get("slug"):
-            cached_pdf = Path("output") / "lesson_packs" / cached_pack["slug"] / f"{cached_pack['slug']}.pdf"
-        if not cached_zip and cached_pack.get("slug"):
-            cached_zip = Path("output") / "lesson_packs" / cached_pack["slug"] / f"{cached_pack['slug']}.zip"
-        if (cached_pdf and cached_pdf.exists()) or (cached_zip and cached_zip.exists()):
-            _record_user_lesson_pack(user_email, cached_pack)
-            return cached_pack
+    if cached_pack and _cached_lesson_pack_has_artifact(cached_pack):
+        _record_user_lesson_pack(user_email, cached_pack)
+        return cached_pack
 
     meaning = _clean_meaning_text(
         request_verse_meaning(normalized["verse"], normalized["fullVerse"], version=normalized["version"]),
@@ -403,7 +438,7 @@ def create_lesson_pack(
     )
     pack_title = f"{theme_label} Lesson Pack"
     slug = re.sub(r"[^a-z0-9]+", "-", f"{pack_title}-{normalized['verse']}-{normalized['version']}".lower()).strip("-")
-    pack_dir = Path("output") / "lesson_packs" / slug
+    pack_dir = LESSON_PACK_OUTPUT_DIR / slug
     pack_dir.mkdir(parents=True, exist_ok=True)
 
     worksheet_pdf = pack_dir / f"{slug}-worksheet.pdf"
@@ -471,6 +506,12 @@ def create_lesson_pack(
             if path and path.exists():
                 zf.write(path, arcname=path.name)
 
+    pdf_storage_path = _lesson_pack_storage_path(slug, f"{slug}.pdf") if combined_ok else None
+    zip_storage_path = _lesson_pack_storage_path(slug, f"{slug}.zip")
+    if combined_ok:
+        upload_to_storage(str(combined_pdf), pdf_storage_path)
+    upload_to_storage(str(zip_path), zip_storage_path)
+
     result = {
         "slug": slug,
         "title": pack_title,
@@ -487,7 +528,9 @@ def create_lesson_pack(
         "guide_pdf": str(guide_pdf),
         "manifest_json": str(manifest_json),
         "combined_pdf": str(combined_pdf) if combined_ok else None,
+        "pdf_storage_path": pdf_storage_path,
         "zip_path": str(zip_path),
+        "zip_storage_path": zip_storage_path,
         "word_search_words": word_search_words,
         "cache_key": cache_key,
     }

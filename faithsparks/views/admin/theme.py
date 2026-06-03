@@ -1,8 +1,7 @@
 import os
-import traceback
 from datetime import datetime, timezone
 
-from flask import render_template, request, redirect, url_for, flash, jsonify, session
+from flask import render_template, request, redirect, url_for, flash, jsonify, session, current_app, g
 from werkzeug.utils import secure_filename
 from firebase_admin import firestore
 
@@ -14,6 +13,10 @@ from faithsparks.services.themes import (
     list_all_themes,
     get_theme_vars,
 )
+
+
+def _log_admin_theme_error(message: str, exc: Exception) -> None:
+    current_app.logger.exception("[%s] admin theme %s: %s", getattr(g, "req_id", ""), message, exc)
 
 
 def admin_theme_preview():
@@ -36,7 +39,8 @@ def admin_theme_preview():
             return jsonify({"ok": True, "theme": sel})
         return jsonify({"ok": False, "error": "Unknown theme"}), 400
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        _log_admin_theme_error("preview failed", e)
+        return jsonify({"ok": False, "error": "Theme preview failed."}), 500
 
 
 def admin_theme():
@@ -54,8 +58,8 @@ def admin_theme():
             db.collection("config").document("app").set({"theme": sel}, merge=True)
             flash("Theme updated", "success")
         except Exception as e:
-            traceback.print_exc()
-            flash(f"Error saving theme: {e}", "error")
+            _log_admin_theme_error("save failed", e)
+            flash("Error saving theme. Please try again.", "error")
         return redirect(url_for("admin_theme"))
     auto = {}
     autoThemes = []
@@ -103,8 +107,8 @@ def admin_theme_new():
             flash("Theme created", "success")
             return redirect(url_for("admin_theme"))
         except Exception as e:
-            traceback.print_exc()
-            flash(f"Error saving theme: {e}", "error")
+            _log_admin_theme_error("create failed", e)
+            flash("Error saving theme. Please try again.", "error")
             return render_template("admin_theme_form.html", mode="new", data=request.form)
     src = (request.args.get("from") or "").strip()
     data = {}
@@ -157,8 +161,8 @@ def admin_theme_edit(slug):
             flash("Theme updated", "success")
             return redirect(url_for("admin_theme"))
         except Exception as e:
-            traceback.print_exc()
-            flash(f"Error saving theme: {e}", "error")
+            _log_admin_theme_error("edit failed", e)
+            flash("Error saving theme. Please try again.", "error")
     form_data = {
         "slug": slug,
         "primary": current.get("primary", ""),
@@ -184,8 +188,8 @@ def admin_theme_delete(slug):
         db.collection("themes").document(slug).delete()
         flash("Theme deleted", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Error deleting theme: {e}", "error")
+        _log_admin_theme_error("delete failed", e)
+        flash("Error deleting theme. Please try again.", "error")
     return redirect(url_for("admin_theme"))
 
 
@@ -201,8 +205,8 @@ def admin_theme_auto():
         db.collection("config").document("app").set({"autoTheme": {"enabled": enabled, "name": name, "start": start, "end": end}}, merge=True)
         flash("Auto theme settings saved", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Error saving auto theme: {e}", "error")
+        _log_admin_theme_error("auto save failed", e)
+        flash("Error saving auto theme. Please try again.", "error")
     return redirect(url_for("admin_theme"))
 
 
@@ -233,8 +237,8 @@ def admin_theme_add_rule():
         _save_auto_rules(rules)
         flash("Rule added", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Error adding rule: {e}", "error")
+        _log_admin_theme_error("add rule failed", e)
+        flash("Error adding rule. Please try again.", "error")
     return redirect(url_for("admin_theme"))
 
 
@@ -264,8 +268,8 @@ def admin_theme_update_rule():
         _save_auto_rules(new_rules)
         flash("Rule updated", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Error updating rule: {e}", "error")
+        _log_admin_theme_error("update rule failed", e)
+        flash("Error updating rule. Please try again.", "error")
     return redirect(url_for("admin_theme"))
 
 
@@ -281,8 +285,8 @@ def admin_theme_delete_rule():
         _save_auto_rules(rules)
         flash("Rule deleted", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Error deleting rule: {e}", "error")
+        _log_admin_theme_error("delete rule failed", e)
+        flash("Error deleting rule. Please try again.", "error")
     return redirect(url_for("admin_theme"))
 
 
@@ -316,8 +320,8 @@ def admin_theme_logo():
         db.collection("config").document("app").set({"logos": {theme: url}}, merge=True)
         flash("Logo uploaded", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Upload failed: {e}", "error")
+        _log_admin_theme_error("logo upload failed", e)
+        flash("Upload failed. Please try again.", "error")
     return redirect(url_for("admin_theme"))
 
 
@@ -344,8 +348,8 @@ def admin_theme_favicon():
         db.collection("config").document("app").set({"favicons": {theme: url}}, merge=True)
         flash("Favicon uploaded", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Upload failed: {e}", "error")
+        _log_admin_theme_error("favicon upload failed", e)
+        flash("Upload failed. Please try again.", "error")
     return redirect(url_for("admin_theme"))
 
 
@@ -381,6 +385,6 @@ def admin_theme_clone_activate():
         db.collection("config").document("app").set({"theme": new_slug}, merge=True)
         flash(f"Cloned and activated: {new_slug}", "success")
     except Exception as e:
-        traceback.print_exc()
-        flash(f"Clone failed: {e}", "error")
+        _log_admin_theme_error("clone failed", e)
+        flash("Clone failed. Please try again.", "error")
     return redirect(url_for("admin_theme"))

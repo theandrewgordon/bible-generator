@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from firebase_admin import firestore
 from flask import current_app, g
@@ -35,22 +36,34 @@ def check_rate_limit(scope: str, key: str, *, limit: int, window_seconds: int) -
     if db:
         try:
             ref = db.collection("rate_limits").document(doc_id)
-            snap = ref.get()
-            count = int((snap.to_dict() or {}).get("count") or 0) if snap.exists else 0
-            if count >= limit:
+            transaction = db.transaction()
+
+            @firestore.transactional
+            def _increment_if_allowed(txn):
+                snap = ref.get(transaction=txn)
+                count = int((snap.to_dict() or {}).get("count") or 0) if snap.exists else 0
+                if count >= limit:
+                    return False, count
+                count += 1
+                txn.set(
+                    ref,
+                    {
+                        "scope": scope,
+                        "key": key,
+                        "windowStart": window_start,
+                        "windowSeconds": int(window_seconds),
+                        "count": count,
+                        "expiresAt": datetime.fromtimestamp(window_start + int(window_seconds), timezone.utc),
+                        "updatedAt": firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
+                return True, count
+
+            allowed, count = _increment_if_allowed(transaction)
+            if not allowed:
                 return RateLimitResult(False, limit, 0, retry_after)
-            ref.set(
-                {
-                    "scope": scope,
-                    "key": key,
-                    "windowStart": window_start,
-                    "windowSeconds": int(window_seconds),
-                    "count": firestore.Increment(1),
-                    "updatedAt": firestore.SERVER_TIMESTAMP,
-                },
-                merge=True,
-            )
-            return RateLimitResult(True, limit, max(0, limit - count - 1), retry_after)
+            return RateLimitResult(True, limit, max(0, limit - count), retry_after)
         except Exception as exc:
             try:
                 current_app.logger.warning("[%s] Firestore rate limit fallback: %s", getattr(g, "req_id", ""), exc)
