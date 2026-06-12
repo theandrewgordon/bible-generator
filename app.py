@@ -644,9 +644,8 @@ _WORSHIP_SCOPE_COLLECTION = "worship_scopes"
 _WORSHIP_CHURCH_COLLECTION = "worship_churches"
 _DEFAULT_WORSHIP_SCOPE = "default"
 _worship_seeded = False
-_worship_songs_cache: list[dict] | None = None
-_worship_songs_cache_ts: float = 0.0
-_worship_songs_cache_scope: str | None = None
+# Per-scope cache: {scope_id: {"data": list[dict], "ts": float}}
+_worship_songs_cache: dict[str, dict] = {}
 _WORSHIP_CACHE_TTL = 60.0  # seconds
 
 
@@ -816,11 +815,18 @@ def _seed_worship_from_files() -> None:
         app.logger.warning("Worship seed failed: %s", exc)
 
 
-def _invalidate_worship_cache() -> None:
-    global _worship_songs_cache, _worship_songs_cache_ts, _worship_songs_cache_scope
-    _worship_songs_cache = None
-    _worship_songs_cache_ts = 0.0
-    _worship_songs_cache_scope = None
+def _invalidate_worship_cache(scope: str | None = None) -> None:
+    """Drop the cached song list for one scope (default: the current one)."""
+    global _worship_songs_cache
+    if scope is None:
+        try:
+            scope = _current_worship_scope()
+        except Exception:
+            scope = None
+    if scope is None:
+        _worship_songs_cache = {}
+    else:
+        _worship_songs_cache.pop(scope, None)
 
 
 def _worship_song_sort_key(song: dict) -> tuple[str, str, str]:
@@ -836,11 +842,11 @@ def _worship_song_sort_key(song: dict) -> tuple[str, str, str]:
 def list_worship_songs() -> list[dict]:
     """List all worship songs sorted by title. Cached for _WORSHIP_CACHE_TTL seconds."""
     import time
-    global _worship_songs_cache, _worship_songs_cache_ts, _worship_songs_cache_scope
     now = time.monotonic()
     scope = _current_worship_scope()
-    if _worship_songs_cache is not None and _worship_songs_cache_scope == scope and (now - _worship_songs_cache_ts) < _WORSHIP_CACHE_TTL:
-        return _worship_songs_cache
+    entry = _worship_songs_cache.get(scope)
+    if entry and (now - entry["ts"]) < _WORSHIP_CACHE_TTL:
+        return entry["data"]
 
     if db:
         try:
@@ -852,9 +858,7 @@ def list_worship_songs() -> list[dict]:
                         by_id[data["id"]] = data
             results = list(by_id.values())
             results.sort(key=_worship_song_sort_key)
-            _worship_songs_cache = results
-            _worship_songs_cache_ts = now
-            _worship_songs_cache_scope = scope
+            _worship_songs_cache[scope] = {"data": results, "ts": now}
             return results
         except Exception as exc:
             app.logger.warning("list_worship_songs Firestore error: %s", exc)
@@ -868,9 +872,7 @@ def list_worship_songs() -> list[dict]:
             except Exception:
                 pass
     songs.sort(key=_worship_song_sort_key)
-    _worship_songs_cache = songs
-    _worship_songs_cache_ts = now
-    _worship_songs_cache_scope = scope
+    _worship_songs_cache[scope] = {"data": songs, "ts": now}
     return songs
 
 
@@ -2880,7 +2882,7 @@ def worship_add():
 
         arrangement = [a.strip() for a in arrangement_raw.split(",") if a.strip()]
 
-        song_id = _make_unique_worship_song_id(title, artist, version)
+        song_id = _worship_song_id_base(title, artist, version) or "untitled-song"
         song = {
             "id": song_id,
             "title": title,
@@ -2892,6 +2894,14 @@ def worship_add():
             "parts": parts,
             "arrangement": arrangement,
         }
+
+        # Re-adding an existing song routes through the overwrite/conflict screen
+        # rather than silently creating title-2, title-3, ...
+        if get_worship_song(song_id):
+            session["pending_worship_song"] = song
+            session["pending_worship_used_fallback"] = False
+            session["pending_worship_fallback_reason"] = ""
+            return redirect(url_for("worship_add", conflict=song_id))
 
         save_worship_song(song)
         flash(f"'{title}' saved.", "success")
@@ -2905,11 +2915,72 @@ def worship_add():
                             backgrounds=list(_load_bg_config().keys()))
 
 
+def _parse_worship_lyrics_claude(prompt: str, api_key: str) -> dict:
+    """Parse lyrics with Claude. Returns a parsed dict or raises."""
+    import anthropic
+    model = os.environ.get("WORSHIP_PARSE_MODEL", "claude-sonnet-4-6")
+    client = anthropic.Anthropic(api_key=api_key)
+    msg = client.messages.create(
+        model=model,
+        max_tokens=4096,
+        temperature=0,
+        system="You are a worship song librarian. Output ONLY valid JSON — no prose, no markdown fences.",
+        messages=[
+            {"role": "user", "content": prompt},
+            # Prefill the assistant turn with "{" so the model continues straight
+            # into the JSON object instead of any preamble.
+            {"role": "assistant", "content": "{"},
+        ],
+    )
+    text = "".join(
+        block.text for block in msg.content if getattr(block, "type", None) == "text"
+    )
+    raw_json = _clean_ai_json_response("{" + text)
+    app.logger.info("worship_add_parse: Claude (%s) raw response (%d chars): %s",
+                    model, len(raw_json), raw_json[:3000])
+    return json.loads(raw_json)
+
+
+def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
+    """Parse lyrics with OpenAI gpt-4o, with a gpt-4o-mini repair pass. Returns a parsed dict or raises."""
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a worship song librarian. Output only valid JSON."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.3,
+        response_format={"type": "json_object"},
+        max_tokens=4000,
+    )
+    if response.choices[0].finish_reason == "length":
+        app.logger.warning("worship_add_parse: gpt-4o hit max_tokens, response truncated")
+    raw_json = _clean_ai_json_response(response.choices[0].message.content)
+    app.logger.info("worship_add_parse: gpt-4o raw response (%d chars): %s", len(raw_json), raw_json[:3000])
+    try:
+        return json.loads(raw_json)
+    except json.JSONDecodeError:
+        repair_prompt = (
+            "Repair this malformed response into valid JSON only.\n\n"
+            "Return the same worship song schema with id, title, artist, version, "
+            "key, type, parts, and arrangement.\n"
+            "Do not add markdown or explanation.\n\n"
+            f"Malformed response:\n{raw_json}\n"
+        )
+        repaired = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": repair_prompt}],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        return json.loads(_clean_ai_json_response(repaired.choices[0].message.content))
+
+
 @app.route("/worship/add/parse", methods=["POST"])
 @login_required
 def worship_add_parse():
-    from openai import OpenAI
-
     raw_lyrics = request.form.get("raw_lyrics", "").strip()
     import_url = request.form.get("import_url", "").strip()
     title = request.form.get("title", "").strip()
@@ -2935,7 +3006,7 @@ def worship_add_parse():
 
     # AZLyrics (and similar sites) wrap each lyric line in its own <div>, so a
     # copy-paste produces a blank line between EVERY lyric line, not just between
-    # stanzas. Detect this: if ≥50% of the lines are blank, we have the
+    # stanzas. Detect this: if ≥40% of the lines are blank, we have the
     # every-line-blank format. Strip all blanks so gpt-4o sees consecutive text.
     all_lines = parse_lyrics.splitlines()
     blank_count = sum(1 for ln in all_lines if not ln.strip())
@@ -2948,22 +3019,8 @@ def worship_add_parse():
     app.logger.info("worship_add_parse: cleaned lyrics (%d chars, %d lines):\n%s",
                     len(parse_lyrics), parse_lyrics.count("\n"), parse_lyrics[:2000])
 
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        app.logger.warning("worship_add_parse: OPENAI_API_KEY not set, auto-structuring sections")
-        parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
-        if not parsed:
-            flash("OPENAI_API_KEY is not set and the local parser could not find song sections.", "error")
-            return redirect(url_for("worship_add"))
-        song = normalize_worship_song(parsed)
-        if version:
-            song["version"] = version
-        song["id"] = _make_unique_worship_song_id(song.get("title", ""), song.get("artist", ""), song.get("version", ""))
-        save_worship_song(song)
-        flash(f"'{song.get('title', song['id'])}' auto-structured and saved without AI. Please review the sections.", "success")
-        return redirect(url_for("worship"))
-
-    app.logger.info("worship_add_parse: using OpenAI gpt-4o, key prefix=%s", api_key[:8])
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    openai_key = os.environ.get("OPENAI_API_KEY")
 
     prompt = f"""You are a worship song librarian. Parse the following song lyrics into structured JSON for a slide builder.
 
@@ -3022,57 +3079,32 @@ OTHER RULES:
 
     used_fallback_parser = False
     fallback_reason = ""
-    try:
-        client = OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a worship song librarian. Output only valid JSON."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.3,
-            response_format={"type": "json_object"},
-            max_tokens=4000,
-        )
-        finish_reason = response.choices[0].finish_reason
-        if finish_reason == "length":
-            app.logger.warning("worship_add_parse: gpt-4o hit max_tokens, response truncated")
-        raw_json = _clean_ai_json_response(response.choices[0].message.content)
-        app.logger.info("worship_add_parse: gpt-4o raw response (%d chars): %s", len(raw_json), raw_json[:3000])
+
+    # Provider order: Claude first (strongest at structured lyric extraction),
+    # then OpenAI, then the local heuristic parser.
+    parsed = None
+    if anthropic_key:
         try:
-            parsed = json.loads(raw_json)
-        except json.JSONDecodeError:
-            repair_prompt = f"""Repair this malformed response into valid JSON only.
+            parsed = _parse_worship_lyrics_claude(prompt, anthropic_key)
+        except Exception as e:
+            app.logger.warning("worship_add_parse: Claude parse failed (%s), trying next provider: %s",
+                               type(e).__name__, e, exc_info=True)
 
-Return the same worship song schema with id, title, artist, version, key, type, parts, and arrangement.
-Do not add markdown or explanation.
+    if parsed is None and openai_key:
+        try:
+            parsed = _parse_worship_lyrics_openai(prompt, openai_key)
+        except Exception as e:
+            app.logger.error("worship_add_parse: OpenAI parse failed: %s", e, exc_info=True)
 
-Malformed response:
-{raw_json}
-"""
-            repaired = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": repair_prompt}],
-                temperature=0,
-                response_format={"type": "json_object"},
-            )
-            parsed = json.loads(_clean_ai_json_response(repaired.choices[0].message.content))
-    except json.JSONDecodeError as e:
-        app.logger.error("worship_add_parse: AI returned invalid JSON: %s", e)
+    if parsed is None:
         parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not parsed:
-            flash("We couldn't structure those lyrics yet. Please check the text and try again.", "error")
+            if not (anthropic_key or openai_key):
+                flash("No AI key is configured and the local parser could not find song sections.", "error")
+            else:
+                flash("We couldn't structure those lyrics yet. Please check the text and try again.", "error")
             return redirect(url_for("worship_add"))
-        fallback_reason = f"AI returned malformed JSON, so Faith Sparks auto-structured the sections."
-        flash(fallback_reason, "warning")
-        used_fallback_parser = True
-    except Exception as e:
-        app.logger.error("worship_add_parse: OpenAI call failed: %s", e, exc_info=True)
-        parsed = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
-        if not parsed:
-            flash("We couldn't structure those lyrics yet. Please check the text and try again.", "error")
-            return redirect(url_for("worship_add"))
-        fallback_reason = f"AI call failed ({type(e).__name__}), so Faith Sparks auto-structured the sections."
+        fallback_reason = "AI parsing was unavailable, so Faith Sparks auto-structured the sections."
         flash(fallback_reason, "warning")
         used_fallback_parser = True
 
