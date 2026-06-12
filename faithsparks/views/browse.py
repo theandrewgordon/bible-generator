@@ -10,6 +10,7 @@ from flask_dance.contrib.google import google
 from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
+from faithsparks.services.users import get_user_doc
 from faithsparks.services.collections import get_collections, get_collection_meta
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
@@ -124,12 +125,7 @@ def browse():
             pass
     purchases = {}
     if db and google.authorized:
-        try:
-            u = db.collection("users").document(session.get("user_email")).get()
-            if u.exists:
-                purchases = (u.to_dict() or {}).get("purchases") or {}
-        except Exception:
-            purchases = {}
+        purchases = (get_user_doc(session.get("user_email")) or {}).get("purchases") or {}
     return render_template("browse.html", items=items, collections=collections, top_packs=top_packs, top_packs_week=top_packs_week, purchases=purchases)
 
 
@@ -146,9 +142,8 @@ def browse_detail(slug):
     if google.authorized and db:
         email = session.get("user_email")
         try:
-            u = db.collection("users").document(email).get()
-            if u.exists:
-                ud = u.to_dict() or {}
+            ud = get_user_doc(email)
+            if ud:
                 if meta.get("isFree"):
                     can_download = True
                 elif ud.get("isPro") or (ud.get("plan") in ("family", "classroom", "plus", "plus_family", "plus_classroom")):
@@ -193,9 +188,8 @@ def dl_pack(slug):
         if google.authorized:
             email = session.get("user_email")
             try:
-                u = db.collection("users").document(email).get()
-                if u.exists:
-                    ud = u.to_dict() or {}
+                ud = get_user_doc(email)
+                if ud:
                     if ud.get("isPro") or (ud.get("plan") in ("family", "classroom", "plus", "plus_family", "plus_classroom")):
                         allowed = True
                     purchases = ud.get("purchases") or {}

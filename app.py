@@ -46,6 +46,7 @@ from faithsparks.services.firestore import db
 from faithsparks.services.storage import upload_to_storage, signed_url_for_path
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
+from faithsparks.services.users import get_user_doc
 from faithsparks.services.themes import THEMES, get_theme_vars, list_all_themes, get_theme_selection
 from faithsparks.services.stripe_svc import (
     stripe, STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY,
@@ -161,6 +162,22 @@ def _cleanup_output_dirs():
 # --- Environment / config flags (MUST be defined before use) ---
 APP_ENV = os.getenv("APP_ENV", "dev").lower()
 PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "faithsparksprintables.com")
+
+def _compute_static_version() -> str:
+    """Cache-bust token for static assets. Changes whenever the deploy (or the
+    static files) change, so returning visitors don't get stale CSS/JS."""
+    explicit = os.getenv("RENDER_GIT_COMMIT") or os.getenv("STATIC_VERSION")
+    if explicit:
+        return explicit[:12]
+    latest = 0.0
+    for rel in ("static/theme.css", "static/darkmode.js", "static/admin.css"):
+        try:
+            latest = max(latest, os.path.getmtime(rel))
+        except OSError:
+            pass
+    return str(int(latest)) if latest else "1"
+
+STATIC_VERSION = _compute_static_version()
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -3513,18 +3530,31 @@ def inject_helpers():
         usage_nav = None
         path = request.path or ""
         if db and email:
+            # Read the user doc ONCE per request (shared with the view via the
+            # request-scoped cache) and derive is_pro / plan / usage from it,
+            # rather than hitting Firestore multiple times for the same document.
+            user_doc = get_user_doc(email)
+
+            # Gift expiry downgrade (mirrors usage._get_user_plan side effect).
             try:
-                u = db.collection('users').document(email).get()
-                if u.exists:
-                    is_pro = bool((u.to_dict() or {}).get('isPro'))
+                exp = user_doc.get('giftExpiresAt')
+                if exp and hasattr(exp, 'timestamp') and datetime.now(timezone.utc) > exp:
+                    db.collection('users').document(email).set(
+                        {'plan': 'free', 'isPro': False, 'giftExpiresAt': None}, merge=True)
+                    user_doc['plan'] = 'free'
+                    user_doc['isPro'] = False
             except Exception:
                 pass
+
+            is_pro = bool(user_doc.get('isPro'))
+
             # usage chip (sometimes expensive)
             if _should_fetch_usage(path):
                 try:
-                    plan = _get_user_plan(email)
+                    plan = user_doc.get('plan') or ('family' if user_doc.get('isPro') else 'free')
                     m_lim, _ = _quota_for_plan(plan)
-                    used_life, used_m = _get_usage(email)
+                    usage = user_doc.get('usage') or {}
+                    used_m = int((usage.get('months') or {}).get(_month_key()) or 0)
                     if m_lim is not None:
                         try:
                             used_val = int(used_m)
@@ -3602,6 +3632,7 @@ def inject_helpers():
             'month_key': month_key,
             'plan_label': plan_label,
             'current_year': datetime.now().year,
+            'static_v': STATIC_VERSION,
 
         }
     except Exception:
@@ -3619,6 +3650,7 @@ def inject_helpers():
             'favicon_url': url_for('static', filename='favicon.ico'),
             'site_content': {},
             'usage_nav': None,
+            'static_v': STATIC_VERSION,
         }
 
 # --- Plus / Checkout ---

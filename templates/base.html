@@ -771,5 +771,40 @@
         };
       })();
     </script>
+    <script>
+      // Inject the CSRF token into same-origin native POST forms that don't
+      // already carry one. fetch()-based requests get the header from the
+      // wrapper above; this covers plain <form method="post"> submits
+      // (checkout, admin, etc.) so they don't 403.
+      (function () {
+        const token = document.querySelector(
+          'meta[name="csrf-token"]'
+        )?.content;
+        if (!token) return;
+        document.addEventListener(
+          "submit",
+          (e) => {
+            const form = e.target;
+            if (!form || form.tagName !== "FORM") return;
+            if ((form.getAttribute("method") || "GET").toUpperCase() !== "POST")
+              return;
+            if (form.querySelector('input[name="csrf_token"]')) return;
+            // Same-origin only — never leak the token to an external action.
+            try {
+              const dest = new URL(form.action, window.location.href);
+              if (dest.origin !== window.location.origin) return;
+            } catch (err) {
+              return;
+            }
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "csrf_token";
+            input.value = token;
+            form.appendChild(input);
+          },
+          true
+        );
+      })();
+    </script>
   </body>
 </html>
