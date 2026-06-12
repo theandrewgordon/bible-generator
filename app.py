@@ -3125,19 +3125,22 @@ OTHER RULES:
         flash(fallback_reason, "warning")
         used_fallback_parser = True
 
-    exploded = _looks_like_line_exploded_worship_parse(parsed)
+    # Validate on the NORMALIZED song, not the raw model output: normalization
+    # canonicalizes part keys and aligns the arrangement to them, so a model that
+    # returns e.g. arrangement ["Chorus"] with parts {"chorus": [...]} (case/spacing
+    # mismatch) is no longer falsely flagged "incomplete" and bounced to the fallback.
+    song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
     source_line_count = len([line for line in parse_lyrics.splitlines() if line.strip()])
-    under_arranged = _looks_under_arranged_worship_parse(parsed, source_line_count)
+    exploded = _looks_like_line_exploded_worship_parse(song)
+    under_arranged = _looks_under_arranged_worship_parse(song, source_line_count)
     app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s under_arranged=%s",
-                    list(parsed.get("parts", {}).keys()) if isinstance(parsed, dict) else "N/A",
-                    len(parsed.get("arrangement", [])) if isinstance(parsed, dict) else 0,
+                    list(song.get("parts", {}).keys()),
+                    len(song.get("arrangement", [])),
                     exploded,
                     under_arranged)
     if (
-        not isinstance(parsed, dict)
-        or not isinstance(parsed.get("parts"), dict)
-        or not isinstance(parsed.get("arrangement"), list)
-        or not parsed.get("arrangement")   # empty arrangement = incomplete parse
+        not song.get("parts")
+        or not song.get("arrangement")   # empty arrangement = incomplete parse
         or exploded
         or under_arranged
     ):
@@ -3145,11 +3148,10 @@ OTHER RULES:
         if not fallback:
             flash("AI response was missing required fields (parts/arrangement).", "error")
             return redirect(url_for("worship_add"))
-        parsed = fallback
+        song = normalize_worship_song(fallback)
         fallback_reason = "AI response was incomplete, so Faith Sparks auto-structured the sections."
         used_fallback_parser = True
 
-    song = normalize_worship_song(parsed)
     if version:
         song["version"] = version
     # Use the base ID (not a unique-suffixed one) so re-importing the same song

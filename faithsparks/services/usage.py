@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from .firestore import db
+from .users import get_user_doc, invalidate_user_doc
 
 
 def _month_key() -> str:
@@ -10,16 +11,17 @@ def _get_user_plan(email: str) -> str:
     if not db or not email:
         return 'free'
     try:
-        u = db.collection('users').document(email).get()
-        if u.exists:
-            d = u.to_dict() or {}
+        d = get_user_doc(email)  # request-scoped cached read
+        if d:
             exp = d.get('giftExpiresAt')
             try:
                 if exp and hasattr(exp, 'timestamp'):
                     if datetime.now(timezone.utc) > exp:
                         db.collection('users').document(email).set({ 'plan': 'free', 'isPro': False, 'giftExpiresAt': None }, merge=True)
+                        # Mutate the cached doc in place so it stays consistent.
                         d['plan'] = 'free'
                         d['isPro'] = False
+                        d['giftExpiresAt'] = None
             except Exception:
                 pass
             plan = d.get('plan')
@@ -36,9 +38,8 @@ def _get_usage(email: str) -> tuple[int, int]:
     if not db or not email:
         return (0, 0)
     try:
-        u = db.collection('users').document(email).get()
-        if u.exists:
-            d = u.to_dict() or {}
+        d = get_user_doc(email)  # request-scoped cached read
+        if d:
             usage = d.get('usage') or {}
             lifetime = int(usage.get('lifetime') or 0)
             months = usage.get('months') or {}
@@ -69,6 +70,7 @@ def _update_usage(email: str, add: int) -> None:
     if not db or not email or add <= 0:
         return
     try:
+        # Fresh read (not cached) so concurrent/multiple increments are correct.
         u = db.collection('users').document(email).get()
         existing = u.to_dict() if u.exists else {}
         usage = existing.get('usage') or {}
@@ -77,6 +79,8 @@ def _update_usage(email: str, add: int) -> None:
         mk = _month_key()
         monthly = int(months.get(mk) or 0) + add
         db.collection('users').document(email).set({'usage': {'lifetime': lifetime, 'months': {mk: monthly}}}, merge=True)
+        # Drop the cached doc so any later read in this request sees the new usage.
+        invalidate_user_doc(email)
     except Exception:
         pass
 
