@@ -85,15 +85,26 @@ def _update_usage(email: str, add: int) -> None:
         pass
 
 
+_free_slugs_cache: tuple[float, set[str]] | None = None
+_FREE_SLUGS_TTL = 60.0  # seconds
+
+
 def _get_free_slugs() -> set[str]:
     if not db:
         return set()
+    global _free_slugs_cache
+    import time
+    now = time.monotonic()
+    if _free_slugs_cache is not None and (now - _free_slugs_cache[0]) < _FREE_SLUGS_TTL:
+        return _free_slugs_cache[1]
     try:
         doc = db.collection('config').document('app').get()
         if doc.exists:
             data = doc.to_dict() or {}
             slugs = data.get('freeSlugs') or []
-            return set([str(s).strip().lower() for s in slugs if str(s).strip()])
+            result = set([str(s).strip().lower() for s in slugs if str(s).strip()])
+            _free_slugs_cache = (now, result)
+            return result
     except Exception:
         pass
     return set()
