@@ -161,6 +161,11 @@ endblock %} {% block content %}
 </div>
 
 {% if history %}
+{% if history_capped %}
+<p class="muted small" style="margin:.5rem 0 0">
+  Showing your {{ history_limit }} most recent prints. Older worksheets aren't listed here — you can regenerate any verse anytime.
+</p>
+{% endif %}
 <form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
   <div class="bulkbar card-lite advanced-only">

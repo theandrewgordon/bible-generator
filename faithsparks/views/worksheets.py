@@ -635,13 +635,20 @@ def history():
         return "Firestore not configured", 500
     user_email = session.get("user_email")
     try:
+        # Cap the most-recent window so heavy accounts don't pay hundreds of
+        # Firestore reads + a giant DOM on every visit. Configurable via env.
+        history_limit = int(os.getenv("WORKSHEET_HISTORY_LIMIT", "300"))
         docs = (
             db.collection("worksheets")
             .where(filter=firestore.FieldFilter("email", "==", user_email))
             .order_by("timestamp", direction=firestore.Query.DESCENDING)
+            .limit(history_limit + 1)
             .stream()
         )
         history_items = [doc.to_dict() | {"timestamp": doc.get("timestamp")} for doc in docs]
+        history_capped = len(history_items) > history_limit
+        if history_capped:
+            history_items = history_items[:history_limit]
 
         lesson_pack_items = []
         try:
@@ -688,6 +695,8 @@ def history():
         return render_template(
             "history.html",
             history=history_items,
+            history_capped=history_capped,
+            history_limit=history_limit,
             lesson_packs=lesson_pack_items,
             purchases=purchases,
             email=user_email,
