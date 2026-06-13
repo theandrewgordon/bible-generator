@@ -183,7 +183,10 @@ def dl_pack(slug):
     if not is_free and not google.authorized:
         flash("Please sign in to download packs.", "warning")
         return redirect(url_for("google.login", next=request.url))
-    if meta.get("isSubscriberOnly") and not is_free:
+    # Any non-free pack requires entitlement — membership/ownership for
+    # subscriber packs, or a purchase for a-la-carte (priceId) packs. Gating only
+    # on isSubscriberOnly would let a paid a-la-carte pack be downloaded free.
+    if (not is_free) and (meta.get("isSubscriberOnly") or meta.get("priceId")):
         allowed = False
         if google.authorized:
             email = session.get("user_email")

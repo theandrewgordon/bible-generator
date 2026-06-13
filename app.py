@@ -11,7 +11,7 @@ import socket
 import ipaddress
 from html.parser import HTMLParser
 from urllib.parse import urlparse, urljoin, urlunparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
 from zipfile import ZipFile
 import threading
 from io import BytesIO
@@ -2581,6 +2581,15 @@ def _is_safe_worship_import_url(import_url: str) -> bool:
     return True
 
 
+class _SafeWorshipRedirectHandler(HTTPRedirectHandler):
+    """Re-validate every redirect hop so a public URL can't bounce the importer
+    to an internal address (SSRF via redirect)."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _is_safe_worship_import_url(newurl):
+            raise ValueError("Blocked an unsafe redirect during song import.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _fetch_worship_import_text(import_url: str) -> str:
     import_url = str(import_url or "").strip()
     if not _is_safe_worship_import_url(import_url):
@@ -2592,7 +2601,8 @@ def _fetch_worship_import_text(import_url: str) -> str:
             "Accept": "text/html,text/plain;q=0.9,*/*;q=0.6",
         },
     )
-    with urlopen(req, timeout=10) as response:
+    opener = build_opener(_SafeWorshipRedirectHandler())
+    with opener.open(req, timeout=10) as response:
         content_type = response.headers.get("Content-Type", "")
         raw_body = response.read(800_000)
     charset_match = re.search(r"charset=([^;]+)", content_type, flags=re.I)
