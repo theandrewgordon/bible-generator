@@ -27,7 +27,7 @@
     <div class="actions">
       {% if can_download %}
         <a class="button" data-game-download href="{{ url_for('dl_game', slug=c.slug) }}">Download game</a>
-      {% elif not signed_in %}
+      {% elif not is_signed_in %}
         <a class="button" href="{{ url_for('google.login', next=request.path) }}">Sign in to download</a>
       {% elif needs_member %}
         <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>

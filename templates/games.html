@@ -61,7 +61,7 @@ Printables{% endblock %} {% block head_extra %}
 {# "Warm topics" belongs on /games/create, not the browse grid. So "fix warm
 topics" here means: make sure nothing in this page breaks the create page, and
 fix any HTML errors that could cause layout/script issues site-wide. #} {% if
-not signed_in %}
+not is_signed_in %}
 <div class="card-lite sign-in-note">
   <span>Sign in to download games and save them in My Prints.</span>
   <a
@@ -74,7 +74,7 @@ not signed_in %}
 <section class="game-grid">
   {% for g in games %} {% set action_url = None %} {% set action_label = None %}
   {% if g.can_download %} {% set action_url = url_for('dl_game', slug=g.slug) %}
-  {% set action_label = "Download" %} {% elif not signed_in %} {% set action_url
+  {% set action_label = "Download" %} {% elif not is_signed_in %} {% set action_url
   = url_for('google.login', next=url_for('games')) %} {% set action_label =
   "Sign in to download" %} {% elif g.isSubscriberOnly %} {% set action_url =
   url_for('plus_pricing') %} {% set action_label = "See membership" %} {% else

@@ -45,7 +45,7 @@
       <p class="muted small">Need something for family worship? This bundle delivers {{ trending_pack.count or (trending_pack.verses|length) }} ready-to-print verses.</p>
     </div>
     <div class="highlight-actions">
-      {% if signed_in %}
+      {% if is_signed_in %}
       <a class="button small" href="{{ url_for('generate', collection=trending_pack.slug) }}">
         Start worksheet
       </a>
