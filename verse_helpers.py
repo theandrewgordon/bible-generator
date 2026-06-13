@@ -213,12 +213,38 @@ def normalize_verse_data(data, verse_ref: str, version: str):
     return normalized
 
 
+def _apply_authoritative_text(normalized: dict, verse_ref: str, version: str) -> dict:
+    """Replace the AI-generated verse text with authoritative scripture when a
+    trustworthy source exists (accuracy + translation licensing). The AI's
+    reflection/coloring/title are kept; only the verse wording is corrected."""
+    try:
+        from faithsparks.services.scripture import fetch_verse_text, derive_traceable
+        authoritative = fetch_verse_text(verse_ref, version)
+    except Exception:
+        authoritative = None
+    if authoritative:
+        normalized["fullVerse"] = authoritative
+        normalized["traceableVerse"] = derive_traceable(authoritative, normalized.get("traceableVerse"))
+        normalized["verseSource"] = "authoritative"
+    return normalized
+
+
 # === Request Verse Data ===
 def request_verse_data(verse_ref, version="esv"):
-    """Request worksheet data from OpenAI, retrying once if needed."""
+    """Request worksheet data from OpenAI, retrying once if needed.
+
+    The scripture text itself is sourced from an authoritative provider when
+    available, so the AI never decides the actual words of the verse.
+    """
     cached = _load_cached_verse_data(verse_ref, version)
     if cached:
-        return json.dumps(normalize_verse_data(cached, verse_ref, version), ensure_ascii=False)
+        normalized = normalize_verse_data(cached, verse_ref, version)
+        # Lazily upgrade older cache entries that predate authoritative sourcing.
+        if normalized.get("verseSource") != "authoritative":
+            normalized = _apply_authoritative_text(normalized, verse_ref, version)
+            if normalized.get("verseSource") == "authoritative":
+                _store_cached_verse_data(verse_ref, version, normalized)
+        return json.dumps(normalized, ensure_ascii=False)
 
     prompt = build_prompt(verse_ref, version)
 
@@ -229,6 +255,7 @@ def request_verse_data(verse_ref, version="esv"):
         data = parse_and_clean_json(content)
         if data:
             normalized = normalize_verse_data(data, verse_ref, version)
+            normalized = _apply_authoritative_text(normalized, verse_ref, version)
             _store_cached_verse_data(verse_ref, version, normalized)
             return json.dumps(normalized, ensure_ascii=False)
 
