@@ -110,10 +110,16 @@
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 0.9rem;
   }
-  .lesson-pack__checkbox {
+  /* Specificity must beat ".lesson-pack label { display:grid }" below, which
+     otherwise turns this into a grid and stretches the checkbox full-width. */
+  .lesson-pack label.lesson-pack__checkbox {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+  .lesson-pack__checkbox input[type="checkbox"] {
+    width: auto;
+    flex: 0 0 auto;
   }
   .lesson-pack__quick {
     display: flex;
