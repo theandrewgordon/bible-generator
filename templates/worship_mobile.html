@@ -4,7 +4,10 @@
 <style>
   :root,html,body{height:100%}
   body{margin:0;background:var(--background)}
-  .wm-shell{display:flex;flex-direction:column;min-height:100dvh;height:100dvh;overflow:hidden}
+  /* Fill the whole window: the mobile view lives inside base.html's centered
+     max-width container, so pin the shell to the viewport for a full-bleed
+     slide experience (windowed and fullscreen alike). */
+  .wm-shell{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;overflow:hidden;background:var(--background)}
   .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;padding:.65rem .9rem;border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10;flex:0 0 auto}
   .wm-title{font-size:1.05rem;font-weight:800;margin:0}
   .wm-sub{margin:.1rem 0 0;color:var(--text-secondary);font-size:.85rem}
