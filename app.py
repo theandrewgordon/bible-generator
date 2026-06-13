@@ -179,6 +179,10 @@ def _compute_static_version() -> str:
 
 STATIC_VERSION = _compute_static_version()
 
+# How long the navbar may serve is_pro/plan from the session cache before
+# re-reading Firestore. Short enough that plan changes show up quickly.
+_USER_FLAGS_TTL = 120.0  # seconds
+
 # --- App Setup ---
 app = Flask(__name__)
 
@@ -329,6 +333,7 @@ def load_user_info():
         session.pop("user_info", None)
         session.pop("user_email", None)
         session.pop("user_owned_packs", None)
+        session.pop("_uc", None)
 
 
 # -----------------------------
@@ -3532,26 +3537,39 @@ def inject_helpers():
         usage_nav = None
         path = request.path or ""
         if db and email:
-            # Read the user doc ONCE per request (shared with the view via the
-            # request-scoped cache) and derive is_pro / plan / usage from it,
-            # rather than hitting Firestore multiple times for the same document.
-            user_doc = get_user_doc(email)
-
-            # Gift expiry downgrade (mirrors usage._get_user_plan side effect).
-            try:
-                exp = user_doc.get('giftExpiresAt')
-                if exp and hasattr(exp, 'timestamp') and datetime.now(timezone.utc) > exp:
-                    db.collection('users').document(email).set(
-                        {'plan': 'free', 'isPro': False, 'giftExpiresAt': None}, merge=True)
-                    user_doc['plan'] = 'free'
-                    user_doc['isPro'] = False
-            except Exception:
-                pass
-
-            is_pro = bool(user_doc.get('isPro'))
+            # On ordinary (non-usage) pages, serve the slow-changing is_pro flag
+            # from a short-lived session cache so navigation doesn't read Firestore
+            # on every render. Usage pages always read (they need live usage).
+            fetch_usage = _should_fetch_usage(path)
+            now_ts = time.time()
+            _uc = session.get('_uc') if isinstance(session.get('_uc'), dict) else None
+            user_doc = None
+            if fetch_usage or not (_uc and (now_ts - _uc.get('ts', 0)) < _USER_FLAGS_TTL):
+                # Read the user doc once (shared with the view via the request-scoped
+                # cache) and refresh the session pro/plan cache.
+                user_doc = get_user_doc(email)
+                # Gift expiry downgrade (mirrors usage._get_user_plan side effect).
+                try:
+                    exp = user_doc.get('giftExpiresAt')
+                    if exp and hasattr(exp, 'timestamp') and datetime.now(timezone.utc) > exp:
+                        db.collection('users').document(email).set(
+                            {'plan': 'free', 'isPro': False, 'giftExpiresAt': None}, merge=True)
+                        user_doc['plan'] = 'free'
+                        user_doc['isPro'] = False
+                        user_doc['giftExpiresAt'] = None
+                except Exception:
+                    pass
+                is_pro = bool(user_doc.get('isPro'))
+                session['_uc'] = {
+                    'isPro': is_pro,
+                    'plan': user_doc.get('plan') or ('family' if is_pro else 'free'),
+                    'ts': now_ts,
+                }
+            else:
+                is_pro = bool(_uc.get('isPro'))
 
             # usage chip (sometimes expensive)
-            if _should_fetch_usage(path):
+            if fetch_usage and user_doc is not None:
                 try:
                     plan = user_doc.get('plan') or ('family' if user_doc.get('isPro') else 'free')
                     m_lim, _ = _quota_for_plan(plan)
@@ -3709,6 +3727,7 @@ def create_checkout_session():
 
 @app.route('/plus/success')
 def plus_success():
+    session.pop('_uc', None)  # plan likely just changed — force a fresh read
     from faithsparks.views.billing import plus_success as _impl
     return _impl()
 
@@ -3969,6 +3988,7 @@ def buy_pack(slug):
 @app.route('/buy/success/<slug>')
 @login_required
 def buy_success(slug):
+    session.pop('_uc', None)  # entitlement likely just changed — force a fresh read
     from faithsparks.views.billing import buy_success as _impl
     return _impl(slug)
 
