@@ -15,7 +15,10 @@
   .wm-link.secondary:hover,.wm-btn.secondary:hover{background:var(--primary);color:#fff}
   .wm-stage{position:relative;flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,color-mix(in srgb, var(--primary) 5%, var(--background)) 0%, var(--background) 100%);height:100%;padding-bottom:.35rem;touch-action:pan-x}
   .wm-stage::-webkit-scrollbar{display:none}
-  .wm-slide{scroll-snap-align:start;flex:0 0 100vw;min-width:100vw;display:flex;align-items:center;justify-content:center;padding:.55rem .55rem .75rem}
+  /* Size slides to the scroll stage (not the viewport): the mobile view renders
+     inside base.html's max-width container, so 100vw overflowed the stage and
+     pushed cards off-screen on desktop. 100% tracks the stage in every mode. */
+  .wm-slide{scroll-snap-align:start;flex:0 0 100%;min-width:100%;display:flex;align-items:center;justify-content:center;padding:.55rem .55rem .75rem}
   .wm-card{width:min(760px, 100%);height:calc(100dvh - 7.25rem);border-radius:22px;background:var(--box);box-shadow:0 18px 50px rgba(15,23,42,.16);border:1px solid rgba(148,163,184,.18);padding:1rem .95rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
   .wm-kind{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.55rem}
   .wm-song{font-size:1.35rem;line-height:1.08;font-weight:900;margin:0 0 .45rem;max-width:18ch;overflow-wrap:anywhere}

@@ -2747,6 +2747,68 @@ def worship_mobile_qr():
     return send_file(output, mimetype="image/png", max_age=300)
 
 
+def _build_worship_lyric_sheet_pdf(selected_items: list[dict], mobile_url: str = "") -> BytesIO:
+    """Render the selected songs into a formatted, printable lyric-sheet PDF."""
+    import html as _html
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import inch
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.colors import HexColor
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
+
+    accent = HexColor("#0ea5a8")
+    grey = HexColor("#64748b")
+    dark = HexColor("#0f172a")
+    title_style = ParagraphStyle("wTitle", fontName="Helvetica-Bold", fontSize=18, leading=22, textColor=dark, spaceAfter=2)
+    sub_style = ParagraphStyle("wSub", fontName="Helvetica", fontSize=10, leading=13, textColor=grey, spaceAfter=8)
+    label_style = ParagraphStyle("wLabel", fontName="Helvetica-Bold", fontSize=10.5, leading=13, textColor=accent, spaceBefore=9, spaceAfter=3)
+    line_style = ParagraphStyle("wLine", fontName="Helvetica", fontSize=12, leading=16, textColor=dark)
+    ref_style = ParagraphStyle("wRef", fontName="Helvetica-Oblique", fontSize=10.5, leading=14, textColor=grey, spaceAfter=2)
+    footer_style = ParagraphStyle("wFoot", fontName="Helvetica", fontSize=8.5, leading=11, textColor=grey)
+
+    def esc(value) -> str:
+        return _html.escape(str(value or ""))
+
+    story: list = []
+    for idx, item in enumerate(selected_items):
+        normalized = normalize_worship_song(item)
+        header = [Paragraph(esc(normalized.get("title", "Untitled")), title_style)]
+        sub_bits = []
+        if normalized.get("artist"):
+            sub_bits.append(normalized["artist"])
+        if normalized.get("version"):
+            sub_bits.append(normalized["version"])
+        if normalized.get("key"):
+            sub_bits.append(f"Key: {normalized['key']}")
+        header.append(Paragraph(esc(" · ".join(sub_bits)), sub_style) if sub_bits else Spacer(1, 6))
+        # Keep the title/subtitle with the first section so a song never orphans.
+        story.append(KeepTogether(header))
+        for block in build_lyric_sheet_blocks(normalized):
+            story.append(Paragraph(esc(block["label"]).upper(), label_style))
+            if block["reference_only"]:
+                story.append(Paragraph("(repeat)", ref_style))
+                continue
+            for line in block["lines"]:
+                story.append(Paragraph(esc(line), line_style))
+        if idx != len(selected_items) - 1:
+            story.append(Spacer(1, 22))
+
+    if mobile_url:
+        story.append(Spacer(1, 18))
+        story.append(Paragraph("Mobile view: " + esc(mobile_url), footer_style))
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=letter,
+        leftMargin=0.85 * inch, rightMargin=0.85 * inch,
+        topMargin=0.8 * inch, bottomMargin=0.7 * inch,
+        title="Worship Lyric Sheet",
+    )
+    doc.build(story or [Spacer(1, 1)])
+    buf.seek(0)
+    return buf
+
+
 @app.route("/worship/export/lyric-sheet", methods=["POST"])
 @login_required
 def worship_export_lyric_sheet():
@@ -2760,41 +2822,18 @@ def worship_export_lyric_sheet():
         flash("Select at least one item to export a lyric sheet.", "warning")
         return redirect(url_for("worship"))
 
-    chunks: list[str] = []
-    for item in selected_items:
-        normalized = normalize_worship_song(item)
-        chunks.append(normalized.get("title", "Untitled"))
-        subtitle_bits = []
-        if normalized.get("artist"):
-            subtitle_bits.append(normalized["artist"])
-        if normalized.get("version"):
-            subtitle_bits.append(normalized["version"])
-        if normalized.get("key"):
-            subtitle_bits.append(f"Key: {normalized['key']}")
-        if subtitle_bits:
-            chunks.append(" | ".join(subtitle_bits))
-        chunks.append("")
-        for block in build_lyric_sheet_blocks(normalized):
-            chunks.append(block["label"])
-            if block["reference_only"]:
-                chunks.append("")
-                continue
-            chunks.extend(block["lines"])
-            chunks.append("")
-        chunks.append("")
-
     mobile_url = url_for(
         "worship_mobile",
         _external=True,
         song_order=",".join(item.get("id", "") for item in selected_items if item.get("id")),
     )
-    chunks.extend(["", f"Mobile view: {mobile_url}"])
-    payload = "\n".join(chunks).strip() + "\n"
+    today = datetime.now(timezone.utc).date().isoformat()
+    pdf = _build_worship_lyric_sheet_pdf(selected_items, mobile_url)
     return send_file(
-        BytesIO(payload.encode("utf-8")),
+        pdf,
         as_attachment=True,
-        download_name="worship_lyric_sheet.txt",
-        mimetype="text/plain; charset=utf-8",
+        download_name=f"worship_lyric_sheet_{today}.pdf",
+        mimetype="application/pdf",
     )
 
 
