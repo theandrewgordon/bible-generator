@@ -24,9 +24,10 @@ def _wrap_lines(text: str, font: str, size: int, max_width: float) -> list[str]:
     return lines
 
 
-_NOTICE_ORDER = ["KJV", "NLT", "CSB", "ESV"]
+_NOTICE_ORDER = ["KJV", "WEB", "NLT", "CSB", "ESV"]
 _NOTICE_TEXT = {
     "KJV": "Scripture quotations marked (KJV) are from the King James Version of the Bible (public domain).",
+    "WEB": "Scripture quotations marked (WEB) are from the World English Bible (public domain).",
     "NLT": (
         "Scripture quotations marked (NLT) are taken from the Holy Bible, New Living Translation, "
         "copyright (c)1996, 2004, 2015 by Tyndale House Foundation. Used by permission of Tyndale House "
@@ -98,7 +99,7 @@ def append_scripture_notices_page(c, versions_used=None, margin: float = 0.6 * i
 
     sections = []
     for code in selected_versions:
-        heading = "KJV (Public Domain)" if code == "KJV" else code
+        heading = f"{code} (Public Domain)" if code in ("KJV", "WEB") else code
         sections.append((heading, _NOTICE_TEXT[code]))
 
     for heading, body in sections:

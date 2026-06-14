@@ -63,6 +63,9 @@ Printables{% endblock %} {% block content %} {% set fs = form_state or {} %}
         <option value="kjv" {% if fs.version == "kjv" %}selected{% endif %}>
           KJV
         </option>
+        <option value="web" {% if fs.version == "web" %}selected{% endif %}>
+          WEB (World English)
+        </option>
       </select>
       <p class="small muted">
         Uses your default version unless you choose another.
