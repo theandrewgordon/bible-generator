@@ -246,6 +246,20 @@ def robots_txt():
     return Response(body, mimetype="text/plain")
 
 
+@app.route("/verse-of-the-week")
+def verse_of_the_week():
+    """Weekly memory verse + one-click worksheet — a reason to return each week."""
+    from faithsparks.util.verse_of_week import get_verse_of_week
+    votw = get_verse_of_week()
+    preview = None
+    try:
+        from faithsparks.services.scripture import fetch_verse_text
+        preview = fetch_verse_text(votw["reference"], "web")  # public-domain, safe to display
+    except Exception:
+        preview = None
+    return render_template("verse_of_week.html", votw=votw, preview=preview)
+
+
 # Jinja filter for Markdown
 def _md(text: str) -> str:
     try:

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Verse of the Week — {{ votw.reference }} | Faith Sparks Printables{% endblock %}
+
+{% block head_extra %}
+<style>
+  .votw-card{background:var(--box);border-radius:18px;padding:2rem 1.75rem;box-shadow:var(--card-shadow);max-width:680px;margin:1.5rem auto;text-align:center}
+  .votw-kicker{font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);margin:0 0 .5rem}
+  .votw-ref{font-size:1.9rem;font-weight:900;margin:0 0 .35rem;color:var(--text)}
+  .votw-theme{font-size:1.05rem;color:var(--text-secondary);margin:0 0 1.25rem}
+  .votw-verse{font-size:1.2rem;line-height:1.5;font-weight:600;color:var(--text);margin:0 auto 1.5rem;max-width:48ch}
+  .votw-verse-mark{display:block;margin-top:.6rem;font-size:.82rem;font-weight:700;color:var(--text-secondary)}
+  .votw-actions{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center}
+  .votw-btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 22px;border-radius:10px;background:var(--primary);color:#fff;text-decoration:none;font-weight:700;border:none;cursor:pointer}
+  .votw-btn:hover{background:var(--primary-dark);color:#fff}
+  .votw-btn.ghost{background:transparent;color:var(--primary);border:1px solid var(--primary)}
+  .votw-note{font-size:.85rem;color:var(--text-secondary);margin-top:1.5rem}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="votw-card">
+  <p class="votw-kicker">Verse of the Week</p>
+  <h1 class="votw-ref">{{ votw.reference }}</h1>
+  <p class="votw-theme">{{ votw.theme }}</p>
+
+  {% if preview %}
+  <p class="votw-verse">
+    “{{ preview }}”
+    <span class="votw-verse-mark">{{ votw.reference }} (WEB)</span>
+  </p>
+  {% endif %}
+
+  <div class="votw-actions">
+    <a class="votw-btn" href="{{ url_for('generate', verse=votw.verse_param) }}">Make this week's worksheet</a>
+    <a class="votw-btn ghost" href="{{ url_for('public.lesson_pack', verse=votw.verse_param) }}">Build a lesson pack</a>
+  </div>
+
+  <p class="votw-note">A fresh memory verse every week. Generate it in your preferred translation, then print and practice.</p>
+</div>
+{% endblock %}
