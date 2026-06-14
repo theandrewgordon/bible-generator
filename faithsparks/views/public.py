@@ -124,7 +124,7 @@ def lesson_pack():
         return render_template(
             'lesson_pack.html',
             verse_prefill=(request.args.get('verse') or '').strip(),
-            version_prefill=(request.args.get('version') or 'nlt').strip().lower(),
+            version_prefill=(request.args.get('version') or 'esv').strip().lower(),
             age_prefill=(request.args.get('age') or '6-8').strip(),
             proverb_of_day=get_proverb_of_day(),
         )
@@ -133,7 +133,7 @@ def lesson_pack():
         return _require_login()
 
     verse_input = (request.form.get('verse') or '').strip()
-    version = (request.form.get('version') or 'nlt').strip().lower()
+    version = (request.form.get('version') or 'esv').strip().lower()
     age_bracket = (request.form.get('age_bracket') or '6-8').strip()
     use_cursive = (request.form.get('use_cursive') or '').lower() in {'1', 'true', 'yes', 'on'}
     if not verse_input:

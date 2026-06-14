@@ -54,7 +54,7 @@ def _get_usage(email: str) -> tuple[int, int]:
 def _quota_for_plan(plan: str) -> tuple[int | None, int | None]:
     import os
     FREE_LIFETIME_QUOTA = int(os.getenv('FREE_LIFETIME_QUOTA', '10'))
-    FREE_MONTHLY_QUOTA = int(os.getenv('FREE_MONTHLY_QUOTA', '1'))
+    FREE_MONTHLY_QUOTA = int(os.getenv('FREE_MONTHLY_QUOTA', '3'))
     FAMILY_MONTHLY_QUOTA = int(os.getenv('FAMILY_MONTHLY_QUOTA', '15'))
     CLASSROOM_MONTHLY_QUOTA = int(os.getenv('CLASSROOM_MONTHLY_QUOTA', '100'))
 

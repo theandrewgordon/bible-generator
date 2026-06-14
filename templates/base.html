@@ -718,7 +718,7 @@
       (function () {
         const selects = Array.from(document.querySelectorAll(".version-pref"));
         if (!selects.length) return;
-        const saved = localStorage.getItem("preferredVersion") || "nlt";
+        const saved = localStorage.getItem("preferredVersion") || "esv";
         selects.forEach((sel) => {
           sel.value = saved;
           sel.addEventListener("change", () => {

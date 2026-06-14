@@ -54,10 +54,10 @@ Printables{% endblock %} {% block content %} {% set fs = form_state or {} %}
 
       <label for="version">Version</label>
       <select id="version" name="version" class="wide-input version-pref">
-        <option value="nlt" {% if fs.version == "nlt" or not fs.version %}selected{% endif %}>
+        <option value="nlt" {% if fs.version == "nlt" %}selected{% endif %}>
           NLT
         </option>
-        <option value="esv" {% if fs.version == "esv" %}selected{% endif %}>
+        <option value="esv" {% if fs.version == "esv" or not fs.version %}selected{% endif %}>
           ESV
         </option>
         <option value="kjv" {% if fs.version == "kjv" %}selected{% endif %}>

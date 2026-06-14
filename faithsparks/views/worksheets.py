@@ -234,7 +234,7 @@ def generate():
         from_collection = (payload.get("collection_slug") or "").strip() or None
         custom_text = (payload.get("custom_text") or "").strip()
         custom_title = (payload.get("custom_title") or "").strip()
-        selected_version = (payload.get("version") or "nlt").strip().lower()
+        selected_version = (payload.get("version") or "esv").strip().lower()
         custom_prompt = (payload.get("custom_prompt") or "").strip()
         if (
             len(verse_input) > MAX_VERSE_INPUT_LEN
