@@ -638,6 +638,36 @@ url_for('generate') %} {% block head_extra %}
     Simple, Scripture‑honoring worksheets for homeschool mornings.
   </p>
 </section>
+
+<section class="worship-pillar" aria-labelledby="worship-pillar-h">
+  <style>
+    .worship-pillar{margin:clamp(2.5rem,4vw,3.5rem) 0}
+    .worship-pillar-inner{
+      background:linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--box)), var(--box));
+      border:1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+      border-radius:20px;padding:clamp(1.5rem,3vw,2.25rem)}
+    .worship-pillar-kicker{font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);margin:0 0 .35rem}
+    .worship-pillar h2{margin:.1rem 0 .5rem;font-size:clamp(1.4rem,2vw + 1rem,1.9rem)}
+    .worship-pillar > .worship-pillar-inner > p{color:var(--text-secondary);margin:0 0 1rem;max-width:48ch}
+    .worship-pillar .feat{display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 1.15rem;padding:0;list-style:none}
+    .worship-pillar .feat li{font-size:.84rem;font-weight:600;color:var(--text);background:var(--background);border:1px solid #e2e8f0;border-radius:999px;padding:5px 12px}
+  </style>
+  <div class="worship-pillar-inner">
+    <p class="worship-pillar-kicker">Also for worship teams</p>
+    <h2 id="worship-pillar-h">Build your Sunday set in minutes</h2>
+    <p>
+      Turn songs into clean projection slides, a phone‑friendly lyric view for the
+      stage, and printable lyric sheets — with a shared library your whole team can use.
+    </p>
+    <ul class="feat">
+      <li>PowerPoint export</li>
+      <li>Mobile swipe view</li>
+      <li>Lyric sheets (PDF)</li>
+      <li>Shared church library</li>
+    </ul>
+    <a class="button" href="{{ url_for('worship') }}">Open the worship builder</a>
+  </div>
+</section>
 {% endblock %} {% block extra_scripts %}
 <script>
   (function () {

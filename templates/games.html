@@ -119,10 +119,11 @@ not is_signed_in %}
 </section>
 {% else %}
 <div class="empty card-lite">
-  <h3>No games yet</h3>
+  <h3>Create your own printable game</h3>
   <p class="muted">
-    We’re still building printable Bible games, but here are the ones we
-    expect to ship soon.
+    Word searches are ready to build right now — use “Create a game” above to
+    make one from any theme or set of verses. Here’s what else is coming to the
+    printable game library.
   </p>
 
   <div class="game-ideas" aria-label="Planned game types">
@@ -185,7 +186,7 @@ not is_signed_in %}
   </div>
 
   <div class="empty-actions">
-    <a class="button" href="{{ url_for('games_create') }}">Mock up a game</a>
+    <a class="button" href="{{ url_for('games_create') }}">Create a game</a>
     <a class="button ghost" href="mailto:hello@faithsparksprintables.com"
       >Request a game</a
     >
@@ -194,7 +195,7 @@ not is_signed_in %}
 {% endif %} {% endblock %} {% block extra_scripts %}
 <script>
   (function () {
-    const pref = localStorage.getItem("preferredVersion") || "nlt";
+    const pref = localStorage.getItem("preferredVersion") || "esv";
     const version = String(pref).toUpperCase();
 
     document.querySelectorAll("[data-game-download]").forEach((link) => {
