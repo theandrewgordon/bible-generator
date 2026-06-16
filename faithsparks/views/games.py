@@ -551,7 +551,7 @@ def games_create():
         return (text or "").replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
 
     raw_title = (request.form.get("title") or "").strip()
-    version = (request.form.get("version") or "esv").strip().lower()
+    version = (request.form.get("version") or "web").strip().lower()
     game_type = (request.form.get("gameType") or "match").strip().lower()
     if raw_title:
         title = raw_title
@@ -765,7 +765,7 @@ def games_words():
     ip_limit = check_rate_limit("games_words:ip", get_client_ip(), limit=90, window_seconds=60 * 60)
     if not user_limit.allowed or not ip_limit.allowed:
         return jsonify({"error": "Please wait a bit before building another word list."}), 429
-    version = (payload.get("version") or "esv").strip().lower()
+    version = (payload.get("version") or "web").strip().lower()
     difficulty = _normalize_difficulty(payload.get("difficulty") or "standard")
     refs = [r.strip() for r in re.split(r"[\n,]+", refs_raw) if r.strip()]
     if not refs:

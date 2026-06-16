@@ -57,13 +57,13 @@ Printables{% endblock %} {% block content %} {% set fs = form_state or {} %}
         <option value="nlt" {% if fs.version == "nlt" %}selected{% endif %}>
           NLT
         </option>
-        <option value="esv" {% if fs.version == "esv" or not fs.version %}selected{% endif %}>
+        <option value="esv" {% if fs.version == "esv" %}selected{% endif %}>
           ESV
         </option>
         <option value="kjv" {% if fs.version == "kjv" %}selected{% endif %}>
           KJV
         </option>
-        <option value="web" {% if fs.version == "web" %}selected{% endif %}>
+        <option value="web" {% if fs.version == "web" or not fs.version %}selected{% endif %}>
           WEB (World English)
         </option>
       </select>

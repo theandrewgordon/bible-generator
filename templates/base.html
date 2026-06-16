@@ -719,7 +719,7 @@
       (function () {
         const selects = Array.from(document.querySelectorAll(".version-pref"));
         if (!selects.length) return;
-        const saved = localStorage.getItem("preferredVersion") || "esv";
+        const saved = localStorage.getItem("preferredVersion") || "web";
         selects.forEach((sel) => {
           sel.value = saved;
           sel.addEventListener("change", () => {
