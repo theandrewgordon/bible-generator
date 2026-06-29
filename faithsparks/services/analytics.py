@@ -16,6 +16,14 @@ _DEFAULT_PATH = os.path.abspath(
 )
 
 
+def _is_sqlite_allowed() -> bool:
+    """Check if SQLite analytics is permitted based on environment settings."""
+    app_env = os.getenv("APP_ENV", "dev").lower()
+    if os.getenv("USE_LOCAL_STORAGE", "").lower() in {"1", "true", "yes"}:
+        return True
+    return app_env not in {"prod", "production"}
+
+
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(_DEFAULT_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
     conn.row_factory = sqlite3.Row
@@ -84,6 +92,8 @@ def _hash_key(ip: str, ua: str, day: str) -> str:
 
 
 def record_visit(ip: str, ua: str) -> None:
+    if not _is_sqlite_allowed():
+        return
     today = date.today().isoformat()
     anon_key = _hash_key(ip, ua, today)
     ts = int(time.time())
@@ -105,6 +115,8 @@ def record_visit(ip: str, ua: str) -> None:
 def record_login(email: str) -> None:
     if not email:
         return
+    if not _is_sqlite_allowed():
+        return
     today = date.today().isoformat()
     ts = int(time.time())
     conn = get_db()
@@ -116,6 +128,8 @@ def record_login(email: str) -> None:
 
 
 def daily_overview(days: int = 7) -> Dict[str, object]:
+    if not _is_sqlite_allowed():
+        return {"series": [], "total_visitors": 0, "total_logins": 0}
     days = max(1, min(days, 31))
     conn = get_db()
     window: List[str] = [
@@ -149,6 +163,8 @@ def daily_overview(days: int = 7) -> Dict[str, object]:
 
 
 def recent_visits(limit: int = 25) -> List[Dict[str, object]]:
+    if not _is_sqlite_allowed():
+        return []
     limit = max(1, min(limit, 100))
     conn = get_db()
     rows = conn.execute(
