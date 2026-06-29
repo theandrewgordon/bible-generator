@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#f8f1e3">
+    <title>FaithSparks Speed Die Helper</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <p class="brand-kicker">Board Game Helper</p>
+        <h1>FaithSparks Speed Die Helper</h1>
+      </div>
+      <button id="game-menu-button" class="icon-button hidden" type="button" aria-label="Open game options">⚙</button>
+    </header>
+
+    <main id="app" class="app-shell" aria-live="polite"></main>
+
+    <footer>FaithSparks family game helper.</footer>
+
+    <dialog id="owner-dialog">
+      <form method="dialog">
+        <h2>Choose an owner</h2>
+        <p id="owner-dialog-property" class="muted"></p>
+        <div id="owner-options" class="button-stack"></div>
+        <button class="button secondary" value="cancel">Cancel</button>
+      </form>
+    </dialog>
+
+    <dialog id="position-dialog">
+      <form id="position-form">
+        <h2>Correct player position</h2>
+        <p id="position-dialog-player" class="muted"></p>
+        <label class="field">
+          <span>Current board space</span>
+          <select id="position-space"></select>
+        </label>
+        <div class="button-stack">
+          <button class="button" type="submit">Save position</button>
+          <button id="cancel-position" class="button quiet" type="button">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="menu-dialog">
+      <form method="dialog">
+        <h2>Game options</h2>
+        <div class="button-stack">
+          <button id="export-button" class="button secondary" type="button">Export game JSON</button>
+          <label class="button secondary file-button">
+            Import game JSON
+            <input id="import-input" type="file" accept="application/json,.json">
+          </label>
+          <button id="reset-button" class="button danger" type="button">Reset game</button>
+          <button class="button quiet" value="close">Close</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
