@@ -257,6 +257,15 @@ def robots_txt():
     )
     return Response(body, mimetype="text/plain")
 
+@app.route("/speeddie")
+@app.route("/speeddie/")
+def speeddie_app():
+    return send_from_directory("speeddie", "index.html")
+
+
+@app.route("/speeddie/<path:filename>")
+def speeddie_static(filename):
+    return send_from_directory("speeddie", filename)
 
 @app.route("/verse-of-the-week")
 def verse_of_the_week():
