@@ -8,9 +8,7 @@ __pycache__/
 .env
 secret.env
 firebase-creds.json
-
-
-# Output folders
+.venv/
 
 # PDF and logs
 *.pdf
@@ -19,7 +17,4 @@ firebase-creds.json
 # Allow shipping purchased bundles
 !static/bundles/*.pdf
 !static/bundles/*.zip
-.venv/
-analytics.sqlite
-.venv/
 analytics.sqlite

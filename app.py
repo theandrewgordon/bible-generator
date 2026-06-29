@@ -42,7 +42,7 @@ except Exception:
     markdown2 = None
 
 # Extracted services/utilities
-from faithsparks.services.firestore import db
+from faithsparks.services.firestore import db, init_firebase
 from faithsparks.services.storage import upload_to_storage, signed_url_for_path
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
@@ -163,6 +163,12 @@ def _cleanup_output_dirs():
 APP_ENV = os.getenv("APP_ENV", "dev").lower()
 PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "faithsparksprintables.com")
 
+def _is_local_storage_allowed() -> bool:
+    """Return True if local storage fallback is allowed (development-only by default)."""
+    if os.getenv("USE_LOCAL_STORAGE", "").lower() in {"1", "true", "yes"}:
+        return True
+    return APP_ENV not in {"prod", "production"}
+
 def _compute_static_version() -> str:
     """Cache-bust token for static assets. Changes whenever the deploy (or the
     static files) change, so returning visitors don't get stale CSS/JS."""
@@ -186,9 +192,15 @@ _USER_FLAGS_TTL = 120.0  # seconds
 # --- App Setup ---
 app = Flask(__name__)
 
-# Fail fast in production if secret is missing
-if APP_ENV in {"prod", "production"} and not os.getenv("FLASK_SECRET_KEY"):
-    raise RuntimeError("FLASK_SECRET_KEY must be set in production")
+# Fail fast in production if secret or required cloud storage config is missing
+if APP_ENV in {"prod", "production"}:
+    if not os.getenv("FLASK_SECRET_KEY"):
+        raise RuntimeError("FLASK_SECRET_KEY must be set in production")
+    if not os.getenv("FIREBASE_CREDS_JSON"):
+        raise RuntimeError("FIREBASE_CREDS_JSON must be set in production to configure Firestore")
+    firestore_client, _ = init_firebase()
+    if firestore_client is None:
+        raise RuntimeError("FIREBASE_CREDS_JSON is invalid or Firestore could not be initialized")
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-secret")
 
@@ -898,6 +910,10 @@ def list_worship_songs() -> list[dict]:
             return results
         except Exception as exc:
             app.logger.warning("list_worship_songs Firestore error: %s", exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError("Firestore query failed for list_worship_songs in production.") from exc
+    if not _is_local_storage_allowed():
+        raise RuntimeError("Firestore not available to list songs in production. Local fallback is disabled.")
     songs_folder = Path(app.root_path) / "songs"
     songs = []
     if songs_folder.is_dir():
@@ -922,6 +938,10 @@ def get_worship_song(song_id: str) -> dict | None:
                     return doc.to_dict()
         except Exception as exc:
             app.logger.warning("get_worship_song(%s) Firestore error: %s", song_id, exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError(f"Firestore read failed for song {song_id} in production.") from exc
+    if not _is_local_storage_allowed():
+        raise RuntimeError(f"Firestore not available to get song {song_id} in production. Local fallback is disabled.")
     fp = Path(app.root_path) / "songs" / f"{song_id}.json"
     if fp.exists():
         try:
@@ -1062,6 +1082,10 @@ def save_worship_song(song: dict) -> None:
             return
         except Exception as exc:
             app.logger.warning("save_worship_song(%s) Firestore error: %s", song_id, exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError(f"Firestore write failed for song {song_id} in production.") from exc
+    if not _is_local_storage_allowed():
+        raise RuntimeError(f"Firestore not available to save song {song_id} in production. Local fallback is disabled.")
     songs_folder = Path(app.root_path) / "songs"
     songs_folder.mkdir(exist_ok=True)
     with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
@@ -1091,13 +1115,19 @@ def delete_worship_song(song_id: str) -> bool:
                         break
         except Exception as exc:
             app.logger.warning("delete_worship_song(%s) Firestore error: %s", song_id, exc)
-    fp = Path(app.root_path) / "songs" / f"{song_id}.json"
-    if fp.exists():
-        try:
-            fp.unlink()
-            deleted = True
-        except Exception:
-            pass
+            if not _is_local_storage_allowed():
+                raise RuntimeError(f"Firestore delete failed for song {song_id} in production.") from exc
+    if not _is_local_storage_allowed():
+        if not db:
+            raise RuntimeError(f"Firestore not available to delete song {song_id} in production. Local fallback is disabled.")
+    if _is_local_storage_allowed():
+        fp = Path(app.root_path) / "songs" / f"{song_id}.json"
+        if fp.exists():
+            try:
+                fp.unlink()
+                deleted = True
+            except Exception:
+                pass
     if deleted:
         _invalidate_worship_cache()
     return deleted
@@ -1234,6 +1264,10 @@ def _get_worship_setlist(setlist_id: str) -> dict | None:
                     return _normalize_worship_setlist(doc.to_dict() or {}, doc.id)
         except Exception as exc:
             app.logger.warning("_get_worship_setlist(%s) Firestore error: %s", setlist_id, exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError(f"Firestore read failed for setlist {setlist_id} in production.") from exc
+    if not _is_local_storage_allowed():
+        raise RuntimeError(f"Firestore not available to get setlist {setlist_id} in production. Local fallback is disabled.")
     fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
     if fp.exists():
         try:
@@ -1269,17 +1303,24 @@ def _persist_worship_setlist(data: dict, previous_id: str = "") -> bool:
                     _legacy_worship_setlists_ref().document(previous_id).delete()
         except Exception as exc:
             app.logger.warning("_persist_worship_setlist Firestore error: %s", exc)
-    try:
-        setlists_dir = Path(app.root_path) / "setlists"
-        setlists_dir.mkdir(exist_ok=True)
-        with open(setlists_dir / f"{setlist_id}.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        if previous_id and previous_id != setlist_id:
-            old_fp = setlists_dir / f"{previous_id}.json"
-            if old_fp.exists():
-                old_fp.unlink()
-    except Exception as exc:
-        app.logger.warning("_persist_worship_setlist file error: %s", exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError(f"Firestore save failed for setlist {setlist_id} in production.") from exc
+    else:
+        if not _is_local_storage_allowed():
+            raise RuntimeError(f"Firestore not available to save setlist {setlist_id} in production. Local fallback is disabled.")
+
+    if _is_local_storage_allowed():
+        try:
+            setlists_dir = Path(app.root_path) / "setlists"
+            setlists_dir.mkdir(exist_ok=True)
+            with open(setlists_dir / f"{setlist_id}.json", "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            if previous_id and previous_id != setlist_id:
+                old_fp = setlists_dir / f"{previous_id}.json"
+                if old_fp.exists():
+                    old_fp.unlink()
+        except Exception as exc:
+            app.logger.warning("_persist_worship_setlist file error: %s", exc)
     return existed
 
 
@@ -1300,13 +1341,20 @@ def _delete_worship_setlist(setlist_id: str) -> bool:
                 legacy_ref.delete()
         except Exception as exc:
             app.logger.warning("_delete_worship_setlist Firestore error: %s", exc)
-    fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
-    if fp.exists():
-        try:
-            fp.unlink()
-            deleted = True
-        except Exception:
-            pass
+            if not _is_local_storage_allowed():
+                raise RuntimeError(f"Firestore delete failed for setlist {setlist_id} in production.") from exc
+    else:
+        if not _is_local_storage_allowed():
+            raise RuntimeError(f"Firestore not available to delete setlist {setlist_id} in production. Local fallback is disabled.")
+
+    if _is_local_storage_allowed():
+        fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
+        if fp.exists():
+            try:
+                fp.unlink()
+                deleted = True
+            except Exception:
+                pass
     return deleted
 
 
