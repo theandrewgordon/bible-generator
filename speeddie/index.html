@@ -24,7 +24,7 @@
 
     <dialog id="owner-dialog">
       <form method="dialog">
-        <h2>Property settings</h2>
+        <h2 id="owner-dialog-title">Property settings</h2>
         <p id="owner-dialog-property" class="muted"></p>
         <button id="mortgage-toggle" class="button gold hidden" type="button"></button>
         <p class="fieldset-label">Change owner</p>
@@ -40,6 +40,10 @@
         <label class="field">
           <span>Current board space</span>
           <select id="position-space"></select>
+        </label>
+        <label class="check-card">
+          <input id="position-in-jail" type="checkbox">
+          <span>Player is in Jail—not just visiting</span>
         </label>
         <div class="button-stack">
           <button class="button" type="submit">Save position</button>

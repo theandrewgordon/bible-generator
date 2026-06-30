@@ -118,6 +118,18 @@ input:focus, select:focus, button:focus-visible, summary:focus-visible {
 .radio-card input { grid-row: 1 / 3; align-self: center; width: 20px; height: 20px; }
 .radio-card strong { line-height: 1.25; }
 .radio-card small { color: var(--ink-muted); }
+.check-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 18px;
+  padding: 12px;
+  background: #f7f5ef;
+  border-radius: 10px;
+  font-weight: 750;
+}
+.check-card input { width: 21px; height: 21px; }
 
 .player-inputs { display: grid; gap: 10px; }
 
@@ -292,6 +304,14 @@ input:focus, select:focus, button:focus-visible, summary:focus-visible {
 .jail-panel {
   background: #fff7e5;
   border-color: #dfb85b;
+}
+.resolution-warning {
+  margin: 12px 0;
+  padding: 11px 13px;
+  color: #743737;
+  background: #f8dddd;
+  border: 1px solid #dfa9a9;
+  border-radius: 10px;
 }
 
 details.panel { padding: 0; overflow: hidden; }

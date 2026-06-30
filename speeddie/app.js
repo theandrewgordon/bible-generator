@@ -45,11 +45,12 @@ const tradeDialog = document.querySelector("#trade-dialog");
 const tradeForm = document.querySelector("#trade-form");
 let ownerDialogCallback = null;
 let correctingPlayerId = null;
+let positionCorrectionReason = "manual";
 let state = loadState();
 
 function freshState() {
   return {
-    version: 3,
+    version: 4,
     started: false,
     players: [],
     currentPlayer: 0,
@@ -60,6 +61,7 @@ function freshState() {
     phase: "ready",
     message: "",
     pendingFinderTarget: null,
+    firstStopResolved: false,
     extraTurn: false,
     history: []
   };
@@ -77,7 +79,7 @@ function loadState() {
 
 function isValidState(value) {
   return Boolean(
-    value && [1, 2, 3].includes(value.version) && Array.isArray(value.players) &&
+    value && [1, 2, 3, 4].includes(value.version) && Array.isArray(value.players) &&
     Array.isArray(value.spaces) && value.spaces.length === 40
   );
 }
@@ -107,7 +109,8 @@ function migrateState(saved) {
     consecutiveDoubles: Number(player.consecutiveDoubles) || 0
   }));
   saved.extraTurn = Boolean(saved.extraTurn);
-  saved.version = 3;
+  saved.firstStopResolved = Boolean(saved.firstStopResolved);
+  saved.version = 4;
   return saved;
 }
 
@@ -125,6 +128,7 @@ function escapeHTML(value) {
 function currentPlayer() { return state.players[state.currentPlayer]; }
 function currentSpace() { return state.spaces[currentPlayer().position]; }
 function isProperty(space) { return ["property", "railroad", "utility"].includes(space.type); }
+function isCardSpace(space) { return ["Chance", "Community Chest"].includes(space.name); }
 function spaceGroupLabel(space) {
   return space.group ? `${space.group} ${space.groupOrder}` : "";
 }
@@ -322,12 +326,31 @@ function renderActionArea(speedActive) {
       </div>
     </section>`;
   }
+  if (state.phase === "triples") {
+    return `<section class="panel instruction gold-instruction">
+      <p class="eyebrow">Three of a kind</p>
+      <h2>Choose any space on the board</h2>
+      <p>Triples let you move anywhere. You do not roll again afterward.</p>
+      <label class="field">
+        <span>Destination</span>
+        <select id="triples-space">
+          ${state.spaces.map(space => `<option value="${space.index}">${space.index} · ${escapeHTML(space.name)}</option>`).join("")}
+        </select>
+      </label>
+      <button id="move-triples" class="button primary gold" type="button">Move to selected space</button>
+    </section>`;
+  }
   if (state.phase === "classic-first-stop") {
+    const needsAuction = isProperty(currentSpace()) &&
+      currentSpace().owner === null &&
+      !state.firstStopResolved;
     return `<section class="panel instruction">
       <h2>First stop: ${escapeHTML(currentSpace().name)}</h2>
       <p>Resolve this space using your physical board. Then continue to the Property Finder move.</p>
       ${renderLandingResolution(false)}
-      <button id="continue-finder" class="button primary" type="button">Continue Property Finder</button>
+      ${isCardSpace(currentSpace()) ? `<button id="card-moved-token" class="button secondary" type="button">The card moved my token</button>` : ""}
+      ${needsAuction ? `<p class="resolution-warning">Buy this property, record the auction winner, or explicitly use the leave-unowned house rule before continuing.</p>` : ""}
+      <button id="continue-finder" class="button primary" type="button" ${needsAuction ? "disabled" : ""}>Continue Property Finder</button>
     </section>`;
   }
   return `
@@ -350,8 +373,8 @@ function renderLandingResolution(includeOwnedMessage) {
       <h3>${escapeHTML(space.name)} is unowned</h3>
       <div class="button-stack">
         <button class="button buy-current" type="button">Mark bought by ${escapeHTML(currentPlayer().name)}</button>
-        <button class="button secondary choose-owner" data-space="${space.index}" type="button">Choose another owner</button>
-        <button class="button quiet leave-unowned" type="button">Leave unowned</button>
+        <button class="button secondary choose-owner" data-space="${space.index}" data-owner-action="auction" type="button">Record auction winner</button>
+        <button class="button quiet leave-unowned" type="button">House rule: leave unowned</button>
       </div>
     </div>`;
   }
@@ -402,17 +425,25 @@ function bindGameEvents() {
     button.addEventListener("click", () => completeMove(Number(button.dataset.move), `Move ${button.dataset.move} spaces.`))
   );
   document.querySelector("#continue-finder")?.addEventListener("click", continuePropertyFinder);
+  document.querySelector("#move-triples")?.addEventListener("click", moveAfterTriples);
+  document.querySelector("#card-moved-token")?.addEventListener("click", () =>
+    openPositionDialog(currentPlayer().id, "card")
+  );
   document.querySelector("#end-turn-button")?.addEventListener("click", endTurn);
   document.querySelector("#pay-jail")?.addEventListener("click", payToLeaveJail);
   document.querySelector("#try-jail-doubles")?.addEventListener("click", tryJailDoubles);
   document.querySelector("#open-trade")?.addEventListener("click", openTradeDialog);
   document.querySelector(".buy-current")?.addEventListener("click", buyCurrent);
   document.querySelector(".leave-unowned")?.addEventListener("click", () => {
-    state.message += " The property remains unowned.";
+    state.message += " House rule used: the property remains unowned.";
+    if (state.phase === "classic-first-stop") state.firstStopResolved = true;
     saveState(); render();
   }, { once: true });
   document.querySelectorAll(".choose-owner").forEach(button =>
-    button.addEventListener("click", () => openOwnerDialog(Number(button.dataset.space ?? currentSpace().index)))
+    button.addEventListener("click", () => openOwnerDialog(
+      Number(button.dataset.space ?? currentSpace().index),
+      button.dataset.ownerAction || "settings"
+    ))
   );
   document.querySelectorAll(".space-name").forEach(input =>
     input.addEventListener("change", () => renameSpace(Number(input.dataset.space), input.value))
@@ -431,6 +462,14 @@ function rollDice() {
   const d2 = randomDie();
   const speed = speedActive ? SPEED_FACES[Math.floor(Math.random() * SPEED_FACES.length)] : null;
   state.roll = { d1, d2, speed, speedActive };
+  if (typeof speed === "number" && d1 === d2 && d2 === speed) {
+    player.consecutiveDoubles = 0;
+    state.extraTurn = false;
+    state.phase = "triples";
+    state.message = "Triples: choose any board space.";
+    saveState(); render();
+    return;
+  }
   const doublesResult = registerDoubles(d1, d2);
   if (doublesResult === "third") {
     sendToJail("Three doubles in a row. Go directly to Jail.");
@@ -459,7 +498,7 @@ function rollDice() {
       saveState(); render();
       return;
     }
-    state.pendingFinderTarget = findPropertyTarget();
+    state.firstStopResolved = false;
     state.phase = "classic-first-stop";
     state.message = `Move ${whiteTotal} spaces and resolve this space first.`;
     saveState(); render();
@@ -482,6 +521,21 @@ function movePlayer(amount) {
   const destination = player.position + amount;
   if (destination >= 40) player.passedGo = true;
   player.position = destination % 40;
+}
+
+function moveAfterTriples() {
+  const target = Number(document.querySelector("#triples-space").value);
+  if (!Number.isInteger(target) || target < 0 || target >= state.spaces.length) return;
+  const player = currentPlayer();
+  if (target === 0 || target < player.position) player.passedGo = true;
+  player.position = target;
+  state.phase = "landed";
+  state.extraTurn = false;
+  state.message = `Triples: move directly to ${state.spaces[target].name}.`;
+  resolveGoToJail();
+  recordRoll();
+  saveState();
+  render();
 }
 
 function registerDoubles(d1, d2) {
@@ -600,7 +654,20 @@ function tryJailDoubles() {
 }
 
 function continuePropertyFinder() {
-  moveToPropertyFinderTarget(state.pendingFinderTarget);
+  if (isProperty(currentSpace()) && currentSpace().owner === null && !state.firstStopResolved) return;
+  const target = findPropertyTarget();
+  if (target === null) {
+    state.phase = "landed";
+    state.pendingFinderTarget = null;
+    state.firstStopResolved = false;
+    state.message = `Property Finder found no eligible property. Stay on ${currentSpace().name}; the white-dice move was already completed.`;
+    recordRoll();
+    saveState();
+    render();
+    return;
+  }
+  state.firstStopResolved = false;
+  moveToPropertyFinderTarget(target);
 }
 
 function recordRoll() {
@@ -619,6 +686,7 @@ function recordRoll() {
 function buyCurrent() {
   currentSpace().owner = currentPlayer().id;
   currentSpace().mortgaged = false;
+  if (state.phase === "classic-first-stop") state.firstStopResolved = true;
   state.message += ` Marked as bought by ${currentPlayer().name}.`;
   saveState(); render();
 }
@@ -732,8 +800,10 @@ tradeForm.addEventListener("submit", event => {
   render();
 });
 
-function openOwnerDialog(spaceIndex) {
+function openOwnerDialog(spaceIndex, action = "settings") {
   const space = state.spaces[spaceIndex];
+  document.querySelector("#owner-dialog-title").textContent =
+    action === "auction" ? "Record auction winner" : "Property settings";
   document.querySelector("#owner-dialog-property").textContent = space.name;
   const mortgageToggle = document.querySelector("#mortgage-toggle");
   mortgageToggle.classList.toggle("hidden", space.owner === null);
@@ -751,6 +821,9 @@ function openOwnerDialog(spaceIndex) {
   ownerDialogCallback = ownerId => {
     space.owner = ownerId || null;
     if (!space.owner) space.mortgaged = false;
+    if (state.phase === "classic-first-stop" && space.index === currentSpace().index && space.owner) {
+      state.firstStopResolved = true;
+    }
     saveState(); render();
   };
   document.querySelectorAll(".owner-option").forEach(button => button.addEventListener("click", () => {
@@ -760,14 +833,16 @@ function openOwnerDialog(spaceIndex) {
   ownerDialog.showModal();
 }
 
-function openPositionDialog(playerId) {
+function openPositionDialog(playerId, reason = "manual") {
   const player = state.players.find(person => person.id === playerId);
   if (!player) return;
   correctingPlayerId = playerId;
+  positionCorrectionReason = reason;
   document.querySelector("#position-dialog-player").textContent = `Move ${player.name} to the correct space.`;
   document.querySelector("#position-space").innerHTML = state.spaces
     .map(space => `<option value="${space.index}" ${space.index === player.position ? "selected" : ""}>${space.index} · ${escapeHTML(space.name)}</option>`)
     .join("");
+  document.querySelector("#position-in-jail").checked = player.inJail;
   positionDialog.showModal();
 }
 
@@ -775,18 +850,39 @@ positionForm.addEventListener("submit", event => {
   event.preventDefault();
   const player = state.players.find(person => person.id === correctingPlayerId);
   if (!player) return;
+  const previousPosition = player.position;
   player.position = Number(document.querySelector("#position-space").value);
-  if (player.inJail && player.position !== 10) {
+  const markInJail = document.querySelector("#position-in-jail").checked;
+  if (markInJail) {
+    player.position = 10;
+    player.inJail = true;
+    player.jailAttempts = 0;
+    player.consecutiveDoubles = 0;
+    state.extraTurn = false;
+  } else if (player.inJail) {
     player.inJail = false;
     player.jailAttempts = 0;
   }
+  if (positionCorrectionReason === "card") {
+    if (player.position === 0) player.passedGo = true;
+    state.firstStopResolved = false;
+    if (markInJail || player.position === 30) {
+      sendToJail("A card sent you directly to Jail.");
+      recordRoll();
+    } else {
+      state.phase = "classic-first-stop";
+      state.message = `Card movement recorded from ${state.spaces[previousPosition].name} to ${state.spaces[player.position].name}. Resolve this space, then continue Property Finder.`;
+    }
+  }
   saveState();
   positionDialog.close();
+  positionCorrectionReason = "manual";
   render();
 });
 
 document.querySelector("#cancel-position").addEventListener("click", () => {
   correctingPlayerId = null;
+  positionCorrectionReason = "manual";
   positionDialog.close();
 });
 
@@ -799,6 +895,7 @@ function endTurn() {
   state.phase = "ready";
   state.message = "";
   state.pendingFinderTarget = null;
+  state.firstStopResolved = false;
   state.extraTurn = false;
   saveState();
   render();
