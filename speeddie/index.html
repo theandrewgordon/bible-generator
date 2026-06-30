@@ -24,8 +24,10 @@
 
     <dialog id="owner-dialog">
       <form method="dialog">
-        <h2>Choose an owner</h2>
+        <h2>Property settings</h2>
         <p id="owner-dialog-property" class="muted"></p>
+        <button id="mortgage-toggle" class="button gold hidden" type="button"></button>
+        <p class="fieldset-label">Change owner</p>
         <div id="owner-options" class="button-stack"></div>
         <button class="button secondary" value="cancel">Cancel</button>
       </form>
@@ -42,6 +44,38 @@
         <div class="button-stack">
           <button class="button" type="submit">Save position</button>
           <button id="cancel-position" class="button quiet" type="button">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="trade-dialog" class="wide-dialog">
+      <form id="trade-form">
+        <h2>Trade properties</h2>
+        <p class="muted">Choose two players and the properties moving in each direction.</p>
+        <div class="trade-player-selects">
+          <label class="field">
+            <span>First player</span>
+            <select id="trade-player-a"></select>
+          </label>
+          <label class="field">
+            <span>Second player</span>
+            <select id="trade-player-b"></select>
+          </label>
+        </div>
+        <div class="trade-grid">
+          <fieldset>
+            <legend id="trade-a-legend">Properties offered</legend>
+            <div id="trade-properties-a" class="trade-properties"></div>
+          </fieldset>
+          <fieldset>
+            <legend id="trade-b-legend">Properties offered</legend>
+            <div id="trade-properties-b" class="trade-properties"></div>
+          </fieldset>
+        </div>
+        <div id="trade-summary" class="trade-summary">Select properties to preview the trade.</div>
+        <div class="button-stack">
+          <button id="complete-trade" class="button" type="submit">Complete trade</button>
+          <button id="cancel-trade" class="button quiet" type="button">Cancel</button>
         </div>
       </form>
     </dialog>

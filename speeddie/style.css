@@ -181,7 +181,20 @@ input:focus, select:focus, button:focus-visible, summary:focus-visible {
 .location { margin: 4px 0 0; color: var(--ink-muted); }
 
 .players-panel { padding-block: 14px; }
-.players-panel h2 { margin-bottom: 12px; font-size: 1.05rem; }
+.players-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.players-panel h2 { margin: 0; font-size: 1.05rem; }
+.trade-button {
+  min-height: 38px;
+  width: auto;
+  padding: 7px 14px;
+  font-size: .82rem;
+}
 .player-list { display: grid; gap: 8px; }
 .player-row {
   display: grid;
@@ -271,6 +284,15 @@ input:focus, select:focus, button:focus-visible, summary:focus-visible {
   background: var(--gold-soft);
   border-radius: 10px;
 }
+.doubles-note {
+  color: var(--navy);
+  background: var(--gold-soft);
+  border: 1px solid #e4c460;
+}
+.jail-panel {
+  background: #fff7e5;
+  border-color: #dfb85b;
+}
 
 details.panel { padding: 0; overflow: hidden; }
 details > summary {
@@ -332,6 +354,19 @@ details[open] > summary::after { content: "−"; }
   letter-spacing: .035em;
   text-transform: uppercase;
 }
+.mortgage-badge {
+  display: inline-block;
+  margin: 4px 0 0 5px;
+  padding: 2px 7px;
+  color: #743737;
+  background: #f8dddd;
+  border: 1px solid #dfa9a9;
+  border-radius: 999px;
+  font-size: .65rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
 .owner-button {
   grid-column: 2;
   justify-self: start;
@@ -363,6 +398,40 @@ dialog form { padding: 24px; }
 dialog h2 { margin-top: 0; }
 .file-button { display: grid; place-items: center; }
 .file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.wide-dialog { width: min(94vw, 720px); }
+.trade-player-selects, .trade-grid { display: grid; gap: 14px; }
+.trade-grid { margin-block: 14px; }
+.trade-grid fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.trade-grid legend { padding-inline: 6px; font-weight: 800; }
+.trade-properties { display: grid; gap: 7px; }
+.trade-property {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  background: #f7f5ef;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.trade-property input { width: 20px; height: 20px; }
+.trade-property .mortgage-badge { margin-left: 0; }
+.trade-empty { margin: 4px; color: var(--ink-muted); font-size: .86rem; }
+.trade-summary {
+  min-height: 62px;
+  margin-bottom: 14px;
+  padding: 12px;
+  color: var(--navy);
+  background: var(--blue-soft);
+  border: 1px solid #b8d6e9;
+  border-radius: 10px;
+}
 
 @media (min-width: 620px) {
   .site-header { padding-inline: max(30px, calc((100vw - 960px) / 2)); }
@@ -377,6 +446,7 @@ dialog h2 { margin-top: 0; }
   .player-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .space-row { grid-template-columns: 32px minmax(0, 1fr) auto; }
   .owner-button { grid-column: auto; justify-self: auto; }
+  .trade-player-selects, .trade-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
