@@ -175,6 +175,12 @@ function needsLandingResolution() {
 function setLandingResolutionState() {
   state.landingResolved = !(isProperty(currentSpace()) && currentSpace().owner === null);
 }
+function destinationIndex(position, amount, boardSize = 40) {
+  return (position + amount) % boardSize;
+}
+function destinationForMove(amount) {
+  return state.spaces[destinationIndex(currentPlayer().position, amount, state.spaces.length)];
+}
 function spaceGroupLabel(space) {
   return space.group ? `${space.group} ${space.groupOrder}` : "";
 }
@@ -381,13 +387,15 @@ function renderActionArea(speedActive) {
   }
   if (state.phase === "bus") {
     const { d1, d2 } = state.roll;
+    const busMoves = [...new Set([d1, d2, d1 + d2])];
     return `<section class="panel instruction gold-instruction">
       <h2>Bus roll: choose your move</h2>
       <p>Move one white die or both white dice.</p>
       <div class="button-row">
-        <button class="button bus-choice" data-move="${d1}">Move ${d1}</button>
-        <button class="button bus-choice" data-move="${d2}">Move ${d2}</button>
-        <button class="button bus-choice" data-move="${d1 + d2}">Move ${d1 + d2}</button>
+        ${busMoves.map(move => {
+          const destination = destinationForMove(move);
+          return `<button class="button bus-choice" data-move="${move}">Move ${move} → ${escapeHTML(destination.name)}</button>`;
+        }).join("")}
       </div>
     </section>`;
   }
@@ -496,7 +504,10 @@ function renderBoard() {
 function bindGameEvents() {
   document.querySelector("#roll-button")?.addEventListener("click", rollDice);
   document.querySelectorAll(".bus-choice").forEach(button =>
-    button.addEventListener("click", () => completeMove(Number(button.dataset.move), `Move ${button.dataset.move} spaces.`))
+    button.addEventListener("click", () => {
+      const move = Number(button.dataset.move);
+      completeMove(move, `Move ${move} spaces to ${destinationForMove(move).name}.`);
+    })
   );
   document.querySelector("#continue-finder")?.addEventListener("click", continuePropertyFinder);
   document.querySelector("#move-triples")?.addEventListener("click", moveAfterTriples);
@@ -1044,6 +1055,7 @@ function runRuleSelfChecks() {
   check("third consecutive doubles sends player to Jail", doublesOutcome(2, 4, 4).result === "third");
   check("a non-double clears the doubles chain", doublesOutcome(2, 4, 5).count === 0);
   check("voluntary jail payment is unavailable on attempt three", !canPayBeforeJailRoll(2));
+  check("Bus destination wraps around GO", destinationIndex(38, 5) === 3);
 
   const testPlayer = { id: "current", position: 0 };
   const targetSpaces = structuredClone(DEFAULT_SPACES);
