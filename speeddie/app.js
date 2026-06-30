@@ -50,7 +50,7 @@ let state = loadState();
 
 function freshState() {
   return {
-    version: 4,
+    version: 5,
     started: false,
     players: [],
     currentPlayer: 0,
@@ -62,6 +62,8 @@ function freshState() {
     message: "",
     pendingFinderTarget: null,
     firstStopResolved: false,
+    landingResolved: true,
+    freeParkingRule: "official",
     extraTurn: false,
     history: []
   };
@@ -79,12 +81,13 @@ function loadState() {
 
 function isValidState(value) {
   return Boolean(
-    value && [1, 2, 3, 4].includes(value.version) && Array.isArray(value.players) &&
+    value && [1, 2, 3, 4, 5].includes(value.version) && Array.isArray(value.players) &&
     Array.isArray(value.spaces) && value.spaces.length === 40
   );
 }
 
 function migrateState(saved) {
+  const previousVersion = saved.version;
   // Preserve players, positions, ownership, and custom edits. Replace only names
   // that still match the original generic defaults from the first app version.
   const oldGenericNames = [
@@ -110,7 +113,15 @@ function migrateState(saved) {
   }));
   saved.extraTurn = Boolean(saved.extraTurn);
   saved.firstStopResolved = Boolean(saved.firstStopResolved);
-  saved.version = 4;
+  const savedPlayer = saved.players[saved.currentPlayer];
+  const savedSpace = savedPlayer ? saved.spaces[savedPlayer.position] : null;
+  saved.landingResolved = previousVersion >= 5
+    ? saved.landingResolved !== false
+    : !(saved.phase === "landed" && savedSpace && isProperty(savedSpace) && savedSpace.owner === null);
+  saved.freeParkingRule = ["official", "500", "100", "50", "pot"].includes(saved.freeParkingRule)
+    ? saved.freeParkingRule
+    : "official";
+  saved.version = 5;
   return saved;
 }
 
@@ -129,6 +140,41 @@ function currentPlayer() { return state.players[state.currentPlayer]; }
 function currentSpace() { return state.spaces[currentPlayer().position]; }
 function isProperty(space) { return ["property", "railroad", "utility"].includes(space.type); }
 function isCardSpace(space) { return ["Chance", "Community Chest"].includes(space.name); }
+function isTriplesRoll(d1, d2, speed) {
+  return typeof speed === "number" && d1 === d2 && d2 === speed;
+}
+function canPayBeforeJailRoll(jailAttempts) { return jailAttempts < 2; }
+function doublesOutcome(consecutiveDoubles, d1, d2) {
+  if (d1 !== d2) return { result: "no", count: 0 };
+  const count = consecutiveDoubles + 1;
+  return count >= 3
+    ? { result: "third", count: 0 }
+    : { result: "yes", count };
+}
+function propertyTargetFor(spaces, player) {
+  const properties = spaces.filter(isProperty);
+  const unowned = properties.filter(space => space.owner === null);
+  const candidates = unowned.length
+    ? unowned
+    : properties.filter(space =>
+      space.owner !== null &&
+      space.owner !== player.id &&
+      !space.mortgaged
+    );
+  if (!candidates.length) return null;
+  return candidates
+    .map(space => ({ space, distance: (space.index - player.position + 40) % 40 || 40 }))
+    .sort((a, b) => a.distance - b.distance)[0].space.index;
+}
+function needsLandingResolution() {
+  return state.phase === "landed" &&
+    isProperty(currentSpace()) &&
+    currentSpace().owner === null &&
+    !state.landingResolved;
+}
+function setLandingResolutionState() {
+  state.landingResolved = !(isProperty(currentSpace()) && currentSpace().owner === null);
+}
 function spaceGroupLabel(space) {
   return space.group ? `${space.group} ${space.groupOrder}` : "";
 }
@@ -183,10 +229,24 @@ function renderSetup() {
               </label>
               <label class="radio-card">
                 <input type="radio" name="activation" value="after-go">
-                <strong>After each player passes GO</strong>
-                <small>Each player unlocks it after their first trip around.</small>
+                <strong>After each player lands on or passes GO</strong>
+                <small>Each player unlocks it after completing their first trip around.</small>
               </label>
             </div>
+            <div class="setup-note">
+              <strong>Speed Die cash reminder</strong>
+              <span>Official Speed Die play adds $1,000 to each player’s normal starting cash.</span>
+            </div>
+            <label class="field">
+              <span>Free Parking rule</span>
+              <select name="free-parking">
+                <option value="official">Official: nothing happens</option>
+                <option value="500">House rule: collect $500</option>
+                <option value="100">House rule: collect $100</option>
+                <option value="50">House rule: collect $50</option>
+                <option value="pot">House rule: collect the center pot</option>
+              </select>
+            </label>
           </div>
         </div>
         <button class="button primary" type="submit">Start game</button>
@@ -220,6 +280,7 @@ function startGame(event) {
   state.started = true;
   state.mode = new FormData(event.currentTarget).get("mode");
   state.activation = new FormData(event.currentTarget).get("activation");
+  state.freeParkingRule = new FormData(event.currentTarget).get("free-parking");
   state.players = names.map((name, index) => ({
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${index}`,
     name,
@@ -297,12 +358,16 @@ function dieCard(label, face, result, speed = false) {
 
 function renderActionArea(speedActive) {
   if (state.phase === "ready" && currentPlayer().inJail) {
+    const thirdAttempt = !canPayBeforeJailRoll(currentPlayer().jailAttempts);
     return `<section class="panel instruction jail-panel">
       <p class="eyebrow">In Jail · attempt ${currentPlayer().jailAttempts + 1} of 3</p>
-      <h2>How do you want to get out?</h2>
-      <p>Pay the bank using the physical game, or try to roll doubles.</p>
+      <h2>${thirdAttempt ? "Final doubles attempt" : "How do you want to get out?"}</h2>
+      <p>${thirdAttempt
+        ? "Use a physical Get Out of Jail Free card, or roll for doubles. If you miss, pay $50 and move using that roll."
+        : "Pay the bank, use a physical Get Out of Jail Free card, or try to roll doubles."}</p>
       <div class="button-stack">
-        <button id="pay-jail" class="button primary gold" type="button">Pay $50 &amp; roll normally</button>
+        ${thirdAttempt ? "" : `<button id="pay-jail" class="button primary gold" type="button">Pay $50 &amp; roll normally</button>`}
+        <button id="use-jail-card" class="button secondary" type="button">Use Get Out of Jail Free card</button>
         <button id="try-jail-doubles" class="button secondary" type="button">Try to roll doubles</button>
       </div>
     </section>`;
@@ -310,7 +375,7 @@ function renderActionArea(speedActive) {
   if (state.phase === "ready") {
     return `<section class="panel instruction ${speedActive ? "" : "gold-instruction"}">
       <h2>${speedActive ? "Ready to roll?" : "Two dice for now"}</h2>
-      <p>${speedActive ? "Roll both white dice and the Speed Die." : "The Speed Die unlocks for this player after passing GO."}</p>
+      <p>${speedActive ? "Roll both white dice and the Speed Die." : "The Speed Die unlocks for this player after landing on or passing GO."}</p>
       <button id="roll-button" class="button primary gold" type="button">Roll dice</button>
     </section>`;
   }
@@ -353,14 +418,17 @@ function renderActionArea(speedActive) {
       <button id="continue-finder" class="button primary" type="button" ${needsAuction ? "disabled" : ""}>Continue Property Finder</button>
     </section>`;
   }
+  const unresolvedProperty = needsLandingResolution();
   return `
     <section class="panel instruction">
       <p class="eyebrow">Your move</p>
       <h2>${escapeHTML(state.message)}</h2>
       ${renderLandingResolution(true)}
+      ${isCardSpace(currentSpace()) ? `<button id="card-moved-token" class="button secondary" type="button">The card moved my token</button>` : ""}
       ${state.extraTurn ? `<p class="status-note doubles-note">You rolled doubles. Finish resolving this space, then roll again.</p>` : ""}
+      ${unresolvedProperty ? `<p class="resolution-warning">Resolve this property before continuing: buy it, record the auction winner, or explicitly use the leave-unowned house rule.</p>` : ""}
     </section>
-    <button id="end-turn-button" class="button primary" type="button">${state.extraTurn ? "Roll again — doubles!" : "End turn"}</button>`;
+    <button id="end-turn-button" class="button primary" type="button" ${unresolvedProperty ? "disabled" : ""}>${state.extraTurn ? "Roll again — doubles!" : "End turn"}</button>`;
 }
 
 function renderLandingResolution(includeOwnedMessage) {
@@ -386,9 +454,15 @@ function renderLandingResolution(includeOwnedMessage) {
   if (owner.id === currentPlayer().id) {
     return `<p class="status-note">${escapeHTML(space.name)} is owned by ${escapeHTML(owner.name)}.</p>`;
   }
+  const utilityRoll = space.type === "utility" && state.roll
+    ? state.roll.d1 + state.roll.d2 + (typeof state.roll.speed === "number" ? state.roll.speed : 0)
+    : null;
+  const utilityNote = utilityRoll === null
+    ? ""
+    : ` Utility dice total: ${utilityRoll}; Bus and Property Finder count as zero.`;
   return includeOwnedMessage
-    ? `<p class="status-note">Owned by ${escapeHTML(owner.name)}. Pay rent using your physical board/card.</p>`
-    : `<p class="status-note">This property is owned by ${escapeHTML(owner.name)}. Resolve any rent before continuing.</p>`;
+    ? `<p class="status-note">Owned by ${escapeHTML(owner.name)}. Pay rent using your physical board/card.${utilityNote}</p>`
+    : `<p class="status-note">This property is owned by ${escapeHTML(owner.name)}. Resolve any rent before continuing.${utilityNote}</p>`;
 }
 
 function renderBoard() {
@@ -427,16 +501,21 @@ function bindGameEvents() {
   document.querySelector("#continue-finder")?.addEventListener("click", continuePropertyFinder);
   document.querySelector("#move-triples")?.addEventListener("click", moveAfterTriples);
   document.querySelector("#card-moved-token")?.addEventListener("click", () =>
-    openPositionDialog(currentPlayer().id, "card")
+    openPositionDialog(
+      currentPlayer().id,
+      state.phase === "classic-first-stop" ? "card-classic" : "card-normal"
+    )
   );
   document.querySelector("#end-turn-button")?.addEventListener("click", endTurn);
   document.querySelector("#pay-jail")?.addEventListener("click", payToLeaveJail);
+  document.querySelector("#use-jail-card")?.addEventListener("click", useJailCard);
   document.querySelector("#try-jail-doubles")?.addEventListener("click", tryJailDoubles);
   document.querySelector("#open-trade")?.addEventListener("click", openTradeDialog);
   document.querySelector(".buy-current")?.addEventListener("click", buyCurrent);
   document.querySelector(".leave-unowned")?.addEventListener("click", () => {
     state.message += " House rule used: the property remains unowned.";
     if (state.phase === "classic-first-stop") state.firstStopResolved = true;
+    state.landingResolved = true;
     saveState(); render();
   }, { once: true });
   document.querySelectorAll(".choose-owner").forEach(button =>
@@ -462,7 +541,7 @@ function rollDice() {
   const d2 = randomDie();
   const speed = speedActive ? SPEED_FACES[Math.floor(Math.random() * SPEED_FACES.length)] : null;
   state.roll = { d1, d2, speed, speedActive };
-  if (typeof speed === "number" && d1 === d2 && d2 === speed) {
+  if (isTriplesRoll(d1, d2, speed)) {
     player.consecutiveDoubles = 0;
     state.extraTurn = false;
     state.phase = "triples";
@@ -512,6 +591,7 @@ function completeMove(amount, message) {
   state.phase = "landed";
   state.message = message;
   resolveGoToJail();
+  setLandingResolutionState();
   recordRoll();
   saveState(); render();
 }
@@ -533,6 +613,7 @@ function moveAfterTriples() {
   state.extraTurn = false;
   state.message = `Triples: move directly to ${state.spaces[target].name}.`;
   resolveGoToJail();
+  setLandingResolutionState();
   recordRoll();
   saveState();
   render();
@@ -540,19 +621,10 @@ function moveAfterTriples() {
 
 function registerDoubles(d1, d2) {
   const player = currentPlayer();
-  if (d1 !== d2) {
-    player.consecutiveDoubles = 0;
-    state.extraTurn = false;
-    return "no";
-  }
-  player.consecutiveDoubles += 1;
-  if (player.consecutiveDoubles >= 3) {
-    state.extraTurn = false;
-    player.consecutiveDoubles = 0;
-    return "third";
-  }
-  state.extraTurn = true;
-  return "yes";
+  const outcome = doublesOutcome(player.consecutiveDoubles, d1, d2);
+  player.consecutiveDoubles = outcome.count;
+  state.extraTurn = outcome.result === "yes";
+  return outcome.result;
 }
 
 function sendToJail(message = "Go directly to Jail. Do not remain on Go to Jail.") {
@@ -564,6 +636,7 @@ function sendToJail(message = "Go directly to Jail. Do not remain on Go to Jail.
   state.extraTurn = false;
   state.pendingFinderTarget = null;
   state.phase = "landed";
+  state.landingResolved = true;
   state.message = message;
 }
 
@@ -574,20 +647,7 @@ function resolveGoToJail() {
 }
 
 function findPropertyTarget() {
-  const player = currentPlayer();
-  const properties = state.spaces.filter(isProperty);
-  const unowned = properties.filter(space => space.owner === null);
-  const candidates = unowned.length
-    ? unowned
-    : properties.filter(space =>
-      space.owner !== null &&
-      space.owner !== player.id &&
-      !space.mortgaged
-    );
-  if (!candidates.length) return null;
-  return candidates
-    .map(space => ({ space, distance: (space.index - player.position + 40) % 40 || 40 }))
-    .sort((a, b) => a.distance - b.distance)[0].space.index;
+  return propertyTargetFor(state.spaces, currentPlayer());
 }
 
 function moveToPropertyFinderTarget(target = findPropertyTarget()) {
@@ -606,6 +666,7 @@ function moveToPropertyFinderTarget(target = findPropertyTarget()) {
     ? `Property Finder: move directly to ${targetSpace.name}, the next unowned property.`
     : `All properties are owned. Move to ${targetSpace.name}, the next property owned by another player.`;
   state.pendingFinderTarget = null;
+  setLandingResolutionState();
   recordRoll();
   saveState(); render();
 }
@@ -616,6 +677,15 @@ function payToLeaveJail() {
   player.jailAttempts = 0;
   player.consecutiveDoubles = 0;
   state.message = "Pay $50 to the bank, then roll normally.";
+  rollDice();
+}
+
+function useJailCard() {
+  const player = currentPlayer();
+  player.inJail = false;
+  player.jailAttempts = 0;
+  player.consecutiveDoubles = 0;
+  state.message = "Return your physical Get Out of Jail Free card, then roll normally.";
   rollDice();
 }
 
@@ -634,6 +704,7 @@ function tryJailDoubles() {
     state.phase = "landed";
     state.message = `You rolled doubles and left Jail. Move ${d1 + d2} spaces.`;
     resolveGoToJail();
+    setLandingResolutionState();
   } else {
     player.jailAttempts += 1;
     if (player.jailAttempts >= 3) {
@@ -643,6 +714,7 @@ function tryJailDoubles() {
       state.phase = "landed";
       state.message = `No doubles on the third attempt. Pay $50, then move ${d1 + d2} spaces.`;
       resolveGoToJail();
+      setLandingResolutionState();
     } else {
       state.phase = "landed";
       state.message = `No doubles. Stay in Jail. This was attempt ${player.jailAttempts} of 3.`;
@@ -687,6 +759,7 @@ function buyCurrent() {
   currentSpace().owner = currentPlayer().id;
   currentSpace().mortgaged = false;
   if (state.phase === "classic-first-stop") state.firstStopResolved = true;
+  state.landingResolved = true;
   state.message += ` Marked as bought by ${currentPlayer().name}.`;
   saveState(); render();
 }
@@ -698,12 +771,19 @@ function renameSpace(index, name) {
 }
 
 function spaceInstruction(space) {
+  const freeParkingInstructions = {
+    official: "You landed on Free Parking. Official rule: nothing happens.",
+    "500": "You landed on Free Parking. House rule: collect $500 from the bank.",
+    "100": "You landed on Free Parking. House rule: collect $100 from the bank.",
+    "50": "You landed on Free Parking. House rule: collect $50 from the bank.",
+    pot: "You landed on Free Parking. House rule: collect the center pot."
+  };
   const instructions = {
     "Chance": "You landed on Chance. Draw a Chance card and follow it.",
     "Community Chest": "You landed on Community Chest. Draw a Community Chest card and follow it.",
     "Income Tax": "You landed on Income Tax. Resolve the tax using your physical board.",
     "Luxury Tax": "You landed on Luxury Tax. Resolve the tax using your physical board.",
-    "Free Parking": "You landed on Free Parking. Apply your family’s Free Parking rule.",
+    "Free Parking": freeParkingInstructions[state.freeParkingRule] || freeParkingInstructions.official,
     "GO": "You landed on GO. Apply your physical board’s GO payment rule.",
     "Jail / Just Visiting": currentPlayer().inJail
       ? "You are in Jail."
@@ -771,13 +851,21 @@ function updateTradeSummary() {
   const playerA = state.players.find(player => player.id === document.querySelector("#trade-player-a").value);
   const playerB = state.players.find(player => player.id === document.querySelector("#trade-player-b").value);
   if (!playerA || !playerB || playerA.id === playerB.id) return;
-  const fromA = selectedTradeProperties("trade-properties-a").map(index => state.spaces[index].name);
-  const fromB = selectedTradeProperties("trade-properties-b").map(index => state.spaces[index].name);
+  const fromAIndexes = selectedTradeProperties("trade-properties-a");
+  const fromBIndexes = selectedTradeProperties("trade-properties-b");
+  const fromA = fromAIndexes.map(index => state.spaces[index].name);
+  const fromB = fromBIndexes.map(index => state.spaces[index].name);
   const summary = [];
   if (fromA.length) summary.push(`${playerA.name} gives ${fromA.join(", ")} to ${playerB.name}.`);
   if (fromB.length) summary.push(`${playerB.name} gives ${fromB.join(", ")} to ${playerA.name}.`);
-  document.querySelector("#trade-summary").textContent =
-    summary.join(" ") || "Select properties to preview the trade.";
+  const mortgaged = [...fromAIndexes, ...fromBIndexes]
+    .map(index => state.spaces[index])
+    .filter(space => space.mortgaged);
+  const warning = mortgaged.length
+    ? `<p class="resolution-warning"><strong>Mortgage reminder:</strong> ${escapeHTML(mortgaged.map(space => space.name).join(", "))} ${mortgaged.length === 1 ? "is" : "are"} mortgaged. The new owner must immediately handle the bank’s 10% interest and any unmortgage payment using the physical game.</p>`
+    : "";
+  document.querySelector("#trade-summary").innerHTML =
+    `<p>${escapeHTML(summary.join(" ") || "Select properties to preview the trade.")}</p>${warning}`;
   document.querySelector("#complete-trade").disabled = summary.length === 0;
 }
 
@@ -816,13 +904,17 @@ function openOwnerDialog(spaceIndex, action = "settings") {
     render();
   };
   document.querySelector("#owner-options").innerHTML = `
-    <button class="button quiet owner-option" data-owner="" type="button">Leave unowned</button>
+    <button class="button quiet owner-option" data-owner="" type="button">${action === "auction" ? "House rule: leave unowned" : "Leave unowned"}</button>
     ${state.players.map(player => `<button class="button secondary owner-option" data-owner="${player.id}" type="button">${escapeHTML(player.name)}</button>`).join("")}`;
   ownerDialogCallback = ownerId => {
     space.owner = ownerId || null;
     if (!space.owner) space.mortgaged = false;
     if (state.phase === "classic-first-stop" && space.index === currentSpace().index && space.owner) {
       state.firstStopResolved = true;
+    }
+    if (space.index === currentSpace().index && (space.owner || action === "auction")) {
+      state.landingResolved = true;
+      if (action === "auction" && !space.owner) state.firstStopResolved = true;
     }
     saveState(); render();
   };
@@ -863,15 +955,19 @@ positionForm.addEventListener("submit", event => {
     player.inJail = false;
     player.jailAttempts = 0;
   }
-  if (positionCorrectionReason === "card") {
+  if (positionCorrectionReason === "card-classic" || positionCorrectionReason === "card-normal") {
     if (player.position === 0) player.passedGo = true;
     state.firstStopResolved = false;
     if (markInJail || player.position === 30) {
       sendToJail("A card sent you directly to Jail.");
       recordRoll();
-    } else {
+    } else if (positionCorrectionReason === "card-classic") {
       state.phase = "classic-first-stop";
       state.message = `Card movement recorded from ${state.spaces[previousPosition].name} to ${state.spaces[player.position].name}. Resolve this space, then continue Property Finder.`;
+    } else {
+      state.phase = "landed";
+      state.message = `Card movement recorded from ${state.spaces[previousPosition].name} to ${state.spaces[player.position].name}. Resolve the new space.`;
+      setLandingResolutionState();
     }
   }
   saveState();
@@ -887,6 +983,7 @@ document.querySelector("#cancel-position").addEventListener("click", () => {
 });
 
 function endTurn() {
+  if (needsLandingResolution()) return;
   if (!state.extraTurn) {
     currentPlayer().consecutiveDoubles = 0;
     state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
@@ -896,6 +993,7 @@ function endTurn() {
   state.message = "";
   state.pendingFinderTarget = null;
   state.firstStopResolved = false;
+  state.landingResolved = true;
   state.extraTurn = false;
   saveState();
   render();
@@ -937,4 +1035,30 @@ document.querySelector("#reset-button").addEventListener("click", () => {
   render();
 });
 
+// Open the app with ?selftest=1 to run deterministic checks for rare rule branches.
+function runRuleSelfChecks() {
+  const checks = [];
+  const check = (description, condition) => checks.push({ description, passed: Boolean(condition) });
+  check("numeric triples are recognized", isTriplesRoll(3, 3, 3));
+  check("Bus is not treated as triples", !isTriplesRoll(3, 3, "Bus"));
+  check("third consecutive doubles sends player to Jail", doublesOutcome(2, 4, 4).result === "third");
+  check("a non-double clears the doubles chain", doublesOutcome(2, 4, 5).count === 0);
+  check("voluntary jail payment is unavailable on attempt three", !canPayBeforeJailRoll(2));
+
+  const testPlayer = { id: "current", position: 0 };
+  const targetSpaces = structuredClone(DEFAULT_SPACES);
+  targetSpaces.forEach(space => { if (isProperty(space)) space.owner = "current"; });
+  targetSpaces[5].owner = "opponent";
+  targetSpaces[5].mortgaged = true;
+  targetSpaces[15].owner = "opponent";
+  check("Property Finder skips mortgaged rent property", propertyTargetFor(targetSpaces, testPlayer) === 15);
+  targetSpaces[15].mortgaged = true;
+  check("Property Finder returns no target when every opponent property is mortgaged", propertyTargetFor(targetSpaces, testPlayer) === null);
+
+  const failed = checks.filter(result => !result.passed);
+  if (failed.length) throw new Error(`Rule self-checks failed: ${failed.map(result => result.description).join(", ")}`);
+  console.info(`Speed Die rule self-checks passed (${checks.length}).`);
+}
+
+if (new URLSearchParams(window.location.search).has("selftest")) runRuleSelfChecks();
 render();
