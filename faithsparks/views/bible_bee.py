@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import random
 import re
 import secrets
 import threading
@@ -16,6 +15,16 @@ from google.cloud import firestore as google_firestore
 
 from faithsparks.services.firestore import db
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.bible_bee_content import (
+    DECKS,
+    DIFFICULTIES,
+    GAME_STYLES,
+    TRANSLATIONS,
+    build_questions,
+    deck_options,
+    load_passages,
+    translation_options,
+)
 from faithsparks.util.request_utils import get_client_ip
 
 
@@ -25,140 +34,6 @@ ROOM_TTL_SECONDS = 6 * 60 * 60
 ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .'-]{0,17}$")
 BLOCKED_NAMES = {"admin", "host", "moderator", "faithsparks"}
-
-# A compact public-domain starter deck. Licensed translations can be added as
-# additional decks without changing the room or scoring model.
-FAMILY_FAVORITES_DECK = {
-    "id": "family-favorites-kjv",
-    "name": "Family Favorites",
-    "translation": "KJV",
-    "questions": [
-        {
-            "mode": "finish",
-            "label": "Finish the Verse",
-            "prompt": "For God so loved the world, that he gave his only begotten Son…",
-            "choices": [
-                "that whosoever believeth in him should not perish, but have everlasting life.",
-                "that every nation might walk in peace and truth.",
-                "that his children should never know sorrow.",
-                "that the whole earth might sing of his goodness.",
-            ],
-            "correct": 0,
-            "reference": "John 3:16",
-        },
-        {
-            "mode": "reference",
-            "label": "Reference Race",
-            "prompt": "Thy word have I hid in mine heart, that I might not sin against thee.",
-            "choices": ["Psalm 119:11", "Proverbs 3:5", "Joshua 1:9", "Romans 12:2"],
-            "correct": 0,
-            "reference": "Psalm 119:11",
-        },
-        {
-            "mode": "finish",
-            "label": "Finish the Verse",
-            "prompt": "Trust in the LORD with all thine heart…",
-            "choices": [
-                "and lean not unto thine own understanding.",
-                "for his mercy endureth for ever.",
-                "and he shall give thee rest.",
-                "and walk always in the ancient paths.",
-            ],
-            "correct": 0,
-            "reference": "Proverbs 3:5",
-        },
-        {
-            "mode": "reference",
-            "label": "Reference Race",
-            "prompt": "I can do all things through Christ which strengtheneth me.",
-            "choices": ["Philippians 4:13", "Romans 8:28", "Ephesians 6:10", "James 1:5"],
-            "correct": 0,
-            "reference": "Philippians 4:13",
-        },
-        {
-            "mode": "finish",
-            "label": "Finish the Verse",
-            "prompt": "Be strong and of a good courage; be not afraid…",
-            "choices": [
-                "for the LORD thy God is with thee whithersoever thou goest.",
-                "for wisdom is better than rubies.",
-                "and let thy heart keep my commandments.",
-                "because the battle belongeth unto the strong.",
-            ],
-            "correct": 0,
-            "reference": "Joshua 1:9",
-        },
-    ],
-}
-
-COURAGE_DECK = {
-    "id": "courage-trust-kjv",
-    "name": "Courage & Trust",
-    "translation": "KJV",
-    "questions": [
-        {
-            "mode": "finish",
-            "label": "Finish the Verse",
-            "prompt": "What time I am afraid…",
-            "choices": [
-                "I will trust in thee.",
-                "I will remember thy works.",
-                "I will call upon the elders.",
-                "I will wait until the morning.",
-            ],
-            "correct": 0,
-            "reference": "Psalm 56:3",
-        },
-        {
-            "mode": "reference",
-            "label": "Reference Race",
-            "prompt": "For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind.",
-            "choices": ["2 Timothy 1:7", "Joshua 1:9", "Psalm 27:1", "Romans 8:28"],
-            "correct": 0,
-            "reference": "2 Timothy 1:7",
-        },
-        {
-            "mode": "finish",
-            "label": "Finish the Verse",
-            "prompt": "The LORD is my light and my salvation; whom shall I fear?…",
-            "choices": [
-                "the LORD is the strength of my life; of whom shall I be afraid?",
-                "his truth shall be thy shield and buckler.",
-                "he will guide me in the way everlasting.",
-                "therefore will I sing praise unto his name.",
-            ],
-            "correct": 0,
-            "reference": "Psalm 27:1",
-        },
-        {
-            "mode": "reference",
-            "label": "Reference Race",
-            "prompt": "Fear thou not; for I am with thee: be not dismayed; for I am thy God.",
-            "choices": ["Isaiah 41:10", "Psalm 46:1", "Deuteronomy 31:6", "John 14:27"],
-            "correct": 0,
-            "reference": "Isaiah 41:10",
-        },
-        {
-            "mode": "finish",
-            "label": "Finish the Verse",
-            "prompt": "Wait on the LORD: be of good courage…",
-            "choices": [
-                "and he shall strengthen thine heart: wait, I say, on the LORD.",
-                "for he knoweth the way that I take.",
-                "and thy path shall shine as the morning.",
-                "for the battle is the LORD'S.",
-            ],
-            "correct": 0,
-            "reference": "Psalm 27:14",
-        },
-    ],
-}
-
-DECKS = {
-    deck["id"]: deck
-    for deck in (FAMILY_FAVORITES_DECK, COURAGE_DECK)
-}
-
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -264,6 +139,65 @@ def _current_question(room: dict) -> dict | None:
     return questions[index] if 0 <= index < len(questions) else None
 
 
+def _answer_choice(answer) -> int | None:
+    if isinstance(answer, dict):
+        answer = answer.get("choice")
+    try:
+        return int(answer)
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_review_summary(room: dict) -> dict:
+    results = room.get("round_results", [])
+    by_reference: dict[str, dict] = {}
+    for result in results:
+        entry = by_reference.setdefault(
+            result["reference"],
+            {"reference": result["reference"], "missed": 0, "correct": 0, "modes": set()},
+        )
+        entry["missed"] += int(result.get("missed", 0))
+        entry["correct"] += int(result.get("correct", 0))
+        entry["modes"].add(result.get("mode", "Practice"))
+
+    rows = [
+        {**entry, "modes": sorted(entry["modes"])}
+        for entry in by_reference.values()
+    ]
+    review_tomorrow = sorted(rows, key=lambda item: (-item["missed"], item["reference"]))[:3]
+    strengths = sorted(
+        [item for item in rows if item["correct"] and not item["missed"]],
+        key=lambda item: (-item["correct"], item["reference"]),
+    )[:3]
+    player_feedback = []
+    for player_id, player in room.get("players", {}).items():
+        correct = sum(player_id in result.get("correct_players", []) for result in results)
+        badge = "Reference Racer" if any(
+            player_id in result.get("correct_players", []) and result.get("mode") == "Reference Race"
+            for result in results
+        ) else "Verse Builder"
+        if correct == 0:
+            badge = "Faithful Reviewer"
+        player_feedback.append(
+            {
+                "id": player_id,
+                "name": player["name"],
+                "correct": correct,
+                "total": len(results),
+                "badge": badge,
+                "message": "Keep practicing—faithful review builds strong memory."
+                if correct < max(1, len(results) // 2)
+                else "Wonderful remembering and careful listening.",
+            }
+        )
+    return {
+        "review_tomorrow": review_tomorrow,
+        "strengths": strengths,
+        "players": player_feedback,
+        "suggested_deck": "Courage & Trust" if room.get("deck_id") != "courage-trust" else "Family Favorites",
+    }
+
+
 def _active_rooms_for_host(email: str) -> list[dict]:
     if not email:
         return []
@@ -298,14 +232,16 @@ def _public_room(room: dict, code: str) -> dict:
     question = _current_question(room)
     phase = room.get("phase", "lobby")
     public_question = None
-    if question and phase in {"question", "reveal"}:
+    visible_phase = room.get("resume_phase") if phase == "paused" else phase
+    if question and visible_phase in {"question", "reveal"}:
         public_question = {
             "label": question["label"],
             "mode": question["mode"],
             "prompt": question["prompt"],
             "choices": question["choices"],
-            "reference": question["reference"] if phase == "reveal" else None,
-            "correct": question["correct"] if phase == "reveal" else None,
+            "reference": question["reference"] if visible_phase == "reveal" else None,
+            "correct": question["correct"] if visible_phase == "reveal" else None,
+            "answer_text": question.get("answer_text") if visible_phase == "reveal" else None,
         }
 
     now = time.time()
@@ -327,12 +263,15 @@ def _public_room(room: dict, code: str) -> dict:
         "phase": phase,
         "deck_name": room.get("deck_name"),
         "translation": room.get("translation"),
+        "game_style": room.get("game_style_name", "Classic Mix"),
+        "difficulty": room.get("difficulty_name", "Family"),
         "question_index": int(room.get("question_index", 0)),
         "question_total": len(room.get("questions", [])),
         "question": public_question,
         "players": players,
         "answered_player_ids": list(answers),
         "review": room.get("review", []),
+        "review_summary": room.get("review_summary", {}),
     }
 
 
@@ -345,14 +284,23 @@ def _require_room(code: str) -> dict:
 
 @bp.get("/family-bible-bee")
 def home():
+    return _render_home()
+
+
+def _render_home(setup_error: str | None = None, status: int = 200):
     email = _host_email()
-    return render_template(
+    response = render_template(
         "bible_bee_home.html",
-        decks=list(DECKS.values()),
+        decks=deck_options(),
+        translations=translation_options(),
+        game_styles=GAME_STYLES,
+        difficulties=DIFFICULTIES,
         active_rooms=_active_rooms_for_host(email),
         is_host_signed_in=bool(email),
+        setup_error=setup_error,
         noindex=True,
     )
+    return (response, status) if status != 200 else response
 
 
 @bp.post("/family-bible-bee/create")
@@ -368,20 +316,26 @@ def create_room():
     )
     if not rate.allowed:
         return "Too many rooms created. Please try again later.", 429
-    deck = DECKS.get(request.form.get("deck_id")) or FAMILY_FAVORITES_DECK
+    deck_id = request.form.get("deck_id") or "family-favorites"
+    deck = DECKS.get(deck_id) or DECKS["family-favorites"]
+    version = (request.form.get("version") or "kjv").lower()
+    style = request.form.get("game_style") or "classic_mix"
+    difficulty = request.form.get("difficulty") or "family"
+    if style not in GAME_STYLES:
+        style = "classic_mix"
+    if difficulty not in DIFFICULTIES:
+        difficulty = "family"
     try:
         round_count = int(request.form.get("round_count", 5))
     except (TypeError, ValueError):
         round_count = 5
-    round_count = round_count if round_count in {3, 5} else 5
+    round_count = round_count if round_count in {3, 5, 10} else 5
     code = _new_code()
-    questions = deepcopy(deck["questions"][:round_count])
-    # Keep the two modes alternating while moving the correct option around.
-    for question in questions:
-        paired = list(enumerate(question["choices"]))
-        random.SystemRandom().shuffle(paired)
-        question["choices"] = [choice for _, choice in paired]
-        question["correct"] = next(index for index, pair in enumerate(paired) if pair[0] == question["correct"])
+    try:
+        passages = load_passages(deck_id, version, round_count)
+        questions = build_questions(passages, style, round_count, seed=code)
+    except ValueError as exc:
+        return _render_home(str(exc), status=503)
 
     room = {
         "created_at": time.time(),
@@ -389,13 +343,21 @@ def create_room():
         "host_email": email,
         "phase": "lobby",
         "deck_id": deck["id"],
-        "deck_name": deck["name"],
-        "translation": deck["translation"],
+        "deck_name": deck["title"],
+        "translation": TRANSLATIONS[version]["code"],
+        "translation_id": version,
+        "game_style": style,
+        "game_style_name": GAME_STYLES[style]["name"],
+        "difficulty": difficulty,
+        "difficulty_name": DIFFICULTIES[difficulty]["name"],
+        "passages": passages,
         "questions": questions,
         "question_index": 0,
         "players": {},
         "answers": {},
         "review": [],
+        "round_results": [],
+        "review_summary": {},
     }
     _set_room(code, room)
     host_rooms = list(session.get("bible_bee_host_rooms", []))
@@ -510,11 +472,13 @@ def room_state(code: str):
         "player_id": player_id,
         "has_answered": bool(player_id and player_id in room.get("answers", {})),
     }
-    if room.get("phase") == "reveal" and player_id:
+    visible_phase = room.get("resume_phase") if room.get("phase") == "paused" else room.get("phase")
+    if visible_phase == "reveal" and player_id:
         answer = room.get("answers", {}).get(player_id)
         question = _current_question(room)
-        state["viewer"]["answer"] = answer
-        state["viewer"]["correct"] = bool(question and answer == question["correct"])
+        choice = _answer_choice(answer)
+        state["viewer"]["answer"] = choice
+        state["viewer"]["correct"] = bool(question and choice == question["correct"])
     return jsonify(state)
 
 
@@ -531,6 +495,7 @@ def start_game(code: str):
         room["phase"] = "question"
         room["question_index"] = 0
         room["answers"] = {}
+        room["question_started_at"] = time.time()
 
     try:
         result = _mutate_room(code, start)
@@ -561,7 +526,10 @@ def answer_question(code: str):
             raise PermissionError
         if choice < 0 or choice >= len(question["choices"]):
             raise ValueError("That answer is not available.")
-        room.setdefault("answers", {}).setdefault(player_id, choice)
+        room.setdefault("answers", {}).setdefault(
+            player_id,
+            {"choice": choice, "answered_at": time.time()},
+        )
 
     try:
         result = _mutate_room(code, answer)
@@ -608,15 +576,31 @@ def reveal_answer(code: str):
         if room.get("phase") != "question" or not question:
             raise ValueError("This round cannot be revealed.")
         missed = 0
+        correct_players = []
+        score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
         for player_id, player in room.get("players", {}).items():
-            if room.get("answers", {}).get(player_id) == question["correct"]:
-                player["score"] = int(player.get("score", 0)) + 100
+            answer = room.get("answers", {}).get(player_id)
+            if _answer_choice(answer) == question["correct"]:
+                player["score"] = int(player.get("score", 0)) + int(score_config["correct"])
+                correct_players.append(player_id)
             else:
                 missed += 1
+                if player_id in room.get("answers", {}):
+                    player["score"] = int(player.get("score", 0)) + int(score_config["participation"])
         if missed:
             room.setdefault("review", []).append(
                 {"reference": question["reference"], "missed": missed, "mode": question["label"]}
             )
+        room.setdefault("round_results", []).append(
+            {
+                "reference": question["reference"],
+                "passage_id": question.get("passage_id"),
+                "mode": question["label"],
+                "missed": missed,
+                "correct": len(correct_players),
+                "correct_players": correct_players,
+            }
+        )
         room["phase"] = "reveal"
 
     try:
@@ -641,15 +625,136 @@ def next_question(code: str):
         next_index = int(room.get("question_index", 0)) + 1
         if next_index >= len(room.get("questions", [])):
             room["phase"] = "finished"
+            room["review_summary"] = _build_review_summary(room)
         else:
             room["question_index"] = next_index
             room["answers"] = {}
             room["phase"] = "question"
+            room["question_started_at"] = time.time()
 
     try:
         result = _mutate_room(code, advance)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/pause")
+def toggle_pause(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def pause(current):
+        if current.get("phase") == "paused":
+            current["phase"] = current.pop("resume_phase", "question")
+        elif current.get("phase") in {"question", "reveal"}:
+            current["resume_phase"] = current["phase"]
+            current["phase"] = "paused"
+        else:
+            raise ValueError("This game cannot be paused right now.")
+
+    try:
+        result = _mutate_room(code, pause)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/skip")
+def skip_question(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def skip(current):
+        if current.get("phase") not in {"question", "reveal"}:
+            raise ValueError("This question cannot be skipped right now.")
+        question = _current_question(current)
+        if current.get("phase") == "question" and question:
+            current.setdefault("round_results", []).append(
+                {
+                    "reference": question["reference"],
+                    "passage_id": question.get("passage_id"),
+                    "mode": question["label"],
+                    "missed": len(current.get("players", {})),
+                    "correct": 0,
+                    "correct_players": [],
+                    "skipped": True,
+                }
+            )
+        next_index = int(current.get("question_index", 0)) + 1
+        if next_index >= len(current.get("questions", [])):
+            current["phase"] = "finished"
+            current["review_summary"] = _build_review_summary(current)
+        else:
+            current["question_index"] = next_index
+            current["answers"] = {}
+            current["phase"] = "question"
+            current["question_started_at"] = time.time()
+
+    try:
+        result = _mutate_room(code, skip)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/end")
+def end_game(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def finish(current):
+        if current.get("phase") == "lobby":
+            raise ValueError("Start the game before ending it early.")
+        current["phase"] = "finished"
+        current.pop("resume_phase", None)
+        current["review_summary"] = _build_review_summary(current)
+
+    try:
+        result = _mutate_room(code, finish)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/players/<player_id>/score")
+def adjust_score(code: str, player_id: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    try:
+        delta = int(payload.get("delta"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Choose a valid score adjustment."}), 400
+    if delta not in {-50, 50}:
+        return jsonify({"error": "Score adjustments use 50-point steps."}), 400
+
+    def adjust(current):
+        player = current.get("players", {}).get(player_id)
+        if not player:
+            raise ValueError("That player is no longer in the room.")
+        player["score"] = max(0, int(player.get("score", 0)) + delta)
+
+    try:
+        result = _mutate_room(code, adjust)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
     if result is None:
         abort(404)
     return jsonify({"ok": True})

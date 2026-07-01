@@ -53,7 +53,12 @@ function scoreRail(state, controls = "") {
           <output>${player.score}</output>
           ${role === "host" && state.phase === "lobby"
             ? `<button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>`
-            : ""}
+            : role === "host"
+              ? `<span class="score-adjust">
+                  <button data-player-id="${escapeHTML(player.id)}" data-score-delta="-50" type="button" aria-label="Remove 50 points from ${escapeHTML(player.name)}">−</button>
+                  <button data-player-id="${escapeHTML(player.id)}" data-score-delta="50" type="button" aria-label="Add 50 points to ${escapeHTML(player.name)}">+</button>
+                </span>`
+              : ""}
         </div>`).join("")
     : `<p class="host-controls">Players will appear here when they join.</p>`;
   return `<aside class="score-rail">
@@ -61,12 +66,19 @@ function scoreRail(state, controls = "") {
     <div class="score-list">${players}</div>
     ${role === "host" ? `
       <div class="join-invite">
+        <span class="host-only-label">Host only</span>
         <strong>Invite the family</strong>
         <p class="join-url">${escapeHTML(`${window.location.origin}/family-bible-bee/join/${code}`)}</p>
       </div>
       <div class="host-controls">
         ${controls}
         <a class="bee-button secondary full" href="/family-bible-bee/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
+        <button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>
+        ${["question", "reveal", "paused"].includes(state.phase)
+          ? `<button id="pause-game" class="text-button" type="button">${state.phase === "paused" ? "Resume game" : "Pause game"}</button>
+             <button id="skip-question" class="text-button" type="button" ${state.phase === "paused" ? "disabled" : ""}>Skip question</button>
+             <button id="end-game-early" class="text-button danger-text" type="button">End game early</button>`
+          : ""}
         <button id="close-room" class="text-button" type="button">End this room</button>
       </div>` : ""}
   </aside>`;
@@ -86,7 +98,7 @@ function renderLobby(state) {
   const startDisabled = state.players.length ? "" : "disabled";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
-      <p class="round-meta">${escapeHTML(state.deck_name)} · ${escapeHTML(state.translation)}</p>
+      <p class="round-meta">${escapeHTML(state.deck_name)} · ${escapeHTML(state.translation)} · ${escapeHTML(state.game_style)}</p>
       <h1>Gather your family</h1>
       <p>Open FaithSparks on each phone and enter this room code.</p>
       <div class="lobby-code-row">
@@ -145,7 +157,8 @@ function renderQuestion(state) {
       : `<p class="answer-feedback try">Good try—this one will come back for review.</p>`;
   }
 
-  app.innerHTML = `<div class="game-layout">
+  const firstLetterShared = question.mode === "first_letter" && role !== "player" && state.phase !== "reveal";
+  app.innerHTML = `<div class="game-layout round-enter">
     <section class="game-stage">
       <div class="round-meta">
         <span>Round ${state.question_index + 1} of ${state.question_total}</span>
@@ -153,9 +166,11 @@ function renderQuestion(state) {
       </div>
       <h1 class="mode-banner">${escapeHTML(question.label)}</h1>
       <p class="question-prompt">${escapeHTML(question.prompt)}</p>
-      <div class="answers">${answerButtons(state)}</div>
+      ${firstLetterShared
+        ? `<div class="recitation-wait"><strong>First-letter clue</strong><p>Players choose the full verse on their devices.</p></div>`
+        : `<div class="answers">${answerButtons(state)}</div>`}
       ${feedback}
-      ${state.phase === "reveal" ? `<p class="answer-feedback good">${escapeHTML(question.reference)}</p>` : ""}
+      ${state.phase === "reveal" ? `<div class="revealed-verse"><strong>${escapeHTML(question.reference)}</strong><p>${escapeHTML(question.answer_text || "")}</p></div>` : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
@@ -170,22 +185,48 @@ function renderQuestion(state) {
 
 function renderFinished(state) {
   const winner = state.players[0];
-  const reviewRows = state.review.length
-    ? state.review.map(item => `<div class="review-row">
+  const summary = state.review_summary || {};
+  const reviewRows = (summary.review_tomorrow || []).length
+    ? summary.review_tomorrow.map(item => `<div class="review-row">
         <strong>${escapeHTML(item.reference)}</strong>
         <span>${item.missed} ${item.missed === 1 ? "player needs" : "players need"} another look</span>
       </div>`).join("")
     : `<p>Every verse was answered correctly. Beautiful work!</p>`;
+  const strengths = (summary.strengths || []).length
+    ? summary.strengths.map(item => `<li>${escapeHTML(item.reference)}</li>`).join("")
+    : `<li>Showing up and practicing together</li>`;
+  const playerFeedback = (summary.players || []).map(player => `
+    <div class="feedback-card">
+      <strong>${escapeHTML(player.name)}</strong>
+      <span class="encouragement-badge">${escapeHTML(player.badge)}</span>
+      <p>${escapeHTML(player.message)}</p>
+    </div>`).join("");
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage finished-stage">
       <div class="celebration-mark">✦</div>
       <h1>${winner ? `Wonderful work, ${escapeHTML(winner.name)}!` : "Wonderful work!"}</h1>
       <p>You practiced ${state.question_total} passages together. Accuracy matters, but faithful practice is the real win.</p>
       <div class="review-list">
-        <h2>Verses to practice again</h2>
+        <h2>Review tomorrow</h2>
         ${reviewRows}
+        <h2>Family strengths</h2>
+        <ul>${strengths}</ul>
+        ${playerFeedback ? `<div class="feedback-grid">${playerFeedback}</div>` : ""}
+        ${summary.suggested_deck ? `<p class="next-deck">Try next: <strong>${escapeHTML(summary.suggested_deck)}</strong></p>` : ""}
       </div>
       <a class="bee-button secondary" href="/family-bible-bee">Start another room</a>
+    </section>
+    ${scoreRail(state)}
+  </div>`;
+  bindRoomManagement();
+}
+
+function renderPaused(state) {
+  app.innerHTML = `<div class="game-layout">
+    <section class="game-stage player-wait">
+      <div class="celebration-mark">Ⅱ</div>
+      <h1>Game paused</h1>
+      <p>The host will resume when everyone is ready.</p>
     </section>
     ${scoreRail(state)}
   </div>`;
@@ -196,13 +237,23 @@ function bindRoomManagement() {
   document.querySelectorAll(".remove-player").forEach(button => {
     button.addEventListener("click", () => removePlayer(button.dataset.playerId));
   });
+  document.querySelectorAll("[data-score-delta]").forEach(button => {
+    button.addEventListener("click", () => adjustScore(button.dataset.playerId, Number(button.dataset.scoreDelta)));
+  });
   document.querySelector("#close-room")?.addEventListener("click", closeRoom);
+  document.querySelector("#copy-join-link")?.addEventListener("click", copyJoinLink);
+  document.querySelector("#pause-game")?.addEventListener("click", () => hostAction("pause"));
+  document.querySelector("#skip-question")?.addEventListener("click", () => hostAction("skip"));
+  document.querySelector("#end-game-early")?.addEventListener("click", async () => {
+    if (window.confirm("End the game now and show the review summary?")) await hostAction("end");
+  });
 }
 
 function render(state) {
   latestState = state;
   if (state.phase === "lobby") renderLobby(state);
   else if (state.phase === "question" || state.phase === "reveal") renderQuestion(state);
+  else if (state.phase === "paused") renderPaused(state);
   else renderFinished(state);
 }
 
@@ -261,6 +312,28 @@ async function removePlayer(playerId) {
     await refresh();
   } catch (error) {
     showToast(error.message);
+  }
+}
+
+async function adjustScore(playerId, delta) {
+  try {
+    await api(`/api/family-bible-bee/rooms/${code}/players/${encodeURIComponent(playerId)}/score`, {
+      method: "POST",
+      body: JSON.stringify({ delta }),
+    });
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function copyJoinLink() {
+  const url = `${window.location.origin}/family-bible-bee/join/${code}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast("Join link copied.");
+  } catch (error) {
+    showToast("Copy this link: " + url);
   }
 }
 

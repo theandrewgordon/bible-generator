@@ -23,13 +23,32 @@
         <h1>Bring Scripture memory to family game night.</h1>
         <p>One shared screen. A phone for each player. A few joyful rounds of remembering God’s Word together.</p>
         {% if is_host_signed_in %}
-          <form class="room-setup-form" method="post" action="{{ url_for('bible_bee.create_room') }}">
+          {% if setup_error %}<p class="setup-error" role="alert">{{ setup_error }}</p>{% endif %}
+          <form class="room-setup-form expanded" method="post" action="{{ url_for('bible_bee.create_room') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>
-              <span>Verse deck</span>
-              <select name="deck_id">
-                {% for deck in decks %}
-                  <option value="{{ deck.id }}">{{ deck.name }} · {{ deck.translation }}</option>
+              <span>Bible version</span>
+              <select id="bee-version" name="version">
+                {% for version in translations %}
+                  <option value="{{ version.id }}" data-code="{{ version.code }}" {% if not version.available %}disabled{% endif %}>
+                    {{ version.name }} — {{ version.code }}{% if not version.available %} · setup needed{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Game style</span>
+              <select name="game_style">
+                {% for style_id, style in game_styles.items() %}
+                  <option value="{{ style_id }}">{{ style.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Difficulty</span>
+              <select name="difficulty">
+                {% for difficulty_id, difficulty in difficulties.items() %}
+                  <option value="{{ difficulty_id }}" {% if difficulty_id == 'family' %}selected{% endif %}>{{ difficulty.name }}</option>
                 {% endfor %}
               </select>
             </label>
@@ -37,10 +56,29 @@
               <span>Rounds</span>
               <select name="round_count">
                 <option value="3">3 quick rounds</option>
-                <option value="5" selected>5 full rounds</option>
+                <option value="5" selected>5 family rounds</option>
+                <option value="10">10 game night rounds</option>
               </select>
             </label>
-            <button class="bee-button primary large" type="submit">Create a family room</button>
+            <fieldset class="deck-library">
+              <legend>Choose a deck</legend>
+              <div class="deck-card-grid">
+                {% for deck in decks %}
+                  <label class="deck-card">
+                    <input type="radio" name="deck_id" value="{{ deck.id }}" {% if loop.first %}checked{% endif %}>
+                    <span class="deck-check" aria-hidden="true">✓</span>
+                    <strong>{{ deck.title }}</strong>
+                    <small><span class="deck-version">KJV</span> · {{ deck.theme }} · {{ deck.difficulty }}</small>
+                    <p>{{ deck.description }}</p>
+                    <b>{{ deck.passage_count }} passages · {{ deck.age_range }}</b>
+                  </label>
+                {% endfor %}
+              </div>
+            </fieldset>
+            <div class="create-room-row">
+              <p>Modern translations use your configured licensed Scripture sources.</p>
+              <button class="bee-button primary large" type="submit">Create a family room</button>
+            </div>
           </form>
         {% else %}
           <a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('bible_bee.home')) }}">Sign in to host a game</a>
@@ -94,6 +132,14 @@
         const code = document.querySelector("#room-code").value.trim().toUpperCase();
         if (code.length === 4) window.location.href = `/family-bible-bee/join/${encodeURIComponent(code)}`;
       });
+      const versionSelect = document.querySelector("#bee-version");
+      function updateDeckVersions() {
+        if (!versionSelect) return;
+        const code = versionSelect.selectedOptions[0]?.dataset.code || "KJV";
+        document.querySelectorAll(".deck-version").forEach(label => { label.textContent = code; });
+      }
+      versionSelect?.addEventListener("change", updateDeckVersions);
+      updateDeckVersions();
     </script>
   </body>
 </html>

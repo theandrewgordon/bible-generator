@@ -1,9 +1,29 @@
 import re
 
+import pytest
+
 from app import app
+from faithsparks.services import bible_bee_content
+from faithsparks.services.rate_limit import reset_memory_limits
 
 
 CSRF = "test-csrf-token"
+
+
+@pytest.fixture(autouse=True)
+def _authoritative_scripture_stub(monkeypatch):
+    monkeypatch.setenv("ESV_API_KEY", "test-esv-key")
+    monkeypatch.setenv("API_BIBLE_KEY", "test-api-bible-key")
+    monkeypatch.setenv("API_BIBLE_IDS", "nlt:test-nlt-id")
+
+    def fake_text(reference, version):
+        return (
+            f"Faithful words from {reference} in {version.upper()} teach our family "
+            "to trust God, walk in love, and remember truth."
+        )
+
+    monkeypatch.setattr(bible_bee_content, "fetch_verse_text", fake_text)
+    reset_memory_limits()
 
 
 def _prime(client, email=None):
@@ -92,7 +112,8 @@ def test_family_bible_bee_room_flow():
 
     finished = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert finished["phase"] == "finished"
-    assert len(finished["review"]) == 4
+    assert finished["review"]
+    assert finished["review_summary"]["review_tomorrow"]
 
 
 def test_family_bible_bee_rejects_unsafe_or_late_join():
@@ -141,7 +162,7 @@ def test_host_can_recover_room_and_choose_deck():
         "/family-bible-bee/create",
         data={
             "csrf_token": CSRF,
-            "deck_id": "courage-trust-kjv",
+            "deck_id": "courage-trust",
             "round_count": "3",
         },
     )
@@ -194,3 +215,121 @@ def test_host_can_remove_player_and_close_room():
     closed = _post(host, f"/api/family-bible-bee/rooms/{code}/close", json={})
     assert closed.status_code == 200
     assert host.get(f"/api/family-bible-bee/rooms/{code}").status_code == 404
+
+
+@pytest.mark.parametrize(
+    "deck_id",
+    [
+        "family-favorites",
+        "courage-trust",
+        "gospel-foundations",
+        "wisdom-obedience",
+        "fruit-spirit",
+        "psalms-comfort",
+    ],
+)
+def test_each_builtin_deck_creates_a_three_round_game(deck_id):
+    client = app.test_client()
+    _prime(client, f"{deck_id}@example.com")
+    created = _post(
+        client,
+        "/family-bible-bee/create",
+        data={
+            "csrf_token": CSRF,
+            "deck_id": deck_id,
+            "version": "kjv",
+            "game_style": "classic_mix",
+            "difficulty": "family",
+            "round_count": "3",
+        },
+    )
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    state = client.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["question_total"] == 3
+    assert state["translation"] == "KJV"
+
+
+@pytest.mark.parametrize("version, expected", [("kjv", "KJV"), ("esv", "ESV"), ("nlt", "NLT")])
+def test_version_picker_builds_questions_from_selected_translation(version, expected):
+    client = app.test_client()
+    _prime(client, f"{version}@example.com")
+    created = _post(
+        client,
+        "/family-bible-bee/create",
+        data={
+            "csrf_token": CSRF,
+            "deck_id": "family-favorites",
+            "version": version,
+            "game_style": "reference_race",
+            "difficulty": "family",
+            "round_count": "3",
+        },
+    )
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    state = client.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["translation"] == expected
+    assert state["game_style"] == "Reference Race"
+
+
+@pytest.mark.parametrize(
+    "style, expected_modes",
+    [
+        ("classic_mix", {"finish", "reference", "fill_blank", "first_letter"}),
+        ("memory_practice", {"finish", "fill_blank", "first_letter"}),
+        ("reference_race", {"reference"}),
+    ],
+)
+def test_game_styles_generate_expected_ten_round_mix(style, expected_modes):
+    from faithsparks.views import bible_bee
+
+    client = app.test_client()
+    _prime(client, f"{style}@example.com")
+    created = _post(
+        client,
+        "/family-bible-bee/create",
+        data={
+            "csrf_token": CSRF,
+            "deck_id": "family-favorites",
+            "version": "kjv",
+            "game_style": style,
+            "difficulty": "family",
+            "round_count": "10",
+        },
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    room = bible_bee._get_room(code)
+    assert len(room["questions"]) == 10
+    assert {question["mode"] for question in room["questions"]} == expected_modes
+
+
+def test_host_pause_skip_score_override_and_end_early():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "controls@example.com")
+    _prime(player)
+    created = _post(host, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    player_id = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["players"][0]["id"]
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/pause", json={}).status_code == 200
+    assert host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["phase"] == "paused"
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/pause", json={}).status_code == 200
+    assert _post(
+        host,
+        f"/api/family-bible-bee/rooms/{code}/players/{player_id}/score",
+        json={"delta": 50},
+    ).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/skip", json={}).status_code == 200
+    assert host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["question_index"] == 1
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/end", json={}).status_code == 200
+    finished = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert finished["phase"] == "finished"
+    assert finished["review_summary"]["players"][0]["badge"]
