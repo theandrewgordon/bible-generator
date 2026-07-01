@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#fff9ed">
+    <title>Family Bible Bee · FaithSparks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
+  </head>
+  <body class="bee-body">
+    <header class="bee-header">
+      <a class="bee-brand" href="{{ url_for('bible_bee.home') }}" aria-label="Family Bible Bee home">
+        <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
+        <span class="brand-divider"></span>
+        <strong>Family Bible Bee</strong>
+      </a>
+    </header>
+
+    <main class="bee-home">
+      <section class="home-copy">
+        <h1>Bring Scripture memory to family game night.</h1>
+        <p>One shared screen. A phone for each player. A few joyful rounds of remembering God’s Word together.</p>
+        {% if is_host_signed_in %}
+          <form class="room-setup-form" method="post" action="{{ url_for('bible_bee.create_room') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+              <span>Verse deck</span>
+              <select name="deck_id">
+                {% for deck in decks %}
+                  <option value="{{ deck.id }}">{{ deck.name }} · {{ deck.translation }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Rounds</span>
+              <select name="round_count">
+                <option value="3">3 quick rounds</option>
+                <option value="5" selected>5 full rounds</option>
+              </select>
+            </label>
+            <button class="bee-button primary large" type="submit">Create a family room</button>
+          </form>
+        {% else %}
+          <a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('bible_bee.home')) }}">Sign in to host a game</a>
+          <p class="sign-in-reassurance">Only the host needs an account. Players join with the room code.</p>
+        {% endif %}
+      </section>
+
+      {% if active_rooms %}
+        <section class="active-rooms" aria-labelledby="active-rooms-heading">
+          <h2 id="active-rooms-heading">Continue a recent room</h2>
+          {% for room in active_rooms %}
+            <a href="{{ url_for('bible_bee.host_room', code=room.code) }}">
+              <span>
+                <strong>Room {{ room.code }}</strong>
+                <small>{{ room.deck_name }} · {{ room.players }} players · {{ room.phase|capitalize }}</small>
+              </span>
+              <b>Resume →</b>
+            </a>
+          {% endfor %}
+        </section>
+      {% endif %}
+
+      <section class="join-panel" aria-labelledby="join-heading">
+        <h2 id="join-heading">Joining someone’s game?</h2>
+        <p>Enter the four-character code shown on their screen.</p>
+        <form id="join-code-form" class="code-form">
+          <label for="room-code">Room code</label>
+          <input id="room-code" name="room_code" maxlength="4" autocomplete="off" autocapitalize="characters" pattern="[A-Za-z0-9]{4}" placeholder="BEE7" required>
+          <button class="bee-button secondary" type="submit">Join room</button>
+        </form>
+      </section>
+
+      <section class="mode-preview" aria-label="Included game modes">
+        <article>
+          <span class="mode-number">01</span>
+          <h2>Finish the Verse</h2>
+          <p>Choose the words that complete a familiar passage.</p>
+        </article>
+        <article>
+          <span class="mode-number">02</span>
+          <h2>Reference Race</h2>
+          <p>Match Scripture to its book, chapter, and verse.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="bee-footer">FaithSparks family Scripture practice</footer>
+    <script>
+      document.querySelector("#join-code-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const code = document.querySelector("#room-code").value.trim().toUpperCase();
+        if (code.length === 4) window.location.href = `/family-bible-bee/join/${encodeURIComponent(code)}`;
+      });
+    </script>
+  </body>
+</html>

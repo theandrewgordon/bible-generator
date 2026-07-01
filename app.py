@@ -176,7 +176,13 @@ def _compute_static_version() -> str:
     if explicit:
         return explicit[:12]
     latest = 0.0
-    for rel in ("static/theme.css", "static/darkmode.js", "static/admin.css"):
+    for rel in (
+        "static/theme.css",
+        "static/darkmode.js",
+        "static/admin.css",
+        "static/bible_bee.css",
+        "static/bible_bee.js",
+    ):
         try:
             latest = max(latest, os.path.getmtime(rel))
         except OSError:
@@ -1756,6 +1762,13 @@ try:
     app.register_blueprint(public_bp)
 except Exception:
     pass
+
+# Family Bible Bee room-code game
+try:
+    from faithsparks.views.bible_bee import bp as bible_bee_bp
+    app.register_blueprint(bible_bee_bp)
+except Exception:
+    app.logger.exception("Family Bible Bee routes could not be registered")
 
 @app.route("/logout")
 def logout():
