@@ -164,7 +164,10 @@ def _build_review_summary(room: dict) -> dict:
         {**entry, "modes": sorted(entry["modes"])}
         for entry in by_reference.values()
     ]
-    review_tomorrow = sorted(rows, key=lambda item: (-item["missed"], item["reference"]))[:3]
+    review_tomorrow = sorted(
+        [item for item in rows if item["missed"] > 0],
+        key=lambda item: (-item["missed"], item["reference"]),
+    )[:3]
     strengths = sorted(
         [item for item in rows if item["correct"] and not item["missed"]],
         key=lambda item: (-item["correct"], item["reference"]),
@@ -479,6 +482,10 @@ def room_state(code: str):
         choice = _answer_choice(answer)
         state["viewer"]["answer"] = choice
         state["viewer"]["correct"] = bool(question and choice == question["correct"])
+        latest_result = (room.get("round_results") or [{}])[-1]
+        state["viewer"]["round_points"] = int(
+            latest_result.get("points_by_player", {}).get(player_id, 0)
+        )
     return jsonify(state)
 
 
@@ -577,16 +584,33 @@ def reveal_answer(code: str):
             raise ValueError("This round cannot be revealed.")
         missed = 0
         correct_players = []
+        points_by_player = {}
         score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
+        correct_answerers = sorted(
+            (
+                (player_id, answer)
+                for player_id, answer in room.get("answers", {}).items()
+                if _answer_choice(answer) == question["correct"]
+            ),
+            key=lambda item: float(item[1].get("answered_at", 0)),
+        )
+        speed_bonus = {
+            player_id: max(5, 50 - (rank * 10))
+            for rank, (player_id, _answer) in enumerate(correct_answerers)
+        }
         for player_id, player in room.get("players", {}).items():
             answer = room.get("answers", {}).get(player_id)
             if _answer_choice(answer) == question["correct"]:
-                player["score"] = int(player.get("score", 0)) + int(score_config["correct"])
+                points = int(score_config["correct"]) + speed_bonus.get(player_id, 0)
+                player["score"] = int(player.get("score", 0)) + points
                 correct_players.append(player_id)
+                points_by_player[player_id] = points
             else:
                 missed += 1
                 if player_id in room.get("answers", {}):
-                    player["score"] = int(player.get("score", 0)) + int(score_config["participation"])
+                    points = int(score_config["participation"])
+                    player["score"] = int(player.get("score", 0)) + points
+                    points_by_player[player_id] = points
         if missed:
             room.setdefault("review", []).append(
                 {"reference": question["reference"], "missed": missed, "mode": question["label"]}
@@ -599,6 +623,7 @@ def reveal_answer(code: str):
                 "missed": missed,
                 "correct": len(correct_players),
                 "correct_players": correct_players,
+                "points_by_player": points_by_player,
             }
         )
         room["phase"] = "reveal"

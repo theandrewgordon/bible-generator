@@ -446,16 +446,6 @@ select {
 .lobby-qr img { width: 112px; height: 112px; padding: 6px; background: white; border: 1px solid var(--bee-line); border-radius: 12px; }
 .waiting-dots::after { content: "…"; display: inline-block; width: 1.3em; text-align: left; }
 .player-wait { display: grid; min-height: 70vh; place-content: center; text-align: center; }
-.recitation-wait {
-  max-width: 620px;
-  margin: 0 auto 44px;
-  padding: 24px;
-  color: var(--bee-blue);
-  background: var(--bee-blue-soft);
-  border-radius: 16px;
-}
-.recitation-wait strong { font-size: 1.2rem; }
-.recitation-wait p { margin: 5px 0 0; color: var(--bee-muted); }
 .revealed-verse {
   max-width: 850px;
   margin: -8px auto 22px;
@@ -466,12 +456,6 @@ select {
   border-radius: 13px;
 }
 .revealed-verse p { margin: 4px 0 0; font-family: Georgia, "Times New Roman", serif; }
-.round-enter { animation: round-in 260ms ease-out; }
-@keyframes round-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .review-list { max-width: 720px; margin: 30px auto; text-align: left; }
 .review-list h2 { margin: 28px 0 8px; font-family: Georgia, "Times New Roman", serif; }
 .review-list ul { margin-top: 8px; color: var(--bee-muted); }

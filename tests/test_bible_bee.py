@@ -91,7 +91,8 @@ def test_family_bible_bee_room_flow():
     revealed_state = player.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert revealed_state["phase"] == "reveal"
     assert revealed_state["viewer"]["correct"] is True
-    assert revealed_state["players"][0]["score"] == 100
+    assert revealed_state["players"][0]["score"] == 150
+    assert revealed_state["viewer"]["round_points"] == 150
     assert revealed_state["question"]["reference"]
 
     advanced = _post(host, f"/api/family-bible-bee/rooms/{code}/next", json={})
@@ -276,8 +277,8 @@ def test_version_picker_builds_questions_from_selected_translation(version, expe
 @pytest.mark.parametrize(
     "style, expected_modes",
     [
-        ("classic_mix", {"finish", "reference", "fill_blank", "first_letter"}),
-        ("memory_practice", {"finish", "fill_blank", "first_letter"}),
+        ("classic_mix", {"finish", "reference", "fill_blank"}),
+        ("memory_practice", {"finish", "fill_blank"}),
         ("reference_race", {"reference"}),
     ],
 )
@@ -302,6 +303,46 @@ def test_game_styles_generate_expected_ten_round_mix(style, expected_modes):
     room = bible_bee._get_room(code)
     assert len(room["questions"]) == 10
     assert {question["mode"] for question in room["questions"]} == expected_modes
+    assert all(question["label"] != "First Letter Challenge" for question in room["questions"])
+
+
+def test_correct_players_receive_ranked_speed_bonuses():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    _prime(host, "speed@example.com")
+    _prime(first)
+    _prime(second)
+    created = _post(host, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    for client, name in ((first, "First"), (second, "Second")):
+        assert _post(
+            client,
+            f"/family-bible-bee/join/{code}",
+            data={"player_name": name, "csrf_token": CSRF},
+        ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(first, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    assert _post(second, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+
+    def rank_answers(room):
+        player_ids = {
+            player["name"]: player_id
+            for player_id, player in room["players"].items()
+        }
+        room["answers"][player_ids["First"]]["answered_at"] = 100.0
+        room["answers"][player_ids["Second"]]["answered_at"] = 101.0
+
+    bible_bee._mutate_room(code, rank_answers)
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/reveal", json={}).status_code == 200
+    scores = {
+        player["name"]: player["score"]
+        for player in host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["players"]
+    }
+    assert scores == {"First": 150, "Second": 140}
 
 
 def test_host_pause_skip_score_override_and_end_early():

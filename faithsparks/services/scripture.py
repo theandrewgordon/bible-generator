@@ -119,7 +119,13 @@ def fetch_verse_text(reference: str, version: str) -> str | None:
         if version in _PUBLIC_DOMAIN:
             text = _fetch_bible_api(reference, version)
         elif version == "esv":
+            # Prefer Crossway's ESV API, but installations that already have
+            # licensed ESV access through API.Bible may use that source too.
             text = _fetch_esv(reference)
+            if not text:
+                bible_id = _api_bible_ids().get(version)
+                if bible_id:
+                    text = _fetch_api_bible(reference, bible_id)
         else:
             bible_id = _api_bible_ids().get(version)
             if bible_id:

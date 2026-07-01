@@ -10,6 +10,7 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 let latestState = null;
 let requestInFlight = false;
 let failedRefreshes = 0;
+let lastRenderSignature = "";
 
 function escapeHTML(value) {
   return String(value ?? "")
@@ -153,12 +154,11 @@ function renderQuestion(state) {
     feedback = `<p class="answer-feedback">Answer locked in. Look up at the shared screen!</p>`;
   } else if (role === "player" && state.phase === "reveal") {
     feedback = state.viewer.correct
-      ? `<p class="answer-feedback good">Wonderful remembering! +100 points</p>`
+      ? `<p class="answer-feedback good">Wonderful remembering! +${state.viewer.round_points || 0} points, including your speed bonus.</p>`
       : `<p class="answer-feedback try">Good try—this one will come back for review.</p>`;
   }
 
-  const firstLetterShared = question.mode === "first_letter" && role !== "player" && state.phase !== "reveal";
-  app.innerHTML = `<div class="game-layout round-enter">
+  app.innerHTML = `<div class="game-layout">
     <section class="game-stage">
       <div class="round-meta">
         <span>Round ${state.question_index + 1} of ${state.question_total}</span>
@@ -166,9 +166,7 @@ function renderQuestion(state) {
       </div>
       <h1 class="mode-banner">${escapeHTML(question.label)}</h1>
       <p class="question-prompt">${escapeHTML(question.prompt)}</p>
-      ${firstLetterShared
-        ? `<div class="recitation-wait"><strong>First-letter clue</strong><p>Players choose the full verse on their devices.</p></div>`
-        : `<div class="answers">${answerButtons(state)}</div>`}
+      <div class="answers">${answerButtons(state)}</div>
       ${feedback}
       ${state.phase === "reveal" ? `<div class="revealed-verse"><strong>${escapeHTML(question.reference)}</strong><p>${escapeHTML(question.answer_text || "")}</p></div>` : ""}
     </section>
@@ -184,7 +182,13 @@ function renderQuestion(state) {
 }
 
 function renderFinished(state) {
-  const winner = state.players[0];
+  const topScore = state.players[0]?.score;
+  const winners = state.players.filter(player => player.score === topScore);
+  const winnerHeading = winners.length > 1
+    ? `It’s a tie: ${winners.map(player => escapeHTML(player.name)).join(" & ")}!`
+    : winners.length === 1
+      ? `Wonderful work, ${escapeHTML(winners[0].name)}!`
+      : "Wonderful work!";
   const summary = state.review_summary || {};
   const reviewRows = (summary.review_tomorrow || []).length
     ? summary.review_tomorrow.map(item => `<div class="review-row">
@@ -199,12 +203,13 @@ function renderFinished(state) {
     <div class="feedback-card">
       <strong>${escapeHTML(player.name)}</strong>
       <span class="encouragement-badge">${escapeHTML(player.badge)}</span>
+      <b>${player.correct} of ${player.total} correct</b>
       <p>${escapeHTML(player.message)}</p>
     </div>`).join("");
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage finished-stage">
       <div class="celebration-mark">✦</div>
-      <h1>${winner ? `Wonderful work, ${escapeHTML(winner.name)}!` : "Wonderful work!"}</h1>
+      <h1>${winnerHeading}</h1>
       <p>You practiced ${state.question_total} passages together. Accuracy matters, but faithful practice is the real win.</p>
       <div class="review-list">
         <h2>Review tomorrow</h2>
@@ -264,7 +269,11 @@ async function refresh() {
     const state = await api(`/api/family-bible-bee/rooms/${code}`);
     failedRefreshes = 0;
     connectionStatus.classList.remove("show");
-    render(state);
+    const signature = JSON.stringify(state);
+    if (signature !== lastRenderSignature) {
+      lastRenderSignature = signature;
+      render(state);
+    }
   } catch (error) {
     failedRefreshes += 1;
     if (failedRefreshes >= 2) connectionStatus.classList.add("show");

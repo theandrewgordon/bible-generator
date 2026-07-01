@@ -20,12 +20,12 @@ GAME_STYLES = {
     "classic_mix": {
         "name": "Classic Mix",
         "description": "A lively mix of memory and reference questions.",
-        "modes": ["finish", "reference", "fill_blank", "first_letter"],
+        "modes": ["finish", "reference", "fill_blank"],
     },
     "memory_practice": {
         "name": "Memory Practice",
-        "description": "Finish verses, fill blanks, and use first-letter clues.",
-        "modes": ["finish", "fill_blank", "first_letter"],
+        "description": "Finish verses and fill in important missing words.",
+        "modes": ["finish", "fill_blank"],
     },
     "reference_race": {
         "name": "Reference Race",
@@ -39,8 +39,8 @@ GAME_STYLES = {
     },
     "challenge": {
         "name": "Challenge Mode",
-        "description": "First-letter clues and references with stronger scoring.",
-        "modes": ["first_letter", "reference", "fill_blank"],
+        "description": "References and fill-in-the-blank questions with stronger scoring.",
+        "modes": ["reference", "fill_blank", "finish"],
     },
 }
 
@@ -150,7 +150,13 @@ def translation_is_configured(version: str) -> bool:
     if version == "kjv":
         return True
     if version == "esv":
-        return bool(os.getenv("ESV_API_KEY", "").strip())
+        ids = os.getenv("API_BIBLE_IDS", "").lower()
+        direct_access = bool(os.getenv("ESV_API_KEY", "").strip())
+        api_bible_access = bool(
+            os.getenv("API_BIBLE_KEY", "").strip()
+            and re.search(r"(?:^|,)\s*esv\s*:", ids)
+        )
+        return direct_access or api_bible_access
     if version == "nlt":
         ids = os.getenv("API_BIBLE_IDS", "").lower()
         return bool(os.getenv("API_BIBLE_KEY", "").strip() and re.search(r"(?:^|,)\s*nlt\s*:", ids))
@@ -199,17 +205,6 @@ def _keywords(text: str) -> list[str]:
     return unique
 
 
-def _first_letters(text: str) -> str:
-    tokens = re.findall(r"[A-Za-z']+|[.,;:!?]", text)
-    output = []
-    for token in tokens:
-        if re.match(r"[A-Za-z']", token):
-            output.append(token[0])
-        elif output:
-            output[-1] += token
-    return " ".join(output)
-
-
 def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
     deck = DECKS.get(deck_id)
     if not deck:
@@ -240,7 +235,6 @@ def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
                 "theme": [deck["theme"].lower()],
                 "difficulty": deck["difficulty"].lower(),
                 "keywords": keywords,
-                "first_letters": _first_letters(text),
                 "blanks": keywords[:3],
             }
         )
@@ -302,12 +296,6 @@ def build_questions(passages: list[dict], style: str, round_count: int, seed: st
                 rng,
             )
             label = "Fill the Blank"
-        elif mode == "first_letter":
-            prompt = f"{passage['reference']}\n{passage['first_letters']}"
-            choices, correct = _shuffle_choices(
-                passage["text"], [item["text"] for item in others], rng
-            )
-            label = "First Letter Challenge"
         else:
             prompt, answer = _split_finish(passage["text"])
             distractors = [_split_finish(item["text"])[1] for item in others]
@@ -328,4 +316,3 @@ def build_questions(passages: list[dict], style: str, round_count: int, seed: st
             }
         )
     return questions
-
