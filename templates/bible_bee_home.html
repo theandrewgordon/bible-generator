@@ -75,6 +75,31 @@
                 <option value="15">15 seconds</option>
               </select>
             </label>
+            <fieldset class="ai-game-tools">
+              <legend>AI game helper <span>Optional</span></legend>
+              <p>Create a one-night theme deck, quality-check the answer choices, or both. FaithSparks still loads the actual verse wording from your selected licensed Bible source.</p>
+              <div class="ai-game-grid">
+                <label>
+                  <span>OpenAI or Claude</span>
+                  <select name="ai_provider">
+                    <option value="">No AI helper</option>
+                    {% for provider in ai_providers %}
+                      <option value="{{ provider.id }}" {% if not provider.available %}disabled{% endif %}>
+                        {{ provider.name }}{% if not provider.available %} · setup needed{% endif %}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>
+                  <span>One-off game theme</span>
+                  <input name="one_off_theme" maxlength="120" placeholder="Examples: courage, Easter morning, wisdom">
+                </label>
+                <label class="ai-check">
+                  <input type="checkbox" name="ai_validate" value="1">
+                  <span>Validate and improve multiple-choice alternatives before opening the room</span>
+                </label>
+              </div>
+            </fieldset>
             <fieldset class="deck-library">
               <legend>Choose a deck</legend>
               <div class="deck-card-grid">

@@ -229,6 +229,41 @@ select {
 }
 .deck-library { grid-column: 1 / -1; margin: 8px 0 0; padding: 0; border: 0; }
 .deck-library legend { margin-bottom: 10px; font-size: .86rem; font-weight: 900; }
+.ai-game-tools {
+  grid-column: 1 / -1;
+  margin: 8px 0;
+  padding: 18px;
+  text-align: left;
+  background: linear-gradient(135deg, var(--bee-blue-soft), #fff8df);
+  border: 1px solid #bfd3e8;
+  border-radius: 16px;
+}
+.ai-game-tools legend { padding: 0 8px; color: var(--bee-navy); font-weight: 900; }
+.ai-game-tools legend span {
+  margin-left: 6px;
+  padding: 3px 7px;
+  color: #6b5313;
+  background: var(--bee-gold-soft);
+  border-radius: 999px;
+  font-size: .68rem;
+  text-transform: uppercase;
+}
+.ai-game-tools > p { margin: 0 0 14px !important; color: var(--bee-muted); font-size: .86rem !important; }
+.ai-game-grid { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 12px; }
+.ai-check {
+  grid-column: 1 / -1;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid var(--bee-line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.ai-check input { width: 20px; min-height: 20px; margin: 0; }
+.ai-check span { font-size: .84rem; line-height: 1.35; }
 .deck-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .deck-card {
   position: relative;
@@ -514,6 +549,17 @@ select {
 .lobby-stage { display: grid; place-content: center; }
 .lobby-stage h1, .finished-stage h1 { margin: 12px 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.5rem, 7vw, 5rem); line-height: 1; }
 .lobby-stage > p, .finished-stage > p { max-width: 650px; margin: 8px auto 30px; color: var(--bee-muted); font-size: 1.15rem; }
+.lobby-stage .ai-reviewed-badge {
+  width: fit-content;
+  margin: 10px auto 0;
+  padding: 7px 11px;
+  color: #246c49;
+  background: #edf9f2;
+  border: 1px solid #9cd1b4;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 900;
+}
 .next-game-actions {
   width: min(100%, 560px);
   margin: 30px auto 0;
@@ -619,6 +665,8 @@ select {
   .finished-code-row .bee-button { width: 100%; }
   .room-setup-form { grid-template-columns: 1fr; }
   .room-setup-form.expanded, .deck-card-grid { grid-template-columns: 1fr; }
+  .ai-game-grid { grid-template-columns: 1fr; }
+  .ai-check { grid-column: auto; }
   .create-room-row { align-items: stretch; flex-direction: column; }
   .bee-brand { gap: 10px; }
   .bee-brand strong { font-size: .88rem; }

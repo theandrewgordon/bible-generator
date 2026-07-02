@@ -238,6 +238,7 @@ function renderLobby(state) {
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
       <p class="round-meta">${escapeHTML(state.deck_name)} · ${escapeHTML(state.translation)} · ${escapeHTML(state.game_style)}</p>
+      ${state.ai_review ? `<p class="ai-reviewed-badge">✦ ${escapeHTML(state.ai_review.provider === "claude" ? "Claude" : "OpenAI")} reviewed ${state.ai_review.reviewed} questions${state.ai_review.improved ? ` and improved ${state.ai_review.improved}` : ""}</p>` : ""}
       <h1>Gather your family</h1>
       <p>Open FaithSparks on each phone and enter this room code.</p>
       <div class="lobby-code-row">

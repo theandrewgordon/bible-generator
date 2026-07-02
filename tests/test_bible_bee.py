@@ -891,3 +891,77 @@ def test_finish_the_verse_question_prefers_plausible_alternatives(monkeypatch):
 
     assert question["label"] == "Finish the Verse"
     assert all(choice.startswith("is ") for choice in question["choices"])
+
+
+def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch):
+    from faithsparks.views import bible_bee
+
+    monkeypatch.setattr(
+        bible_bee,
+        "create_one_off_plan",
+        lambda provider, theme, age_group, round_count: {
+            "title": "Courage for Today",
+            "description": "A temporary family deck.",
+            "references": [
+                "Joshua 1:9",
+                "Psalm 56:3",
+                "Isaiah 41:10",
+                "Philippians 4:13",
+                "2 Timothy 1:7",
+            ],
+        },
+    )
+
+    def fake_validate(provider, questions):
+        return questions, {"provider": provider, "reviewed": len(questions), "improved": 2}
+
+    monkeypatch.setattr(bible_bee, "validate_questions", fake_validate)
+    host = app.test_client()
+    _prime(host, "one-off@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={
+            "csrf_token": CSRF,
+            "version": "nlt",
+            "round_count": "5",
+            "ai_provider": "claude",
+            "one_off_theme": "Courage when life feels hard",
+            "ai_validate": "1",
+        },
+    )
+
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    room = bible_bee._get_room(code)
+    assert room["deck_id"] == "one-off"
+    assert room["deck_name"] == "Courage for Today"
+    assert room["translation"] == "NLT"
+    assert room["ai_provider"] == "claude"
+    assert room["ai_review"]["improved"] == 2
+    public_state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert public_state["ai_review"] == {
+        "provider": "claude",
+        "reviewed": 5,
+        "improved": 2,
+    }
+    assert room["passages"][0]["text"].endswith(
+        "teach our family to trust God, walk in love, and remember truth."
+    )
+
+
+def test_ai_one_off_game_requires_a_configured_provider():
+    host = app.test_client()
+    _prime(host, "one-off-error@example.com")
+    response = _post(
+        host,
+        "/family-bible-bee/create",
+        data={
+            "csrf_token": CSRF,
+            "one_off_theme": "Courage",
+            "ai_provider": "",
+        },
+    )
+
+    assert response.status_code == 503
+    assert b"Choose OpenAI or Claude" in response.data

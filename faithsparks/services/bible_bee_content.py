@@ -344,6 +344,42 @@ def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
     return passages
 
 
+def load_reference_passages(references: list[str], version: str) -> list[dict]:
+    """Load AI-selected references only from FaithSparks' authoritative text source."""
+    if version not in TRANSLATIONS:
+        raise ValueError("Choose an available Bible version.")
+    if not translation_is_configured(version):
+        raise ValueError(f"{TRANSLATIONS[version]['code']} text access is not configured on this server yet.")
+    passages = []
+    for reference in references[:10]:
+        text = _copyworksheet_verse_text(reference, version)
+        if not text:
+            continue
+        book, chapter, verse_start, verse_end = _parse_reference(reference)
+        keywords = _keywords(text)
+        passages.append(
+            {
+                "id": re.sub(r"[^a-z0-9]+", "-", f"{reference}-{version}".lower()).strip("-"),
+                "reference": reference,
+                "version": TRANSLATIONS[version]["code"],
+                "text": text,
+                "book": book,
+                "chapter": chapter,
+                "verse_start": verse_start,
+                "verse_end": verse_end,
+                "theme": ["one-off"],
+                "difficulty": "custom",
+                "keywords": keywords,
+                "blanks": keywords[:3],
+            }
+        )
+    if len(passages) < 4:
+        raise ValueError(
+            f"We could not load enough {TRANSLATIONS[version]['code']} passages for this one-off game."
+        )
+    return passages
+
+
 def _split_finish(text: str) -> tuple[str, str]:
     words = text.split()
     if len(words) < 2:

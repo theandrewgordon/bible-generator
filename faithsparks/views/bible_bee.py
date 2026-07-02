@@ -26,7 +26,14 @@ from faithsparks.services.bible_bee_content import (
     build_questions,
     deck_options,
     load_passages,
+    load_reference_passages,
     translation_options,
+)
+from faithsparks.services.bible_bee_ai import (
+    BibleBeeAIError,
+    create_one_off_plan,
+    provider_options,
+    validate_questions,
 )
 from faithsparks.util.request_utils import get_client_ip
 
@@ -576,6 +583,7 @@ def _public_room(room: dict, code: str) -> dict:
         "oral_judgments": room.get("oral_judgments", {}),
         "review": room.get("review", []),
         "review_summary": room.get("review_summary", {}),
+        "ai_review": room.get("ai_review"),
         "reveal_deadline": room.get("reveal_deadline"),
         "question_deadline": room.get("question_deadline"),
         "question_seconds": room.get("question_seconds"),
@@ -605,6 +613,7 @@ def _render_home(setup_error: str | None = None, status: int = 200):
         game_styles=GAME_STYLES,
         difficulties=DIFFICULTIES,
         active_rooms=_active_rooms_for_host(email),
+        ai_providers=provider_options(),
         is_host_signed_in=bool(email),
         setup_error=setup_error,
         noindex=True,
@@ -627,6 +636,9 @@ def create_room():
         return "Too many rooms created. Please try again later.", 429
     deck_id = request.form.get("deck_id") or "family-favorites"
     deck = DECKS.get(deck_id) or DECKS["family-favorites"]
+    one_off_theme = " ".join((request.form.get("one_off_theme") or "").split())[:120]
+    ai_provider = (request.form.get("ai_provider") or "").lower()
+    ai_validate = request.form.get("ai_validate") == "1"
     version = (request.form.get("version") or "kjv").lower()
     style = request.form.get("game_style") or "classic_mix"
     difficulty = request.form.get("difficulty") or "family"
@@ -653,7 +665,20 @@ def create_room():
     round_count = round_count if round_count in {3, 5, 10} else 5
     code = _new_code()
     try:
-        passages = load_passages(deck_id, version, round_count)
+        ai_plan = None
+        if one_off_theme:
+            ai_plan = create_one_off_plan(
+                ai_provider,
+                one_off_theme,
+                DIFFICULTIES[difficulty]["name"],
+                round_count,
+            )
+            passages = load_reference_passages(ai_plan["references"], version)
+            deck_id = "one-off"
+            deck_name = ai_plan["title"]
+        else:
+            passages = load_passages(deck_id, version, round_count)
+            deck_name = deck["title"]
         questions = build_questions(
             passages,
             style,
@@ -662,7 +687,10 @@ def create_room():
             choice_count=choice_count,
             difficulty=difficulty,
         )
-    except ValueError as exc:
+        ai_review = None
+        if ai_validate:
+            questions, ai_review = validate_questions(ai_provider, questions)
+    except (ValueError, BibleBeeAIError) as exc:
         return _render_home(str(exc), status=503)
 
     room = {
@@ -670,8 +698,8 @@ def create_room():
         "updated_at": time.time(),
         "host_email": email,
         "phase": "lobby",
-        "deck_id": deck["id"],
-        "deck_name": deck["title"],
+        "deck_id": deck_id,
+        "deck_name": deck_name,
         "translation": TRANSLATIONS[version]["code"],
         "translation_id": version,
         "game_style": style,
@@ -688,6 +716,9 @@ def create_room():
         "review": [],
         "round_results": [],
         "review_summary": {},
+        "ai_provider": ai_provider if (one_off_theme or ai_validate) else None,
+        "ai_plan": ai_plan,
+        "ai_review": ai_review,
     }
     _set_room(code, room)
     host_rooms = list(session.get("bible_bee_host_rooms", []))
