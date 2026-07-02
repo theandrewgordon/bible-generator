@@ -42,6 +42,11 @@ GAME_STYLES = {
         "description": "References and fill-in-the-blank questions with stronger scoring.",
         "modes": ["reference", "fill_blank", "finish"],
     },
+    "oral_recitation": {
+        "name": "Oral Recitation",
+        "description": "Players recite aloud and the host awards full or partial credit.",
+        "modes": ["oral"],
+    },
 }
 
 DIFFICULTIES = {
@@ -392,6 +397,10 @@ def build_questions(passages: list[dict], style: str, round_count: int, seed: st
             )
             prompt = passage["text"]
             label = "Reference Race"
+        elif mode == "oral":
+            prompt = f"{passage['reference']}\nRecite this passage aloud."
+            choices, correct = [], None
+            label = "Oral Recitation"
         elif mode == "fill_blank":
             blank_candidates = passage.get("blanks") or _keywords(passage["text"])
             blank = rng.choice(blank_candidates[:3]) if blank_candidates else _choose_blank(passage)

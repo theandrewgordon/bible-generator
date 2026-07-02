@@ -37,6 +37,7 @@ ROOM_TTL_SECONDS = 6 * 60 * 60
 FINISHED_ROOM_TTL_SECONDS = 30 * 60
 REVEAL_SECONDS = 10
 REVEAL_SECOND_OPTIONS = {5, 10, 15}
+CHALLENGE_QUESTION_SECONDS = 30
 MAX_AVATAR_DATA_LENGTH = 60_000
 ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .'-]{0,17}$")
@@ -201,6 +202,63 @@ def _reveal_seconds(room: dict) -> int:
     return seconds if seconds in REVEAL_SECOND_OPTIONS else REVEAL_SECONDS
 
 
+def _start_question_timer(room: dict, now: float | None = None) -> None:
+    now = now or time.time()
+    room["question_started_at"] = now
+    if room.get("game_style") == "challenge":
+        room["question_deadline"] = now + CHALLENGE_QUESTION_SECONDS
+    else:
+        room.pop("question_deadline", None)
+
+
+def _complete_oral_round(room: dict, now: float | None = None) -> None:
+    now = now or time.time()
+    question = _current_question(room)
+    if room.get("phase") != "question" or not question or question.get("mode") != "oral":
+        raise ValueError("This oral round cannot be completed.")
+    eligible = _eligible_player_ids(room)
+    judgments = room.get("oral_judgments", {})
+    score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
+    correct_players = []
+    points_by_player = {}
+    missed = 0
+    for player_id in eligible:
+        judgment = judgments.get(player_id, "try")
+        if judgment == "correct":
+            points = int(score_config["correct"])
+            correct_players.append(player_id)
+        elif judgment == "almost":
+            points = max(25, int(score_config["correct"]) // 2)
+            missed += 1
+        else:
+            points = int(score_config["participation"]) if player_id in room.get("answers", {}) else 0
+            missed += 1
+        room["players"][player_id]["score"] = int(room["players"][player_id].get("score", 0)) + points
+        points_by_player[player_id] = points
+    if missed:
+        room.setdefault("review", []).append(
+            {"reference": question["reference"], "missed": missed, "mode": question["label"]}
+        )
+    room.setdefault("round_results", []).append(
+        {
+            "reference": question["reference"],
+            "passage_id": question.get("passage_id"),
+            "mode": question["label"],
+            "missed": missed,
+            "correct": len(correct_players),
+            "correct_players": correct_players,
+            "points_by_player": points_by_player,
+            "oral_judgments": deepcopy(judgments),
+            "bonus": bool(question.get("bonus")),
+        }
+    )
+    if int(room.get("question_index", 0)) + 1 >= len(room.get("questions", [])):
+        _append_bonus_review_question(room)
+    room["phase"] = "reveal"
+    room.pop("question_deadline", None)
+    room["reveal_deadline"] = now + _reveal_seconds(room)
+
+
 def _append_bonus_review_question(room: dict) -> bool:
     if room.get("bonus_added"):
         return False
@@ -258,8 +316,9 @@ def _advance_current_question(room: dict, now: float | None = None) -> None:
             return
     room["question_index"] = next_index
     room["answers"] = {}
+    room["oral_judgments"] = {}
     room["phase"] = "question"
-    room["question_started_at"] = now
+    _start_question_timer(room, now)
 
 
 def _reveal_current_question(room: dict, now: float | None = None) -> None:
@@ -319,6 +378,7 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
     if int(room.get("question_index", 0)) + 1 >= len(room.get("questions", [])):
         _append_bonus_review_question(room)
     room["phase"] = "reveal"
+    room.pop("question_deadline", None)
     room["reveal_deadline"] = now + _reveal_seconds(room)
 
 
@@ -470,10 +530,13 @@ def _public_room(room: dict, code: str) -> dict:
         "question_total": len(room.get("questions", [])),
         "question": public_question,
         "players": players,
+        "family_score": sum(player["score"] for player in players),
         "answered_player_ids": list(answers),
+        "oral_judgments": room.get("oral_judgments", {}),
         "review": room.get("review", []),
         "review_summary": room.get("review_summary", {}),
         "reveal_deadline": room.get("reveal_deadline"),
+        "question_deadline": room.get("question_deadline"),
         "reveal_seconds": _reveal_seconds(room),
         "expires_at": room.get("expires_at"),
     }
@@ -704,6 +767,23 @@ def player_room(code: str):
 def room_state(code: str):
     code = code.upper()
     room = _require_room(code)
+    question_deadline = room.get("question_deadline")
+    if room.get("phase") == "question" and question_deadline and time.time() >= float(question_deadline):
+        now = time.time()
+
+        def auto_reveal(current):
+            current_deadline = current.get("question_deadline")
+            if current.get("phase") == "question" and current_deadline and now >= float(current_deadline):
+                question = _current_question(current)
+                if question and question.get("mode") == "oral":
+                    _complete_oral_round(current, now)
+                else:
+                    _reveal_current_question(current, now)
+
+        result = _mutate_room(code, auto_reveal)
+        if result is None:
+            abort(404)
+        room = result[1]
     deadline = room.get("reveal_deadline")
     if room.get("phase") == "reveal" and deadline and time.time() >= float(deadline):
         now = time.time()
@@ -730,7 +810,12 @@ def room_state(code: str):
         question = _current_question(room)
         choice = _answer_choice(answer)
         state["viewer"]["answer"] = choice
-        state["viewer"]["correct"] = bool(question and choice == question["correct"])
+        if question and question.get("mode") == "oral":
+            judgment = room.get("oral_judgments", {}).get(player_id, "try")
+            state["viewer"]["oral_judgment"] = judgment
+            state["viewer"]["correct"] = judgment == "correct"
+        else:
+            state["viewer"]["correct"] = bool(question and choice == question["correct"])
         latest_result = (room.get("round_results") or [{}])[-1]
         state["viewer"]["round_points"] = int(
             latest_result.get("points_by_player", {}).get(player_id, 0)
@@ -751,7 +836,8 @@ def start_game(code: str):
         room["phase"] = "question"
         room["question_index"] = 0
         room["answers"] = {}
-        room["question_started_at"] = time.time()
+        room["oral_judgments"] = {}
+        _start_question_timer(room)
 
     try:
         result = _mutate_room(code, start)
@@ -802,6 +888,118 @@ def answer_question(code: str):
     return jsonify({"ok": True})
 
 
+@bp.post("/api/family-bible-bee/rooms/<code>/ready")
+def ready_to_recite(code: str):
+    code = code.upper()
+    player_id = _player_id(code)
+    if not player_id:
+        abort(403)
+
+    def ready(room):
+        question = _current_question(room)
+        if room.get("phase") != "question" or not question or question.get("mode") != "oral":
+            raise ValueError("This is not an oral recitation round.")
+        player = room.get("players", {}).get(player_id)
+        if not player or player.get("away"):
+            raise PermissionError
+        room.setdefault("answers", {})[player_id] = {
+            "oral_status": "ready",
+            "answered_at": time.time(),
+        }
+
+    try:
+        result = _mutate_room(code, ready)
+    except PermissionError:
+        abort(403)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/judge")
+def judge_recitation(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    player_id = str(payload.get("player_id") or "")
+    judgment = str(payload.get("judgment") or "")
+    if judgment not in {"correct", "almost", "try"}:
+        return jsonify({"error": "Choose full credit, almost there, or keep practicing."}), 400
+
+    def judge(current):
+        question = _current_question(current)
+        if current.get("phase") != "question" or not question or question.get("mode") != "oral":
+            raise ValueError("This is not an oral recitation round.")
+        if player_id not in _eligible_player_ids(current):
+            raise ValueError("That player is not active in this round.")
+        current.setdefault("oral_judgments", {})[player_id] = judgment
+        if _eligible_player_ids(current).issubset(current["oral_judgments"].keys()):
+            _complete_oral_round(current)
+
+    try:
+        result = _mutate_room(code, judge)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/rematch")
+def rematch_missed_verses(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def rematch(current):
+        if current.get("phase") != "finished":
+            raise ValueError("Finish the current game before starting a review rematch.")
+        missed_ids = {
+            result.get("passage_id")
+            for result in current.get("round_results", [])
+            if int(result.get("missed", 0)) > 0
+        }
+        review_questions = []
+        seen = set()
+        for question in current.get("questions", []):
+            passage_id = question.get("passage_id")
+            if passage_id in missed_ids and passage_id not in seen:
+                review = deepcopy(question)
+                review["id"] = f"{question['id']}-rematch"
+                review["label"] = f"Review · {question['label'].replace('Bonus Review · ', '')}"
+                review.pop("bonus", None)
+                review_questions.append(review)
+                seen.add(passage_id)
+        if not review_questions:
+            raise ValueError("There are no missed verses to review.")
+        current["questions"] = review_questions
+        current["question_index"] = 0
+        current["answers"] = {}
+        current["oral_judgments"] = {}
+        current["round_results"] = []
+        current["review"] = []
+        current["review_summary"] = {}
+        current["bonus_added"] = False
+        current["phase"] = "question"
+        current.pop("finished_at", None)
+        for player in current.get("players", {}).values():
+            player["score"] = 0
+        _start_question_timer(current)
+
+    try:
+        result = _mutate_room(code, rematch)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
 @bp.post("/api/family-bible-bee/rooms/<code>/heartbeat")
 def player_heartbeat(code: str):
     code = code.upper()
@@ -832,7 +1030,11 @@ def reveal_answer(code: str):
         abort(403)
 
     def reveal(room):
-        _reveal_current_question(room)
+        question = _current_question(room)
+        if question and question.get("mode") == "oral":
+            _complete_oral_round(room)
+        else:
+            _reveal_current_question(room)
 
     try:
         result = _mutate_room(code, reveal)
@@ -877,13 +1079,22 @@ def toggle_pause(code: str):
             if current["phase"] == "reveal":
                 remaining = float(current.pop("paused_reveal_seconds", _reveal_seconds(current)))
                 current["reveal_deadline"] = time.time() + max(1, remaining)
-            elif _all_eligible_players_answered(current):
+            elif current.get("paused_question_seconds"):
+                remaining = float(current.pop("paused_question_seconds"))
+                current["question_deadline"] = time.time() + max(1, remaining)
+            elif (
+                (_current_question(current) or {}).get("mode") != "oral"
+                and _all_eligible_players_answered(current)
+            ):
                 _reveal_current_question(current)
         elif current.get("phase") in {"question", "reveal"}:
             current["resume_phase"] = current["phase"]
             if current["phase"] == "reveal":
                 deadline = float(current.pop("reveal_deadline", time.time() + _reveal_seconds(current)))
                 current["paused_reveal_seconds"] = max(1, deadline - time.time())
+            elif current.get("question_deadline"):
+                deadline = float(current.pop("question_deadline"))
+                current["paused_question_seconds"] = max(1, deadline - time.time())
             current["phase"] = "paused"
         else:
             raise ValueError("This game cannot be paused right now.")

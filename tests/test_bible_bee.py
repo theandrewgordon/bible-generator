@@ -91,6 +91,7 @@ def test_family_bible_bee_room_flow():
     assert revealed_state["reveal_deadline"]
     assert revealed_state["viewer"]["correct"] is True
     assert revealed_state["players"][0]["score"] == 150
+    assert revealed_state["family_score"] == 150
     assert revealed_state["viewer"]["round_points"] == 150
     assert revealed_state["question"]["reference"]
 
@@ -292,6 +293,7 @@ def test_version_picker_builds_questions_from_selected_translation(version, expe
         ("classic_mix", {"finish", "reference", "fill_blank"}),
         ("memory_practice", {"finish", "fill_blank"}),
         ("reference_race", {"reference"}),
+        ("oral_recitation", {"oral"}),
     ],
 )
 def test_game_styles_generate_expected_ten_round_mix(style, expected_modes):
@@ -615,6 +617,105 @@ def test_bonus_review_aggregates_misses_by_passage():
     assert bible_bee._append_bonus_review_question(room) is True
     assert room["questions"][-1]["passage_id"] == "p1"
     assert room["questions"][-1]["bonus"] is True
+
+
+def test_oral_recitation_is_host_judged_with_partial_credit():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "oral@example.com")
+    _prime(player)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "game_style": "oral_recitation", "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    state = player.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["question"]["mode"] == "oral"
+    assert state["question"]["choices"] == []
+    assert _post(player, f"/api/family-bible-bee/rooms/{code}/ready", json={}).status_code == 200
+    ready_state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    player_id = ready_state["players"][0]["id"]
+    assert player_id in ready_state["answered_player_ids"]
+    assert _post(
+        host,
+        f"/api/family-bible-bee/rooms/{code}/judge",
+        json={"player_id": player_id, "judgment": "almost"},
+    ).status_code == 200
+    revealed = player.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert revealed["phase"] == "reveal"
+    assert revealed["viewer"]["oral_judgment"] == "almost"
+    assert revealed["viewer"]["round_points"] == 50
+
+
+def test_challenge_timer_auto_reveals_and_pause_preserves_it():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "timer@example.com")
+    _prime(player)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "game_style": "challenge"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    started = bible_bee._get_room(code)
+    assert 0 < started["question_deadline"] - started["question_started_at"] <= 30
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/pause", json={}).status_code == 200
+    paused = bible_bee._get_room(code)
+    assert "question_deadline" not in paused
+    assert paused["paused_question_seconds"] > 0
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/pause", json={}).status_code == 200
+
+    def expire_question(room):
+        room["question_deadline"] = 1
+
+    bible_bee._mutate_room(code, expire_question)
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["phase"] == "reveal"
+
+
+def test_finished_game_can_rematch_missed_verses():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "rematch@example.com")
+    _prime(player)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/reveal", json={}).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/end", json={}).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/rematch", json={}).status_code == 200
+    room = bible_bee._get_room(code)
+    assert room["phase"] == "question"
+    assert len(room["questions"]) == 1
+    assert room["questions"][0]["label"].startswith("Review ·")
+    assert next(iter(room["players"].values()))["score"] == 0
 
 
 def test_host_pause_skip_score_override_and_end_early():
