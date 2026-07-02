@@ -187,7 +187,7 @@ select {
   border-radius: 18px;
 }
 .room-setup-form.expanded {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: minmax(230px, 1.35fr) repeat(4, minmax(145px, 1fr));
   max-width: 1120px;
   padding: clamp(18px, 3vw, 28px);
 }

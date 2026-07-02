@@ -237,6 +237,8 @@ def test_host_can_remove_player_and_close_room():
         "wisdom-obedience",
         "fruit-spirit",
         "psalms-comfort",
+        "words-of-jesus",
+        "prayer-praise",
     ],
 )
 def test_each_builtin_deck_creates_a_three_round_game(deck_id):
@@ -476,7 +478,12 @@ def test_countdown_setting_avatar_and_away_player_flow():
     assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
     state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert state["reveal_seconds"] == 5
-    assert next(player for player in state["players"] if player["name"] == "Active")["avatar"] == avatar
+    avatar_url = next(player for player in state["players"] if player["name"] == "Active")["avatar"]
+    assert avatar_url.startswith(f"/family-bible-bee/room/{code}/avatar/")
+    avatar_response = host.get(avatar_url)
+    assert avatar_response.status_code == 200
+    assert avatar_response.mimetype == "image/jpeg"
+    assert avatar_response.data.startswith(b"\xff\xd8\xff")
 
     correct = bible_bee._get_room(code)["questions"][0]["correct"]
     assert _post(active, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
@@ -497,6 +504,9 @@ def test_countdown_setting_avatar_and_away_player_flow():
     result = bible_bee._get_room(code)["round_results"][-1]
     assert result["missed"] == 0
     assert 0 < revealed["reveal_deadline"] - bible_bee.time.time() <= 5
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/next", json={}).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/skip", json={}).status_code == 200
+    assert bible_bee._get_room(code)["round_results"][-1]["missed"] == 1
 
 
 def test_invalid_avatar_is_rejected():
@@ -518,6 +528,29 @@ def test_invalid_avatar_is_rejected():
     assert response.status_code == 400
 
 
+def test_duplicate_names_are_rejected_case_insensitively():
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    _prime(host, "names@example.com")
+    _prime(first)
+    _prime(second)
+    created = _post(host, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        first,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    duplicate = _post(
+        second,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "ada", "csrf_token": CSRF},
+    )
+    assert duplicate.status_code == 409
+    assert b"already in this room" in duplicate.data
+
+
 def test_bible_bee_uses_copyworksheet_translation_fallback(monkeypatch):
     import verse_helpers
 
@@ -536,6 +569,52 @@ def test_bible_bee_uses_copyworksheet_translation_fallback(monkeypatch):
     assert bible_bee_content._copyworksheet_verse_text("John 3:16", "nlt") == (
         "Shared copyworksheet text for John 3:16 in NLT."
     )
+
+
+def test_short_verses_and_younger_kids_generate_complete_questions():
+    prompt, answer = bible_bee_content._split_finish("Jesus wept.")
+    assert prompt
+    assert answer
+
+    passages = []
+    for index, word_count in enumerate((4, 6, 8, 10, 30, 40)):
+        text = " ".join(["faith"] * word_count)
+        passages.append(
+            {
+                "id": f"passage-{index}",
+                "reference": f"Test {index + 1}:1",
+                "text": text,
+                "keywords": ["faith"],
+                "blanks": ["faith"],
+            }
+        )
+    questions = bible_bee_content.build_questions(
+        passages,
+        "younger_kids",
+        3,
+        seed="younger",
+    )
+    assert len(questions) == 3
+    assert all(question["passage_id"] in {"passage-0", "passage-1", "passage-2", "passage-3"} for question in questions)
+
+
+def test_bonus_review_aggregates_misses_by_passage():
+    from faithsparks.views import bible_bee
+
+    room = {
+        "questions": [
+            {"id": "one", "passage_id": "p1", "label": "Finish", "choices": ["a"], "correct": 0},
+            {"id": "two", "passage_id": "p2", "label": "Finish", "choices": ["b"], "correct": 0},
+        ],
+        "round_results": [
+            {"passage_id": "p1", "missed": 1},
+            {"passage_id": "p2", "missed": 1},
+            {"passage_id": "p1", "missed": 1},
+        ],
+    }
+    assert bible_bee._append_bonus_review_question(room) is True
+    assert room["questions"][-1]["passage_id"] == "p1"
+    assert room["questions"][-1]["bonus"] is True
 
 
 def test_host_pause_skip_score_override_and_end_early():

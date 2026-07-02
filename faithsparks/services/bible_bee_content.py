@@ -142,6 +142,35 @@ DECKS = {
             "Psalm 100:1-5", "Psalm 103:1-2", "Psalm 119:11", "Psalm 121:1-2",
         ),
     },
+    "words-of-jesus": {
+        "id": "words-of-jesus",
+        "title": "Words of Jesus",
+        "description": "Remember Jesus’ invitations, commands, promises, and good news.",
+        "age_range": "Ages 8+",
+        "difficulty": "Easy / Medium",
+        "theme": "Jesus’ Teaching",
+        "source": "builtin",
+        "passages": _refs(
+            "Matthew 5:14", "Matthew 5:16", "Matthew 6:9-13", "Matthew 6:33",
+            "Matthew 7:7", "Matthew 11:28-30", "Matthew 19:14", "Matthew 22:37-39",
+            "Mark 10:27", "John 8:12", "John 10:10", "John 14:6",
+        ),
+    },
+    "prayer-praise": {
+        "id": "prayer-praise",
+        "title": "Prayer & Praise",
+        "description": "Joyful passages about worship, gratitude, prayer, and celebrating God.",
+        "age_range": "All ages",
+        "difficulty": "Easy / Medium",
+        "theme": "Worship",
+        "source": "builtin",
+        "passages": _refs(
+            "Psalm 34:1", "Psalm 63:3-4", "Psalm 95:1-2", "Psalm 100:1-5",
+            "Psalm 103:1-2", "Psalm 118:24", "Psalm 145:3", "Psalm 150:6",
+            "Philippians 4:6-7", "Colossians 4:2", "1 Thessalonians 5:16-18",
+            "James 5:16",
+        ),
+    },
 }
 
 
@@ -300,7 +329,7 @@ def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
         )
         if len(passages) >= max(needed, 4):
             break
-    if len(passages) < min(needed, 3):
+    if len(passages) < min(needed, 4):
         raise ValueError(
             f"We could not load enough {TRANSLATIONS[version]['code']} passages for this game. Please try again."
         )
@@ -309,8 +338,21 @@ def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
 
 def _split_finish(text: str) -> tuple[str, str]:
     words = text.split()
-    split = max(3, min(len(words) - 2, len(words) // 2))
+    if len(words) < 2:
+        return text.rstrip(",;:") + "…", text
+    if len(words) <= 5:
+        split = max(1, len(words) // 2)
+    else:
+        split = max(3, min(len(words) - 2, len(words) // 2))
     return " ".join(words[:split]).rstrip(",;:") + "…", " ".join(words[split:])
+
+
+def _choose_blank(passage: dict) -> str:
+    candidates = passage.get("blanks") or _keywords(passage.get("text", ""))
+    if candidates:
+        return candidates[0]
+    words = re.findall(r"[A-Za-z']+", passage.get("text", ""))
+    return max(words, key=len) if words else ""
 
 
 def _shuffle_choices(correct: str, distractors: list[str], rng: random.Random) -> tuple[list[str], int]:
@@ -333,6 +375,9 @@ def _mode_for_round(style: str, index: int) -> str:
 def build_questions(passages: list[dict], style: str, round_count: int, seed: str) -> list[dict]:
     rng = random.Random(seed)
     ordered = deepcopy(passages)
+    if style == "younger_kids":
+        ordered.sort(key=lambda passage: len(passage["text"].split()))
+        ordered = ordered[:max(4, min(len(ordered), round_count))]
     rng.shuffle(ordered)
     questions = []
 
@@ -348,14 +393,21 @@ def build_questions(passages: list[dict], style: str, round_count: int, seed: st
             prompt = passage["text"]
             label = "Reference Race"
         elif mode == "fill_blank":
-            blank = (passage["blanks"] or _keywords(passage["text"]))[0]
-            prompt = re.sub(rf"\b{re.escape(blank)}\b", "______", passage["text"], count=1, flags=re.I)
-            choices, correct = _shuffle_choices(
-                blank,
-                _blank_distractors(blank, others),
-                rng,
-            )
-            label = "Fill the Blank"
+            blank_candidates = passage.get("blanks") or _keywords(passage["text"])
+            blank = rng.choice(blank_candidates[:3]) if blank_candidates else _choose_blank(passage)
+            if blank:
+                prompt = re.sub(rf"\b{re.escape(blank)}\b", "______", passage["text"], count=1, flags=re.I)
+                choices, correct = _shuffle_choices(
+                    blank,
+                    _blank_distractors(blank, others),
+                    rng,
+                )
+                label = "Fill the Blank"
+            else:
+                prompt, answer = _split_finish(passage["text"])
+                distractors = [_split_finish(item["text"])[1] for item in others]
+                choices, correct = _shuffle_choices(answer, distractors, rng)
+                label = "Finish the Verse"
         else:
             prompt, answer = _split_finish(passage["text"])
             distractors = [_split_finish(item["text"])[1] for item in others]

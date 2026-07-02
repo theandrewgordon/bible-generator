@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import io
 import re
 import secrets
 import threading
 import time
 from copy import deepcopy
+from datetime import datetime, timezone
 
 import qrcode
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, send_file, session, url_for
@@ -44,6 +47,16 @@ _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
 
 
+def _stamp_room(room: dict, now: float | None = None) -> None:
+    now = now or time.time()
+    room["updated_at"] = now
+    if room.get("phase") != "finished":
+        room["expires_at"] = now + ROOM_TTL_SECONDS
+    else:
+        room.setdefault("expires_at", now + FINISHED_ROOM_TTL_SECONDS)
+    room["expireAt"] = datetime.fromtimestamp(float(room["expires_at"]), tz=timezone.utc)
+
+
 def _room_ref(code: str):
     client = db()
     return client.collection("family_bible_bee_rooms").document(code) if client else None
@@ -70,7 +83,7 @@ def _get_room(code: str) -> dict | None:
 
 
 def _set_room(code: str, room: dict) -> None:
-    room["updated_at"] = time.time()
+    _stamp_room(room)
     ref = _room_ref(code)
     if ref:
         ref.set(room)
@@ -92,7 +105,7 @@ def _mutate_room(code: str, callback):
                 return None
             room = snap.to_dict()
             result = callback(room)
-            room["updated_at"] = time.time()
+            _stamp_room(room)
             txn.set(ref, room)
             return result, room
 
@@ -103,7 +116,7 @@ def _mutate_room(code: str, callback):
         if room is None:
             return None
         result = callback(room)
-        room["updated_at"] = time.time()
+        _stamp_room(room)
         return result, deepcopy(room)
 
 
@@ -143,6 +156,18 @@ def _player_id(code: str) -> str | None:
     return session.get(_player_session_key(code))
 
 
+def _valid_avatar_data(value: str) -> bool:
+    if not value:
+        return True
+    if len(value) > MAX_AVATAR_DATA_LENGTH or not AVATAR_DATA_RE.fullmatch(value):
+        return False
+    try:
+        image_bytes = base64.b64decode(value.split(",", 1)[1], validate=True)
+    except (ValueError, binascii.Error):
+        return False
+    return image_bytes.startswith(b"\xff\xd8\xff")
+
+
 def _current_question(room: dict) -> dict | None:
     index = int(room.get("question_index", 0))
     questions = room.get("questions", [])
@@ -180,14 +205,20 @@ def _append_bonus_review_question(room: dict) -> bool:
     if room.get("bonus_added"):
         return False
     room["bonus_added"] = True
-    missed_results = [
-        result
-        for result in room.get("round_results", [])
-        if int(result.get("missed", 0)) > 0 and not result.get("bonus")
-    ]
-    if not missed_results:
+    missed_by_passage: dict[str, dict] = {}
+    for result in room.get("round_results", []):
+        passage_id = result.get("passage_id")
+        if not passage_id or result.get("bonus"):
+            continue
+        entry = missed_by_passage.setdefault(
+            passage_id,
+            {"passage_id": passage_id, "missed": 0},
+        )
+        entry["missed"] += int(result.get("missed", 0))
+    missed_passages = [entry for entry in missed_by_passage.values() if entry["missed"] > 0]
+    if not missed_passages:
         return False
-    target = max(missed_results, key=lambda result: int(result.get("missed", 0)))
+    target = max(missed_passages, key=lambda result: int(result["missed"]))
     original = next(
         (
             question
@@ -359,6 +390,20 @@ def _active_rooms_for_host(email: str) -> list[dict]:
         with _local_lock:
             rooms = [(code, deepcopy(room)) for code, room in _local_rooms.items()]
     cutoff = time.time() - ROOM_TTL_SECONDS
+    now = time.time()
+    expired_codes = [
+        code
+        for code, room in rooms
+        if (
+            room.get("host_email") == email
+            and (
+                now >= float(room.get("expires_at", float("inf")))
+                or float(room.get("updated_at", 0)) < cutoff
+            )
+        )
+    ]
+    for code in expired_codes:
+        _delete_room(code)
     return sorted(
         [
             {
@@ -371,7 +416,7 @@ def _active_rooms_for_host(email: str) -> list[dict]:
             if (
                 room.get("host_email") == email
                 and float(room.get("updated_at", 0)) >= cutoff
-                and time.time() < float(room.get("expires_at", float("inf")))
+                and now < float(room.get("expires_at", float("inf")))
             )
         ],
         key=lambda item: item["code"],
@@ -403,7 +448,11 @@ def _public_room(room: dict, code: str) -> dict:
                 "score": int(player.get("score", 0)),
                 "connected": now - float(player.get("last_seen", player.get("joined_at", 0))) < 40,
                 "away": bool(player.get("away", False)),
-                "avatar": player.get("avatar"),
+                "avatar": (
+                    url_for("bible_bee.player_avatar", code=code, player_id=player_id)
+                    if player.get("avatar")
+                    else None
+                ),
             }
             for player_id, player in room.get("players", {}).items()
         ],
@@ -559,6 +608,18 @@ def room_qr(code: str):
     return response
 
 
+@bp.get("/family-bible-bee/room/<code>/avatar/<player_id>")
+def player_avatar(code: str, player_id: str):
+    room = _require_room(code.upper())
+    avatar = room.get("players", {}).get(player_id, {}).get("avatar", "")
+    if not _valid_avatar_data(avatar):
+        abort(404)
+    image_bytes = base64.b64decode(avatar.split(",", 1)[1], validate=True)
+    response = send_file(io.BytesIO(image_bytes), mimetype="image/jpeg")
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return response
+
+
 @bp.route("/family-bible-bee/join/<code>", methods=["GET", "POST"])
 def join_room(code: str):
     code = code.upper()
@@ -592,10 +653,7 @@ def join_room(code: str):
             ), 409
         player_id = existing_id or secrets.token_urlsafe(8)
         avatar = (request.form.get("avatar_data") or "").strip()
-        if avatar and (
-            len(avatar) > MAX_AVATAR_DATA_LENGTH
-            or not AVATAR_DATA_RE.fullmatch(avatar)
-        ):
+        if not _valid_avatar_data(avatar):
             return render_template(
                 "bible_bee_join.html",
                 code=code,
@@ -606,6 +664,11 @@ def join_room(code: str):
         def add_player(current):
             if len(current.get("players", {})) >= 8 and player_id not in current.get("players", {}):
                 raise ValueError("This room already has eight players.")
+            if any(
+                other_id != player_id and player.get("name", "").casefold() == name.casefold()
+                for other_id, player in current.get("players", {}).items()
+            ):
+                raise ValueError("That player name is already in this room. Add a family initial or nickname.")
             existing = current.get("players", {}).get(player_id, {})
             current.setdefault("players", {})[player_id] = {
                 "name": name,
@@ -851,7 +914,7 @@ def skip_question(code: str):
                     "reference": question["reference"],
                     "passage_id": question.get("passage_id"),
                     "mode": question["label"],
-                    "missed": len(current.get("players", {})),
+                    "missed": len(_eligible_player_ids(current)),
                     "correct": 0,
                     "correct_players": [],
                     "skipped": True,
