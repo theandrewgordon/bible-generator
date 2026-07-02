@@ -14,19 +14,28 @@ PROVIDERS = {
 }
 
 
+def _timeout_seconds() -> float:
+    try:
+        value = float(os.getenv("BIBLE_BEE_AI_TIMEOUT_SECONDS", "20"))
+    except ValueError:
+        value = 20
+    return max(5, min(value, 45))
+
+
 class BibleBeeAIError(ValueError):
     """A friendly error raised when an AI game cannot be prepared safely."""
 
 
-def provider_options() -> list[dict]:
-    return [
-        {
-            "id": provider_id,
-            "name": config["name"],
-            "available": bool(os.getenv(config["key"])),
-        }
-        for provider_id, config in PROVIDERS.items()
+def _provider_order(preferred: str | None = None) -> list[str]:
+    configured = [
+        item.strip().lower()
+        for item in os.getenv("BIBLE_BEE_PROVIDER_ORDER", "openai,claude").split(",")
+        if item.strip().lower() in PROVIDERS
     ]
+    if preferred in configured:
+        configured.remove(preferred)
+        configured.insert(0, preferred)
+    return [provider for provider in configured if os.getenv(PROVIDERS[provider]["key"])]
 
 
 def _json_from_text(text: str) -> dict:
@@ -46,7 +55,11 @@ def _json_from_text(text: str) -> dict:
 def _ask_openai(system: str, prompt: str) -> dict:
     from openai import OpenAI
 
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    client = OpenAI(
+        api_key=os.environ["OPENAI_API_KEY"],
+        timeout=_timeout_seconds(),
+        max_retries=0,
+    )
     response = client.responses.create(
         model=os.getenv("BIBLE_BEE_OPENAI_MODEL", "gpt-5.5"),
         reasoning={"effort": "low"},
@@ -62,7 +75,11 @@ def _ask_openai(system: str, prompt: str) -> dict:
 def _ask_claude(system: str, prompt: str) -> dict:
     import anthropic
 
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = anthropic.Anthropic(
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+        timeout=_timeout_seconds(),
+        max_retries=0,
+    )
     response = client.messages.create(
         model=os.getenv("BIBLE_BEE_CLAUDE_MODEL", "claude-sonnet-4-6"),
         max_tokens=2500,
@@ -76,20 +93,30 @@ def _ask_claude(system: str, prompt: str) -> dict:
 def _ask(provider: str, system: str, prompt: str) -> dict:
     config = PROVIDERS.get(provider)
     if not config:
-        raise BibleBeeAIError("Choose OpenAI or Claude for the AI game helper.")
+        raise BibleBeeAIError("The custom game service is not configured correctly.")
     if not os.getenv(config["key"]):
-        raise BibleBeeAIError(f"{config['name']} is not configured on this server yet.")
+        raise BibleBeeAIError("The custom game service is not configured on this server yet.")
     try:
         return _ask_openai(system, prompt) if provider == "openai" else _ask_claude(system, prompt)
     except BibleBeeAIError:
         raise
     except Exception as exc:
-        raise BibleBeeAIError(
-            f"{config['name']} could not prepare the game right now. Please try again."
-        ) from exc
+        raise BibleBeeAIError("The custom game could not be prepared right now. Please try again.") from exc
 
 
-def create_one_off_plan(provider: str, theme: str, age_group: str, round_count: int) -> dict:
+def _ask_available(system: str, prompt: str, preferred: str | None = None) -> tuple[dict, str]:
+    providers = _provider_order(preferred)
+    if not providers:
+        raise BibleBeeAIError("Custom themed games are not configured on this server yet.")
+    for provider in providers:
+        try:
+            return _ask(provider, system, prompt), provider
+        except BibleBeeAIError:
+            continue
+    raise BibleBeeAIError("The custom game could not be prepared right now. Please try again.")
+
+
+def create_one_off_plan(theme: str, age_group: str, round_count: int) -> dict:
     theme = " ".join((theme or "").split())[:120]
     if len(theme) < 3:
         raise BibleBeeAIError("Describe a theme for the one-off game.")
@@ -113,23 +140,28 @@ def create_one_off_plan(provider: str, theme: str, age_group: str, round_count: 
             ],
         }
     )
-    plan = _ask(provider, system, prompt)
+    plan, provider = _ask_available(system, prompt)
     references = []
     for reference in plan.get("references", []):
         reference = " ".join(str(reference).split())
         if re.fullmatch(r"[1-3]?\s?[A-Za-z][A-Za-z ]+\s+\d{1,3}:\d{1,3}(?:-\d{1,3})?", reference):
             if reference.casefold() not in {item.casefold() for item in references}:
                 references.append(reference)
-    if len(references) < 4:
+    required_references = max(4, min(round_count, 10))
+    if len(references) < required_references:
         raise BibleBeeAIError("The AI did not return enough usable Bible references. Please try again.")
     return {
         "title": " ".join(str(plan.get("title") or theme).split())[:60],
         "description": " ".join(str(plan.get("description") or "").split())[:180],
-        "references": references[: max(4, round_count)],
+        "references": references[:required_references],
+        "_provider": provider,
     }
 
 
-def validate_questions(provider: str, questions: list[dict]) -> tuple[list[dict], dict]:
+def validate_questions(
+    questions: list[dict],
+    preferred_provider: str | None = None,
+) -> tuple[list[dict], dict]:
     """Ask AI to improve distractors; never permit it to alter authoritative answers."""
     reviewable = [
         {
@@ -147,15 +179,14 @@ def validate_questions(provider: str, questions: list[dict]) -> tuple[list[dict]
         if question.get("choices")
     ]
     if not reviewable:
-        return questions, {"provider": provider, "reviewed": 0, "improved": 0}
+        return questions, {"provider": preferred_provider, "reviewed": 0, "improved": 0}
     system = (
         "You quality-check a respectful Christian family Bible game. Return JSON only. "
         "Do not change prompts or correct answers. Improve only wrong answer choices. Wrong choices "
         "must be grammatical, plausible, similar in length and style, and unambiguously incorrect. "
         "Do not add jokes, fake quotations presented as Scripture, or theological claims."
     )
-    result = _ask(
-        provider,
+    result, provider = _ask_available(
         system,
         json.dumps(
             {
@@ -171,6 +202,7 @@ def validate_questions(provider: str, questions: list[dict]) -> tuple[list[dict]
                 },
             }
         ),
+        preferred=preferred_provider,
     )
     suggestions = {
         str(item.get("id")): item.get("choices")

@@ -899,7 +899,7 @@ def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch)
     monkeypatch.setattr(
         bible_bee,
         "create_one_off_plan",
-        lambda provider, theme, age_group, round_count: {
+        lambda theme, age_group, round_count: {
             "title": "Courage for Today",
             "description": "A temporary family deck.",
             "references": [
@@ -909,11 +909,12 @@ def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch)
                 "Philippians 4:13",
                 "2 Timothy 1:7",
             ],
+            "_provider": "claude",
         },
     )
 
-    def fake_validate(provider, questions):
-        return questions, {"provider": provider, "reviewed": len(questions), "improved": 2}
+    def fake_validate(questions, preferred_provider=None):
+        return questions, {"provider": preferred_provider, "reviewed": len(questions), "improved": 2}
 
     monkeypatch.setattr(bible_bee, "validate_questions", fake_validate)
     host = app.test_client()
@@ -925,9 +926,8 @@ def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch)
             "csrf_token": CSRF,
             "version": "nlt",
             "round_count": "5",
-            "ai_provider": "claude",
+            "game_source": "custom",
             "one_off_theme": "Courage when life feels hard",
-            "ai_validate": "1",
         },
     )
 
@@ -937,20 +937,15 @@ def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch)
     assert room["deck_id"] == "one-off"
     assert room["deck_name"] == "Courage for Today"
     assert room["translation"] == "NLT"
-    assert room["ai_provider"] == "claude"
     assert room["ai_review"]["improved"] == 2
     public_state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
-    assert public_state["ai_review"] == {
-        "provider": "claude",
-        "reviewed": 5,
-        "improved": 2,
-    }
+    assert "ai_review" not in public_state
     assert room["passages"][0]["text"].endswith(
         "teach our family to trust God, walk in love, and remember truth."
     )
 
 
-def test_ai_one_off_game_requires_a_configured_provider():
+def test_custom_game_requires_a_theme():
     host = app.test_client()
     _prime(host, "one-off-error@example.com")
     response = _post(
@@ -958,10 +953,56 @@ def test_ai_one_off_game_requires_a_configured_provider():
         "/family-bible-bee/create",
         data={
             "csrf_token": CSRF,
-            "one_off_theme": "Courage",
-            "ai_provider": "",
+            "game_source": "custom",
+            "one_off_theme": "",
         },
     )
 
     assert response.status_code == 503
-    assert b"Choose OpenAI or Claude" in response.data
+    assert b"Describe a theme" in response.data
+
+
+def test_custom_game_still_opens_if_optional_review_is_unavailable(monkeypatch):
+    from faithsparks.views import bible_bee
+
+    monkeypatch.setattr(
+        bible_bee,
+        "create_one_off_plan",
+        lambda theme, age_group, round_count: {
+            "title": "Hope",
+            "description": "",
+            "references": [
+                "Psalm 42:11",
+                "Romans 5:5",
+                "Romans 15:13",
+                "Hebrews 6:19",
+                "1 Peter 1:3",
+            ],
+            "_provider": "openai",
+        },
+    )
+    monkeypatch.setattr(
+        bible_bee,
+        "validate_questions",
+        lambda questions, preferred_provider=None: (_ for _ in ()).throw(
+            bible_bee.BibleBeeAIError("temporarily unavailable")
+        ),
+    )
+    host = app.test_client()
+    _prime(host, "review-fallback@example.com")
+    response = _post(
+        host,
+        "/family-bible-bee/create",
+        data={
+            "csrf_token": CSRF,
+            "game_source": "custom",
+            "one_off_theme": "Hope",
+            "round_count": "5",
+        },
+    )
+
+    assert response.status_code == 302
+    code = response.headers["Location"].rsplit("/", 1)[-1]
+    room = bible_bee._get_room(code)
+    assert len(room["questions"]) == 5
+    assert room["ai_review"]["status"] == "unavailable"

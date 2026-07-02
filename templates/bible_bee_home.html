@@ -24,7 +24,7 @@
         <p>One shared screen. A phone for each player. A few joyful rounds of remembering God’s Word together.</p>
         {% if is_host_signed_in %}
           {% if setup_error %}<p class="setup-error" role="alert">{{ setup_error }}</p>{% endif %}
-          <form class="room-setup-form expanded" method="post" action="{{ url_for('bible_bee.create_room') }}">
+          <form id="bee-room-setup" class="room-setup-form expanded" method="post" action="{{ url_for('bible_bee.create_room') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>
               <span>Bible version</span>
@@ -75,30 +75,16 @@
                 <option value="15">15 seconds</option>
               </select>
             </label>
-            <fieldset class="ai-game-tools">
-              <legend>AI game helper <span>Optional</span></legend>
-              <p>Create a one-night theme deck, quality-check the answer choices, or both. FaithSparks still loads the actual verse wording from your selected licensed Bible source.</p>
-              <div class="ai-game-grid">
+            <fieldset class="custom-game-tools">
+              <legend>Make a custom game</legend>
+              <div>
+                <p>Pick a theme and FaithSparks will gather a one-night verse set and check every answer before the room opens.</p>
                 <label>
-                  <span>OpenAI or Claude</span>
-                  <select name="ai_provider">
-                    <option value="">No AI helper</option>
-                    {% for provider in ai_providers %}
-                      <option value="{{ provider.id }}" {% if not provider.available %}disabled{% endif %}>
-                        {{ provider.name }}{% if not provider.available %} · setup needed{% endif %}
-                      </option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label>
-                  <span>One-off game theme</span>
-                  <input name="one_off_theme" maxlength="120" placeholder="Examples: courage, Easter morning, wisdom">
-                </label>
-                <label class="ai-check">
-                  <input type="checkbox" name="ai_validate" value="1">
-                  <span>Validate and improve multiple-choice alternatives before opening the room</span>
+                  <span>What should tonight’s game be about?</span>
+                  <input name="one_off_theme" maxlength="120" placeholder="Courage, Easter morning, wisdom…">
                 </label>
               </div>
+              <button class="bee-button gold" type="submit" name="game_source" value="custom">Create themed room</button>
             </fieldset>
             <fieldset class="deck-library">
               <legend>Choose a deck</legend>
@@ -117,8 +103,9 @@
             </fieldset>
             <div class="create-room-row">
               <p>Correct answers earn accuracy points plus a small speed bonus. Modern translations use your configured licensed Scripture sources.</p>
-              <button class="bee-button primary large" type="submit">Create a family room</button>
+              <button class="bee-button primary large" type="submit" name="game_source" value="deck">Create room from selected deck</button>
             </div>
+            <p id="room-build-status" class="room-build-status" role="status" aria-live="polite"></p>
           </form>
         {% else %}
           <a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('bible_bee.home')) }}">Sign in to host a game</a>
@@ -180,6 +167,31 @@
       }
       versionSelect?.addEventListener("change", updateDeckVersions);
       updateDeckVersions();
+
+      const roomSetup = document.querySelector("#bee-room-setup");
+      roomSetup?.addEventListener("submit", event => {
+        const submitter = event.submitter || roomSetup.querySelector('button[value="deck"]');
+        const source = submitter?.value || "deck";
+        const theme = roomSetup.querySelector('[name="one_off_theme"]');
+        if (source === "custom" && !theme.value.trim()) {
+          event.preventDefault();
+          theme.setCustomValidity("Add a theme for tonight’s game.");
+          theme.reportValidity();
+          theme.focus();
+          return;
+        }
+        theme.setCustomValidity("");
+        document.querySelector("#room-build-status").textContent = source === "custom"
+          ? "Gathering passages and checking the game…"
+          : "Opening your family room…";
+        roomSetup.querySelectorAll('button[type="submit"]').forEach(button => {
+          button.disabled = true;
+        });
+        submitter.textContent = source === "custom" ? "Building your room…" : "Opening room…";
+      });
+      roomSetup?.querySelector('[name="one_off_theme"]')?.addEventListener("input", event => {
+        event.currentTarget.setCustomValidity("");
+      });
     </script>
   </body>
 </html>

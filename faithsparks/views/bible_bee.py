@@ -32,7 +32,6 @@ from faithsparks.services.bible_bee_content import (
 from faithsparks.services.bible_bee_ai import (
     BibleBeeAIError,
     create_one_off_plan,
-    provider_options,
     validate_questions,
 )
 from faithsparks.util.request_utils import get_client_ip
@@ -583,7 +582,6 @@ def _public_room(room: dict, code: str) -> dict:
         "oral_judgments": room.get("oral_judgments", {}),
         "review": room.get("review", []),
         "review_summary": room.get("review_summary", {}),
-        "ai_review": room.get("ai_review"),
         "reveal_deadline": room.get("reveal_deadline"),
         "question_deadline": room.get("question_deadline"),
         "question_seconds": room.get("question_seconds"),
@@ -613,7 +611,6 @@ def _render_home(setup_error: str | None = None, status: int = 200):
         game_styles=GAME_STYLES,
         difficulties=DIFFICULTIES,
         active_rooms=_active_rooms_for_host(email),
-        ai_providers=provider_options(),
         is_host_signed_in=bool(email),
         setup_error=setup_error,
         noindex=True,
@@ -636,9 +633,8 @@ def create_room():
         return "Too many rooms created. Please try again later.", 429
     deck_id = request.form.get("deck_id") or "family-favorites"
     deck = DECKS.get(deck_id) or DECKS["family-favorites"]
+    custom_game = request.form.get("game_source") == "custom"
     one_off_theme = " ".join((request.form.get("one_off_theme") or "").split())[:120]
-    ai_provider = (request.form.get("ai_provider") or "").lower()
-    ai_validate = request.form.get("ai_validate") == "1"
     version = (request.form.get("version") or "kjv").lower()
     style = request.form.get("game_style") or "classic_mix"
     difficulty = request.form.get("difficulty") or "family"
@@ -666,9 +662,8 @@ def create_room():
     code = _new_code()
     try:
         ai_plan = None
-        if one_off_theme:
+        if custom_game:
             ai_plan = create_one_off_plan(
-                ai_provider,
                 one_off_theme,
                 DIFFICULTIES[difficulty]["name"],
                 round_count,
@@ -688,8 +683,17 @@ def create_room():
             difficulty=difficulty,
         )
         ai_review = None
-        if ai_validate:
-            questions, ai_review = validate_questions(ai_provider, questions)
+        if custom_game:
+            try:
+                questions, ai_review = validate_questions(
+                    questions,
+                    preferred_provider=ai_plan.get("_provider"),
+                )
+            except BibleBeeAIError:
+                # The local generator has already produced a complete playable
+                # game. A second-pass quality review should never strand a family.
+                ai_review = {"reviewed": 0, "improved": 0, "status": "unavailable"}
+            ai_plan.pop("_provider", None)
     except (ValueError, BibleBeeAIError) as exc:
         return _render_home(str(exc), status=503)
 
@@ -716,7 +720,6 @@ def create_room():
         "review": [],
         "round_results": [],
         "review_summary": {},
-        "ai_provider": ai_provider if (one_off_theme or ai_validate) else None,
         "ai_plan": ai_plan,
         "ai_review": ai_review,
     }
