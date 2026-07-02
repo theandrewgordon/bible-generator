@@ -52,20 +52,31 @@ function initials(name) {
 
 function scoreRail(state, controls = "") {
   const players = state.players.length
-    ? state.players.map(player => `
-        <div class="player-score">
-          <span class="player-avatar">${escapeHTML(initials(player.name))}</span>
-          <strong>${escapeHTML(player.name)} <i class="presence-dot ${player.connected ? "online" : "offline"}" title="${player.connected ? "Connected" : "Reconnecting"}"></i></strong>
-          <output>${player.score}</output>
-          ${role === "host" && state.phase === "lobby"
-            ? `<button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>`
-            : role === "host"
-              ? `<span class="score-adjust">
+    ? state.players.map(player => {
+        const avatar = player.avatar
+          ? `<img src="${escapeHTML(player.avatar)}" alt="">`
+          : escapeHTML(initials(player.name));
+        const management = role === "host" && state.phase === "lobby"
+          ? `<button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>`
+          : role === "host"
+            ? `<span class="player-management">
+                <span class="score-adjust">
                   <button data-player-id="${escapeHTML(player.id)}" data-score-delta="-50" type="button" aria-label="Remove 50 points from ${escapeHTML(player.name)}">−</button>
                   <button data-player-id="${escapeHTML(player.id)}" data-score-delta="50" type="button" aria-label="Add 50 points to ${escapeHTML(player.name)}">+</button>
-                </span>`
-              : ""}
-        </div>`).join("")
+                </span>
+                ${state.phase === "question"
+                  ? `<button class="away-player ${player.away ? "is-away" : ""}" data-away-player-id="${escapeHTML(player.id)}" type="button">${player.away ? "Bring back" : "Mark away"}</button>`
+                  : ""}
+              </span>`
+            : "";
+        return `
+        <div class="player-score">
+          <span class="player-avatar">${avatar}</span>
+          <strong>${escapeHTML(player.name)} ${player.away ? `<small class="away-label">Away</small>` : `<i class="presence-dot ${player.connected ? "online" : "offline"}" title="${player.connected ? "Connected" : "Reconnecting"}"></i>`}</strong>
+          <output>${player.score}</output>
+          ${management}
+        </div>`;
+      }).join("")
     : `<p class="host-controls">Players will appear here when they join.</p>`;
   return `<aside class="score-rail">
     <h2>Players</h2>
@@ -151,7 +162,7 @@ function renderQuestion(state) {
     controls = state.phase === "question"
       ? `<p>${answered} of ${state.players.length} answered</p>
          <button id="reveal-answer" class="bee-button primary full" type="button">Reveal answer</button>`
-      : `<p class="auto-next-note">${state.question_index + 1 >= state.question_total ? "Results" : "Next round"} in <strong data-countdown>10</strong>s unless paused.</p>
+      : `<p class="auto-next-note">${state.question_index + 1 >= state.question_total ? "Results" : "Next round"} in <strong data-countdown>${state.reveal_seconds}</strong>s unless paused.</p>
          <button id="next-question" class="bee-button primary full" type="button">${state.question_index + 1 >= state.question_total ? "See final results now" : "Next round now"}</button>`;
   }
 
@@ -175,7 +186,7 @@ function renderQuestion(state) {
       <div class="answers">${answerButtons(state)}</div>
       ${feedback}
       ${state.phase === "reveal" ? `<div class="revealed-verse"><strong>${escapeHTML(question.reference)}</strong><p>${escapeHTML(question.answer_text || "")}</p></div>` : ""}
-      ${state.phase === "reveal" ? `<p class="shared-countdown">${state.question_index + 1 >= state.question_total ? "Final results" : "Next question"} in <strong data-countdown>10</strong> seconds</p>` : ""}
+      ${state.phase === "reveal" ? `<p class="shared-countdown">${state.question_index + 1 >= state.question_total ? "Final results" : "Next question"} in <strong data-countdown>${state.reveal_seconds}</strong> seconds</p>` : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
@@ -251,6 +262,9 @@ function bindRoomManagement() {
   });
   document.querySelectorAll("[data-score-delta]").forEach(button => {
     button.addEventListener("click", () => adjustScore(button.dataset.playerId, Number(button.dataset.scoreDelta)));
+  });
+  document.querySelectorAll("[data-away-player-id]").forEach(button => {
+    button.addEventListener("click", () => toggleAway(button.dataset.awayPlayerId));
   });
   document.querySelector("#close-room")?.addEventListener("click", closeRoom);
   document.querySelector("#copy-join-link")?.addEventListener("click", copyJoinLink);
@@ -356,6 +370,18 @@ async function adjustScore(playerId, delta) {
     await api(`/api/family-bible-bee/rooms/${code}/players/${encodeURIComponent(playerId)}/score`, {
       method: "POST",
       body: JSON.stringify({ delta }),
+    });
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function toggleAway(playerId) {
+  try {
+    await api(`/api/family-bible-bee/rooms/${code}/players/${encodeURIComponent(playerId)}/away`, {
+      method: "POST",
+      body: "{}",
     });
     await refresh();
   } catch (error) {

@@ -33,9 +33,12 @@ bp = Blueprint("bible_bee", __name__)
 ROOM_TTL_SECONDS = 6 * 60 * 60
 FINISHED_ROOM_TTL_SECONDS = 30 * 60
 REVEAL_SECONDS = 10
+REVEAL_SECOND_OPTIONS = {5, 10, 15}
+MAX_AVATAR_DATA_LENGTH = 60_000
 ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .'-]{0,17}$")
 BLOCKED_NAMES = {"admin", "host", "moderator", "faithsparks"}
+AVATAR_DATA_RE = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/=]+$")
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -155,6 +158,54 @@ def _answer_choice(answer) -> int | None:
         return None
 
 
+def _eligible_player_ids(room: dict) -> set[str]:
+    return {
+        player_id
+        for player_id, player in room.get("players", {}).items()
+        if not player.get("away", False)
+    }
+
+
+def _all_eligible_players_answered(room: dict) -> bool:
+    eligible = _eligible_player_ids(room)
+    return bool(eligible and eligible.issubset(room.get("answers", {}).keys()))
+
+
+def _reveal_seconds(room: dict) -> int:
+    seconds = int(room.get("reveal_seconds", REVEAL_SECONDS))
+    return seconds if seconds in REVEAL_SECOND_OPTIONS else REVEAL_SECONDS
+
+
+def _append_bonus_review_question(room: dict) -> bool:
+    if room.get("bonus_added"):
+        return False
+    room["bonus_added"] = True
+    missed_results = [
+        result
+        for result in room.get("round_results", [])
+        if int(result.get("missed", 0)) > 0 and not result.get("bonus")
+    ]
+    if not missed_results:
+        return False
+    target = max(missed_results, key=lambda result: int(result.get("missed", 0)))
+    original = next(
+        (
+            question
+            for question in room.get("questions", [])
+            if question.get("passage_id") == target.get("passage_id")
+        ),
+        None,
+    )
+    if not original:
+        return False
+    bonus = deepcopy(original)
+    bonus["id"] = f"{original['id']}-bonus-review"
+    bonus["label"] = f"Bonus Review · {original['label']}"
+    bonus["bonus"] = True
+    room["questions"].append(bonus)
+    return True
+
+
 def _finish_room(room: dict, now: float | None = None) -> None:
     now = now or time.time()
     room["phase"] = "finished"
@@ -171,8 +222,9 @@ def _advance_current_question(room: dict, now: float | None = None) -> None:
     next_index = int(room.get("question_index", 0)) + 1
     room.pop("reveal_deadline", None)
     if next_index >= len(room.get("questions", [])):
-        _finish_room(room, now)
-        return
+        if not _append_bonus_review_question(room):
+            _finish_room(room, now)
+            return
     room["question_index"] = next_index
     room["answers"] = {}
     room["phase"] = "question"
@@ -189,11 +241,12 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
     correct_players = []
     points_by_player = {}
     score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
+    eligible_player_ids = _eligible_player_ids(room)
     correct_answerers = sorted(
         (
             (player_id, answer)
             for player_id, answer in room.get("answers", {}).items()
-            if _answer_choice(answer) == question["correct"]
+            if player_id in eligible_player_ids and _answer_choice(answer) == question["correct"]
         ),
         key=lambda item: float(item[1].get("answered_at", 0)),
     )
@@ -202,6 +255,8 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
         for rank, (player_id, _answer) in enumerate(correct_answerers)
     }
     for player_id, player in room.get("players", {}).items():
+        if player_id not in eligible_player_ids:
+            continue
         answer = room.get("answers", {}).get(player_id)
         if _answer_choice(answer) == question["correct"]:
             points = int(score_config["correct"]) + speed_bonus.get(player_id, 0)
@@ -227,10 +282,13 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
             "correct": len(correct_players),
             "correct_players": correct_players,
             "points_by_player": points_by_player,
+            "bonus": bool(question.get("bonus")),
         }
     )
+    if int(room.get("question_index", 0)) + 1 >= len(room.get("questions", [])):
+        _append_bonus_review_question(room)
     room["phase"] = "reveal"
-    room["reveal_deadline"] = now + REVEAL_SECONDS
+    room["reveal_deadline"] = now + _reveal_seconds(room)
 
 
 def _build_review_summary(room: dict) -> dict:
@@ -344,6 +402,8 @@ def _public_room(room: dict, code: str) -> dict:
                 "name": player["name"],
                 "score": int(player.get("score", 0)),
                 "connected": now - float(player.get("last_seen", player.get("joined_at", 0))) < 40,
+                "away": bool(player.get("away", False)),
+                "avatar": player.get("avatar"),
             }
             for player_id, player in room.get("players", {}).items()
         ],
@@ -365,6 +425,7 @@ def _public_room(room: dict, code: str) -> dict:
         "review": room.get("review", []),
         "review_summary": room.get("review_summary", {}),
         "reveal_deadline": room.get("reveal_deadline"),
+        "reveal_seconds": _reveal_seconds(room),
         "expires_at": room.get("expires_at"),
     }
 
@@ -415,6 +476,12 @@ def create_room():
     version = (request.form.get("version") or "kjv").lower()
     style = request.form.get("game_style") or "classic_mix"
     difficulty = request.form.get("difficulty") or "family"
+    try:
+        reveal_seconds = int(request.form.get("reveal_seconds", REVEAL_SECONDS))
+    except (TypeError, ValueError):
+        reveal_seconds = REVEAL_SECONDS
+    if reveal_seconds not in REVEAL_SECOND_OPTIONS:
+        reveal_seconds = REVEAL_SECONDS
     if style not in GAME_STYLES:
         style = "classic_mix"
     if difficulty not in DIFFICULTIES:
@@ -444,6 +511,7 @@ def create_room():
         "game_style_name": GAME_STYLES[style]["name"],
         "difficulty": difficulty,
         "difficulty_name": DIFFICULTIES[difficulty]["name"],
+        "reveal_seconds": reveal_seconds,
         "passages": passages,
         "questions": questions,
         "question_index": 0,
@@ -523,15 +591,29 @@ def join_room(code: str):
                 "bible_bee_join.html", code=code, error="This game has already started.", noindex=True
             ), 409
         player_id = existing_id or secrets.token_urlsafe(8)
+        avatar = (request.form.get("avatar_data") or "").strip()
+        if avatar and (
+            len(avatar) > MAX_AVATAR_DATA_LENGTH
+            or not AVATAR_DATA_RE.fullmatch(avatar)
+        ):
+            return render_template(
+                "bible_bee_join.html",
+                code=code,
+                error="That picture could not be prepared. Try another selfie or join without one.",
+                noindex=True,
+            ), 400
 
         def add_player(current):
             if len(current.get("players", {})) >= 8 and player_id not in current.get("players", {}):
                 raise ValueError("This room already has eight players.")
+            existing = current.get("players", {}).get(player_id, {})
             current.setdefault("players", {})[player_id] = {
                 "name": name,
-                "score": int(current.get("players", {}).get(player_id, {}).get("score", 0)),
+                "score": int(existing.get("score", 0)),
                 "joined_at": time.time(),
                 "last_seen": time.time(),
+                "away": False,
+                "avatar": avatar or existing.get("avatar"),
             }
 
         try:
@@ -635,14 +717,15 @@ def answer_question(code: str):
             raise ValueError("Answers are closed for this round.")
         if player_id not in room.get("players", {}):
             raise PermissionError
+        if room["players"][player_id].get("away"):
+            raise ValueError("The host marked you away. Ask them to bring you back first.")
         if choice < 0 or choice >= len(question["choices"]):
             raise ValueError("That answer is not available.")
         room.setdefault("answers", {}).setdefault(
             player_id,
             {"choice": choice, "answered_at": time.time()},
         )
-        player_count = len(room.get("players", {}))
-        if player_count and len(room["answers"]) >= player_count:
+        if _all_eligible_players_answered(room):
             _reveal_current_question(room)
 
     try:
@@ -729,12 +812,14 @@ def toggle_pause(code: str):
         if current.get("phase") == "paused":
             current["phase"] = current.pop("resume_phase", "question")
             if current["phase"] == "reveal":
-                remaining = float(current.pop("paused_reveal_seconds", REVEAL_SECONDS))
+                remaining = float(current.pop("paused_reveal_seconds", _reveal_seconds(current)))
                 current["reveal_deadline"] = time.time() + max(1, remaining)
+            elif _all_eligible_players_answered(current):
+                _reveal_current_question(current)
         elif current.get("phase") in {"question", "reveal"}:
             current["resume_phase"] = current["phase"]
             if current["phase"] == "reveal":
-                deadline = float(current.pop("reveal_deadline", time.time() + REVEAL_SECONDS))
+                deadline = float(current.pop("reveal_deadline", time.time() + _reveal_seconds(current)))
                 current["paused_reveal_seconds"] = max(1, deadline - time.time())
             current["phase"] = "paused"
         else:
@@ -828,6 +913,37 @@ def adjust_score(code: str, player_id: str):
         result = _mutate_room(code, adjust)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 404
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/players/<player_id>/away")
+def toggle_player_away(code: str, player_id: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def toggle(current):
+        visible_phase = (
+            current.get("resume_phase")
+            if current.get("phase") == "paused"
+            else current.get("phase")
+        )
+        if visible_phase not in {"lobby", "question"}:
+            raise ValueError("Away status can be changed while waiting for answers.")
+        player = current.get("players", {}).get(player_id)
+        if not player:
+            raise ValueError("That player is no longer in the room.")
+        player["away"] = not bool(player.get("away", False))
+        if current.get("phase") == "question" and _all_eligible_players_answered(current):
+            _reveal_current_question(current)
+
+    try:
+        result = _mutate_room(code, toggle)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
     if result is None:
         abort(404)
     return jsonify({"ok": True})

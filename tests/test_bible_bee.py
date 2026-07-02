@@ -109,6 +109,18 @@ def test_family_bible_bee_room_flow():
         ).status_code == 200
         assert _post(host, f"/api/family-bible-bee/rooms/{code}/next", json={}).status_code == 200
 
+    bonus_room = bible_bee._get_room(code)
+    assert bonus_room["phase"] == "question"
+    assert bonus_room["questions"][-1]["bonus"] is True
+    bonus_question = bonus_room["questions"][-1]
+    bonus_wrong = (bonus_question["correct"] + 1) % len(bonus_question["choices"])
+    assert _post(
+        player,
+        f"/api/family-bible-bee/rooms/{code}/answer",
+        json={"choice": bonus_wrong},
+    ).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/next", json={}).status_code == 200
+
     finished = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert finished["phase"] == "finished"
     assert finished["review"]
@@ -433,6 +445,97 @@ def test_fill_blank_prefers_meaningful_words_and_related_choices():
     assert keywords[0].lower() in {"god", "love", "world", "son", "life"}
     distractors = bible_bee_content._blank_distractors("faith", [])
     assert {"hope", "love", "grace"}.issubset({word.lower() for word in distractors})
+
+
+def test_countdown_setting_avatar_and_away_player_flow():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    active = app.test_client()
+    away = app.test_client()
+    _prime(host, "family-flow@example.com")
+    _prime(active)
+    _prime(away)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "reveal_seconds": "5"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    avatar = "data:image/jpeg;base64,/9j/AA=="
+    assert _post(
+        active,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Active", "avatar_data": avatar, "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(
+        away,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Away", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["reveal_seconds"] == 5
+    assert next(player for player in state["players"] if player["name"] == "Active")["avatar"] == avatar
+
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(active, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    assert host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["phase"] == "question"
+    away_id = next(
+        player["id"]
+        for player in state["players"]
+        if player["name"] == "Away"
+    )
+    assert _post(
+        host,
+        f"/api/family-bible-bee/rooms/{code}/players/{away_id}/away",
+        json={},
+    ).status_code == 200
+    revealed = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert revealed["phase"] == "reveal"
+    assert next(player for player in revealed["players"] if player["name"] == "Away")["away"] is True
+    result = bible_bee._get_room(code)["round_results"][-1]
+    assert result["missed"] == 0
+    assert 0 < revealed["reveal_deadline"] - bible_bee.time.time() <= 5
+
+
+def test_invalid_avatar_is_rejected():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "avatar@example.com")
+    _prime(player)
+    created = _post(host, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    response = _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={
+            "player_name": "Ada",
+            "avatar_data": "data:image/svg+xml,<svg onload=alert(1)>",
+            "csrf_token": CSRF,
+        },
+    )
+    assert response.status_code == 400
+
+
+def test_bible_bee_uses_copyworksheet_translation_fallback(monkeypatch):
+    import verse_helpers
+
+    monkeypatch.setattr(bible_bee_content, "fetch_verse_text", lambda _reference, _version: None)
+    monkeypatch.setattr(
+        verse_helpers,
+        "request_verse_data",
+        lambda reference, version: (
+            '{"fullVerse":"Shared copyworksheet text for '
+            + reference
+            + ' in '
+            + version.upper()
+            + '."}'
+        ),
+    )
+    assert bible_bee_content._copyworksheet_verse_text("John 3:16", "nlt") == (
+        "Shared copyworksheet text for John 3:16 in NLT."
+    )
 
 
 def test_host_pause_skip_score_override_and_end_early():

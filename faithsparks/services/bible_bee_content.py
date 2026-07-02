@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+import json
 import random
 import re
 from copy import deepcopy
@@ -146,21 +146,10 @@ DECKS = {
 
 
 def translation_is_configured(version: str) -> bool:
-    version = (version or "").lower()
-    if version == "kjv":
-        return True
-    if version == "esv":
-        ids = os.getenv("API_BIBLE_IDS", "").lower()
-        direct_access = bool(os.getenv("ESV_API_KEY", "").strip())
-        api_bible_access = bool(
-            os.getenv("API_BIBLE_KEY", "").strip()
-            and re.search(r"(?:^|,)\s*esv\s*:", ids)
-        )
-        return direct_access or api_bible_access
-    if version == "nlt":
-        ids = os.getenv("API_BIBLE_IDS", "").lower()
-        return bool(os.getenv("API_BIBLE_KEY", "").strip() and re.search(r"(?:^|,)\s*nlt\s*:", ids))
-    return False
+    # Match the copyworksheet picker: supported translations stay selectable.
+    # At load time we prefer an authoritative provider, then use the same
+    # cached worksheet Scripture pipeline as the copyworksheet generator.
+    return (version or "").lower() in TRANSLATIONS
 
 
 def translation_options() -> list[dict]:
@@ -178,6 +167,20 @@ def deck_options() -> list[dict]:
         }
         for deck in DECKS.values()
     ]
+
+
+def _copyworksheet_verse_text(reference: str, version: str) -> str | None:
+    text = fetch_verse_text(reference, version)
+    if text:
+        return text
+    try:
+        from verse_helpers import request_verse_data
+
+        payload = request_verse_data(reference, version)
+        data = json.loads(payload) if payload else {}
+        return str(data.get("fullVerse") or "").strip() or None
+    except Exception:
+        return None
 
 
 def _parse_reference(reference: str) -> tuple[str, int | None, int | None, int | None]:
@@ -274,7 +277,7 @@ def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
     passages = []
     for seed in deck["passages"]:
         reference = seed["reference"]
-        text = fetch_verse_text(reference, version)
+        text = _copyworksheet_verse_text(reference, version)
         if not text:
             continue
         book, chapter, verse_start, verse_end = _parse_reference(reference)
