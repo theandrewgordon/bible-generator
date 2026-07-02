@@ -11,6 +11,7 @@ let latestState = null;
 let requestInFlight = false;
 let failedRefreshes = 0;
 let lastRenderSignature = "";
+let roomExpired = false;
 
 function escapeHTML(value) {
   return String(value ?? "")
@@ -37,7 +38,11 @@ async function api(path, options = {}) {
     },
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+  if (!response.ok) {
+    const error = new Error(data.error || "Something went wrong. Please try again.");
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -146,7 +151,8 @@ function renderQuestion(state) {
     controls = state.phase === "question"
       ? `<p>${answered} of ${state.players.length} answered</p>
          <button id="reveal-answer" class="bee-button primary full" type="button">Reveal answer</button>`
-      : `<button id="next-question" class="bee-button primary full" type="button">${state.question_index + 1 >= state.question_total ? "See final results" : "Next round"}</button>`;
+      : `<p class="auto-next-note">${state.question_index + 1 >= state.question_total ? "Results" : "Next round"} in <strong data-countdown>10</strong>s unless paused.</p>
+         <button id="next-question" class="bee-button primary full" type="button">${state.question_index + 1 >= state.question_total ? "See final results now" : "Next round now"}</button>`;
   }
 
   let feedback = "";
@@ -169,6 +175,7 @@ function renderQuestion(state) {
       <div class="answers">${answerButtons(state)}</div>
       ${feedback}
       ${state.phase === "reveal" ? `<div class="revealed-verse"><strong>${escapeHTML(question.reference)}</strong><p>${escapeHTML(question.answer_text || "")}</p></div>` : ""}
+      ${state.phase === "reveal" ? `<p class="shared-countdown">${state.question_index + 1 >= state.question_total ? "Final results" : "Next question"} in <strong data-countdown>10</strong> seconds</p>` : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
@@ -260,10 +267,19 @@ function render(state) {
   else if (state.phase === "question" || state.phase === "reveal") renderQuestion(state);
   else if (state.phase === "paused") renderPaused(state);
   else renderFinished(state);
+  updateCountdown();
+}
+
+function updateCountdown() {
+  if (!latestState?.reveal_deadline || latestState.phase !== "reveal") return;
+  const remaining = Math.max(0, Math.ceil(latestState.reveal_deadline - (Date.now() / 1000)));
+  document.querySelectorAll("[data-countdown]").forEach(node => {
+    node.textContent = String(remaining);
+  });
 }
 
 async function refresh() {
-  if (requestInFlight) return;
+  if (requestInFlight || roomExpired) return;
   requestInFlight = true;
   try {
     const state = await api(`/api/family-bible-bee/rooms/${code}`);
@@ -275,6 +291,17 @@ async function refresh() {
       render(state);
     }
   } catch (error) {
+    if (error.status === 404) {
+      roomExpired = true;
+      connectionStatus.classList.remove("show");
+      app.innerHTML = `<section class="game-stage player-wait">
+        <div class="celebration-mark">✦</div>
+        <h1>This game has wrapped up.</h1>
+        <p>Finished room codes retire after 30 minutes.</p>
+        <a class="bee-button primary" href="/family-bible-bee">Start or join another game</a>
+      </section>`;
+      return;
+    }
     failedRefreshes += 1;
     if (failedRefreshes >= 2) connectionStatus.classList.add("show");
   } finally {
@@ -283,7 +310,7 @@ async function refresh() {
 }
 
 async function heartbeat() {
-  if (role !== "player" || document.hidden) return;
+  if (role !== "player" || document.hidden || roomExpired) return;
   try {
     await api(`/api/family-bible-bee/rooms/${code}/heartbeat`, { method: "POST", body: "{}" });
   } catch (error) {
@@ -361,6 +388,7 @@ async function closeRoom() {
 
 refresh();
 window.setInterval(refresh, 1200);
+window.setInterval(updateCountdown, 250);
 heartbeat();
 window.setInterval(heartbeat, 15000);
 window.addEventListener("online", () => {

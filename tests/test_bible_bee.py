@@ -86,10 +86,9 @@ def test_family_bible_bee_room_flow():
     )
     assert answered.status_code == 200
 
-    revealed = _post(host, f"/api/family-bible-bee/rooms/{code}/reveal", json={})
-    assert revealed.status_code == 200
     revealed_state = player.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert revealed_state["phase"] == "reveal"
+    assert revealed_state["reveal_deadline"]
     assert revealed_state["viewer"]["correct"] is True
     assert revealed_state["players"][0]["score"] == 150
     assert revealed_state["viewer"]["round_points"] == 150
@@ -108,7 +107,6 @@ def test_family_bible_bee_room_flow():
             f"/api/family-bible-bee/rooms/{code}/answer",
             json={"choice": wrong},
         ).status_code == 200
-        assert _post(host, f"/api/family-bible-bee/rooms/{code}/reveal", json={}).status_code == 200
         assert _post(host, f"/api/family-bible-bee/rooms/{code}/next", json={}).status_code == 200
 
     finished = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
@@ -326,7 +324,9 @@ def test_correct_players_receive_ranked_speed_bonuses():
     assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
     correct = bible_bee._get_room(code)["questions"][0]["correct"]
     assert _post(first, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    assert host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["phase"] == "question"
     assert _post(second, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    assert host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["phase"] == "reveal"
 
     def rank_answers(room):
         player_ids = {
@@ -337,12 +337,102 @@ def test_correct_players_receive_ranked_speed_bonuses():
         room["answers"][player_ids["Second"]]["answered_at"] = 101.0
 
     bible_bee._mutate_room(code, rank_answers)
+    # Recompute the reveal with deterministic timestamps for the ranking check.
+    def reset_reveal(room):
+        room["phase"] = "question"
+        room["round_results"] = []
+        for player in room["players"].values():
+            player["score"] = 0
+
+    bible_bee._mutate_room(code, reset_reveal)
     assert _post(host, f"/api/family-bible-bee/rooms/{code}/reveal", json={}).status_code == 200
     scores = {
         player["name"]: player["score"]
         for player in host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["players"]
     }
     assert scores == {"First": 150, "Second": 140}
+
+
+def test_reveal_auto_advances_after_deadline_and_finished_room_expires():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "automatic@example.com")
+    _prime(player)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(player, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+
+    def deadline_passed(room):
+        room["reveal_deadline"] = 1
+
+    bible_bee._mutate_room(code, deadline_passed)
+    advanced = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert advanced["phase"] == "question"
+    assert advanced["question_index"] == 1
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/end", json={}).status_code == 200
+    finished = bible_bee._get_room(code)
+    assert finished["expires_at"] > finished["finished_at"]
+
+    def expire(room):
+        room["expires_at"] = 1
+
+    bible_bee._mutate_room(code, expire)
+    assert host.get(f"/api/family-bible-bee/rooms/{code}").status_code == 404
+
+
+def test_pausing_a_reveal_freezes_auto_advance_countdown():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "pause-reveal@example.com")
+    _prime(player)
+    created = _post(host, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(player, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/pause", json={}).status_code == 200
+    paused = bible_bee._get_room(code)
+    assert paused["phase"] == "paused"
+    assert paused["resume_phase"] == "reveal"
+    assert "reveal_deadline" not in paused
+    assert paused["paused_reveal_seconds"] > 0
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/pause", json={}).status_code == 200
+    resumed = bible_bee._get_room(code)
+    assert resumed["phase"] == "reveal"
+    assert resumed["reveal_deadline"] > resumed["updated_at"]
+
+
+def test_fill_blank_prefers_meaningful_words_and_related_choices():
+    keywords = bible_bee_content._keywords(
+        "For God so loved the world, that he gave his only begotten Son, "
+        "that whosoever believeth in him should not perish, but have everlasting life."
+    )
+    assert keywords[0].lower() in {"god", "love", "world", "son", "life"}
+    distractors = bible_bee_content._blank_distractors("faith", [])
+    assert {"hope", "love", "grace"}.issubset({word.lower() for word in distractors})
 
 
 def test_host_pause_skip_score_override_and_end_early():

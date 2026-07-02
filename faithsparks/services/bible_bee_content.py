@@ -190,19 +190,76 @@ def _parse_reference(reference: str) -> tuple[str, int | None, int | None, int |
 def _keywords(text: str) -> list[str]:
     stop = {
         "about", "after", "again", "against", "also", "because", "before", "being",
-        "from", "have", "into", "shall", "that", "their", "them", "there", "these",
-        "they", "this", "thou", "through", "unto", "upon", "were", "which", "with",
-        "would", "your",
+        "came", "come", "does", "from", "have", "into", "just", "made", "make",
+        "said", "says", "shall", "that", "their", "them", "there", "these", "they",
+        "this", "those", "thou", "through", "unto", "upon", "very", "were", "what",
+        "when", "where", "which", "while", "with", "would", "your",
     }
     words = re.findall(r"[A-Za-z']+", text)
     unique = []
-    for word in sorted(words, key=len, reverse=True):
+    priority = {
+        word: score
+        for score, word in enumerate(
+            reversed(
+                [
+                    "god", "lord", "jesus", "christ", "spirit", "father", "son",
+                    "faith", "love", "grace", "truth", "trust", "hope", "peace",
+                    "mercy", "wisdom", "righteousness", "salvation", "eternal",
+                    "heart", "light", "word", "life", "world", "strength", "fear",
+                ]
+            ),
+            start=100,
+        )
+    }
+    ranked = sorted(
+        enumerate(words),
+        key=lambda item: (
+            priority.get(item[1].strip("'").lower(), 0),
+            min(len(item[1]), 10),
+            -item[0],
+        ),
+        reverse=True,
+    )
+    for _position, word in ranked:
         clean = word.strip("'")
-        if len(clean) >= 4 and clean.lower() not in stop and clean.lower() not in {item.lower() for item in unique}:
+        meaningful_short_word = clean.lower() in priority
+        if (
+            (len(clean) >= 4 or meaningful_short_word)
+            and clean.lower() not in stop
+            and clean.lower() not in {item.lower() for item in unique}
+        ):
             unique.append(clean)
         if len(unique) >= 6:
             break
     return unique
+
+
+_BLANK_GROUPS = (
+    ("God", "Lord", "Jesus", "Christ", "Spirit", "Father", "Son"),
+    ("faith", "hope", "love", "grace", "truth", "mercy", "peace", "joy", "trust"),
+    ("heart", "mind", "soul", "strength"),
+    ("light", "word", "life", "world", "way"),
+)
+
+
+def _blank_distractors(blank: str, passages: list[dict]) -> list[str]:
+    for group in _BLANK_GROUPS:
+        if blank.lower() in {word.lower() for word in group}:
+            return [word for word in group if word.lower() != blank.lower()]
+
+    candidates = [
+        keyword
+        for passage in passages
+        for keyword in passage.get("keywords", [])
+        if keyword.lower() != blank.lower()
+    ]
+    return sorted(
+        candidates,
+        key=lambda word: (
+            word[:1].isupper() != blank[:1].isupper(),
+            abs(len(word) - len(blank)),
+        ),
+    )
 
 
 def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
@@ -292,7 +349,7 @@ def build_questions(passages: list[dict], style: str, round_count: int, seed: st
             prompt = re.sub(rf"\b{re.escape(blank)}\b", "______", passage["text"], count=1, flags=re.I)
             choices, correct = _shuffle_choices(
                 blank,
-                [keyword for item in others for keyword in item["keywords"][:1]],
+                _blank_distractors(blank, others),
                 rng,
             )
             label = "Fill the Blank"

@@ -456,6 +456,12 @@ select {
   border-radius: 13px;
 }
 .revealed-verse p { margin: 4px 0 0; font-family: Georgia, "Times New Roman", serif; }
+.shared-countdown, .auto-next-note {
+  color: var(--bee-muted);
+  font-weight: 800;
+}
+.shared-countdown { margin: 0 auto 18px; text-align: center; }
+.shared-countdown strong, .auto-next-note strong { color: var(--bee-blue); font-size: 1.15em; }
 .review-list { max-width: 720px; margin: 30px auto; text-align: left; }
 .review-list h2 { margin: 28px 0 8px; font-family: Georgia, "Times New Roman", serif; }
 .review-list ul { margin-top: 8px; color: var(--bee-muted); }

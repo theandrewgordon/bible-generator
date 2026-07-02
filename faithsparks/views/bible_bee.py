@@ -31,6 +31,8 @@ from faithsparks.util.request_utils import get_client_ip
 bp = Blueprint("bible_bee", __name__)
 
 ROOM_TTL_SECONDS = 6 * 60 * 60
+FINISHED_ROOM_TTL_SECONDS = 30 * 60
+REVEAL_SECONDS = 10
 ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .'-]{0,17}$")
 BLOCKED_NAMES = {"admin", "host", "moderator", "faithsparks"}
@@ -53,7 +55,12 @@ def _get_room(code: str) -> dict | None:
     else:
         with _local_lock:
             room = deepcopy(_local_rooms.get(code))
-    if room and time.time() - float(room.get("updated_at", 0)) > ROOM_TTL_SECONDS:
+    now = time.time()
+    expired = room and (
+        now >= float(room.get("expires_at", float("inf")))
+        or now - float(room.get("updated_at", 0)) > ROOM_TTL_SECONDS
+    )
+    if expired:
         _delete_room(code)
         return None
     return room
@@ -148,6 +155,84 @@ def _answer_choice(answer) -> int | None:
         return None
 
 
+def _finish_room(room: dict, now: float | None = None) -> None:
+    now = now or time.time()
+    room["phase"] = "finished"
+    room["finished_at"] = now
+    room["expires_at"] = now + FINISHED_ROOM_TTL_SECONDS
+    room.pop("resume_phase", None)
+    room.pop("reveal_deadline", None)
+    room.pop("paused_reveal_seconds", None)
+    room["review_summary"] = _build_review_summary(room)
+
+
+def _advance_current_question(room: dict, now: float | None = None) -> None:
+    now = now or time.time()
+    next_index = int(room.get("question_index", 0)) + 1
+    room.pop("reveal_deadline", None)
+    if next_index >= len(room.get("questions", [])):
+        _finish_room(room, now)
+        return
+    room["question_index"] = next_index
+    room["answers"] = {}
+    room["phase"] = "question"
+    room["question_started_at"] = now
+
+
+def _reveal_current_question(room: dict, now: float | None = None) -> None:
+    now = now or time.time()
+    question = _current_question(room)
+    if room.get("phase") != "question" or not question:
+        raise ValueError("This round cannot be revealed.")
+
+    missed = 0
+    correct_players = []
+    points_by_player = {}
+    score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
+    correct_answerers = sorted(
+        (
+            (player_id, answer)
+            for player_id, answer in room.get("answers", {}).items()
+            if _answer_choice(answer) == question["correct"]
+        ),
+        key=lambda item: float(item[1].get("answered_at", 0)),
+    )
+    speed_bonus = {
+        player_id: max(5, 50 - (rank * 10))
+        for rank, (player_id, _answer) in enumerate(correct_answerers)
+    }
+    for player_id, player in room.get("players", {}).items():
+        answer = room.get("answers", {}).get(player_id)
+        if _answer_choice(answer) == question["correct"]:
+            points = int(score_config["correct"]) + speed_bonus.get(player_id, 0)
+            player["score"] = int(player.get("score", 0)) + points
+            correct_players.append(player_id)
+            points_by_player[player_id] = points
+        else:
+            missed += 1
+            if player_id in room.get("answers", {}):
+                points = int(score_config["participation"])
+                player["score"] = int(player.get("score", 0)) + points
+                points_by_player[player_id] = points
+    if missed:
+        room.setdefault("review", []).append(
+            {"reference": question["reference"], "missed": missed, "mode": question["label"]}
+        )
+    room.setdefault("round_results", []).append(
+        {
+            "reference": question["reference"],
+            "passage_id": question.get("passage_id"),
+            "mode": question["label"],
+            "missed": missed,
+            "correct": len(correct_players),
+            "correct_players": correct_players,
+            "points_by_player": points_by_player,
+        }
+    )
+    room["phase"] = "reveal"
+    room["reveal_deadline"] = now + REVEAL_SECONDS
+
+
 def _build_review_summary(room: dict) -> dict:
     results = room.get("round_results", [])
     by_reference: dict[str, dict] = {}
@@ -225,7 +310,11 @@ def _active_rooms_for_host(email: str) -> list[dict]:
                 "deck_name": room.get("deck_name", "Bible Bee"),
             }
             for code, room in rooms
-            if room.get("host_email") == email and float(room.get("updated_at", 0)) >= cutoff
+            if (
+                room.get("host_email") == email
+                and float(room.get("updated_at", 0)) >= cutoff
+                and time.time() < float(room.get("expires_at", float("inf")))
+            )
         ],
         key=lambda item: item["code"],
     )
@@ -275,6 +364,8 @@ def _public_room(room: dict, code: str) -> dict:
         "answered_player_ids": list(answers),
         "review": room.get("review", []),
         "review_summary": room.get("review_summary", {}),
+        "reveal_deadline": room.get("reveal_deadline"),
+        "expires_at": room.get("expires_at"),
     }
 
 
@@ -468,6 +559,19 @@ def player_room(code: str):
 def room_state(code: str):
     code = code.upper()
     room = _require_room(code)
+    deadline = room.get("reveal_deadline")
+    if room.get("phase") == "reveal" and deadline and time.time() >= float(deadline):
+        now = time.time()
+
+        def auto_advance(current):
+            current_deadline = current.get("reveal_deadline")
+            if current.get("phase") == "reveal" and current_deadline and now >= float(current_deadline):
+                _advance_current_question(current, now)
+
+        result = _mutate_room(code, auto_advance)
+        if result is None:
+            abort(404)
+        room = result[1]
     state = _public_room(room, code)
     player_id = _player_id(code)
     state["viewer"] = {
@@ -537,6 +641,9 @@ def answer_question(code: str):
             player_id,
             {"choice": choice, "answered_at": time.time()},
         )
+        player_count = len(room.get("players", {}))
+        if player_count and len(room["answers"]) >= player_count:
+            _reveal_current_question(room)
 
     try:
         result = _mutate_room(code, answer)
@@ -579,54 +686,7 @@ def reveal_answer(code: str):
         abort(403)
 
     def reveal(room):
-        question = _current_question(room)
-        if room.get("phase") != "question" or not question:
-            raise ValueError("This round cannot be revealed.")
-        missed = 0
-        correct_players = []
-        points_by_player = {}
-        score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
-        correct_answerers = sorted(
-            (
-                (player_id, answer)
-                for player_id, answer in room.get("answers", {}).items()
-                if _answer_choice(answer) == question["correct"]
-            ),
-            key=lambda item: float(item[1].get("answered_at", 0)),
-        )
-        speed_bonus = {
-            player_id: max(5, 50 - (rank * 10))
-            for rank, (player_id, _answer) in enumerate(correct_answerers)
-        }
-        for player_id, player in room.get("players", {}).items():
-            answer = room.get("answers", {}).get(player_id)
-            if _answer_choice(answer) == question["correct"]:
-                points = int(score_config["correct"]) + speed_bonus.get(player_id, 0)
-                player["score"] = int(player.get("score", 0)) + points
-                correct_players.append(player_id)
-                points_by_player[player_id] = points
-            else:
-                missed += 1
-                if player_id in room.get("answers", {}):
-                    points = int(score_config["participation"])
-                    player["score"] = int(player.get("score", 0)) + points
-                    points_by_player[player_id] = points
-        if missed:
-            room.setdefault("review", []).append(
-                {"reference": question["reference"], "missed": missed, "mode": question["label"]}
-            )
-        room.setdefault("round_results", []).append(
-            {
-                "reference": question["reference"],
-                "passage_id": question.get("passage_id"),
-                "mode": question["label"],
-                "missed": missed,
-                "correct": len(correct_players),
-                "correct_players": correct_players,
-                "points_by_player": points_by_player,
-            }
-        )
-        room["phase"] = "reveal"
+        _reveal_current_question(room)
 
     try:
         result = _mutate_room(code, reveal)
@@ -647,15 +707,7 @@ def next_question(code: str):
     def advance(room):
         if room.get("phase") != "reveal":
             raise ValueError("Reveal this answer before continuing.")
-        next_index = int(room.get("question_index", 0)) + 1
-        if next_index >= len(room.get("questions", [])):
-            room["phase"] = "finished"
-            room["review_summary"] = _build_review_summary(room)
-        else:
-            room["question_index"] = next_index
-            room["answers"] = {}
-            room["phase"] = "question"
-            room["question_started_at"] = time.time()
+        _advance_current_question(room)
 
     try:
         result = _mutate_room(code, advance)
@@ -676,8 +728,14 @@ def toggle_pause(code: str):
     def pause(current):
         if current.get("phase") == "paused":
             current["phase"] = current.pop("resume_phase", "question")
+            if current["phase"] == "reveal":
+                remaining = float(current.pop("paused_reveal_seconds", REVEAL_SECONDS))
+                current["reveal_deadline"] = time.time() + max(1, remaining)
         elif current.get("phase") in {"question", "reveal"}:
             current["resume_phase"] = current["phase"]
+            if current["phase"] == "reveal":
+                deadline = float(current.pop("reveal_deadline", time.time() + REVEAL_SECONDS))
+                current["paused_reveal_seconds"] = max(1, deadline - time.time())
             current["phase"] = "paused"
         else:
             raise ValueError("This game cannot be paused right now.")
@@ -714,15 +772,7 @@ def skip_question(code: str):
                     "skipped": True,
                 }
             )
-        next_index = int(current.get("question_index", 0)) + 1
-        if next_index >= len(current.get("questions", [])):
-            current["phase"] = "finished"
-            current["review_summary"] = _build_review_summary(current)
-        else:
-            current["question_index"] = next_index
-            current["answers"] = {}
-            current["phase"] = "question"
-            current["question_started_at"] = time.time()
+        _advance_current_question(current)
 
     try:
         result = _mutate_room(code, skip)
@@ -743,9 +793,7 @@ def end_game(code: str):
     def finish(current):
         if current.get("phase") == "lobby":
             raise ValueError("Start the game before ending it early.")
-        current["phase"] = "finished"
-        current.pop("resume_phase", None)
-        current["review_summary"] = _build_review_summary(current)
+        _finish_room(current)
 
     try:
         result = _mutate_room(code, finish)
