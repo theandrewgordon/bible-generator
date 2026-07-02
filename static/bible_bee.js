@@ -433,13 +433,41 @@ function renderFinished(state) {
         ${playerFeedback ? `<div class="feedback-grid">${playerFeedback}</div>` : ""}
         ${summary.suggested_deck ? `<p class="next-deck">Try next: <strong>${escapeHTML(summary.suggested_deck)}</strong></p>` : ""}
       </div>
-      <a class="bee-button secondary" href="/family-bible-bee">Start another room</a>
+      ${nextGameActions("Back to Family Bible Bee")}
     </section>
     ${scoreRail(state, (summary.review_tomorrow || []).length && role === "host"
       ? `<button id="review-rematch" class="bee-button gold full" type="button">Play missed verses again</button>`
       : "")}
   </div>`;
   bindRoomManagement();
+}
+
+function nextGameActions(homeLabel) {
+  return `<div class="next-game-actions" aria-label="Play another game">
+    <h2>Ready for another game?</h2>
+    <form class="finished-join-form">
+      <label for="finished-room-code">Enter a new room code</label>
+      <div class="finished-code-row">
+        <input id="finished-room-code" name="room_code" maxlength="4" autocomplete="off"
+          autocapitalize="characters" pattern="[A-Za-z0-9]{4}" placeholder="BEE7" required>
+        <button class="bee-button primary" type="submit">Join room</button>
+      </div>
+    </form>
+    <a class="bee-button secondary" href="/family-bible-bee">${homeLabel}</a>
+  </div>`;
+}
+
+function bindNextGameActions() {
+  document.querySelector(".finished-join-form")?.addEventListener("submit", event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const nextCode = new FormData(form).get("room_code")?.toString().trim().toUpperCase();
+    if (!nextCode || !/^[A-Z0-9]{4}$/.test(nextCode)) {
+      form.querySelector("input")?.focus();
+      return;
+    }
+    window.location.assign(`/family-bible-bee/join/${encodeURIComponent(nextCode)}`);
+  });
 }
 
 function renderPaused(state) {
@@ -455,6 +483,7 @@ function renderPaused(state) {
 }
 
 function bindRoomManagement() {
+  bindNextGameActions();
   document.querySelectorAll(".remove-player").forEach(button => {
     button.addEventListener("click", () => removePlayer(button.dataset.playerId));
   });
@@ -524,8 +553,9 @@ async function refresh() {
         <div class="celebration-mark">✦</div>
         <h1>This game has wrapped up.</h1>
         <p>Finished room codes retire after 30 minutes.</p>
-        <a class="bee-button primary" href="/family-bible-bee">Start or join another game</a>
+        ${nextGameActions("Back to Family Bible Bee")}
       </section>`;
+      bindNextGameActions();
       return;
     }
     failedRefreshes += 1;

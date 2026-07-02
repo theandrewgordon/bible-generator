@@ -379,17 +379,89 @@ def _shuffle_choices(
     return choices, choices.index(correct)
 
 
+_FINISH_WORD_ALTERNATIVES = {
+    "always": ("often", "faithfully", "gladly"),
+    "believe": ("remember", "follow", "consider"),
+    "believes": ("remembers", "follows", "considers"),
+    "born": ("called", "ready", "sent"),
+    "day": ("hour", "season", "morning"),
+    "evil": ("danger", "harm", "trouble"),
+    "faith": ("hope", "grace", "peace"),
+    "fear": ("worry", "doubt", "trouble"),
+    "give": ("bring", "show", "send"),
+    "gives": ("brings", "shows", "sends"),
+    "good": ("right", "wise", "true"),
+    "heart": ("mind", "soul", "strength"),
+    "help": ("serve", "stand", "comfort"),
+    "hope": ("peace", "joy", "courage"),
+    "know": ("trust", "follow", "remember"),
+    "knows": ("trusts", "follows", "remembers"),
+    "life": ("hope", "peace", "joy"),
+    "light": ("guide", "lamp", "hope"),
+    "love": ("grace", "mercy", "peace"),
+    "need": ("trouble", "sorrow", "hardship"),
+    "path": ("way", "road", "course"),
+    "peace": ("hope", "joy", "comfort"),
+    "seek": ("follow", "trust", "remember"),
+    "strength": ("wisdom", "courage", "hope"),
+    "time": ("hour", "day", "season"),
+    "trust": ("follow", "seek", "remember"),
+    "truth": ("wisdom", "grace", "promise"),
+    "way": ("path", "road", "course"),
+    "word": ("truth", "promise", "wisdom"),
+    "world": ("earth", "people", "nations"),
+}
+
+
+def _match_case(source: str, replacement: str) -> str:
+    if source.isupper():
+        return replacement.upper()
+    if source[:1].isupper():
+        return replacement.capitalize()
+    return replacement
+
+
+def _plausible_finish_variants(answer: str) -> list[str]:
+    """Create grammatical near-misses by changing one same-kind content word."""
+    variants = []
+    for match in re.finditer(r"[A-Za-z']+", answer):
+        alternatives = _FINISH_WORD_ALTERNATIVES.get(match.group(0).lower(), ())
+        for replacement in alternatives:
+            variant = (
+                answer[:match.start()]
+                + _match_case(match.group(0), replacement)
+                + answer[match.end():]
+            )
+            if variant.casefold() != answer.casefold() and variant.casefold() not in {
+                item.casefold() for item in variants
+            }:
+                variants.append(variant)
+    return variants
+
+
 def _finish_distractors(answer: str, passages: list[dict]) -> list[str]:
-    """Prefer similarly sized verse endings, then full verses as a safe fallback."""
-    endings = sorted(
-        (_split_finish(item["text"])[1] for item in passages),
+    """Prefer grammatical near-misses over visibly unrelated verse fragments."""
+    answer_words = re.findall(r"[A-Za-z']+", answer)
+    first_word = answer_words[0].casefold() if answer_words else ""
+    endings = [_split_finish(item["text"])[1] for item in passages]
+    matching_endings = sorted(
+        (
+            ending
+            for ending in endings
+            if re.findall(r"[A-Za-z']+", ending)
+            and re.findall(r"[A-Za-z']+", ending)[0].casefold() == first_word
+        ),
+        key=lambda option: abs(len(option.split()) - len(answer.split())),
+    )
+    other_endings = sorted(
+        (ending for ending in endings if ending not in matching_endings),
         key=lambda option: abs(len(option.split()) - len(answer.split())),
     )
     full_verses = sorted(
         (item["text"] for item in passages),
         key=lambda option: abs(len(option.split()) - len(answer.split())),
     )
-    return endings + full_verses
+    return _plausible_finish_variants(answer) + matching_endings + other_endings + full_verses
 
 
 def _mode_for_round(style: str, index: int) -> str:

@@ -157,7 +157,13 @@ button, input, select { font: inherit; }
 .avatar-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .avatar-choice > span { display: grid; width: 52px; height: 52px; place-items: center; overflow: hidden; background-color: var(--bee-blue-soft); border-radius: 50%; font-size: 1.5rem; }
 .avatar-choice small { max-width: 72px; overflow: hidden; color: var(--bee-muted); font-size: .62rem; font-weight: 800; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.preset-avatar { background-image: url("/static/bible_bee_avatars/avatar-sprite.png"); background-repeat: no-repeat; background-size: 300% 300%; }
+.preset-avatar {
+  overflow: hidden;
+  background-image: url("/static/bible_bee_avatars/avatar-sprite.png");
+  background-repeat: no-repeat;
+  background-size: 300% 300% !important;
+  border-radius: 50%;
+}
 .avatar-fox { background-position: 0% 0%; }
 .avatar-sunflower { background-position: 50% 0%; }
 .avatar-ocean { background-position: 100% 0%; }
@@ -508,6 +514,27 @@ select {
 .lobby-stage { display: grid; place-content: center; }
 .lobby-stage h1, .finished-stage h1 { margin: 12px 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.5rem, 7vw, 5rem); line-height: 1; }
 .lobby-stage > p, .finished-stage > p { max-width: 650px; margin: 8px auto 30px; color: var(--bee-muted); font-size: 1.15rem; }
+.next-game-actions {
+  width: min(100%, 560px);
+  margin: 30px auto 0;
+  padding: 24px;
+  border: 1px solid var(--bee-line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
+}
+.next-game-actions h2 { margin: 0 0 18px; font-family: Georgia, "Times New Roman", serif; }
+.finished-join-form { margin-bottom: 14px; text-align: left; }
+.finished-join-form label { display: block; margin-bottom: 8px; font-weight: 800; }
+.finished-code-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.finished-code-row input {
+  min-width: 0;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: .22em;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+.next-game-actions > .bee-button { width: 100%; }
 .lobby-code-row { display: flex; align-items: center; justify-content: center; gap: clamp(24px, 5vw, 64px); margin: 24px 0; }
 .big-code { color: var(--bee-blue); font-size: clamp(4rem, 13vw, 8rem); font-weight: 900; letter-spacing: .12em; line-height: 1; }
 .lobby-qr { display: grid; gap: 5px; color: var(--bee-muted); font-size: .78rem; font-weight: 900; text-transform: uppercase; }
@@ -588,6 +615,8 @@ select {
 @media (max-width: 600px) {
   .bee-home { padding-top: 50px; }
   .code-form, .mode-preview { grid-template-columns: 1fr; }
+  .finished-code-row { grid-template-columns: 1fr; }
+  .finished-code-row .bee-button { width: 100%; }
   .room-setup-form { grid-template-columns: 1fr; }
   .room-setup-form.expanded, .deck-card-grid { grid-template-columns: 1fr; }
   .create-room-row { align-items: stretch; flex-direction: column; }

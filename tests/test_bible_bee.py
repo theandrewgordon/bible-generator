@@ -839,4 +839,55 @@ def test_preset_bible_avatar_appears_in_public_player_state():
     ).status_code == 302
     state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert state["players"][0]["avatar_preset"] == "empty-tomb"
-    assert state["players"][0]["avatar"].endswith("/bible_bee_avatars/avatar-sprite.png")
+    # Presets are rendered from their tile ID. Never expose the whole sprite as a
+    # normal photo URL, because stale clients could display all nine tiles.
+    assert state["players"][0]["avatar"] is None
+
+
+def test_finish_the_verse_distractors_are_grammatical_near_misses():
+    answer = "is born to help in time of need."
+    distractors = bible_bee_content._finish_distractors(answer, [])
+
+    assert distractors[:3] == [
+        "is called to help in time of need.",
+        "is ready to help in time of need.",
+        "is sent to help in time of need.",
+    ]
+    assert all(choice.startswith("is ") for choice in distractors[:4])
+
+
+def test_finish_the_verse_question_prefers_plausible_alternatives(monkeypatch):
+    passages = [
+        {
+            "id": "proverbs-17-17",
+            "reference": "Proverbs 17:17",
+            "text": "A friend is always loyal, and a brother is born to help in time of need.",
+            "blanks": [],
+        }
+    ] + [
+        {
+            "id": f"passage-{index}",
+            "reference": f"Psalm {index}:1",
+            "text": f"Unrelated beginning number {index} with a completely different verse ending.",
+            "blanks": [],
+        }
+        for index in range(1, 5)
+    ]
+    monkeypatch.setitem(
+        bible_bee_content.GAME_STYLES,
+        "finish_only",
+        {"name": "Finish only", "description": "", "modes": ["finish"]},
+    )
+    questions = bible_bee_content.build_questions(
+        passages,
+        style="finish_only",
+        round_count=5,
+        seed="logical-options",
+        choice_count=4,
+    )
+    question = next(
+        item for item in questions if item["reference"] == "Proverbs 17:17"
+    )
+
+    assert question["label"] == "Finish the Verse"
+    assert all(choice.startswith("is ") for choice in question["choices"])

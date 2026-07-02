@@ -545,9 +545,7 @@ def _public_room(room: dict, code: str) -> dict:
                 "connected": now - float(player.get("last_seen", player.get("joined_at", 0))) < 40,
                 "away": bool(player.get("away", False)),
                 "avatar": (
-                    url_for("static", filename="bible_bee_avatars/avatar-sprite.png")
-                    if player.get("avatar_preset")
-                    else url_for("bible_bee.player_avatar", code=code, player_id=player_id)
+                    url_for("bible_bee.player_avatar", code=code, player_id=player_id)
                     if player.get("avatar")
                     else None
                 ),
