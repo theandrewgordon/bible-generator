@@ -24,6 +24,21 @@
           <input id="avatar-data" type="hidden" name="avatar_data">
           <label for="player-name">Player name</label>
           <input id="player-name" name="player_name" maxlength="18" autocomplete="nickname" placeholder="Ada" required autofocus>
+          <fieldset class="avatar-gallery">
+            <legend>Choose a picture</legend>
+            <label class="avatar-choice initials-choice">
+              <input type="radio" name="avatar_preset" value="" checked>
+              <span aria-hidden="true">☺</span>
+              <small>Initials</small>
+            </label>
+            {% for avatar_id, avatar_label in preset_avatars.items() %}
+              <label class="avatar-choice">
+                <input type="radio" name="avatar_preset" value="{{ avatar_id }}">
+                <span class="preset-avatar avatar-{{ avatar_id }}" aria-hidden="true"></span>
+                <small>{{ avatar_label }}</small>
+              </label>
+            {% endfor %}
+          </fieldset>
           <div class="selfie-picker">
             <div id="selfie-preview" class="selfie-preview" aria-hidden="true">☺</div>
             <div>
@@ -41,6 +56,20 @@
       const avatarData = document.querySelector("#avatar-data");
       const selfiePreview = document.querySelector("#selfie-preview");
       const joinButton = document.querySelector("#bee-join-form button[type='submit']");
+      const presetInputs = document.querySelectorAll('input[name="avatar_preset"]');
+      const presetClasses = [...presetInputs].map(input => `avatar-${input.value}`).filter(value => value !== "avatar-");
+
+      presetInputs.forEach(input => {
+        input.addEventListener("change", () => {
+          if (!input.checked) return;
+          avatarData.value = "";
+          selfieInput.value = "";
+          selfiePreview.style.backgroundImage = "";
+          selfiePreview.classList.remove(...presetClasses);
+          selfiePreview.textContent = input.value ? "" : "☺";
+          if (input.value) selfiePreview.classList.add(`avatar-${input.value}`, "preset-avatar");
+        });
+      });
 
       selfieInput.addEventListener("change", () => {
         const file = selfieInput.files && selfieInput.files[0];
@@ -59,6 +88,8 @@
             const sourceY = (image.naturalHeight - size) / 2;
             context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 128, 128);
             avatarData.value = canvas.toDataURL("image/jpeg", 0.72);
+            presetInputs.forEach(input => { input.checked = input.value === ""; });
+            selfiePreview.classList.remove(...presetClasses, "preset-avatar");
             selfiePreview.textContent = "";
             selfiePreview.style.backgroundImage = `url("${avatarData.value}")`;
             joinButton.disabled = false;

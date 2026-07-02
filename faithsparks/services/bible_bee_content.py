@@ -53,6 +53,9 @@ DIFFICULTIES = {
     "little_sparks": {"name": "Little Sparks", "correct": 100, "participation": 25},
     "family": {"name": "Family", "correct": 100, "participation": 0},
     "challenge": {"name": "Challenge", "correct": 125, "participation": 0},
+    "hard": {"name": "Hard", "correct": 175, "participation": 0},
+    "expert": {"name": "Expert", "correct": 225, "participation": 0},
+    "upramp": {"name": "Upramp", "correct": 100, "participation": 0},
     "bible_bee_prep": {"name": "Bible Bee Prep", "correct": 150, "participation": 0},
 }
 
@@ -360,15 +363,33 @@ def _choose_blank(passage: dict) -> str:
     return max(words, key=len) if words else ""
 
 
-def _shuffle_choices(correct: str, distractors: list[str], rng: random.Random) -> tuple[list[str], int]:
+def _shuffle_choices(
+    correct: str,
+    distractors: list[str],
+    rng: random.Random,
+    choice_count: int = 4,
+) -> tuple[list[str], int]:
     choices = [correct]
     for distractor in distractors:
         if distractor and distractor.lower() not in {choice.lower() for choice in choices}:
             choices.append(distractor)
-        if len(choices) == 4:
+        if len(choices) == choice_count:
             break
     rng.shuffle(choices)
     return choices, choices.index(correct)
+
+
+def _finish_distractors(answer: str, passages: list[dict]) -> list[str]:
+    """Prefer similarly sized verse endings, then full verses as a safe fallback."""
+    endings = sorted(
+        (_split_finish(item["text"])[1] for item in passages),
+        key=lambda option: abs(len(option.split()) - len(answer.split())),
+    )
+    full_verses = sorted(
+        (item["text"] for item in passages),
+        key=lambda option: abs(len(option.split()) - len(answer.split())),
+    )
+    return endings + full_verses
 
 
 def _mode_for_round(style: str, index: int) -> str:
@@ -377,8 +398,16 @@ def _mode_for_round(style: str, index: int) -> str:
     return modes[index % len(modes)]
 
 
-def build_questions(passages: list[dict], style: str, round_count: int, seed: str) -> list[dict]:
+def build_questions(
+    passages: list[dict],
+    style: str,
+    round_count: int,
+    seed: str,
+    choice_count: int = 4,
+    difficulty: str = "family",
+) -> list[dict]:
     rng = random.Random(seed)
+    choice_count = choice_count if choice_count in {2, 4} else 4
     ordered = deepcopy(passages)
     if style == "younger_kids":
         ordered.sort(key=lambda passage: len(passage["text"].split()))
@@ -390,10 +419,15 @@ def build_questions(passages: list[dict], style: str, round_count: int, seed: st
         passage = ordered[index % len(ordered)]
         others = [item for item in ordered if item["id"] != passage["id"]]
         mode = _mode_for_round(style, index)
+        round_choice_count = choice_count
+        if difficulty in {"hard", "expert"}:
+            round_choice_count = 4
+        elif difficulty == "upramp":
+            round_choice_count = 2 if index < max(1, round_count // 3) else 4
 
         if mode == "reference":
             choices, correct = _shuffle_choices(
-                passage["reference"], [item["reference"] for item in others], rng
+                passage["reference"], [item["reference"] for item in others], rng, round_choice_count
             )
             prompt = passage["text"]
             label = "Reference Race"
@@ -410,17 +444,18 @@ def build_questions(passages: list[dict], style: str, round_count: int, seed: st
                     blank,
                     _blank_distractors(blank, others),
                     rng,
+                    round_choice_count,
                 )
                 label = "Fill the Blank"
             else:
                 prompt, answer = _split_finish(passage["text"])
-                distractors = [_split_finish(item["text"])[1] for item in others]
-                choices, correct = _shuffle_choices(answer, distractors, rng)
+                distractors = _finish_distractors(answer, others)
+                choices, correct = _shuffle_choices(answer, distractors, rng, round_choice_count)
                 label = "Finish the Verse"
         else:
             prompt, answer = _split_finish(passage["text"])
-            distractors = [_split_finish(item["text"])[1] for item in others]
-            choices, correct = _shuffle_choices(answer, distractors, rng)
+            distractors = _finish_distractors(answer, others)
+            choices, correct = _shuffle_choices(answer, distractors, rng, round_choice_count)
             label = "Finish the Verse"
 
         questions.append(

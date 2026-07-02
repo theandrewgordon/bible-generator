@@ -38,11 +38,23 @@ FINISHED_ROOM_TTL_SECONDS = 30 * 60
 REVEAL_SECONDS = 10
 REVEAL_SECOND_OPTIONS = {5, 10, 15}
 CHALLENGE_QUESTION_SECONDS = 30
+DIFFICULTY_QUESTION_SECONDS = {"hard": 25, "expert": 20}
 MAX_AVATAR_DATA_LENGTH = 60_000
 ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .'-]{0,17}$")
 BLOCKED_NAMES = {"admin", "host", "moderator", "faithsparks"}
 AVATAR_DATA_RE = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/=]+$")
+PRESET_AVATARS = {
+    "fox": "Friendly fox",
+    "sunflower": "Sunflower",
+    "ocean": "Ocean sunrise",
+    "david": "David with a harp",
+    "esther": "Queen Esther",
+    "jesus-children": "Jesus welcoming children",
+    "noah": "Noah’s ark",
+    "empty-tomb": "Empty tomb",
+    "cross": "Jesus on the cross",
+}
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -202,13 +214,37 @@ def _reveal_seconds(room: dict) -> int:
     return seconds if seconds in REVEAL_SECOND_OPTIONS else REVEAL_SECONDS
 
 
+def _upramp_stage(room: dict) -> tuple[str, int | None, int]:
+    total = max(1, len(room.get("questions", [])))
+    progress = int(room.get("question_index", 0)) / total
+    if progress < 1 / 3:
+        return "Easy", None, 100
+    if progress < 2 / 3:
+        return "Growing", 30, 140
+    return "Hard", 20, 180
+
+
+def _score_config(room: dict) -> dict:
+    if room.get("difficulty") == "upramp":
+        _stage, _seconds, correct = _upramp_stage(room)
+        return {"correct": correct, "participation": 0}
+    return DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
+
+
 def _start_question_timer(room: dict, now: float | None = None) -> None:
     now = now or time.time()
     room["question_started_at"] = now
+    question_seconds = DIFFICULTY_QUESTION_SECONDS.get(room.get("difficulty"))
+    if room.get("difficulty") == "upramp":
+        _stage, question_seconds, _correct = _upramp_stage(room)
     if room.get("game_style") == "challenge":
-        room["question_deadline"] = now + CHALLENGE_QUESTION_SECONDS
+        question_seconds = question_seconds or CHALLENGE_QUESTION_SECONDS
+    if question_seconds:
+        room["question_deadline"] = now + question_seconds
+        room["question_seconds"] = question_seconds
     else:
         room.pop("question_deadline", None)
+        room.pop("question_seconds", None)
 
 
 def _complete_oral_round(room: dict, now: float | None = None) -> None:
@@ -218,7 +254,7 @@ def _complete_oral_round(room: dict, now: float | None = None) -> None:
         raise ValueError("This oral round cannot be completed.")
     eligible = _eligible_player_ids(room)
     judgments = room.get("oral_judgments", {})
-    score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
+    score_config = _score_config(room)
     correct_players = []
     points_by_player = {}
     missed = 0
@@ -330,7 +366,7 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
     missed = 0
     correct_players = []
     points_by_player = {}
-    score_config = DIFFICULTIES.get(room.get("difficulty"), DIFFICULTIES["family"])
+    score_config = _score_config(room)
     eligible_player_ids = _eligible_player_ids(room)
     correct_answerers = sorted(
         (
@@ -509,10 +545,13 @@ def _public_room(room: dict, code: str) -> dict:
                 "connected": now - float(player.get("last_seen", player.get("joined_at", 0))) < 40,
                 "away": bool(player.get("away", False)),
                 "avatar": (
-                    url_for("bible_bee.player_avatar", code=code, player_id=player_id)
+                    url_for("static", filename="bible_bee_avatars/avatar-sprite.png")
+                    if player.get("avatar_preset")
+                    else url_for("bible_bee.player_avatar", code=code, player_id=player_id)
                     if player.get("avatar")
                     else None
                 ),
+                "avatar_preset": player.get("avatar_preset"),
             }
             for player_id, player in room.get("players", {}).items()
         ],
@@ -526,6 +565,10 @@ def _public_room(room: dict, code: str) -> dict:
         "translation": room.get("translation"),
         "game_style": room.get("game_style_name", "Classic Mix"),
         "difficulty": room.get("difficulty_name", "Family"),
+        "difficulty_stage": (
+            _upramp_stage(room)[0] if room.get("difficulty") == "upramp" else None
+        ),
+        "choice_count": int(room.get("choice_count", 4)),
         "question_index": int(room.get("question_index", 0)),
         "question_total": len(room.get("questions", [])),
         "question": public_question,
@@ -537,6 +580,7 @@ def _public_room(room: dict, code: str) -> dict:
         "review_summary": room.get("review_summary", {}),
         "reveal_deadline": room.get("reveal_deadline"),
         "question_deadline": room.get("question_deadline"),
+        "question_seconds": room.get("question_seconds"),
         "reveal_seconds": _reveal_seconds(room),
         "expires_at": room.get("expires_at"),
     }
@@ -589,6 +633,12 @@ def create_room():
     style = request.form.get("game_style") or "classic_mix"
     difficulty = request.form.get("difficulty") or "family"
     try:
+        choice_count = int(request.form.get("choice_count", 4))
+    except (TypeError, ValueError):
+        choice_count = 4
+    if choice_count not in {2, 4}:
+        choice_count = 4
+    try:
         reveal_seconds = int(request.form.get("reveal_seconds", REVEAL_SECONDS))
     except (TypeError, ValueError):
         reveal_seconds = REVEAL_SECONDS
@@ -606,7 +656,14 @@ def create_room():
     code = _new_code()
     try:
         passages = load_passages(deck_id, version, round_count)
-        questions = build_questions(passages, style, round_count, seed=code)
+        questions = build_questions(
+            passages,
+            style,
+            round_count,
+            seed=code,
+            choice_count=choice_count,
+            difficulty=difficulty,
+        )
     except ValueError as exc:
         return _render_home(str(exc), status=503)
 
@@ -623,6 +680,7 @@ def create_room():
         "game_style_name": GAME_STYLES[style]["name"],
         "difficulty": difficulty,
         "difficulty_name": DIFFICULTIES[difficulty]["name"],
+        "choice_count": choice_count,
         "reveal_seconds": reveal_seconds,
         "passages": passages,
         "questions": questions,
@@ -683,6 +741,16 @@ def player_avatar(code: str, player_id: str):
     return response
 
 
+def _render_join_page(code: str, error: str | None = None):
+    return render_template(
+        "bible_bee_join.html",
+        code=code,
+        error=error,
+        preset_avatars=PRESET_AVATARS,
+        noindex=True,
+    )
+
+
 @bp.route("/family-bible-bee/join/<code>", methods=["GET", "POST"])
 def join_room(code: str):
     code = code.upper()
@@ -696,32 +764,24 @@ def join_room(code: str):
             window_seconds=10 * 60,
         )
         if not rate.allowed:
-            return render_template(
-                "bible_bee_join.html",
-                code=code,
-                error="Too many join attempts. Please wait a few minutes.",
-                noindex=True,
+            return _render_join_page(
+                code, "Too many join attempts. Please wait a few minutes."
             ), 429
         name = " ".join((request.form.get("player_name") or "").strip().split())
         if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
-            return render_template(
-                "bible_bee_join.html",
-                code=code,
-                error="Choose a simple family-friendly name using letters or numbers.",
-                noindex=True,
+            return _render_join_page(
+                code, "Choose a simple family-friendly name using letters or numbers."
             ), 400
         if room.get("phase") != "lobby":
-            return render_template(
-                "bible_bee_join.html", code=code, error="This game has already started.", noindex=True
-            ), 409
+            return _render_join_page(code, "This game has already started."), 409
         player_id = existing_id or secrets.token_urlsafe(8)
         avatar = (request.form.get("avatar_data") or "").strip()
+        avatar_preset = (request.form.get("avatar_preset") or "").strip()
+        if avatar_preset not in PRESET_AVATARS:
+            avatar_preset = ""
         if not _valid_avatar_data(avatar):
-            return render_template(
-                "bible_bee_join.html",
-                code=code,
-                error="That picture could not be prepared. Try another selfie or join without one.",
-                noindex=True,
+            return _render_join_page(
+                code, "That picture could not be prepared. Try another selfie or join without one."
             ), 400
 
         def add_player(current):
@@ -740,17 +800,20 @@ def join_room(code: str):
                 "last_seen": time.time(),
                 "away": False,
                 "avatar": avatar or existing.get("avatar"),
+                "avatar_preset": "" if avatar else (
+                    avatar_preset or existing.get("avatar_preset", "")
+                ),
             }
 
         try:
             _mutate_room(code, add_player)
         except ValueError as exc:
-            return render_template("bible_bee_join.html", code=code, error=str(exc), noindex=True), 409
+            return _render_join_page(code, str(exc)), 409
         session[_player_session_key(code)] = player_id
         return redirect(url_for("bible_bee.player_room", code=code))
     if existing_id and existing_id in room.get("players", {}):
         return redirect(url_for("bible_bee.player_room", code=code))
-    return render_template("bible_bee_join.html", code=code, noindex=True)
+    return _render_join_page(code)
 
 
 @bp.get("/family-bible-bee/play/<code>")

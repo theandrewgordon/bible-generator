@@ -7,6 +7,7 @@ const app = document.querySelector("#bee-app");
 const toast = document.querySelector("#bee-toast");
 const connectionStatus = document.querySelector("#bee-connection");
 const soundToggle = document.querySelector("#bee-sound-toggle");
+const readModeSelect = document.querySelector("#bee-read-mode");
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 let latestState = null;
 let requestInFlight = false;
@@ -17,6 +18,9 @@ let pendingChoice = null;
 let pendingQuestionIndex = null;
 let soundEnabled = window.localStorage.getItem("bibleBeeSound") === "on";
 let audioContext = null;
+let readMode = window.localStorage.getItem("bibleBeeReadMode") || "off";
+let speechRun = 0;
+let lastSpokenQuestion = "";
 
 function updateSoundToggle() {
   if (!soundToggle) return;
@@ -50,6 +54,83 @@ function playTone(kind = "round") {
     oscillator.start(start);
     oscillator.stop(start + 0.16);
   });
+}
+
+function stopSpeaking() {
+  speechRun += 1;
+  window.speechSynthesis?.cancel();
+  document.querySelectorAll(".is-speaking").forEach(element => {
+    element.classList.remove("is-speaking");
+  });
+}
+
+function speakItems(items) {
+  if (readMode === "off" || !("speechSynthesis" in window)) return;
+  stopSpeaking();
+  const run = speechRun;
+  const speakNext = index => {
+    if (run !== speechRun || index >= items.length) return;
+    const item = items[index];
+    const element = item.element?.();
+    element?.classList.add("is-speaking");
+    const utterance = new SpeechSynthesisUtterance(item.text);
+    utterance.rate = 0.88;
+    utterance.pitch = 1.02;
+    utterance.onend = () => {
+      element?.classList.remove("is-speaking");
+      speakNext(index + 1);
+    };
+    utterance.onerror = () => {
+      element?.classList.remove("is-speaking");
+      speakNext(index + 1);
+    };
+    window.speechSynthesis.speak(utterance);
+  };
+  speakNext(0);
+}
+
+function speakQuestion(state, force = false) {
+  if (readMode === "off" || state.phase !== "question" || !state.question) return;
+  const key = `${state.question_index}:${state.question.label}:${readMode}`;
+  if (!force && key === lastSpokenQuestion) return;
+  lastSpokenQuestion = key;
+  const items = [{
+    text: state.question.prompt,
+    element: () => document.querySelector(".question-prompt"),
+  }];
+  if (readMode === "all") {
+    items.unshift({
+      text: state.question.label,
+      element: () => document.querySelector(".mode-banner"),
+    });
+    state.question.choices.forEach((choice, index) => {
+      items.push({
+        text: `Answer ${String.fromCharCode(65 + index)}. ${choice}`,
+        element: () => document.querySelector(`[data-choice="${index}"]`),
+      });
+    });
+  }
+  speakItems(items);
+}
+
+function speakConfirmation() {
+  if (readMode !== "all" || pendingChoice === null) return;
+  const letter = String.fromCharCode(65 + pendingChoice);
+  const choice = latestState.question.choices[pendingChoice];
+  speakItems([
+    {
+      text: `You chose answer ${letter}. ${choice}`,
+      element: () => document.querySelector(".answer-confirmation > span"),
+    },
+    {
+      text: "Yes, lock this answer.",
+      element: () => document.querySelector("#confirm-answer"),
+    },
+    {
+      text: "No, choose again.",
+      element: () => document.querySelector("#change-answer"),
+    },
+  ]);
 }
 
 function escapeHTML(value) {
@@ -92,7 +173,9 @@ function initials(name) {
 function scoreRail(state, controls = "") {
   const players = state.players.length
     ? state.players.map(player => {
-        const avatar = player.avatar
+        const avatar = player.avatar_preset
+          ? `<span class="preset-avatar avatar-${escapeHTML(player.avatar_preset)}" aria-hidden="true"></span>`
+          : player.avatar
           ? `<img src="${escapeHTML(player.avatar)}" alt="">`
           : escapeHTML(initials(player.name));
         const management = role === "host" && state.phase === "lobby"
@@ -230,8 +313,8 @@ function renderQuestion(state) {
       <strong>Lock in answer ${String.fromCharCode(65 + pendingChoice)}?</strong>
       <span>${escapeHTML(question.choices[pendingChoice])}</span>
       <div>
-        <button id="confirm-answer" class="bee-button primary" type="button">Lock it in</button>
-        <button id="change-answer" class="bee-button secondary" type="button">Choose again</button>
+        <button id="confirm-answer" class="bee-button primary" type="button">Yes, lock this answer</button>
+        <button id="change-answer" class="bee-button secondary" type="button">No, choose again</button>
       </div>
     </div>`;
   } else if (role === "player" && state.phase === "question" && state.viewer.has_answered) {
@@ -275,7 +358,7 @@ function renderQuestion(state) {
       </div>
       <h1 class="mode-banner">${escapeHTML(question.label)}</h1>
       <p class="question-prompt">${escapeHTML(question.prompt)}</p>
-      ${state.phase === "question" && state.question_deadline ? `<p class="challenge-timer">Challenge timer: <strong data-question-countdown>30</strong>s</p>` : ""}
+      ${state.phase === "question" && state.question_deadline ? `<p class="challenge-timer">${escapeHTML(state.difficulty)} timer: <strong data-question-countdown>${state.question_seconds || 30}</strong>s</p>` : ""}
       ${answerArea}
       ${feedback}
       ${state.phase === "reveal" ? `<div class="revealed-verse"><strong>${escapeHTML(question.reference)}</strong><p>${escapeHTML(question.answer_text || "")}</p></div>` : ""}
@@ -302,11 +385,14 @@ function stageAnswer(choice) {
   pendingChoice = choice;
   pendingQuestionIndex = latestState.question_index;
   renderQuestion(latestState);
+  speakConfirmation();
 }
 
 function clearPendingAnswer() {
+  stopSpeaking();
   pendingChoice = null;
   renderQuestion(latestState);
+  speakQuestion(latestState, true);
 }
 
 function renderFinished(state) {
@@ -396,6 +482,7 @@ function render(state) {
   else if (state.phase === "paused") renderPaused(state);
   else renderFinished(state);
   updateCountdown();
+  speakQuestion(state);
   if (previousState && previousState.phase === "question" && state.phase === "reveal") playTone("reveal");
   else if (previousState && previousState.phase !== "finished" && state.phase === "finished") playTone("finish");
   else if (previousState && previousState.question_index !== state.question_index) playTone("round");
@@ -468,6 +555,7 @@ async function hostAction(action) {
 
 async function submitAnswer(choice) {
   if (choice === null) return;
+  stopSpeaking();
   try {
     await api(`/api/family-bible-bee/rooms/${code}/answer`, {
       method: "POST",
@@ -564,6 +652,16 @@ async function closeRoom() {
 
 refresh();
 updateSoundToggle();
+if (readModeSelect) {
+  readModeSelect.value = ["off", "verse", "all"].includes(readMode) ? readMode : "off";
+  readModeSelect.addEventListener("change", () => {
+    readMode = readModeSelect.value;
+    window.localStorage.setItem("bibleBeeReadMode", readMode);
+    lastSpokenQuestion = "";
+    stopSpeaking();
+    speakQuestion(latestState, true);
+  });
+}
 soundToggle?.addEventListener("click", () => {
   soundEnabled = !soundEnabled;
   window.localStorage.setItem("bibleBeeSound", soundEnabled ? "on" : "off");

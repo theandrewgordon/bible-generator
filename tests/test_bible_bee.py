@@ -747,3 +747,96 @@ def test_host_pause_skip_score_override_and_end_early():
     finished = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert finished["phase"] == "finished"
     assert finished["review_summary"]["players"][0]["badge"]
+
+
+def test_two_choice_games_generate_two_logical_options():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    _prime(host, "two-choices@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "choice_count": "2", "round_count": "10"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    room = bible_bee._get_room(code)
+    assert room["choice_count"] == 2
+    assert all(len(question["choices"]) == 2 for question in room["questions"])
+
+
+@pytest.mark.parametrize(
+    "difficulty, expected_seconds, expected_points",
+    [("hard", 25, 175), ("expert", 20, 225)],
+)
+def test_hard_and_expert_are_optional_timed_difficulties(
+    difficulty, expected_seconds, expected_points
+):
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, f"{difficulty}@example.com")
+    _prime(player)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "difficulty": difficulty, "choice_count": "2"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    room = bible_bee._get_room(code)
+    assert room["question_seconds"] == expected_seconds
+    assert len(room["questions"][0]["choices"]) == 4
+    correct = room["questions"][0]["correct"]
+    assert _post(player, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    state = player.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["viewer"]["round_points"] == expected_points + 50
+
+
+def test_upramp_starts_easy_and_increases_difficulty():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    _prime(host, "upramp@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "difficulty": "upramp", "round_count": "10"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    room = bible_bee._get_room(code)
+    assert [len(question["choices"]) for question in room["questions"][:3]] == [2, 2, 2]
+    assert all(len(question["choices"]) == 4 for question in room["questions"][3:])
+    room["question_index"] = 0
+    assert bible_bee._upramp_stage(room) == ("Easy", None, 100)
+    room["question_index"] = 4
+    assert bible_bee._upramp_stage(room) == ("Growing", 30, 140)
+    room["question_index"] = 8
+    assert bible_bee._upramp_stage(room) == ("Hard", 20, 180)
+
+
+def test_preset_bible_avatar_appears_in_public_player_state():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "preset@example.com")
+    _prime(player)
+    created = _post(host, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={
+            "player_name": "Ada",
+            "avatar_preset": "empty-tomb",
+            "csrf_token": CSRF,
+        },
+    ).status_code == 302
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["players"][0]["avatar_preset"] == "empty-tomb"
+    assert state["players"][0]["avatar"].endswith("/bible_bee_avatars/avatar-sprite.png")
