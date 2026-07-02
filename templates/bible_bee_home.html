@@ -116,14 +116,21 @@
       {% if active_rooms %}
         <section class="active-rooms" aria-labelledby="active-rooms-heading">
           <h2 id="active-rooms-heading">Continue a recent room</h2>
+          <p>Only you can see these rooms. Players need the private room code or invite link.</p>
           {% for room in active_rooms %}
-            <a href="{{ url_for('bible_bee.host_room', code=room.code) }}">
-              <span>
-                <strong>Room {{ room.code }}</strong>
-                <small>{{ room.deck_name }} · {{ room.players }} players · {{ room.phase|capitalize }}</small>
-              </span>
-              <b>Resume →</b>
-            </a>
+            <div class="active-room-row">
+              <a href="{{ url_for('bible_bee.host_room', code=room.code) }}">
+                <span>
+                  <strong>Room {{ room.code }}</strong>
+                  <small>{{ room.deck_name }} · {{ room.players }} players · {{ room.phase|capitalize }}</small>
+                </span>
+                <b>Resume →</b>
+              </a>
+              <form class="delete-room-form" method="post" action="{{ url_for('bible_bee.delete_room_from_home', code=room.code) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="text-button danger-text" type="submit" aria-label="Delete room {{ room.code }}">Delete</button>
+              </form>
+            </div>
           {% endfor %}
         </section>
       {% endif %}
@@ -191,6 +198,11 @@
       });
       roomSetup?.querySelector('[name="one_off_theme"]')?.addEventListener("input", event => {
         event.currentTarget.setCustomValidity("");
+      });
+      document.querySelectorAll(".delete-room-form").forEach(form => {
+        form.addEventListener("submit", event => {
+          if (!window.confirm("Permanently delete this room for everyone?")) event.preventDefault();
+        });
       });
     </script>
   </body>

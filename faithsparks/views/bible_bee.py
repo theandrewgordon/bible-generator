@@ -165,10 +165,9 @@ def _host_email() -> str:
 
 
 def _is_host(code: str, room: dict | None = None) -> bool:
-    if code in session.get("bible_bee_host_rooms", []):
-        return True
     room = room or _get_room(code)
-    return bool(room and _host_email() and room.get("host_email") == _host_email())
+    email = _host_email()
+    return bool(room and email and room.get("host_email") == email)
 
 
 def _player_id(code: str) -> str | None:
@@ -1350,3 +1349,16 @@ def close_room(code: str):
     host_rooms = [item for item in session.get("bible_bee_host_rooms", []) if item != code]
     session["bible_bee_host_rooms"] = host_rooms
     return jsonify({"ok": True, "redirect": url_for("bible_bee.home")})
+
+
+@bp.post("/family-bible-bee/rooms/<code>/delete")
+def delete_room_from_home(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+    _delete_room(code)
+    session["bible_bee_host_rooms"] = [
+        item for item in session.get("bible_bee_host_rooms", []) if item != code
+    ]
+    return redirect(url_for("bible_bee.home"))

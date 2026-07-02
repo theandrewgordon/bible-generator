@@ -200,6 +200,43 @@ def test_only_signed_in_parent_can_create_or_manage_room():
     assert "/login/google" in response.headers["Location"]
 
 
+def test_rooms_are_listed_only_for_their_host_and_can_be_deleted_from_home():
+    owner = app.test_client()
+    other_parent = app.test_client()
+    _prime(owner, "private-owner@example.com")
+    _prime(other_parent, "another-parent@example.com")
+
+    created = _post(owner, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+
+    owner_home = owner.get("/family-bible-bee")
+    other_home = other_parent.get("/family-bible-bee")
+    assert f"Room {code}".encode() in owner_home.data
+    assert f"Room {code}".encode() not in other_home.data
+    assert b"Only you can see these rooms" in owner_home.data
+
+    deleted = _post(owner, f"/family-bible-bee/rooms/{code}/delete")
+    assert deleted.status_code == 302
+    assert deleted.headers["Location"].endswith("/family-bible-bee")
+    assert owner.get(f"/api/family-bible-bee/rooms/{code}").status_code == 404
+
+
+def test_stale_session_room_code_does_not_grant_host_access():
+    owner = app.test_client()
+    attacker = app.test_client()
+    _prime(owner, "actual-owner@example.com")
+    _prime(attacker, "different-parent@example.com")
+    created = _post(owner, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+
+    with attacker.session_transaction() as sess:
+        sess["bible_bee_host_rooms"] = [code]
+
+    assert attacker.get(f"/family-bible-bee/host/{code}").status_code == 403
+    assert _post(attacker, f"/family-bible-bee/rooms/{code}/delete").status_code == 403
+    assert owner.get(f"/api/family-bible-bee/rooms/{code}").status_code == 200
+
+
 def test_host_can_remove_player_and_close_room():
     app.config.update(TESTING=True)
     host = app.test_client()

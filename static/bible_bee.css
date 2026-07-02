@@ -307,19 +307,30 @@ select {
   border-radius: 18px;
 }
 .active-rooms h2 { margin: 0 0 10px; font-family: Georgia, "Times New Roman", serif; }
-.active-rooms a {
+.active-rooms > p { margin: -2px 0 10px; color: var(--bee-muted); font-size: .86rem; }
+.active-room-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  border-top: 1px solid var(--bee-line);
+}
+.active-room-row > a {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
   padding: 14px 4px;
   color: var(--bee-navy);
-  border-top: 1px solid var(--bee-line);
   text-decoration: none;
 }
-.active-rooms a span, .active-rooms a small { display: block; }
-.active-rooms a small { margin-top: 3px; color: var(--bee-muted); }
-.active-rooms a b { color: var(--bee-blue); white-space: nowrap; }
+.active-room-row a span, .active-room-row a small { display: block; }
+.active-room-row a small { margin-top: 3px; color: var(--bee-muted); }
+.active-room-row a b { color: var(--bee-blue); white-space: nowrap; }
+.delete-room-form { margin: 0; }
+.delete-room-form button { padding: 8px; }
 
 #room-code {
   font-size: 1.35rem;
@@ -648,6 +659,9 @@ select {
   .custom-game-tools { grid-template-columns: 1fr; align-items: stretch; }
   .custom-game-tools .bee-button { width: 100%; }
   .create-room-row { align-items: stretch; flex-direction: column; }
+  .active-room-row { align-items: stretch; flex-direction: column; gap: 0; padding-bottom: 10px; }
+  .active-room-row > a { width: 100%; }
+  .delete-room-form button { width: 100%; text-align: left; }
   .bee-brand { gap: 10px; }
   .bee-brand strong { font-size: .88rem; }
   .room-code-block { padding: 6px 10px; }

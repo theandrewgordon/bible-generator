@@ -218,7 +218,7 @@ function scoreRail(state, controls = "") {
              <button id="skip-question" class="text-button" type="button" ${state.phase === "paused" ? "disabled" : ""}>Skip question</button>
              <button id="end-game-early" class="text-button danger-text" type="button">End game early</button>`
           : ""}
-        <button id="close-room" class="text-button" type="button">End this room</button>
+        <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
       </div>` : ""}
   </aside>`;
 }
@@ -668,7 +668,7 @@ async function copyJoinLink() {
 }
 
 async function closeRoom() {
-  if (!window.confirm("End this room for everyone?")) return;
+  if (!window.confirm("Permanently delete this room for everyone?")) return;
   try {
     const result = await api(`/api/family-bible-bee/rooms/${code}/close`, {
       method: "POST",
