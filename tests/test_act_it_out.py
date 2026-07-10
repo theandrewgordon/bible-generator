@@ -62,6 +62,26 @@ def test_act_it_out_home_explains_round_flow_and_draw_mode():
     assert b"No point / pass" in home.data
 
 
+def test_group_games_hub_exposes_draw_it_entry():
+    client = app.test_client()
+
+    hub = client.get("/group-games")
+
+    assert hub.status_code == 200
+    assert b"Draw It" in hub.data
+    assert b"theme=Draw+It" in hub.data
+
+
+def test_draw_it_entry_preselects_draw_theme():
+    client = app.test_client()
+    _prime(client, "draw-entry@example.com")
+
+    home = client.get("/group-games/act-it-out?theme=Draw+It")
+
+    assert home.status_code == 200
+    assert b'value="Draw It" checked' in home.data
+
+
 def test_act_it_out_create_join_and_display_lobby():
     host = app.test_client()
     player = app.test_client()
@@ -85,6 +105,53 @@ def test_act_it_out_create_join_and_display_lobby():
     assert state["phase"] == "lobby"
     assert state["team_mode"] is True
     assert state["players"][0]["team_id"] == "gold"
+
+
+def test_act_it_out_room_creator_can_delete_from_home():
+    host = app.test_client()
+    _prime(host, "act-delete-host@example.com")
+    code = _create_team_room(host)
+
+    home = host.get("/group-games/act-it-out")
+    assert code.encode() in home.data
+
+    deleted = _post(host, f"/group-games/act-it-out/rooms/{code}/delete", data={"csrf_token": CSRF})
+
+    assert deleted.status_code == 302
+    assert deleted.headers["Location"].endswith("/group-games/act-it-out")
+    assert host.get(f"/api/group-games/act-it-out/rooms/{code}").status_code == 404
+
+
+def test_act_it_out_room_delete_rejects_non_creator_and_allows_admin(monkeypatch):
+    owner = app.test_client()
+    attacker = app.test_client()
+    admin = app.test_client()
+    _prime(owner, "act-owner@example.com")
+    _prime(attacker, "act-attacker@example.com")
+    _prime(admin, "admin@example.com")
+    monkeypatch.setenv("ADMIN_EMAILS", "admin@example.com")
+    code = _create_team_room(owner)
+
+    assert _post(attacker, f"/group-games/act-it-out/rooms/{code}/delete", data={"csrf_token": CSRF}).status_code == 403
+    assert _post(admin, f"/group-games/act-it-out/rooms/{code}/delete", data={"csrf_token": CSRF}).status_code == 302
+    assert owner.get(f"/api/group-games/act-it-out/rooms/{code}").status_code == 404
+
+
+def test_act_it_out_stale_rooms_are_removed_from_recent_list():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    _prime(host, "act-stale@example.com")
+    code = _create_team_room(host)
+    with act_it_out._local_lock:
+        act_it_out._local_rooms[code]["expires_at"] = 1
+        act_it_out._local_rooms[code]["updated_at"] = 1
+
+    home = host.get("/group-games/act-it-out")
+
+    assert home.status_code == 200
+    assert code.encode() not in home.data
+    assert host.get(f"/api/group-games/act-it-out/rooms/{code}").status_code == 404
 
 
 def test_act_it_out_join_supports_preset_and_uploaded_avatars():

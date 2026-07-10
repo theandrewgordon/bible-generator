@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import base64
 import binascii
+import os
 import re
 import secrets
 import threading
@@ -192,10 +193,21 @@ def _host_email() -> str:
     return str(session.get("user_email") or "").strip().lower()
 
 
+def _is_admin_email(email: str) -> bool:
+    allowed = [item.strip().lower() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()]
+    return bool(email and email.lower() in allowed)
+
+
 def _is_host(code: str, room: dict | None = None) -> bool:
     room = room or _get_room(code)
     email = _host_email()
     return bool(room and email and room.get("host_email") == email)
+
+
+def _can_delete_room(code: str, room: dict | None = None) -> bool:
+    room = room or _get_room(code)
+    email = _host_email()
+    return bool(room and email and (room.get("host_email") == email or _is_admin_email(email)))
 
 
 def _player_session_key(code: str) -> str:
@@ -475,12 +487,30 @@ def _active_rooms_for_host(email: str) -> list[dict]:
     else:
         with _local_lock:
             rooms = [(code, deepcopy(room)) for code, room in _local_rooms.items()]
+    cutoff = time.time() - ROOM_TTL_SECONDS
     now = time.time()
+    expired_codes = [
+        code
+        for code, room in rooms
+        if (
+            room.get("host_email") == email
+            and (
+                now >= float(room.get("expires_at", float("inf")))
+                or float(room.get("updated_at", 0)) < cutoff
+            )
+        )
+    ]
+    for code in expired_codes:
+        _delete_room(code)
     return sorted(
         [
             {"code": code, "phase": room.get("phase", "lobby"), "players": len(room.get("players", {})), "theme": room.get("theme", "Bible Stories")}
             for code, room in rooms
-            if room.get("host_email") == email and now < float(room.get("expires_at", float("inf")))
+            if (
+                room.get("host_email") == email
+                and float(room.get("updated_at", 0)) >= cutoff
+                and now < float(room.get("expires_at", float("inf")))
+            )
         ],
         key=lambda item: item["code"],
     )
@@ -496,9 +526,13 @@ def hub():
 @bp.get("/group-games/act-it-out")
 def home():
     email = _host_email()
+    selected_theme = request.args.get("theme") or "Mix It Up"
+    if selected_theme not in {"Mix It Up", *THEMES}:
+        selected_theme = "Mix It Up"
     return render_template(
         "act_it_out_home.html",
         themes=["Mix It Up", *THEMES],
+        selected_theme=selected_theme,
         is_host_signed_in=bool(email),
         active_rooms=_active_rooms_for_host(email),
         noindex=True,
@@ -918,3 +952,31 @@ def remove_player(code: str, player_id: str):
     if result is None:
         abort(404)
     return jsonify({"ok": True})
+
+
+@bp.post("/api/church-games/act-it-out/rooms/<code>/close")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/close")
+def close_room(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _can_delete_room(code, room):
+        abort(403)
+    _delete_room(code)
+    session["act_it_out_host_rooms"] = [
+        item for item in session.get("act_it_out_host_rooms", []) if item != code
+    ]
+    return jsonify({"ok": True, "redirect": url_for("act_it_out.home")})
+
+
+@bp.post("/church-games/act-it-out/rooms/<code>/delete")
+@bp.post("/group-games/act-it-out/rooms/<code>/delete")
+def delete_room_from_home(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _can_delete_room(code, room):
+        abort(403)
+    _delete_room(code)
+    session["act_it_out_host_rooms"] = [
+        item for item in session.get("act_it_out_host_rooms", []) if item != code
+    ]
+    return redirect(url_for("act_it_out.home"))

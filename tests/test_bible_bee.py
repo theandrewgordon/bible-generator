@@ -292,6 +292,23 @@ def test_stale_session_room_code_does_not_grant_host_access():
     assert owner.get(f"/api/family-bible-bee/rooms/{code}").status_code == 200
 
 
+def test_bible_bee_room_delete_allows_admin(monkeypatch):
+    owner = app.test_client()
+    admin = app.test_client()
+    _prime(owner, "bee-owner@example.com")
+    _prime(admin, "admin@example.com")
+    monkeypatch.setenv("ADMIN_EMAILS", "admin@example.com")
+
+    created = _post(owner, "/family-bible-bee/create")
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+
+    deleted = _post(admin, f"/family-bible-bee/rooms/{code}/delete")
+
+    assert deleted.status_code == 302
+    assert owner.get(f"/api/family-bible-bee/rooms/{code}").status_code == 404
+
+
 def test_host_can_remove_player_and_close_room():
     app.config.update(TESTING=True)
     host = app.test_client()

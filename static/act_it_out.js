@@ -208,6 +208,7 @@ function scoreRail(state, controls = "") {
       <a class="bee-button secondary full" href="/group-games/act-it-out/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
       <button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>
       ${["round", "reveal"].includes(state.phase) ? `<button id="end-game" class="text-button danger-text" type="button">End game</button>` : ""}
+      <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
     </div>` : ""}
   </aside>`;
 }
@@ -608,6 +609,19 @@ async function copyJoinLink() {
   }
 }
 
+async function closeRoom() {
+  if (!window.confirm("Permanently delete this room for everyone?")) return;
+  try {
+    const result = await api(`/api/group-games/act-it-out/rooms/${code}/close`, {
+      method: "POST",
+      body: "{}",
+    });
+    window.location.href = result.redirect;
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 function bindManagement() {
   document.querySelectorAll("[data-switch-team-player-id]").forEach(button => {
     button.addEventListener("click", () => switchTeam(button.dataset.switchTeamPlayerId));
@@ -616,6 +630,7 @@ function bindManagement() {
     button.addEventListener("click", () => removePlayer(button.dataset.playerId));
   });
   document.querySelector("#copy-join-link")?.addEventListener("click", copyJoinLink);
+  document.querySelector("#close-room")?.addEventListener("click", closeRoom);
   document.querySelector("#end-game")?.addEventListener("click", () => {
     if (window.confirm("End this game and show final scores?")) hostAction("end");
   });

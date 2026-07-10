@@ -36,7 +36,7 @@
               <div>
                 {% for theme in themes %}
                   <label>
-                    <input type="radio" name="theme" value="{{ theme }}" {% if loop.first %}checked{% endif %}>
+                    <input type="radio" name="theme" value="{{ theme }}" {% if theme == selected_theme %}checked{% endif %}>
                     <span>{{ theme }}</span>
                   </label>
                 {% endfor %}
@@ -64,6 +64,10 @@
                 </span>
                 <b>Resume →</b>
               </a>
+              <form class="delete-room-form" method="post" action="{{ url_for('act_it_out.delete_room_from_home', code=room.code) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="text-button danger-text" type="submit" aria-label="Delete room {{ room.code }}">Delete</button>
+              </form>
             </div>
           {% endfor %}
         </section>
@@ -113,6 +117,11 @@
         event.preventDefault();
         const code = document.querySelector("#room-code").value.trim().toUpperCase();
         if (code.length === 4) window.location.href = `/group-games/act-it-out/join/${encodeURIComponent(code)}`;
+      });
+      document.querySelectorAll(".delete-room-form").forEach(form => {
+        form.addEventListener("submit", event => {
+          if (!window.confirm("Permanently delete this room for everyone?")) event.preventDefault();
+        });
       });
     </script>
   </body>

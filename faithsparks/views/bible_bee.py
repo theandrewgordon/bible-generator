@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import io
+import os
 import re
 import secrets
 import threading
@@ -170,10 +171,21 @@ def _host_email() -> str:
     return str(session.get("user_email") or "").strip().lower()
 
 
+def _is_admin_email(email: str) -> bool:
+    allowed = [item.strip().lower() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()]
+    return bool(email and email.lower() in allowed)
+
+
 def _is_host(code: str, room: dict | None = None) -> bool:
     room = room or _get_room(code)
     email = _host_email()
     return bool(room and email and room.get("host_email") == email)
+
+
+def _can_delete_room(code: str, room: dict | None = None) -> bool:
+    room = room or _get_room(code)
+    email = _host_email()
+    return bool(room and email and (room.get("host_email") == email or _is_admin_email(email)))
 
 
 def _player_id(code: str) -> str | None:
@@ -1476,7 +1488,7 @@ def remove_player(code: str, player_id: str):
 def close_room(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _can_delete_room(code, room):
         abort(403)
     _delete_room(code)
     host_rooms = [item for item in session.get("bible_bee_host_rooms", []) if item != code]
@@ -1488,7 +1500,7 @@ def close_room(code: str):
 def delete_room_from_home(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _can_delete_room(code, room):
         abort(403)
     _delete_room(code)
     session["bible_bee_host_rooms"] = [
