@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Church Games · FaithSparks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
+  </head>
+  <body class="bee-body">
+    <header class="bee-header">
+      <a class="bee-brand" href="{{ url_for('act_it_out.hub') }}">
+        <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
+        <span class="brand-divider"></span>
+        <strong>Church Games</strong>
+      </a>
+    </header>
+    <main class="bee-home game-hub">
+      <section class="home-copy">
+        <h1>Church games for one shared screen.</h1>
+        <p>Pick a room-code game, cast the display to a TV, and let families or teams join from phones.</p>
+      </section>
+      <section class="game-pick-grid">
+        <a class="game-pick-card" href="{{ url_for('bible_bee.home') }}">
+          <span>Scripture quiz</span>
+          <strong>Family Bible Bee</strong>
+          <p>Fast Scripture memory rounds with individual or team scoring.</p>
+        </a>
+        <a class="game-pick-card featured" href="{{ url_for('act_it_out.home') }}">
+          <span>Party game</span>
+          <strong>Act It Out</strong>
+          <p>Bible charades and clue rounds built for church family nights.</p>
+        </a>
+      </section>
+    </main>
+  </body>
+</html>

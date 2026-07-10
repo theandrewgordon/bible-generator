@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Room {{ code }} · Act It Out</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
+    <script src="{{ url_for('static', filename='act_it_out.js') }}?v={{ static_v|default(1) }}" defer></script>
+  </head>
+  <body class="bee-body room-body act-room-body" data-room-code="{{ code }}" data-role="{{ role }}">
+    <header class="bee-header room-header">
+      <a class="bee-brand" href="{{ url_for('act_it_out.home') }}">
+        <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
+        <span class="brand-divider"></span>
+        <strong>Act It Out</strong>
+      </a>
+      <div class="room-code-block">
+        <span>Room</span>
+        <strong>{{ code }}</strong>
+      </div>
+    </header>
+    <main id="act-app" class="game-shell" aria-live="polite">
+      <section class="game-stage loading-stage">
+        <div class="loading-spark" aria-hidden="true">✦</div>
+        <h1>Gathering players…</h1>
+      </section>
+    </main>
+    <div id="act-connection" class="connection-status" role="status" aria-live="polite">Reconnecting…</div>
+    <div id="act-toast" class="bee-toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

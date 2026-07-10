@@ -1,4 +1,5 @@
 import re
+from types import SimpleNamespace
 
 import pytest
 
@@ -200,6 +201,37 @@ def test_only_signed_in_parent_can_create_or_manage_room():
     assert "/login/google" in response.headers["Location"]
 
 
+def test_home_keeps_simple_version_picker_with_esv_default():
+    app.config.update(TESTING=True)
+    client = app.test_client()
+    _prime(client, "version-picker@example.com")
+
+    home = client.get("/family-bible-bee")
+
+    assert home.status_code == 200
+    assert b"Bible version" in home.data
+    assert b'value="esv" data-code="ESV" checked' in home.data
+    assert b"Team mode" in home.data
+    assert b"Create custom room" not in home.data
+    assert b'<span class="deck-version">ESV</span>' in home.data
+
+
+def test_room_defaults_to_esv_when_no_version_is_submitted():
+    client = app.test_client()
+    _prime(client, "default-esv@example.com")
+
+    created = _post(
+        client,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "deck_id": "family-favorites"},
+    )
+
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    state = client.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["translation"] == "ESV"
+
+
 def test_rooms_are_listed_only_for_their_host_and_can_be_deleted_from_home():
     owner = app.test_client()
     other_parent = app.test_client()
@@ -264,6 +296,191 @@ def test_host_can_remove_player_and_close_room():
     closed = _post(host, f"/api/family-bible-bee/rooms/{code}/close", json={})
     assert closed.status_code == 200
     assert host.get(f"/api/family-bible-bee/rooms/{code}").status_code == 404
+
+
+def test_team_mode_assigns_players_and_scores_by_team():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    gold_player = app.test_client()
+    blue_player = app.test_client()
+    _prime(host, "teams@example.com")
+    _prime(gold_player)
+    _prime(blue_player)
+
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "team_mode": "on", "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    for client, name in ((gold_player, "Ada"), (blue_player, "Ben")):
+        assert _post(
+            client,
+            f"/family-bible-bee/join/{code}",
+            data={"player_name": name, "csrf_token": CSRF},
+        ).status_code == 302
+
+    lobby = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert lobby["team_mode"] is True
+    assert [(team["id"], team["players"], team["score"]) for team in lobby["teams"]] == [
+        ("gold", 1, 0),
+        ("blue", 1, 0),
+    ]
+    assert {player["name"]: player["team_id"] for player in lobby["players"]} == {
+        "Ada": "gold",
+        "Ben": "blue",
+    }
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(
+        gold_player,
+        f"/api/family-bible-bee/rooms/{code}/answer",
+        json={"choice": correct},
+    ).status_code == 200
+    assert _post(
+        blue_player,
+        f"/api/family-bible-bee/rooms/{code}/answer",
+        json={"choice": (correct + 1) % 4},
+    ).status_code == 200
+
+    reveal = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert reveal["phase"] == "reveal"
+    assert {team["id"]: team["score"] for team in reveal["teams"]} == {
+        "gold": 150,
+        "blue": 0,
+    }
+
+
+def test_host_can_adjust_lobby_teams_before_start():
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    third = app.test_client()
+    _prime(host, "team-adjust@example.com")
+    for client in (first, second, third):
+        _prime(client)
+
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "team_mode": "on"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    for client, name in ((first, "Ada"), (second, "Ben"), (third, "Cal")):
+        assert _post(
+            client,
+            f"/family-bible-bee/join/{code}",
+            data={"player_name": name, "csrf_token": CSRF},
+        ).status_code == 302
+
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    ada_id = next(player["id"] for player in state["players"] if player["name"] == "Ada")
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/players/{ada_id}/team", json={}).status_code == 200
+    switched = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert next(player for player in switched["players"] if player["name"] == "Ada")["team_id"] == "blue"
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/teams/rebalance", json={}).status_code == 200
+    rebalanced = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert [team["players"] for team in rebalanced["teams"]] == [2, 1]
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/teams/rebalance", json={}).status_code == 409
+
+
+def test_team_mode_allows_large_event_rooms_to_forty_players(monkeypatch):
+    from faithsparks.views import bible_bee
+
+    monkeypatch.setattr(bible_bee, "check_rate_limit", lambda *args, **kwargs: SimpleNamespace(allowed=True))
+    host = app.test_client()
+    _prime(host, "large-team@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "team_mode": "on"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+
+    players = [app.test_client() for _ in range(41)]
+    for index, client in enumerate(players):
+        _prime(client)
+        response = _post(
+            client,
+            f"/family-bible-bee/join/{code}",
+            data={"player_name": f"P{index:02d}", "csrf_token": CSRF},
+        )
+        if index < 40:
+            assert response.status_code == 302
+        else:
+            assert response.status_code == 409
+            assert b"This team room is full at 40 players." in response.data
+
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert len(state["players"]) == 40
+    assert [team["players"] for team in state["teams"]] == [20, 20]
+
+
+def test_individual_room_still_rejects_ninth_player():
+    host = app.test_client()
+    _prime(host, "individual-cap@example.com")
+    created = _post(host, "/family-bible-bee/create", data={"csrf_token": CSRF})
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+
+    players = [app.test_client() for _ in range(9)]
+    for index, client in enumerate(players):
+        _prime(client)
+        response = _post(
+            client,
+            f"/family-bible-bee/join/{code}",
+            data={"player_name": f"P{index}", "csrf_token": CSRF},
+        )
+        if index < 8:
+            assert response.status_code == 302
+        else:
+            assert response.status_code == 409
+            assert b"This room already has 8 players." in response.data
+
+
+def test_finished_team_room_exposes_winning_team_scores():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    _prime(host, "team-winner@example.com")
+    _prime(first)
+    _prime(second)
+
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "team_mode": "on"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    for client, name in ((first, "Ada"), (second, "Ben")):
+        assert _post(
+            client,
+            f"/family-bible-bee/join/{code}",
+            data={"player_name": name, "csrf_token": CSRF},
+        ).status_code == 302
+
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    ben_id = next(player["id"] for player in state["players"] if player["name"] == "Ben")
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/players/{ben_id}/team", json={}).status_code == 200
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(first, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    assert _post(second, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/end", json={}).status_code == 200
+
+    finished = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert finished["phase"] == "finished"
+    assert {team["id"]: team["score"] for team in finished["teams"]} == {
+        "gold": 290,
+        "blue": 0,
+    }
 
 
 @pytest.mark.parametrize(
@@ -897,6 +1114,20 @@ def test_finish_the_verse_distractors_are_grammatical_near_misses():
         "is sent to help in time of need.",
     ]
     assert all(choice.startswith("is ") for choice in distractors[:4])
+
+
+def test_finish_the_verse_rejects_single_word_options_for_phrase_answers():
+    answer = "world, that he gave his only Son."
+
+    assert bible_bee_content._finish_choice_fits(answer, "world, that he gave his only Son.")
+    assert not bible_bee_content._finish_choice_fits(answer, "gave")
+
+
+def test_fill_blank_rejects_verb_like_choices_after_articles():
+    prompt = "For God so loved the ______, that he gave his only Son."
+
+    assert bible_bee_content._blank_choice_fits(prompt, "world", "earth")
+    assert not bible_bee_content._blank_choice_fits(prompt, "world", "gave")
 
 
 def test_finish_the_verse_question_prefers_plausible_alternatives(monkeypatch):

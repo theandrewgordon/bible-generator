@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Join Room {{ code }} · Act It Out</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
+  </head>
+  <body class="bee-body join-body">
+    <main class="join-screen">
+      <a class="bee-brand centered" href="{{ url_for('act_it_out.home') }}">
+        <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
+        <strong>Act It Out</strong>
+      </a>
+      <section class="join-card">
+        <p class="room-label">Room {{ code }}</p>
+        <h1>Who’s playing?</h1>
+        <p>Use a first name or a family nickname everyone recognizes.</p>
+        {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="player-name">Player name</label>
+          <input id="player-name" name="player_name" maxlength="18" autocomplete="nickname" placeholder="Ada" required autofocus>
+          <button class="bee-button primary large" type="submit">Join the game</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

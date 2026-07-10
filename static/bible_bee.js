@@ -170,7 +170,56 @@ function initials(name) {
   return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
 }
 
+function sortedTopPlayers(players, limit = 5) {
+  return [...(players || [])]
+    .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
+function topTeams(teams) {
+  const sorted = [...(teams || [])].sort((a, b) => b.score - a.score);
+  const topScore = sorted[0]?.score ?? 0;
+  return sorted.filter(team => team.score === topScore);
+}
+
+function displayTeamBoard(state, compact = false) {
+  if (!state.team_mode || !state.teams?.length) return "";
+  return `<div class="display-team-board ${compact ? "compact" : ""}">
+    ${state.teams.map(team => `<section class="display-team-card team-${escapeHTML(team.color)}">
+      <span>${escapeHTML(team.name)}</span>
+      <strong>${team.score}</strong>
+      <small>${team.players} ${team.players === 1 ? "player" : "players"}</small>
+    </section>`).join("")}
+  </div>`;
+}
+
+function displayTeamRosters(state) {
+  if (!state.team_mode || !state.teams?.length) return "";
+  return `<div class="display-rosters">
+    ${state.teams.map(team => {
+      const players = state.players.filter(player => player.team_id === team.id);
+      return `<section class="display-roster team-${escapeHTML(team.color)}">
+        <h2>${escapeHTML(team.name)}</h2>
+        <div>
+          ${players.length
+            ? players.map(player => `<span>${escapeHTML(player.name)}</span>`).join("")
+            : `<small>Waiting for players</small>`}
+        </div>
+      </section>`;
+    }).join("")}
+  </div>`;
+}
+
 function scoreRail(state, controls = "") {
+  const teamBoard = state.team_mode && state.teams?.length
+    ? `<div class="team-scoreboard">
+        ${state.teams.map(team => `<div class="team-score-card team-${escapeHTML(team.color)}">
+          <strong>${escapeHTML(team.name)}</strong>
+          <output>${team.score}</output>
+          <small>${team.players} ${team.players === 1 ? "player" : "players"}</small>
+        </div>`).join("")}
+      </div>`
+    : "";
   const players = state.players.length
     ? state.players.map(player => {
         const avatar = player.avatar_preset
@@ -178,8 +227,14 @@ function scoreRail(state, controls = "") {
           : player.avatar
           ? `<img src="${escapeHTML(player.avatar)}" alt="">`
           : escapeHTML(initials(player.name));
+        const teamLabel = state.team_mode && player.team_name
+          ? `<small class="team-pill team-${escapeHTML(player.team_color)}">${escapeHTML(player.team_name.replace(" Team", ""))}</small>`
+          : "";
         const management = role === "host" && state.phase === "lobby"
-          ? `<button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>`
+          ? `<span class="player-management">
+              ${state.team_mode ? `<button class="switch-team-player" data-switch-team-player-id="${escapeHTML(player.id)}" type="button">Switch team</button>` : ""}
+              <button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>
+            </span>`
           : role === "host"
             ? `<span class="player-management">
                 <span class="score-adjust">
@@ -194,7 +249,7 @@ function scoreRail(state, controls = "") {
         return `
         <div class="player-score">
           <span class="player-avatar">${avatar}</span>
-          <strong>${escapeHTML(player.name)} ${player.away ? `<small class="away-label">Away</small>` : `<i class="presence-dot ${player.connected ? "online" : "offline"}" title="${player.connected ? "Connected" : "Reconnecting"}"></i>`}</strong>
+          <strong>${escapeHTML(player.name)} ${teamLabel} ${player.away ? `<small class="away-label">Away</small>` : `<i class="presence-dot ${player.connected ? "online" : "offline"}" title="${player.connected ? "Connected" : "Reconnecting"}"></i>`}</strong>
           <output>${player.score}</output>
           ${management}
         </div>`;
@@ -202,6 +257,7 @@ function scoreRail(state, controls = "") {
     : `<p class="host-controls">Players will appear here when they join.</p>`;
   return `<aside class="score-rail">
     <h2>Players <span class="family-score">Family ${state.family_score || 0}</span></h2>
+    ${teamBoard}
     <div class="score-list">${players}</div>
     ${role === "host" ? `
       <div class="join-invite">
@@ -249,9 +305,11 @@ function renderLobby(state) {
       </div>
       <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready</p>
     </section>
-    ${scoreRail(state, `<button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start ${state.question_total} rounds</button>`)}
+  ${scoreRail(state, `${state.team_mode ? `<button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
+    <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start ${state.question_total} rounds</button>`)}
   </div>`;
   document.querySelector("#start-game")?.addEventListener("click", () => hostAction("start"));
+  document.querySelector("#rebalance-teams")?.addEventListener("click", rebalanceTeams);
   bindRoomManagement();
 }
 
@@ -398,11 +456,16 @@ function clearPendingAnswer() {
 function renderFinished(state) {
   const topScore = state.players[0]?.score;
   const winners = state.players.filter(player => player.score === topScore);
-  const winnerHeading = winners.length > 1
-    ? `It’s a tie: ${winners.map(player => escapeHTML(player.name)).join(" & ")}!`
-    : winners.length === 1
-      ? `Wonderful work, ${escapeHTML(winners[0].name)}!`
-      : "Wonderful work!";
+  const teamWinners = state.team_mode ? topTeams(state.teams) : [];
+  const winnerHeading = state.team_mode
+    ? teamWinners.length > 1
+      ? "Team Tie!"
+      : `${escapeHTML(teamWinners[0]?.name || "Team")} Wins!`
+    : winners.length > 1
+      ? `It’s a tie: ${winners.map(player => escapeHTML(player.name)).join(" & ")}!`
+      : winners.length === 1
+        ? `Wonderful work, ${escapeHTML(winners[0].name)}!`
+        : "Wonderful work!";
   const summary = state.review_summary || {};
   const reviewRows = (summary.review_tomorrow || []).length
     ? summary.review_tomorrow.map(item => `<div class="review-row">
@@ -420,11 +483,22 @@ function renderFinished(state) {
       <b>${player.correct} of ${player.total} correct</b>
       <p>${escapeHTML(player.message)}</p>
     </div>`).join("");
+  const topIndividualRows = state.team_mode
+    ? `<div class="top-individuals">
+        <h2>Top players</h2>
+        ${sortedTopPlayers(state.players, 5).map((player, index) => `<div>
+          <span>${index + 1}. ${escapeHTML(player.name)}</span>
+          <strong>${player.score}</strong>
+        </div>`).join("")}
+      </div>`
+    : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage finished-stage">
       <div class="celebration-mark">✦</div>
       <h1>${winnerHeading}</h1>
-      <p>You practiced ${state.question_total} passages together. Accuracy matters, but faithful practice is the real win.</p>
+      <p>${state.team_mode ? "Team points are tallied. Celebrate the winners, then review the verses together." : "You practiced " + state.question_total + " passages together. Accuracy matters, but faithful practice is the real win."}</p>
+      ${displayTeamBoard(state, true)}
+      ${topIndividualRows}
       <div class="review-list">
         <h2>Review tomorrow</h2>
         ${reviewRows}
@@ -440,6 +514,86 @@ function renderFinished(state) {
       : "")}
   </div>`;
   bindRoomManagement();
+}
+
+function renderDisplayLobby(state) {
+  app.innerHTML = `<section class="display-stage display-lobby">
+    <p class="display-kicker">${escapeHTML(state.deck_name)} · ${escapeHTML(state.translation)}</p>
+    <h1>Join the Bible Bee</h1>
+    <div class="display-join-row">
+      <div>
+        <span>Room code</span>
+        <strong>${escapeHTML(code)}</strong>
+      </div>
+      <img src="/family-bible-bee/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
+    </div>
+    <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready</p>
+    ${displayTeamRosters(state)}
+  </section>`;
+}
+
+function renderDisplayQuestion(state) {
+  const question = state.question;
+  const answered = state.answered_player_ids.length;
+  const activePlayers = state.players.filter(player => !player.away).length;
+  const answerRows = question.mode === "oral"
+    ? `<div class="display-oral-note">Players recite when the host calls their name.</div>`
+    : `<div class="display-answers">
+        ${question.choices.map((choice, index) => {
+          const correct = state.phase === "reveal" && question.correct === index;
+          return `<div class="${correct ? "correct-answer" : ""}">
+            <span>${String.fromCharCode(65 + index)}</span>
+            <strong>${escapeHTML(choice)}</strong>
+          </div>`;
+        }).join("")}
+      </div>`;
+  app.innerHTML = `<section class="display-stage display-question">
+    <div class="display-topline">
+      <span>Round ${state.question_index + 1} of ${state.question_total}</span>
+      <span>${escapeHTML(state.translation)}</span>
+      <span>${state.phase === "question" ? `${answered} of ${activePlayers} answered` : "Answer revealed"}</span>
+    </div>
+    ${displayTeamBoard(state, true)}
+    <h1>${escapeHTML(question.label)}</h1>
+    <p class="display-prompt">${escapeHTML(question.prompt)}</p>
+    ${state.phase === "question" && state.question_deadline ? `<p class="display-timer"><strong data-question-countdown>${state.question_seconds || 30}</strong>s</p>` : ""}
+    ${answerRows}
+    ${state.phase === "reveal" ? `<div class="display-reveal">
+      <span>${escapeHTML(question.reference)}</span>
+      <p>${escapeHTML(question.answer_text || "")}</p>
+    </div>` : ""}
+  </section>`;
+}
+
+function renderDisplayFinished(state) {
+  const teamWinners = state.team_mode ? topTeams(state.teams) : [];
+  const topPlayers = sortedTopPlayers(state.players, 5);
+  const heading = state.team_mode
+    ? teamWinners.length > 1
+      ? "Team Tie!"
+      : `${escapeHTML(teamWinners[0]?.name || "Team")} Wins!`
+    : topPlayers.length > 1 && topPlayers[0].score === topPlayers[1].score
+      ? "We Have a Tie!"
+      : `${escapeHTML(topPlayers[0]?.name || "Bible Bee")} Wins!`;
+  app.innerHTML = `<section class="display-stage display-final">
+    <div class="celebration-mark">✦</div>
+    <h1>${heading}</h1>
+    ${displayTeamBoard(state)}
+    <div class="display-top-players">
+      <h2>Top players</h2>
+      ${topPlayers.map((player, index) => `<div>
+        <span>${index + 1}. ${escapeHTML(player.name)}</span>
+        <strong>${player.score}</strong>
+      </div>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderDisplay(state) {
+  if (state.phase === "lobby") renderDisplayLobby(state);
+  else if (state.phase === "question" || state.phase === "reveal") renderDisplayQuestion(state);
+  else if (state.phase === "paused") renderPaused(state);
+  else renderDisplayFinished(state);
 }
 
 function nextGameActions(homeLabel) {
@@ -487,6 +641,9 @@ function bindRoomManagement() {
   document.querySelectorAll(".remove-player").forEach(button => {
     button.addEventListener("click", () => removePlayer(button.dataset.playerId));
   });
+  document.querySelectorAll("[data-switch-team-player-id]").forEach(button => {
+    button.addEventListener("click", () => switchTeam(button.dataset.switchTeamPlayerId));
+  });
   document.querySelectorAll("[data-score-delta]").forEach(button => {
     button.addEventListener("click", () => adjustScore(button.dataset.playerId, Number(button.dataset.scoreDelta)));
   });
@@ -506,7 +663,8 @@ function bindRoomManagement() {
 function render(state) {
   const previousState = latestState;
   latestState = state;
-  if (state.phase === "lobby") renderLobby(state);
+  if (role === "display") renderDisplay(state);
+  else if (state.phase === "lobby") renderLobby(state);
   else if (state.phase === "question" || state.phase === "reveal") renderQuestion(state);
   else if (state.phase === "paused") renderPaused(state);
   else renderFinished(state);
@@ -624,6 +782,30 @@ async function judgeRecitation(playerId, judgment) {
 async function removePlayer(playerId) {
   try {
     await api(`/api/family-bible-bee/rooms/${code}/players/${encodeURIComponent(playerId)}/remove`, {
+      method: "POST",
+      body: "{}",
+    });
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function switchTeam(playerId) {
+  try {
+    await api(`/api/family-bible-bee/rooms/${code}/players/${encodeURIComponent(playerId)}/team`, {
+      method: "POST",
+      body: "{}",
+    });
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function rebalanceTeams() {
+  try {
+    await api(`/api/family-bible-bee/rooms/${code}/teams/rebalance`, {
       method: "POST",
       body: "{}",
     });

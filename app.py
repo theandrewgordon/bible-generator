@@ -1770,6 +1770,13 @@ try:
 except Exception:
     app.logger.exception("Family Bible Bee routes could not be registered")
 
+# Church game night room-code games
+try:
+    from faithsparks.views.act_it_out import bp as act_it_out_bp
+    app.register_blueprint(act_it_out_bp)
+except Exception:
+    app.logger.exception("Act It Out routes could not be registered")
+
 @app.route("/logout")
 def logout():
     session.clear()

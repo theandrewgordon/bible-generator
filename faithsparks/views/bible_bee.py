@@ -46,6 +46,8 @@ REVEAL_SECOND_OPTIONS = {5, 10, 15}
 CHALLENGE_QUESTION_SECONDS = 30
 DIFFICULTY_QUESTION_SECONDS = {"hard": 25, "expert": 20}
 MAX_AVATAR_DATA_LENGTH = 60_000
+INDIVIDUAL_PLAYER_LIMIT = 8
+TEAM_PLAYER_LIMIT = 40
 ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .'-]{0,17}$")
 BLOCKED_NAMES = {"admin", "host", "moderator", "faithsparks"}
@@ -61,6 +63,10 @@ PRESET_AVATARS = {
     "empty-tomb": "Empty tomb",
     "cross": "Jesus on the cross",
 }
+TEAMS = [
+    {"id": "gold", "name": "Gold Team", "color": "gold"},
+    {"id": "blue", "name": "Blue Team", "color": "blue"},
+]
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -212,6 +218,62 @@ def _eligible_player_ids(room: dict) -> set[str]:
 def _all_eligible_players_answered(room: dict) -> bool:
     eligible = _eligible_player_ids(room)
     return bool(eligible and eligible.issubset(room.get("answers", {}).keys()))
+
+
+def _player_limit(room: dict) -> int:
+    return TEAM_PLAYER_LIMIT if room.get("team_mode") else INDIVIDUAL_PLAYER_LIMIT
+
+
+def _room_full_message(room: dict) -> str:
+    if room.get("team_mode"):
+        return f"This team room is full at {TEAM_PLAYER_LIMIT} players."
+    return f"This room already has {INDIVIDUAL_PLAYER_LIMIT} players."
+
+
+def _team_meta(team_id: str | None) -> dict | None:
+    return next((team for team in TEAMS if team["id"] == team_id), None)
+
+
+def _balanced_team_id(room: dict) -> str:
+    counts = {team["id"]: 0 for team in TEAMS}
+    for player in room.get("players", {}).values():
+        team_id = player.get("team_id")
+        if team_id in counts:
+            counts[team_id] += 1
+    _index, team = min(
+        enumerate(TEAMS),
+        key=lambda item: (counts[item[1]["id"]], item[0]),
+    )
+    return team["id"]
+
+
+def _assign_balanced_teams(room: dict) -> None:
+    if not room.get("team_mode"):
+        return
+    players = sorted(
+        room.get("players", {}).items(),
+        key=lambda item: (float(item[1].get("joined_at", 0)), item[1].get("name", "").lower()),
+    )
+    for index, (_player_id, player) in enumerate(players):
+        player["team_id"] = TEAMS[index % len(TEAMS)]["id"]
+
+
+def _team_state(room: dict) -> list[dict]:
+    if not room.get("team_mode"):
+        return []
+    players = room.get("players", {})
+    return [
+        {
+            **team,
+            "score": sum(
+                int(player.get("score", 0))
+                for player in players.values()
+                if player.get("team_id") == team["id"]
+            ),
+            "players": sum(1 for player in players.values() if player.get("team_id") == team["id"]),
+        }
+        for team in TEAMS
+    ]
 
 
 def _reveal_seconds(room: dict) -> int:
@@ -541,14 +603,19 @@ def _public_room(room: dict, code: str) -> dict:
         }
 
     now = time.time()
-    players = sorted(
-        [
+    public_players = []
+    for player_id, player in room.get("players", {}).items():
+        team = _team_meta(player.get("team_id"))
+        public_players.append(
             {
                 "id": player_id,
                 "name": player["name"],
                 "score": int(player.get("score", 0)),
                 "connected": now - float(player.get("last_seen", player.get("joined_at", 0))) < 40,
                 "away": bool(player.get("away", False)),
+                "team_id": team["id"] if team else None,
+                "team_name": team["name"] if team else None,
+                "team_color": team["color"] if team else None,
                 "avatar": (
                     url_for("bible_bee.player_avatar", code=code, player_id=player_id)
                     if player.get("avatar")
@@ -556,9 +623,14 @@ def _public_room(room: dict, code: str) -> dict:
                 ),
                 "avatar_preset": player.get("avatar_preset"),
             }
-            for player_id, player in room.get("players", {}).items()
-        ],
-        key=lambda player: (-player["score"], player["name"].lower()),
+        )
+    players = sorted(
+        public_players,
+        key=lambda player: (
+            player.get("team_id") or "",
+            -player["score"],
+            player["name"].lower(),
+        ),
     )
     answers = room.get("answers", {})
     return {
@@ -568,6 +640,8 @@ def _public_room(room: dict, code: str) -> dict:
         "translation": room.get("translation"),
         "game_style": room.get("game_style_name", "Classic Mix"),
         "difficulty": room.get("difficulty_name", "Family"),
+        "team_mode": bool(room.get("team_mode", False)),
+        "teams": _team_state(room),
         "difficulty_stage": (
             _upramp_stage(room)[0] if room.get("difficulty") == "upramp" else None
         ),
@@ -634,7 +708,8 @@ def create_room():
     deck = DECKS.get(deck_id) or DECKS["family-favorites"]
     custom_game = request.form.get("game_source") == "custom"
     one_off_theme = " ".join((request.form.get("one_off_theme") or "").split())[:120]
-    version = (request.form.get("version") or "kjv").lower()
+    team_mode = request.form.get("team_mode") == "on"
+    version = (request.form.get("version") or "esv").lower()
     style = request.form.get("game_style") or "classic_mix"
     difficulty = request.form.get("difficulty") or "family"
     try:
@@ -701,6 +776,8 @@ def create_room():
         "updated_at": time.time(),
         "host_email": email,
         "phase": "lobby",
+        "team_mode": team_mode,
+        "teams": TEAMS if team_mode else [],
         "deck_id": deck_id,
         "deck_name": deck_name,
         "translation": TRANSLATIONS[version]["code"],
@@ -816,20 +893,24 @@ def join_room(code: str):
             ), 400
 
         def add_player(current):
-            if len(current.get("players", {})) >= 8 and player_id not in current.get("players", {}):
-                raise ValueError("This room already has eight players.")
+            if len(current.get("players", {})) >= _player_limit(current) and player_id not in current.get("players", {}):
+                raise ValueError(_room_full_message(current))
             if any(
                 other_id != player_id and player.get("name", "").casefold() == name.casefold()
                 for other_id, player in current.get("players", {}).items()
             ):
                 raise ValueError("That player name is already in this room. Add a family initial or nickname.")
             existing = current.get("players", {}).get(player_id, {})
+            team_id = existing.get("team_id")
+            if current.get("team_mode") and team_id not in {team["id"] for team in TEAMS}:
+                team_id = _balanced_team_id(current)
             current.setdefault("players", {})[player_id] = {
                 "name": name,
                 "score": int(existing.get("score", 0)),
                 "joined_at": time.time(),
                 "last_seen": time.time(),
                 "away": False,
+                "team_id": team_id if current.get("team_mode") else None,
                 "avatar": avatar or existing.get("avatar"),
                 "avatar_preset": "" if avatar else (
                     avatar_preset or existing.get("avatar_preset", "")
@@ -1310,6 +1391,58 @@ def toggle_player_away(code: str, player_id: str):
 
     try:
         result = _mutate_room(code, toggle)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/teams/rebalance")
+def rebalance_teams(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def rebalance(current):
+        if not current.get("team_mode"):
+            raise ValueError("Team mode is not on for this room.")
+        if current.get("phase") != "lobby":
+            raise ValueError("Teams can only be balanced before the game starts.")
+        _assign_balanced_teams(current)
+
+    try:
+        result = _mutate_room(code, rebalance)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/players/<player_id>/team")
+def switch_player_team(code: str, player_id: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def switch(current):
+        if not current.get("team_mode"):
+            raise ValueError("Team mode is not on for this room.")
+        if current.get("phase") != "lobby":
+            raise ValueError("Teams can only be changed before the game starts.")
+        player = current.get("players", {}).get(player_id)
+        if not player:
+            raise ValueError("That player is no longer in the room.")
+        current_id = player.get("team_id")
+        team_ids = [team["id"] for team in TEAMS]
+        next_index = (team_ids.index(current_id) + 1) % len(team_ids) if current_id in team_ids else 0
+        player["team_id"] = team_ids[next_index]
+
+    try:
+        result = _mutate_room(code, switch)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
     if result is None:

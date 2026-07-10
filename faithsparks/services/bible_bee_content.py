@@ -501,6 +501,47 @@ def _shuffle_choices(
     return choices, choices.index(correct)
 
 
+def _word_tokens(text: str) -> list[str]:
+    return re.findall(r"[A-Za-z']+", text)
+
+
+def _finish_choice_fits(answer: str, choice: str) -> bool:
+    """Finish-the-verse choices should look like phrase completions, not loose words."""
+    answer_words = _word_tokens(answer)
+    choice_words = _word_tokens(choice)
+    if not answer_words or not choice_words:
+        return False
+    if len(answer_words) > 1 and len(choice_words) < 2:
+        return False
+    min_words = max(1, len(answer_words) // 3)
+    max_words = max(2, len(answer_words) * 2)
+    return min_words <= len(choice_words) <= max_words
+
+
+_ARTICLE_VERB_LIKE_WORDS = {
+    "believe", "believes", "bring", "brings", "called", "come", "comes", "follow",
+    "follows", "gave", "give", "gives", "help", "helps", "know", "knows", "love",
+    "loved", "loves", "made", "make", "makes", "remember", "remembers", "seek",
+    "seeks", "sent", "serve", "serves", "show", "shows", "trust", "trusts",
+    "walk", "walks",
+}
+
+
+def _blank_choice_fits(prompt: str, blank: str, choice: str) -> bool:
+    """Fill-in-the-blank choices should be single words that fit obvious local context."""
+    blank_words = _word_tokens(blank)
+    choice_words = _word_tokens(choice)
+    if len(blank_words) != 1 or len(choice_words) != 1:
+        return False
+    before_blank = prompt.split("______", 1)[0].rstrip()
+    previous_words = _word_tokens(before_blank)
+    if previous_words and previous_words[-1].lower() in {"a", "an", "the"}:
+        if choice_words[0].lower() in _ARTICLE_VERB_LIKE_WORDS:
+            return False
+        return choice[:1].isupper() == blank[:1].isupper()
+    return True
+
+
 _FINISH_WORD_ALTERNATIVES = {
     "always": ("often", "faithfully", "gladly"),
     "believe": ("remember", "follow", "consider"),
@@ -583,7 +624,11 @@ def _finish_distractors(answer: str, passages: list[dict]) -> list[str]:
         (item["text"] for item in passages),
         key=lambda option: abs(len(option.split()) - len(answer.split())),
     )
-    return _plausible_finish_variants(answer) + matching_endings + other_endings + full_verses
+    return [
+        choice
+        for choice in _plausible_finish_variants(answer) + matching_endings + other_endings + full_verses
+        if _finish_choice_fits(answer, choice)
+    ]
 
 
 def _mode_for_round(style: str, index: int) -> str:
@@ -634,9 +679,14 @@ def build_questions(
             blank = rng.choice(blank_candidates[:3]) if blank_candidates else _choose_blank(passage)
             if blank:
                 prompt = re.sub(rf"\b{re.escape(blank)}\b", "______", passage["text"], count=1, flags=re.I)
+                distractors = [
+                    choice
+                    for choice in _blank_distractors(blank, others)
+                    if _blank_choice_fits(prompt, blank, choice)
+                ]
                 choices, correct = _shuffle_choices(
                     blank,
-                    _blank_distractors(blank, others),
+                    distractors,
                     rng,
                     round_choice_count,
                 )

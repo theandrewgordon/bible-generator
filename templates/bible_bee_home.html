@@ -26,19 +26,36 @@
           {% if setup_error %}<p class="setup-error" role="alert">{{ setup_error }}</p>{% endif %}
           <form id="bee-room-setup" class="room-setup-form expanded" method="post" action="{{ url_for('bible_bee.create_room') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" id="bee-version" name="version" value="kjv" data-code="KJV">
+            <input type="hidden" name="game_source" value="deck">
             <input type="hidden" name="game_style" value="classic_mix">
             <input type="hidden" name="difficulty" value="family">
             <input type="hidden" name="choice_count" value="4">
             <input type="hidden" name="round_count" value="5">
             <input type="hidden" name="reveal_seconds" value="10">
+            <label class="team-mode-toggle">
+              <input type="checkbox" name="team_mode">
+              <span>
+                <strong>Team mode</strong>
+                <small>Auto-split players into Gold and Blue teams.</small>
+              </span>
+            </label>
+            <fieldset class="version-picker">
+              <legend>Bible version</legend>
+              <div class="version-options">
+                {% for version in translations %}
+                  <label>
+                    <input type="radio" name="version" value="{{ version.id }}" data-code="{{ version.code }}" {% if version.id == 'esv' %}checked{% endif %} {% if not version.available %}disabled{% endif %}>
+                    <span>{{ version.code }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </fieldset>
             <fieldset class="custom-game-tools">
-              <legend>Want a fresh theme?</legend>
+              <legend>Want a fresh custom theme?</legend>
               <label>
                 <span>Optional custom topic</span>
                 <input name="one_off_theme" maxlength="120" placeholder="Easter morning, friendship, patience">
               </label>
-              <button class="bee-button gold" type="submit" name="game_source" value="custom">Create custom room</button>
             </fieldset>
             <fieldset class="deck-library">
               <legend>Pick a ready-made theme</legend>
@@ -55,8 +72,8 @@
               </div>
             </fieldset>
             <div class="create-room-row">
-              <p>Default game: KJV, 5 rounds, family difficulty.</p>
-              <button class="bee-button primary large" type="submit" name="game_source" value="deck">Create room</button>
+              <p><span class="deck-version">ESV</span> · 5 rounds · family difficulty</p>
+              <button class="bee-button primary large" type="submit">Create room</button>
             </div>
             <p id="room-build-status" class="room-build-status" role="status" aria-live="polite"></p>
           </form>
@@ -119,27 +136,22 @@
         const code = document.querySelector("#room-code").value.trim().toUpperCase();
         if (code.length === 4) window.location.href = `/family-bible-bee/join/${encodeURIComponent(code)}`;
       });
-      const versionSelect = document.querySelector("#bee-version");
+      const versionInputs = document.querySelectorAll('[name="version"]');
       function updateDeckVersions() {
-        if (!versionSelect) return;
-        const code = versionSelect.dataset.code || versionSelect.selectedOptions?.[0]?.dataset.code || "KJV";
+        const checked = document.querySelector('[name="version"]:checked');
+        const code = checked?.dataset.code || "ESV";
         document.querySelectorAll(".deck-version").forEach(label => { label.textContent = code; });
       }
-      versionSelect?.addEventListener("change", updateDeckVersions);
+      versionInputs.forEach(input => input.addEventListener("change", updateDeckVersions));
       updateDeckVersions();
 
       const roomSetup = document.querySelector("#bee-room-setup");
       roomSetup?.addEventListener("submit", event => {
-        const submitter = event.submitter || roomSetup.querySelector('button[value="deck"]');
-        const source = submitter?.value || "deck";
         const theme = roomSetup.querySelector('[name="one_off_theme"]');
-        if (source === "custom" && !theme.value.trim()) {
-          event.preventDefault();
-          theme.setCustomValidity("Add a theme for tonight’s game.");
-          theme.reportValidity();
-          theme.focus();
-          return;
-        }
+        const sourceInput = roomSetup.querySelector('[name="game_source"]');
+        const submitter = event.submitter || roomSetup.querySelector('button[type="submit"]');
+        const source = theme.value.trim() ? "custom" : "deck";
+        sourceInput.value = source;
         theme.setCustomValidity("");
         document.querySelector("#room-build-status").textContent = source === "custom"
           ? "Gathering passages and checking the game…"
@@ -147,7 +159,7 @@
         roomSetup.querySelectorAll('button[type="submit"]').forEach(button => {
           button.disabled = true;
         });
-        submitter.textContent = source === "custom" ? "Building your room…" : "Opening room…";
+        submitter.textContent = source === "custom" ? "Building custom room…" : "Opening room…";
       });
       roomSetup?.querySelector('[name="one_off_theme"]')?.addEventListener("input", event => {
         event.currentTarget.setCustomValidity("");
