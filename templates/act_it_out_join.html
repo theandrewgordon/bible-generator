@@ -19,13 +19,93 @@
         <h1>Who’s playing?</h1>
         <p>Use a first name or a family nickname everyone recognizes.</p>
         {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
-        <form method="post">
+        <form id="act-join-form" method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input id="avatar-data" type="hidden" name="avatar_data">
           <label for="player-name">Player name</label>
           <input id="player-name" name="player_name" maxlength="18" autocomplete="nickname" placeholder="Ada" required autofocus>
+          <fieldset class="avatar-gallery">
+            <legend>Choose a picture</legend>
+            <label class="avatar-choice initials-choice">
+              <input type="radio" name="avatar_preset" value="" checked>
+              <span aria-hidden="true">☺</span>
+              <small>Initials</small>
+            </label>
+            {% for avatar_id, avatar_label in preset_avatars.items() %}
+              <label class="avatar-choice">
+                <input type="radio" name="avatar_preset" value="{{ avatar_id }}">
+                <span class="preset-avatar avatar-{{ avatar_id }}" aria-hidden="true"></span>
+                <small>{{ avatar_label }}</small>
+              </label>
+            {% endfor %}
+          </fieldset>
+          <div class="selfie-picker">
+            <div id="selfie-preview" class="selfie-preview" aria-hidden="true">☺</div>
+            <div>
+              <label class="bee-button secondary selfie-button" for="player-selfie">Add a selfie</label>
+              <input id="player-selfie" type="file" accept="image/*" capture="user">
+              <p>Optional. It stays with this temporary game room.</p>
+            </div>
+          </div>
           <button class="bee-button primary large" type="submit">Join the game</button>
         </form>
       </section>
     </main>
+    <script>
+      const selfieInput = document.querySelector("#player-selfie");
+      const avatarData = document.querySelector("#avatar-data");
+      const selfiePreview = document.querySelector("#selfie-preview");
+      const joinButton = document.querySelector("#act-join-form button[type='submit']");
+      const presetInputs = document.querySelectorAll('input[name="avatar_preset"]');
+      const presetClasses = [...presetInputs].map(input => `avatar-${input.value}`).filter(value => value !== "avatar-");
+
+      presetInputs.forEach(input => {
+        input.addEventListener("change", () => {
+          if (!input.checked) return;
+          avatarData.value = "";
+          selfieInput.value = "";
+          selfiePreview.style.backgroundImage = "";
+          selfiePreview.classList.remove(...presetClasses);
+          selfiePreview.textContent = input.value ? "" : "☺";
+          if (input.value) selfiePreview.classList.add(`avatar-${input.value}`, "preset-avatar");
+        });
+      });
+
+      selfieInput.addEventListener("change", () => {
+        const file = selfieInput.files && selfieInput.files[0];
+        if (!file) return;
+        joinButton.disabled = true;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const image = new Image();
+          image.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext("2d");
+            const size = Math.min(image.naturalWidth, image.naturalHeight);
+            const sourceX = (image.naturalWidth - size) / 2;
+            const sourceY = (image.naturalHeight - size) / 2;
+            context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 128, 128);
+            avatarData.value = canvas.toDataURL("image/jpeg", 0.72);
+            presetInputs.forEach(input => { input.checked = input.value === ""; });
+            selfiePreview.classList.remove(...presetClasses, "preset-avatar");
+            selfiePreview.textContent = "";
+            selfiePreview.style.backgroundImage = `url("${avatarData.value}")`;
+            joinButton.disabled = false;
+          };
+          image.onerror = () => {
+            joinButton.disabled = false;
+            selfieInput.value = "";
+          };
+          image.src = reader.result;
+        };
+        reader.onerror = () => {
+          joinButton.disabled = false;
+          selfieInput.value = "";
+        };
+        reader.readAsDataURL(file);
+      });
+    </script>
   </body>
 </html>

@@ -6,11 +6,15 @@ const role = body.dataset.role;
 const app = document.querySelector("#act-app");
 const toast = document.querySelector("#act-toast");
 const connectionStatus = document.querySelector("#act-connection");
+const readModeSelect = document.querySelector("#act-read-mode");
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 let latestState = null;
 let requestInFlight = false;
 let lastRenderSignature = "";
 let failedRefreshes = 0;
+let readMode = window.localStorage.getItem("actItOutReadMode") || "off";
+let speechRun = 0;
+let lastSpokenState = "";
 
 function escapeHTML(value) {
   return String(value ?? "")
@@ -25,6 +29,76 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   window.setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function stopSpeaking() {
+  speechRun += 1;
+  window.speechSynthesis?.cancel();
+  document.querySelectorAll(".is-speaking").forEach(element => element.classList.remove("is-speaking"));
+}
+
+function speakItems(items) {
+  if (readMode === "off" || !("speechSynthesis" in window)) return;
+  stopSpeaking();
+  const run = speechRun;
+  const speakNext = index => {
+    if (run !== speechRun || index >= items.length) return;
+    const item = items[index];
+    const element = item.element?.();
+    element?.classList.add("is-speaking");
+    const utterance = new SpeechSynthesisUtterance(item.text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1.02;
+    utterance.onend = () => {
+      element?.classList.remove("is-speaking");
+      speakNext(index + 1);
+    };
+    utterance.onerror = () => {
+      element?.classList.remove("is-speaking");
+      speakNext(index + 1);
+    };
+    window.speechSynthesis.speak(utterance);
+  };
+  speakNext(0);
+}
+
+function speakState(state, force = false) {
+  if (readMode === "off") return;
+  const key = `${state.phase}:${state.round_index}:${state.round?.mode}:${state.round?.clues?.length || 0}:${readMode}`;
+  if (!force && key === lastSpokenState) return;
+  lastSpokenState = key;
+  const items = [];
+  if (state.phase === "round" && state.round) {
+    items.push({
+      text: modeLabel(state.round.mode),
+      element: () => document.querySelector(".display-prompt, .mode-banner, .player-turn-stage h1"),
+    });
+    if (state.viewer.secret_prompt) {
+      items.push({
+        text: state.viewer.secret_prompt.answer,
+        element: () => document.querySelector(".secret-prompt-card h2"),
+      });
+      if (readMode === "all" && state.viewer.secret_prompt.instruction) {
+        items.push({
+          text: state.viewer.secret_prompt.instruction,
+          element: () => document.querySelector(".secret-prompt-card p"),
+        });
+      }
+    } else if (readMode === "all" && state.round.clues?.length) {
+      state.round.clues.forEach((clue, index) => {
+        items.push({
+          text: `Clue ${index + 1}. ${clue}`,
+          element: () => document.querySelectorAll(".guess-clues li")[index],
+        });
+      });
+    }
+  } else if (state.phase === "reveal") {
+    items.push({
+      text: `Answer. ${state.round?.answer || state.last_result?.answer || ""}`,
+      element: () => document.querySelector(".display-reveal p, .revealed-verse p"),
+    });
+  }
+  speakItems(items.filter(item => item.text));
 }
 
 async function api(path, options = {}) {
@@ -71,6 +145,16 @@ function teamBoard(state, display = false) {
   </div>`;
 }
 
+function playerAvatar(player) {
+  if (player.avatar_preset) {
+    return `<span class="preset-avatar avatar-${escapeHTML(player.avatar_preset)}" aria-hidden="true"></span>`;
+  }
+  if (player.avatar) {
+    return `<img src="${escapeHTML(player.avatar)}" alt="">`;
+  }
+  return escapeHTML(initials(player.name));
+}
+
 function playerRows(state, manage = false) {
   if (!state.players.length) return `<p class="host-controls">Players will appear here when they join.</p>`;
   return state.players.map(player => {
@@ -84,7 +168,7 @@ function playerRows(state, manage = false) {
         </span>`
       : "";
     return `<div class="player-score">
-      <span class="player-avatar">${escapeHTML(initials(player.name))}</span>
+      <span class="player-avatar">${playerAvatar(player)}</span>
       <strong>${escapeHTML(player.name)} ${teamLabel} <i class="presence-dot ${player.connected ? "online" : "offline"}" title="${player.connected ? "Connected" : "Reconnecting"}"></i></strong>
       <output>${player.score}</output>
       ${management}
@@ -94,7 +178,7 @@ function playerRows(state, manage = false) {
 
 function scoreRail(state, controls = "") {
   return `<aside class="score-rail">
-    <h2>Players <span class="family-score">${state.team_mode ? "Teams" : "Scores"}</span></h2>
+    <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
     <div class="score-list">${playerRows(state, role === "host" && state.phase === "lobby")}</div>
     ${role === "host" ? `<div class="host-controls">
@@ -107,6 +191,7 @@ function scoreRail(state, controls = "") {
 }
 
 function modeLabel(mode) {
+  if (mode === "draw") return "Draw it";
   if (mode === "guess") return "Guess the story";
   return mode === "clue" ? "Give clues" : "Act it out";
 }
@@ -138,7 +223,7 @@ function renderLobby(state) {
   const startDisabled = state.players.length ? "" : "disabled";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
-      <p class="round-meta">${escapeHTML(state.theme)} · 10 rounds · 45 seconds</p>
+      <p class="round-meta">${escapeHTML(state.theme)} · ${state.round_total} cards · 45 seconds each</p>
       <h1>Gather your players</h1>
       <p>Scan the QR code or enter the room code.</p>
       <div class="lobby-code-row">
@@ -148,7 +233,7 @@ function renderLobby(state) {
           <span>Scan to join</span>
         </div>
       </div>
-      <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready</p>
+      <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.</p>
     </section>
     ${scoreRail(state, `${state.team_mode ? `<button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
       <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start game</button>`)}
@@ -158,14 +243,38 @@ function renderLobby(state) {
   bindManagement();
 }
 
-function secretPromptCard(prompt) {
+function secretPromptCard(prompt, collapsed = false) {
   if (!prompt) return "";
-  return `<div class="secret-prompt-card">
+  const card = `<div class="secret-prompt-card">
     <span>${escapeHTML(modeLabel(prompt.mode))}</span>
     <h2>${escapeHTML(prompt.answer)}</h2>
-    <p>${escapeHTML(prompt.instruction || (prompt.mode === "clue" ? "Describe it without saying the answer." : "No talking. Use motions only."))}</p>
+    <p>${escapeHTML(prompt.instruction || (prompt.mode === "draw" ? "Draw the prompt on your phone." : prompt.mode === "clue" ? "Describe it without saying the answer." : "No talking. Use motions only."))}</p>
     ${prompt.forbidden_words?.length ? `<div class="forbidden-words"><strong>Don’t say</strong>${prompt.forbidden_words.map(word => `<b>${escapeHTML(word)}</b>`).join("")}</div>` : ""}
     ${prompt.mode === "guess" && prompt.clues?.length ? `<div class="secret-clue-bank"><strong>Clue bank</strong>${prompt.clues.map(clue => `<span>${escapeHTML(clue)}</span>`).join("")}</div>` : ""}
+  </div>`;
+  if (!collapsed) return card;
+  return `<details class="host-secret-details">
+    <summary>Show host answer</summary>
+    ${card}
+  </details>`;
+}
+
+function drawingBoard(state, editable = false) {
+  if (state.round?.mode !== "draw") return "";
+  if (editable) {
+    return `<div class="draw-panel">
+      <canvas id="draw-canvas" width="640" height="420" aria-label="Drawing canvas"></canvas>
+      <div class="draw-actions">
+        <button id="clear-drawing" class="bee-button secondary" type="button">Clear</button>
+        <button id="send-drawing" class="bee-button primary" type="button">Send drawing</button>
+      </div>
+      <p id="draw-status" class="draw-status">Your drawing appears on the shared screen after you send it.</p>
+    </div>`;
+  }
+  return `<div class="draw-display-panel">
+    ${state.round.drawing
+      ? `<img src="${escapeHTML(state.round.drawing)}" alt="Current drawing">`
+      : `<p>Waiting for the drawing...</p>`}
   </div>`;
 }
 
@@ -177,7 +286,8 @@ function renderRound(state) {
       ${isActivePlayer && hasSecretPrompt
         ? `<p class="round-meta">Your turn · ${escapeHTML(state.active_team_name || "Play")}</p>
            <h1>${escapeHTML(modeLabel(state.viewer.secret_prompt?.mode))}</h1>
-           ${secretPromptCard(state.viewer.secret_prompt)}`
+           ${secretPromptCard(state.viewer.secret_prompt)}
+           ${drawingBoard(state, state.viewer.secret_prompt?.mode === "draw")}`
         : `<div class="celebration-mark">✦</div>
            <h1>Look at the screen</h1>
            <p>${state.round?.mode === "guess"
@@ -188,21 +298,24 @@ function renderRound(state) {
   }
   const activePrompt = state.viewer.secret_prompt;
   const isGuess = state.round?.mode === "guess";
+  const isDraw = state.round?.mode === "draw";
   const canRevealClue = isGuess && (state.round?.clues?.length || 0) < (state.round?.clue_count || 0);
   const controls = role === "host"
-    ? `${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
-       <button id="correct-round" class="bee-button primary full" type="button">Correct +100</button>
-       <button id="pass-round" class="bee-button secondary full" type="button">Pass</button>`
+    ? `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
+       ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
+       <button id="correct-round" class="bee-button primary full" type="button">Got it right · +100</button>
+       <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>`
     : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage act-round-stage">
       <p class="round-meta">Round ${state.round_index + 1} of ${state.round_total}</p>
-      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
+      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       <div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. The team guesses out loud." : activePrompt ? "Secret prompt is visible below for the host." : "Guess out loud. The answer is hidden from the TV."}</p>
+      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. Award 100 points when they get it." : isDraw ? "The drawing appears here after the player sends it. Award 100 points when they get it." : "Guess out loud. Award 100 points when they get it."}</p>
       ${clueList(state.round)}
-      ${role === "host" ? secretPromptCard(activePrompt) : ""}
+      ${drawingBoard(state)}
+      ${role === "host" ? secretPromptCard(activePrompt, true) : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
@@ -216,15 +329,16 @@ function renderReveal(state) {
   const result = state.last_result || {};
   const isCorrect = result.outcome === "correct";
   const controls = role === "host"
-    ? `<button id="next-round" class="bee-button primary full" type="button">${state.round_index + 1 >= state.round_total ? "See winner" : "Next round"}</button>`
+    ? `<button id="next-round" class="bee-button primary full" type="button">${state.round_index + 1 >= state.round_total ? "See winner" : "Next card"}</button>`
     : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage act-reveal-stage">
       <div class="celebration-mark">${isCorrect ? "✓" : "✦"}</div>
       <h1>${isCorrect ? "Correct!" : "Passed"}</h1>
-      <p>${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? "earned 100 points." : "can try another next time."}</p>
+      <p>${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? "earned 100 points. Deal the next card when ready." : "gets no points for this card. Deal the next card when ready."}</p>
       <div class="revealed-verse"><strong>Answer</strong><p>${escapeHTML(state.round?.answer || result.answer || "")}</p></div>
       ${clueList(state.round, true)}
+      ${drawingBoard(state)}
       ${teamBoard(state, true)}
     </section>
     ${scoreRail(state, controls)}
@@ -280,19 +394,21 @@ function renderDisplay(state) {
         <div><span>Room code</span><strong>${escapeHTML(code)}</strong></div>
         <img src="/group-games/act-it-out/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
       </div>
-      <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready</p>
+      <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready · ${state.round_total} cards · 100 points each</p>
       ${displayRosters(state)}
     </section>`;
   } else if (state.phase === "round") {
     const isGuess = state.round?.mode === "guess";
-    app.innerHTML = `<section class="display-stage act-display-round ${isGuess ? "guess-display-round" : ""}">
+    const isDraw = state.round?.mode === "draw";
+    app.innerHTML = `<section class="display-stage act-display-round ${isGuess ? "guess-display-round" : ""} ${isDraw ? "draw-display-round" : ""}">
       <div class="display-topline"><span>Round ${state.round_index + 1} of ${state.round_total}</span><span>${escapeHTML(state.active_team_name || "Play")}</span></div>
       ${teamBoard(state, true)}
-      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
+      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="display-prompt">${escapeHTML(modeLabel(state.round?.mode))}</p>
       ${clueList(state.round)}
+      ${drawingBoard(state)}
       <div class="act-timer display"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">${isGuess ? "Call out the answer when your team knows it." : "Guess out loud. The prompt is on their phone."}</p>
+      <p class="act-display-instruction">${isGuess ? "Call out the answer. A correct guess is worth 100 points." : isDraw ? "Guess from the drawing. A correct guess is worth 100 points." : "Guess out loud. A correct guess is worth 100 points."}</p>
     </section>`;
   } else if (state.phase === "reveal") {
     const isCorrect = state.last_result?.outcome === "correct";
@@ -301,6 +417,7 @@ function renderDisplay(state) {
       <h1>${isCorrect ? "Correct!" : "Passed"}</h1>
       <div class="display-reveal"><span>Answer</span><p>${escapeHTML(state.round?.answer || state.last_result?.answer || "")}</p></div>
       ${clueList(state.round, true)}
+      ${drawingBoard(state)}
       ${teamBoard(state, true)}
     </section>`;
   } else {
@@ -329,6 +446,8 @@ function render(state) {
   else if (state.phase === "reveal") renderReveal(state);
   else renderFinished(state);
   updateCountdown();
+  initDrawingCanvas();
+  speakState(state);
 }
 
 function updateCountdown() {
@@ -372,6 +491,62 @@ async function hostAction(action) {
   } catch (error) {
     showToast(error.message);
   }
+}
+
+async function sendDrawing(canvas) {
+  try {
+    const status = document.querySelector("#draw-status");
+    status.textContent = "Sending drawing...";
+    await api(`/api/group-games/act-it-out/rooms/${code}/drawing`, {
+      method: "POST",
+      body: JSON.stringify({ drawing: canvas.toDataURL("image/png") }),
+    });
+    status.textContent = "Drawing sent. Keep adding details and send again if you want.";
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+function initDrawingCanvas() {
+  const canvas = document.querySelector("#draw-canvas");
+  if (!canvas || canvas.dataset.ready === "true") return;
+  canvas.dataset.ready = "true";
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#fffefb";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.lineWidth = 7;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.strokeStyle = "#102d5c";
+  let drawing = false;
+  const point = event => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (canvas.width / rect.width),
+      y: (event.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  };
+  canvas.addEventListener("pointerdown", event => {
+    drawing = true;
+    canvas.setPointerCapture(event.pointerId);
+    const start = point(event);
+    context.beginPath();
+    context.moveTo(start.x, start.y);
+  });
+  canvas.addEventListener("pointermove", event => {
+    if (!drawing) return;
+    const next = point(event);
+    context.lineTo(next.x, next.y);
+    context.stroke();
+  });
+  canvas.addEventListener("pointerup", () => { drawing = false; });
+  canvas.addEventListener("pointercancel", () => { drawing = false; });
+  document.querySelector("#clear-drawing")?.addEventListener("click", () => {
+    context.fillStyle = "#fffefb";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  });
+  document.querySelector("#send-drawing")?.addEventListener("click", () => sendDrawing(canvas));
 }
 
 async function switchTeam(playerId) {
@@ -435,3 +610,13 @@ document.addEventListener("visibilitychange", () => {
     heartbeat();
   }
 });
+
+if (readModeSelect) {
+  readModeSelect.value = readMode;
+  readModeSelect.addEventListener("change", () => {
+    readMode = readModeSelect.value;
+    window.localStorage.setItem("actItOutReadMode", readMode);
+    stopSpeaking();
+    if (latestState) speakState(latestState, true);
+  });
+}

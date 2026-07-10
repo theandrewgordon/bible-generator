@@ -28,9 +28,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="game_source" value="deck">
             <input type="hidden" name="game_style" value="classic_mix">
-            <input type="hidden" name="difficulty" value="family">
             <input type="hidden" name="choice_count" value="4">
-            <input type="hidden" name="round_count" value="5">
             <input type="hidden" name="reveal_seconds" value="10">
             <label class="team-mode-toggle">
               <input type="checkbox" name="team_mode">
@@ -48,6 +46,34 @@
                     <span>{{ version.code }}</span>
                   </label>
                 {% endfor %}
+              </div>
+            </fieldset>
+            <fieldset class="quick-game-options">
+              <legend>Game length</legend>
+              <div>
+                {% for rounds in [5, 10, 15, 20] %}
+                  <label>
+                    <input type="radio" name="round_count" value="{{ rounds }}" {% if rounds == 5 %}checked{% endif %}>
+                    <span>{{ rounds }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </fieldset>
+            <fieldset class="quick-game-options">
+              <legend>Difficulty</legend>
+              <div>
+                <label>
+                  <input type="radio" name="difficulty" value="family" checked>
+                  <span>Family</span>
+                </label>
+                <label>
+                  <input type="radio" name="difficulty" value="upramp">
+                  <span>Build up</span>
+                </label>
+                <label>
+                  <input type="radio" name="difficulty" value="hard">
+                  <span>Hard</span>
+                </label>
               </div>
             </fieldset>
             <fieldset class="custom-game-tools">
@@ -72,7 +98,7 @@
               </div>
             </fieldset>
             <div class="create-room-row">
-              <p><span class="deck-version">ESV</span> · 5 rounds · family difficulty</p>
+              <p><span class="deck-version">ESV</span> · <span class="deck-rounds">5 rounds</span> · <span class="deck-difficulty">Family</span></p>
               <button class="bee-button primary large" type="submit">Create room</button>
             </div>
             <p id="room-build-status" class="room-build-status" role="status" aria-live="polite"></p>
@@ -104,6 +130,31 @@
           {% endfor %}
         </section>
       {% endif %}
+
+      <section class="how-to-panel" aria-labelledby="bee-how-heading">
+        <div>
+          <span class="section-kicker">How to play</span>
+          <h2 id="bee-how-heading">Start a room, answer on phones, reveal together.</h2>
+        </div>
+        <ol class="how-steps">
+          <li>
+            <strong>Host creates a room</strong>
+            <span>Pick Bible version, rounds, difficulty, and a theme.</span>
+          </li>
+          <li>
+            <strong>Players join</strong>
+            <span>Everyone enters the room code on their phone.</span>
+          </li>
+          <li>
+            <strong>Answer each round</strong>
+            <span>Choose the verse words or reference before reveal.</span>
+          </li>
+          <li>
+            <strong>Score and review</strong>
+            <span>Correct answers earn points; missed passages are easy to review.</span>
+          </li>
+        </ol>
+      </section>
 
       <section class="join-panel" aria-labelledby="join-heading">
         <h2 id="join-heading">Joining someone’s game?</h2>
@@ -144,6 +195,17 @@
       }
       versionInputs.forEach(input => input.addEventListener("change", updateDeckVersions));
       updateDeckVersions();
+      const roundInputs = document.querySelectorAll('[name="round_count"]');
+      const difficultyInputs = document.querySelectorAll('[name="difficulty"]');
+      function updateGameSummary() {
+        const rounds = document.querySelector('[name="round_count"]:checked')?.value || "5";
+        const difficulty = document.querySelector('[name="difficulty"]:checked')?.nextElementSibling?.textContent || "Family";
+        document.querySelectorAll(".deck-rounds").forEach(label => { label.textContent = `${rounds} rounds`; });
+        document.querySelectorAll(".deck-difficulty").forEach(label => { label.textContent = difficulty; });
+      }
+      roundInputs.forEach(input => input.addEventListener("change", updateGameSummary));
+      difficultyInputs.forEach(input => input.addEventListener("change", updateGameSummary));
+      updateGameSummary();
 
       const roomSetup = document.querySelector("#bee-room-setup");
       roomSetup?.addEventListener("submit", event => {

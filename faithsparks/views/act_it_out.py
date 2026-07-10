@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import base64
+import binascii
 import re
 import secrets
 import threading
@@ -31,6 +33,21 @@ INDIVIDUAL_PLAYER_LIMIT = 12
 DEFAULT_ROUNDS = 10
 ROUND_SECONDS = 45
 POINTS_CORRECT = 100
+MAX_AVATAR_DATA_LENGTH = 60_000
+MAX_DRAWING_DATA_LENGTH = 260_000
+AVATAR_DATA_RE = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/=]+$")
+DRAWING_DATA_RE = re.compile(r"^data:image/png;base64,[A-Za-z0-9+/=]+$")
+PRESET_AVATARS = {
+    "fox": "Friendly fox",
+    "sunflower": "Sunflower",
+    "ocean": "Ocean sunrise",
+    "david": "David with a harp",
+    "esther": "Queen Esther",
+    "jesus-children": "Jesus welcoming children",
+    "noah": "Noah's ark",
+    "empty-tomb": "Empty tomb",
+    "cross": "Jesus on the cross",
+}
 TEAMS = [
     {"id": "gold", "name": "Gold Team", "color": "gold"},
     {"id": "blue", "name": "Blue Team", "color": "blue"},
@@ -50,11 +67,11 @@ PROMPTS = [
     {"id": "feeding-5000", "answer": "Feeding the five thousand", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "easy", "instruction": "Act sharing a tiny lunch with a huge crowd.", "forbidden_words": ["five", "thousand", "bread", "fish"]},
     {"id": "healing-blind", "answer": "Jesus healing the blind man", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Act not seeing, being healed, and rejoicing.", "forbidden_words": ["blind", "see", "healed", "Jesus"]},
     {"id": "lazarus", "answer": "Jesus raising Lazarus", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Act someone coming out after being called.", "forbidden_words": ["Lazarus", "tomb", "dead", "alive"]},
-    {"id": "moses", "answer": "Moses", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act a staff, tablets, and leading people.", "forbidden_words": ["Moses", "Pharaoh", "Egypt", "Red Sea"]},
-    {"id": "esther", "answer": "Esther", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "medium", "instruction": "Act a brave queen preparing to speak.", "forbidden_words": ["Esther", "queen", "king", "Haman"]},
-    {"id": "paul", "answer": "Paul", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "medium", "instruction": "Act writing letters and traveling to churches.", "forbidden_words": ["Paul", "letter", "church", "missionary"]},
-    {"id": "mary", "answer": "Mary", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act hearing surprising news and caring for baby Jesus.", "forbidden_words": ["Mary", "mother", "Jesus", "angel"]},
-    {"id": "peter", "answer": "Peter", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act fishing, following, and speaking boldly.", "forbidden_words": ["Peter", "disciple", "fish", "rock"]},
+    {"id": "moses-tablets", "answer": "Moses carrying the tablets", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act carrying two heavy stone tablets down a mountain.", "forbidden_words": ["Moses", "Pharaoh", "Egypt", "Red Sea"]},
+    {"id": "esther-brave", "answer": "Esther bravely speaking to the king", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "medium", "instruction": "Act a brave queen preparing, waiting, and speaking up.", "forbidden_words": ["Esther", "queen", "king", "Haman"]},
+    {"id": "paul-letters", "answer": "Paul writing letters from prison", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "medium", "instruction": "Act writing, praying, and encouraging others while stuck.", "forbidden_words": ["Paul", "letter", "church", "missionary"]},
+    {"id": "mary-angel", "answer": "Mary hearing the angel's news", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act surprise, listening, and caring for baby Jesus.", "forbidden_words": ["Mary", "mother", "Jesus", "angel"]},
+    {"id": "peter-fishing", "answer": "Peter fishing when Jesus calls him", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act fishing, hearing a call, leaving nets, and following.", "forbidden_words": ["Peter", "disciple", "fish", "rock"]},
     {"id": "praying", "answer": "Praying", "modes": ["act"], "theme": "Worship & Serving", "difficulty": "easy", "instruction": "Act talking with God quietly or thankfully."},
     {"id": "singing-worship", "answer": "Singing worship", "modes": ["act"], "theme": "Worship & Serving", "difficulty": "easy", "instruction": "Act singing praise with joy."},
     {"id": "serving", "answer": "Serving others", "modes": ["act", "clue"], "theme": "Worship & Serving", "difficulty": "easy", "instruction": "Act helping someone before yourself.", "forbidden_words": ["serve", "help", "others"]},
@@ -70,9 +87,14 @@ PROMPTS = [
     {"id": "story-good-samaritan", "answer": "The Good Samaritan", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "easy", "instruction": "Reveal clues until the team guesses the story.", "clues": ["Someone was hurt on a road.", "Two people passed by.", "A surprising neighbor stopped.", "Jesus told this story about loving your neighbor."]},
     {"id": "story-prodigal-son", "answer": "The Prodigal Son", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the story.", "clues": ["A son left home.", "He wasted what he was given.", "He came back sorry.", "His father welcomed him with joy."]},
     {"id": "story-psalm-23", "answer": "Psalm 23", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the passage.", "clues": ["It talks about a shepherd.", "It mentions green pastures.", "It says God is with us in dark valleys.", "Many families memorize this psalm."]},
+    {"id": "draw-washing-feet", "answer": "Jesus washing the disciples' feet", "modes": ["draw"], "theme": "Draw It", "difficulty": "medium", "instruction": "Draw a basin, towel, feet, and Jesus serving his disciples."},
+    {"id": "draw-noah-ark", "answer": "Noah's ark with animals", "modes": ["draw"], "theme": "Draw It", "difficulty": "easy", "instruction": "Draw a big boat, pairs of animals, and rain."},
+    {"id": "draw-good-samaritan", "answer": "The Good Samaritan helping the hurt man", "modes": ["draw"], "theme": "Draw It", "difficulty": "easy", "instruction": "Draw someone hurt on a road and a neighbor stopping to help."},
+    {"id": "draw-feeding-5000", "answer": "Jesus feeding the five thousand", "modes": ["draw"], "theme": "Draw It", "difficulty": "medium", "instruction": "Draw a crowd, baskets, bread, and fish."},
+    {"id": "draw-lost-sheep", "answer": "The lost sheep being found", "modes": ["draw"], "theme": "Draw It", "difficulty": "easy", "instruction": "Draw a shepherd finding one sheep."},
 ]
 
-THEMES = ["Bible Stories", "Jesus' Miracles", "People of the Bible", "Worship & Serving", "Faith Words", "Guess the Story"]
+THEMES = ["Bible Stories", "Jesus' Miracles", "People of the Bible", "Worship & Serving", "Faith Words", "Guess the Story", "Draw It"]
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -182,6 +204,28 @@ def _player_session_key(code: str) -> str:
 
 def _player_id(code: str) -> str | None:
     return session.get(_player_session_key(code))
+
+
+def _valid_avatar_data(value: str) -> bool:
+    if not value:
+        return True
+    if len(value) > MAX_AVATAR_DATA_LENGTH or not AVATAR_DATA_RE.fullmatch(value):
+        return False
+    try:
+        image_bytes = base64.b64decode(value.split(",", 1)[1], validate=True)
+    except (ValueError, binascii.Error):
+        return False
+    return image_bytes.startswith(b"\xff\xd8\xff")
+
+
+def _valid_drawing_data(value: str) -> bool:
+    if not value or len(value) > MAX_DRAWING_DATA_LENGTH or not DRAWING_DATA_RE.fullmatch(value):
+        return False
+    try:
+        image_bytes = base64.b64decode(value.split(",", 1)[1], validate=True)
+    except (ValueError, binascii.Error):
+        return False
+    return image_bytes.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 def _team_meta(team_id: str | None) -> dict | None:
@@ -302,6 +346,7 @@ def _start_round(room: dict, now: float | None = None) -> None:
         room["clue_index"] = 0
     else:
         room.pop("clue_index", None)
+    room.pop("drawing_data", None)
 
 
 def _finish_room(room: dict, now: float | None = None) -> None:
@@ -346,7 +391,7 @@ def _advance_round(room: dict, now: float | None = None) -> None:
     _start_round(room, now)
 
 
-def _public_players(room: dict) -> list[dict]:
+def _public_players(room: dict, code: str) -> list[dict]:
     now = time.time()
     players = []
     for player_id, player in room.get("players", {}).items():
@@ -360,6 +405,12 @@ def _public_players(room: dict) -> list[dict]:
             "team_id": team["id"] if team else None,
             "team_name": team["name"] if team else None,
             "team_color": team["color"] if team else None,
+            "avatar": (
+                url_for("act_it_out.player_avatar", code=code, player_id=player_id)
+                if player.get("avatar")
+                else None
+            ),
+            "avatar_preset": player.get("avatar_preset"),
         })
     return sorted(players, key=lambda player: (player.get("team_id") or "", -player["score"], player["name"].lower()))
 
@@ -380,8 +431,9 @@ def _public_room(room: dict, code: str) -> dict:
             "clues": clues[: clue_index + 1] if active.get("mode") == "guess" and room.get("phase") in {"round", "reveal", "finished"} else [],
             "clue_count": len(clues),
             "clue_index": clue_index if active.get("mode") == "guess" else None,
+            "drawing": room.get("drawing_data") if active.get("mode") == "draw" and room.get("phase") in {"round", "reveal"} else None,
         }
-    players = _public_players(room)
+    players = _public_players(room, code)
     return {
         "code": code,
         "phase": room.get("phase", "lobby"),
@@ -522,8 +574,27 @@ def room_qr(code: str):
     return response
 
 
+@bp.get("/church-games/act-it-out/room/<code>/avatar/<player_id>")
+@bp.get("/group-games/act-it-out/room/<code>/avatar/<player_id>")
+def player_avatar(code: str, player_id: str):
+    room = _require_room(code.upper())
+    avatar = room.get("players", {}).get(player_id, {}).get("avatar", "")
+    if not avatar or not _valid_avatar_data(avatar):
+        abort(404)
+    image_bytes = base64.b64decode(avatar.split(",", 1)[1], validate=True)
+    response = send_file(io.BytesIO(image_bytes), mimetype="image/jpeg")
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return response
+
+
 def _render_join_page(code: str, error: str | None = None):
-    return render_template("act_it_out_join.html", code=code, error=error, noindex=True)
+    return render_template(
+        "act_it_out_join.html",
+        code=code,
+        error=error,
+        preset_avatars=PRESET_AVATARS,
+        noindex=True,
+    )
 
 
 @bp.route("/church-games/act-it-out/join/<code>", methods=["GET", "POST"])
@@ -542,6 +613,14 @@ def join_room(code: str):
         if room.get("phase") != "lobby":
             return _render_join_page(code, "This game has already started."), 409
         player_id = existing_id or secrets.token_urlsafe(8)
+        avatar = (request.form.get("avatar_data") or "").strip()
+        avatar_preset = (request.form.get("avatar_preset") or "").strip()
+        if avatar_preset not in PRESET_AVATARS:
+            avatar_preset = ""
+        if not _valid_avatar_data(avatar):
+            return _render_join_page(
+                code, "That picture could not be prepared. Try another selfie or join without one."
+            ), 400
 
         def add_player(current):
             if len(current.get("players", {})) >= _player_limit(current) and player_id not in current.get("players", {}):
@@ -559,6 +638,10 @@ def join_room(code: str):
                 "last_seen": time.time(),
                 "away": False,
                 "team_id": team_id if current.get("team_mode") else None,
+                "avatar": avatar or existing.get("avatar"),
+                "avatar_preset": "" if avatar else (
+                    avatar_preset or existing.get("avatar_preset", "")
+                ),
             }
 
         try:
@@ -726,6 +809,36 @@ def heartbeat(code: str):
         result = _mutate_room(code, beat)
     except PermissionError:
         abort(403)
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/church-games/act-it-out/rooms/<code>/drawing")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/drawing")
+def submit_drawing(code: str):
+    code = code.upper()
+    player_id = _player_id(code)
+    data = (request.get_json(silent=True) or {}).get("drawing", "")
+    if not player_id:
+        abort(403)
+    if not _valid_drawing_data(data):
+        return jsonify({"error": "That drawing could not be sent. Try clearing and drawing again."}), 400
+
+    def save(current):
+        active = _active_round(current)
+        if current.get("phase") != "round" or not active or active.get("mode") != "draw":
+            raise ValueError("This is not a drawing round.")
+        if current.get("active_player_id") != player_id:
+            raise PermissionError
+        current["drawing_data"] = data
+
+    try:
+        result = _mutate_room(code, save)
+    except PermissionError:
+        abort(403)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
     if result is None:
         abort(404)
     return jsonify({"ok": True})

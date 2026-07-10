@@ -90,6 +90,93 @@ button, input, select { font: inherit; }
   font-size: clamp(1.05rem, 2.1vw, 1.35rem);
 }
 
+.section-kicker {
+  display: inline-block;
+  color: var(--bee-blue);
+  font-size: .78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.how-to-panel {
+  display: grid;
+  gap: 18px;
+  margin: 46px auto 0;
+  padding: clamp(22px, 4vw, 34px);
+  text-align: left;
+  background: var(--bee-paper);
+  border: 1px solid var(--bee-line);
+  border-radius: var(--bee-radius);
+  box-shadow: var(--bee-shadow);
+}
+
+.how-to-panel h2 {
+  max-width: 760px;
+  margin: 5px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 3.4vw, 2.7rem);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.how-steps li {
+  min-width: 0;
+  padding: 14px;
+  background: #f8fbff;
+  border: 1px solid #d7e7f3;
+  border-radius: 14px;
+}
+
+.how-steps li::before {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--bee-blue);
+  font-size: .74rem;
+  font-weight: 900;
+  content: counter(step, decimal-leading-zero);
+  counter-increment: step;
+}
+
+.how-steps strong {
+  display: block;
+  line-height: 1.15;
+}
+
+.how-steps span {
+  display: block;
+  margin-top: 6px;
+  color: var(--bee-muted);
+  font-size: .86rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.mode-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mode-chip-row span {
+  padding: 8px 11px;
+  color: var(--bee-navy);
+  background: white;
+  border: 1px solid var(--bee-line);
+  border-radius: 999px;
+  font-size: .85rem;
+  font-weight: 900;
+}
+
 .bee-button {
   display: inline-flex;
   align-items: center;
@@ -302,6 +389,57 @@ select {
 .version-options input:disabled + span {
   cursor: not-allowed;
   opacity: .45;
+}
+.quick-game-options {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.quick-game-options legend {
+  font-size: 1rem;
+  font-weight: 900;
+}
+.quick-game-options > div {
+  display: inline-grid;
+  grid-template-columns: repeat(4, minmax(64px, 1fr));
+  gap: 6px;
+  padding: 5px;
+  background: white;
+  border: 1px solid var(--bee-line);
+  border-radius: 14px;
+}
+.quick-game-options:nth-of-type(3) > div {
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+}
+.quick-game-options label {
+  display: block;
+  cursor: pointer;
+}
+.quick-game-options input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.quick-game-options span {
+  display: grid;
+  min-height: 38px;
+  place-items: center;
+  padding: 7px 12px;
+  color: var(--bee-muted);
+  border-radius: 10px;
+  font-weight: 900;
+  text-align: center;
+}
+.quick-game-options input:checked + span {
+  color: white;
+  background: var(--bee-blue);
+  box-shadow: 0 8px 18px rgb(21 122 209 / 18%);
 }
 .custom-game-tools {
   grid-column: 1 / -1;
@@ -999,17 +1137,21 @@ select {
   .question-prompt { margin-block: 34px; }
   .room-setup-form.expanded { grid-template-columns: 1fr; }
   .deck-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .how-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 600px) {
   .bee-home { padding-top: 50px; }
   .code-form, .mode-preview { grid-template-columns: 1fr; }
+  .how-steps { grid-template-columns: 1fr; }
   .finished-code-row { grid-template-columns: 1fr; }
   .finished-code-row .bee-button { width: 100%; }
   .room-setup-form { grid-template-columns: 1fr; }
   .room-setup-form.expanded, .deck-card-grid { grid-template-columns: 1fr; }
   .version-picker { align-items: stretch; flex-direction: column; }
   .version-options { width: 100%; }
+  .quick-game-options { align-items: stretch; flex-direction: column; }
+  .quick-game-options > div { width: 100%; }
   .custom-game-tools { grid-template-columns: 1fr; align-items: stretch; }
   .create-room-row { align-items: stretch; flex-direction: column; }
   .active-room-row { align-items: stretch; flex-direction: column; gap: 0; padding-bottom: 10px; }

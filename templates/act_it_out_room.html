@@ -21,6 +21,14 @@
         <span>Room</span>
         <strong>{{ code }}</strong>
       </div>
+      <label class="read-mode-control">
+        <span>Read aloud</span>
+        <select id="act-read-mode">
+          <option value="off">Nothing</option>
+          <option value="prompt">Prompt only</option>
+          <option value="all">Everything</option>
+        </select>
+      </label>
     </header>
     <main id="act-app" class="game-shell" aria-live="polite">
       <section class="game-stage loading-stage">

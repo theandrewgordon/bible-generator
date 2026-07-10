@@ -210,8 +210,15 @@ def test_home_keeps_simple_version_picker_with_esv_default():
 
     assert home.status_code == 200
     assert b"Bible version" in home.data
+    assert b"Game length" in home.data
+    assert b"Difficulty" in home.data
+    assert b'value=\"20\"' in home.data
+    assert b'value=\"upramp\"' in home.data
+    assert b'value=\"hard\"' in home.data
     assert b'value="esv" data-code="ESV" checked' in home.data
     assert b"Team mode" in home.data
+    assert b"How to play" in home.data
+    assert b"answer on phones" in home.data
     assert b"Create custom room" not in home.data
     assert b'<span class="deck-version">ESV</span>' in home.data
 
@@ -230,6 +237,22 @@ def test_room_defaults_to_esv_when_no_version_is_submitted():
     code = created.headers["Location"].rsplit("/", 1)[-1]
     state = client.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert state["translation"] == "ESV"
+
+
+def test_bible_bee_can_create_twenty_round_game():
+    client = app.test_client()
+    _prime(client, "twenty-rounds@example.com")
+
+    created = _post(
+        client,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "deck_id": "family-favorites", "round_count": "20"},
+    )
+
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    state = client.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["question_total"] == 20
 
 
 def test_rooms_are_listed_only_for_their_host_and_can_be_deleted_from_home():

@@ -732,7 +732,7 @@ def create_room():
         round_count = int(request.form.get("round_count", 5))
     except (TypeError, ValueError):
         round_count = 5
-    round_count = round_count if round_count in {3, 5, 10} else 5
+    round_count = round_count if round_count in {3, 5, 10, 15, 20} else 5
     code = _new_code()
     try:
         ai_plan = None
@@ -841,7 +841,7 @@ def room_qr(code: str):
 def player_avatar(code: str, player_id: str):
     room = _require_room(code.upper())
     avatar = room.get("players", {}).get(player_id, {}).get("avatar", "")
-    if not _valid_avatar_data(avatar):
+    if not avatar or not _valid_avatar_data(avatar):
         abort(404)
     image_bytes = base64.b64decode(avatar.split(",", 1)[1], validate=True)
     response = send_file(io.BytesIO(image_bytes), mimetype="image/jpeg")

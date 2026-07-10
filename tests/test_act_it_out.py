@@ -6,6 +6,8 @@ from faithsparks.services.rate_limit import reset_memory_limits
 
 
 CSRF = "test-csrf-token"
+PNG_1X1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+JPEG_STUB = "data:image/jpeg;base64,/9j/AA=="
 
 
 def _prime(client, email=None):
@@ -43,6 +45,21 @@ def test_group_games_hub_keeps_old_url_alias():
     assert old_page.status_code == 200
     assert b"Group Games" in new_page.data
     assert b"Group Games" in old_page.data
+    assert b"How it works" in new_page.data
+    assert b"cast the display" in new_page.data
+
+
+def test_act_it_out_home_explains_round_flow_and_draw_mode():
+    client = app.test_client()
+    _prime(client, "act-how@example.com")
+
+    home = client.get("/group-games/act-it-out")
+
+    assert home.status_code == 200
+    assert b"How to play" in home.data
+    assert b"Draw It" in home.data
+    assert b"Got it right" in home.data
+    assert b"No point / pass" in home.data
 
 
 def test_act_it_out_create_join_and_display_lobby():
@@ -68,6 +85,36 @@ def test_act_it_out_create_join_and_display_lobby():
     assert state["phase"] == "lobby"
     assert state["team_mode"] is True
     assert state["players"][0]["team_id"] == "gold"
+
+
+def test_act_it_out_join_supports_preset_and_uploaded_avatars():
+    host = app.test_client()
+    preset_player = app.test_client()
+    upload_player = app.test_client()
+    _prime(host, "act-avatar-host@example.com")
+    _prime(preset_player)
+    _prime(upload_player)
+    code = _create_team_room(host)
+
+    assert _post(
+        preset_player,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_preset": "empty-tomb"},
+    ).status_code == 302
+    assert _post(
+        upload_player,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ben", "avatar_data": JPEG_STUB},
+    ).status_code == 302
+
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    players = {player["name"]: player for player in state["players"]}
+    assert players["Ada"]["avatar_preset"] == "empty-tomb"
+    assert players["Ben"]["avatar"].startswith(f"/group-games/act-it-out/room/{code}/avatar/")
+    avatar_response = host.get(players["Ben"]["avatar"])
+    assert avatar_response.status_code == 200
+    assert avatar_response.mimetype == "image/jpeg"
+    assert avatar_response.data.startswith(b"\xff\xd8\xff")
 
 
 def test_secret_prompt_visible_only_to_host_and_active_player():
@@ -147,6 +194,42 @@ def test_guess_mode_reveals_clues_without_leaking_answer_to_players():
     reveal = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert reveal["round"]["answer"] == host_state["viewer"]["secret_prompt"]["answer"]
     assert {team["id"]: team["score"] for team in reveal["teams"]} == {"gold": 100, "blue": 0}
+
+
+def test_draw_mode_accepts_only_active_player_drawing_without_revealing_answer():
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    display = app.test_client()
+    _prime(host, "draw-host@example.com")
+    _prime(first)
+    _prime(second)
+    _prime(display)
+    code = _create_team_room(host, theme="Draw It")
+    for client, name in ((first, "Ada"), (second, "Ben")):
+        assert _post(
+            client,
+            f"/group-games/act-it-out/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    host_state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    first_state = first.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    display_state = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+
+    assert host_state["round"]["mode"] == "draw"
+    assert host_state["round"]["answer"] is None
+    assert host_state["viewer"]["secret_prompt"]["answer"]
+    assert first_state["viewer"]["secret_prompt"]["mode"] == "draw"
+    assert display_state["round"]["answer"] is None
+    assert display_state["round"]["drawing"] is None
+    assert _post(second, f"/api/group-games/act-it-out/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 403
+
+    assert _post(first, f"/api/group-games/act-it-out/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 200
+    drawn = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert drawn["round"]["drawing"] == PNG_1X1
+    assert drawn["round"]["answer"] is None
 
 
 def test_correct_scores_team_and_next_round_alternates_team():
