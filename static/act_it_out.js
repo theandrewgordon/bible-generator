@@ -7,7 +7,7 @@ const app = document.querySelector("#act-app");
 const toast = document.querySelector("#act-toast");
 const connectionStatus = document.querySelector("#act-connection");
 const readModeSelect = document.querySelector("#act-read-mode");
-const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+let csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 let latestState = null;
 let requestInFlight = false;
 let lastRenderSignature = "";
@@ -101,7 +101,25 @@ function speakState(state, force = false) {
   speakItems(items.filter(item => item.text));
 }
 
-async function api(path, options = {}) {
+function roomPagePath() {
+  if (role === "host") return `/group-games/act-it-out/host/${encodeURIComponent(code)}`;
+  if (role === "display") return `/group-games/act-it-out/display/${encodeURIComponent(code)}`;
+  return `/group-games/act-it-out/play/${encodeURIComponent(code)}`;
+}
+
+async function refreshCsrfToken() {
+  const response = await fetch(roomPagePath(), { cache: "no-store" });
+  if (!response.ok) return false;
+  const html = await response.text();
+  const documentCopy = new DOMParser().parseFromString(html, "text/html");
+  const nextToken = documentCopy.querySelector('meta[name="csrf-token"]')?.content;
+  if (!nextToken) return false;
+  csrfToken = nextToken;
+  document.querySelector('meta[name="csrf-token"]').content = nextToken;
+  return true;
+}
+
+async function api(path, options = {}, allowCsrfRetry = true) {
   const response = await fetch(path, {
     ...options,
     headers: {
@@ -110,9 +128,13 @@ async function api(path, options = {}) {
       ...(options.headers || {}),
     },
   });
+  const method = String(options.method || "GET").toUpperCase();
+  if (response.status === 403 && method !== "GET" && allowCsrfRetry && await refreshCsrfToken()) {
+    return api(path, options, false);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.error || "Something went wrong. Please try again.");
+    const error = new Error(data.error || (response.status === 403 ? "This page lost permission. Refresh and try again." : "Something went wrong. Please try again."));
     error.status = response.status;
     throw error;
   }
