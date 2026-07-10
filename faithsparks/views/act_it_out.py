@@ -55,19 +55,24 @@ PROMPTS = [
     {"id": "paul", "answer": "Paul", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "medium", "instruction": "Act writing letters and traveling to churches.", "forbidden_words": ["Paul", "letter", "church", "missionary"]},
     {"id": "mary", "answer": "Mary", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act hearing surprising news and caring for baby Jesus.", "forbidden_words": ["Mary", "mother", "Jesus", "angel"]},
     {"id": "peter", "answer": "Peter", "modes": ["act", "clue"], "theme": "People of the Bible", "difficulty": "easy", "instruction": "Act fishing, following, and speaking boldly.", "forbidden_words": ["Peter", "disciple", "fish", "rock"]},
-    {"id": "praying", "answer": "Praying", "modes": ["act"], "theme": "Church & Worship", "difficulty": "easy", "instruction": "Act talking with God quietly or thankfully."},
-    {"id": "singing-worship", "answer": "Singing worship", "modes": ["act"], "theme": "Church & Worship", "difficulty": "easy", "instruction": "Act singing praise with joy."},
-    {"id": "serving", "answer": "Serving others", "modes": ["act", "clue"], "theme": "Church & Worship", "difficulty": "easy", "instruction": "Act helping someone before yourself.", "forbidden_words": ["serve", "help", "others"]},
-    {"id": "baptism", "answer": "Baptism", "modes": ["act", "clue"], "theme": "Church & Worship", "difficulty": "medium", "instruction": "Act a joyful church moment with water.", "forbidden_words": ["baptism", "water", "church"]},
-    {"id": "giving", "answer": "Giving generously", "modes": ["act", "clue"], "theme": "Church & Worship", "difficulty": "easy", "instruction": "Act sharing what you have with joy.", "forbidden_words": ["give", "money", "offering"]},
+    {"id": "praying", "answer": "Praying", "modes": ["act"], "theme": "Worship & Serving", "difficulty": "easy", "instruction": "Act talking with God quietly or thankfully."},
+    {"id": "singing-worship", "answer": "Singing worship", "modes": ["act"], "theme": "Worship & Serving", "difficulty": "easy", "instruction": "Act singing praise with joy."},
+    {"id": "serving", "answer": "Serving others", "modes": ["act", "clue"], "theme": "Worship & Serving", "difficulty": "easy", "instruction": "Act helping someone before yourself.", "forbidden_words": ["serve", "help", "others"]},
+    {"id": "baptism", "answer": "Baptism", "modes": ["act", "clue"], "theme": "Worship & Serving", "difficulty": "medium", "instruction": "Act a joyful moment with water.", "forbidden_words": ["baptism", "water", "church"]},
+    {"id": "giving", "answer": "Giving generously", "modes": ["act", "clue"], "theme": "Worship & Serving", "difficulty": "easy", "instruction": "Act sharing what you have with joy.", "forbidden_words": ["give", "money", "offering"]},
     {"id": "forgiveness", "answer": "Forgiveness", "modes": ["act", "clue"], "theme": "Faith Words", "difficulty": "medium", "instruction": "Act hurt feelings becoming peace.", "forbidden_words": ["forgive", "sorry", "wrong"]},
     {"id": "patience", "answer": "Patience", "modes": ["act", "clue"], "theme": "Faith Words", "difficulty": "easy", "instruction": "Act waiting calmly.", "forbidden_words": ["patience", "wait", "calm"]},
     {"id": "courage", "answer": "Courage", "modes": ["act", "clue"], "theme": "Faith Words", "difficulty": "easy", "instruction": "Act being brave even when afraid.", "forbidden_words": ["courage", "brave", "afraid"]},
     {"id": "joy", "answer": "Joy", "modes": ["act", "clue"], "theme": "Faith Words", "difficulty": "easy", "instruction": "Act deep gladness.", "forbidden_words": ["joy", "happy", "glad"]},
     {"id": "peace", "answer": "Peace", "modes": ["act", "clue"], "theme": "Faith Words", "difficulty": "easy", "instruction": "Act calm after worry.", "forbidden_words": ["peace", "calm", "quiet"]},
+    {"id": "who-david", "answer": "David", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "easy", "instruction": "Reveal clues until the team guesses the person.", "clues": ["I was a shepherd.", "I played music for a king.", "I faced a giant.", "I became king of Israel."]},
+    {"id": "who-esther", "answer": "Esther", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the person.", "clues": ["I lived in Persia.", "I became queen.", "My cousin helped me be brave.", "God used me to help save my people."]},
+    {"id": "story-good-samaritan", "answer": "The Good Samaritan", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "easy", "instruction": "Reveal clues until the team guesses the story.", "clues": ["Someone was hurt on a road.", "Two people passed by.", "A surprising neighbor stopped.", "Jesus told this story about loving your neighbor."]},
+    {"id": "story-prodigal-son", "answer": "The Prodigal Son", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the story.", "clues": ["A son left home.", "He wasted what he was given.", "He came back sorry.", "His father welcomed him with joy."]},
+    {"id": "story-psalm-23", "answer": "Psalm 23", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the passage.", "clues": ["It talks about a shepherd.", "It mentions green pastures.", "It says God is with us in dark valleys.", "Many families memorize this psalm."]},
 ]
 
-THEMES = ["Bible Stories", "Jesus' Miracles", "People of the Bible", "Church & Worship", "Faith Words"]
+THEMES = ["Bible Stories", "Jesus' Miracles", "People of the Bible", "Worship & Serving", "Faith Words", "Guess the Story"]
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -247,6 +252,7 @@ def _build_rounds(code: str, theme: str, count: int = DEFAULT_ROUNDS) -> list[di
             "theme": prompt["theme"],
             "instruction": prompt.get("instruction", ""),
             "forbidden_words": prompt.get("forbidden_words", []) if mode == "clue" else [],
+            "clues": prompt.get("clues", []) if mode == "guess" else [],
         })
     return rounds
 
@@ -292,6 +298,10 @@ def _start_round(room: dict, now: float | None = None) -> None:
     room["phase"] = "round"
     room["round_started_at"] = now
     room["round_deadline"] = now + int(room.get("timer_seconds", ROUND_SECONDS))
+    if (_active_round(room) or {}).get("mode") == "guess":
+        room["clue_index"] = 0
+    else:
+        room.pop("clue_index", None)
 
 
 def _finish_room(room: dict, now: float | None = None) -> None:
@@ -360,11 +370,16 @@ def _public_room(room: dict, code: str) -> dict:
     active_team = _team_meta(active_player.get("team_id") if active_player else room.get("active_team_id"))
     visible_round = None
     if active:
+        clue_index = int(room.get("clue_index", 0))
+        clues = active.get("clues", [])
         visible_round = {
             "mode": active["mode"],
             "theme": active["theme"],
             "answer": active["answer"] if room.get("phase") in {"reveal", "finished"} else None,
             "instruction": active.get("instruction", "") if room.get("phase") in {"reveal", "finished"} else "",
+            "clues": clues[: clue_index + 1] if active.get("mode") == "guess" and room.get("phase") in {"round", "reveal", "finished"} else [],
+            "clue_count": len(clues),
+            "clue_index": clue_index if active.get("mode") == "guess" else None,
         }
     players = _public_players(room)
     return {
@@ -420,11 +435,13 @@ def _active_rooms_for_host(email: str) -> list[dict]:
 
 
 @bp.get("/church-games")
+@bp.get("/group-games")
 def hub():
-    return render_template("church_games.html", noindex=True)
+    return render_template("group_games.html", noindex=True)
 
 
 @bp.get("/church-games/act-it-out")
+@bp.get("/group-games/act-it-out")
 def home():
     email = _host_email()
     return render_template(
@@ -437,6 +454,7 @@ def home():
 
 
 @bp.post("/church-games/act-it-out/create")
+@bp.post("/group-games/act-it-out/create")
 def create_room():
     email = _host_email()
     if not email:
@@ -472,6 +490,7 @@ def create_room():
 
 
 @bp.get("/church-games/act-it-out/host/<code>")
+@bp.get("/group-games/act-it-out/host/<code>")
 def host_room(code: str):
     code = code.upper()
     room = _require_room(code)
@@ -481,6 +500,7 @@ def host_room(code: str):
 
 
 @bp.get("/church-games/act-it-out/display/<code>")
+@bp.get("/group-games/act-it-out/display/<code>")
 def display_room(code: str):
     code = code.upper()
     _require_room(code)
@@ -488,6 +508,7 @@ def display_room(code: str):
 
 
 @bp.get("/church-games/act-it-out/room/<code>/qr")
+@bp.get("/group-games/act-it-out/room/<code>/qr")
 def room_qr(code: str):
     code = code.upper()
     _require_room(code)
@@ -506,6 +527,7 @@ def _render_join_page(code: str, error: str | None = None):
 
 
 @bp.route("/church-games/act-it-out/join/<code>", methods=["GET", "POST"])
+@bp.route("/group-games/act-it-out/join/<code>", methods=["GET", "POST"])
 def join_room(code: str):
     code = code.upper()
     room = _require_room(code)
@@ -551,6 +573,7 @@ def join_room(code: str):
 
 
 @bp.get("/church-games/act-it-out/play/<code>")
+@bp.get("/group-games/act-it-out/play/<code>")
 def player_room(code: str):
     code = code.upper()
     room = _require_room(code)
@@ -561,6 +584,7 @@ def player_room(code: str):
 
 
 @bp.get("/api/church-games/act-it-out/rooms/<code>")
+@bp.get("/api/group-games/act-it-out/rooms/<code>")
 def room_state(code: str):
     code = code.upper()
     room = _require_room(code)
@@ -576,18 +600,20 @@ def room_state(code: str):
     player_id = _player_id(code)
     viewer = {"is_host": _is_host(code, room), "player_id": player_id}
     active = _active_round(room)
-    if active and (viewer["is_host"] or (player_id and player_id == room.get("active_player_id"))):
+    if active and (viewer["is_host"] or (active.get("mode") != "guess" and player_id and player_id == room.get("active_player_id"))):
         viewer["secret_prompt"] = {
             "answer": active["answer"],
             "mode": active["mode"],
             "instruction": active.get("instruction", ""),
             "forbidden_words": active.get("forbidden_words", []),
+            "clues": active.get("clues", []),
         }
     state["viewer"] = viewer
     return jsonify(state)
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/start")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/start")
 def start_game(code: str):
     code = code.upper()
     room = _get_room(code)
@@ -626,6 +652,12 @@ def _host_action(code: str, action: str):
     def mutate(current):
         if action in {"correct", "pass"}:
             _complete_round(current, action)
+        elif action == "clue":
+            active = _active_round(current)
+            if current.get("phase") != "round" or not active or active.get("mode") != "guess":
+                raise ValueError("There is no clue to reveal right now.")
+            max_index = max(0, len(active.get("clues", [])) - 1)
+            current["clue_index"] = min(max_index, int(current.get("clue_index", 0)) + 1)
         elif action == "next":
             if current.get("phase") != "reveal":
                 raise ValueError("Score or pass this round before continuing.")
@@ -647,26 +679,37 @@ def _host_action(code: str, action: str):
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/correct")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/correct")
 def correct_round(code: str):
     return _host_action(code, "correct")
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/pass")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/pass")
 def pass_round(code: str):
     return _host_action(code, "pass")
 
 
+@bp.post("/api/church-games/act-it-out/rooms/<code>/clue")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/clue")
+def reveal_clue(code: str):
+    return _host_action(code, "clue")
+
+
 @bp.post("/api/church-games/act-it-out/rooms/<code>/next")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/next")
 def next_round(code: str):
     return _host_action(code, "next")
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/end")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/end")
 def end_game(code: str):
     return _host_action(code, "end")
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/heartbeat")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/heartbeat")
 def heartbeat(code: str):
     code = code.upper()
     player_id = _player_id(code)
@@ -689,6 +732,7 @@ def heartbeat(code: str):
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/teams/rebalance")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/teams/rebalance")
 def rebalance_teams(code: str):
     code = code.upper()
     room = _get_room(code)
@@ -712,6 +756,7 @@ def rebalance_teams(code: str):
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/players/<player_id>/team")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/players/<player_id>/team")
 def switch_player_team(code: str, player_id: str):
     code = code.upper()
     room = _get_room(code)
@@ -741,6 +786,7 @@ def switch_player_team(code: str, player_id: str):
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/players/<player_id>/remove")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/players/<player_id>/remove")
 def remove_player(code: str, player_id: str):
     code = code.upper()
     room = _get_room(code)

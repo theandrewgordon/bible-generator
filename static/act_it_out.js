@@ -99,7 +99,7 @@ function scoreRail(state, controls = "") {
     <div class="score-list">${playerRows(state, role === "host" && state.phase === "lobby")}</div>
     ${role === "host" ? `<div class="host-controls">
       ${controls}
-      <a class="bee-button secondary full" href="/church-games/act-it-out/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
+      <a class="bee-button secondary full" href="/group-games/act-it-out/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
       <button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>
       ${["round", "reveal"].includes(state.phase) ? `<button id="end-game" class="text-button danger-text" type="button">End game</button>` : ""}
     </div>` : ""}
@@ -107,7 +107,21 @@ function scoreRail(state, controls = "") {
 }
 
 function modeLabel(mode) {
+  if (mode === "guess") return "Guess the story";
   return mode === "clue" ? "Give clues" : "Act it out";
+}
+
+function clueList(round, compact = false) {
+  if (round?.mode !== "guess") return "";
+  const clues = round.clues || [];
+  const remaining = Math.max(0, (round.clue_count || 0) - clues.length);
+  return `<div class="${compact ? "guess-clues compact" : "guess-clues"}">
+    <strong>Clues</strong>
+    ${clues.length
+      ? `<ol>${clues.map(clue => `<li>${escapeHTML(clue)}</li>`).join("")}</ol>`
+      : `<p>Clues will appear here.</p>`}
+    ${remaining ? `<small>${remaining} more ${remaining === 1 ? "clue" : "clues"} ready</small>` : `<small>All clues revealed</small>`}
+  </div>`;
 }
 
 function renderLobby(state) {
@@ -130,7 +144,7 @@ function renderLobby(state) {
       <div class="lobby-code-row">
         <div class="big-code">${escapeHTML(code)}</div>
         <div class="lobby-qr">
-          <img src="/church-games/act-it-out/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
+          <img src="/group-games/act-it-out/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
           <span>Scan to join</span>
         </div>
       </div>
@@ -151,39 +165,48 @@ function secretPromptCard(prompt) {
     <h2>${escapeHTML(prompt.answer)}</h2>
     <p>${escapeHTML(prompt.instruction || (prompt.mode === "clue" ? "Describe it without saying the answer." : "No talking. Use motions only."))}</p>
     ${prompt.forbidden_words?.length ? `<div class="forbidden-words"><strong>Don’t say</strong>${prompt.forbidden_words.map(word => `<b>${escapeHTML(word)}</b>`).join("")}</div>` : ""}
+    ${prompt.mode === "guess" && prompt.clues?.length ? `<div class="secret-clue-bank"><strong>Clue bank</strong>${prompt.clues.map(clue => `<span>${escapeHTML(clue)}</span>`).join("")}</div>` : ""}
   </div>`;
 }
 
 function renderRound(state) {
   const isActivePlayer = role === "player" && state.viewer.player_id === state.active_player_id;
   if (role === "player") {
+    const hasSecretPrompt = Boolean(state.viewer.secret_prompt);
     app.innerHTML = `<section class="game-stage player-turn-stage">
-      ${isActivePlayer
+      ${isActivePlayer && hasSecretPrompt
         ? `<p class="round-meta">Your turn · ${escapeHTML(state.active_team_name || "Play")}</p>
            <h1>${escapeHTML(modeLabel(state.viewer.secret_prompt?.mode))}</h1>
            ${secretPromptCard(state.viewer.secret_prompt)}`
         : `<div class="celebration-mark">✦</div>
            <h1>Look at the screen</h1>
-           <p>${escapeHTML(state.active_player_name || "A player")} is up for ${escapeHTML(state.active_team_name || "this round")}.</p>`}
+           <p>${state.round?.mode === "guess"
+             ? `${escapeHTML(state.active_team_name || "Your team")} is guessing from the TV clues.`
+             : `${escapeHTML(state.active_player_name || "A player")} is up for ${escapeHTML(state.active_team_name || "this round")}.`}</p>`}
     </section>`;
     return;
   }
   const activePrompt = state.viewer.secret_prompt;
+  const isGuess = state.round?.mode === "guess";
+  const canRevealClue = isGuess && (state.round?.clues?.length || 0) < (state.round?.clue_count || 0);
   const controls = role === "host"
-    ? `<button id="correct-round" class="bee-button primary full" type="button">Correct +100</button>
+    ? `${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
+       <button id="correct-round" class="bee-button primary full" type="button">Correct +100</button>
        <button id="pass-round" class="bee-button secondary full" type="button">Pass</button>`
     : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage act-round-stage">
       <p class="round-meta">Round ${state.round_index + 1} of ${state.round_total}</p>
-      <h1>${escapeHTML(state.active_player_name || "Player")} is up</h1>
+      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       <div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">${activePrompt ? "Secret prompt is visible below for the host." : "Guess out loud. The answer is hidden from the TV."}</p>
+      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. The team guesses out loud." : activePrompt ? "Secret prompt is visible below for the host." : "Guess out loud. The answer is hidden from the TV."}</p>
+      ${clueList(state.round)}
       ${role === "host" ? secretPromptCard(activePrompt) : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
+  document.querySelector("#reveal-clue")?.addEventListener("click", () => hostAction("clue"));
   document.querySelector("#correct-round")?.addEventListener("click", () => hostAction("correct"));
   document.querySelector("#pass-round")?.addEventListener("click", () => hostAction("pass"));
   bindManagement();
@@ -201,6 +224,7 @@ function renderReveal(state) {
       <h1>${isCorrect ? "Correct!" : "Passed"}</h1>
       <p>${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? "earned 100 points." : "can try another next time."}</p>
       <div class="revealed-verse"><strong>Answer</strong><p>${escapeHTML(state.round?.answer || result.answer || "")}</p></div>
+      ${clueList(state.round, true)}
       ${teamBoard(state, true)}
     </section>
     ${scoreRail(state, controls)}
@@ -226,7 +250,7 @@ function renderFinished(state) {
         ${leaders.map((player, index) => `<div><span>${index + 1}. ${escapeHTML(player.name)}</span><strong>${player.score}</strong></div>`).join("")}
       </div>
       <div class="next-game-actions">
-        <a class="bee-button secondary" href="/church-games/act-it-out">Back to Act It Out</a>
+        <a class="bee-button secondary" href="/group-games/act-it-out">Back to Act It Out</a>
       </div>
     </section>
     ${scoreRail(state)}
@@ -254,19 +278,21 @@ function renderDisplay(state) {
       <h1>Join the Game</h1>
       <div class="display-join-row">
         <div><span>Room code</span><strong>${escapeHTML(code)}</strong></div>
-        <img src="/church-games/act-it-out/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
+        <img src="/group-games/act-it-out/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
       </div>
       <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready</p>
       ${displayRosters(state)}
     </section>`;
   } else if (state.phase === "round") {
-    app.innerHTML = `<section class="display-stage act-display-round">
+    const isGuess = state.round?.mode === "guess";
+    app.innerHTML = `<section class="display-stage act-display-round ${isGuess ? "guess-display-round" : ""}">
       <div class="display-topline"><span>Round ${state.round_index + 1} of ${state.round_total}</span><span>${escapeHTML(state.active_team_name || "Play")}</span></div>
       ${teamBoard(state, true)}
-      <h1>${escapeHTML(state.active_player_name || "Player")} is up</h1>
+      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="display-prompt">${escapeHTML(modeLabel(state.round?.mode))}</p>
+      ${clueList(state.round)}
       <div class="act-timer display"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">Guess out loud. The prompt is on their phone.</p>
+      <p class="act-display-instruction">${isGuess ? "Call out the answer when your team knows it." : "Guess out loud. The prompt is on their phone."}</p>
     </section>`;
   } else if (state.phase === "reveal") {
     const isCorrect = state.last_result?.outcome === "correct";
@@ -274,6 +300,7 @@ function renderDisplay(state) {
       <div class="celebration-mark">${isCorrect ? "✓" : "✦"}</div>
       <h1>${isCorrect ? "Correct!" : "Passed"}</h1>
       <div class="display-reveal"><span>Answer</span><p>${escapeHTML(state.round?.answer || state.last_result?.answer || "")}</p></div>
+      ${clueList(state.round, true)}
       ${teamBoard(state, true)}
     </section>`;
   } else {
@@ -314,7 +341,7 @@ async function refresh() {
   if (requestInFlight) return;
   requestInFlight = true;
   try {
-    const state = await api(`/api/church-games/act-it-out/rooms/${code}`);
+    const state = await api(`/api/group-games/act-it-out/rooms/${code}`);
     failedRefreshes = 0;
     connectionStatus.classList.remove("show");
     const signature = JSON.stringify(state);
@@ -333,14 +360,14 @@ async function refresh() {
 async function heartbeat() {
   if (role !== "player" || document.hidden) return;
   try {
-    await api(`/api/church-games/act-it-out/rooms/${code}/heartbeat`, { method: "POST", body: "{}" });
+    await api(`/api/group-games/act-it-out/rooms/${code}/heartbeat`, { method: "POST", body: "{}" });
   } catch (_error) {
   }
 }
 
 async function hostAction(action) {
   try {
-    await api(`/api/church-games/act-it-out/rooms/${code}/${action}`, { method: "POST", body: "{}" });
+    await api(`/api/group-games/act-it-out/rooms/${code}/${action}`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -349,7 +376,7 @@ async function hostAction(action) {
 
 async function switchTeam(playerId) {
   try {
-    await api(`/api/church-games/act-it-out/rooms/${code}/players/${encodeURIComponent(playerId)}/team`, { method: "POST", body: "{}" });
+    await api(`/api/group-games/act-it-out/rooms/${code}/players/${encodeURIComponent(playerId)}/team`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -358,7 +385,7 @@ async function switchTeam(playerId) {
 
 async function rebalanceTeams() {
   try {
-    await api(`/api/church-games/act-it-out/rooms/${code}/teams/rebalance`, { method: "POST", body: "{}" });
+    await api(`/api/group-games/act-it-out/rooms/${code}/teams/rebalance`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -367,7 +394,7 @@ async function rebalanceTeams() {
 
 async function removePlayer(playerId) {
   try {
-    await api(`/api/church-games/act-it-out/rooms/${code}/players/${encodeURIComponent(playerId)}/remove`, { method: "POST", body: "{}" });
+    await api(`/api/group-games/act-it-out/rooms/${code}/players/${encodeURIComponent(playerId)}/remove`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -375,7 +402,7 @@ async function removePlayer(playerId) {
 }
 
 async function copyJoinLink() {
-  const url = `${window.location.origin}/church-games/act-it-out/join/${code}`;
+  const url = `${window.location.origin}/group-games/act-it-out/join/${code}`;
   try {
     await navigator.clipboard.writeText(url);
     showToast("Join link copied.");

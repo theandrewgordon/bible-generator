@@ -1770,7 +1770,7 @@ try:
 except Exception:
     app.logger.exception("Family Bible Bee routes could not be registered")
 
-# Church game night room-code games
+# Group game night room-code games
 try:
     from faithsparks.views.act_it_out import bp as act_it_out_bp
     app.register_blueprint(act_it_out_bp)

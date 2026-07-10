@@ -19,7 +19,7 @@
     </header>
     <main class="bee-home act-home">
       <section class="home-copy">
-        <h1>Bible charades for church game night.</h1>
+        <h1>Bible charades for group game night.</h1>
         <p>One TV screen, phones for players, and quick team rounds where the answer stays secret until reveal.</p>
         {% if is_host_signed_in %}
           <form class="act-setup" method="post" action="{{ url_for('act_it_out.create_room') }}">
@@ -82,7 +82,7 @@
       document.querySelector("#act-code-form").addEventListener("submit", (event) => {
         event.preventDefault();
         const code = document.querySelector("#room-code").value.trim().toUpperCase();
-        if (code.length === 4) window.location.href = `/church-games/act-it-out/join/${encodeURIComponent(code)}`;
+        if (code.length === 4) window.location.href = `/group-games/act-it-out/join/${encodeURIComponent(code)}`;
       });
     </script>
   </body>
