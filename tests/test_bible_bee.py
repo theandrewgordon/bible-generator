@@ -277,6 +277,12 @@ def test_host_can_remove_player_and_close_room():
         "psalms-comfort",
         "words-of-jesus",
         "prayer-praise",
+        "god-is-near",
+        "identity-in-christ",
+        "serving-others",
+        "forgiveness-grace",
+        "thankful-hearts",
+        "mission-witness",
     ],
 )
 def test_each_builtin_deck_creates_a_three_round_game(deck_id):

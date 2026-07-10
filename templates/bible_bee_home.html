@@ -26,84 +26,37 @@
           {% if setup_error %}<p class="setup-error" role="alert">{{ setup_error }}</p>{% endif %}
           <form id="bee-room-setup" class="room-setup-form expanded" method="post" action="{{ url_for('bible_bee.create_room') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>
-              <span>Bible version</span>
-              <select id="bee-version" name="version">
-                {% for version in translations %}
-                  <option value="{{ version.id }}" data-code="{{ version.code }}" {% if not version.available %}disabled{% endif %}>
-                    {{ version.name }} — {{ version.code }}{% if not version.available %} · setup needed{% endif %}
-                  </option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              <span>Game style</span>
-              <select name="game_style">
-                {% for style_id, style in game_styles.items() %}
-                  <option value="{{ style_id }}">{{ style.name }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              <span>Difficulty</span>
-              <select name="difficulty">
-                {% for difficulty_id, difficulty in difficulties.items() %}
-                  <option value="{{ difficulty_id }}" {% if difficulty_id == 'family' %}selected{% endif %}>{{ difficulty.name }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              <span>Answer buttons</span>
-              <select name="choice_count">
-                <option value="2">2 large choices</option>
-                <option value="4" selected>4 choices</option>
-              </select>
-            </label>
-            <label>
-              <span>Rounds</span>
-              <select name="round_count">
-                <option value="3">3 rounds · Quick</option>
-                <option value="5">5 rounds · Family</option>
-                <option value="10" selected>10 rounds · Game night</option>
-              </select>
-            </label>
-            <label>
-              <span>Answer review</span>
-              <select name="reveal_seconds">
-                <option value="5">5 seconds</option>
-                <option value="10" selected>10 seconds</option>
-                <option value="15">15 seconds</option>
-              </select>
-            </label>
+            <input type="hidden" id="bee-version" name="version" value="kjv" data-code="KJV">
+            <input type="hidden" name="game_style" value="classic_mix">
+            <input type="hidden" name="difficulty" value="family">
+            <input type="hidden" name="choice_count" value="4">
+            <input type="hidden" name="round_count" value="5">
+            <input type="hidden" name="reveal_seconds" value="10">
             <fieldset class="custom-game-tools">
-              <legend>Make a custom game</legend>
-              <div>
-                <p>Pick a theme and FaithSparks will gather a one-night verse set and check every answer before the room opens.</p>
-                <label>
-                  <span>What should tonight’s game be about?</span>
-                  <input name="one_off_theme" maxlength="120" placeholder="Courage, Easter morning, wisdom…">
-                </label>
-              </div>
-              <button class="bee-button gold" type="submit" name="game_source" value="custom">Create themed room</button>
+              <legend>Want a fresh theme?</legend>
+              <label>
+                <span>Optional custom topic</span>
+                <input name="one_off_theme" maxlength="120" placeholder="Easter morning, friendship, patience">
+              </label>
+              <button class="bee-button gold" type="submit" name="game_source" value="custom">Create custom room</button>
             </fieldset>
             <fieldset class="deck-library">
-              <legend>Choose a deck</legend>
+              <legend>Pick a ready-made theme</legend>
               <div class="deck-card-grid">
                 {% for deck in decks %}
                   <label class="deck-card">
                     <input type="radio" name="deck_id" value="{{ deck.id }}" {% if loop.first %}checked{% endif %}>
                     <span class="deck-check" aria-hidden="true">✓</span>
                     <strong>{{ deck.title }}</strong>
-                    <small><span class="deck-version">KJV</span> · {{ deck.theme }} · {{ deck.difficulty }}</small>
+                    <small>{{ deck.theme }}</small>
                     <p>{{ deck.description }}</p>
-                    <b>{{ deck.passage_count }} passages · {{ deck.age_range }}</b>
                   </label>
                 {% endfor %}
               </div>
             </fieldset>
             <div class="create-room-row">
-              <p>Correct answers earn accuracy points plus a small speed bonus. Modern translations use your configured licensed Scripture sources.</p>
-              <button class="bee-button primary large" type="submit" name="game_source" value="deck">Create room from selected deck</button>
+              <p>Default game: KJV, 5 rounds, family difficulty.</p>
+              <button class="bee-button primary large" type="submit" name="game_source" value="deck">Create room</button>
             </div>
             <p id="room-build-status" class="room-build-status" role="status" aria-live="polite"></p>
           </form>
@@ -169,7 +122,7 @@
       const versionSelect = document.querySelector("#bee-version");
       function updateDeckVersions() {
         if (!versionSelect) return;
-        const code = versionSelect.selectedOptions[0]?.dataset.code || "KJV";
+        const code = versionSelect.dataset.code || versionSelect.selectedOptions?.[0]?.dataset.code || "KJV";
         document.querySelectorAll(".deck-version").forEach(label => { label.textContent = code; });
       }
       versionSelect?.addEventListener("change", updateDeckVersions);

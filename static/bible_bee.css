@@ -210,7 +210,7 @@ select {
   border-radius: 18px;
 }
 .room-setup-form.expanded {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   max-width: 1120px;
   padding: clamp(18px, 3vw, 28px);
 }
@@ -228,30 +228,29 @@ select {
   font-weight: 800;
 }
 .deck-library { grid-column: 1 / -1; margin: 8px 0 0; padding: 0; border: 0; }
-.deck-library legend { margin-bottom: 10px; font-size: .86rem; font-weight: 900; }
+.deck-library legend { margin-bottom: 10px; font-size: 1rem; font-weight: 900; }
 .custom-game-tools {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  gap: 18px;
-  margin: 8px 0;
-  padding: 20px;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
   text-align: left;
   background: #fff9e8;
   border: 1px solid #e5cf91;
   border-radius: 16px;
 }
-.custom-game-tools legend { padding: 0 8px; color: var(--bee-navy); font-family: Georgia, "Times New Roman", serif; font-size: 1.2rem; font-weight: 900; }
-.custom-game-tools p { margin: 0 0 13px !important; color: var(--bee-muted); font-size: .86rem !important; }
-.custom-game-tools label { max-width: 680px; }
+.custom-game-tools legend { padding: 0 8px; color: var(--bee-navy); font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; font-weight: 900; }
+.custom-game-tools label { max-width: none; }
 .custom-game-tools .bee-button { min-width: 190px; }
-.deck-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.deck-card-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .deck-card {
   position: relative;
   display: block !important;
-  min-height: 168px;
-  padding: 18px;
+  min-height: 142px;
+  padding: 16px;
   background: white;
   border: 2px solid var(--bee-line);
   border-radius: 15px;
@@ -260,9 +259,9 @@ select {
 .deck-card:has(input:checked) { background: var(--bee-blue-soft); border-color: var(--bee-blue); }
 .deck-card input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .deck-card strong, .deck-card small, .deck-card b { display: block; }
-.deck-card strong { padding-right: 28px; font-family: Georgia, "Times New Roman", serif; font-size: 1.2rem; }
+.deck-card strong { padding-right: 28px; font-family: Georgia, "Times New Roman", serif; font-size: 1.08rem; line-height: 1.15; }
 .deck-card small { margin-top: 4px; color: var(--bee-blue); font-weight: 800; }
-.deck-card p { margin: 12px 0 !important; color: var(--bee-muted); font-size: .88rem !important; line-height: 1.4; }
+.deck-card p { margin: 10px 0 0 !important; color: var(--bee-muted); font-size: .84rem !important; line-height: 1.35; }
 .deck-card b { color: var(--bee-muted); font-size: .75rem; }
 .deck-check {
   position: absolute;
@@ -285,6 +284,7 @@ select {
   justify-content: space-between;
   gap: 18px;
   margin-top: 6px;
+  padding-top: 4px;
 }
 .create-room-row p { margin: 0 !important; color: var(--bee-muted); font-size: .82rem !important; text-align: left; }
 .room-build-status {
@@ -645,7 +645,7 @@ select {
   .player-score { min-width: 155px; border-top: 0; }
   .join-invite { display: none; }
   .question-prompt { margin-block: 34px; }
-  .room-setup-form.expanded { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .room-setup-form.expanded { grid-template-columns: 1fr; }
   .deck-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
