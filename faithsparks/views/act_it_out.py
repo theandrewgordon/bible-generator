@@ -512,6 +512,31 @@ def _advance_round(room: dict, now: float | None = None) -> None:
     _start_round(room, now)
 
 
+def _skip_round(room: dict, now: float | None = None) -> None:
+    now = now or time.time()
+    active = _active_round(room)
+    if not active or room.get("phase") != "round":
+        raise ValueError("There is no active card to skip.")
+    if active.get("mode") == "draw":
+        for player_id, answer in room.get("draw_answers", {}).items():
+            if answer.get("correct"):
+                player = room.get("players", {}).get(player_id)
+                if player:
+                    player["score"] = max(0, int(player.get("score", 0)) - POINTS_CORRECT)
+    room.setdefault("round_results", []).append({
+        "round_index": int(room.get("round_index", 0)),
+        "answer": active["answer"],
+        "mode": active["mode"],
+        "outcome": "skipped",
+        "points": 0,
+        "player_id": room.get("active_player_id"),
+        "team_id": room.get("active_team_id"),
+    })
+    room.pop("drawing_data", None)
+    room["draw_answers"] = {}
+    _advance_round(room, now)
+
+
 def _public_players(room: dict, code: str) -> list[dict]:
     now = time.time()
     players = []
@@ -1041,6 +1066,8 @@ def _host_action(code: str, action: str):
             if current.get("phase") != "reveal":
                 raise ValueError("Score or pass this round before continuing.")
             _advance_round(current)
+        elif action == "skip":
+            _skip_round(current)
         elif action == "end":
             if current.get("phase") == "lobby":
                 raise ValueError("Start the game before ending it.")
@@ -1083,6 +1110,13 @@ def reveal_clue(code: str):
 @bp.post("/api/group-games/draw-it/rooms/<code>/next")
 def next_round(code: str):
     return _host_action(code, "next")
+
+
+@bp.post("/api/church-games/act-it-out/rooms/<code>/skip")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/skip")
+@bp.post("/api/group-games/draw-it/rooms/<code>/skip")
+def skip_round(code: str):
+    return _host_action(code, "skip")
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/end")

@@ -403,11 +403,13 @@ function renderRound(state) {
   const controls = role === "host"
     ? isDraw
       ? `<p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
-         <button id="pass-round" class="bee-button secondary full" type="button">Reveal answer</button>`
+         <button id="pass-round" class="bee-button secondary full" type="button">Reveal answer</button>
+         <button id="skip-round" class="text-button" type="button">Skip card</button>`
       : `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
          ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
          <button id="correct-round" class="bee-button primary full" type="button">Got it right · +100</button>
-         <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>`
+         <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>
+         <button id="skip-round" class="text-button" type="button">Skip card</button>`
     : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage act-round-stage">
@@ -426,6 +428,7 @@ function renderRound(state) {
   document.querySelector("#reveal-clue")?.addEventListener("click", () => hostAction("clue"));
   document.querySelector("#correct-round")?.addEventListener("click", () => hostAction("correct"));
   document.querySelector("#pass-round")?.addEventListener("click", () => hostAction("pass"));
+  document.querySelector("#skip-round")?.addEventListener("click", () => hostAction("skip"));
   document.querySelectorAll("[data-draw-choice]").forEach(button => {
     button.addEventListener("click", () => submitDrawGuess(button.dataset.drawChoice));
   });

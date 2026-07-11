@@ -524,6 +524,65 @@ def test_correct_scores_team_and_next_round_alternates_team():
     assert next_state["active_team_id"] == "blue"
 
 
+def test_host_can_skip_bad_act_it_out_card_without_reveal_or_points():
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    _prime(host, "skip-act-host@example.com")
+    _prime(first)
+    _prime(second)
+    code = _create_team_room(host)
+    for client, name in ((first, "Ada"), (second, "Ben")):
+        assert _post(
+            client,
+            f"/group-games/act-it-out/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    started = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/skip", json={}).status_code == 200
+
+    skipped = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert skipped["phase"] == "round"
+    assert skipped["round_index"] == started["round_index"] + 1
+    assert {team["id"]: team["score"] for team in skipped["teams"]} == {"gold": 0, "blue": 0}
+
+
+def test_host_skip_draw_card_rolls_back_locked_guess_points():
+    host = app.test_client()
+    drawer = app.test_client()
+    guesser = app.test_client()
+    spare = app.test_client()
+    _prime(host, "skip-draw-host@example.com")
+    for client in (drawer, guesser, spare):
+        _prime(client)
+    code = _create_draw_room(host)
+    for client, name in ((drawer, "Ada"), (guesser, "Ben"), (spare, "Cal")):
+        assert _post(
+            client,
+            f"/group-games/draw-it/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={}).status_code == 200
+    state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    correct = state["viewer"]["secret_prompt"]["answer"]
+    assert _post(guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": correct}).status_code == 200
+    partial = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    players = {player["name"]: player for player in partial["players"]}
+    assert players["Ben"]["score"] == 100
+
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/skip", json={}).status_code == 200
+
+    skipped = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    players = {player["name"]: player for player in skipped["players"]}
+    assert skipped["phase"] == "round"
+    assert skipped["round_index"] == state["round_index"] + 1
+    assert players["Ben"]["score"] == 0
+
+
 def test_finished_act_it_out_can_play_again_with_same_players():
     from faithsparks.views import act_it_out
 
