@@ -474,16 +474,28 @@ def _complete_draw_round(room: dict, outcome: str = "draw", now: float | None = 
         raise ValueError("This drawing round is not active.")
     answers = room.get("draw_answers", {})
     correct_count = sum(1 for answer in answers.values() if answer.get("correct"))
+    guesser_count = sum(
+        1
+        for player_id, _player in _available_players(room)
+        if player_id != room.get("active_player_id")
+    )
+    drawer_bonus = 0
+    active_player = room.get("players", {}).get(room.get("active_player_id") or "")
+    if active_player and guesser_count and correct_count >= max(1, (guesser_count + 1) // 2):
+        drawer_bonus = 50
+        active_player["score"] = int(active_player.get("score", 0)) + drawer_bonus
     room.setdefault("round_results", []).append({
         "round_index": int(room.get("round_index", 0)),
         "answer": active["answer"],
         "mode": active["mode"],
         "outcome": outcome,
-        "points": 0,
+        "points": drawer_bonus,
         "player_id": room.get("active_player_id"),
         "team_id": room.get("active_team_id"),
         "correct_guesses": correct_count,
         "guess_count": len(answers),
+        "guesser_count": guesser_count,
+        "drawer_bonus": drawer_bonus,
     })
     room["last_result"] = room["round_results"][-1]
     room["phase"] = "reveal"
@@ -659,6 +671,10 @@ def home():
         subhead="One TV screen, phones for players, and quick rounds where the answer stays secret until reveal.",
         form_action=url_for("act_it_out.create_room"),
         themes=["Mix It Up", *ACT_THEMES],
+        theme_counts={
+            theme: len(_prompt_pool(theme, "act_it_out"))
+            for theme in ["Mix It Up", *ACT_THEMES]
+        },
         selected_theme=selected_theme,
         team_default=False,
         is_host_signed_in=bool(email),
@@ -679,6 +695,10 @@ def draw_it_home():
         subhead="A shared-screen drawing game built for families, classrooms, and bigger groups.",
         form_action=url_for("act_it_out.create_draw_room"),
         themes=["Mix It Up", *DRAW_THEMES],
+        theme_counts={
+            theme: len(_prompt_pool(theme, "draw_it"))
+            for theme in ["Mix It Up", *DRAW_THEMES]
+        },
         selected_theme=request.args.get("theme") if request.args.get("theme") in {"Mix It Up", *DRAW_THEMES} else "Mix It Up",
         team_default=False,
         is_host_signed_in=bool(email),
@@ -721,6 +741,7 @@ def _create_room(game_type: str):
         "theme": theme,
         "team_mode": team_mode,
         "teams": TEAMS if team_mode else [],
+        "round_count": DEFAULT_ROUNDS,
         "rounds": _build_rounds(code, theme, DEFAULT_ROUNDS, game_type),
         "round_index": 0,
         "timer_seconds": ROUND_SECONDS,
@@ -870,6 +891,58 @@ def player_room(code: str):
     return render_template("act_it_out_room.html", code=code, role="player", game_slug=_game_slug(room), game_title=_game_title(room), noindex=True)
 
 
+@bp.post("/api/church-games/act-it-out/rooms/<code>/profile")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/profile")
+@bp.post("/api/group-games/draw-it/rooms/<code>/profile")
+def update_player_profile(code: str):
+    code = code.upper()
+    player_id = _player_id(code)
+    if not player_id:
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    name = " ".join(str(payload.get("player_name") or "").strip().split())
+    avatar = payload.get("avatar_data")
+    avatar_preset = str(payload.get("avatar_preset") or "").strip()
+    if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
+        return jsonify({"error": "Choose a simple family-friendly name using letters or numbers."}), 400
+    if avatar_preset not in PRESET_AVATARS:
+        avatar_preset = ""
+    if avatar is not None:
+        avatar = str(avatar).strip()
+        if not _valid_avatar_data(avatar):
+            return jsonify({"error": "That picture could not be prepared. Try another selfie or use a preset."}), 400
+
+    def update(current):
+        if current.get("phase") != "lobby":
+            raise ValueError("Player profiles can only be changed before the game starts.")
+        player = current.get("players", {}).get(player_id)
+        if not player:
+            raise PermissionError
+        if any(
+            other_id != player_id and other.get("name", "").casefold() == name.casefold()
+            for other_id, other in current.get("players", {}).items()
+        ):
+            raise ValueError("That player name is already in this room. Add a family initial or nickname.")
+        player["name"] = name
+        player["last_seen"] = time.time()
+        if avatar is not None:
+            player["avatar"] = avatar
+            player["avatar_preset"] = "" if avatar else avatar_preset
+        elif "avatar_preset" in payload:
+            player["avatar"] = ""
+            player["avatar_preset"] = avatar_preset
+
+    try:
+        result = _mutate_room(code, update)
+    except PermissionError:
+        abort(403)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
 @bp.get("/api/church-games/act-it-out/rooms/<code>")
 @bp.get("/api/group-games/act-it-out/rooms/<code>")
 @bp.get("/api/group-games/draw-it/rooms/<code>")
@@ -1017,6 +1090,51 @@ def next_round(code: str):
 @bp.post("/api/group-games/draw-it/rooms/<code>/end")
 def end_game(code: str):
     return _host_action(code, "end")
+
+
+@bp.post("/api/church-games/act-it-out/rooms/<code>/play-again")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/play-again")
+@bp.post("/api/group-games/draw-it/rooms/<code>/play-again")
+def play_again_same_players(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def reset(current):
+        if current.get("phase") != "finished":
+            raise ValueError("Finish the current game before starting another one.")
+        round_count = int(current.get("round_count") or len(current.get("rounds", [])) or DEFAULT_ROUNDS)
+        current["round_count"] = round_count
+        current["rounds"] = _build_rounds(
+            f"{code}-{int(time.time())}",
+            current.get("theme", "Mix It Up"),
+            round_count,
+            current.get("game_type", "act_it_out"),
+        )
+        current["round_index"] = 0
+        current["round_results"] = []
+        current["phase"] = "lobby"
+        current.pop("finished_at", None)
+        current.pop("last_result", None)
+        current.pop("round_deadline", None)
+        current.pop("round_started_at", None)
+        current.pop("drawing_data", None)
+        current.pop("draw_answers", None)
+        current.pop("active_player_id", None)
+        current.pop("active_team_id", None)
+        for player in current.get("players", {}).values():
+            player["score"] = 0
+            player["away"] = False
+            player["last_seen"] = time.time()
+
+    try:
+        result = _mutate_room(code, reset)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/heartbeat")

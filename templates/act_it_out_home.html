@@ -38,6 +38,7 @@
                   <label>
                     <input type="radio" name="theme" value="{{ theme }}" {% if theme == selected_theme %}checked{% endif %}>
                     <span>{{ theme }}</span>
+                    <small>{{ theme_counts.get(theme, 0) }} prompts</small>
                   </label>
                 {% endfor %}
               </div>

@@ -91,7 +91,7 @@
                     <input type="radio" name="deck_id" value="{{ deck.id }}" {% if loop.first %}checked{% endif %}>
                     <span class="deck-check" aria-hidden="true">✓</span>
                     <strong>{{ deck.title }}</strong>
-                    <small>{{ deck.theme }}</small>
+                    <small>{{ deck.theme }} · {{ deck.passage_count }} passages</small>
                     <p>{{ deck.description }}</p>
                   </label>
                 {% endfor %}

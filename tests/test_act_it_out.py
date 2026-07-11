@@ -255,6 +255,47 @@ def test_act_it_out_join_supports_preset_and_uploaded_avatars():
     assert avatar_response.data.startswith(b"\xff\xd8\xff")
 
 
+def test_player_can_edit_act_it_out_profile_before_start():
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    _prime(host, "act-profile-host@example.com")
+    _prime(first)
+    _prime(second)
+    code = _create_team_room(host)
+    assert _post(
+        first,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_preset": "fox"},
+    ).status_code == 302
+    assert _post(
+        second,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ben"},
+    ).status_code == 302
+
+    updated = _post(
+        first,
+        f"/api/group-games/act-it-out/rooms/{code}/profile",
+        json={"player_name": "Ava", "avatar_data": "", "avatar_preset": "esther"},
+    )
+
+    assert updated.status_code == 200
+    players = {player["name"]: player for player in host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["players"]}
+    assert players["Ava"]["avatar_preset"] == "esther"
+    assert _post(
+        first,
+        f"/api/group-games/act-it-out/rooms/{code}/profile",
+        json={"player_name": "Ben", "avatar_preset": "cross"},
+    ).status_code == 409
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    assert _post(
+        first,
+        f"/api/group-games/act-it-out/rooms/{code}/profile",
+        json={"player_name": "Late Edit", "avatar_preset": "cross"},
+    ).status_code == 409
+
+
 def test_secret_prompt_visible_only_to_host_and_active_player():
     host = app.test_client()
     first = app.test_client()
@@ -418,6 +459,40 @@ def test_draw_mode_phone_guess_scores_and_reveals_when_all_guess():
     assert players["Ben"]["score"] == 100
 
 
+def test_draw_mode_awards_drawer_bonus_when_half_guess_correct():
+    host = app.test_client()
+    drawer = app.test_client()
+    correct_guesser = app.test_client()
+    wrong_guesser = app.test_client()
+    _prime(host, "draw-bonus-host@example.com")
+    for client in (drawer, correct_guesser, wrong_guesser):
+        _prime(client)
+    code = _create_draw_room(host, team_mode=True)
+    for client, name in ((drawer, "Ada"), (correct_guesser, "Ben"), (wrong_guesser, "Cal")):
+        assert _post(
+            client,
+            f"/group-games/draw-it/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={}).status_code == 200
+    state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    correct = state["viewer"]["secret_prompt"]["answer"]
+    wrong = next(choice for choice in state["round"]["choices"] if choice != correct)
+
+    assert _post(correct_guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": correct}).status_code == 200
+    assert _post(wrong_guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": wrong}).status_code == 200
+
+    reveal = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    assert reveal["phase"] == "reveal"
+    assert reveal["last_result"]["drawer_bonus"] == 50
+    assert reveal["last_result"]["correct_guesses"] == 1
+    players = {player["name"]: player for player in reveal["players"]}
+    assert players["Ada"]["score"] == 50
+    assert players["Ben"]["score"] == 100
+    assert {team["id"]: team["score"] for team in reveal["teams"]} == {"gold": 50, "blue": 100}
+
+
 def test_correct_scores_team_and_next_round_alternates_team():
     host = app.test_client()
     first = app.test_client()
@@ -447,6 +522,43 @@ def test_correct_scores_team_and_next_round_alternates_team():
     next_state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert next_state["phase"] == "round"
     assert next_state["active_team_id"] == "blue"
+
+
+def test_finished_act_it_out_can_play_again_with_same_players():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "act-play-again@example.com")
+    _prime(player)
+    code = _create_team_room(host)
+    assert _post(
+        player,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_preset": "esther"},
+    ).status_code == 302
+
+    def force_finished(room):
+        player = next(iter(room["players"].values()))
+        player["score"] = 300
+        player["away"] = True
+        room["phase"] = "finished"
+        room["last_result"] = {"outcome": "correct"}
+
+    act_it_out._mutate_room(code, force_finished)
+
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/play-again", json={}).status_code == 200
+    room = act_it_out._get_room(code)
+    assert room["phase"] == "lobby"
+    assert room["round_index"] == 0
+    assert len(room["rounds"]) == room["round_count"]
+    assert room["round_results"] == []
+    assert "last_result" not in room
+    player = next(iter(room["players"].values()))
+    assert player["name"] == "Ada"
+    assert player["avatar_preset"] == "esther"
+    assert player["score"] == 0
+    assert player["away"] is False
 
 
 def test_team_management_locked_after_start():

@@ -56,18 +56,45 @@
       const avatarData = document.querySelector("#avatar-data");
       const selfiePreview = document.querySelector("#selfie-preview");
       const joinButton = document.querySelector("#bee-join-form button[type='submit']");
+      const playerNameInput = document.querySelector("#player-name");
       const presetInputs = document.querySelectorAll('input[name="avatar_preset"]');
       const presetClasses = [...presetInputs].map(input => `avatar-${input.value}`).filter(value => value !== "avatar-");
+      const profileKey = "faithsparksGameProfile";
+
+      function applyPresetAvatar(value) {
+        avatarData.value = "";
+        selfieInput.value = "";
+        selfiePreview.style.backgroundImage = "";
+        selfiePreview.classList.remove(...presetClasses, "preset-avatar");
+        selfiePreview.textContent = value ? "" : "☺";
+        if (value) selfiePreview.classList.add(`avatar-${value}`, "preset-avatar");
+      }
+
+      function rememberProfile() {
+        const selectedPreset = document.querySelector('input[name="avatar_preset"]:checked')?.value || "";
+        window.localStorage.setItem(profileKey, JSON.stringify({
+          name: playerNameInput.value.trim(),
+          avatarPreset: avatarData.value ? "" : selectedPreset,
+        }));
+      }
+
+      try {
+        const profile = JSON.parse(window.localStorage.getItem(profileKey) || "{}");
+        if (profile.name && !playerNameInput.value) playerNameInput.value = profile.name;
+        if (profile.avatarPreset) {
+          const input = [...presetInputs].find(option => option.value === profile.avatarPreset);
+          if (input) {
+            input.checked = true;
+            applyPresetAvatar(profile.avatarPreset);
+          }
+        }
+      } catch (_error) {
+      }
 
       presetInputs.forEach(input => {
         input.addEventListener("change", () => {
           if (!input.checked) return;
-          avatarData.value = "";
-          selfieInput.value = "";
-          selfiePreview.style.backgroundImage = "";
-          selfiePreview.classList.remove(...presetClasses);
-          selfiePreview.textContent = input.value ? "" : "☺";
-          if (input.value) selfiePreview.classList.add(`avatar-${input.value}`, "preset-avatar");
+          applyPresetAvatar(input.value);
         });
       });
 
@@ -106,6 +133,7 @@
         };
         reader.readAsDataURL(file);
       });
+      document.querySelector("#bee-join-form").addEventListener("submit", rememberProfile);
     </script>
   </body>
 </html>

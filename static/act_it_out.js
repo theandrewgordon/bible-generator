@@ -19,6 +19,19 @@ let failedRefreshes = 0;
 let readMode = window.localStorage.getItem("actItOutReadMode") || "off";
 let speechRun = 0;
 let lastSpokenState = "";
+let profileEditorOpen = false;
+const presetAvatars = [
+  ["", "Initials"],
+  ["fox", "Friendly fox"],
+  ["sunflower", "Sunflower"],
+  ["ocean", "Ocean sunrise"],
+  ["david", "David with a harp"],
+  ["esther", "Queen Esther"],
+  ["jesus-children", "Jesus welcoming children"],
+  ["noah", "Noah's ark"],
+  ["empty-tomb", "Empty tomb"],
+  ["cross", "Jesus on the cross"],
+];
 
 function escapeHTML(value) {
   return String(value ?? "")
@@ -33,6 +46,41 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   window.setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function profileEditor(player) {
+  if (!player) return "";
+  if (!profileEditorOpen) {
+    return `<button id="edit-player-profile" class="bee-button secondary" type="button">Edit name or picture</button>`;
+  }
+  const keepSelfie = player.avatar && !player.avatar_preset
+    ? `<label class="avatar-choice">
+        <input type="radio" name="profile_avatar_preset" value="__keep" checked>
+        <span class="player-avatar"><img src="${escapeHTML(player.avatar)}" alt=""></span>
+        <small>Keep selfie</small>
+      </label>`
+    : "";
+  return `<form id="player-profile-form" class="profile-edit-form">
+    <label for="profile-player-name">Player name</label>
+    <input id="profile-player-name" name="player_name" maxlength="18" autocomplete="nickname" value="${escapeHTML(player.name)}" required>
+    <fieldset class="avatar-gallery">
+      <legend>Picture</legend>
+      ${keepSelfie}
+      ${presetAvatars.map(([id, label]) => `<label class="avatar-choice">
+        <input type="radio" name="profile_avatar_preset" value="${escapeHTML(id)}" ${!keepSelfie && (player.avatar_preset || "") === id ? "checked" : ""}>
+        <span class="${id ? `preset-avatar avatar-${escapeHTML(id)}` : ""}" aria-hidden="true">${id ? "" : "☺"}</span>
+        <small>${escapeHTML(label)}</small>
+      </label>`).join("")}
+    </fieldset>
+    <div class="selfie-picker compact">
+      <label class="bee-button secondary selfie-button" for="profile-selfie">Replace with selfie</label>
+      <input id="profile-selfie" type="file" accept="image/*" capture="user">
+    </div>
+    <div class="profile-edit-actions">
+      <button class="bee-button primary" type="submit">Save profile</button>
+      <button id="cancel-profile-edit" class="bee-button secondary" type="button">Cancel</button>
+    </div>
+  </form>`;
 }
 
 function stopSpeaking() {
@@ -244,7 +292,9 @@ function renderLobby(state) {
       <h1>You’re in, ${escapeHTML(me?.name || "player")}!</h1>
       <p>${me?.team_name ? `You are on ${escapeHTML(me.team_name)}.` : "The host will start soon."}</p>
       <p class="waiting-dots">Look at the shared screen</p>
+      ${profileEditor(me)}
     </section>`;
+    bindProfileEditor();
     return;
   }
   const startDisabled = state.players.length ? "" : "disabled";
@@ -385,14 +435,18 @@ function renderRound(state) {
 function renderReveal(state) {
   const result = state.last_result || {};
   const isCorrect = result.outcome === "correct";
+  const isDraw = result.mode === "draw";
+  const drawSummary = isDraw
+    ? `${result.correct_guesses || 0} of ${result.guesser_count || result.guess_count || 0} guessed correctly${result.drawer_bonus ? ` · ${escapeHTML(state.active_player_name || "Drawer")} earned a ${result.drawer_bonus}-point drawing bonus` : ""}.`
+    : "";
   const controls = role === "host"
     ? `<button id="next-round" class="bee-button primary full" type="button">${state.round_index + 1 >= state.round_total ? "See winner" : "Next card"}</button>`
     : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage act-reveal-stage">
-      <div class="celebration-mark">${isCorrect ? "✓" : "✦"}</div>
-      <h1>${isCorrect ? "Correct!" : "Passed"}</h1>
-      <p>${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? "earned 100 points. Deal the next card when ready." : "gets no points for this card. Deal the next card when ready."}</p>
+      <div class="celebration-mark">${isCorrect || isDraw ? "✓" : "✦"}</div>
+      <h1>${isDraw ? "Drawing revealed" : isCorrect ? "Correct!" : "Passed"}</h1>
+      <p>${isDraw ? escapeHTML(drawSummary) : `${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? "earned 100 points. Deal the next card when ready." : "gets no points for this card. Deal the next card when ready."}`}</p>
       <div class="revealed-verse"><strong>Answer</strong><p>${escapeHTML(state.round?.answer || result.answer || "")}</p></div>
       ${clueList(state.round, true)}
       ${drawingBoard(state)}
@@ -424,7 +478,7 @@ function renderFinished(state) {
         <a class="bee-button secondary" href="${gameBase}">Back to ${escapeHTML(gameTitle)}</a>
       </div>
     </section>
-    ${scoreRail(state)}
+    ${scoreRail(state, role === "host" ? `<button id="play-again" class="bee-button secondary full" type="button">New game, same players</button>` : "")}
   </div>`;
   bindManagement();
 }
@@ -674,6 +728,77 @@ async function closeRoom() {
   }
 }
 
+function resizeProfileSelfie(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 128;
+        canvas.height = 128;
+        const context = canvas.getContext("2d");
+        const size = Math.min(image.naturalWidth, image.naturalHeight);
+        const sourceX = (image.naturalWidth - size) / 2;
+        const sourceY = (image.naturalHeight - size) / 2;
+        context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 128, 128);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      image.onerror = reject;
+      image.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function rememberGameProfile(name, avatarPreset) {
+  window.localStorage.setItem("faithsparksGameProfile", JSON.stringify({
+    name,
+    avatarPreset,
+  }));
+}
+
+function bindProfileEditor() {
+  document.querySelector("#edit-player-profile")?.addEventListener("click", () => {
+    profileEditorOpen = true;
+    renderLobby(latestState);
+  });
+  document.querySelector("#cancel-profile-edit")?.addEventListener("click", () => {
+    profileEditorOpen = false;
+    renderLobby(latestState);
+  });
+  document.querySelector("#player-profile-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const name = new FormData(form).get("player_name")?.toString().trim() || "";
+    const selectedPreset = form.querySelector('input[name="profile_avatar_preset"]:checked')?.value || "";
+    const file = form.querySelector("#profile-selfie")?.files?.[0];
+    const payload = { player_name: name };
+    try {
+      if (file) {
+        payload.avatar_data = await resizeProfileSelfie(file);
+        payload.avatar_preset = "";
+        rememberGameProfile(name, "");
+      } else if (selectedPreset !== "__keep") {
+        payload.avatar_data = "";
+        payload.avatar_preset = selectedPreset;
+        rememberGameProfile(name, selectedPreset);
+      } else {
+        rememberGameProfile(name, "");
+      }
+      await api(`${apiBase}/profile`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      profileEditorOpen = false;
+      await refresh();
+    } catch (error) {
+      showToast(error.message || "That profile could not be saved.");
+    }
+  });
+}
+
 function bindManagement() {
   document.querySelectorAll("[data-switch-team-player-id]").forEach(button => {
     button.addEventListener("click", () => switchTeam(button.dataset.switchTeamPlayerId));
@@ -683,6 +808,7 @@ function bindManagement() {
   });
   document.querySelector("#copy-join-link")?.addEventListener("click", copyJoinLink);
   document.querySelector("#close-room")?.addEventListener("click", closeRoom);
+  document.querySelector("#play-again")?.addEventListener("click", () => hostAction("play-again"));
   document.querySelector("#end-game")?.addEventListener("click", () => {
     if (window.confirm("End this game and show final scores?")) hostAction("end");
   });

@@ -799,6 +799,7 @@ def create_room():
         "difficulty": difficulty,
         "difficulty_name": DIFFICULTIES[difficulty]["name"],
         "choice_count": choice_count,
+        "round_count": round_count,
         "reveal_seconds": reveal_seconds,
         "passages": passages,
         "questions": questions,
@@ -948,6 +949,56 @@ def player_room(code: str):
     if not player_id or player_id not in room.get("players", {}):
         return redirect(url_for("bible_bee.join_room", code=code))
     return render_template("bible_bee_room.html", code=code, role="player", noindex=True)
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/profile")
+def update_player_profile(code: str):
+    code = code.upper()
+    player_id = _player_id(code)
+    if not player_id:
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    name = " ".join(str(payload.get("player_name") or "").strip().split())
+    avatar = payload.get("avatar_data")
+    avatar_preset = str(payload.get("avatar_preset") or "").strip()
+    if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
+        return jsonify({"error": "Choose a simple family-friendly name using letters or numbers."}), 400
+    if avatar_preset not in PRESET_AVATARS:
+        avatar_preset = ""
+    if avatar is not None:
+        avatar = str(avatar).strip()
+        if not _valid_avatar_data(avatar):
+            return jsonify({"error": "That picture could not be prepared. Try another selfie or use a preset."}), 400
+
+    def update(current):
+        if current.get("phase") != "lobby":
+            raise ValueError("Player profiles can only be changed before the game starts.")
+        player = current.get("players", {}).get(player_id)
+        if not player:
+            raise PermissionError
+        if any(
+            other_id != player_id and other.get("name", "").casefold() == name.casefold()
+            for other_id, other in current.get("players", {}).items()
+        ):
+            raise ValueError("That player name is already in this room. Add a family initial or nickname.")
+        player["name"] = name
+        player["last_seen"] = time.time()
+        if avatar is not None:
+            player["avatar"] = avatar
+            player["avatar_preset"] = "" if avatar else avatar_preset
+        elif "avatar_preset" in payload:
+            player["avatar"] = ""
+            player["avatar_preset"] = avatar_preset
+
+    try:
+        result = _mutate_room(code, update)
+    except PermissionError:
+        abort(403)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
 
 
 @bp.get("/api/family-bible-bee/rooms/<code>")
@@ -1180,6 +1231,53 @@ def rematch_missed_verses(code: str):
 
     try:
         result = _mutate_room(code, rematch)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/play-again")
+def play_again_same_players(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def reset(current):
+        if current.get("phase") != "finished":
+            raise ValueError("Finish the current game before starting another one.")
+        round_count = int(current.get("round_count") or sum(1 for question in current.get("questions", []) if not question.get("bonus")) or 5)
+        round_count = round_count if round_count in {3, 5, 10, 15, 20} else 5
+        current["questions"] = build_questions(
+            current.get("passages", []),
+            current.get("game_style", "classic_mix"),
+            round_count,
+            seed=f"{code}-{int(time.time())}",
+            choice_count=int(current.get("choice_count", 4)),
+            difficulty=current.get("difficulty", "family"),
+        )
+        current["round_count"] = round_count
+        current["question_index"] = 0
+        current["answers"] = {}
+        current["oral_judgments"] = {}
+        current["round_results"] = []
+        current["review"] = []
+        current["review_summary"] = {}
+        current["bonus_added"] = False
+        current["phase"] = "lobby"
+        current.pop("finished_at", None)
+        current.pop("reveal_deadline", None)
+        current.pop("question_deadline", None)
+        current.pop("question_seconds", None)
+        for player in current.get("players", {}).values():
+            player["score"] = 0
+            player["away"] = False
+            player["last_seen"] = time.time()
+
+    try:
+        result = _mutate_room(code, reset)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
     if result is None:

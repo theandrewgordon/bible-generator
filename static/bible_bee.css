@@ -828,6 +828,30 @@ select {
 .lobby-qr img { width: 112px; height: 112px; padding: 6px; background: white; border: 1px solid var(--bee-line); border-radius: 12px; }
 .waiting-dots::after { content: "…"; display: inline-block; width: 1.3em; text-align: left; }
 .player-wait { display: grid; min-height: 70vh; place-content: center; text-align: center; }
+.profile-edit-form {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 460px);
+  margin: 18px auto 0;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid var(--bee-border);
+  border-radius: 8px;
+  background: white;
+}
+.profile-edit-form input[name="player_name"] {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid #ccd8e8;
+  border-radius: 8px;
+  font: inherit;
+}
+.profile-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
 .revealed-verse {
   max-width: 850px;
   margin: -8px auto 22px;

@@ -1018,6 +1018,44 @@ def test_finished_game_can_rematch_missed_verses():
     assert next(iter(room["players"].values()))["score"] == 0
 
 
+def test_finished_bible_bee_can_play_again_with_same_players():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "play-again@example.com")
+    _prime(player)
+    created = _post(host, "/family-bible-bee/create", data={"csrf_token": CSRF, "round_count": "3", "team_mode": "on"})
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "avatar_preset": "esther", "csrf_token": CSRF},
+    ).status_code == 302
+
+    def force_finished(room):
+        player = next(iter(room["players"].values()))
+        player["score"] = 250
+        player["away"] = True
+        room["phase"] = "finished"
+        room["review_summary"] = {}
+
+    bible_bee._mutate_room(code, force_finished)
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/play-again", json={}).status_code == 200
+    room = bible_bee._get_room(code)
+    assert room["phase"] == "lobby"
+    assert room["question_index"] == 0
+    assert len(room["questions"]) == 3
+    assert room["answers"] == {}
+    assert room["round_results"] == []
+    player = next(iter(room["players"].values()))
+    assert player["name"] == "Ada"
+    assert player["avatar_preset"] == "esther"
+    assert player["score"] == 0
+    assert player["away"] is False
+
+
 def test_host_pause_skip_score_override_and_end_early():
     host = app.test_client()
     player = app.test_client()
@@ -1144,6 +1182,48 @@ def test_preset_bible_avatar_appears_in_public_player_state():
     assert state["players"][0]["avatar"] is None
 
 
+def test_player_can_edit_bible_bee_profile_before_start():
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    _prime(host, "profile-host@example.com")
+    _prime(first)
+    _prime(second)
+    created = _post(host, "/family-bible-bee/create")
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert _post(
+        first,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "avatar_preset": "fox", "csrf_token": CSRF},
+    ).status_code == 302
+    assert _post(
+        second,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ben", "csrf_token": CSRF},
+    ).status_code == 302
+
+    updated = _post(
+        first,
+        f"/api/family-bible-bee/rooms/{code}/profile",
+        json={"player_name": "Ava", "avatar_data": "", "avatar_preset": "esther"},
+    )
+
+    assert updated.status_code == 200
+    players = {player["name"]: player for player in host.get(f"/api/family-bible-bee/rooms/{code}").get_json()["players"]}
+    assert players["Ava"]["avatar_preset"] == "esther"
+    assert _post(
+        first,
+        f"/api/family-bible-bee/rooms/{code}/profile",
+        json={"player_name": "Ben", "avatar_preset": "cross"},
+    ).status_code == 409
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    assert _post(
+        first,
+        f"/api/family-bible-bee/rooms/{code}/profile",
+        json={"player_name": "Late Edit", "avatar_preset": "cross"},
+    ).status_code == 409
+
+
 def test_finish_the_verse_distractors_are_grammatical_near_misses():
     answer = "is born to help in time of need."
     distractors = bible_bee_content._finish_distractors(answer, [])
@@ -1205,6 +1285,64 @@ def test_finish_the_verse_question_prefers_plausible_alternatives(monkeypatch):
 
     assert question["label"] == "Finish the Verse"
     assert all(choice.startswith("is ") for choice in question["choices"])
+
+
+def test_finish_the_verse_falls_back_to_complete_choice_set(monkeypatch):
+    passages = [
+        {
+            "id": "short-finish",
+            "reference": "Genesis 1:1",
+            "text": "In the beginning God created the heavens.",
+            "blanks": [],
+        }
+    ]
+    monkeypatch.setitem(
+        bible_bee_content.GAME_STYLES,
+        "finish_only",
+        {"name": "Finish only", "description": "", "modes": ["finish"]},
+    )
+
+    questions = bible_bee_content.build_questions(
+        passages,
+        style="finish_only",
+        round_count=1,
+        seed="finish-fallback",
+        choice_count=4,
+    )
+
+    assert len(questions[0]["choices"]) == 4
+    assert questions[0]["choices"][questions[0]["correct"]] == "God created the heavens."
+    assert all(bible_bee_content._finish_choice_fits("God created the heavens.", choice) for choice in questions[0]["choices"])
+
+
+def test_fill_blank_falls_back_to_complete_logical_choice_set(monkeypatch):
+    passages = [
+        {
+            "id": "john-3-16",
+            "reference": "John 3:16",
+            "text": "For God so loved the world, that he gave his only Son.",
+            "blanks": ["world"],
+        }
+    ]
+    monkeypatch.setitem(
+        bible_bee_content.GAME_STYLES,
+        "blank_only",
+        {"name": "Blank only", "description": "", "modes": ["fill_blank"]},
+    )
+
+    questions = bible_bee_content.build_questions(
+        passages,
+        style="blank_only",
+        round_count=1,
+        seed="blank-fallback",
+        choice_count=4,
+    )
+
+    question = questions[0]
+    assert len(question["choices"]) == 4
+    assert question["choices"][question["correct"]] == "world"
+    assert "gave" not in {choice.lower() for choice in question["choices"]}
+    assert all(bible_bee_content._blank_choice_fits(question["prompt"], "world", choice) for choice in question["choices"])
 
 
 def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch):

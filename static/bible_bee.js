@@ -21,6 +21,19 @@ let audioContext = null;
 let readMode = window.localStorage.getItem("bibleBeeReadMode") || "off";
 let speechRun = 0;
 let lastSpokenQuestion = "";
+let profileEditorOpen = false;
+const presetAvatars = [
+  ["", "Initials"],
+  ["fox", "Friendly fox"],
+  ["sunflower", "Sunflower"],
+  ["ocean", "Ocean sunrise"],
+  ["david", "David with a harp"],
+  ["esther", "Queen Esther"],
+  ["jesus-children", "Jesus welcoming children"],
+  ["noah", "Noah's ark"],
+  ["empty-tomb", "Empty tomb"],
+  ["cross", "Jesus on the cross"],
+];
 
 function updateSoundToggle() {
   if (!soundToggle) return;
@@ -146,6 +159,41 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   window.setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function profileEditor(state, player) {
+  if (!player) return "";
+  if (!profileEditorOpen) {
+    return `<button id="edit-player-profile" class="bee-button secondary" type="button">Edit name or picture</button>`;
+  }
+  const keepSelfie = player.avatar && !player.avatar_preset
+    ? `<label class="avatar-choice">
+        <input type="radio" name="profile_avatar_preset" value="__keep" checked>
+        <span class="player-avatar"><img src="${escapeHTML(player.avatar)}" alt=""></span>
+        <small>Keep selfie</small>
+      </label>`
+    : "";
+  return `<form id="player-profile-form" class="profile-edit-form">
+    <label for="profile-player-name">Player name</label>
+    <input id="profile-player-name" name="player_name" maxlength="18" autocomplete="nickname" value="${escapeHTML(player.name)}" required>
+    <fieldset class="avatar-gallery">
+      <legend>Picture</legend>
+      ${keepSelfie}
+      ${presetAvatars.map(([id, label]) => `<label class="avatar-choice">
+        <input type="radio" name="profile_avatar_preset" value="${escapeHTML(id)}" ${!keepSelfie && (player.avatar_preset || "") === id ? "checked" : ""}>
+        <span class="${id ? `preset-avatar avatar-${escapeHTML(id)}` : ""}" aria-hidden="true">${id ? "" : "☺"}</span>
+        <small>${escapeHTML(label)}</small>
+      </label>`).join("")}
+    </fieldset>
+    <div class="selfie-picker compact">
+      <label class="bee-button secondary selfie-button" for="profile-selfie">Replace with selfie</label>
+      <input id="profile-selfie" type="file" accept="image/*" capture="user">
+    </div>
+    <div class="profile-edit-actions">
+      <button class="bee-button primary" type="submit">Save profile</button>
+      <button id="cancel-profile-edit" class="bee-button secondary" type="button">Cancel</button>
+    </div>
+  </form>`;
 }
 
 function roomPagePath() {
@@ -309,7 +357,9 @@ function renderLobby(state) {
       <h1>You’re in, ${escapeHTML(me?.name || "player")}!</h1>
       <p>The host will begin when everyone is ready.</p>
       <p class="waiting-dots">Waiting for the family</p>
+      ${profileEditor(state, me)}
     </section>`;
+    bindProfileEditor();
     return;
   }
   const startDisabled = state.players.length ? "" : "disabled";
@@ -532,8 +582,11 @@ function renderFinished(state) {
       ${nextGameActions("Back to Family Bible Bee")}
     </section>
     ${scoreRail(state, (summary.review_tomorrow || []).length && role === "host"
-      ? `<button id="review-rematch" class="bee-button gold full" type="button">Play missed verses again</button>`
-      : "")}
+      ? `<button id="review-rematch" class="bee-button gold full" type="button">Play missed verses again</button>
+         <button id="play-again" class="bee-button secondary full" type="button">New game, same players</button>`
+      : role === "host"
+        ? `<button id="play-again" class="bee-button secondary full" type="button">New game, same players</button>`
+        : "")}
   </div>`;
   bindRoomManagement();
 }
@@ -680,6 +733,78 @@ function bindRoomManagement() {
     if (window.confirm("End the game now and show the review summary?")) await hostAction("end");
   });
   document.querySelector("#review-rematch")?.addEventListener("click", () => hostAction("rematch"));
+  document.querySelector("#play-again")?.addEventListener("click", () => hostAction("play-again"));
+}
+
+function resizeProfileSelfie(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 128;
+        canvas.height = 128;
+        const context = canvas.getContext("2d");
+        const size = Math.min(image.naturalWidth, image.naturalHeight);
+        const sourceX = (image.naturalWidth - size) / 2;
+        const sourceY = (image.naturalHeight - size) / 2;
+        context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 128, 128);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      image.onerror = reject;
+      image.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function rememberGameProfile(name, avatarPreset) {
+  window.localStorage.setItem("faithsparksGameProfile", JSON.stringify({
+    name,
+    avatarPreset,
+  }));
+}
+
+function bindProfileEditor() {
+  document.querySelector("#edit-player-profile")?.addEventListener("click", () => {
+    profileEditorOpen = true;
+    renderLobby(latestState);
+  });
+  document.querySelector("#cancel-profile-edit")?.addEventListener("click", () => {
+    profileEditorOpen = false;
+    renderLobby(latestState);
+  });
+  document.querySelector("#player-profile-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const name = new FormData(form).get("player_name")?.toString().trim() || "";
+    const selectedPreset = form.querySelector('input[name="profile_avatar_preset"]:checked')?.value || "";
+    const file = form.querySelector("#profile-selfie")?.files?.[0];
+    const payload = { player_name: name };
+    try {
+      if (file) {
+        payload.avatar_data = await resizeProfileSelfie(file);
+        payload.avatar_preset = "";
+        rememberGameProfile(name, "");
+      } else if (selectedPreset !== "__keep") {
+        payload.avatar_data = "";
+        payload.avatar_preset = selectedPreset;
+        rememberGameProfile(name, selectedPreset);
+      } else {
+        rememberGameProfile(name, "");
+      }
+      await api(`/api/family-bible-bee/rooms/${code}/profile`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      profileEditorOpen = false;
+      await refresh();
+    } catch (error) {
+      showToast(error.message || "That profile could not be saved.");
+    }
+  });
 }
 
 function render(state) {

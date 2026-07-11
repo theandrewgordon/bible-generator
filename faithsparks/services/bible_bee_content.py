@@ -602,6 +602,40 @@ def _plausible_finish_variants(answer: str) -> list[str]:
     return variants
 
 
+def _fallback_finish_distractors(answer: str) -> list[str]:
+    """Last-resort phrase options that keep the same rough shape as the answer."""
+    words = _word_tokens(answer)
+    if not words:
+        return []
+    variants = []
+    candidate_indexes = [
+        index
+        for index, word in enumerate(words)
+        if len(word.strip("'")) >= 4
+    ] or [len(words) - 1]
+    replacements = (
+        "earth", "world", "light", "waters", "truth", "peace", "grace",
+        "hope", "wisdom", "mercy", "strength", "life", "joy", "love", "faith",
+    )
+    for index in reversed(candidate_indexes):
+        original = words[index]
+        for replacement in replacements:
+            if replacement.casefold() == original.casefold():
+                continue
+            next_words = list(words)
+            next_words[index] = _match_case(original, replacement)
+            variant = " ".join(next_words)
+            if answer.endswith(".") and not variant.endswith("."):
+                variant += "."
+            if variant.casefold() != answer.casefold() and variant.casefold() not in {
+                item.casefold() for item in variants
+            }:
+                variants.append(variant)
+            if len(variants) >= 8:
+                return variants
+    return variants
+
+
 def _finish_distractors(answer: str, passages: list[dict]) -> list[str]:
     """Prefer grammatical near-misses over visibly unrelated verse fragments."""
     answer_words = re.findall(r"[A-Za-z']+", answer)
@@ -626,8 +660,29 @@ def _finish_distractors(answer: str, passages: list[dict]) -> list[str]:
     )
     return [
         choice
-        for choice in _plausible_finish_variants(answer) + matching_endings + other_endings + full_verses
+        for choice in (
+            _plausible_finish_variants(answer)
+            + matching_endings
+            + other_endings
+            + full_verses
+            + _fallback_finish_distractors(answer)
+        )
         if _finish_choice_fits(answer, choice)
+    ]
+
+
+def _fallback_blank_distractors(prompt: str, blank: str) -> list[str]:
+    noun_like = (
+        "world", "earth", "heart", "truth", "light", "life", "word", "peace",
+        "hope", "love", "grace", "mercy", "wisdom", "strength", "faith", "joy",
+    )
+    name_like = ("God", "Lord", "Jesus", "Christ", "Spirit", "Father", "Son")
+    pool = name_like if blank[:1].isupper() else noun_like
+    return [
+        candidate
+        for candidate in pool
+        if candidate.casefold() != blank.casefold()
+        and _blank_choice_fits(prompt, blank, candidate)
     ]
 
 
@@ -681,7 +736,7 @@ def build_questions(
                 prompt = re.sub(rf"\b{re.escape(blank)}\b", "______", passage["text"], count=1, flags=re.I)
                 distractors = [
                     choice
-                    for choice in _blank_distractors(blank, others)
+                    for choice in _blank_distractors(blank, others) + _fallback_blank_distractors(prompt, blank)
                     if _blank_choice_fits(prompt, blank, choice)
                 ]
                 choices, correct = _shuffle_choices(
