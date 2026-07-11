@@ -36,8 +36,8 @@ def _create_team_room(host, theme="Bible Stories"):
     return match.group(1)
 
 
-def _create_draw_room(host, team_mode=False):
-    data = {"csrf_token": CSRF, "theme": "Draw It"}
+def _create_draw_room(host, team_mode=False, theme="Mix It Up"):
+    data = {"csrf_token": CSRF, "theme": theme}
     if team_mode:
         data["team_mode"] = "on"
     created = _post(host, "/group-games/draw-it/create", data=data)
@@ -90,7 +90,24 @@ def test_draw_it_entry_preselects_draw_theme():
 
     assert home.status_code == 200
     assert b"Draw a Bible prompt" in home.data
-    assert b'value="Draw It" checked' in home.data
+    assert b'value="Mix It Up" checked' in home.data
+    assert b"Bible Stories" in home.data
+    assert b"Jesus&#39; Miracles" in home.data
+    assert b"Easy Objects" in home.data
+
+
+def test_draw_it_theme_creates_collection_specific_rounds():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    _prime(host, "draw-theme@example.com")
+
+    code = _create_draw_room(host, theme="Easy Objects")
+    room = act_it_out._get_room(code)
+
+    assert room["theme"] == "Easy Objects"
+    assert {round_data["mode"] for round_data in room["rounds"]} == {"draw"}
+    assert {round_data["theme"] for round_data in room["rounds"]} == {"Easy Objects"}
 
 
 def test_act_it_out_create_defaults_to_individual_mode():

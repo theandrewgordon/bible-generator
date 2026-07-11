@@ -88,15 +88,58 @@ PROMPTS = [
     {"id": "story-good-samaritan", "answer": "The Good Samaritan", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "easy", "instruction": "Reveal clues until the team guesses the story.", "clues": ["Someone was hurt on a road.", "Two people passed by.", "A surprising neighbor stopped.", "Jesus told this story about loving your neighbor."]},
     {"id": "story-prodigal-son", "answer": "The Prodigal Son", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the story.", "clues": ["A son left home.", "He wasted what he was given.", "He came back sorry.", "His father welcomed him with joy."]},
     {"id": "story-psalm-23", "answer": "Psalm 23", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the passage.", "clues": ["It talks about a shepherd.", "It mentions green pastures.", "It says God is with us in dark valleys.", "Many families memorize this psalm."]},
-    {"id": "draw-washing-feet", "answer": "Jesus washing the disciples' feet", "modes": ["draw"], "theme": "Draw It", "difficulty": "medium", "instruction": "Draw a basin, towel, feet, and Jesus serving his disciples."},
-    {"id": "draw-noah-ark", "answer": "Noah's ark with animals", "modes": ["draw"], "theme": "Draw It", "difficulty": "easy", "instruction": "Draw a big boat, pairs of animals, and rain."},
-    {"id": "draw-good-samaritan", "answer": "The Good Samaritan helping the hurt man", "modes": ["draw"], "theme": "Draw It", "difficulty": "easy", "instruction": "Draw someone hurt on a road and a neighbor stopping to help."},
-    {"id": "draw-feeding-5000", "answer": "Jesus feeding the five thousand", "modes": ["draw"], "theme": "Draw It", "difficulty": "medium", "instruction": "Draw a crowd, baskets, bread, and fish."},
-    {"id": "draw-lost-sheep", "answer": "The lost sheep being found", "modes": ["draw"], "theme": "Draw It", "difficulty": "easy", "instruction": "Draw a shepherd finding one sheep."},
+    {"id": "draw-noah-ark", "answer": "Noah's ark with animals", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw a big boat, pairs of animals, and rain."},
+    {"id": "draw-david-goliath", "answer": "David facing Goliath", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw a small shepherd, a giant, and a sling."},
+    {"id": "draw-jonah-fish", "answer": "Jonah and the big fish", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw a storm, a fish, and Jonah praying."},
+    {"id": "draw-daniel-lions", "answer": "Daniel in the lions' den", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw Daniel praying near lions."},
+    {"id": "draw-moses-sea", "answer": "Moses parting the sea", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "medium", "instruction": "Draw Moses with a staff and water on both sides."},
+    {"id": "draw-jericho-walls", "answer": "The walls of Jericho falling", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "medium", "instruction": "Draw people marching, trumpets, and falling walls."},
+    {"id": "draw-calming-storm", "answer": "Jesus calming the storm", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "easy", "instruction": "Draw a boat, wild waves, and Jesus bringing peace."},
+    {"id": "draw-feeding-5000", "answer": "Jesus feeding the five thousand", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw a crowd, baskets, bread, and fish."},
+    {"id": "draw-walking-water", "answer": "Jesus walking on water", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw Jesus standing on waves near a boat."},
+    {"id": "draw-healing-blind", "answer": "Jesus healing the blind man", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw a man covering his eyes, then seeing."},
+    {"id": "draw-lazarus", "answer": "Jesus raising Lazarus", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw a tomb, wrapped cloth, and someone coming out."},
+    {"id": "draw-wedding-cana", "answer": "Water turned into wine", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw large jars, water, and a wedding celebration."},
+    {"id": "draw-good-samaritan", "answer": "The Good Samaritan helping the hurt man", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw someone hurt on a road and a neighbor stopping to help."},
+    {"id": "draw-lost-sheep", "answer": "The lost sheep being found", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw a shepherd finding one sheep."},
+    {"id": "draw-prodigal-son", "answer": "The Prodigal Son coming home", "modes": ["draw"], "theme": "Parables", "difficulty": "medium", "instruction": "Draw a father welcoming his son home."},
+    {"id": "draw-sower", "answer": "The sower scattering seed", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw a farmer tossing seeds on different ground."},
+    {"id": "draw-mustard-seed", "answer": "The mustard seed growing into a tree", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw a tiny seed becoming a big tree."},
+    {"id": "draw-wise-builder", "answer": "The wise man building on the rock", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw one house on rock and a storm around it."},
+    {"id": "draw-bethlehem", "answer": "Bethlehem stable", "modes": ["draw"], "theme": "People & Places", "difficulty": "easy", "instruction": "Draw a stable, manger, star, and animals."},
+    {"id": "draw-garden-eden", "answer": "The Garden of Eden", "modes": ["draw"], "theme": "People & Places", "difficulty": "easy", "instruction": "Draw a beautiful garden with trees and a river."},
+    {"id": "draw-mount-sinai", "answer": "Mount Sinai", "modes": ["draw"], "theme": "People & Places", "difficulty": "medium", "instruction": "Draw a mountain with clouds, lightning, and tablets."},
+    {"id": "draw-empty-tomb", "answer": "The empty tomb", "modes": ["draw"], "theme": "People & Places", "difficulty": "easy", "instruction": "Draw a tomb with the stone rolled away."},
+    {"id": "draw-upper-room", "answer": "The upper room", "modes": ["draw"], "theme": "People & Places", "difficulty": "medium", "instruction": "Draw disciples gathered around a table upstairs."},
+    {"id": "draw-road-damascus", "answer": "The road to Damascus", "modes": ["draw"], "theme": "People & Places", "difficulty": "medium", "instruction": "Draw a road, bright light, and Saul surprised."},
+    {"id": "draw-praying-hands", "answer": "Praying hands", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw hands folded in prayer."},
+    {"id": "draw-singing-worship", "answer": "Singing worship", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw people singing praise together."},
+    {"id": "draw-baptism", "answer": "Baptism", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw someone being baptized in water."},
+    {"id": "draw-communion", "answer": "Communion bread and cup", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw bread and a cup on a table."},
+    {"id": "draw-offering-basket", "answer": "Giving an offering", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw someone giving with a happy heart."},
+    {"id": "draw-serve-meal", "answer": "Serving a meal", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw someone serving food to another person."},
+    {"id": "draw-light-world", "answer": "Light of the world", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "easy", "instruction": "Draw a bright lamp or candle shining in darkness."},
+    {"id": "draw-fruit-spirit", "answer": "Fruit of the Spirit", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "easy", "instruction": "Draw fruit with love, joy, peace, or kindness around it."},
+    {"id": "draw-armor-god", "answer": "Armor of God", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "medium", "instruction": "Draw armor, a shield, and a helmet."},
+    {"id": "draw-narrow-road", "answer": "The narrow road", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "medium", "instruction": "Draw a small path leading toward light."},
+    {"id": "draw-living-water", "answer": "Living water", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "medium", "instruction": "Draw flowing water with life growing nearby."},
+    {"id": "draw-mustard-faith", "answer": "Faith like a mustard seed", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "easy", "instruction": "Draw a tiny seed beside a big plant."},
+    {"id": "draw-cross", "answer": "The cross", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a simple cross."},
+    {"id": "draw-bible", "answer": "An open Bible", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw an open Bible with pages."},
+    {"id": "draw-crown", "answer": "A crown", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a royal crown."},
+    {"id": "draw-fish-symbol", "answer": "A fish symbol", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a simple fish symbol."},
+    {"id": "draw-bread-fish", "answer": "Bread and fish", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw loaves of bread and fish."},
+    {"id": "draw-star", "answer": "The star over Bethlehem", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a bright star above a small town."},
+    {"id": "draw-creation", "answer": "Creation of the world", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw sun, moon, animals, plants, and water."},
+    {"id": "draw-red-sea-crossing", "answer": "Israel crossing the Red Sea", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw people walking between walls of water."},
+    {"id": "draw-washing-feet", "answer": "Jesus washing the disciples' feet", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw a basin, towel, feet, and Jesus serving his disciples."},
+    {"id": "draw-last-supper", "answer": "The Last Supper", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw Jesus and disciples around a long table."},
+    {"id": "draw-pentecost", "answer": "Pentecost", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "hard", "instruction": "Draw disciples, flames, wind, and people gathered."},
+    {"id": "draw-heavenly-city", "answer": "The new heaven and new earth", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "hard", "instruction": "Draw a bright city, river, trees, and joy."},
 ]
 
 ACT_THEMES = ["Bible Stories", "Jesus' Miracles", "People of the Bible", "Worship & Serving", "Faith Words", "Guess the Story"]
-DRAW_THEMES = ["Draw It"]
+DRAW_THEMES = ["Bible Stories", "Jesus' Miracles", "Parables", "People & Places", "Worship & Church", "Faith Pictures", "Easy Objects", "Big Scenes"]
 THEMES = [*ACT_THEMES, *DRAW_THEMES]
 
 _local_rooms: dict[str, dict] = {}
@@ -290,7 +333,11 @@ def _room_full_message(room: dict) -> str:
 
 def _prompt_pool(theme: str, game_type: str = "act_it_out") -> list[dict]:
     if game_type == "draw_it":
-        return [prompt for prompt in PROMPTS if "draw" in prompt["modes"]]
+        draw_prompts = [prompt for prompt in PROMPTS if "draw" in prompt["modes"]]
+        if theme in {"Mix It Up", "Draw It"}:
+            return draw_prompts
+        selected = [prompt for prompt in draw_prompts if prompt["theme"] == theme]
+        return selected or draw_prompts
     act_prompts = [prompt for prompt in PROMPTS if "draw" not in prompt["modes"]]
     if theme == "Mix It Up":
         return act_prompts
@@ -623,8 +670,8 @@ def draw_it_home():
         headline="Draw a Bible prompt. Everyone guesses on phones.",
         subhead="A shared-screen drawing game built for families, classrooms, and bigger groups.",
         form_action=url_for("act_it_out.create_draw_room"),
-        themes=DRAW_THEMES,
-        selected_theme="Draw It",
+        themes=["Mix It Up", *DRAW_THEMES],
+        selected_theme=request.args.get("theme") if request.args.get("theme") in {"Mix It Up", *DRAW_THEMES} else "Mix It Up",
         team_default=False,
         is_host_signed_in=bool(email),
         active_rooms=[room for room in _active_rooms_for_host(email) if room.get("game_type") == "draw_it"],
@@ -651,8 +698,8 @@ def _create_room(game_type: str):
     rate = check_rate_limit("act-it-out-create", email or get_client_ip(), limit=8, window_seconds=60 * 60)
     if not rate.allowed:
         return "Too many rooms created. Please try again later.", 429
-    theme = "Draw It" if game_type == "draw_it" else (request.form.get("theme") or "Mix It Up")
-    allowed_themes = set(DRAW_THEMES if game_type == "draw_it" else ["Mix It Up", *ACT_THEMES])
+    theme = request.form.get("theme") or "Mix It Up"
+    allowed_themes = set(["Mix It Up", *DRAW_THEMES] if game_type == "draw_it" else ["Mix It Up", *ACT_THEMES])
     if theme not in allowed_themes:
         theme = "Mix It Up"
     team_mode = request.form.get("team_mode") == "on"
