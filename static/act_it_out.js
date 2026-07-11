@@ -3,6 +3,10 @@
 const body = document.body;
 const code = body.dataset.roomCode;
 const role = body.dataset.role;
+const gameSlug = body.dataset.gameSlug || "act-it-out";
+const gameTitle = body.dataset.gameTitle || "Act It Out";
+const gameBase = `/group-games/${gameSlug}`;
+const apiBase = `/api/group-games/${gameSlug}/rooms/${code}`;
 const app = document.querySelector("#act-app");
 const toast = document.querySelector("#act-toast");
 const connectionStatus = document.querySelector("#act-connection");
@@ -102,9 +106,9 @@ function speakState(state, force = false) {
 }
 
 function roomPagePath() {
-  if (role === "host") return `/group-games/act-it-out/host/${encodeURIComponent(code)}`;
-  if (role === "display") return `/group-games/act-it-out/display/${encodeURIComponent(code)}`;
-  return `/group-games/act-it-out/play/${encodeURIComponent(code)}`;
+  if (role === "host") return `${gameBase}/host/${encodeURIComponent(code)}`;
+  if (role === "display") return `${gameBase}/display/${encodeURIComponent(code)}`;
+  return `${gameBase}/play/${encodeURIComponent(code)}`;
 }
 
 async function refreshCsrfToken() {
@@ -205,7 +209,7 @@ function scoreRail(state, controls = "") {
     <div class="score-list">${playerRows(state, role === "host" && state.phase === "lobby")}</div>
     ${role === "host" ? `<div class="host-controls">
       ${controls}
-      <a class="bee-button secondary full" href="/group-games/act-it-out/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
+      <a class="bee-button secondary full" href="${gameBase}/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
       <button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>
       ${["round", "reveal"].includes(state.phase) ? `<button id="end-game" class="text-button danger-text" type="button">End game</button>` : ""}
       <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
@@ -252,7 +256,7 @@ function renderLobby(state) {
       <div class="lobby-code-row">
         <div class="big-code">${escapeHTML(code)}</div>
         <div class="lobby-qr">
-          <img src="/group-games/act-it-out/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
+          <img src="${gameBase}/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
           <span>Scan to join</span>
         </div>
       </div>
@@ -301,16 +305,39 @@ function drawingBoard(state, editable = false) {
   </div>`;
 }
 
+function drawGuessPanel(state) {
+  if (state.round?.mode !== "draw") return "";
+  if (state.viewer.draw_answer) {
+    return `<div class="answer-locked-panel">
+      <strong>Answer locked</strong>
+      <p>You chose ${escapeHTML(state.viewer.draw_answer.choice)}. Look up at the screen for the reveal.</p>
+    </div>`;
+  }
+  const choices = state.round.choices || [];
+  return `<div class="answer-grid draw-guess-grid">
+    ${choices.map(choice => `<button class="answer-button draw-guess-choice" data-draw-choice="${escapeHTML(choice)}" type="button">
+      <span class="answer-letter">?</span>
+      <strong>${escapeHTML(choice)}</strong>
+    </button>`).join("")}
+  </div>`;
+}
+
 function renderRound(state) {
   const isActivePlayer = role === "player" && state.viewer.player_id === state.active_player_id;
   if (role === "player") {
     const hasSecretPrompt = Boolean(state.viewer.secret_prompt);
+    const isDrawGuessing = state.round?.mode === "draw" && !isActivePlayer;
     app.innerHTML = `<section class="game-stage player-turn-stage">
       ${isActivePlayer && hasSecretPrompt
         ? `<p class="round-meta">Your turn · ${escapeHTML(state.active_team_name || "Play")}</p>
            <h1>${escapeHTML(modeLabel(state.viewer.secret_prompt?.mode))}</h1>
            ${secretPromptCard(state.viewer.secret_prompt)}
            ${drawingBoard(state, state.viewer.secret_prompt?.mode === "draw")}`
+        : isDrawGuessing
+          ? `<div class="celebration-mark">?</div>
+             <h1>Guess the drawing</h1>
+             <p>${escapeHTML(state.active_player_name || "A player")} is drawing on the shared screen.</p>
+             ${drawGuessPanel(state)}`
         : `<div class="celebration-mark">✦</div>
            <h1>Look at the screen</h1>
            <p>${state.round?.mode === "guess"
@@ -324,10 +351,13 @@ function renderRound(state) {
   const isDraw = state.round?.mode === "draw";
   const canRevealClue = isGuess && (state.round?.clues?.length || 0) < (state.round?.clue_count || 0);
   const controls = role === "host"
-    ? `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
-       ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
-       <button id="correct-round" class="bee-button primary full" type="button">Got it right · +100</button>
-       <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>`
+    ? isDraw
+      ? `<p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
+         <button id="pass-round" class="bee-button secondary full" type="button">Reveal answer</button>`
+      : `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
+         ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
+         <button id="correct-round" class="bee-button primary full" type="button">Got it right · +100</button>
+         <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>`
     : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage act-round-stage">
@@ -335,9 +365,10 @@ function renderRound(state) {
       <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       <div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. Award 100 points when they get it." : isDraw ? "The drawing appears here after the player sends it. Award 100 points when they get it." : "Guess out loud. Award 100 points when they get it."}</p>
+      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. Award 100 points when they get it." : isDraw ? "The drawing appears here after the player sends it. Phone guesses score automatically." : "Guess out loud. Award 100 points when they get it."}</p>
       ${clueList(state.round)}
       ${drawingBoard(state)}
+      ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
       ${role === "host" ? secretPromptCard(activePrompt, true) : ""}
     </section>
     ${scoreRail(state, controls)}
@@ -345,6 +376,9 @@ function renderRound(state) {
   document.querySelector("#reveal-clue")?.addEventListener("click", () => hostAction("clue"));
   document.querySelector("#correct-round")?.addEventListener("click", () => hostAction("correct"));
   document.querySelector("#pass-round")?.addEventListener("click", () => hostAction("pass"));
+  document.querySelectorAll("[data-draw-choice]").forEach(button => {
+    button.addEventListener("click", () => submitDrawGuess(button.dataset.drawChoice));
+  });
   bindManagement();
 }
 
@@ -387,7 +421,7 @@ function renderFinished(state) {
         ${leaders.map((player, index) => `<div><span>${index + 1}. ${escapeHTML(player.name)}</span><strong>${player.score}</strong></div>`).join("")}
       </div>
       <div class="next-game-actions">
-        <a class="bee-button secondary" href="/group-games/act-it-out">Back to Act It Out</a>
+        <a class="bee-button secondary" href="${gameBase}">Back to ${escapeHTML(gameTitle)}</a>
       </div>
     </section>
     ${scoreRail(state)}
@@ -411,11 +445,11 @@ function displayRosters(state) {
 function renderDisplay(state) {
   if (state.phase === "lobby") {
     app.innerHTML = `<section class="display-stage display-lobby">
-      <p class="display-kicker">Act It Out · ${escapeHTML(state.theme)}</p>
+      <p class="display-kicker">${escapeHTML(gameTitle)} · ${escapeHTML(state.theme)}</p>
       <h1>Join the Game</h1>
       <div class="display-join-row">
         <div><span>Room code</span><strong>${escapeHTML(code)}</strong></div>
-        <img src="/group-games/act-it-out/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
+        <img src="${gameBase}/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
       </div>
       <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready · ${state.round_total} cards · 100 points each</p>
       ${displayRosters(state)}
@@ -431,6 +465,7 @@ function renderDisplay(state) {
       ${clueList(state.round)}
       ${drawingBoard(state)}
       <div class="act-timer display"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
+      ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
       <p class="act-display-instruction">${isGuess ? "Call out the answer. A correct guess is worth 100 points." : isDraw ? "Guess from the drawing. A correct guess is worth 100 points." : "Guess out loud. A correct guess is worth 100 points."}</p>
     </section>`;
   } else if (state.phase === "reveal") {
@@ -483,9 +518,14 @@ async function refresh() {
   if (requestInFlight) return;
   requestInFlight = true;
   try {
-    const state = await api(`/api/group-games/act-it-out/rooms/${code}`);
+    const state = await api(apiBase);
     failedRefreshes = 0;
     connectionStatus.classList.remove("show");
+    const activeCanvas = document.querySelector("#draw-canvas");
+    if (activeCanvas && latestState?.phase === "round" && state.phase === "round" && latestState?.round_index === state.round_index) {
+      latestState = state;
+      return;
+    }
     const signature = JSON.stringify(state);
     if (signature !== lastRenderSignature) {
       lastRenderSignature = signature;
@@ -502,14 +542,14 @@ async function refresh() {
 async function heartbeat() {
   if (role !== "player" || document.hidden) return;
   try {
-    await api(`/api/group-games/act-it-out/rooms/${code}/heartbeat`, { method: "POST", body: "{}" });
+    await api(`${apiBase}/heartbeat`, { method: "POST", body: "{}" });
   } catch (_error) {
   }
 }
 
 async function hostAction(action) {
   try {
-    await api(`/api/group-games/act-it-out/rooms/${code}/${action}`, { method: "POST", body: "{}" });
+    await api(`${apiBase}/${action}`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -520,11 +560,23 @@ async function sendDrawing(canvas) {
   try {
     const status = document.querySelector("#draw-status");
     status.textContent = "Sending drawing...";
-    await api(`/api/group-games/act-it-out/rooms/${code}/drawing`, {
+    await api(`${apiBase}/drawing`, {
       method: "POST",
       body: JSON.stringify({ drawing: canvas.toDataURL("image/png") }),
     });
     status.textContent = "Drawing sent. Keep adding details and send again if you want.";
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function submitDrawGuess(choice) {
+  try {
+    await api(`${apiBase}/guess`, {
+      method: "POST",
+      body: JSON.stringify({ choice }),
+    });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -574,7 +626,7 @@ function initDrawingCanvas() {
 
 async function switchTeam(playerId) {
   try {
-    await api(`/api/group-games/act-it-out/rooms/${code}/players/${encodeURIComponent(playerId)}/team`, { method: "POST", body: "{}" });
+    await api(`${apiBase}/players/${encodeURIComponent(playerId)}/team`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -583,7 +635,7 @@ async function switchTeam(playerId) {
 
 async function rebalanceTeams() {
   try {
-    await api(`/api/group-games/act-it-out/rooms/${code}/teams/rebalance`, { method: "POST", body: "{}" });
+    await api(`${apiBase}/teams/rebalance`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -592,7 +644,7 @@ async function rebalanceTeams() {
 
 async function removePlayer(playerId) {
   try {
-    await api(`/api/group-games/act-it-out/rooms/${code}/players/${encodeURIComponent(playerId)}/remove`, { method: "POST", body: "{}" });
+    await api(`${apiBase}/players/${encodeURIComponent(playerId)}/remove`, { method: "POST", body: "{}" });
     await refresh();
   } catch (error) {
     showToast(error.message);
@@ -600,7 +652,7 @@ async function removePlayer(playerId) {
 }
 
 async function copyJoinLink() {
-  const url = `${window.location.origin}/group-games/act-it-out/join/${code}`;
+  const url = `${window.location.origin}${gameBase}/join/${code}`;
   try {
     await navigator.clipboard.writeText(url);
     showToast("Join link copied.");
@@ -612,7 +664,7 @@ async function copyJoinLink() {
 async function closeRoom() {
   if (!window.confirm("Permanently delete this room for everyone?")) return;
   try {
-    const result = await api(`/api/group-games/act-it-out/rooms/${code}/close`, {
+    const result = await api(`${apiBase}/close`, {
       method: "POST",
       body: "{}",
     });

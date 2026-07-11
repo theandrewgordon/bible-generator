@@ -36,6 +36,17 @@ def _create_team_room(host, theme="Bible Stories"):
     return match.group(1)
 
 
+def _create_draw_room(host, team_mode=False):
+    data = {"csrf_token": CSRF, "theme": "Draw It"}
+    if team_mode:
+        data["team_mode"] = "on"
+    created = _post(host, "/group-games/draw-it/create", data=data)
+    assert created.status_code == 302
+    match = re.search(r"/host/([A-Z0-9]{4})$", created.headers["Location"])
+    assert match
+    return match.group(1)
+
+
 def test_group_games_hub_keeps_old_url_alias():
     client = app.test_client()
     new_page = client.get("/group-games")
@@ -57,7 +68,6 @@ def test_act_it_out_home_explains_round_flow_and_draw_mode():
 
     assert home.status_code == 200
     assert b"How to play" in home.data
-    assert b"Draw It" in home.data
     assert b"Got it right" in home.data
     assert b"No point / pass" in home.data
 
@@ -69,17 +79,46 @@ def test_group_games_hub_exposes_draw_it_entry():
 
     assert hub.status_code == 200
     assert b"Draw It" in hub.data
-    assert b"theme=Draw+It" in hub.data
+    assert b"/group-games/draw-it" in hub.data
 
 
 def test_draw_it_entry_preselects_draw_theme():
     client = app.test_client()
     _prime(client, "draw-entry@example.com")
 
-    home = client.get("/group-games/act-it-out?theme=Draw+It")
+    home = client.get("/group-games/draw-it")
 
     assert home.status_code == 200
+    assert b"Draw a Bible prompt" in home.data
     assert b'value="Draw It" checked' in home.data
+
+
+def test_act_it_out_create_defaults_to_individual_mode():
+    host = app.test_client()
+    _prime(host, "act-individual@example.com")
+
+    created = _post(host, "/group-games/act-it-out/create", data={"csrf_token": CSRF, "theme": "Bible Stories"})
+
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert state["team_mode"] is False
+    assert state["teams"] == []
+
+
+def test_act_it_out_mix_it_up_excludes_draw_rounds():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    _prime(host, "act-no-draw@example.com")
+
+    created = _post(host, "/group-games/act-it-out/create", data={"csrf_token": CSRF, "theme": "Mix It Up"})
+
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    room = act_it_out._get_room(code)
+    assert {round_data["mode"] for round_data in room["rounds"]} <= {"act", "clue", "guess"}
+    assert all(round_data["theme"] != "Draw It" for round_data in room["rounds"])
 
 
 def test_act_it_out_create_join_and_display_lobby():
@@ -197,7 +236,7 @@ def test_secret_prompt_visible_only_to_host_and_active_player():
     for client, name in ((first, "Ada"), (second, "Ben")):
         assert _post(
             client,
-            f"/group-games/act-it-out/join/{code}",
+            f"/group-games/draw-it/join/{code}",
             data={"csrf_token": CSRF, "player_name": name},
         ).status_code == 302
 
@@ -229,7 +268,7 @@ def test_guess_mode_reveals_clues_without_leaking_answer_to_players():
     for client, name in ((first, "Ada"), (second, "Ben")):
         assert _post(
             client,
-            f"/group-games/act-it-out/join/{code}",
+            f"/group-games/draw-it/join/{code}",
             data={"csrf_token": CSRF, "player_name": name},
         ).status_code == 302
 
@@ -272,7 +311,7 @@ def test_draw_mode_accepts_only_active_player_drawing_without_revealing_answer()
     _prime(first)
     _prime(second)
     _prime(display)
-    code = _create_team_room(host, theme="Draw It")
+    code = _create_draw_room(host)
     for client, name in ((first, "Ada"), (second, "Ben")):
         assert _post(
             client,
@@ -280,23 +319,71 @@ def test_draw_mode_accepts_only_active_player_drawing_without_revealing_answer()
             data={"csrf_token": CSRF, "player_name": name},
         ).status_code == 302
 
-    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
-    host_state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
-    first_state = first.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
-    display_state = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={}).status_code == 200
+    host_state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    first_state = first.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    display_state = display.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
 
     assert host_state["round"]["mode"] == "draw"
+    assert host_state["game_type"] == "draw_it"
     assert host_state["round"]["answer"] is None
+    assert len(host_state["round"]["choices"]) == 4
     assert host_state["viewer"]["secret_prompt"]["answer"]
     assert first_state["viewer"]["secret_prompt"]["mode"] == "draw"
     assert display_state["round"]["answer"] is None
     assert display_state["round"]["drawing"] is None
-    assert _post(second, f"/api/group-games/act-it-out/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 403
+    assert _post(second, f"/api/group-games/draw-it/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 403
 
-    assert _post(first, f"/api/group-games/act-it-out/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 200
-    drawn = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert _post(first, f"/api/group-games/draw-it/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 200
+    drawn = display.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
     assert drawn["round"]["drawing"] == PNG_1X1
     assert drawn["round"]["answer"] is None
+
+
+def test_draw_mode_requires_a_drawer_and_guesser_to_start():
+    host = app.test_client()
+    drawer = app.test_client()
+    _prime(host, "draw-needs-two-host@example.com")
+    _prime(drawer)
+    code = _create_draw_room(host)
+    assert _post(
+        drawer,
+        f"/group-games/draw-it/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada"},
+    ).status_code == 302
+
+    response = _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={})
+
+    assert response.status_code == 409
+    assert b"one to draw and one to guess" in response.data
+
+
+def test_draw_mode_phone_guess_scores_and_reveals_when_all_guess():
+    host = app.test_client()
+    drawer = app.test_client()
+    guesser = app.test_client()
+    _prime(host, "draw-score-host@example.com")
+    _prime(drawer)
+    _prime(guesser)
+    code = _create_draw_room(host)
+    for client, name in ((drawer, "Ada"), (guesser, "Ben")):
+        assert _post(
+            client,
+            f"/group-games/draw-it/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={}).status_code == 200
+    state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    correct = state["viewer"]["secret_prompt"]["answer"]
+
+    assert _post(guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": correct}).status_code == 200
+
+    reveal = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    assert reveal["phase"] == "reveal"
+    assert reveal["last_result"]["correct_guesses"] == 1
+    players = {player["name"]: player for player in reveal["players"]}
+    assert players["Ben"]["score"] == 100
 
 
 def test_correct_scores_team_and_next_round_alternates_team():

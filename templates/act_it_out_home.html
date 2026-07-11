@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Act It Out · FaithSparks</title>
+    <title>{{ game_title|default('Act It Out') }} · FaithSparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
   </head>
@@ -14,18 +14,18 @@
       <a class="bee-brand" href="{{ url_for('act_it_out.hub') }}">
         <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
         <span class="brand-divider"></span>
-        <strong>Act It Out</strong>
+        <strong>{{ game_title|default('Act It Out') }}</strong>
       </a>
     </header>
     <main class="bee-home act-home">
       <section class="home-copy">
-        <h1>Bible charades for group game night.</h1>
-        <p>One TV screen, phones for players, and quick team rounds where the answer stays secret until reveal.</p>
+        <h1>{{ headline|default('Bible charades for group game night.') }}</h1>
+        <p>{{ subhead|default('One TV screen, phones for players, and quick rounds where the answer stays secret until reveal.') }}</p>
         {% if is_host_signed_in %}
-          <form class="act-setup" method="post" action="{{ url_for('act_it_out.create_room') }}">
+          <form class="act-setup" method="post" action="{{ form_action|default(url_for('act_it_out.create_room')) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="team-mode-toggle">
-              <input type="checkbox" name="team_mode" checked>
+              <input type="checkbox" name="team_mode" {% if team_default %}checked{% endif %}>
               <span>
                 <strong>Team mode</strong>
                 <small>Auto-split players into Gold and Blue teams.</small>
@@ -43,7 +43,7 @@
               </div>
             </fieldset>
             <div class="create-room-row">
-              <p>10 rounds · 45 seconds · host scored</p>
+              <p>{% if game_type == 'draw_it' %}10 rounds · 45 seconds · phone guesses{% else %}10 rounds · 45 seconds · host scored{% endif %}</p>
               <button class="bee-button primary large" type="submit">Create room</button>
             </div>
           </form>
@@ -54,17 +54,17 @@
       </section>
       {% if active_rooms %}
         <section class="active-rooms">
-          <h2>Continue a recent Act It Out room</h2>
+          <h2>Continue a recent {{ game_title|default('Act It Out') }} room</h2>
           {% for room in active_rooms %}
             <div class="active-room-row">
-              <a href="{{ url_for('act_it_out.host_room', code=room.code) }}">
+              <a href="/group-games/{% if room.game_type == 'draw_it' %}draw-it{% else %}act-it-out{% endif %}/host/{{ room.code }}">
                 <span>
                   <strong>Room {{ room.code }}</strong>
                   <small>{{ room.theme }} · {{ room.players }} players · {{ room.phase|capitalize }}</small>
                 </span>
                 <b>Resume →</b>
               </a>
-              <form class="delete-room-form" method="post" action="{{ url_for('act_it_out.delete_room_from_home', code=room.code) }}">
+              <form class="delete-room-form" method="post" action="/group-games/{% if room.game_type == 'draw_it' %}draw-it{% else %}act-it-out{% endif %}/rooms/{{ room.code }}/delete">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="text-button danger-text" type="submit" aria-label="Delete room {{ room.code }}">Delete</button>
               </form>
@@ -75,7 +75,7 @@
       <section class="how-to-panel" aria-labelledby="act-how-heading">
         <div>
           <span class="section-kicker">How to play</span>
-          <h2 id="act-how-heading">One player performs. Everyone guesses out loud.</h2>
+          <h2 id="act-how-heading">{% if game_type == 'draw_it' %}One player draws. Everyone guesses on phones.{% else %}One player performs. Everyone guesses out loud.{% endif %}</h2>
         </div>
         <ol class="how-steps">
           <li>
@@ -84,23 +84,24 @@
           </li>
           <li>
             <strong>A player gets the card</strong>
-            <span>They act, give clues, draw, or follow the TV clues.</span>
+            <span>{% if game_type == 'draw_it' %}They draw the secret prompt on their phone.{% else %}They act, give clues, or follow the TV clues.{% endif %}</span>
           </li>
           <li>
             <strong>The room guesses</strong>
-            <span>Players call answers out loud while the answer stays hidden.</span>
+            <span>{% if game_type == 'draw_it' %}Players choose the answer on their phones before reveal.{% else %}Players call answers out loud while the answer stays hidden.{% endif %}</span>
           </li>
           <li>
-            <strong>Host awards points</strong>
-            <span>Tap “Got it right · +100” or “No point / pass,” then deal the next card.</span>
+            <strong>{% if game_type == 'draw_it' %}Scores lock in{% else %}Host awards points{% endif %}</strong>
+            <span>{% if game_type == 'draw_it' %}Correct phone guesses earn points automatically.{% else %}Tap “Got it right · +100” or “No point / pass,” then deal the next card.{% endif %}</span>
           </li>
         </ol>
-        <div class="mode-chip-row" aria-label="Act It Out round types">
-          <span>Act It Out</span>
-          <span>Give Clues</span>
-          <span>Guess the Story</span>
-          <span>Draw It</span>
-        </div>
+        {% if game_type != 'draw_it' %}
+          <div class="mode-chip-row" aria-label="Act It Out round types">
+            <span>Act It Out</span>
+            <span>Give Clues</span>
+            <span>Guess the Story</span>
+          </div>
+        {% endif %}
       </section>
       <section class="join-panel">
         <h2>Joining a game?</h2>
@@ -116,7 +117,7 @@
       document.querySelector("#act-code-form").addEventListener("submit", (event) => {
         event.preventDefault();
         const code = document.querySelector("#room-code").value.trim().toUpperCase();
-        if (code.length === 4) window.location.href = `/group-games/act-it-out/join/${encodeURIComponent(code)}`;
+        if (code.length === 4) window.location.href = `/group-games/{{ game_slug|default('act-it-out') }}/join/${encodeURIComponent(code)}`;
       });
       document.querySelectorAll(".delete-room-form").forEach(form => {
         form.addEventListener("submit", event => {

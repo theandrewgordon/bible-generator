@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Room {{ code }} · Act It Out</title>
+    <title>Room {{ code }} · {{ game_title|default('Act It Out') }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
     <script src="{{ url_for('static', filename='act_it_out.js') }}?v={{ static_v|default(1) }}" defer></script>
   </head>
-  <body class="bee-body room-body act-room-body" data-room-code="{{ code }}" data-role="{{ role }}">
+  <body class="bee-body room-body act-room-body" data-room-code="{{ code }}" data-role="{{ role }}" data-game-slug="{{ game_slug|default('act-it-out') }}" data-game-title="{{ game_title|default('Act It Out') }}">
     <header class="bee-header room-header">
-      <a class="bee-brand" href="{{ url_for('act_it_out.home') }}">
+      <a class="bee-brand" href="{% if game_slug|default('act-it-out') == 'draw-it' %}{{ url_for('act_it_out.draw_it_home') }}{% else %}{{ url_for('act_it_out.home') }}{% endif %}">
         <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
         <span class="brand-divider"></span>
-        <strong>Act It Out</strong>
+        <strong>{{ game_title|default('Act It Out') }}</strong>
       </a>
       <div class="room-code-block">
         <span>Room</span>
