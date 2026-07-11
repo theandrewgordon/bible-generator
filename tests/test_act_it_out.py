@@ -138,6 +138,21 @@ def test_act_it_out_mix_it_up_excludes_draw_rounds():
     assert all(round_data["theme"] != "Draw It" for round_data in room["rounds"])
 
 
+def test_act_it_out_collections_have_playable_prompts():
+    from faithsparks.views import act_it_out
+
+    act_prompts = [prompt for prompt in act_it_out.PROMPTS if "draw" not in prompt["modes"]]
+
+    for theme in act_it_out.ACT_THEMES:
+        themed = [prompt for prompt in act_prompts if prompt["theme"] == theme]
+        assert themed, theme
+        if theme == "Guess the Story":
+            assert all(prompt["modes"] == ["guess"] and len(prompt.get("clues", [])) >= 4 for prompt in themed)
+        else:
+            assert all("act" in prompt["modes"] for prompt in themed)
+            assert all(prompt.get("instruction", "").startswith("Act ") for prompt in themed)
+
+
 def test_act_it_out_create_join_and_display_lobby():
     host = app.test_client()
     player = app.test_client()
