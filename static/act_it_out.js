@@ -125,7 +125,7 @@ function speakState(state, force = false) {
       text: modeLabel(state.round.mode),
       element: () => document.querySelector(".display-prompt, .mode-banner, .player-turn-stage h1"),
     });
-    if (state.viewer.secret_prompt) {
+    if (state.viewer.secret_prompt && role !== "player") {
       items.push({
         text: state.viewer.secret_prompt.answer,
         element: () => document.querySelector(".secret-prompt-card h2"),

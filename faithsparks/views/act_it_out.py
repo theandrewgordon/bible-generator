@@ -34,6 +34,7 @@ INDIVIDUAL_PLAYER_LIMIT = 12
 DEFAULT_ROUNDS = 10
 ROUND_SECONDS = 45
 POINTS_CORRECT = 100
+PLAYER_CONNECTED_SECONDS = 40
 MAX_AVATAR_DATA_LENGTH = 60_000
 MAX_DRAWING_DATA_LENGTH = 260_000
 AVATAR_DATA_RE = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/=]+$")
@@ -395,6 +396,21 @@ def _available_players(room: dict, team_id: str | None = None) -> list[tuple[str
     return sorted(players, key=lambda item: (float(item[1].get("joined_at", 0)), item[1].get("name", "").lower()))
 
 
+def _player_connected(player: dict, now: float | None = None) -> bool:
+    now = now or time.time()
+    return now - float(player.get("last_seen", player.get("joined_at", 0))) < PLAYER_CONNECTED_SECONDS
+
+
+def _draw_guesser_ids(room: dict, connected_only: bool = True) -> list[str]:
+    now = time.time()
+    return [
+        player_id
+        for player_id, player in _available_players(room)
+        if player_id != room.get("active_player_id")
+        and (not connected_only or _player_connected(player, now))
+    ]
+
+
 def _active_round(room: dict) -> dict | None:
     index = int(room.get("round_index", 0))
     rounds = room.get("rounds", [])
@@ -474,11 +490,7 @@ def _complete_draw_round(room: dict, outcome: str = "draw", now: float | None = 
         raise ValueError("This drawing round is not active.")
     answers = room.get("draw_answers", {})
     correct_count = sum(1 for answer in answers.values() if answer.get("correct"))
-    guesser_count = sum(
-        1
-        for player_id, _player in _available_players(room)
-        if player_id != room.get("active_player_id")
-    )
+    guesser_count = len(_draw_guesser_ids(room))
     drawer_bonus = 0
     active_player = room.get("players", {}).get(room.get("active_player_id") or "")
     if active_player and guesser_count and correct_count >= max(1, (guesser_count + 1) // 2):
@@ -500,6 +512,20 @@ def _complete_draw_round(room: dict, outcome: str = "draw", now: float | None = 
     room["last_result"] = room["round_results"][-1]
     room["phase"] = "reveal"
     room.pop("round_deadline", None)
+
+
+def _maybe_complete_draw_round(room: dict) -> bool:
+    active = _active_round(room)
+    if room.get("phase") != "round" or not active or active.get("mode") != "draw":
+        return False
+    guesser_ids = _draw_guesser_ids(room)
+    if not guesser_ids:
+        return False
+    answers = room.get("draw_answers", {})
+    if all(guesser_id in answers for guesser_id in guesser_ids):
+        _complete_draw_round(room, "draw")
+        return True
+    return False
 
 
 def _advance_round(room: dict, now: float | None = None) -> None:
@@ -546,7 +572,7 @@ def _public_players(room: dict, code: str) -> list[dict]:
             "id": player_id,
             "name": player["name"],
             "score": int(player.get("score", 0)),
-            "connected": now - float(player.get("last_seen", player.get("joined_at", 0))) < 40,
+            "connected": _player_connected(player, now),
             "away": bool(player.get("away", False)),
             "team_id": team["id"] if team else None,
             "team_name": team["name"] if team else None,
@@ -581,11 +607,7 @@ def _public_room(room: dict, code: str) -> dict:
             "choices": active.get("choices", []) if active.get("mode") == "draw" and room.get("phase") == "round" else [],
         }
         if active.get("mode") == "draw":
-            guesser_ids = [
-                player_id
-                for player_id, player in _available_players(room)
-                if player_id != room.get("active_player_id")
-            ]
+            guesser_ids = _draw_guesser_ids(room)
             visible_round["answered_count"] = len(room.get("draw_answers", {}))
             visible_round["guesser_count"] = len(guesser_ids)
     players = _public_players(room, code)
@@ -870,8 +892,14 @@ def join_room(code: str):
             return _render_join_page(
                 code, "That picture could not be prepared. Try another selfie or join without one."
             ), 400
+        if room.get("team_mode") and avatar:
+            return _render_join_page(
+                code, "Team rooms use preset avatars to keep large games fast. Choose a preset instead."
+            ), 400
 
         def add_player(current):
+            if current.get("team_mode") and avatar:
+                raise ValueError("Team rooms use preset avatars to keep large games fast. Choose a preset instead.")
             if len(current.get("players", {})) >= _player_limit(current) and player_id not in current.get("players", {}):
                 raise ValueError(_room_full_message(current))
             if any(other_id != player_id and player.get("name", "").casefold() == name.casefold() for other_id, player in current.get("players", {}).items()):
@@ -951,6 +979,8 @@ def update_player_profile(code: str):
         player["name"] = name
         player["last_seen"] = time.time()
         if avatar is not None:
+            if current.get("team_mode") and avatar:
+                raise ValueError("Team rooms use preset avatars to keep large games fast. Choose a preset instead.")
             player["avatar"] = avatar
             player["avatar_preset"] = "" if avatar else avatar_preset
         elif "avatar_preset" in payload:
@@ -986,6 +1016,18 @@ def room_state(code: str):
         if result is None:
             abort(404)
         room = result[1]
+    if room.get("phase") == "round":
+        active = _active_round(room)
+        if active and active.get("mode") == "draw":
+            guesser_ids = _draw_guesser_ids(room)
+            if guesser_ids and all(guesser_id in room.get("draw_answers", {}) for guesser_id in guesser_ids):
+                def complete_if_ready(current):
+                    _maybe_complete_draw_round(current)
+
+                result = _mutate_room(code, complete_if_ready)
+                if result is None:
+                    abort(404)
+                room = result[1]
     state = _public_room(room, code)
     player_id = _player_id(code)
     viewer = {"is_host": _is_host(code, room), "player_id": player_id}
@@ -1258,13 +1300,7 @@ def submit_draw_guess(code: str):
             "correct": correct,
             "answered_at": time.time(),
         }
-        guesser_ids = [
-            available_id
-            for available_id, _player in _available_players(current)
-            if available_id != current.get("active_player_id")
-        ]
-        if guesser_ids and all(guesser_id in answers for guesser_id in guesser_ids):
-            _complete_draw_round(current, "draw")
+        _maybe_complete_draw_round(current)
 
     try:
         result = _mutate_room(code, save)

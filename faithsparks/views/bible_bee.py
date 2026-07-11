@@ -904,8 +904,14 @@ def join_room(code: str):
             return _render_join_page(
                 code, "That picture could not be prepared. Try another selfie or join without one."
             ), 400
+        if room.get("team_mode") and avatar:
+            return _render_join_page(
+                code, "Team rooms use preset avatars to keep large games fast. Choose a preset instead."
+            ), 400
 
         def add_player(current):
+            if current.get("team_mode") and avatar:
+                raise ValueError("Team rooms use preset avatars to keep large games fast. Choose a preset instead.")
             if len(current.get("players", {})) >= _player_limit(current) and player_id not in current.get("players", {}):
                 raise ValueError(_room_full_message(current))
             if any(
@@ -984,6 +990,8 @@ def update_player_profile(code: str):
         player["name"] = name
         player["last_seen"] = time.time()
         if avatar is not None:
+            if current.get("team_mode") and avatar:
+                raise ValueError("Team rooms use preset avatars to keep large games fast. Choose a preset instead.")
             player["avatar"] = avatar
             player["avatar_preset"] = "" if avatar else avatar_preset
         elif "avatar_preset" in payload:

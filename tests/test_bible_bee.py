@@ -9,6 +9,7 @@ from faithsparks.services.rate_limit import reset_memory_limits
 
 
 CSRF = "test-csrf-token"
+JPEG_STUB = "data:image/jpeg;base64,/9j/AA=="
 
 
 @pytest.fixture(autouse=True)
@@ -459,6 +460,40 @@ def test_team_mode_allows_large_event_rooms_to_forty_players(monkeypatch):
     state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert len(state["players"]) == 40
     assert [team["players"] for team in state["teams"]] == [20, 20]
+
+
+def test_bible_bee_team_room_uses_preset_avatars_instead_of_uploaded_selfies():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "bee-team-avatar-host@example.com")
+    _prime(player)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "team_mode": "on"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+
+    response = _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "avatar_data": JPEG_STUB, "csrf_token": CSRF},
+    )
+
+    assert response.status_code == 400
+    assert b"Team rooms use preset avatars" in response.data
+    assert _post(
+        player,
+        f"/family-bible-bee/join/{code}",
+        data={"player_name": "Ada", "avatar_preset": "esther", "csrf_token": CSRF},
+    ).status_code == 302
+    updated = _post(
+        player,
+        f"/api/family-bible-bee/rooms/{code}/profile",
+        json={"player_name": "Ada", "avatar_data": JPEG_STUB},
+    )
+    assert updated.status_code == 409
+    assert "Team rooms use preset avatars" in updated.get_json()["error"]
 
 
 def test_individual_room_still_rejects_ninth_player():

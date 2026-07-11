@@ -232,7 +232,9 @@ def test_act_it_out_join_supports_preset_and_uploaded_avatars():
     _prime(host, "act-avatar-host@example.com")
     _prime(preset_player)
     _prime(upload_player)
-    code = _create_team_room(host)
+    created = _post(host, "/group-games/act-it-out/create", data={"csrf_token": CSRF, "theme": "Bible Stories"})
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
 
     assert _post(
         preset_player,
@@ -253,6 +255,35 @@ def test_act_it_out_join_supports_preset_and_uploaded_avatars():
     assert avatar_response.status_code == 200
     assert avatar_response.mimetype == "image/jpeg"
     assert avatar_response.data.startswith(b"\xff\xd8\xff")
+
+
+def test_team_room_uses_preset_avatars_instead_of_uploaded_selfies():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "act-team-avatar-host@example.com")
+    _prime(player)
+    code = _create_team_room(host)
+
+    response = _post(
+        player,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_data": JPEG_STUB},
+    )
+
+    assert response.status_code == 400
+    assert b"Team rooms use preset avatars" in response.data
+    assert _post(
+        player,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_preset": "esther"},
+    ).status_code == 302
+    updated = _post(
+        player,
+        f"/api/group-games/act-it-out/rooms/{code}/profile",
+        json={"player_name": "Ada", "avatar_data": JPEG_STUB},
+    )
+    assert updated.status_code == 409
+    assert "Team rooms use preset avatars" in updated.get_json()["error"]
 
 
 def test_player_can_edit_act_it_out_profile_before_start():
@@ -491,6 +522,50 @@ def test_draw_mode_awards_drawer_bonus_when_half_guess_correct():
     assert players["Ada"]["score"] == 50
     assert players["Ben"]["score"] == 100
     assert {team["id"]: team["score"] for team in reveal["teams"]} == {"gold": 50, "blue": 100}
+
+
+def test_draw_mode_ignores_stale_guessers_when_revealing():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    drawer = app.test_client()
+    connected_guesser = app.test_client()
+    stale_guesser = app.test_client()
+    _prime(host, "draw-stale-host@example.com")
+    for client in (drawer, connected_guesser, stale_guesser):
+        _prime(client)
+    code = _create_draw_room(host)
+    for client, name in ((drawer, "Ada"), (connected_guesser, "Ben"), (stale_guesser, "Cal")):
+        assert _post(
+            client,
+            f"/group-games/draw-it/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={}).status_code == 200
+    state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    cal_id = next(player["id"] for player in state["players"] if player["name"] == "Cal")
+
+    def mark_stale(current):
+        current["players"][cal_id]["last_seen"] = act_it_out.time.time() - 120
+
+    act_it_out._mutate_room(code, mark_stale)
+    correct = state["viewer"]["secret_prompt"]["answer"]
+
+    assert _post(
+        connected_guesser,
+        f"/api/group-games/draw-it/rooms/{code}/guess",
+        json={"choice": correct},
+    ).status_code == 200
+
+    reveal = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    assert reveal["phase"] == "reveal"
+    assert reveal["last_result"]["guesser_count"] == 1
+    assert reveal["last_result"]["drawer_bonus"] == 50
+    players = {player["name"]: player for player in reveal["players"]}
+    assert players["Ada"]["score"] == 50
+    assert players["Ben"]["score"] == 100
+    assert players["Cal"]["connected"] is False
 
 
 def test_correct_scores_team_and_next_round_alternates_team():
