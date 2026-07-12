@@ -1,4 +1,7 @@
 import unittest
+from io import BytesIO
+
+from pypdf import PdfReader
 
 import app
 
@@ -34,13 +37,18 @@ class WorshipLyricExportTests(unittest.TestCase):
         finally:
             app.get_worship_song = original_get
 
-        response.direct_passthrough = False
-        body = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "application/pdf")
+        response.direct_passthrough = False
+        pdf_bytes = response.get_data()
+        body = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages)
         self.assertIn("Holy Forever", body)
-        self.assertIn("Chorus\nYour name is the highest\nYour name is the greatest", body)
+        self.assertIn("CHORUS", body)
+        self.assertIn("Your name is the highest", body)
+        self.assertIn("Your name is the greatest", body)
         self.assertEqual(body.count("Your name is the highest"), 1)
-        self.assertGreaterEqual(body.count("Chorus"), 2)
+        self.assertGreaterEqual(body.count("CHORUS"), 2)
+        self.assertIn("(repeat)", body)
 
 
 if __name__ == "__main__":

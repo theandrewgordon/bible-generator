@@ -64,7 +64,20 @@ def _refs(*items):
     return [{"reference": item} for item in items]
 
 
+RANDOM_DECK_ID = "random-questions"
+
+
 DECKS = {
+    RANDOM_DECK_ID: {
+        "id": RANDOM_DECK_ID,
+        "title": "Random Questions",
+        "description": "A surprise mix from all ready-made verse themes.",
+        "age_range": "All ages",
+        "difficulty": "Mixed",
+        "theme": "Surprise Mix",
+        "source": "builtin",
+        "passages": [],
+    },
     "family-favorites": {
         "id": "family-favorites",
         "title": "Family Favorites",
@@ -265,6 +278,63 @@ DECKS = {
             "Romans 10:14-15", "2 Corinthians 5:20", "Colossians 4:5-6", "1 Peter 3:15",
         ),
     },
+    "easter-hope": {
+        "id": "easter-hope",
+        "title": "Easter Hope",
+        "description": "Jesus' death, resurrection, new life, and living hope.",
+        "age_range": "Ages 8+",
+        "difficulty": "Easy / Medium",
+        "theme": "Resurrection",
+        "source": "builtin",
+        "passages": _refs(
+            "Matthew 28:5-6", "Luke 24:6-7", "John 11:25-26", "John 19:30",
+            "John 20:29", "Acts 2:24", "Romans 6:4", "Romans 8:11",
+            "1 Corinthians 15:3-4", "1 Corinthians 15:20", "2 Corinthians 5:17",
+            "1 Peter 1:3",
+        ),
+    },
+    "christmas-joy": {
+        "id": "christmas-joy",
+        "title": "Christmas Joy",
+        "description": "Prophecies and passages about Jesus' birth and good news.",
+        "age_range": "All ages",
+        "difficulty": "Easy / Medium",
+        "theme": "Christmas",
+        "source": "builtin",
+        "passages": _refs(
+            "Isaiah 7:14", "Isaiah 9:6", "Micah 5:2", "Matthew 1:21",
+            "Matthew 1:23", "Luke 1:37", "Luke 1:46-47", "Luke 2:10-11",
+            "Luke 2:14", "John 1:14", "Galatians 4:4-5", "1 Timothy 1:15",
+        ),
+    },
+    "names-of-god": {
+        "id": "names-of-god",
+        "title": "Names of God",
+        "description": "Passages that remember God's character, names, and promises.",
+        "age_range": "Ages 9+",
+        "difficulty": "Medium",
+        "theme": "God's Character",
+        "source": "builtin",
+        "passages": _refs(
+            "Genesis 1:1", "Exodus 3:14", "Exodus 15:2", "Exodus 34:6",
+            "Deuteronomy 32:4", "Psalm 18:2", "Psalm 23:1", "Psalm 46:10",
+            "Isaiah 40:28", "Jeremiah 10:10", "John 10:11", "Revelation 1:8",
+        ),
+    },
+    "bible-bee-prep": {
+        "id": "bible-bee-prep",
+        "title": "Bible Bee Prep",
+        "description": "A stronger set for older kids ready for denser memory work.",
+        "age_range": "Ages 10+",
+        "difficulty": "Medium / Hard",
+        "theme": "Challenge",
+        "source": "builtin",
+        "passages": _refs(
+            "Psalm 1:1-3", "Psalm 19:7-11", "Psalm 119:9-11", "Isaiah 40:28-31",
+            "Matthew 5:3-12", "Matthew 6:19-21", "John 15:4-5", "Romans 8:31-39",
+            "Romans 12:1-2", "1 Corinthians 13:1-8", "Ephesians 6:10-18", "Colossians 3:1-4",
+        ),
+    },
 }
 
 
@@ -282,11 +352,28 @@ def translation_options() -> list[dict]:
     ]
 
 
+def _all_builtin_passages() -> list[dict]:
+    passages = []
+    seen = set()
+    for deck_id, deck in DECKS.items():
+        if deck_id == RANDOM_DECK_ID:
+            continue
+        for passage in deck["passages"]:
+            reference = passage["reference"]
+            if reference.casefold() in seen:
+                continue
+            seen.add(reference.casefold())
+            passages.append(passage)
+    return passages
+
+
 def deck_options() -> list[dict]:
     return [
         {
             **{key: value for key, value in deck.items() if key != "passages"},
-            "passage_count": len(deck["passages"]),
+            "passage_count": len(_all_builtin_passages())
+            if deck["id"] == RANDOM_DECK_ID
+            else len(deck["passages"]),
         }
         for deck in DECKS.values()
     ]
@@ -388,7 +475,7 @@ def _blank_distractors(blank: str, passages: list[dict]) -> list[str]:
     )
 
 
-def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
+def load_passages(deck_id: str, version: str, needed: int, seed: str | None = None) -> list[dict]:
     deck = DECKS.get(deck_id)
     if not deck:
         raise ValueError("Choose an available verse deck.")
@@ -397,9 +484,13 @@ def load_passages(deck_id: str, version: str, needed: int) -> list[dict]:
     if not translation_is_configured(version):
         raise ValueError(f"{TRANSLATIONS[version]['code']} text access is not configured on this server yet.")
 
+    seeds = list(_all_builtin_passages() if deck_id == RANDOM_DECK_ID else deck["passages"])
+    if deck_id == RANDOM_DECK_ID:
+        random.Random(seed or f"{version}-{needed}").shuffle(seeds)
+
     passages = []
-    for seed in deck["passages"]:
-        reference = seed["reference"]
+    for seed_passage in seeds:
+        reference = seed_passage["reference"]
         text = _copyworksheet_verse_text(reference, version)
         if not text:
             continue

@@ -46,6 +46,7 @@ REVEAL_SECONDS = 10
 REVEAL_SECOND_OPTIONS = {5, 10, 15}
 CHALLENGE_QUESTION_SECONDS = 30
 DIFFICULTY_QUESTION_SECONDS = {"hard": 25, "expert": 20}
+PLAYER_CONNECTED_SECONDS = 40
 MAX_AVATAR_DATA_LENGTH = 60_000
 INDIVIDUAL_PLAYER_LIMIT = 8
 TEAM_PLAYER_LIMIT = 40
@@ -219,11 +220,17 @@ def _answer_choice(answer) -> int | None:
         return None
 
 
+def _player_connected(player: dict, now: float | None = None) -> bool:
+    now = now or time.time()
+    return now - float(player.get("last_seen", player.get("joined_at", 0))) < PLAYER_CONNECTED_SECONDS
+
+
 def _eligible_player_ids(room: dict) -> set[str]:
+    now = time.time()
     return {
         player_id
         for player_id, player in room.get("players", {}).items()
-        if not player.get("away", False)
+        if not player.get("away", False) and _player_connected(player, now)
     }
 
 
@@ -623,7 +630,7 @@ def _public_room(room: dict, code: str) -> dict:
                 "id": player_id,
                 "name": player["name"],
                 "score": int(player.get("score", 0)),
-                "connected": now - float(player.get("last_seen", player.get("joined_at", 0))) < 40,
+                "connected": _player_connected(player, now),
                 "away": bool(player.get("away", False)),
                 "team_id": team["id"] if team else None,
                 "team_name": team["name"] if team else None,
@@ -662,6 +669,7 @@ def _public_room(room: dict, code: str) -> dict:
         "question_total": len(room.get("questions", [])),
         "question": public_question,
         "players": players,
+        "active_player_count": sum(1 for player in players if not player["away"] and player["connected"]),
         "family_score": sum(player["score"] for player in players),
         "answered_player_ids": list(answers),
         "oral_judgments": room.get("oral_judgments", {}),
@@ -758,7 +766,7 @@ def create_room():
             deck_id = "one-off"
             deck_name = ai_plan["title"]
         else:
-            passages = load_passages(deck_id, version, round_count)
+            passages = load_passages(deck_id, version, round_count, seed=code)
             deck_name = deck["title"]
         questions = build_questions(
             passages,
@@ -881,7 +889,7 @@ def join_room(code: str):
         rate = check_rate_limit(
             "bible-bee-join",
             get_client_ip(),
-            limit=20,
+            limit=80 if room.get("team_mode") else 20,
             window_seconds=10 * 60,
         )
         if not rate.allowed:
@@ -1116,6 +1124,7 @@ def answer_question(code: str):
             raise ValueError("The host marked you away. Ask them to bring you back first.")
         if choice < 0 or choice >= len(question["choices"]):
             raise ValueError("That answer is not available.")
+        room["players"][player_id]["last_seen"] = time.time()
         room.setdefault("answers", {}).setdefault(
             player_id,
             {"choice": choice, "answered_at": time.time()},
@@ -1148,6 +1157,7 @@ def ready_to_recite(code: str):
         player = room.get("players", {}).get(player_id)
         if not player or player.get("away"):
             raise PermissionError
+        player["last_seen"] = time.time()
         room.setdefault("answers", {})[player_id] = {
             "oral_status": "ready",
             "answered_at": time.time(),
@@ -1258,6 +1268,16 @@ def play_again_same_players(code: str):
             raise ValueError("Finish the current game before starting another one.")
         round_count = int(current.get("round_count") or sum(1 for question in current.get("questions", []) if not question.get("bonus")) or 5)
         round_count = round_count if round_count in {3, 5, 10, 15, 20} else 5
+        current["passages"] = (
+            load_passages(
+                current.get("deck_id", "family-favorites"),
+                current.get("translation_id", "esv"),
+                round_count,
+                seed=f"{code}-{int(time.time())}",
+            )
+            if current.get("deck_id") != "one-off"
+            else current.get("passages", [])
+        )
         current["questions"] = build_questions(
             current.get("passages", []),
             current.get("game_style", "classic_mix"),

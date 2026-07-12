@@ -217,7 +217,10 @@ def test_home_keeps_simple_version_picker_with_esv_default():
     assert b'value=\"upramp\"' in home.data
     assert b'value=\"hard\"' in home.data
     assert b'value="esv" data-code="ESV" checked' in home.data
+    assert b'name="deck_id" value="family-favorites" checked' in home.data
     assert b"Team mode" in home.data
+    assert b"Random Questions" in home.data
+    assert b"Easter Hope" in home.data
     assert b"How to play" in home.data
     assert b"answer on phones" in home.data
     assert b"Create custom room" not in home.data
@@ -254,6 +257,28 @@ def test_bible_bee_can_create_twenty_round_game():
     code = created.headers["Location"].rsplit("/", 1)[-1]
     state = client.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert state["question_total"] == 20
+
+
+def test_random_questions_deck_builds_unique_mixed_rounds():
+    from faithsparks.views import bible_bee
+
+    client = app.test_client()
+    _prime(client, "random-questions@example.com")
+
+    created = _post(
+        client,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "deck_id": "random-questions", "round_count": "20"},
+    )
+
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    room = bible_bee._get_room(code)
+    references = [question["reference"] for question in room["questions"]]
+    assert room["deck_name"] == "Random Questions"
+    assert len(references) == 20
+    assert len(set(references)) == 20
+    assert len({question["label"] for question in room["questions"]}) >= 3
 
 
 def test_rooms_are_listed_only_for_their_host_and_can_be_deleted_from_home():
@@ -460,6 +485,49 @@ def test_team_mode_allows_large_event_rooms_to_forty_players(monkeypatch):
     state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert len(state["players"]) == 40
     assert [team["players"] for team in state["teams"]] == [20, 20]
+
+
+def test_twenty_player_room_reveals_when_one_phone_goes_stale(monkeypatch):
+    from faithsparks.views import bible_bee
+
+    monkeypatch.setattr(bible_bee, "check_rate_limit", lambda *args, **kwargs: SimpleNamespace(allowed=True))
+    host = app.test_client()
+    _prime(host, "twenty-player-host@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "team_mode": "on", "round_count": "5"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    players = [app.test_client() for _ in range(20)]
+    for index, client in enumerate(players):
+        _prime(client)
+        assert _post(
+            client,
+            f"/family-bible-bee/join/{code}",
+            data={"player_name": f"P{index:02d}", "csrf_token": CSRF},
+        ).status_code == 302
+
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    stale_id = next(player["id"] for player in state["players"] if player["name"] == "P19")
+
+    def mark_stale(current):
+        current["players"][stale_id]["last_seen"] = bible_bee.time.time() - 120
+
+    bible_bee._mutate_room(code, mark_stale)
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    for client in players[:-1]:
+        response = _post(client, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct})
+        assert response.status_code == 200
+
+    reveal = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert reveal["phase"] == "reveal"
+    assert reveal["active_player_count"] == 19
+    result = bible_bee._get_room(code)["round_results"][-1]
+    assert result["correct"] == 19
+    assert result["missed"] == 0
+    assert next(player for player in reveal["players"] if player["id"] == stale_id)["connected"] is False
 
 
 def test_bible_bee_team_room_uses_preset_avatars_instead_of_uploaded_selfies():

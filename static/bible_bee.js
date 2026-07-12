@@ -424,7 +424,7 @@ function renderQuestion(state) {
   let controls = "";
   if (role === "host") {
     controls = state.phase === "question"
-      ? `<p>${answered} of ${state.players.filter(player => !player.away).length} ${question.mode === "oral" ? "ready" : "answered"}</p>
+      ? `<p>${answered} of ${state.active_player_count ?? state.players.filter(player => !player.away && player.connected).length} ${question.mode === "oral" ? "ready" : "answered"}</p>
          <button id="reveal-answer" class="bee-button primary full" type="button">Reveal answer</button>`
       : `<p class="auto-next-note">${state.question_index + 1 >= state.question_total ? "Results" : "Next round"} in <strong data-countdown>${state.reveal_seconds}</strong>s unless paused.</p>
          <button id="next-question" class="bee-button primary full" type="button">${state.question_index + 1 >= state.question_total ? "See final results now" : "Next round now"}</button>`;
@@ -462,7 +462,7 @@ function renderQuestion(state) {
         ? `<div class="oral-player-panel"><strong>You’re ready!</strong><p>Recite when the host calls your name.</p></div>`
         : `<div class="oral-player-panel"><p>Practice quietly, then tell the host you’re ready.</p><button id="ready-to-recite" class="bee-button primary" type="button">I’m ready to recite</button></div>`;
     } else {
-      const activePlayers = state.players.filter(player => !player.away);
+      const activePlayers = state.players.filter(player => !player.away && player.connected);
       const rows = activePlayers.map(player => {
         const ready = state.answered_player_ids.includes(player.id);
         const judgment = state.oral_judgments[player.id];
@@ -610,7 +610,7 @@ function renderDisplayLobby(state) {
 function renderDisplayQuestion(state) {
   const question = state.question;
   const answered = state.answered_player_ids.length;
-  const activePlayers = state.players.filter(player => !player.away).length;
+  const activePlayers = state.active_player_count ?? state.players.filter(player => !player.away && player.connected).length;
   const answerRows = question.mode === "oral"
     ? `<div class="display-oral-note">Players recite when the host calls their name.</div>`
     : `<div class="display-answers">
