@@ -220,6 +220,16 @@ button, input, select { font: inherit; }
 .selfie-picker { display: flex; align-items: center; gap: 14px; margin: 18px 0; text-align: left; }
 .selfie-picker input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .selfie-picker p { margin: 5px 0 0; font-size: .78rem; }
+.join-helper-note {
+  margin: 4px 0 10px !important;
+  padding: 10px 12px;
+  color: var(--bee-blue) !important;
+  background: #fff7df;
+  border: 1px solid var(--bee-line);
+  border-radius: 10px;
+  font-size: .86rem;
+  font-weight: 800;
+}
 .selfie-button { min-height: 42px; padding: 9px 15px; cursor: pointer; }
 .selfie-preview {
   display: grid;

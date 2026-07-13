@@ -39,14 +39,18 @@
               </label>
             {% endfor %}
           </fieldset>
-          <div class="selfie-picker">
-            <div id="selfie-preview" class="selfie-preview" aria-hidden="true">☺</div>
-            <div>
-              <label class="bee-button secondary selfie-button" for="player-selfie">Add a selfie</label>
-              <input id="player-selfie" type="file" accept="image/*" capture="user">
-              <p>Optional. It stays with this temporary game room.</p>
+          {% if team_mode %}
+            <p class="join-helper-note">Team rooms use preset pictures so big games stay quick.</p>
+          {% else %}
+            <div class="selfie-picker">
+              <div id="selfie-preview" class="selfie-preview" aria-hidden="true">☺</div>
+              <div>
+                <label class="bee-button secondary selfie-button" for="player-selfie">Add a selfie</label>
+                <input id="player-selfie" type="file" accept="image/*" capture="user">
+                <p>Optional. It stays with this temporary game room.</p>
+              </div>
             </div>
-          </div>
+          {% endif %}
           <button class="bee-button primary large" type="submit">Join the game</button>
         </form>
       </section>
@@ -63,11 +67,13 @@
 
       function applyPresetAvatar(value) {
         avatarData.value = "";
-        selfieInput.value = "";
-        selfiePreview.style.backgroundImage = "";
-        selfiePreview.classList.remove(...presetClasses, "preset-avatar");
-        selfiePreview.textContent = value ? "" : "☺";
-        if (value) selfiePreview.classList.add(`avatar-${value}`, "preset-avatar");
+        if (selfieInput) selfieInput.value = "";
+        if (selfiePreview) {
+          selfiePreview.style.backgroundImage = "";
+          selfiePreview.classList.remove(...presetClasses, "preset-avatar");
+          selfiePreview.textContent = value ? "" : "☺";
+          if (value) selfiePreview.classList.add(`avatar-${value}`, "preset-avatar");
+        }
       }
 
       function rememberProfile() {
@@ -98,7 +104,7 @@
         });
       });
 
-      selfieInput.addEventListener("change", () => {
+      selfieInput?.addEventListener("change", () => {
         const file = selfieInput.files && selfieInput.files[0];
         if (!file) return;
         joinButton.disabled = true;
@@ -116,9 +122,11 @@
             context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 128, 128);
             avatarData.value = canvas.toDataURL("image/jpeg", 0.72);
             presetInputs.forEach(input => { input.checked = input.value === ""; });
-            selfiePreview.classList.remove(...presetClasses, "preset-avatar");
-            selfiePreview.textContent = "";
-            selfiePreview.style.backgroundImage = `url("${avatarData.value}")`;
+            selfiePreview?.classList.remove(...presetClasses, "preset-avatar");
+            if (selfiePreview) {
+              selfiePreview.textContent = "";
+              selfiePreview.style.backgroundImage = `url("${avatarData.value}")`;
+            }
             joinButton.disabled = false;
           };
           image.onerror = () => {

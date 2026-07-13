@@ -39,10 +39,12 @@ def _create_team_room(host, theme="Bible Stories", round_count=None):
     return match.group(1)
 
 
-def _create_draw_room(host, team_mode=False, theme="Mix It Up"):
+def _create_draw_room(host, team_mode=False, theme="Mix It Up", round_count=None):
     data = {"csrf_token": CSRF, "theme": theme}
     if team_mode:
         data["team_mode"] = "on"
+    if round_count:
+        data["round_count"] = str(round_count)
     created = _post(host, "/group-games/draw-it/create", data=data)
     assert created.status_code == 302
     match = re.search(r"/host/([A-Z0-9]{4})$", created.headers["Location"])
@@ -73,6 +75,7 @@ def test_act_it_out_home_explains_round_flow_and_draw_mode():
     assert b"How to play" in home.data
     assert b"Got it right" in home.data
     assert b"No point / pass" in home.data
+    assert b"up to 40 players" in home.data
 
 
 def test_group_games_hub_exposes_draw_it_entry():
@@ -94,6 +97,7 @@ def test_draw_it_entry_preselects_draw_theme():
     assert home.status_code == 200
     assert b"Draw a Bible prompt" in home.data
     assert b"Game length" in home.data
+    assert b"up to 40 players" in home.data
     assert b'value=\"20\"' in home.data
     assert b'value="Mix It Up" checked' in home.data
     assert b"Bible Stories" in home.data
@@ -284,6 +288,9 @@ def test_team_room_uses_preset_avatars_instead_of_uploaded_selfies():
     _prime(host, "act-team-avatar-host@example.com")
     _prime(player)
     code = _create_team_room(host)
+    join_page = player.get(f"/group-games/act-it-out/join/{code}")
+    assert b"Team rooms use preset pictures" in join_page.data
+    assert b"Add a selfie" not in join_page.data
 
     response = _post(
         player,
@@ -465,11 +472,15 @@ def test_draw_mode_accepts_only_active_player_drawing_without_revealing_answer()
     assert drawn["round"]["answer"] is None
 
 
-def test_draw_mode_requires_a_drawer_and_guesser_to_start():
+def test_draw_mode_requires_a_connected_drawer_and_guesser_to_start():
+    from faithsparks.views import act_it_out
+
     host = app.test_client()
     drawer = app.test_client()
+    stale_guesser = app.test_client()
     _prime(host, "draw-needs-two-host@example.com")
     _prime(drawer)
+    _prime(stale_guesser)
     code = _create_draw_room(host)
     assert _post(
         drawer,
@@ -481,9 +492,26 @@ def test_draw_mode_requires_a_drawer_and_guesser_to_start():
 
     assert response.status_code == 409
     assert b"one to draw and one to guess" in response.data
+    assert _post(
+        stale_guesser,
+        f"/group-games/draw-it/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ben"},
+    ).status_code == 302
+    state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    ben_id = next(player["id"] for player in state["players"] if player["name"] == "Ben")
+
+    def mark_stale(current):
+        current["players"][ben_id]["last_seen"] = act_it_out.time.time() - 120
+
+    act_it_out._mutate_room(code, mark_stale)
+    response = _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={})
+    assert response.status_code == 409
+    assert b"two connected players" in response.data
 
 
 def test_draw_mode_phone_guess_scores_and_reveals_when_all_guess():
+    from faithsparks.views import act_it_out
+
     host = app.test_client()
     drawer = app.test_client()
     guesser = app.test_client()
@@ -502,6 +530,11 @@ def test_draw_mode_phone_guess_scores_and_reveals_when_all_guess():
     state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
     correct = state["viewer"]["secret_prompt"]["answer"]
 
+    def age_round(current):
+        current["round_started_at"] = act_it_out.time.time() - act_it_out.DRAW_MIN_SECONDS - 1
+
+    act_it_out._mutate_room(code, age_round)
+
     assert _post(guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": correct}).status_code == 200
 
     reveal = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
@@ -511,7 +544,44 @@ def test_draw_mode_phone_guess_scores_and_reveals_when_all_guess():
     assert players["Ben"]["score"] == 100
 
 
+def test_draw_mode_waits_before_auto_revealing_fast_guesses():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    drawer = app.test_client()
+    guesser = app.test_client()
+    _prime(host, "draw-min-time-host@example.com")
+    _prime(drawer)
+    _prime(guesser)
+    code = _create_draw_room(host)
+    for client, name in ((drawer, "Ada"), (guesser, "Ben")):
+        assert _post(
+            client,
+            f"/group-games/draw-it/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/start", json={}).status_code == 200
+    state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    correct = state["viewer"]["secret_prompt"]["answer"]
+
+    assert _post(guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": correct}).status_code == 200
+    waiting = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    assert waiting["phase"] == "round"
+    assert waiting["round"]["answered_count"] == 1
+
+    def age_round(current):
+        current["round_started_at"] = act_it_out.time.time() - act_it_out.DRAW_MIN_SECONDS - 1
+
+    act_it_out._mutate_room(code, age_round)
+    reveal = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    assert reveal["phase"] == "reveal"
+    assert reveal["last_result"]["correct_guesses"] == 1
+
+
 def test_draw_mode_awards_drawer_bonus_when_half_guess_correct():
+    from faithsparks.views import act_it_out
+
     host = app.test_client()
     drawer = app.test_client()
     correct_guesser = app.test_client()
@@ -531,6 +601,11 @@ def test_draw_mode_awards_drawer_bonus_when_half_guess_correct():
     state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
     correct = state["viewer"]["secret_prompt"]["answer"]
     wrong = next(choice for choice in state["round"]["choices"] if choice != correct)
+
+    def age_round(current):
+        current["round_started_at"] = act_it_out.time.time() - act_it_out.DRAW_MIN_SECONDS - 1
+
+    act_it_out._mutate_room(code, age_round)
 
     assert _post(correct_guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": correct}).status_code == 200
     assert _post(wrong_guesser, f"/api/group-games/draw-it/rooms/{code}/guess", json={"choice": wrong}).status_code == 200
@@ -569,6 +644,7 @@ def test_draw_mode_ignores_stale_guessers_when_revealing():
 
     def mark_stale(current):
         current["players"][cal_id]["last_seen"] = act_it_out.time.time() - 120
+        current["round_started_at"] = act_it_out.time.time() - act_it_out.DRAW_MIN_SECONDS - 1
 
     act_it_out._mutate_room(code, mark_stale)
     correct = state["viewer"]["secret_prompt"]["answer"]

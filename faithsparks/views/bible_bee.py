@@ -871,10 +871,12 @@ def player_avatar(code: str, player_id: str):
 
 
 def _render_join_page(code: str, error: str | None = None):
+    room = _get_room(code)
     return render_template(
         "bible_bee_join.html",
         code=code,
         error=error,
+        team_mode=bool((room or {}).get("team_mode")),
         preset_avatars=PRESET_AVATARS,
         noindex=True,
     )

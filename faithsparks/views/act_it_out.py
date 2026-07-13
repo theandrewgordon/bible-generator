@@ -34,6 +34,7 @@ INDIVIDUAL_PLAYER_LIMIT = 12
 DEFAULT_ROUNDS = 10
 ROUND_COUNT_OPTIONS = {10, 15, 20}
 ROUND_SECONDS = 45
+DRAW_MIN_SECONDS = 12
 POINTS_CORRECT = 100
 PLAYER_CONNECTED_SECONDS = 40
 MAX_AVATAR_DATA_LENGTH = 60_000
@@ -526,6 +527,8 @@ def _maybe_complete_draw_round(room: dict) -> bool:
     active = _active_round(room)
     if room.get("phase") != "round" or not active or active.get("mode") != "draw":
         return False
+    if time.time() - float(room.get("round_started_at", 0)) < DRAW_MIN_SECONDS:
+        return False
     guesser_ids = _draw_guesser_ids(room)
     if not guesser_ids:
         return False
@@ -874,6 +877,7 @@ def _render_join_page(code: str, error: str | None = None):
         "act_it_out_join.html",
         code=code,
         error=error,
+        team_mode=bool((room or {}).get("team_mode")),
         game_slug=_game_slug(room),
         game_title=_game_title(room),
         preset_avatars=PRESET_AVATARS,
@@ -1082,8 +1086,8 @@ def start_game(code: str):
     def start(current):
         if not current.get("players"):
             raise ValueError("Invite at least one player before starting.")
-        if current.get("game_type") == "draw_it" and len(current.get("players", {})) < 2:
-            raise ValueError("Draw It needs at least two players: one to draw and one to guess.")
+        if current.get("game_type") == "draw_it" and len(_available_players(current, connected_only=True)) < 2:
+            raise ValueError("Draw It needs at least two connected players: one to draw and one to guess.")
         if current.get("team_mode"):
             teams_with_players = {
                 player.get("team_id")
@@ -1279,6 +1283,9 @@ def submit_drawing(code: str):
             raise ValueError("This is not a drawing round.")
         if current.get("active_player_id") != player_id:
             raise PermissionError
+        player = current.get("players", {}).get(player_id)
+        if player:
+            player["last_seen"] = time.time()
         current["drawing_data"] = data
 
     try:
@@ -1310,6 +1317,7 @@ def submit_draw_guess(code: str):
         player = current.get("players", {}).get(player_id)
         if not player or player.get("away"):
             raise PermissionError
+        player["last_seen"] = time.time()
         choices = active.get("choices", [])
         if choice not in choices:
             raise ValueError("Choose one of the answers on your screen.")

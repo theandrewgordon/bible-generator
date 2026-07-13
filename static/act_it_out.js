@@ -20,6 +20,9 @@ let readMode = window.localStorage.getItem("actItOutReadMode") || "off";
 let speechRun = 0;
 let lastSpokenState = "";
 let profileEditorOpen = false;
+let drawingSendInFlight = false;
+let drawingDirty = false;
+let drawingAutosendTimer = null;
 const presetAvatars = [
   ["", "Initials"],
   ["fox", "Friendly fox"],
@@ -346,7 +349,7 @@ function drawingBoard(state, editable = false) {
         <button id="clear-drawing" class="bee-button secondary" type="button">Clear</button>
         <button id="send-drawing" class="bee-button primary" type="button">Send drawing</button>
       </div>
-      <p id="draw-status" class="draw-status">Your drawing appears on the shared screen after you send it.</p>
+      <p id="draw-status" class="draw-status">Your drawing updates on the shared screen while you draw.</p>
     </div>`;
   }
   return `<div class="draw-display-panel">
@@ -404,7 +407,7 @@ function renderRound(state) {
   const controls = role === "host"
     ? isDraw
       ? `<p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
-         <button id="pass-round" class="bee-button secondary full" type="button">Reveal answer</button>
+         <button id="pass-round" class="bee-button secondary full" type="button">Reveal drawing answer</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
       : `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
          ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
@@ -418,7 +421,7 @@ function renderRound(state) {
       <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       <div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. Award 100 points when they get it." : isDraw ? "The drawing appears here after the player sends it. Phone guesses score automatically." : "Guess out loud. Award 100 points when they get it."}</p>
+      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. Award 100 points when they get it." : isDraw ? "The drawing updates here while the player draws. Phone guesses score automatically." : "Guess out loud. Award 100 points when they get it."}</p>
       ${clueList(state.round)}
       ${drawingBoard(state)}
       ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
@@ -524,13 +527,14 @@ function renderDisplay(state) {
       ${drawingBoard(state)}
       <div class="act-timer display"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
       ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
-      <p class="act-display-instruction">${isGuess ? "Call out the answer. A correct guess is worth 100 points." : isDraw ? "Guess from the drawing. A correct guess is worth 100 points." : "Guess out loud. A correct guess is worth 100 points."}</p>
+      <p class="act-display-instruction">${isGuess ? "Call out the answer. A correct guess is worth 100 points." : isDraw ? "Choose the answer on your phone. Correct guesses score automatically." : "Guess out loud. A correct guess is worth 100 points."}</p>
     </section>`;
   } else if (state.phase === "reveal") {
     const isCorrect = state.last_result?.outcome === "correct";
+    const isDraw = state.last_result?.mode === "draw";
     app.innerHTML = `<section class="display-stage act-display-reveal">
-      <div class="celebration-mark">${isCorrect ? "✓" : "✦"}</div>
-      <h1>${isCorrect ? "Correct!" : "Passed"}</h1>
+      <div class="celebration-mark">${isCorrect || isDraw ? "✓" : "✦"}</div>
+      <h1>${isDraw ? "Drawing Revealed" : isCorrect ? "Correct!" : "Passed"}</h1>
       <div class="display-reveal"><span>Answer</span><p>${escapeHTML(state.round?.answer || state.last_result?.answer || "")}</p></div>
       ${clueList(state.round, true)}
       ${drawingBoard(state)}
@@ -614,18 +618,30 @@ async function hostAction(action) {
   }
 }
 
-async function sendDrawing(canvas) {
+async function sendDrawing(canvas, silent = false) {
+  if (drawingSendInFlight) return;
+  drawingSendInFlight = true;
   try {
     const status = document.querySelector("#draw-status");
-    status.textContent = "Sending drawing...";
+    if (status && !silent) status.textContent = "Sending drawing...";
+    drawingDirty = false;
     await api(`${apiBase}/drawing`, {
       method: "POST",
       body: JSON.stringify({ drawing: canvas.toDataURL("image/png") }),
     });
-    status.textContent = "Drawing sent. Keep adding details and send again if you want.";
-    await refresh();
+    if (status) status.textContent = silent ? "Drawing updated on the shared screen." : "Drawing sent.";
+    if (!silent) await refresh();
   } catch (error) {
+    drawingDirty = true;
     showToast(error.message);
+  } finally {
+    drawingSendInFlight = false;
+    if (drawingDirty && !drawingAutosendTimer) {
+      drawingAutosendTimer = window.setTimeout(() => {
+        drawingAutosendTimer = null;
+        sendDrawing(canvas, true);
+      }, 600);
+    }
   }
 }
 
@@ -653,6 +669,14 @@ function initDrawingCanvas() {
   context.lineJoin = "round";
   context.strokeStyle = "#102d5c";
   let drawing = false;
+  const queueDrawingSend = () => {
+    drawingDirty = true;
+    if (drawingAutosendTimer) return;
+    drawingAutosendTimer = window.setTimeout(() => {
+      drawingAutosendTimer = null;
+      if (drawingDirty) sendDrawing(canvas, true);
+    }, 1200);
+  };
   const point = event => {
     const rect = canvas.getBoundingClientRect();
     return {
@@ -666,18 +690,27 @@ function initDrawingCanvas() {
     const start = point(event);
     context.beginPath();
     context.moveTo(start.x, start.y);
+    queueDrawingSend();
   });
   canvas.addEventListener("pointermove", event => {
     if (!drawing) return;
     const next = point(event);
     context.lineTo(next.x, next.y);
     context.stroke();
+    queueDrawingSend();
   });
-  canvas.addEventListener("pointerup", () => { drawing = false; });
-  canvas.addEventListener("pointercancel", () => { drawing = false; });
+  canvas.addEventListener("pointerup", () => {
+    drawing = false;
+    if (drawingDirty) sendDrawing(canvas, true);
+  });
+  canvas.addEventListener("pointercancel", () => {
+    drawing = false;
+    if (drawingDirty) sendDrawing(canvas, true);
+  });
   document.querySelector("#clear-drawing")?.addEventListener("click", () => {
     context.fillStyle = "#fffefb";
     context.fillRect(0, 0, canvas.width, canvas.height);
+    queueDrawingSend();
   });
   document.querySelector("#send-drawing")?.addEventListener("click", () => sendDrawing(canvas));
 }

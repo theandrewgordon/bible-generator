@@ -219,6 +219,7 @@ def test_home_keeps_simple_version_picker_with_esv_default():
     assert b'value="esv" data-code="ESV" checked' in home.data
     assert b'name="deck_id" value="family-favorites" checked' in home.data
     assert b"Team mode" in home.data
+    assert b"up to 40 players" in home.data
     assert b"Random Questions" in home.data
     assert b"Easter Hope" in home.data
     assert b"How to play" in home.data
@@ -541,6 +542,9 @@ def test_bible_bee_team_room_uses_preset_avatars_instead_of_uploaded_selfies():
         data={"csrf_token": CSRF, "team_mode": "on"},
     )
     code = created.headers["Location"].rsplit("/", 1)[-1]
+    join_page = player.get(f"/family-bible-bee/join/{code}")
+    assert b"Team rooms use preset pictures" in join_page.data
+    assert b"Add a selfie" not in join_page.data
 
     response = _post(
         player,
