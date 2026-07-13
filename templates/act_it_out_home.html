@@ -43,8 +43,19 @@
                 {% endfor %}
               </div>
             </fieldset>
+            <fieldset class="quick-game-options">
+              <legend>Game length</legend>
+              <div>
+                {% for rounds in [10, 15, 20] %}
+                  <label>
+                    <input type="radio" name="round_count" value="{{ rounds }}" {% if rounds == 10 %}checked{% endif %}>
+                    <span>{{ rounds }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </fieldset>
             <div class="create-room-row">
-              <p>{% if game_type == 'draw_it' %}10 rounds · 45 seconds · phone guesses{% else %}10 rounds · 45 seconds · host scored{% endif %}</p>
+              <p>{% if game_type == 'draw_it' %}45 seconds · phone guesses{% else %}45 seconds · host scored{% endif %}</p>
               <button class="bee-button primary large" type="submit">Create room</button>
             </div>
           </form>

@@ -24,11 +24,14 @@ def _post(client, path, json=None, data=None):
     return client.post(path, json=json, data=data, headers={"X-CSRF-Token": CSRF})
 
 
-def _create_team_room(host, theme="Bible Stories"):
+def _create_team_room(host, theme="Bible Stories", round_count=None):
+    data = {"csrf_token": CSRF, "team_mode": "on", "theme": theme}
+    if round_count:
+        data["round_count"] = str(round_count)
     created = _post(
         host,
         "/group-games/act-it-out/create",
-        data={"csrf_token": CSRF, "team_mode": "on", "theme": theme},
+        data=data,
     )
     assert created.status_code == 302
     match = re.search(r"/host/([A-Z0-9]{4})$", created.headers["Location"])
@@ -90,6 +93,8 @@ def test_draw_it_entry_preselects_draw_theme():
 
     assert home.status_code == 200
     assert b"Draw a Bible prompt" in home.data
+    assert b"Game length" in home.data
+    assert b'value=\"20\"' in home.data
     assert b'value="Mix It Up" checked' in home.data
     assert b"Bible Stories" in home.data
     assert b"Jesus&#39; Miracles" in home.data
@@ -121,6 +126,22 @@ def test_act_it_out_create_defaults_to_individual_mode():
     state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert state["team_mode"] is False
     assert state["teams"] == []
+
+
+def test_act_it_out_can_create_twenty_round_game():
+    host = app.test_client()
+    _prime(host, "act-twenty-rounds@example.com")
+
+    created = _post(
+        host,
+        "/group-games/act-it-out/create",
+        data={"csrf_token": CSRF, "theme": "Bible Stories", "round_count": "20"},
+    )
+
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    room = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert room["round_total"] == 20
 
 
 def test_act_it_out_mix_it_up_excludes_draw_rounds():
@@ -597,6 +618,72 @@ def test_correct_scores_team_and_next_round_alternates_team():
     next_state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert next_state["phase"] == "round"
     assert next_state["active_team_id"] == "blue"
+
+
+def test_twenty_player_team_room_skips_stale_active_player(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "check_rate_limit", lambda *args, **kwargs: SimpleNamespace(allowed=True))
+    host = app.test_client()
+    _prime(host, "act-twenty-stale-host@example.com")
+    code = _create_team_room(host, round_count=20)
+    players = [app.test_client() for _ in range(20)]
+    for index, client in enumerate(players):
+        _prime(client)
+        assert _post(
+            client,
+            f"/group-games/act-it-out/join/{code}",
+            data={"csrf_token": CSRF, "player_name": f"P{index:02d}"},
+        ).status_code == 302
+
+    lobby = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    stale_id = next(player["id"] for player in lobby["players"] if player["name"] == "P00")
+
+    def mark_stale(current):
+        current["players"][stale_id]["last_seen"] = act_it_out.time.time() - 120
+
+    act_it_out._mutate_room(code, mark_stale)
+
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    started = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert started["round_total"] == 20
+    assert started["active_team_id"] == "gold"
+    assert started["active_player_id"] != stale_id
+    assert started["active_player_name"] == "P02"
+    assert next(player for player in started["players"] if player["id"] == stale_id)["connected"] is False
+
+
+def test_host_can_mark_active_player_away_and_reselect_card():
+    host = app.test_client()
+    first = app.test_client()
+    second = app.test_client()
+    third = app.test_client()
+    _prime(host, "act-away-host@example.com")
+    for client in (first, second, third):
+        _prime(client)
+    code = _create_team_room(host)
+    for client, name in ((first, "Ada"), (second, "Ben"), (third, "Cal")):
+        assert _post(
+            client,
+            f"/group-games/act-it-out/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    started = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    active_id = started["active_player_id"]
+
+    assert _post(
+        host,
+        f"/api/group-games/act-it-out/rooms/{code}/players/{active_id}/away",
+        json={},
+    ).status_code == 200
+
+    reselected = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert reselected["phase"] == "round"
+    assert reselected["round_index"] == started["round_index"]
+    assert reselected["active_player_id"] != active_id
+    assert next(player for player in reselected["players"] if player["id"] == active_id)["away"] is True
 
 
 def test_host_can_skip_bad_act_it_out_card_without_reveal_or_points():

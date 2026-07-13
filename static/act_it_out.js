@@ -237,13 +237,14 @@ function playerRows(state, manage = false) {
       : "";
     const management = manage
       ? `<span class="player-management">
-          ${state.team_mode ? `<button class="switch-team-player" data-switch-team-player-id="${escapeHTML(player.id)}" type="button">Switch team</button>` : ""}
-          <button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>
+          ${state.phase === "lobby" && state.team_mode ? `<button class="switch-team-player" data-switch-team-player-id="${escapeHTML(player.id)}" type="button">Switch team</button>` : ""}
+          ${["lobby", "round"].includes(state.phase) ? `<button class="away-player ${player.away ? "is-away" : ""}" data-away-player-id="${escapeHTML(player.id)}" type="button">${player.away ? "Bring back" : "Mark away"}</button>` : ""}
+          ${state.phase === "lobby" ? `<button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>` : ""}
         </span>`
       : "";
     return `<div class="player-score">
       <span class="player-avatar">${playerAvatar(player)}</span>
-      <strong>${escapeHTML(player.name)} ${teamLabel} <i class="presence-dot ${player.connected ? "online" : "offline"}" title="${player.connected ? "Connected" : "Reconnecting"}"></i></strong>
+      <strong>${escapeHTML(player.name)} ${teamLabel} ${player.away ? `<small class="away-label">Away</small>` : `<i class="presence-dot ${player.connected ? "online" : "offline"}" title="${player.connected ? "Connected" : "Reconnecting"}"></i>`}</strong>
       <output>${player.score}</output>
       ${management}
     </div>`;
@@ -254,7 +255,7 @@ function scoreRail(state, controls = "") {
   return `<aside class="score-rail">
     <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
-    <div class="score-list">${playerRows(state, role === "host" && state.phase === "lobby")}</div>
+    <div class="score-list">${playerRows(state, role === "host" && ["lobby", "round"].includes(state.phase))}</div>
     ${role === "host" ? `<div class="host-controls">
       ${controls}
       <a class="bee-button secondary full" href="${gameBase}/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
@@ -708,6 +709,15 @@ async function removePlayer(playerId) {
   }
 }
 
+async function toggleAway(playerId) {
+  try {
+    await api(`${apiBase}/players/${encodeURIComponent(playerId)}/away`, { method: "POST", body: "{}" });
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
 async function copyJoinLink() {
   const url = `${window.location.origin}${gameBase}/join/${code}`;
   try {
@@ -808,6 +818,9 @@ function bindManagement() {
   });
   document.querySelectorAll(".remove-player").forEach(button => {
     button.addEventListener("click", () => removePlayer(button.dataset.playerId));
+  });
+  document.querySelectorAll("[data-away-player-id]").forEach(button => {
+    button.addEventListener("click", () => toggleAway(button.dataset.awayPlayerId));
   });
   document.querySelector("#copy-join-link")?.addEventListener("click", copyJoinLink);
   document.querySelector("#close-room")?.addEventListener("click", closeRoom);

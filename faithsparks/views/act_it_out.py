@@ -32,6 +32,7 @@ BLOCKED_NAMES = {"admin", "host", "moderator", "faithsparks"}
 TEAM_PLAYER_LIMIT = 40
 INDIVIDUAL_PLAYER_LIMIT = 12
 DEFAULT_ROUNDS = 10
+ROUND_COUNT_OPTIONS = {10, 15, 20}
 ROUND_SECONDS = 45
 POINTS_CORRECT = 100
 PLAYER_CONNECTED_SECONDS = 40
@@ -387,11 +388,18 @@ def _build_rounds(code: str, theme: str, count: int = DEFAULT_ROUNDS, game_type:
     return rounds
 
 
-def _available_players(room: dict, team_id: str | None = None) -> list[tuple[str, dict]]:
+def _available_players(
+    room: dict,
+    team_id: str | None = None,
+    connected_only: bool = False,
+) -> list[tuple[str, dict]]:
+    now = time.time()
     players = [
         (player_id, player)
         for player_id, player in room.get("players", {}).items()
-        if not player.get("away", False) and (not team_id or player.get("team_id") == team_id)
+        if not player.get("away", False)
+        and (not team_id or player.get("team_id") == team_id)
+        and (not connected_only or _player_connected(player, now))
     ]
     return sorted(players, key=lambda item: (float(item[1].get("joined_at", 0)), item[1].get("name", "").lower()))
 
@@ -421,12 +429,12 @@ def _select_turn(room: dict) -> None:
     round_index = int(room.get("round_index", 0))
     if room.get("team_mode"):
         team = TEAMS[round_index % len(TEAMS)]
-        players = _available_players(room, team["id"])
+        players = _available_players(room, team["id"], connected_only=True)
         if not players:
-            players = _available_players(room)
+            players = _available_players(room, connected_only=True)
         room["active_team_id"] = team["id"] if players else None
     else:
-        players = _available_players(room)
+        players = _available_players(room, connected_only=True)
         room["active_team_id"] = None
     if not players:
         room["active_player_id"] = None
@@ -778,6 +786,12 @@ def _create_room(game_type: str):
     if theme not in allowed_themes:
         theme = "Mix It Up"
     team_mode = request.form.get("team_mode") == "on"
+    try:
+        round_count = int(request.form.get("round_count", DEFAULT_ROUNDS))
+    except (TypeError, ValueError):
+        round_count = DEFAULT_ROUNDS
+    if round_count not in ROUND_COUNT_OPTIONS:
+        round_count = DEFAULT_ROUNDS
     code = _new_code()
     room = {
         "created_at": time.time(),
@@ -788,8 +802,8 @@ def _create_room(game_type: str):
         "theme": theme,
         "team_mode": team_mode,
         "teams": TEAMS if team_mode else [],
-        "round_count": DEFAULT_ROUNDS,
-        "rounds": _build_rounds(code, theme, DEFAULT_ROUNDS, game_type),
+        "round_count": round_count,
+        "rounds": _build_rounds(code, theme, round_count, game_type),
         "round_index": 0,
         "timer_seconds": ROUND_SECONDS,
         "players": {},
@@ -875,7 +889,12 @@ def join_room(code: str):
     room = _require_room(code)
     existing_id = _player_id(code)
     if request.method == "POST":
-        rate = check_rate_limit("act-it-out-join", get_client_ip(), limit=60, window_seconds=10 * 60)
+        rate = check_rate_limit(
+            "act-it-out-join",
+            get_client_ip(),
+            limit=80 if room.get("team_mode") else 60,
+            window_seconds=10 * 60,
+        )
         if not rate.allowed:
             return _render_join_page(code, "Too many join attempts. Please wait a few minutes."), 429
         name = " ".join((request.form.get("player_name") or "").strip().split())
@@ -1066,9 +1085,14 @@ def start_game(code: str):
         if current.get("game_type") == "draw_it" and len(current.get("players", {})) < 2:
             raise ValueError("Draw It needs at least two players: one to draw and one to guess.")
         if current.get("team_mode"):
-            teams_with_players = {player.get("team_id") for player in current.get("players", {}).values()}
+            teams_with_players = {
+                player.get("team_id")
+                for _player_id, player in _available_players(current, connected_only=True)
+            }
             if not all(team["id"] in teams_with_players for team in TEAMS):
-                raise ValueError("Team mode needs at least one player on each team.")
+                raise ValueError("Team mode needs at least one connected player on each team.")
+        elif not _available_players(current, connected_only=True):
+            raise ValueError("Invite at least one connected player before starting.")
         current["round_index"] = 0
         current["round_results"] = []
         current.pop("last_result", None)
@@ -1362,6 +1386,49 @@ def switch_player_team(code: str, player_id: str):
 
     try:
         result = _mutate_room(code, switch)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/church-games/act-it-out/rooms/<code>/players/<player_id>/away")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/players/<player_id>/away")
+@bp.post("/api/group-games/draw-it/rooms/<code>/players/<player_id>/away")
+def toggle_player_away(code: str, player_id: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+
+    def toggle(current):
+        if current.get("phase") not in {"lobby", "round"}:
+            raise ValueError("Players can be marked away while gathering or playing a card.")
+        player = current.get("players", {}).get(player_id)
+        if not player:
+            raise ValueError("That player is no longer in the room.")
+        marking_away = not bool(player.get("away", False))
+        if current.get("phase") == "round" and current.get("active_player_id") == player_id and marking_away:
+            now = time.time()
+            alternates = [
+                other
+                for other_id, other in current.get("players", {}).items()
+                if other_id != player_id and not other.get("away", False) and _player_connected(other, now)
+            ]
+            if not alternates:
+                raise ValueError("No other connected players are available for this card.")
+        player["away"] = marking_away
+        player["last_seen"] = time.time()
+        if current.get("phase") == "round":
+            active = _active_round(current)
+            if current.get("active_player_id") == player_id:
+                _start_round(current)
+            elif active and active.get("mode") == "draw":
+                _maybe_complete_draw_round(current)
+
+    try:
+        result = _mutate_room(code, toggle)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
     if result is None:
