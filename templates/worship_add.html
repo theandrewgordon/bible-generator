@@ -54,7 +54,10 @@
 
 {% if conflict_song %}
 <div class="wa-conflict">
-  <strong>"{{ conflict_song.title }}"</strong> already exists in your library.
+  <strong>"{{ conflict_song.title }}"</strong>
+  {% if conflict_song.artist %} by {{ conflict_song.artist }}{% endif %}
+  {% if conflict_song.version %} ({{ conflict_song.version }}){% endif %}
+  already exists in your library. Different named versions can be saved separately.
   <div style="display:flex;gap:.75rem;margin-top:.75rem;flex-wrap:wrap;align-items:center">
     <form method="post" action="{{ url_for('worship_add') }}" style="display:contents">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
