@@ -82,6 +82,13 @@
 .setup-submit { width: min(420px,100%); min-height: 58px; margin: 4px auto 0; font-size: 1.05rem; }
 .setup-error { max-width: 900px; margin: 24px auto 0; padding: 14px 18px; color: #8a251f; background: #fff0ef; border: 1px solid #d89994; border-radius: 12px; font-weight: 800; }
 .setup-sign-in { max-width: 700px; margin: 36px auto; padding: 30px; text-align: center; background: white; border: 1px solid var(--bee-line); border-radius: var(--bee-radius); box-shadow: var(--bee-shadow); }
+.host-walkthrough { width: min(760px,100%); margin: 28px auto 0; padding: clamp(18px,3vw,28px); text-align: left; background: #fff8de; border: 1px solid #e6bd48; border-radius: 18px; }
+.host-walkthrough>div span { color: #765707; font-size: .75rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.host-walkthrough h2 { margin: 5px 0 16px; font-family: Georgia,"Times New Roman",serif; font-size: clamp(1.5rem,3vw,2.1rem); }
+.host-walkthrough ol { display: grid; gap: 12px; margin: 0 0 18px; padding-left: 22px; }
+.host-walkthrough li { padding-left: 4px; }.host-walkthrough li strong,.host-walkthrough li small{display:block}.host-walkthrough li small{margin-top:3px;color:var(--bee-muted);line-height:1.4}
+.host-help { margin-top: 4px; text-align: left; background: white; border: 1px solid var(--bee-line); border-radius: 11px; }
+.host-help summary { padding: 11px 13px; color: var(--bee-blue); font-weight: 900; cursor: pointer; }.host-help div{padding:0 13px 13px}.host-help p{margin:9px 0;color:var(--bee-muted);font-size:.83rem;line-height:1.4}.host-help a{font-size:.85rem;font-weight:900}
 @media(max-width:760px){.setup-choice-grid.five{grid-template-columns:repeat(2,1fr)}.setup-choice-grid.three,.category-check-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:420px){.setup-choice-grid.two,.setup-choice-grid.three,.setup-choice-grid.five,.category-check-grid{grid-template-columns:1fr}.setup-choice-grid label>span{min-height:70px}.free-game-note{align-items:flex-start;flex-direction:column}}
 

@@ -143,6 +143,42 @@ def test_family_game_night_free_room_is_mixed_and_server_limited():
     assert {round_data["prompt_id"] for round_data in room["rounds"]} <= act_it_out.FREE_FAMILY_PROMPT_IDS
 
 
+def test_family_game_night_records_create_join_start_and_finish_funnel(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    events = []
+    monkeypatch.setattr(act_it_out, "_record_family_funnel_event", lambda event, room, code: events.append((event, code)))
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "funnel-family@example.com")
+    _prime(player)
+
+    created, code = _create_family_room(host, play_style="individual")
+    assert created.status_code == 302
+    joined = _post(player, f"/group-games/act-it-out/join/{code}", data={"csrf_token": CSRF, "player_name": "Ada"})
+    assert joined.status_code == 302
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start").status_code == 200
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/end").status_code == 200
+
+    assert [event for event, event_code in events if event_code == code] == [
+        "room_created",
+        "first_player_joined",
+        "game_started",
+        "game_finished",
+    ]
+
+
+def test_family_game_night_room_exposes_first_host_walkthrough_and_help():
+    js = open("static/act_it_out.js", encoding="utf-8").read()
+
+    assert "Three screens, one easy job." in js
+    assert "Keep this host screen with you." in js
+    assert "No account needed." in js
+    assert "Need help?" in js
+    assert "A phone disconnected?" in js
+    assert "Read aloud?" in js
+
+
 def test_family_game_night_rejects_invalid_and_locked_configuration():
     host = app.test_client()
     _prime(host, "invalid-family@example.com")
@@ -229,6 +265,8 @@ def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
     monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_fake")
     monkeypatch.setattr(billing, "STRIPE_PRICE_FAMILY_GAME_NIGHT", "price_game_night")
     monkeypatch.setattr(billing, "db", Database())
+    metric = mock.Mock()
+    monkeypatch.setattr(billing, "_increment_metric", metric)
 
     with app.test_request_context("/family-game-night/checkout", method="POST"):
         session["user_email"] = "owner@example.com"
@@ -240,6 +278,7 @@ def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
     assert kwargs["line_items"] == [{"price": "price_game_night", "quantity": 1}]
     assert kwargs["metadata"]["entitlement_id"] == "family_game_night"
     assert kwargs["metadata"]["email"] == "owner@example.com"
+    metric.assert_called_once_with("family_game_night_checkout_started", "one_time")
 
 
 def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
@@ -281,6 +320,8 @@ def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
     monkeypatch.setattr(billing, "stripe", fake_stripe)
     monkeypatch.setattr(billing, "STRIPE_WEBHOOK_SECRET", "whsec_fake")
     monkeypatch.setattr(billing, "db", Database())
+    metric = mock.Mock()
+    monkeypatch.setattr(billing, "_increment_metric", metric)
 
     with app.test_request_context(
         "/stripe/webhook",
@@ -296,6 +337,7 @@ def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
     assert merge is True
     assert data["purchases"]["family_game_night"] is True
     assert data["purchaseDetails"]["family_game_night"]["checkoutSessionId"] == "cs_game_night"
+    metric.assert_called_once_with("family_game_night_checkout_fulfilled", "family_game_night")
 
 
 def test_act_it_out_home_explains_round_flow_and_draw_mode():

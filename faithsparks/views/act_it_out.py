@@ -14,7 +14,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 import qrcode
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, send_file, session, url_for
 from google.cloud import firestore as google_firestore
 
 from faithsparks.services.firestore import db
@@ -194,6 +194,38 @@ def _free_prompt_ids() -> set[str]:
 
 
 FREE_FAMILY_PROMPT_IDS = _free_prompt_ids()
+FAMILY_FUNNEL_EVENTS = {"room_created", "first_player_joined", "game_started", "game_finished"}
+
+
+def _record_family_funnel_event(event: str, room: dict | None, code: str) -> None:
+    """Record aggregate launch events without player names or room secrets."""
+    if event not in FAMILY_FUNNEL_EVENTS or (room or {}).get("game_type") != "family_game_night":
+        return
+    client = db()
+    if not client:
+        return
+    try:
+        root = client.collection("analytics").document("family_game_night_funnel")
+        root.set(
+            {
+                "total": google_firestore.Increment(1),
+                f"events.{event}": google_firestore.Increment(1),
+                "updatedAt": google_firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+        root.collection("recent").document(f"{event}-{code}").set(
+            {
+                "event": event,
+                "roomCode": code,
+                "freeSampler": bool((room or {}).get("free_sampler")),
+                "gameMode": (room or {}).get("game_mode"),
+                "roundCount": int((room or {}).get("round_count", 0)),
+                "createdAt": google_firestore.SERVER_TIMESTAMP,
+            }
+        )
+    except Exception:
+        current_app.logger.exception("Family Game Night funnel event failed: %s", event)
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -938,6 +970,7 @@ def create_family_game_night_room():
         "round_results": [],
     }
     _set_room(code, room)
+    _record_family_funnel_event("room_created", room, code)
     host_rooms = list(session.get("act_it_out_host_rooms", []))
     if code not in host_rooms:
         host_rooms.append(code)
@@ -1177,9 +1210,12 @@ def join_room(code: str):
             }
 
         try:
-            _mutate_room(code, add_player)
+            result = _mutate_room(code, add_player)
         except ValueError as exc:
             return _render_join_page(code, str(exc)), 409
+        joined_room = result[1] if result else None
+        if joined_room and len(joined_room.get("players", {})) == 1:
+            _record_family_funnel_event("first_player_joined", joined_room, code)
         session[_player_session_key(code)] = player_id
         return redirect(f"/group-games/{_game_slug(room)}/play/{code}")
     if existing_id and existing_id in room.get("players", {}):
@@ -1342,6 +1378,7 @@ def start_game(code: str):
         return jsonify({"error": str(exc)}), 409
     if result is None:
         abort(404)
+    _record_family_funnel_event("game_started", result[1], code)
     return jsonify({"ok": True})
 
 
@@ -1383,6 +1420,8 @@ def _host_action(code: str, action: str):
         return jsonify({"error": str(exc)}), 409
     if result is None:
         abort(404)
+    if result[1].get("phase") == "finished":
+        _record_family_funnel_event("game_finished", result[1], code)
     return jsonify({"ok": True})
 
 

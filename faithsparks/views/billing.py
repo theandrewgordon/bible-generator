@@ -665,6 +665,7 @@ def stripe_webhook():
                         },
                         merge=True,
                     )
+                    _increment_metric("family_game_night_checkout_fulfilled", entitlement_id)
                 elif pack_slug:
                     db.collection("users").document(email).set(
                         {"purchases": {pack_slug: True}, "updatedAt": firestore.SERVER_TIMESTAMP},
@@ -799,6 +800,7 @@ def buy_family_game_night():
                 "price_id": price_id,
             },
         )
+        _increment_metric("family_game_night_checkout_started", "one_time")
         return redirect(checkout.url, code=303)
     except Exception as exc:
         current_app.logger.exception("[%s] Family Game Night checkout failed: %s", getattr(g, "req_id", ""), exc)

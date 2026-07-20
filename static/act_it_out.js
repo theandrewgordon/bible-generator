@@ -5,6 +5,7 @@ const code = body.dataset.roomCode;
 const role = body.dataset.role;
 const gameSlug = body.dataset.gameSlug || "act-it-out";
 const gameTitle = body.dataset.gameTitle || "Act It Out";
+const isFamilyGameNight = gameTitle === "Family Game Night";
 const gameBase = `/group-games/${gameSlug}`;
 const gameHome = body.dataset.gameHome || gameBase;
 const apiBase = `/api/group-games/${gameSlug}/rooms/${code}`;
@@ -260,10 +261,11 @@ function scoreRail(state, controls = "") {
     <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
     <div class="score-list">${playerRows(state, role === "host" && ["lobby", "round"].includes(state.phase))}</div>
-    ${role === "host" ? `<div class="host-controls">
+      ${role === "host" ? `<div class="host-controls">
       ${controls}
       <a class="bee-button secondary full" href="${gameBase}/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
       <button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>
+      ${isFamilyGameNight ? `<details class="host-help"><summary>Need help?</summary><div><p><strong>Lost the TV?</strong> Open TV display again; it safely rejoins this room.</p><p><strong>A phone disconnected?</strong> Reopen its player page. Scores and turns stay with the room.</p><p><strong>Need to stop?</strong> End the game during a round, or delete the room below.</p><p><strong>Read aloud?</strong> Use the control at the top of this host screen.</p><a href="mailto:hello@faithsparksprintables.com?subject=Family%20Game%20Night%20help">Email support</a></div></details>` : ""}
       ${["round", "reveal"].includes(state.phase) ? `<button id="end-game" class="text-button danger-text" type="button">End game</button>` : ""}
       <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
     </div>` : ""}
@@ -303,6 +305,7 @@ function renderLobby(state) {
     return;
   }
   const startDisabled = state.players.length ? "" : "disabled";
+  const showHostWalkthrough = role === "host" && isFamilyGameNight && window.localStorage.getItem("familyGameNightHostWalkthrough") !== "done";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
       <p class="round-meta">${escapeHTML(state.theme)} · ${state.round_total} cards · 45 seconds each</p>
@@ -316,12 +319,25 @@ function renderLobby(state) {
         </div>
       </div>
       <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.</p>
+      ${showHostWalkthrough ? `<aside class="host-walkthrough" aria-labelledby="host-walkthrough-title">
+        <div><span>First game?</span><h2 id="host-walkthrough-title">Three screens, one easy job.</h2></div>
+        <ol>
+          <li><strong>Put “TV display” on the big screen.</strong><small>Open it in a new tab, then cast or AirPlay that tab if needed.</small></li>
+          <li><strong>Keep this host screen with you.</strong><small>You’ll start the game, award points, and move to the next card here.</small></li>
+          <li><strong>Players use their own phones.</strong><small>They scan this QR code or visit this page and enter room <b>${escapeHTML(code)}</b>. No account needed.</small></li>
+        </ol>
+        <button id="dismiss-host-walkthrough" class="bee-button secondary" type="button">Got it</button>
+      </aside>` : ""}
     </section>
     ${scoreRail(state, `${state.team_mode ? `<button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
       <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start game</button>`)}
   </div>`;
   document.querySelector("#start-game")?.addEventListener("click", () => hostAction("start"));
   document.querySelector("#rebalance-teams")?.addEventListener("click", rebalanceTeams);
+  document.querySelector("#dismiss-host-walkthrough")?.addEventListener("click", () => {
+    window.localStorage.setItem("familyGameNightHostWalkthrough", "done");
+    renderLobby(state);
+  });
   bindManagement();
 }
 
