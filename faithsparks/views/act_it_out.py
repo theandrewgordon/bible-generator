@@ -19,6 +19,8 @@ from google.cloud import firestore as google_firestore
 
 from faithsparks.services.firestore import db
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.stripe_svc import STRIPE_PRICE_FAMILY_GAME_NIGHT
+from faithsparks.services.users import get_user_doc
 from faithsparks.util.request_utils import get_client_ip
 
 
@@ -716,7 +718,14 @@ def hub():
 @bp.get("/family-game-night")
 def family_game_night():
     """Public product page; stable game URLs remain behind this wrapper."""
-    return render_template("family_game_night.html")
+    email = _host_email()
+    user_data = get_user_doc(email) if email else {}
+    owns_complete_game = bool((user_data.get("purchases") or {}).get("family_game_night"))
+    return render_template(
+        "family_game_night.html",
+        owns_complete_game=owns_complete_game,
+        checkout_available=bool(STRIPE_PRICE_FAMILY_GAME_NIGHT),
+    )
 
 
 @bp.get("/church-games/act-it-out")

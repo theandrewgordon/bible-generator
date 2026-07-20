@@ -1,5 +1,8 @@
 import re
 from types import SimpleNamespace
+from unittest import mock
+
+from flask import session
 
 from app import app
 from faithsparks.services.rate_limit import reset_memory_limits
@@ -80,6 +83,103 @@ def test_family_game_night_sales_page_explains_product_and_join_flow():
     assert b"Players join free" in page.data
     assert b'id="fgn-code-form"' in page.data
     assert b"noindex" not in page.data
+
+
+def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
+    from faithsparks.views import billing
+
+    checkout_create = mock.Mock(return_value=SimpleNamespace(url="https://checkout.example/game-night"))
+    fake_stripe = SimpleNamespace(checkout=SimpleNamespace(Session=SimpleNamespace(create=checkout_create)))
+
+    class Snapshot:
+        exists = False
+
+        def to_dict(self):
+            return {}
+
+    class Document:
+        def get(self):
+            return Snapshot()
+
+    class Collection:
+        def document(self, _document_id):
+            return Document()
+
+    class Database:
+        def collection(self, _collection_name):
+            return Collection()
+
+    monkeypatch.setattr(billing, "stripe", fake_stripe)
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_fake")
+    monkeypatch.setattr(billing, "STRIPE_PRICE_FAMILY_GAME_NIGHT", "price_game_night")
+    monkeypatch.setattr(billing, "db", Database())
+
+    with app.test_request_context("/family-game-night/checkout", method="POST"):
+        session["user_email"] = "owner@example.com"
+        response = billing.buy_family_game_night()
+
+    assert response.status_code == 303
+    kwargs = checkout_create.call_args.kwargs
+    assert kwargs["mode"] == "payment"
+    assert kwargs["line_items"] == [{"price": "price_game_night", "quantity": 1}]
+    assert kwargs["metadata"]["entitlement_id"] == "family_game_night"
+    assert kwargs["metadata"]["email"] == "owner@example.com"
+
+
+def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
+    from faithsparks.views import billing
+
+    writes = []
+
+    class Document:
+        def set(self, data, merge=False):
+            writes.append((data, merge))
+
+    class Collection:
+        def document(self, _document_id):
+            return Document()
+
+    class Database:
+        def collection(self, _collection_name):
+            return Collection()
+
+    event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_game_night",
+                "customer": "cus_family",
+                "customer_details": {"email": "owner@example.com"},
+                "metadata": {
+                    "email": "owner@example.com",
+                    "entitlement_id": "family_game_night",
+                    "price_id": "price_game_night",
+                },
+            }
+        },
+    }
+    fake_stripe = SimpleNamespace(
+        Webhook=SimpleNamespace(construct_event=mock.Mock(return_value=event)),
+        Subscription=SimpleNamespace(retrieve=mock.Mock()),
+    )
+    monkeypatch.setattr(billing, "stripe", fake_stripe)
+    monkeypatch.setattr(billing, "STRIPE_WEBHOOK_SECRET", "whsec_fake")
+    monkeypatch.setattr(billing, "db", Database())
+
+    with app.test_request_context(
+        "/stripe/webhook",
+        method="POST",
+        data=b"{}",
+        headers={"Stripe-Signature": "test-signature"},
+    ):
+        response = billing.stripe_webhook()
+
+    assert response == ("", 200)
+    assert len(writes) == 1
+    data, merge = writes[0]
+    assert merge is True
+    assert data["purchases"]["family_game_night"] is True
+    assert data["purchaseDetails"]["family_game_night"]["checkoutSessionId"] == "cs_game_night"
 
 
 def test_act_it_out_home_explains_round_flow_and_draw_mode():

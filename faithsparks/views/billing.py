@@ -17,6 +17,7 @@ from faithsparks.services.stripe_svc import (
     STRIPE_PRICE_FAMILY_ANNUAL,
     STRIPE_PRICE_CLASSROOM_MONTHLY,
     STRIPE_PRICE_CLASSROOM_ANNUAL,
+    STRIPE_PRICE_FAMILY_GAME_NIGHT,
     STRIPE_WEBHOOK_SECRET,
     resolve_price_id,
 )
@@ -105,6 +106,8 @@ def _trial_days_for(token: str, price_id: str) -> Optional[Tuple[int, str]]:
 
 bp = Blueprint("billing", __name__)
 
+FAMILY_GAME_NIGHT_ENTITLEMENT = "family_game_night"
+ALLOWED_ONE_TIME_ENTITLEMENTS = {FAMILY_GAME_NIGHT_ENTITLEMENT}
 
 REFERRAL_INVITE_CODE = "freesparkmonth"
 REFERRAL_TARGET_COUNT = 3
@@ -546,6 +549,7 @@ def stripe_webhook():
             customer_id = obj.get("customer")
             price_id = checkout_meta.get("plan_price_id")
             pack_slug = checkout_meta.get("pack_slug")
+            entitlement_id = checkout_meta.get("entitlement_id")
             sub = None
             try:
                 if subscription_id and STRIPE_SECRET_KEY:
@@ -645,6 +649,22 @@ def stripe_webhook():
                             _increment_metric("trial_starts", utm_source)
                     else:
                         _increment_metric("trial_starts", utm_source)
+                elif entitlement_id in ALLOWED_ONE_TIME_ENTITLEMENTS:
+                    db.collection("users").document(email).set(
+                        {
+                            "purchases": {entitlement_id: True},
+                            "purchaseDetails": {
+                                entitlement_id: {
+                                    "checkoutSessionId": obj.get("id"),
+                                    "stripeCustomerId": customer_id,
+                                    "priceId": checkout_meta.get("price_id"),
+                                    "purchasedAt": firestore.SERVER_TIMESTAMP,
+                                }
+                            },
+                            "updatedAt": firestore.SERVER_TIMESTAMP,
+                        },
+                        merge=True,
+                    )
                 elif pack_slug:
                     db.collection("users").document(email).set(
                         {"purchases": {pack_slug: True}, "updatedAt": firestore.SERVER_TIMESTAMP},
@@ -742,6 +762,73 @@ def stripe_webhook():
     except Exception:
         traceback.print_exc()
     return ("", 200)
+
+
+def buy_family_game_night():
+    if not stripe or not STRIPE_SECRET_KEY:
+        return "Stripe not configured", 500
+    if not db:
+        return "Firestore not configured", 500
+    email = (session.get("user_email") or "").strip().lower()
+    if not email:
+        return redirect(url_for("google.login", next=url_for("act_it_out.family_game_night")))
+    try:
+        user_doc = db.collection("users").document(email).get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        if (user_data.get("purchases") or {}).get(FAMILY_GAME_NIGHT_ENTITLEMENT):
+            flash("You already own Family Game Night. Start a game whenever you're ready!", "success")
+            return redirect(url_for("act_it_out.home"))
+    except Exception:
+        current_app.logger.exception("[%s] Family Game Night ownership check failed", getattr(g, "req_id", ""))
+        flash("We couldn't confirm your access yet. Please try again.", "error")
+        return redirect(url_for("act_it_out.family_game_night"))
+    price_id = (STRIPE_PRICE_FAMILY_GAME_NIGHT or "").strip()
+    if not price_id:
+        flash("Family Game Night checkout is not available yet.", "warning")
+        return redirect(url_for("act_it_out.family_game_night"))
+    try:
+        checkout = stripe.checkout.Session.create(
+            mode="payment",
+            customer_email=email,
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=url_for("family_game_night_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=url_for("act_it_out.family_game_night", _external=True) + "#complete-game",
+            metadata={
+                "email": email,
+                "entitlement_id": FAMILY_GAME_NIGHT_ENTITLEMENT,
+                "price_id": price_id,
+            },
+        )
+        return redirect(checkout.url, code=303)
+    except Exception as exc:
+        current_app.logger.exception("[%s] Family Game Night checkout failed: %s", getattr(g, "req_id", ""), exc)
+        flash("We couldn't start checkout yet. Please try again.", "error")
+        return redirect(url_for("act_it_out.family_game_night"))
+
+
+def family_game_night_success():
+    session_id = (request.args.get("session_id") or "").strip()
+    if session_id and stripe and STRIPE_SECRET_KEY:
+        try:
+            checkout = stripe.checkout.Session.retrieve(session_id)
+            metadata = checkout.get("metadata") or {}
+            checkout_email = (
+                (checkout.get("customer_details") or {}).get("email")
+                or checkout.get("customer_email")
+                or metadata.get("email")
+                or ""
+            ).strip().lower()
+            if (
+                checkout.get("payment_status") == "paid"
+                and metadata.get("entitlement_id") == FAMILY_GAME_NIGHT_ENTITLEMENT
+                and checkout_email == (session.get("user_email") or "").strip().lower()
+            ):
+                flash("Purchase received! Your access will appear as soon as Stripe confirms it.", "success")
+                return redirect(url_for("act_it_out.home"))
+        except Exception:
+            current_app.logger.exception("[%s] Family Game Night success verification failed", getattr(g, "req_id", ""))
+    flash("We're still confirming your purchase. Refresh in a moment or contact support if access does not appear.", "warning")
+    return redirect(url_for("act_it_out.family_game_night"))
 
 
 def buy_pack(slug):
