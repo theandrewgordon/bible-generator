@@ -13,6 +13,8 @@ STORAGE_BUCKET = os.getenv("FIREBASE_STORAGE_BUCKET") or os.getenv("STORAGE_BUCK
 _db = None
 _storage_client = None
 _initialized = False
+_initialized_pid = None
+_last_init_error = None
 _init_lock = threading.Lock()
 
 logger = logging.getLogger(__name__)
@@ -28,16 +30,26 @@ def validate_firebase_credentials() -> None:
 
 
 def init_firebase():
-    global _db, _storage_client, _initialized
-    if _initialized:
+    global _db, _storage_client, _initialized, _initialized_pid, _last_init_error
+    current_pid = os.getpid()
+    if _initialized and _initialized_pid == current_pid:
         return _db, _storage_client
 
     with _init_lock:
-        if _initialized:
+        if _initialized and _initialized_pid == current_pid:
             return _db, _storage_client
+
+        # Never reuse clients inherited from a Gunicorn parent or another
+        # process. Firestore/gRPC channels must be constructed in this worker.
+        if _initialized_pid is not None and _initialized_pid != current_pid:
+            _db = None
+            _storage_client = None
+            _initialized = False
+            _initialized_pid = None
 
         creds_str = os.getenv("FIREBASE_CREDS_JSON")
         if not creds_str:
+            _last_init_error = "FIREBASE_CREDS_JSON is missing in this process"
             return None, None
 
         try:
@@ -49,9 +61,13 @@ def init_firebase():
                 firebase_admin.initialize_app(cred)
 
             _db = firestore.client()
+            _initialized_pid = current_pid
+            _last_init_error = None
             logger.info("Firestore client initialized in worker pid=%s", os.getpid())
-        except Exception:
+        except Exception as exc:
             _db = None
+            _initialized_pid = None
+            _last_init_error = f"{type(exc).__name__}: {exc}"
             logger.exception("Firebase credentials or Firestore client initialization failed")
             return None, None
 
@@ -67,6 +83,10 @@ def init_firebase():
 
         _initialized = True
         return _db, _storage_client
+
+
+def firebase_init_diagnostic() -> str:
+    return _last_init_error or "no initialized client"
 
 
 class _FirestoreAccessor:

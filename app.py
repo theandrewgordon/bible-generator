@@ -42,7 +42,12 @@ except Exception:
     markdown2 = None
 
 # Extracted services/utilities
-from faithsparks.services.firestore import db, init_firebase, validate_firebase_credentials
+from faithsparks.services.firestore import (
+    db,
+    firebase_init_diagnostic,
+    init_firebase,
+    validate_firebase_credentials,
+)
 from faithsparks.services.storage import upload_to_storage, signed_url_for_path
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
@@ -822,12 +827,16 @@ def _set_current_worship_church(church_id: str) -> None:
         db.collection("users").document(session["user_email"]).set(update_data, merge=True)
 
 
-def _worship_songs_ref():
-    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_COLLECTION)
+def _worship_songs_ref(client=None):
+    if client is None:
+        client = db
+    return client.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_COLLECTION)
 
 
-def _legacy_worship_songs_ref():
-    return db.collection(_WORSHIP_COLLECTION)
+def _legacy_worship_songs_ref(client=None):
+    if client is None:
+        client = db
+    return client.collection(_WORSHIP_COLLECTION)
 
 
 def _worship_setlists_ref():
@@ -838,10 +847,10 @@ def _legacy_worship_setlists_ref():
     return db.collection(_WORSHIP_SETLIST_COLLECTION)
 
 
-def _worship_song_refs_for_read():
-    refs = [_worship_songs_ref()]
+def _worship_song_refs_for_read(client=None):
+    refs = [_worship_songs_ref(client)]
     if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
-        refs.insert(0, _legacy_worship_songs_ref())
+        refs.insert(0, _legacy_worship_songs_ref(client))
     return refs
 
 
@@ -949,9 +958,10 @@ def list_worship_songs() -> list[dict]:
 
 def get_worship_song(song_id: str) -> dict | None:
     """Load one song by id. Firestore first, file fallback."""
-    if db:
+    firestore_client, _ = init_firebase()
+    if firestore_client is not None:
         try:
-            for ref in _worship_song_refs_for_read():
+            for ref in _worship_song_refs_for_read(firestore_client):
                 doc = ref.document(song_id).get()
                 if doc.exists:
                     return doc.to_dict()
@@ -960,6 +970,10 @@ def get_worship_song(song_id: str) -> dict | None:
             if not _is_local_storage_allowed():
                 raise RuntimeError(f"Firestore read failed for song {song_id} in production.") from exc
     if not _is_local_storage_allowed():
+        app.logger.error(
+            "get_worship_song(%s) has no Firestore client in pid=%s: %s",
+            song_id, os.getpid(), firebase_init_diagnostic(),
+        )
         raise RuntimeError(f"Firestore not available to get song {song_id} in production. Local fallback is disabled.")
     fp = Path(app.root_path) / "songs" / f"{song_id}.json"
     if fp.exists():
@@ -1093,10 +1107,11 @@ def save_worship_song(song: dict) -> None:
     """Persist a song. Firestore when available, local file fallback."""
     song = normalize_worship_song(song)
     song_id = song["id"]
-    if db:
+    firestore_client, _ = init_firebase()
+    if firestore_client is not None:
         try:
             song["worship_scope"] = _current_worship_scope()
-            _worship_songs_ref().document(song_id).set(song)
+            _worship_songs_ref(firestore_client).document(song_id).set(song)
             _invalidate_worship_cache()
             return
         except Exception as exc:
@@ -1104,6 +1119,10 @@ def save_worship_song(song: dict) -> None:
             if not _is_local_storage_allowed():
                 raise RuntimeError(f"Firestore write failed for song {song_id} in production.") from exc
     if not _is_local_storage_allowed():
+        app.logger.error(
+            "save_worship_song(%s) has no Firestore client in pid=%s: %s",
+            song_id, os.getpid(), firebase_init_diagnostic(),
+        )
         raise RuntimeError(f"Firestore not available to save song {song_id} in production. Local fallback is disabled.")
     songs_folder = Path(app.root_path) / "songs"
     songs_folder.mkdir(exist_ok=True)

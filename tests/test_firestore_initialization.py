@@ -11,14 +11,20 @@ class FirestoreInitializationTests(unittest.TestCase):
         self.original_db = firestore_service._db
         self.original_storage_client = firestore_service._storage_client
         self.original_initialized = firestore_service._initialized
+        self.original_initialized_pid = firestore_service._initialized_pid
+        self.original_last_init_error = firestore_service._last_init_error
         firestore_service._db = None
         firestore_service._storage_client = None
         firestore_service._initialized = False
+        firestore_service._initialized_pid = None
+        firestore_service._last_init_error = None
 
     def tearDown(self):
         firestore_service._db = self.original_db
         firestore_service._storage_client = self.original_storage_client
         firestore_service._initialized = self.original_initialized
+        firestore_service._initialized_pid = self.original_initialized_pid
+        firestore_service._last_init_error = self.original_last_init_error
 
     def test_storage_failure_does_not_disable_firestore(self):
         credentials_json = json.dumps({"project_id": "test-project"})
@@ -68,6 +74,7 @@ class FirestoreInitializationTests(unittest.TestCase):
 
         firestore_service._db = FalseyClient()
         firestore_service._initialized = True
+        firestore_service._initialized_pid = os.getpid()
 
         self.assertTrue(firestore_service.db)
 
@@ -75,10 +82,29 @@ class FirestoreInitializationTests(unittest.TestCase):
         client = object()
         firestore_service._db = client
         firestore_service._initialized = True
+        firestore_service._initialized_pid = os.getpid()
 
         returned, _ = firestore_service.init_firebase()
 
         self.assertIs(returned, client)
+
+    def test_client_inherited_from_another_pid_is_reinitialized(self):
+        inherited_client = object()
+        worker_client = object()
+        firestore_service._db = inherited_client
+        firestore_service._initialized = True
+        firestore_service._initialized_pid = os.getpid() - 1
+
+        with (
+            patch.dict(os.environ, {"FIREBASE_CREDS_JSON": json.dumps({"project_id": "test-project"})}),
+            patch.object(firestore_service.firebase_admin, "_apps", {"default": object()}),
+            patch.object(firestore_service.firestore, "client", return_value=worker_client),
+            patch.object(firestore_service, "STORAGE_BUCKET", None),
+        ):
+            returned, _ = firestore_service.init_firebase()
+
+        self.assertIs(returned, worker_client)
+        self.assertEqual(firestore_service._initialized_pid, os.getpid())
 
 
 class FirebaseCredentialValidationTests(unittest.TestCase):
