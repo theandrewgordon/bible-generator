@@ -666,6 +666,10 @@ def _complete_round(room: dict, outcome: str, now: float | None = None) -> None:
     player_id = room.get("active_player_id")
     player = room.get("players", {}).get(player_id or "")
     points = POINTS_CORRECT if outcome == "correct" else 0
+    if outcome == "correct" and active.get("mode") == "guess":
+        # The first clue is visible at index zero. Reward earlier answers while
+        # keeping the final clue worth enough to feel meaningful.
+        points = max(25, POINTS_CORRECT - (25 * int(room.get("clue_index", 0))))
     if player and points:
         player["score"] = int(player.get("score", 0)) + points
     room.setdefault("round_results", []).append({
@@ -804,6 +808,11 @@ def _public_room(room: dict, code: str) -> dict:
             "clues": clues[: clue_index + 1] if active.get("mode") == "guess" and room.get("phase") in {"round", "reveal", "finished"} else [],
             "clue_count": len(clues),
             "clue_index": clue_index if active.get("mode") == "guess" else None,
+            "points_available": (
+                max(25, POINTS_CORRECT - (25 * clue_index))
+                if active.get("mode") == "guess"
+                else POINTS_CORRECT
+            ),
             "drawing": room.get("drawing_data") if active.get("mode") == "draw" and room.get("phase") in {"round", "reveal"} else None,
             "choices": active.get("choices", []) if active.get("mode") == "draw" and room.get("phase") == "round" else [],
         }
@@ -811,6 +820,7 @@ def _public_room(room: dict, code: str) -> dict:
             guesser_ids = _draw_guesser_ids(room)
             visible_round["answered_count"] = len(room.get("draw_answers", {}))
             visible_round["guesser_count"] = len(guesser_ids)
+            visible_round["answered_player_ids"] = list(room.get("draw_answers", {}).keys())
     players = _public_players(room, code)
     return {
         "code": code,
@@ -1653,6 +1663,47 @@ def submit_draw_guess(code: str):
         result = _mutate_room(code, save)
     except PermissionError:
         abort(403)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/group-games/draw-it/rooms/<code>/draw-correct")
+@bp.post("/api/group-games/act-it-out/rooms/<code>/draw-correct")
+def award_spoken_draw_guess(code: str):
+    """Let the host record a correct Draw It guess called out aloud."""
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+    player_id = str((request.get_json(silent=True) or {}).get("player_id", "")).strip()
+
+    def award(current):
+        active = _active_round(current)
+        if current.get("phase") != "round" or not active or active.get("mode") != "draw":
+            raise ValueError("This is not a drawing guess round.")
+        if player_id == current.get("active_player_id"):
+            raise ValueError("The drawer cannot receive a guessing point.")
+        player = current.get("players", {}).get(player_id)
+        eligible_ids = set(_draw_guesser_ids(current))
+        if not player or player_id not in eligible_ids:
+            raise ValueError("Choose a connected guesser.")
+        answers = current.setdefault("draw_answers", {})
+        if player_id in answers:
+            raise ValueError("That player's answer is already locked.")
+        player["score"] = int(player.get("score", 0)) + POINTS_CORRECT
+        answers[player_id] = {
+            "choice": active["answer"],
+            "correct": True,
+            "answered_at": time.time(),
+            "awarded_by_host": True,
+        }
+        _maybe_complete_draw_round(current)
+
+    try:
+        result = _mutate_room(code, award)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
     if result is None:

@@ -385,7 +385,8 @@ function drawGuessPanel(state) {
     </div>`;
   }
   const choices = state.round.choices || [];
-  return `<div class="answer-grid draw-guess-grid">
+  return `<div class="draw-lock-in-prompt"><strong>Lock in your guess</strong><p>Tap one answer below. You only get one choice.</p></div>
+  <div class="answer-grid draw-guess-grid">
     ${choices.map(choice => `<button class="answer-button draw-guess-choice" data-draw-choice="${escapeHTML(choice)}" type="button">
       <span class="answer-letter">?</span>
       <strong>${escapeHTML(choice)}</strong>
@@ -420,15 +421,22 @@ function renderRound(state) {
   const activePrompt = state.viewer.secret_prompt;
   const isGuess = state.round?.mode === "guess";
   const isDraw = state.round?.mode === "draw";
+  const pointsAvailable = state.round?.points_available || 100;
   const canRevealClue = isGuess && (state.round?.clues?.length || 0) < (state.round?.clue_count || 0);
+  const answeredPlayerIds = new Set(state.round?.answered_player_ids || []);
+  const drawGuessers = isDraw
+    ? state.players.filter(player => player.id !== state.active_player_id && player.connected && !player.away && !answeredPlayerIds.has(player.id))
+    : [];
   const controls = role === "host"
     ? isDraw
-      ? `<p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
+      ? `<p class="host-score-hint"><strong>Phone guesses:</strong> players tap one answer to lock it in. Correct choices score automatically.</p>
+         ${drawGuessers.length ? `<div class="draw-verbal-awards"><strong>Someone called it out?</strong>${drawGuessers.map(player => `<button class="bee-button primary full award-draw-guesser" data-player-id="${escapeHTML(player.id)}" type="button">Award ${escapeHTML(player.name)} · +100</button>`).join("")}</div>` : ""}
+         <p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
          <button id="pass-round" class="bee-button secondary full" type="button">Reveal drawing answer</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
       : `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
          ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
-         <button id="correct-round" class="bee-button primary full" type="button">Got it right · +100</button>
+         <button id="correct-round" class="bee-button primary full" type="button">Got it right · +${pointsAvailable}</button>
          <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
     : "";
@@ -438,7 +446,7 @@ function renderRound(state) {
       <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       <div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">${isGuess ? "Reveal clues one at a time. Award 100 points when they get it." : isDraw ? "The drawing updates here while the player draws. Phone guesses score automatically." : "Guess out loud. Award 100 points when they get it."}</p>
+      <p class="act-display-instruction">${isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : isDraw ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : "Guess out loud. Award 100 points when they get it."}</p>
       ${clueList(state.round)}
       ${drawingBoard(state)}
       ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
@@ -450,6 +458,9 @@ function renderRound(state) {
   document.querySelector("#correct-round")?.addEventListener("click", () => hostAction("correct"));
   document.querySelector("#pass-round")?.addEventListener("click", () => hostAction("pass"));
   document.querySelector("#skip-round")?.addEventListener("click", () => hostAction("skip"));
+  document.querySelectorAll(".award-draw-guesser").forEach(button => {
+    button.addEventListener("click", () => awardDrawGuesser(button.dataset.playerId));
+  });
   document.querySelectorAll("[data-draw-choice]").forEach(button => {
     button.addEventListener("click", () => submitDrawGuess(button.dataset.drawChoice));
   });
@@ -470,7 +481,7 @@ function renderReveal(state) {
     <section class="game-stage act-reveal-stage">
       <div class="celebration-mark">${isCorrect || isDraw ? "✓" : "✦"}</div>
       <h1>${isDraw ? "Drawing revealed" : isCorrect ? "Correct!" : "Passed"}</h1>
-      <p>${isDraw ? escapeHTML(drawSummary) : `${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? "earned 100 points. Deal the next card when ready." : "gets no points for this card. Deal the next card when ready."}`}</p>
+      <p>${isDraw ? escapeHTML(drawSummary) : `${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? `earned ${result.points || 0} points. Deal the next card when ready.` : "gets no points for this card. Deal the next card when ready."}`}</p>
       <div class="revealed-verse"><strong>Answer</strong><p>${escapeHTML(state.round?.answer || result.answer || "")}</p></div>
       ${clueList(state.round, true)}
       ${drawingBoard(state)}
@@ -667,6 +678,18 @@ async function submitDrawGuess(choice) {
     await api(`${apiBase}/guess`, {
       method: "POST",
       body: JSON.stringify({ choice }),
+    });
+    await refresh();
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+async function awardDrawGuesser(playerId) {
+  try {
+    await api(`${apiBase}/draw-correct`, {
+      method: "POST",
+      body: JSON.stringify({ player_id: playerId }),
     });
     await refresh();
   } catch (error) {

@@ -726,6 +726,7 @@ def test_guess_mode_reveals_clues_without_leaking_answer_to_players():
     display_state = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
 
     assert host_state["round"]["mode"] == "guess"
+    assert host_state["round"]["points_available"] == 100
     assert host_state["round"]["answer"] is None
     assert len(host_state["round"]["clues"]) == 1
     assert host_state["viewer"]["secret_prompt"]["answer"]
@@ -737,16 +738,19 @@ def test_guess_mode_reveals_clues_without_leaking_answer_to_players():
     assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/clue", json={}).status_code == 200
     clue_state = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert len(clue_state["round"]["clues"]) == 2
+    assert clue_state["round"]["points_available"] == 75
 
     for _ in range(10):
         assert _post(host, f"/api/church-games/act-it-out/rooms/{code}/clue", json={}).status_code == 200
     maxed_state = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert len(maxed_state["round"]["clues"]) == maxed_state["round"]["clue_count"]
+    assert maxed_state["round"]["points_available"] == 25
 
     assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
     reveal = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert reveal["round"]["answer"] == host_state["viewer"]["secret_prompt"]["answer"]
-    assert {team["id"]: team["score"] for team in reveal["teams"]} == {"gold": 100, "blue": 0}
+    assert reveal["last_result"]["points"] == 25
+    assert {team["id"]: team["score"] for team in reveal["teams"]} == {"gold": 25, "blue": 0}
 
 
 def test_draw_mode_accepts_only_active_player_drawing_without_revealing_answer():
@@ -857,6 +861,54 @@ def test_draw_mode_phone_guess_scores_and_reveals_when_all_guess():
     assert reveal["last_result"]["correct_guesses"] == 1
     players = {player["name"]: player for player in reveal["players"]}
     assert players["Ben"]["score"] == 100
+
+
+def test_draw_mode_host_can_award_a_verbal_guess_once():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    drawer = app.test_client()
+    guesser = app.test_client()
+    _prime(host, "draw-verbal-host@example.com")
+    _prime(drawer)
+    _prime(guesser)
+    code = _create_draw_room(host)
+    for client, name in ((drawer, "Ada"), (guesser, "Ben")):
+        assert _post(
+            client,
+            f"/group-games/draw-it/join/{code}",
+            data={"csrf_token": CSRF, "player_name": name},
+        ).status_code == 302
+
+    assert _post(host, f"/api/group-games/draw-it/rooms/{code}/start").status_code == 200
+    state = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    drawer_id = state["active_player_id"]
+    guesser_id = next(player["id"] for player in state["players"] if player["id"] != drawer_id)
+
+    awarded = _post(
+        host,
+        f"/api/group-games/draw-it/rooms/{code}/draw-correct",
+        json={"player_id": guesser_id},
+    )
+    duplicate = _post(
+        host,
+        f"/api/group-games/draw-it/rooms/{code}/draw-correct",
+        json={"player_id": guesser_id},
+    )
+    drawer_award = _post(
+        host,
+        f"/api/group-games/draw-it/rooms/{code}/draw-correct",
+        json={"player_id": drawer_id},
+    )
+
+    assert awarded.status_code == 200
+    assert duplicate.status_code == 409
+    assert drawer_award.status_code == 409
+    updated = host.get(f"/api/group-games/draw-it/rooms/{code}").get_json()
+    players = {player["id"]: player for player in updated["players"]}
+    assert players[guesser_id]["score"] == 100
+    assert players[drawer_id]["score"] == 0
+    assert guesser_id in updated["round"]["answered_player_ids"]
 
 
 def test_draw_mode_waits_before_auto_revealing_fast_guesses():
