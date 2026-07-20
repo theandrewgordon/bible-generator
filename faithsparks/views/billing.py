@@ -650,22 +650,25 @@ def stripe_webhook():
                     else:
                         _increment_metric("trial_starts", utm_source)
                 elif entitlement_id in ALLOWED_ONE_TIME_ENTITLEMENTS:
-                    db.collection("users").document(email).set(
-                        {
-                            "purchases": {entitlement_id: True},
-                            "purchaseDetails": {
-                                entitlement_id: {
-                                    "checkoutSessionId": obj.get("id"),
-                                    "stripeCustomerId": customer_id,
-                                    "priceId": checkout_meta.get("price_id"),
-                                    "purchasedAt": firestore.SERVER_TIMESTAMP,
-                                }
+                    payment_status = obj.get("payment_status")
+                    if payment_status in {"paid", "no_payment_required"}:
+                        db.collection("users").document(email).set(
+                            {
+                                "purchases": {entitlement_id: True},
+                                "purchaseDetails": {
+                                    entitlement_id: {
+                                        "checkoutSessionId": obj.get("id"),
+                                        "stripeCustomerId": customer_id,
+                                        "priceId": checkout_meta.get("price_id"),
+                                        "paymentStatus": payment_status,
+                                        "purchasedAt": firestore.SERVER_TIMESTAMP,
+                                    }
+                                },
+                                "updatedAt": firestore.SERVER_TIMESTAMP,
                             },
-                            "updatedAt": firestore.SERVER_TIMESTAMP,
-                        },
-                        merge=True,
-                    )
-                    _increment_metric("family_game_night_checkout_fulfilled", entitlement_id)
+                            merge=True,
+                        )
+                        _increment_metric("family_game_night_checkout_fulfilled", entitlement_id)
                 elif pack_slug:
                     db.collection("users").document(email).set(
                         {"purchases": {pack_slug: True}, "updatedAt": firestore.SERVER_TIMESTAMP},
@@ -792,6 +795,7 @@ def buy_family_game_night():
             mode="payment",
             customer_email=email,
             line_items=[{"price": price_id, "quantity": 1}],
+            allow_promotion_codes=True,
             success_url=url_for("family_game_night_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=url_for("family_game_night_checkout_canceled", _external=True),
             metadata={
@@ -828,7 +832,7 @@ def family_game_night_success():
                 or ""
             ).strip().lower()
             if (
-                checkout.get("payment_status") == "paid"
+                checkout.get("payment_status") in {"paid", "no_payment_required"}
                 and metadata.get("entitlement_id") == FAMILY_GAME_NIGHT_ENTITLEMENT
                 and checkout_email == (session.get("user_email") or "").strip().lower()
             ):

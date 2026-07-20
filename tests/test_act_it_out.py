@@ -321,6 +321,7 @@ def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
     kwargs = checkout_create.call_args.kwargs
     assert kwargs["mode"] == "payment"
     assert kwargs["line_items"] == [{"price": "price_game_night", "quantity": 1}]
+    assert kwargs["allow_promotion_codes"] is True
     assert kwargs["metadata"]["entitlement_id"] == "family_game_night"
     assert kwargs["metadata"]["email"] == "owner@example.com"
     assert kwargs["cancel_url"].endswith("/family-game-night/checkout/canceled")
@@ -346,6 +347,31 @@ def test_family_game_night_success_returns_paid_buyer_to_setup(monkeypatch):
 
     with app.test_request_context("/family-game-night/success?session_id=cs_paid"):
         session["user_email"] = "owner@example.com"
+        response = billing.family_game_night_success()
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/family-game-night/play")
+
+
+def test_family_game_night_success_accepts_fully_discounted_checkout(monkeypatch):
+    from faithsparks.views import billing
+
+    checkout = {
+        "payment_status": "no_payment_required",
+        "customer_details": {"email": "family@example.com"},
+        "metadata": {
+            "email": "family@example.com",
+            "entitlement_id": "family_game_night",
+        },
+    }
+    fake_stripe = SimpleNamespace(
+        checkout=SimpleNamespace(Session=SimpleNamespace(retrieve=mock.Mock(return_value=checkout)))
+    )
+    monkeypatch.setattr(billing, "stripe", fake_stripe)
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_fake")
+
+    with app.test_request_context("/family-game-night/success?session_id=cs_free"):
+        session["user_email"] = "family@example.com"
         response = billing.family_game_night_success()
 
     assert response.status_code == 302
@@ -423,6 +449,7 @@ def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
             "object": {
                 "id": "cs_game_night",
                 "customer": "cus_family",
+                "payment_status": "paid",
                 "customer_details": {"email": "owner@example.com"},
                 "metadata": {
                     "email": "owner@example.com",
@@ -456,7 +483,66 @@ def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
     assert merge is True
     assert data["purchases"]["family_game_night"] is True
     assert data["purchaseDetails"]["family_game_night"]["checkoutSessionId"] == "cs_game_night"
+    assert data["purchaseDetails"]["family_game_night"]["paymentStatus"] == "paid"
     metric.assert_called_once_with("family_game_night_checkout_fulfilled", "family_game_night")
+
+
+def test_family_game_night_webhook_fulfills_fully_discounted_checkout(monkeypatch):
+    from faithsparks.views import billing
+
+    writes = []
+
+    class Document:
+        def set(self, data, merge=False):
+            writes.append((data, merge))
+
+    class Collection:
+        def document(self, _document_id):
+            return Document()
+
+    class Database:
+        def collection(self, _collection_name):
+            return Collection()
+
+    event = {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_free_game_night",
+                "customer": "cus_family",
+                "payment_status": "no_payment_required",
+                "customer_details": {"email": "family@example.com"},
+                "metadata": {
+                    "email": "family@example.com",
+                    "entitlement_id": "family_game_night",
+                    "price_id": "price_game_night",
+                },
+            }
+        },
+    }
+    fake_stripe = SimpleNamespace(
+        Webhook=SimpleNamespace(construct_event=mock.Mock(return_value=event)),
+        Subscription=SimpleNamespace(retrieve=mock.Mock()),
+    )
+    monkeypatch.setattr(billing, "stripe", fake_stripe)
+    monkeypatch.setattr(billing, "STRIPE_WEBHOOK_SECRET", "whsec_fake")
+    monkeypatch.setattr(billing, "db", Database())
+    monkeypatch.setattr(billing, "_increment_metric", mock.Mock())
+
+    with app.test_request_context(
+        "/stripe/webhook",
+        method="POST",
+        data=b"{}",
+        headers={"Stripe-Signature": "test-signature"},
+    ):
+        response = billing.stripe_webhook()
+
+    assert response == ("", 200)
+    assert len(writes) == 1
+    data, merge = writes[0]
+    assert merge is True
+    assert data["purchases"]["family_game_night"] is True
+    assert data["purchaseDetails"]["family_game_night"]["paymentStatus"] == "no_payment_required"
 
 
 def test_act_it_out_home_explains_round_flow_and_draw_mode():
