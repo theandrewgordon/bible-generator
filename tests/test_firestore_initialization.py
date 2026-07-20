@@ -81,20 +81,19 @@ class FirestoreInitializationTests(unittest.TestCase):
         self.assertIs(returned, client)
 
 
-class AvailableFirestoreClientTests(unittest.TestCase):
-    def test_app_delegate_is_truthy_even_when_wrapped_client_is_falsey(self):
-        import app
+class FirebaseCredentialValidationTests(unittest.TestCase):
+    def test_validation_does_not_initialize_firebase_client(self):
+        credentials_json = json.dumps({"project_id": "test-project"})
 
-        class FalseyClient:
-            marker = "available"
+        with (
+            patch.dict(os.environ, {"FIREBASE_CREDS_JSON": credentials_json}),
+            patch.object(firestore_service.credentials, "Certificate") as certificate,
+            patch.object(firestore_service.firestore, "client") as client,
+        ):
+            firestore_service.validate_firebase_credentials()
 
-            def __bool__(self):
-                return False
-
-        wrapped = app._AvailableFirestoreClient(FalseyClient())
-
-        self.assertTrue(wrapped)
-        self.assertEqual(wrapped.marker, "available")
+        certificate.assert_called_once_with({"project_id": "test-project"})
+        client.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ except Exception:
     markdown2 = None
 
 # Extracted services/utilities
-from faithsparks.services.firestore import db, init_firebase
+from faithsparks.services.firestore import db, init_firebase, validate_firebase_credentials
 from faithsparks.services.storage import upload_to_storage, signed_url_for_path
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
@@ -199,32 +199,16 @@ _USER_FLAGS_TTL = 120.0  # seconds
 # --- App Setup ---
 app = Flask(__name__)
 
-
-class _AvailableFirestoreClient:
-    """Truth-stable delegate for libraries whose client objects are falsey."""
-
-    def __init__(self, client):
-        self._client = client
-
-    def __bool__(self):
-        return True
-
-    def __getattr__(self, name):
-        return getattr(self._client, name)
-
 # Fail fast in production if secret or required cloud storage config is missing
 if APP_ENV in {"prod", "production"}:
     if not os.getenv("FLASK_SECRET_KEY"):
         raise RuntimeError("FLASK_SECRET_KEY must be set in production")
     if not os.getenv("FIREBASE_CREDS_JSON"):
         raise RuntimeError("FIREBASE_CREDS_JSON must be set in production to configure Firestore")
-    firestore_client, _ = init_firebase()
-    if firestore_client is None:
-        raise RuntimeError("FIREBASE_CREDS_JSON is invalid or Firestore could not be initialized")
-    # Bind request handlers to the exact client that passed the production
-    # startup check. This avoids a second lazy-proxy availability decision later
-    # in the request lifecycle.
-    db = _AvailableFirestoreClient(firestore_client)
+    try:
+        validate_firebase_credentials()
+    except Exception as exc:
+        raise RuntimeError("FIREBASE_CREDS_JSON is invalid") from exc
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-secret")
 
@@ -237,7 +221,7 @@ if not app.logger.handlers:
 app.logger.setLevel(logging.INFO)
 app.logger.propagate = False
 if APP_ENV in {"prod", "production"}:
-    app.logger.info("Firestore client ready (%s, truthy=%s)", type(firestore_client).__name__, bool(db))
+    app.logger.info("Firestore credentials validated; client initialization deferred to worker")
 
 
 # Always prefer https URLs when generating links

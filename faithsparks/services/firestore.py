@@ -18,6 +18,15 @@ _init_lock = threading.Lock()
 logger = logging.getLogger(__name__)
 
 
+def validate_firebase_credentials() -> None:
+    """Validate configured credentials without creating a fork-sensitive client."""
+    creds_str = os.getenv("FIREBASE_CREDS_JSON")
+    if not creds_str:
+        raise ValueError("FIREBASE_CREDS_JSON is not configured")
+    info = json.loads(creds_str)
+    credentials.Certificate(info)
+
+
 def init_firebase():
     global _db, _storage_client, _initialized
     if _initialized:
@@ -40,6 +49,7 @@ def init_firebase():
                 firebase_admin.initialize_app(cred)
 
             _db = firestore.client()
+            logger.info("Firestore client initialized in worker pid=%s", os.getpid())
         except Exception:
             _db = None
             logger.exception("Firebase credentials or Firestore client initialization failed")
