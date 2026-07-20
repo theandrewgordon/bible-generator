@@ -199,6 +199,19 @@ _USER_FLAGS_TTL = 120.0  # seconds
 # --- App Setup ---
 app = Flask(__name__)
 
+
+class _AvailableFirestoreClient:
+    """Truth-stable delegate for libraries whose client objects are falsey."""
+
+    def __init__(self, client):
+        self._client = client
+
+    def __bool__(self):
+        return True
+
+    def __getattr__(self, name):
+        return getattr(self._client, name)
+
 # Fail fast in production if secret or required cloud storage config is missing
 if APP_ENV in {"prod", "production"}:
     if not os.getenv("FLASK_SECRET_KEY"):
@@ -211,7 +224,7 @@ if APP_ENV in {"prod", "production"}:
     # Bind request handlers to the exact client that passed the production
     # startup check. This avoids a second lazy-proxy availability decision later
     # in the request lifecycle.
-    db = firestore_client
+    db = _AvailableFirestoreClient(firestore_client)
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-secret")
 
@@ -224,7 +237,7 @@ if not app.logger.handlers:
 app.logger.setLevel(logging.INFO)
 app.logger.propagate = False
 if APP_ENV in {"prod", "production"}:
-    app.logger.info("Firestore client ready (%s)", type(db).__name__)
+    app.logger.info("Firestore client ready (%s, truthy=%s)", type(firestore_client).__name__, bool(db))
 
 
 # Always prefer https URLs when generating links

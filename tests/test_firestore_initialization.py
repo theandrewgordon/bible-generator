@@ -81,5 +81,21 @@ class FirestoreInitializationTests(unittest.TestCase):
         self.assertIs(returned, client)
 
 
+class AvailableFirestoreClientTests(unittest.TestCase):
+    def test_app_delegate_is_truthy_even_when_wrapped_client_is_falsey(self):
+        import app
+
+        class FalseyClient:
+            marker = "available"
+
+            def __bool__(self):
+                return False
+
+        wrapped = app._AvailableFirestoreClient(FalseyClient())
+
+        self.assertTrue(wrapped)
+        self.assertEqual(wrapped.marker, "available")
+
+
 if __name__ == "__main__":
     unittest.main()
