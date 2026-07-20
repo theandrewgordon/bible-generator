@@ -4340,6 +4340,11 @@ def buy_family_game_night():
     from faithsparks.views.billing import buy_family_game_night as _impl
     return _impl()
 
+@app.route('/family-game-night/checkout/canceled')
+def family_game_night_checkout_canceled():
+    from faithsparks.views.billing import family_game_night_checkout_canceled as _impl
+    return _impl()
+
 @app.route('/family-game-night/success')
 @login_required
 def family_game_night_success():

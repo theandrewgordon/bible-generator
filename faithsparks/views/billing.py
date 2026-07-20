@@ -778,7 +778,7 @@ def buy_family_game_night():
         user_data = user_doc.to_dict() if user_doc.exists else {}
         if (user_data.get("purchases") or {}).get(FAMILY_GAME_NIGHT_ENTITLEMENT):
             flash("You already own Family Game Night. Start a game whenever you're ready!", "success")
-            return redirect(url_for("act_it_out.home"))
+            return redirect(url_for("act_it_out.family_game_night_setup"))
     except Exception:
         current_app.logger.exception("[%s] Family Game Night ownership check failed", getattr(g, "req_id", ""))
         flash("We couldn't confirm your access yet. Please try again.", "error")
@@ -793,7 +793,7 @@ def buy_family_game_night():
             customer_email=email,
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=url_for("family_game_night_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=url_for("act_it_out.family_game_night", _external=True) + "#complete-game",
+            cancel_url=url_for("family_game_night_checkout_canceled", _external=True),
             metadata={
                 "email": email,
                 "entitlement_id": FAMILY_GAME_NIGHT_ENTITLEMENT,
@@ -806,6 +806,13 @@ def buy_family_game_night():
         current_app.logger.exception("[%s] Family Game Night checkout failed: %s", getattr(g, "req_id", ""), exc)
         flash("We couldn't start checkout yet. Please try again.", "error")
         return redirect(url_for("act_it_out.family_game_night"))
+
+
+def family_game_night_checkout_canceled():
+    if session.get("user_email"):
+        _increment_metric("family_game_night_checkout_canceled", "one_time")
+    flash("Checkout canceled. Nothing was charged, and the free game is still ready to play.", "info")
+    return redirect(url_for("act_it_out.family_game_night") + "#complete-game")
 
 
 def family_game_night_success():
@@ -826,7 +833,7 @@ def family_game_night_success():
                 and checkout_email == (session.get("user_email") or "").strip().lower()
             ):
                 flash("Purchase received! Your access will appear as soon as Stripe confirms it.", "success")
-                return redirect(url_for("act_it_out.home"))
+                return redirect(url_for("act_it_out.family_game_night_setup"))
         except Exception:
             current_app.logger.exception("[%s] Family Game Night success verification failed", getattr(g, "req_id", ""))
     flash("We're still confirming your purchase. Refresh in a moment or contact support if access does not appear.", "warning")

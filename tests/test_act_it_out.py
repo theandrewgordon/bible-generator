@@ -104,6 +104,11 @@ def test_family_game_night_sales_page_explains_product_and_join_flow():
     assert b"Guess It!" in page.data
     assert b"Play a free game" in page.data
     assert b"Players join free" in page.data
+    assert b"a $19 one-time purchase with no recurring fee" in page.data
+    assert b"planned as a one-time purchase" not in page.data
+    assert b"How many devices do we need?" in page.data
+    assert b"Can younger readers play?" in page.data
+    assert b"Is it denominational?" in page.data
     assert b'id="fgn-code-form"' in page.data
     assert b"noindex" not in page.data
 
@@ -318,7 +323,81 @@ def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
     assert kwargs["line_items"] == [{"price": "price_game_night", "quantity": 1}]
     assert kwargs["metadata"]["entitlement_id"] == "family_game_night"
     assert kwargs["metadata"]["email"] == "owner@example.com"
+    assert kwargs["cancel_url"].endswith("/family-game-night/checkout/canceled")
     metric.assert_called_once_with("family_game_night_checkout_started", "one_time")
+
+
+def test_family_game_night_success_returns_paid_buyer_to_setup(monkeypatch):
+    from faithsparks.views import billing
+
+    checkout = {
+        "payment_status": "paid",
+        "customer_details": {"email": "owner@example.com"},
+        "metadata": {
+            "email": "owner@example.com",
+            "entitlement_id": "family_game_night",
+        },
+    }
+    fake_stripe = SimpleNamespace(
+        checkout=SimpleNamespace(Session=SimpleNamespace(retrieve=mock.Mock(return_value=checkout)))
+    )
+    monkeypatch.setattr(billing, "stripe", fake_stripe)
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_fake")
+
+    with app.test_request_context("/family-game-night/success?session_id=cs_paid"):
+        session["user_email"] = "owner@example.com"
+        response = billing.family_game_night_success()
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/family-game-night/play")
+
+
+def test_family_game_night_repeat_buyer_returns_to_setup(monkeypatch):
+    from faithsparks.views import billing
+
+    class Snapshot:
+        exists = True
+
+        def to_dict(self):
+            return {"purchases": {"family_game_night": True}}
+
+    class Document:
+        def get(self):
+            return Snapshot()
+
+    class Collection:
+        def document(self, _document_id):
+            return Document()
+
+    class Database:
+        def collection(self, _collection_name):
+            return Collection()
+
+    monkeypatch.setattr(billing, "stripe", SimpleNamespace())
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_fake")
+    monkeypatch.setattr(billing, "db", Database())
+
+    with app.test_request_context("/family-game-night/checkout", method="POST"):
+        session["user_email"] = "owner@example.com"
+        response = billing.buy_family_game_night()
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/family-game-night/play")
+
+
+def test_family_game_night_canceled_checkout_returns_to_offer_and_records_event(monkeypatch):
+    from faithsparks.views import billing
+
+    metric = mock.Mock()
+    monkeypatch.setattr(billing, "_increment_metric", metric)
+
+    with app.test_request_context("/family-game-night/checkout/canceled"):
+        session["user_email"] = "owner@example.com"
+        response = billing.family_game_night_checkout_canceled()
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/family-game-night#complete-game")
+    metric.assert_called_once_with("family_game_night_checkout_canceled", "one_time")
 
 
 def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
