@@ -32,16 +32,19 @@ def validate_firebase_credentials() -> None:
 def init_firebase():
     global _db, _storage_client, _initialized, _initialized_pid, _last_init_error
     current_pid = os.getpid()
-    if _initialized and _initialized_pid == current_pid:
+    if _initialized and _initialized_pid == current_pid and _db is not None:
         return _db, _storage_client
 
     with _init_lock:
-        if _initialized and _initialized_pid == current_pid:
+        if _initialized and _initialized_pid == current_pid and _db is not None:
             return _db, _storage_client
 
         # Never reuse clients inherited from a Gunicorn parent or another
         # process. Firestore/gRPC channels must be constructed in this worker.
-        if _initialized_pid is not None and _initialized_pid != current_pid:
+        if (
+            (_initialized_pid is not None and _initialized_pid != current_pid)
+            or (_initialized and _db is None)
+        ):
             _db = None
             _storage_client = None
             _initialized = False
@@ -86,7 +89,11 @@ def init_firebase():
 
 
 def firebase_init_diagnostic() -> str:
-    return _last_init_error or "no initialized client"
+    state = (
+        f"initialized={_initialized}, owner_pid={_initialized_pid}, "
+        f"current_pid={os.getpid()}, client_present={_db is not None}"
+    )
+    return f"{_last_init_error}; {state}" if _last_init_error else state
 
 
 class _FirestoreAccessor:
