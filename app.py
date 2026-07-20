@@ -3213,17 +3213,14 @@ def _parse_worship_lyrics_claude(prompt: str, api_key: str) -> dict:
         max_tokens=4096,
         temperature=0,
         system="You are a worship song librarian. Output ONLY valid JSON — no prose, no markdown fences.",
-        messages=[
-            {"role": "user", "content": prompt},
-            # Prefill the assistant turn with "{" so the model continues straight
-            # into the JSON object instead of any preamble.
-            {"role": "assistant", "content": "{"},
-        ],
+        # Newer Claude models require the conversation to end with a user turn
+        # and reject the older assistant-prefill JSON technique.
+        messages=[{"role": "user", "content": prompt}],
     )
     text = "".join(
         block.text for block in msg.content if getattr(block, "type", None) == "text"
     )
-    raw_json = _clean_ai_json_response("{" + text)
+    raw_json = _clean_ai_json_response(text)
     app.logger.info("worship_add_parse: Claude (%s) returned %d chars", model, len(raw_json))
     return json.loads(raw_json)
 

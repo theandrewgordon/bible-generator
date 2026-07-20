@@ -61,6 +61,16 @@ class FirestoreInitializationTests(unittest.TestCase):
         self.assertIsNone(first_db)
         self.assertIs(second_db, fake_firestore_client)
 
+    def test_accessor_treats_falsey_client_as_available(self):
+        class FalseyClient:
+            def __bool__(self):
+                return False
+
+        firestore_service._db = FalseyClient()
+        firestore_service._initialized = True
+
+        self.assertTrue(firestore_service.db)
+
 
 if __name__ == "__main__":
     unittest.main()

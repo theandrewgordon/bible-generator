@@ -66,7 +66,9 @@ class _FirestoreAccessor:
         return init_firebase()[0]
 
     def __bool__(self):
-        return bool(self())
+        # Some third-party client objects implement their own truthiness. The
+        # availability question is only whether initialization returned a client.
+        return self() is not None
 
     def __getattr__(self, name):
         client = self()
@@ -82,7 +84,7 @@ class _StorageAccessor:
         return init_firebase()[1]
 
     def __bool__(self):
-        return bool(self())
+        return self() is not None
 
     def __getattr__(self, name):
         client = self()
