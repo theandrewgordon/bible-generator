@@ -42,7 +42,12 @@ except Exception:
     markdown2 = None
 
 # Extracted services/utilities
-from faithsparks.services.firestore import db, init_firebase
+from faithsparks.services.firestore import (
+    db,
+    firebase_init_diagnostic,
+    init_firebase,
+    validate_firebase_credentials,
+)
 from faithsparks.services.storage import upload_to_storage, signed_url_for_path
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
@@ -57,6 +62,7 @@ from faithsparks.services.stripe_svc import (
 )
 from faithsparks.util.slug import normalize_slug
 from faithsparks.services import analytics as analytics_svc
+from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
 
@@ -204,9 +210,10 @@ if APP_ENV in {"prod", "production"}:
         raise RuntimeError("FLASK_SECRET_KEY must be set in production")
     if not os.getenv("FIREBASE_CREDS_JSON"):
         raise RuntimeError("FIREBASE_CREDS_JSON must be set in production to configure Firestore")
-    firestore_client, _ = init_firebase()
-    if firestore_client is None:
-        raise RuntimeError("FIREBASE_CREDS_JSON is invalid or Firestore could not be initialized")
+    try:
+        validate_firebase_credentials()
+    except Exception as exc:
+        raise RuntimeError("FIREBASE_CREDS_JSON is invalid") from exc
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-secret")
 
@@ -218,6 +225,8 @@ if not app.logger.handlers:
     app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
 app.logger.propagate = False
+if APP_ENV in {"prod", "production"}:
+    app.logger.info("Firestore credentials validated; client initialization deferred to worker")
 
 
 # Always prefer https URLs when generating links
@@ -818,12 +827,16 @@ def _set_current_worship_church(church_id: str) -> None:
         db.collection("users").document(session["user_email"]).set(update_data, merge=True)
 
 
-def _worship_songs_ref():
-    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_COLLECTION)
+def _worship_songs_ref(client=None):
+    if client is None:
+        client = db
+    return client.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_COLLECTION)
 
 
-def _legacy_worship_songs_ref():
-    return db.collection(_WORSHIP_COLLECTION)
+def _legacy_worship_songs_ref(client=None):
+    if client is None:
+        client = db
+    return client.collection(_WORSHIP_COLLECTION)
 
 
 def _worship_setlists_ref():
@@ -834,10 +847,10 @@ def _legacy_worship_setlists_ref():
     return db.collection(_WORSHIP_SETLIST_COLLECTION)
 
 
-def _worship_song_refs_for_read():
-    refs = [_worship_songs_ref()]
+def _worship_song_refs_for_read(client=None):
+    refs = [_worship_songs_ref(client)]
     if _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE:
-        refs.insert(0, _legacy_worship_songs_ref())
+        refs.insert(0, _legacy_worship_songs_ref(client))
     return refs
 
 
@@ -945,9 +958,10 @@ def list_worship_songs() -> list[dict]:
 
 def get_worship_song(song_id: str) -> dict | None:
     """Load one song by id. Firestore first, file fallback."""
-    if db:
+    firestore_client, _ = init_firebase()
+    if firestore_client is not None:
         try:
-            for ref in _worship_song_refs_for_read():
+            for ref in _worship_song_refs_for_read(firestore_client):
                 doc = ref.document(song_id).get()
                 if doc.exists:
                     return doc.to_dict()
@@ -955,7 +969,16 @@ def get_worship_song(song_id: str) -> dict | None:
             app.logger.warning("get_worship_song(%s) Firestore error: %s", song_id, exc)
             if not _is_local_storage_allowed():
                 raise RuntimeError(f"Firestore read failed for song {song_id} in production.") from exc
+        else:
+            # A successful query with no matching document means the song is new;
+            # it does not mean Firestore is unavailable.
+            if not _is_local_storage_allowed():
+                return None
     if not _is_local_storage_allowed():
+        app.logger.error(
+            "get_worship_song(%s) has no Firestore client in pid=%s: %s",
+            song_id, os.getpid(), firebase_init_diagnostic(),
+        )
         raise RuntimeError(f"Firestore not available to get song {song_id} in production. Local fallback is disabled.")
     fp = Path(app.root_path) / "songs" / f"{song_id}.json"
     if fp.exists():
@@ -983,8 +1006,8 @@ def _canonical_part_key(name: str | None) -> str:
         "verse_3": "verse3",
         "verse_4": "verse4",
         "chorus_1": "chorus",
-        "chorus_2": "chorus",
-        "chorus_3": "chorus",
+        "chorus_2": "chorus2",
+        "chorus_3": "chorus3",
         "bridge_1": "bridge1",
         "bridge_2": "bridge2",
         "tag_1": "tag1",
@@ -1089,10 +1112,11 @@ def save_worship_song(song: dict) -> None:
     """Persist a song. Firestore when available, local file fallback."""
     song = normalize_worship_song(song)
     song_id = song["id"]
-    if db:
+    firestore_client, _ = init_firebase()
+    if firestore_client is not None:
         try:
             song["worship_scope"] = _current_worship_scope()
-            _worship_songs_ref().document(song_id).set(song)
+            _worship_songs_ref(firestore_client).document(song_id).set(song)
             _invalidate_worship_cache()
             return
         except Exception as exc:
@@ -1100,12 +1124,96 @@ def save_worship_song(song: dict) -> None:
             if not _is_local_storage_allowed():
                 raise RuntimeError(f"Firestore write failed for song {song_id} in production.") from exc
     if not _is_local_storage_allowed():
+        app.logger.error(
+            "save_worship_song(%s) has no Firestore client in pid=%s: %s",
+            song_id, os.getpid(), firebase_init_diagnostic(),
+        )
         raise RuntimeError(f"Firestore not available to save song {song_id} in production. Local fallback is disabled.")
     songs_folder = Path(app.root_path) / "songs"
     songs_folder.mkdir(exist_ok=True)
     with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
         json.dump(song, f, indent=2, ensure_ascii=False)
     _invalidate_worship_cache()
+
+
+_WORSHIP_PENDING_COLLECTION = "worship_imports_pending"
+_WORSHIP_PENDING_TTL = timedelta(minutes=30)
+_local_pending_worship_imports: dict[str, dict] = {}
+_local_pending_worship_lock = threading.Lock()
+
+
+def _store_pending_worship_song(song: dict, used_fallback: bool, fallback_reason: str) -> str:
+    token = secrets.token_urlsafe(24)
+    payload = {
+        "song": normalize_worship_song(song),
+        "used_fallback": bool(used_fallback),
+        "fallback_reason": str(fallback_reason or ""),
+        "owner": str(session.get("user_email") or ""),
+        "scope": _current_worship_scope(),
+        "expires_at": datetime.now(timezone.utc) + _WORSHIP_PENDING_TTL,
+    }
+    if db:
+        try:
+            firestore_payload = dict(payload)
+            firestore_payload["expireAt"] = firestore_payload.pop("expires_at")
+            db.collection(_WORSHIP_PENDING_COLLECTION).document(token).set(firestore_payload)
+            return token
+        except Exception as exc:
+            app.logger.warning("Pending worship import write failed: %s", exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError("Could not preserve the pending worship import.") from exc
+    if not _is_local_storage_allowed():
+        raise RuntimeError("Could not preserve the pending worship import.")
+    with _local_pending_worship_lock:
+        _local_pending_worship_imports[token] = payload
+    return token
+
+
+def _load_pending_worship_song(token: str) -> dict | None:
+    token = str(token or "").strip()
+    if not token:
+        return None
+    payload = None
+    if db:
+        try:
+            doc = db.collection(_WORSHIP_PENDING_COLLECTION).document(token).get()
+            payload = doc.to_dict() if doc.exists else None
+        except Exception as exc:
+            app.logger.warning("Pending worship import read failed: %s", exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError("Could not load the pending worship import.") from exc
+    elif not _is_local_storage_allowed():
+        raise RuntimeError("Could not load the pending worship import.")
+    if payload is None and _is_local_storage_allowed():
+        with _local_pending_worship_lock:
+            payload = _local_pending_worship_imports.get(token)
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("owner") != str(session.get("user_email") or ""):
+        return None
+    if payload.get("scope") != _current_worship_scope():
+        return None
+    expires_at = payload.get("expireAt") or payload.get("expires_at")
+    if isinstance(expires_at, datetime):
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if isinstance(expires_at, datetime) and expires_at < datetime.now(timezone.utc):
+        _delete_pending_worship_song(token)
+        return None
+    return payload
+
+
+def _delete_pending_worship_song(token: str) -> None:
+    token = str(token or "").strip()
+    if not token:
+        return
+    if db:
+        try:
+            db.collection(_WORSHIP_PENDING_COLLECTION).document(token).delete()
+        except Exception as exc:
+            app.logger.warning("Pending worship import cleanup failed: %s", exc)
+    with _local_pending_worship_lock:
+        _local_pending_worship_imports.pop(token, None)
 
 
 def delete_worship_song(song_id: str) -> bool:
@@ -1281,6 +1389,9 @@ def _get_worship_setlist(setlist_id: str) -> dict | None:
             app.logger.warning("_get_worship_setlist(%s) Firestore error: %s", setlist_id, exc)
             if not _is_local_storage_allowed():
                 raise RuntimeError(f"Firestore read failed for setlist {setlist_id} in production.") from exc
+        else:
+            if not _is_local_storage_allowed():
+                return None
     if not _is_local_storage_allowed():
         raise RuntimeError(f"Firestore not available to get setlist {setlist_id} in production. Local fallback is disabled.")
     fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
@@ -2504,8 +2615,19 @@ def _looks_like_line_exploded_worship_parse(parsed: dict) -> bool:
     return one_line_parts / max(len(verse_like), 1) >= 0.75 and len(arrangement) >= 12
 
 
-def _looks_under_arranged_worship_parse(parsed: dict, source_line_count: int) -> bool:
-    if source_line_count < 20 or not isinstance(parsed, dict):
+def _normalize_lyric_comparison_line(line: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", str(line or "").lower()).strip()
+
+
+def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> bool:
+    source_lines = {
+        normalized
+        for line in str(source_lyrics or "").splitlines()
+        if (normalized := _normalize_lyric_comparison_line(line))
+        and not _extract_worship_section_label(line)[0]
+        and not _is_lyrics_site_boilerplate_line(line)
+    }
+    if len(source_lines) < 12 or not isinstance(parsed, dict):
         return False
     parts = parsed.get("parts")
     arrangement = parsed.get("arrangement")
@@ -2515,14 +2637,17 @@ def _looks_under_arranged_worship_parse(parsed: dict, source_line_count: int) ->
         return True
     if len(arrangement) < 4:
         return True
-    arranged_line_count = 0
-    for part_name in arrangement:
-        lines = parts.get(part_name, [])
-        if isinstance(lines, list):
-            arranged_line_count += len([line for line in lines if str(line).strip()])
-    if arranged_line_count < source_line_count * 0.65:
-        return True
-    return False
+    parsed_lines = {
+        normalized
+        for lines in parts.values()
+        if isinstance(lines, list)
+        for line in lines
+        if (normalized := _normalize_lyric_comparison_line(line))
+    }
+    # Compare canonical content rather than arrangement-expanded content. Repeated
+    # choruses must not compensate for unique source lines that the model dropped.
+    coverage = len(source_lines & parsed_lines) / max(len(source_lines), 1)
+    return coverage < 0.80
 
 
 def _repair_line_exploded_worship_song(song: dict) -> dict | None:
@@ -3005,11 +3130,27 @@ def worship_add():
     if request.method == "POST":
         # Overwrite confirmation branch
         if request.form.get("overwrite"):
-            pending = session.pop("pending_worship_song", None)
-            used_fallback = session.pop("pending_worship_used_fallback", False)
-            fallback_reason = session.pop("pending_worship_fallback_reason", "")
-            if pending:
-                save_worship_song(pending)
+            pending_token = session.get("pending_worship_token", "")
+            try:
+                pending_payload = _load_pending_worship_song(pending_token)
+            except RuntimeError as exc:
+                app.logger.warning("worship_add overwrite load failed: %s", exc)
+                flash("The saved import could not be loaded right now. Please try again.", "error")
+                return render_template("worship_add.html", conflict_song=None,
+                                       backgrounds=list(_load_bg_config().keys())), 503
+            if pending_payload:
+                pending = pending_payload.get("song") or {}
+                used_fallback = bool(pending_payload.get("used_fallback"))
+                fallback_reason = str(pending_payload.get("fallback_reason") or "")
+                try:
+                    save_worship_song(pending)
+                except RuntimeError as exc:
+                    app.logger.warning("worship_add overwrite save failed: %s", exc)
+                    flash("The song could not be overwritten right now. Your import is still available; please retry.", "error")
+                    return render_template("worship_add.html", conflict_song=pending,
+                                           backgrounds=list(_load_bg_config().keys())), 503
+                _delete_pending_worship_song(pending_token)
+                session.pop("pending_worship_token", None)
                 if used_fallback:
                     flash(f"'{pending['title']}' overwritten. {fallback_reason or 'Faith Sparks auto-structured the sections.'} Please review.", "success")
                 else:
@@ -3035,17 +3176,18 @@ def worship_add():
 
         parts = {}
         for name, lines_text in zip(part_names, part_lines_raw):
-            name = name.strip()
+            name = _canonical_part_key(name)
             if not name:
                 continue
             lines = [l.strip() for l in lines_text.splitlines() if l.strip()]
             if lines:
-                parts[name] = lines
+                existing = parts.setdefault(name, [])
+                existing.extend(line for line in lines if line not in existing)
 
         arrangement = [a.strip() for a in arrangement_raw.split(",") if a.strip()]
 
         song_id = _worship_song_id_base(title, artist, version) or "untitled-song"
-        song = {
+        song = normalize_worship_song({
             "id": song_id,
             "title": title,
             "artist": artist,
@@ -3055,24 +3197,38 @@ def worship_add():
             "background": background,
             "parts": parts,
             "arrangement": arrangement,
-        }
+        })
+
+        if not song["parts"]:
+            flash("Add at least one song part with lyrics.", "warning")
+            return redirect(url_for("worship_add"))
 
         # Re-adding an existing song routes through the overwrite/conflict screen
         # rather than silently creating title-2, title-3, ...
-        if get_worship_song(song_id):
-            session["pending_worship_song"] = song
-            session["pending_worship_used_fallback"] = False
-            session["pending_worship_fallback_reason"] = ""
-            return redirect(url_for("worship_add", conflict=song_id))
-
-        save_worship_song(song)
+        try:
+            existing_song = get_worship_song(song_id)
+            if existing_song:
+                session["pending_worship_token"] = _store_pending_worship_song(song, False, "")
+                return redirect(url_for("worship_add", conflict=song_id))
+            save_worship_song(song)
+        except RuntimeError as exc:
+            app.logger.warning("worship_add persistence failed: %s", exc)
+            flash("The song library is temporarily unavailable. Please try again.", "error")
+            return render_template("worship_add.html", conflict_song=None,
+                                   backgrounds=list(_load_bg_config().keys())), 503
         flash(f"'{title}' saved.", "success")
         return redirect(url_for("worship"))
 
     conflict_song = None
     conflict_id = request.args.get("conflict", "")
     if conflict_id:
-        conflict_song = get_worship_song(conflict_id)
+        try:
+            conflict_song = get_worship_song(conflict_id)
+        except RuntimeError as exc:
+            app.logger.warning("worship_add conflict lookup failed: %s", exc)
+            flash("The song library is temporarily unavailable. Please try again.", "error")
+            return render_template("worship_add.html", conflict_song=None,
+                                   backgrounds=list(_load_bg_config().keys())), 503
     return render_template("worship_add.html", conflict_song=conflict_song,
                             backgrounds=list(_load_bg_config().keys()))
 
@@ -3087,19 +3243,15 @@ def _parse_worship_lyrics_claude(prompt: str, api_key: str) -> dict:
         max_tokens=4096,
         temperature=0,
         system="You are a worship song librarian. Output ONLY valid JSON — no prose, no markdown fences.",
-        messages=[
-            {"role": "user", "content": prompt},
-            # Prefill the assistant turn with "{" so the model continues straight
-            # into the JSON object instead of any preamble.
-            {"role": "assistant", "content": "{"},
-        ],
+        # Newer Claude models require the conversation to end with a user turn
+        # and reject the older assistant-prefill JSON technique.
+        messages=[{"role": "user", "content": prompt}],
     )
     text = "".join(
         block.text for block in msg.content if getattr(block, "type", None) == "text"
     )
-    raw_json = _clean_ai_json_response("{" + text)
-    app.logger.info("worship_add_parse: Claude (%s) raw response (%d chars): %s",
-                    model, len(raw_json), raw_json[:3000])
+    raw_json = _clean_ai_json_response(text)
+    app.logger.info("worship_add_parse: Claude (%s) returned %d chars", model, len(raw_json))
     return json.loads(raw_json)
 
 
@@ -3120,7 +3272,7 @@ def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
     if response.choices[0].finish_reason == "length":
         app.logger.warning("worship_add_parse: gpt-4o hit max_tokens, response truncated")
     raw_json = _clean_ai_json_response(response.choices[0].message.content)
-    app.logger.info("worship_add_parse: gpt-4o raw response (%d chars): %s", len(raw_json), raw_json[:3000])
+    app.logger.info("worship_add_parse: gpt-4o returned %d chars", len(raw_json))
     try:
         return json.loads(raw_json)
     except json.JSONDecodeError:
@@ -3143,12 +3295,35 @@ def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
 @app.route("/worship/add/parse", methods=["POST"])
 @login_required
 def worship_add_parse():
+    if request.content_length and request.content_length > 100_000:
+        flash("That import is too large. Please paste only the song lyrics.", "warning")
+        return render_template("worship_add.html", conflict_song=None,
+                               backgrounds=list(_load_bg_config().keys())), 413
     raw_lyrics = request.form.get("raw_lyrics", "").strip()
     import_url = request.form.get("import_url", "").strip()
     title = request.form.get("title", "").strip()
     artist = request.form.get("artist", "").strip()
     version = request.form.get("version", "").strip()
     key = request.form.get("key", "").strip()
+    submitted_title, submitted_artist = title, artist
+    submitted_version, submitted_key = version, key
+
+    user_key = str(session.get("user_email") or get_client_ip())
+    user_rate = check_rate_limit("worship_import:user", user_key, limit=30, window_seconds=3600)
+    ip_rate = check_rate_limit("worship_import:ip", get_client_ip(), limit=60, window_seconds=3600)
+    if not user_rate.allowed or not ip_rate.allowed:
+        retry_after = max(user_rate.retry_after, ip_rate.retry_after)
+        flash("Too many song imports were requested. Please wait a little and try again.", "warning")
+        response = app.make_response((render_template(
+            "worship_add.html", conflict_song=None,
+            backgrounds=list(_load_bg_config().keys())
+        ), 429))
+        response.headers["Retry-After"] = str(retry_after)
+        return response
+
+    if len(raw_lyrics) > 60_000:
+        flash("That paste is too large. Please include only the song page or lyrics.", "warning")
+        return redirect(url_for("worship_add"))
 
     if import_url:
         try:
@@ -3158,6 +3333,10 @@ def worship_add_parse():
             flash("Could not read that song link. Please paste the lyrics directly and try again.", "error")
             return redirect(url_for("worship_add"))
         raw_lyrics = "\n\n".join(part for part in [raw_lyrics, fetched_text] if part)
+
+    if len(raw_lyrics) > 60_000 or len(raw_lyrics.splitlines()) > 1_200:
+        flash("That song page is too large to import. Please paste only the lyrics.", "warning")
+        return redirect(url_for("worship_add"))
 
     if not raw_lyrics:
         flash("Paste lyrics or enter a song page link to parse.", "warning")
@@ -3178,8 +3357,8 @@ def worship_add_parse():
 
     title = title or cleaned_paste.get("title", "")
     artist = artist or cleaned_paste.get("artist", "")
-    app.logger.info("worship_add_parse: cleaned lyrics (%d chars, %d lines):\n%s",
-                    len(parse_lyrics), parse_lyrics.count("\n"), parse_lyrics[:2000])
+    app.logger.info("worship_add_parse: cleaned lyrics (%d chars, %d lines)",
+                    len(parse_lyrics), parse_lyrics.count("\n"))
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
@@ -3233,6 +3412,8 @@ NEAR-DUPLICATE SECTIONS:
 OTHER RULES:
 - id: title lowercased, spaces/special chars replaced by hyphens, no leading/trailing hyphens
 - parts keys: use verse1, verse2, verse3, chorus, chorus2, bridge, pre_chorus, tag, outro, intro as appropriate
+- Label by musical function, not merely by position: traditional hymn stanzas remain verses. A modern repeated response added after the hymn stanzas is usually a bridge, especially when the song has no recurring chorus between verses.
+- When that modern response has meaningful lyric variants (for example, "I bow" followed later by "I stand"), use bridge and bridge2 rather than chorus and chorus2.
 - each part value is an array of individual lyric lines (no blank strings)
 - preserve apostrophes and contractions exactly as written
 - ignore ALL website boilerplate: recommendations, ads, copyright, navigation, "You May Also Like", writer credits, album info
@@ -3275,9 +3456,8 @@ OTHER RULES:
     # returns e.g. arrangement ["Chorus"] with parts {"chorus": [...]} (case/spacing
     # mismatch) is no longer falsely flagged "incomplete" and bounced to the fallback.
     song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
-    source_line_count = len([line for line in parse_lyrics.splitlines() if line.strip()])
     exploded = _looks_like_line_exploded_worship_parse(song)
-    under_arranged = _looks_under_arranged_worship_parse(song, source_line_count)
+    under_arranged = _looks_under_arranged_worship_parse(song, parse_lyrics)
     app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s under_arranged=%s",
                     list(song.get("parts", {}).keys()),
                     len(song.get("arrangement", [])),
@@ -3296,20 +3476,42 @@ OTHER RULES:
         song = normalize_worship_song(fallback)
         fallback_reason = "AI response was incomplete, so Faith Sparks auto-structured the sections."
         used_fallback_parser = True
+        if (
+            not song.get("parts")
+            or not song.get("arrangement")
+            or _looks_under_arranged_worship_parse(song, parse_lyrics)
+        ):
+            flash("We could not structure all of the lyrics reliably. Please add section labels or use manual entry.", "error")
+            return redirect(url_for("worship_add"))
 
-    if version:
-        song["version"] = version
+    # The form explicitly promises that supplied metadata overrides inference.
+    for field, supplied_value in (
+        ("title", submitted_title),
+        ("artist", submitted_artist),
+        ("version", submitted_version),
+        ("key", submitted_key),
+    ):
+        if supplied_value:
+            song[field] = supplied_value
+    if not song.get("title"):
+        flash("We could not determine the song title. Enter a title and try again.", "warning")
+        return redirect(url_for("worship_add"))
     # Use the base ID (not a unique-suffixed one) so re-importing the same song
     # triggers the conflict/overwrite flow instead of creating gratitude-...-2, -3, etc.
     song["id"] = _worship_song_id_base(song.get("title", ""), song.get("artist", ""), song.get("version", "")) or "untitled-song"
 
-    if get_worship_song(song["id"]):
-        session["pending_worship_song"] = song
-        session["pending_worship_used_fallback"] = used_fallback_parser
-        session["pending_worship_fallback_reason"] = fallback_reason
-        return redirect(url_for("worship_add", conflict=song["id"]))
-
-    save_worship_song(song)
+    try:
+        if get_worship_song(song["id"]):
+            session["pending_worship_token"] = _store_pending_worship_song(
+                song, used_fallback_parser, fallback_reason
+            )
+            return redirect(url_for("worship_add", conflict=song["id"]))
+        save_worship_song(song)
+    except RuntimeError as exc:
+        app.logger.warning("worship_add_parse persistence failed: %s", exc)
+        flash("The song was parsed, but the library is temporarily unavailable. Please retry the import.", "error")
+        return render_template("worship_add.html", conflict_song=None,
+                               backgrounds=list(_load_bg_config().keys())), 503
     if used_fallback_parser:
         flash(f"'{song.get('title', song['id'])}' saved. {fallback_reason or 'Faith Sparks auto-structured the sections.'} Please review.", "success")
     else:

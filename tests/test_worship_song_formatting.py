@@ -10,6 +10,7 @@ class WorshipSongFormattingTests(unittest.TestCase):
             "parts": {
                 "Verse 1": ["Line A", "Line B"],
                 "Chorus 1": ["Praise You", "Forever"],
+                "Chorus 2": ["A different refrain"],
                 "PreChorus": ["We sing"],
             },
             "arrangement": ["Verse 1", "Pre-Chorus", "Chorus 1", "Chorus 2"],
@@ -21,7 +22,16 @@ class WorshipSongFormattingTests(unittest.TestCase):
         self.assertIn("verse1", normalized["parts"])
         self.assertIn("chorus", normalized["parts"])
         self.assertIn("pre_chorus", normalized["parts"])
-        self.assertEqual(normalized["arrangement"], ["verse1", "pre_chorus", "chorus", "chorus"])
+        self.assertIn("chorus2", normalized["parts"])
+        self.assertEqual(normalized["arrangement"], ["verse1", "pre_chorus", "chorus", "chorus2"])
+
+    def test_song_id_allows_named_versions_to_coexist(self):
+        original = app._worship_song_id_base("Holy Forever", "Chris Tomlin", "Original")
+        acoustic = app._worship_song_id_base("Holy Forever", "Chris Tomlin", "Acoustic")
+
+        self.assertNotEqual(original, acoustic)
+        self.assertTrue(original.endswith("-original"))
+        self.assertTrue(acoustic.endswith("-acoustic"))
 
     def test_build_lyric_sheet_blocks_references_repeat_chorus(self):
         song = {

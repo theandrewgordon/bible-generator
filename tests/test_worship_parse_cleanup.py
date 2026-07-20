@@ -211,6 +211,31 @@ Submit Lyrics
 
         self.assertTrue(app._looks_like_line_exploded_worship_parse(parsed))
 
+    def test_repeated_arrangement_does_not_mask_missing_source_lines(self):
+        source = "\n".join([f"Unique line {i}" for i in range(1, 13)] + ["Chorus A", "Chorus B"])
+        parsed = {
+            "parts": {
+                "verse1": ["Unique line 1", "Unique line 2"],
+                "chorus": ["Chorus A", "Chorus B"],
+            },
+            "arrangement": ["verse1"] + ["chorus"] * 20,
+        }
+
+        self.assertTrue(app._looks_under_arranged_worship_parse(parsed, source))
+
+    def test_complete_canonical_parts_pass_coverage_check(self):
+        source_lines = [f"Source line {i}" for i in range(1, 13)]
+        parsed = {
+            "parts": {
+                "verse1": source_lines[:4],
+                "chorus": source_lines[4:8],
+                "verse2": source_lines[8:],
+            },
+            "arrangement": ["verse1", "chorus", "verse2", "chorus"],
+        }
+
+        self.assertFalse(app._looks_under_arranged_worship_parse(parsed, "\n".join(source_lines)))
+
     def test_fallback_parse_reuses_near_repeat_chorus(self):
         pasted = '''"Near Repeat" lyrics
 Example Artist Lyrics
