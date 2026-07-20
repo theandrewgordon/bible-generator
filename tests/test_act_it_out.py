@@ -13,6 +13,16 @@ PNG_1X1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAA
 JPEG_STUB = "data:image/jpeg;base64,/9j/AA=="
 
 
+class StripeObjectStub:
+    """Matches Stripe SDK resources that expose to_dict_recursive, not get."""
+
+    def __init__(self, data):
+        self._data = data
+
+    def to_dict_recursive(self):
+        return self._data
+
+
 def _prime(client, email=None):
     reset_memory_limits()
     with client.session_transaction() as sess:
@@ -340,7 +350,9 @@ def test_family_game_night_success_returns_paid_buyer_to_setup(monkeypatch):
         },
     }
     fake_stripe = SimpleNamespace(
-        checkout=SimpleNamespace(Session=SimpleNamespace(retrieve=mock.Mock(return_value=checkout)))
+        checkout=SimpleNamespace(
+            Session=SimpleNamespace(retrieve=mock.Mock(return_value=StripeObjectStub(checkout)))
+        )
     )
     monkeypatch.setattr(billing, "stripe", fake_stripe)
     monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_fake")
@@ -460,7 +472,7 @@ def test_family_game_night_webhook_fulfills_stable_entitlement(monkeypatch):
         },
     }
     fake_stripe = SimpleNamespace(
-        Webhook=SimpleNamespace(construct_event=mock.Mock(return_value=event)),
+        Webhook=SimpleNamespace(construct_event=mock.Mock(return_value=StripeObjectStub(event))),
         Subscription=SimpleNamespace(retrieve=mock.Mock()),
     )
     monkeypatch.setattr(billing, "stripe", fake_stripe)

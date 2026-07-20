@@ -113,6 +113,18 @@ REFERRAL_INVITE_CODE = "freesparkmonth"
 REFERRAL_TARGET_COUNT = 3
 
 
+def _stripe_dict(value):
+    """Normalize Stripe SDK resources before using mapping operations."""
+    if isinstance(value, dict):
+        return value
+    converter = getattr(value, "to_dict_recursive", None)
+    if callable(converter):
+        converted = converter()
+        if isinstance(converted, dict):
+            return converted
+    return value
+
+
 def _increment_metric(metric: str, key: Optional[str] = None) -> None:
     if not db or not metric:
         return
@@ -208,6 +220,7 @@ def _grant_referral_reward(referrer_email: str) -> bool:
                 percent_off=100,
                 name="Referral Bonus FreeSparkMonth",
             )
+            coupon = _stripe_dict(coupon)
             coupon_id = coupon.get("id") or ""
             coupon_created = True
     except Exception:
@@ -278,6 +291,7 @@ def plus_pricing():
             return None
         try:
             p = stripe.Price.retrieve(pid)
+            p = _stripe_dict(p)
             return {
                 "amount": (p.get("unit_amount") or 0) / 100.0,
                 "currency": (p.get("currency") or "usd").upper(),
@@ -427,6 +441,7 @@ def plus_success():
                 session_id,
                 expand=["line_items.data.price.product"],
             )
+            checkout = _stripe_dict(checkout)
             metadata = checkout.get("metadata") or {}
             line_items = (checkout.get("line_items") or {}).get("data") or []
             line = line_items[0] if line_items else None
@@ -536,6 +551,7 @@ def stripe_webhook():
     sig_header = request.headers.get("Stripe-Signature")
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        event = _stripe_dict(event)
     except Exception as e:
         return (f"Webhook error: {e}", 400)
 
@@ -557,6 +573,7 @@ def stripe_webhook():
                         subscription_id,
                         expand=["items.data.price", "discount.promotion_code"],
                     )
+                    sub = _stripe_dict(sub)
                     if sub and sub.get("items") and sub["items"]["data"]:
                         price_id = sub["items"]["data"][0]["price"]["id"]
             except Exception:
@@ -824,6 +841,7 @@ def family_game_night_success():
     if session_id and stripe and STRIPE_SECRET_KEY:
         try:
             checkout = stripe.checkout.Session.retrieve(session_id)
+            checkout = _stripe_dict(checkout)
             metadata = checkout.get("metadata") or {}
             checkout_email = (
                 (checkout.get("customer_details") or {}).get("email")
@@ -890,6 +908,7 @@ def buy_success(slug):
                 session_id,
                 expand=["line_items.data.price.product"],
             )
+            checkout = _stripe_dict(checkout)
             line_items = (checkout.get("line_items") or {}).get("data") or []
             line = line_items[0] if line_items else None
             price_obj = (line.get("price") or {}) if line else {}
