@@ -6,6 +6,7 @@ const role = body.dataset.role;
 const gameSlug = body.dataset.gameSlug || "act-it-out";
 const gameTitle = body.dataset.gameTitle || "Act It Out";
 const gameBase = `/group-games/${gameSlug}`;
+const gameHome = body.dataset.gameHome || gameBase;
 const apiBase = `/api/group-games/${gameSlug}/rooms/${code}`;
 const app = document.querySelector("#act-app");
 const toast = document.querySelector("#act-toast");
@@ -270,9 +271,9 @@ function scoreRail(state, controls = "") {
 }
 
 function modeLabel(mode) {
-  if (mode === "draw") return "Draw it";
-  if (mode === "guess") return "Guess the story";
-  return mode === "clue" ? "Give clues" : "Act it out";
+  if (mode === "draw") return "Draw It!";
+  if (mode === "guess") return "Guess It!";
+  return mode === "clue" ? "Don’t Say It!" : "Act It!";
 }
 
 function clueList(round, compact = false) {
@@ -482,7 +483,7 @@ function renderFinished(state) {
         ${leaders.map((player, index) => `<div><span>${index + 1}. ${escapeHTML(player.name)}</span><strong>${player.score}</strong></div>`).join("")}
       </div>
       <div class="next-game-actions">
-        <a class="bee-button secondary" href="${gameBase}">Back to ${escapeHTML(gameTitle)}</a>
+        <a class="bee-button secondary" href="${gameHome}">Back to ${escapeHTML(gameTitle)}</a>
       </div>
     </section>
     ${scoreRail(state, role === "host" ? `<button id="play-again" class="bee-button secondary full" type="button">New game, same players</button>` : "")}

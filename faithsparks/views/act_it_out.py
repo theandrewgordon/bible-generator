@@ -155,6 +155,46 @@ ACT_THEMES = ["Bible Stories", "Jesus' Miracles", "Parables", "People Moments", 
 DRAW_THEMES = ["Bible Stories", "Jesus' Miracles", "Parables", "People & Places", "Worship & Church", "Faith Pictures", "Easy Objects", "Big Scenes"]
 THEMES = [*ACT_THEMES, *DRAW_THEMES]
 
+FAMILY_GAME_MODES = {"mixed", "act", "draw", "clue", "guess"}
+FAMILY_DIFFICULTIES = {
+    "younger": {"easy"},
+    "whole_family": {"easy", "medium"},
+    "challenge": {"medium", "hard"},
+}
+FAMILY_CATEGORIES = {
+    "bible_stories": "Bible Stories",
+    "jesus_miracles": "Jesus and His Miracles",
+    "parables": "Parables",
+    "people": "People of the Bible",
+    "worship_church": "Worship and Church",
+    "everyday_faith": "Everyday Faith",
+}
+PROMPT_THEME_CATEGORIES = {
+    "Bible Stories": "bible_stories",
+    "Guess the Story": "bible_stories",
+    "Big Scenes": "bible_stories",
+    "Jesus' Miracles": "jesus_miracles",
+    "Parables": "parables",
+    "People Moments": "people",
+    "People & Places": "people",
+    "Worship & Church": "worship_church",
+    "Everyday Faith": "everyday_faith",
+    "Faith Pictures": "everyday_faith",
+    "Easy Objects": "everyday_faith",
+}
+FAMILY_MODE_SEQUENCE = ("act", "draw", "clue", "guess")
+
+
+def _free_prompt_ids() -> set[str]:
+    """Stable 24-card sampler with six prompts available for each mode."""
+    ids: set[str] = set()
+    for mode in FAMILY_MODE_SEQUENCE:
+        ids.update([prompt["id"] for prompt in PROMPTS if mode in prompt["modes"]][:6])
+    return ids
+
+
+FREE_FAMILY_PROMPT_IDS = _free_prompt_ids()
+
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
 
@@ -303,6 +343,9 @@ def _team_meta(team_id: str | None) -> dict | None:
 
 
 def _player_limit(room: dict) -> int:
+    configured_limit = room.get("player_limit")
+    if isinstance(configured_limit, int) and configured_limit > 0:
+        return configured_limit
     return TEAM_PLAYER_LIMIT if room.get("team_mode") else INDIVIDUAL_PLAYER_LIMIT
 
 
@@ -339,6 +382,8 @@ def _team_state(room: dict) -> list[dict]:
 
 
 def _room_full_message(room: dict) -> str:
+    if room.get("player_limit"):
+        return f"This room is full at {_player_limit(room)} players."
     if room.get("team_mode"):
         return f"This team room is full at {TEAM_PLAYER_LIMIT} players."
     return f"This room already has {INDIVIDUAL_PLAYER_LIMIT} players."
@@ -358,6 +403,24 @@ def _prompt_pool(theme: str, game_type: str = "act_it_out") -> list[dict]:
     return selected or act_prompts
 
 
+def _family_prompt_pool(
+    categories: set[str],
+    difficulty: str,
+    mode: str | None = None,
+    *,
+    free_sampler: bool = False,
+) -> list[dict]:
+    allowed_difficulties = FAMILY_DIFFICULTIES[difficulty]
+    return [
+        prompt
+        for prompt in PROMPTS
+        if PROMPT_THEME_CATEGORIES.get(prompt["theme"]) in categories
+        and prompt.get("difficulty", "easy") in allowed_difficulties
+        and (mode is None or mode in prompt["modes"])
+        and (not free_sampler or prompt["id"] in FREE_FAMILY_PROMPT_IDS)
+    ]
+
+
 def _draw_choices(answer: str, seed: int) -> list[str]:
     distractors = [
         prompt["answer"]
@@ -369,7 +432,54 @@ def _draw_choices(answer: str, seed: int) -> list[str]:
     return sorted(choices, key=lambda item: ((sum(ord(char) for char in item) + seed * 3) % 997, item))
 
 
-def _build_rounds(code: str, theme: str, count: int = DEFAULT_ROUNDS, game_type: str = "act_it_out") -> list[dict]:
+def _build_rounds(
+    code: str,
+    theme: str,
+    count: int = DEFAULT_ROUNDS,
+    game_type: str = "act_it_out",
+    *,
+    categories: set[str] | None = None,
+    difficulty: str = "whole_family",
+    game_mode: str = "mixed",
+    free_sampler: bool = False,
+) -> list[dict]:
+    if game_type == "family_game_night":
+        selected_categories = categories or set(FAMILY_CATEGORIES)
+        requested_modes = FAMILY_MODE_SEQUENCE if game_mode == "mixed" else (game_mode,)
+        pools = {
+            mode: deepcopy(
+                _family_prompt_pool(
+                    selected_categories,
+                    difficulty,
+                    mode,
+                    free_sampler=free_sampler,
+                )
+            )
+            for mode in requested_modes
+        }
+        missing_modes = [mode for mode, mode_pool in pools.items() if not mode_pool]
+        if missing_modes:
+            readable = ", ".join(mode.replace("clue", "Don’t Say It").replace("guess", "Guess It").title() for mode in missing_modes)
+            raise ValueError(f"Those categories and difficulty do not have {readable} cards. Select more categories or another difficulty.")
+        seed = sum(ord(char) for char in code)
+        rounds = []
+        for index in range(count):
+            mode = requested_modes[index % len(requested_modes)]
+            mode_pool = pools[mode]
+            prompt = mode_pool[(seed + index * 7) % len(mode_pool)]
+            answer = prompt["answer"]
+            rounds.append({
+                "id": f"{prompt['id']}-{index}",
+                "prompt_id": prompt["id"],
+                "answer": answer,
+                "mode": mode,
+                "theme": FAMILY_CATEGORIES[PROMPT_THEME_CATEGORIES[prompt["theme"]]],
+                "instruction": prompt.get("instruction", ""),
+                "forbidden_words": prompt.get("forbidden_words", []) if mode == "clue" else [],
+                "clues": prompt.get("clues", []) if mode == "guess" else [],
+                "choices": _draw_choices(answer, seed + index) if mode == "draw" else [],
+            })
+        return rounds
     pool = deepcopy(_prompt_pool(theme, game_type))
     seed = sum(ord(char) for char in code)
     rounds = []
@@ -661,6 +771,8 @@ def _game_slug(room: dict | None) -> str:
 
 
 def _game_title(room: dict | None) -> str:
+    if (room or {}).get("game_type") == "family_game_night":
+        return "Family Game Night"
     return "Draw It" if _game_slug(room) == "draw-it" else "Act It Out"
 
 
@@ -726,6 +838,111 @@ def family_game_night():
         owns_complete_game=owns_complete_game,
         checkout_available=bool(STRIPE_PRICE_FAMILY_GAME_NIGHT),
     )
+
+
+def _owns_family_game_night(email: str) -> bool:
+    return bool(((get_user_doc(email) if email else {}).get("purchases") or {}).get("family_game_night"))
+
+
+def _render_family_setup(error: str | None = None, status: int = 200):
+    email = _host_email()
+    owns_complete_game = _owns_family_game_night(email)
+    response = render_template(
+        "family_game_night_setup.html",
+        is_host_signed_in=bool(email),
+        owns_complete_game=owns_complete_game,
+        categories=FAMILY_CATEGORIES,
+        error=error,
+        active_rooms=[room for room in _active_rooms_for_host(email) if room.get("game_type") == "family_game_night"],
+        noindex=True,
+    )
+    return (response, status) if status != 200 else response
+
+
+@bp.get("/family-game-night/play")
+def family_game_night_setup():
+    return _render_family_setup()
+
+
+@bp.post("/family-game-night/create")
+def create_family_game_night_room():
+    email = _host_email()
+    if not email:
+        return redirect(url_for("google.login", next=url_for("act_it_out.family_game_night_setup")))
+    rate = check_rate_limit("family-game-night-create", email, limit=8, window_seconds=60 * 60)
+    if not rate.allowed:
+        return _render_family_setup("Too many rooms were created recently. Please try again later.", 429)
+
+    play_style = (request.form.get("play_style") or "").strip()
+    game_mode = (request.form.get("game_mode") or "").strip()
+    difficulty = (request.form.get("difficulty") or "").strip()
+    category_values = request.form.getlist("categories")
+    categories = {value.strip() for value in category_values if value.strip()}
+    try:
+        round_count = int(request.form.get("round_count", ""))
+    except (TypeError, ValueError):
+        round_count = -1
+
+    errors = []
+    if play_style not in {"teams", "individual"}:
+        errors.append("Choose teams or everyone for themselves.")
+    if round_count not in ROUND_COUNT_OPTIONS:
+        errors.append("Choose a 10, 15, or 20 round game.")
+    if game_mode not in FAMILY_GAME_MODES:
+        errors.append("Choose Mixed Game Night or one of the four game modes.")
+    if difficulty not in FAMILY_DIFFICULTIES:
+        errors.append("Choose a family difficulty level.")
+    if not categories or not categories <= set(FAMILY_CATEGORIES):
+        errors.append("Choose at least one available Bible category.")
+    if errors:
+        return _render_family_setup(" ".join(errors), 400)
+
+    owns_complete_game = _owns_family_game_night(email)
+    if not owns_complete_game and (round_count != 10 or game_mode != "mixed" or difficulty != "whole_family" or categories != set(FAMILY_CATEGORIES)):
+        return _render_family_setup("The free game includes 10 mixed rounds for the whole family with all categories. Unlock the complete game to customize these choices.", 403)
+
+    code = _new_code()
+    try:
+        rounds = _build_rounds(
+            code,
+            "Mixed Game Night" if game_mode == "mixed" else game_mode,
+            round_count,
+            "family_game_night",
+            categories=categories,
+            difficulty=difficulty,
+            game_mode=game_mode,
+            free_sampler=not owns_complete_game,
+        )
+    except ValueError as exc:
+        return _render_family_setup(str(exc), 400)
+    team_mode = play_style == "teams"
+    room = {
+        "created_at": time.time(),
+        "updated_at": time.time(),
+        "host_email": email,
+        "phase": "lobby",
+        "game_type": "family_game_night",
+        "theme": "Mixed Game Night" if game_mode == "mixed" else game_mode,
+        "game_mode": game_mode,
+        "difficulty": difficulty,
+        "categories": sorted(categories),
+        "free_sampler": not owns_complete_game,
+        "player_limit": 6 if not owns_complete_game else (TEAM_PLAYER_LIMIT if team_mode else INDIVIDUAL_PLAYER_LIMIT),
+        "team_mode": team_mode,
+        "teams": TEAMS if team_mode else [],
+        "round_count": round_count,
+        "rounds": rounds,
+        "round_index": 0,
+        "timer_seconds": ROUND_SECONDS,
+        "players": {},
+        "round_results": [],
+    }
+    _set_room(code, room)
+    host_rooms = list(session.get("act_it_out_host_rooms", []))
+    if code not in host_rooms:
+        host_rooms.append(code)
+    session["act_it_out_host_rooms"] = host_rooms[-8:]
+    return redirect(f"/group-games/act-it-out/host/{code}")
 
 
 @bp.get("/church-games/act-it-out")
@@ -1230,6 +1447,10 @@ def play_again_same_players(code: str):
             current.get("theme", "Mix It Up"),
             round_count,
             current.get("game_type", "act_it_out"),
+            categories=set(current.get("categories") or FAMILY_CATEGORIES),
+            difficulty=current.get("difficulty", "whole_family"),
+            game_mode=current.get("game_mode", "mixed"),
+            free_sampler=bool(current.get("free_sampler", False)),
         )
         current["round_index"] = 0
         current["round_results"] = []

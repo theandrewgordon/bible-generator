@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Set up Family Game Night · Faith Sparks</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
+  </head>
+  <body class="bee-body">
+    <header class="bee-header">
+      <a class="bee-brand" href="{{ url_for('act_it_out.family_game_night') }}"><span class="faithsparks-wordmark">Faith<span>Sparks</span></span><span class="brand-divider"></span><strong>Family Game Night</strong></a>
+    </header>
+    <main class="bee-home family-setup-home">
+      <section class="home-copy">
+        <span class="section-kicker">Laugh together. Learn Scripture. Make memories.</span>
+        <h1>Set up your Family Game Night.</h1>
+        <p>Your television or computer becomes the shared display. Players join from their phones with a room code—no player accounts needed.</p>
+      </section>
+
+      {% if error %}<p class="setup-error" role="alert">{{ error }}</p>{% endif %}
+      {% if is_host_signed_in %}
+        <form class="family-setup-form" method="post" action="{{ url_for('act_it_out.create_family_game_night_room') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <fieldset><legend><b>1</b><span>How are you playing?</span></legend><div class="setup-choice-grid two">
+            <label><input type="radio" name="play_style" value="teams" checked><span><strong>Teams</strong><small>Work together and share points.</small></span></label>
+            <label><input type="radio" name="play_style" value="individual"><span><strong>Everyone for themselves</strong><small>Each player keeps their own score.</small></span></label>
+          </div></fieldset>
+
+          <fieldset><legend><b>2</b><span>How long?</span></legend><div class="setup-choice-grid three">
+            <label><input type="radio" name="round_count" value="10" {% if not owns_complete_game %}checked{% endif %}><span><strong>Quick Game</strong><small>10 rounds</small></span></label>
+            <label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="radio" name="round_count" value="15" {% if owns_complete_game %}checked{% else %}disabled{% endif %}><span><strong>Family Game</strong><small>15 rounds{% if not owns_complete_game %} · Complete{% endif %}</small></span></label>
+            <label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="radio" name="round_count" value="20" {% if not owns_complete_game %}disabled{% endif %}><span><strong>Big Game Night</strong><small>20 rounds{% if not owns_complete_game %} · Complete{% endif %}</small></span></label>
+          </div></fieldset>
+
+          <fieldset><legend><b>3</b><span>What should we play?</span></legend><div class="setup-choice-grid five">
+            {% for value, title, help in [('mixed', 'Mixed Game Night', 'All four ways to play'), ('act', 'Act It!', 'Perform the answer'), ('draw', 'Draw It!', 'Draw while others guess'), ('clue', 'Don’t Say It!', 'Avoid forbidden words'), ('guess', 'Guess It!', 'Reveal one clue at a time')] %}
+              <label class="{% if not owns_complete_game and value != 'mixed' %}locked-choice{% endif %}"><input type="radio" name="game_mode" value="{{ value }}" {% if value == 'mixed' %}checked{% endif %} {% if not owns_complete_game and value != 'mixed' %}disabled{% endif %}><span><strong>{{ title }}</strong><small>{{ help }}{% if not owns_complete_game and value != 'mixed' %} · Complete{% endif %}</small></span></label>
+            {% endfor %}
+          </div></fieldset>
+
+          <fieldset><legend><b>4</b><span>Difficulty</span></legend><div class="setup-choice-grid three">
+            {% for value, title, help in [('younger', 'Younger Family', 'Simpler, familiar prompts'), ('whole_family', 'Whole Family', 'A friendly mix for most families'), ('challenge', 'Challenge', 'More detailed Bible knowledge')] %}
+              <label class="{% if not owns_complete_game and value != 'whole_family' %}locked-choice{% endif %}"><input type="radio" name="difficulty" value="{{ value }}" {% if value == 'whole_family' %}checked{% endif %} {% if not owns_complete_game and value != 'whole_family' %}disabled{% endif %}><span><strong>{{ title }}</strong><small>{{ help }}{% if not owns_complete_game and value != 'whole_family' %} · Complete{% endif %}</small></span></label>
+            {% endfor %}
+          </div></fieldset>
+
+          <fieldset><legend><b>5</b><span>Categories</span></legend><p class="fieldset-help">All Bible categories are ready by default.</p><div class="category-check-grid">
+            {% for value, title in categories.items() %}<label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="checkbox" name="categories" value="{{ value }}" checked {% if not owns_complete_game %}onclick="return false" aria-readonly="true"{% endif %}><span>{{ title }}</span></label>{% endfor %}
+          </div></fieldset>
+
+          {% if not owns_complete_game %}<aside class="free-game-note"><div><strong>You’re setting up the free game</strong><span>10 mixed rounds, all categories, and up to six players. Players never need to buy.</span></div><a href="{{ url_for('act_it_out.family_game_night') }}#complete-game">Unlock customization</a></aside>{% endif %}
+          <button class="bee-button primary large setup-submit" type="submit">Create Game Room</button>
+        </form>
+      {% else %}
+        <section class="setup-sign-in"><h2>Ready to host?</h2><p>Only the host needs a Faith Sparks account. Everyone else joins free with the room code.</p><a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('act_it_out.family_game_night_setup')) }}">Sign in to create a room</a></section>
+      {% endif %}
+
+      {% if active_rooms %}<section class="active-rooms"><h2>Continue a recent Family Game Night</h2>{% for room in active_rooms %}<div class="active-room-row"><a href="/group-games/act-it-out/host/{{ room.code }}"><span><strong>Room {{ room.code }}</strong><small>{{ room.players }} players · {{ room.phase|capitalize }}</small></span><b>Resume →</b></a></div>{% endfor %}</section>{% endif %}
+    </main>
+  </body>
+</html>

@@ -18,6 +18,20 @@ Smallest safe launch path:
 5. Gate host configuration only; never gate joining or play.
 6. Instrument the create → join → finish → checkout → fulfilled funnel before private beta.
 
+## Implementation progress
+
+Completed on `feature/family-game-night-launch`:
+
+- Added the canonical, indexable `/family-game-night` product page.
+- Added a dedicated `/family-game-night/play` parent-friendly setup flow.
+- Added strict server-side validation for play style, length, mode, difficulty, and categories.
+- Added deterministic mixed rounds containing Act It, Draw It, Don’t Say It, and Guess It.
+- Added a stable 24-prompt free sampler, 10-round enforcement, and six-player free-room cap.
+- Added full-library configuration for entitled hosts while keeping joined players ungated.
+- Added one-time Stripe checkout and webhook fulfillment for `family_game_night` ownership.
+- Unified visible in-room mode names and Family Game Night room branding.
+- Verified the public and setup pages at 320 px with no horizontal overflow or browser errors.
+
 ## Architecture and file map
 
 - `app.py`: Flask application, blueprint registration, OAuth/session hydration, lightweight CSRF middleware, legacy billing route adapters, and global application configuration.
@@ -101,12 +115,7 @@ The suite could not initially run because the repository's `.venv` is malformed 
 
 Coverage still needed for the launch model:
 
-- canonical Family Game Night defaults and every allowed configuration;
-- strict rejection (not silent coercion) of invalid setup values;
-- mixed four-mode generation;
-- multi-category and difficulty filtering;
-- free limits and paid option gating;
-- Family Game Night checkout metadata, webhook fulfillment, repeat events, and restore;
+- repeat webhook delivery and returning-customer integration tests against a Firestore emulator or Stripe test mode;
 - paid host/free participant behavior;
 - funnel analytics events.
 

@@ -10,7 +10,7 @@
   </head>
   <body class="bee-body join-body">
     <main class="join-screen">
-      <a class="bee-brand centered" href="{% if game_slug|default('act-it-out') == 'draw-it' %}{{ url_for('act_it_out.draw_it_home') }}{% else %}{{ url_for('act_it_out.home') }}{% endif %}">
+      <a class="bee-brand centered" href="{% if game_title == 'Family Game Night' %}{{ url_for('act_it_out.family_game_night_setup') }}{% elif game_slug|default('act-it-out') == 'draw-it' %}{{ url_for('act_it_out.draw_it_home') }}{% else %}{{ url_for('act_it_out.home') }}{% endif %}">
         <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
         <strong>{{ game_title|default('Act It Out') }}</strong>
       </a>

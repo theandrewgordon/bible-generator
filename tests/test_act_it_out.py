@@ -55,6 +55,29 @@ def _create_draw_room(host, team_mode=False, theme="Mix It Up", round_count=None
     return match.group(1)
 
 
+def _create_family_room(host, **overrides):
+    data = {
+        "csrf_token": CSRF,
+        "play_style": "teams",
+        "round_count": "10",
+        "game_mode": "mixed",
+        "difficulty": "whole_family",
+        "categories": [
+            "bible_stories",
+            "jesus_miracles",
+            "parables",
+            "people",
+            "worship_church",
+            "everyday_faith",
+        ],
+    }
+    data.update(overrides)
+    created = _post(host, "/family-game-night/create", data=data)
+    if created.status_code != 302:
+        return created, None
+    return created, created.headers["Location"].rsplit("/", 1)[-1]
+
+
 def test_group_games_hub_keeps_old_url_alias():
     client = app.test_client()
     new_page = client.get("/group-games")
@@ -83,6 +106,99 @@ def test_family_game_night_sales_page_explains_product_and_join_flow():
     assert b"Players join free" in page.data
     assert b'id="fgn-code-form"' in page.data
     assert b"noindex" not in page.data
+
+
+def test_family_game_night_free_setup_has_safe_defaults_and_mobile_controls():
+    client = app.test_client()
+    _prime(client, "free-family@example.com")
+
+    page = client.get("/family-game-night/play")
+
+    assert page.status_code == 200
+    assert b"Create Game Room" in page.data
+    assert b'name="play_style" value="teams" checked' in page.data
+    assert b'name="round_count" value="10" checked' in page.data
+    assert b'name="round_count" value="15" disabled' in page.data
+    assert b'name="game_mode" value="mixed" checked' in page.data
+    assert b'name="difficulty" value="whole_family" checked' in page.data
+    assert page.data.count(b'name="categories"') == 6
+    assert b"up to six players" in page.data
+
+
+def test_family_game_night_free_room_is_mixed_and_server_limited():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    _prime(host, "free-room@example.com")
+    created, code = _create_family_room(host)
+
+    assert created.status_code == 302
+    room = act_it_out._get_room(code)
+    assert room["game_type"] == "family_game_night"
+    assert room["team_mode"] is True
+    assert room["round_count"] == 10
+    assert room["player_limit"] == 6
+    assert room["free_sampler"] is True
+    assert {round_data["mode"] for round_data in room["rounds"]} == {"act", "draw", "clue", "guess"}
+    assert {round_data["prompt_id"] for round_data in room["rounds"]} <= act_it_out.FREE_FAMILY_PROMPT_IDS
+
+
+def test_family_game_night_rejects_invalid_and_locked_configuration():
+    host = app.test_client()
+    _prime(host, "invalid-family@example.com")
+
+    invalid, _code = _create_family_room(host, game_mode="not-a-mode")
+    locked, _code = _create_family_room(host, round_count="20")
+
+    assert invalid.status_code == 400
+    assert b"Choose Mixed Game Night" in invalid.data
+    assert locked.status_code == 403
+    assert b"free game includes 10 mixed rounds" in locked.data
+
+
+def test_complete_family_game_night_supports_every_mode_and_filters(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    _prime(host, "complete-family@example.com")
+
+    for mode in ["mixed", "act", "draw", "clue", "guess"]:
+        created, code = _create_family_room(
+            host,
+            play_style="individual",
+            round_count="15",
+            game_mode=mode,
+            difficulty="younger",
+            categories=["bible_stories", "parables"],
+        )
+        assert created.status_code == 302, mode
+        room = act_it_out._get_room(code)
+        expected_modes = {"act", "draw", "clue", "guess"} if mode == "mixed" else {mode}
+        assert {round_data["mode"] for round_data in room["rounds"]} == expected_modes
+        assert {round_data["theme"] for round_data in room["rounds"]} <= {"Bible Stories", "Parables"}
+        assert all(
+            next(prompt for prompt in act_it_out.PROMPTS if prompt["id"] == round_data["prompt_id"])["difficulty"] == "easy"
+            for round_data in room["rounds"]
+        )
+        assert room["free_sampler"] is False
+        assert room["player_limit"] == act_it_out.INDIVIDUAL_PLAYER_LIMIT
+
+
+def test_complete_family_game_night_defaults_to_fifteen_rounds(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    client = app.test_client()
+    _prime(client, "complete-default@example.com")
+
+    page = client.get("/family-game-night/play")
+
+    assert page.status_code == 200
+    assert b'name="round_count" value="15" checked' in page.data
+    assert b'name="game_mode" value="act"' in page.data
+    assert b'name="round_count" value="20"' in page.data
+    assert b"disabled" not in page.data
 
 
 def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
