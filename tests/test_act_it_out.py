@@ -65,6 +65,23 @@ def test_group_games_hub_keeps_old_url_alias():
     assert b"cast the display" in new_page.data
 
 
+def test_family_game_night_sales_page_explains_product_and_join_flow():
+    client = app.test_client()
+    page = client.get("/family-game-night")
+
+    assert page.status_code == 200
+    assert b"Faith Sparks Family Game Night" in page.data
+    assert b"Laugh together. Learn Scripture. Make memories." in page.data
+    assert b"Act It!" in page.data
+    assert b"Draw It!" in page.data
+    assert b"Don\xe2\x80\x99t Say It!" in page.data
+    assert b"Guess It!" in page.data
+    assert b"Play a free game" in page.data
+    assert b"Players join free" in page.data
+    assert b'id="fgn-code-form"' in page.data
+    assert b"noindex" not in page.data
+
+
 def test_act_it_out_home_explains_round_flow_and_draw_mode():
     client = app.test_client()
     _prime(client, "act-how@example.com")

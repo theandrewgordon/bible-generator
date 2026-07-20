@@ -713,6 +713,12 @@ def hub():
     return render_template("group_games.html", noindex=True)
 
 
+@bp.get("/family-game-night")
+def family_game_night():
+    """Public product page; stable game URLs remain behind this wrapper."""
+    return render_template("family_game_night.html")
+
+
 @bp.get("/church-games/act-it-out")
 @bp.get("/group-games/act-it-out")
 def home():

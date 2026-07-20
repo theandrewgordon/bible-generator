@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Faith Sparks Family Game Night · Bible Games for Families{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{{ url_for('static', filename='family_game_night.css') }}?v={{ static_v|default(1) }}">{% endblock %}
+{% block content %}
+<main class="fgn-page">
+  <section class="fgn-hero">
+    <div>
+      <span class="fgn-kicker">Faith Sparks Family Game Night</span>
+      <h1>A Bible game night your whole family will ask to play again.</h1>
+      <p class="fgn-lede">Act, draw, give clues, and guess your way through Bible stories using the television and devices you already own.</p>
+      <p class="fgn-tagline">Laugh together. Learn Scripture. Make memories.</p>
+      <div class="fgn-actions"><a class="button primary" href="{{ url_for('act_it_out.home') }}">Play a free game</a><a class="button secondary" href="#complete-game">See the complete game</a></div>
+      <p class="fgn-note">Only the host signs in. Players join free with a room code—no app or player account required.</p>
+    </div>
+    <div class="fgn-demo" aria-label="Example room code screen and player phones">
+      <div class="fgn-screen"><span>Room</span><strong>PLAY</strong><p>Scan to join from your phone</p></div>
+      <div class="fgn-phone"><span>Act It!</span><strong>David and Goliath</strong></div>
+    </div>
+  </section>
+
+  <section class="fgn-section" aria-labelledby="how-it-works"><span class="fgn-kicker">How it works</span><h2 id="how-it-works">From “what should we do?” to playing in minutes.</h2>
+    <ol class="fgn-grid fgn-steps"><li><b>1</b><strong>Create a room</strong><span>The host chooses a game and opens the shared display.</span></li><li><b>2</b><strong>Put it on the TV</strong><span>Use a laptop, casting, or AirPlay.</span></li><li><b>3</b><strong>Join from phones</strong><span>Scan the QR code or enter the four-character code.</span></li><li><b>4</b><strong>Play for the win</strong><span>Take turns, score points, and crown a champion.</span></li></ol>
+  </section>
+
+  <section class="fgn-section" aria-labelledby="four-ways"><span class="fgn-kicker">Four ways to play</span><h2 id="four-ways">Everyone gets a moment to shine.</h2>
+    <div class="fgn-grid fgn-modes"><article><i aria-hidden="true">🎭</i><h3>Act It!</h3><p>Perform the prompt without saying the answer.</p></article><article><i aria-hidden="true">✏️</i><h3>Draw It!</h3><p>Sketch while everyone guesses from their phones.</p></article><article><i aria-hidden="true">💬</i><h3>Don’t Say It!</h3><p>Give clues without using the forbidden words.</p></article><article><i aria-hidden="true">🔎</i><h3>Guess It!</h3><p>Reveal clues until someone recognizes the Bible answer.</p></article></div>
+  </section>
+
+  <section class="fgn-section fgn-needs" aria-labelledby="what-you-need"><div><span class="fgn-kicker">What you need</span><h2 id="what-you-need">No special equipment. No pile of pieces.</h2></div><div><ul><li>A television or computer for the shared display</li><li>One phone or tablet for each player or team</li><li>An internet connection</li><li>About 15–40 minutes together</li></ul><p>Made for school-age children through adults. Team play helps younger readers participate.</p></div></section>
+
+  <section id="complete-game" class="fgn-section" aria-labelledby="choose-game"><span class="fgn-kicker">Start free</span><h2 id="choose-game">Try it with your family tonight.</h2>
+    <div class="fgn-prices"><article><span>Free game</span><h3>$0</h3><ul><li>10 quick rounds</li><li>Teams or individual play</li><li>No payment information</li><li>Players always join free</li></ul><a class="button primary" href="{{ url_for('act_it_out.home') }}">Play a free game</a></article><article class="featured"><span>Complete Family Game Night</span><h3>$19 <small>one time</small></h3><ul><li>10, 15, or 20 rounds</li><li>All four ways to play</li><li>Full prompt library</li><li>All categories and difficulty levels</li></ul><p class="fgn-coming-soon">Secure one-time checkout is being prepared. The free game is ready now.</p></article></div>
+  </section>
+
+  <section class="fgn-section fgn-faq" aria-labelledby="questions"><span class="fgn-kicker">Questions parents ask</span><h2 id="questions">Know before the first round.</h2><div><details><summary>Do players need accounts?</summary><p>No. Only the host signs in.</p></details><details><summary>Do we need an app?</summary><p>No. It runs in the browser.</p></details><details><summary>Can we use a television?</summary><p>Yes. Open or cast the display page.</p></details><details><summary>What ages is it for?</summary><p>School-age children through adults; teams help early readers.</p></details><details><summary>Is this a subscription?</summary><p>No. Complete Family Game Night is planned as a one-time purchase.</p></details><details><summary>Can a church or homeschool group use it?</summary><p>Yes. Team rooms support larger groups.</p></details></div></section>
+
+  <section class="fgn-section fgn-join" aria-labelledby="join-game"><div><span class="fgn-kicker">Already have a code?</span><h2 id="join-game">Join a Family Game Night.</h2></div><form id="fgn-code-form"><label for="fgn-room-code">Room code</label><input id="fgn-room-code" maxlength="4" autocomplete="off" autocapitalize="characters" pattern="[A-Za-z0-9]{4}" placeholder="PLAY" required><button class="button secondary" type="submit">Join game</button></form></section>
+</main>
+{% endblock %}
+{% block extra_scripts %}<script>document.querySelector("#fgn-code-form").addEventListener("submit",event=>{event.preventDefault();const code=document.querySelector("#fgn-room-code").value.trim().toUpperCase();if(code.length===4)window.location.href=`/group-games/act-it-out/join/${encodeURIComponent(code)}`;});</script>{% endblock %}
