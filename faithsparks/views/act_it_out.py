@@ -328,16 +328,62 @@ def _is_admin_email(email: str) -> bool:
     return bool(email and email.lower() in allowed)
 
 
+def _session_host_key(code: str) -> str:
+    keys = session.get("act_it_out_host_keys", {})
+    return str(keys.get(code, "")) if isinstance(keys, dict) else ""
+
+
+def _register_host_room(code: str, room: dict) -> None:
+    """Give this browser durable, room-scoped host authority.
+
+    Google OAuth may briefly become unavailable between requests. The signed
+    Flask session remains valid in that case, so keep game control independent
+    from a fresh OAuth lookup without trusting the guessable room code alone.
+    """
+    host_key = secrets.token_urlsafe(32)
+    room["host_key"] = host_key
+
+    host_rooms = [item for item in session.get("act_it_out_host_rooms", []) if item != code]
+    host_rooms.append(code)
+    host_rooms = host_rooms[-8:]
+    session["act_it_out_host_rooms"] = host_rooms
+
+    existing = session.get("act_it_out_host_keys", {})
+    host_keys = dict(existing) if isinstance(existing, dict) else {}
+    host_keys[code] = host_key
+    session["act_it_out_host_keys"] = {
+        room_code: host_keys[room_code]
+        for room_code in host_rooms
+        if room_code in host_keys
+    }
+
+
+def _forget_host_room(code: str) -> None:
+    session["act_it_out_host_rooms"] = [
+        item for item in session.get("act_it_out_host_rooms", []) if item != code
+    ]
+    existing = session.get("act_it_out_host_keys", {})
+    host_keys = dict(existing) if isinstance(existing, dict) else {}
+    host_keys.pop(code, None)
+    session["act_it_out_host_keys"] = host_keys
+
+
 def _is_host(code: str, room: dict | None = None) -> bool:
     room = room or _get_room(code)
     email = _host_email()
-    return bool(room and email and room.get("host_email") == email)
+    if not room:
+        return False
+    if email and room.get("host_email") == email:
+        return True
+    session_key = _session_host_key(code)
+    room_key = str(room.get("host_key") or "")
+    return bool(session_key and room_key and secrets.compare_digest(session_key, room_key))
 
 
 def _can_delete_room(code: str, room: dict | None = None) -> bool:
     room = room or _get_room(code)
     email = _host_email()
-    return bool(room and email and (room.get("host_email") == email or _is_admin_email(email)))
+    return bool(room and (_is_host(code, room) or _is_admin_email(email)))
 
 
 def _player_session_key(code: str) -> str:
@@ -969,12 +1015,9 @@ def create_family_game_night_room():
         "players": {},
         "round_results": [],
     }
+    _register_host_room(code, room)
     _set_room(code, room)
     _record_family_funnel_event("room_created", room, code)
-    host_rooms = list(session.get("act_it_out_host_rooms", []))
-    if code not in host_rooms:
-        host_rooms.append(code)
-    session["act_it_out_host_rooms"] = host_rooms[-8:]
     return redirect(f"/group-games/act-it-out/host/{code}")
 
 
@@ -1077,11 +1120,8 @@ def _create_room(game_type: str):
         "players": {},
         "round_results": [],
     }
+    _register_host_room(code, room)
     _set_room(code, room)
-    host_rooms = list(session.get("act_it_out_host_rooms", []))
-    if code not in host_rooms:
-        host_rooms.append(code)
-    session["act_it_out_host_rooms"] = host_rooms[-8:]
     host_path = f"/group-games/draw-it/host/{code}" if game_type == "draw_it" else f"/group-games/act-it-out/host/{code}"
     return redirect(host_path)
 
@@ -1752,9 +1792,7 @@ def close_room(code: str):
         abort(403)
     redirect_url = url_for("act_it_out.draw_it_home") if _game_slug(room) == "draw-it" else url_for("act_it_out.home")
     _delete_room(code)
-    session["act_it_out_host_rooms"] = [
-        item for item in session.get("act_it_out_host_rooms", []) if item != code
-    ]
+    _forget_host_room(code)
     return jsonify({"ok": True, "redirect": redirect_url})
 
 
@@ -1768,7 +1806,5 @@ def delete_room_from_home(code: str):
         abort(403)
     redirect_url = url_for("act_it_out.draw_it_home") if _game_slug(room) == "draw-it" else url_for("act_it_out.home")
     _delete_room(code)
-    session["act_it_out_host_rooms"] = [
-        item for item in session.get("act_it_out_host_rooms", []) if item != code
-    ]
+    _forget_host_room(code)
     return redirect(redirect_url)

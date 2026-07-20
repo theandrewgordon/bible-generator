@@ -179,6 +179,46 @@ def test_family_game_night_room_exposes_first_host_walkthrough_and_help():
     assert "Read aloud?" in js
 
 
+def test_family_game_night_host_keeps_control_when_oauth_state_disappears():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "host-reconnect@example.com")
+    _prime(player)
+    created, code = _create_family_room(host, play_style="individual")
+    assert created.status_code == 302
+    joined = _post(
+        player,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada"},
+    )
+    assert joined.status_code == 302
+
+    # Flask-Dance can temporarily report the token as unauthorized and the
+    # global request hook then clears these identity fields. The signed room
+    # credential must continue to authorize the browser that created it.
+    with host.session_transaction() as sess:
+        sess.pop("user_email", None)
+        sess.pop("user_info", None)
+        sess.pop("google_oauth_token", None)
+
+    assert host.get(f"/group-games/act-it-out/host/{code}").status_code == 200
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start").status_code == 200
+
+
+def test_room_code_alone_does_not_grant_host_control():
+    host = app.test_client()
+    visitor = app.test_client()
+    _prime(host, "host-capability@example.com")
+    _prime(visitor)
+    _created, code = _create_family_room(host, play_style="individual")
+
+    with visitor.session_transaction() as sess:
+        sess["act_it_out_host_rooms"] = [code]
+
+    assert visitor.get(f"/group-games/act-it-out/host/{code}").status_code == 403
+    assert _post(visitor, f"/api/group-games/act-it-out/rooms/{code}/start").status_code == 403
+
+
 def test_family_game_night_rejects_invalid_and_locked_configuration():
     host = app.test_client()
     _prime(host, "invalid-family@example.com")
