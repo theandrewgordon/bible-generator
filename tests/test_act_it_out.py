@@ -14,12 +14,12 @@ JPEG_STUB = "data:image/jpeg;base64,/9j/AA=="
 
 
 class StripeObjectStub:
-    """Matches Stripe SDK resources that expose to_dict_recursive, not get."""
+    """Matches Stripe SDK v15 resources that expose to_dict, not get."""
 
     def __init__(self, data):
         self._data = data
 
-    def to_dict_recursive(self):
+    def to_dict(self):
         return self._data
 
 
@@ -336,6 +336,23 @@ def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
     assert kwargs["metadata"]["email"] == "owner@example.com"
     assert kwargs["cancel_url"].endswith("/family-game-night/checkout/canceled")
     metric.assert_called_once_with("family_game_night_checkout_started", "one_time")
+
+
+def test_billing_normalizes_current_stripe_sdk_objects():
+    from stripe import StripeObject
+    from faithsparks.views import billing
+
+    nested = StripeObject()
+    nested.update({"email": "owner@example.com"})
+    event = StripeObject()
+    event.update({"type": "checkout.session.completed", "customer_details": nested})
+
+    normalized = billing._stripe_dict(event)
+
+    assert normalized == {
+        "type": "checkout.session.completed",
+        "customer_details": {"email": "owner@example.com"},
+    }
 
 
 def test_family_game_night_success_returns_paid_buyer_to_setup(monkeypatch):

@@ -117,11 +117,12 @@ def _stripe_dict(value):
     """Normalize Stripe SDK resources before using mapping operations."""
     if isinstance(value, dict):
         return value
-    converter = getattr(value, "to_dict_recursive", None)
-    if callable(converter):
-        converted = converter()
-        if isinstance(converted, dict):
-            return converted
+    for method_name in ("to_dict", "to_dict_recursive"):
+        converter = getattr(value, method_name, None)
+        if callable(converter):
+            converted = converter()
+            if isinstance(converted, dict):
+                return converted
     return value
 
 
