@@ -3412,6 +3412,8 @@ NEAR-DUPLICATE SECTIONS:
 OTHER RULES:
 - id: title lowercased, spaces/special chars replaced by hyphens, no leading/trailing hyphens
 - parts keys: use verse1, verse2, verse3, chorus, chorus2, bridge, pre_chorus, tag, outro, intro as appropriate
+- Label by musical function, not merely by position: traditional hymn stanzas remain verses. A modern repeated response added after the hymn stanzas is usually a bridge, especially when the song has no recurring chorus between verses.
+- When that modern response has meaningful lyric variants (for example, "I bow" followed later by "I stand"), use bridge and bridge2 rather than chorus and chorus2.
 - each part value is an array of individual lyric lines (no blank strings)
 - preserve apostrophes and contractions exactly as written
 - ignore ALL website boilerplate: recommendations, ads, copyright, navigation, "You May Also Like", writer credits, album info

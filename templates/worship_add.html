@@ -352,20 +352,32 @@
     if (defaultName) upsertChip(defaultName);
   }
 
-  function refreshPreview(linesText, container) {
-    var lines = linesText.trim();
+  var previewRequestSequence = 0;
+  var previewUrl = {{ url_for('worship_preview_slides')|tojson }};
+  var previewCsrfToken = {{ csrf_token()|tojson }};
+
+  async function refreshPreview(linesText, container) {
+    var lines = (linesText || '').trim();
     if (!lines) { container.innerHTML = ''; return; }
-    var slides = [];
-    lines.split(/\n\s*\n/).forEach(function (groupText) {
-      var lyricLines = groupText.split(/\n+/).map(function (line) { return line.trim(); }).filter(Boolean);
-      var i = 0;
-      while (i < lyricLines.length) {
-        var remaining = lyricLines.length - i;
-        var size = remaining === 6 ? 3 : 5;
-        slides.push({ lines: lyricLines.slice(i, i + size) });
-        i += size;
+    var requestSequence = ++previewRequestSequence;
+    container.dataset.previewRequest = String(requestSequence);
+    var slides;
+    try {
+      var response = await fetch(previewUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': previewCsrfToken},
+        body: JSON.stringify({lines: lines})
+      });
+      if (!response.ok) throw new Error('Preview request failed');
+      var payload = await response.json();
+      slides = payload.slides || [];
+    } catch (error) {
+      if (container.dataset.previewRequest === String(requestSequence)) {
+        container.innerHTML = '<span class="small muted">Preview unavailable</span>';
       }
-    });
+      return;
+    }
+    if (container.dataset.previewRequest !== String(requestSequence)) return;
     container.innerHTML = '';
     (slides || []).forEach(function (slide, i) {
       var thumb = document.createElement('div');
