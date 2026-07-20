@@ -161,7 +161,7 @@
         <p>Enter the four-character code shown on their screen.</p>
         <form id="join-code-form" class="code-form">
           <label for="room-code">Room code</label>
-          <input id="room-code" name="room_code" maxlength="4" autocomplete="off" autocapitalize="characters" pattern="[A-Za-z0-9]{4}" placeholder="BEE7" required>
+          <input id="room-code" name="room_code" maxlength="6" autocomplete="off" autocapitalize="characters" pattern="[A-Za-z0-9]{6}" placeholder="BEE729" required>
           <button class="bee-button secondary" type="submit">Join room</button>
         </form>
       </section>
@@ -185,7 +185,7 @@
       document.querySelector("#join-code-form").addEventListener("submit", (event) => {
         event.preventDefault();
         const code = document.querySelector("#room-code").value.trim().toUpperCase();
-        if (code.length === 4) window.location.href = `/family-bible-bee/join/${encodeURIComponent(code)}`;
+        if (code.length === 6) window.location.href = `/family-bible-bee/join/${encodeURIComponent(code)}`;
       });
       const versionInputs = document.querySelectorAll('[name="version"]');
       function updateDeckVersions() {

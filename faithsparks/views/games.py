@@ -16,7 +16,7 @@ from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
 from faithsparks.services.rate_limit import check_rate_limit
-from faithsparks.util.request_utils import get_client_ip
+from faithsparks.util.request_utils import get_client_ip, is_safe_artifact_url
 from build_games import generate_match_game_pdf, generate_word_search_pdf, generate_crossword_pdf, MatchItem
 from verse_helpers import (
     request_verse_data,
@@ -840,7 +840,7 @@ def dl_game(slug):
         pass
 
     url = meta.get("zipUrl")
-    if url:
+    if url and is_safe_artifact_url(url):
         _update_usage(email, 1)
         return redirect(url)
 

@@ -66,34 +66,34 @@ from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
 
-# Map passwords to pack metadata
+# Product metadata is public; redemption secrets are supplied separately through
+# PACK_REDEMPTION_CODES_JSON (a JSON object mapping code -> pack id).
 PACKS = {
-    # ESV – Print
-    "sparks-esv-print": {
+    "esv_print": {
         "id": "esv_print",
         "name": "ESV Print Handwriting (30 Worksheets)",
         "filename": "30_Pack_ESV.pdf",
     },
     # ESV – Cursive
-    "sparks-esv-cursive": {
+    "esv_cursive": {
         "id": "esv_cursive",
         "name": "ESV Cursive Handwriting (30 Worksheets)",
         "filename": "30_Pack_ESV_Cursive.pdf",
     },
     # KJV – Print
-    "sparks-kjv-print": {
+    "kjv_print": {
         "id": "kjv_print",
         "name": "KJV Print Handwriting (30 Worksheets)",
         "filename": "30_Pack_KJV.pdf",
     },
     # KJV – Cursive
-    "sparks-kjv-cursive": {
+    "kjv_cursive": {
         "id": "kjv_cursive",
         "name": "KJV Cursive Handwriting (30 Worksheets)",
         "filename": "30_Pack_KJV_Cursive.pdf",
     },
     # Mega bundle (all 4)
-    "sparks-mega-bundle": {
+    "mega_bundle": {
         "id": "mega_bundle",
         "name": "Mega Bundle – All 4 Packs (120 Worksheets)",
         "filename": "30_Pack_MegaPack.zip",
@@ -203,6 +203,7 @@ _USER_FLAGS_TTL = 120.0  # seconds
 
 # --- App Setup ---
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
 # Fail fast in production if secret or required cloud storage config is missing
 if APP_ENV in {"prod", "production"}:
@@ -210,6 +211,8 @@ if APP_ENV in {"prod", "production"}:
         raise RuntimeError("FLASK_SECRET_KEY must be set in production")
     if not os.getenv("FIREBASE_CREDS_JSON"):
         raise RuntimeError("FIREBASE_CREDS_JSON must be set in production to configure Firestore")
+    if os.getenv("STRIPE_SECRET_KEY") and not os.getenv("STRIPE_WEBHOOK_SECRET"):
+        raise RuntimeError("STRIPE_WEBHOOK_SECRET must be set in production when Stripe billing is enabled")
     try:
         validate_firebase_credentials()
     except Exception as exc:
@@ -231,10 +234,6 @@ if APP_ENV in {"prod", "production"}:
 
 # Always prefer https URLs when generating links
 app.config.update(PREFERRED_URL_SCHEME="https")
-
-# Only pin cookies to the apex domain in production
-if APP_ENV in {"prod", "production"}:
-    app.config["SESSION_COOKIE_DOMAIN"] = f".{PRIMARY_DOMAIN}"
 
 # Respect proxy headers (Render/Cloudflare) when enabled
 enable_proxy_fix = os.getenv(
@@ -312,6 +311,7 @@ app.jinja_env.filters["markdown"] = _md
 # Recommended cookie settings (don't break localhost/dev)
 app.config["SESSION_COOKIE_SECURE"] = (APP_ENV in {"prod", "production"})
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 
 
 # Helpful OAuth env flags (no-op if already set)
@@ -345,7 +345,9 @@ def force_primary_domain():
         return
     parsed = urlparse(request.url)
     target = parsed._replace(scheme="https", netloc=PRIMARY_DOMAIN)
-    return redirect(urlunparse(target), code=301)
+    # Preserve POST bodies for webhooks and form submissions arriving through a
+    # configured alternate domain. A 301 can be rewritten to GET by clients.
+    return redirect(urlunparse(target), code=301 if request.method in {"GET", "HEAD"} else 308)
 
 def is_safe_url(target: str) -> bool:
     if not target:
@@ -476,6 +478,13 @@ def add_correlation_headers(resp):
     req_id = getattr(g, "req_id", None)
     if req_id:
         resp.headers["X-Request-ID"] = req_id
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    resp.headers.setdefault("Content-Security-Policy", "frame-ancestors 'self'; object-src 'none'; base-uri 'self'")
+    if APP_ENV in {"prod", "production"}:
+        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return resp
 
 
@@ -526,15 +535,22 @@ def get_pack_by_password(raw_password: str):
     if not raw_password:
         return None
     key = raw_password.strip().lower()
-    return PACKS.get(key)
+    try:
+        configured = json.loads(os.getenv("PACK_REDEMPTION_CODES_JSON", "{}"))
+    except (TypeError, ValueError):
+        configured = {}
+    if not isinstance(configured, dict):
+        configured = {}
+    pack_id = next(
+        (str(value).strip() for code, value in configured.items() if _constant_time_eq(str(code).strip().lower(), key)),
+        None,
+    )
+    return get_pack_by_id(pack_id) if pack_id else None
 
 
 def get_pack_by_id(pack_id: str):
     """Return pack metadata by its id."""
-    for data in PACKS.values():
-        if data.get("id") == pack_id:
-            return data
-    return None
+    return PACKS.get(pack_id)
 
 
 def _user_has_pack(user_email: str | None, pack_id: str) -> bool:
@@ -572,6 +588,11 @@ def downloads():
     pack = None
 
     if request.method == "POST":
+        password_limit = check_rate_limit(
+            "downloads:password", get_client_ip(), limit=10, window_seconds=15 * 60
+        )
+        if not password_limit.allowed:
+            return "Too many attempts. Please wait and try again.", 429
         password = request.form.get("password", "")
         pack = get_pack_by_password(password)
         if not pack:
@@ -640,6 +661,10 @@ def claim_pack():
     pack_meta = get_pack_by_id(pack_id)
     if not pack_meta:
         flash("That pack doesn’t exist.")
+        return redirect(url_for("downloads"))
+
+    if session.get("unlocked_pack_id") != pack_id:
+        flash("Please enter the product password before saving this pack.", "error")
         return redirect(url_for("downloads"))
 
     try:
@@ -741,12 +766,12 @@ def _current_worship_scope() -> str:
 
 
 def _normalize_worship_invite_code(value: str) -> str:
-    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())[:24]
+    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())[:40]
 
 
 def _make_worship_invite_code(name: str) -> str:
     prefix = re.sub(r"[^A-Z0-9]+", "", str(name or "").upper())[:4] or "FS"
-    return f"{prefix}{secrets.token_hex(3).upper()}"
+    return f"{prefix}{secrets.token_hex(16).upper()}"
 
 
 def _user_can_access_worship_church(church_id: str) -> bool:
@@ -763,6 +788,62 @@ def _user_can_access_worship_church(church_id: str) -> bool:
         return member.exists
     except Exception:
         return False
+
+
+def _current_worship_role() -> str:
+    """Return the signed-in user's effective role for the active library."""
+    scope = _current_worship_scope()
+    email = session.get("user_email")
+    if not email:
+        return "viewer"
+    if scope == _DEFAULT_WORSHIP_SCOPE:
+        if APP_ENV not in {"prod", "production"}:
+            return "owner"
+        return "owner" if is_admin_email(email) else "viewer"
+    if not db:
+        return "viewer"
+    try:
+        member = (
+            db.collection(_WORSHIP_CHURCH_COLLECTION)
+            .document(scope)
+            .collection("members")
+            .document(email)
+            .get()
+        )
+        if not member.exists:
+            return "viewer"
+        return str((member.to_dict() or {}).get("role") or "viewer").strip().lower()
+    except Exception:
+        return "viewer"
+
+
+def _worship_can_edit(*, owner_only: bool = False) -> bool:
+    role = _current_worship_role()
+    return role == "owner" if owner_only else role in {"owner", "editor", "member"}
+
+
+def worship_editor_required(func):
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not _worship_can_edit():
+            abort(403)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def worship_owner_required(func):
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not _worship_can_edit(owner_only=True):
+            abort(403)
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def _load_worship_churches() -> list[dict]:
@@ -813,7 +894,7 @@ def _current_worship_church_context() -> dict:
     current_id = _current_worship_scope()
     current = next((church for church in churches if church["id"] == current_id), None)
     if not current:
-        current = {"id": _DEFAULT_WORSHIP_SCOPE, "name": "Shared Library", "invite_code": "", "role": "member"}
+        current = {"id": _DEFAULT_WORSHIP_SCOPE, "name": "Shared Library", "invite_code": "", "role": _current_worship_role()}
     return {"current": current, "churches": churches}
 
 
@@ -1912,6 +1993,7 @@ def worship():
 
 @app.route("/worship/cleanup-duplicates", methods=["POST"])
 @login_required
+@worship_owner_required
 def worship_cleanup_duplicates():
     """Delete duplicate songs (same title+artist), keeping the one with the most lyric content."""
     songs = list_worship_songs()
@@ -2018,6 +2100,15 @@ def worship_church_join():
     invite_code = _normalize_worship_invite_code(request.form.get("invite_code", ""))
     if not invite_code:
         flash("Enter a church invite code.", "warning")
+        return redirect(url_for("worship"))
+    email_limit = check_rate_limit(
+        "worship:church_join:user", session.get("user_email", ""), limit=8, window_seconds=15 * 60
+    )
+    ip_limit = check_rate_limit(
+        "worship:church_join:ip", get_client_ip(), limit=20, window_seconds=15 * 60
+    )
+    if not email_limit.allowed or not ip_limit.allowed:
+        flash("Too many invite attempts. Please wait and try again.", "warning")
         return redirect(url_for("worship"))
     try:
         matches = (
@@ -3128,6 +3219,8 @@ def worship_build():
 @login_required
 def worship_add():
     if request.method == "POST":
+        if not _worship_can_edit():
+            abort(403)
         # Overwrite confirmation branch
         if request.form.get("overwrite"):
             pending_token = session.get("pending_worship_token", "")
@@ -3294,6 +3387,7 @@ def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
 
 @app.route("/worship/add/parse", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_add_parse():
     if request.content_length and request.content_length > 100_000:
         flash("That import is too large. Please paste only the song lyrics.", "warning")
@@ -3531,6 +3625,7 @@ def worship_preview_slides():
 
 @app.route("/worship/delete", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_delete():
     song_id = request.form.get("song_id", "").strip()
     if not song_id or ".." in song_id or "/" in song_id or "\\" in song_id:
@@ -3553,6 +3648,7 @@ def worship_delete():
 
 @app.route("/worship/library/reset", methods=["POST"])
 @login_required
+@worship_owner_required
 def worship_library_reset():
     confirmation = request.form.get("confirmation", "").strip().upper()
     if confirmation != "DELETE":
@@ -3569,6 +3665,7 @@ def worship_library_reset():
 
 @app.route("/worship/duplicate/<song_id>", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_duplicate(song_id):
     if ".." in song_id or "/" in song_id or "\\" in song_id:
         flash("Invalid song id.", "warning")
@@ -3607,6 +3704,8 @@ def worship_edit(song_id):
         pass  # auto-repair disabled: it produced worse results than the incomplete parse
 
     if request.method == "POST":
+        if not _worship_can_edit():
+            abort(403)
         title = request.form.get("title", "").strip()
         artist = request.form.get("artist", "").strip()
         version = request.form.get("version", "").strip()
@@ -3654,6 +3753,7 @@ def worship_edit(song_id):
 
 @app.route("/worship/setlist/save", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_save():
     song_ids = request.form.getlist("song_ids")
     if not song_ids:
@@ -3697,6 +3797,7 @@ def worship_setlist_save():
 
 @app.route("/worship/setlist/delete", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_delete():
     setlist_id = request.form.get("setlist_id", "").strip() or request.form.get("date", "").strip()
     if not _valid_worship_setlist_id(setlist_id):
@@ -3707,6 +3808,7 @@ def worship_setlist_delete():
 
 @app.route("/worship/setlist/rename", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_rename():
     setlist_id = request.form.get("setlist_id", "").strip()
     new_name = request.form.get("setlist_name", "").strip()
@@ -3732,6 +3834,7 @@ def worship_setlist_rename():
 
 @app.route("/worship/setlist/duplicate", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_duplicate():
     setlist_id = request.form.get("setlist_id", "").strip()
     duplicate_name = request.form.get("setlist_name", "").strip()
@@ -3842,6 +3945,19 @@ def coloring_image(filename):
 def thumb(filename):
     from faithsparks.views.worksheets import thumb as _impl
     return _impl(filename)
+
+
+@app.route('/branding/<theme>/<asset>')
+def branding_asset(theme, asset):
+    safe_theme = str(theme or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9_-]{1,60}", safe_theme) or not re.fullmatch(r"(?:logo|favicon)\.(?:png|jpe?g|gif|ico)", asset or "", re.IGNORECASE):
+        abort(404)
+    signed = signed_url_for_path(f"branding/{safe_theme}/{asset}", minutes=60)
+    if not signed:
+        abort(404)
+    response = redirect(signed)
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
 
 # --- Admin utilities ---
 def is_admin_email(email: str) -> bool:
@@ -4440,6 +4556,13 @@ def handle_500(e):
         return render_template('500.html'), 500
     except Exception:
         return "Server error", 500
+
+
+@app.errorhandler(413)
+def handle_request_too_large(e):
+    if request.is_json:
+        return jsonify({"error": "Request is too large."}), 413
+    return "Request is too large. Please upload a smaller file.", 413
 
 def plan_norm(p: str) -> str:
     """Normalize plan names to canonical values."""

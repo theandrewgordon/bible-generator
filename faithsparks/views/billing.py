@@ -63,6 +63,8 @@ def _price_kind_map() -> dict[str, Tuple[str, str]]:
     _add(STRIPE_PRICE_FAMILY_ANNUAL, "family", "year")
     _add(STRIPE_PRICE_CLASSROOM_MONTHLY, "classroom", "month")
     _add(STRIPE_PRICE_CLASSROOM_ANNUAL, "classroom", "year")
+    _add(STRIPE_PRICE_FAMILY, "family", "legacy")
+    _add(STRIPE_PRICE_CLASSROOM, "classroom", "legacy")
 
     return mapping
 
@@ -336,6 +338,10 @@ def create_checkout_session():
     if not id_or_price:
         return "Missing price", 400
     price_id = resolve_price_id(id_or_price)
+    price_kind = _classify_price(price_id)
+    if not price_kind:
+        current_app.logger.warning("Rejected checkout for unconfigured Stripe price %r", price_id)
+        return "Invalid price", 400
     user_email = session.get("user_email")
     trial_info = _trial_days_for(trial_token, price_id)
     trial_days = trial_kind = None
@@ -528,17 +534,25 @@ def billing_portal():
 
 def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET or not stripe:
-        return ("", 200)
+        current_app.logger.error("Stripe webhook received while webhook processing is not configured")
+        return ("Stripe webhook is not configured", 503)
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     except Exception as e:
         return (f"Webhook error: {e}", 400)
+    if not db:
+        current_app.logger.error("Stripe webhook cannot run because Firestore is unavailable")
+        return ("Billing persistence is unavailable", 503)
 
     et = event.get("type")
     obj = event.get("data", {}).get("object", {})
     try:
+        event_id = str(event.get("id") or "").strip()
+        event_ref = db.collection("stripe_webhook_events").document(event_id) if db and event_id else None
+        if event_ref and event_ref.get().exists:
+            return ("", 200)
         if et == "checkout.session.completed":
             checkout_meta = obj.get("metadata") or {}
             email = (obj.get("customer_details") or {}).get("email") or obj.get("customer_email") or checkout_meta.get("email")
@@ -586,13 +600,10 @@ def stripe_webhook():
                     renew_at = None
             if db and email:
                 if subscription_id:
-                    plan = (
-                        "family"
-                        if price_id == STRIPE_PRICE_FAMILY
-                        else "classroom"
-                        if price_id == STRIPE_PRICE_CLASSROOM
-                        else "plus"
-                    )
+                    price_kind = _classify_price(price_id)
+                    if not price_kind:
+                        raise ValueError(f"Refusing entitlement for unconfigured Stripe price {price_id!r}")
+                    plan = price_kind[0]
                     update_data = {
                         "isPro": True,
                         "plan": plan,
@@ -679,8 +690,8 @@ def stripe_webhook():
                             update_data["priceId"] = price_id
                         if update_data:
                             udoc.reference.set(update_data, merge=True)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    raise RuntimeError("Could not update subscription state") from exc
         elif et == "customer.subscription.deleted":
             sub = obj
             customer_id = sub.get("customer")
@@ -700,8 +711,8 @@ def stripe_webhook():
                             },
                             merge=True,
                         )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    raise RuntimeError("Could not revoke deleted subscription") from exc
         elif et == "invoice.payment_succeeded":
             invoice = obj
             subscription_id = invoice.get("subscription")
@@ -739,8 +750,17 @@ def stripe_webhook():
                         _record_referral_completion(referrer_email, redeemer_email)
                 except Exception:
                     traceback.print_exc()
+        if event_ref:
+            event_ref.set(
+                {
+                    "eventId": event_id,
+                    "type": et,
+                    "processedAt": firestore.SERVER_TIMESTAMP,
+                }
+            )
     except Exception:
-        traceback.print_exc()
+        current_app.logger.exception("Stripe webhook processing failed for event %s", event.get("id"))
+        return ("Webhook processing failed", 500)
     return ("", 200)
 
 

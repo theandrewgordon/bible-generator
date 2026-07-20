@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+import os
+from firebase_admin import firestore
 from .firestore import db
 from .users import get_user_doc, invalidate_user_doc
 
@@ -46,8 +48,9 @@ def _get_usage(email: str) -> tuple[int, int]:
             mk = _month_key()
             monthly = int(months.get(mk) or 0)
             return (lifetime, monthly)
-    except Exception:
-        pass
+    except Exception as exc:
+        if os.getenv('APP_ENV', 'dev').lower() in {'prod', 'production'}:
+            raise RuntimeError('Usage could not be read') from exc
     return (0, 0)
 
 
@@ -70,19 +73,23 @@ def _update_usage(email: str, add: int) -> None:
     if not db or not email or add <= 0:
         return
     try:
-        # Fresh read (not cached) so concurrent/multiple increments are correct.
-        u = db.collection('users').document(email).get()
-        existing = u.to_dict() if u.exists else {}
-        usage = existing.get('usage') or {}
-        lifetime = int(usage.get('lifetime') or 0) + add
-        months = usage.get('months') or {}
         mk = _month_key()
-        monthly = int(months.get(mk) or 0) + add
-        db.collection('users').document(email).set({'usage': {'lifetime': lifetime, 'months': {mk: monthly}}}, merge=True)
+        # Server-side transforms prevent concurrent requests from losing usage
+        # increments and merge=True preserves prior monthly history.
+        db.collection('users').document(email).set(
+            {
+                'usage': {
+                    'lifetime': firestore.Increment(add),
+                    'months': {mk: firestore.Increment(add)},
+                }
+            },
+            merge=True,
+        )
         # Drop the cached doc so any later read in this request sees the new usage.
         invalidate_user_doc(email)
-    except Exception:
-        pass
+    except Exception as exc:
+        if os.getenv('APP_ENV', 'dev').lower() in {'prod', 'production'}:
+            raise RuntimeError('Usage could not be recorded') from exc
 
 
 _free_slugs_cache: tuple[float, set[str]] | None = None
@@ -108,4 +115,3 @@ def _get_free_slugs() -> set[str]:
     except Exception:
         pass
     return set()
-

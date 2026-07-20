@@ -1,6 +1,7 @@
 import json
 import re
 import ipaddress
+from urllib.parse import urlparse
 from typing import Any, Dict, Optional, Tuple
 
 from flask import current_app, g, request, session
@@ -82,6 +83,22 @@ def get_client_ip() -> str:
         if candidate:
             return candidate
     return request.remote_addr or "0.0.0.0"
+
+
+def is_safe_artifact_url(value: str) -> bool:
+    """Allow redirects only to this app or known Google Storage download hosts."""
+    try:
+        parsed = urlparse(str(value or "").strip())
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            return False
+        host = parsed.hostname.lower().rstrip(".")
+        request_host = (request.host.split(":", 1)[0] or "").lower().rstrip(".")
+        return host == request_host or host in {
+            "storage.googleapis.com",
+            "firebasestorage.googleapis.com",
+        } or host.endswith(".storage.googleapis.com")
+    except Exception:
+        return False
 
 
 def extract_json_candidate(blob: str):

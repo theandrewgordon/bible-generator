@@ -1,7 +1,9 @@
 import json
 import os
 import re
+import tempfile
 import traceback
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +21,7 @@ from flask import (
     g,
     jsonify,
     abort,
+    after_this_request,
 )
 from firebase_admin import firestore
 
@@ -35,7 +38,7 @@ from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
 
 from faithsparks.services.firestore import db
-from faithsparks.services.storage import download_from_storage, upload_to_storage, signed_url_for_path
+from faithsparks.services.storage import delete_from_storage, download_from_storage, upload_to_storage, signed_url_for_path
 from faithsparks.services.usage import (
     _get_user_plan,
     _quota_for_plan,
@@ -87,10 +90,17 @@ def _worksheet_doc_for_user(filename: str):
 
 
 def _delete_owned_worksheet_file(filename: str, meta: dict | None = None) -> None:
-    file_path = _safe_local_path("output", filename, {".pdf"})
-    if file_path and file_path.exists():
-        file_path.unlink()
     meta = meta or {}
+    # Legacy custom worksheets used title-derived shared names. Do not delete
+    # those shared artifacts; new private objects carry a UUID suffix.
+    private_custom_object = bool(meta.get("custom")) and bool(
+        re.search(r"-[0-9a-f]{32}_DIY(?:_cursive)?\.pdf$", filename, re.IGNORECASE)
+    )
+    file_path = _safe_local_path("output", filename, {".pdf"})
+    if file_path and file_path.exists() and (not meta.get("custom") or private_custom_object):
+        file_path.unlink()
+    if private_custom_object:
+        delete_from_storage(f"worksheets/{filename}")
     if meta.get("type") == "coloring":
         png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
         png_path = _safe_local_path("worksheets", png_name, {".png"})
@@ -141,8 +151,6 @@ def make_thumbnail(verse_ref: str, version: str, base_name: str):
 def update_zip_bundle(pdf_paths=None):
     from zipfile import ZipFile
 
-    bundle_path = "output/worksheets_bundle.zip"
-
     if pdf_paths is None:
         pdf_paths = [
             os.path.join("output", f)
@@ -159,16 +167,19 @@ def update_zip_bundle(pdf_paths=None):
             files.append(abs_path)
 
     if len(files) < 2:
-        try:
-            if os.path.exists(bundle_path):
-                os.remove(bundle_path)
-        except Exception:
-            pass
-        return
+        return None
+
+    os.makedirs("output", exist_ok=True)
+    bundle_file = tempfile.NamedTemporaryFile(
+        mode="wb", prefix="worksheets_bundle_", suffix=".zip", dir="output", delete=False
+    )
+    bundle_path = bundle_file.name
+    bundle_file.close()
 
     with ZipFile(bundle_path, "w") as zf:
         for file_path in files:
             zf.write(file_path, os.path.basename(file_path))
+    return bundle_path
 
 
 def generate():
@@ -358,6 +369,10 @@ def generate():
                 is_custom = item["is_custom"]
                 text = item.get("text")
                 slug = item["slug"]
+                if is_custom:
+                    # Custom text is private user content. Its storage identity must
+                    # never collide with another user's title or another request.
+                    slug = f"{slug}-{uuid.uuid4().hex}"
                 suffix = "_cursive" if use_cursive else ""
                 pdf_path = f"output/{slug}_{version}{suffix}.pdf"
                 json_path = f"output/{slug}_{version}.json"
@@ -529,7 +544,9 @@ def generate():
                     if not os.path.exists(thumb_path):
                         make_thumbnail(ctx["verse"], ctx["version"], thumb_base)
 
-                upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
+                storage_url = upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
+                if os.getenv("APP_ENV", "dev").lower() in {"prod", "production"} and not storage_url:
+                    raise RuntimeError("Worksheet could not be saved to durable storage")
                 ctx["pdf_path"] = pdf_path
                 _record_existing(pdf_path)
 
@@ -540,6 +557,7 @@ def generate():
                             "verse": (data.get("verse") if not ctx["is_custom"] else ctx["verse"]),
                             "version": ctx["version"],
                             "filename": os.path.basename(pdf_path),
+                            "storageUrl": storage_url,
                             "timestamp": firestore.SERVER_TIMESTAMP,
                             "cursive": use_cursive,
                             "custom": ctx["is_custom"],
@@ -555,7 +573,7 @@ def generate():
             except Exception:
                 pass
 
-        update_zip_bundle(bundle_files)
+        bundle_path = update_zip_bundle(bundle_files)
         try:
             current_app.logger.info(
                 "worksheets.generate summary requested=%s success=%s skipped=%s free_skips=%s collection=%s",
@@ -578,10 +596,17 @@ def generate():
             flash("Worksheet generated successfully!", "success")
             return send_file(last_pdf, as_attachment=True, download_name=os.path.basename(last_pdf), conditional=True)
         elif len(items_to_generate) > 1:
-            zip_path = "output/worksheets_bundle.zip"
-            if os.path.exists(zip_path):
+            if bundle_path and os.path.exists(bundle_path):
+                @after_this_request
+                def _remove_request_bundle(response):
+                    try:
+                        os.remove(bundle_path)
+                    except OSError:
+                        pass
+                    return response
+
                 flash("Bundle generated successfully!", "success")
-                return send_file(zip_path, as_attachment=True, download_name=os.path.basename(zip_path), conditional=True)
+                return send_file(bundle_path, as_attachment=True, download_name="worksheets_bundle.zip", conditional=True)
 
         return "No worksheets were generated successfully", 500
 

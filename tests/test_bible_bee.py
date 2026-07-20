@@ -51,7 +51,7 @@ def test_family_bible_bee_room_flow():
 
     created = _post(host, "/family-bible-bee/create")
     assert created.status_code == 302
-    match = re.search(r"/host/([A-Z0-9]{4})$", created.headers["Location"])
+    match = re.search(r"/host/([A-Z0-9]{6})$", created.headers["Location"])
     assert match
     code = match.group(1)
 

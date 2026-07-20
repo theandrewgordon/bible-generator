@@ -38,3 +38,22 @@ Using pre-release or development builds of **Python 3.14+** will fail to build l
    ```bash
    flask run
    ```
+
+## Production Security Configuration
+
+When Stripe billing is enabled, `STRIPE_WEBHOOK_SECRET` is required. Production
+startup intentionally fails if `STRIPE_SECRET_KEY` is present without its webhook
+secret so subscription changes cannot be silently lost.
+
+Download redemption codes must not be committed to the repository. Configure
+`PACK_REDEMPTION_CODES_JSON` as a JSON object whose keys are private redemption
+codes and whose values are one of `esv_print`, `esv_cursive`, `kjv_print`,
+`kjv_cursive`, or `mega_bundle`, for example:
+
+```json
+{"replace-with-a-random-code":"esv_print"}
+```
+
+Rotate the former `sparks-*` codes; they were previously present in source and
+must be treated as public. Generate each replacement with at least 128 bits of
+randomness, such as `python -c 'import secrets; print(secrets.token_urlsafe(24))'`.

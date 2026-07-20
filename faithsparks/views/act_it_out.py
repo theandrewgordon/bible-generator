@@ -239,7 +239,7 @@ def _delete_room(code: str) -> None:
 
 def _new_code() -> str:
     for _ in range(30):
-        code = "".join(secrets.choice(ROOM_CODE_CHARS) for _ in range(4))
+        code = "".join(secrets.choice(ROOM_CODE_CHARS) for _ in range(6))
         if not _get_room(code):
             return code
     raise RuntimeError("Could not allocate an Act It Out room code")

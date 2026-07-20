@@ -57,6 +57,21 @@ class AuditPlanHardeningTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/login/google", response.location)
 
+    def test_lesson_pack_respects_account_credit_limit(self):
+        with app.app.test_request_context("/lesson-pack", method="POST", data={"verse": "John 3:16"}):
+            app.g.flask_dance_google = SimpleNamespace(authorized=True)
+            app.session["user_email"] = "owner@example.com"
+            allowed = SimpleNamespace(allowed=True)
+            with mock.patch.object(public, "check_rate_limit", return_value=allowed), \
+                mock.patch.object(public, "_get_user_plan", return_value="free"), \
+                mock.patch.object(public, "_quota_for_plan", return_value=(1, 1)), \
+                mock.patch.object(public, "_get_usage", return_value=(1, 1)), \
+                mock.patch.object(public, "create_lesson_pack", side_effect=AssertionError("should not generate")):
+                response = public.lesson_pack()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/lesson-pack"))
+
     def test_lesson_pack_result_requires_owner(self):
         with app.app.test_request_context("/lesson-pack/result/gods-love-john-3-16-nlt"):
             app.g.flask_dance_google = SimpleNamespace(authorized=True)
@@ -158,7 +173,9 @@ class AuditPlanHardeningTests(unittest.TestCase):
         try:
             with app.app.test_request_context("/create_checkout_session", method="POST", data={"price_id": "price_123"}):
                 app.session["user_email"] = "owner@example.com"
-                response = billing.create_checkout_session()
+                with mock.patch.object(billing, "resolve_price_id", return_value="price_123"), \
+                    mock.patch.dict(billing.PRICE_KIND_MAP, {"price_123": ("family", "month")}):
+                    response = billing.create_checkout_session()
         finally:
             billing.stripe = original_stripe
             billing.STRIPE_SECRET_KEY = original_secret

@@ -1,9 +1,12 @@
 import os
+import re
+import uuid
 from datetime import datetime, timezone
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, session, current_app, g
 from werkzeug.utils import secure_filename
 from firebase_admin import firestore
+from PIL import Image, UnidentifiedImageError
 
 from faithsparks.services.firestore import db
 from faithsparks.services.storage import upload_to_storage
@@ -17,6 +20,30 @@ from faithsparks.services.themes import (
 
 def _log_admin_theme_error(message: str, exc: Exception) -> None:
     current_app.logger.exception("[%s] admin theme %s: %s", getattr(g, "req_id", ""), message, exc)
+
+
+def _safe_theme_upload_name(value: str) -> str:
+    return re.sub(r"[^a-z0-9_-]+", "-", str(value or "default").strip().lower()).strip("-")[:60] or "default"
+
+
+def _verified_image_upload(file_storage, theme: str, allowed_exts: set[str]) -> tuple[str, str]:
+    filename = secure_filename(file_storage.filename or "")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in allowed_exts:
+        raise ValueError("Unsupported image type")
+    os.makedirs("output", exist_ok=True)
+    local_path = os.path.join("output", f"theme_{theme}_{uuid.uuid4().hex}{ext}")
+    file_storage.save(local_path)
+    try:
+        with Image.open(local_path) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        try:
+            os.remove(local_path)
+        except OSError:
+            pass
+        raise ValueError("Invalid image file") from exc
+    return local_path, ext
 
 
 def admin_theme_preview():
@@ -301,27 +328,30 @@ def admin_theme_logo():
     if not db:
         flash("Firestore not configured", "error")
         return redirect(url_for("admin_theme"))
-    theme = (request.form.get("theme") or "").strip() or "default"
+    theme = _safe_theme_upload_name(request.form.get("theme"))
     f = request.files.get("file")
     if not f or not f.filename:
         flash("No file uploaded", "error")
         return redirect(url_for("admin_theme"))
-    filename = secure_filename(f.filename)
-    ext = os.path.splitext(filename)[1].lower()
-    if ext not in (".png", ".jpg", ".jpeg", ".gif", ".svg"):
-        flash("Unsupported file type", "error")
-        return redirect(url_for("admin_theme"))
-    local_path = os.path.join("output", f"logo_{theme}{ext}")
+    local_path = None
     try:
-        f.save(local_path)
-        url = upload_to_storage(local_path, f"branding/{theme}/logo{ext}")
-        if not url:
+        local_path, ext = _verified_image_upload(f, theme, {".png", ".jpg", ".jpeg", ".gif"})
+        uploaded = upload_to_storage(local_path, f"branding/{theme}/logo{ext}")
+        if uploaded:
+            url = url_for("branding_asset", theme=theme, asset=f"logo{ext}", _external=True)
+        else:
             url = url_for("static", filename="faith_sparks_logo.png")
         db.collection("config").document("app").set({"logos": {theme: url}}, merge=True)
         flash("Logo uploaded", "success")
     except Exception as e:
         _log_admin_theme_error("logo upload failed", e)
         flash("Upload failed. Please try again.", "error")
+    finally:
+        if local_path:
+            try:
+                os.remove(local_path)
+            except OSError:
+                pass
     return redirect(url_for("admin_theme"))
 
 
@@ -329,27 +359,30 @@ def admin_theme_favicon():
     if not db:
         flash("Firestore not configured", "error")
         return redirect(url_for("admin_theme"))
-    theme = (request.form.get("theme") or "").strip() or "default"
+    theme = _safe_theme_upload_name(request.form.get("theme"))
     f = request.files.get("file")
     if not f or not f.filename:
         flash("No file uploaded", "error")
         return redirect(url_for("admin_theme"))
-    filename = secure_filename(f.filename)
-    ext = os.path.splitext(filename)[1].lower()
-    if ext not in (".ico", ".png", ".jpg", ".jpeg"):
-        flash("Unsupported file type (use .ico or .png)", "error")
-        return redirect(url_for("admin_theme"))
-    local_path = os.path.join("output", f"favicon_{theme}{ext}")
+    local_path = None
     try:
-        f.save(local_path)
-        url = upload_to_storage(local_path, f"branding/{theme}/favicon{ext}")
-        if not url:
+        local_path, ext = _verified_image_upload(f, theme, {".ico", ".png", ".jpg", ".jpeg"})
+        uploaded = upload_to_storage(local_path, f"branding/{theme}/favicon{ext}")
+        if uploaded:
+            url = url_for("branding_asset", theme=theme, asset=f"favicon{ext}", _external=True)
+        else:
             url = url_for("static", filename="favicon.ico")
         db.collection("config").document("app").set({"favicons": {theme: url}}, merge=True)
         flash("Favicon uploaded", "success")
     except Exception as e:
         _log_admin_theme_error("favicon upload failed", e)
         flash("Upload failed. Please try again.", "error")
+    finally:
+        if local_path:
+            try:
+                os.remove(local_path)
+            except OSError:
+                pass
     return redirect(url_for("admin_theme"))
 
 

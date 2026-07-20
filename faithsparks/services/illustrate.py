@@ -897,8 +897,12 @@ def create_coloring_sheet(
     )
     logger.info("Illustrate files rendered slug=%s pdf=%s png=%s", slug, pdf_filename, png_filename)
 
-    upload_to_storage(str(pdf_path), f"worksheets/{pdf_filename}")
-    upload_to_storage(str(png_path), f"worksheets/{png_filename}")
+    pdf_storage_url = upload_to_storage(str(pdf_path), f"worksheets/{pdf_filename}")
+    png_storage_url = upload_to_storage(str(png_path), f"worksheets/{png_filename}")
+    if os.getenv("APP_ENV", "dev").lower() in {"prod", "production"} and not (
+        pdf_storage_url and png_storage_url
+    ):
+        raise IllustrationError("Coloring sheet could not be saved to durable storage", 503)
     if thumb_path.exists():
         upload_to_storage(str(thumb_path), f"thumbs/{thumb_path.name}")
 
@@ -924,8 +928,10 @@ def create_coloring_sheet(
         }
         try:
             db.collection("worksheets").add(record)
-        except Exception:
-            pass
+        except Exception as exc:
+            if os.getenv("APP_ENV", "dev").lower() in {"prod", "production"}:
+                raise IllustrationError("Coloring sheet history could not be saved", 503) from exc
+            logger.exception("Could not save coloring worksheet history")
 
     result = {
         "title": base_title,

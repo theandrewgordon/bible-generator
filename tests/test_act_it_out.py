@@ -34,7 +34,7 @@ def _create_team_room(host, theme="Bible Stories", round_count=None):
         data=data,
     )
     assert created.status_code == 302
-    match = re.search(r"/host/([A-Z0-9]{4})$", created.headers["Location"])
+    match = re.search(r"/host/([A-Z0-9]{6})$", created.headers["Location"])
     assert match
     return match.group(1)
 
@@ -47,7 +47,7 @@ def _create_draw_room(host, team_mode=False, theme="Mix It Up", round_count=None
         data["round_count"] = str(round_count)
     created = _post(host, "/group-games/draw-it/create", data=data)
     assert created.status_code == 302
-    match = re.search(r"/host/([A-Z0-9]{4})$", created.headers["Location"])
+    match = re.search(r"/host/([A-Z0-9]{6})$", created.headers["Location"])
     assert match
     return match.group(1)
 

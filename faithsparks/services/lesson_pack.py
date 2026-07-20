@@ -508,9 +508,14 @@ def create_lesson_pack(
 
     pdf_storage_path = _lesson_pack_storage_path(slug, f"{slug}.pdf") if combined_ok else None
     zip_storage_path = _lesson_pack_storage_path(slug, f"{slug}.zip")
+    pdf_storage_url = None
     if combined_ok:
-        upload_to_storage(str(combined_pdf), pdf_storage_path)
-    upload_to_storage(str(zip_path), zip_storage_path)
+        pdf_storage_url = upload_to_storage(str(combined_pdf), pdf_storage_path)
+    zip_storage_url = upload_to_storage(str(zip_path), zip_storage_path)
+    if os.getenv("APP_ENV", "dev").lower() in {"prod", "production"} and (
+        not zip_storage_url or (combined_ok and not pdf_storage_url)
+    ):
+        raise RuntimeError("Lesson pack could not be saved to durable storage")
 
     result = {
         "slug": slug,

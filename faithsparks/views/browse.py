@@ -14,6 +14,7 @@ from faithsparks.services.users import get_user_doc
 from faithsparks.services.collections import get_collections, get_collection_meta
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
+from faithsparks.util.request_utils import is_safe_artifact_url
 
 
 bp = Blueprint("browse_views", __name__)
@@ -224,7 +225,7 @@ def dl_pack(slug):
         local_packs_path = parsed.path.startswith("/packs/") and (
             not parsed.netloc or parsed.netloc == urlparse(request.host_url).netloc
         )
-        if not local_packs_path:
+        if not local_packs_path and is_safe_artifact_url(url):
             return redirect(url)
     path = os.path.join("output", "packs", f"{slug}.zip")
     if os.path.exists(path):

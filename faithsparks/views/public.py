@@ -10,6 +10,7 @@ from faithsparks.services.lesson_pack import create_lesson_pack
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.firestore import db
 from faithsparks.services.storage import signed_url_for_path
+from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
 from faithsparks.util.request_utils import get_client_ip
 
 
@@ -155,9 +156,20 @@ def lesson_pack():
         flash("You've made several lesson packs recently. Please wait a bit before creating another.", "warning")
         return redirect(url_for('public.lesson_pack'))
 
+    user_email = session.get('user_email')
+    plan = _get_user_plan(user_email)
+    monthly_limit, lifetime_limit = _quota_for_plan(plan)
+    used_lifetime, used_monthly = _get_usage(user_email)
+    if (
+        (monthly_limit is not None and used_monthly >= monthly_limit)
+        or (lifetime_limit is not None and used_lifetime >= lifetime_limit)
+    ):
+        flash("You’ve used all your credits for this month.", "warning")
+        return redirect(url_for('public.lesson_pack'))
+
     try:
         result = create_lesson_pack(
-            user_email=session.get('user_email'),
+            user_email=user_email,
             verse_input=verse_input,
             version=version,
             age_bracket=age_bracket,
@@ -172,6 +184,7 @@ def lesson_pack():
         return redirect(url_for('public.lesson_pack', verse=verse_input, version=version, age=age_bracket))
 
     _remember_lesson_pack_slug(result['slug'])
+    _update_usage(user_email, 1)
     return redirect(url_for('public.lesson_pack_result', slug=result['slug']))
 
 

@@ -106,10 +106,10 @@
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem">
   <h1 style="margin:0">Worship Slide Builder</h1>
-  <a href="{{ url_for('worship_add') }}"
+  {% if worship_church.role in ('owner', 'editor', 'member') %}<a href="{{ url_for('worship_add') }}"
     style="font-size:.9rem;font-weight:600;color:var(--primary);text-decoration:none;padding:5px 12px;border:1px solid var(--primary);border-radius:8px">
     + Add Song
-  </a>
+  </a>{% endif %}
 </div>
 
 <div class="ws-church-card">
@@ -160,11 +160,11 @@
       <option value="artist">Artist</option>
       <option value="last_used">Last Played</option>
     </select>
-    <form method="post" action="{{ url_for('worship_cleanup_duplicates') }}" style="display:contents" id="clean-dupes-form">
+    {% if worship_church.role == 'owner' %}<form method="post" action="{{ url_for('worship_cleanup_duplicates') }}" style="display:contents" id="clean-dupes-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="ws-reset-library" style="margin-right:.5rem" onclick="return confirm('Remove duplicate songs (same title + artist + version)? The best-structured parse will be kept.')">Clean duplicates</button>
     </form>
-    <button type="button" class="ws-reset-library" id="reset-library-btn">Reset library</button>
+    <button type="button" class="ws-reset-library" id="reset-library-btn">Reset library</button>{% endif %}
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
@@ -178,6 +178,7 @@
         {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
       </span>
       <button type="button" class="ws-add" data-id="{{ song.id }}">+ Add</button>
+      {% if worship_church.role in ('owner', 'editor', 'member') %}
       <a href="{{ url_for('worship_edit', song_id=song.id) }}"
         style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0"
         title="Edit {{ song.title }}">Edit</a>
@@ -185,6 +186,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="ws-copy" title="Duplicate {{ song.title }}">Copy</button>
       </form>
+      {% endif %}
       <form method="post" action="{{ url_for('worship_delete') }}" style="display:contents">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="song_id" value="{{ song.id }}">
@@ -209,9 +211,9 @@
     <span class="setlist-chip-wrap">
       <button class="setlist-chip" data-id="{{ sl.id }}" data-date="{{ sl.date }}" data-name="{{ sl.name }}" data-updated="{{ sl.updated_at }}" data-count="{{ sl.song_count }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.name or sl.date }}</button>
       <button class="setlist-action setlist-mobile" data-id="{{ sl.id }}" title="Open mobile link">Mobile</button>
-      <button class="setlist-action setlist-rename" data-id="{{ sl.id }}" title="Rename setlist">Rename</button>
+      {% if worship_church.role in ('owner', 'editor', 'member') %}<button class="setlist-action setlist-rename" data-id="{{ sl.id }}" title="Rename setlist">Rename</button>
       <button class="setlist-action setlist-copy" data-id="{{ sl.id }}" title="Duplicate setlist">Copy</button>
-      <button class="setlist-chip-del" data-id="{{ sl.id }}" data-date="{{ sl.date }}" title="Delete setlist">×</button>
+      <button class="setlist-chip-del" data-id="{{ sl.id }}" data-date="{{ sl.date }}" title="Delete setlist">×</button>{% endif %}
       <span class="setlist-meta">{{ sl.song_count }} song{% if sl.song_count != 1 %}s{% endif %}{% if sl.updated_at %} · Updated {{ sl.updated_at[:10] }}{% endif %}</span>
     </span>
     {% endfor %}
@@ -245,7 +247,7 @@
     <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Build Deck</button>
     <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Export Lyric Sheet (PDF)</button>
     <button type="button" class="ws-btn-ghost" id="copy-last-set-btn" {% if not setlists %}disabled{% endif %}>Copy Last Set</button>
-    <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled>Save Setlist</button>
+    {% if worship_church.role in ('owner', 'editor', 'member') %}<button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled>Save Setlist</button>{% endif %}
     <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
   </div>
 
@@ -286,7 +288,7 @@
   </div>
 </div>
 
-<div class="ws-modal-backdrop" id="reset-library-modal" aria-hidden="true">
+{% if worship_church.role == 'owner' %}<div class="ws-modal-backdrop" id="reset-library-modal" aria-hidden="true">
   <form class="ws-modal" method="post" action="{{ url_for('worship_library_reset') }}" role="dialog" aria-modal="true" aria-labelledby="reset-library-title">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 id="reset-library-title">Reset worship library</h2>
@@ -298,7 +300,7 @@
       <button type="submit" class="ws-btn-danger">Reset library</button>
     </div>
   </form>
-</div>
+</div>{% endif %}
 
 <script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}

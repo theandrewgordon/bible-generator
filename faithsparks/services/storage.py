@@ -1,8 +1,11 @@
 # faithsparks/services/storage.py
 import os
+import logging
 from datetime import timedelta
 
 from .firestore import STORAGE_BUCKET, storage_client  # storage_client is now a callable
+
+logger = logging.getLogger(__name__)
 
 
 def _get_bucket():
@@ -19,8 +22,7 @@ def _get_bucket():
 def upload_to_storage(local_path: str, dst_path: str) -> str | None:
     """
     Uploads a local file to GCS at dst_path.
-    Returns None on success (keeps existing API), or None on failure as well.
-    (If you want a success value later, we can return the gs:// path.)
+    Returns the object's stable public URL on success, or None on failure.
     """
     bucket = _get_bucket()
     if not bucket:
@@ -28,8 +30,9 @@ def upload_to_storage(local_path: str, dst_path: str) -> str | None:
     try:
         blob = bucket.blob(dst_path)
         blob.upload_from_filename(local_path)
-        return None
+        return blob.public_url
     except Exception:
+        logger.exception("Cloud Storage upload failed for %s", dst_path)
         return None
 
 
@@ -75,6 +78,21 @@ def download_from_storage(dst_path: str, local_path: str) -> bool:
         if local_dir:
             os.makedirs(local_dir, exist_ok=True)
         blob.download_to_filename(local_path)
+        return True
+    except Exception:
+        return False
+
+
+def delete_from_storage(dst_path: str) -> bool:
+    """Delete a single known object. Returns False when unavailable or missing."""
+    bucket = _get_bucket()
+    if not bucket or not dst_path:
+        return False
+    try:
+        blob = bucket.blob(dst_path)
+        if not blob.exists():
+            return False
+        blob.delete()
         return True
     except Exception:
         return False
