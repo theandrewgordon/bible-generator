@@ -71,6 +71,15 @@ class FirestoreInitializationTests(unittest.TestCase):
 
         self.assertTrue(firestore_service.db)
 
+    def test_initialized_client_is_returned_by_identity(self):
+        client = object()
+        firestore_service._db = client
+        firestore_service._initialized = True
+
+        returned, _ = firestore_service.init_firebase()
+
+        self.assertIs(returned, client)
+
 
 if __name__ == "__main__":
     unittest.main()

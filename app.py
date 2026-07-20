@@ -208,6 +208,10 @@ if APP_ENV in {"prod", "production"}:
     firestore_client, _ = init_firebase()
     if firestore_client is None:
         raise RuntimeError("FIREBASE_CREDS_JSON is invalid or Firestore could not be initialized")
+    # Bind request handlers to the exact client that passed the production
+    # startup check. This avoids a second lazy-proxy availability decision later
+    # in the request lifecycle.
+    db = firestore_client
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-only-secret")
 
@@ -219,6 +223,8 @@ if not app.logger.handlers:
     app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
 app.logger.propagate = False
+if APP_ENV in {"prod", "production"}:
+    app.logger.info("Firestore client ready (%s)", type(db).__name__)
 
 
 # Always prefer https URLs when generating links
