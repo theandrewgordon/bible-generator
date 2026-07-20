@@ -969,6 +969,11 @@ def get_worship_song(song_id: str) -> dict | None:
             app.logger.warning("get_worship_song(%s) Firestore error: %s", song_id, exc)
             if not _is_local_storage_allowed():
                 raise RuntimeError(f"Firestore read failed for song {song_id} in production.") from exc
+        else:
+            # A successful query with no matching document means the song is new;
+            # it does not mean Firestore is unavailable.
+            if not _is_local_storage_allowed():
+                return None
     if not _is_local_storage_allowed():
         app.logger.error(
             "get_worship_song(%s) has no Firestore client in pid=%s: %s",
@@ -1384,6 +1389,9 @@ def _get_worship_setlist(setlist_id: str) -> dict | None:
             app.logger.warning("_get_worship_setlist(%s) Firestore error: %s", setlist_id, exc)
             if not _is_local_storage_allowed():
                 raise RuntimeError(f"Firestore read failed for setlist {setlist_id} in production.") from exc
+        else:
+            if not _is_local_storage_allowed():
+                return None
     if not _is_local_storage_allowed():
         raise RuntimeError(f"Firestore not available to get setlist {setlist_id} in production. Local fallback is disabled.")
     fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"

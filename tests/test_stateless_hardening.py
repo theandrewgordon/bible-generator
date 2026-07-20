@@ -1,5 +1,6 @@
 import unittest
 import os
+from unittest.mock import patch
 
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
@@ -64,6 +65,28 @@ class StatelessHardeningTests(unittest.TestCase):
             app.get_worship_song("test-song")
         self.assertIn("Local fallback is disabled", str(ctx.exception))
 
+    def test_missing_song_returns_none_when_firestore_query_succeeds(self):
+        class MissingDocument:
+            exists = False
+
+        class FakeReference:
+            def document(self, _song_id):
+                return self
+
+            def get(self):
+                return MissingDocument()
+
+        app.APP_ENV = "prod"
+        os.environ["APP_ENV"] = "prod"
+        os.environ.pop("USE_LOCAL_STORAGE", None)
+        with (
+            patch.object(app, "init_firebase", return_value=(object(), None)),
+            patch.object(app, "_worship_song_refs_for_read", return_value=[FakeReference()]),
+        ):
+            result = app.get_worship_song("brand-new-song")
+
+        self.assertIsNone(result)
+
     def test_list_songs_raises_in_production_without_firestore(self):
         app.APP_ENV = "prod"
         os.environ["APP_ENV"] = "prod"
@@ -87,6 +110,26 @@ class StatelessHardeningTests(unittest.TestCase):
         with self.assertRaises(RuntimeError) as ctx:
             app._get_worship_setlist("2026-06-21")
         self.assertIn("Local fallback is disabled", str(ctx.exception))
+
+    def test_missing_setlist_returns_none_when_firestore_query_succeeds(self):
+        class MissingDocument:
+            exists = False
+
+        class FakeReference:
+            def document(self, _setlist_id):
+                return self
+
+            def get(self):
+                return MissingDocument()
+
+        app.APP_ENV = "prod"
+        os.environ["APP_ENV"] = "prod"
+        os.environ.pop("USE_LOCAL_STORAGE", None)
+        app.db = object()
+        with patch.object(app, "_worship_setlist_refs_for_read", return_value=[FakeReference()]):
+            result = app._get_worship_setlist("2026-07-20-new")
+
+        self.assertIsNone(result)
 
     def test_sqlite_analytics_returns_empty_in_production(self):
         app.APP_ENV = "prod"
