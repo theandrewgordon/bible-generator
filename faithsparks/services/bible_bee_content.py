@@ -7,6 +7,7 @@ import random
 import re
 from copy import deepcopy
 
+from faithsparks.services.game_content import load_bible_bee_content, strong_seed
 from faithsparks.services.scripture import fetch_verse_text
 
 
@@ -338,6 +339,26 @@ DECKS = {
 }
 
 
+def _apply_normalized_deck_expansions() -> None:
+    """Append validated, published passage metadata to the legacy deck catalog."""
+    for expansion in load_bible_bee_content().get("decks", []):
+        deck = DECKS.get(expansion.get("deck_id"))
+        if not deck:
+            continue
+        seen = {item["reference"].casefold() for item in deck["passages"]}
+        for passage in expansion.get("passages", []):
+            if passage.get("status") != "published":
+                continue
+            reference = str(passage.get("reference") or "").strip()
+            if not reference or reference.casefold() in seen:
+                continue
+            deck["passages"].append(deepcopy(passage))
+            seen.add(reference.casefold())
+
+
+_apply_normalized_deck_expansions()
+
+
 def translation_is_configured(version: str) -> bool:
     # Match the copyworksheet picker: supported translations stay selectable.
     # At load time we prefer an authoritative provider, then use the same
@@ -394,10 +415,30 @@ def _copyworksheet_verse_text(reference: str, version: str) -> str | None:
 
 
 def _parse_reference(reference: str) -> tuple[str, int | None, int | None, int | None]:
-    match = re.match(r"(.+?)\s+(\d+):(\d+)(?:-(\d+))?$", reference)
+    match = re.fullmatch(r"(.+?)\s+(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?", reference)
     if not match:
         return reference, None, None, None
-    return match.group(1), int(match.group(2)), int(match.group(3)), int(match.group(4) or match.group(3))
+    return match.group(1), int(match.group(2)), int(match.group(3)), int(match.group(5) or match.group(3))
+
+
+def _reference_span(reference: str) -> tuple[str, int, int, int, int] | None:
+    match = re.fullmatch(r"(.+?)\s+(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?", reference.strip())
+    if not match:
+        return None
+    start_chapter = int(match.group(2))
+    return (
+        match.group(1).casefold(), start_chapter, int(match.group(3)),
+        int(match.group(4) or start_chapter), int(match.group(5) or match.group(3)),
+    )
+
+
+def references_overlap(left: str, right: str) -> bool:
+    a, b = _reference_span(left), _reference_span(right)
+    if not a or not b or a[0] != b[0]:
+        return False
+    a_start, a_end = (a[1], a[2]), (a[3], a[4])
+    b_start, b_end = (b[1], b[2]), (b[3], b[4])
+    return a_start <= b_end and b_start <= a_end
 
 
 def _keywords(text: str) -> list[str]:
@@ -475,7 +516,13 @@ def _blank_distractors(blank: str, passages: list[dict]) -> list[str]:
     )
 
 
-def load_passages(deck_id: str, version: str, needed: int, seed: str | None = None) -> list[dict]:
+def load_passages(
+    deck_id: str,
+    version: str,
+    needed: int,
+    seed: str | None = None,
+    recent_references: set[str] | None = None,
+) -> list[dict]:
     deck = DECKS.get(deck_id)
     if not deck:
         raise ValueError("Choose an available verse deck.")
@@ -484,9 +531,24 @@ def load_passages(deck_id: str, version: str, needed: int, seed: str | None = No
     if not translation_is_configured(version):
         raise ValueError(f"{TRANSLATIONS[version]['code']} text access is not configured on this server yet.")
 
-    seeds = list(_all_builtin_passages() if deck_id == RANDOM_DECK_ID else deck["passages"])
-    if deck_id == RANDOM_DECK_ID:
-        random.Random(seed or f"{version}-{needed}").shuffle(seeds)
+    seeds = deepcopy(_all_builtin_passages() if deck_id == RANDOM_DECK_ID else deck["passages"])
+    rng = random.Random(strong_seed("bible-bee-passages", seed or "", deck_id, version, needed))
+    rng.shuffle(seeds)
+    recent = {reference.casefold() for reference in (recent_references or set())}
+    seeds.sort(key=lambda item: item["reference"].casefold() in recent)
+    non_overlapping = []
+    for candidate in seeds:
+        if any(references_overlap(candidate["reference"], item["reference"]) for item in non_overlapping):
+            continue
+        non_overlapping.append(candidate)
+    seeds = non_overlapping
+    if len(seeds) < needed:
+        maximum = len(seeds)
+        deck_name = deck.get("title", "This deck")
+        raise ValueError(
+            f"{deck_name} currently supports up to {maximum} unique, non-overlapping passages. "
+            "Choose fewer rounds or Random Questions."
+        )
 
     passages = []
     for seed_passage in seeds:
@@ -508,15 +570,21 @@ def load_passages(deck_id: str, version: str, needed: int, seed: str | None = No
                 "verse_end": verse_end,
                 "theme": [deck["theme"].lower()],
                 "difficulty": deck["difficulty"].lower(),
+                "familiarity": seed_passage.get("familiarity", "known"),
+                "format_eligibility": seed_passage.get(
+                    "format_eligibility", ["finish", "fill_blank", "reference", "oral"]
+                ),
+                "difficulty_by_format": seed_passage.get("difficulty_by_format", {}),
                 "keywords": keywords,
                 "blanks": keywords[:3],
             }
         )
         if len(passages) >= max(needed, 4):
             break
-    if len(passages) < min(needed, 4):
+    if len(passages) < needed:
         raise ValueError(
-            f"We could not load enough {TRANSLATIONS[version]['code']} passages for this game. Please try again."
+            f"We could load only {len(passages)} of {needed} unique {TRANSLATIONS[version]['code']} "
+            "passages for this game. Choose fewer rounds or Random Questions."
         )
     return passages
 
@@ -777,10 +845,51 @@ def _fallback_blank_distractors(prompt: str, blank: str) -> list[str]:
     ]
 
 
-def _mode_for_round(style: str, index: int) -> str:
+def _mode_order(style: str, count: int, rng: random.Random) -> list[str]:
     config = GAME_STYLES.get(style, GAME_STYLES["classic_mix"])
-    modes = config["modes"]
-    return modes[index % len(modes)]
+    modes = tuple(config["modes"])
+    if len(modes) == 1:
+        return [modes[0]] * count
+    remaining = {mode: count // len(modes) for mode in modes}
+    for mode in rng.sample(list(modes), count % len(modes)):
+        remaining[mode] += 1
+    order = []
+    while len(order) < count:
+        choices = [
+            mode for mode, left in remaining.items()
+            if left and not (len(order) >= 2 and order[-1] == order[-2] == mode)
+        ] or [mode for mode, left in remaining.items() if left]
+        max_left = max(remaining[mode] for mode in choices)
+        mode = rng.choice([mode for mode in choices if remaining[mode] >= max_left - 1])
+        order.append(mode)
+        remaining[mode] -= 1
+    return order
+
+
+_CONTENT_DIFFICULTY_RANK = {"easy": 0, "family": 1, "challenge": 2, "hard": 3, "expert": 4}
+
+
+def _desired_content_rank(difficulty: str, index: int, round_count: int) -> int:
+    if difficulty == "upramp":
+        return min(4, (index * 5) // max(1, round_count))
+    return {
+        "little_sparks": 0, "family": 1, "challenge": 2, "hard": 3,
+        "expert": 4, "bible_bee_prep": 3,
+    }.get(difficulty, 1)
+
+
+def _passage_difficulty_rank(passage: dict, mode: str) -> int:
+    value = str((passage.get("difficulty_by_format") or {}).get(mode) or "").casefold()
+    if value in _CONTENT_DIFFICULTY_RANK:
+        return _CONTENT_DIFFICULTY_RANK[value]
+    legacy = str(passage.get("difficulty") or "family").casefold()
+    if "hard" in legacy:
+        return 3
+    if "medium" in legacy:
+        return 2
+    if "easy" in legacy:
+        return 0
+    return 1
 
 
 def build_questions(
@@ -791,19 +900,46 @@ def build_questions(
     choice_count: int = 4,
     difficulty: str = "family",
 ) -> list[dict]:
-    rng = random.Random(seed)
+    if round_count < 1:
+        raise ValueError("Choose at least one Bible Bee round.")
+    unique_passages = []
+    for passage in deepcopy(passages):
+        if any(references_overlap(passage["reference"], item["reference"]) for item in unique_passages):
+            continue
+        unique_passages.append(passage)
+    if len(unique_passages) < round_count:
+        raise ValueError(
+            f"This deck currently supports only {len(unique_passages)} unique, non-overlapping passages "
+            f"for a {round_count}-round game. Choose fewer rounds or Random Questions."
+        )
+    rng = random.Random(strong_seed("bible-bee-questions", seed, style, round_count, difficulty, choice_count))
     choice_count = choice_count if choice_count in {2, 4} else 4
-    ordered = deepcopy(passages)
+    ordered = unique_passages
     if style == "younger_kids":
         ordered.sort(key=lambda passage: len(passage["text"].split()))
-        ordered = ordered[:max(4, min(len(ordered), round_count))]
+        ordered = ordered[:round_count]
     rng.shuffle(ordered)
+    modes = _mode_order(style, round_count, rng)
+    selected = []
+    remaining = list(ordered)
+    for index, mode in enumerate(modes):
+        compatible = [
+            passage for passage in remaining
+            if mode in set(passage.get("format_eligibility") or GAME_STYLES.get(style, GAME_STYLES["classic_mix"])["modes"])
+        ] or remaining
+        target = _desired_content_rank(difficulty, index, round_count)
+        best_distance = min(abs(_passage_difficulty_rank(passage, mode) - target) for passage in compatible)
+        best = [passage for passage in compatible if abs(_passage_difficulty_rank(passage, mode) - target) == best_distance]
+        passage = rng.choice(best)
+        selected.append(passage)
+        remaining.remove(passage)
+    ordered = selected
     questions = []
 
     for index in range(round_count):
-        passage = ordered[index % len(ordered)]
+        passage = ordered[index]
         others = [item for item in ordered if item["id"] != passage["id"]]
-        mode = _mode_for_round(style, index)
+        mode = modes[index]
         round_choice_count = choice_count
         if difficulty in {"hard", "expert"}:
             round_choice_count = 4
@@ -859,6 +995,10 @@ def build_questions(
                 "correct": correct,
                 "reference": passage["reference"],
                 "answer_text": passage["text"],
+                "content_difficulty": next(
+                    (name for name, rank in _CONTENT_DIFFICULTY_RANK.items() if rank == _passage_difficulty_rank(passage, mode)),
+                    "family",
+                ),
             }
         )
     return questions

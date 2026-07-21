@@ -1,0 +1,3590 @@
+{
+  "schema_version": 1,
+  "batch_id": "bible-bee-batch-b-core-2026-07",
+  "purpose": "Add 28 reviewed passage candidates to each named deck, raising each audited 12-passage deck to 40 after merge.",
+  "editorial_status": "review_required",
+  "merge_policy": {
+    "append_to_existing_deck": true,
+    "reject_exact_duplicate_reference_within_deck": true,
+    "validate_overlapping_ranges": true,
+    "fetch_scripture_text_at_runtime": true
+  },
+  "decks": [
+    {
+      "deck_id": "family-favorites",
+      "existing_count_at_audit": 12,
+      "add_count": 28,
+      "expected_count_after_merge": 40,
+      "passages": [
+        {
+          "reference": "Genesis 1:27",
+          "book": "Genesis",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Exodus 20:12",
+          "book": "Exodus",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Deuteronomy 6:5",
+          "book": "Deuteronomy",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Joshua 24:15",
+          "book": "Joshua",
+          "testament": "OT",
+          "division": "History",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 19:1",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 27:4",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 34:8",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 37:4",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 46:10",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 100:3",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 103:12",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 118:24",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 139:14",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 17:17",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 40:31",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 41:10",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Micah 6:8",
+          "book": "Micah",
+          "testament": "OT",
+          "division": "Minor Prophets",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 6:33",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 11:28",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 22:37-39",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Mark 10:27",
+          "book": "Mark",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Luke 6:31",
+          "book": "Luke",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 8:12",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 14:6",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 5:8",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 8:28",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Colossians 3:23",
+          "book": "Colossians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Thessalonians 5:16-18",
+          "book": "1 Thessalonians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        }
+      ]
+    },
+    {
+      "deck_id": "courage-trust",
+      "existing_count_at_audit": 12,
+      "add_count": 28,
+      "expected_count_after_merge": 40,
+      "passages": [
+        {
+          "reference": "Deuteronomy 31:6",
+          "book": "Deuteronomy",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Deuteronomy 31:8",
+          "book": "Deuteronomy",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Joshua 1:5",
+          "book": "Joshua",
+          "testament": "OT",
+          "division": "History",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 23:4",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 31:24",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 34:17",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 37:5",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 55:22",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 91:1-2",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 112:7",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 118:6",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 121:1-2",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 125:1",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 12:2",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 35:4",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 40:31",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 43:2",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Jeremiah 17:7-8",
+          "book": "Jeremiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Nahum 1:7",
+          "book": "Nahum",
+          "testament": "OT",
+          "division": "Minor Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 6:25-27",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "discovery",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 6:34",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 8:26",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Mark 4:39-40",
+          "book": "Mark",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 16:33",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 8:31",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 15:13",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Philippians 4:6-7",
+          "book": "Philippians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Hebrews 13:5-6",
+          "book": "Hebrews",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        }
+      ]
+    },
+    {
+      "deck_id": "gospel-foundations",
+      "existing_count_at_audit": 12,
+      "add_count": 28,
+      "expected_count_after_merge": 40,
+      "passages": [
+        {
+          "reference": "Genesis 3:15",
+          "book": "Genesis",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Exodus 12:13",
+          "book": "Exodus",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Leviticus 17:11",
+          "book": "Leviticus",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 53:5-6",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Isaiah 55:6-7",
+          "book": "Isaiah",
+          "testament": "OT",
+          "division": "Major Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 1:21",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 4:17",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Mark 1:15",
+          "book": "Mark",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Luke 19:10",
+          "book": "Luke",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 3:3",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 3:17",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 5:24",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 6:35",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 10:9-10",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Acts 4:12",
+          "book": "Acts",
+          "testament": "NT",
+          "division": "Acts",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Acts 16:31",
+          "book": "Acts",
+          "testament": "NT",
+          "division": "Acts",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 1:16",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 3:24",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 4:25",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 5:1",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 5:12",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 8:1",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 10:13",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Corinthians 15:3-4",
+          "book": "1 Corinthians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "2 Corinthians 5:21",
+          "book": "2 Corinthians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Galatians 2:16",
+          "book": "Galatians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Ephesians 1:7",
+          "book": "Ephesians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Peter 2:24",
+          "book": "1 Peter",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        }
+      ]
+    },
+    {
+      "deck_id": "wisdom-obedience",
+      "existing_count_at_audit": 12,
+      "add_count": 28,
+      "expected_count_after_merge": 40,
+      "passages": [
+        {
+          "reference": "Deuteronomy 6:6-7",
+          "book": "Deuteronomy",
+          "testament": "OT",
+          "division": "Pentateuch",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Joshua 1:8",
+          "book": "Joshua",
+          "testament": "OT",
+          "division": "History",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Samuel 15:22",
+          "book": "1 Samuel",
+          "testament": "OT",
+          "division": "History",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Kings 3:9",
+          "book": "1 Kings",
+          "testament": "OT",
+          "division": "History",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 1:1-3",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "discovery",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 19:7-8",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 119:9",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 119:11",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 119:105",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 2:6",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 3:7",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 4:7",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 6:6-8",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "discovery",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 10:9",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 11:14",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 12:1",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 13:20",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 14:12",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 15:22",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 19:20",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 27:17",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Ecclesiastes 12:13",
+          "book": "Ecclesiastes",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Matthew 7:24-25",
+          "book": "Matthew",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Luke 11:28",
+          "book": "Luke",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "John 14:15",
+          "book": "John",
+          "testament": "NT",
+          "division": "Gospels",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 12:2",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Colossians 3:16",
+          "book": "Colossians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "James 3:17",
+          "book": "James",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        }
+      ]
+    },
+    {
+      "deck_id": "fruit-spirit",
+      "existing_count_at_audit": 12,
+      "add_count": 28,
+      "expected_count_after_merge": 40,
+      "passages": [
+        {
+          "reference": "Galatians 5:16",
+          "book": "Galatians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Galatians 5:25",
+          "book": "Galatians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Ephesians 4:2",
+          "book": "Ephesians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Ephesians 4:29",
+          "book": "Ephesians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Ephesians 5:1-2",
+          "book": "Ephesians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Philippians 2:14-15",
+          "book": "Philippians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Colossians 3:15",
+          "book": "Colossians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Colossians 3:23",
+          "book": "Colossians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Thessalonians 5:16-18",
+          "book": "1 Thessalonians",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "2 Timothy 1:7",
+          "book": "2 Timothy",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Titus 2:11-12",
+          "book": "Titus",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Hebrews 10:24",
+          "book": "Hebrews",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "James 1:2-4",
+          "book": "James",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "discovery",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "James 1:20",
+          "book": "James",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "James 2:8",
+          "book": "James",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "James 3:17-18",
+          "book": "James",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Peter 1:22",
+          "book": "1 Peter",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Peter 2:17",
+          "book": "1 Peter",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Peter 3:9",
+          "book": "1 Peter",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 Peter 4:8",
+          "book": "1 Peter",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "2 Peter 3:18",
+          "book": "2 Peter",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 John 3:18",
+          "book": "1 John",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "famous",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 John 4:7",
+          "book": "1 John",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "1 John 4:19",
+          "book": "1 John",
+          "testament": "NT",
+          "division": "General Epistles/Revelation",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 15:1",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Proverbs 16:32",
+          "book": "Proverbs",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Zechariah 7:9",
+          "book": "Zechariah",
+          "testament": "OT",
+          "division": "Minor Prophets",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Romans 12:18",
+          "book": "Romans",
+          "testament": "NT",
+          "division": "Pauline Epistles",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        }
+      ]
+    },
+    {
+      "deck_id": "psalms-comfort",
+      "existing_count_at_audit": 12,
+      "add_count": 28,
+      "expected_count_after_merge": 40,
+      "passages": [
+        {
+          "reference": "Psalm 3:3",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 4:8",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 9:9-10",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 16:8",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 18:2",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 20:7",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 22:24",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 25:4-5",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 28:7",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 30:5",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 32:7",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 34:17-18",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 37:23-24",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 40:1-3",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "discovery",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 42:11",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 56:3-4",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 61:1-3",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "discovery",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "challenge",
+            "fill_blank": "challenge",
+            "reference": "challenge",
+            "oral": "hard"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 62:1-2",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 63:7-8",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 71:5-6",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 73:25-26",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 84:11",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 86:5",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 94:19",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 116:1-2",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 118:6",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 130:5",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "easy",
+            "fill_blank": "family",
+            "reference": "family",
+            "oral": "family"
+          },
+          "status": "review",
+          "editorial_version": 1
+        },
+        {
+          "reference": "Psalm 139:9-10",
+          "book": "Psalm",
+          "testament": "OT",
+          "division": "Wisdom/Poetry",
+          "familiarity": "known",
+          "format_eligibility": [
+            "finish",
+            "fill_blank",
+            "reference",
+            "oral"
+          ],
+          "difficulty_by_format": {
+            "finish": "family",
+            "fill_blank": "family",
+            "reference": "challenge",
+            "oral": "challenge"
+          },
+          "status": "review",
+          "editorial_version": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5900 @@
+{
+  "schema_version": 1,
+  "editorial_version": 1,
+  "free_sampler_ids": [
+    "ark-jerusalem",
+    "calming-storm",
+    "balaam-donkey",
+    "emmaus-road",
+    "baptism",
+    "feeding-5000",
+    "daniel-lions",
+    "good-samaritan",
+    "david-spares-saul",
+    "draw-armor-god",
+    "draw-creation",
+    "draw-bethlehem",
+    "draw-bible",
+    "draw-cross",
+    "draw-david-goliath",
+    "draw-empty-tomb",
+    "david-goliath",
+    "centurion-servant",
+    "deborah-barak",
+    "healing-blind",
+    "communion",
+    "jesus-age-twelve",
+    "elijah-ravens",
+    "lazarus",
+    "elijah-whirlwind",
+    "lame-man-temple",
+    "gideon-300",
+    "lydia-home",
+    "gideon-fleece",
+    "mary-perfume",
+    "hannah-prays",
+    "paralytic-roof"
+  ],
+  "records": [
+    {
+      "id": "david-goliath",
+      "answer": "David and Goliath",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 17:1-50",
+      "story_group": "david-goliath",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act brave, small, and facing something huge.",
+        "clue": "Act brave, small, and facing something huge."
+      },
+      "forbidden_words": [
+        "David",
+        "Goliath",
+        "giant",
+        "stone",
+        "sling"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "noah-ark",
+      "answer": "Noah building the ark",
+      "answer_aliases": [],
+      "modes": [
+        "act"
+      ],
+      "testament": "OT",
+      "book": "Genesis",
+      "reference": "Genesis 6:9-9:17",
+      "story_group": "noah-ark",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act out building, gathering animals, and rain."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "jonah-fish",
+      "answer": "Jonah and the big fish",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Jonah",
+      "reference": "Jonah 1:1-2:10",
+      "story_group": "jonah-fish",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act stormy seas, being swallowed, and praying.",
+        "clue": "Act stormy seas, being swallowed, and praying."
+      },
+      "forbidden_words": [
+        "Jonah",
+        "fish",
+        "whale",
+        "boat"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "daniel-lions",
+      "answer": "Daniel in the lions' den",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Daniel",
+      "reference": "Daniel 6:1-28",
+      "story_group": "daniel-lions",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act praying calmly near lions.",
+        "clue": "Act praying calmly near lions."
+      },
+      "forbidden_words": [
+        "Daniel",
+        "lion",
+        "den",
+        "pray"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "moses-sea",
+      "answer": "Moses parting the sea",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Exodus",
+      "reference": "Exodus 14:1-31",
+      "story_group": "exodus-red-sea",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act lifting a staff and walking between walls of water.",
+        "clue": "Act lifting a staff and walking between walls of water."
+      },
+      "forbidden_words": [
+        "Moses",
+        "sea",
+        "water",
+        "Egypt"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "jericho",
+      "answer": "The walls of Jericho falling",
+      "answer_aliases": [],
+      "modes": [
+        "act"
+      ],
+      "testament": "OT",
+      "book": "Joshua",
+      "reference": "Joshua 6:1-27",
+      "story_group": "jericho",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act marching, trumpets, and walls falling down."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "samuel-listening",
+      "answer": "Samuel hearing God's voice",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 3:1-21",
+      "story_group": "samuel-called",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act waking up, listening carefully, and answering God.",
+        "clue": "Act waking up, listening carefully, and answering God."
+      },
+      "forbidden_words": [
+        "Samuel",
+        "voice",
+        "listen",
+        "Eli"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "elijah-ravens",
+      "answer": "Ravens bringing food to Elijah",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Kings",
+      "reference": "1 Kings 17:1-6",
+      "story_group": "elijah-ravens",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act being hungry, waiting, and birds bringing food.",
+        "clue": "Act being hungry, waiting, and birds bringing food."
+      },
+      "forbidden_words": [
+        "Elijah",
+        "raven",
+        "bird",
+        "food"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "peter-water",
+      "answer": "Peter walking on water",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 14:22-33",
+      "story_group": "walking-on-water",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act stepping onto waves, getting scared, and reaching out.",
+        "clue": "Act stepping onto waves, getting scared, and reaching out."
+      },
+      "forbidden_words": [
+        "Peter",
+        "water",
+        "walk",
+        "Jesus"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false
+    },
+    {
+      "id": "calming-storm",
+      "answer": "Jesus calming the storm",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Mark",
+      "reference": "Mark 4:35-41",
+      "story_group": "calming-storm",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act a wild storm becoming peaceful.",
+        "clue": "Act a wild storm becoming peaceful."
+      },
+      "forbidden_words": [
+        "Jesus",
+        "storm",
+        "boat",
+        "peace"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false
+    },
+    {
+      "id": "feeding-5000",
+      "answer": "Feeding the five thousand",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 6:1-14",
+      "story_group": "feeding-five-thousand",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act sharing a tiny lunch with a huge crowd.",
+        "clue": "Act sharing a tiny lunch with a huge crowd."
+      },
+      "forbidden_words": [
+        "five",
+        "thousand",
+        "bread",
+        "fish"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false
+    },
+    {
+      "id": "healing-blind",
+      "answer": "Jesus healing the blind man",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 9:1-41",
+      "story_group": "healing-blind-man",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act not seeing, being healed, and rejoicing.",
+        "clue": "Act not seeing, being healed, and rejoicing."
+      },
+      "forbidden_words": [
+        "blind",
+        "see",
+        "healed",
+        "Jesus"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "lazarus",
+      "answer": "Jesus raising Lazarus",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 11:1-44",
+      "story_group": "raising-lazarus",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act someone coming out after being called.",
+        "clue": "Act someone coming out after being called."
+      },
+      "forbidden_words": [
+        "Lazarus",
+        "tomb",
+        "dead",
+        "alive"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "ten-lepers",
+      "answer": "Jesus healing ten lepers",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 17:11-19",
+      "story_group": "ten-lepers",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act ten people being healed, then one coming back thankful.",
+        "clue": "Act ten people being healed, then one coming back thankful."
+      },
+      "forbidden_words": [
+        "leper",
+        "ten",
+        "heal",
+        "thank"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "good-samaritan",
+      "answer": "The Good Samaritan",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 10:25-37",
+      "story_group": "good-samaritan",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act seeing someone hurt and helping them.",
+        "clue": "Act seeing someone hurt and helping them."
+      },
+      "forbidden_words": [
+        "Samaritan",
+        "neighbor",
+        "road",
+        "help"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "lost-sheep",
+      "answer": "The lost sheep",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 15:1-7",
+      "story_group": "lost-sheep",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act searching carefully and celebrating when found.",
+        "clue": "Act searching carefully and celebrating when found."
+      },
+      "forbidden_words": [
+        "sheep",
+        "lost",
+        "shepherd"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "prodigal-son",
+      "answer": "The Prodigal Son",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 15:11-32",
+      "story_group": "prodigal-son",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act leaving home, feeling sorry, and being welcomed back.",
+        "clue": "Act leaving home, feeling sorry, and being welcomed back."
+      },
+      "forbidden_words": [
+        "prodigal",
+        "son",
+        "father",
+        "home"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "wise-builder",
+      "answer": "The wise man building on the rock",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 7:24-27",
+      "story_group": "wise-builder",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act building a house, a storm coming, and the house standing strong.",
+        "clue": "Act building a house, a storm coming, and the house standing strong."
+      },
+      "forbidden_words": [
+        "wise",
+        "builder",
+        "rock",
+        "house"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "moses-tablets",
+      "answer": "Moses carrying the tablets",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Exodus",
+      "reference": "Exodus 31:18",
+      "story_group": "sinai-tablets",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act carrying two heavy stone tablets down a mountain.",
+        "clue": "Act carrying two heavy stone tablets down a mountain."
+      },
+      "forbidden_words": [
+        "Moses",
+        "Pharaoh",
+        "Egypt",
+        "Red Sea"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People Moments",
+      "metadata_review_required": false
+    },
+    {
+      "id": "esther-brave",
+      "answer": "Esther bravely speaking to the king",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Esther",
+      "reference": "Esther 4:1-5:8",
+      "story_group": "esther-courage",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act a brave queen preparing, waiting, and speaking up.",
+        "clue": "Act a brave queen preparing, waiting, and speaking up."
+      },
+      "forbidden_words": [
+        "Esther",
+        "queen",
+        "king",
+        "Haman"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People Moments",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "paul-letters",
+      "answer": "Paul writing letters from prison",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Philippians",
+      "reference": "Philippians 1:1-4:23",
+      "story_group": "paul-prison-letters",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act writing, praying, and encouraging others while stuck.",
+        "clue": "Act writing, praying, and encouraging others while stuck."
+      },
+      "forbidden_words": [
+        "Paul",
+        "letter",
+        "church",
+        "missionary"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People Moments",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "mary-angel",
+      "answer": "Mary hearing the angel's news",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 1:26-38",
+      "story_group": "annunciation",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act surprise, listening, and caring for baby Jesus.",
+        "clue": "Act surprise, listening, and caring for baby Jesus."
+      },
+      "forbidden_words": [
+        "Mary",
+        "mother",
+        "Jesus",
+        "angel"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People Moments",
+      "metadata_review_required": false
+    },
+    {
+      "id": "peter-fishing",
+      "answer": "Peter fishing when Jesus calls him",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 4:18-22",
+      "story_group": "calling-disciples",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act fishing, hearing a call, leaving nets, and following.",
+        "clue": "Act fishing, hearing a call, leaving nets, and following."
+      },
+      "forbidden_words": [
+        "Peter",
+        "disciple",
+        "fish",
+        "rock"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People Moments",
+      "metadata_review_required": false
+    },
+    {
+      "id": "ruth-gathering",
+      "answer": "Ruth gathering grain",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Ruth",
+      "reference": "Ruth 2:1-23",
+      "story_group": "ruth-boaz",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act gathering grain carefully and caring for family.",
+        "clue": "Act gathering grain carefully and caring for family."
+      },
+      "forbidden_words": [
+        "Ruth",
+        "grain",
+        "Boaz",
+        "Naomi"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People Moments",
+      "metadata_review_required": false
+    },
+    {
+      "id": "praying",
+      "answer": "Praying",
+      "answer_aliases": [],
+      "modes": [
+        "act"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "praying",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act talking with God quietly or thankfully."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "singing-worship",
+      "answer": "Singing worship",
+      "answer_aliases": [],
+      "modes": [
+        "act"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "singing-worship",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act singing praise with joy."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "serving",
+      "answer": "Serving others",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "serving",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act helping someone before yourself.",
+        "clue": "Act helping someone before yourself."
+      },
+      "forbidden_words": [
+        "serve",
+        "help",
+        "others"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "baptism",
+      "answer": "Baptism",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "baptism",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act a joyful moment with water.",
+        "clue": "Act a joyful moment with water."
+      },
+      "forbidden_words": [
+        "water",
+        "church"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "giving",
+      "answer": "Giving generously",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "giving",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act sharing what you have with joy.",
+        "clue": "Act sharing what you have with joy."
+      },
+      "forbidden_words": [
+        "give",
+        "money",
+        "offering"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "communion",
+      "answer": "Communion",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "communion",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act receiving bread and a cup with care and thankfulness.",
+        "clue": "Act receiving bread and a cup with care and thankfulness."
+      },
+      "forbidden_words": [
+        "bread",
+        "cup",
+        "supper"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "forgiveness",
+      "answer": "Choosing forgiveness",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "forgiveness",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "act": "Act being hurt, choosing to forgive, and becoming friends again.",
+        "clue": "Act being hurt, choosing to forgive, and becoming friends again."
+      },
+      "forbidden_words": [
+        "forgive",
+        "sorry",
+        "wrong"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Everyday Faith",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "patience",
+      "answer": "Waiting patiently",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "patience",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act waiting in a long line without complaining.",
+        "clue": "Act waiting in a long line without complaining."
+      },
+      "forbidden_words": [
+        "patience",
+        "wait",
+        "calm"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Everyday Faith",
+      "metadata_review_required": true
+    },
+    {
+      "id": "courage",
+      "answer": "Showing courage",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "courage",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act feeling nervous, taking a deep breath, and doing the right thing.",
+        "clue": "Act feeling nervous, taking a deep breath, and doing the right thing."
+      },
+      "forbidden_words": [
+        "courage",
+        "brave",
+        "afraid"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Everyday Faith",
+      "metadata_review_required": true
+    },
+    {
+      "id": "joy",
+      "answer": "Choosing joy",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "joy",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act getting bad news, then remembering God and choosing joy.",
+        "clue": "Act getting bad news, then remembering God and choosing joy."
+      },
+      "forbidden_words": [
+        "joy",
+        "happy",
+        "glad"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Everyday Faith",
+      "metadata_review_required": true
+    },
+    {
+      "id": "peace",
+      "answer": "Finding peace after worry",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "peace",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act being worried, praying, and becoming peaceful.",
+        "clue": "Act being worried, praying, and becoming peaceful."
+      },
+      "forbidden_words": [
+        "peace",
+        "calm",
+        "quiet"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Everyday Faith",
+      "metadata_review_required": true
+    },
+    {
+      "id": "kindness",
+      "answer": "Showing kindness",
+      "answer_aliases": [],
+      "modes": [
+        "act",
+        "clue"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "kindness",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "act": "Act noticing someone left out and inviting them in.",
+        "clue": "Act noticing someone left out and inviting them in."
+      },
+      "forbidden_words": [
+        "kind",
+        "kindness",
+        "nice",
+        "friend"
+      ],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Everyday Faith",
+      "metadata_review_required": true
+    },
+    {
+      "id": "who-david",
+      "answer": "David",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 16:1-2:11",
+      "story_group": "david-life",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "guess": "Reveal clues until the team guesses the person."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "I was a shepherd.",
+        "I played music for a king.",
+        "I faced a giant.",
+        "I became king of Israel."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Guess the Story",
+      "metadata_review_required": false
+    },
+    {
+      "id": "who-esther",
+      "answer": "Esther",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "OT",
+      "book": "Esther",
+      "reference": "Esther 2:1-8:17",
+      "story_group": "esther-courage",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal clues until the team guesses the person."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "I lived in Persia.",
+        "I became queen.",
+        "My cousin helped me be brave.",
+        "God used me to help save my people."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Guess the Story",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "story-good-samaritan",
+      "answer": "The Good Samaritan",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 10:25-37",
+      "story_group": "good-samaritan",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "guess": "Reveal clues until the team guesses the story."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Someone was hurt on a road.",
+        "Two people passed by.",
+        "A surprising neighbor stopped.",
+        "Jesus told this story about loving your neighbor."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Guess the Story",
+      "metadata_review_required": false
+    },
+    {
+      "id": "story-prodigal-son",
+      "answer": "The Prodigal Son",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 15:11-32",
+      "story_group": "prodigal-son",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal clues until the team guesses the story."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A son left home.",
+        "He wasted what he was given.",
+        "He came back sorry.",
+        "His father welcomed him with joy."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Guess the Story",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "story-psalm-23",
+      "answer": "Psalm 23",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "OT",
+      "book": "Psalm",
+      "reference": "Psalm 23:1-6",
+      "story_group": "psalm-23",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal clues until the team guesses the passage."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "It talks about a shepherd.",
+        "It mentions green pastures.",
+        "It says God is with us in dark valleys.",
+        "Many families memorize this psalm."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Guess the Story",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-noah-ark",
+      "answer": "Noah's ark with animals",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Genesis",
+      "reference": "Genesis 6:9-9:17",
+      "story_group": "noah-ark",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a big boat, pairs of animals, and rain."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-david-goliath",
+      "answer": "David facing Goliath",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 17:1-50",
+      "story_group": "david-goliath",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a small shepherd, a giant, and a sling."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-jonah-fish",
+      "answer": "Jonah and the big fish",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Jonah",
+      "reference": "Jonah 1:1-2:10",
+      "story_group": "jonah-fish",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a storm, a fish, and Jonah praying."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-daniel-lions",
+      "answer": "Daniel in the lions' den",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Daniel",
+      "reference": "Daniel 6:1-28",
+      "story_group": "daniel-lions",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw Daniel praying near lions."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-moses-sea",
+      "answer": "Moses parting the sea",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Exodus",
+      "reference": "Exodus 14:1-31",
+      "story_group": "exodus-red-sea",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw Moses with a staff and water on both sides."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-jericho-walls",
+      "answer": "The walls of Jericho falling",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Joshua",
+      "reference": "Joshua 6:1-27",
+      "story_group": "jericho",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw people marching, trumpets, and falling walls."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Bible Stories",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-calming-storm",
+      "answer": "Jesus calming the storm",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Mark",
+      "reference": "Mark 4:35-41",
+      "story_group": "calming-storm",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a boat, wild waves, and Jesus bringing peace."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-feeding-5000",
+      "answer": "Jesus feeding the five thousand",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 6:1-14",
+      "story_group": "feeding-five-thousand",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a crowd, baskets, bread, and fish."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-walking-water",
+      "answer": "Jesus walking on water",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 14:22-33",
+      "story_group": "walking-on-water",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw Jesus standing on waves near a boat."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-healing-blind",
+      "answer": "Jesus healing the blind man",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 9:1-41",
+      "story_group": "healing-blind-man",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a man covering his eyes, then seeing."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-lazarus",
+      "answer": "Jesus raising Lazarus",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 11:1-44",
+      "story_group": "raising-lazarus",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a tomb, wrapped cloth, and someone coming out."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-wedding-cana",
+      "answer": "Water turned into wine",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 2:1-11",
+      "story_group": "wedding-cana",
+      "category": "jesus_miracles",
+      "category_label": "Jesus and His Miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw large jars, water, and a wedding celebration."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Jesus' Miracles",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-good-samaritan",
+      "answer": "The Good Samaritan helping the hurt man",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 10:25-37",
+      "story_group": "good-samaritan",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw someone hurt on a road and a neighbor stopping to help."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-lost-sheep",
+      "answer": "The lost sheep being found",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 15:1-7",
+      "story_group": "lost-sheep",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a shepherd finding one sheep."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-prodigal-son",
+      "answer": "The Prodigal Son coming home",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 15:11-32",
+      "story_group": "prodigal-son",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a father welcoming his son home."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-sower",
+      "answer": "The sower scattering seed",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 13:1-23",
+      "story_group": "parable-sower",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a farmer tossing seeds on different ground."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-mustard-seed",
+      "answer": "The mustard seed growing into a tree",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 13:31-32",
+      "story_group": "mustard-seed",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a tiny seed becoming a big tree."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-wise-builder",
+      "answer": "The wise man building on the rock",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 7:24-27",
+      "story_group": "wise-builder",
+      "category": "parables",
+      "category_label": "Parables",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw one house on rock and a storm around it."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Parables",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-bethlehem",
+      "answer": "Bethlehem stable",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 2:1-20",
+      "story_group": "nativity",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a stable, manger, star, and animals."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People & Places",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-garden-eden",
+      "answer": "The Garden of Eden",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Genesis",
+      "reference": "Genesis 2:4-3:24",
+      "story_group": "garden-eden",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a beautiful garden with trees and a river."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People & Places",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-mount-sinai",
+      "answer": "Mount Sinai",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Exodus",
+      "reference": "Exodus 19:1-20:21",
+      "story_group": "sinai-tablets",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a mountain with clouds, lightning, and tablets."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People & Places",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-empty-tomb",
+      "answer": "The empty tomb",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 28:1-10",
+      "story_group": "resurrection",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a tomb with the stone rolled away."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People & Places",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-upper-room",
+      "answer": "The upper room",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 22:7-23",
+      "story_group": "last-supper",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw disciples gathered around a table upstairs."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People & Places",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-road-damascus",
+      "answer": "The road to Damascus",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 9:1-19",
+      "story_group": "paul-conversion",
+      "category": "people",
+      "category_label": "People of the Bible",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a road, bright light, and Saul surprised."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "People & Places",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-praying-hands",
+      "answer": "Praying hands",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "praying-hands",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw hands folded in prayer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-singing-worship",
+      "answer": "Singing worship",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "singing-worship",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw people singing praise together."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-baptism",
+      "answer": "Baptism",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "baptism",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw someone being baptized in water."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-communion",
+      "answer": "Communion bread and cup",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "communion",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw bread and a cup on a table."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-offering-basket",
+      "answer": "Giving an offering",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "offering-basket",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw someone giving with a happy heart."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-serve-meal",
+      "answer": "Serving a meal",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "serve-meal",
+      "category": "worship_church",
+      "category_label": "Worship and Church",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw someone serving food to another person."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Worship & Church",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-light-world",
+      "answer": "Light of the world",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 5:14-16",
+      "story_group": "light-world",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a bright lamp or candle shining in darkness."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Faith Pictures",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-fruit-spirit",
+      "answer": "Fruit of the Spirit",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Galatians",
+      "reference": "Galatians 5:22-23",
+      "story_group": "fruit-spirit",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw fruit with love, joy, peace, or kindness around it."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Faith Pictures",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-armor-god",
+      "answer": "Armor of God",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Ephesians",
+      "reference": "Ephesians 6:10-18",
+      "story_group": "armor-god",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw armor, a shield, and a helmet."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Faith Pictures",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-narrow-road",
+      "answer": "The narrow road",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 7:13-14",
+      "story_group": "narrow-road",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a small path leading toward light."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Faith Pictures",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-living-water",
+      "answer": "Living water",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 4:1-26",
+      "story_group": "living-water",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw flowing water with life growing nearby."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Faith Pictures",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-mustard-faith",
+      "answer": "Faith like a mustard seed",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 17:20",
+      "story_group": "mustard-seed-faith",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a tiny seed beside a big plant."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Faith Pictures",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-cross",
+      "answer": "The cross",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 19:16-30",
+      "story_group": "crucifixion",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a simple cross."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Easy Objects",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-bible",
+      "answer": "An open Bible",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "bible",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw an open Bible with pages."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Easy Objects",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-crown",
+      "answer": "A crown",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "crown",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a royal crown."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Easy Objects",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-fish-symbol",
+      "answer": "A fish symbol",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "fish-symbol",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a simple fish symbol."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Easy Objects",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-bread-fish",
+      "answer": "Bread and fish",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "general",
+      "book": null,
+      "reference": null,
+      "story_group": "bread-fish",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw loaves of bread and fish."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Easy Objects",
+      "metadata_review_required": true
+    },
+    {
+      "id": "draw-star",
+      "answer": "The star over Bethlehem",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 2:1-12",
+      "story_group": "magi-star",
+      "category": "everyday_faith",
+      "category_label": "Everyday Faith",
+      "difficulty": "easy",
+      "age_floor": 6,
+      "familiarity": "famous",
+      "instructions": {
+        "draw": "Draw a bright star above a small town."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Easy Objects",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-creation",
+      "answer": "Creation of the world",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Genesis",
+      "reference": "Genesis 1:1-2:3",
+      "story_group": "creation",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw sun, moon, animals, plants, and water."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Big Scenes",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-red-sea-crossing",
+      "answer": "Israel crossing the Red Sea",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "OT",
+      "book": "Exodus",
+      "reference": "Exodus 14:1-31",
+      "story_group": "exodus-red-sea",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw people walking between walls of water."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Big Scenes",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-washing-feet",
+      "answer": "Jesus washing the disciples' feet",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 13:1-17",
+      "story_group": "washing-feet",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a basin, towel, feet, and Jesus serving his disciples."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Big Scenes",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-last-supper",
+      "answer": "The Last Supper",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 22:7-23",
+      "story_group": "last-supper",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw Jesus and disciples around a long table."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Big Scenes",
+      "metadata_review_required": false,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "draw-pentecost",
+      "answer": "Pentecost",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 2:1-41",
+      "story_group": "pentecost",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw disciples, flames, wind, and people gathered."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Big Scenes",
+      "metadata_review_required": false
+    },
+    {
+      "id": "draw-heavenly-city",
+      "answer": "The new heaven and new earth",
+      "answer_aliases": [],
+      "modes": [
+        "draw"
+      ],
+      "testament": "NT",
+      "book": "Revelation",
+      "reference": "Revelation 21:1-22:5",
+      "story_group": "new-creation",
+      "category": "bible_stories",
+      "category_label": "Bible Stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "draw": "Draw a bright city, river, trees, and joy."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "legacy_theme": "Big Scenes",
+      "metadata_review_required": false
+    },
+    {
+      "id": "ehud-delivers-israel",
+      "answer": "Ehud delivers Israel",
+      "answer_aliases": [
+        "Ehud and King Eglon"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Judges",
+      "reference": "Judges 3:12-30",
+      "story_group": "ehud-eglon",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act delivering a secret message, surprising a ruler, and escaping.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Ehud",
+        "Eglon",
+        "left-handed",
+        "Moab",
+        "sword"
+      ],
+      "progressive_clues": [
+        "I was a judge of Israel.",
+        "I was left-handed.",
+        "I carried a hidden sword to a Moabite king.",
+        "I brought Israel freedom from King Eglon."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "deborah-barak",
+      "answer": "Deborah and Barak lead Israel",
+      "answer_aliases": [
+        "Deborah and Barak"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Judges",
+      "reference": "Judges 4:4-16",
+      "story_group": "deborah-barak",
+      "category": "people",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act giving wise instructions, marching to battle, and celebrating victory.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Deborah",
+        "Barak",
+        "judge",
+        "Sisera",
+        "palm"
+      ],
+      "progressive_clues": [
+        "A woman judged Israel under a palm tree.",
+        "A military leader would not go without her.",
+        "Sisera commanded the enemy army.",
+        "Deborah and Barak led Israel to victory."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "jael-sisera",
+      "answer": "Jael defeats Sisera",
+      "answer_aliases": [
+        "Jael and Sisera"
+      ],
+      "modes": [
+        "guess",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Judges",
+      "reference": "Judges 4:17-22",
+      "story_group": "deborah-barak",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 11,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jael",
+        "Sisera",
+        "tent",
+        "milk",
+        "peg"
+      ],
+      "progressive_clues": [
+        "A fleeing commander came to my tent.",
+        "I welcomed him and gave him milk.",
+        "He fell asleep while hiding.",
+        "Jael ended Sisera's escape."
+      ],
+      "sensitivity_flags": [
+        "violence"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "gideon-fleece",
+      "answer": "Gideon's fleece",
+      "answer_aliases": [
+        "The fleece sign"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Judges",
+      "reference": "Judges 6:36-40",
+      "story_group": "gideon-signs",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act laying something outside, checking it in the morning, and asking again.",
+        "draw": "Draw a piece of wool wet with dew on dry ground.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Gideon",
+        "fleece",
+        "dew",
+        "wool",
+        "sign"
+      ],
+      "progressive_clues": [
+        "A man asked God for confirmation.",
+        "The sign involved wool on the ground.",
+        "One morning it was wet while the ground was dry.",
+        "Gideon asked for the sign of the fleece."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "gideon-300",
+      "answer": "Gideon's army of three hundred",
+      "answer_aliases": [
+        "Gideon's three hundred"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Judges",
+      "reference": "Judges 7:1-22",
+      "story_group": "gideon-300",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act shrinking an army, blowing trumpets, breaking jars, and surprising an enemy.",
+        "draw": "Draw a small army holding torches, jars, and trumpets at night.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Gideon",
+        "three hundred",
+        "army",
+        "trumpet",
+        "torch"
+      ],
+      "progressive_clues": [
+        "A large army was reduced again and again.",
+        "The final group drank water in a particular way.",
+        "They carried trumpets, jars, and torches.",
+        "Gideon won with only three hundred men."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "samson-gates",
+      "answer": "Samson carries away Gaza's gates",
+      "answer_aliases": [
+        "Samson carries the gates of Gaza"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Judges",
+      "reference": "Judges 16:1-3",
+      "story_group": "samson-gaza-gates",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act lifting something extremely heavy and carrying it uphill.",
+        "draw": "Draw Samson carrying giant city gates on his shoulders.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Samson",
+        "Gaza",
+        "gate",
+        "strong",
+        "city"
+      ],
+      "progressive_clues": [
+        "A strong man was trapped inside a city.",
+        "Enemies waited at the city entrance.",
+        "He left before dawn carrying something enormous.",
+        "Samson carried away the gates of Gaza."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "samson-riddle",
+      "answer": "Samson's wedding riddle",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Judges",
+      "reference": "Judges 14:10-18",
+      "story_group": "samson-riddle",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act presenting a difficult puzzle and reacting when others discover the answer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Samson",
+        "riddle",
+        "lion",
+        "honey",
+        "wedding"
+      ],
+      "progressive_clues": [
+        "A feast included a puzzle.",
+        "The answer came from an earlier encounter with a lion.",
+        "Thirty companions tried to solve it.",
+        "Samson asked a riddle about sweetness and strength."
+      ],
+      "sensitivity_flags": [
+        "animal_death"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "hannah-prays",
+      "answer": "Hannah prays for a son",
+      "answer_aliases": [
+        "Hannah prays for Samuel"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 1:9-20",
+      "story_group": "hannah-samuel",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act praying silently, being misunderstood, and receiving joyful news.",
+        "draw": "Draw Hannah praying near the tabernacle while Eli watches.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Hannah",
+        "Samuel",
+        "Eli",
+        "son",
+        "pray"
+      ],
+      "progressive_clues": [
+        "A woman prayed silently and deeply.",
+        "A priest first misunderstood her.",
+        "She promised to dedicate her child to God.",
+        "Hannah prayed for Samuel."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "samuel-anoints-david",
+      "answer": "Samuel anoints David",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 16:1-13",
+      "story_group": "david-anointing",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act examining several people, rejecting them, then choosing the youngest.",
+        "draw": "Draw Samuel pouring oil on young David while his brothers watch.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Samuel",
+        "David",
+        "anoint",
+        "Jesse",
+        "oil"
+      ],
+      "progressive_clues": [
+        "A prophet visited Jesse's family.",
+        "Several older brothers looked impressive.",
+        "God told him to look at the heart.",
+        "Samuel anointed the youngest son, David."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "david-spares-saul",
+      "answer": "David spares Saul in the cave",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 24:1-22",
+      "story_group": "david-spares-saul",
+      "category": "people",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act hiding, quietly cutting cloth, then calling out from a safe distance.",
+        "draw": "Draw Saul near a cave and David holding a piece of robe.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "David",
+        "Saul",
+        "cave",
+        "robe",
+        "king"
+      ],
+      "progressive_clues": [
+        "A king entered a cave without knowing his enemy was inside.",
+        "A piece of a royal robe was quietly cut off.",
+        "The hidden man refused to kill God's anointed.",
+        "David spared Saul in the cave."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "abigail-david",
+      "answer": "Abigail brings food to David",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Samuel",
+      "reference": "1 Samuel 25:14-35",
+      "story_group": "abigail-david",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act loading supplies, hurrying down a road, and calming an angry leader.",
+        "draw": "Draw Abigail approaching David with donkeys carrying food.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Abigail",
+        "David",
+        "Nabal",
+        "food",
+        "revenge"
+      ],
+      "progressive_clues": [
+        "A foolish man's refusal put his household in danger.",
+        "A wise woman quickly gathered a generous gift.",
+        "She met an angry future king on the road.",
+        "Abigail brought food and stopped David from taking revenge."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "ark-jerusalem",
+      "answer": "David brings the ark to Jerusalem",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Samuel",
+      "reference": "2 Samuel 6:12-19",
+      "story_group": "ark-to-jerusalem",
+      "category": "worship_church",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act leading a joyful procession, playing music, and celebrating before God.",
+        "draw": "Draw the ark entering Jerusalem with musicians and celebrating people.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "David",
+        "ark",
+        "Jerusalem",
+        "dance",
+        "covenant"
+      ],
+      "progressive_clues": [
+        "A sacred chest was brought into a capital city.",
+        "Music and sacrifices accompanied the procession.",
+        "A king celebrated with all his strength.",
+        "David brought the ark to Jerusalem."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "solomon-wisdom",
+      "answer": "Solomon asks God for wisdom",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Kings",
+      "reference": "1 Kings 3:5-14",
+      "story_group": "solomon-wisdom",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 7,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act receiving a great offer, thinking carefully, and choosing understanding.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Solomon",
+        "wisdom",
+        "king",
+        "dream",
+        "riches"
+      ],
+      "progressive_clues": [
+        "A young king received an extraordinary offer in a dream.",
+        "He did not ask for wealth or long life.",
+        "He wanted to lead God's people well.",
+        "Solomon asked God for wisdom."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "solomon-temple",
+      "answer": "Solomon dedicates the temple",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Kings",
+      "reference": "1 Kings 8:22-66",
+      "story_group": "solomon-temple",
+      "category": "worship_church",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Solomon",
+        "temple",
+        "dedicate",
+        "altar",
+        "Jerusalem"
+      ],
+      "progressive_clues": [
+        "A king stood before the altar with the whole nation gathered.",
+        "He prayed about forgiveness, justice, and future generations.",
+        "A long celebration followed.",
+        "Solomon dedicated the temple in Jerusalem."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "jeroboam-hand",
+      "answer": "Jeroboam's hand is restored",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Kings",
+      "reference": "1 Kings 13:1-6",
+      "story_group": "jeroboam-altar",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 11,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act pointing angrily, freezing your arm, then moving it again after prayer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jeroboam",
+        "hand",
+        "altar",
+        "prophet",
+        "restore"
+      ],
+      "progressive_clues": [
+        "A king pointed angrily at a prophet.",
+        "His hand suddenly could not move.",
+        "An altar split apart as a sign.",
+        "Jeroboam's hand was restored after the prophet prayed."
+      ],
+      "sensitivity_flags": [
+        "judgment"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "widow-flour-oil",
+      "answer": "The widow's flour and oil do not run out",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Kings",
+      "reference": "1 Kings 17:8-16",
+      "story_group": "elijah-widow-zarephath",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act measuring the last food, sharing it, then discovering there is still more.",
+        "draw": "Draw a widow, Elijah, a flour jar, and an oil jug.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "widow",
+        "flour",
+        "oil",
+        "Elijah",
+        "jar"
+      ],
+      "progressive_clues": [
+        "A widow had almost no food left during a drought.",
+        "A prophet asked her to prepare something for him first.",
+        "A jar and jug kept supplying what was needed.",
+        "The widow's flour and oil did not run out."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "mount-carmel",
+      "answer": "Elijah on Mount Carmel",
+      "answer_aliases": [
+        "Elijah's contest on Mount Carmel"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "1 Kings",
+      "reference": "1 Kings 18:20-39",
+      "story_group": "elijah-mount-carmel",
+      "category": "bible_stories",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act building an altar, pouring water, praying, and reacting to fire.",
+        "draw": "Draw two altars on a mountain, one covered with water and fire from heaven.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Elijah",
+        "Carmel",
+        "fire",
+        "altar",
+        "Baal"
+      ],
+      "progressive_clues": [
+        "Two altars were prepared on a mountain.",
+        "Many prophets called out without an answer.",
+        "Water was poured over one sacrifice.",
+        "God answered Elijah with fire on Mount Carmel."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "elijah-whirlwind",
+      "answer": "Elijah is taken up in a whirlwind",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Kings",
+      "reference": "2 Kings 2:1-12",
+      "story_group": "elijah-whirlwind",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act crossing water, seeing a fiery chariot, and being swept upward.",
+        "draw": "Draw Elijah rising in a whirlwind beside a fiery chariot.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Elijah",
+        "whirlwind",
+        "chariot",
+        "Elisha",
+        "heaven"
+      ],
+      "progressive_clues": [
+        "A prophet and his student crossed the Jordan together.",
+        "A mantle was used to divide the water.",
+        "A fiery chariot appeared.",
+        "Elijah was taken up in a whirlwind."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "floating-axe-head",
+      "answer": "Elisha makes an axe head float",
+      "answer_aliases": [
+        "The floating axe head"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Kings",
+      "reference": "2 Kings 6:1-7",
+      "story_group": "floating-axe-head",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act chopping wood, dropping a tool in water, and watching it rise.",
+        "draw": "Draw an iron axe head floating beside a stick in a river.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Elisha",
+        "axe",
+        "float",
+        "iron",
+        "Jordan"
+      ],
+      "progressive_clues": [
+        "A group was cutting trees near the Jordan.",
+        "A borrowed iron tool fell into the water.",
+        "A prophet threw in a stick.",
+        "Elisha made the axe head float."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "naaman-jordan",
+      "answer": "Naaman washes in the Jordan",
+      "answer_aliases": [
+        "Naaman is healed"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Kings",
+      "reference": "2 Kings 5:1-14",
+      "story_group": "naaman-healed",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act refusing simple instructions, washing repeatedly, and celebrating healing.",
+        "draw": "Draw Naaman dipping in the Jordan while servants count to seven.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Naaman",
+        "Jordan",
+        "seven",
+        "wash",
+        "leprosy"
+      ],
+      "progressive_clues": [
+        "A powerful commander had a serious skin disease.",
+        "He expected an impressive cure.",
+        "A prophet told him to wash seven times in a river.",
+        "Naaman washed in the Jordan and was healed."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "widow-oil-jars",
+      "answer": "Elisha and the widow's oil jars",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Kings",
+      "reference": "2 Kings 4:1-7",
+      "story_group": "elisha-widow-oil",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act collecting empty containers and pouring from one jar again and again.",
+        "draw": "Draw a widow and her sons surrounded by jars filling with oil.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Elisha",
+        "widow",
+        "oil",
+        "jars",
+        "debt"
+      ],
+      "progressive_clues": [
+        "A widow faced losing her sons because of debt.",
+        "She borrowed many empty containers.",
+        "A small amount kept pouring until every container was full.",
+        "Elisha helped the widow fill jars with oil."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "heavenly-army",
+      "answer": "Elisha's servant sees the heavenly army",
+      "answer_aliases": [
+        "The chariots of fire around Elisha"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Kings",
+      "reference": "2 Kings 6:15-17",
+      "story_group": "elisha-heavenly-army",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act waking in fear, praying, then seeing an invisible army all around.",
+        "draw": "Draw a city surrounded by earthly soldiers and fiery heavenly chariots.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Elisha",
+        "servant",
+        "army",
+        "chariot",
+        "fire"
+      ],
+      "progressive_clues": [
+        "A city was surrounded by enemy soldiers.",
+        "A frightened servant saw only danger at first.",
+        "A prophet prayed for his eyes to be opened.",
+        "Elisha's servant saw horses and chariots of fire."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "hezekiah-shadow",
+      "answer": "The shadow moves backward for Hezekiah",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Kings",
+      "reference": "2 Kings 20:8-11",
+      "story_group": "hezekiah-shadow-sign",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act watching a shadow, pointing the normal way, then reacting as it reverses.",
+        "draw": "Draw a staircase sundial with its shadow moving backward.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Hezekiah",
+        "shadow",
+        "backward",
+        "sun",
+        "steps"
+      ],
+      "progressive_clues": [
+        "A sick king asked for a confirming sign.",
+        "The sign involved steps and sunlight.",
+        "The normal direction was reversed.",
+        "The shadow moved backward for Hezekiah."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "josiah-book-law",
+      "answer": "Josiah finds the Book of the Law",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Kings",
+      "reference": "2 Kings 22:8-13",
+      "story_group": "josiah-book-law",
+      "category": "people",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act repairing a building, finding a scroll, reading it, and responding seriously.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Josiah",
+        "book",
+        "law",
+        "temple",
+        "scroll"
+      ],
+      "progressive_clues": [
+        "Workers were repairing the temple.",
+        "A priest discovered a forgotten scroll.",
+        "The king tore his clothes when he heard its words.",
+        "Josiah found the Book of the Law."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "nehemiah-night",
+      "answer": "Nehemiah inspects Jerusalem's walls at night",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Nehemiah",
+      "reference": "Nehemiah 2:11-16",
+      "story_group": "nehemiah-wall-inspection",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act quietly riding at night, examining broken walls, and making a plan.",
+        "draw": "Draw Nehemiah riding beside broken walls under a night sky.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Nehemiah",
+        "wall",
+        "night",
+        "Jerusalem",
+        "inspect"
+      ],
+      "progressive_clues": [
+        "A leader arrived in a ruined city but kept his plan quiet.",
+        "He went out after dark with only a few people.",
+        "Rubble made part of the route difficult.",
+        "Nehemiah inspected Jerusalem's walls at night."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "mordecai-honored",
+      "answer": "Mordecai is honored through the city",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Esther",
+      "reference": "Esther 6:6-11",
+      "story_group": "mordecai-honored",
+      "category": "people",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act expecting a reward, then leading someone else through town on a royal horse.",
+        "draw": "Draw Mordecai in royal robes on a horse while Haman leads him.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Mordecai",
+        "Haman",
+        "horse",
+        "robe",
+        "honor"
+      ],
+      "progressive_clues": [
+        "A proud official suggested a grand reward, thinking it was for himself.",
+        "The king ordered him to give that honor to someone else.",
+        "A royal robe and horse were involved.",
+        "Mordecai was honored through the city by Haman."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "writing-wall",
+      "answer": "The writing on the wall",
+      "answer_aliases": [
+        "The handwriting on the wall"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Daniel",
+      "reference": "Daniel 5:1-31",
+      "story_group": "writing-on-wall",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act celebrating at a feast, seeing a hand write, and becoming terrified.",
+        "draw": "Draw a mysterious hand writing words on a palace wall.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Daniel",
+        "wall",
+        "writing",
+        "hand",
+        "Belshazzar"
+      ],
+      "progressive_clues": [
+        "A king held a great feast using sacred vessels.",
+        "A mysterious hand appeared during the celebration.",
+        "No wise man could explain the message.",
+        "Daniel interpreted the writing on the wall."
+      ],
+      "sensitivity_flags": [
+        "judgment"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "dry-bones",
+      "answer": "Ezekiel's valley of dry bones",
+      "answer_aliases": [
+        "The valley of dry bones"
+      ],
+      "modes": [
+        "guess",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Ezekiel",
+      "reference": "Ezekiel 37:1-14",
+      "story_group": "dry-bones",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "draw": "Draw dry bones joining into people as breath enters them.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Ezekiel",
+        "bones",
+        "valley",
+        "live",
+        "breath"
+      ],
+      "progressive_clues": [
+        "A prophet was shown a valley filled with remains.",
+        "He was asked whether they could live.",
+        "The bones came together and breath entered them.",
+        "Ezekiel saw the valley of dry bones."
+      ],
+      "sensitivity_flags": [
+        "death_imagery"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "balaam-donkey",
+      "answer": "Balaam's donkey speaks",
+      "answer_aliases": [
+        "The talking donkey"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Numbers",
+      "reference": "Numbers 22:21-35",
+      "story_group": "balaam-donkey",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act riding, becoming frustrated, then hearing your animal talk.",
+        "draw": "Draw Balaam, a donkey, and an angel blocking a narrow road.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Balaam",
+        "donkey",
+        "angel",
+        "speak",
+        "road"
+      ],
+      "progressive_clues": [
+        "A traveler became angry when his animal stopped repeatedly.",
+        "The animal could see danger that the rider could not.",
+        "God opened the animal's mouth.",
+        "Balaam's donkey spoke to him."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "jacob-wrestles",
+      "answer": "Jacob wrestles through the night",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Genesis",
+      "reference": "Genesis 32:22-32",
+      "story_group": "jacob-wrestles",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act wrestling for a long time, limping, and refusing to let go.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jacob",
+        "wrestle",
+        "night",
+        "blessing",
+        "Israel"
+      ],
+      "progressive_clues": [
+        "A man was alone before meeting his brother again.",
+        "He struggled with a mysterious person until dawn.",
+        "He refused to let go without a blessing.",
+        "Jacob wrestled through the night."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "joseph-pharaoh-dreams",
+      "answer": "Joseph interprets Pharaoh's dreams",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Genesis",
+      "reference": "Genesis 41:14-36",
+      "story_group": "joseph-pharaoh-dreams",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act listening to strange dreams, explaining them, and planning to store food.",
+        "draw": "Draw Pharaoh dreaming of seven fat cows and seven thin cows.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Joseph",
+        "Pharaoh",
+        "dream",
+        "cow",
+        "famine"
+      ],
+      "progressive_clues": [
+        "A prisoner was hurriedly brought before Egypt's ruler.",
+        "Two dreams involved cows and heads of grain.",
+        "The message warned of abundance followed by famine.",
+        "Joseph interpreted Pharaoh's dreams."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "bronze-serpent",
+      "answer": "Moses lifts the bronze serpent",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Numbers",
+      "reference": "Numbers 21:4-9",
+      "story_group": "bronze-serpent",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act reacting to snake bites, looking upward, and being healed.",
+        "draw": "Draw a bronze serpent raised on a pole in the wilderness.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Moses",
+        "serpent",
+        "bronze",
+        "pole",
+        "snake"
+      ],
+      "progressive_clues": [
+        "The people complained during a desert journey.",
+        "Venomous snakes came among them.",
+        "God gave Moses an unusual instruction for healing.",
+        "Moses lifted a bronze serpent on a pole."
+      ],
+      "sensitivity_flags": [
+        "snake_bites"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "sun-stands-still",
+      "answer": "The sun stands still for Joshua",
+      "answer_aliases": [
+        "Joshua's long day"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Joshua",
+      "reference": "Joshua 10:6-14",
+      "story_group": "joshua-sun-still",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act fighting as daylight fades, pointing upward, and seeing the day continue.",
+        "draw": "Draw Joshua under a sun and moon that remain in the sky.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Joshua",
+        "sun",
+        "still",
+        "battle",
+        "moon"
+      ],
+      "progressive_clues": [
+        "Israel fought a long battle to help an allied city.",
+        "Large hailstones fell on the enemy.",
+        "The leader asked for more daylight.",
+        "The sun stood still for Joshua."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "rahab-cord",
+      "answer": "Rahab's scarlet cord",
+      "answer_aliases": [
+        "The scarlet cord"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "Joshua",
+      "reference": "Joshua 2:1-21",
+      "story_group": "rahab-scarlet-cord",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act hiding visitors, lowering them from a window, and tying a bright cord.",
+        "draw": "Draw a scarlet cord hanging from Rahab's window in Jericho.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Rahab",
+        "cord",
+        "scarlet",
+        "spies",
+        "window"
+      ],
+      "progressive_clues": [
+        "Two spies hid in a city marked for judgment.",
+        "A woman protected them on her roof.",
+        "She asked for her family to be spared.",
+        "Rahab tied a scarlet cord in her window."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "jehoshaphat-singers",
+      "answer": "Jehoshaphat sends singers before the army",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "OT",
+      "book": "2 Chronicles",
+      "reference": "2 Chronicles 20:20-23",
+      "story_group": "jehoshaphat-singers",
+      "category": "worship_church",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act marching toward danger while singing praise instead of leading with weapons.",
+        "draw": "Draw singers walking in front of an army toward a battlefield.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jehoshaphat",
+        "singer",
+        "army",
+        "praise",
+        "battle"
+      ],
+      "progressive_clues": [
+        "Judah faced a much larger invading force.",
+        "The king told the people to trust God.",
+        "Musicians went out before the soldiers.",
+        "Jehoshaphat sent singers ahead of the army."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "zechariah-silent",
+      "answer": "Zechariah cannot speak",
+      "answer_aliases": [
+        "Zechariah loses his voice"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 1:5-25",
+      "story_group": "zechariah-silent",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act serving in the temple, hearing surprising news, and suddenly losing your voice.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Zechariah",
+        "speak",
+        "angel",
+        "John",
+        "Elizabeth"
+      ],
+      "progressive_clues": [
+        "A priest was serving in the temple.",
+        "An angel announced that his elderly wife would have a son.",
+        "He doubted the message and lost his voice.",
+        "Zechariah could not speak until John was born."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "simeon-jesus",
+      "answer": "Simeon holds the infant Jesus",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 2:25-35",
+      "story_group": "simeon-temple",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Simeon",
+        "Jesus",
+        "baby",
+        "temple",
+        "promise"
+      ],
+      "progressive_clues": [
+        "An elderly man waited for God's promised comfort.",
+        "The Spirit led him into the temple.",
+        "He recognized a baby others might have overlooked.",
+        "Simeon held Jesus and praised God."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "anna-temple",
+      "answer": "Anna thanks God for Jesus",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 2:36-38",
+      "story_group": "anna-temple",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "An elderly prophetess spent her days worshiping at the temple.",
+        "She arrived while a special child was being presented.",
+        "She spoke to others waiting for redemption.",
+        "Anna thanked God for Jesus."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "jesus-age-twelve",
+      "answer": "Jesus at age twelve in the temple",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 2:41-52",
+      "story_group": "jesus-age-twelve",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 7,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act searching anxiously, then finding a child calmly speaking with teachers.",
+        "draw": "Draw twelve-year-old Jesus among teachers in the temple.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jesus",
+        "twelve",
+        "temple",
+        "teachers",
+        "Jerusalem"
+      ],
+      "progressive_clues": [
+        "A family traveled to Jerusalem for Passover.",
+        "A child remained behind without his parents realizing it.",
+        "Teachers were amazed at his understanding.",
+        "Jesus was found in the temple at age twelve."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "paralytic-roof",
+      "answer": "Friends lower a paralyzed man through a roof",
+      "answer_aliases": [
+        "The man lowered through the roof"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Mark",
+      "reference": "Mark 2:1-12",
+      "story_group": "paralytic-roof",
+      "category": "jesus_miracles",
+      "difficulty": "easy",
+      "age_floor": 7,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act carrying a friend, climbing, opening a roof, and lowering him down.",
+        "draw": "Draw four friends lowering a man through an opening in a roof.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jesus",
+        "roof",
+        "paralyzed",
+        "friends",
+        "mat"
+      ],
+      "progressive_clues": [
+        "A house was too crowded to enter normally.",
+        "Four friends refused to give up.",
+        "They opened the roof above Jesus.",
+        "A paralyzed man was lowered down and healed."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Jesus and His Miracles",
+      "legacy_theme": "Jesus and His Miracles",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "centurion-servant",
+      "answer": "Jesus heals the centurion's servant",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 8:5-13",
+      "story_group": "centurion-servant",
+      "category": "jesus_miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "centurion",
+        "servant",
+        "Jesus",
+        "faith",
+        "Roman"
+      ],
+      "progressive_clues": [
+        "A Roman officer asked help for someone in his household.",
+        "He believed authority could work from a distance.",
+        "Jesus praised his faith.",
+        "The centurion's servant was healed without Jesus entering the house."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Jesus and His Miracles",
+      "legacy_theme": "Jesus and His Miracles",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "woman-garment",
+      "answer": "A woman touches Jesus' garment",
+      "answer_aliases": [
+        "The woman with the issue of blood"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Mark",
+      "reference": "Mark 5:25-34",
+      "story_group": "woman-garment",
+      "category": "jesus_miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act pushing gently through a crowd, reaching for clothing, and realizing you are healed.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "woman",
+        "garment",
+        "touch",
+        "healed",
+        "crowd"
+      ],
+      "progressive_clues": [
+        "A woman had suffered for twelve years.",
+        "A large crowd pressed around Jesus.",
+        "She believed touching even his clothing would help.",
+        "She touched Jesus' garment and was healed."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Jesus and His Miracles",
+      "legacy_theme": "Jesus and His Miracles",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "coin-fish",
+      "answer": "Peter finds a coin in a fish's mouth",
+      "answer_aliases": [
+        "The temple-tax coin"
+      ],
+      "modes": [
+        "guess",
+        "draw",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 17:24-27",
+      "story_group": "coin-fish",
+      "category": "jesus_miracles",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "draw": "Draw Peter holding a fish with a coin in its mouth.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Peter",
+        "coin",
+        "fish",
+        "tax",
+        "mouth"
+      ],
+      "progressive_clues": [
+        "A question arose about paying a temple tax.",
+        "Jesus sent a disciple fishing.",
+        "The first catch held an unexpected payment.",
+        "Peter found a coin in a fish's mouth."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Jesus and His Miracles",
+      "legacy_theme": "Jesus and His Miracles",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "zacchaeus-tree",
+      "answer": "Zacchaeus climbs a sycamore tree",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 19:1-10",
+      "story_group": "zacchaeus",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 7,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act trying to see over a crowd, climbing a tree, and hurrying down.",
+        "draw": "Draw Zacchaeus in a tree above a crowd as Jesus looks up.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Zacchaeus",
+        "tree",
+        "tax",
+        "short",
+        "Jesus"
+      ],
+      "progressive_clues": [
+        "A wealthy tax collector was too short to see over a crowd.",
+        "He ran ahead of Jesus' route.",
+        "Jesus called him down by name.",
+        "Zacchaeus climbed a sycamore tree."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "woman-well",
+      "answer": "Jesus speaks with the woman at the well",
+      "answer_aliases": [
+        "The Samaritan woman at the well"
+      ],
+      "modes": [
+        "guess",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 4:4-30",
+      "story_group": "woman-at-well",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jesus",
+        "woman",
+        "well",
+        "Samaritan",
+        "water"
+      ],
+      "progressive_clues": [
+        "A conversation happened at noon beside a well.",
+        "The speakers came from groups that usually avoided each other.",
+        "Jesus spoke about living water.",
+        "The Samaritan woman left her jar and told her town."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "mary-perfume",
+      "answer": "Mary anoints Jesus with perfume",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 12:1-8",
+      "story_group": "mary-anoints-jesus",
+      "category": "worship_church",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A costly gift was poured out during a meal.",
+        "The fragrance filled the house.",
+        "One disciple complained about the expense.",
+        "Mary anointed Jesus with perfume."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "servant-ear",
+      "answer": "Jesus heals the servant's ear",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 22:49-51",
+      "story_group": "servant-ear-healed",
+      "category": "jesus_miracles",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act a sudden sword swing, stopping the fight, and healing an injured ear.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Jesus",
+        "ear",
+        "servant",
+        "sword",
+        "Peter"
+      ],
+      "progressive_clues": [
+        "Armed men arrived to arrest Jesus.",
+        "A disciple reacted with a sword.",
+        "A servant of the high priest was injured.",
+        "Jesus healed the servant's ear."
+      ],
+      "sensitivity_flags": [
+        "violence"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Jesus and His Miracles",
+      "legacy_theme": "Jesus and His Miracles",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "emmaus-road",
+      "answer": "The road to Emmaus",
+      "answer_aliases": [
+        "Jesus on the road to Emmaus"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 24:13-35",
+      "story_group": "emmaus-road",
+      "category": "bible_stories",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act walking sadly, listening to a stranger, then recognizing him at a meal.",
+        "draw": "Draw two disciples walking with Jesus toward Emmaus.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Emmaus",
+        "road",
+        "Jesus",
+        "bread",
+        "disciples"
+      ],
+      "progressive_clues": [
+        "Two disciples walked away from Jerusalem discussing recent events.",
+        "A stranger joined them and explained Scripture.",
+        "They recognized him when bread was broken.",
+        "The risen Jesus appeared on the road to Emmaus."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "thomas-risen-jesus",
+      "answer": "Thomas sees the risen Jesus",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "John",
+      "reference": "John 20:24-29",
+      "story_group": "thomas-doubts",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Thomas",
+        "doubt",
+        "Jesus",
+        "wounds",
+        "believe"
+      ],
+      "progressive_clues": [
+        "One disciple missed an earlier appearance.",
+        "He said he needed physical evidence.",
+        "Jesus returned and invited him to believe.",
+        "Thomas saw the risen Jesus."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "matthias-chosen",
+      "answer": "Matthias is chosen to replace Judas",
+      "answer_aliases": [
+        "Choosing Matthias"
+      ],
+      "modes": [
+        "guess",
+        "act"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 1:15-26",
+      "story_group": "matthias-chosen",
+      "category": "worship_church",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act proposing two candidates, praying, and revealing the final choice."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "The disciples needed to restore their number after Judas' death.",
+        "Two qualified men were proposed.",
+        "The group prayed before making the choice.",
+        "Matthias was chosen to join the twelve."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "lame-man-temple",
+      "answer": "Peter and John heal the lame man",
+      "answer_aliases": [
+        "The lame man at the Beautiful Gate"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 3:1-10",
+      "story_group": "lame-man-beautiful-gate",
+      "category": "jesus_miracles",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A man asked for money near a temple entrance.",
+        "Two apostles said they had no silver or gold.",
+        "They offered something greater in Jesus' name.",
+        "The lame man walked, leaped, and praised God."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Jesus and His Miracles",
+      "legacy_theme": "Jesus and His Miracles",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "ananias-sapphira",
+      "answer": "Ananias and Sapphira lie about their gift",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 5:1-11",
+      "story_group": "ananias-sapphira",
+      "category": "worship_church",
+      "difficulty": "hard",
+      "age_floor": 12,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A couple sold property and brought part of the money.",
+        "They pretended they had given the full amount.",
+        "Their deception was exposed separately.",
+        "Ananias and Sapphira lied to the church and to God."
+      ],
+      "sensitivity_flags": [
+        "death"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "philip-ethiopian",
+      "answer": "Philip explains Isaiah to the Ethiopian official",
+      "answer_aliases": [
+        "Philip and the Ethiopian eunuch"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 8:26-40",
+      "story_group": "philip-ethiopian",
+      "category": "people",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A traveler was reading Isaiah in a chariot.",
+        "He needed someone to explain whom the passage described.",
+        "A believer ran alongside and joined him.",
+        "Philip told the Ethiopian official about Jesus."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "peter-prison-escape",
+      "answer": "Peter escapes from prison",
+      "answer_aliases": [
+        "Peter's prison escape"
+      ],
+      "modes": [
+        "guess",
+        "act",
+        "draw",
+        "clue"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 12:5-11",
+      "story_group": "peter-prison-escape",
+      "category": "bible_stories",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act sleeping in chains, waking suddenly, and following through opening gates.",
+        "draw": "Draw Peter following an angel past sleeping guards.",
+        "clue": "Describe the answer without using any forbidden word."
+      },
+      "forbidden_words": [
+        "Peter",
+        "prison",
+        "angel",
+        "chains",
+        "escape"
+      ],
+      "progressive_clues": [
+        "A church prayed while an apostle was guarded in prison.",
+        "A bright visitor woke him during the night.",
+        "Chains fell off and gates opened.",
+        "An angel led Peter out of prison."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "rhoda-door",
+      "answer": "Rhoda leaves Peter waiting at the door",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 12:12-17",
+      "story_group": "rhoda-door",
+      "category": "worship_church",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act hearing a voice, becoming excited, running inside, and forgetting the door."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Believers were praying inside a house.",
+        "A servant girl recognized a familiar voice at the gate.",
+        "She became so excited that she forgot to open it.",
+        "Rhoda left Peter waiting at the door."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "paul-silas-sing",
+      "answer": "Paul and Silas sing in prison",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 16:22-34",
+      "story_group": "paul-silas-prison",
+      "category": "worship_church",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act sitting in stocks, singing at midnight, and reacting to an earthquake."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Two missionaries were beaten and locked in stocks.",
+        "At midnight they prayed and sang.",
+        "An earthquake opened doors and loosened chains.",
+        "Paul and Silas sang in prison before the jailer believed."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "eutychus-falls",
+      "answer": "Eutychus falls asleep during Paul's teaching",
+      "answer_aliases": [],
+      "modes": [
+        "guess",
+        "act"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 20:7-12",
+      "story_group": "eutychus-window",
+      "category": "people",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer.",
+        "act": "Act listening late at night, nodding off, falling, and being helped."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A young man sat in an upstairs window during a very long message.",
+        "The hour grew late and he became sleepy.",
+        "He fell from the third floor.",
+        "Eutychus was restored after falling asleep during Paul's teaching."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "paul-shipwreck",
+      "answer": "Paul is shipwrecked on Malta",
+      "answer_aliases": [
+        "Paul's shipwreck"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 27:39-28:1",
+      "story_group": "paul-shipwreck-malta",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A storm had driven a ship for many days.",
+        "The vessel struck a sandbar near an unfamiliar island.",
+        "Everyone reached land safely as promised.",
+        "Paul was shipwrecked and arrived on Malta."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "paul-snake",
+      "answer": "Paul shakes a snake into the fire",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 28:2-6",
+      "story_group": "paul-snake-malta",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Islanders built a fire for cold, wet survivors.",
+        "A poisonous creature fastened onto one man's hand.",
+        "The crowd expected him to die.",
+        "Paul shook the snake into the fire and was unharmed."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "barnabas-welcomes-saul",
+      "answer": "Barnabas welcomes Saul to the apostles",
+      "answer_aliases": [
+        "Barnabas introduces Saul"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 9:26-28",
+      "story_group": "barnabas-saul",
+      "category": "people",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A former persecutor tried to join believers in Jerusalem.",
+        "Everyone was afraid and doubted his change.",
+        "One encourager took a risk and introduced him.",
+        "Barnabas welcomed Saul to the apostles."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "priscilla-aquila-apollos",
+      "answer": "Priscilla and Aquila teach Apollos",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 18:24-28",
+      "story_group": "priscilla-aquila-apollos",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "An eloquent teacher knew Scripture and spoke boldly.",
+        "His understanding of Jesus' way was incomplete.",
+        "A married couple invited him home privately.",
+        "Priscilla and Aquila explained the way of God more accurately to Apollos."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "lydia-home",
+      "answer": "Lydia opens her home to Paul",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 16:13-15",
+      "story_group": "lydia-philippi",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A businesswoman met a group praying beside a river.",
+        "God opened her heart to Paul's message.",
+        "She and her household were baptized.",
+        "Lydia invited the missionaries to stay in her home."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "dorcas-restored",
+      "answer": "Dorcas is restored to life",
+      "answer_aliases": [
+        "Tabitha is raised"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 9:36-42",
+      "story_group": "dorcas-tabitha",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A beloved disciple was known for helping the poor.",
+        "Widows showed clothing she had made.",
+        "Peter sent everyone out and prayed.",
+        "Dorcas, also called Tabitha, was restored to life."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "agabus-famine",
+      "answer": "Agabus predicts a famine",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 11:27-30",
+      "story_group": "agabus-famine",
+      "category": "worship_church",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A prophet traveled from Jerusalem to Antioch.",
+        "He warned that a severe shortage was coming.",
+        "Believers decided to send help in advance.",
+        "Agabus predicted a famine."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "paul-basket",
+      "answer": "Paul escapes Damascus in a basket",
+      "answer_aliases": [
+        "Paul escapes in a basket"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 9:23-25",
+      "story_group": "paul-basket-escape",
+      "category": "people",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Enemies watched a city's gates day and night.",
+        "Believers used an opening in the wall.",
+        "A large container was lowered by ropes.",
+        "Paul escaped Damascus in a basket."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "jerusalem-council",
+      "answer": "The Jerusalem Council",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 15:1-29",
+      "story_group": "jerusalem-council",
+      "category": "worship_church",
+      "difficulty": "hard",
+      "age_floor": 11,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A serious disagreement concerned Gentile believers.",
+        "Apostles and elders gathered to discuss it.",
+        "Peter, Paul, Barnabas, and James all contributed.",
+        "The Jerusalem Council sent a letter to the churches."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "cornelius-peter",
+      "answer": "Cornelius receives Peter",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 10:1-48",
+      "story_group": "cornelius-peter",
+      "category": "worship_church",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A Roman officer prayed and gave generously.",
+        "An angel told him to send for a particular apostle.",
+        "The apostle arrived after receiving his own vision.",
+        "Cornelius welcomed Peter, and the Holy Spirit came on the Gentiles."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Worship and Church",
+      "legacy_theme": "Worship and Church",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "peter-sheet-vision",
+      "answer": "Peter's vision of the sheet",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 10:9-16",
+      "story_group": "peter-sheet-vision",
+      "category": "bible_stories",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "An apostle became hungry while praying on a roof.",
+        "A large object descended from heaven.",
+        "It contained many kinds of animals.",
+        "Peter saw a sheet and heard God challenge his old categories."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Bible Stories",
+      "legacy_theme": "Bible Stories",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "stephen-vision",
+      "answer": "Stephen sees Jesus standing in heaven",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 7:54-60",
+      "story_group": "stephen-martyrdom",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 12,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A faithful witness finished a long speech before angry leaders.",
+        "He looked upward and described an open heaven.",
+        "He prayed for those attacking him.",
+        "Stephen saw Jesus standing at God's right hand."
+      ],
+      "sensitivity_flags": [
+        "martyrdom",
+        "violence"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "paul-agrippa",
+      "answer": "Paul tells King Agrippa his testimony",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Acts",
+      "reference": "Acts 26:1-32",
+      "story_group": "paul-agrippa",
+      "category": "people",
+      "difficulty": "hard",
+      "age_floor": 11,
+      "familiarity": "discovery",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A prisoner spoke before a king and a Roman governor.",
+        "He described his former persecution of believers.",
+        "He retold his encounter with Jesus on the road.",
+        "Paul gave his testimony before King Agrippa."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "People of the Bible",
+      "legacy_theme": "People of the Bible",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "persistent-widow",
+      "answer": "The persistent widow",
+      "answer_aliases": [
+        "The persistent widow and the unjust judge"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 18:1-8",
+      "story_group": "parable-persistent-widow",
+      "category": "parables",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Jesus told this story to encourage continual prayer.",
+        "A woman repeatedly approached an unjust official.",
+        "He finally acted because she would not stop asking.",
+        "The persistent widow kept seeking justice."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Parables",
+      "legacy_theme": "Parables",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "pharisee-tax-collector",
+      "answer": "The Pharisee and the tax collector",
+      "answer_aliases": [
+        "The Pharisee and publican"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Luke",
+      "reference": "Luke 18:9-14",
+      "story_group": "parable-pharisee-tax-collector",
+      "category": "parables",
+      "difficulty": "easy",
+      "age_floor": 8,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Two men went to the temple to pray.",
+        "One proudly compared himself with others.",
+        "The other stood far away and asked for mercy.",
+        "Jesus praised the humility of the tax collector, not the Pharisee."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Parables",
+      "legacy_theme": "Parables",
+      "source_status": "review",
+      "metadata_review_required": true,
+      "source_difficulty": "medium",
+      "difficulty_calibration": "age_floor_8_beta"
+    },
+    {
+      "id": "ten-virgins",
+      "answer": "The parable of the ten virgins",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 25:1-13",
+      "story_group": "parable-ten-virgins",
+      "category": "parables",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "Ten young women waited for a bridegroom.",
+        "Only half brought enough oil.",
+        "The arrival happened at midnight.",
+        "The parable of the ten virgins teaches readiness."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Parables",
+      "legacy_theme": "Parables",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "talents-parable",
+      "answer": "The parable of the talents",
+      "answer_aliases": [
+        "The parable of the bags of gold"
+      ],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 25:14-30",
+      "story_group": "parable-talents",
+      "category": "parables",
+      "difficulty": "medium",
+      "age_floor": 9,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A master entrusted different amounts to three servants.",
+        "Two put what they received to work.",
+        "One buried his portion in the ground.",
+        "The parable of the talents teaches faithful stewardship."
+      ],
+      "sensitivity_flags": [],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Parables",
+      "legacy_theme": "Parables",
+      "source_status": "review",
+      "metadata_review_required": true
+    },
+    {
+      "id": "unforgiving-servant",
+      "answer": "The unforgiving servant",
+      "answer_aliases": [],
+      "modes": [
+        "guess"
+      ],
+      "testament": "NT",
+      "book": "Matthew",
+      "reference": "Matthew 18:21-35",
+      "story_group": "parable-unforgiving-servant",
+      "category": "parables",
+      "difficulty": "hard",
+      "age_floor": 10,
+      "familiarity": "known",
+      "instructions": {
+        "guess": "Reveal one clue at a time until the family guesses the answer."
+      },
+      "forbidden_words": [],
+      "progressive_clues": [
+        "A servant owed a king an enormous debt.",
+        "The king canceled it completely.",
+        "The forgiven man then refused mercy over a much smaller debt.",
+        "The parable of the unforgiving servant warns us to forgive."
+      ],
+      "sensitivity_flags": [
+        "imprisonment"
+      ],
+      "status": "published",
+      "editorial_version": 1,
+      "category_label": "Parables",
+      "legacy_theme": "Parables",
+      "source_status": "review",
+      "metadata_review_required": true
+    }
+  ]
+}

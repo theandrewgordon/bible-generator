@@ -1,0 +1,56 @@
+{
+  "batch_a": {
+    "record_count": 75,
+    "unique_ids": 75,
+    "unique_answers": 75,
+    "mode_eligibility_counts": {
+      "guess": 75,
+      "act": 44,
+      "clue": 48,
+      "draw": 32
+    },
+    "difficulty_counts": {
+      "hard": 31,
+      "medium": 40,
+      "easy": 4
+    },
+    "category_counts": {
+      "bible_stories": 21,
+      "people": 32,
+      "worship_church": 11,
+      "jesus_miracles": 6,
+      "parables": 5
+    },
+    "all_guess_have_four_clues": true,
+    "all_clue_records_have_forbidden_words": true
+  },
+  "batch_b": {
+    "deck_count": 18,
+    "passage_memberships_added": 504,
+    "all_decks_add_28": true,
+    "all_decks_reach_40": true,
+    "exact_duplicates_within_deck": {},
+    "unique_added_references_global": 471,
+    "testament_counts": {
+      "OT": 218,
+      "NT": 286
+    },
+    "division_counts": {
+      "Pentateuch": 26,
+      "History": 16,
+      "Wisdom/Poetry": 130,
+      "Major Prophets": 38,
+      "Minor Prophets": 8,
+      "Gospels": 133,
+      "Pauline Epistles": 100,
+      "General Epistles/Revelation": 35,
+      "Acts": 18
+    },
+    "cross_deck_duplicate_references": 33
+  },
+  "warnings": [
+    "All records are marked status=review and should pass editorial/theological review before publishing.",
+    "Bible Bee difficulty_by_format is a starter heuristic based on passage span; refine after fetching actual translation text.",
+    "Cross-deck reuse is intentional for some thematic passages, but a validator should still flag excessive overlap."
+  ]
+}

@@ -22,6 +22,16 @@ Smallest safe launch path:
 
 Completed on `feature/family-game-night-launch`:
 
+- Moved Family Game Night prompts into a versioned normalized JSON bank with canonical answer, story group, Testament/book/reference, age, familiarity, sensitivity, status, and per-mode fields.
+- Expanded Act It, Draw It, Don't Say It, and Guess It to 80 unique eligible answers each.
+- Replaced the 161-outcome character-sum selector with SHA-256-derived deterministic selection without prompt or canonical-answer replacement.
+- Added story-group avoidance, category/Testament/familiarity balancing, varied mixed-mode order, and a two-consecutive-mode limit.
+- Replaced the accidental 19-ID free sampler with an explicit 32-ID/32-answer sampler and server-side isolation.
+- Added bounded browser-session recent-prompt memory and graceful relaxation when a filtered pool is small.
+- Expanded all 18 Family Bible Bee named decks from 12 to 40 references and removed silent modulo passage cycling.
+- Added overlap-aware Bible Bee selection, varied format ordering, format-specific content difficulty preference, and recent-reference avoidance.
+- Added a standalone content validator plus property-style replay tests over thousands of deterministic seeds.
+
 - Added the canonical, indexable `/family-game-night` product page.
 - Added a dedicated `/family-game-night/play` parent-friendly setup flow.
 - Added strict server-side validation for play style, length, mode, difficulty, and categories.
@@ -97,7 +107,7 @@ The host is authorized through the signed-in email and a recent-room session lis
 
 ## Prompt and mode model
 
-Prompts are a Python constant in `act_it_out.py`. Each prompt has an ID, answer, allowed modes, theme, difficulty, instruction, and optional forbidden words, clues, or drawing choices. Current modes are `act`, `clue`, `guess`, and `draw`.
+Prompts are loaded from `faithsparks/content/family_game_night.json` by `faithsparks/services/game_content.py`. Each prompt has a stable ID, canonical answer/aliases, modes, Testament, book/reference, story group, category, difficulty, age floor, familiarity, per-mode instructions, forbidden words, progressive clues, sensitivity flags, publication status, and editorial version. Existing room payloads continue to use the compatible `act`, `clue`, `guess`, and `draw` fields.
 
 Room creation currently accepts a single theme and a game type (`act_it_out` or `draw_it`). `Mix It Up` for Act It excludes drawing; Draw It always produces drawing rounds. Difficulty exists on prompts but is not accepted or filtered in room setup. The launch-plan category names do not map one-to-one to the existing Act and Draw theme sets. A canonical category mapping must be introduced instead of trusting labels posted by the browser.
 
@@ -150,7 +160,7 @@ Coverage still needed for the launch model:
 4. Invalid theme and round values are silently replaced with defaults. Launch setup should return a recoverable validation error so malformed requests are observable and testable.
 5. Category labels differ between Act and Draw prompt collections (`People Moments` vs `People & Places`, and others). A product-level category taxonomy is required.
 6. Difficulty is present but unused. There are only `easy` and `medium` prompt values, so “Challenge” currently has no true hard prompt pool.
-7. The current Mix It Up algorithm can repeat a prompt within a game and does not guarantee a balanced representation of all selected modes.
+7. Resolved: Family Game Night now selects without prompt/answer replacement, avoids story clusters when possible, and balances/varies mixed modes.
 8. There is no Family Game Night entitlement, price ID, checkout return, success state, or free/paid gating.
 9. The setup and game pages are `noindex`; a dedicated indexable sales page is missing.
 10. The game hub copy explicitly teaches customers that Act It Out and Draw It are separate products.

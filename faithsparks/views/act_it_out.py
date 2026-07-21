@@ -7,6 +7,7 @@ import base64
 import binascii
 import hashlib
 import os
+import random
 import re
 import secrets
 import threading
@@ -15,10 +16,16 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 import qrcode
-from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, current_app, has_app_context, jsonify, redirect, render_template, request, send_file, session, url_for
 from google.cloud import firestore as google_firestore
 
 from faithsparks.services.firestore import db
+from faithsparks.services.game_content import (
+    build_family_rounds,
+    free_sampler_ids,
+    legacy_family_prompts,
+    strong_seed,
+)
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.stripe_svc import STRIPE_PRICE_FAMILY_GAME_NIGHT
 from faithsparks.services.users import get_user_doc, has_active_plus, has_family_game_night_access
@@ -60,97 +67,7 @@ TEAMS = [
     {"id": "blue", "name": "Blue Team", "color": "blue"},
 ]
 
-PROMPTS = [
-    {"id": "david-goliath", "answer": "David and Goliath", "modes": ["act", "clue"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Act brave, small, and facing something huge.", "forbidden_words": ["David", "Goliath", "giant", "stone", "sling"]},
-    {"id": "noah-ark", "answer": "Noah building the ark", "modes": ["act"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Act out building, gathering animals, and rain."},
-    {"id": "jonah-fish", "answer": "Jonah and the big fish", "modes": ["act", "clue"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Act stormy seas, being swallowed, and praying.", "forbidden_words": ["Jonah", "fish", "whale", "boat"]},
-    {"id": "daniel-lions", "answer": "Daniel in the lions' den", "modes": ["act", "clue"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Act praying calmly near lions.", "forbidden_words": ["Daniel", "lion", "den", "pray"]},
-    {"id": "moses-sea", "answer": "Moses parting the sea", "modes": ["act", "clue"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Act lifting a staff and walking between walls of water.", "forbidden_words": ["Moses", "sea", "water", "Egypt"]},
-    {"id": "jericho", "answer": "The walls of Jericho falling", "modes": ["act"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Act marching, trumpets, and walls falling down."},
-    {"id": "samuel-listening", "answer": "Samuel hearing God's voice", "modes": ["act", "clue"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Act waking up, listening carefully, and answering God.", "forbidden_words": ["Samuel", "voice", "listen", "Eli"]},
-    {"id": "elijah-ravens", "answer": "Ravens bringing food to Elijah", "modes": ["act", "clue"], "theme": "Bible Stories", "difficulty": "medium", "instruction": "Act being hungry, waiting, and birds bringing food.", "forbidden_words": ["Elijah", "raven", "bird", "food"]},
-    {"id": "peter-water", "answer": "Peter walking on water", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "easy", "instruction": "Act stepping onto waves, getting scared, and reaching out.", "forbidden_words": ["Peter", "water", "walk", "Jesus"]},
-    {"id": "calming-storm", "answer": "Jesus calming the storm", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "easy", "instruction": "Act a wild storm becoming peaceful.", "forbidden_words": ["Jesus", "storm", "boat", "peace"]},
-    {"id": "feeding-5000", "answer": "Feeding the five thousand", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "easy", "instruction": "Act sharing a tiny lunch with a huge crowd.", "forbidden_words": ["five", "thousand", "bread", "fish"]},
-    {"id": "healing-blind", "answer": "Jesus healing the blind man", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Act not seeing, being healed, and rejoicing.", "forbidden_words": ["blind", "see", "healed", "Jesus"]},
-    {"id": "lazarus", "answer": "Jesus raising Lazarus", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Act someone coming out after being called.", "forbidden_words": ["Lazarus", "tomb", "dead", "alive"]},
-    {"id": "ten-lepers", "answer": "Jesus healing ten lepers", "modes": ["act", "clue"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Act ten people being healed, then one coming back thankful.", "forbidden_words": ["leper", "ten", "heal", "thank"]},
-    {"id": "good-samaritan", "answer": "The Good Samaritan", "modes": ["act", "clue"], "theme": "Parables", "difficulty": "easy", "instruction": "Act seeing someone hurt and helping them.", "forbidden_words": ["Samaritan", "neighbor", "road", "help"]},
-    {"id": "lost-sheep", "answer": "The lost sheep", "modes": ["act", "clue"], "theme": "Parables", "difficulty": "easy", "instruction": "Act searching carefully and celebrating when found.", "forbidden_words": ["sheep", "lost", "shepherd"]},
-    {"id": "prodigal-son", "answer": "The Prodigal Son", "modes": ["act", "clue"], "theme": "Parables", "difficulty": "medium", "instruction": "Act leaving home, feeling sorry, and being welcomed back.", "forbidden_words": ["prodigal", "son", "father", "home"]},
-    {"id": "wise-builder", "answer": "The wise man building on the rock", "modes": ["act", "clue"], "theme": "Parables", "difficulty": "easy", "instruction": "Act building a house, a storm coming, and the house standing strong.", "forbidden_words": ["wise", "builder", "rock", "house"]},
-    {"id": "moses-tablets", "answer": "Moses carrying the tablets", "modes": ["act", "clue"], "theme": "People Moments", "difficulty": "easy", "instruction": "Act carrying two heavy stone tablets down a mountain.", "forbidden_words": ["Moses", "Pharaoh", "Egypt", "Red Sea"]},
-    {"id": "esther-brave", "answer": "Esther bravely speaking to the king", "modes": ["act", "clue"], "theme": "People Moments", "difficulty": "medium", "instruction": "Act a brave queen preparing, waiting, and speaking up.", "forbidden_words": ["Esther", "queen", "king", "Haman"]},
-    {"id": "paul-letters", "answer": "Paul writing letters from prison", "modes": ["act", "clue"], "theme": "People Moments", "difficulty": "medium", "instruction": "Act writing, praying, and encouraging others while stuck.", "forbidden_words": ["Paul", "letter", "church", "missionary"]},
-    {"id": "mary-angel", "answer": "Mary hearing the angel's news", "modes": ["act", "clue"], "theme": "People Moments", "difficulty": "easy", "instruction": "Act surprise, listening, and caring for baby Jesus.", "forbidden_words": ["Mary", "mother", "Jesus", "angel"]},
-    {"id": "peter-fishing", "answer": "Peter fishing when Jesus calls him", "modes": ["act", "clue"], "theme": "People Moments", "difficulty": "easy", "instruction": "Act fishing, hearing a call, leaving nets, and following.", "forbidden_words": ["Peter", "disciple", "fish", "rock"]},
-    {"id": "ruth-gathering", "answer": "Ruth gathering grain", "modes": ["act", "clue"], "theme": "People Moments", "difficulty": "easy", "instruction": "Act gathering grain carefully and caring for family.", "forbidden_words": ["Ruth", "grain", "Boaz", "Naomi"]},
-    {"id": "praying", "answer": "Praying", "modes": ["act"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Act talking with God quietly or thankfully."},
-    {"id": "singing-worship", "answer": "Singing worship", "modes": ["act"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Act singing praise with joy."},
-    {"id": "serving", "answer": "Serving others", "modes": ["act", "clue"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Act helping someone before yourself.", "forbidden_words": ["serve", "help", "others"]},
-    {"id": "baptism", "answer": "Baptism", "modes": ["act", "clue"], "theme": "Worship & Church", "difficulty": "medium", "instruction": "Act a joyful moment with water.", "forbidden_words": ["baptism", "water", "church"]},
-    {"id": "giving", "answer": "Giving generously", "modes": ["act", "clue"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Act sharing what you have with joy.", "forbidden_words": ["give", "money", "offering"]},
-    {"id": "communion", "answer": "Communion", "modes": ["act", "clue"], "theme": "Worship & Church", "difficulty": "medium", "instruction": "Act receiving bread and a cup with care and thankfulness.", "forbidden_words": ["communion", "bread", "cup", "supper"]},
-    {"id": "forgiveness", "answer": "Choosing forgiveness", "modes": ["act", "clue"], "theme": "Everyday Faith", "difficulty": "medium", "instruction": "Act being hurt, choosing to forgive, and becoming friends again.", "forbidden_words": ["forgive", "sorry", "wrong"]},
-    {"id": "patience", "answer": "Waiting patiently", "modes": ["act", "clue"], "theme": "Everyday Faith", "difficulty": "easy", "instruction": "Act waiting in a long line without complaining.", "forbidden_words": ["patience", "wait", "calm"]},
-    {"id": "courage", "answer": "Showing courage", "modes": ["act", "clue"], "theme": "Everyday Faith", "difficulty": "easy", "instruction": "Act feeling nervous, taking a deep breath, and doing the right thing.", "forbidden_words": ["courage", "brave", "afraid"]},
-    {"id": "joy", "answer": "Choosing joy", "modes": ["act", "clue"], "theme": "Everyday Faith", "difficulty": "easy", "instruction": "Act getting bad news, then remembering God and choosing joy.", "forbidden_words": ["joy", "happy", "glad"]},
-    {"id": "peace", "answer": "Finding peace after worry", "modes": ["act", "clue"], "theme": "Everyday Faith", "difficulty": "easy", "instruction": "Act being worried, praying, and becoming peaceful.", "forbidden_words": ["peace", "calm", "quiet"]},
-    {"id": "kindness", "answer": "Showing kindness", "modes": ["act", "clue"], "theme": "Everyday Faith", "difficulty": "easy", "instruction": "Act noticing someone left out and inviting them in.", "forbidden_words": ["kind", "kindness", "nice", "friend"]},
-    {"id": "who-david", "answer": "David", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "easy", "instruction": "Reveal clues until the team guesses the person.", "clues": ["I was a shepherd.", "I played music for a king.", "I faced a giant.", "I became king of Israel."]},
-    {"id": "who-esther", "answer": "Esther", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the person.", "clues": ["I lived in Persia.", "I became queen.", "My cousin helped me be brave.", "God used me to help save my people."]},
-    {"id": "story-good-samaritan", "answer": "The Good Samaritan", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "easy", "instruction": "Reveal clues until the team guesses the story.", "clues": ["Someone was hurt on a road.", "Two people passed by.", "A surprising neighbor stopped.", "Jesus told this story about loving your neighbor."]},
-    {"id": "story-prodigal-son", "answer": "The Prodigal Son", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the story.", "clues": ["A son left home.", "He wasted what he was given.", "He came back sorry.", "His father welcomed him with joy."]},
-    {"id": "story-psalm-23", "answer": "Psalm 23", "modes": ["guess"], "theme": "Guess the Story", "difficulty": "medium", "instruction": "Reveal clues until the team guesses the passage.", "clues": ["It talks about a shepherd.", "It mentions green pastures.", "It says God is with us in dark valleys.", "Many families memorize this psalm."]},
-    {"id": "draw-noah-ark", "answer": "Noah's ark with animals", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw a big boat, pairs of animals, and rain."},
-    {"id": "draw-david-goliath", "answer": "David facing Goliath", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw a small shepherd, a giant, and a sling."},
-    {"id": "draw-jonah-fish", "answer": "Jonah and the big fish", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw a storm, a fish, and Jonah praying."},
-    {"id": "draw-daniel-lions", "answer": "Daniel in the lions' den", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "easy", "instruction": "Draw Daniel praying near lions."},
-    {"id": "draw-moses-sea", "answer": "Moses parting the sea", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "medium", "instruction": "Draw Moses with a staff and water on both sides."},
-    {"id": "draw-jericho-walls", "answer": "The walls of Jericho falling", "modes": ["draw"], "theme": "Bible Stories", "difficulty": "medium", "instruction": "Draw people marching, trumpets, and falling walls."},
-    {"id": "draw-calming-storm", "answer": "Jesus calming the storm", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "easy", "instruction": "Draw a boat, wild waves, and Jesus bringing peace."},
-    {"id": "draw-feeding-5000", "answer": "Jesus feeding the five thousand", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw a crowd, baskets, bread, and fish."},
-    {"id": "draw-walking-water", "answer": "Jesus walking on water", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw Jesus standing on waves near a boat."},
-    {"id": "draw-healing-blind", "answer": "Jesus healing the blind man", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw a man covering his eyes, then seeing."},
-    {"id": "draw-lazarus", "answer": "Jesus raising Lazarus", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw a tomb, wrapped cloth, and someone coming out."},
-    {"id": "draw-wedding-cana", "answer": "Water turned into wine", "modes": ["draw"], "theme": "Jesus' Miracles", "difficulty": "medium", "instruction": "Draw large jars, water, and a wedding celebration."},
-    {"id": "draw-good-samaritan", "answer": "The Good Samaritan helping the hurt man", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw someone hurt on a road and a neighbor stopping to help."},
-    {"id": "draw-lost-sheep", "answer": "The lost sheep being found", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw a shepherd finding one sheep."},
-    {"id": "draw-prodigal-son", "answer": "The Prodigal Son coming home", "modes": ["draw"], "theme": "Parables", "difficulty": "medium", "instruction": "Draw a father welcoming his son home."},
-    {"id": "draw-sower", "answer": "The sower scattering seed", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw a farmer tossing seeds on different ground."},
-    {"id": "draw-mustard-seed", "answer": "The mustard seed growing into a tree", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw a tiny seed becoming a big tree."},
-    {"id": "draw-wise-builder", "answer": "The wise man building on the rock", "modes": ["draw"], "theme": "Parables", "difficulty": "easy", "instruction": "Draw one house on rock and a storm around it."},
-    {"id": "draw-bethlehem", "answer": "Bethlehem stable", "modes": ["draw"], "theme": "People & Places", "difficulty": "easy", "instruction": "Draw a stable, manger, star, and animals."},
-    {"id": "draw-garden-eden", "answer": "The Garden of Eden", "modes": ["draw"], "theme": "People & Places", "difficulty": "easy", "instruction": "Draw a beautiful garden with trees and a river."},
-    {"id": "draw-mount-sinai", "answer": "Mount Sinai", "modes": ["draw"], "theme": "People & Places", "difficulty": "medium", "instruction": "Draw a mountain with clouds, lightning, and tablets."},
-    {"id": "draw-empty-tomb", "answer": "The empty tomb", "modes": ["draw"], "theme": "People & Places", "difficulty": "easy", "instruction": "Draw a tomb with the stone rolled away."},
-    {"id": "draw-upper-room", "answer": "The upper room", "modes": ["draw"], "theme": "People & Places", "difficulty": "medium", "instruction": "Draw disciples gathered around a table upstairs."},
-    {"id": "draw-road-damascus", "answer": "The road to Damascus", "modes": ["draw"], "theme": "People & Places", "difficulty": "medium", "instruction": "Draw a road, bright light, and Saul surprised."},
-    {"id": "draw-praying-hands", "answer": "Praying hands", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw hands folded in prayer."},
-    {"id": "draw-singing-worship", "answer": "Singing worship", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw people singing praise together."},
-    {"id": "draw-baptism", "answer": "Baptism", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw someone being baptized in water."},
-    {"id": "draw-communion", "answer": "Communion bread and cup", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw bread and a cup on a table."},
-    {"id": "draw-offering-basket", "answer": "Giving an offering", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw someone giving with a happy heart."},
-    {"id": "draw-serve-meal", "answer": "Serving a meal", "modes": ["draw"], "theme": "Worship & Church", "difficulty": "easy", "instruction": "Draw someone serving food to another person."},
-    {"id": "draw-light-world", "answer": "Light of the world", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "easy", "instruction": "Draw a bright lamp or candle shining in darkness."},
-    {"id": "draw-fruit-spirit", "answer": "Fruit of the Spirit", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "easy", "instruction": "Draw fruit with love, joy, peace, or kindness around it."},
-    {"id": "draw-armor-god", "answer": "Armor of God", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "medium", "instruction": "Draw armor, a shield, and a helmet."},
-    {"id": "draw-narrow-road", "answer": "The narrow road", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "medium", "instruction": "Draw a small path leading toward light."},
-    {"id": "draw-living-water", "answer": "Living water", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "medium", "instruction": "Draw flowing water with life growing nearby."},
-    {"id": "draw-mustard-faith", "answer": "Faith like a mustard seed", "modes": ["draw"], "theme": "Faith Pictures", "difficulty": "easy", "instruction": "Draw a tiny seed beside a big plant."},
-    {"id": "draw-cross", "answer": "The cross", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a simple cross."},
-    {"id": "draw-bible", "answer": "An open Bible", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw an open Bible with pages."},
-    {"id": "draw-crown", "answer": "A crown", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a royal crown."},
-    {"id": "draw-fish-symbol", "answer": "A fish symbol", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a simple fish symbol."},
-    {"id": "draw-bread-fish", "answer": "Bread and fish", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw loaves of bread and fish."},
-    {"id": "draw-star", "answer": "The star over Bethlehem", "modes": ["draw"], "theme": "Easy Objects", "difficulty": "easy", "instruction": "Draw a bright star above a small town."},
-    {"id": "draw-creation", "answer": "Creation of the world", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw sun, moon, animals, plants, and water."},
-    {"id": "draw-red-sea-crossing", "answer": "Israel crossing the Red Sea", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw people walking between walls of water."},
-    {"id": "draw-washing-feet", "answer": "Jesus washing the disciples' feet", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw a basin, towel, feet, and Jesus serving his disciples."},
-    {"id": "draw-last-supper", "answer": "The Last Supper", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "medium", "instruction": "Draw Jesus and disciples around a long table."},
-    {"id": "draw-pentecost", "answer": "Pentecost", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "hard", "instruction": "Draw disciples, flames, wind, and people gathered."},
-    {"id": "draw-heavenly-city", "answer": "The new heaven and new earth", "modes": ["draw"], "theme": "Big Scenes", "difficulty": "hard", "instruction": "Draw a bright city, river, trees, and joy."},
-]
+PROMPTS = legacy_family_prompts()
 
 ACT_THEMES = ["Bible Stories", "Jesus' Miracles", "Parables", "People Moments", "Worship & Church", "Everyday Faith", "Guess the Story"]
 DRAW_THEMES = ["Bible Stories", "Jesus' Miracles", "Parables", "People & Places", "Worship & Church", "Faith Pictures", "Easy Objects", "Big Scenes"]
@@ -187,11 +104,8 @@ FAMILY_MODE_SEQUENCE = ("act", "draw", "clue", "guess")
 
 
 def _free_prompt_ids() -> set[str]:
-    """Stable 24-card sampler with six prompts available for each mode."""
-    ids: set[str] = set()
-    for mode in FAMILY_MODE_SEQUENCE:
-        ids.update([prompt["id"] for prompt in PROMPTS if mode in prompt["modes"]][:6])
-    return ids
+    """Explicit normalized sampler; IDs are validated at startup/CI."""
+    return set(free_sampler_ids())
 
 
 FREE_FAMILY_PROMPT_IDS = _free_prompt_ids()
@@ -535,15 +449,17 @@ def _family_prompt_pool(
     ]
 
 
-def _draw_choices(answer: str, seed: int) -> list[str]:
+def _draw_choices(answer: str, seed: int, allowed_prompt_ids: set[str] | None = None) -> list[str]:
     distractors = [
         prompt["answer"]
         for prompt in PROMPTS
-        if "draw" in prompt["modes"] and prompt["answer"] != answer
+        if "draw" in prompt["modes"]
+        and prompt["answer"] != answer
+        and (allowed_prompt_ids is None or prompt["id"] in allowed_prompt_ids)
     ]
-    ordered = sorted(distractors, key=lambda item: ((sum(ord(char) for char in item) + seed) % 997, item))
+    ordered = sorted(set(distractors), key=lambda item: (strong_seed("draw-choice", seed, item), item))
     choices = [answer, *ordered[:3]]
-    return sorted(choices, key=lambda item: ((sum(ord(char) for char in item) + seed * 3) % 997, item))
+    return sorted(choices, key=lambda item: (strong_seed("draw-choice-order", seed, item), item))
 
 
 def _build_rounds(
@@ -556,50 +472,40 @@ def _build_rounds(
     difficulty: str = "whole_family",
     game_mode: str = "mixed",
     free_sampler: bool = False,
+    recent_prompt_ids: set[str] | None = None,
 ) -> list[dict]:
     if game_type == "family_game_night":
         selected_categories = categories or set(FAMILY_CATEGORIES)
-        requested_modes = FAMILY_MODE_SEQUENCE if game_mode == "mixed" else (game_mode,)
-        pools = {
-            mode: deepcopy(
-                _family_prompt_pool(
-                    selected_categories,
-                    difficulty,
-                    mode,
-                    free_sampler=free_sampler,
-                )
+        rounds, diagnostics = build_family_rounds(
+            code,
+            count,
+            categories=selected_categories,
+            difficulty_values=FAMILY_DIFFICULTIES[difficulty],
+            game_mode=game_mode,
+            free_sampler=free_sampler,
+            recent_prompt_ids=recent_prompt_ids,
+        )
+        allowed_choices = set(FREE_FAMILY_PROMPT_IDS) if free_sampler else None
+        seed = strong_seed("family-game-night-draw-choices", code)
+        for index, round_ in enumerate(rounds):
+            if round_["mode"] == "draw":
+                round_["choices"] = _draw_choices(round_["answer"], seed + index, allowed_choices)
+        if has_app_context():
+            current_app.logger.info(
+                "Family Game Night rounds built eligible=%s answers=%s stories=%s relaxations=%s",
+                diagnostics["eligible_pool_size"], diagnostics["unique_answer_capacity"],
+                diagnostics["story_group_capacity"],
+                ",".join(diagnostics["relaxations_used"]) or "none",
             )
-            for mode in requested_modes
-        }
-        missing_modes = [mode for mode, mode_pool in pools.items() if not mode_pool]
-        if missing_modes:
-            readable = ", ".join(mode.replace("clue", "Don’t Say It").replace("guess", "Guess It").title() for mode in missing_modes)
-            raise ValueError(f"Those categories and difficulty do not have {readable} cards. Select more categories or another difficulty.")
-        seed = sum(ord(char) for char in code)
-        rounds = []
-        for index in range(count):
-            mode = requested_modes[index % len(requested_modes)]
-            mode_pool = pools[mode]
-            prompt = mode_pool[(seed + index * 7) % len(mode_pool)]
-            answer = prompt["answer"]
-            rounds.append({
-                "id": f"{prompt['id']}-{index}",
-                "prompt_id": prompt["id"],
-                "answer": answer,
-                "mode": mode,
-                "theme": FAMILY_CATEGORIES[PROMPT_THEME_CATEGORIES[prompt["theme"]]],
-                "instruction": prompt.get("instruction", ""),
-                "forbidden_words": prompt.get("forbidden_words", []) if mode == "clue" else [],
-                "clues": prompt.get("clues", []) if mode == "guess" else [],
-                "choices": _draw_choices(answer, seed + index) if mode == "draw" else [],
-            })
         return rounds
     pool = deepcopy(_prompt_pool(theme, game_type))
-    seed = sum(ord(char) for char in code)
+    seed = strong_seed("legacy-family-game", code, theme, game_type, count)
+    rng = random.Random(seed)
+    rng.shuffle(pool)
     rounds = []
     for index in range(count):
-        prompt = pool[(seed + index * 7) % len(pool)]
-        mode = "draw" if game_type == "draw_it" else prompt["modes"][index % len(prompt["modes"])]
+        prompt = pool[index % len(pool)]
+        mode = "draw" if game_type == "draw_it" else rng.choice(prompt["modes"])
         answer = prompt["answer"]
         rounds.append({
             "id": f"{prompt['id']}-{index}",
@@ -1062,6 +968,7 @@ def create_family_game_night_room():
             difficulty=difficulty,
             game_mode=game_mode,
             free_sampler=not owns_complete_game,
+            recent_prompt_ids=set(session.get("family_game_night_recent_prompt_ids", [])),
         )
     except ValueError as exc:
         return _render_family_setup(str(exc), 400)
@@ -1089,6 +996,10 @@ def create_family_game_night_room():
     }
     _register_host_room(code, room)
     _set_room(code, room)
+    session["family_game_night_recent_prompt_ids"] = (
+        list(session.get("family_game_night_recent_prompt_ids", []))
+        + [round_["prompt_id"] for round_ in rounds]
+    )[-100:]
     _record_family_funnel_event("room_created", room, code)
     return redirect(f"/group-games/act-it-out/host/{code}")
 
@@ -1670,6 +1581,7 @@ def play_again_same_players(code: str):
             difficulty=current.get("difficulty", "whole_family"),
             game_mode=current.get("game_mode", "mixed"),
             free_sampler=bool(current.get("free_sampler", False)),
+            recent_prompt_ids=set(session.get("family_game_night_recent_prompt_ids", [])),
         )
         current["round_index"] = 0
         current["round_results"] = []
@@ -1693,6 +1605,12 @@ def play_again_same_players(code: str):
         return jsonify({"error": str(exc)}), 409
     if result is None:
         abort(404)
+    updated_room = result[1]
+    if updated_room.get("game_type") == "family_game_night":
+        session["family_game_night_recent_prompt_ids"] = (
+            list(session.get("family_game_night_recent_prompt_ids", []))
+            + [round_["prompt_id"] for round_ in updated_room.get("rounds", [])]
+        )[-100:]
     return jsonify({"ok": True})
 
 

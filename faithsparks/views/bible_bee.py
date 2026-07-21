@@ -766,7 +766,13 @@ def create_room():
             deck_id = "one-off"
             deck_name = ai_plan["title"]
         else:
-            passages = load_passages(deck_id, version, round_count, seed=code)
+            passages = load_passages(
+                deck_id,
+                version,
+                round_count,
+                seed=code,
+                recent_references=set(session.get("bible_bee_recent_references", [])),
+            )
             deck_name = deck["title"]
         questions = build_questions(
             passages,
@@ -821,6 +827,10 @@ def create_room():
         "ai_review": ai_review,
     }
     _set_room(code, room)
+    session["bible_bee_recent_references"] = (
+        list(session.get("bible_bee_recent_references", []))
+        + [passage["reference"] for passage in passages]
+    )[-100:]
     host_rooms = list(session.get("bible_bee_host_rooms", []))
     if code not in host_rooms:
         host_rooms.append(code)
@@ -1276,6 +1286,7 @@ def play_again_same_players(code: str):
                 current.get("translation_id", "esv"),
                 round_count,
                 seed=f"{code}-{int(time.time())}",
+                recent_references=set(session.get("bible_bee_recent_references", [])),
             )
             if current.get("deck_id") != "one-off"
             else current.get("passages", [])
@@ -1312,6 +1323,11 @@ def play_again_same_players(code: str):
         return jsonify({"error": str(exc)}), 409
     if result is None:
         abort(404)
+    updated_room = result[1]
+    session["bible_bee_recent_references"] = (
+        list(session.get("bible_bee_recent_references", []))
+        + [passage["reference"] for passage in updated_room.get("passages", [])]
+    )[-100:]
     return jsonify({"ok": True})
 
 
