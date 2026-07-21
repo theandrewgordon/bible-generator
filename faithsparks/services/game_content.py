@@ -6,6 +6,7 @@ import hashlib
 import json
 import random
 import re
+import time
 from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
@@ -22,6 +23,20 @@ VALID_DIFFICULTIES = {"easy", "medium", "hard"}
 VALID_TESTAMENTS = {"OT", "NT", "general"}
 VALID_FAMILIARITY = {"famous", "known", "discovery"}
 PRODUCTION_STATUSES = {"published"}
+HISTORY_LIMIT = 100
+HISTORY_TTL_SECONDS = 30 * 24 * 60 * 60
+
+BIBLE_BOOK_METADATA = {
+    **{book: ("OT", "Pentateuch") for book in ("Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy")},
+    **{book: ("OT", "History") for book in ("Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther")},
+    **{book: ("OT", "Wisdom/Poetry") for book in ("Job", "Psalm", "Psalms", "Proverbs", "Ecclesiastes", "Song of Solomon")},
+    **{book: ("OT", "Major Prophets") for book in ("Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel")},
+    **{book: ("OT", "Minor Prophets") for book in ("Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi")},
+    **{book: ("NT", "Gospels") for book in ("Matthew", "Mark", "Luke", "John")},
+    "Acts": ("NT", "Acts"),
+    **{book: ("NT", "Pauline Epistles") for book in ("Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon")},
+    **{book: ("NT", "General Epistles/Revelation") for book in ("Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude", "Revelation")},
+}
 
 
 class ContentValidationError(ValueError):
@@ -38,6 +53,33 @@ class RoundBuildError(ValueError):
 
 def canonical_answer(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
+
+
+def read_recent_history(value: object, *, now: float | None = None) -> list[str]:
+    """Read bounded, non-sensitive history while tolerating legacy/corrupt sessions."""
+    now = time.time() if now is None else now
+    if isinstance(value, dict):
+        try:
+            if now - float(value.get("updated_at", 0)) > HISTORY_TTL_SECONDS:
+                return []
+        except (TypeError, ValueError):
+            return []
+        value = value.get("items")
+    if not isinstance(value, list):
+        return []
+    clean = []
+    for item in value[-HISTORY_LIMIT:]:
+        if isinstance(item, str) and 1 <= len(item) <= 120 and re.fullmatch(r"[A-Za-z0-9 :._-]+", item):
+            clean.append(item)
+    return clean
+
+
+def updated_recent_history(value: object, new_items: list[str], *, now: float | None = None) -> dict:
+    clean = read_recent_history(value, now=now)
+    for item in new_items:
+        if isinstance(item, str) and item not in clean:
+            clean.append(item)
+    return {"items": clean[-HISTORY_LIMIT:], "updated_at": time.time() if now is None else now}
 
 
 @lru_cache(maxsize=1)
@@ -90,10 +132,22 @@ def _reference_parts(reference: str) -> tuple[str, int, int, int] | None:
 
 def validate_family_content(data: dict, *, enforce_depth: bool = False) -> dict:
     errors: list[str] = []
+    editorial_errors: list[str] = []
+    depth_errors: list[str] = []
     warnings: list[str] = []
+    human_review_notes: list[str] = []
     records = data.get("records") if isinstance(data, dict) else None
     if not isinstance(records, list):
-        return {"errors": ["root: records must be a list"], "warnings": [], "stats": {}}
+        root_error = ["root: records must be a list"]
+        return {
+            "errors": root_error,
+            "structural_errors": root_error,
+            "editorial_errors": [],
+            "depth_errors": [],
+            "warnings": [],
+            "human_review_notes": [],
+            "stats": {},
+        }
     seen_ids: set[str] = set()
     for index, record in enumerate(records):
         prompt_id = str(record.get("id") or f"record[{index}]")
@@ -132,6 +186,13 @@ def validate_family_content(data: dict, *, enforce_depth: bool = False) -> dict:
             errors.append(f"{prefix} guess mode requires at least four progressive_clues")
         if len({clue.casefold() for clue in clues}) != len(clues):
             errors.append(f"{prefix} duplicate progressive_clues")
+        accepted_answers = [record.get("answer", ""), *(record.get("answer_aliases") or [])]
+        for clue_index, clue in enumerate(clues, start=1):
+            normalized_clue = f" {canonical_answer(clue)} "
+            for accepted in accepted_answers:
+                normalized_answer = canonical_answer(str(accepted))
+                if normalized_answer and f" {normalized_answer} " in normalized_clue:
+                    editorial_errors.append(f"{prefix} clue {clue_index} leaks accepted answer {accepted!r}")
         reference = str(record.get("reference") or "").strip()
         book = record.get("book")
         testament = record.get("testament")
@@ -147,6 +208,12 @@ def validate_family_content(data: dict, *, enforce_depth: bool = False) -> dict:
             errors.append(f"{prefix} book requires a reference")
         if record.get("status") not in {"published", "review", "retired"}:
             errors.append(f"{prefix} invalid status {record.get('status')!r}")
+        if record.get("review_status") not in {"approved", "human_review"}:
+            errors.append(f"{prefix} invalid or missing review_status")
+        if not str(record.get("source_provenance") or "").strip():
+            errors.append(f"{prefix} source_provenance is required")
+        if record.get("review_status") == "human_review":
+            human_review_notes.append(f"{prefix} human editorial review remains")
 
     published = [item for item in records if item.get("status") == "published"]
     free_ids = data.get("free_sampler_ids") or []
@@ -163,6 +230,9 @@ def validate_family_content(data: dict, *, enforce_depth: bool = False) -> dict:
     for mode, count in mode_counts.items():
         if count < 8:
             errors.append(f"free_sampler_ids: {mode} requires 8 eligible prompts; found {count}")
+    free_stories = [item.get("story_group") for item in free_records]
+    if len(set(free_stories)) != len(free_stories):
+        editorial_errors.append("free_sampler_ids: duplicate story_group membership")
 
     depth = {}
     for mode in sorted(VALID_MODES):
@@ -172,10 +242,14 @@ def validate_family_content(data: dict, *, enforce_depth: bool = False) -> dict:
         if len(answers) < 80:
             warnings.append(f"depth: {mode} has {len(answers)} unique answers; target is 80")
             if enforce_depth:
-                errors.append(f"depth: {mode} requires 80 unique answers")
+                depth_errors.append(f"depth: {mode} requires 80 unique answers")
     return {
         "errors": errors,
+        "structural_errors": errors,
+        "editorial_errors": editorial_errors,
+        "depth_errors": depth_errors,
         "warnings": warnings,
+        "human_review_notes": human_review_notes,
         "stats": {
             "records": len(records),
             "published": len(published),
@@ -189,17 +263,30 @@ def validate_family_content(data: dict, *, enforce_depth: bool = False) -> dict:
 
 def assert_valid_production_content() -> dict:
     report = validate_family_content(load_family_game_content())
-    if report["errors"]:
-        raise ContentValidationError("; ".join(report["errors"]))
+    blocking = report["structural_errors"] + report["editorial_errors"] + report["depth_errors"]
+    if blocking:
+        raise ContentValidationError("; ".join(blocking))
     return report
 
 
 def validate_bible_bee_content(data: dict) -> dict:
     errors: list[str] = []
+    editorial_errors: list[str] = []
+    depth_errors: list[str] = []
     warnings: list[str] = []
+    human_review_notes: list[str] = []
     decks = data.get("decks") if isinstance(data, dict) else None
     if not isinstance(decks, list):
-        return {"errors": ["root: decks must be a list"], "warnings": [], "stats": {}}
+        root_error = ["root: decks must be a list"]
+        return {
+            "errors": root_error,
+            "structural_errors": root_error,
+            "editorial_errors": [],
+            "depth_errors": [],
+            "warnings": [],
+            "human_review_notes": [],
+            "stats": {},
+        }
     seen_decks: set[str] = set()
     global_memberships: dict[str, list[str]] = {}
     counts = {}
@@ -234,13 +321,23 @@ def validate_bible_bee_content(data: dict) -> dict:
                 errors.append(f"{prefix} missing difficulty_by_format values")
             if passage.get("status") not in {"published", "review", "retired"}:
                 errors.append(f"{prefix} invalid status")
+            if passage.get("review_status") not in {"approved", "human_review"}:
+                errors.append(f"{prefix} invalid or missing review_status")
+            if not passage.get("source_provenance"):
+                errors.append(f"{prefix} source_provenance is required")
+            if passage.get("review_status") == "human_review":
+                human_review_notes.append(f"{prefix} context/range review remains")
         counts[deck_id] = len(seen_refs)
         if len(seen_refs) < 20:
             warnings.append(f"depth: {deck_id} has only {len(seen_refs)} unique references")
     reused = {reference: deck_ids for reference, deck_ids in global_memberships.items() if len(deck_ids) > 1}
     return {
         "errors": errors,
+        "structural_errors": errors,
+        "editorial_errors": editorial_errors,
+        "depth_errors": depth_errors,
         "warnings": warnings,
+        "human_review_notes": human_review_notes,
         "stats": {
             "decks": len(decks),
             "memberships": sum(counts.values()),
@@ -330,9 +427,23 @@ def build_family_rounds(
         category_counts = {category: sum(round_["category"] == category for round_ in rounds) for category in categories}
         testament_counts = {testament: sum(round_["testament"] == testament for round_ in rounds) for testament in ("OT", "NT", "general")}
         familiarity_counts = {value: sum(round_["familiarity"] == value for round_ in rounds) for value in VALID_FAMILIARITY}
-        rng.shuffle(strict)
-        strict.sort(key=lambda item: (category_counts[item["category"]], testament_counts[item["testament"]], familiarity_counts[item["familiarity"]]))
-        prompt = strict[0]
+        weights = [
+            (1 / len(item["modes"]))
+            / (
+                1
+                + category_counts[item["category"]] * 0.25
+                + testament_counts[item["testament"]] * 0.1
+                + familiarity_counts[item["familiarity"]] * 0.05
+            )
+            for item in strict
+        ]
+        threshold = rng.random() * sum(weights)
+        prompt = strict[-1]
+        for candidate, weight in zip(strict, weights):
+            threshold -= weight
+            if threshold <= 0:
+                prompt = candidate
+                break
         answer_key = canonical_answer(prompt["answer"])
         used_ids.add(prompt["id"])
         used_answers.add(answer_key)
@@ -348,3 +459,36 @@ def build_family_rounds(
             "choices": [],
         })
     return rounds, diagnostics
+
+
+@lru_cache(maxsize=1)
+def family_capacity_matrix() -> dict[str, int]:
+    """Maximum advertised round option for every paid setup filter combination."""
+    from itertools import combinations
+
+    tiers = {
+        "younger": {"easy"},
+        "whole_family": {"easy", "medium"},
+        "challenge": {"medium", "hard"},
+    }
+    matrix = {}
+    category_list = sorted(VALID_CATEGORIES)
+    for size in range(1, len(category_list) + 1):
+        for category_tuple in combinations(category_list, size):
+            categories = set(category_tuple)
+            for tier, values in tiers.items():
+                for mode in ("mixed", "act", "draw", "clue", "guess"):
+                    maximum = 0
+                    for count in (20, 15, 10):
+                        try:
+                            build_family_rounds(
+                                "CAPACITY", count, categories=categories,
+                                difficulty_values=values, game_mode=mode, free_sampler=False,
+                            )
+                        except RoundBuildError:
+                            continue
+                        maximum = count
+                        break
+                    key = "|".join((tier, mode, ",".join(category_tuple)))
+                    matrix[key] = maximum
+    return matrix

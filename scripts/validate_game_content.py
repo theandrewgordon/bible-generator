@@ -24,7 +24,8 @@ def main() -> int:
         "bible_bee": validate_bible_bee_content(load_bible_bee_content()),
     }
     print(json.dumps(report, indent=2, sort_keys=True))
-    return 1 if any(section["errors"] for section in report.values()) else 0
+    blocking_keys = ("structural_errors", "editorial_errors", "depth_errors")
+    return 1 if any(section[key] for section in report.values() for key in blocking_keys) else 0
 
 
 if __name__ == "__main__":

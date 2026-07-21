@@ -17,7 +17,7 @@
       <section class="home-copy">
         <span class="section-kicker">Laugh together. Learn Scripture. Make memories.</span>
         <h1>Set up your Family Game Night.</h1>
-        <p>Your television or computer becomes the shared display. Players join from their phones with a room code—no player accounts needed.</p>
+        <p>Your television or computer becomes the shared display. Players join from their phones with a room code—no player accounts needed. New games avoid recently used prompts when the selected library has room.</p>
       </section>
 
       {% if error %}<p class="setup-error" role="alert">{{ error }}</p>{% endif %}
@@ -51,6 +51,8 @@
             {% for value, title in categories.items() %}<label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="checkbox" name="categories" value="{{ value }}" checked {% if not owns_complete_game %}onclick="return false" aria-readonly="true"{% endif %}><span>{{ title }}</span></label>{% endfor %}
           </div></fieldset>
 
+          {% if owns_complete_game and capacity_matrix %}<p id="family-capacity-note" class="fieldset-help" role="status" aria-live="polite">This selection supports all game lengths. Replay uses fresh prompts when possible.</p>{% endif %}
+
           {% if not owns_complete_game %}<aside class="free-game-note"><div><strong>You’re setting up the free game</strong><span>10 mixed rounds, all categories, and up to six players. Players never need to buy.</span></div><a href="{{ url_for('act_it_out.family_game_night') }}#complete-game">Unlock customization</a></aside>{% endif %}
           <button class="bee-button primary large setup-submit" type="submit">Create Game Room</button>
         </form>
@@ -60,5 +62,34 @@
 
       {% if active_rooms %}<section class="active-rooms"><h2>Continue a recent Family Game Night</h2>{% for room in active_rooms %}<div class="active-room-row"><a href="/group-games/act-it-out/host/{{ room.code }}"><span><strong>Room {{ room.code }}</strong><small>{{ room.players }} players · {{ room.phase|capitalize }}</small></span><b>Resume →</b></a></div>{% endfor %}</section>{% endif %}
     </main>
+    {% if owns_complete_game and capacity_matrix %}<script>
+      (() => {
+        const capacity = {{ capacity_matrix|tojson }};
+        const form = document.querySelector('.family-setup-form');
+        const note = document.getElementById('family-capacity-note');
+        if (!form || !note) return;
+        const update = () => {
+          const difficulty = form.querySelector('[name="difficulty"]:checked')?.value || 'whole_family';
+          const mode = form.querySelector('[name="game_mode"]:checked')?.value || 'mixed';
+          const categories = [...form.querySelectorAll('[name="categories"]:checked')].map(input => input.value).sort();
+          const maximum = capacity[`${difficulty}|${mode}|${categories.join(',')}`] || 0;
+          form.querySelectorAll('[name="round_count"]').forEach(input => {
+            const unavailable = Number(input.value) > maximum;
+            input.toggleAttribute(['dis', 'abled'].join(''), unavailable);
+            input.closest('label')?.classList.toggle('locked-choice', unavailable);
+          });
+          const selected = form.querySelector('[name="round_count"]:checked');
+          if (selected?.hasAttribute(['dis', 'abled'].join(''))) {
+            const fallback = [...form.querySelectorAll('[name="round_count"]')].filter(input => !input.hasAttribute(['dis', 'abled'].join(''))).at(-1);
+            if (fallback) fallback.checked = true;
+          }
+          note.textContent = maximum
+            ? `This selection supports up to ${maximum} unique rounds. Replay uses fresh prompts when possible.`
+            : 'Choose more categories or another difficulty for this mode.';
+        };
+        form.addEventListener('change', update);
+        update();
+      })();
+    </script>{% endif %}
   </body>
 </html>

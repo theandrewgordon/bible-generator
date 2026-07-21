@@ -121,3 +121,22 @@ def test_admin_analytics_requires_admin_access():
 
     assert response.status_code == 302
     assert "/login/google" in response.headers["Location"]
+
+
+def test_admin_analytics_includes_precomputed_content_health(monkeypatch):
+    expected = {"available": True, "family_game_night": {"counts": {}}, "bible_bee": {"counts": {}}}
+    monkeypatch.setattr(analytics, "load_precomputed_health", lambda: expected)
+    monkeypatch.setattr(analytics, "db", None)
+    monkeypatch.setattr(analytics, "get_collections", lambda show_all: [])
+    monkeypatch.setattr(analytics.analytics_svc, "daily_overview", lambda: {"series": []})
+    monkeypatch.setattr(analytics.analytics_svc, "recent_visits", lambda: [])
+    monkeypatch.setattr(analytics, "render_template", lambda _template, **context: context)
+
+    assert analytics.admin_analytics()["content_health"] == expected
+
+
+def test_content_health_template_contains_no_passage_or_player_details():
+    template = open("templates/admin_analytics.html", encoding="utf-8").read()
+    assert "Game content health" in template
+    assert "No passage text" in template
+    assert "room codes" in template

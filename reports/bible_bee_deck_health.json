@@ -1,0 +1,1456 @@
+{
+  "counts": {
+    "difficulty_by_format": {
+      "fill_blank": {
+        "challenge": 45,
+        "easy": 111,
+        "family": 539,
+        "hard": 25
+      },
+      "finish": {
+        "challenge": 45,
+        "easy": 457,
+        "expert": 6,
+        "family": 193,
+        "hard": 19
+      },
+      "oral": {
+        "challenge": 101,
+        "easy": 111,
+        "expert": 21,
+        "family": 438,
+        "hard": 49
+      },
+      "reference": {
+        "challenge": 152,
+        "easy": 12,
+        "family": 550,
+        "hard": 6
+      }
+    },
+    "divisions": {
+      "Acts": 22,
+      "General Epistles/Revelation": 55,
+      "Gospels": 188,
+      "History": 17,
+      "Major Prophets": 50,
+      "Minor Prophets": 12,
+      "Pauline Epistles": 157,
+      "Pentateuch": 33,
+      "Wisdom/Poetry": 186
+    },
+    "human_review": 5,
+    "memberships": 720,
+    "named_decks": 18,
+    "shared_references": 101,
+    "testaments": {
+      "NT": 422,
+      "OT": 298
+    },
+    "unique_references": 601
+  },
+  "decks": {
+    "bible-bee-prep": {
+      "books": {
+        "1 Corinthians": 1,
+        "1 Peter": 1,
+        "1 Samuel": 1,
+        "Acts": 1,
+        "Colossians": 1,
+        "Deuteronomy": 1,
+        "Ephesians": 1,
+        "Isaiah": 2,
+        "John": 4,
+        "Joshua": 1,
+        "Luke": 1,
+        "Mark": 1,
+        "Matthew": 6,
+        "Micah": 1,
+        "Philippians": 1,
+        "Proverbs": 1,
+        "Psalm": 10,
+        "Romans": 5
+      },
+      "divisions": {
+        "Acts": 1,
+        "General Epistles/Revelation": 1,
+        "Gospels": 12,
+        "History": 2,
+        "Major Prophets": 2,
+        "Minor Prophets": 1,
+        "Pauline Epistles": 9,
+        "Pentateuch": 1,
+        "Wisdom/Poetry": 11
+      },
+      "familiarity": {
+        "discovery": 27,
+        "known": 13
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 5,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 23,
+        "OT": 17
+      },
+      "title": "Bible Bee Prep",
+      "total": 40,
+      "unique": 40
+    },
+    "christmas-joy": {
+      "books": {
+        "1 John": 1,
+        "1 Timothy": 1,
+        "2 Corinthians": 1,
+        "Galatians": 1,
+        "Genesis": 2,
+        "Hebrews": 2,
+        "Isaiah": 5,
+        "Jeremiah": 1,
+        "John": 4,
+        "Luke": 11,
+        "Matthew": 5,
+        "Micah": 1,
+        "Numbers": 1,
+        "Philippians": 1,
+        "Revelation": 1,
+        "Romans": 1,
+        "Zechariah": 1
+      },
+      "divisions": {
+        "General Epistles/Revelation": 4,
+        "Gospels": 20,
+        "Major Prophets": 6,
+        "Minor Prophets": 2,
+        "Pauline Epistles": 5,
+        "Pentateuch": 3
+      },
+      "familiarity": {
+        "discovery": 7,
+        "known": 33
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 29,
+        "OT": 11
+      },
+      "title": "Christmas Joy",
+      "total": 40,
+      "unique": 40
+    },
+    "courage-trust": {
+      "books": {
+        "1 Peter": 1,
+        "2 Timothy": 1,
+        "Deuteronomy": 2,
+        "Hebrews": 1,
+        "Isaiah": 6,
+        "Jeremiah": 1,
+        "John": 2,
+        "Joshua": 2,
+        "Mark": 1,
+        "Matthew": 3,
+        "Nahum": 1,
+        "Philippians": 1,
+        "Proverbs": 1,
+        "Psalm": 14,
+        "Romans": 3
+      },
+      "divisions": {
+        "General Epistles/Revelation": 2,
+        "Gospels": 6,
+        "History": 2,
+        "Major Prophets": 7,
+        "Minor Prophets": 1,
+        "Pauline Epistles": 5,
+        "Pentateuch": 2,
+        "Wisdom/Poetry": 15
+      },
+      "familiarity": {
+        "discovery": 1,
+        "famous": 3,
+        "known": 36
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 13,
+        "OT": 27
+      },
+      "title": "Courage & Trust",
+      "total": 40,
+      "unique": 40
+    },
+    "easter-hope": {
+      "books": {
+        "1 Corinthians": 4,
+        "1 Peter": 1,
+        "2 Corinthians": 1,
+        "Acts": 2,
+        "Isaiah": 2,
+        "John": 8,
+        "Luke": 4,
+        "Mark": 4,
+        "Matthew": 5,
+        "Philippians": 1,
+        "Psalm": 1,
+        "Revelation": 1,
+        "Romans": 5,
+        "Zechariah": 1
+      },
+      "divisions": {
+        "Acts": 2,
+        "General Epistles/Revelation": 2,
+        "Gospels": 21,
+        "Major Prophets": 2,
+        "Minor Prophets": 1,
+        "Pauline Epistles": 11,
+        "Wisdom/Poetry": 1
+      },
+      "familiarity": {
+        "discovery": 2,
+        "known": 38
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 36,
+        "OT": 4
+      },
+      "title": "Easter Hope",
+      "total": 40,
+      "unique": 40
+    },
+    "family-favorites": {
+      "books": {
+        "1 Peter": 1,
+        "1 Thessalonians": 1,
+        "Colossians": 1,
+        "Deuteronomy": 1,
+        "Ephesians": 1,
+        "Exodus": 1,
+        "Genesis": 1,
+        "Hebrews": 1,
+        "Isaiah": 2,
+        "James": 1,
+        "John": 3,
+        "Joshua": 1,
+        "Luke": 1,
+        "Mark": 1,
+        "Matthew": 4,
+        "Micah": 1,
+        "Philippians": 1,
+        "Proverbs": 2,
+        "Psalm": 11,
+        "Romans": 4
+      },
+      "divisions": {
+        "General Epistles/Revelation": 3,
+        "Gospels": 9,
+        "History": 1,
+        "Major Prophets": 2,
+        "Minor Prophets": 1,
+        "Pauline Epistles": 8,
+        "Pentateuch": 3,
+        "Wisdom/Poetry": 13
+      },
+      "familiarity": {
+        "famous": 32,
+        "known": 8
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 20,
+        "OT": 20
+      },
+      "title": "Family Favorites",
+      "total": 40,
+      "unique": 40
+    },
+    "forgiveness-grace": {
+      "books": {
+        "1 John": 1,
+        "1 Peter": 1,
+        "2 Corinthians": 1,
+        "Acts": 2,
+        "Colossians": 2,
+        "Daniel": 1,
+        "Ephesians": 3,
+        "Hebrews": 2,
+        "Isaiah": 3,
+        "John": 1,
+        "Luke": 4,
+        "Mark": 1,
+        "Matthew": 6,
+        "Micah": 1,
+        "Nehemiah": 1,
+        "Proverbs": 1,
+        "Psalm": 5,
+        "Romans": 4
+      },
+      "divisions": {
+        "Acts": 2,
+        "General Epistles/Revelation": 4,
+        "Gospels": 12,
+        "History": 1,
+        "Major Prophets": 4,
+        "Minor Prophets": 1,
+        "Pauline Epistles": 10,
+        "Wisdom/Poetry": 6
+      },
+      "familiarity": {
+        "discovery": 1,
+        "famous": 1,
+        "known": 38
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 28,
+        "OT": 12
+      },
+      "title": "Forgiveness & Grace",
+      "total": 40,
+      "unique": 40
+    },
+    "fruit-spirit": {
+      "books": {
+        "1 Corinthians": 1,
+        "1 John": 3,
+        "1 Peter": 4,
+        "1 Thessalonians": 2,
+        "2 Peter": 2,
+        "2 Timothy": 1,
+        "Colossians": 3,
+        "Ephesians": 4,
+        "Galatians": 3,
+        "Hebrews": 1,
+        "James": 5,
+        "John": 1,
+        "Luke": 1,
+        "Micah": 1,
+        "Philippians": 2,
+        "Proverbs": 2,
+        "Romans": 2,
+        "Titus": 1,
+        "Zechariah": 1
+      },
+      "divisions": {
+        "General Epistles/Revelation": 15,
+        "Gospels": 2,
+        "Minor Prophets": 2,
+        "Pauline Epistles": 19,
+        "Wisdom/Poetry": 2
+      },
+      "familiarity": {
+        "discovery": 1,
+        "famous": 6,
+        "known": 33
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 36,
+        "OT": 4
+      },
+      "title": "Fruit of the Spirit",
+      "total": 40,
+      "unique": 40
+    },
+    "god-is-near": {
+      "books": {
+        "1 Kings": 1,
+        "1 Peter": 1,
+        "2 Corinthians": 1,
+        "Acts": 1,
+        "Deuteronomy": 3,
+        "Exodus": 1,
+        "Genesis": 1,
+        "Hebrews": 1,
+        "Isaiah": 4,
+        "James": 1,
+        "Jeremiah": 1,
+        "John": 1,
+        "Joshua": 1,
+        "Matthew": 3,
+        "Philippians": 1,
+        "Psalm": 15,
+        "Revelation": 1,
+        "Romans": 1,
+        "Zephaniah": 1
+      },
+      "divisions": {
+        "Acts": 1,
+        "General Epistles/Revelation": 4,
+        "Gospels": 4,
+        "History": 2,
+        "Major Prophets": 5,
+        "Minor Prophets": 1,
+        "Pauline Epistles": 3,
+        "Pentateuch": 5,
+        "Wisdom/Poetry": 15
+      },
+      "familiarity": {
+        "discovery": 3,
+        "famous": 2,
+        "known": 35
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 12,
+        "OT": 28
+      },
+      "title": "God Is Near",
+      "total": 40,
+      "unique": 40
+    },
+    "gospel-foundations": {
+      "books": {
+        "1 Corinthians": 1,
+        "1 John": 1,
+        "1 Peter": 1,
+        "2 Corinthians": 1,
+        "Acts": 2,
+        "Ephesians": 2,
+        "Exodus": 1,
+        "Galatians": 1,
+        "Genesis": 2,
+        "Isaiah": 2,
+        "John": 9,
+        "Leviticus": 1,
+        "Luke": 1,
+        "Mark": 1,
+        "Matthew": 2,
+        "Romans": 11,
+        "Titus": 1
+      },
+      "divisions": {
+        "Acts": 2,
+        "General Epistles/Revelation": 2,
+        "Gospels": 13,
+        "Major Prophets": 2,
+        "Pauline Epistles": 17,
+        "Pentateuch": 4
+      },
+      "familiarity": {
+        "famous": 7,
+        "known": 33
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 34,
+        "OT": 6
+      },
+      "title": "Gospel Foundations",
+      "total": 40,
+      "unique": 40
+    },
+    "identity-in-christ": {
+      "books": {
+        "1 Corinthians": 3,
+        "1 John": 1,
+        "1 Peter": 2,
+        "2 Corinthians": 3,
+        "Colossians": 2,
+        "Ephesians": 5,
+        "Galatians": 2,
+        "Genesis": 1,
+        "Isaiah": 2,
+        "Jeremiah": 1,
+        "John": 5,
+        "Matthew": 1,
+        "Philippians": 1,
+        "Psalm": 2,
+        "Revelation": 1,
+        "Romans": 8
+      },
+      "divisions": {
+        "General Epistles/Revelation": 4,
+        "Gospels": 6,
+        "Major Prophets": 3,
+        "Pauline Epistles": 24,
+        "Pentateuch": 1,
+        "Wisdom/Poetry": 2
+      },
+      "familiarity": {
+        "discovery": 1,
+        "famous": 2,
+        "known": 37
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 34,
+        "OT": 6
+      },
+      "title": "Identity in Christ",
+      "total": 40,
+      "unique": 40
+    },
+    "mission-witness": {
+      "books": {
+        "1 Corinthians": 1,
+        "1 Peter": 2,
+        "2 Corinthians": 2,
+        "2 Timothy": 2,
+        "Acts": 9,
+        "Colossians": 3,
+        "Ephesians": 1,
+        "Isaiah": 3,
+        "John": 4,
+        "Luke": 3,
+        "Mark": 1,
+        "Matthew": 5,
+        "Philippians": 1,
+        "Romans": 3
+      },
+      "divisions": {
+        "Acts": 9,
+        "General Epistles/Revelation": 2,
+        "Gospels": 13,
+        "Major Prophets": 3,
+        "Pauline Epistles": 13
+      },
+      "familiarity": {
+        "discovery": 1,
+        "famous": 2,
+        "known": 37
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 37,
+        "OT": 3
+      },
+      "title": "Mission & Witness",
+      "total": 40,
+      "unique": 40
+    },
+    "names-of-god": {
+      "books": {
+        "1 Samuel": 1,
+        "2 Samuel": 1,
+        "Deuteronomy": 2,
+        "Exodus": 6,
+        "Ezekiel": 1,
+        "Genesis": 4,
+        "Hebrews": 1,
+        "Isaiah": 5,
+        "Jeremiah": 3,
+        "John": 4,
+        "Matthew": 1,
+        "Psalm": 10,
+        "Revelation": 1
+      },
+      "divisions": {
+        "General Epistles/Revelation": 2,
+        "Gospels": 5,
+        "History": 2,
+        "Major Prophets": 9,
+        "Pentateuch": 12,
+        "Wisdom/Poetry": 10
+      },
+      "familiarity": {
+        "known": 40
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 7,
+        "OT": 33
+      },
+      "title": "Names of God",
+      "total": 40,
+      "unique": 40
+    },
+    "prayer-praise": {
+      "books": {
+        "1 Chronicles": 2,
+        "1 Peter": 1,
+        "1 Thessalonians": 1,
+        "2 Chronicles": 1,
+        "Acts": 1,
+        "Colossians": 1,
+        "Ephesians": 1,
+        "Hebrews": 2,
+        "Isaiah": 1,
+        "James": 1,
+        "John": 1,
+        "Luke": 1,
+        "Matthew": 2,
+        "Philippians": 2,
+        "Psalm": 22
+      },
+      "divisions": {
+        "Acts": 1,
+        "General Epistles/Revelation": 4,
+        "Gospels": 4,
+        "History": 3,
+        "Major Prophets": 1,
+        "Pauline Epistles": 5,
+        "Wisdom/Poetry": 22
+      },
+      "familiarity": {
+        "discovery": 2,
+        "known": 38
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 14,
+        "OT": 26
+      },
+      "title": "Prayer & Praise",
+      "total": 40,
+      "unique": 40
+    },
+    "psalms-comfort": {
+      "books": {
+        "Psalm": 40
+      },
+      "divisions": {
+        "Wisdom/Poetry": 40
+      },
+      "familiarity": {
+        "discovery": 2,
+        "known": 38
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "OT": 40
+      },
+      "title": "Psalms of Comfort",
+      "total": 40,
+      "unique": 40
+    },
+    "serving-others": {
+      "books": {
+        "1 Corinthians": 2,
+        "1 John": 1,
+        "2 Corinthians": 2,
+        "Acts": 3,
+        "Deuteronomy": 1,
+        "Galatians": 2,
+        "Hebrews": 1,
+        "Isaiah": 1,
+        "John": 2,
+        "Luke": 5,
+        "Mark": 1,
+        "Matthew": 8,
+        "Micah": 1,
+        "Philippians": 1,
+        "Proverbs": 5,
+        "Romans": 3,
+        "Zechariah": 1
+      },
+      "divisions": {
+        "Acts": 3,
+        "General Epistles/Revelation": 2,
+        "Gospels": 16,
+        "Major Prophets": 1,
+        "Minor Prophets": 2,
+        "Pauline Epistles": 10,
+        "Pentateuch": 1,
+        "Wisdom/Poetry": 5
+      },
+      "familiarity": {
+        "discovery": 1,
+        "famous": 1,
+        "known": 38
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 31,
+        "OT": 9
+      },
+      "title": "Serving Others",
+      "total": 40,
+      "unique": 40
+    },
+    "thankful-hearts": {
+      "books": {
+        "1 Chronicles": 1,
+        "1 Corinthians": 2,
+        "1 Thessalonians": 1,
+        "2 Corinthians": 3,
+        "Acts": 1,
+        "Colossians": 4,
+        "Daniel": 1,
+        "Ephesians": 1,
+        "Hebrews": 1,
+        "Isaiah": 1,
+        "John": 1,
+        "Lamentations": 1,
+        "Luke": 1,
+        "Philippians": 2,
+        "Psalm": 16,
+        "Romans": 3
+      },
+      "divisions": {
+        "Acts": 1,
+        "General Epistles/Revelation": 1,
+        "Gospels": 2,
+        "History": 1,
+        "Major Prophets": 3,
+        "Pauline Epistles": 16,
+        "Wisdom/Poetry": 16
+      },
+      "familiarity": {
+        "known": 40
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 20,
+        "OT": 20
+      },
+      "title": "Thankful Hearts",
+      "total": 40,
+      "unique": 40
+    },
+    "wisdom-obedience": {
+      "books": {
+        "1 Kings": 1,
+        "1 Samuel": 1,
+        "Colossians": 1,
+        "Deuteronomy": 1,
+        "Ecclesiastes": 1,
+        "James": 3,
+        "John": 1,
+        "Joshua": 1,
+        "Luke": 1,
+        "Matthew": 1,
+        "Proverbs": 22,
+        "Psalm": 5,
+        "Romans": 1
+      },
+      "divisions": {
+        "General Epistles/Revelation": 3,
+        "Gospels": 3,
+        "History": 3,
+        "Pauline Epistles": 2,
+        "Pentateuch": 1,
+        "Wisdom/Poetry": 28
+      },
+      "familiarity": {
+        "discovery": 2,
+        "known": 38
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 8,
+        "OT": 32
+      },
+      "title": "Wisdom & Obedience",
+      "total": 40,
+      "unique": 40
+    },
+    "words-of-jesus": {
+      "books": {
+        "John": 9,
+        "Luke": 4,
+        "Mark": 4,
+        "Matthew": 23
+      },
+      "divisions": {
+        "Gospels": 40
+      },
+      "familiarity": {
+        "discovery": 3,
+        "famous": 3,
+        "known": 34
+      },
+      "format_eligibility": {
+        "fill_blank": 40,
+        "finish": 40,
+        "oral": 40,
+        "reference": 40
+      },
+      "human_review": 0,
+      "overlaps": [],
+      "supports_rounds": {
+        "10": true,
+        "15": true,
+        "20": true
+      },
+      "testaments": {
+        "NT": 40
+      },
+      "title": "Words of Jesus",
+      "total": 40,
+      "unique": 40
+    }
+  },
+  "generated_on": "2026-07-21",
+  "report_version": 1,
+  "shared_references": {
+    "1 corinthians 15:3-4": [
+      "gospel-foundations",
+      "easter-hope"
+    ],
+    "1 john 1:9": [
+      "gospel-foundations",
+      "forgiveness-grace"
+    ],
+    "1 peter 2:9": [
+      "identity-in-christ",
+      "mission-witness"
+    ],
+    "1 peter 4:8": [
+      "fruit-spirit",
+      "forgiveness-grace"
+    ],
+    "1 peter 5:7": [
+      "family-favorites",
+      "courage-trust",
+      "prayer-praise",
+      "god-is-near"
+    ],
+    "1 thessalonians 5:16-18": [
+      "family-favorites",
+      "fruit-spirit",
+      "prayer-praise",
+      "thankful-hearts"
+    ],
+    "2 corinthians 12:9": [
+      "god-is-near",
+      "forgiveness-grace"
+    ],
+    "2 corinthians 5:17": [
+      "identity-in-christ",
+      "easter-hope"
+    ],
+    "2 corinthians 5:20": [
+      "identity-in-christ",
+      "mission-witness"
+    ],
+    "2 timothy 1:7": [
+      "courage-trust",
+      "fruit-spirit"
+    ],
+    "colossians 3:15": [
+      "fruit-spirit",
+      "thankful-hearts"
+    ],
+    "colossians 3:23": [
+      "family-favorites",
+      "fruit-spirit"
+    ],
+    "colossians 4:2": [
+      "prayer-praise",
+      "thankful-hearts"
+    ],
+    "deuteronomy 31:6": [
+      "courage-trust",
+      "god-is-near"
+    ],
+    "deuteronomy 31:8": [
+      "courage-trust",
+      "god-is-near"
+    ],
+    "ephesians 1:7": [
+      "gospel-foundations",
+      "forgiveness-grace"
+    ],
+    "ephesians 2:8-9": [
+      "family-favorites",
+      "gospel-foundations"
+    ],
+    "ephesians 4:32": [
+      "fruit-spirit",
+      "forgiveness-grace"
+    ],
+    "genesis 1:1": [
+      "gospel-foundations",
+      "names-of-god"
+    ],
+    "genesis 1:27": [
+      "family-favorites",
+      "identity-in-christ"
+    ],
+    "genesis 3:15": [
+      "gospel-foundations",
+      "christmas-joy"
+    ],
+    "hebrews 4:16": [
+      "prayer-praise",
+      "forgiveness-grace"
+    ],
+    "isaiah 40:31": [
+      "family-favorites",
+      "courage-trust",
+      "god-is-near"
+    ],
+    "isaiah 41:10": [
+      "family-favorites",
+      "courage-trust"
+    ],
+    "isaiah 43:2": [
+      "courage-trust",
+      "god-is-near"
+    ],
+    "isaiah 9:6": [
+      "christmas-joy",
+      "names-of-god"
+    ],
+    "james 1:5": [
+      "family-favorites",
+      "wisdom-obedience"
+    ],
+    "john 10:11": [
+      "words-of-jesus",
+      "names-of-god"
+    ],
+    "john 11:25-26": [
+      "words-of-jesus",
+      "easter-hope"
+    ],
+    "john 14:6": [
+      "family-favorites",
+      "gospel-foundations",
+      "words-of-jesus"
+    ],
+    "john 15:16": [
+      "identity-in-christ",
+      "mission-witness"
+    ],
+    "john 1:1": [
+      "gospel-foundations",
+      "names-of-god"
+    ],
+    "john 1:14": [
+      "gospel-foundations",
+      "christmas-joy"
+    ],
+    "john 3:16": [
+      "family-favorites",
+      "gospel-foundations",
+      "words-of-jesus",
+      "identity-in-christ"
+    ],
+    "john 3:17": [
+      "gospel-foundations",
+      "christmas-joy"
+    ],
+    "john 6:35": [
+      "gospel-foundations",
+      "words-of-jesus"
+    ],
+    "john 8:12": [
+      "family-favorites",
+      "words-of-jesus"
+    ],
+    "joshua 1:9": [
+      "courage-trust",
+      "god-is-near"
+    ],
+    "luke 19:10": [
+      "gospel-foundations",
+      "mission-witness"
+    ],
+    "luke 6:31": [
+      "family-favorites",
+      "fruit-spirit",
+      "words-of-jesus"
+    ],
+    "mark 10:27": [
+      "family-favorites",
+      "words-of-jesus"
+    ],
+    "matthew 11:28": [
+      "family-favorites",
+      "god-is-near"
+    ],
+    "matthew 18:20": [
+      "words-of-jesus",
+      "god-is-near"
+    ],
+    "matthew 1:21": [
+      "gospel-foundations",
+      "christmas-joy"
+    ],
+    "matthew 1:23": [
+      "christmas-joy",
+      "names-of-god"
+    ],
+    "matthew 20:28": [
+      "words-of-jesus",
+      "serving-others"
+    ],
+    "matthew 22:37-39": [
+      "family-favorites",
+      "words-of-jesus"
+    ],
+    "matthew 25:40": [
+      "words-of-jesus",
+      "serving-others"
+    ],
+    "matthew 28:19-20": [
+      "words-of-jesus",
+      "mission-witness"
+    ],
+    "matthew 5:16": [
+      "family-favorites",
+      "words-of-jesus",
+      "serving-others"
+    ],
+    "matthew 6:19-21": [
+      "words-of-jesus",
+      "bible-bee-prep"
+    ],
+    "matthew 6:33": [
+      "family-favorites",
+      "words-of-jesus"
+    ],
+    "matthew 6:34": [
+      "courage-trust",
+      "words-of-jesus"
+    ],
+    "matthew 7:12": [
+      "words-of-jesus",
+      "serving-others"
+    ],
+    "matthew 7:24-25": [
+      "wisdom-obedience",
+      "words-of-jesus"
+    ],
+    "matthew 7:7": [
+      "words-of-jesus",
+      "prayer-praise"
+    ],
+    "matthew 9:37-38": [
+      "words-of-jesus",
+      "mission-witness"
+    ],
+    "micah 6:8": [
+      "family-favorites",
+      "fruit-spirit",
+      "serving-others"
+    ],
+    "philippians 2:3-4": [
+      "fruit-spirit",
+      "serving-others"
+    ],
+    "philippians 4:4": [
+      "prayer-praise",
+      "thankful-hearts"
+    ],
+    "philippians 4:6-7": [
+      "courage-trust",
+      "prayer-praise"
+    ],
+    "proverbs 15:1": [
+      "wisdom-obedience",
+      "fruit-spirit"
+    ],
+    "proverbs 17:17": [
+      "family-favorites",
+      "wisdom-obedience"
+    ],
+    "proverbs 3:5-6": [
+      "family-favorites",
+      "courage-trust",
+      "wisdom-obedience"
+    ],
+    "psalm 100:1-5": [
+      "psalms-comfort",
+      "prayer-praise"
+    ],
+    "psalm 100:3": [
+      "family-favorites",
+      "identity-in-christ"
+    ],
+    "psalm 103:1-2": [
+      "psalms-comfort",
+      "prayer-praise"
+    ],
+    "psalm 103:12": [
+      "family-favorites",
+      "forgiveness-grace"
+    ],
+    "psalm 105:1": [
+      "prayer-praise",
+      "thankful-hearts"
+    ],
+    "psalm 118:24": [
+      "family-favorites",
+      "prayer-praise",
+      "thankful-hearts"
+    ],
+    "psalm 118:6": [
+      "courage-trust",
+      "psalms-comfort"
+    ],
+    "psalm 119:105": [
+      "family-favorites",
+      "wisdom-obedience"
+    ],
+    "psalm 119:11": [
+      "wisdom-obedience",
+      "psalms-comfort"
+    ],
+    "psalm 121:1-2": [
+      "courage-trust",
+      "psalms-comfort",
+      "god-is-near"
+    ],
+    "psalm 16:8": [
+      "psalms-comfort",
+      "god-is-near"
+    ],
+    "psalm 18:2": [
+      "psalms-comfort",
+      "names-of-god"
+    ],
+    "psalm 1:1-3": [
+      "wisdom-obedience",
+      "bible-bee-prep"
+    ],
+    "psalm 23:1": [
+      "family-favorites",
+      "names-of-god"
+    ],
+    "psalm 23:4": [
+      "courage-trust",
+      "god-is-near"
+    ],
+    "psalm 27:1": [
+      "courage-trust",
+      "psalms-comfort"
+    ],
+    "psalm 28:7": [
+      "psalms-comfort",
+      "thankful-hearts"
+    ],
+    "psalm 32:7": [
+      "psalms-comfort",
+      "god-is-near"
+    ],
+    "psalm 34:8": [
+      "family-favorites",
+      "psalms-comfort"
+    ],
+    "psalm 46:1": [
+      "courage-trust",
+      "psalms-comfort",
+      "god-is-near"
+    ],
+    "psalm 46:10": [
+      "family-favorites",
+      "names-of-god"
+    ],
+    "psalm 55:22": [
+      "courage-trust",
+      "psalms-comfort",
+      "god-is-near"
+    ],
+    "psalm 84:11": [
+      "psalms-comfort",
+      "names-of-god"
+    ],
+    "psalm 86:5": [
+      "psalms-comfort",
+      "forgiveness-grace"
+    ],
+    "psalm 91:1-2": [
+      "courage-trust",
+      "psalms-comfort"
+    ],
+    "romans 12:10": [
+      "fruit-spirit",
+      "serving-others"
+    ],
+    "romans 12:2": [
+      "wisdom-obedience",
+      "identity-in-christ"
+    ],
+    "romans 1:16": [
+      "gospel-foundations",
+      "mission-witness"
+    ],
+    "romans 3:23": [
+      "family-favorites",
+      "gospel-foundations"
+    ],
+    "romans 3:24": [
+      "gospel-foundations",
+      "forgiveness-grace"
+    ],
+    "romans 4:25": [
+      "gospel-foundations",
+      "easter-hope"
+    ],
+    "romans 5:1": [
+      "gospel-foundations",
+      "identity-in-christ"
+    ],
+    "romans 5:8": [
+      "family-favorites",
+      "gospel-foundations",
+      "forgiveness-grace"
+    ],
+    "romans 6:23": [
+      "family-favorites",
+      "gospel-foundations"
+    ],
+    "romans 8:1": [
+      "gospel-foundations",
+      "identity-in-christ",
+      "forgiveness-grace"
+    ],
+    "romans 8:28": [
+      "family-favorites",
+      "courage-trust"
+    ],
+    "zechariah 9:9": [
+      "easter-hope",
+      "christmas-joy"
+    ]
+  },
+  "source_hash": "b1ccc11fbd8edbb69574398ce684872ef3bdcb7520d04aafca97db44abacdd69",
+  "validation": {
+    "depth_errors": [],
+    "editorial_errors": [],
+    "human_review_notes": [
+      {
+        "concern": "Long or context-sensitive range needs human review for isolated game use.",
+        "launch_blocking": false,
+        "reason": "context_review",
+        "reference": "John 1:1-14",
+        "severity": "medium",
+        "suggested_options": "Keep for advanced formats, shorten at a natural boundary, or retain with context guidance."
+      },
+      {
+        "concern": "Long or context-sensitive range needs human review for isolated game use.",
+        "launch_blocking": false,
+        "reason": "context_review",
+        "reference": "Luke 15:11-24",
+        "severity": "medium",
+        "suggested_options": "Keep for advanced formats, shorten at a natural boundary, or retain with context guidance."
+      },
+      {
+        "concern": "Long or context-sensitive range needs human review for isolated game use.",
+        "launch_blocking": false,
+        "reason": "context_review",
+        "reference": "Matthew 6:25-34",
+        "severity": "medium",
+        "suggested_options": "Keep for advanced formats, shorten at a natural boundary, or retain with context guidance."
+      },
+      {
+        "concern": "Long or context-sensitive range needs human review for isolated game use.",
+        "launch_blocking": false,
+        "reason": "context_review",
+        "reference": "Romans 12:9-21",
+        "severity": "medium",
+        "suggested_options": "Keep for advanced formats, shorten at a natural boundary, or retain with context guidance."
+      },
+      {
+        "concern": "Long or context-sensitive range needs human review for isolated game use.",
+        "launch_blocking": false,
+        "reason": "context_review",
+        "reference": "Romans 8:1-11",
+        "severity": "medium",
+        "suggested_options": "Keep for advanced formats, shorten at a natural boundary, or retain with context guidance."
+      }
+    ],
+    "structural_errors": [],
+    "warnings": [
+      "john 3:16 appears in 4 decks",
+      "1 peter 5:7 appears in 4 decks",
+      "1 thessalonians 5:16-18 appears in 4 decks"
+    ]
+  }
+}
