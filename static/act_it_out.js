@@ -394,6 +394,23 @@ function drawGuessPanel(state) {
   </div>`;
 }
 
+function bindDrawGuessChoices() {
+  const buttons = [...document.querySelectorAll("[data-draw-choice]")];
+  buttons.forEach(button => {
+    button.addEventListener("click", async () => {
+      buttons.forEach(choice => { choice.disabled = true; });
+      button.classList.add("selected");
+      button.setAttribute("aria-pressed", "true");
+      const saved = await submitDrawGuess(button.dataset.drawChoice);
+      if (!saved) {
+        buttons.forEach(choice => { choice.disabled = false; });
+        button.classList.remove("selected");
+        button.setAttribute("aria-pressed", "false");
+      }
+    });
+  });
+}
+
 function renderRound(state) {
   const isActivePlayer = role === "player" && state.viewer.player_id === state.active_player_id;
   if (role === "player") {
@@ -416,6 +433,7 @@ function renderRound(state) {
              ? `${escapeHTML(state.active_team_name || "Your team")} is guessing from the TV clues.`
              : `${escapeHTML(state.active_player_name || "A player")} is up for ${escapeHTML(state.active_team_name || "this round")}.`}</p>`}
     </section>`;
+    bindDrawGuessChoices();
     return;
   }
   const activePrompt = state.viewer.secret_prompt;
@@ -461,9 +479,7 @@ function renderRound(state) {
   document.querySelectorAll(".award-draw-guesser").forEach(button => {
     button.addEventListener("click", () => awardDrawGuesser(button.dataset.playerId));
   });
-  document.querySelectorAll("[data-draw-choice]").forEach(button => {
-    button.addEventListener("click", () => submitDrawGuess(button.dataset.drawChoice));
-  });
+  bindDrawGuessChoices();
   bindManagement();
 }
 
@@ -729,8 +745,10 @@ async function submitDrawGuess(choice) {
       body: JSON.stringify({ choice }),
     });
     await refresh();
+    return true;
   } catch (error) {
     showToast(error.message);
+    return false;
   }
 }
 

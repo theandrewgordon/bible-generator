@@ -1382,6 +1382,15 @@ def test_draw_mode_phone_guess_scores_and_reveals_when_all_guess():
     assert players["Ben"]["score"] == 100
 
 
+def test_draw_guess_buttons_bind_before_player_round_render_returns():
+    script = open("static/act_it_out.js", encoding="utf-8").read()
+    player_round = script[script.index("function renderRound(state)"):script.index("const activePrompt = state.viewer.secret_prompt;")]
+
+    assert "bindDrawGuessChoices();" in player_round
+    assert player_round.index("bindDrawGuessChoices();") < player_round.rindex("return;")
+    assert 'await submitDrawGuess(button.dataset.drawChoice)' in script
+
+
 def test_draw_mode_host_can_award_a_verbal_guess_once():
     from faithsparks.views import act_it_out
 
