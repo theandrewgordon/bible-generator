@@ -869,7 +869,9 @@ def _active_rooms_for_host(email: str) -> list[dict]:
         return []
     client = db()
     if client:
-        docs = client.collection("act_it_out_rooms").where("host_email", "==", email).stream()
+        docs = client.collection("act_it_out_rooms").where(
+            filter=google_firestore.FieldFilter("host_email", "==", email)
+        ).stream()
         rooms = [(doc.id, doc.to_dict()) for doc in docs]
     else:
         with _local_lock:
