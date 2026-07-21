@@ -12,6 +12,24 @@ from flask import g, has_request_context
 
 from .firestore import db
 
+PLUS_PLAN_NAMES = {"family", "classroom", "plus", "plus_family", "plus_classroom"}
+
+
+def has_active_plus(user_data: dict | None) -> bool:
+    """Return whether a user document represents an active Plus membership."""
+    data = user_data or {}
+    # Current billing writes isPro on activation and clears it on cancellation.
+    # Only fall back to plan for older documents that predate that field.
+    if "isPro" in data:
+        return bool(data.get("isPro"))
+    return str(data.get("plan") or "").strip().lower() in PLUS_PLAN_NAMES
+
+
+def has_family_game_night_access(user_data: dict | None) -> bool:
+    data = user_data or {}
+    owns_standalone = bool((data.get("purchases") or {}).get("family_game_night"))
+    return owns_standalone or has_active_plus(data)
+
 
 def get_user_doc(email: str | None, *, force: bool = False) -> dict:
     """Return the `users/{email}` document as a dict (empty if missing).

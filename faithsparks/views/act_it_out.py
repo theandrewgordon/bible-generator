@@ -20,7 +20,7 @@ from google.cloud import firestore as google_firestore
 from faithsparks.services.firestore import db
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.stripe_svc import STRIPE_PRICE_FAMILY_GAME_NIGHT
-from faithsparks.services.users import get_user_doc
+from faithsparks.services.users import get_user_doc, has_active_plus, has_family_game_night_access
 from faithsparks.util.request_utils import get_client_ip
 
 
@@ -920,16 +920,17 @@ def family_game_night():
     """Public product page; stable game URLs remain behind this wrapper."""
     email = _host_email()
     user_data = get_user_doc(email) if email else {}
-    owns_complete_game = bool((user_data.get("purchases") or {}).get("family_game_night"))
+    owns_complete_game = has_family_game_night_access(user_data)
     return render_template(
         "family_game_night.html",
         owns_complete_game=owns_complete_game,
+        included_with_plus=has_active_plus(user_data),
         checkout_available=bool(STRIPE_PRICE_FAMILY_GAME_NIGHT),
     )
 
 
 def _owns_family_game_night(email: str) -> bool:
-    return bool(((get_user_doc(email) if email else {}).get("purchases") or {}).get("family_game_night"))
+    return has_family_game_night_access(get_user_doc(email) if email else {})
 
 
 def _render_family_setup(error: str | None = None, status: int = 200):

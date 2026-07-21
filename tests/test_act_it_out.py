@@ -292,6 +292,40 @@ def test_complete_family_game_night_defaults_to_fifteen_rounds(monkeypatch):
     assert b"disabled" not in page.data
 
 
+def test_active_plus_includes_complete_family_game_night_without_checkout(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(
+        act_it_out,
+        "get_user_doc",
+        lambda _email: {"isPro": True, "plan": "family", "purchases": {}},
+    )
+    monkeypatch.setattr(act_it_out, "STRIPE_PRICE_FAMILY_GAME_NIGHT", "price_game_night")
+    client = app.test_client()
+    _prime(client, "plus-family@example.com")
+
+    sales_page = client.get("/family-game-night")
+    setup_page = client.get("/family-game-night/play")
+
+    assert sales_page.status_code == 200
+    assert b"Included with Faith Sparks Plus Family and Classroom" in sales_page.data
+    assert "Included with Plus — start a game" in sales_page.get_data(as_text=True)
+    assert b'action="/family-game-night/checkout"' not in sales_page.data
+    assert setup_page.status_code == 200
+    assert b'name="round_count" value="15" checked' in setup_page.data
+    assert b'name="round_count" value="20"' in setup_page.data
+    assert b"disabled" not in setup_page.data
+
+
+def test_canceled_plus_does_not_unlock_game_without_standalone_purchase():
+    from faithsparks.services.users import has_family_game_night_access
+
+    assert has_family_game_night_access({"isPro": False, "plan": "family", "purchases": {}}) is False
+    assert has_family_game_night_access(
+        {"isPro": False, "plan": "free", "purchases": {"family_game_night": True}}
+    ) is True
+
+
 def test_family_game_night_checkout_uses_one_time_entitlement(monkeypatch):
     from faithsparks.views import billing
 
@@ -438,6 +472,45 @@ def test_family_game_night_repeat_buyer_returns_to_setup(monkeypatch):
 
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/family-game-night/play")
+
+
+def test_active_plus_member_cannot_accidentally_buy_game_again(monkeypatch):
+    from faithsparks.views import billing
+
+    class Snapshot:
+        exists = True
+
+        def to_dict(self):
+            return {"isPro": True, "plan": "classroom", "purchases": {}}
+
+    class Document:
+        def get(self):
+            return Snapshot()
+
+    class Collection:
+        def document(self, _document_id):
+            return Document()
+
+    class Database:
+        def collection(self, _collection_name):
+            return Collection()
+
+    checkout_create = mock.Mock()
+    monkeypatch.setattr(
+        billing,
+        "stripe",
+        SimpleNamespace(checkout=SimpleNamespace(Session=SimpleNamespace(create=checkout_create))),
+    )
+    monkeypatch.setattr(billing, "STRIPE_SECRET_KEY", "sk_test_fake")
+    monkeypatch.setattr(billing, "db", Database())
+
+    with app.test_request_context("/family-game-night/checkout", method="POST"):
+        session["user_email"] = "plus-classroom@example.com"
+        response = billing.buy_family_game_night()
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/family-game-night/play")
+    checkout_create.assert_not_called()
 
 
 def test_family_game_night_canceled_checkout_returns_to_offer_and_records_event(monkeypatch):

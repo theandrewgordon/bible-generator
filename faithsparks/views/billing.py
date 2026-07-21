@@ -21,6 +21,7 @@ from faithsparks.services.stripe_svc import (
     STRIPE_WEBHOOK_SECRET,
     resolve_price_id,
 )
+from faithsparks.services.users import has_active_plus, has_family_game_night_access
 
 def _find_promotion_code_id(code_str: Optional[str]) -> Optional[str]:
     if not code_str or not stripe:
@@ -797,8 +798,13 @@ def buy_family_game_night():
     try:
         user_doc = db.collection("users").document(email).get()
         user_data = user_doc.to_dict() if user_doc.exists else {}
-        if (user_data.get("purchases") or {}).get(FAMILY_GAME_NIGHT_ENTITLEMENT):
-            flash("You already own Family Game Night. Start a game whenever you're ready!", "success")
+        if has_family_game_night_access(user_data):
+            message = (
+                "Complete Family Game Night is included with your Faith Sparks Plus account!"
+                if has_active_plus(user_data)
+                else "You already own Family Game Night. Start a game whenever you're ready!"
+            )
+            flash(message, "success")
             return redirect(url_for("act_it_out.family_game_night_setup"))
     except Exception:
         current_app.logger.exception("[%s] Family Game Night ownership check failed", getattr(g, "req_id", ""))
