@@ -228,7 +228,7 @@ def _record_family_funnel_event(event: str, room: dict | None, code: str) -> Non
         root.set(
             {
                 "total": google_firestore.Increment(1),
-                f"events.{event}": google_firestore.Increment(1),
+                "events": {event: google_firestore.Increment(1)},
                 "updatedAt": google_firestore.SERVER_TIMESTAMP,
             },
             merge=True,
@@ -1634,8 +1634,8 @@ def submit_family_game_night_feedback(code: str):
             {
                 "total": google_firestore.Increment(1),
                 "ratingSum": google_firestore.Increment(enjoyment),
-                f"playAgain.{play_again}": google_firestore.Increment(1),
-                f"favoriteMode.{favorite_mode}": google_firestore.Increment(1),
+                "playAgain": {play_again: google_firestore.Increment(1)},
+                "favoriteMode": {favorite_mode: google_firestore.Increment(1)},
                 "updatedAt": google_firestore.SERVER_TIMESTAMP,
             },
             merge=True,

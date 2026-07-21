@@ -253,6 +253,36 @@ def test_family_game_night_records_create_join_start_and_finish_funnel(monkeypat
     ]
 
 
+def test_family_funnel_uses_nested_firestore_event_fields(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    writes = []
+
+    class Document:
+        def set(self, data, merge=False):
+            writes.append((data, merge))
+
+        def collection(self, _name):
+            return self
+
+        def document(self, _name):
+            return self
+
+    class Database:
+        def collection(self, _name):
+            return Document()
+
+    monkeypatch.setattr(act_it_out, "db", lambda: Database())
+    with app.test_request_context("/family-game-night"):
+        act_it_out._record_family_funnel_event(
+            "play_free_click", {"game_type": "family_game_night"}, ""
+        )
+
+    assert writes[0][0].keys() == {"total", "events", "updatedAt"}
+    assert writes[0][0]["events"].keys() == {"play_free_click"}
+    assert writes[0][1] is True
+
+
 def _finished_family_room(host, player):
     created, code = _create_family_room(host, play_style="individual")
     assert created.status_code == 302
@@ -329,6 +359,10 @@ def test_signed_out_player_can_submit_valid_anonymous_feedback_once(monkeypatch)
     assert stored["playAgain"] == "yes"
     assert stored["teamMode"] is False
     assert "roomCode" not in stored and "email" not in stored and "players" not in stored
+    aggregate = database.analytics[0][0]
+    assert aggregate.keys() == {"total", "ratingSum", "playAgain", "favoriteMode", "updatedAt"}
+    assert aggregate["playAgain"].keys() == {"yes"}
+    assert aggregate["favoriteMode"].keys() == {"draw"}
 
 
 def test_family_feedback_rejects_invalid_values_and_long_comments(monkeypatch):
