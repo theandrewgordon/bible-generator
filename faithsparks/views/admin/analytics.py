@@ -5,6 +5,11 @@ from faithsparks.services.collections import get_collections
 from faithsparks.services import analytics as analytics_svc
 
 
+def _document_data(client, document_name):
+    snapshot = client.collection("analytics").document(document_name).get()
+    return (snapshot.to_dict() or {}) if snapshot.exists else {}
+
+
 def admin_analytics():
     col_items = get_collections(show_all=True)
     by_slug = {c["slug"]: c for c in col_items}
@@ -14,6 +19,15 @@ def admin_analytics():
     top_verses_week = []
     traffic = {"series": [], "total_visitors": 0, "total_logins": 0}
     recent_hits = []
+    family_game_night = {
+        "room_created": 0,
+        "first_player_joined": 0,
+        "game_started": 0,
+        "game_finished": 0,
+        "checkout_started": 0,
+        "checkout_canceled": 0,
+        "checkout_fulfilled": 0,
+    }
     try:
         traffic = analytics_svc.daily_overview()
         recent_hits = analytics_svc.recent_visits()
@@ -21,6 +35,28 @@ def admin_analytics():
         traffic = {"series": [], "total_visitors": 0, "total_logins": 0}
         recent_hits = []
     if db:
+        try:
+            funnel = _document_data(db, "family_game_night_funnel")
+            funnel_events = funnel.get("events") or {}
+            family_game_night.update(
+                {
+                    "room_created": int(funnel_events.get("room_created", 0)),
+                    "first_player_joined": int(funnel_events.get("first_player_joined", 0)),
+                    "game_started": int(funnel_events.get("game_started", 0)),
+                    "game_finished": int(funnel_events.get("game_finished", 0)),
+                    "checkout_started": int(
+                        _document_data(db, "family_game_night_checkout_started").get("total", 0)
+                    ),
+                    "checkout_canceled": int(
+                        _document_data(db, "family_game_night_checkout_canceled").get("total", 0)
+                    ),
+                    "checkout_fulfilled": int(
+                        _document_data(db, "family_game_night_checkout_fulfilled").get("total", 0)
+                    ),
+                }
+            )
+        except Exception:
+            pass
         try:
             doc = db.collection("analytics").document("packs").get()
             if doc.exists:
@@ -73,4 +109,5 @@ def admin_analytics():
         top_verses_week=top_verses_week,
         traffic=traffic,
         recent_hits=recent_hits,
+        family_game_night=family_game_night,
     )

@@ -30,6 +30,7 @@ Completed on `feature/family-game-night-launch`:
 - Added full-library configuration for entitled hosts while keeping joined players ungated.
 - Added one-time Stripe checkout and webhook fulfillment for `family_game_night` ownership.
 - Unified visible in-room mode names and Family Game Night room branding.
+- Added an admin launch-funnel dashboard for create, join, start, finish, checkout, cancel, and fulfillment totals.
 - Verified the public and setup pages at 320 px with no horizontal overflow or browser errors.
 
 ## Architecture and file map

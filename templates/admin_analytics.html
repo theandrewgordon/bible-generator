@@ -3,6 +3,39 @@ block content %}
 <h1 class="page-title">Admin: Analytics</h1>
 <section class="block">
   <table class="admin-table">
+    <caption>Family Game Night launch funnel</caption>
+    <thead>
+      <tr>
+        <th scope="col">Step</th>
+        <th scope="col">Total</th>
+        <th scope="col">From rooms created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set rooms = family_game_night.room_created %}
+      {% for label, key in [
+        ('Rooms created', 'room_created'),
+        ('First player joined', 'first_player_joined'),
+        ('Games started', 'game_started'),
+        ('Games finished', 'game_finished')
+      ] %}
+      <tr>
+        <td>{{ label }}</td>
+        <td class="num">{{ family_game_night[key] }}</td>
+        <td class="num">{{ ((family_game_night[key] * 100 / rooms)|round|int ~ '%') if rooms else '—' }}</td>
+      </tr>
+      {% endfor %}
+      <tr><td>Checkouts started</td><td class="num">{{ family_game_night.checkout_started }}</td><td class="num">—</td></tr>
+      <tr><td>Checkouts canceled</td><td class="num">{{ family_game_night.checkout_canceled }}</td><td class="num">—</td></tr>
+      <tr><td>Purchases fulfilled</td><td class="num">{{ family_game_night.checkout_fulfilled }}</td><td class="num">—</td></tr>
+    </tbody>
+  </table>
+  <div class="small muted" style="margin-top: 0.35rem">
+    Aggregate counts only; player names and game answers are not collected.
+  </div>
+</section>
+<section class="block">
+  <table class="admin-table">
     <caption>Traffic (Last 7 Days)</caption>
     <thead>
       <tr>
