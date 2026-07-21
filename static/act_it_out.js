@@ -512,10 +512,59 @@ function renderFinished(state) {
       <div class="next-game-actions">
         <a class="bee-button secondary" href="${gameHome}">Back to ${escapeHTML(gameTitle)}</a>
       </div>
+      ${isFamilyGameNight && role !== "display" ? feedbackPanel(state) : ""}
     </section>
     ${scoreRail(state, role === "host" ? `<button id="play-again" class="bee-button secondary full" type="button">New game, same players</button>` : "")}
   </div>`;
   bindManagement();
+  bindFeedback();
+}
+
+function feedbackStorageKey(state = latestState) {
+  return `familyGameNightFeedback:${code}:${state?.completion_number || 1}`;
+}
+
+function feedbackPanel(state) {
+  if (window.localStorage.getItem(feedbackStorageKey(state)) === "done") {
+    return `<aside class="game-feedback thanks"><h2>Thank you!</h2><p>Your feedback will help make the next family’s game night better.</p></aside>`;
+  }
+  return `<aside class="game-feedback"><h2>Help us make game night better</h2><p>Optional, anonymous, and takes about 30 seconds.</p>
+    <form id="family-feedback-form">
+      <fieldset><legend>How much did your family enjoy the game?</legend><div class="feedback-rating">${[1,2,3,4,5].map(value => `<label><input type="radio" name="enjoyment" value="${value}" required><span>${value}</span></label>`).join("")}</div></fieldset>
+      <label>Which mode was the favorite?<select name="favorite_mode" required><option value="">Choose one</option><option value="act">Act It!</option><option value="draw">Draw It!</option><option value="clue">Don’t Say It!</option><option value="guess">Guess It!</option><option value="mixed">Mixed / no clear favorite</option></select></label>
+      <label>Did anything prevent or confuse your family? <small>Optional</small><textarea name="comment" maxlength="500" rows="3"></textarea></label>
+      <fieldset><legend>Would your family play again?</legend><div class="feedback-again">${["yes","maybe","no"].map(value => `<label><input type="radio" name="play_again" value="${value}" required><span>${value[0].toUpperCase()+value.slice(1)}</span></label>`).join("")}</div></fieldset>
+      <label class="feedback-quote"><input type="checkbox" name="quote_approved"><span>Yes, Faith Sparks may quote this feedback anonymously.</span></label>
+      <p class="feedback-privacy">Please don’t include children’s names, ages, or contact information.</p>
+      <button class="bee-button primary" type="submit">Send feedback</button><p id="feedback-error" class="setup-error" role="alert" hidden></p>
+    </form>
+  </aside>`;
+}
+
+function bindFeedback() {
+  const form = document.querySelector("#family-feedback-form");
+  if (!form) return;
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    const error = document.querySelector("#feedback-error");
+    const data = new FormData(form);
+    button.disabled = true;
+    error.hidden = true;
+    try {
+      await api(`${apiBase}/feedback`, {method: "POST", body: JSON.stringify({
+        enjoyment: Number(data.get("enjoyment")), favorite_mode: data.get("favorite_mode"),
+        comment: data.get("comment"), play_again: data.get("play_again"),
+        quote_approved: data.get("quote_approved") === "on",
+      })});
+      window.localStorage.setItem(feedbackStorageKey(), "done");
+      form.closest(".game-feedback").outerHTML = `<aside class="game-feedback thanks"><h2>Thank you!</h2><p>Your feedback will help make the next family’s game night better.</p></aside>`;
+    } catch (submitError) {
+      error.textContent = submitError.message || "Feedback could not be sent. Your scoreboard is safe; try again later.";
+      error.hidden = false;
+      button.disabled = false;
+    }
+  });
 }
 
 function displayRosters(state) {

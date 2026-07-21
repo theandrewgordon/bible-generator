@@ -123,6 +123,76 @@ def test_family_game_night_sales_page_explains_product_and_join_flow():
     assert b"noindex" not in page.data
 
 
+def test_family_game_night_records_page_views_once_per_session(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    events = []
+    monkeypatch.setattr(act_it_out, "_record_family_funnel_event", lambda event, room, code: events.append(event))
+    client = app.test_client()
+
+    assert client.get("/family-game-night").status_code == 200
+    assert client.get("/family-game-night").status_code == 200
+    assert client.get("/family-game-night/play").status_code == 200
+    assert client.get("/family-game-night/play").status_code == 200
+
+    assert events == ["sales_page_view", "setup_view"]
+
+
+def test_family_game_night_ignores_bot_page_views(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    recorder = mock.Mock()
+    monkeypatch.setattr(act_it_out, "_record_family_funnel_event", recorder)
+    page = app.test_client().get("/family-game-night", headers={"User-Agent": "ExampleBot/1.0"})
+
+    assert page.status_code == 200
+    recorder.assert_not_called()
+
+
+def test_family_game_night_cta_events_are_validated_deduplicated_and_nonblocking(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    recorder = mock.Mock()
+    monkeypatch.setattr(act_it_out, "_record_family_funnel_event", recorder)
+    client = app.test_client()
+    _prime(client)
+
+    first = _post(client, "/api/family-game-night/analytics", data={"csrf_token": CSRF, "event": "play_free_click"})
+    duplicate = _post(client, "/api/family-game-night/analytics", data={"csrf_token": CSRF, "event": "play_free_click"})
+    unlock = _post(client, "/api/family-game-night/analytics", data={"csrf_token": CSRF, "event": "unlock_click"})
+    invalid = _post(client, "/api/family-game-night/analytics", data={"csrf_token": CSRF, "event": "answer_seen"})
+
+    assert first.status_code == duplicate.status_code == unlock.status_code == 200
+    assert invalid.status_code == 400
+    assert [call.args[0] for call in recorder.call_args_list] == ["play_free_click", "unlock_click"]
+    assert b'data-fgn-event="play_free_click"' in client.get("/family-game-night").data
+
+
+def test_family_game_night_analytics_rate_limit_does_not_block_navigation(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "check_rate_limit", lambda *args, **kwargs: SimpleNamespace(allowed=False))
+    client = app.test_client()
+    _prime(client)
+
+    event = _post(client, "/api/family-game-night/analytics", data={"csrf_token": CSRF, "event": "unlock_click"})
+
+    assert event.status_code == 202
+    assert client.get("/family-game-night/play").status_code == 200
+
+
+def test_family_game_night_analytics_failure_does_not_break_pages_or_cta(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "_record_family_funnel_event", mock.Mock(side_effect=RuntimeError("offline")))
+    client = app.test_client()
+    _prime(client)
+
+    assert client.get("/family-game-night").status_code == 200
+    assert client.get("/family-game-night/play").status_code == 200
+    assert _post(client, "/api/family-game-night/analytics", data={"csrf_token": CSRF, "event": "unlock_click"}).status_code == 200
+
+
 def test_family_game_night_free_setup_has_safe_defaults_and_mobile_controls():
     client = app.test_client()
     _prime(client, "free-family@example.com")
@@ -181,6 +251,154 @@ def test_family_game_night_records_create_join_start_and_finish_funnel(monkeypat
         "game_started",
         "game_finished",
     ]
+
+
+def _finished_family_room(host, player):
+    created, code = _create_family_room(host, play_style="individual")
+    assert created.status_code == 302
+    assert _post(player, f"/group-games/act-it-out/join/{code}", data={"csrf_token": CSRF, "player_name": "Ada"}).status_code == 302
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start").status_code == 200
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/end").status_code == 200
+    return code
+
+
+class FeedbackDatabase:
+    def __init__(self, fail=False):
+        self.fail = fail
+        self.feedback = []
+        self.analytics = []
+
+    def __call__(self):
+        return self
+
+    def collection(self, name):
+        database = self
+
+        class Collection:
+            def add(self, data):
+                if database.fail:
+                    raise RuntimeError("Firestore unavailable")
+                database.feedback.append(data)
+
+            def document(self, _name):
+                class Document:
+                    def set(self, data, merge=False):
+                        if database.fail:
+                            raise RuntimeError("Firestore unavailable")
+                        database.analytics.append((data, merge))
+
+                return Document()
+
+        return Collection()
+
+
+def _valid_feedback(**overrides):
+    payload = {
+        "enjoyment": 5,
+        "favorite_mode": "draw",
+        "comment": "We loved drawing together.",
+        "play_again": "yes",
+        "quote_approved": False,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_signed_out_player_can_submit_valid_anonymous_feedback_once(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    database = FeedbackDatabase()
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "feedback-host@example.com")
+    _prime(player)
+    code = _finished_family_room(host, player)
+    finished_room = act_it_out._get_room(code)
+    monkeypatch.setattr(act_it_out, "db", database)
+    monkeypatch.setattr(act_it_out, "_get_room", lambda _code: finished_room)
+
+    submitted = _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback())
+    duplicate = _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback(comment="again"))
+
+    assert submitted.status_code == duplicate.status_code == 200
+    assert duplicate.get_json()["duplicate"] is True
+    assert len(database.feedback) == 1
+    stored = database.feedback[0]
+    assert stored["enjoyment"] == 5
+    assert stored["favoriteMode"] == "draw"
+    assert stored["playAgain"] == "yes"
+    assert stored["teamMode"] is False
+    assert "roomCode" not in stored and "email" not in stored and "players" not in stored
+
+
+def test_family_feedback_rejects_invalid_values_and_long_comments(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "feedback-validation@example.com")
+    _prime(player)
+    code = _finished_family_room(host, player)
+    finished_room = act_it_out._get_room(code)
+    monkeypatch.setattr(act_it_out, "db", FeedbackDatabase())
+    monkeypatch.setattr(act_it_out, "_get_room", lambda _code: finished_room)
+
+    assert _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback(enjoyment=6)).status_code == 400
+    assert _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback(favorite_mode="trivia")).status_code == 400
+    assert _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback(play_again="always")).status_code == 400
+    assert _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback(comment="x" * 501)).status_code == 400
+
+
+def test_family_feedback_requires_room_membership_and_csrf(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    player = app.test_client()
+    stranger = app.test_client()
+    _prime(host, "feedback-auth@example.com")
+    _prime(player)
+    _prime(stranger)
+    code = _finished_family_room(host, player)
+    finished_room = act_it_out._get_room(code)
+    monkeypatch.setattr(act_it_out, "db", FeedbackDatabase())
+    monkeypatch.setattr(act_it_out, "_get_room", lambda _code: finished_room)
+
+    assert _post(stranger, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback()).status_code == 403
+    assert player.post(f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback()).status_code == 403
+
+
+def test_feedback_storage_failure_does_not_break_finished_scoreboard(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "feedback-failure@example.com")
+    _prime(player)
+    code = _finished_family_room(host, player)
+    finished_room = act_it_out._get_room(code)
+    monkeypatch.setattr(act_it_out, "db", FeedbackDatabase(fail=True))
+    monkeypatch.setattr(act_it_out, "_get_room", lambda _code: finished_room)
+
+    failed = _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback())
+
+    assert failed.status_code == 503
+    assert player.get(f"/group-games/act-it-out/play/{code}").status_code == 200
+    assert player.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["phase"] == "finished"
+
+
+def test_family_feedback_is_rate_limited(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "feedback-rate@example.com")
+    _prime(player)
+    code = _finished_family_room(host, player)
+    monkeypatch.setattr(act_it_out, "check_rate_limit", lambda *args, **kwargs: SimpleNamespace(allowed=False))
+
+    response = _post(player, f"/api/group-games/act-it-out/rooms/{code}/feedback", json=_valid_feedback())
+
+    assert response.status_code == 429
 
 
 def test_family_game_night_room_exposes_first_host_walkthrough_and_help():

@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import base64
 import binascii
+import hashlib
 import os
 import re
 import secrets
@@ -194,7 +195,25 @@ def _free_prompt_ids() -> set[str]:
 
 
 FREE_FAMILY_PROMPT_IDS = _free_prompt_ids()
-FAMILY_FUNNEL_EVENTS = {"room_created", "first_player_joined", "game_started", "game_finished"}
+FAMILY_FUNNEL_EVENTS = {
+    "sales_page_view",
+    "play_free_click",
+    "unlock_click",
+    "setup_view",
+    "room_created",
+    "first_player_joined",
+    "game_started",
+    "game_finished",
+}
+FAMILY_CTA_EVENTS = {"play_free_click", "unlock_click"}
+FEEDBACK_FAVORITE_MODES = {"act", "draw", "clue", "guess", "mixed"}
+FEEDBACK_PLAY_AGAIN = {"yes", "maybe", "no"}
+BOT_USER_AGENT_RE = re.compile(r"bot|crawler|spider|slurp|preview", re.IGNORECASE)
+
+
+def _privacy_rate_key() -> str:
+    """Rate-limit without persisting a raw IP address."""
+    return hashlib.sha256(get_client_ip().encode("utf-8")).hexdigest()[:24]
 
 
 def _record_family_funnel_event(event: str, room: dict | None, code: str) -> None:
@@ -214,18 +233,35 @@ def _record_family_funnel_event(event: str, room: dict | None, code: str) -> Non
             },
             merge=True,
         )
-        root.collection("recent").document(f"{event}-{code}").set(
-            {
-                "event": event,
-                "roomCode": code,
-                "freeSampler": bool((room or {}).get("free_sampler")),
-                "gameMode": (room or {}).get("game_mode"),
-                "roundCount": int((room or {}).get("round_count", 0)),
-                "createdAt": google_firestore.SERVER_TIMESTAMP,
-            }
-        )
+        if code:
+            root.collection("recent").document(f"{event}-{code}").set(
+                {
+                    "event": event,
+                    "roomCode": code,
+                    "freeSampler": bool((room or {}).get("free_sampler")),
+                    "gameMode": (room or {}).get("game_mode"),
+                    "roundCount": int((room or {}).get("round_count", 0)),
+                    "createdAt": google_firestore.SERVER_TIMESTAMP,
+                }
+            )
     except Exception:
         current_app.logger.exception("Family Game Night funnel event failed: %s", event)
+
+
+def _record_family_page_event(event: str) -> None:
+    """Count a page event once per browser session; analytics never blocks access."""
+    if event not in {"sales_page_view", "setup_view"}:
+        return
+    if BOT_USER_AGENT_RE.search(request.headers.get("User-Agent", "")):
+        return
+    session_key = f"family_game_night_metric:{event}"
+    if session.get(session_key):
+        return
+    session[session_key] = True
+    try:
+        _record_family_funnel_event(event, {"game_type": "family_game_night"}, "")
+    except Exception:
+        current_app.logger.exception("Family Game Night page analytics failed")
 
 _local_rooms: dict[str, dict] = {}
 _local_lock = threading.RLock()
@@ -654,6 +690,7 @@ def _finish_room(room: dict, now: float | None = None) -> None:
     now = now or time.time()
     room["phase"] = "finished"
     room["finished_at"] = now
+    room["completion_number"] = int(room.get("completion_number", 0)) + 1
     room["expires_at"] = now + FINISHED_ROOM_TTL_SECONDS
     room.pop("round_deadline", None)
 
@@ -843,6 +880,7 @@ def _public_room(room: dict, code: str) -> dict:
         "round_deadline": room.get("round_deadline"),
         "last_result": room.get("last_result"),
         "family_score": sum(player["score"] for player in players),
+        "completion_number": int(room.get("completion_number", 0)),
         "expires_at": room.get("expires_at"),
     }
 
@@ -920,6 +958,7 @@ def hub():
 @bp.get("/family-game-night")
 def family_game_night():
     """Public product page; stable game URLs remain behind this wrapper."""
+    _record_family_page_event("sales_page_view")
     email = _host_email()
     user_data = get_user_doc(email) if email else {}
     owns_complete_game = has_family_game_night_access(user_data)
@@ -952,7 +991,27 @@ def _render_family_setup(error: str | None = None, status: int = 200):
 
 @bp.get("/family-game-night/play")
 def family_game_night_setup():
+    _record_family_page_event("setup_view")
     return _render_family_setup()
+
+
+@bp.post("/api/family-game-night/analytics")
+def family_game_night_analytics_event():
+    event = str(request.form.get("event") or (request.get_json(silent=True) or {}).get("event") or "").strip()
+    if event not in FAMILY_CTA_EVENTS:
+        return jsonify({"error": "Unknown event."}), 400
+    session_key = f"family_game_night_metric:{event}"
+    if session.get(session_key):
+        return jsonify({"ok": True, "duplicate": True})
+    rate = check_rate_limit("family-game-night-analytics", _privacy_rate_key(), limit=30, window_seconds=60 * 60)
+    if not rate.allowed:
+        return jsonify({"ok": True}), 202
+    try:
+        _record_family_funnel_event(event, {"game_type": "family_game_night"}, "")
+    except Exception:
+        current_app.logger.exception("Family Game Night CTA analytics failed")
+    session[session_key] = True
+    return jsonify({"ok": True})
 
 
 @bp.post("/family-game-night/create")
@@ -1518,6 +1577,74 @@ def skip_round(code: str):
 @bp.post("/api/group-games/draw-it/rooms/<code>/end")
 def end_game(code: str):
     return _host_action(code, "end")
+
+
+@bp.post("/api/group-games/act-it-out/rooms/<code>/feedback")
+def submit_family_game_night_feedback(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not room or room.get("game_type") != "family_game_night" or room.get("phase") != "finished":
+        abort(404)
+    player_id = _player_id(code)
+    if not _is_host(code, room) and (not player_id or player_id not in room.get("players", {})):
+        abort(403)
+    submitted_key = f"family_game_night_feedback:{code}:{int(room.get('completion_number', 1))}"
+    if session.get(submitted_key):
+        return jsonify({"ok": True, "duplicate": True})
+    rate = check_rate_limit("family-game-night-feedback", _privacy_rate_key(), limit=5, window_seconds=60 * 60)
+    if not rate.allowed:
+        return jsonify({"error": "Please wait before sending more feedback."}), 429
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        enjoyment = int(payload.get("enjoyment"))
+    except (TypeError, ValueError):
+        enjoyment = 0
+    favorite_mode = str(payload.get("favorite_mode") or "").strip()
+    play_again = str(payload.get("play_again") or "").strip()
+    comment = " ".join(str(payload.get("comment") or "").strip().split())
+    quote_approved = payload.get("quote_approved") is True
+    if enjoyment not in {1, 2, 3, 4, 5}:
+        return jsonify({"error": "Choose an enjoyment rating from 1 to 5."}), 400
+    if favorite_mode not in FEEDBACK_FAVORITE_MODES:
+        return jsonify({"error": "Choose a favorite way to play."}), 400
+    if play_again not in FEEDBACK_PLAY_AGAIN:
+        return jsonify({"error": "Choose whether your family would play again."}), 400
+    if len(comment) > 500:
+        return jsonify({"error": "Keep feedback to 500 characters or fewer."}), 400
+
+    client = db()
+    if not client:
+        return jsonify({"error": "Feedback could not be saved right now."}), 503
+    try:
+        client.collection("family_game_night_feedback").add(
+            {
+                "enjoyment": enjoyment,
+                "favoriteMode": favorite_mode,
+                "playAgain": play_again,
+                "comment": comment,
+                "quoteApproved": quote_approved,
+                "teamMode": bool(room.get("team_mode")),
+                "roundCount": int(room.get("round_count", 0)),
+                "gameMode": room.get("game_mode", "mixed"),
+                "createdAt": google_firestore.SERVER_TIMESTAMP,
+            }
+        )
+        client.collection("analytics").document("family_game_night_feedback").set(
+            {
+                "total": google_firestore.Increment(1),
+                "ratingSum": google_firestore.Increment(enjoyment),
+                f"playAgain.{play_again}": google_firestore.Increment(1),
+                f"favoriteMode.{favorite_mode}": google_firestore.Increment(1),
+                "updatedAt": google_firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+    except Exception:
+        current_app.logger.exception("Family Game Night feedback persistence failed")
+        return jsonify({"error": "Feedback could not be saved right now."}), 503
+    session[submitted_key] = True
+    return jsonify({"ok": True})
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/play-again")

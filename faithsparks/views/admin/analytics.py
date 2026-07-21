@@ -10,6 +10,10 @@ def _document_data(client, document_name):
     return (snapshot.to_dict() or {}) if snapshot.exists else {}
 
 
+def _conversion(numerator, denominator):
+    return round((int(numerator or 0) * 100) / int(denominator)) if int(denominator or 0) else None
+
+
 def admin_analytics():
     col_items = get_collections(show_all=True)
     by_slug = {c["slug"]: c for c in col_items}
@@ -20,6 +24,10 @@ def admin_analytics():
     traffic = {"series": [], "total_visitors": 0, "total_logins": 0}
     recent_hits = []
     family_game_night = {
+        "sales_page_view": 0,
+        "play_free_click": 0,
+        "unlock_click": 0,
+        "setup_view": 0,
         "room_created": 0,
         "first_player_joined": 0,
         "game_started": 0,
@@ -27,6 +35,13 @@ def admin_analytics():
         "checkout_started": 0,
         "checkout_canceled": 0,
         "checkout_fulfilled": 0,
+    }
+    family_feedback = {
+        "total": 0,
+        "average_enjoyment": None,
+        "play_again": {"yes": 0, "maybe": 0, "no": 0},
+        "favorite_modes": {"act": 0, "draw": 0, "clue": 0, "guess": 0, "mixed": 0},
+        "recent_comments": [],
     }
     try:
         traffic = analytics_svc.daily_overview()
@@ -40,6 +55,10 @@ def admin_analytics():
             funnel_events = funnel.get("events") or {}
             family_game_night.update(
                 {
+                    "sales_page_view": int(funnel_events.get("sales_page_view", 0)),
+                    "play_free_click": int(funnel_events.get("play_free_click", 0)),
+                    "unlock_click": int(funnel_events.get("unlock_click", 0)),
+                    "setup_view": int(funnel_events.get("setup_view", 0)),
                     "room_created": int(funnel_events.get("room_created", 0)),
                     "first_player_joined": int(funnel_events.get("first_player_joined", 0)),
                     "game_started": int(funnel_events.get("game_started", 0)),
@@ -55,6 +74,36 @@ def admin_analytics():
                     ),
                 }
             )
+        except Exception:
+            pass
+        try:
+            feedback = _document_data(db, "family_game_night_feedback")
+            total = int(feedback.get("total", 0))
+            family_feedback.update(
+                {
+                    "total": total,
+                    "average_enjoyment": round(float(feedback.get("ratingSum", 0)) / total, 1) if total else None,
+                    "play_again": {
+                        key: int((feedback.get("playAgain") or {}).get(key, 0))
+                        for key in ("yes", "maybe", "no")
+                    },
+                    "favorite_modes": {
+                        key: int((feedback.get("favoriteMode") or {}).get(key, 0))
+                        for key in ("act", "draw", "clue", "guess", "mixed")
+                    },
+                }
+            )
+            snapshots = (
+                db.collection("family_game_night_feedback")
+                .order_by("createdAt", direction="DESCENDING")
+                .limit(25)
+                .stream()
+            )
+            family_feedback["recent_comments"] = [
+                data
+                for snapshot in snapshots
+                if (data := (snapshot.to_dict() or {})).get("comment")
+            ][:10]
         except Exception:
             pass
         try:
@@ -110,4 +159,14 @@ def admin_analytics():
         traffic=traffic,
         recent_hits=recent_hits,
         family_game_night=family_game_night,
+        family_game_night_conversions={
+            "play_free": _conversion(family_game_night["play_free_click"], family_game_night["sales_page_view"]),
+            "room_create": _conversion(family_game_night["room_created"], family_game_night["play_free_click"]),
+            "game_start": _conversion(family_game_night["game_started"], family_game_night["room_created"]),
+            "game_finish": _conversion(family_game_night["game_finished"], family_game_night["game_started"]),
+            "unlock": _conversion(family_game_night["unlock_click"], family_game_night["sales_page_view"]),
+            "checkout": _conversion(family_game_night["checkout_started"], family_game_night["unlock_click"]),
+            "purchase": _conversion(family_game_night["checkout_fulfilled"], family_game_night["checkout_started"]),
+        },
+        family_feedback=family_feedback,
     )

@@ -8,31 +8,42 @@ block content %}
       <tr>
         <th scope="col">Step</th>
         <th scope="col">Total</th>
-        <th scope="col">From rooms created</th>
+        <th scope="col">Conversion</th>
       </tr>
     </thead>
     <tbody>
-      {% set rooms = family_game_night.room_created %}
-      {% for label, key in [
-        ('Rooms created', 'room_created'),
-        ('First player joined', 'first_player_joined'),
-        ('Games started', 'game_started'),
-        ('Games finished', 'game_finished')
+      {% for label, key, conversion in [
+        ('Sales-page views', 'sales_page_view', none),
+        ('Play Free clicks', 'play_free_click', family_game_night_conversions.play_free),
+        ('Setup views', 'setup_view', none),
+        ('Rooms created', 'room_created', family_game_night_conversions.room_create),
+        ('First player joined', 'first_player_joined', none),
+        ('Games started', 'game_started', family_game_night_conversions.game_start),
+        ('Games finished', 'game_finished', family_game_night_conversions.game_finish),
+        ('Unlock clicks', 'unlock_click', family_game_night_conversions.unlock)
       ] %}
       <tr>
         <td>{{ label }}</td>
         <td class="num">{{ family_game_night[key] }}</td>
-        <td class="num">{{ ((family_game_night[key] * 100 / rooms)|round|int ~ '%') if rooms else '—' }}</td>
+        <td class="num">{{ (conversion ~ '%') if conversion is not none else '—' }}</td>
       </tr>
       {% endfor %}
-      <tr><td>Checkouts started</td><td class="num">{{ family_game_night.checkout_started }}</td><td class="num">—</td></tr>
+      <tr><td>Checkouts started</td><td class="num">{{ family_game_night.checkout_started }}</td><td class="num">{{ (family_game_night_conversions.checkout ~ '%') if family_game_night_conversions.checkout is not none else '—' }}</td></tr>
       <tr><td>Checkouts canceled</td><td class="num">{{ family_game_night.checkout_canceled }}</td><td class="num">—</td></tr>
-      <tr><td>Purchases fulfilled</td><td class="num">{{ family_game_night.checkout_fulfilled }}</td><td class="num">—</td></tr>
+      <tr><td>Purchases fulfilled</td><td class="num">{{ family_game_night.checkout_fulfilled }}</td><td class="num">{{ (family_game_night_conversions.purchase ~ '%') if family_game_night_conversions.purchase is not none else '—' }}</td></tr>
     </tbody>
   </table>
   <div class="small muted" style="margin-top: 0.35rem">
     Aggregate counts only; player names and game answers are not collected.
   </div>
+</section>
+<section class="block">
+  <h2>Family Game Night beta feedback</h2>
+  <p><strong>{{ family_feedback.total }}</strong> responses{% if family_feedback.average_enjoyment is not none %} · average enjoyment <strong>{{ family_feedback.average_enjoyment }}/5</strong>{% endif %}</p>
+  <table class="admin-table"><caption>Would play again</caption><tbody>{% for key in ['yes','maybe','no'] %}<tr><td>{{ key|capitalize }}</td><td class="num">{{ family_feedback.play_again[key] }}</td></tr>{% endfor %}</tbody></table>
+  <table class="admin-table"><caption>Favorite mode</caption><tbody>{% for key, label in [('act','Act It!'),('draw','Draw It!'),('clue','Don’t Say It!'),('guess','Guess It!'),('mixed','Mixed / no clear favorite')] %}<tr><td>{{ label }}</td><td class="num">{{ family_feedback.favorite_modes[key] }}</td></tr>{% endfor %}</tbody></table>
+  <h3>Recent comments</h3>
+  {% if family_feedback.recent_comments %}<ul>{% for feedback in family_feedback.recent_comments %}<li><p>{{ feedback.comment|e }}</p><small>{% if feedback.quoteApproved %}Approved for anonymous quotation{% else %}Not approved for quotation{% endif %}</small></li>{% endfor %}</ul>{% else %}<p class="muted">No optional comments yet.</p>{% endif %}
 </section>
 <section class="block">
   <table class="admin-table">

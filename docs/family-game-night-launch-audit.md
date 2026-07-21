@@ -31,7 +31,17 @@ Completed on `feature/family-game-night-launch`:
 - Added one-time Stripe checkout and webhook fulfillment for `family_game_night` ownership.
 - Unified visible in-room mode names and Family Game Night room branding.
 - Added an admin launch-funnel dashboard for create, join, start, finish, checkout, cancel, and fulfillment totals.
+- Completed the first-party funnel with session-deduplicated sales-page/setup views and progressively enhanced Play Free/Unlock CTA events.
+- Added an optional anonymous post-game beta survey and admin summary for enjoyment, favorite mode, play-again intent, and quotation consent.
 - Verified the public and setup pages at 320 px with no horizontal overflow or browser errors.
+
+### Launch analytics and beta feedback
+
+The aggregate funnel document at `analytics/family_game_night_funnel` counts sales-page views, Play Free clicks, Unlock clicks, setup views, room creation, first join, start, and finish. Checkout start/cancel/fulfillment retain their existing aggregate analytics documents. Page views are counted once per browser session, obvious bot user agents are skipped, CTA beacons are CSRF protected and rate limited, and analytics failures never block navigation.
+
+Feedback responses are written to `family_game_night_feedback` with `enjoyment` (1–5), `favoriteMode`, `playAgain`, optional text up to 500 characters, anonymous-quotation consent, team mode, round count, game mix, and a server timestamp. The response does not contain a room code, player identity, email, prompt, answer, drawing, score, child name, or age. Only a joined player or the host of a finished Family Game Night may submit, and the browser session is limited to one response for that completed room.
+
+Admin analytics displays the complete funnel and safe-denominator conversions plus an aggregate feedback summary and recent comments. Jinja escaping is explicit for submitted comments, and quotation approval is displayed beside each comment.
 
 ## Architecture and file map
 
@@ -118,7 +128,7 @@ Coverage still needed for the launch model:
 
 - repeat webhook delivery and returning-customer integration tests against a Firestore emulator or Stripe test mode;
 - paid host/free participant behavior;
-- funnel analytics events.
+- an unassisted multi-device production playtest and real beta-family behavior.
 
 ## Confirmed strengths
 

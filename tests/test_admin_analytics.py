@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from app import app
 from faithsparks.views.admin import analytics
 
 
@@ -36,6 +37,10 @@ def test_admin_analytics_exposes_family_game_night_funnel(monkeypatch):
         {
             "family_game_night_funnel": {
                 "events": {
+                    "sales_page_view": 20,
+                    "play_free_click": 12,
+                    "unlock_click": 5,
+                    "setup_view": 11,
                     "room_created": 10,
                     "first_player_joined": 8,
                     "game_started": 7,
@@ -45,6 +50,12 @@ def test_admin_analytics_exposes_family_game_night_funnel(monkeypatch):
             "family_game_night_checkout_started": {"total": 4},
             "family_game_night_checkout_canceled": {"total": 1},
             "family_game_night_checkout_fulfilled": {"total": 3},
+            "family_game_night_feedback": {
+                "total": 2,
+                "ratingSum": 9,
+                "playAgain": {"yes": 2},
+                "favoriteMode": {"draw": 1, "mixed": 1},
+            },
         }
     )
     captured = {}
@@ -61,6 +72,10 @@ def test_admin_analytics_exposes_family_game_night_funnel(monkeypatch):
     assert analytics.admin_analytics() == "rendered"
     assert captured["template"] == "admin_analytics.html"
     assert captured["family_game_night"] == {
+        "sales_page_view": 20,
+        "play_free_click": 12,
+        "unlock_click": 5,
+        "setup_view": 11,
         "room_created": 10,
         "first_player_joined": 8,
         "game_started": 7,
@@ -69,6 +84,17 @@ def test_admin_analytics_exposes_family_game_night_funnel(monkeypatch):
         "checkout_canceled": 1,
         "checkout_fulfilled": 3,
     }
+    assert captured["family_game_night_conversions"] == {
+        "play_free": 60,
+        "room_create": 83,
+        "game_start": 70,
+        "game_finish": 86,
+        "unlock": 25,
+        "checkout": 80,
+        "purchase": 75,
+    }
+    assert captured["family_feedback"]["total"] == 2
+    assert captured["family_feedback"]["average_enjoyment"] == 4.5
 
 
 def test_admin_analytics_keeps_zeroes_when_funnel_is_unavailable(monkeypatch):
@@ -81,3 +107,17 @@ def test_admin_analytics_keeps_zeroes_when_funnel_is_unavailable(monkeypatch):
     result = analytics.admin_analytics()
 
     assert all(value == 0 for value in result["family_game_night"].values())
+    assert all(value is None for value in result["family_game_night_conversions"].values())
+
+
+def test_admin_feedback_comments_are_explicitly_escaped():
+    template = open("templates/admin_analytics.html", encoding="utf-8").read()
+
+    assert "feedback.comment|e" in template
+
+
+def test_admin_analytics_requires_admin_access():
+    response = app.test_client().get("/admin/analytics")
+
+    assert response.status_code == 302
+    assert "/login/google" in response.headers["Location"]
