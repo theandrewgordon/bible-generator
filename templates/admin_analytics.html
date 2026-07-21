@@ -1,6 +1,40 @@
 {% extends "base.html" %} {% block title %}Admin • Analytics{% endblock %} {%
 block content %}
 <h1 class="page-title">Admin: Analytics</h1>
+<section class="block" aria-labelledby="content-health-heading">
+  <h2 id="content-health-heading">Game content health</h2>
+  {% if content_health.available %}
+    {% set fgn = content_health.family_game_night %}
+    {% set bee = content_health.bible_bee %}
+    <div class="admin-grid">
+      <article>
+        <h3>Family Game Night</h3>
+        <p><strong>{{ fgn.counts.published_records }}</strong> published prompts · <strong>{{ fgn.counts.unique_canonical_answers }}</strong> unique answers</p>
+        <ul>
+          {% for mode, count in fgn.counts.by_mode.items() %}<li>{{ mode|replace('clue', 'Don’t Say It')|title }}: {{ count }} eligible answers</li>{% endfor %}
+          <li>Free sampler: {{ fgn.free_sampler.ids }} IDs / {{ fgn.free_sampler.unique_answers }} answers</li>
+          <li>Human review: {{ fgn.counts.human_review }}</li>
+          <li>Validator: {{ (fgn.validation.structural_errors|length) + (fgn.validation.editorial_errors|length) + (fgn.validation.depth_errors|length) }} blocking findings</li>
+          <li>Editorial version: {{ fgn.counts.editorial_version }}</li>
+        </ul>
+      </article>
+      <article>
+        <h3>Family Bible Bee</h3>
+        <p><strong>{{ bee.counts.named_decks }}</strong> named decks · <strong>{{ bee.counts.unique_references }}</strong> unique references</p>
+        <ul>
+          <li>Passage memberships: {{ bee.counts.memberships }}</li>
+          <li>OT / NT: {{ bee.counts.testaments.OT }} / {{ bee.counts.testaments.NT }}</li>
+          <li>Shared-reference warnings: {{ bee.validation.warnings|length }}</li>
+          <li>Human review: {{ bee.counts.human_review }}</li>
+          <li>Validator: {{ (bee.validation.structural_errors|length) + (bee.validation.editorial_errors|length) + (bee.validation.depth_errors|length) }} blocking findings</li>
+        </ul>
+      </article>
+    </div>
+    <p class="small muted">Aggregate content metadata only. No passage text, room codes, player information, answers, scores, or drawings are included.</p>
+  {% else %}
+    <p class="muted">Content-health reports are unavailable. Run <code>python scripts/generate_game_content_reports.py</code>.</p>
+  {% endif %}
+</section>
 <section class="block">
   <table class="admin-table">
     <caption>Family Game Night launch funnel</caption>

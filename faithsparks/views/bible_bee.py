@@ -30,6 +30,7 @@ from faithsparks.services.bible_bee_content import (
     load_reference_passages,
     translation_options,
 )
+from faithsparks.services.game_content import read_recent_history, updated_recent_history
 from faithsparks.services.bible_bee_ai import (
     BibleBeeAIError,
     create_one_off_plan,
@@ -771,7 +772,7 @@ def create_room():
                 version,
                 round_count,
                 seed=code,
-                recent_references=set(session.get("bible_bee_recent_references", [])),
+                recent_references=set(read_recent_history(session.get("bible_bee_recent_references"))),
             )
             deck_name = deck["title"]
         questions = build_questions(
@@ -827,10 +828,10 @@ def create_room():
         "ai_review": ai_review,
     }
     _set_room(code, room)
-    session["bible_bee_recent_references"] = (
-        list(session.get("bible_bee_recent_references", []))
-        + [passage["reference"] for passage in passages]
-    )[-100:]
+    session["bible_bee_recent_references"] = updated_recent_history(
+        session.get("bible_bee_recent_references"),
+        [passage["reference"] for passage in passages],
+    )
     host_rooms = list(session.get("bible_bee_host_rooms", []))
     if code not in host_rooms:
         host_rooms.append(code)
@@ -1286,7 +1287,7 @@ def play_again_same_players(code: str):
                 current.get("translation_id", "esv"),
                 round_count,
                 seed=f"{code}-{int(time.time())}",
-                recent_references=set(session.get("bible_bee_recent_references", [])),
+                recent_references=set(read_recent_history(session.get("bible_bee_recent_references"))),
             )
             if current.get("deck_id") != "one-off"
             else current.get("passages", [])
@@ -1324,10 +1325,10 @@ def play_again_same_players(code: str):
     if result is None:
         abort(404)
     updated_room = result[1]
-    session["bible_bee_recent_references"] = (
-        list(session.get("bible_bee_recent_references", []))
-        + [passage["reference"] for passage in updated_room.get("passages", [])]
-    )[-100:]
+    session["bible_bee_recent_references"] = updated_recent_history(
+        session.get("bible_bee_recent_references"),
+        [passage["reference"] for passage in updated_room.get("passages", [])],
+    )
     return jsonify({"ok": True})
 
 

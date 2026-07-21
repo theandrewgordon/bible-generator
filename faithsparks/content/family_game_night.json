@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "editorial_version": 1,
+  "editorial_version": 2,
   "free_sampler_ids": [
     "ark-jerusalem",
     "calming-storm",
@@ -16,7 +16,7 @@
     "draw-bethlehem",
     "draw-bible",
     "draw-cross",
-    "draw-david-goliath",
+    "draw-lost-sheep",
     "draw-empty-tomb",
     "david-goliath",
     "centurion-servant",
@@ -28,10 +28,10 @@
     "lazarus",
     "elijah-whirlwind",
     "lame-man-temple",
-    "gideon-300",
-    "lydia-home",
+    "floating-axe-head",
+    "anna-temple",
     "gideon-fleece",
-    "mary-perfume",
+    "rhoda-door",
     "hannah-prays",
     "paralytic-roof"
   ],
@@ -69,7 +69,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "noah-ark",
@@ -96,7 +102,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jonah-fish",
@@ -130,7 +142,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "daniel-lions",
@@ -164,7 +182,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "moses-sea",
@@ -198,7 +222,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jericho",
@@ -225,7 +255,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "samuel-listening",
@@ -259,7 +295,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "elijah-ravens",
@@ -295,7 +337,13 @@
       "legacy_theme": "Bible Stories",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "peter-water",
@@ -329,7 +377,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Jesus' Miracles",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "calming-storm",
@@ -363,7 +417,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Jesus' Miracles",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "feeding-5000",
@@ -397,7 +457,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Jesus' Miracles",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "healing-blind",
@@ -433,7 +499,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "lazarus",
@@ -469,7 +541,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "ten-lepers",
@@ -505,7 +583,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "good-samaritan",
@@ -539,7 +623,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "lost-sheep",
@@ -565,14 +655,23 @@
       "forbidden_words": [
         "sheep",
         "lost",
-        "shepherd"
+        "shepherd",
+        "flock"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "prodigal-son",
@@ -608,7 +707,13 @@
       "legacy_theme": "Parables",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "wise-builder",
@@ -642,7 +747,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "moses-tablets",
@@ -676,7 +787,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "People Moments",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "esther-brave",
@@ -712,7 +829,13 @@
       "legacy_theme": "People Moments",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "paul-letters",
@@ -748,7 +871,13 @@
       "legacy_theme": "People Moments",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "mary-angel",
@@ -782,7 +911,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "People Moments",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "peter-fishing",
@@ -816,7 +951,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "People Moments",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "ruth-gathering",
@@ -850,7 +991,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "People Moments",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "praying",
@@ -877,7 +1024,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "singing-worship",
@@ -904,7 +1057,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "serving",
@@ -930,14 +1089,23 @@
       "forbidden_words": [
         "serve",
         "help",
-        "others"
+        "others",
+        "volunteer"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "baptism",
@@ -962,16 +1130,26 @@
       },
       "forbidden_words": [
         "water",
-        "church"
+        "church",
+        "baptize",
+        "immerse"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Worship & Church",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [
+        "Expanded the forbidden list after removing the exact canonical answer."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "giving",
@@ -997,14 +1175,23 @@
       "forbidden_words": [
         "give",
         "money",
-        "offering"
+        "offering",
+        "generous"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "communion",
@@ -1030,16 +1217,25 @@
       "forbidden_words": [
         "bread",
         "cup",
-        "supper"
+        "supper",
+        "remember"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Worship & Church",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "forgiveness",
@@ -1065,16 +1261,25 @@
       "forbidden_words": [
         "forgive",
         "sorry",
-        "wrong"
+        "wrong",
+        "mercy"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Everyday Faith",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "patience",
@@ -1100,14 +1305,23 @@
       "forbidden_words": [
         "patience",
         "wait",
-        "calm"
+        "calm",
+        "hurry"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Everyday Faith",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "courage",
@@ -1133,14 +1347,23 @@
       "forbidden_words": [
         "courage",
         "brave",
-        "afraid"
+        "afraid",
+        "fear"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Everyday Faith",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "joy",
@@ -1160,20 +1383,31 @@
       "age_floor": 6,
       "familiarity": "famous",
       "instructions": {
-        "act": "Act getting bad news, then remembering God and choosing joy.",
-        "clue": "Act getting bad news, then remembering God and choosing joy."
+        "act": "Act receiving disappointing news, praying, and then smiling with renewed hope.",
+        "clue": "Describe this faithful response to disappointment without using any forbidden word."
       },
       "forbidden_words": [
         "joy",
         "happy",
-        "glad"
+        "glad",
+        "rejoice"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Everyday Faith",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Improved act direction to avoid echoing the answer.",
+        "Separated the clue-mode direction from the acting direction to remove answer leakage.",
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "peace",
@@ -1199,14 +1433,23 @@
       "forbidden_words": [
         "peace",
         "calm",
-        "quiet"
+        "quiet",
+        "worry"
       ],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Everyday Faith",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Expanded the forbidden list to four meaningful shortcuts."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "kindness",
@@ -1240,7 +1483,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Everyday Faith",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "who-david",
@@ -1272,7 +1521,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Guess the Story",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "who-esther",
@@ -1306,7 +1561,13 @@
       "legacy_theme": "Guess the Story",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "story-good-samaritan",
@@ -1338,7 +1599,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Guess the Story",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "story-prodigal-son",
@@ -1372,7 +1639,13 @@
       "legacy_theme": "Guess the Story",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "story-psalm-23",
@@ -1406,7 +1679,13 @@
       "legacy_theme": "Guess the Story",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-noah-ark",
@@ -1433,7 +1712,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-david-goliath",
@@ -1460,7 +1745,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-jonah-fish",
@@ -1487,7 +1778,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-daniel-lions",
@@ -1514,7 +1811,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Bible Stories",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-moses-sea",
@@ -1543,7 +1846,13 @@
       "legacy_theme": "Bible Stories",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-jericho-walls",
@@ -1572,7 +1881,13 @@
       "legacy_theme": "Bible Stories",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-calming-storm",
@@ -1599,7 +1914,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Jesus' Miracles",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-feeding-5000",
@@ -1628,7 +1949,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-walking-water",
@@ -1657,7 +1984,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-healing-blind",
@@ -1686,7 +2019,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-lazarus",
@@ -1715,7 +2054,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-wedding-cana",
@@ -1744,7 +2089,13 @@
       "legacy_theme": "Jesus' Miracles",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-good-samaritan",
@@ -1771,7 +2122,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-lost-sheep",
@@ -1798,7 +2155,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-prodigal-son",
@@ -1827,7 +2190,13 @@
       "legacy_theme": "Parables",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-sower",
@@ -1854,7 +2223,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-mustard-seed",
@@ -1881,7 +2256,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-wise-builder",
@@ -1908,7 +2289,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Parables",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-bethlehem",
@@ -1935,7 +2322,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "People & Places",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-garden-eden",
@@ -1962,7 +2355,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "People & Places",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-mount-sinai",
@@ -1991,7 +2390,13 @@
       "legacy_theme": "People & Places",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-empty-tomb",
@@ -2018,7 +2423,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "People & Places",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-upper-room",
@@ -2047,7 +2458,13 @@
       "legacy_theme": "People & Places",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-road-damascus",
@@ -2076,7 +2493,13 @@
       "legacy_theme": "People & Places",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-praying-hands",
@@ -2103,7 +2526,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-singing-worship",
@@ -2130,7 +2559,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-baptism",
@@ -2157,7 +2592,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-communion",
@@ -2184,7 +2625,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-offering-basket",
@@ -2211,7 +2658,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-serve-meal",
@@ -2238,7 +2691,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Worship & Church",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-light-world",
@@ -2265,7 +2724,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Faith Pictures",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-fruit-spirit",
@@ -2292,7 +2757,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Faith Pictures",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-armor-god",
@@ -2321,7 +2792,13 @@
       "legacy_theme": "Faith Pictures",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-narrow-road",
@@ -2350,7 +2827,13 @@
       "legacy_theme": "Faith Pictures",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-living-water",
@@ -2379,7 +2862,13 @@
       "legacy_theme": "Faith Pictures",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-mustard-faith",
@@ -2406,7 +2895,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Faith Pictures",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-cross",
@@ -2425,15 +2920,23 @@
       "age_floor": 6,
       "familiarity": "famous",
       "instructions": {
-        "draw": "Draw a simple cross."
+        "draw": "Draw two intersecting wooden beams standing on a hill."
       },
       "forbidden_words": [],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Easy Objects",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [
+        "Added recognizable visual anchors for a timed drawing round."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-bible",
@@ -2452,15 +2955,23 @@
       "age_floor": 6,
       "familiarity": "famous",
       "instructions": {
-        "draw": "Draw an open Bible with pages."
+        "draw": "Draw two open pages with lines, a center binding, and a ribbon marker."
       },
       "forbidden_words": [],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Easy Objects",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Improved draw direction to avoid echoing the answer."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-crown",
@@ -2479,15 +2990,23 @@
       "age_floor": 6,
       "familiarity": "famous",
       "instructions": {
-        "draw": "Draw a royal crown."
+        "draw": "Draw a royal headpiece with points and sparkling jewels."
       },
       "forbidden_words": [],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Easy Objects",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Added recognizable visual anchors for a timed drawing round."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-fish-symbol",
@@ -2514,7 +3033,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Easy Objects",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-bread-fish",
@@ -2533,15 +3058,23 @@
       "age_floor": 6,
       "familiarity": "famous",
       "instructions": {
-        "draw": "Draw loaves of bread and fish."
+        "draw": "Draw several small loaves beside two fish."
       },
       "forbidden_words": [],
       "progressive_clues": [],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "legacy_theme": "Easy Objects",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Improved draw direction to avoid echoing the answer."
+      ],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-star",
@@ -2568,7 +3101,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Easy Objects",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-creation",
@@ -2597,7 +3136,13 @@
       "legacy_theme": "Big Scenes",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-red-sea-crossing",
@@ -2626,7 +3171,13 @@
       "legacy_theme": "Big Scenes",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-washing-feet",
@@ -2655,7 +3206,13 @@
       "legacy_theme": "Big Scenes",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-last-supper",
@@ -2684,7 +3241,13 @@
       "legacy_theme": "Big Scenes",
       "metadata_review_required": false,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-pentecost",
@@ -2711,7 +3274,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Big Scenes",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "draw-heavenly-city",
@@ -2738,7 +3307,13 @@
       "status": "published",
       "editorial_version": 1,
       "legacy_theme": "Big Scenes",
-      "metadata_review_required": false
+      "metadata_review_required": false,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "legacy_production",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "ehud-delivers-israel",
@@ -2777,13 +3352,23 @@
         "I carried a hidden sword to a Moabite king.",
         "I brought Israel freedom from King Eglon."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "violence"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "deborah-barak",
@@ -2820,15 +3405,26 @@
         "A woman judged Israel under a palm tree.",
         "A military leader would not go without her.",
         "Sisera commanded the enemy army.",
-        "Deborah and Barak led Israel to victory."
+        "Two judges helped Israel win this battle."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "battle"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue.",
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jael-sisera",
@@ -2873,7 +3469,13 @@
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "gideon-fleece",
@@ -2922,7 +3524,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "gideon-300",
@@ -2963,15 +3571,25 @@
         "They carried trumpets, jars, and torches.",
         "Gideon won with only three hundred men."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "battle"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "samson-gates",
@@ -3012,13 +3630,23 @@
         "He left before dawn carrying something enormous.",
         "Samson carried away the gates of Gaza."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "adult_context"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "samson-riddle",
@@ -3063,7 +3691,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "hannah-prays",
@@ -3112,7 +3746,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "samuel-anoints-david",
@@ -3159,7 +3799,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "david-spares-saul",
@@ -3204,7 +3850,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "abigail-david",
@@ -3243,13 +3895,23 @@
         "She met an angry future king on the road.",
         "Abigail brought food and stopped David from taking revenge."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "threatened_violence"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "ark-jerusalem",
@@ -3296,7 +3958,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "solomon-wisdom",
@@ -3339,7 +4007,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "solomon-temple",
@@ -3380,7 +4054,13 @@
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jeroboam-hand",
@@ -3425,7 +4105,13 @@
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "widow-flour-oil",
@@ -3472,7 +4158,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "mount-carmel",
@@ -3519,7 +4211,13 @@
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "elijah-whirlwind",
@@ -3566,7 +4264,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "floating-axe-head",
@@ -3615,7 +4319,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "naaman-jordan",
@@ -3664,7 +4374,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "widow-oil-jars",
@@ -3711,7 +4427,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "heavenly-army",
@@ -3758,7 +4480,13 @@
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "hezekiah-shadow",
@@ -3803,7 +4531,13 @@
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "josiah-book-law",
@@ -3846,7 +4580,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "nehemiah-night",
@@ -3891,7 +4631,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "mordecai-honored",
@@ -3936,7 +4682,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "writing-wall",
@@ -3975,17 +4727,25 @@
         "A king held a great feast using sacred vessels.",
         "A mysterious hand appeared during the celebration.",
         "No wise man could explain the message.",
-        "Daniel interpreted the writing on the wall."
+        "Daniel explained the mysterious message to the king."
       ],
       "sensitivity_flags": [
         "judgment"
       ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "dry-bones",
@@ -4022,17 +4782,25 @@
         "A prophet was shown a valley filled with remains.",
         "He was asked whether they could live.",
         "The bones came together and breath entered them.",
-        "Ezekiel saw the valley of dry bones."
+        "A prophet watched a lifeless valley become an army."
       ],
       "sensitivity_flags": [
         "death_imagery"
       ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "balaam-donkey",
@@ -4081,7 +4849,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jacob-wrestles",
@@ -4124,7 +4898,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "joseph-pharaoh-dreams",
@@ -4171,7 +4951,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "bronze-serpent",
@@ -4218,7 +5004,13 @@
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "sun-stands-still",
@@ -4259,13 +5051,23 @@
         "The leader asked for more daylight.",
         "The sun stood still for Joshua."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "battle"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "rahab-cord",
@@ -4306,15 +5108,25 @@
         "She asked for her family to be spared.",
         "Rahab tied a scarlet cord in her window."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "warfare"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jehoshaphat-singers",
@@ -4353,13 +5165,23 @@
         "Musicians went out before the soldiers.",
         "Jehoshaphat sent singers ahead of the army."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "battle"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "zechariah-silent",
@@ -4406,7 +5228,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "simeon-jesus",
@@ -4449,7 +5277,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "anna-temple",
@@ -4484,7 +5318,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jesus-age-twelve",
@@ -4529,7 +5369,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "paralytic-roof",
@@ -4576,7 +5422,13 @@
       "category_label": "Jesus and His Miracles",
       "legacy_theme": "Jesus and His Miracles",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "centurion-servant",
@@ -4619,7 +5471,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "woman-garment",
@@ -4666,7 +5524,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "coin-fish",
@@ -4711,7 +5575,13 @@
       "category_label": "Jesus and His Miracles",
       "legacy_theme": "Jesus and His Miracles",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "zacchaeus-tree",
@@ -4756,7 +5626,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "woman-well",
@@ -4801,7 +5677,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "mary-perfume",
@@ -4834,7 +5716,13 @@
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "servant-ear",
@@ -4879,7 +5767,13 @@
       "category_label": "Jesus and His Miracles",
       "legacy_theme": "Jesus and His Miracles",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "emmaus-road",
@@ -4918,15 +5812,23 @@
         "Two disciples walked away from Jerusalem discussing recent events.",
         "A stranger joined them and explained Scripture.",
         "They recognized him when bread was broken.",
-        "The risen Jesus appeared on the road to Emmaus."
+        "Two travelers recognized the risen Jesus after he broke bread."
       ],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "thomas-risen-jesus",
@@ -4969,7 +5871,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "matthias-chosen",
@@ -5006,7 +5914,13 @@
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "lame-man-temple",
@@ -5043,7 +5957,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "ananias-sapphira",
@@ -5078,7 +5998,13 @@
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "philip-ethiopian",
@@ -5113,7 +6039,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "peter-prison-escape",
@@ -5162,7 +6094,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "rhoda-door",
@@ -5199,7 +6137,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "paul-silas-sing",
@@ -5236,7 +6180,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "eutychus-falls",
@@ -5271,7 +6221,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "paul-shipwreck",
@@ -5300,13 +6256,23 @@
         "Everyone reached land safely as promised.",
         "Paul was shipwrecked and arrived on Malta."
       ],
-      "sensitivity_flags": [],
+      "sensitivity_flags": [
+        "danger"
+      ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Added a high-confidence family-play sensitivity flag."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "paul-snake",
@@ -5341,7 +6307,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "barnabas-welcomes-saul",
@@ -5376,7 +6348,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "priscilla-aquila-apollos",
@@ -5409,7 +6387,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "lydia-home",
@@ -5444,7 +6428,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "dorcas-restored",
@@ -5479,7 +6469,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "agabus-famine",
@@ -5512,7 +6508,13 @@
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "paul-basket",
@@ -5549,7 +6551,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "jerusalem-council",
@@ -5574,15 +6582,23 @@
         "A serious disagreement concerned Gentile believers.",
         "Apostles and elders gathered to discuss it.",
         "Peter, Paul, Barnabas, and James all contributed.",
-        "The Jerusalem Council sent a letter to the churches."
+        "Church leaders sent a letter explaining their decision."
       ],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "cornelius-peter",
@@ -5615,7 +6631,13 @@
       "category_label": "Worship and Church",
       "legacy_theme": "Worship and Church",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "peter-sheet-vision",
@@ -5648,7 +6670,13 @@
       "category_label": "Bible Stories",
       "legacy_theme": "Bible Stories",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "stephen-vision",
@@ -5684,7 +6712,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "human_review",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "paul-agrippa",
@@ -5717,7 +6751,13 @@
       "category_label": "People of the Bible",
       "legacy_theme": "People of the Bible",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "persistent-widow",
@@ -5744,17 +6784,25 @@
         "Jesus told this story to encourage continual prayer.",
         "A woman repeatedly approached an unjust official.",
         "He finally acted because she would not stop asking.",
-        "The persistent widow kept seeking justice."
+        "This woman kept returning to a judge to seek justice."
       ],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Parables",
       "legacy_theme": "Parables",
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "pharisee-tax-collector",
@@ -5791,7 +6839,13 @@
       "source_status": "review",
       "metadata_review_required": true,
       "source_difficulty": "medium",
-      "difficulty_calibration": "age_floor_8_beta"
+      "difficulty_calibration": "age_floor_8_beta",
+      "editorial_notes": [],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "ten-virgins",
@@ -5816,15 +6870,23 @@
         "Ten young women waited for a bridegroom.",
         "Only half brought enough oil.",
         "The arrival happened at midnight.",
-        "The parable of the ten virgins teaches readiness."
+        "Jesus told this wedding story to teach people to be ready."
       ],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Parables",
       "legacy_theme": "Parables",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "talents-parable",
@@ -5851,15 +6913,23 @@
         "A master entrusted different amounts to three servants.",
         "Two put what they received to work.",
         "One buried his portion in the ground.",
-        "The parable of the talents teaches faithful stewardship."
+        "Jesus told this story about using what a master entrusted."
       ],
       "sensitivity_flags": [],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Parables",
       "legacy_theme": "Parables",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     },
     {
       "id": "unforgiving-servant",
@@ -5884,17 +6954,25 @@
         "A servant owed a king an enormous debt.",
         "The king canceled it completely.",
         "The forgiven man then refused mercy over a much smaller debt.",
-        "The parable of the unforgiving servant warns us to forgive."
+        "Jesus told this story to warn against refusing to forgive."
       ],
       "sensitivity_flags": [
         "imprisonment"
       ],
       "status": "published",
-      "editorial_version": 1,
+      "editorial_version": 2,
       "category_label": "Parables",
       "legacy_theme": "Parables",
       "source_status": "review",
-      "metadata_review_required": true
+      "metadata_review_required": true,
+      "editorial_notes": [
+        "Removed canonical-answer leakage from the final progressive clue."
+      ],
+      "review_status": "approved",
+      "source_provenance": "supplied_batch_2026_07",
+      "ambiguity_flags": [],
+      "denominational_sensitivity_flags": [],
+      "required_host_explanation": ""
     }
   ]
 }

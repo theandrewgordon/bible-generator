@@ -7,7 +7,7 @@ import random
 import re
 from copy import deepcopy
 
-from faithsparks.services.game_content import load_bible_bee_content, strong_seed
+from faithsparks.services.game_content import BIBLE_BOOK_METADATA, load_bible_bee_content, strong_seed
 from faithsparks.services.scripture import fetch_verse_text
 
 
@@ -341,6 +341,38 @@ DECKS = {
 
 def _apply_normalized_deck_expansions() -> None:
     """Append validated, published passage metadata to the legacy deck catalog."""
+    for deck_id, deck in DECKS.items():
+        if deck_id == RANDOM_DECK_ID:
+            continue
+        for passage in deck["passages"]:
+            reference = passage["reference"]
+            match = re.fullmatch(r"(.+?)\s+(\d+):(\d+)(?:-(?:(\d+):)?(\d+))?", reference)
+            book = match.group(1) if match else reference
+            testament, division = BIBLE_BOOK_METADATA.get(book, (None, None))
+            verse_span = 1
+            if match and not match.group(4):
+                verse_span = max(1, int(match.group(5) or match.group(3)) - int(match.group(3)) + 1)
+            base_difficulty = "easy" if "easy" in deck["difficulty"].casefold() and verse_span <= 2 else "family"
+            if verse_span >= 8:
+                base_difficulty = "hard"
+            elif verse_span >= 4:
+                base_difficulty = "challenge"
+            passage.update({
+                "id": re.sub(r"[^a-z0-9]+", "-", reference.casefold()).strip("-"),
+                "book": book,
+                "testament": testament,
+                "division": division,
+                "familiarity": "famous" if deck_id == "family-favorites" else "known",
+                "format_eligibility": ["finish", "fill_blank", "reference", "oral"],
+                "difficulty_by_format": {
+                    "finish": base_difficulty,
+                    "fill_blank": base_difficulty,
+                    "reference": "easy" if deck_id == "family-favorites" else "family",
+                    "oral": "hard" if verse_span >= 4 else base_difficulty,
+                },
+                "review_status": "approved",
+                "source_provenance": "legacy_builtin",
+            })
     for expansion in load_bible_bee_content().get("decks", []):
         deck = DECKS.get(expansion.get("deck_id"))
         if not deck:
@@ -632,16 +664,33 @@ def _split_finish(text: str) -> tuple[str, str]:
     if len(words) <= 5:
         split = max(1, len(words) // 2)
     else:
-        split = max(3, min(len(words) - 2, len(words) // 2))
+        # Prefer a natural phrase boundary near the middle. This keeps the
+        # visible and missing portions substantive without storing any text.
+        candidates = []
+        for match in re.finditer(r"[,;:]\s+", text):
+            left_count = len(text[: match.start()].split())
+            right_count = len(text[match.end() :].split())
+            first_missing = (text[match.end() :].split() or [""])[0].casefold().strip("'\"")
+            if left_count >= 3 and right_count >= 2 and first_missing not in {"and", "but", "or", "for", "so", "yet"}:
+                candidates.append(left_count)
+        target = len(words) / 2
+        split = min(candidates, key=lambda value: abs(value - target)) if candidates else int(target)
+        split = max(3, min(len(words) - 2, split))
     return " ".join(words[:split]).rstrip(",;:") + "…", " ".join(words[split:])
 
 
 def _choose_blank(passage: dict) -> str:
     candidates = passage.get("blanks") or _keywords(passage.get("text", ""))
-    if candidates:
-        return candidates[0]
-    words = re.findall(r"[A-Za-z']+", passage.get("text", ""))
-    return max(words, key=len) if words else ""
+    text = passage.get("text", "")
+    unique_candidates = [
+        candidate for candidate in candidates
+        if len(re.findall(rf"\b{re.escape(candidate)}\b", text, flags=re.I)) == 1
+    ]
+    if unique_candidates:
+        return unique_candidates[0]
+    words = re.findall(r"[A-Za-z']+", text)
+    unique_words = [word for word in words if len(re.findall(rf"\b{re.escape(word)}\b", text, flags=re.I)) == 1]
+    return max(unique_words, key=len) if unique_words else ""
 
 
 def _shuffle_choices(
@@ -649,15 +698,51 @@ def _shuffle_choices(
     distractors: list[str],
     rng: random.Random,
     choice_count: int = 4,
+    *,
+    avoid_substrings: bool = False,
 ) -> tuple[list[str], int]:
     choices = [correct]
     for distractor in distractors:
-        if distractor and distractor.lower() not in {choice.lower() for choice in choices}:
+        normalized = distractor.casefold().strip()
+        existing = {choice.casefold().strip() for choice in choices}
+        substring_conflict = avoid_substrings and any(normalized in choice or choice in normalized for choice in existing)
+        if distractor and normalized not in existing and not substring_conflict:
             choices.append(distractor)
         if len(choices) == choice_count:
             break
+    if avoid_substrings and len(choices) < choice_count:
+        for fallback in ("truth", "mercy", "wisdom", "courage", "promise", "service", "kindness", "justice", "comfort", "praise"):
+            candidate = fallback.capitalize() if correct[:1].isupper() else fallback
+            normalized = candidate.casefold()
+            existing = {choice.casefold() for choice in choices}
+            if normalized not in existing and not any(normalized in choice or choice in normalized for choice in existing):
+                choices.append(candidate)
+            if len(choices) == choice_count:
+                break
     rng.shuffle(choices)
     return choices, choices.index(correct)
+
+
+def _reference_distractors(correct: str, passages: list[dict], difficulty: str) -> list[str]:
+    correct_span = _reference_span(correct)
+    candidates = [item["reference"] for item in passages if not references_overlap(correct, item["reference"])]
+    if not correct_span:
+        return candidates
+    correct_book, correct_chapter = correct_span[0], correct_span[1]
+
+    def proximity(reference: str) -> tuple:
+        span = _reference_span(reference)
+        if not span:
+            return (3, 999, reference)
+        same_book = span[0] == correct_book
+        distance = abs(span[1] - correct_chapter) if same_book else 999
+        if difficulty in {"hard", "expert", "bible_bee_prep"}:
+            return (0 if same_book else 1, distance, reference)
+        if difficulty == "little_sparks":
+            return (1 if same_book else 0, -distance, reference)
+        return (0 if same_book else 1, distance, reference)
+
+    return sorted(candidates, key=proximity)
 
 
 def _word_tokens(text: str) -> list[str]:
@@ -948,7 +1033,7 @@ def build_questions(
 
         if mode == "reference":
             choices, correct = _shuffle_choices(
-                passage["reference"], [item["reference"] for item in others], rng, round_choice_count
+                passage["reference"], _reference_distractors(passage["reference"], others, difficulty), rng, round_choice_count
             )
             prompt = passage["text"]
             label = "Reference Race"
@@ -957,7 +1042,11 @@ def build_questions(
             choices, correct = [], None
             label = "Oral Recitation"
         elif mode == "fill_blank":
-            blank_candidates = passage.get("blanks") or _keywords(passage["text"])
+            raw_blank_candidates = passage.get("blanks") or _keywords(passage["text"])
+            blank_candidates = [
+                candidate for candidate in raw_blank_candidates
+                if len(re.findall(rf"\b{re.escape(candidate)}\b", passage["text"], flags=re.I)) == 1
+            ]
             blank = rng.choice(blank_candidates[:3]) if blank_candidates else _choose_blank(passage)
             if blank:
                 prompt = re.sub(rf"\b{re.escape(blank)}\b", "______", passage["text"], count=1, flags=re.I)
@@ -971,6 +1060,7 @@ def build_questions(
                     distractors,
                     rng,
                     round_choice_count,
+                    avoid_substrings=True,
                 )
                 label = "Fill the Blank"
             else:

@@ -31,6 +31,9 @@ Completed on `feature/family-game-night-launch`:
 - Expanded all 18 Family Bible Bee named decks from 12 to 40 references and removed silent modulo passage cycling.
 - Added overlap-aware Bible Bee selection, varied format ordering, format-specific content difficulty preference, and recent-reference avoidance.
 - Added a standalone content validator plus property-style replay tests over thousands of deterministic seeds.
+- Added objective editorial/clue/playability checks, a bounded human-review queue, and committed content-health reports.
+- Added setup capacity guidance that disables unsupported round lengths before submission while preserving server-side recoverable errors.
+- Added a 30-day TTL and corruption-safe parsing to the bounded recent-content history.
 
 - Added the canonical, indexable `/family-game-night` product page.
 - Added a dedicated `/family-game-night/play` parent-friendly setup flow.

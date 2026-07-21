@@ -24,8 +24,11 @@ from faithsparks.services.game_content import (
     build_family_rounds,
     free_sampler_ids,
     legacy_family_prompts,
+    read_recent_history,
     strong_seed,
+    updated_recent_history,
 )
+from faithsparks.services.game_content_health import load_precomputed_health
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.stripe_svc import STRIPE_PRICE_FAMILY_GAME_NIGHT
 from faithsparks.services.users import get_user_doc, has_active_plus, has_family_game_night_access
@@ -883,11 +886,19 @@ def _owns_family_game_night(email: str) -> bool:
 def _render_family_setup(error: str | None = None, status: int = 200):
     email = _host_email()
     owns_complete_game = _owns_family_game_night(email)
+    try:
+        capacity_matrix = (
+            load_precomputed_health().get("family_game_night", {}).get("capacity", {}).get("matrix", {})
+            if owns_complete_game else {}
+        )
+    except Exception:
+        capacity_matrix = {}
     response = render_template(
         "family_game_night_setup.html",
         is_host_signed_in=bool(email),
         owns_complete_game=owns_complete_game,
         categories=FAMILY_CATEGORIES,
+        capacity_matrix=capacity_matrix,
         error=error,
         active_rooms=[room for room in _active_rooms_for_host(email) if room.get("game_type") == "family_game_night"],
         noindex=True,
@@ -968,7 +979,7 @@ def create_family_game_night_room():
             difficulty=difficulty,
             game_mode=game_mode,
             free_sampler=not owns_complete_game,
-            recent_prompt_ids=set(session.get("family_game_night_recent_prompt_ids", [])),
+            recent_prompt_ids=set(read_recent_history(session.get("family_game_night_recent_prompt_ids"))),
         )
     except ValueError as exc:
         return _render_family_setup(str(exc), 400)
@@ -996,10 +1007,10 @@ def create_family_game_night_room():
     }
     _register_host_room(code, room)
     _set_room(code, room)
-    session["family_game_night_recent_prompt_ids"] = (
-        list(session.get("family_game_night_recent_prompt_ids", []))
-        + [round_["prompt_id"] for round_ in rounds]
-    )[-100:]
+    session["family_game_night_recent_prompt_ids"] = updated_recent_history(
+        session.get("family_game_night_recent_prompt_ids"),
+        [round_["prompt_id"] for round_ in rounds],
+    )
     _record_family_funnel_event("room_created", room, code)
     return redirect(f"/group-games/act-it-out/host/{code}")
 
@@ -1581,7 +1592,7 @@ def play_again_same_players(code: str):
             difficulty=current.get("difficulty", "whole_family"),
             game_mode=current.get("game_mode", "mixed"),
             free_sampler=bool(current.get("free_sampler", False)),
-            recent_prompt_ids=set(session.get("family_game_night_recent_prompt_ids", [])),
+            recent_prompt_ids=set(read_recent_history(session.get("family_game_night_recent_prompt_ids"))),
         )
         current["round_index"] = 0
         current["round_results"] = []
@@ -1607,10 +1618,10 @@ def play_again_same_players(code: str):
         abort(404)
     updated_room = result[1]
     if updated_room.get("game_type") == "family_game_night":
-        session["family_game_night_recent_prompt_ids"] = (
-            list(session.get("family_game_night_recent_prompt_ids", []))
-            + [round_["prompt_id"] for round_ in updated_room.get("rounds", [])]
-        )[-100:]
+        session["family_game_night_recent_prompt_ids"] = updated_recent_history(
+            session.get("family_game_night_recent_prompt_ids"),
+            [round_["prompt_id"] for round_ in updated_room.get("rounds", [])],
+        )
     return jsonify({"ok": True})
 
 

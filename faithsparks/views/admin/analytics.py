@@ -3,6 +3,7 @@ from flask import render_template
 from faithsparks.services.firestore import db
 from faithsparks.services.collections import get_collections
 from faithsparks.services import analytics as analytics_svc
+from faithsparks.services.game_content_health import load_precomputed_health
 
 
 def _document_data(client, document_name):
@@ -43,6 +44,10 @@ def admin_analytics():
         "favorite_modes": {"act": 0, "draw": 0, "clue": 0, "guess": 0, "mixed": 0},
         "recent_comments": [],
     }
+    try:
+        content_health = load_precomputed_health()
+    except Exception:
+        content_health = {"family_game_night": {}, "bible_bee": {}, "available": False}
     try:
         traffic = analytics_svc.daily_overview()
         recent_hits = analytics_svc.recent_visits()
@@ -169,4 +174,5 @@ def admin_analytics():
             "purchase": _conversion(family_game_night["checkout_fulfilled"], family_game_night["checkout_started"]),
         },
         family_feedback=family_feedback,
+        content_health=content_health,
     )
