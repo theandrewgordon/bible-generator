@@ -371,11 +371,11 @@ def _team_state(room: dict) -> list[dict]:
         {
             **team,
             "name": team_names.get(team["id"], team["name"]),
-            "score": sum(
+            "score": max(0, sum(
                 int(player.get("score", 0))
                 for player in players.values()
                 if player.get("team_id") == team["id"]
-            ),
+            ) + int(room.get("team_score_adjustments", {}).get(team["id"], 0))),
             "players": sum(1 for player in players.values() if player.get("team_id") == team["id"]),
         }
         for team in TEAMS
@@ -430,6 +430,7 @@ def _complete_oral_round(room: dict, now: float | None = None) -> None:
     score_config = _score_config(room)
     correct_players = []
     points_by_player = {}
+    score_reasons_by_player = {}
     missed = 0
     for player_id in eligible:
         judgment = judgments.get(player_id, "try")
@@ -444,6 +445,11 @@ def _complete_oral_round(room: dict, now: float | None = None) -> None:
             missed += 1
         room["players"][player_id]["score"] = int(room["players"][player_id].get("score", 0)) + points
         points_by_player[player_id] = points
+        score_reasons_by_player[player_id] = (
+            f"Full credit +{points}" if judgment == "correct"
+            else f"Almost +{points}" if judgment == "almost"
+            else f"Practice +{points}" if points else "Practice · no points"
+        )
     if missed:
         room.setdefault("review", []).append(
             {"reference": question["reference"], "missed": missed, "mode": question["label"]}
@@ -457,6 +463,7 @@ def _complete_oral_round(room: dict, now: float | None = None) -> None:
             "correct": len(correct_players),
             "correct_players": correct_players,
             "points_by_player": points_by_player,
+            "score_reasons_by_player": score_reasons_by_player,
             "oral_judgments": deepcopy(judgments),
             "bonus": bool(question.get("bonus")),
         }
@@ -549,10 +556,15 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
         ),
         key=lambda item: float(item[1].get("answered_at", 0)),
     )
-    speed_bonus = {
-        player_id: max(5, 50 - (rank * 10))
-        for rank, (player_id, _answer) in enumerate(correct_answerers)
-    }
+    speed_bonus = (
+        {
+            player_id: max(10, 50 - (rank * 10))
+            for rank, (player_id, _answer) in enumerate(correct_answerers)
+        }
+        if room.get("control_mode", "hosted") == "hosted"
+        else {}
+    )
+    score_reasons_by_player = {}
     for player_id, player in room.get("players", {}).items():
         if player_id not in eligible_player_ids:
             continue
@@ -562,12 +574,15 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
             player["score"] = int(player.get("score", 0)) + points
             correct_players.append(player_id)
             points_by_player[player_id] = points
+            bonus = speed_bonus.get(player_id, 0)
+            score_reasons_by_player[player_id] = f"Correct +{int(score_config['correct'])}" + (f" · Speed +{bonus}" if bonus else "")
         else:
             missed += 1
             if player_id in room.get("answers", {}):
                 points = int(score_config["participation"])
                 player["score"] = int(player.get("score", 0)) + points
                 points_by_player[player_id] = points
+                score_reasons_by_player[player_id] = f"Participation +{points}" if points else "No points"
     if missed:
         room.setdefault("review", []).append(
             {"reference": question["reference"], "missed": missed, "mode": question["label"]}
@@ -581,6 +596,7 @@ def _reveal_current_question(room: dict, now: float | None = None) -> None:
             "correct": len(correct_players),
             "correct_players": correct_players,
             "points_by_player": points_by_player,
+            "score_reasons_by_player": score_reasons_by_player,
             "bonus": bool(question.get("bonus")),
         }
     )
@@ -769,7 +785,9 @@ def _public_room(room: dict, code: str) -> dict:
             else sum(1 for player in players if not player["away"] and player["connected"])
         ),
         "eligible_answer_count": len(_eligible_player_ids(room)),
-        "family_score": sum(player["score"] for player in players),
+        "family_score": sum(team["score"] for team in _team_state(room)) if room.get("team_mode") else sum(player["score"] for player in players),
+        "score_adjustments": list(room.get("score_adjustments", []))[-10:],
+        "last_result": deepcopy((room.get("round_results") or [None])[-1]),
         "answered_player_ids": list(answers),
         "oral_judgments": room.get("oral_judgments", {}) if visible_phase == "reveal" else {},
         "review": room.get("review", []),
@@ -928,6 +946,8 @@ def create_room():
         "answers": {},
         "review": [],
         "round_results": [],
+        "team_score_adjustments": {"gold": 0, "blue": 0},
+        "score_adjustments": [],
         "review_summary": {},
         "ai_plan": ai_plan,
         "ai_review": ai_review,
@@ -1361,6 +1381,7 @@ def room_state(code: str):
         state["viewer"]["round_points"] = int(
             latest_result.get("points_by_player", {}).get(player_id, 0)
         )
+        state["viewer"]["score_reason"] = latest_result.get("score_reasons_by_player", {}).get(player_id, "")
     return jsonify(state)
 
 
@@ -1382,6 +1403,8 @@ def start_game(code: str):
         room["question_index"] = 0
         room["answers"] = {}
         room["oral_judgments"] = {}
+        room["team_score_adjustments"] = {"gold": 0, "blue": 0}
+        room["score_adjustments"] = []
         _start_question_timer(room)
 
     try:
@@ -1538,6 +1561,8 @@ def rematch_missed_verses(code: str):
         current["answers"] = {}
         current["oral_judgments"] = {}
         current["round_results"] = []
+        current["team_score_adjustments"] = {"gold": 0, "blue": 0}
+        current["score_adjustments"] = []
         current["review"] = []
         current["review_summary"] = {}
         current["bonus_added"] = False
@@ -1592,6 +1617,8 @@ def play_again_same_players(code: str):
         current["answers"] = {}
         current["oral_judgments"] = {}
         current["round_results"] = []
+        current["team_score_adjustments"] = {"gold": 0, "blue": 0}
+        current["score_adjustments"] = []
         current["review"] = []
         current["review_summary"] = {}
         current["bonus_added"] = False
@@ -1807,6 +1834,94 @@ def adjust_score(code: str, player_id: str):
         result = _mutate_room(code, adjust)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 404
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/score-adjust")
+def adjust_bible_bee_score(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _gameplay_host(code, room):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    target_type = str(payload.get("target_type") or "")
+    target_id = str(payload.get("target_id") or "")
+    try:
+        requested_delta = int(payload.get("delta"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Choose a valid score adjustment."}), 400
+    if requested_delta not in {-50, -25, 25, 50}:
+        return jsonify({"error": "Host adjustments use 25- or 50-point steps."}), 400
+    rate = check_rate_limit("bible-bee-score-adjust", _host_email() or get_client_ip(), limit=120, window_seconds=60 * 60)
+    if not rate.allowed:
+        return jsonify({"error": "Too many score adjustments. Try again shortly."}), 429
+    applied = {}
+
+    def adjust(current):
+        if target_type == "team" and current.get("team_mode"):
+            team = _team_meta(target_id)
+            if not team:
+                raise ValueError("That team is not in this room.")
+            current_score = next(item["score"] for item in _team_state(current) if item["id"] == target_id)
+            delta = max(-current_score, requested_delta) if requested_delta < 0 else requested_delta
+            current.setdefault("team_score_adjustments", {}).setdefault(target_id, 0)
+            current["team_score_adjustments"][target_id] += delta
+            target_name = current.get("team_names", {}).get(target_id, team["name"])
+        elif target_type == "player" and not current.get("team_mode"):
+            player = current.get("players", {}).get(target_id)
+            if not player:
+                raise ValueError("That player is not in this room.")
+            current_score = int(player.get("score", 0))
+            delta = max(-current_score, requested_delta) if requested_delta < 0 else requested_delta
+            player["score"] = current_score + delta
+            target_name = player["name"]
+        else:
+            raise ValueError("Choose a team or player that matches this game.")
+        entry = {
+            "id": secrets.token_urlsafe(8), "target_type": target_type,
+            "target_id": target_id, "target_name": target_name,
+            "delta": delta, "reason": "Host adjustment", "created_at": time.time(),
+        }
+        current.setdefault("score_adjustments", []).append(entry)
+        current["score_adjustments"] = current["score_adjustments"][-40:]
+        applied.update(entry)
+
+    try:
+        result = _mutate_room(code, adjust)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True, "adjustment": applied})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/score-adjust/undo")
+def undo_bible_bee_score_adjustment(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _gameplay_host(code, room):
+        abort(403)
+
+    def undo(current):
+        history = current.setdefault("score_adjustments", [])
+        if not history:
+            raise ValueError("There is no host adjustment to undo.")
+        entry = history.pop()
+        if entry["target_type"] == "team":
+            current.setdefault("team_score_adjustments", {}).setdefault(entry["target_id"], 0)
+            current["team_score_adjustments"][entry["target_id"]] -= int(entry["delta"])
+        else:
+            player = current.get("players", {}).get(entry["target_id"])
+            if not player:
+                raise ValueError("That player is no longer in this room.")
+            player["score"] = max(0, int(player.get("score", 0)) - int(entry["delta"]))
+
+    try:
+        result = _mutate_room(code, undo)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
     if result is None:
         abort(404)
     return jsonify({"ok": True})

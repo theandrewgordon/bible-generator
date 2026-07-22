@@ -663,7 +663,7 @@ def test_recovered_family_controller_owns_prompt_timer_and_score(game_mode, monk
     assert next(team for team in unchanged["teams"] if team["id"] == "gold")["score"] == 100
 
 
-def test_team_auto_only_active_team_receives_control_and_private_prompt():
+def test_team_auto_assigns_private_prompt_to_actor_or_waiting_guess_judge():
     host = app.test_client()
     gold = app.test_client()
     blue = app.test_client()
@@ -679,16 +679,64 @@ def test_team_auto_only_active_team_receives_control_and_private_prompt():
     assert _post(gold, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
 
     states = [(client, client.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()) for client in (gold, blue)]
-    active_client, active = next(item for item in states if item[1]["viewer"]["can_control"])
-    waiting_client, waiting = next(item for item in states if not item[1]["viewer"]["can_control"])
-    assert "secret_prompt" not in waiting["viewer"]
-    if active["round"]["mode"] == "guess":
-        assert "secret_prompt" not in active["viewer"]
+    controller_client, controller = next(item for item in states if item[1]["viewer"]["can_control"])
+    non_controller_client, non_controller = next(item for item in states if not item[1]["viewer"]["can_control"])
+    assert "secret_prompt" not in non_controller["viewer"]
+    assert controller["viewer"]["secret_prompt"]["answer"]
+    if controller["round"]["mode"] == "guess":
+        assert controller["viewer"]["controller_role"] != controller["active_team_id"]
     else:
-        assert active["viewer"]["secret_prompt"]["answer"]
-        assert _post(active_client, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
-    assert _post(waiting_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 403
-    assert _post(active_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
+        assert controller["viewer"]["controller_role"] == controller["active_team_id"]
+        assert _post(controller_client, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
+    assert _post(non_controller_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 403
+    assert _post(controller_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
+
+
+def test_couch_guess_answer_requires_deliberate_judge_reveal(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    controller = app.test_client()
+    public = app.test_client()
+    _prime(host, "couch-judge@example.com")
+    _prime(controller)
+    _prime(public)
+    created, code = _create_family_room(host, control_mode="couch", game_mode="guess")
+    assert created.status_code == 302
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(controller, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 302
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    before = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert before["round"]["mode"] == "guess"
+    assert before["viewer"]["can_control"] is True
+    assert "secret_prompt" not in before["viewer"]
+    assert "secret_prompt" not in public.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/show-answer", json={}).status_code == 200
+    revealed = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert revealed["viewer"]["secret_prompt"]["answer"]
+    assert "secret_prompt" not in public.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]
+
+
+def test_family_game_host_can_adjust_team_score_and_undo():
+    host = app.test_client()
+    stranger = app.test_client()
+    _prime(host, "score-host@example.com")
+    _prime(stranger)
+    created, code = _create_family_room(host)
+    assert created.status_code == 302
+    path = f"/api/family-game-night/rooms/{code}/score-adjust"
+    payload = {"target_type": "team", "target_id": "gold", "delta": 25}
+    assert _post(stranger, path, json=payload).status_code == 403
+    assert _post(host, path, json=payload).status_code == 200
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert next(team for team in state["teams"] if team["id"] == "gold")["score"] == 25
+    assert state["score_adjustments"][-1]["delta"] == 25
+    assert _post(host, f"{path}/undo", json={}).status_code == 200
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert next(team for team in state["teams"] if team["id"] == "gold")["score"] == 0
+    assert state["score_adjustments"] == []
 
 
 def test_controller_pair_page_consumes_fragment_without_sending_it_to_server():
