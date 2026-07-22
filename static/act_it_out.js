@@ -264,8 +264,9 @@ function scoreRail(state, controls = "") {
     <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
     <div class="score-list">${playerRows(state, role === "host" && ["lobby", "round"].includes(state.phase))}</div>
+    ${state.viewer.can_control && controls ? `<div class="host-controls judge-controls">${controls}</div>` : ""}
       ${role === "host" ? `<div class="host-controls">
-      ${controls}
+      ${isFamilyGameNight && state.phase !== "lobby" ? scoreAdjustmentPanel(state) : ""}
       ${controllerRecovery}
       <a class="bee-button secondary full" href="${gameBase}/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
       ${!isFamilyGameNight || state.control_mode === "hosted" ? `<button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>` : ""}
@@ -274,6 +275,17 @@ function scoreRail(state, controls = "") {
       <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
     </div>` : ""}
   </aside>`;
+}
+
+function scoreAdjustmentPanel(state) {
+  const targets = state.team_mode ? state.teams : state.players;
+  const targetType = state.team_mode ? "team" : "player";
+  const history = state.score_adjustments || [];
+  return `<details class="host-help score-adjustments"><summary>Host score adjustment</summary><div>
+    <p>Add a kindness bonus or correct a scoring tap. Official round rules stay unchanged.</p>
+    ${targets.map(target => `<div class="score-adjust-row"><strong>${escapeHTML(target.name)}</strong>${[-50,-25,25,50].map(delta => `<button type="button" data-score-target-type="${targetType}" data-score-target-id="${escapeHTML(target.id)}" data-score-adjust-delta="${delta}">${delta > 0 ? "+" : ""}${delta}</button>`).join("")}</div>`).join("")}
+    ${history.length ? `<div class="score-adjust-history"><strong>Recent</strong>${history.slice(-3).reverse().map(item => `<span>${escapeHTML(item.target_name)} ${item.delta > 0 ? "+" : ""}${item.delta} · ${escapeHTML(item.reason)}</span>`).join("")}<button id="undo-score-adjustment" class="bee-button secondary full" type="button">Undo last adjustment</button></div>` : ""}
+  </div></details>`;
 }
 
 function modeLabel(mode) {
@@ -452,7 +464,7 @@ function bindDrawGuessChoices() {
 function renderRound(state) {
   const isPreparing = state.phase === "prepare";
   const isActivePlayer = role === "player" && state.viewer.player_id === state.active_player_id;
-  if (role === "player") {
+  if (role === "player" && !state.viewer.can_control) {
     const hasSecretPrompt = Boolean(state.viewer.secret_prompt);
     const isDrawGuessing = state.round?.mode === "draw" && !isActivePlayer;
     app.innerHTML = `<section class="game-stage player-turn-stage">
@@ -488,7 +500,10 @@ function renderRound(state) {
   const controls = state.viewer.can_control && isPreparing
     ? `<p class="host-score-hint">Read the private prompt, then hide it before anyone else takes the phone.</p><button id="ready-round" class="bee-button primary full" type="button">Ready and hide prompt</button>`
     : state.viewer.can_control
-    ? isDraw
+    ? isGuess && state.control_mode === "couch" && !activePrompt
+      ? `<p class="host-score-hint">Let the active team guess from the TV clues. Reveal the private answer only when someone is ready to judge.</p>
+         <button id="show-judge-answer" class="bee-button primary full" type="button">Reveal answer to judge</button>`
+      : isDraw
       ? state.control_mode !== "hosted"
         ? `<p class="host-score-hint"><strong>${escapeHTML(state.active_team_name || "Your family")} guesses aloud.</strong> Lock in the result once.</p>
            <button id="correct-round" class="bee-button primary full" type="button">They got it · +100</button>
@@ -499,7 +514,7 @@ function renderRound(state) {
          <p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
          <button id="pass-round" class="bee-button secondary full" type="button">Reveal drawing answer</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
-      : `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
+      : `<p class="host-score-hint">${isGuess && state.control_mode === "team_auto" ? "The other team is guessing. You are the judge—keep this answer private." : "If the group guesses it, award this card. Then deal the next card."}</p>
          ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
          <button id="correct-round" class="bee-button primary full" type="button">Got it right · +${pointsAvailable}</button>
          ${isClue ? `<button id="forbidden-round" class="bee-button secondary full" type="button">Forbidden word · no points</button>` : ""}
@@ -516,11 +531,12 @@ function renderRound(state) {
       ${clueList(state.round)}
       ${drawingBoard(state, role === "player" && state.viewer.can_control && isDraw)}
       ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
-      ${role === "host" ? secretPromptCard(activePrompt, true) : ""}
+      ${activePrompt && state.viewer.can_control ? secretPromptCard(activePrompt, true) : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
   document.querySelector("#reveal-clue")?.addEventListener("click", () => hostAction("clue"));
+  document.querySelector("#show-judge-answer")?.addEventListener("click", () => hostAction("show-answer"));
   document.querySelector("#ready-round")?.addEventListener("click", () => hostAction("ready"));
   document.querySelector("#correct-round")?.addEventListener("click", () => hostAction("correct"));
   document.querySelector("#pass-round")?.addEventListener("click", () => hostAction("pass"));
@@ -546,7 +562,7 @@ function renderReveal(state) {
   const drawSummary = isDraw
     ? `${result.correct_guesses || 0} of ${result.guesser_count || result.guess_count || 0} guessed correctly${result.drawer_bonus ? ` · ${escapeHTML(state.active_player_name || "Drawer")} earned a ${result.drawer_bonus}-point drawing bonus` : ""}.`
     : "";
-  const controls = role === "host"
+  const controls = state.viewer.can_control
     ? `<button id="next-round" class="bee-button primary full" type="button">${state.round_index + 1 >= state.round_total ? "See winner" : "Next card"}</button>`
     : "";
   app.innerHTML = `<div class="game-layout">
@@ -1034,6 +1050,16 @@ function bindManagement() {
     button.addEventListener("click", () => toggleAway(button.dataset.awayPlayerId));
   });
   document.querySelector("#copy-join-link")?.addEventListener("click", copyJoinLink);
+  document.querySelectorAll("[data-score-adjust-delta]").forEach(button => button.addEventListener("click", async () => {
+    try {
+      await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/score-adjust`, { method: "POST", body: JSON.stringify({ target_type: button.dataset.scoreTargetType, target_id: button.dataset.scoreTargetId, delta: Number(button.dataset.scoreAdjustDelta) }) });
+      showToast("Host adjustment saved."); await refresh();
+    } catch (error) { showToast(error.message); }
+  }));
+  document.querySelector("#undo-score-adjustment")?.addEventListener("click", async () => {
+    try { await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/score-adjust/undo`, { method: "POST", body: "{}" }); showToast("Last adjustment undone."); await refresh(); }
+    catch (error) { showToast(error.message); }
+  });
   document.querySelectorAll(".recover-controller").forEach(button => button.addEventListener("click", async () => {
     try {
       const result = await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/controllers/${encodeURIComponent(button.dataset.controllerRole)}/replace`, { method: "POST", body: "{}" });

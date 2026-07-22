@@ -310,10 +310,6 @@ function scoreRail(state, controls = "") {
             </span>`
           : role === "host"
             ? `<span class="player-management">
-                <span class="score-adjust">
-                  <button data-player-id="${escapeHTML(player.id)}" data-score-delta="-50" type="button" aria-label="Remove 50 points from ${escapeHTML(player.name)}">−</button>
-                  <button data-player-id="${escapeHTML(player.id)}" data-score-delta="50" type="button" aria-label="Add 50 points to ${escapeHTML(player.name)}">+</button>
-                </span>
                 ${state.phase === "question"
                   ? `<button class="away-player ${player.away ? "is-away" : ""}" data-away-player-id="${escapeHTML(player.id)}" type="button">${player.away ? "Bring back" : "Mark away"}</button>`
                   : ""}
@@ -340,17 +336,29 @@ function scoreRail(state, controls = "") {
       </div>` : ""}
       <div class="host-controls">
         ${controls}
+        ${state.phase !== "lobby" ? scoreAdjustmentPanel(state) : ""}
         ${controllerRecovery}
         <a class="bee-button secondary full" href="/family-bible-bee/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
         ${state.control_mode === "hosted" ? `<button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>` : ""}
         ${["question", "reveal", "paused"].includes(state.phase)
           ? `<button id="pause-game" class="text-button" type="button">${state.phase === "paused" ? "Resume game" : "Pause game"}</button>
-             <button id="skip-question" class="text-button" type="button" ${state.phase === "paused" ? "disabled" : ""}>Skip question</button>
+             <button id="skip-question" class="text-button" type="button" ${state.phase === "paused" ? "disabled" : ""}>Skip question · count as missed</button>
              <button id="end-game-early" class="text-button danger-text" type="button">End game early</button>`
           : ""}
         <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
       </div>` : ""}
   </aside>`;
+}
+
+function scoreAdjustmentPanel(state) {
+  const targets = state.team_mode ? state.teams : state.players;
+  const targetType = state.team_mode ? "team" : "player";
+  const history = state.score_adjustments || [];
+  return `<details class="host-help score-adjustments"><summary>Host score adjustment</summary><div>
+    <p>Add a kindness bonus or correct a scoring tap. Normal Bible Bee scoring stays unchanged.</p>
+    ${targets.map(target => `<div class="score-adjust-row"><strong>${escapeHTML(target.name)}</strong>${[-50,-25,25,50].map(delta => `<button type="button" data-host-score-target-type="${targetType}" data-host-score-target-id="${escapeHTML(target.id)}" data-host-score-delta="${delta}">${delta > 0 ? "+" : ""}${delta}</button>`).join("")}</div>`).join("")}
+    ${history.length ? `<div class="score-adjust-history"><strong>Recent</strong>${history.slice(-3).reverse().map(item => `<span>${escapeHTML(item.target_name)} ${item.delta > 0 ? "+" : ""}${item.delta} · ${escapeHTML(item.reason)}</span>`).join("")}<button id="undo-host-score" class="bee-button secondary full" type="button">Undo last adjustment</button></div>` : ""}
+  </div></details>`;
 }
 
 function renderLobby(state) {
@@ -488,7 +496,7 @@ function renderQuestion(state) {
     feedback = `<p class="answer-feedback">Answer locked in. Look up at the shared screen!</p>`;
   } else if (role === "player" && state.phase === "reveal") {
     feedback = state.viewer.correct
-      ? `<p class="answer-feedback good">Wonderful remembering! +${state.viewer.round_points || 0} points, including your speed bonus.</p>`
+      ? `<p class="answer-feedback good">${escapeHTML(state.viewer.score_reason || `Wonderful remembering! +${state.viewer.round_points || 0}`)}.</p>`
       : `<p class="answer-feedback try">Good try—this one will come back for review.</p>`;
   }
 
@@ -793,8 +801,15 @@ function bindRoomManagement() {
   document.querySelectorAll("[data-switch-team-player-id]").forEach(button => {
     button.addEventListener("click", () => switchTeam(button.dataset.switchTeamPlayerId));
   });
-  document.querySelectorAll("[data-score-delta]").forEach(button => {
-    button.addEventListener("click", () => adjustScore(button.dataset.playerId, Number(button.dataset.scoreDelta)));
+  document.querySelectorAll("[data-host-score-delta]").forEach(button => button.addEventListener("click", async () => {
+    try {
+      await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/score-adjust`, { method: "POST", body: JSON.stringify({ target_type: button.dataset.hostScoreTargetType, target_id: button.dataset.hostScoreTargetId, delta: Number(button.dataset.hostScoreDelta) }) });
+      showToast("Host adjustment saved."); await refreshState(true);
+    } catch (error) { showToast(error.message); }
+  }));
+  document.querySelector("#undo-host-score")?.addEventListener("click", async () => {
+    try { await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/score-adjust/undo`, { method: "POST", body: "{}" }); showToast("Last adjustment undone."); await refreshState(true); }
+    catch (error) { showToast(error.message); }
   });
   document.querySelectorAll("[data-away-player-id]").forEach(button => {
     button.addEventListener("click", () => toggleAway(button.dataset.awayPlayerId));

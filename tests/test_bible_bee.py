@@ -1393,6 +1393,38 @@ def test_team_mode_only_accepts_active_bible_bee_controller_and_hides_invites():
     assert _post(gold, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
 
 
+def test_adaptive_bible_bee_has_no_device_speed_bonus_and_host_adjustments_undo():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client(); gold = app.test_client(); blue = app.test_client(); stranger = app.test_client()
+    _prime(host, "adaptive-score@example.com"); _prime(gold); _prime(blue); _prime(stranger)
+    created = _post(host, "/family-bible-bee/create", data={"csrf_token": CSRF, "control_mode": "team_auto", "round_count": "3"})
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        tokens = dict(sess["bible_bee_pairing_tokens"][code])
+    for client, role in ((gold, "gold"), (blue, "blue")):
+        assert _post(client, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": tokens[role]}).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    room = bible_bee._get_room(code)
+    correct = room["questions"][0]["correct"]
+    base = bible_bee._score_config(room)["correct"]
+    assert _post(gold, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert next(team for team in state["teams"] if team["id"] == "gold")["score"] == base
+    assert "Speed" not in next(iter(state["last_result"]["score_reasons_by_player"].values()))
+
+    path = f"/api/family-bible-bee/rooms/{code}/score-adjust"
+    payload = {"target_type": "team", "target_id": "gold", "delta": 25}
+    assert _post(stranger, path, json=payload).status_code == 403
+    assert _post(host, path, json=payload).status_code == 200
+    adjusted = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert next(team for team in adjusted["teams"] if team["id"] == "gold")["score"] == base + 25
+    assert adjusted["score_adjustments"][-1]["delta"] == 25
+    assert _post(host, f"{path}/undo", json={}).status_code == 200
+    restored = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert next(team for team in restored["teams"] if team["id"] == "gold")["score"] == base
+
+
 def test_bible_bee_adaptive_display_uses_private_pairing_and_active_team_copy():
     script = open("static/bible_bee.js", encoding="utf-8").read()
     assert "Pair the private family controller from the creator’s screen." in script

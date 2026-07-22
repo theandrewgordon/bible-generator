@@ -374,6 +374,24 @@ def _new_controller_pairings(control_mode: str) -> tuple[dict, dict]:
     return raw, stored
 
 
+def _controller_can_control_room(room: dict, role: str | None) -> bool:
+    if not role:
+        return False
+    control_mode = room.get("control_mode", "hosted")
+    active = _active_round(room) or {}
+    if control_mode == "hosted":
+        return role == "host"
+    if control_mode == "couch":
+        return role == "couch"
+    if control_mode == "team_auto" and role in {"gold", "blue"}:
+        if room.get("phase") == "lobby":
+            return role == room.get("active_team_id", "gold")
+        if active.get("mode") == "guess":
+            return role != room.get("active_team_id")
+        return role == room.get("active_team_id")
+    return False
+
+
 def _valid_avatar_data(value: str) -> bool:
     if not value:
         return True
@@ -434,7 +452,7 @@ def _team_state(room: dict) -> list[dict]:
         {
             **team,
             "name": team_names.get(team["id"], team["name"]),
-            "score": sum(int(player.get("score", 0)) for player in players.values() if player.get("team_id") == team["id"]),
+            "score": max(0, sum(int(player.get("score", 0)) for player in players.values() if player.get("team_id") == team["id"]) + int(room.get("team_score_adjustments", {}).get(team["id"], 0))),
             "players": sum(1 for player in players.values() if player.get("team_id") == team["id"]),
         }
         for team in TEAMS
@@ -616,6 +634,7 @@ def _start_round(room: dict, now: float | None = None) -> None:
     adaptive_prepare = room.get("control_mode", "hosted") in {"couch", "team_auto"} and (_active_round(room) or {}).get("mode") != "guess"
     room["phase"] = "prepare" if adaptive_prepare else "round"
     room["prompt_locked"] = False
+    room.pop("judge_answer_revealed", None)
     if not adaptive_prepare:
         room["round_started_at"] = now
         room["round_deadline"] = now + int(room.get("timer_seconds", ROUND_SECONDS))
@@ -663,6 +682,11 @@ def _complete_round(room: dict, outcome: str, now: float | None = None) -> None:
         "points": points,
         "player_id": player_id,
         "team_id": player.get("team_id") if player else None,
+        "score_reason": (
+            f"Correct on clue {int(room.get('clue_index', 0)) + 1} · +{points}"
+            if outcome == "correct" and active.get("mode") == "guess"
+            else f"Correct · +{points}" if outcome == "correct" else "No points"
+        ),
     })
     room["last_result"] = room["round_results"][-1]
     room["phase"] = "reveal"
@@ -694,6 +718,7 @@ def _complete_draw_round(room: dict, outcome: str = "draw", now: float | None = 
         "guess_count": len(answers),
         "guesser_count": guesser_count,
         "drawer_bonus": drawer_bonus,
+        "score_reason": f"Drawer bonus · +{drawer_bonus}" if drawer_bonus else "Drawing revealed",
     })
     room["last_result"] = room["round_results"][-1]
     room["phase"] = "reveal"
@@ -830,7 +855,8 @@ def _public_room(room: dict, code: str) -> dict:
         "timer_seconds": int(room.get("timer_seconds", ROUND_SECONDS)),
         "round_deadline": room.get("round_deadline"),
         "last_result": room.get("last_result"),
-        "family_score": sum(player["score"] for player in players),
+        "family_score": sum(team["score"] for team in _team_state(room)) if room.get("team_mode") else sum(player["score"] for player in players),
+        "score_adjustments": list(room.get("score_adjustments", []))[-10:],
         "completion_number": int(room.get("completion_number", 0)),
         "expires_at": room.get("expires_at"),
     }
@@ -1052,6 +1078,8 @@ def create_family_game_night_room():
         "timer_seconds": ROUND_SECONDS,
         "players": {},
         "round_results": [],
+        "team_score_adjustments": {"gold": 0, "blue": 0},
+        "score_adjustments": [],
         "controller_pairings": controller_pairings,
     }
     _register_host_room(code, room)
@@ -1361,6 +1389,95 @@ def rename_family_teams(code: str):
     return jsonify({"ok": True})
 
 
+@bp.post("/api/family-game-night/rooms/<code>/score-adjust")
+def adjust_family_score(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room) and _controller_role(code, room) != "host":
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    target_type = str(payload.get("target_type") or "")
+    target_id = str(payload.get("target_id") or "")
+    try:
+        requested_delta = int(payload.get("delta"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Choose a valid score adjustment."}), 400
+    if requested_delta not in {-50, -25, 25, 50}:
+        return jsonify({"error": "Host adjustments use 25- or 50-point steps."}), 400
+    rate = check_rate_limit("family-score-adjust", _privacy_rate_key(), limit=120, window_seconds=60 * 60)
+    if not rate.allowed:
+        return jsonify({"error": "Too many score adjustments. Try again shortly."}), 429
+
+    applied = {}
+
+    def adjust(current):
+        if target_type == "team" and current.get("team_mode"):
+            team = _team_meta(target_id)
+            if not team:
+                raise ValueError("That team is not in this room.")
+            current_score = next(item["score"] for item in _team_state(current) if item["id"] == target_id)
+            delta = max(-current_score, requested_delta) if requested_delta < 0 else requested_delta
+            current.setdefault("team_score_adjustments", {}).setdefault(target_id, 0)
+            current["team_score_adjustments"][target_id] += delta
+            target_name = current.get("team_names", {}).get(target_id, team["name"])
+        elif target_type == "player" and not current.get("team_mode"):
+            player = current.get("players", {}).get(target_id)
+            if not player:
+                raise ValueError("That player is not in this room.")
+            current_score = int(player.get("score", 0))
+            delta = max(-current_score, requested_delta) if requested_delta < 0 else requested_delta
+            player["score"] = current_score + delta
+            target_name = player["name"]
+        else:
+            raise ValueError("Choose a team or player that matches this game.")
+        entry = {
+            "id": secrets.token_urlsafe(8), "target_type": target_type,
+            "target_id": target_id, "target_name": target_name,
+            "delta": delta, "reason": "Host adjustment", "created_at": time.time(),
+        }
+        current.setdefault("score_adjustments", []).append(entry)
+        current["score_adjustments"] = current["score_adjustments"][-40:]
+        applied.update(entry)
+
+    try:
+        result = _mutate_room(code, adjust)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True, "adjustment": applied})
+
+
+@bp.post("/api/family-game-night/rooms/<code>/score-adjust/undo")
+def undo_family_score_adjustment(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room) and _controller_role(code, room) != "host":
+        abort(403)
+
+    def undo(current):
+        history = current.setdefault("score_adjustments", [])
+        if not history:
+            raise ValueError("There is no host adjustment to undo.")
+        entry = history.pop()
+        if entry["target_type"] == "team":
+            current.setdefault("team_score_adjustments", {}).setdefault(entry["target_id"], 0)
+            current["team_score_adjustments"][entry["target_id"]] -= int(entry["delta"])
+        else:
+            player = current.get("players", {}).get(entry["target_id"])
+            if not player:
+                raise ValueError("That player is no longer in this room.")
+            player["score"] = max(0, int(player.get("score", 0)) - int(entry["delta"]))
+
+    try:
+        result = _mutate_room(code, undo)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    if result is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
 @bp.get("/church-games/act-it-out/room/<code>/avatar/<player_id>")
 @bp.get("/group-games/act-it-out/room/<code>/avatar/<player_id>")
 @bp.get("/group-games/draw-it/room/<code>/avatar/<player_id>")
@@ -1581,19 +1698,22 @@ def room_state(code: str):
     player = room.get("players", {}).get(player_id or "")
     control_mode = room.get("control_mode", "hosted")
     controller_role = _controller_role(code)
-    can_control = bool(
-        _is_host(code, room)
-        or (control_mode == "hosted" and controller_role == "host")
-        or (control_mode == "couch" and controller_role == "couch")
-        or (control_mode == "team_auto" and controller_role == room.get("active_team_id"))
-    )
+    can_control = bool(_is_host(code, room) or _controller_can_control_room(room, controller_role))
     viewer = {"is_host": _is_host(code, room), "player_id": player_id, "can_control": can_control, "controller_role": controller_role}
     if viewer["is_host"]:
         all_tokens = session.get("family_game_pairing_tokens", {})
         viewer["pairing_tokens"] = all_tokens.get(code, {}) if isinstance(all_tokens, dict) else {}
+    can_see_guess_answer = bool(
+        active and active.get("mode") == "guess" and (
+            viewer["is_host"]
+            or controller_role == "host"
+            or (control_mode == "team_auto" and can_control)
+            or (control_mode == "couch" and can_control and room.get("judge_answer_revealed"))
+        )
+    )
     if active and not room.get("prompt_locked") and (
-        viewer["is_host"]
-        or (active.get("mode") != "guess" and can_control)
+        can_see_guess_answer
+        or (active.get("mode") != "guess" and (viewer["is_host"] or can_control))
         or (active.get("mode") != "guess" and player and player_id == room.get("active_player_id"))
     ):
         viewer["secret_prompt"] = {
@@ -1645,6 +1765,8 @@ def start_game(code: str):
             raise ValueError("Invite at least one connected player before starting.")
         current["round_index"] = 0
         current["round_results"] = []
+        current["team_score_adjustments"] = {"gold": 0, "blue": 0}
+        current["score_adjustments"] = []
         current.pop("last_result", None)
         for player in current.get("players", {}).values():
             player["score"] = 0
@@ -1665,12 +1787,7 @@ def _host_action(code: str, action: str):
     room = _get_room(code)
     control_mode = (room or {}).get("control_mode", "hosted")
     controller_role = _controller_role(code)
-    controller_allowed = bool(
-        (control_mode == "hosted" and controller_role == "host")
-        or
-        (control_mode == "couch" and controller_role == "couch")
-        or (control_mode == "team_auto" and controller_role == (room or {}).get("active_team_id"))
-    )
+    controller_allowed = bool(room and _controller_can_control_room(room, controller_role))
     if not _is_host(code, room) and not controller_allowed:
         abort(403)
 
@@ -1694,6 +1811,11 @@ def _host_action(code: str, action: str):
                 raise ValueError("There is no clue to reveal right now.")
             max_index = max(0, len(active.get("clues", [])) - 1)
             current["clue_index"] = min(max_index, int(current.get("clue_index", 0)) + 1)
+        elif action == "show-answer":
+            active = _active_round(current)
+            if current.get("control_mode") != "couch" or controller_role != "couch" or not active or active.get("mode") != "guess" or current.get("phase") != "round":
+                raise ValueError("The judge answer is not available here.")
+            current["judge_answer_revealed"] = True
         elif action == "next":
             if current.get("phase") != "reveal":
                 raise ValueError("Score or pass this round before continuing.")
@@ -1747,6 +1869,11 @@ def forbidden_word_round(code: str):
 @bp.post("/api/group-games/draw-it/rooms/<code>/clue")
 def reveal_clue(code: str):
     return _host_action(code, "clue")
+
+
+@bp.post("/api/group-games/act-it-out/rooms/<code>/show-answer")
+def show_judge_answer(code: str):
+    return _host_action(code, "show-answer")
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/next")
@@ -1865,6 +1992,8 @@ def play_again_same_players(code: str):
         )
         current["round_index"] = 0
         current["round_results"] = []
+        current["team_score_adjustments"] = {"gold": 0, "blue": 0}
+        current["score_adjustments"] = []
         current["phase"] = "lobby"
         current.pop("finished_at", None)
         current.pop("last_result", None)
