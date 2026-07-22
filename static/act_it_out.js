@@ -497,9 +497,10 @@ function renderRound(state) {
   const drawGuessers = isDraw
     ? state.players.filter(player => player.id !== state.active_player_id && player.connected && !player.away && !answeredPlayerIds.has(player.id))
     : [];
-  const controls = state.viewer.can_control && isPreparing
-    ? `<p class="host-score-hint">Read the private prompt, then hide it before anyone else takes the phone.</p><button id="ready-round" class="bee-button primary full" type="button">Ready and hide prompt</button>`
-    : state.viewer.can_control
+  const prepareAction = state.viewer.can_control && isPreparing
+    ? `<div class="private-prompt-ready"><p>Keep this screen private. When the player knows what to ${isDraw ? "draw" : isClue ? "describe" : "act"}, hide the prompt and start the timer.</p><button id="ready-round" class="bee-button primary full" type="button">Ready · hide prompt and start</button></div>`
+    : "";
+  const controls = state.viewer.can_control && !isPreparing
     ? isGuess && state.control_mode === "couch" && !activePrompt
       ? `<p class="host-score-hint">Let the active team guess from the TV clues. Reveal the private answer only when someone is ready to judge.</p>
          <button id="show-judge-answer" class="bee-button primary full" type="button">Reveal answer to judge</button>`
@@ -521,17 +522,19 @@ function renderRound(state) {
          <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
     : "";
-  app.innerHTML = `<div class="game-layout">
+  app.innerHTML = `<div class="game-layout ${isPreparing ? "prepare-layout" : ""}">
     <section class="game-stage act-round-stage">
       <p class="round-meta">Round ${state.round_index + 1} of ${state.round_total}</p>
-      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
+      <h1>${isPreparing ? "Your private prompt" : isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
-      <div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      <p class="act-display-instruction">${isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : isDraw ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : "Guess out loud. Award 100 points when they get it."}</p>
+      ${isPreparing ? "" : `<div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>`}
+      <p class="act-display-instruction">${isPreparing ? "Only the player taking this turn should look at this screen." : isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : isDraw ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : "Guess out loud. Award 100 points when they get it."}</p>
+      ${isPreparing && activePrompt ? secretPromptCard(activePrompt) : ""}
+      ${prepareAction}
       ${clueList(state.round)}
-      ${drawingBoard(state, role === "player" && state.viewer.can_control && isDraw)}
-      ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
-      ${activePrompt && state.viewer.can_control ? secretPromptCard(activePrompt, true) : ""}
+      ${isPreparing ? "" : drawingBoard(state, role === "player" && state.viewer.can_control && isDraw)}
+      ${isDraw && !isPreparing ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
+      ${!isPreparing && activePrompt && state.viewer.can_control ? secretPromptCard(activePrompt, true) : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
