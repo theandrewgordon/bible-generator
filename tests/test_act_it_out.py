@@ -1,4 +1,5 @@
 import re
+import pytest
 from types import SimpleNamespace
 from unittest import mock
 
@@ -610,6 +611,56 @@ def test_family_controller_can_be_replaced_during_a_round_without_resetting_it()
     assert (after["phase"], after["round_index"]) == (before["phase"], before["round_index"])
     assert old.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["can_control"] is False
     assert new.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["can_control"] is True
+
+
+@pytest.mark.parametrize("game_mode", ["act", "draw", "clue", "guess"])
+def test_recovered_family_controller_owns_prompt_timer_and_score(game_mode, monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client(); old = app.test_client(); new = app.test_client()
+    _prime(host, f"recover-{game_mode}@example.com"); _prime(old); _prime(new)
+    _created, code = _create_family_room(host, control_mode="couch", game_mode=game_mode)
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(old, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 302
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    before = old.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    old_player_id = before["viewer"]["player_id"]
+    assert before["active_player_id"] == old_player_id
+    assert before["round"]["mode"] == game_mode
+
+    assert _post(host, f"/api/family-game-night/rooms/{code}/controllers/couch/replace", json={}).status_code == 200
+    revoked = old.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert revoked["viewer"]["can_control"] is False
+    assert "secret_prompt" not in revoked["viewer"]
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 409
+    with host.session_transaction() as sess:
+        replacement_token = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(new, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": replacement_token}).status_code == 302
+    recovered = new.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    replacement_player_id = recovered["viewer"]["player_id"]
+    assert replacement_player_id != old_player_id
+    assert recovered["active_player_id"] == replacement_player_id
+    if game_mode == "guess":
+        assert "secret_prompt" not in recovered["viewer"]
+        assert recovered["phase"] == "round"
+        assert recovered["round_deadline"] is not None
+    else:
+        assert recovered["viewer"]["secret_prompt"]["mode"] == game_mode
+        assert _post(new, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
+        timed = new.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+        assert timed["round_deadline"] is not None
+    assert _post(new, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
+    reveal = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert reveal["last_result"]["player_id"] == replacement_player_id
+    assert reveal["last_result"]["points"] == 100
+    gold = next(team for team in reveal["teams"] if team["id"] == "gold")
+    assert gold["score"] == 100
+    assert _post(old, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 403
+    assert _post(new, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 409
+    unchanged = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert next(team for team in unchanged["teams"] if team["id"] == "gold")["score"] == 100
 
 
 def test_team_auto_only_active_team_receives_control_and_private_prompt():

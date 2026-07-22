@@ -658,6 +658,7 @@ function renderDisplay(state) {
     const pairingMessage = state.control_mode === "couch"
       ? "Pair the private family controller from the creator’s screen."
       : "Pair the Gold and Blue team phones from the creator’s screen.";
+    const couchReadyMessage = `One controller paired · ${state.teams?.map(team => team.name).join(" and ") || "Both teams"} ready`;
     app.innerHTML = `<section class="display-stage display-lobby">
       <p class="display-kicker">${escapeHTML(gameTitle)} · ${escapeHTML(state.theme)}</p>
       <h1>${adaptive ? "Private controllers needed" : "Join the Game"}</h1>
@@ -665,7 +666,7 @@ function renderDisplay(state) {
         <div><span>Room code</span><strong>${escapeHTML(code)}</strong></div>
         <img src="${gameBase}/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
       </div>`}
-      <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready · ${state.round_total} cards · 100 points each</p>
+      <p class="display-count">${state.control_mode === "couch" && state.controller_status?.couch ? escapeHTML(couchReadyMessage) : `${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready`} · ${state.round_total} cards · 100 points each</p>
       ${displayRosters(state)}
     </section>`;
   } else if (state.phase === "prepare") {

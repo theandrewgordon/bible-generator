@@ -1400,6 +1400,8 @@ def test_bible_bee_adaptive_display_uses_private_pairing_and_active_team_copy():
     assert "answers this question" in script
     assert 'state.control_mode === "hosted" ? `<div class="join-invite">' in script
     assert "state.eligible_answer_count" in script
+    assert "Pass the private phone to the active team. Practice together, then tap Ready." in script
+    assert "The active team practices together, recites, and records its result honestly." in script
 
 
 def test_bible_bee_controller_recovery_works_mid_question_and_preserves_state():
