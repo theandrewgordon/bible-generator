@@ -528,7 +528,13 @@ def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
     assert b"do not add a second team" in blocked_start.data
     with host.session_transaction() as sess:
         token = sess["family_game_pairing_tokens"][code]["couch"]
+    qr_path = f"/group-games/act-it-out/room/{code}/controller-qr/couch"
+    qr = host.get(qr_path)
+    assert qr.status_code == 200 and qr.mimetype == "image/png"
+    assert qr.headers["Cache-Control"] == "private, no-store"
+    assert app.test_client().get(qr_path).status_code == 403
     assert _post(controller, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 302
+    assert host.get(qr_path).status_code == 410
     replay = app.test_client(); _prime(replay)
     assert _post(replay, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 400
 
@@ -586,6 +592,15 @@ def test_team_auto_only_active_team_receives_control_and_private_prompt():
         assert _post(active_client, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
     assert _post(waiting_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 403
     assert _post(active_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
+
+
+def test_controller_pair_page_consumes_fragment_without_sending_it_to_server():
+    template = open("templates/family_game_controller_pair.html", encoding="utf-8").read()
+    script = open("static/act_it_out.js", encoding="utf-8").read()
+    assert "location.hash.slice(1)" in template
+    assert "history.replaceState" in template
+    assert "Share controller invite" in script
+    assert "controller-qr" in script
 
 
 def test_complete_family_game_night_supports_every_mode_and_filters(monkeypatch):

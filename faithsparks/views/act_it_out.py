@@ -1241,6 +1241,29 @@ def room_qr(code: str):
     return response
 
 
+@bp.get("/group-games/act-it-out/room/<code>/controller-qr/<role>")
+def controller_pair_qr(code: str, role: str):
+    """Render a private pairing QR without putting its capability in request logs."""
+    code = code.upper()
+    room = _require_room(code)
+    if not _is_host(code, room) or role not in room.get("controller_pairings", {}):
+        abort(403)
+    all_tokens = session.get("family_game_pairing_tokens", {})
+    token = all_tokens.get(code, {}).get(role) if isinstance(all_tokens, dict) else None
+    pairing = room.get("controller_pairings", {}).get(role, {})
+    if not token or pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
+        abort(410)
+    pair_url = request.url_root.rstrip("/") + f"/family-game-night/controller/{code}#{token}"
+    image = qrcode.make(pair_url)
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    output.seek(0)
+    response = send_file(output, mimetype="image/png", download_name=f"family-controller-{code}-{role}.png")
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 @bp.get("/church-games/act-it-out/room/<code>/avatar/<player_id>")
 @bp.get("/group-games/act-it-out/room/<code>/avatar/<player_id>")
 @bp.get("/group-games/draw-it/room/<code>/avatar/<player_id>")

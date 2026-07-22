@@ -326,7 +326,7 @@ function renderLobby(state) {
         </div>
       </div>` : ""}
       <p>${state.control_mode === "couch" ? (couchPaired ? "Couch controller paired. Gold and Blue teams are ready." : "Waiting for the Couch controller phone.") : `${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.`}</p>
-      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>On the controller phone, open ${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}`)}</h2></div><p>Do not use the room-code player QR for Couch or Team Play. Enter the matching one-time code below.</p><ul>${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<li><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : `${pairRole} team`)}</strong>${state.controller_status?.[pairRole] ? `<span>Paired ✓</span>` : `<code>${escapeHTML(token)}</code>`}</li>`).join("")}</ul></aside>` : ""}
+      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>Scan or privately share the matching controller invite</h2></div><p>These are private controller invites—not the public player room code. Each expires after about ten minutes and works once.</p><div class="controller-pair-grid">${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<article><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : `${pairRole} team`)}</strong>${state.controller_status?.[pairRole] ? `<span>Paired ✓</span>` : `<img src="${gameBase}/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR code for ${escapeHTML(pairRole)} controller"><button class="bee-button secondary share-controller" type="button" data-pair-url="${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}#${token}`)}">Share controller invite</button><code>${escapeHTML(token)}</code>`}</article>`).join("")}</div></aside>` : ""}
       ${showHostWalkthrough ? `<aside class="host-walkthrough" aria-labelledby="host-walkthrough-title">
         <div><span>First game?</span><h2 id="host-walkthrough-title">Three screens, one easy job.</h2></div>
         <ol>
@@ -342,6 +342,17 @@ function renderLobby(state) {
   </div>`;
   document.querySelector("#start-game")?.addEventListener("click", () => hostAction("start"));
   document.querySelector("#rebalance-teams")?.addEventListener("click", rebalanceTeams);
+  document.querySelectorAll(".share-controller").forEach(button => {
+    button.addEventListener("click", async () => {
+      const url = button.dataset.pairUrl;
+      try {
+        if (navigator.share) await navigator.share({ title: "Faith Sparks private controller", text: `Pair a private controller for room ${code}.`, url });
+        else { await navigator.clipboard.writeText(url); showToast("Private controller invite copied."); }
+      } catch (error) {
+        if (error?.name !== "AbortError") showToast("Could not share. Copy the pairing code instead.");
+      }
+    });
+  });
   document.querySelector("#dismiss-host-walkthrough")?.addEventListener("click", () => {
     window.localStorage.setItem("familyGameNightHostWalkthrough", "done");
     renderLobby(state);
