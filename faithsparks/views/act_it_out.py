@@ -646,6 +646,8 @@ def _complete_round(room: dict, outcome: str, now: float | None = None) -> None:
         raise ValueError("This round is not active.")
     player_id = room.get("active_player_id")
     player = room.get("players", {}).get(player_id or "")
+    if outcome == "correct" and room.get("control_mode") in {"couch", "team_auto"} and not player:
+        raise ValueError("Pair the replacement controller before awarding this round.")
     points = POINTS_CORRECT if outcome == "correct" else 0
     if outcome == "correct" and active.get("mode") == "guess":
         # The first clue is visible at index zero. Reward earlier answers while
@@ -1228,8 +1230,11 @@ def pair_family_controller(code: str):
                                 current["players"] = {}
                         player_id = secrets.token_urlsafe(8)
                         pairing["player_id"] = player_id
+                        replaced_player_id = pairing.pop("replaced_player_id", None)
                         team_id = role if role in {"gold", "blue"} else "gold"
                         current.setdefault("players", {})[player_id] = {"name": f"{team_id.title()} Team Controller" if role != "couch" else "Family Controller", "score": int(pairing.pop("recovery_score", 0)), "joined_at": time.time(), "last_seen": time.time(), "away": False, "team_id": team_id if current.get("team_mode") else None, "avatar": None, "avatar_preset": "sunflower" if team_id == "gold" else "ocean"}
+                        if replaced_player_id and current.get("active_player_id") == replaced_player_id:
+                            current["active_player_id"] = player_id
                         if role == "couch" and current.get("team_mode"):
                             current["players"].setdefault("couch-blue-team", {"name": "Blue Team", "score": 0, "joined_at": time.time() + .001, "last_seen": time.time(), "away": False, "team_id": "blue", "avatar": None, "avatar_preset": "ocean", "virtual_controller_team": True})
                         claimed.update(role=role, player_id=player_id)
@@ -1318,6 +1323,7 @@ def replace_family_controller(code: str, role: str):
             player = current.get("players", {}).pop(old_player, None)
             if player:
                 replacement["recovery_score"] = int(player.get("score", 0))
+                replacement["replaced_player_id"] = old_player
         current["controller_pairings"][role] = replacement
 
     if _mutate_room(code, replace) is None:
@@ -1588,7 +1594,7 @@ def room_state(code: str):
     if active and not room.get("prompt_locked") and (
         viewer["is_host"]
         or (active.get("mode") != "guess" and can_control)
-        or (active.get("mode") != "guess" and player_id and player_id == room.get("active_player_id"))
+        or (active.get("mode") != "guess" and player and player_id == room.get("active_player_id"))
     ):
         viewer["secret_prompt"] = {
             "answer": active["answer"],

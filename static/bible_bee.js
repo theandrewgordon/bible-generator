@@ -496,13 +496,16 @@ function renderQuestion(state) {
   if (question.mode === "oral") {
     if (role === "player") {
       const selfJudge = state.control_mode === "couch" || state.control_mode === "team_auto";
+      const adaptivePractice = state.control_mode === "couch"
+        ? "Pass the private phone to the active team. Practice together, then tap Ready."
+        : "The active team practices together, recites, and records its result honestly.";
       answerArea = state.viewer.has_answered
         ? `<div class="oral-player-panel"><strong>Recitation ready</strong><p>${selfJudge ? "Recite together, then choose the result honestly." : "Recite when the host calls your name."}</p>${selfJudge && state.phase === "question" ? `<div>
             <button data-judge-player="${escapeHTML(state.viewer.player_id)}" data-judgment="correct" type="button">Full credit</button>
             <button data-judge-player="${escapeHTML(state.viewer.player_id)}" data-judgment="almost" type="button">Almost</button>
             <button data-judge-player="${escapeHTML(state.viewer.player_id)}" data-judgment="try" type="button">Practice</button>
           </div>` : ""}</div>`
-        : `<div class="oral-player-panel"><p>Practice quietly, then tell the host you’re ready.</p><button id="ready-to-recite" class="bee-button primary" type="button">I’m ready to recite</button></div>`;
+        : `<div class="oral-player-panel"><p>${selfJudge ? adaptivePractice : "Practice quietly, then tell the host you’re ready."}</p><button id="ready-to-recite" class="bee-button primary" type="button">I’m ready to recite</button></div>`;
     } else {
       const activePlayers = state.players.filter(player => !player.away && player.connected);
       const rows = activePlayers.map(player => {
@@ -639,6 +642,7 @@ function renderDisplayLobby(state) {
   const pairingMessage = state.control_mode === "couch"
     ? "Pair the private family controller from the creator’s screen."
     : "Pair the Gold and Blue team phones from the creator’s screen.";
+  const couchReadyMessage = `One controller paired · ${state.teams?.map(team => team.name).join(" and ") || "Both teams"} ready`;
   app.innerHTML = `<section class="display-stage display-lobby">
     <p class="display-kicker">${escapeHTML(state.deck_name)} · ${escapeHTML(state.translation)}</p>
     <h1>${adaptive ? "Private controllers needed" : "Join the Bible Bee"}</h1>
@@ -649,7 +653,7 @@ function renderDisplayLobby(state) {
       </div>
       <img src="/family-bible-bee/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
     </div>`}
-    <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready</p>
+    <p class="display-count">${state.control_mode === "couch" && state.controller_status?.couch ? escapeHTML(couchReadyMessage) : `${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready`}</p>
     ${displayTeamRosters(state)}
   </section>`;
 }
@@ -659,8 +663,13 @@ function renderDisplayQuestion(state) {
   const answered = state.answered_player_ids.length;
   const activePlayers = state.eligible_answer_count ?? state.active_player_count ?? state.players.filter(player => !player.away && player.connected).length;
   const activeTeam = state.active_team_id ? state.teams.find(team => team.id === state.active_team_id) : null;
+  const oralInstruction = state.control_mode === "couch"
+    ? "Pass the private phone to the active team. Practice together, then tap Ready."
+    : state.control_mode === "team_auto"
+      ? "The active team practices together, recites, and records its result honestly."
+      : "Players recite when the host calls their name.";
   const answerRows = question.mode === "oral"
-    ? `<div class="display-oral-note">Players recite when the host calls their name.</div>`
+    ? `<div class="display-oral-note">${escapeHTML(oralInstruction)}</div>`
     : `<div class="display-answers">
         ${question.choices.map((choice, index) => {
           const correct = state.phase === "reveal" && question.correct === index;
