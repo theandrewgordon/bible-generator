@@ -281,6 +281,9 @@ function displayTeamRosters(state) {
 }
 
 function scoreRail(state, controls = "") {
+  const controllerRecovery = role === "host" && state.viewer.is_owner
+    ? Object.keys(state.controller_status || {}).map(pairRole => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Replace ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller</button>`).join("")
+    : "";
   const teamBoard = state.team_mode && state.teams?.length
     ? `<div class="team-scoreboard">
         ${state.teams.map(team => `<div class="team-score-card team-${escapeHTML(team.color)}">
@@ -330,15 +333,16 @@ function scoreRail(state, controls = "") {
     ${teamBoard}
     <div class="score-list">${players}</div>
     ${role === "host" ? `
-      <div class="join-invite">
+      ${state.control_mode === "hosted" ? `<div class="join-invite">
         <span class="host-only-label">Host only</span>
         <strong>Invite the family</strong>
         <p class="join-url">${escapeHTML(`${window.location.origin}/family-bible-bee/join/${code}`)}</p>
-      </div>
+      </div>` : ""}
       <div class="host-controls">
         ${controls}
+        ${controllerRecovery}
         <a class="bee-button secondary full" href="/family-bible-bee/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
-        <button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>
+        ${state.control_mode === "hosted" ? `<button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>` : ""}
         ${["question", "reveal", "paused"].includes(state.phase)
           ? `<button id="pause-game" class="text-button" type="button">${state.phase === "paused" ? "Resume game" : "Pause game"}</button>
              <button id="skip-question" class="text-button" type="button" ${state.phase === "paused" ? "disabled" : ""}>Skip question</button>
@@ -631,16 +635,20 @@ function renderFinished(state) {
 }
 
 function renderDisplayLobby(state) {
+  const adaptive = state.control_mode === "couch" || state.control_mode === "team_auto";
+  const pairingMessage = state.control_mode === "couch"
+    ? "Pair the private family controller from the creator’s screen."
+    : "Pair the Gold and Blue team phones from the creator’s screen.";
   app.innerHTML = `<section class="display-stage display-lobby">
     <p class="display-kicker">${escapeHTML(state.deck_name)} · ${escapeHTML(state.translation)}</p>
-    <h1>Join the Bible Bee</h1>
-    <div class="display-join-row">
+    <h1>${adaptive ? "Private controllers needed" : "Join the Bible Bee"}</h1>
+    ${adaptive ? `<p class="display-prompt">${escapeHTML(pairingMessage)}</p>` : `<div class="display-join-row">
       <div>
         <span>Room code</span>
         <strong>${escapeHTML(code)}</strong>
       </div>
       <img src="/family-bible-bee/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
-    </div>
+    </div>`}
     <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready</p>
     ${displayTeamRosters(state)}
   </section>`;
@@ -649,7 +657,8 @@ function renderDisplayLobby(state) {
 function renderDisplayQuestion(state) {
   const question = state.question;
   const answered = state.answered_player_ids.length;
-  const activePlayers = state.active_player_count ?? state.players.filter(player => !player.away && player.connected).length;
+  const activePlayers = state.eligible_answer_count ?? state.active_player_count ?? state.players.filter(player => !player.away && player.connected).length;
+  const activeTeam = state.active_team_id ? state.teams.find(team => team.id === state.active_team_id) : null;
   const answerRows = question.mode === "oral"
     ? `<div class="display-oral-note">Players recite when the host calls their name.</div>`
     : `<div class="display-answers">
@@ -668,6 +677,7 @@ function renderDisplayQuestion(state) {
       <span>${state.phase === "question" ? `${answered} of ${activePlayers} answered` : "Answer revealed"}</span>
     </div>
     ${displayTeamBoard(state, true)}
+    ${activeTeam ? `<p class="turn-handoff">${escapeHTML(activeTeam.name)} answers this question</p>` : ""}
     <h1>${escapeHTML(question.label)}</h1>
     <p class="display-prompt">${escapeHTML(question.prompt)}</p>
     ${state.phase === "question" && state.question_deadline ? `<p class="display-timer"><strong data-question-countdown>${state.question_seconds || 30}</strong>s</p>` : ""}
@@ -751,6 +761,22 @@ function renderPaused(state) {
 }
 
 function bindRoomManagement() {
+  document.querySelectorAll(".recover-controller").forEach(button => button.addEventListener("click", async () => {
+    try {
+      const result = await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/controllers/${encodeURIComponent(button.dataset.controllerRole)}/replace`, { method: "POST", body: "{}" });
+      const url = `${window.location.origin}/family-bible-bee/controller/${code}#${result.token}`;
+      let delivered = false;
+      if (navigator.share) {
+        try { await navigator.share({ title: "Faith Sparks Bible Bee replacement controller", url }); delivered = true; }
+        catch (shareError) { if (shareError?.name !== "AbortError") showToast("Share did not open; copying instead."); }
+      }
+      if (!delivered) {
+        try { await navigator.clipboard.writeText(url); showToast("Replacement controller invite copied."); }
+        catch (_clipboardError) { window.prompt("Copy this replacement controller invite:", url); }
+      }
+      await refreshState(true);
+    } catch (error) { showToast(error.message); }
+  }));
   bindNextGameActions();
   document.querySelectorAll(".remove-player").forEach(button => {
     button.addEventListener("click", () => removePlayer(button.dataset.playerId));

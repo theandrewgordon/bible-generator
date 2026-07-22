@@ -1212,6 +1212,9 @@ def pair_family_controller(code: str):
                         if pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
                             raise ValueError("This pairing code expired or was already used.")
                         pairing["claimed"] = True
+                        paused_round_seconds = pairing.pop("resume_round_seconds", None)
+                        if paused_round_seconds is not None and current.get("phase") == "round":
+                            current["round_deadline"] = time.time() + max(1, float(paused_round_seconds))
                         claimed["generation"] = pairing.get("generation")
                         if role == "host":
                             claimed.update(role=role, player_id=None)
@@ -1221,11 +1224,12 @@ def pair_family_controller(code: str):
                             # followed the public player link first, normalize
                             # that accidental lobby state instead of creating a
                             # mysterious third participant.
-                            current["players"] = {}
+                            if current.get("phase") == "lobby":
+                                current["players"] = {}
                         player_id = secrets.token_urlsafe(8)
                         pairing["player_id"] = player_id
                         team_id = role if role in {"gold", "blue"} else "gold"
-                        current.setdefault("players", {})[player_id] = {"name": f"{team_id.title()} Team Controller" if role != "couch" else "Family Controller", "score": 0, "joined_at": time.time(), "last_seen": time.time(), "away": False, "team_id": team_id if current.get("team_mode") else None, "avatar": None, "avatar_preset": "sunflower" if team_id == "gold" else "ocean"}
+                        current.setdefault("players", {})[player_id] = {"name": f"{team_id.title()} Team Controller" if role != "couch" else "Family Controller", "score": int(pairing.pop("recovery_score", 0)), "joined_at": time.time(), "last_seen": time.time(), "away": False, "team_id": team_id if current.get("team_mode") else None, "avatar": None, "avatar_preset": "sunflower" if team_id == "gold" else "ocean"}
                         if role == "couch" and current.get("team_mode"):
                             current["players"].setdefault("couch-blue-team", {"name": "Blue Team", "score": 0, "joined_at": time.time() + .001, "last_seen": time.time(), "away": False, "team_id": "blue", "avatar": None, "avatar_preset": "ocean", "virtual_controller_team": True})
                         claimed.update(role=role, player_id=player_id)
@@ -1302,9 +1306,18 @@ def replace_family_controller(code: str, role: str):
 
     def replace(current):
         old = current.get("controller_pairings", {}).get(role, {})
+        controls_active_turn = (
+            current.get("control_mode") == "couch" and role == "couch"
+        ) or (
+            current.get("control_mode") == "team_auto" and role == current.get("active_team_id")
+        )
+        if controls_active_turn and current.get("phase") == "round" and current.get("round_deadline"):
+            replacement["resume_round_seconds"] = max(1, float(current.pop("round_deadline")) - time.time())
         old_player = old.get("player_id")
         if old_player:
-            current.get("players", {}).pop(old_player, None)
+            player = current.get("players", {}).pop(old_player, None)
+            if player:
+                replacement["recovery_score"] = int(player.get("score", 0))
         current["controller_pairings"][role] = replacement
 
     if _mutate_room(code, replace) is None:
@@ -1312,7 +1325,7 @@ def replace_family_controller(code: str, role: str):
     all_tokens = dict(session.get("family_game_pairing_tokens", {}))
     room_tokens = dict(all_tokens.get(code, {})); room_tokens[role] = token; all_tokens[code] = room_tokens
     session["family_game_pairing_tokens"] = all_tokens
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "token": token})
 
 
 @bp.post("/api/family-game-night/rooms/<code>/teams/names")

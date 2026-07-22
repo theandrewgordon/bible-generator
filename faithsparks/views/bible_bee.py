@@ -763,7 +763,12 @@ def _public_room(room: dict, code: str) -> dict:
         "question_total": len(room.get("questions", [])),
         "question": public_question,
         "players": players,
-        "active_player_count": sum(1 for player in players if not player["away"] and player["connected"]),
+        "active_player_count": (
+            len(_eligible_player_ids(room))
+            if room.get("control_mode") in {"couch", "team_auto"}
+            else sum(1 for player in players if not player["away"] and player["connected"])
+        ),
+        "eligible_answer_count": len(_eligible_player_ids(room)),
         "family_score": sum(player["score"] for player in players),
         "answered_player_ids": list(answers),
         "oral_judgments": room.get("oral_judgments", {}) if visible_phase == "reveal" else {},
@@ -973,33 +978,38 @@ def pair_controller(code: str):
             claimed = {}
 
             def claim(current):
-                if current.get("phase") != "lobby":
-                    raise ValueError("Controller pairing closes when the game starts.")
                 for role, pairing in current.get("controller_pairings", {}).items():
                     if secrets.compare_digest(str(pairing.get("token_hash") or ""), digest):
                         if pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
                             raise ValueError("This controller invite expired or was already used.")
                         pairing["claimed"] = True
+                        paused_question_seconds = pairing.pop("resume_question_seconds", None)
+                        paused_reveal_seconds = pairing.pop("resume_reveal_seconds", None)
+                        if paused_question_seconds is not None and current.get("phase") == "question":
+                            current["question_deadline"] = time.time() + max(1, float(paused_question_seconds))
+                        if paused_reveal_seconds is not None and current.get("phase") == "reveal":
+                            current["reveal_deadline"] = time.time() + max(1, float(paused_reveal_seconds))
                         if role in {"gold", "blue"}:
                             player_id = f"controller-{role}-{secrets.token_urlsafe(5)}"
                             pairing["player_id"] = player_id
                             current.setdefault("players", {})[player_id] = {
-                                "name": f"{role.title()} Team Controller", "score": 0,
+                                "name": f"{role.title()} Team Controller", "score": int(pairing.pop("recovery_score", 0)),
                                 "joined_at": time.time(), "last_seen": time.time(), "away": False,
                                 "team_id": role, "avatar": None,
                                 "avatar_preset": "sunflower" if role == "gold" else "ocean",
                             }
                         elif role == "couch":
-                            current["players"] = {
-                                f"couch-{team}": {
+                            for index, team in enumerate(("gold", "blue")):
+                                player_id = f"couch-{team}"
+                                player = current.setdefault("players", {}).setdefault(player_id, {
                                     "name": current.get("team_names", {}).get(team, f"{team.title()} Team"),
                                     "score": 0, "joined_at": time.time() + index / 1000,
-                                    "last_seen": time.time(), "away": False, "team_id": team,
-                                    "avatar": None, "avatar_preset": "sunflower" if team == "gold" else "ocean",
+                                    "team_id": team, "avatar": None,
+                                    "avatar_preset": "sunflower" if team == "gold" else "ocean",
                                     "virtual_controller_team": True,
-                                }
-                                for index, team in enumerate(("gold", "blue"))
-                            }
+                                })
+                                player["last_seen"] = time.time()
+                                player["away"] = False
                         claimed.update(role=role, generation=pairing["generation"])
                         return
                 raise ValueError("That controller invite is not valid for this room.")
@@ -1057,9 +1067,20 @@ def replace_controller(code: str, role: str):
 
     def replace(current):
         old = current.get("controller_pairings", {}).get(role, {})
+        controls_active_turn = (
+            current.get("control_mode") == "couch" and role == "couch"
+        ) or (
+            current.get("control_mode") == "team_auto" and role == _active_team_id(current)
+        )
+        if controls_active_turn and current.get("phase") == "question" and current.get("question_deadline"):
+            pairing["resume_question_seconds"] = max(1, float(current.pop("question_deadline")) - time.time())
+        if controls_active_turn and current.get("phase") == "reveal" and current.get("reveal_deadline"):
+            pairing["resume_reveal_seconds"] = max(1, float(current.pop("reveal_deadline")) - time.time())
         old_player = old.get("player_id")
         if old_player:
-            current.get("players", {}).pop(old_player, None)
+            player = current.get("players", {}).pop(old_player, None)
+            if player:
+                pairing["recovery_score"] = int(player.get("score", 0))
         current["controller_pairings"][role] = pairing
 
     if _mutate_room(code, replace) is None:
@@ -1313,6 +1334,7 @@ def room_state(code: str):
     controller_role = _controller_role(code, room)
     state["viewer"] = {
         "is_host": _gameplay_host(code, room),
+        "is_owner": _is_host(code, room),
         "player_id": player_id,
         "controller_role": controller_role,
         "can_answer": _controller_can_answer(code, room, player_id),

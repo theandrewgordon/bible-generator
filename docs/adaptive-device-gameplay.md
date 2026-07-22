@@ -33,7 +33,7 @@ Couch Play creates a virtual second team in the room so a single private phone c
 
 ## Recovery
 
-Controller authority survives refresh through the signed session. The creator can revoke a paired controller or regenerate an expired invite; generation-bound capabilities make the old browser lose authority immediately. The creator retains ownership, recovery, close, delete, and team-naming authority. Public displays are replaceable and contain no capability. Server timestamps remain authoritative for timers and room expiry.
+Controller authority survives refresh through the signed session. The creator can revoke a paired controller or regenerate an expired invite; generation-bound capabilities make the old browser lose authority immediately. Active timed rounds pause while the controlling phone is being replaced and resume with their remaining time when the new phone pairs. The creator retains ownership, recovery, close, delete, and team-naming authority. Public displays are replaceable and contain no capability. Server timestamps remain authoritative for timers and room expiry.
 
 ## Bible Bee
 

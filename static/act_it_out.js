@@ -257,15 +257,19 @@ function playerRows(state, manage = false) {
 }
 
 function scoreRail(state, controls = "") {
+  const controllerRecovery = isFamilyGameNight && role === "host" && state.viewer.is_host
+    ? Object.keys(state.controller_status || {}).map(pairRole => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Replace ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller</button>`).join("")
+    : "";
   return `<aside class="score-rail">
     <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
     <div class="score-list">${playerRows(state, role === "host" && ["lobby", "round"].includes(state.phase))}</div>
       ${role === "host" ? `<div class="host-controls">
       ${controls}
+      ${controllerRecovery}
       <a class="bee-button secondary full" href="${gameBase}/display/${encodeURIComponent(code)}" target="_blank" rel="noopener">Open TV display</a>
-      <button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>
-      ${isFamilyGameNight ? `<details class="host-help"><summary>Need help?</summary><div><p><strong>Lost the TV?</strong> Open TV display again; it safely rejoins this room.</p><p><strong>A phone disconnected?</strong> Reopen its player page. Scores and turns stay with the room.</p><p><strong>Need to stop?</strong> End the game during a round, or delete the room below.</p><p><strong>Read aloud?</strong> Use the control at the top of this host screen.</p><a href="mailto:hello@faithsparksprintables.com?subject=Family%20Game%20Night%20help">Email support</a></div></details>` : ""}
+      ${!isFamilyGameNight || state.control_mode === "hosted" ? `<button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>` : ""}
+      ${isFamilyGameNight ? `<details class="host-help"><summary>Need help?</summary><div><p><strong>Lost the TV?</strong> Open TV display again; it safely rejoins this room.</p><p><strong>A phone disconnected?</strong> ${state.control_mode === "hosted" ? "Reopen its player page." : "Use Revoke and replace to create a fresh private controller invite."} Scores and turns stay with the room.</p><p><strong>Need to stop?</strong> End the game during a round, or delete the room below.</p><p><strong>Read aloud?</strong> Use the control at the top of this host screen.</p><a href="mailto:hello@faithsparksprintables.com?subject=Family%20Game%20Night%20help">Email support</a></div></details>` : ""}
       ${["round", "reveal"].includes(state.phase) ? `<button id="end-game" class="text-button danger-text" type="button">End game</button>` : ""}
       <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
     </div>` : ""}
@@ -650,19 +654,33 @@ function displayRosters(state) {
 
 function renderDisplay(state) {
   if (state.phase === "lobby") {
+    const adaptive = state.control_mode === "couch" || state.control_mode === "team_auto";
+    const pairingMessage = state.control_mode === "couch"
+      ? "Pair the private family controller from the creator’s screen."
+      : "Pair the Gold and Blue team phones from the creator’s screen.";
     app.innerHTML = `<section class="display-stage display-lobby">
       <p class="display-kicker">${escapeHTML(gameTitle)} · ${escapeHTML(state.theme)}</p>
-      <h1>Join the Game</h1>
-      <div class="display-join-row">
+      <h1>${adaptive ? "Private controllers needed" : "Join the Game"}</h1>
+      ${adaptive ? `<p class="display-prompt">${escapeHTML(pairingMessage)}</p>` : `<div class="display-join-row">
         <div><span>Room code</span><strong>${escapeHTML(code)}</strong></div>
         <img src="${gameBase}/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
-      </div>
+      </div>`}
       <p class="display-count">${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready · ${state.round_total} cards · 100 points each</p>
       ${displayRosters(state)}
+    </section>`;
+  } else if (state.phase === "prepare") {
+    app.innerHTML = `<section class="display-stage act-display-round prepare-display-round">
+      <div class="display-topline"><span>Round ${state.round_index + 1} of ${state.round_total}</span><span>${escapeHTML(state.active_team_name || "Play")}</span></div>
+      ${teamBoard(state, true)}
+      <h1>${escapeHTML(state.active_team_name || state.active_player_name || "The next player")} is getting ready</h1>
+      <p class="display-prompt">${escapeHTML(modeLabel(state.round?.mode))}</p>
+      <p class="act-display-instruction">Waiting for the private prompt…</p>
     </section>`;
   } else if (state.phase === "round") {
     const isGuess = state.round?.mode === "guess";
     const isDraw = state.round?.mode === "draw";
+    const adaptive = state.control_mode === "couch" || state.control_mode === "team_auto";
+    const pointsAvailable = state.round?.points_available || 100;
     app.innerHTML = `<section class="display-stage act-display-round ${isGuess ? "guess-display-round" : ""} ${isDraw ? "draw-display-round" : ""}">
       <div class="display-topline"><span>Round ${state.round_index + 1} of ${state.round_total}</span><span>${escapeHTML(state.active_team_name || "Play")}</span></div>
       ${teamBoard(state, true)}
@@ -671,8 +689,8 @@ function renderDisplay(state) {
       ${clueList(state.round)}
       ${drawingBoard(state)}
       <div class="act-timer display"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
-      ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
-      <p class="act-display-instruction">${isGuess ? "Call out the answer. A correct guess is worth 100 points." : isDraw ? "Choose the answer on your phone. Correct guesses score automatically." : "Guess out loud. A correct guess is worth 100 points."}</p>
+      ${isDraw && !adaptive ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
+      <p class="act-display-instruction">${isGuess ? `Call out the answer. This clue is worth ${pointsAvailable} points.` : isDraw && adaptive ? "Guess out loud. A correct team guess earns 100 points." : isDraw ? "Choose the answer on your phone. Correct guesses score automatically." : "Guess out loud. A correct guess is worth 100 points."}</p>
     </section>`;
   } else if (state.phase === "reveal") {
     const isCorrect = state.last_result?.outcome === "correct";
@@ -1015,6 +1033,22 @@ function bindManagement() {
     button.addEventListener("click", () => toggleAway(button.dataset.awayPlayerId));
   });
   document.querySelector("#copy-join-link")?.addEventListener("click", copyJoinLink);
+  document.querySelectorAll(".recover-controller").forEach(button => button.addEventListener("click", async () => {
+    try {
+      const result = await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/controllers/${encodeURIComponent(button.dataset.controllerRole)}/replace`, { method: "POST", body: "{}" });
+      const url = `${window.location.origin}/family-game-night/controller/${code}#${result.token}`;
+      let delivered = false;
+      if (navigator.share) {
+        try { await navigator.share({ title: "Faith Sparks replacement controller", url }); delivered = true; }
+        catch (shareError) { if (shareError?.name !== "AbortError") showToast("Share did not open; copying instead."); }
+      }
+      if (!delivered) {
+        try { await navigator.clipboard.writeText(url); showToast("Replacement controller invite copied."); }
+        catch (_clipboardError) { window.prompt("Copy this replacement controller invite:", url); }
+      }
+      await refresh();
+    } catch (error) { showToast(error.message); }
+  }));
   document.querySelector("#close-room")?.addEventListener("click", closeRoom);
   document.querySelector("#play-again")?.addEventListener("click", () => hostAction("play-again"));
   document.querySelector("#end-game")?.addEventListener("click", () => {

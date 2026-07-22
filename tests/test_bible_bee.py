@@ -1393,6 +1393,41 @@ def test_team_mode_only_accepts_active_bible_bee_controller_and_hides_invites():
     assert _post(gold, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
 
 
+def test_bible_bee_adaptive_display_uses_private_pairing_and_active_team_copy():
+    script = open("static/bible_bee.js", encoding="utf-8").read()
+    assert "Pair the private family controller from the creator’s screen." in script
+    assert "Pair the Gold and Blue team phones from the creator’s screen." in script
+    assert "answers this question" in script
+    assert 'state.control_mode === "hosted" ? `<div class="join-invite">' in script
+    assert "state.eligible_answer_count" in script
+
+
+def test_bible_bee_controller_recovery_works_mid_question_and_preserves_state():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client(); gold = app.test_client(); blue = app.test_client(); replacement = app.test_client()
+    _prime(host, "bible-midgame-recovery@example.com"); _prime(gold); _prime(blue); _prime(replacement)
+    created = _post(host, "/family-bible-bee/create", data={"csrf_token": CSRF, "control_mode": "team_auto", "round_count": "3"})
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        tokens = dict(sess["bible_bee_pairing_tokens"][code])
+    for client, role in ((gold, "gold"), (blue, "blue")):
+        assert _post(client, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": tokens[role]}).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    before = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert before["active_player_count"] == 1
+    assert before["eligible_answer_count"] == 1
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/controllers/gold/replace", json={}).status_code == 200
+    with host.session_transaction() as sess:
+        new_token = sess["bible_bee_pairing_tokens"][code]["gold"]
+    assert _post(replacement, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": new_token}).status_code == 302
+    after = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert (after["phase"], after["question_index"]) == (before["phase"], before["question_index"])
+    assert gold.get(f"/api/family-bible-bee/rooms/{code}").get_json()["viewer"]["can_answer"] is False
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(replacement, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
+
+
 def test_finish_the_verse_distractors_are_grammatical_near_misses():
     answer = "is born to help in time of need."
     distractors = bible_bee_content._finish_distractors(answer, [])
