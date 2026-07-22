@@ -1543,7 +1543,7 @@
       "category": "bible_stories",
       "category_label": "Bible Stories",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal clues until the team guesses the person."
@@ -1621,7 +1621,7 @@
       "category": "bible_stories",
       "category_label": "Bible Stories",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal clues until the team guesses the story."
@@ -1661,7 +1661,7 @@
       "category": "bible_stories",
       "category_label": "Bible Stories",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal clues until the team guesses the passage."
@@ -3495,7 +3495,7 @@
       "story_group": "gideon-signs",
       "category": "bible_stories",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -3717,7 +3717,7 @@
       "story_group": "hannah-samuel",
       "category": "people",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -4820,7 +4820,7 @@
       "story_group": "balaam-donkey",
       "category": "bible_stories",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -4922,7 +4922,7 @@
       "story_group": "joseph-pharaoh-dreams",
       "category": "people",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -5087,7 +5087,7 @@
       "story_group": "rahab-scarlet-cord",
       "category": "people",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -5200,7 +5200,7 @@
       "story_group": "zechariah-silent",
       "category": "people",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -5250,7 +5250,7 @@
       "story_group": "simeon-temple",
       "category": "people",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -5444,7 +5444,7 @@
       "story_group": "centurion-servant",
       "category": "jesus_miracles",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -5496,7 +5496,7 @@
       "story_group": "woman-garment",
       "category": "jesus_miracles",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -5650,7 +5650,7 @@
       "story_group": "woman-at-well",
       "category": "people",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",
@@ -6159,7 +6159,7 @@
       "story_group": "paul-silas-prison",
       "category": "worship_church",
       "difficulty": "easy",
-      "age_floor": 8,
+      "age_floor": 7,
       "familiarity": "known",
       "instructions": {
         "guess": "Reveal one clue at a time until the family guesses the answer.",

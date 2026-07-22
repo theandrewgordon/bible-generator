@@ -35,25 +35,31 @@
             <label><input type="radio" name="play_style" value="individual"><span><strong>Everyone for themselves</strong><small>Each player keeps their own score.</small></span></label>
           </div></fieldset>
 
-          <fieldset><legend><b>2</b><span>How long?</span></legend><div class="setup-choice-grid three">
+          <fieldset><legend><b>3</b><span>How long?</span></legend><div class="setup-choice-grid three">
             <label><input type="radio" name="round_count" value="10" {% if not owns_complete_game %}checked{% endif %}><span><strong>Quick Game</strong><small>10 rounds</small></span></label>
             <label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="radio" name="round_count" value="15" {% if owns_complete_game %}checked{% else %}disabled{% endif %}><span><strong>Family Game</strong><small>15 rounds{% if not owns_complete_game %} · Complete{% endif %}</small></span></label>
             <label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="radio" name="round_count" value="20" {% if not owns_complete_game %}disabled{% endif %}><span><strong>Big Game Night</strong><small>20 rounds{% if not owns_complete_game %} · Complete{% endif %}</small></span></label>
           </div></fieldset>
 
-          <fieldset><legend><b>3</b><span>What should we play?</span></legend><div class="setup-choice-grid five">
+          <fieldset><legend><b>4</b><span>What should we play?</span></legend><div class="setup-choice-grid five">
             {% for value, title, help in [('mixed', 'Mixed Game Night', 'All four ways to play'), ('act', 'Act It!', 'Perform the answer'), ('draw', 'Draw It!', 'Draw while others guess'), ('clue', 'Don’t Say It!', 'Avoid forbidden words'), ('guess', 'Guess It!', 'Reveal one clue at a time')] %}
               <label class="{% if not owns_complete_game and value != 'mixed' %}locked-choice{% endif %}"><input type="radio" name="game_mode" value="{{ value }}" {% if value == 'mixed' %}checked{% endif %} {% if not owns_complete_game and value != 'mixed' %}disabled{% endif %}><span><strong>{{ title }}</strong><small>{{ help }}{% if not owns_complete_game and value != 'mixed' %} · Complete{% endif %}</small></span></label>
             {% endfor %}
           </div></fieldset>
 
-          <fieldset><legend><b>4</b><span>Difficulty</span></legend><div class="setup-choice-grid three">
-            {% for value, title, help in [('younger', 'Younger Family', 'Simpler, familiar prompts'), ('whole_family', 'Whole Family', 'A friendly mix for most families'), ('challenge', 'Challenge', 'More detailed Bible knowledge')] %}
+          <fieldset><legend><b>5</b><span>Difficulty</span></legend><div class="setup-choice-grid three">
+            {% for value, title, help in [('younger', 'Younger Family · ages 7–9', 'Simpler, familiar prompts'), ('whole_family', 'Whole Family', 'A friendly mix for most families'), ('challenge', 'Challenge', 'More detailed Bible knowledge')] %}
               <label class="{% if not owns_complete_game and value != 'whole_family' %}locked-choice{% endif %}"><input type="radio" name="difficulty" value="{{ value }}" {% if value == 'whole_family' %}checked{% endif %} {% if not owns_complete_game and value != 'whole_family' %}disabled{% endif %}><span><strong>{{ title }}</strong><small>{{ help }}{% if not owns_complete_game and value != 'whole_family' %} · Complete{% endif %}</small></span></label>
             {% endfor %}
           </div></fieldset>
 
-          <fieldset><legend><b>5</b><span>Categories</span></legend><p class="fieldset-help">All Bible categories are ready by default.</p><div class="category-check-grid">
+          <fieldset><legend><b>6</b><span>Pacing</span></legend><div class="setup-choice-grid three">
+            <label><input type="radio" name="pace" value="relaxed"><span><strong>Relaxed</strong><small>75 seconds · reveal clues manually</small></span></label>
+            <label><input type="radio" name="pace" value="standard" checked><span><strong>Standard</strong><small>45 seconds</small></span></label>
+            <label><input type="radio" name="pace" value="fast"><span><strong>Fast</strong><small>30 seconds</small></span></label>
+          </div></fieldset>
+
+          <fieldset><legend><b>7</b><span>Categories</span></legend><p class="fieldset-help">All Bible categories are ready by default.</p><div class="category-check-grid">
             {% for value, title in categories.items() %}<label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="checkbox" name="categories" value="{{ value }}" checked {% if not owns_complete_game %}onclick="return false" aria-readonly="true"{% endif %}><span>{{ title }}</span></label>{% endfor %}
           </div></fieldset>
 

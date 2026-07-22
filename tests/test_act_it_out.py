@@ -689,7 +689,9 @@ def test_team_auto_assigns_private_prompt_to_actor_or_waiting_guess_judge():
     else:
         assert controller["viewer"]["controller_role"] == controller["active_team_id"]
         assert _post(controller_client, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
+        controller_client, non_controller_client = non_controller_client, controller_client
     assert _post(non_controller_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 403
+    assert controller_client.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["can_judge"] is True
     assert _post(controller_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
 
 
@@ -812,7 +814,7 @@ def test_complete_family_game_night_supports_every_mode_and_filters(monkeypatch)
             play_style="individual",
             round_count="15",
             game_mode=mode,
-            difficulty="younger",
+            difficulty="whole_family",
             categories=["bible_stories", "parables"],
         )
         assert created.status_code == 302, mode
@@ -821,7 +823,7 @@ def test_complete_family_game_night_supports_every_mode_and_filters(monkeypatch)
         assert {round_data["mode"] for round_data in room["rounds"]} == expected_modes
         assert {round_data["theme"] for round_data in room["rounds"]} <= {"Bible Stories", "Parables"}
         assert all(
-            next(prompt for prompt in act_it_out.PROMPTS if prompt["id"] == round_data["prompt_id"])["difficulty"] == "easy"
+            next(prompt for prompt in act_it_out.PROMPTS if prompt["id"] == round_data["prompt_id"])["difficulty"] in {"easy", "medium"}
             for round_data in room["rounds"]
         )
         assert room["free_sampler"] is False
@@ -2174,6 +2176,28 @@ def test_complete_adaptive_family_game_journey_is_smooth(control_mode, game_mode
         elif game_mode == "guess":
             assert state["viewer"]["secret_prompt"]["answer"]
 
+        if game_mode == "draw":
+            drawing_state = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+            assert drawing_state["viewer"]["can_draw"] is True
+            assert _post(
+                controller,
+                f"/api/group-games/act-it-out/rooms/{code}/drawing",
+                json={"drawing": PNG_1X1},
+            ).status_code == 200
+
+        if control_mode == "team_auto":
+            post_ready_states = {
+                role_name: client.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+                for role_name, client in controllers.items()
+            }
+            judge_role, judge_state = next(
+                (role_name, item)
+                for role_name, item in post_ready_states.items()
+                if item["viewer"]["can_judge"]
+            )
+            controller = controllers[judge_role]
+            assert judge_state["viewer"]["controller_role"] != judge_state["active_team_id"]
+
         action = "pass" if round_index % 3 == 1 else "correct"
         if action == "correct":
             expected_points += 100
@@ -2193,3 +2217,56 @@ def test_complete_adaptive_family_game_journey_is_smooth(control_mode, game_mode
     assert replay["phase"] == "lobby"
     assert replay["round_index"] == 0
     assert all(team["score"] == 0 for team in replay["teams"])
+
+
+@pytest.mark.parametrize(
+    ("pace", "seconds", "clue_interval"),
+    [("relaxed", 75, None), ("standard", 45, 8), ("fast", 30, 6)],
+)
+def test_family_pacing_is_saved_with_accessible_timer_rules(pace, seconds, clue_interval, monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    _prime(host, f"pace-{pace}@example.com")
+
+    created, code = _create_family_room(host, pace=pace)
+
+    assert created.status_code == 302
+    room = act_it_out._get_room(code)
+    assert room["pace"] == pace
+    assert room["timer_seconds"] == seconds
+    assert room["clue_interval_seconds"] == clue_interval
+
+
+def test_younger_family_rounds_never_exceed_age_seven():
+    from faithsparks.services.game_content import build_family_rounds, family_prompts
+
+    rounds, _diagnostics = build_family_rounds(
+        "younger-twenty-round-game",
+        count=20,
+        categories={"bible_stories", "jesus_miracles", "parables", "people", "worship_church", "everyday_faith"},
+        difficulty_values={"easy"},
+        game_mode="guess",
+        free_sampler=False,
+        max_age_floor=7,
+    )
+    ages = {item["id"]: item["age_floor"] for item in family_prompts()}
+
+    assert len(rounds) == 20
+    assert len({item["answer"].casefold() for item in rounds}) == 20
+    assert all(ages[item["prompt_id"]] <= 7 for item in rounds)
+
+
+def test_family_mobile_markup_prioritizes_the_task_and_limits_live_announcements():
+    css = open("static/act_it_out.css", encoding="utf-8").read()
+    script = open("static/act_it_out.js", encoding="utf-8").read()
+    room_template = open("templates/act_it_out_room.html", encoding="utf-8").read()
+    setup_template = open("templates/family_game_night_setup.html", encoding="utf-8").read()
+
+    assert '.act-room-body[data-role="player"] .game-layout .score-rail' in css
+    assert "order: initial;" in css
+    assert ".drawing-controller-layout .score-rail" in css
+    assert 'Private prompt for ${escapeHTML(state.active_team_name || "this turn")}' in script
+    assert 'id="app" class="game-shell" aria-live=' not in room_template
+    assert 'name="pace" value="relaxed"' in setup_template

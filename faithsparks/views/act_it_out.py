@@ -79,6 +79,11 @@ THEMES = [*ACT_THEMES, *DRAW_THEMES]
 
 FAMILY_GAME_MODES = {"mixed", "act", "draw", "clue", "guess"}
 CONTROL_MODES = {"couch", "team_auto", "hosted"}
+FAMILY_PACING = {
+    "relaxed": {"seconds": 75, "clue_interval": None},
+    "standard": {"seconds": 45, "clue_interval": 8},
+    "fast": {"seconds": 30, "clue_interval": 6},
+}
 FAMILY_DIFFICULTIES = {
     "younger": {"easy"},
     "whole_family": {"easy", "medium"},
@@ -374,21 +379,49 @@ def _new_controller_pairings(control_mode: str) -> tuple[dict, dict]:
     return raw, stored
 
 
-def _controller_can_control_room(room: dict, role: str | None) -> bool:
+def _controller_can_prepare(room: dict, role: str | None) -> bool:
     if not role:
         return False
     control_mode = room.get("control_mode", "hosted")
-    active = _active_round(room) or {}
+    if control_mode == "hosted":
+        return role == "host"
+    if control_mode == "couch":
+        return role == "couch"
+    if control_mode == "team_auto":
+        return role == room.get("active_team_id", "gold")
+    return False
+
+
+def _controller_can_judge(room: dict, role: str | None) -> bool:
+    if not role:
+        return False
+    control_mode = room.get("control_mode", "hosted")
     if control_mode == "hosted":
         return role == "host"
     if control_mode == "couch":
         return role == "couch"
     if control_mode == "team_auto" and role in {"gold", "blue"}:
-        if room.get("phase") == "lobby":
-            return role == room.get("active_team_id", "gold")
-        if active.get("mode") == "guess":
-            return role != room.get("active_team_id")
-        return role == room.get("active_team_id")
+        return role != room.get("active_team_id", "gold")
+    return False
+
+
+def _controller_can_draw(room: dict, role: str | None) -> bool:
+    active = _active_round(room) or {}
+    return bool(
+        room.get("phase") == "round"
+        and active.get("mode") == "draw"
+        and _controller_can_prepare(room, role)
+    )
+
+
+def _controller_can_control_room(room: dict, role: str | None) -> bool:
+    phase = room.get("phase", "lobby")
+    if phase in {"lobby", "prepare"}:
+        return _controller_can_prepare(room, role)
+    if phase == "round":
+        return _controller_can_judge(room, role) or _controller_can_draw(room, role)
+    if phase == "reveal":
+        return _controller_can_judge(room, role)
     return False
 
 
@@ -534,6 +567,7 @@ def _build_rounds(
             game_mode=game_mode,
             free_sampler=free_sampler,
             recent_prompt_ids=recent_prompt_ids,
+            max_age_floor=7 if difficulty == "younger" else None,
         )
         allowed_choices = set(FREE_FAMILY_PROMPT_IDS) if free_sampler else None
         seed = strong_seed("family-game-night-draw-choices", code)
@@ -1012,6 +1046,7 @@ def create_family_game_night_room():
     control_mode = (request.form.get("control_mode") or "hosted").strip()
     game_mode = (request.form.get("game_mode") or "").strip()
     difficulty = (request.form.get("difficulty") or "").strip()
+    pace = (request.form.get("pace") or "standard").strip()
     category_values = request.form.getlist("categories")
     categories = {value.strip() for value in category_values if value.strip()}
     try:
@@ -1030,6 +1065,8 @@ def create_family_game_night_room():
         errors.append("Choose Mixed Game Night or one of the four game modes.")
     if difficulty not in FAMILY_DIFFICULTIES:
         errors.append("Choose a family difficulty level.")
+    if pace not in FAMILY_PACING:
+        errors.append("Choose Relaxed, Standard, or Fast pacing.")
     if not categories or not categories <= set(FAMILY_CATEGORIES):
         errors.append("Choose at least one available Bible category.")
     if errors:
@@ -1066,6 +1103,7 @@ def create_family_game_night_room():
         "game_mode": game_mode,
         "control_mode": control_mode,
         "difficulty": difficulty,
+        "pace": pace,
         "categories": sorted(categories),
         "free_sampler": not owns_complete_game,
         "player_limit": 6 if not owns_complete_game else (TEAM_PLAYER_LIMIT if team_mode else INDIVIDUAL_PLAYER_LIMIT),
@@ -1075,7 +1113,8 @@ def create_family_game_night_room():
         "round_count": round_count,
         "rounds": rounds,
         "round_index": 0,
-        "timer_seconds": ROUND_SECONDS,
+        "timer_seconds": FAMILY_PACING[pace]["seconds"],
+        "clue_interval_seconds": FAMILY_PACING[pace]["clue_interval"],
         "players": {},
         "round_results": [],
         "team_score_adjustments": {"gold": 0, "blue": 0},
@@ -1654,14 +1693,16 @@ def room_state(code: str):
     code = code.upper()
     room = _require_room(code)
     active_for_timing = _active_round(room)
+    clue_interval = room.get("clue_interval_seconds", 8)
     if (
         room.get("phase") == "round"
         and room.get("control_mode") == "team_auto"
+        and clue_interval
         and active_for_timing
         and active_for_timing.get("mode") == "guess"
     ):
         elapsed = max(0, time.time() - float(room.get("round_started_at", time.time())))
-        scheduled_index = min(len(active_for_timing.get("clues", [])) - 1, int(elapsed // 8))
+        scheduled_index = min(len(active_for_timing.get("clues", [])) - 1, int(elapsed // float(clue_interval)))
         if scheduled_index > int(room.get("clue_index", 0)):
             def advance_scheduled_clue(current):
                 current["clue_index"] = max(int(current.get("clue_index", 0)), scheduled_index)
@@ -1698,8 +1739,16 @@ def room_state(code: str):
     player = room.get("players", {}).get(player_id or "")
     control_mode = room.get("control_mode", "hosted")
     controller_role = _controller_role(code)
-    can_control = bool(_is_host(code, room) or _controller_can_control_room(room, controller_role))
-    viewer = {"is_host": _is_host(code, room), "player_id": player_id, "can_control": can_control, "controller_role": controller_role}
+    is_host = _is_host(code, room)
+    can_prepare = bool(is_host or _controller_can_prepare(room, controller_role))
+    can_judge = bool(is_host or _controller_can_judge(room, controller_role))
+    can_draw = bool(_controller_can_draw(room, controller_role))
+    can_control = bool(is_host or _controller_can_control_room(room, controller_role))
+    viewer = {
+        "is_host": is_host, "player_id": player_id, "can_control": can_control,
+        "can_prepare": can_prepare, "can_judge": can_judge, "can_draw": can_draw,
+        "controller_role": controller_role,
+    }
     if viewer["is_host"]:
         all_tokens = session.get("family_game_pairing_tokens", {})
         viewer["pairing_tokens"] = all_tokens.get(code, {}) if isinstance(all_tokens, dict) else {}
@@ -1707,13 +1756,13 @@ def room_state(code: str):
         active and active.get("mode") == "guess" and (
             viewer["is_host"]
             or controller_role == "host"
-            or (control_mode == "team_auto" and can_control)
-            or (control_mode == "couch" and can_control and room.get("judge_answer_revealed"))
+            or (control_mode == "team_auto" and can_judge)
+            or (control_mode == "couch" and can_judge and room.get("judge_answer_revealed"))
         )
     )
     if active and not room.get("prompt_locked") and (
         can_see_guess_answer
-        or (active.get("mode") != "guess" and (viewer["is_host"] or can_control))
+        or (active.get("mode") != "guess" and (viewer["is_host"] or can_prepare))
         or (active.get("mode") != "guess" and player and player_id == room.get("active_player_id"))
     ):
         viewer["secret_prompt"] = {
@@ -1785,9 +1834,12 @@ def start_game(code: str):
 def _host_action(code: str, action: str):
     code = code.upper()
     room = _get_room(code)
-    control_mode = (room or {}).get("control_mode", "hosted")
     controller_role = _controller_role(code)
-    controller_allowed = bool(room and _controller_can_control_room(room, controller_role))
+    controller_allowed = bool(room and (
+        (action == "ready" and _controller_can_prepare(room, controller_role))
+        or (action in {"correct", "pass", "forbidden", "clue", "show-answer", "next"} and _controller_can_judge(room, controller_role))
+        or (action == "skip" and (_controller_can_prepare(room, controller_role) or _controller_can_judge(room, controller_role)))
+    ))
     if not _is_host(code, room) and not controller_allowed:
         abort(403)
 
@@ -2057,6 +2109,7 @@ def heartbeat(code: str):
 def submit_drawing(code: str):
     code = code.upper()
     player_id = _player_id(code)
+    controller_role = _controller_role(code)
     data = (request.get_json(silent=True) or {}).get("drawing", "")
     if not player_id:
         abort(403)
@@ -2067,7 +2120,7 @@ def submit_drawing(code: str):
         active = _active_round(current)
         if current.get("phase") != "round" or not active or active.get("mode") != "draw":
             raise ValueError("This is not a drawing round.")
-        if current.get("active_player_id") != player_id:
+        if current.get("active_player_id") != player_id and not _controller_can_draw(current, controller_role):
             raise PermissionError
         player = current.get("players", {}).get(player_id)
         if player:

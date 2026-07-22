@@ -381,6 +381,7 @@ def build_family_rounds(
     game_mode: str,
     free_sampler: bool,
     recent_prompt_ids: set[str] | None = None,
+    max_age_floor: int | None = None,
 ) -> tuple[list[dict], dict]:
     records = family_prompts()
     sampler = free_sampler_ids()
@@ -388,6 +389,7 @@ def build_family_rounds(
         item for item in records
         if item["category"] in categories
         and item["difficulty"] in difficulty_values
+        and (max_age_floor is None or int(item.get("age_floor", 99)) <= max_age_floor)
         and (not free_sampler or item["id"] in sampler)
     ]
     requested_modes = ("act", "draw", "clue", "guess") if game_mode == "mixed" else (game_mode,)
@@ -404,7 +406,7 @@ def build_family_rounds(
             f"This selection has only {len(unique_answers)} unique answers for {count} rounds. Select more categories, another difficulty, or fewer rounds.",
             diagnostics,
         )
-    rng = random.Random(strong_seed("family-game-night", code, count, game_mode, ",".join(sorted(categories)), ",".join(sorted(difficulty_values)), free_sampler))
+    rng = random.Random(strong_seed("family-game-night", code, count, game_mode, ",".join(sorted(categories)), ",".join(sorted(difficulty_values)), free_sampler, max_age_floor))
     mode_order = _balanced_mode_order(requested_modes, count, rng)
     used_ids: set[str] = set()
     used_answers: set[str] = set()
@@ -467,16 +469,16 @@ def family_capacity_matrix() -> dict[str, int]:
     from itertools import combinations
 
     tiers = {
-        "younger": {"easy"},
-        "whole_family": {"easy", "medium"},
-        "challenge": {"medium", "hard"},
+        "younger": ({"easy"}, 7),
+        "whole_family": ({"easy", "medium"}, None),
+        "challenge": ({"medium", "hard"}, None),
     }
     matrix = {}
     category_list = sorted(VALID_CATEGORIES)
     for size in range(1, len(category_list) + 1):
         for category_tuple in combinations(category_list, size):
             categories = set(category_tuple)
-            for tier, values in tiers.items():
+            for tier, (values, max_age_floor) in tiers.items():
                 for mode in ("mixed", "act", "draw", "clue", "guess"):
                     maximum = 0
                     for count in (20, 15, 10):
@@ -484,6 +486,7 @@ def family_capacity_matrix() -> dict[str, int]:
                             build_family_rounds(
                                 "CAPACITY", count, categories=categories,
                                 difficulty_values=values, game_mode=mode, free_sampler=False,
+                                max_age_floor=max_age_floor,
                             )
                         except RoundBuildError:
                             continue

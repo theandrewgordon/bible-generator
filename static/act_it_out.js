@@ -51,7 +51,7 @@ function escapeHTML(value) {
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
-  window.setTimeout(() => toast.classList.remove("show"), 2600);
+  window.setTimeout(() => toast.classList.remove("show"), 5000);
 }
 
 function profileEditor(player) {
@@ -126,12 +126,27 @@ function speakState(state, force = false) {
   if (!force && key === lastSpokenState) return;
   lastSpokenState = key;
   const items = [];
-  if (state.phase === "round" && state.round) {
+  if (state.phase === "prepare" && state.viewer.secret_prompt) {
+    items.push({
+      text: `${modeLabel(state.viewer.secret_prompt.mode)}. ${state.viewer.secret_prompt.answer}`,
+      element: () => document.querySelector(".secret-prompt-card h2"),
+    });
+    if (readMode === "all") {
+      if (state.viewer.secret_prompt.instruction) items.push({
+        text: state.viewer.secret_prompt.instruction,
+        element: () => document.querySelector(".secret-prompt-card p"),
+      });
+      if (state.viewer.secret_prompt.forbidden_words?.length) items.push({
+        text: `Do not say: ${state.viewer.secret_prompt.forbidden_words.join(", ")}`,
+        element: () => document.querySelector(".forbidden-words"),
+      });
+    }
+  } else if (state.phase === "round" && state.round) {
     items.push({
       text: modeLabel(state.round.mode),
       element: () => document.querySelector(".display-prompt, .mode-banner, .player-turn-stage h1"),
     });
-    if (state.viewer.secret_prompt && role !== "player") {
+    if (state.viewer.secret_prompt) {
       items.push({
         text: state.viewer.secret_prompt.answer,
         element: () => document.querySelector(".secret-prompt-card h2"),
@@ -499,16 +514,16 @@ function renderRound(state) {
   const drawGuessers = isDraw
     ? state.players.filter(player => player.id !== state.active_player_id && player.connected && !player.away && !answeredPlayerIds.has(player.id))
     : [];
-  const prepareAction = state.viewer.can_control && isPreparing
+  const prepareAction = state.viewer.can_prepare && isPreparing
     ? `<div class="private-prompt-ready"><p>Keep this screen private. When the player knows what to ${isDraw ? "draw" : isClue ? "describe" : "act"}, hide the prompt and start the timer.</p><button id="ready-round" class="bee-button primary full" type="button">Ready · hide prompt and start</button></div>`
     : "";
-  const controls = state.viewer.can_control && !isPreparing
+  const controls = state.viewer.can_judge && !isPreparing
     ? isGuess && state.control_mode === "couch" && !activePrompt
       ? `<p class="host-score-hint">Let the active team guess from the TV clues. Reveal the private answer only when someone is ready to judge.</p>
          <button id="show-judge-answer" class="bee-button primary full" type="button">Reveal answer to judge</button>`
       : isDraw
       ? state.control_mode !== "hosted"
-        ? `<p class="host-score-hint"><strong>${escapeHTML(state.active_team_name || "Your family")} guesses aloud.</strong> Lock in the result once.</p>
+        ? `<p class="host-score-hint"><strong>${state.control_mode === "team_auto" ? `The ${escapeHTML(state.active_team_name || "active team")} is playing. Your team judges.` : "Everyone else guesses aloud."}</strong> Lock in the result once.</p>
            <button id="correct-round" class="bee-button primary full" type="button">They got it · +100</button>
            <button id="pass-round" class="bee-button secondary full" type="button">Pass / time</button>
            <button id="skip-round" class="text-button" type="button">Skip card</button>`
@@ -517,24 +532,32 @@ function renderRound(state) {
          <p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
          <button id="pass-round" class="bee-button secondary full" type="button">Reveal drawing answer</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
-      : `<p class="host-score-hint">${isGuess && state.control_mode === "team_auto" ? "The other team is guessing. You are the judge—keep this answer private." : "If the group guesses it, award this card. Then deal the next card."}</p>
+      : `<p class="host-score-hint">${state.control_mode === "team_auto" ? `The ${escapeHTML(state.active_team_name || "other team")} is playing. Your team judges this card${isGuess ? "—keep the answer private" : ""}.` : "If the group guesses it, award this card. Then deal the next card."}</p>
          ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
          <button id="correct-round" class="bee-button primary full" type="button">Got it right · +${pointsAvailable}</button>
          ${isClue ? `<button id="forbidden-round" class="bee-button secondary full" type="button">Forbidden word · no points</button>` : ""}
          <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
     : "";
-  app.innerHTML = `<div class="game-layout ${isPreparing ? "prepare-layout" : ""}">
+  const adaptiveTeamTurn = state.control_mode !== "hosted" && state.team_mode;
+  const roundHeading = isPreparing
+    ? `Private prompt for ${escapeHTML(state.active_team_name || "this turn")}`
+    : isGuess
+      ? `${escapeHTML(state.active_team_name || "Team")} guesses`
+      : adaptiveTeamTurn
+        ? `${escapeHTML(state.active_team_name || "Team")}: choose someone to ${isDraw ? "draw" : isClue ? "give clues" : "act"}`
+        : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`;
+  app.innerHTML = `<div class="game-layout ${isPreparing ? "prepare-layout" : ""} ${canEditDrawing(state) ? "drawing-controller-layout" : ""}">
     <section class="game-stage act-round-stage">
       <p class="round-meta">Round ${state.round_index + 1} of ${state.round_total}</p>
-      <h1>${isPreparing ? "Your private prompt" : isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
+      <h1>${roundHeading}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       ${isPreparing ? "" : `<div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>`}
       <p class="act-display-instruction">${isPreparing ? "Only the player taking this turn should look at this screen." : isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : usesPhoneDrawGuesses ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : isDraw ? "Draw on this phone while everyone else guesses aloud." : "Guess out loud. Award 100 points when they get it."}</p>
       ${isPreparing && activePrompt ? secretPromptCard(activePrompt) : ""}
       ${prepareAction}
       ${clueList(state.round)}
-      ${isPreparing ? "" : drawingBoard(state, role === "player" && state.viewer.can_control && isDraw)}
+      ${isPreparing ? "" : drawingBoard(state, canEditDrawing(state))}
       ${usesPhoneDrawGuesses && !isPreparing ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
       ${!isPreparing && activePrompt && state.viewer.can_control ? secretPromptCard(activePrompt, true) : ""}
     </section>
@@ -703,10 +726,15 @@ function renderDisplay(state) {
     const isDraw = state.round?.mode === "draw";
     const adaptive = state.control_mode === "couch" || state.control_mode === "team_auto";
     const pointsAvailable = state.round?.points_available || 100;
+    const displayHeading = isGuess
+      ? `${escapeHTML(state.active_team_name || "Team")} guesses`
+      : adaptive
+        ? `${escapeHTML(state.active_team_name || "Team")}: choose someone to ${isDraw ? "draw" : state.round?.mode === "clue" ? "give clues" : "act"}`
+        : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`;
     app.innerHTML = `<section class="display-stage act-display-round ${isGuess ? "guess-display-round" : ""} ${isDraw ? "draw-display-round" : ""}">
       <div class="display-topline"><span>Round ${state.round_index + 1} of ${state.round_total}</span><span>${escapeHTML(state.active_team_name || "Play")}</span></div>
       ${teamBoard(state, true)}
-      <h1>${isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
+      <h1>${displayHeading}</h1>
       <p class="display-prompt">${escapeHTML(modeLabel(state.round?.mode))}</p>
       ${clueList(state.round)}
       ${drawingBoard(state)}
@@ -806,7 +834,7 @@ async function hostAction(action) {
 
 function canEditDrawing(state) {
   if (role !== "player" || state?.phase !== "round" || state?.round?.mode !== "draw") return false;
-  return state.viewer?.player_id === state.active_player_id && Boolean(state.viewer?.can_control || state.viewer?.secret_prompt?.mode === "draw");
+  return Boolean(state.viewer?.can_draw || (state.viewer?.player_id === state.active_player_id && state.viewer?.secret_prompt?.mode === "draw"));
 }
 
 function stopDrawingAutosave() {

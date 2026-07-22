@@ -557,6 +557,18 @@
     order: initial;
   }
 
+  .act-room-body[data-role="player"] .game-layout .score-rail {
+    order: initial;
+  }
+
+  .drawing-controller-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .drawing-controller-layout .score-rail {
+    display: none;
+  }
+
   .game-pick-grid,
   .act-theme-picker > div {
     grid-template-columns: 1fr;
@@ -564,6 +576,14 @@
   .act-setup {
     padding: 18px;
   }
+}
+
+.act-room-body .bee-brand,
+.act-room-body .read-mode-control select,
+.act-room-body .text-button,
+.act-room-body .away-player,
+.act-room-body .switch-team-player {
+  min-height: 44px;
 }
 
 @media (max-width: 600px) {
