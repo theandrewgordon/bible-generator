@@ -17,14 +17,20 @@
       <section class="home-copy">
         <span class="section-kicker">Laugh together. Learn Scripture. Make memories.</span>
         <h1>Set up your Family Game Night.</h1>
-        <p>Your television or computer becomes the shared display. Players join from their phones with a room code—no player accounts needed. New games avoid recently used prompts when the selected library has room.</p>
+        <p><strong>Works with 2 devices. Best with 3.</strong> A laptop or iPad can be the shared display; a television and casting are optional. Player accounts and one phone per player are not required.</p>
       </section>
 
       {% if error %}<p class="setup-error" role="alert">{{ error }}</p>{% endif %}
       {% if is_host_signed_in %}
         <form class="family-setup-form" method="post" action="{{ url_for('act_it_out.create_family_game_night_room') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <fieldset><legend><b>1</b><span>How are you playing?</span></legend><div class="setup-choice-grid two">
+          <fieldset><legend><b>1</b><span>Choose your devices</span></legend><div class="setup-choice-grid three">
+            <label><input type="radio" name="control_mode" value="couch"><span><strong>Couch Play · 2 devices</strong><small>One shared screen and one private phone passed between players.</small></span></label>
+            <label><input type="radio" name="control_mode" value="team_auto" checked><span><strong>Team Play · 3 devices · Recommended</strong><small>One shared screen and one phone for each team. Faith Sparks manages turns and scoring.</small></span></label>
+            <label><input type="radio" name="control_mode" value="hosted"><span><strong>Hosted Play · 4+ devices</strong><small>Add a private host controller for churches, classes, and competitive groups.</small></span></label>
+          </div><p class="fieldset-help">Only cast the public display. A television does not count as another required player device.</p></fieldset>
+
+          <fieldset><legend><b>2</b><span>How are you playing?</span></legend><div class="setup-choice-grid two">
             <label><input type="radio" name="play_style" value="teams" checked><span><strong>Teams</strong><small>Work together and share points.</small></span></label>
             <label><input type="radio" name="play_style" value="individual"><span><strong>Everyone for themselves</strong><small>Each player keeps their own score.</small></span></label>
           </div></fieldset>

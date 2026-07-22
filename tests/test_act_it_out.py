@@ -499,6 +499,89 @@ def test_family_game_night_rejects_invalid_and_locked_configuration():
     assert b"free game includes 10 mixed rounds" in locked.data
 
 
+def test_family_setup_offers_two_three_and_four_device_modes():
+    host = app.test_client()
+    _prime(host, "devices@example.com")
+    page = host.get("/family-game-night/play")
+
+    assert page.status_code == 200
+    assert b"Works with 2 devices. Best with 3." in page.data
+    assert b"Couch Play \xc2\xb7 2 devices" in page.data
+    assert b"Team Play \xc2\xb7 3 devices \xc2\xb7 Recommended" in page.data
+    assert b"Hosted Play \xc2\xb7 4+ devices" in page.data
+
+
+def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    controller = app.test_client()
+    display = app.test_client()
+    _prime(host, "couch@example.com")
+    _prime(controller)
+    _prime(display)
+    created, code = _create_family_room(host, control_mode="couch")
+    assert created.status_code == 302
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(controller, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 302
+    replay = app.test_client(); _prime(replay)
+    assert _post(replay, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 400
+
+    room = act_it_out._get_room(code)
+    assert room["control_mode"] == "couch"
+    assert {player["team_id"] for player in room["players"].values()} == {"gold", "blue"}
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+
+    private = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    public = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert private["viewer"]["can_control"] is True
+    if private["round"]["mode"] == "guess":
+        assert "secret_prompt" not in private["viewer"]
+    else:
+        assert private["viewer"]["secret_prompt"]["answer"]
+    assert public["round"]["answer"] is None
+    assert "secret_prompt" not in public["viewer"]
+    assert "pairing_tokens" not in public["viewer"]
+    if private["phase"] == "prepare":
+        assert private["round_deadline"] is None
+        assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
+        hidden = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+        assert hidden["phase"] == "round" and hidden["round_deadline"]
+        assert "secret_prompt" not in hidden["viewer"]
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
+    reveal = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert reveal["last_result"]["points"] == 100
+
+
+def test_team_auto_only_active_team_receives_control_and_private_prompt():
+    host = app.test_client()
+    gold = app.test_client()
+    blue = app.test_client()
+    _prime(host, "team-auto@example.com")
+    _prime(gold)
+    _prime(blue)
+    created, code = _create_family_room(host, control_mode="team_auto")
+    assert created.status_code == 302
+    with host.session_transaction() as sess:
+        tokens = sess["family_game_pairing_tokens"][code]
+    for client, role in ((gold, "gold"), (blue, "blue")):
+        assert _post(client, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": tokens[role]}).status_code == 302
+    assert _post(gold, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+
+    states = [(client, client.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()) for client in (gold, blue)]
+    active_client, active = next(item for item in states if item[1]["viewer"]["can_control"])
+    waiting_client, waiting = next(item for item in states if not item[1]["viewer"]["can_control"])
+    assert "secret_prompt" not in waiting["viewer"]
+    if active["round"]["mode"] == "guess":
+        assert "secret_prompt" not in active["viewer"]
+    else:
+        assert active["viewer"]["secret_prompt"]["answer"]
+        assert _post(active_client, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
+    assert _post(waiting_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 403
+    assert _post(active_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
+
+
 def test_complete_family_game_night_supports_every_mode_and_filters(monkeypatch):
     from faithsparks.views import act_it_out
 

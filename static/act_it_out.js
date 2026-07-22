@@ -292,7 +292,7 @@ function clueList(round, compact = false) {
 }
 
 function renderLobby(state) {
-  if (role === "player") {
+  if (role === "player" && !state.viewer.can_control) {
     const me = state.players.find(player => player.id === state.viewer.player_id);
     app.innerHTML = `<section class="game-stage player-wait">
       <div class="celebration-mark">✦</div>
@@ -319,6 +319,7 @@ function renderLobby(state) {
         </div>
       </div>
       <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.</p>
+      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>Open ${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}`)} on each controller phone</h2></div><p>Enter the matching one-time code. Codes expire after about ten minutes and are never placed in the URL.</p><ul>${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<li><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : `${pairRole} team`)}</strong><code>${escapeHTML(token)}</code></li>`).join("")}</ul></aside>` : ""}
       ${showHostWalkthrough ? `<aside class="host-walkthrough" aria-labelledby="host-walkthrough-title">
         <div><span>First game?</span><h2 id="host-walkthrough-title">Three screens, one easy job.</h2></div>
         <ol>
@@ -412,6 +413,7 @@ function bindDrawGuessChoices() {
 }
 
 function renderRound(state) {
+  const isPreparing = state.phase === "prepare";
   const isActivePlayer = role === "player" && state.viewer.player_id === state.active_player_id;
   if (role === "player") {
     const hasSecretPrompt = Boolean(state.viewer.secret_prompt);
@@ -439,15 +441,23 @@ function renderRound(state) {
   const activePrompt = state.viewer.secret_prompt;
   const isGuess = state.round?.mode === "guess";
   const isDraw = state.round?.mode === "draw";
+  const isClue = state.round?.mode === "clue";
   const pointsAvailable = state.round?.points_available || 100;
   const canRevealClue = isGuess && (state.round?.clues?.length || 0) < (state.round?.clue_count || 0);
   const answeredPlayerIds = new Set(state.round?.answered_player_ids || []);
   const drawGuessers = isDraw
     ? state.players.filter(player => player.id !== state.active_player_id && player.connected && !player.away && !answeredPlayerIds.has(player.id))
     : [];
-  const controls = role === "host"
+  const controls = state.viewer.can_control && isPreparing
+    ? `<p class="host-score-hint">Read the private prompt, then hide it before anyone else takes the phone.</p><button id="ready-round" class="bee-button primary full" type="button">Ready and hide prompt</button>`
+    : state.viewer.can_control
     ? isDraw
-      ? `<p class="host-score-hint"><strong>Phone guesses:</strong> players tap one answer to lock it in. Correct choices score automatically.</p>
+      ? state.control_mode !== "hosted"
+        ? `<p class="host-score-hint"><strong>${escapeHTML(state.active_team_name || "Your family")} guesses aloud.</strong> Lock in the result once.</p>
+           <button id="correct-round" class="bee-button primary full" type="button">They got it · +100</button>
+           <button id="pass-round" class="bee-button secondary full" type="button">Pass / time</button>
+           <button id="skip-round" class="text-button" type="button">Skip card</button>`
+        : `<p class="host-score-hint"><strong>Phone guesses:</strong> players tap one answer to lock it in. Correct choices score automatically.</p>
          ${drawGuessers.length ? `<div class="draw-verbal-awards"><strong>Someone called it out?</strong>${drawGuessers.map(player => `<button class="bee-button primary full award-draw-guesser" data-player-id="${escapeHTML(player.id)}" type="button">Award ${escapeHTML(player.name)} · +100</button>`).join("")}</div>` : ""}
          <p class="host-score-hint">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>
          <button id="pass-round" class="bee-button secondary full" type="button">Reveal drawing answer</button>
@@ -455,6 +465,7 @@ function renderRound(state) {
       : `<p class="host-score-hint">If the group guesses it, award this card. Then deal the next card.</p>
          ${canRevealClue ? `<button id="reveal-clue" class="bee-button secondary full" type="button">Reveal next clue</button>` : ""}
          <button id="correct-round" class="bee-button primary full" type="button">Got it right · +${pointsAvailable}</button>
+         ${isClue ? `<button id="forbidden-round" class="bee-button secondary full" type="button">Forbidden word · no points</button>` : ""}
          <button id="pass-round" class="bee-button secondary full" type="button">No point / pass</button>
          <button id="skip-round" class="text-button" type="button">Skip card</button>`
     : "";
@@ -466,15 +477,17 @@ function renderRound(state) {
       <div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>
       <p class="act-display-instruction">${isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : isDraw ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : "Guess out loud. Award 100 points when they get it."}</p>
       ${clueList(state.round)}
-      ${drawingBoard(state)}
+      ${drawingBoard(state, role === "player" && state.viewer.can_control && isDraw)}
       ${isDraw ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
       ${role === "host" ? secretPromptCard(activePrompt, true) : ""}
     </section>
     ${scoreRail(state, controls)}
   </div>`;
   document.querySelector("#reveal-clue")?.addEventListener("click", () => hostAction("clue"));
+  document.querySelector("#ready-round")?.addEventListener("click", () => hostAction("ready"));
   document.querySelector("#correct-round")?.addEventListener("click", () => hostAction("correct"));
   document.querySelector("#pass-round")?.addEventListener("click", () => hostAction("pass"));
+  document.querySelector("#forbidden-round")?.addEventListener("click", () => hostAction("forbidden"));
   document.querySelector("#skip-round")?.addEventListener("click", () => hostAction("skip"));
   document.querySelectorAll(".award-draw-guesser").forEach(button => {
     button.addEventListener("click", () => awardDrawGuesser(button.dataset.playerId));
@@ -655,7 +668,7 @@ function render(state) {
   latestState = state;
   if (role === "display") renderDisplay(state);
   else if (state.phase === "lobby") renderLobby(state);
-  else if (state.phase === "round") renderRound(state);
+  else if (state.phase === "prepare" || state.phase === "round") renderRound(state);
   else if (state.phase === "reveal") renderReveal(state);
   else renderFinished(state);
   updateCountdown();
