@@ -796,6 +796,10 @@ def _public_room(room: dict, code: str) -> dict:
         "phase": room.get("phase", "lobby"),
         "game_type": room.get("game_type", "act_it_out"),
         "control_mode": room.get("control_mode", "hosted"),
+        "controller_status": {
+            role: bool(pairing.get("claimed"))
+            for role, pairing in room.get("controller_pairings", {}).items()
+        },
         "game_name": _game_title(room),
         "theme": room.get("theme", "Bible Stories"),
         "team_mode": bool(room.get("team_mode", False)),
@@ -1195,6 +1199,12 @@ def pair_family_controller(code: str):
                         if pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
                             raise ValueError("This pairing code expired or was already used.")
                         pairing["claimed"] = True
+                        if role == "couch":
+                            # Couch Play has one physical controller. If someone
+                            # followed the public player link first, normalize
+                            # that accidental lobby state instead of creating a
+                            # mysterious third participant.
+                            current["players"] = {}
                         player_id = secrets.token_urlsafe(8)
                         team_id = role if role in {"gold", "blue"} else "gold"
                         current.setdefault("players", {})[player_id] = {"name": f"{team_id.title()} Team Controller" if role != "couch" else "Family Controller", "score": 0, "joined_at": time.time(), "last_seen": time.time(), "away": False, "team_id": team_id if current.get("team_mode") else None, "avatar": None, "avatar_preset": "sunflower" if team_id == "gold" else "ocean"}
@@ -1492,6 +1502,11 @@ def start_game(code: str):
         abort(403)
 
     def start(current):
+        pairings = current.get("controller_pairings", {})
+        if current.get("control_mode") == "couch" and not pairings.get("couch", {}).get("claimed"):
+            raise ValueError("Pair the Couch controller phone first. You do not add a second team manually.")
+        if current.get("control_mode") == "team_auto" and not all(pairings.get(role, {}).get("claimed") for role in ("gold", "blue")):
+            raise ValueError("Pair both the Gold and Blue team phones before starting.")
         if not current.get("players"):
             raise ValueError("Invite at least one player before starting.")
         if current.get("game_type") == "draw_it" and len(_available_players(current, connected_only=True)) < 2:

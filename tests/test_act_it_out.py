@@ -522,6 +522,10 @@ def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
     _prime(display)
     created, code = _create_family_room(host, control_mode="couch")
     assert created.status_code == 302
+    assert _post(controller, f"/group-games/act-it-out/join/{code}", data={"csrf_token": CSRF, "player_name": "Tessa"}).status_code == 302
+    blocked_start = _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={})
+    assert blocked_start.status_code == 409
+    assert b"do not add a second team" in blocked_start.data
     with host.session_transaction() as sess:
         token = sess["family_game_pairing_tokens"][code]["couch"]
     assert _post(controller, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 302
@@ -530,6 +534,8 @@ def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
 
     room = act_it_out._get_room(code)
     assert room["control_mode"] == "couch"
+    assert len(room["players"]) == 2
+    assert "Tessa" not in {player["name"] for player in room["players"].values()}
     assert {player["team_id"] for player in room["players"].values()} == {"gold", "blue"}
     assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
 

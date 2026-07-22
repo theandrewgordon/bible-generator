@@ -304,22 +304,29 @@ function renderLobby(state) {
     bindProfileEditor();
     return;
   }
-  const startDisabled = state.players.length ? "" : "disabled";
-  const showHostWalkthrough = role === "host" && isFamilyGameNight && window.localStorage.getItem("familyGameNightHostWalkthrough") !== "done";
+  const isAdaptiveControllerRoom = state.control_mode === "couch" || state.control_mode === "team_auto";
+  const couchPaired = Boolean(state.controller_status?.couch);
+  const controllersReady = state.control_mode === "couch"
+    ? couchPaired
+    : state.control_mode === "team_auto"
+      ? Boolean(state.controller_status?.gold && state.controller_status?.blue)
+      : Boolean(state.players.length);
+  const startDisabled = controllersReady ? "" : "disabled";
+  const showHostWalkthrough = role === "host" && isFamilyGameNight && state.control_mode === "hosted" && window.localStorage.getItem("familyGameNightHostWalkthrough") !== "done";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
       <p class="round-meta">${escapeHTML(state.theme)} · ${state.round_total} cards · 45 seconds each</p>
-      <h1>Gather your players</h1>
-      <p>Scan the QR code or enter the room code.</p>
-      <div class="lobby-code-row">
+      <h1>${state.control_mode === "couch" ? (couchPaired ? "Your shared controller is ready" : "Pair your one controller phone") : state.control_mode === "team_auto" ? "Pair both team phones" : "Gather your players"}</h1>
+      <p>${state.control_mode === "couch" ? "You do not add a second player or team. Pair one phone below; Faith Sparks creates Gold and Blue turns automatically." : state.control_mode === "team_auto" ? "Use the private Gold and Blue pairing codes below—not the public room code." : "Scan the QR code or enter the room code."}</p>
+      ${!isAdaptiveControllerRoom ? `<div class="lobby-code-row">
         <div class="big-code">${escapeHTML(code)}</div>
         <div class="lobby-qr">
           <img src="${gameBase}/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
           <span>Scan to join</span>
         </div>
-      </div>
-      <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.</p>
-      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>Open ${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}`)} on each controller phone</h2></div><p>Enter the matching one-time code. Codes expire after about ten minutes and are never placed in the URL.</p><ul>${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<li><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : `${pairRole} team`)}</strong><code>${escapeHTML(token)}</code></li>`).join("")}</ul></aside>` : ""}
+      </div>` : ""}
+      <p>${state.control_mode === "couch" ? (couchPaired ? "Couch controller paired. Gold and Blue teams are ready." : "Waiting for the Couch controller phone.") : `${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.`}</p>
+      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>On the controller phone, open ${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}`)}</h2></div><p>Do not use the room-code player QR for Couch or Team Play. Enter the matching one-time code below.</p><ul>${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<li><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : `${pairRole} team`)}</strong>${state.controller_status?.[pairRole] ? `<span>Paired ✓</span>` : `<code>${escapeHTML(token)}</code>`}</li>`).join("")}</ul></aside>` : ""}
       ${showHostWalkthrough ? `<aside class="host-walkthrough" aria-labelledby="host-walkthrough-title">
         <div><span>First game?</span><h2 id="host-walkthrough-title">Three screens, one easy job.</h2></div>
         <ol>
