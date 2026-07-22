@@ -25,6 +25,7 @@ let profileEditorOpen = false;
 let drawingSendInFlight = false;
 let drawingDirty = false;
 let drawingAutosendTimer = null;
+let drawingSession = 0;
 const presetAvatars = [
   ["", "Initials"],
   ["fox", "Friendly fox"],
@@ -491,6 +492,7 @@ function renderRound(state) {
   const isGuess = state.round?.mode === "guess";
   const isDraw = state.round?.mode === "draw";
   const isClue = state.round?.mode === "clue";
+  const usesPhoneDrawGuesses = isDraw && state.control_mode === "hosted";
   const pointsAvailable = state.round?.points_available || 100;
   const canRevealClue = isGuess && (state.round?.clues?.length || 0) < (state.round?.clue_count || 0);
   const answeredPlayerIds = new Set(state.round?.answered_player_ids || []);
@@ -528,12 +530,12 @@ function renderRound(state) {
       <h1>${isPreparing ? "Your private prompt" : isGuess ? `${escapeHTML(state.active_team_name || "Team")} guesses` : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       ${isPreparing ? "" : `<div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>`}
-      <p class="act-display-instruction">${isPreparing ? "Only the player taking this turn should look at this screen." : isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : isDraw ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : "Guess out loud. Award 100 points when they get it."}</p>
+      <p class="act-display-instruction">${isPreparing ? "Only the player taking this turn should look at this screen." : isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : usesPhoneDrawGuesses ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : isDraw ? "Draw on this phone while everyone else guesses aloud." : "Guess out loud. Award 100 points when they get it."}</p>
       ${isPreparing && activePrompt ? secretPromptCard(activePrompt) : ""}
       ${prepareAction}
       ${clueList(state.round)}
       ${isPreparing ? "" : drawingBoard(state, role === "player" && state.viewer.can_control && isDraw)}
-      ${isDraw && !isPreparing ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
+      ${usesPhoneDrawGuesses && !isPreparing ? `<p class="act-display-instruction">${state.round?.answered_count || 0} of ${state.round?.guesser_count || 0} guesses locked.</p>` : ""}
       ${!isPreparing && activePrompt && state.viewer.can_control ? secretPromptCard(activePrompt, true) : ""}
     </section>
     ${scoreRail(state, controls)}
@@ -742,6 +744,7 @@ function renderDisplay(state) {
 }
 
 function render(state) {
+  if (!canEditDrawing(state)) stopDrawingAutosave();
   latestState = state;
   if (role === "display") renderDisplay(state);
   else if (state.phase === "lobby") renderLobby(state);
@@ -767,7 +770,7 @@ async function refresh() {
     failedRefreshes = 0;
     connectionStatus.classList.remove("show");
     const activeCanvas = document.querySelector("#draw-canvas");
-    if (activeCanvas && latestState?.phase === "round" && state.phase === "round" && latestState?.round_index === state.round_index) {
+    if (activeCanvas && canEditDrawing(latestState) && canEditDrawing(state) && latestState?.round_index === state.round_index && latestState?.active_player_id === state.active_player_id) {
       latestState = state;
       return;
     }
@@ -801,8 +804,24 @@ async function hostAction(action) {
   }
 }
 
-async function sendDrawing(canvas, silent = false) {
-  if (drawingSendInFlight) return;
+function canEditDrawing(state) {
+  if (role !== "player" || state?.phase !== "round" || state?.round?.mode !== "draw") return false;
+  return state.viewer?.player_id === state.active_player_id && Boolean(state.viewer?.can_control || state.viewer?.secret_prompt?.mode === "draw");
+}
+
+function stopDrawingAutosave() {
+  drawingSession += 1;
+  drawingDirty = false;
+  if (drawingAutosendTimer) window.clearTimeout(drawingAutosendTimer);
+  drawingAutosendTimer = null;
+}
+
+function isCurrentDrawingCanvas(canvas, session) {
+  return session === drawingSession && canvas?.isConnected && canvas === document.querySelector("#draw-canvas") && canEditDrawing(latestState);
+}
+
+async function sendDrawing(canvas, silent = false, session = drawingSession) {
+  if (drawingSendInFlight || !isCurrentDrawingCanvas(canvas, session)) return;
   drawingSendInFlight = true;
   try {
     const status = document.querySelector("#draw-status");
@@ -815,14 +834,20 @@ async function sendDrawing(canvas, silent = false) {
     if (status) status.textContent = silent ? "Drawing updated on the shared screen." : "Drawing sent.";
     if (!silent) await refresh();
   } catch (error) {
-    drawingDirty = true;
-    showToast(error.message);
+    const staleRound = [403, 409].includes(error.status) || !isCurrentDrawingCanvas(canvas, session);
+    drawingDirty = !staleRound;
+    if (staleRound) {
+      stopDrawingAutosave();
+      if (!silent) showToast("That drawing turn has ended.");
+    } else if (!silent) {
+      showToast(error.message);
+    }
   } finally {
     drawingSendInFlight = false;
-    if (drawingDirty && !drawingAutosendTimer) {
+    if (drawingDirty && !drawingAutosendTimer && isCurrentDrawingCanvas(canvas, session)) {
       drawingAutosendTimer = window.setTimeout(() => {
         drawingAutosendTimer = null;
-        sendDrawing(canvas, true);
+        sendDrawing(canvas, true, session);
       }, 600);
     }
   }
@@ -857,6 +882,8 @@ async function awardDrawGuesser(playerId) {
 function initDrawingCanvas() {
   const canvas = document.querySelector("#draw-canvas");
   if (!canvas || canvas.dataset.ready === "true") return;
+  stopDrawingAutosave();
+  const session = drawingSession;
   canvas.dataset.ready = "true";
   const context = canvas.getContext("2d");
   context.fillStyle = "#fffefb";
@@ -871,7 +898,7 @@ function initDrawingCanvas() {
     if (drawingAutosendTimer) return;
     drawingAutosendTimer = window.setTimeout(() => {
       drawingAutosendTimer = null;
-      if (drawingDirty) sendDrawing(canvas, true);
+      if (drawingDirty) sendDrawing(canvas, true, session);
     }, 1200);
   };
   const point = event => {
@@ -898,18 +925,18 @@ function initDrawingCanvas() {
   });
   canvas.addEventListener("pointerup", () => {
     drawing = false;
-    if (drawingDirty) sendDrawing(canvas, true);
+    if (drawingDirty) sendDrawing(canvas, true, session);
   });
   canvas.addEventListener("pointercancel", () => {
     drawing = false;
-    if (drawingDirty) sendDrawing(canvas, true);
+    if (drawingDirty) sendDrawing(canvas, true, session);
   });
   document.querySelector("#clear-drawing")?.addEventListener("click", () => {
     context.fillStyle = "#fffefb";
     context.fillRect(0, 0, canvas.width, canvas.height);
     queueDrawingSend();
   });
-  document.querySelector("#send-drawing")?.addEventListener("click", () => sendDrawing(canvas));
+  document.querySelector("#send-drawing")?.addEventListener("click", () => sendDrawing(canvas, false, session));
 }
 
 async function switchTeam(playerId) {

@@ -757,6 +757,46 @@ def test_draw_prepare_ui_shows_prompt_before_canvas_and_timer():
     assert 'isPreparing ? "" : `<div class="act-timer">' in script
     assert "Ready · hide prompt and start" in script
     assert ".prepare-layout .score-rail" in stylesheet
+    assert "[403, 409].includes(error.status)" in script
+    assert "stopDrawingAutosave()" in script
+    assert "isCurrentDrawingCanvas(canvas, session)" in script
+    assert 'usesPhoneDrawGuesses && !isPreparing' in script
+    assert "Draw on this phone while everyone else guesses aloud." in script
+
+
+def test_couch_draw_lifecycle_rejects_early_and_stale_uploads_but_accepts_active_drawing(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    controller = app.test_client()
+    display = app.test_client()
+    _prime(host, "draw-lifecycle@example.com")
+    _prime(controller)
+    _prime(display)
+    created, code = _create_family_room(host, control_mode="couch", game_mode="draw")
+    assert created.status_code == 302
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(controller, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 302
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+
+    prepared = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert prepared["phase"] == "prepare"
+    assert prepared["viewer"]["secret_prompt"]["mode"] == "draw"
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 409
+
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 200
+    for _ in range(3):
+        state = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+        assert state["phase"] == "round"
+        assert state["round"]["drawing"] == PNG_1X1
+    public = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert "secret_prompt" not in public["viewer"]
+
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
+    assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/drawing", json={"drawing": PNG_1X1}).status_code == 409
 
 
 def test_complete_family_game_night_supports_every_mode_and_filters(monkeypatch):
