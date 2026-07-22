@@ -506,7 +506,8 @@ def test_family_setup_offers_two_three_and_four_device_modes():
     page = host.get("/family-game-night/play")
 
     assert page.status_code == 200
-    assert b"Works with 2 devices. Best with 3." in page.data
+    assert b"Use a TV or computer plus one phone." in page.data
+    assert b"For Team Play, use one phone per team." in page.data
     assert b"Couch Play \xc2\xb7 2 devices" in page.data
     assert b"Team Play \xc2\xb7 3 devices \xc2\xb7 Recommended" in page.data
     assert b"Hosted Play \xc2\xb7 4+ devices" in page.data
@@ -746,6 +747,16 @@ def test_controller_pair_page_consumes_fragment_without_sending_it_to_server():
     assert "history.replaceState" in template
     assert "Share controller invite" in script
     assert "controller-qr" in script
+
+
+def test_draw_prepare_ui_shows_prompt_before_canvas_and_timer():
+    script = open("static/act_it_out.js", encoding="utf-8").read()
+    stylesheet = open("static/act_it_out.css", encoding="utf-8").read()
+    assert 'isPreparing && activePrompt ? secretPromptCard(activePrompt)' in script
+    assert 'isPreparing ? "" : drawingBoard' in script
+    assert 'isPreparing ? "" : `<div class="act-timer">' in script
+    assert "Ready · hide prompt and start" in script
+    assert ".prepare-layout .score-rail" in stylesheet
 
 
 def test_complete_family_game_night_supports_every_mode_and_filters(monkeypatch):

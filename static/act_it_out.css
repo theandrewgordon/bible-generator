@@ -553,6 +553,10 @@
 }
 
 @media (max-width: 850px) {
+  .prepare-layout .score-rail {
+    order: initial;
+  }
+
   .game-pick-grid,
   .act-theme-picker > div {
     grid-template-columns: 1fr;
