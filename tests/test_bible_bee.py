@@ -80,7 +80,8 @@ def test_family_bible_bee_room_flow():
     # Use the server-side answer only inside the test to exercise scoring.
     from faithsparks.views import bible_bee
 
-    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    first_question = bible_bee._get_room(code)["questions"][0]
+    correct = first_question["correct"]
     answered = _post(
         player,
         f"/api/family-bible-bee/rooms/{code}/answer",
@@ -400,7 +401,8 @@ def test_team_mode_assigns_players_and_scores_by_team():
     }
 
     assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
-    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    first_question = bible_bee._get_room(code)["questions"][0]
+    correct = first_question["correct"]
     assert _post(
         gold_player,
         f"/api/family-bible-bee/rooms/{code}/answer",
@@ -409,7 +411,7 @@ def test_team_mode_assigns_players_and_scores_by_team():
     assert _post(
         blue_player,
         f"/api/family-bible-bee/rooms/{code}/answer",
-        json={"choice": (correct + 1) % 4},
+        json={"choice": (correct + 1) % len(first_question["choices"])},
     ).status_code == 200
 
     reveal = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
@@ -1329,6 +1331,66 @@ def test_player_can_edit_bible_bee_profile_before_start():
         f"/api/family-bible-bee/rooms/{code}/profile",
         json={"player_name": "Late Edit", "avatar_preset": "cross"},
     ).status_code == 409
+
+
+def test_couch_mode_uses_one_private_controller_and_alternates_teams():
+    host = app.test_client()
+    controller = app.test_client()
+    _prime(host, "bible-couch@example.com")
+    _prime(controller)
+    created = _post(host, "/family-bible-bee/create", data={"csrf_token": CSRF, "control_mode": "couch", "round_count": "3"})
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    assert controller.get(f"/family-bible-bee/join/{code}").status_code == 403
+    with host.session_transaction() as sess:
+        token = sess["bible_bee_pairing_tokens"][code]["couch"]
+    paired = _post(controller, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token})
+    assert paired.status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    state = controller.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert state["active_team_id"] == "gold"
+    assert state["viewer"]["can_answer"] is True
+    correct = state["question"]["correct"]
+    assert correct is None
+    question = __import__("faithsparks.views.bible_bee", fromlist=["_get_room"])._get_room(code)["questions"][0]
+    assert _post(controller, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": question["correct"]}).status_code == 200
+    revealed = controller.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert revealed["phase"] == "reveal"
+
+
+def test_team_controller_replacement_revokes_old_bible_bee_session():
+    host = app.test_client(); gold = app.test_client(); replacement = app.test_client()
+    _prime(host, "bible-team@example.com"); _prime(gold); _prime(replacement)
+    created = _post(host, "/family-bible-bee/create", data={"csrf_token": CSRF, "control_mode": "team_auto", "round_count": "3"})
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        first_token = sess["bible_bee_pairing_tokens"][code]["gold"]
+    assert _post(gold, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": first_token}).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/controllers/gold/replace", json={}).status_code == 200
+    assert gold.get(f"/family-bible-bee/play/{code}").status_code == 302
+    with host.session_transaction() as sess:
+        second_token = sess["bible_bee_pairing_tokens"][code]["gold"]
+    assert second_token != first_token
+    assert _post(replacement, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": second_token}).status_code == 302
+
+
+def test_team_mode_only_accepts_active_bible_bee_controller_and_hides_invites():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client(); gold = app.test_client(); blue = app.test_client(); public = app.test_client()
+    _prime(host, "bible-controller-auth@example.com"); _prime(gold); _prime(blue); _prime(public)
+    created = _post(host, "/family-bible-bee/create", data={"csrf_token": CSRF, "control_mode": "team_auto", "round_count": "3"})
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        tokens = dict(sess["bible_bee_pairing_tokens"][code])
+    for client, role in ((gold, "gold"), (blue, "blue")):
+        assert _post(client, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": tokens[role]}).status_code == 302
+    public_state = public.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert "pairing_tokens" not in public_state["viewer"]
+    assert tokens["gold"] not in public.get(f"/api/family-bible-bee/rooms/{code}").text
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    correct = bible_bee._get_room(code)["questions"][0]["correct"]
+    assert _post(blue, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 403
+    assert _post(gold, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
 
 
 def test_finish_the_verse_distractors_are_grammatical_near_misses():

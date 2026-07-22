@@ -21,7 +21,7 @@
     <main class="bee-home">
       <section class="home-copy">
         <h1>Bring Scripture memory to family game night.</h1>
-        <p>One shared screen. A phone for each player. A few joyful rounds of remembering God’s Word together.</p>
+        <p>Choose one shared family phone, two team phones, or a hosted room. A few joyful rounds of remembering God’s Word together.</p>
         {% if is_host_signed_in %}
           {% if setup_error %}<p class="setup-error" role="alert">{{ setup_error }}</p>{% endif %}
           <form id="bee-room-setup" class="room-setup-form expanded" method="post" action="{{ url_for('bible_bee.create_room') }}">
@@ -30,13 +30,14 @@
             <input type="hidden" name="game_style" value="classic_mix">
             <input type="hidden" name="choice_count" value="4">
             <input type="hidden" name="reveal_seconds" value="10">
-            <label class="team-mode-toggle">
-              <input type="checkbox" name="team_mode">
-              <span>
-                <strong>Team mode</strong>
-                <small>Best for bigger rooms. Auto-split up to 40 players.</small>
-              </span>
-            </label>
+            <fieldset class="quick-game-options">
+              <legend>How will you play?</legend>
+              <div>
+                <label><input type="radio" name="control_mode" value="couch"><span>Couch Play<small>TV + one private phone passed between teams</small></span></label>
+                <label><input type="radio" name="control_mode" value="team_auto" checked><span>Team mode · Team Play<small>TV + one private phone for each team</small></span></label>
+                <label><input type="radio" name="control_mode" value="hosted"><span>Hosted Play<small>TV + private host controller + optional player phones, up to 40 players in team rooms</small></span></label>
+              </div>
+            </fieldset>
             <fieldset class="version-picker">
               <legend>Bible version</legend>
               <div class="version-options">

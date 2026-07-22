@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import io
+import hashlib
 import os
 import re
 import secrets
@@ -44,6 +45,8 @@ bp = Blueprint("bible_bee", __name__)
 ROOM_TTL_SECONDS = 6 * 60 * 60
 FINISHED_ROOM_TTL_SECONDS = 30 * 60
 REVEAL_SECONDS = 10
+CONTROLLER_PAIR_TTL_SECONDS = 10 * 60
+CONTROL_MODES = {"couch", "team_auto", "hosted"}
 REVEAL_SECOND_OPTIONS = {5, 10, 15}
 CHALLENGE_QUESTION_SECONDS = 30
 DIFFICULTY_QUESTION_SECONDS = {"hard": 25, "expert": 20}
@@ -194,6 +197,79 @@ def _player_id(code: str) -> str | None:
     return session.get(_player_session_key(code))
 
 
+def _controller_session_key(code: str) -> str:
+    return f"bible_bee_controller_{code}"
+
+
+def _controller_role(code: str, room: dict | None = None) -> str | None:
+    room = room or _get_room(code)
+    capability = session.get(_controller_session_key(code))
+    if not room or not isinstance(capability, dict):
+        return None
+    role = str(capability.get("role") or "")
+    pairing = room.get("controller_pairings", {}).get(role, {})
+    generation = str(capability.get("generation") or "")
+    if not pairing.get("claimed") or not generation or not secrets.compare_digest(
+        generation, str(pairing.get("generation") or "")
+    ):
+        return None
+    return role
+
+
+def _pairing_roles(control_mode: str) -> list[str]:
+    if control_mode == "couch":
+        return ["couch"]
+    if control_mode == "team_auto":
+        return ["gold", "blue"]
+    return ["host"]
+
+
+def _fresh_pairing() -> tuple[str, dict]:
+    token = secrets.token_urlsafe(32)
+    generation = secrets.token_urlsafe(16)
+    return token, {
+        "token_hash": hashlib.sha256(token.encode()).hexdigest(),
+        "expires_at": time.time() + CONTROLLER_PAIR_TTL_SECONDS,
+        "claimed": False,
+        "generation": generation,
+    }
+
+
+def _new_controller_pairings(control_mode: str) -> tuple[dict, dict]:
+    raw, stored = {}, {}
+    for role in _pairing_roles(control_mode):
+        raw[role], stored[role] = _fresh_pairing()
+    return raw, stored
+
+
+def _gameplay_host(code: str, room: dict | None = None) -> bool:
+    room = room or _get_room(code)
+    return bool(_is_host(code, room) or _controller_role(code, room) == "host")
+
+
+def _active_team_id(room: dict) -> str:
+    return "gold" if int(room.get("question_index", 0)) % 2 == 0 else "blue"
+
+
+def _controller_can_answer(code: str, room: dict, player_id: str | None) -> bool:
+    role = _controller_role(code, room)
+    mode = room.get("control_mode", "hosted")
+    if mode == "couch":
+        return role == "couch" and bool(player_id)
+    if mode == "team_auto":
+        return role == _active_team_id(room) and bool(player_id)
+    return bool(player_id)
+
+
+def _acting_player_id(code: str, room: dict) -> str | None:
+    role = _controller_role(code, room)
+    if role == "couch":
+        return f"couch-{_active_team_id(room)}"
+    if role in {"gold", "blue"}:
+        return str(room.get("controller_pairings", {}).get(role, {}).get("player_id") or "") or None
+    return _player_id(code)
+
+
 def _valid_avatar_data(value: str) -> bool:
     if not value:
         return True
@@ -228,11 +304,19 @@ def _player_connected(player: dict, now: float | None = None) -> bool:
 
 def _eligible_player_ids(room: dict) -> set[str]:
     now = time.time()
-    return {
+    eligible = {
         player_id
         for player_id, player in room.get("players", {}).items()
         if not player.get("away", False) and _player_connected(player, now)
     }
+    if room.get("control_mode") in {"couch", "team_auto"}:
+        active_team = _active_team_id(room)
+        eligible = {
+            player_id for player_id in eligible
+            for player in [room.get("players", {}).get(player_id, {})]
+            if player.get("team_id") == active_team
+        }
+    return eligible
 
 
 def _all_eligible_players_answered(room: dict) -> bool:
@@ -282,9 +366,11 @@ def _team_state(room: dict) -> list[dict]:
     if not room.get("team_mode"):
         return []
     players = room.get("players", {})
+    team_names = room.get("team_names", {})
     return [
         {
             **team,
+            "name": team_names.get(team["id"], team["name"]),
             "score": sum(
                 int(player.get("score", 0))
                 for player in players.values()
@@ -626,6 +712,7 @@ def _public_room(room: dict, code: str) -> dict:
     public_players = []
     for player_id, player in room.get("players", {}).items():
         team = _team_meta(player.get("team_id"))
+        team_name = room.get("team_names", {}).get(team["id"], team["name"]) if team else None
         public_players.append(
             {
                 "id": player_id,
@@ -634,7 +721,7 @@ def _public_room(room: dict, code: str) -> dict:
                 "connected": _player_connected(player, now),
                 "away": bool(player.get("away", False)),
                 "team_id": team["id"] if team else None,
-                "team_name": team["name"] if team else None,
+                "team_name": team_name,
                 "team_color": team["color"] if team else None,
                 "avatar": (
                     url_for("bible_bee.player_avatar", code=code, player_id=player_id)
@@ -661,6 +748,12 @@ def _public_room(room: dict, code: str) -> dict:
         "game_style": room.get("game_style_name", "Classic Mix"),
         "difficulty": room.get("difficulty_name", "Family"),
         "team_mode": bool(room.get("team_mode", False)),
+        "control_mode": room.get("control_mode", "hosted"),
+        "active_team_id": _active_team_id(room) if room.get("control_mode") in {"couch", "team_auto"} else None,
+        "controller_status": {
+            role: bool(pairing.get("claimed"))
+            for role, pairing in room.get("controller_pairings", {}).items()
+        },
         "teams": _team_state(room),
         "difficulty_stage": (
             _upramp_stage(room)[0] if room.get("difficulty") == "upramp" else None
@@ -673,7 +766,7 @@ def _public_room(room: dict, code: str) -> dict:
         "active_player_count": sum(1 for player in players if not player["away"] and player["connected"]),
         "family_score": sum(player["score"] for player in players),
         "answered_player_ids": list(answers),
-        "oral_judgments": room.get("oral_judgments", {}),
+        "oral_judgments": room.get("oral_judgments", {}) if visible_phase == "reveal" else {},
         "review": room.get("review", []),
         "review_summary": room.get("review_summary", {}),
         "reveal_deadline": room.get("reveal_deadline"),
@@ -729,7 +822,10 @@ def create_room():
     deck = DECKS.get(deck_id) or DECKS["family-favorites"]
     custom_game = request.form.get("game_source") == "custom"
     one_off_theme = " ".join((request.form.get("one_off_theme") or "").split())[:120]
-    team_mode = request.form.get("team_mode") == "on"
+    control_mode = (request.form.get("control_mode") or "hosted").strip()
+    if control_mode not in CONTROL_MODES:
+        control_mode = "hosted"
+    team_mode = control_mode in {"couch", "team_auto"} or request.form.get("team_mode") == "on"
     version = (request.form.get("version") or "esv").lower()
     style = request.form.get("game_style") or "classic_mix"
     difficulty = request.form.get("difficulty") or "family"
@@ -798,12 +894,16 @@ def create_room():
     except (ValueError, BibleBeeAIError) as exc:
         return _render_home(str(exc), status=503)
 
+    raw_pairings, controller_pairings = _new_controller_pairings(control_mode)
     room = {
         "created_at": time.time(),
         "updated_at": time.time(),
         "host_email": email,
         "phase": "lobby",
         "team_mode": team_mode,
+        "control_mode": control_mode,
+        "team_names": {"gold": "Gold Team", "blue": "Blue Team"},
+        "controller_pairings": controller_pairings,
         "teams": TEAMS if team_mode else [],
         "deck_id": deck_id,
         "deck_name": deck_name,
@@ -828,6 +928,9 @@ def create_room():
         "ai_review": ai_review,
     }
     _set_room(code, room)
+    pairing_tokens = dict(session.get("bible_bee_pairing_tokens", {}))
+    pairing_tokens[code] = raw_pairings
+    session["bible_bee_pairing_tokens"] = pairing_tokens
     session["bible_bee_recent_references"] = updated_recent_history(
         session.get("bible_bee_recent_references"),
         [passage["reference"] for passage in passages],
@@ -843,7 +946,7 @@ def create_room():
 def host_room(code: str):
     code = code.upper()
     room = _require_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
     return render_template("bible_bee_room.html", code=code, role="host", noindex=True)
 
@@ -853,6 +956,145 @@ def display_room(code: str):
     code = code.upper()
     _require_room(code)
     return render_template("bible_bee_room.html", code=code, role="display", noindex=True)
+
+
+@bp.route("/family-bible-bee/controller/<code>", methods=["GET", "POST"])
+def pair_controller(code: str):
+    code = code.upper()
+    room = _require_room(code)
+    error = None
+    if request.method == "POST":
+        rate = check_rate_limit("bible-bee-controller-pair", get_client_ip(), limit=12, window_seconds=10 * 60)
+        if not rate.allowed:
+            error = "Too many pairing attempts. Wait a few minutes."
+        else:
+            token = (request.form.get("pairing_token") or "").strip()
+            digest = hashlib.sha256(token.encode()).hexdigest()
+            claimed = {}
+
+            def claim(current):
+                if current.get("phase") != "lobby":
+                    raise ValueError("Controller pairing closes when the game starts.")
+                for role, pairing in current.get("controller_pairings", {}).items():
+                    if secrets.compare_digest(str(pairing.get("token_hash") or ""), digest):
+                        if pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
+                            raise ValueError("This controller invite expired or was already used.")
+                        pairing["claimed"] = True
+                        if role in {"gold", "blue"}:
+                            player_id = f"controller-{role}-{secrets.token_urlsafe(5)}"
+                            pairing["player_id"] = player_id
+                            current.setdefault("players", {})[player_id] = {
+                                "name": f"{role.title()} Team Controller", "score": 0,
+                                "joined_at": time.time(), "last_seen": time.time(), "away": False,
+                                "team_id": role, "avatar": None,
+                                "avatar_preset": "sunflower" if role == "gold" else "ocean",
+                            }
+                        elif role == "couch":
+                            current["players"] = {
+                                f"couch-{team}": {
+                                    "name": current.get("team_names", {}).get(team, f"{team.title()} Team"),
+                                    "score": 0, "joined_at": time.time() + index / 1000,
+                                    "last_seen": time.time(), "away": False, "team_id": team,
+                                    "avatar": None, "avatar_preset": "sunflower" if team == "gold" else "ocean",
+                                    "virtual_controller_team": True,
+                                }
+                                for index, team in enumerate(("gold", "blue"))
+                            }
+                        claimed.update(role=role, generation=pairing["generation"])
+                        return
+                raise ValueError("That controller invite is not valid for this room.")
+
+            try:
+                _mutate_room(code, claim)
+            except ValueError as exc:
+                error = str(exc)
+            if claimed:
+                session[_controller_session_key(code)] = claimed
+                destination = "bible_bee.host_room" if claimed["role"] == "host" else "bible_bee.player_room"
+                return redirect(url_for(destination, code=code))
+    response = render_template("family_game_controller_pair.html", code=code, error=error, noindex=True)
+    return response, (400 if error else 200), {"Referrer-Policy": "no-referrer", "Cache-Control": "private, no-store"}
+
+
+@bp.get("/family-bible-bee/controller/<code>/play")
+def host_controller(code: str):
+    code = code.upper()
+    room = _require_room(code)
+    if _controller_role(code, room) != "host":
+        abort(403)
+    return render_template("bible_bee_room.html", code=code, role="host", noindex=True)
+
+
+@bp.get("/family-bible-bee/room/<code>/controller-qr/<role>")
+def controller_qr(code: str, role: str):
+    code = code.upper()
+    room = _require_room(code)
+    if not _is_host(code, room) or role not in room.get("controller_pairings", {}):
+        abort(403)
+    raw = session.get("bible_bee_pairing_tokens", {})
+    token = raw.get(code, {}).get(role) if isinstance(raw, dict) else None
+    pairing = room["controller_pairings"][role]
+    if not token or pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
+        abort(410)
+    pair_url = request.url_root.rstrip("/") + f"/family-bible-bee/controller/{code}#{token}"
+    image = qrcode.make(pair_url)
+    output = io.BytesIO(); image.save(output, format="PNG"); output.seek(0)
+    response = send_file(output, mimetype="image/png", download_name=f"bible-bee-{code}-{role}.png")
+    response.headers.update({"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"})
+    return response
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/controllers/<role>/replace")
+def replace_controller(code: str, role: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room) or role not in (room or {}).get("controller_pairings", {}):
+        abort(403)
+    rate = check_rate_limit("bible-bee-controller-replace", _host_email() or get_client_ip(), limit=20, window_seconds=60 * 60)
+    if not rate.allowed:
+        return jsonify({"error": "Too many controller replacements. Try again later."}), 429
+    token, pairing = _fresh_pairing()
+
+    def replace(current):
+        old = current.get("controller_pairings", {}).get(role, {})
+        old_player = old.get("player_id")
+        if old_player:
+            current.get("players", {}).pop(old_player, None)
+        current["controller_pairings"][role] = pairing
+
+    if _mutate_room(code, replace) is None:
+        abort(404)
+    raw = dict(session.get("bible_bee_pairing_tokens", {}))
+    room_tokens = dict(raw.get(code, {})); room_tokens[role] = token; raw[code] = room_tokens
+    session["bible_bee_pairing_tokens"] = raw
+    return jsonify({"ok": True, "token": token})
+
+
+@bp.post("/api/family-bible-bee/rooms/<code>/teams/names")
+def rename_teams(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    names = {}
+    for team in ("gold", "blue"):
+        name = " ".join(str(payload.get(team) or "").strip().split())
+        if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
+            return jsonify({"error": "Use simple family-friendly team names up to 18 characters."}), 400
+        names[team] = name
+    if names["gold"].casefold() == names["blue"].casefold():
+        return jsonify({"error": "Choose two different team names."}), 400
+
+    def rename(current):
+        current["team_names"] = names
+        for player in current.get("players", {}).values():
+            if player.get("virtual_controller_team"):
+                player["name"] = names[player["team_id"]]
+
+    if _mutate_room(code, rename) is None:
+        abort(404)
+    return jsonify({"ok": True})
 
 
 @bp.get("/family-bible-bee/room/<code>/qr")
@@ -897,6 +1139,8 @@ def _render_join_page(code: str, error: str | None = None):
 def join_room(code: str):
     code = code.upper()
     room = _require_room(code)
+    if room.get("control_mode") in {"couch", "team_auto"}:
+        return "This room uses private team controllers. Ask the host for the matching controller invite.", 403
     existing_id = _player_id(code)
     if request.method == "POST":
         rate = check_rate_limit(
@@ -972,7 +1216,7 @@ def join_room(code: str):
 def player_room(code: str):
     code = code.upper()
     room = _require_room(code)
-    player_id = _player_id(code)
+    player_id = _acting_player_id(code, room)
     if not player_id or player_id not in room.get("players", {}):
         return redirect(url_for("bible_bee.join_room", code=code))
     return render_template("bible_bee_room.html", code=code, role="player", noindex=True)
@@ -1065,12 +1309,20 @@ def room_state(code: str):
             abort(404)
         room = result[1]
     state = _public_room(room, code)
-    player_id = _player_id(code)
+    player_id = _acting_player_id(code, room)
+    controller_role = _controller_role(code, room)
     state["viewer"] = {
-        "is_host": _is_host(code, room),
+        "is_host": _gameplay_host(code, room),
         "player_id": player_id,
+        "controller_role": controller_role,
+        "can_answer": _controller_can_answer(code, room, player_id),
         "has_answered": bool(player_id and player_id in room.get("answers", {})),
     }
+    if _is_host(code, room):
+        tokens = session.get("bible_bee_pairing_tokens", {})
+        state["viewer"]["pairing_tokens"] = tokens.get(code, {}) if isinstance(tokens, dict) else {}
+    if _gameplay_host(code, room):
+        state["oral_judgments"] = room.get("oral_judgments", {})
     visible_phase = room.get("resume_phase") if room.get("phase") == "paused" else room.get("phase")
     if visible_phase == "reveal" and player_id:
         answer = room.get("answers", {}).get(player_id)
@@ -1094,10 +1346,14 @@ def room_state(code: str):
 def start_game(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def start(room):
+        pairings = room.get("controller_pairings", {})
+        required = _pairing_roles(room.get("control_mode", "hosted")) if room.get("control_mode") in {"couch", "team_auto"} else []
+        if not all(pairings.get(role, {}).get("claimed") for role in required):
+            raise ValueError("Pair every required controller before starting.")
         if not room.get("players"):
             raise ValueError("Invite at least one player before starting.")
         room["phase"] = "question"
@@ -1118,8 +1374,11 @@ def start_game(code: str):
 @bp.post("/api/family-bible-bee/rooms/<code>/answer")
 def answer_question(code: str):
     code = code.upper()
-    player_id = _player_id(code)
+    room = _get_room(code)
+    player_id = _acting_player_id(code, room or {})
     if not player_id:
+        abort(403)
+    if not room or not _controller_can_answer(code, room, player_id):
         abort(403)
     payload = request.get_json(silent=True) or {}
     try:
@@ -1159,8 +1418,11 @@ def answer_question(code: str):
 @bp.post("/api/family-bible-bee/rooms/<code>/ready")
 def ready_to_recite(code: str):
     code = code.upper()
-    player_id = _player_id(code)
+    room = _get_room(code)
+    player_id = _acting_player_id(code, room or {})
     if not player_id:
+        abort(403)
+    if not room or not _controller_can_answer(code, room, player_id):
         abort(403)
 
     def ready(room):
@@ -1191,10 +1453,13 @@ def ready_to_recite(code: str):
 def judge_recitation(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    controller_self_judge = room and room.get("control_mode") in {"couch", "team_auto"} and _controller_can_answer(code, room, _acting_player_id(code, room))
+    if not _gameplay_host(code, room) and not controller_self_judge:
         abort(403)
     payload = request.get_json(silent=True) or {}
     player_id = str(payload.get("player_id") or "")
+    if controller_self_judge:
+        player_id = str(_acting_player_id(code, room) or "")
     judgment = str(payload.get("judgment") or "")
     if judgment not in {"correct", "almost", "try"}:
         return jsonify({"error": "Choose full credit, almost there, or keep practicing."}), 400
@@ -1222,7 +1487,7 @@ def judge_recitation(code: str):
 def rematch_missed_verses(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def rematch(current):
@@ -1273,7 +1538,7 @@ def rematch_missed_verses(code: str):
 def play_again_same_players(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def reset(current):
@@ -1335,7 +1600,8 @@ def play_again_same_players(code: str):
 @bp.post("/api/family-bible-bee/rooms/<code>/heartbeat")
 def player_heartbeat(code: str):
     code = code.upper()
-    player_id = _player_id(code)
+    room = _get_room(code)
+    player_id = _acting_player_id(code, room or {})
     if not player_id:
         abort(403)
 
@@ -1358,7 +1624,7 @@ def player_heartbeat(code: str):
 def reveal_answer(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def reveal(room):
@@ -1381,7 +1647,7 @@ def reveal_answer(code: str):
 def next_question(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def advance(room):
@@ -1402,7 +1668,7 @@ def next_question(code: str):
 def toggle_pause(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def pause(current):
@@ -1444,7 +1710,7 @@ def toggle_pause(code: str):
 def skip_question(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def skip(current):
@@ -1478,7 +1744,7 @@ def skip_question(code: str):
 def end_game(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    if not _gameplay_host(code, room):
         abort(403)
 
     def finish(current):

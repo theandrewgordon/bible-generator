@@ -349,18 +349,28 @@ def _player_id(code: str) -> str | None:
     return session.get(_player_session_key(code))
 
 
-def _controller_role(code: str) -> str | None:
+def _controller_role(code: str, room: dict | None = None) -> str | None:
     roles = session.get("family_game_controller_roles", {})
-    return roles.get(code) if isinstance(roles, dict) else None
+    capability = roles.get(code) if isinstance(roles, dict) else None
+    room = room or _get_room(code)
+    if isinstance(capability, str):
+        legacy_pairing = (room or {}).get("controller_pairings", {}).get(capability, {})
+        return capability if legacy_pairing.get("claimed") and not legacy_pairing.get("generation") else None
+    if not isinstance(capability, dict):
+        return None
+    role = str(capability.get("role") or "")
+    pairing = (room or {}).get("controller_pairings", {}).get(role, {})
+    generation = str(capability.get("generation") or "")
+    return role if pairing.get("claimed") and generation and secrets.compare_digest(generation, str(pairing.get("generation") or "")) else None
 
 
 def _new_controller_pairings(control_mode: str) -> tuple[dict, dict]:
-    roles = ["couch"] if control_mode == "couch" else (["gold", "blue"] if control_mode == "team_auto" else [])
+    roles = ["couch"] if control_mode == "couch" else (["gold", "blue"] if control_mode == "team_auto" else ["host"])
     raw, stored = {}, {}
     for role in roles:
         token = secrets.token_urlsafe(32)
         raw[role] = token
-        stored[role] = {"token_hash": hashlib.sha256(token.encode()).hexdigest(), "expires_at": time.time() + CONTROLLER_PAIR_TTL_SECONDS, "claimed": False}
+        stored[role] = {"token_hash": hashlib.sha256(token.encode()).hexdigest(), "expires_at": time.time() + CONTROLLER_PAIR_TTL_SECONDS, "claimed": False, "generation": secrets.token_urlsafe(16)}
     return raw, stored
 
 
@@ -419,9 +429,11 @@ def _team_state(room: dict) -> list[dict]:
     if not room.get("team_mode"):
         return []
     players = room.get("players", {})
+    team_names = room.get("team_names", {})
     return [
         {
             **team,
+            "name": team_names.get(team["id"], team["name"]),
             "score": sum(int(player.get("score", 0)) for player in players.values() if player.get("team_id") == team["id"]),
             "players": sum(1 for player in players.values() if player.get("team_id") == team["id"]),
         }
@@ -749,7 +761,7 @@ def _public_players(room: dict, code: str) -> list[dict]:
             "connected": _player_connected(player, now),
             "away": bool(player.get("away", False)),
             "team_id": team["id"] if team else None,
-            "team_name": team["name"] if team else None,
+            "team_name": room.get("team_names", {}).get(team["id"], team["name"]) if team else None,
             "team_color": team["color"] if team else None,
             "avatar": (
                 f"/group-games/{_game_slug(room)}/room/{code}/avatar/{player_id}"
@@ -811,7 +823,7 @@ def _public_room(room: dict, code: str) -> dict:
         "active_player_id": room.get("active_player_id"),
         "active_player_name": active_player.get("name") if active_player else None,
         "active_team_id": active_team["id"] if active_team else None,
-        "active_team_name": active_team["name"] if active_team else None,
+        "active_team_name": room.get("team_names", {}).get(active_team["id"], active_team["name"]) if active_team else None,
         "active_team_color": active_team["color"] if active_team else None,
         "timer_seconds": int(room.get("timer_seconds", ROUND_SECONDS)),
         "round_deadline": room.get("round_deadline"),
@@ -1030,6 +1042,7 @@ def create_family_game_night_room():
         "free_sampler": not owns_complete_game,
         "player_limit": 6 if not owns_complete_game else (TEAM_PLAYER_LIMIT if team_mode else INDIVIDUAL_PLAYER_LIMIT),
         "team_mode": team_mode,
+        "team_names": {"gold": "Gold Team", "blue": "Blue Team"},
         "teams": TEAMS if team_mode else [],
         "round_count": round_count,
         "rounds": rounds,
@@ -1164,7 +1177,7 @@ def _create_room(game_type: str):
 def host_room(code: str):
     code = code.upper()
     room = _require_room(code)
-    if not _is_host(code, room):
+    if not _is_host(code, room) and _controller_role(code, room) != "host":
         abort(403)
     return render_template("act_it_out_room.html", code=code, role="host", game_slug=_game_slug(room), game_title=_game_title(room), noindex=True)
 
@@ -1182,7 +1195,7 @@ def display_room(code: str):
 def pair_family_controller(code: str):
     code = code.upper()
     room = _require_room(code)
-    if room.get("game_type") != "family_game_night" or room.get("control_mode") == "hosted":
+    if room.get("game_type") != "family_game_night":
         abort(404)
     error = None
     if request.method == "POST":
@@ -1199,6 +1212,10 @@ def pair_family_controller(code: str):
                         if pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
                             raise ValueError("This pairing code expired or was already used.")
                         pairing["claimed"] = True
+                        claimed["generation"] = pairing.get("generation")
+                        if role == "host":
+                            claimed.update(role=role, player_id=None)
+                            return
                         if role == "couch":
                             # Couch Play has one physical controller. If someone
                             # followed the public player link first, normalize
@@ -1206,6 +1223,7 @@ def pair_family_controller(code: str):
                             # mysterious third participant.
                             current["players"] = {}
                         player_id = secrets.token_urlsafe(8)
+                        pairing["player_id"] = player_id
                         team_id = role if role in {"gold", "blue"} else "gold"
                         current.setdefault("players", {})[player_id] = {"name": f"{team_id.title()} Team Controller" if role != "couch" else "Family Controller", "score": 0, "joined_at": time.time(), "last_seen": time.time(), "away": False, "team_id": team_id if current.get("team_mode") else None, "avatar": None, "avatar_preset": "sunflower" if team_id == "gold" else "ocean"}
                         if role == "couch" and current.get("team_mode"):
@@ -1218,9 +1236,10 @@ def pair_family_controller(code: str):
             except ValueError as exc:
                 error = str(exc)
             if claimed:
-                session[_player_session_key(code)] = claimed["player_id"]
-                roles = dict(session.get("family_game_controller_roles", {})); roles[code] = claimed["role"]; session["family_game_controller_roles"] = roles
-                return redirect(f"/group-games/act-it-out/play/{code}")
+                if claimed.get("player_id"):
+                    session[_player_session_key(code)] = claimed["player_id"]
+                roles = dict(session.get("family_game_controller_roles", {})); roles[code] = {"role": claimed["role"], "generation": claimed["generation"]}; session["family_game_controller_roles"] = roles
+                return redirect(f"/group-games/act-it-out/host/{code}" if claimed["role"] == "host" else f"/group-games/act-it-out/play/{code}")
     response = render_template("family_game_controller_pair.html", code=code, error=error, noindex=True)
     return response, (400 if error else 200), {"Referrer-Policy": "no-referrer", "Cache-Control": "private, no-store"}
 
@@ -1264,6 +1283,65 @@ def controller_pair_qr(code: str, role: str):
     return response
 
 
+@bp.post("/api/family-game-night/rooms/<code>/controllers/<role>/replace")
+def replace_family_controller(code: str, role: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room) or role not in (room or {}).get("controller_pairings", {}):
+        abort(403)
+    rate = check_rate_limit("family-controller-replace", _privacy_rate_key(), limit=20, window_seconds=60 * 60)
+    if not rate.allowed:
+        return jsonify({"error": "Too many controller replacements. Try again later."}), 429
+    token = secrets.token_urlsafe(32)
+    replacement = {
+        "token_hash": hashlib.sha256(token.encode()).hexdigest(),
+        "expires_at": time.time() + CONTROLLER_PAIR_TTL_SECONDS,
+        "claimed": False,
+        "generation": secrets.token_urlsafe(16),
+    }
+
+    def replace(current):
+        old = current.get("controller_pairings", {}).get(role, {})
+        old_player = old.get("player_id")
+        if old_player:
+            current.get("players", {}).pop(old_player, None)
+        current["controller_pairings"][role] = replacement
+
+    if _mutate_room(code, replace) is None:
+        abort(404)
+    all_tokens = dict(session.get("family_game_pairing_tokens", {}))
+    room_tokens = dict(all_tokens.get(code, {})); room_tokens[role] = token; all_tokens[code] = room_tokens
+    session["family_game_pairing_tokens"] = all_tokens
+    return jsonify({"ok": True})
+
+
+@bp.post("/api/family-game-night/rooms/<code>/teams/names")
+def rename_family_teams(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not _is_host(code, room):
+        abort(403)
+    payload = request.get_json(silent=True) or {}
+    names = {}
+    for team in ("gold", "blue"):
+        name = " ".join(str(payload.get(team) or "").strip().split())
+        if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
+            return jsonify({"error": "Use simple family-friendly team names up to 18 characters."}), 400
+        names[team] = name
+    if names["gold"].casefold() == names["blue"].casefold():
+        return jsonify({"error": "Choose two different team names."}), 400
+
+    def rename(current):
+        current["team_names"] = names
+        for player in current.get("players", {}).values():
+            if player.get("virtual_controller_team"):
+                player["name"] = names[player["team_id"]]
+
+    if _mutate_room(code, rename) is None:
+        abort(404)
+    return jsonify({"ok": True})
+
+
 @bp.get("/church-games/act-it-out/room/<code>/avatar/<player_id>")
 @bp.get("/group-games/act-it-out/room/<code>/avatar/<player_id>")
 @bp.get("/group-games/draw-it/room/<code>/avatar/<player_id>")
@@ -1298,6 +1376,8 @@ def _render_join_page(code: str, error: str | None = None):
 def join_room(code: str):
     code = code.upper()
     room = _require_room(code)
+    if room.get("game_type") == "family_game_night" and room.get("control_mode") in {"couch", "team_auto"}:
+        return "This room uses private controllers. Ask the host for the matching controller invite.", 403
     existing_id = _player_id(code)
     if request.method == "POST":
         rate = check_rate_limit(
@@ -1484,6 +1564,7 @@ def room_state(code: str):
     controller_role = _controller_role(code)
     can_control = bool(
         _is_host(code, room)
+        or (control_mode == "hosted" and controller_role == "host")
         or (control_mode == "couch" and controller_role == "couch")
         or (control_mode == "team_auto" and controller_role == room.get("active_team_id"))
     )
@@ -1566,6 +1647,8 @@ def _host_action(code: str, action: str):
     control_mode = (room or {}).get("control_mode", "hosted")
     controller_role = _controller_role(code)
     controller_allowed = bool(
+        (control_mode == "hosted" and controller_role == "host")
+        or
         (control_mode == "couch" and controller_role == "couch")
         or (control_mode == "team_auto" and controller_role == (room or {}).get("active_team_id"))
     )

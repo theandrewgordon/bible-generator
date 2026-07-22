@@ -362,26 +362,59 @@ function renderLobby(state) {
     bindProfileEditor();
     return;
   }
-  const startDisabled = state.players.length ? "" : "disabled";
+  const adaptive = state.control_mode === "couch" || state.control_mode === "team_auto";
+  const requiredRoles = state.control_mode === "couch" ? ["couch"] : state.control_mode === "team_auto" ? ["gold", "blue"] : ["host"];
+  const controllersReady = state.control_mode === "hosted" || requiredRoles.every(pairRole => state.controller_status?.[pairRole]);
+  const startDisabled = state.players.length && controllersReady ? "" : "disabled";
+  const tokens = state.viewer.pairing_tokens || {};
+  const pairingCards = Object.entries(tokens).map(([pairRole, token]) => {
+    const paired = state.controller_status?.[pairRole];
+    const label = pairRole === "couch" ? "Shared family controller" : pairRole === "host" ? "Private host controller" : `${pairRole} team controller`;
+    return `<article class="controller-pair-card"><strong>${escapeHTML(label)}</strong>${paired
+      ? `<span>Paired ✓</span><button class="bee-button secondary replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Revoke and replace</button>`
+      : `<img src="/family-bible-bee/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR for ${escapeHTML(label)}"><button class="bee-button secondary share-controller" data-pair-url="${escapeHTML(`${window.location.origin}/family-bible-bee/controller/${code}#${token}`)}" type="button">Share private invite</button><button class="text-button replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Generate a new invite</button>`}</article>`;
+  }).join("");
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
       <p class="round-meta">${escapeHTML(state.deck_name)} · ${escapeHTML(state.translation)} · ${escapeHTML(state.game_style)}</p>
-      <h1>Gather your family</h1>
-      <p>Open FaithSparks on each phone and enter this room code.</p>
-      <div class="lobby-code-row">
+      <h1>${state.control_mode === "couch" ? "Pair your shared family phone" : state.control_mode === "team_auto" ? "Pair both team phones" : "Gather your family"}</h1>
+      <p>${adaptive ? "Use these private controller invites. The public room code cannot join this game." : "Pair the private host controller, then let optional players join with the public room code."}</p>
+      ${!adaptive ? `<div class="lobby-code-row">
         <div class="big-code">${escapeHTML(code)}</div>
         <div class="lobby-qr">
           <img src="/family-bible-bee/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
           <span>Scan to join</span>
         </div>
-      </div>
+      </div>` : ""}
+      ${pairingCards ? `<div class="controller-pair-grid">${pairingCards}</div>` : ""}
       <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready</p>
     </section>
-  ${scoreRail(state, `${state.team_mode ? `<button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
+  ${scoreRail(state, `${state.team_mode ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
     <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start ${state.question_total} rounds</button>`)}
   </div>`;
   document.querySelector("#start-game")?.addEventListener("click", () => hostAction("start"));
   document.querySelector("#rebalance-teams")?.addEventListener("click", rebalanceTeams);
+  document.querySelector("#team-name-form")?.addEventListener("submit", async event => {
+    event.preventDefault(); const form = new FormData(event.currentTarget);
+    try {
+      await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/teams/names`, { method: "POST", body: JSON.stringify({ gold: form.get("gold"), blue: form.get("blue") }) });
+      showToast("Team names saved."); await refreshState(true);
+    } catch (error) { showToast(error.message); }
+  });
+  document.querySelectorAll(".share-controller").forEach(button => button.addEventListener("click", async () => {
+    const url = button.dataset.pairUrl;
+    try {
+      if (navigator.share) await navigator.share({ title: "Faith Sparks Bible Bee controller", url });
+      else { await navigator.clipboard.writeText(url); showToast("Private controller invite copied."); }
+    } catch (error) { if (error?.name !== "AbortError") showToast("Could not share this invite."); }
+  }));
+  document.querySelectorAll(".replace-controller").forEach(button => button.addEventListener("click", async () => {
+    try {
+      await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/controllers/${encodeURIComponent(button.dataset.controllerRole)}/replace`, { method: "POST", body: "{}" });
+      showToast("Old access revoked. New private invite ready.");
+      await refreshState(true);
+    } catch (error) { showToast(error.message); }
+  }));
   bindRoomManagement();
 }
 
@@ -402,7 +435,7 @@ function answerButtons(state) {
       correct ? "correct-answer" : "",
       wrongSelected ? "wrong-answer" : "",
     ].filter(Boolean).join(" ");
-    const disabled = role !== "player" || state.viewer.has_answered || state.phase === "reveal";
+    const disabled = role !== "player" || !state.viewer.can_answer || state.viewer.has_answered || state.phase === "reveal";
     return `<button class="${classes}" data-choice="${index}" type="button" ${disabled ? "disabled" : ""}>
       <span class="answer-letter">${String.fromCharCode(65 + index)}</span>
       <span>${escapeHTML(choice)}</span>
@@ -458,8 +491,13 @@ function renderQuestion(state) {
   let answerArea = `<div class="answers">${answerButtons(state)}</div>`;
   if (question.mode === "oral") {
     if (role === "player") {
+      const selfJudge = state.control_mode === "couch" || state.control_mode === "team_auto";
       answerArea = state.viewer.has_answered
-        ? `<div class="oral-player-panel"><strong>You’re ready!</strong><p>Recite when the host calls your name.</p></div>`
+        ? `<div class="oral-player-panel"><strong>Recitation ready</strong><p>${selfJudge ? "Recite together, then choose the result honestly." : "Recite when the host calls your name."}</p>${selfJudge && state.phase === "question" ? `<div>
+            <button data-judge-player="${escapeHTML(state.viewer.player_id)}" data-judgment="correct" type="button">Full credit</button>
+            <button data-judge-player="${escapeHTML(state.viewer.player_id)}" data-judgment="almost" type="button">Almost</button>
+            <button data-judge-player="${escapeHTML(state.viewer.player_id)}" data-judgment="try" type="button">Practice</button>
+          </div>` : ""}</div>`
         : `<div class="oral-player-panel"><p>Practice quietly, then tell the host you’re ready.</p><button id="ready-to-recite" class="bee-button primary" type="button">I’m ready to recite</button></div>`;
     } else {
       const activePlayers = state.players.filter(player => !player.away && player.connected);
@@ -487,6 +525,7 @@ function renderQuestion(state) {
         <span>${escapeHTML(state.translation)}</span>
       </div>
       <h1 class="mode-banner">${escapeHTML(question.label)}</h1>
+      ${state.active_team_id ? `<p class="turn-handoff">${state.viewer.can_answer ? `${escapeHTML(state.teams.find(team => team.id === state.active_team_id)?.name || state.active_team_id)}: this is your turn.` : `Pass control to ${escapeHTML(state.teams.find(team => team.id === state.active_team_id)?.name || state.active_team_id)}.`}</p>` : ""}
       <p class="question-prompt">${escapeHTML(question.prompt)}</p>
       ${state.phase === "question" && state.question_deadline ? `<p class="challenge-timer">${escapeHTML(state.difficulty)} timer: <strong data-question-countdown>${state.question_seconds || 30}</strong>s</p>` : ""}
       ${answerArea}
