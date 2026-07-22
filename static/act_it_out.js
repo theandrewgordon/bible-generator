@@ -326,7 +326,7 @@ function renderLobby(state) {
         </div>
       </div>` : ""}
       <p>${state.control_mode === "couch" ? (couchPaired ? "Couch controller paired. Gold and Blue teams are ready." : "Waiting for the Couch controller phone.") : `${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.`}</p>
-      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>Scan or privately share the matching controller invite</h2></div><p>These are private controller invites—not the public player room code. Each expires after about ten minutes and works once.</p><div class="controller-pair-grid">${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<article><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : `${pairRole} team`)}</strong>${state.controller_status?.[pairRole] ? `<span>Paired ✓</span>` : `<img src="${gameBase}/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR code for ${escapeHTML(pairRole)} controller"><button class="bee-button secondary share-controller" type="button" data-pair-url="${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}#${token}`)}">Share controller invite</button><code>${escapeHTML(token)}</code>`}</article>`).join("")}</div></aside>` : ""}
+      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>Scan or privately share the matching controller invite</h2></div><p>These are private controller invites—not the public player room code. Each expires after about ten minutes and works once.</p><div class="controller-pair-grid">${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<article><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : pairRole === "host" ? "Private host controller" : `${pairRole} team`)}</strong>${state.controller_status?.[pairRole] ? `<span>Paired ✓</span><button class="bee-button secondary replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">Revoke and replace</button>` : `<img src="${gameBase}/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR code for ${escapeHTML(pairRole)} controller"><button class="bee-button secondary share-controller" type="button" data-pair-url="${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}#${token}`)}">Share controller invite</button><button class="text-button replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">Generate a new invite</button><code>${escapeHTML(token)}</code>`}</article>`).join("")}</div></aside>` : ""}
       ${showHostWalkthrough ? `<aside class="host-walkthrough" aria-labelledby="host-walkthrough-title">
         <div><span>First game?</span><h2 id="host-walkthrough-title">Three screens, one easy job.</h2></div>
         <ol>
@@ -337,11 +337,19 @@ function renderLobby(state) {
         <button id="dismiss-host-walkthrough" class="bee-button secondary" type="button">Got it</button>
       </aside>` : ""}
     </section>
-    ${scoreRail(state, `${state.team_mode ? `<button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
+    ${scoreRail(state, `${state.team_mode ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
       <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start game</button>`)}
   </div>`;
   document.querySelector("#start-game")?.addEventListener("click", () => hostAction("start"));
   document.querySelector("#rebalance-teams")?.addEventListener("click", rebalanceTeams);
+  document.querySelector("#team-name-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/teams/names`, { method: "POST", body: JSON.stringify({ gold: form.get("gold"), blue: form.get("blue") }) });
+      showToast("Team names saved."); await refreshState(true);
+    } catch (error) { showToast(error.message); }
+  });
   document.querySelectorAll(".share-controller").forEach(button => {
     button.addEventListener("click", async () => {
       const url = button.dataset.pairUrl;
@@ -353,6 +361,13 @@ function renderLobby(state) {
       }
     });
   });
+  document.querySelectorAll(".replace-controller").forEach(button => button.addEventListener("click", async () => {
+    try {
+      await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/controllers/${encodeURIComponent(button.dataset.controllerRole)}/replace`, { method: "POST", body: "{}" });
+      showToast("Old access revoked. New invite ready.");
+      await refreshState(true);
+    } catch (error) { showToast(error.message); }
+  }));
   document.querySelector("#dismiss-host-walkthrough")?.addEventListener("click", () => {
     window.localStorage.setItem("familyGameNightHostWalkthrough", "done");
     renderLobby(state);
@@ -518,6 +533,12 @@ function renderReveal(state) {
   const result = state.last_result || {};
   const isCorrect = result.outcome === "correct";
   const isDraw = result.mode === "draw";
+  const outcomeCopy = {
+    forbidden: ["Forbidden word used", "No points this card. Reset, hand off the controller, and try the next prompt."],
+    timeout: ["Time ran out", "No points this card. The answer is revealed so everyone can reset for the next turn."],
+    pass: ["Card passed", "No points this card. Hand off the controller and deal the next prompt when ready."],
+    skip: ["Card skipped", "This card was skipped without scoring."],
+  }[result.outcome] || ["Passed", "No points for this card. Deal the next card when ready."];
   const drawSummary = isDraw
     ? `${result.correct_guesses || 0} of ${result.guesser_count || result.guess_count || 0} guessed correctly${result.drawer_bonus ? ` · ${escapeHTML(state.active_player_name || "Drawer")} earned a ${result.drawer_bonus}-point drawing bonus` : ""}.`
     : "";
@@ -527,8 +548,8 @@ function renderReveal(state) {
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage act-reveal-stage">
       <div class="celebration-mark">${isCorrect || isDraw ? "✓" : "✦"}</div>
-      <h1>${isDraw ? "Drawing revealed" : isCorrect ? "Correct!" : "Passed"}</h1>
-      <p>${isDraw ? escapeHTML(drawSummary) : `${escapeHTML(state.active_player_name || "Player")} ${isCorrect ? `earned ${result.points || 0} points. Deal the next card when ready.` : "gets no points for this card. Deal the next card when ready."}`}</p>
+      <h1>${isDraw ? "Drawing revealed" : isCorrect ? "Correct!" : escapeHTML(outcomeCopy[0])}</h1>
+      <p>${isDraw ? escapeHTML(drawSummary) : isCorrect ? `${escapeHTML(state.active_player_name || "Player")} earned ${result.points || 0} points. Deal the next card when ready.` : escapeHTML(outcomeCopy[1])}</p>
       <div class="revealed-verse"><strong>Answer</strong><p>${escapeHTML(state.round?.answer || result.answer || "")}</p></div>
       ${clueList(state.round, true)}
       ${drawingBoard(state)}

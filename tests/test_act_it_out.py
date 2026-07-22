@@ -522,7 +522,7 @@ def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
     _prime(display)
     created, code = _create_family_room(host, control_mode="couch")
     assert created.status_code == 302
-    assert _post(controller, f"/group-games/act-it-out/join/{code}", data={"csrf_token": CSRF, "player_name": "Tessa"}).status_code == 302
+    assert _post(controller, f"/group-games/act-it-out/join/{code}", data={"csrf_token": CSRF, "player_name": "Tessa"}).status_code == 403
     blocked_start = _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={})
     assert blocked_start.status_code == 409
     assert b"do not add a second team" in blocked_start.data
@@ -564,6 +564,22 @@ def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
     assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
     reveal = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert reveal["last_result"]["points"] == 100
+
+
+def test_replacing_family_controller_revokes_the_old_browser():
+    host = app.test_client(); old = app.test_client(); new = app.test_client()
+    _prime(host, "replace-controller@example.com"); _prime(old); _prime(new)
+    _created, code = _create_family_room(host, control_mode="couch")
+    with host.session_transaction() as sess:
+        first = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(old, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": first}).status_code == 302
+    assert old.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["can_control"] is True
+    assert _post(host, f"/api/family-game-night/rooms/{code}/controllers/couch/replace", json={}).status_code == 200
+    assert old.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["can_control"] is False
+    with host.session_transaction() as sess:
+        second = sess["family_game_pairing_tokens"][code]["couch"]
+    assert second != first
+    assert _post(new, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": second}).status_code == 302
 
 
 def test_team_auto_only_active_team_receives_control_and_private_prompt():

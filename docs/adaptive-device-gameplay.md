@@ -33,11 +33,13 @@ Couch Play creates a virtual second team in the room so a single private phone c
 
 ## Recovery
 
-Controller authority survives refresh through the signed session. The creator retains ownership, recovery, close, and delete authority. Public displays are replaceable and contain no capability. Server timestamps remain authoritative for timers and room expiry.
+Controller authority survives refresh through the signed session. The creator can revoke a paired controller or regenerate an expired invite; generation-bound capabilities make the old browser lose authority immediately. The creator retains ownership, recovery, close, delete, and team-naming authority. Public displays are replaceable and contain no capability. Server timestamps remain authoritative for timers and room expiry.
 
 ## Bible Bee
 
-Bible Bee continues to support shared verbal/team play and individual answer locking. A future dedicated team-controller pairing UI may improve its ergonomics, but the current game does not require one phone per participant. Oral Recitation remains host judged and does not expose its answer before judging.
+Bible Bee now stores the same explicit `couch`, `team_auto`, and `hosted` modes and uses the same private, one-use, ten-minute pairing pattern. Couch Play alternates one controller between two virtual teams. Team Play only accepts the active team controller's answer. Hosted Play keeps individual answer locking and can pair an optional private host controller for a second device. Ordinary room-code joins are rejected in Couch and Team Play.
+
+Multiple-choice answers and oral recitation text remain hidden until reveal. Couch and Team oral rounds use family honor-system judging on the active private controller; Hosted oral rounds remain host judged. The server, rather than the interface, enforces active-team answer authority.
 
 ## Remaining family playtests
 
