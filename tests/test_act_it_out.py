@@ -582,6 +582,36 @@ def test_replacing_family_controller_revokes_the_old_browser():
     assert _post(new, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": second}).status_code == 302
 
 
+def test_family_display_contract_covers_prepare_and_adaptive_copy():
+    script = open("static/act_it_out.js", encoding="utf-8").read()
+    assert 'state.phase === "prepare"' in script
+    assert "is getting ready" in script
+    assert "Waiting for the private prompt" in script
+    assert "Pair the private family controller from the creator’s screen." in script
+    assert "Pair the Gold and Blue team phones from the creator’s screen." in script
+    assert "This clue is worth ${pointsAvailable} points." in script
+    assert "Guess out loud. A correct team guess earns 100 points." in script
+
+
+def test_family_controller_can_be_replaced_during_a_round_without_resetting_it():
+    host = app.test_client(); old = app.test_client(); new = app.test_client()
+    _prime(host, "midgame-family-recovery@example.com"); _prime(old); _prime(new)
+    _created, code = _create_family_room(host, control_mode="couch")
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(old, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": token}).status_code == 302
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+    before = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert _post(host, f"/api/family-game-night/rooms/{code}/controllers/couch/replace", json={}).status_code == 200
+    with host.session_transaction() as sess:
+        replacement = sess["family_game_pairing_tokens"][code]["couch"]
+    assert _post(new, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": replacement}).status_code == 302
+    after = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert (after["phase"], after["round_index"]) == (before["phase"], before["round_index"])
+    assert old.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["can_control"] is False
+    assert new.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["can_control"] is True
+
+
 def test_team_auto_only_active_team_receives_control_and_private_prompt():
     host = app.test_client()
     gold = app.test_client()
