@@ -1696,3 +1696,78 @@ def test_custom_game_still_opens_if_optional_review_is_unavailable(monkeypatch):
     room = bible_bee._get_room(code)
     assert len(room["questions"]) == 5
     assert room["ai_review"]["status"] == "unavailable"
+
+
+@pytest.mark.parametrize("control_mode", ["couch", "team_auto"])
+@pytest.mark.parametrize("game_style", ["classic_mix", "oral_recitation"])
+def test_complete_adaptive_bible_bee_journey_is_smooth(control_mode, game_style):
+    """Run every adaptive Bible Bee question through answer, reveal, finish, and replay."""
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    public = app.test_client()
+    roles = ("couch",) if control_mode == "couch" else ("gold", "blue")
+    controllers = {role: app.test_client() for role in roles}
+    _prime(host, f"bible-journey-{control_mode}-{game_style}@example.com")
+    _prime(public)
+    for client in controllers.values():
+        _prime(client)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={
+            "csrf_token": CSRF,
+            "control_mode": control_mode,
+            "game_style": game_style,
+            "difficulty": "family",
+            "round_count": "3",
+        },
+    )
+    assert created.status_code == 302
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        tokens = dict(sess["bible_bee_pairing_tokens"][code])
+    for role_name, client in controllers.items():
+        assert _post(client, f"/family-bible-bee/controller/{code}", data={"csrf_token": CSRF, "pairing_token": tokens[role_name]}).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+
+    for question_index in range(3):
+        states = {role_name: client.get(f"/api/family-bible-bee/rooms/{code}").get_json() for role_name, client in controllers.items()}
+        active_role, state = next((role_name, item) for role_name, item in states.items() if item["viewer"]["can_answer"])
+        controller = controllers[active_role]
+        assert state["phase"] == "question"
+        assert state["question_index"] == question_index
+        assert state["active_team_id"] == ("gold" if question_index % 2 == 0 else "blue")
+        public_state = public.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+        assert public_state["question"]["correct"] is None
+
+        if control_mode == "team_auto":
+            inactive = controllers["blue" if active_role == "gold" else "gold"]
+            forbidden_path = "ready" if game_style == "oral_recitation" else "answer"
+            forbidden_payload = {} if game_style == "oral_recitation" else {"choice": 0}
+            assert _post(inactive, f"/api/family-bible-bee/rooms/{code}/{forbidden_path}", json=forbidden_payload).status_code == 403
+
+        if game_style == "oral_recitation":
+            assert state["question"]["mode"] == "oral"
+            assert _post(controller, f"/api/family-bible-bee/rooms/{code}/ready", json={}).status_code == 200
+            assert _post(controller, f"/api/family-bible-bee/rooms/{code}/judge", json={"judgment": "correct"}).status_code == 200
+        else:
+            question = bible_bee._get_room(code)["questions"][question_index]
+            assert _post(controller, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": question["correct"]}).status_code == 200
+
+        revealed = controller.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+        assert revealed["phase"] == "reveal"
+        assert revealed["question"]["reference"]
+        if game_style != "oral_recitation":
+            assert revealed["question"]["correct"] is not None
+        assert revealed["viewer"]["round_points"] == 100
+        assert _post(host, f"/api/family-bible-bee/rooms/{code}/next", json={}).status_code == 200
+
+    finished = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert finished["phase"] == "finished"
+    assert sum(team["score"] for team in finished["teams"]) == 300
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/play-again", json={}).status_code == 200
+    replay = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert replay["phase"] == "lobby"
+    assert replay["question_index"] == 0
+    assert all(team["score"] == 0 for team in replay["teams"])

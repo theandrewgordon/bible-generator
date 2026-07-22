@@ -2126,3 +2126,70 @@ def test_finished_team_winner_state():
     finished = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert finished["phase"] == "finished"
     assert {team["id"]: team["score"] for team in finished["teams"]} == {"gold": 100, "blue": 0}
+
+
+@pytest.mark.parametrize("control_mode", ["couch", "team_auto"])
+@pytest.mark.parametrize("game_mode", ["act", "draw", "clue", "guess"])
+def test_complete_adaptive_family_game_journey_is_smooth(control_mode, game_mode, monkeypatch):
+    """Exercise a complete controller-driven game, including replay, for every mode."""
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    controllers = {role: app.test_client() for role in (("couch",) if control_mode == "couch" else ("gold", "blue"))}
+    public = app.test_client()
+    _prime(host, f"journey-{control_mode}-{game_mode}@example.com")
+    _prime(public)
+    for client in controllers.values():
+        _prime(client)
+    created, code = _create_family_room(
+        host,
+        control_mode=control_mode,
+        game_mode=game_mode,
+        round_count="10",
+    )
+    assert created.status_code == 302
+    with host.session_transaction() as sess:
+        tokens = dict(sess["family_game_pairing_tokens"][code])
+    for role_name, client in controllers.items():
+        assert _post(client, f"/family-game-night/controller/{code}", data={"csrf_token": CSRF, "pairing_token": tokens[role_name]}).status_code == 302
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
+
+    expected_points = 0
+    for round_index in range(10):
+        states = {role_name: client.get(f"/api/group-games/act-it-out/rooms/{code}").get_json() for role_name, client in controllers.items()}
+        controller_role, state = next((role_name, item) for role_name, item in states.items() if item["viewer"]["can_control"])
+        controller = controllers[controller_role]
+        assert state["round_index"] == round_index
+        assert state["round"]["mode"] == game_mode
+        assert public.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["round"]["answer"] is None
+
+        if state["phase"] == "prepare":
+            assert state["viewer"]["secret_prompt"]["answer"]
+            assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/ready", json={}).status_code == 200
+        elif game_mode == "guess" and control_mode == "couch":
+            assert "secret_prompt" not in state["viewer"]
+            assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/show-answer", json={}).status_code == 200
+            assert controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["viewer"]["secret_prompt"]["answer"]
+        elif game_mode == "guess":
+            assert state["viewer"]["secret_prompt"]["answer"]
+
+        action = "pass" if round_index % 3 == 1 else "correct"
+        if action == "correct":
+            expected_points += 100
+        assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/{action}", json={}).status_code == 200
+        revealed = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+        assert revealed["phase"] == "reveal"
+        assert revealed["round"]["answer"]
+        assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/{action}", json={}).status_code == 409
+        assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/next", json={}).status_code == 200
+
+    finished = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert finished["phase"] == "finished"
+    assert sum(team["score"] for team in finished["teams"]) == expected_points
+    assert len(finished["players"]) == 2
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/play-again", json={}).status_code == 200
+    replay = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert replay["phase"] == "lobby"
+    assert replay["round_index"] == 0
+    assert all(team["score"] == 0 for team in replay["teams"])
