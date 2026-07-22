@@ -1,5 +1,7 @@
 # Faith Sparks Family Game Night launch audit
 
+Adaptive device modes are documented in `docs/adaptive-device-gameplay.md`. New rooms explicitly support Couch Play (2 devices), recommended Team Play (3), and Hosted Play (4+), while legacy rooms default safely to Hosted Play behavior.
+
 Audit date: 2026-07-20
 Branch: `feature/family-game-night-launch`
 

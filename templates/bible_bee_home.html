@@ -102,7 +102,7 @@
               <button class="bee-button primary large" type="submit">Create room</button>
             </div>
             <p id="room-build-status" class="room-build-status" role="status" aria-live="polite"></p>
-            <p class="sign-in-reassurance">Each named deck has 40 passages. New rooms and replays avoid recently used references when possible.</p>
+            <p class="sign-in-reassurance">Each named deck has 40 passages. New rooms and replays avoid recently used references when possible. Families may share one controller for verbal/team answers; individual phones remain optional for answer locking.</p>
           </form>
         {% else %}
           <a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('bible_bee.home')) }}">Sign in to host a game</a>

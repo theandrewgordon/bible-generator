@@ -48,6 +48,7 @@ DEFAULT_ROUNDS = 10
 ROUND_COUNT_OPTIONS = {10, 15, 20}
 ROUND_SECONDS = 45
 DRAW_MIN_SECONDS = 12
+CONTROLLER_PAIR_TTL_SECONDS = 10 * 60
 POINTS_CORRECT = 100
 PLAYER_CONNECTED_SECONDS = 40
 MAX_AVATAR_DATA_LENGTH = 60_000
@@ -77,6 +78,7 @@ DRAW_THEMES = ["Bible Stories", "Jesus' Miracles", "Parables", "People & Places"
 THEMES = [*ACT_THEMES, *DRAW_THEMES]
 
 FAMILY_GAME_MODES = {"mixed", "act", "draw", "clue", "guess"}
+CONTROL_MODES = {"couch", "team_auto", "hosted"}
 FAMILY_DIFFICULTIES = {
     "younger": {"easy"},
     "whole_family": {"easy", "medium"},
@@ -347,6 +349,21 @@ def _player_id(code: str) -> str | None:
     return session.get(_player_session_key(code))
 
 
+def _controller_role(code: str) -> str | None:
+    roles = session.get("family_game_controller_roles", {})
+    return roles.get(code) if isinstance(roles, dict) else None
+
+
+def _new_controller_pairings(control_mode: str) -> tuple[dict, dict]:
+    roles = ["couch"] if control_mode == "couch" else (["gold", "blue"] if control_mode == "team_auto" else [])
+    raw, stored = {}, {}
+    for role in roles:
+        token = secrets.token_urlsafe(32)
+        raw[role] = token
+        stored[role] = {"token_hash": hashlib.sha256(token.encode()).hexdigest(), "expires_at": time.time() + CONTROLLER_PAIR_TTL_SECONDS, "claimed": False}
+    return raw, stored
+
+
 def _valid_avatar_data(value: str) -> bool:
     if not value:
         return True
@@ -584,9 +601,15 @@ def _select_turn(room: dict) -> None:
 def _start_round(room: dict, now: float | None = None) -> None:
     now = now or time.time()
     _select_turn(room)
-    room["phase"] = "round"
-    room["round_started_at"] = now
-    room["round_deadline"] = now + int(room.get("timer_seconds", ROUND_SECONDS))
+    adaptive_prepare = room.get("control_mode", "hosted") in {"couch", "team_auto"} and (_active_round(room) or {}).get("mode") != "guess"
+    room["phase"] = "prepare" if adaptive_prepare else "round"
+    room["prompt_locked"] = False
+    if not adaptive_prepare:
+        room["round_started_at"] = now
+        room["round_deadline"] = now + int(room.get("timer_seconds", ROUND_SECONDS))
+    else:
+        room.pop("round_started_at", None)
+        room.pop("round_deadline", None)
     if (_active_round(room) or {}).get("mode") == "guess":
         room["clue_index"] = 0
     else:
@@ -772,6 +795,7 @@ def _public_room(room: dict, code: str) -> dict:
         "code": code,
         "phase": room.get("phase", "lobby"),
         "game_type": room.get("game_type", "act_it_out"),
+        "control_mode": room.get("control_mode", "hosted"),
         "game_name": _game_title(room),
         "theme": room.get("theme", "Bible Stories"),
         "team_mode": bool(room.get("team_mode", False)),
@@ -941,6 +965,7 @@ def create_family_game_night_room():
         return _render_family_setup("Too many rooms were created recently. Please try again later.", 429)
 
     play_style = (request.form.get("play_style") or "").strip()
+    control_mode = (request.form.get("control_mode") or "hosted").strip()
     game_mode = (request.form.get("game_mode") or "").strip()
     difficulty = (request.form.get("difficulty") or "").strip()
     category_values = request.form.getlist("categories")
@@ -951,6 +976,8 @@ def create_family_game_night_room():
         round_count = -1
 
     errors = []
+    if control_mode not in CONTROL_MODES:
+        errors.append("Choose Couch Play, Team Play, or Hosted Play.")
     if play_style not in {"teams", "individual"}:
         errors.append("Choose teams or everyone for themselves.")
     if round_count not in ROUND_COUNT_OPTIONS:
@@ -984,6 +1011,7 @@ def create_family_game_night_room():
     except ValueError as exc:
         return _render_family_setup(str(exc), 400)
     team_mode = play_style == "teams"
+    raw_pairings, controller_pairings = _new_controller_pairings(control_mode)
     room = {
         "created_at": time.time(),
         "updated_at": time.time(),
@@ -992,6 +1020,7 @@ def create_family_game_night_room():
         "game_type": "family_game_night",
         "theme": "Mixed Game Night" if game_mode == "mixed" else game_mode,
         "game_mode": game_mode,
+        "control_mode": control_mode,
         "difficulty": difficulty,
         "categories": sorted(categories),
         "free_sampler": not owns_complete_game,
@@ -1004,9 +1033,14 @@ def create_family_game_night_room():
         "timer_seconds": ROUND_SECONDS,
         "players": {},
         "round_results": [],
+        "controller_pairings": controller_pairings,
     }
     _register_host_room(code, room)
     _set_room(code, room)
+    if raw_pairings:
+        pairings = dict(session.get("family_game_pairing_tokens", {}))
+        pairings[code] = raw_pairings
+        session["family_game_pairing_tokens"] = pairings
     session["family_game_night_recent_prompt_ids"] = updated_recent_history(
         session.get("family_game_night_recent_prompt_ids"),
         [round_["prompt_id"] for round_ in rounds],
@@ -1138,6 +1172,47 @@ def display_room(code: str):
     code = code.upper()
     room = _require_room(code)
     return render_template("act_it_out_room.html", code=code, role="display", game_slug=_game_slug(room), game_title=_game_title(room), noindex=True)
+
+
+@bp.route("/family-game-night/controller/<code>", methods=["GET", "POST"])
+def pair_family_controller(code: str):
+    code = code.upper()
+    room = _require_room(code)
+    if room.get("game_type") != "family_game_night" or room.get("control_mode") == "hosted":
+        abort(404)
+    error = None
+    if request.method == "POST":
+        rate = check_rate_limit("family-controller-pair", _privacy_rate_key(), limit=12, window_seconds=10 * 60)
+        if not rate.allowed:
+            error = "Too many pairing attempts. Wait a few minutes."
+        else:
+            token = (request.form.get("pairing_token") or "").strip()
+            digest = hashlib.sha256(token.encode()).hexdigest()
+            claimed = {}
+            def claim(current):
+                for role, pairing in current.get("controller_pairings", {}).items():
+                    if secrets.compare_digest(pairing.get("token_hash", ""), digest):
+                        if pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
+                            raise ValueError("This pairing code expired or was already used.")
+                        pairing["claimed"] = True
+                        player_id = secrets.token_urlsafe(8)
+                        team_id = role if role in {"gold", "blue"} else "gold"
+                        current.setdefault("players", {})[player_id] = {"name": f"{team_id.title()} Team Controller" if role != "couch" else "Family Controller", "score": 0, "joined_at": time.time(), "last_seen": time.time(), "away": False, "team_id": team_id if current.get("team_mode") else None, "avatar": None, "avatar_preset": "sunflower" if team_id == "gold" else "ocean"}
+                        if role == "couch" and current.get("team_mode"):
+                            current["players"].setdefault("couch-blue-team", {"name": "Blue Team", "score": 0, "joined_at": time.time() + .001, "last_seen": time.time(), "away": False, "team_id": "blue", "avatar": None, "avatar_preset": "ocean", "virtual_controller_team": True})
+                        claimed.update(role=role, player_id=player_id)
+                        return
+                raise ValueError("That pairing code is not valid for this room.")
+            try:
+                _mutate_room(code, claim)
+            except ValueError as exc:
+                error = str(exc)
+            if claimed:
+                session[_player_session_key(code)] = claimed["player_id"]
+                roles = dict(session.get("family_game_controller_roles", {})); roles[code] = claimed["role"]; session["family_game_controller_roles"] = roles
+                return redirect(f"/group-games/act-it-out/play/{code}")
+    response = render_template("family_game_controller_pair.html", code=code, error=error, noindex=True)
+    return response, (400 if error else 200), {"Referrer-Policy": "no-referrer", "Cache-Control": "private, no-store"}
 
 
 @bp.get("/church-games/act-it-out/room/<code>/qr")
@@ -1329,6 +1404,21 @@ def update_player_profile(code: str):
 def room_state(code: str):
     code = code.upper()
     room = _require_room(code)
+    active_for_timing = _active_round(room)
+    if (
+        room.get("phase") == "round"
+        and room.get("control_mode") == "team_auto"
+        and active_for_timing
+        and active_for_timing.get("mode") == "guess"
+    ):
+        elapsed = max(0, time.time() - float(room.get("round_started_at", time.time())))
+        scheduled_index = min(len(active_for_timing.get("clues", [])) - 1, int(elapsed // 8))
+        if scheduled_index > int(room.get("clue_index", 0)):
+            def advance_scheduled_clue(current):
+                current["clue_index"] = max(int(current.get("clue_index", 0)), scheduled_index)
+            result = _mutate_room(code, advance_scheduled_clue)
+            if result:
+                room = result[1]
     if room.get("phase") == "round" and room.get("round_deadline") and time.time() >= float(room["round_deadline"]):
         def expire(current):
             if current.get("phase") == "round":
@@ -1341,7 +1431,7 @@ def room_state(code: str):
         if result is None:
             abort(404)
         room = result[1]
-    if room.get("phase") == "round":
+    if room.get("phase") in {"prepare", "round"}:
         active = _active_round(room)
         if active and active.get("mode") == "draw":
             guesser_ids = _draw_guesser_ids(room)
@@ -1355,9 +1445,24 @@ def room_state(code: str):
                 room = result[1]
     state = _public_room(room, code)
     player_id = _player_id(code)
-    viewer = {"is_host": _is_host(code, room), "player_id": player_id}
     active = _active_round(room)
-    if active and (viewer["is_host"] or (active.get("mode") != "guess" and player_id and player_id == room.get("active_player_id"))):
+    player = room.get("players", {}).get(player_id or "")
+    control_mode = room.get("control_mode", "hosted")
+    controller_role = _controller_role(code)
+    can_control = bool(
+        _is_host(code, room)
+        or (control_mode == "couch" and controller_role == "couch")
+        or (control_mode == "team_auto" and controller_role == room.get("active_team_id"))
+    )
+    viewer = {"is_host": _is_host(code, room), "player_id": player_id, "can_control": can_control, "controller_role": controller_role}
+    if viewer["is_host"]:
+        all_tokens = session.get("family_game_pairing_tokens", {})
+        viewer["pairing_tokens"] = all_tokens.get(code, {}) if isinstance(all_tokens, dict) else {}
+    if active and not room.get("prompt_locked") and (
+        viewer["is_host"]
+        or (active.get("mode") != "guess" and can_control)
+        or (active.get("mode") != "guess" and player_id and player_id == room.get("active_player_id"))
+    ):
         viewer["secret_prompt"] = {
             "answer": active["answer"],
             "mode": active["mode"],
@@ -1382,7 +1487,8 @@ def room_state(code: str):
 def start_game(code: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    player_id = _player_id(code)
+    if not _is_host(code, room) and not _controller_role(code):
         abort(403)
 
     def start(current):
@@ -1419,13 +1525,26 @@ def start_game(code: str):
 def _host_action(code: str, action: str):
     code = code.upper()
     room = _get_room(code)
-    if not _is_host(code, room):
+    control_mode = (room or {}).get("control_mode", "hosted")
+    controller_role = _controller_role(code)
+    controller_allowed = bool(
+        (control_mode == "couch" and controller_role == "couch")
+        or (control_mode == "team_auto" and controller_role == (room or {}).get("active_team_id"))
+    )
+    if not _is_host(code, room) and not controller_allowed:
         abort(403)
 
     def mutate(current):
-        if action in {"correct", "pass"}:
+        if action == "ready":
+            if current.get("phase") != "prepare":
+                raise ValueError("This prompt is not waiting for readiness.")
+            current["prompt_locked"] = True
+            current["phase"] = "round"
+            current["round_started_at"] = time.time()
+            current["round_deadline"] = time.time() + int(current.get("timer_seconds", ROUND_SECONDS))
+        elif action in {"correct", "pass", "forbidden"}:
             active = _active_round(current)
-            if active and active.get("mode") == "draw":
+            if active and active.get("mode") == "draw" and current.get("control_mode", "hosted") == "hosted":
                 _complete_draw_round(current, "manual")
             else:
                 _complete_round(current, action)
@@ -1466,11 +1585,21 @@ def correct_round(code: str):
     return _host_action(code, "correct")
 
 
+@bp.post("/api/group-games/act-it-out/rooms/<code>/ready")
+def ready_round(code: str):
+    return _host_action(code, "ready")
+
+
 @bp.post("/api/church-games/act-it-out/rooms/<code>/pass")
 @bp.post("/api/group-games/act-it-out/rooms/<code>/pass")
 @bp.post("/api/group-games/draw-it/rooms/<code>/pass")
 def pass_round(code: str):
     return _host_action(code, "pass")
+
+
+@bp.post("/api/group-games/act-it-out/rooms/<code>/forbidden")
+def forbidden_word_round(code: str):
+    return _host_action(code, "forbidden")
 
 
 @bp.post("/api/church-games/act-it-out/rooms/<code>/clue")
@@ -1639,6 +1768,10 @@ def heartbeat(code: str):
         if not player:
             raise PermissionError
         player["last_seen"] = time.time()
+        if current.get("control_mode") == "couch":
+            for teammate in current.get("players", {}).values():
+                if teammate.get("virtual_controller_team"):
+                    teammate["last_seen"] = time.time()
 
     try:
         result = _mutate_room(code, beat)
