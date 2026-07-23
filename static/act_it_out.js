@@ -548,7 +548,9 @@ function renderRound(state) {
     : "";
   const adaptiveTeamTurn = state.control_mode !== "hosted" && state.team_mode;
   const roundHeading = isPreparing
-    ? `Private prompt for ${escapeHTML(state.active_team_name || "this turn")}`
+    ? activePrompt
+      ? `Private prompt for ${escapeHTML(state.active_team_name || "this turn")}`
+      : `${escapeHTML(state.active_team_name || "Next player")}, check your controller`
     : isGuess
       ? `${escapeHTML(state.active_team_name || "Team")} guesses`
       : adaptiveTeamTurn
@@ -560,7 +562,7 @@ function renderRound(state) {
       <h1>${roundHeading}</h1>
       <p class="act-team-line">${escapeHTML(state.active_team_name || "Individual round")}</p>
       ${isPreparing ? "" : `<div class="act-timer"><strong data-act-countdown>${state.timer_seconds}</strong><span>seconds</span></div>`}
-      <p class="act-display-instruction">${isPreparing ? "Only the player taking this turn should look at this screen." : isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : usesPhoneDrawGuesses ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : isDraw ? "Draw on this phone while everyone else guesses aloud." : "Guess out loud. Award 100 points when they get it."}</p>
+      <p class="act-display-instruction">${isPreparing ? activePrompt ? "Only the player taking this turn should look at this screen." : "The private prompt is safely shown only on the controller phone." : isGuess ? `Reveal clues one at a time. This clue is worth ${pointsAvailable} points.` : usesPhoneDrawGuesses ? "The drawing updates here while the player draws. Guessers lock in one answer on their phones." : isDraw ? "Draw on this phone while everyone else guesses aloud." : "Guess out loud. Award 100 points when they get it."}</p>
       ${isPreparing && activePrompt ? secretPromptCard(activePrompt) : ""}
       ${prepareAction}
       ${clueList(state.round)}

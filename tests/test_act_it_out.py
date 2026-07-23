@@ -548,8 +548,12 @@ def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
     assert _post(controller, f"/api/group-games/act-it-out/rooms/{code}/start", json={}).status_code == 200
 
     private = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    shared_host = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     public = display.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     assert private["viewer"]["can_control"] is True
+    assert shared_host["viewer"]["is_host"] is True
+    assert shared_host["viewer"]["can_control"] is False
+    assert "secret_prompt" not in shared_host["viewer"]
     if private["round"]["mode"] == "guess":
         assert "secret_prompt" not in private["viewer"]
     else:
@@ -2162,6 +2166,9 @@ def test_complete_adaptive_family_game_journey_is_smooth(control_mode, game_mode
         states = {role_name: client.get(f"/api/group-games/act-it-out/rooms/{code}").get_json() for role_name, client in controllers.items()}
         controller_role, state = next((role_name, item) for role_name, item in states.items() if item["viewer"]["can_control"])
         controller = controllers[controller_role]
+        shared_host = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+        assert shared_host["viewer"]["can_control"] is False
+        assert "secret_prompt" not in shared_host["viewer"]
         assert state["round_index"] == round_index
         assert state["round"]["mode"] == game_mode
         assert public.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()["round"]["answer"] is None

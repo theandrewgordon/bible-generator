@@ -1836,10 +1836,11 @@ def room_state(code: str):
     control_mode = room.get("control_mode", "hosted")
     controller_role = _controller_role(code)
     is_host = _is_host(code, room)
-    can_prepare = bool(is_host or _controller_can_prepare(room, controller_role))
-    can_judge = bool(is_host or _controller_can_judge(room, controller_role))
+    host_can_run_game = bool(is_host and control_mode == "hosted")
+    can_prepare = bool(host_can_run_game or _controller_can_prepare(room, controller_role))
+    can_judge = bool(host_can_run_game or _controller_can_judge(room, controller_role))
     can_draw = bool(_controller_can_draw(room, controller_role))
-    can_control = bool(is_host or _controller_can_control_room(room, controller_role))
+    can_control = bool(host_can_run_game or _controller_can_control_room(room, controller_role))
     viewer = {
         "is_host": is_host, "player_id": player_id, "can_control": can_control,
         "can_prepare": can_prepare, "can_judge": can_judge, "can_draw": can_draw,
@@ -1850,7 +1851,7 @@ def room_state(code: str):
         viewer["pairing_tokens"] = all_tokens.get(code, {}) if isinstance(all_tokens, dict) else {}
     can_see_guess_answer = bool(
         active and active.get("mode") == "guess" and (
-            viewer["is_host"]
+            host_can_run_game
             or controller_role == "host"
             or (control_mode == "team_auto" and can_judge)
             or (control_mode == "couch" and can_judge and room.get("judge_answer_revealed"))
@@ -1858,7 +1859,7 @@ def room_state(code: str):
     )
     if active and not room.get("prompt_locked") and (
         can_see_guess_answer
-        or (active.get("mode") != "guess" and (viewer["is_host"] or can_prepare))
+        or (active.get("mode") != "guess" and (host_can_run_game or can_prepare))
         or (active.get("mode") != "guess" and player and player_id == room.get("active_player_id"))
     ):
         viewer["secret_prompt"] = {
