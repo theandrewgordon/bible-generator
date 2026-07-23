@@ -42,6 +42,13 @@ def _post(client, path, json=None, data=None):
     return client.post(path, json=json, data=data, headers={"X-CSRF-Token": CSRF})
 
 
+def test_bible_bee_management_actions_use_the_live_refresh_function():
+    script = open("static/bible_bee.js", encoding="utf-8").read()
+
+    assert "refreshState" not in script
+    assert "await refresh();" in script
+
+
 def test_bible_bee_quick_presets_cooperative_goal_and_learning_context():
     from faithsparks.views import bible_bee
 

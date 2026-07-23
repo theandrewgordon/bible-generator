@@ -599,6 +599,16 @@ def test_family_display_contract_covers_prepare_and_adaptive_copy():
     assert "Guess out loud. A correct team guess earns 100 points." in script
 
 
+def test_family_client_stops_polling_expired_rooms_and_hides_owner_tools_from_controllers():
+    script = open("static/act_it_out.js", encoding="utf-8").read()
+
+    assert "if (requestInFlight || roomExpired" in script
+    assert "if (error.status === 404)" in script
+    assert "This game has wrapped up." in script
+    assert "state.viewer.is_host && state.team_mode" in script
+    assert "refreshState" not in script
+
+
 def test_family_controller_can_be_replaced_during_a_round_without_resetting_it():
     host = app.test_client(); old = app.test_client(); new = app.test_client()
     _prime(host, "midgame-family-recovery@example.com"); _prime(old); _prime(new)

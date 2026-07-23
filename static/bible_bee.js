@@ -417,7 +417,7 @@ function renderLobby(state) {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     try {
       await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/teams/names`, { method: "POST", body: JSON.stringify({ gold: form.get("gold"), blue: form.get("blue") }) });
-      showToast("Team names saved."); await refreshState(true);
+      showToast("Team names saved."); await refresh();
     } catch (error) { showToast(error.message); }
   });
   document.querySelectorAll(".share-controller").forEach(button => button.addEventListener("click", async () => {
@@ -431,7 +431,7 @@ function renderLobby(state) {
     try {
       await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/controllers/${encodeURIComponent(button.dataset.controllerRole)}/replace`, { method: "POST", body: "{}" });
       showToast("Old access revoked. New private invite ready.");
-      await refreshState(true);
+      await refresh();
     } catch (error) { showToast(error.message); }
   }));
   bindRoomManagement();
@@ -810,7 +810,7 @@ function bindRoomManagement() {
         try { await navigator.clipboard.writeText(url); showToast("Replacement controller invite copied."); }
         catch (_clipboardError) { window.prompt("Copy this replacement controller invite:", url); }
       }
-      await refreshState(true);
+      await refresh();
     } catch (error) { showToast(error.message); }
   }));
   bindNextGameActions();
@@ -823,11 +823,11 @@ function bindRoomManagement() {
   document.querySelectorAll("[data-host-score-delta]").forEach(button => button.addEventListener("click", async () => {
     try {
       await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/score-adjust`, { method: "POST", body: JSON.stringify({ target_type: button.dataset.hostScoreTargetType, target_id: button.dataset.hostScoreTargetId, delta: Number(button.dataset.hostScoreDelta) }) });
-      showToast("Host adjustment saved."); await refreshState(true);
+      showToast("Host adjustment saved."); await refresh();
     } catch (error) { showToast(error.message); }
   }));
   document.querySelector("#undo-host-score")?.addEventListener("click", async () => {
-    try { await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/score-adjust/undo`, { method: "POST", body: "{}" }); showToast("Last adjustment undone."); await refreshState(true); }
+    try { await api(`/api/family-bible-bee/rooms/${encodeURIComponent(code)}/score-adjust/undo`, { method: "POST", body: "{}" }); showToast("Last adjustment undone."); await refresh(); }
     catch (error) { showToast(error.message); }
   });
   document.querySelectorAll("[data-away-player-id]").forEach(button => {

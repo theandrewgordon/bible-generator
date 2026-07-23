@@ -19,6 +19,7 @@ let requestInFlight = false;
 let lastRenderSignature = "";
 let failedRefreshes = 0;
 let refreshPausedUntil = 0;
+let roomExpired = false;
 let readMode = window.localStorage.getItem("actItOutReadMode") || "off";
 let speechRun = 0;
 let lastSpokenState = "";
@@ -281,7 +282,7 @@ function scoreRail(state, controls = "") {
     <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
     <div class="score-list">${playerRows(state, role === "host" && ["lobby", "round"].includes(state.phase))}</div>
-    ${state.viewer.can_control && controls ? `<div class="host-controls judge-controls">${controls}</div>` : ""}
+    ${controls ? `<div class="host-controls judge-controls">${controls}</div>` : ""}
       ${role === "host" ? `<div class="host-controls">
       ${isFamilyGameNight && state.phase !== "lobby" ? scoreAdjustmentPanel(state) : ""}
       ${controllerRecovery}
@@ -346,6 +347,12 @@ function renderLobby(state) {
       : Boolean(state.players.length);
   const startDisabled = controllersReady ? "" : "disabled";
   const showHostWalkthrough = role === "host" && isFamilyGameNight && state.control_mode === "hosted" && window.localStorage.getItem("familyGameNightHostWalkthrough") !== "done";
+  const ownerTeamControls = state.viewer.is_host && state.team_mode
+    ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>`
+    : "";
+  const startControl = state.viewer.is_host || state.viewer.can_control
+    ? `<button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start game</button>`
+    : "";
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
       <p class="round-meta">${escapeHTML(state.theme)} · ${state.round_total} cards · 45 seconds each</p>
@@ -376,8 +383,7 @@ function renderLobby(state) {
         <button id="dismiss-host-walkthrough" class="bee-button secondary" type="button">Got it</button>
       </aside>` : ""}
     </section>
-    ${scoreRail(state, `${state.team_mode ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
-      <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start game</button>`)}
+    ${scoreRail(state, `${ownerTeamControls}${startControl}`)}
   </div>`;
   document.querySelector("#start-game")?.addEventListener("click", () => hostAction("start"));
   document.querySelector("#rebalance-teams")?.addEventListener("click", rebalanceTeams);
@@ -386,7 +392,7 @@ function renderLobby(state) {
     const form = new FormData(event.currentTarget);
     try {
       await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/teams/names`, { method: "POST", body: JSON.stringify({ gold: form.get("gold"), blue: form.get("blue") }) });
-      showToast("Team names saved."); await refreshState(true);
+      showToast("Team names saved."); await refresh();
     } catch (error) { showToast(error.message); }
   });
   document.querySelectorAll(".share-controller").forEach(button => {
@@ -404,7 +410,7 @@ function renderLobby(state) {
     try {
       await api(`/api/family-game-night/rooms/${encodeURIComponent(code)}/controllers/${encodeURIComponent(button.dataset.controllerRole)}/replace`, { method: "POST", body: "{}" });
       showToast("Old access revoked. New invite ready.");
-      await refreshState(true);
+      await refresh();
     } catch (error) { showToast(error.message); }
   }));
   document.querySelector("#dismiss-host-walkthrough")?.addEventListener("click", () => {
@@ -819,7 +825,7 @@ function updateCountdown() {
 }
 
 async function refresh() {
-  if (requestInFlight || Date.now() < refreshPausedUntil) return;
+  if (requestInFlight || roomExpired || Date.now() < refreshPausedUntil) return;
   requestInFlight = true;
   try {
     const state = await api(apiBase);
@@ -837,6 +843,21 @@ async function refresh() {
       render(state);
     }
   } catch (error) {
+    if (error.status === 404) {
+      roomExpired = true;
+      stopDrawingAutosave();
+      connectionStatus.classList.remove("show");
+      app.innerHTML = `<section class="game-stage player-wait">
+        <div class="celebration-mark">✦</div>
+        <h1>This game has wrapped up.</h1>
+        <p>This room code is no longer active. Join a new room or start another game.</p>
+        <div class="next-game-actions">
+          <a class="bee-button primary" href="/family-game-night/play">Join another room</a>
+          <a class="bee-button secondary" href="/family-game-night">Back to Family Game Night</a>
+        </div>
+      </section>`;
+      return;
+    }
     if (error.status === 429 || error.status === 503) refreshPausedUntil = Date.now() + 15000;
     failedRefreshes += 1;
     if (failedRefreshes >= 2) connectionStatus.classList.add("show");
@@ -846,7 +867,7 @@ async function refresh() {
 }
 
 async function heartbeat() {
-  if (role !== "player" || document.hidden) return;
+  if (role !== "player" || document.hidden || roomExpired) return;
   try {
     await api(`${apiBase}/heartbeat`, { method: "POST", body: "{}" });
   } catch (_error) {
