@@ -722,6 +722,7 @@ def _public_room(room: dict, code: str) -> dict:
             "reference": question["reference"] if visible_phase == "reveal" else None,
             "correct": question["correct"] if visible_phase == "reveal" else None,
             "answer_text": question.get("answer_text") if visible_phase == "reveal" else None,
+            "context_note": question.get("context_note") if visible_phase == "reveal" else None,
         }
 
     now = time.time()
@@ -786,6 +787,8 @@ def _public_room(room: dict, code: str) -> dict:
         ),
         "eligible_answer_count": len(_eligible_player_ids(room)),
         "family_score": sum(team["score"] for team in _team_state(room)) if room.get("team_mode") else sum(player["score"] for player in players),
+        "scoring_style": room.get("scoring_style", "competitive"),
+        "family_goal": int(room.get("family_goal", len(room.get("questions", [])) * 75)),
         "score_adjustments": list(room.get("score_adjustments", []))[-10:],
         "last_result": deepcopy((room.get("round_results") or [None])[-1]),
         "answered_player_ids": list(answers),
@@ -852,6 +855,9 @@ def create_room():
     version = (request.form.get("version") or "esv").lower()
     style = request.form.get("game_style") or "classic_mix"
     difficulty = request.form.get("difficulty") or "family"
+    scoring_style = (request.form.get("scoring_style") or "competitive").strip()
+    if scoring_style not in {"competitive", "cooperative"}:
+        scoring_style = "competitive"
     try:
         choice_count = int(request.form.get("choice_count", 4))
     except (TypeError, ValueError):
@@ -936,6 +942,8 @@ def create_room():
         "game_style_name": GAME_STYLES[style]["name"],
         "difficulty": difficulty,
         "difficulty_name": DIFFICULTIES[difficulty]["name"],
+        "scoring_style": scoring_style,
+        "family_goal": round_count * int(DIFFICULTIES[difficulty]["correct"]) * 3 // 4,
         "choice_count": choice_count,
         "round_count": round_count,
         "reveal_seconds": reveal_seconds,

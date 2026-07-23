@@ -2270,3 +2270,73 @@ def test_family_mobile_markup_prioritizes_the_task_and_limits_live_announcements
     assert 'Private prompt for ${escapeHTML(state.active_team_name || "this turn")}' in script
     assert 'id="app" class="game-shell" aria-live=' not in room_template
     assert 'name="pace" value="relaxed"' in setup_template
+
+
+def test_family_game_cooperative_goal_and_scripture_summary(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    _prime(host, "cooperative-family@example.com")
+    created, code = _create_family_room(host, scoring_style="cooperative")
+
+    assert created.status_code == 302
+    room = act_it_out._get_room(code)
+    assert room["scoring_style"] == "cooperative"
+    assert room["family_goal"] == 750
+    sample = next(item for item in room["rounds"] if item.get("reference"))
+
+    def finish(current):
+        current["phase"] = "finished"
+        current["round_results"] = [{
+            "answer": sample["answer"], "reference": sample["reference"], "book": sample["book"],
+            "mode": sample["mode"], "outcome": "correct", "points": 100,
+        }]
+
+    act_it_out._mutate_room(code, finish)
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert state["scoring_style"] == "cooperative"
+    assert state["family_goal"] == 750
+    assert state["learning_summary"] == [{
+        "answer": sample["answer"], "reference": sample["reference"], "book": sample["book"],
+    }]
+
+
+def test_family_setup_offers_quick_presets_and_shared_goal():
+    template = open("templates/family_game_night_setup.html", encoding="utf-8").read()
+    script = open("static/act_it_out.js", encoding="utf-8").read()
+
+    assert 'data-family-preset="young"' in template
+    assert 'name="scoring_style" value="cooperative"' in template
+    assert "Ready to begin?" in script
+    assert "Tonight in Scripture" in script
+
+
+def test_host_can_favorite_or_hide_revealed_family_prompt(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    outsider = app.test_client()
+    _prime(host, "prompt-preference@example.com")
+    _prime(outsider)
+    created, code = _create_family_room(host)
+    assert created.status_code == 302
+    prompt_id = act_it_out._get_room(code)["rounds"][0]["prompt_id"]
+
+    def reveal(current):
+        current["phase"] = "reveal"
+
+    act_it_out._mutate_room(code, reveal)
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert state["round"]["prompt_id"] == prompt_id
+    assert _post(outsider, f"/api/group-games/act-it-out/rooms/{code}/prompt-preference", json={"preference": "hide"}).status_code == 403
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/prompt-preference", json={"preference": "favorite"}).status_code == 200
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/prompt-preference", json={"preference": "hide"}).status_code == 200
+    with host.session_transaction() as sess:
+        assert prompt_id in sess["family_game_night_hidden_prompt_ids"]
+        assert prompt_id not in sess["family_game_night_favorite_prompt_ids"]
+
+    second, second_code = _create_family_room(host)
+    assert second.status_code == 302
+    assert prompt_id not in {item["prompt_id"] for item in act_it_out._get_room(second_code)["rounds"]}

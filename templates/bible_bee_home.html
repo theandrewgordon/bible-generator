@@ -30,12 +30,28 @@
             <input type="hidden" name="game_style" value="classic_mix">
             <input type="hidden" name="choice_count" value="4">
             <input type="hidden" name="reveal_seconds" value="10">
-            <fieldset class="quick-game-options">
+            <section class="quick-start-presets bee-quick-start" aria-labelledby="bee-quick-heading">
+              <div><span class="section-kicker">Start fast</span><h2 id="bee-quick-heading">Choose a ready-made Bible Bee</h2><p>One tap selects the deck, length, and difficulty.</p></div>
+              <div class="preset-button-grid">
+                <button type="button" data-bee-preset="little">Little Sparks</button>
+                <button type="button" data-bee-preset="family">Family Favorites</button>
+                <button type="button" data-bee-preset="practice">5-minute practice</button>
+                <button type="button" data-bee-preset="challenge">Bible Challenge</button>
+              </div>
+            </section>
+            <fieldset class="quick-game-options control-options">
               <legend>How will you play?</legend>
               <div>
                 <label><input type="radio" name="control_mode" value="couch"><span>Couch Play<small>TV + one private phone passed between teams</small></span></label>
                 <label><input type="radio" name="control_mode" value="team_auto" checked><span>Team mode · Team Play<small>TV + one private phone for each team</small></span></label>
                 <label><input type="radio" name="control_mode" value="hosted"><span>Hosted Play<small>TV + private host controller + optional player phones, up to 40 players in team rooms</small></span></label>
+              </div>
+            </fieldset>
+            <fieldset class="quick-game-options scoring-options">
+              <legend>How should points feel?</legend>
+              <div>
+                <label><input type="radio" name="scoring_style" value="competitive" checked><span>Friendly competition<small>Players or teams race for the win</small></span></label>
+                <label><input type="radio" name="scoring_style" value="cooperative"><span>One family goal<small>Everyone works together to beat the target</small></span></label>
               </div>
             </fieldset>
             <fieldset class="version-picker">
@@ -49,7 +65,7 @@
                 {% endfor %}
               </div>
             </fieldset>
-            <fieldset class="quick-game-options">
+            <fieldset class="quick-game-options length-options">
               <legend>Game length</legend>
               <div>
                 {% for rounds in [5, 10, 15, 20] %}
@@ -60,9 +76,13 @@
                 {% endfor %}
               </div>
             </fieldset>
-            <fieldset class="quick-game-options">
+            <fieldset class="quick-game-options difficulty-options">
               <legend>Difficulty</legend>
               <div>
+                <label>
+                  <input type="radio" name="difficulty" value="little_sparks">
+                  <span>Little Sparks<small>Shorter, friendlier questions with participation points</small></span>
+                </label>
                 <label>
                   <input type="radio" name="difficulty" value="family" checked>
                   <span>Family<small>Familiar, moderate-length passages</small></span>
@@ -201,7 +221,7 @@
       const difficultyInputs = document.querySelectorAll('[name="difficulty"]');
       function updateGameSummary() {
         const rounds = document.querySelector('[name="round_count"]:checked')?.value || "5";
-        const difficulty = document.querySelector('[name="difficulty"]:checked')?.nextElementSibling?.textContent || "Family";
+        const difficulty = document.querySelector('[name="difficulty"]:checked')?.nextElementSibling?.firstChild?.textContent?.trim() || "Family";
         document.querySelectorAll(".deck-rounds").forEach(label => { label.textContent = `${rounds} rounds`; });
         document.querySelectorAll(".deck-difficulty").forEach(label => { label.textContent = difficulty; });
       }
@@ -210,6 +230,27 @@
       updateGameSummary();
 
       const roomSetup = document.querySelector("#bee-room-setup");
+      const chooseBeeOption = (name, value) => {
+        const input = roomSetup?.querySelector(`[name="${name}"][value="${value}"]:not(:disabled)`);
+        if (input?.type === "radio" || input?.type === "checkbox") input.checked = true;
+        else if (input) input.value = value;
+        else {
+          const single = roomSetup?.querySelector(`[name="${name}"]`);
+          if (single) single.value = value;
+        }
+      };
+      const beePresets = {
+        little: {difficulty: "little_sparks", round_count: "5", deck_id: "family-favorites", game_style: "younger_kids", choice_count: "2", scoring_style: "cooperative"},
+        family: {difficulty: "family", round_count: "10", deck_id: "family-favorites", game_style: "classic_mix", choice_count: "4", scoring_style: "competitive"},
+        practice: {difficulty: "family", round_count: "5", deck_id: "random-questions", game_style: "memory_practice", choice_count: "4", scoring_style: "cooperative"},
+        challenge: {difficulty: "hard", round_count: "15", deck_id: "bible-bee-prep", game_style: "challenge", choice_count: "4", scoring_style: "competitive"},
+      };
+      document.querySelectorAll('[data-bee-preset]').forEach(button => button.addEventListener('click', () => {
+        Object.entries(beePresets[button.dataset.beePreset] || {}).forEach(([name, value]) => chooseBeeOption(name, value));
+        document.querySelectorAll('[data-bee-preset]').forEach(item => item.classList.toggle('selected', item === button));
+        updateGameSummary();
+        roomSetup?.querySelector('.version-picker')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+      }));
       roomSetup?.addEventListener("submit", event => {
         const theme = roomSetup.querySelector('[name="one_off_theme"]');
         const sourceInput = roomSetup.querySelector('[name="game_source"]');

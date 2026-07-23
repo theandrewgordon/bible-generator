@@ -358,6 +358,12 @@ function renderLobby(state) {
         </div>
       </div>` : ""}
       <p>${state.control_mode === "couch" ? (couchPaired ? "Couch controller paired. Gold and Blue teams are ready." : "Waiting for the Couch controller phone.") : `${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.`}</p>
+      <div class="room-ready-checklist" aria-label="Game readiness">
+        <strong>Ready to begin?</strong>
+        <span class="waiting">○ Open “TV display” on the big screen</span>
+        <span class="${controllersReady ? "ready" : "waiting"}">${controllersReady ? "✓" : "○"} ${state.control_mode === "team_auto" ? "Both team phones paired" : state.control_mode === "couch" ? "Family controller paired" : "Players joined"}</span>
+        <span class="waiting">○ Choose who will perform first</span>
+      </div>
       ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>Scan or privately share the matching controller invite</h2></div><p>These are private controller invites—not the public player room code. Each expires after about ten minutes and works once.</p><div class="controller-pair-grid">${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<article><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : pairRole === "host" ? "Private host controller" : `${pairRole} team`)}</strong>${state.controller_status?.[pairRole] ? `<span>Paired ✓</span><button class="bee-button secondary replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">Revoke and replace</button>` : `<img src="${gameBase}/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR code for ${escapeHTML(pairRole)} controller"><button class="bee-button secondary share-controller" type="button" data-pair-url="${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}#${token}`)}">Share controller invite</button><button class="text-button replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">Generate a new invite</button><code>${escapeHTML(token)}</code>`}</article>`).join("")}</div></aside>` : ""}
       ${showHostWalkthrough ? `<aside class="host-walkthrough" aria-labelledby="host-walkthrough-title">
         <div><span>First game?</span><h2 id="host-walkthrough-title">Three screens, one easy job.</h2></div>
@@ -599,6 +605,7 @@ function renderReveal(state) {
       <h1>${isDraw ? "Drawing revealed" : isCorrect ? "Correct!" : escapeHTML(outcomeCopy[0])}</h1>
       <p>${isDraw ? escapeHTML(drawSummary) : isCorrect ? `${escapeHTML(state.active_player_name || "Player")} earned ${result.points || 0} points. Deal the next card when ready.` : escapeHTML(outcomeCopy[1])}</p>
       <div class="revealed-verse"><strong>Answer</strong><p>${escapeHTML(state.round?.answer || result.answer || "")}</p></div>
+      ${isFamilyGameNight && role === "host" && state.round?.prompt_id ? `<div class="prompt-preferences"><strong>Help shape future games</strong><button type="button" data-prompt-preference="favorite">★ Family favorite</button><button type="button" data-prompt-preference="hide">Hide this card</button></div>` : ""}
       ${clueList(state.round, true)}
       ${drawingBoard(state)}
       ${teamBoard(state, true)}
@@ -606,25 +613,39 @@ function renderReveal(state) {
     ${scoreRail(state, controls)}
   </div>`;
   document.querySelector("#next-round")?.addEventListener("click", () => hostAction("next"));
+  document.querySelectorAll("[data-prompt-preference]").forEach(button => button.addEventListener("click", async () => {
+    try {
+      await api(`${apiBase}/prompt-preference`, {method: "POST", body: JSON.stringify({preference: button.dataset.promptPreference})});
+      document.querySelectorAll("[data-prompt-preference]").forEach(item => { item.disabled = true; });
+      showToast(button.dataset.promptPreference === "favorite" ? "Saved as a family favorite." : "This card will be avoided in future games.");
+    } catch (error) { showToast(error.message); }
+  }));
   bindManagement();
 }
 
 function renderFinished(state) {
   const teamWinners = state.team_mode ? topTeams(state.teams) : [];
   const leaders = topPlayers(state.players, 5);
-  const heading = state.team_mode
+  const cooperative = state.scoring_style === "cooperative";
+  const goalReached = state.family_score >= state.family_goal;
+  const heading = cooperative
+    ? goalReached ? "Your Family Beat the Goal!" : "Your Family Grew Together!"
+    : state.team_mode
     ? teamWinners.length > 1 ? "Team Tie!" : `${escapeHTML(teamWinners[0]?.name || "Team")} Wins!`
     : leaders.length ? `${escapeHTML(leaders[0].name)} Wins!` : "Game complete!";
+  const learningRows = (state.learning_summary || []).map(item => `<li><strong>${escapeHTML(item.answer)}</strong><span>${escapeHTML(item.reference)}</span></li>`).join("");
   app.innerHTML = `<div class="game-layout">
-    <section class="game-stage finished-stage">
+    <section class="game-stage finished-stage celebration-stage">
       <div class="celebration-mark">✦</div>
       <h1>${heading}</h1>
-      <p>Great job acting, guessing, laughing, and learning together.</p>
+      <p>${cooperative ? `Together you earned ${state.family_score} of ${state.family_goal} goal points.` : "Great job acting, guessing, laughing, and learning together."}</p>
+      ${cooperative ? `<div class="family-goal-meter"><span style="width:${Math.min(100, Math.round((state.family_score / Math.max(1, state.family_goal)) * 100))}%"></span></div>` : ""}
       ${teamBoard(state, true)}
       <div class="top-individuals">
         <h2>Top players</h2>
         ${leaders.map((player, index) => `<div><span>${index + 1}. ${escapeHTML(player.name)}</span><strong>${player.score}</strong></div>`).join("")}
       </div>
+      ${learningRows ? `<div class="learning-summary"><span class="section-kicker">Tonight in Scripture</span><h2>Stories your family encountered</h2><ul>${learningRows}</ul><p>Choose one reference to read together before bed or tomorrow.</p></div>` : ""}
       <div class="next-game-actions">
         <a class="bee-button secondary" href="${gameHome}">Back to ${escapeHTML(gameTitle)}</a>
       </div>
@@ -756,12 +777,16 @@ function renderDisplay(state) {
   } else {
     const teamWinners = state.team_mode ? topTeams(state.teams) : [];
     const leaders = topPlayers(state.players, 5);
-    const heading = state.team_mode
+    const cooperative = state.scoring_style === "cooperative";
+    const heading = cooperative
+      ? state.family_score >= state.family_goal ? "Your Family Beat the Goal!" : "Your Family Grew Together!"
+      : state.team_mode
       ? teamWinners.length > 1 ? "Team Tie!" : `${escapeHTML(teamWinners[0]?.name || "Team")} Wins!`
       : leaders.length ? `${escapeHTML(leaders[0].name)} Wins!` : "Game complete!";
-    app.innerHTML = `<section class="display-stage display-final">
+    app.innerHTML = `<section class="display-stage display-final celebration-stage">
       <div class="celebration-mark">✦</div>
       <h1>${heading}</h1>
+      ${cooperative ? `<p>Together: ${state.family_score} of ${state.family_goal} goal points</p><div class="family-goal-meter"><span style="width:${Math.min(100, Math.round((state.family_score / Math.max(1, state.family_goal)) * 100))}%"></span></div>` : ""}
       ${teamBoard(state, true)}
       <div class="display-top-players">
         <h2>Top players</h2>

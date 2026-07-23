@@ -382,6 +382,8 @@ def build_family_rounds(
     free_sampler: bool,
     recent_prompt_ids: set[str] | None = None,
     max_age_floor: int | None = None,
+    excluded_prompt_ids: set[str] | None = None,
+    preferred_prompt_ids: set[str] | None = None,
 ) -> tuple[list[dict], dict]:
     records = family_prompts()
     sampler = free_sampler_ids()
@@ -406,7 +408,9 @@ def build_family_rounds(
             f"This selection has only {len(unique_answers)} unique answers for {count} rounds. Select more categories, another difficulty, or fewer rounds.",
             diagnostics,
         )
-    rng = random.Random(strong_seed("family-game-night", code, count, game_mode, ",".join(sorted(categories)), ",".join(sorted(difficulty_values)), free_sampler, max_age_floor))
+    excluded = excluded_prompt_ids or set()
+    preferred = preferred_prompt_ids or set()
+    rng = random.Random(strong_seed("family-game-night", code, count, game_mode, ",".join(sorted(categories)), ",".join(sorted(difficulty_values)), free_sampler, max_age_floor, ",".join(sorted(excluded)), ",".join(sorted(preferred))))
     mode_order = _balanced_mode_order(requested_modes, count, rng)
     used_ids: set[str] = set()
     used_answers: set[str] = set()
@@ -417,6 +421,11 @@ def build_family_rounds(
         candidates = [item for item in records if mode in item["modes"] and item["id"] not in used_ids and canonical_answer(item["answer"]) not in used_answers]
         if not candidates:
             raise RoundBuildError(f"There are not enough unique {mode} answers for this game. Select more categories or another difficulty.", diagnostics)
+        preferred_candidates = [item for item in candidates if item["id"] not in excluded]
+        if preferred_candidates:
+            candidates = preferred_candidates
+        elif excluded and "hidden_prompts" not in diagnostics["relaxations_used"]:
+            diagnostics["relaxations_used"].append("hidden_prompts")
         strict = [item for item in candidates if item["story_group"] not in used_stories and item["id"] not in recent]
         if not strict:
             strict = [item for item in candidates if item["story_group"] not in used_stories]
@@ -426,6 +435,9 @@ def build_family_rounds(
             strict = candidates
             if "story_group" not in diagnostics["relaxations_used"]:
                 diagnostics["relaxations_used"].append("story_group")
+        favorite_candidates = [item for item in strict if item["id"] in preferred]
+        if favorite_candidates:
+            strict = favorite_candidates
         category_counts = {category: sum(round_["category"] == category for round_ in rounds) for category in categories}
         testament_counts = {testament: sum(round_["testament"] == testament for round_ in rounds) for testament in ("OT", "NT", "general")}
         familiarity_counts = {value: sum(round_["familiarity"] == value for round_ in rounds) for value in VALID_FAMILIARITY}
@@ -455,6 +467,7 @@ def build_family_rounds(
             "id": f"{prompt['id']}-{index}", "prompt_id": prompt["id"], "answer": prompt["answer"],
             "mode": mode, "theme": prompt["category_label"], "category": prompt["category"],
             "testament": prompt["testament"], "familiarity": prompt["familiarity"],
+            "book": prompt.get("book", ""), "reference": prompt.get("reference", ""),
             "instruction": instruction,
             "forbidden_words": prompt.get("forbidden_words", []) if mode == "clue" else [],
             "clues": prompt.get("progressive_clues", []) if mode == "guess" else [],

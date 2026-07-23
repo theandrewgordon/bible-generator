@@ -400,6 +400,12 @@ function renderLobby(state) {
       </div>` : ""}
       ${pairingCards ? `<div class="controller-pair-grid">${pairingCards}</div>` : ""}
       <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready</p>
+      <div class="room-ready-checklist" aria-label="Game readiness">
+        <strong>Ready to begin?</strong>
+        <span class="ready">✓ ${escapeHTML(state.deck_name)} selected</span>
+        <span class="${controllersReady ? "ready" : "waiting"}">${controllersReady ? "✓" : "○"} ${adaptive ? "Private controllers paired" : "Host and players connected"}</span>
+        <span class="ready">✓ Everyone knows answers lock once</span>
+      </div>
     </section>
   ${scoreRail(state, `${state.team_mode ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
     <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start ${state.question_total} rounds</button>`)}
@@ -546,6 +552,7 @@ function renderQuestion(state) {
       ${answerArea}
       ${feedback}
       ${state.phase === "reveal" ? `<div class="revealed-verse"><strong>${escapeHTML(question.reference)}</strong><p>${escapeHTML(question.answer_text || "")}</p></div>` : ""}
+      ${state.phase === "reveal" && question.context_note ? `<aside class="learning-context"><strong>Talk about it</strong><p>${escapeHTML(question.context_note)}</p></aside>` : ""}
       ${state.phase === "reveal" ? `<p class="shared-countdown">${state.question_index + 1 >= state.question_total ? "Final results" : "Next question"} in <strong data-countdown>${state.reveal_seconds}</strong> seconds</p>` : ""}
     </section>
     ${scoreRail(state, controls)}
@@ -583,7 +590,11 @@ function renderFinished(state) {
   const topScore = state.players[0]?.score;
   const winners = state.players.filter(player => player.score === topScore);
   const teamWinners = state.team_mode ? topTeams(state.teams) : [];
-  const winnerHeading = state.team_mode
+  const cooperative = state.scoring_style === "cooperative";
+  const goalReached = state.family_score >= state.family_goal;
+  const winnerHeading = cooperative
+    ? goalReached ? "Your Family Beat the Goal!" : "Your Family Grew Together!"
+    : state.team_mode
     ? teamWinners.length > 1
       ? "Team Tie!"
       : `${escapeHTML(teamWinners[0]?.name || "Team")} Wins!`
@@ -619,10 +630,11 @@ function renderFinished(state) {
       </div>`
     : "";
   app.innerHTML = `<div class="game-layout">
-    <section class="game-stage finished-stage">
+    <section class="game-stage finished-stage celebration-stage">
       <div class="celebration-mark">✦</div>
       <h1>${winnerHeading}</h1>
-      <p>${state.team_mode ? "Team points are tallied. Celebrate the winners, then review the verses together." : "You practiced " + state.question_total + " passages together. Accuracy matters, but faithful practice is the real win."}</p>
+      <p>${cooperative ? `Together you earned ${state.family_score} of ${state.family_goal} goal points.` : state.team_mode ? "Team points are tallied. Celebrate the winners, then review the verses together." : "You practiced " + state.question_total + " passages together. Accuracy matters, but faithful practice is the real win."}</p>
+      ${cooperative ? `<div class="family-goal-meter"><span style="width:${Math.min(100, Math.round((state.family_score / Math.max(1, state.family_goal)) * 100))}%"></span></div>` : ""}
       ${displayTeamBoard(state, true)}
       ${topIndividualRows}
       <div class="review-list">
@@ -632,6 +644,7 @@ function renderFinished(state) {
         <ul>${strengths}</ul>
         ${playerFeedback ? `<div class="feedback-grid">${playerFeedback}</div>` : ""}
         ${summary.suggested_deck ? `<p class="next-deck">Try next: <strong>${escapeHTML(summary.suggested_deck)}</strong></p>` : ""}
+        ${role === "host" ? `<button id="print-review" class="bee-button secondary" type="button">Print family practice sheet</button>` : ""}
       </div>
       ${nextGameActions("Back to Family Bible Bee")}
     </section>
@@ -643,6 +656,7 @@ function renderFinished(state) {
         : "")}
   </div>`;
   bindRoomManagement();
+  document.querySelector("#print-review")?.addEventListener("click", () => window.print());
 }
 
 function renderDisplayLobby(state) {
@@ -702,23 +716,27 @@ function renderDisplayQuestion(state) {
     ${state.phase === "reveal" ? `<div class="display-reveal">
       <span>${escapeHTML(question.reference)}</span>
       <p>${escapeHTML(question.answer_text || "")}</p>
-    </div>` : ""}
+    </div>${question.context_note ? `<div class="display-context"><strong>Talk about it</strong><p>${escapeHTML(question.context_note)}</p></div>` : ""}` : ""}
   </section>`;
 }
 
 function renderDisplayFinished(state) {
   const teamWinners = state.team_mode ? topTeams(state.teams) : [];
   const topPlayers = sortedTopPlayers(state.players, 5);
-  const heading = state.team_mode
+  const cooperative = state.scoring_style === "cooperative";
+  const heading = cooperative
+    ? state.family_score >= state.family_goal ? "Your Family Beat the Goal!" : "Your Family Grew Together!"
+    : state.team_mode
     ? teamWinners.length > 1
       ? "Team Tie!"
       : `${escapeHTML(teamWinners[0]?.name || "Team")} Wins!`
     : topPlayers.length > 1 && topPlayers[0].score === topPlayers[1].score
       ? "We Have a Tie!"
       : `${escapeHTML(topPlayers[0]?.name || "Bible Bee")} Wins!`;
-  app.innerHTML = `<section class="display-stage display-final">
+  app.innerHTML = `<section class="display-stage display-final celebration-stage">
     <div class="celebration-mark">✦</div>
     <h1>${heading}</h1>
+    ${cooperative ? `<p>Together: ${state.family_score} of ${state.family_goal} goal points</p><div class="family-goal-meter"><span style="width:${Math.min(100, Math.round((state.family_score / Math.max(1, state.family_goal)) * 100))}%"></span></div>` : ""}
     ${displayTeamBoard(state)}
     <div class="display-top-players">
       <h2>Top players</h2>

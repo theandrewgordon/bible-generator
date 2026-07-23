@@ -24,6 +24,15 @@
       {% if is_host_signed_in %}
         <form class="family-setup-form" method="post" action="{{ url_for('act_it_out.create_family_game_night_room') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <section class="quick-start-presets" aria-labelledby="family-quick-start-heading">
+            <div><span class="section-kicker">Start fast</span><h2 id="family-quick-start-heading">Pick a game in one tap</h2><p>We’ll choose friendly defaults. You can still change anything below.</p></div>
+            <div class="preset-button-grid">
+              {% if owns_complete_game %}<button type="button" data-family-preset="young">Young Kids · ages 7–9</button>{% endif %}
+              <button type="button" data-family-preset="family">Whole Family</button>
+              {% if owns_complete_game %}<button type="button" data-family-preset="challenge">Bible Challenge</button>{% endif %}
+              <button type="button" data-family-preset="quick">Quick 10-minute game</button>
+            </div>
+          </section>
           <fieldset><legend><b>1</b><span>Choose your devices</span></legend><div class="setup-choice-grid three">
             <label><input type="radio" name="control_mode" value="couch"><span><strong>Couch Play · 2 devices</strong><small>One shared screen and one private phone passed between players.</small></span></label>
             <label><input type="radio" name="control_mode" value="team_auto" checked><span><strong>Team Play · 3 devices · Recommended</strong><small>One shared screen and one phone for each team. Faith Sparks manages turns and scoring.</small></span></label>
@@ -35,33 +44,46 @@
             <label><input type="radio" name="play_style" value="individual"><span><strong>Everyone for themselves</strong><small>Each player keeps their own score.</small></span></label>
           </div></fieldset>
 
-          <fieldset><legend><b>3</b><span>How long?</span></legend><div class="setup-choice-grid three">
+          <fieldset><legend><b>3</b><span>How should points feel?</span></legend><div class="setup-choice-grid two">
+            <label><input type="radio" name="scoring_style" value="competitive" checked><span><strong>Friendly competition</strong><small>Gold and Blue race for the win.</small></span></label>
+            <label><input type="radio" name="scoring_style" value="cooperative"><span><strong>One family goal</strong><small>Everyone works together to beat the target.</small></span></label>
+          </div></fieldset>
+
+          <fieldset><legend><b>4</b><span>How long?</span></legend><div class="setup-choice-grid three">
             <label><input type="radio" name="round_count" value="10" {% if not owns_complete_game %}checked{% endif %}><span><strong>Quick Game</strong><small>10 rounds</small></span></label>
             <label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="radio" name="round_count" value="15" {% if owns_complete_game %}checked{% else %}disabled{% endif %}><span><strong>Family Game</strong><small>15 rounds{% if not owns_complete_game %} · Complete{% endif %}</small></span></label>
             <label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="radio" name="round_count" value="20" {% if not owns_complete_game %}disabled{% endif %}><span><strong>Big Game Night</strong><small>20 rounds{% if not owns_complete_game %} · Complete{% endif %}</small></span></label>
           </div></fieldset>
 
-          <fieldset><legend><b>4</b><span>What should we play?</span></legend><div class="setup-choice-grid five">
+          <fieldset><legend><b>5</b><span>What should we play?</span></legend><div class="setup-choice-grid five">
             {% for value, title, help in [('mixed', 'Mixed Game Night', 'All four ways to play'), ('act', 'Act It!', 'Perform the answer'), ('draw', 'Draw It!', 'Draw while others guess'), ('clue', 'Don’t Say It!', 'Avoid forbidden words'), ('guess', 'Guess It!', 'Reveal one clue at a time')] %}
               <label class="{% if not owns_complete_game and value != 'mixed' %}locked-choice{% endif %}"><input type="radio" name="game_mode" value="{{ value }}" {% if value == 'mixed' %}checked{% endif %} {% if not owns_complete_game and value != 'mixed' %}disabled{% endif %}><span><strong>{{ title }}</strong><small>{{ help }}{% if not owns_complete_game and value != 'mixed' %} · Complete{% endif %}</small></span></label>
             {% endfor %}
           </div></fieldset>
 
-          <fieldset><legend><b>5</b><span>Difficulty</span></legend><div class="setup-choice-grid three">
+          <fieldset><legend><b>6</b><span>Difficulty</span></legend><div class="setup-choice-grid three">
             {% for value, title, help in [('younger', 'Younger Family · ages 7–9', 'Simpler, familiar prompts'), ('whole_family', 'Whole Family', 'A friendly mix for most families'), ('challenge', 'Challenge', 'More detailed Bible knowledge')] %}
               <label class="{% if not owns_complete_game and value != 'whole_family' %}locked-choice{% endif %}"><input type="radio" name="difficulty" value="{{ value }}" {% if value == 'whole_family' %}checked{% endif %} {% if not owns_complete_game and value != 'whole_family' %}disabled{% endif %}><span><strong>{{ title }}</strong><small>{{ help }}{% if not owns_complete_game and value != 'whole_family' %} · Complete{% endif %}</small></span></label>
             {% endfor %}
           </div></fieldset>
 
-          <fieldset><legend><b>6</b><span>Pacing</span></legend><div class="setup-choice-grid three">
+          <fieldset><legend><b>7</b><span>Pacing</span></legend><div class="setup-choice-grid three">
             <label><input type="radio" name="pace" value="relaxed"><span><strong>Relaxed</strong><small>75 seconds · reveal clues manually</small></span></label>
             <label><input type="radio" name="pace" value="standard" checked><span><strong>Standard</strong><small>45 seconds</small></span></label>
             <label><input type="radio" name="pace" value="fast"><span><strong>Fast</strong><small>30 seconds</small></span></label>
           </div></fieldset>
 
-          <fieldset><legend><b>7</b><span>Categories</span></legend><p class="fieldset-help">All Bible categories are ready by default.</p><div class="category-check-grid">
+          <fieldset><legend><b>8</b><span>Categories</span></legend><p class="fieldset-help">All Bible categories are ready by default. Complete-game hosts can use a theme shortcut.</p>
+          {% if owns_complete_game %}<div class="theme-shortcuts" aria-label="Theme shortcuts">
+            <button type="button" data-category-preset="all">Surprise Mix</button>
+            <button type="button" data-category-preset="jesus_miracles,parables">Jesus’ Miracles & Parables</button>
+            <button type="button" data-category-preset="bible_stories,people">Heroes of Faith</button>
+            <button type="button" data-category-preset="worship_church,everyday_faith">Worship & Everyday Faith</button>
+          </div>{% endif %}<div class="category-check-grid">
             {% for value, title in categories.items() %}<label class="{% if not owns_complete_game %}locked-choice{% endif %}"><input type="checkbox" name="categories" value="{{ value }}" checked {% if not owns_complete_game %}onclick="return false" aria-readonly="true"{% endif %}><span>{{ title }}</span></label>{% endfor %}
           </div></fieldset>
+
+          {% if favorite_prompt_count %}<label class="favorite-replay-choice"><input type="checkbox" name="include_favorites"><span><strong>Sprinkle in family favorites</strong><small>{{ favorite_prompt_count }} saved {{ 'card' if favorite_prompt_count == 1 else 'cards' }} that fit this game may return.</small></span></label>{% endif %}
 
           {% if owns_complete_game and capacity_matrix %}<p id="family-capacity-note" class="fieldset-help" role="status" aria-live="polite">This selection supports all game lengths. Replay uses fresh prompts when possible.</p>{% endif %}
 
@@ -74,6 +96,36 @@
 
       {% if active_rooms %}<section class="active-rooms"><h2>Continue a recent Family Game Night</h2>{% for room in active_rooms %}<div class="active-room-row"><a href="/group-games/act-it-out/host/{{ room.code }}"><span><strong>Room {{ room.code }}</strong><small>{{ room.players }} players · {{ room.phase|capitalize }}</small></span><b>Resume →</b></a></div>{% endfor %}</section>{% endif %}
     </main>
+    <script>
+      (() => {
+        const form = document.querySelector('.family-setup-form');
+        if (!form) return;
+        const choose = (name, value) => {
+          const unavailableName = ['dis', 'abled'].join('');
+          const input = form.querySelector(`[name="${name}"][value="${value}"]:not(:${unavailableName})`);
+          if (input) input.checked = true;
+        };
+        const presets = {
+          young: {difficulty: 'younger', round_count: '10', game_mode: 'mixed', pace: 'relaxed'},
+          family: {difficulty: 'whole_family', round_count: '15', game_mode: 'mixed', pace: 'standard'},
+          challenge: {difficulty: 'challenge', round_count: '15', game_mode: 'mixed', pace: 'standard'},
+          quick: {difficulty: 'whole_family', round_count: '10', game_mode: 'mixed', pace: 'fast'},
+        };
+        document.querySelectorAll('[data-family-preset]').forEach(button => button.addEventListener('click', () => {
+          Object.entries(presets[button.dataset.familyPreset] || {}).forEach(([name, value]) => choose(name, value));
+          form.dispatchEvent(new Event('change', {bubbles: true}));
+          document.querySelectorAll('[data-family-preset]').forEach(item => item.classList.toggle('selected', item === button));
+          form.querySelector('fieldset')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+        }));
+        document.querySelectorAll('[data-category-preset]').forEach(button => button.addEventListener('click', () => {
+          const wanted = button.dataset.categoryPreset === 'all' ? null : new Set(button.dataset.categoryPreset.split(','));
+          const categoryName = ['cate', 'gories'].join('');
+          form.querySelectorAll(`[name="${categoryName}"]`).forEach(input => { input.checked = !wanted || wanted.has(input.value); });
+          form.dispatchEvent(new Event('change', {bubbles: true}));
+          document.querySelectorAll('[data-category-preset]').forEach(item => item.classList.toggle('selected', item === button));
+        }));
+      })();
+    </script>
     {% if owns_complete_game and capacity_matrix %}<script>
       (() => {
         const capacity = {{ capacity_matrix|tojson }};

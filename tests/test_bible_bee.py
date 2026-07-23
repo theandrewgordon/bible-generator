@@ -42,6 +42,39 @@ def _post(client, path, json=None, data=None):
     return client.post(path, json=json, data=data, headers={"X-CSRF-Token": CSRF})
 
 
+def test_bible_bee_quick_presets_cooperative_goal_and_learning_context():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "cooperative-bee@example.com")
+    _prime(player)
+    page = host.get("/family-bible-bee")
+    assert b'data-bee-preset="little"' in page.data
+    assert b'name="scoring_style" value="cooperative"' in page.data
+
+    created = _post(host, "/family-bible-bee/create", data={
+        "csrf_token": CSRF, "control_mode": "hosted", "version": "esv",
+        "round_count": "5", "difficulty": "little_sparks", "deck_id": "family-favorites",
+        "game_style": "younger_kids", "choice_count": "2", "scoring_style": "cooperative",
+    })
+    code = re.search(r"/host/([A-Z0-9]{4})$", created.headers["Location"]).group(1)
+    room = bible_bee._get_room(code)
+    assert room["scoring_style"] == "cooperative"
+    assert room["family_goal"] == 375
+    assert all(question["context_note"].startswith("This passage is from ") for question in room["questions"])
+
+    assert _post(player, f"/family-bible-bee/join/{code}", data={"csrf_token": CSRF, "player_name": "Ada"}).status_code == 302
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
+    hidden = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert hidden["question"]["context_note"] is None
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/reveal", json={}).status_code == 200
+    revealed = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert revealed["question"]["context_note"].startswith("This passage is from ")
+    assert revealed["scoring_style"] == "cooperative"
+    assert revealed["family_goal"] == 375
+
+
 def test_family_bible_bee_room_flow():
     app.config.update(TESTING=True)
     host = app.test_client()

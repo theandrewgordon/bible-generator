@@ -556,6 +556,8 @@ def _build_rounds(
     game_mode: str = "mixed",
     free_sampler: bool = False,
     recent_prompt_ids: set[str] | None = None,
+    excluded_prompt_ids: set[str] | None = None,
+    preferred_prompt_ids: set[str] | None = None,
 ) -> list[dict]:
     if game_type == "family_game_night":
         selected_categories = categories or set(FAMILY_CATEGORIES)
@@ -568,6 +570,8 @@ def _build_rounds(
             free_sampler=free_sampler,
             recent_prompt_ids=recent_prompt_ids,
             max_age_floor=7 if difficulty == "younger" else None,
+            excluded_prompt_ids=excluded_prompt_ids,
+            preferred_prompt_ids=preferred_prompt_ids,
         )
         allowed_choices = set(FREE_FAMILY_PROMPT_IDS) if free_sampler else None
         seed = strong_seed("family-game-night-draw-choices", code)
@@ -711,6 +715,8 @@ def _complete_round(room: dict, outcome: str, now: float | None = None) -> None:
     room.setdefault("round_results", []).append({
         "round_index": int(room.get("round_index", 0)),
         "answer": active["answer"],
+        "reference": active.get("reference", ""),
+        "book": active.get("book", ""),
         "mode": active["mode"],
         "outcome": outcome,
         "points": points,
@@ -743,6 +749,8 @@ def _complete_draw_round(room: dict, outcome: str = "draw", now: float | None = 
     room.setdefault("round_results", []).append({
         "round_index": int(room.get("round_index", 0)),
         "answer": active["answer"],
+        "reference": active.get("reference", ""),
+        "book": active.get("book", ""),
         "mode": active["mode"],
         "outcome": outcome,
         "points": drawer_bonus,
@@ -799,6 +807,8 @@ def _skip_round(room: dict, now: float | None = None) -> None:
     room.setdefault("round_results", []).append({
         "round_index": int(room.get("round_index", 0)),
         "answer": active["answer"],
+        "reference": active.get("reference", ""),
+        "book": active.get("book", ""),
         "mode": active["mode"],
         "outcome": "skipped",
         "points": 0,
@@ -843,6 +853,7 @@ def _public_room(room: dict, code: str) -> dict:
         clue_index = int(room.get("clue_index", 0))
         clues = active.get("clues", [])
         visible_round = {
+            "prompt_id": active.get("prompt_id") if room.get("phase") in {"reveal", "finished"} else None,
             "mode": active["mode"],
             "theme": active["theme"],
             "answer": active["answer"] if room.get("phase") in {"reveal", "finished"} else None,
@@ -864,6 +875,21 @@ def _public_room(room: dict, code: str) -> dict:
             visible_round["guesser_count"] = len(guesser_ids)
             visible_round["answered_player_ids"] = list(room.get("draw_answers", {}).keys())
     players = _public_players(room, code)
+    learning_summary = []
+    if room.get("phase") == "finished":
+        seen_references = set()
+        for result in room.get("round_results", []):
+            reference = str(result.get("reference") or "").strip()
+            if not reference or reference.casefold() in seen_references:
+                continue
+            seen_references.add(reference.casefold())
+            learning_summary.append({
+                "answer": result.get("answer", ""),
+                "reference": reference,
+                "book": result.get("book", ""),
+            })
+            if len(learning_summary) >= 5:
+                break
     return {
         "code": code,
         "phase": room.get("phase", "lobby"),
@@ -890,6 +916,9 @@ def _public_room(room: dict, code: str) -> dict:
         "round_deadline": room.get("round_deadline"),
         "last_result": room.get("last_result"),
         "family_score": sum(team["score"] for team in _team_state(room)) if room.get("team_mode") else sum(player["score"] for player in players),
+        "scoring_style": room.get("scoring_style", "competitive"),
+        "family_goal": int(room.get("family_goal", len(room.get("rounds", [])) * 75)),
+        "learning_summary": learning_summary,
         "score_adjustments": list(room.get("score_adjustments", []))[-10:],
         "completion_number": int(room.get("completion_number", 0)),
         "expires_at": room.get("expires_at"),
@@ -1001,6 +1030,7 @@ def _render_family_setup(error: str | None = None, status: int = 200):
         owns_complete_game=owns_complete_game,
         categories=FAMILY_CATEGORIES,
         capacity_matrix=capacity_matrix,
+        favorite_prompt_count=len(session.get("family_game_night_favorite_prompt_ids", [])),
         error=error,
         active_rooms=[room for room in _active_rooms_for_host(email) if room.get("game_type") == "family_game_night"],
         noindex=True,
@@ -1047,6 +1077,8 @@ def create_family_game_night_room():
     game_mode = (request.form.get("game_mode") or "").strip()
     difficulty = (request.form.get("difficulty") or "").strip()
     pace = (request.form.get("pace") or "standard").strip()
+    scoring_style = (request.form.get("scoring_style") or "competitive").strip()
+    include_favorites = request.form.get("include_favorites") == "on"
     category_values = request.form.getlist("categories")
     categories = {value.strip() for value in category_values if value.strip()}
     try:
@@ -1067,6 +1099,8 @@ def create_family_game_night_room():
         errors.append("Choose a family difficulty level.")
     if pace not in FAMILY_PACING:
         errors.append("Choose Relaxed, Standard, or Fast pacing.")
+    if scoring_style not in {"competitive", "cooperative"}:
+        errors.append("Choose competitive or cooperative scoring.")
     if not categories or not categories <= set(FAMILY_CATEGORIES):
         errors.append("Choose at least one available Bible category.")
     if errors:
@@ -1088,6 +1122,11 @@ def create_family_game_night_room():
             game_mode=game_mode,
             free_sampler=not owns_complete_game,
             recent_prompt_ids=set(read_recent_history(session.get("family_game_night_recent_prompt_ids"))),
+            excluded_prompt_ids=set(session.get("family_game_night_hidden_prompt_ids", [])),
+            preferred_prompt_ids=(
+                set(session.get("family_game_night_favorite_prompt_ids", []))
+                if include_favorites else set()
+            ),
         )
     except ValueError as exc:
         return _render_family_setup(str(exc), 400)
@@ -1104,6 +1143,9 @@ def create_family_game_night_room():
         "control_mode": control_mode,
         "difficulty": difficulty,
         "pace": pace,
+        "scoring_style": scoring_style,
+        "family_goal": round_count * 75,
+        "include_favorites": include_favorites,
         "categories": sorted(categories),
         "free_sampler": not owns_complete_game,
         "player_limit": 6 if not owns_complete_game else (TEAM_PLAYER_LIMIT if team_mode else INDIVIDUAL_PLAYER_LIMIT),
@@ -1947,6 +1989,34 @@ def skip_round(code: str):
 @bp.post("/api/group-games/draw-it/rooms/<code>/end")
 def end_game(code: str):
     return _host_action(code, "end")
+
+
+@bp.post("/api/group-games/act-it-out/rooms/<code>/prompt-preference")
+def save_family_prompt_preference(code: str):
+    code = code.upper()
+    room = _get_room(code)
+    if not room or room.get("game_type") != "family_game_night":
+        abort(404)
+    if not _is_host(code, room):
+        abort(403)
+    if room.get("phase") != "reveal":
+        return jsonify({"error": "Finish the card before saving a preference."}), 409
+    active = _active_round(room) or {}
+    prompt_id = str(active.get("prompt_id") or "")
+    preference = str((request.get_json(silent=True) or {}).get("preference") or "")
+    if not prompt_id or preference not in {"favorite", "hide"}:
+        return jsonify({"error": "Choose favorite or hide for this card."}), 400
+    favorites = list(session.get("family_game_night_favorite_prompt_ids", []))
+    hidden = list(session.get("family_game_night_hidden_prompt_ids", []))
+    if preference == "favorite":
+        hidden = [item for item in hidden if item != prompt_id]
+        favorites = [item for item in favorites if item != prompt_id] + [prompt_id]
+    else:
+        favorites = [item for item in favorites if item != prompt_id]
+        hidden = [item for item in hidden if item != prompt_id] + [prompt_id]
+    session["family_game_night_favorite_prompt_ids"] = favorites[-40:]
+    session["family_game_night_hidden_prompt_ids"] = hidden[-40:]
+    return jsonify({"ok": True, "preference": preference})
 
 
 @bp.post("/api/group-games/act-it-out/rooms/<code>/feedback")

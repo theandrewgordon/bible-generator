@@ -1085,6 +1085,11 @@ def build_questions(
                 "correct": correct,
                 "reference": passage["reference"],
                 "answer_text": passage["text"],
+                "book": passage.get("book", ""),
+                "context_note": (
+                    f"This passage is from {passage.get('book', 'the Bible')}. "
+                    "Read the surrounding verses together and ask how they shape the meaning of this verse."
+                ),
                 "content_difficulty": next(
                     (name for name, rank in _CONTENT_DIFFICULTY_RANK.items() if rank == _passage_difficulty_rank(passage, mode)),
                     "family",
