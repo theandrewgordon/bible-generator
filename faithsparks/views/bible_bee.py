@@ -15,7 +15,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 import qrcode
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, send_file, session, url_for
+from google.api_core import exceptions as google_exceptions
 from google.cloud import firestore as google_firestore
 
 from faithsparks.services.firestore import db
@@ -51,6 +52,7 @@ REVEAL_SECOND_OPTIONS = {5, 10, 15}
 CHALLENGE_QUESTION_SECONDS = 30
 DIFFICULTY_QUESTION_SECONDS = {"hard": 25, "expert": 20}
 PLAYER_CONNECTED_SECONDS = 40
+ROOM_CACHE_SECONDS = 5
 MAX_AVATAR_DATA_LENGTH = 60_000
 INDIVIDUAL_PLAYER_LIMIT = 8
 TEAM_PLAYER_LIMIT = 40
@@ -75,7 +77,34 @@ TEAMS = [
 ]
 
 _local_rooms: dict[str, dict] = {}
+_room_cache_loaded_at: dict[str, float] = {}
 _local_lock = threading.RLock()
+RETRYABLE_STORAGE_ERRORS = (
+    google_exceptions.ResourceExhausted,
+    google_exceptions.ServiceUnavailable,
+    google_exceptions.DeadlineExceeded,
+)
+
+
+class RoomStorageUnavailable(RuntimeError):
+    """Raised when Firestore is unavailable and this process has no cached room."""
+
+
+@bp.errorhandler(RoomStorageUnavailable)
+def _room_storage_unavailable(_error):
+    response = jsonify({"error": "The game service is catching up. Please retry shortly."})
+    response.status_code = 503
+    response.headers["Retry-After"] = "5"
+    return response
+
+
+def _cache_room(code: str, room: dict | None) -> None:
+    with _local_lock:
+        if room is None:
+            _local_rooms.pop(code, None)
+        else:
+            _local_rooms[code] = deepcopy(room)
+        _room_cache_loaded_at[code] = time.time()
 
 
 def _stamp_room(room: dict, now: float | None = None) -> None:
@@ -95,13 +124,25 @@ def _room_ref(code: str):
 
 def _get_room(code: str) -> dict | None:
     code = code.upper()
-    ref = _room_ref(code)
-    if ref:
-        snap = ref.get()
-        room = snap.to_dict() if snap.exists else None
+    with _local_lock:
+        cached = deepcopy(_local_rooms.get(code))
+        cache_age = time.time() - _room_cache_loaded_at.get(code, 0)
+    if cache_age < ROOM_CACHE_SECONDS:
+        room = cached
     else:
-        with _local_lock:
-            room = deepcopy(_local_rooms.get(code))
+        ref = _room_ref(code)
+        if ref:
+            try:
+                snap = ref.get()
+                room = snap.to_dict() if snap.exists else None
+                _cache_room(code, room)
+            except RETRYABLE_STORAGE_ERRORS:
+                if cached is None:
+                    raise RoomStorageUnavailable from None
+                current_app.logger.warning("Serving cached Bible Bee room %s after Firestore throttling", code)
+                room = cached
+        else:
+            room = cached
     now = time.time()
     expired = room and (
         now >= float(room.get("expires_at", float("inf")))
@@ -114,33 +155,42 @@ def _get_room(code: str) -> dict | None:
 
 
 def _set_room(code: str, room: dict) -> None:
+    code = code.upper()
     _stamp_room(room)
+    _cache_room(code, room)
     ref = _room_ref(code)
     if ref:
-        ref.set(room)
-    else:
-        with _local_lock:
-            _local_rooms[code] = deepcopy(room)
+        try:
+            ref.set(room)
+        except RETRYABLE_STORAGE_ERRORS:
+            current_app.logger.warning("Cached Bible Bee room %s while Firestore is throttled", code)
 
 
 def _mutate_room(code: str, callback):
     """Update a room atomically in Firestore and under a lock in local dev."""
+    code = code.upper()
     ref = _room_ref(code)
     if ref:
-        transaction = db().transaction()
+        try:
+            transaction = db().transaction()
 
-        @google_firestore.transactional
-        def update_in_transaction(txn):
-            snap = ref.get(transaction=txn)
-            if not snap.exists:
-                return None
-            room = snap.to_dict()
-            result = callback(room)
-            _stamp_room(room)
-            txn.set(ref, room)
-            return result, room
+            @google_firestore.transactional
+            def update_in_transaction(txn):
+                snap = ref.get(transaction=txn)
+                if not snap.exists:
+                    return None
+                room = snap.to_dict()
+                result = callback(room)
+                _stamp_room(room)
+                txn.set(ref, room)
+                return result, room
 
-        return update_in_transaction(transaction)
+            outcome = update_in_transaction(transaction)
+            if outcome:
+                _cache_room(code, outcome[1])
+            return outcome
+        except RETRYABLE_STORAGE_ERRORS:
+            current_app.logger.warning("Updating cached Bible Bee room %s while Firestore is throttled", code)
 
     with _local_lock:
         room = _local_rooms.get(code)
@@ -152,12 +202,16 @@ def _mutate_room(code: str, callback):
 
 
 def _delete_room(code: str) -> None:
+    code = code.upper()
+    with _local_lock:
+        _local_rooms.pop(code, None)
+        _room_cache_loaded_at.pop(code, None)
     ref = _room_ref(code)
     if ref:
-        ref.delete()
-    else:
-        with _local_lock:
-            _local_rooms.pop(code, None)
+        try:
+            ref.delete()
+        except RETRYABLE_STORAGE_ERRORS:
+            current_app.logger.warning("Could not delete Bible Bee room %s while Firestore is throttled", code)
 
 
 def _new_code() -> str:

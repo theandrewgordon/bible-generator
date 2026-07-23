@@ -12,6 +12,7 @@ let csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 let latestState = null;
 let requestInFlight = false;
 let failedRefreshes = 0;
+let refreshPausedUntil = 0;
 let lastRenderSignature = "";
 let roomExpired = false;
 let pendingChoice = null;
@@ -946,10 +947,11 @@ function updateCountdown() {
 }
 
 async function refresh() {
-  if (requestInFlight || roomExpired) return;
+  if (requestInFlight || roomExpired || Date.now() < refreshPausedUntil) return;
   requestInFlight = true;
   try {
     const state = await api(`/api/family-bible-bee/rooms/${code}`);
+    refreshPausedUntil = 0;
     failedRefreshes = 0;
     connectionStatus.classList.remove("show");
     const signature = JSON.stringify(state);
@@ -970,6 +972,7 @@ async function refresh() {
       bindNextGameActions();
       return;
     }
+    if (error.status === 429 || error.status === 503) refreshPausedUntil = Date.now() + 15000;
     failedRefreshes += 1;
     if (failedRefreshes >= 2) connectionStatus.classList.add("show");
   } finally {
@@ -1134,10 +1137,10 @@ soundToggle?.addEventListener("click", () => {
   updateSoundToggle();
   if (soundEnabled) playTone("round");
 });
-window.setInterval(refresh, 1200);
+window.setInterval(refresh, 3000);
 window.setInterval(updateCountdown, 250);
 heartbeat();
-window.setInterval(heartbeat, 15000);
+window.setInterval(heartbeat, 25000);
 window.addEventListener("online", () => {
   refresh();
   heartbeat();

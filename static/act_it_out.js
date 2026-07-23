@@ -18,6 +18,7 @@ let latestState = null;
 let requestInFlight = false;
 let lastRenderSignature = "";
 let failedRefreshes = 0;
+let refreshPausedUntil = 0;
 let readMode = window.localStorage.getItem("actItOutReadMode") || "off";
 let speechRun = 0;
 let lastSpokenState = "";
@@ -816,10 +817,11 @@ function updateCountdown() {
 }
 
 async function refresh() {
-  if (requestInFlight) return;
+  if (requestInFlight || Date.now() < refreshPausedUntil) return;
   requestInFlight = true;
   try {
     const state = await api(apiBase);
+    refreshPausedUntil = 0;
     failedRefreshes = 0;
     connectionStatus.classList.remove("show");
     const activeCanvas = document.querySelector("#draw-canvas");
@@ -833,6 +835,7 @@ async function refresh() {
       render(state);
     }
   } catch (error) {
+    if (error.status === 429 || error.status === 503) refreshPausedUntil = Date.now() + 15000;
     failedRefreshes += 1;
     if (failedRefreshes >= 2) connectionStatus.classList.add("show");
   } finally {
@@ -1167,10 +1170,10 @@ function bindManagement() {
 }
 
 refresh();
-window.setInterval(refresh, 1200);
+window.setInterval(refresh, 3000);
 window.setInterval(updateCountdown, 250);
 heartbeat();
-window.setInterval(heartbeat, 15000);
+window.setInterval(heartbeat, 25000);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     refresh();
