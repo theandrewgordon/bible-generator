@@ -1397,6 +1397,37 @@ def test_couch_mode_uses_one_private_controller_and_alternates_teams():
     assert revealed["phase"] == "reveal"
 
 
+def test_bible_bee_controller_pairing_accepts_valid_one_time_token_without_session_csrf():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    controller = app.test_client()
+    attacker = app.test_client()
+    _prime(host, "mobile-bee-pairing@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "control_mode": "team_auto", "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        token = sess["bible_bee_pairing_tokens"][code]["blue"]
+
+    invalid = attacker.post(
+        f"/family-bible-bee/controller/{code}",
+        data={"pairing_token": "not-a-real-private-token"},
+    )
+    paired = controller.post(
+        f"/family-bible-bee/controller/{code}",
+        data={"pairing_token": token},
+    )
+
+    assert invalid.status_code == 400
+    assert paired.status_code == 302
+    assert paired.headers["Location"].endswith(f"/family-bible-bee/play/{code}")
+    assert bible_bee._get_room(code)["controller_pairings"]["blue"]["claimed"] is True
+
+
 def test_team_controller_replacement_revokes_old_bible_bee_session():
     host = app.test_client(); gold = app.test_client(); replacement = app.test_client()
     _prime(host, "bible-team@example.com"); _prime(gold); _prime(replacement)

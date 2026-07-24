@@ -798,6 +798,33 @@ def test_controller_pair_page_consumes_fragment_without_sending_it_to_server():
     assert "controller-qr" in script
 
 
+def test_family_controller_pairing_accepts_valid_one_time_token_without_session_csrf():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    controller = app.test_client()
+    attacker = app.test_client()
+    _prime(host, "mobile-pairing@example.com")
+    created, code = _create_family_room(host, control_mode="team_auto")
+    assert created.status_code == 302
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["gold"]
+
+    invalid = attacker.post(
+        f"/family-game-night/controller/{code}",
+        data={"pairing_token": "not-a-real-private-token"},
+    )
+    paired = controller.post(
+        f"/family-game-night/controller/{code}",
+        data={"pairing_token": token},
+    )
+
+    assert invalid.status_code == 400
+    assert paired.status_code == 302
+    assert paired.headers["Location"].endswith(f"/group-games/act-it-out/play/{code}")
+    assert act_it_out._get_room(code)["controller_pairings"]["gold"]["claimed"] is True
+
+
 def test_draw_prepare_ui_shows_prompt_before_canvas_and_timer():
     script = open("static/act_it_out.js", encoding="utf-8").read()
     stylesheet = open("static/act_it_out.css", encoding="utf-8").read()

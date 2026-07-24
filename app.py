@@ -420,6 +420,10 @@ _CSRF_EXEMPT_PREFIXES = (
     "/service-worker.js",
     "/manifest.webmanifest",
 )
+_CSRF_CAPABILITY_POST_PREFIXES = (
+    "/family-game-night/controller/",
+    "/family-bible-bee/controller/",
+)
 
 @app.before_request
 def csrf_protect():
@@ -431,6 +435,12 @@ def csrf_protect():
     for p in _CSRF_EXEMPT_PREFIXES:
         if path.startswith(p):
             return
+    # Pairing is authorized by a high-entropy, expiring, single-use capability
+    # token. Some mobile QR/browser handoffs lose the session cookie created by
+    # the GET before submitting the form, so session-bound CSRF is unreliable
+    # for these two narrowly scoped endpoints.
+    if request.method == "POST" and any(path.startswith(p) for p in _CSRF_CAPABILITY_POST_PREFIXES):
+        return
 
     # Accept token from header (AJAX/fetch) or form field
     sent = (
