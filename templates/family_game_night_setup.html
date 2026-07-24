@@ -42,10 +42,10 @@
           <fieldset><legend><b>2</b><span>How are you playing?</span></legend><div class="setup-choice-grid two">
             <label><input type="radio" name="play_style" value="teams" checked><span><strong>Teams</strong><small>Work together and share points.</small></span></label>
             <label><input type="radio" name="play_style" value="individual"><span><strong>Everyone for themselves</strong><small>Each player keeps their own score.</small></span></label>
-          </div></fieldset>
+          </div><p id="play-style-device-note" class="fieldset-help" role="status" aria-live="polite">Couch Play and Team Play use Gold and Blue teams.</p></fieldset>
 
           <fieldset><legend><b>3</b><span>How should points feel?</span></legend><div class="setup-choice-grid two">
-            <label><input type="radio" name="scoring_style" value="competitive" checked><span><strong>Friendly competition</strong><small>Gold and Blue race for the win.</small></span></label>
+            <label><input type="radio" name="scoring_style" value="competitive" checked><span><strong>Friendly competition</strong><small>Race for the win with team or individual points.</small></span></label>
             <label><input type="radio" name="scoring_style" value="cooperative"><span><strong>One family goal</strong><small>Everyone works together to beat the target.</small></span></label>
           </div></fieldset>
 
@@ -100,8 +100,8 @@
       (() => {
         const form = document.querySelector('.family-setup-form');
         if (!form) return;
+        const unavailableName = ['dis', 'abled'].join('');
         const choose = (name, value) => {
-          const unavailableName = ['dis', 'abled'].join('');
           const input = form.querySelector(`[name="${name}"][value="${value}"]:not(:${unavailableName})`);
           if (input) input.checked = true;
         };
@@ -111,6 +111,23 @@
           challenge: {difficulty: 'challenge', round_count: '15', game_mode: 'mixed', pace: 'standard'},
           quick: {difficulty: 'whole_family', round_count: '10', game_mode: 'mixed', pace: 'fast'},
         };
+        const syncPlayStyleAndDevices = () => {
+          const individual = form.querySelector('[name="play_style"]:checked')?.value === 'individual';
+          const note = document.getElementById('play-style-device-note');
+          form.querySelectorAll('[name="control_mode"]').forEach(input => {
+            const teamOnly = input.value === 'couch' || input.value === 'team_auto';
+            input[unavailableName] = individual && teamOnly;
+            input.closest('label')?.classList.toggle('locked-choice', individual && teamOnly);
+          });
+          if (individual) choose('control_mode', 'hosted');
+          if (note) {
+            note.textContent = individual
+              ? 'Individual points use Hosted Play so every player keeps their own name and score.'
+              : 'Couch Play and Team Play use Gold and Blue teams.';
+          }
+        };
+        form.addEventListener('change', syncPlayStyleAndDevices);
+        syncPlayStyleAndDevices();
         document.querySelectorAll('[data-family-preset]').forEach(button => button.addEventListener('click', () => {
           Object.entries(presets[button.dataset.familyPreset] || {}).forEach(([name, value]) => choose(name, value));
           form.dispatchEvent(new Event('change', {bubbles: true}));

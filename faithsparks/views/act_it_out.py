@@ -1160,6 +1160,11 @@ def create_family_game_night_room():
     if errors:
         return _render_family_setup(" ".join(errors), 400)
 
+    # Couch and team-auto controllers represent alternating teams. Individual
+    # scoring needs the hosted flow, where each player keeps their own identity.
+    if play_style == "individual" and control_mode in {"couch", "team_auto"}:
+        control_mode = "hosted"
+
     owns_complete_game = _owns_family_game_night(email)
     if not owns_complete_game and (round_count != 10 or game_mode != "mixed" or difficulty != "whole_family" or categories != set(FAMILY_CATEGORIES)):
         return _render_family_setup("The free game includes 10 mixed rounds for the whole family with all categories. Unlock the complete game to customize these choices.", 403)

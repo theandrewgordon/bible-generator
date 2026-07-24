@@ -229,6 +229,39 @@ def test_family_game_night_free_room_is_mixed_and_server_limited():
     assert {round_data["prompt_id"] for round_data in room["rounds"]} <= act_it_out.FREE_FAMILY_PROMPT_IDS
 
 
+def test_individual_family_game_never_creates_team_controller_pairings(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    monkeypatch.setattr(act_it_out, "get_user_doc", lambda _email: {"purchases": {"family_game_night": True}})
+    host = app.test_client()
+    _prime(host, "individual-controller@example.com")
+
+    created, code = _create_family_room(
+        host,
+        play_style="individual",
+        control_mode="team_auto",
+        round_count="15",
+        game_mode="mixed",
+    )
+
+    assert created.status_code == 302
+    room = act_it_out._get_room(code)
+    assert room["team_mode"] is False
+    assert room["teams"] == []
+    assert room["control_mode"] == "hosted"
+    assert set(room["controller_pairings"]) == {"host"}
+    with host.session_transaction() as sess:
+        assert set(sess["family_game_pairing_tokens"][code]) == {"host"}
+
+
+def test_individual_play_selection_explains_and_enforces_hosted_devices():
+    template = open("templates/family_game_night_setup.html", encoding="utf-8").read()
+
+    assert "Individual points use Hosted Play" in template
+    assert "input[unavailableName] = individual && teamOnly" in template
+    assert "choose('control_mode', 'hosted')" in template
+
+
 def test_family_game_night_records_create_join_start_and_finish_funnel(monkeypatch):
     from faithsparks.views import act_it_out
 
