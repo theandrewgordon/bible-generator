@@ -304,12 +304,12 @@ function scoreRail(state, controls = "") {
         const teamLabel = state.team_mode && player.team_name
           ? `<small class="team-pill team-${escapeHTML(player.team_color)}">${escapeHTML(player.team_name.replace(" Team", ""))}</small>`
           : "";
-        const management = role === "host" && state.phase === "lobby"
+        const management = role === "host" && state.viewer.is_owner && state.phase === "lobby"
           ? `<span class="player-management">
               ${state.team_mode ? `<button class="switch-team-player" data-switch-team-player-id="${escapeHTML(player.id)}" type="button">Switch team</button>` : ""}
               <button class="remove-player" data-player-id="${escapeHTML(player.id)}" type="button" aria-label="Remove ${escapeHTML(player.name)}">×</button>
             </span>`
-          : role === "host"
+          : role === "host" && state.viewer.is_owner
             ? `<span class="player-management">
                 ${state.phase === "question"
                   ? `<button class="away-player ${player.away ? "is-away" : ""}" data-away-player-id="${escapeHTML(player.id)}" type="button">${player.away ? "Bring back" : "Mark away"}</button>`
@@ -346,7 +346,7 @@ function scoreRail(state, controls = "") {
              <button id="skip-question" class="text-button" type="button" ${state.phase === "paused" ? "disabled" : ""}>Skip question · count as missed</button>
              <button id="end-game-early" class="text-button danger-text" type="button">End game early</button>`
           : ""}
-        <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
+        ${state.viewer.is_owner ? `<button id="close-room" class="text-button danger-text" type="button">Delete this room</button>` : ""}
       </div>` : ""}
   </aside>`;
 }
@@ -379,6 +379,9 @@ function renderLobby(state) {
   const requiredRoles = state.control_mode === "couch" ? ["couch"] : state.control_mode === "team_auto" ? ["gold", "blue"] : ["host"];
   const controllersReady = state.control_mode === "hosted" || requiredRoles.every(pairRole => state.controller_status?.[pairRole]);
   const startDisabled = state.players.length && controllersReady ? "" : "disabled";
+  const ownerTeamControls = state.viewer.is_owner && state.team_mode
+    ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>`
+    : "";
   const tokens = state.viewer.pairing_tokens || {};
   const pairingCards = Object.entries(tokens).map(([pairRole, token]) => {
     const paired = state.controller_status?.[pairRole];
@@ -408,7 +411,7 @@ function renderLobby(state) {
         <span class="ready">✓ Everyone knows answers lock once</span>
       </div>
     </section>
-  ${scoreRail(state, `${state.team_mode ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>` : ""}
+  ${scoreRail(state, `${ownerTeamControls}
     <button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start ${state.question_total} rounds</button>`)}
   </div>`;
   document.querySelector("#start-game")?.addEventListener("click", () => hostAction("start"));

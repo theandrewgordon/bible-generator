@@ -260,6 +260,14 @@ def service_worker():
     return response
 
 
+@app.route('/favicon.ico')
+def favicon():
+    """Serve the browser-default favicon path without a noisy 404."""
+    response = send_from_directory('static', 'favicon.ico')
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
+
+
 @app.route('/robots.txt')
 def robots_txt():
     body = "\n".join(

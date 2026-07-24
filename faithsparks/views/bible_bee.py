@@ -1097,9 +1097,12 @@ def pair_controller(code: str):
                 raise ValueError("That controller invite is not valid for this room.")
 
             try:
-                _mutate_room(code, claim)
+                result = _mutate_room(code, claim)
             except ValueError as exc:
                 error = str(exc)
+            else:
+                if result is None:
+                    abort(404)
             if claimed:
                 session[_controller_session_key(code)] = claimed
                 destination = "bible_bee.host_room" if claimed["role"] == "host" else "bible_bee.player_room"
@@ -1305,9 +1308,11 @@ def join_room(code: str):
             }
 
         try:
-            _mutate_room(code, add_player)
+            result = _mutate_room(code, add_player)
         except ValueError as exc:
             return _render_join_page(code, str(exc)), 409
+        if result is None:
+            abort(404)
         session[_player_session_key(code)] = player_id
         return redirect(url_for("bible_bee.player_room", code=code))
     if existing_id and existing_id in room.get("players", {}):

@@ -47,6 +47,8 @@ def test_bible_bee_management_actions_use_the_live_refresh_function():
 
     assert "refreshState" not in script
     assert "await refresh();" in script
+    assert "state.viewer.is_owner && state.team_mode" in script
+    assert 'state.viewer.is_owner ? `<button id="close-room"' in script
 
 
 def test_bible_bee_quick_presets_cooperative_goal_and_learning_context():
@@ -1426,6 +1428,41 @@ def test_bible_bee_controller_pairing_accepts_valid_one_time_token_without_sessi
     assert paired.status_code == 302
     assert paired.headers["Location"].endswith(f"/family-bible-bee/play/{code}")
     assert bible_bee._get_room(code)["controller_pairings"]["blue"]["claimed"] is True
+
+
+def test_bible_bee_join_and_pair_abort_if_room_disappears_during_submit(monkeypatch):
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    joining = app.test_client()
+    pairing = app.test_client()
+    _prime(host, "vanishing-bee-room@example.com")
+    _prime(joining)
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "control_mode": "hosted", "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        token = sess["bible_bee_pairing_tokens"][code]["host"]
+
+    monkeypatch.setattr(bible_bee, "_mutate_room", lambda _code, _callback: None)
+
+    joined = _post(
+        joining,
+        f"/family-bible-bee/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada"},
+    )
+    paired = pairing.post(
+        f"/family-bible-bee/controller/{code}",
+        data={"pairing_token": token},
+    )
+
+    assert joined.status_code == 404
+    assert paired.status_code == 404
+    with joining.session_transaction() as sess:
+        assert bible_bee._player_session_key(code) not in sess
 
 
 def test_team_controller_replacement_revokes_old_bible_bee_session():

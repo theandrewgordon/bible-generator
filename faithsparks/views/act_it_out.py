@@ -1409,9 +1409,12 @@ def pair_family_controller(code: str):
                         return
                 raise ValueError("That pairing code is not valid for this room.")
             try:
-                _mutate_room(code, claim)
+                result = _mutate_room(code, claim)
             except ValueError as exc:
                 error = str(exc)
+            else:
+                if result is None:
+                    abort(404)
             if claimed:
                 if claimed.get("player_id"):
                     session[_player_session_key(code)] = claimed["player_id"]
@@ -1711,6 +1714,8 @@ def join_room(code: str):
             result = _mutate_room(code, add_player)
         except ValueError as exc:
             return _render_join_page(code, str(exc)), 409
+        if result is None:
+            abort(404)
         joined_room = result[1] if result else None
         if joined_room and len(joined_room.get("players", {})) == 1:
             _record_family_funnel_event("first_player_joined", joined_room, code)

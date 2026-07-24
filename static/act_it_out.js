@@ -281,7 +281,7 @@ function scoreRail(state, controls = "") {
   return `<aside class="score-rail">
     <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
-    <div class="score-list">${playerRows(state, role === "host" && ["lobby", "round"].includes(state.phase))}</div>
+    <div class="score-list">${playerRows(state, role === "host" && state.viewer.is_host && ["lobby", "round"].includes(state.phase))}</div>
     ${controls ? `<div class="host-controls judge-controls">${controls}</div>` : ""}
       ${role === "host" ? `<div class="host-controls">
       ${isFamilyGameNight && state.phase !== "lobby" ? scoreAdjustmentPanel(state) : ""}
@@ -290,7 +290,7 @@ function scoreRail(state, controls = "") {
       ${!isFamilyGameNight || state.control_mode === "hosted" ? `<button id="copy-join-link" class="bee-button secondary full" type="button">Copy join link</button>` : ""}
       ${isFamilyGameNight ? `<details class="host-help"><summary>Need help?</summary><div><p><strong>Lost the TV?</strong> Open TV display again; it safely rejoins this room.</p><p><strong>A phone disconnected?</strong> ${state.control_mode === "hosted" ? "Reopen its player page." : "Use Revoke and replace to create a fresh private controller invite."} Scores and turns stay with the room.</p><p><strong>Need to stop?</strong> End the game during a round, or delete the room below.</p><p><strong>Read aloud?</strong> Use the control at the top of this host screen.</p><a href="mailto:hello@faithsparksprintables.com?subject=Family%20Game%20Night%20help">Email support</a></div></details>` : ""}
       ${["round", "reveal"].includes(state.phase) ? `<button id="end-game" class="text-button danger-text" type="button">End game</button>` : ""}
-      <button id="close-room" class="text-button danger-text" type="button">Delete this room</button>
+      ${state.viewer.is_host ? `<button id="close-room" class="text-button danger-text" type="button">Delete this room</button>` : ""}
     </div>` : ""}
   </aside>`;
 }

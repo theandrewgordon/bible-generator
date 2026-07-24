@@ -639,6 +639,8 @@ def test_family_client_stops_polling_expired_rooms_and_hides_owner_tools_from_co
     assert "if (error.status === 404)" in script
     assert "This game has wrapped up." in script
     assert "state.viewer.is_host && state.team_mode" in script
+    assert "state.viewer.is_host && [\"lobby\", \"round\"]" in script
+    assert 'state.viewer.is_host ? `<button id="close-room"' in script
     assert "refreshState" not in script
 
 
@@ -823,6 +825,37 @@ def test_family_controller_pairing_accepts_valid_one_time_token_without_session_
     assert paired.status_code == 302
     assert paired.headers["Location"].endswith(f"/group-games/act-it-out/play/{code}")
     assert act_it_out._get_room(code)["controller_pairings"]["gold"]["claimed"] is True
+
+
+def test_family_join_and_pair_abort_if_room_disappears_during_submit(monkeypatch):
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    joining = app.test_client()
+    pairing = app.test_client()
+    _prime(host, "vanishing-family-room@example.com")
+    _prime(joining)
+    created, code = _create_family_room(host, play_style="individual")
+    assert created.status_code == 302
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["host"]
+
+    monkeypatch.setattr(act_it_out, "_mutate_room", lambda _code, _callback: None)
+
+    joined = _post(
+        joining,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada"},
+    )
+    paired = pairing.post(
+        f"/family-game-night/controller/{code}",
+        data={"pairing_token": token},
+    )
+
+    assert joined.status_code == 404
+    assert paired.status_code == 404
+    with joining.session_transaction() as sess:
+        assert act_it_out._player_session_key(code) not in sess
 
 
 def test_draw_prepare_ui_shows_prompt_before_canvas_and_timer():

@@ -7,6 +7,13 @@ from faithsparks.views import worksheets
 
 
 class AuditHardeningTests(unittest.TestCase):
+    def test_root_favicon_is_served_and_cacheable(self):
+        response = app.app.test_client().get("/favicon.ico")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("image/", response.content_type)
+        self.assertIn("max-age=86400", response.headers["Cache-Control"])
+
     def test_csrf_query_string_token_is_rejected(self):
         client = app.app.test_client()
         with client.session_transaction() as sess:
