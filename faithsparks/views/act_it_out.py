@@ -21,6 +21,10 @@ from google.api_core import exceptions as google_exceptions
 from google.cloud import firestore as google_firestore
 
 from faithsparks.services.firestore import db
+from faithsparks.services.controller_capability import (
+    read_controller_capability,
+    set_controller_capability,
+)
 from faithsparks.services.game_content import (
     build_family_rounds,
     free_sampler_ids,
@@ -405,12 +409,18 @@ def _player_session_key(code: str) -> str:
 
 
 def _player_id(code: str) -> str | None:
-    return session.get(_player_session_key(code))
+    capability = read_controller_capability("family_game_night", code)
+    if capability and capability.get("player_id"):
+        return capability["player_id"]
+    player_id = session.get(_player_session_key(code))
+    return str(player_id) if player_id else None
 
 
 def _controller_role(code: str, room: dict | None = None) -> str | None:
     roles = session.get("family_game_controller_roles", {})
-    capability = roles.get(code) if isinstance(roles, dict) else None
+    capability = read_controller_capability("family_game_night", code)
+    if not capability:
+        capability = roles.get(code) if isinstance(roles, dict) else None
     room = room or _get_room(code)
     if isinstance(capability, str):
         legacy_pairing = (room or {}).get("controller_pairings", {}).get(capability, {})
@@ -1419,7 +1429,16 @@ def pair_family_controller(code: str):
                 if claimed.get("player_id"):
                     session[_player_session_key(code)] = claimed["player_id"]
                 roles = dict(session.get("family_game_controller_roles", {})); roles[code] = {"role": claimed["role"], "generation": claimed["generation"]}; session["family_game_controller_roles"] = roles
-                return redirect(f"/group-games/act-it-out/host/{code}" if claimed["role"] == "host" else f"/group-games/act-it-out/play/{code}")
+                response = redirect(f"/group-games/act-it-out/host/{code}" if claimed["role"] == "host" else f"/group-games/act-it-out/play/{code}")
+                set_controller_capability(
+                    response,
+                    game="family_game_night",
+                    code=code,
+                    role=claimed["role"],
+                    generation=claimed["generation"],
+                    player_id=claimed.get("player_id"),
+                )
+                return response
     response = render_template("family_game_controller_pair.html", code=code, error=error, noindex=True)
     return response, (400 if error else 200), {"Referrer-Policy": "no-referrer", "Cache-Control": "private, no-store"}
 

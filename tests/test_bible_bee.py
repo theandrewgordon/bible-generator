@@ -1430,6 +1430,35 @@ def test_bible_bee_controller_pairing_accepts_valid_one_time_token_without_sessi
     assert bible_bee._get_room(code)["controller_pairings"]["blue"]["claimed"] is True
 
 
+def test_bible_bee_controller_survives_flask_session_cookie_loss_after_pairing():
+    host = app.test_client()
+    controller = app.test_client()
+    _prime(host, "bee-controller-cookie@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "control_mode": "couch", "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        token = sess["bible_bee_pairing_tokens"][code]["couch"]
+
+    paired = controller.post(
+        f"/family-bible-bee/controller/{code}",
+        data={"pairing_token": token},
+    )
+    assert paired.status_code == 302
+    assert "faithsparks_game_controller=" in paired.headers["Set-Cookie"]
+
+    with controller.session_transaction() as sess:
+        sess.clear()
+
+    play = controller.get(f"/family-bible-bee/play/{code}")
+    state = controller.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert play.status_code == 200
+    assert state["viewer"]["can_answer"] is True
+
+
 def test_bible_bee_join_and_pair_abort_if_room_disappears_during_submit(monkeypatch):
     from faithsparks.views import bible_bee
 

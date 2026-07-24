@@ -20,6 +20,10 @@ from google.api_core import exceptions as google_exceptions
 from google.cloud import firestore as google_firestore
 
 from faithsparks.services.firestore import db
+from faithsparks.services.controller_capability import (
+    read_controller_capability,
+    set_controller_capability,
+)
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.bible_bee_content import (
     DECKS,
@@ -257,7 +261,9 @@ def _controller_session_key(code: str) -> str:
 
 def _controller_role(code: str, room: dict | None = None) -> str | None:
     room = room or _get_room(code)
-    capability = session.get(_controller_session_key(code))
+    capability = read_controller_capability("bible_bee", code)
+    if not capability:
+        capability = session.get(_controller_session_key(code))
     if not room or not isinstance(capability, dict):
         return None
     role = str(capability.get("role") or "")
@@ -1106,7 +1112,15 @@ def pair_controller(code: str):
             if claimed:
                 session[_controller_session_key(code)] = claimed
                 destination = "bible_bee.host_room" if claimed["role"] == "host" else "bible_bee.player_room"
-                return redirect(url_for(destination, code=code))
+                response = redirect(url_for(destination, code=code))
+                set_controller_capability(
+                    response,
+                    game="bible_bee",
+                    code=code,
+                    role=claimed["role"],
+                    generation=claimed["generation"],
+                )
+                return response
     response = render_template("family_game_controller_pair.html", code=code, error=error, noindex=True)
     return response, (400 if error else 200), {"Referrer-Policy": "no-referrer", "Cache-Control": "private, no-store"}
 

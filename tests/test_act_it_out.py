@@ -605,6 +605,32 @@ def test_couch_controller_can_run_a_two_device_team_round_without_secret_leak():
     assert reveal["last_result"]["points"] == 100
 
 
+def test_family_controller_survives_flask_session_cookie_loss_after_pairing():
+    host = app.test_client()
+    controller = app.test_client()
+    _prime(host, "controller-cookie@example.com")
+    _prime(controller)
+    _created, code = _create_family_room(host, control_mode="couch")
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["couch"]
+
+    paired = controller.post(
+        f"/family-game-night/controller/{code}",
+        data={"pairing_token": token},
+    )
+    assert paired.status_code == 302
+    assert "faithsparks_game_controller=" in paired.headers["Set-Cookie"]
+
+    with controller.session_transaction() as sess:
+        sess.clear()
+
+    play = controller.get(f"/group-games/act-it-out/play/{code}")
+    state = controller.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert play.status_code == 200
+    assert state["viewer"]["can_control"] is True
+    assert state["viewer"]["player_id"]
+
+
 def test_replacing_family_controller_revokes_the_old_browser():
     host = app.test_client(); old = app.test_client(); new = app.test_client()
     _prime(host, "replace-controller@example.com"); _prime(old); _prime(new)
