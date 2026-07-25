@@ -50,6 +50,10 @@ function escapeHTML(value) {
     .replaceAll("'", "&#039;");
 }
 
+function shortPairCode(token) {
+  return String(token || "").replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase();
+}
+
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
@@ -221,7 +225,7 @@ function initials(name) {
 }
 
 function topPlayers(players, limit = 5) {
-  return [...(players || [])].sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name)).slice(0, limit);
+  return [...(players || [])].filter(player => !player.is_controller).sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name)).slice(0, limit);
 }
 
 function topTeams(teams) {
@@ -237,7 +241,11 @@ function teamBoard(state, display = false) {
     ${state.teams.map(team => `<section class="${display ? "act-display-team" : "team-score-card"} team-${escapeHTML(team.color)}">
       <strong>${escapeHTML(team.name)}</strong>
       <output>${team.score}</output>
-      <small>${team.players} ${team.players === 1 ? "player" : "players"}</small>
+      <small>${state.control_mode === "team_auto"
+        ? (team.controller_ready ? "Phone ready" : "Waiting for phone")
+        : state.control_mode === "couch"
+          ? "Shared phone"
+          : `${team.players} ${team.players === 1 ? "player" : "players"}`}</small>
     </section>`).join("")}
   </div>`;
 }
@@ -253,8 +261,15 @@ function playerAvatar(player) {
 }
 
 function playerRows(state, manage = false) {
-  if (!state.players.length) return `<p class="host-controls">Players will appear here when they join.</p>`;
-  return state.players.map(player => {
+  const people = state.players.filter(player => !player.is_controller);
+  if (!people.length) {
+    return `<p class="host-controls">${state.control_mode === "team_auto"
+      ? "Team phones appear in the cards above."
+      : state.control_mode === "couch"
+        ? "One shared phone controls both teams."
+        : "Players will appear here when they join."}</p>`;
+  }
+  return people.map(player => {
     const teamLabel = state.team_mode && player.team_name
       ? `<small class="team-pill team-${escapeHTML(player.team_color)}">${escapeHTML(player.team_name.replace(" Team", ""))}</small>`
       : "";
@@ -275,11 +290,14 @@ function playerRows(state, manage = false) {
 }
 
 function scoreRail(state, controls = "") {
+  const pairingTokens = state.viewer.pairing_tokens || {};
   const controllerRecovery = isFamilyGameNight && role === "host" && state.viewer.is_host
-    ? Object.entries(state.controller_status || {}).map(([pairRole, paired]) => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">${paired ? "Replace" : "Create"} ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller${paired ? "" : " invite"}</button>`).join("")
+    ? Object.entries(state.controller_status || {})
+        .filter(([pairRole, paired]) => paired || !pairingTokens[pairRole])
+        .map(([pairRole, paired]) => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">${paired ? "Replace" : "Create"} ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller${paired ? "" : " invite"}</button>`).join("")
     : "";
   return `<aside class="score-rail">
-    <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
+    <h2>${state.team_mode ? "Teams" : "Players"} <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>
     ${teamBoard(state)}
     <div class="score-list">${playerRows(state, role === "host" && state.viewer.is_host && ["lobby", "round"].includes(state.phase))}</div>
     ${controls ? `<div class="host-controls judge-controls">${controls}</div>` : ""}
@@ -347,8 +365,9 @@ function renderLobby(state) {
       : Boolean(state.players.length);
   const startDisabled = controllersReady ? "" : "disabled";
   const showHostWalkthrough = role === "host" && isFamilyGameNight && state.control_mode === "hosted" && window.localStorage.getItem("familyGameNightHostWalkthrough") !== "done";
+  const realPlayers = state.players.filter(player => !player.is_controller);
   const ownerTeamControls = state.viewer.is_host && state.team_mode
-    ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>`
+    ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form>${state.control_mode === "hosted" ? `<button id="rebalance-teams" class="bee-button secondary full" type="button" ${realPlayers.length < 2 ? "disabled" : ""}>Balance players</button>` : ""}`
     : "";
   const startControl = state.viewer.is_host || state.viewer.can_control
     ? `<button id="start-game" class="bee-button primary full" type="button" ${startDisabled}>Start game</button>`
@@ -365,14 +384,14 @@ function renderLobby(state) {
           <span>Scan to join</span>
         </div>
       </div>` : ""}
-      <p>${state.control_mode === "couch" ? (couchPaired ? "Couch controller paired. Gold and Blue teams are ready." : "Waiting for the Couch controller phone.") : `${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.`}</p>
+      <p>${state.control_mode === "couch" ? (couchPaired ? "Shared controller paired. Gold and Blue teams are ready." : "Waiting for the shared controller phone.") : state.control_mode === "team_auto" ? `${Number(Boolean(state.controller_status?.gold)) + Number(Boolean(state.controller_status?.blue))} of 2 team phones paired. Each card can earn 100 points.` : `${realPlayers.length} ${realPlayers.length === 1 ? "player is" : "players are"} ready. Each card can earn 100 points.`}</p>
       <div class="room-ready-checklist" aria-label="Game readiness">
         <strong>Ready to begin?</strong>
         <span class="waiting">○ Open “TV display” on the big screen</span>
         <span class="${controllersReady ? "ready" : "waiting"}">${controllersReady ? "✓" : "○"} ${state.control_mode === "team_auto" ? "Both team phones paired" : state.control_mode === "couch" ? "Family controller paired" : "Players joined"}</span>
         <span class="waiting">○ Choose who will perform first</span>
       </div>
-      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough"><div><span>Private controller pairing</span><h2>Scan or privately share the matching controller invite</h2></div><p>These are private controller invites—not the public player room code. Each expires after about ten minutes and works once.</p><div class="controller-pair-grid">${Object.entries(state.viewer.pairing_tokens).map(([pairRole, token]) => `<article><strong>${escapeHTML(pairRole === "couch" ? "Couch controller" : pairRole === "host" ? "Private host controller" : `${pairRole} team`)}</strong>${state.controller_status?.[pairRole] ? `<span>Paired ✓</span><button class="bee-button secondary replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">Revoke and replace</button>` : `<img src="${gameBase}/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR code for ${escapeHTML(pairRole)} controller"><button class="bee-button secondary share-controller" type="button" data-pair-url="${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}#${token}`)}">Share controller invite</button><button class="text-button replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">Generate a new invite</button><code>${escapeHTML(token)}</code>`}</article>`).join("")}</div></aside>` : ""}
+      ${state.viewer.pairing_tokens && Object.keys(state.viewer.pairing_tokens).length ? `<aside class="host-walkthrough controller-invites"><div><span>Private controller pairing</span><h2>Scan the matching team card</h2></div><p>Each phone scans only its team’s QR. Or open the pairing page and enter the short code. Invites expire after about ten minutes and work once.</p><div class="controller-pair-grid">${["gold", "blue", "couch", "host"].filter(pairRole => state.viewer.pairing_tokens[pairRole]).map(pairRole => { const token = state.viewer.pairing_tokens[pairRole]; return `<article class="controller-pair-card team-${escapeHTML(pairRole)}"><strong>${escapeHTML(pairRole === "couch" ? "Shared family phone" : pairRole === "host" ? "Private host phone" : `${pairRole} team phone`)}</strong>${state.controller_status?.[pairRole] ? `<span class="controller-ready">Paired ✓</span><button class="bee-button secondary replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">Revoke and replace</button>` : `<img src="${gameBase}/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR code for ${escapeHTML(pairRole)} controller"><div class="pair-code"><span>Pair code</span><code>${escapeHTML(shortPairCode(token))}</code></div><button class="bee-button secondary share-controller" type="button" data-pair-url="${escapeHTML(`${window.location.origin}/family-game-night/controller/${code}#${token}`)}">Share invite</button><button class="text-button replace-controller" type="button" data-controller-role="${escapeHTML(pairRole)}">New code</button>`}</article>`; }).join("")}</div></aside>` : ""}
       ${showHostWalkthrough ? `<aside class="host-walkthrough" aria-labelledby="host-walkthrough-title">
         <div><span>First game?</span><h2 id="host-walkthrough-title">Three screens, one easy job.</h2></div>
         <ol>
@@ -650,10 +669,10 @@ function renderFinished(state) {
       <p>${cooperative ? `Together you earned ${state.family_score} of ${state.family_goal} goal points.` : "Great job acting, guessing, laughing, and learning together."}</p>
       ${cooperative ? `<div class="family-goal-meter"><span style="width:${Math.min(100, Math.round((state.family_score / Math.max(1, state.family_goal)) * 100))}%"></span></div>` : ""}
       ${teamBoard(state, true)}
-      <div class="top-individuals">
+      ${leaders.length ? `<div class="top-individuals">
         <h2>Top players</h2>
         ${leaders.map((player, index) => `<div><span>${index + 1}. ${escapeHTML(player.name)}</span><strong>${player.score}</strong></div>`).join("")}
-      </div>
+      </div>` : ""}
       ${learningRows ? `<div class="learning-summary"><span class="section-kicker">Tonight in Scripture</span><h2>Stories your family encountered</h2><ul>${learningRows}</ul><p>Choose one reference to read together before bed or tomorrow.</p></div>` : ""}
       <div class="next-game-actions">
         <a class="bee-button secondary" href="${gameHome}">Back to ${escapeHTML(gameTitle)}</a>
@@ -717,10 +736,10 @@ function displayRosters(state) {
   if (!state.team_mode) return "";
   return `<div class="display-rosters">
     ${state.teams.map(team => {
-      const players = state.players.filter(player => player.team_id === team.id);
+      const players = state.players.filter(player => !player.is_controller && player.team_id === team.id);
       return `<section class="display-roster team-${escapeHTML(team.color)}">
         <h2>${escapeHTML(team.name)}</h2>
-        <div>${players.length ? players.map(player => `<span>${escapeHTML(player.name)}</span>`).join("") : "<small>Waiting</small>"}</div>
+        <div>${players.length ? players.map(player => `<span>${escapeHTML(player.name)}</span>`).join("") : `<small>${state.control_mode === "team_auto" ? (team.controller_ready ? "Phone ready" : "Waiting for phone") : "Waiting"}</small>`}</div>
       </section>`;
     }).join("")}
   </div>`;
@@ -740,7 +759,11 @@ function renderDisplay(state) {
         <div><span>Room code</span><strong>${escapeHTML(code)}</strong></div>
         <img src="${gameBase}/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
       </div>`}
-      <p class="display-count">${state.control_mode === "couch" && state.controller_status?.couch ? escapeHTML(couchReadyMessage) : `${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready`} · ${state.round_total} cards · 100 points each</p>
+      <p class="display-count">${state.control_mode === "couch" && state.controller_status?.couch
+        ? escapeHTML(couchReadyMessage)
+        : state.control_mode === "team_auto"
+          ? `${Number(Boolean(state.controller_status?.gold)) + Number(Boolean(state.controller_status?.blue))} of 2 team phones paired`
+          : `${state.players.filter(player => !player.is_controller).length} players ready`} · ${state.round_total} cards · 100 points each</p>
       ${displayRosters(state)}
     </section>`;
   } else if (state.phase === "prepare") {
@@ -797,10 +820,10 @@ function renderDisplay(state) {
       <h1>${heading}</h1>
       ${cooperative ? `<p>Together: ${state.family_score} of ${state.family_goal} goal points</p><div class="family-goal-meter"><span style="width:${Math.min(100, Math.round((state.family_score / Math.max(1, state.family_goal)) * 100))}%"></span></div>` : ""}
       ${teamBoard(state, true)}
-      <div class="display-top-players">
+      ${leaders.length ? `<div class="display-top-players">
         <h2>Top players</h2>
         ${leaders.map((player, index) => `<div><span>${index + 1}. ${escapeHTML(player.name)}</span><strong>${player.score}</strong></div>`).join("")}
-      </div>
+      </div>` : ""}
     </section>`;
   }
 }

@@ -1430,6 +1430,38 @@ def test_bible_bee_controller_pairing_accepts_valid_one_time_token_without_sessi
     assert bible_bee._get_room(code)["controller_pairings"]["blue"]["claimed"] is True
 
 
+def test_bible_bee_short_codes_pair_and_controller_players_cannot_be_moved():
+    from faithsparks.views import bible_bee
+
+    host = app.test_client()
+    blue = app.test_client()
+    _prime(host, "protected-bee-controller@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "control_mode": "team_auto", "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+    with host.session_transaction() as sess:
+        token = sess["bible_bee_pairing_tokens"][code]["blue"]
+
+    paired = blue.post(
+        f"/family-bible-bee/controller/{code}",
+        data={"pairing_token": bible_bee._pair_code(token).lower()},
+    )
+    assert paired.status_code == 302
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    controller = next(player for player in state["players"] if player["is_controller"])
+    blue_team = next(team for team in state["teams"] if team["id"] == "blue")
+    assert blue_team["players"] == 0
+    assert blue_team["controller_ready"] is True
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/players/{controller['id']}/team", json={}).status_code == 409
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/players/{controller['id']}/remove", json={}).status_code == 409
+    assert _post(host, f"/api/family-bible-bee/rooms/{code}/teams/rebalance", json={}).status_code == 200
+    room = bible_bee._get_room(code)
+    assert room["players"][controller["id"]]["team_id"] == "blue"
+
+
 def test_initial_bible_bee_team_invites_survive_session_token_loss():
     host = app.test_client()
     _prime(host, "durable-bee-team-invites@example.com")

@@ -278,6 +278,24 @@ def _controller_role(code: str, room: dict | None = None) -> str | None:
     return role
 
 
+def _pair_code(token: str) -> str:
+    return "".join(character for character in token if character.isalnum())[:8].upper()
+
+
+def _controller_player_ids(room: dict) -> set[str]:
+    paired_ids = {
+        str(pairing.get("player_id"))
+        for pairing in room.get("controller_pairings", {}).values()
+        if pairing.get("player_id")
+    }
+    paired_ids.update(
+        player_id
+        for player_id, player in room.get("players", {}).items()
+        if player.get("controller_role") or player.get("virtual_controller_team")
+    )
+    return paired_ids
+
+
 def _pairing_roles(control_mode: str) -> list[str]:
     if control_mode == "couch":
         return ["couch"]
@@ -291,6 +309,7 @@ def _fresh_pairing() -> tuple[str, dict]:
     generation = secrets.token_urlsafe(16)
     return token, {
         "token_hash": hashlib.sha256(token.encode()).hexdigest(),
+        "pair_code_hash": hashlib.sha256(_pair_code(token).encode()).hexdigest(),
         "expires_at": time.time() + CONTROLLER_PAIR_TTL_SECONDS,
         "claimed": False,
         "generation": generation,
@@ -402,7 +421,10 @@ def _team_meta(team_id: str | None) -> dict | None:
 
 def _balanced_team_id(room: dict) -> str:
     counts = {team["id"]: 0 for team in TEAMS}
-    for player in room.get("players", {}).values():
+    controller_ids = _controller_player_ids(room)
+    for player_id, player in room.get("players", {}).items():
+        if player_id in controller_ids:
+            continue
         team_id = player.get("team_id")
         if team_id in counts:
             counts[team_id] += 1
@@ -416,8 +438,13 @@ def _balanced_team_id(room: dict) -> str:
 def _assign_balanced_teams(room: dict) -> None:
     if not room.get("team_mode"):
         return
+    controller_ids = _controller_player_ids(room)
     players = sorted(
-        room.get("players", {}).items(),
+        (
+            item
+            for item in room.get("players", {}).items()
+            if item[0] not in controller_ids
+        ),
         key=lambda item: (float(item[1].get("joined_at", 0)), item[1].get("name", "").lower()),
     )
     for index, (_player_id, player) in enumerate(players):
@@ -428,6 +455,7 @@ def _team_state(room: dict) -> list[dict]:
     if not room.get("team_mode"):
         return []
     players = room.get("players", {})
+    controller_ids = _controller_player_ids(room)
     team_names = room.get("team_names", {})
     return [
         {
@@ -438,7 +466,14 @@ def _team_state(room: dict) -> list[dict]:
                 for player in players.values()
                 if player.get("team_id") == team["id"]
             ) + int(room.get("team_score_adjustments", {}).get(team["id"], 0))),
-            "players": sum(1 for player in players.values() if player.get("team_id") == team["id"]),
+            "players": sum(
+                1
+                for player_id, player in players.items()
+                if player_id not in controller_ids and player.get("team_id") == team["id"]
+            ),
+            "controller_ready": bool(
+                room.get("controller_pairings", {}).get(team["id"], {}).get("claimed")
+            ),
         }
         for team in TEAMS
     ]
@@ -694,7 +729,10 @@ def _build_review_summary(room: dict) -> dict:
         key=lambda item: (-item["correct"], item["reference"]),
     )[:3]
     player_feedback = []
+    controller_ids = _controller_player_ids(room)
     for player_id, player in room.get("players", {}).items():
+        if player_id in controller_ids:
+            continue
         correct = sum(player_id in result.get("correct_players", []) for result in results)
         badge = "Reference Racer" if any(
             player_id in result.get("correct_players", []) and result.get("mode") == "Reference Race"
@@ -808,6 +846,7 @@ def _public_room(room: dict, code: str) -> dict:
                     else None
                 ),
                 "avatar_preset": player.get("avatar_preset"),
+                "is_controller": player_id in _controller_player_ids(room),
             }
         )
     players = sorted(
@@ -1074,11 +1113,17 @@ def pair_controller(code: str):
         else:
             token = (request.form.get("pairing_token") or "").strip()
             digest = hashlib.sha256(token.encode()).hexdigest()
+            pair_code_digest = hashlib.sha256(_pair_code(token).encode()).hexdigest()
             claimed = {}
 
             def claim(current):
                 for role, pairing in current.get("controller_pairings", {}).items():
-                    if secrets.compare_digest(str(pairing.get("token_hash") or ""), digest):
+                    full_match = secrets.compare_digest(str(pairing.get("token_hash") or ""), digest)
+                    short_match = bool(
+                        pairing.get("pair_code_hash")
+                        and secrets.compare_digest(pairing["pair_code_hash"], pair_code_digest)
+                    )
+                    if full_match or short_match:
                         if pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
                             raise ValueError("This controller invite expired or was already used.")
                         pairing["claimed"] = True
@@ -1096,6 +1141,7 @@ def pair_controller(code: str):
                                 "joined_at": time.time(), "last_seen": time.time(), "away": False,
                                 "team_id": role, "avatar": None,
                                 "avatar_preset": "sunflower" if role == "gold" else "ocean",
+                                "controller_role": role,
                             }
                         elif role == "couch":
                             for index, team in enumerate(("gold", "blue")):
@@ -1106,6 +1152,7 @@ def pair_controller(code: str):
                                     "team_id": team, "avatar": None,
                                     "avatar_preset": "sunflower" if team == "gold" else "ocean",
                                     "virtual_controller_team": True,
+                                    "controller_role": "couch",
                                 })
                                 player["last_seen"] = time.time()
                                 player["away"] = False
@@ -2103,6 +2150,8 @@ def switch_player_team(code: str, player_id: str):
         player = current.get("players", {}).get(player_id)
         if not player:
             raise ValueError("That player is no longer in the room.")
+        if player_id in _controller_player_ids(current):
+            raise ValueError("Controller phones stay with their assigned teams.")
         current_id = player.get("team_id")
         team_ids = [team["id"] for team in TEAMS]
         next_index = (team_ids.index(current_id) + 1) % len(team_ids) if current_id in team_ids else 0
@@ -2127,6 +2176,8 @@ def remove_player(code: str, player_id: str):
     def remove(current):
         if current.get("phase") != "lobby":
             raise ValueError("Players can only be removed before the game starts.")
+        if player_id in _controller_player_ids(current):
+            raise ValueError("Use Replace controller to disconnect a team phone.")
         current.get("players", {}).pop(player_id, None)
         current.get("answers", {}).pop(player_id, None)
 

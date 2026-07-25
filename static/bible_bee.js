@@ -36,6 +36,10 @@ const presetAvatars = [
   ["cross", "Jesus on the cross"],
 ];
 
+function shortPairCode(token) {
+  return String(token || "").replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase();
+}
+
 function updateSoundToggle() {
   if (!soundToggle) return;
   soundToggle.textContent = soundEnabled ? "Sound on" : "Sound off";
@@ -243,6 +247,7 @@ function initials(name) {
 
 function sortedTopPlayers(players, limit = 5) {
   return [...(players || [])]
+    .filter(player => !player.is_controller)
     .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name))
     .slice(0, limit);
 }
@@ -268,13 +273,13 @@ function displayTeamRosters(state) {
   if (!state.team_mode || !state.teams?.length) return "";
   return `<div class="display-rosters">
     ${state.teams.map(team => {
-      const players = state.players.filter(player => player.team_id === team.id);
+      const players = state.players.filter(player => !player.is_controller && player.team_id === team.id);
       return `<section class="display-roster team-${escapeHTML(team.color)}">
         <h2>${escapeHTML(team.name)}</h2>
         <div>
           ${players.length
             ? players.map(player => `<span>${escapeHTML(player.name)}</span>`).join("")
-            : `<small>Waiting for players</small>`}
+            : `<small>${state.control_mode === "team_auto" ? (team.controller_ready ? "Phone ready" : "Waiting for phone") : "Waiting for players"}</small>`}
         </div>
       </section>`;
     }).join("")}
@@ -282,20 +287,24 @@ function displayTeamRosters(state) {
 }
 
 function scoreRail(state, controls = "") {
+  const pairingTokens = state.viewer.pairing_tokens || {};
   const controllerRecovery = role === "host" && state.viewer.is_owner
-    ? Object.entries(state.controller_status || {}).map(([pairRole, paired]) => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">${paired ? "Replace" : "Create"} ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller${paired ? "" : " invite"}</button>`).join("")
+    ? Object.entries(state.controller_status || {})
+        .filter(([pairRole, paired]) => paired || !pairingTokens[pairRole])
+        .map(([pairRole, paired]) => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">${paired ? "Replace" : "Create"} ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller${paired ? "" : " invite"}</button>`).join("")
     : "";
   const teamBoard = state.team_mode && state.teams?.length
     ? `<div class="team-scoreboard">
         ${state.teams.map(team => `<div class="team-score-card team-${escapeHTML(team.color)}">
           <strong>${escapeHTML(team.name)}</strong>
           <output>${team.score}</output>
-          <small>${team.players} ${team.players === 1 ? "player" : "players"}</small>
+          <small>${state.control_mode === "team_auto" ? (team.controller_ready ? "Phone ready" : "Waiting for phone") : state.control_mode === "couch" ? "Shared phone" : `${team.players} ${team.players === 1 ? "player" : "players"}`}</small>
         </div>`).join("")}
       </div>`
     : "";
-  const players = state.players.length
-    ? state.players.map(player => {
+  const people = state.players.filter(player => !player.is_controller);
+  const players = people.length
+    ? people.map(player => {
         const avatar = player.avatar_preset
           ? `<span class="preset-avatar avatar-${escapeHTML(player.avatar_preset)}" aria-hidden="true"></span>`
           : player.avatar
@@ -324,9 +333,9 @@ function scoreRail(state, controls = "") {
           ${management}
         </div>`;
       }).join("")
-    : `<p class="host-controls">Players will appear here when they join.</p>`;
+    : `<p class="host-controls">${state.control_mode === "team_auto" ? "Team phones appear in the cards above." : state.control_mode === "couch" ? "One shared phone controls both teams." : "Players will appear here when they join."}</p>`;
   return `<aside class="score-rail">
-    <h2>Players <span class="family-score">Family ${state.family_score || 0}</span></h2>
+    <h2>${state.team_mode ? "Teams" : "Players"} <span class="family-score">Family ${state.family_score || 0}</span></h2>
     ${teamBoard}
     <div class="score-list">${players}</div>
     ${role === "host" ? `
@@ -379,16 +388,18 @@ function renderLobby(state) {
   const requiredRoles = state.control_mode === "couch" ? ["couch"] : state.control_mode === "team_auto" ? ["gold", "blue"] : ["host"];
   const controllersReady = state.control_mode === "hosted" || requiredRoles.every(pairRole => state.controller_status?.[pairRole]);
   const startDisabled = state.players.length && controllersReady ? "" : "disabled";
+  const realPlayers = state.players.filter(player => !player.is_controller);
   const ownerTeamControls = state.viewer.is_owner && state.team_mode
-    ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form><button id="rebalance-teams" class="bee-button secondary full" type="button" ${state.players.length < 2 ? "disabled" : ""}>Balance teams</button>`
+    ? `<form id="team-name-form"><input name="gold" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "gold")?.name || "Gold Team")}" aria-label="Gold team name"><input name="blue" maxlength="18" value="${escapeHTML(state.teams.find(team => team.id === "blue")?.name || "Blue Team")}" aria-label="Blue team name"><button class="bee-button secondary full" type="submit">Save team names</button></form>${state.control_mode === "hosted" ? `<button id="rebalance-teams" class="bee-button secondary full" type="button" ${realPlayers.length < 2 ? "disabled" : ""}>Balance players</button>` : ""}`
     : "";
   const tokens = state.viewer.pairing_tokens || {};
-  const pairingCards = Object.entries(tokens).map(([pairRole, token]) => {
+  const pairingCards = ["gold", "blue", "couch", "host"].filter(pairRole => tokens[pairRole]).map(pairRole => {
+    const token = tokens[pairRole];
     const paired = state.controller_status?.[pairRole];
     const label = pairRole === "couch" ? "Shared family controller" : pairRole === "host" ? "Private host controller" : `${pairRole} team controller`;
-    return `<article class="controller-pair-card"><strong>${escapeHTML(label)}</strong>${paired
+    return `<article class="controller-pair-card team-${escapeHTML(pairRole)}"><strong>${escapeHTML(label)}</strong>${paired
       ? `<span>Paired ✓</span><button class="bee-button secondary replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Revoke and replace</button>`
-      : `<img src="/family-bible-bee/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR for ${escapeHTML(label)}"><button class="bee-button secondary share-controller" data-pair-url="${escapeHTML(`${window.location.origin}/family-bible-bee/controller/${code}#${token}`)}" type="button">Share private invite</button><button class="text-button replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Generate a new invite</button><code>${escapeHTML(token)}</code>`}</article>`;
+      : `<img src="/family-bible-bee/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR for ${escapeHTML(label)}"><div class="pair-code"><span>Pair code</span><code>${escapeHTML(shortPairCode(token))}</code></div><button class="bee-button secondary share-controller" data-pair-url="${escapeHTML(`${window.location.origin}/family-bible-bee/controller/${code}#${token}`)}" type="button">Share invite</button><button class="text-button replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">New code</button>`}</article>`;
   }).join("");
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">
@@ -403,7 +414,7 @@ function renderLobby(state) {
         </div>
       </div>` : ""}
       ${pairingCards ? `<div class="controller-pair-grid">${pairingCards}</div>` : ""}
-      <p>${state.players.length} ${state.players.length === 1 ? "player is" : "players are"} ready</p>
+      <p>${state.control_mode === "team_auto" ? `${Number(Boolean(state.controller_status?.gold)) + Number(Boolean(state.controller_status?.blue))} of 2 team phones paired` : state.control_mode === "couch" ? (state.controller_status?.couch ? "Shared controller paired" : "Waiting for the shared controller phone") : `${realPlayers.length} ${realPlayers.length === 1 ? "player is" : "players are"} ready`}</p>
       <div class="room-ready-checklist" aria-label="Game readiness">
         <strong>Ready to begin?</strong>
         <span class="ready">✓ ${escapeHTML(state.deck_name)} selected</span>
@@ -624,10 +635,11 @@ function renderFinished(state) {
       <b>${player.correct} of ${player.total} correct</b>
       <p>${escapeHTML(player.message)}</p>
     </div>`).join("");
-  const topIndividualRows = state.team_mode
+  const topPeople = sortedTopPlayers(state.players, 5);
+  const topIndividualRows = state.team_mode && topPeople.length
     ? `<div class="top-individuals">
         <h2>Top players</h2>
-        ${sortedTopPlayers(state.players, 5).map((player, index) => `<div>
+        ${topPeople.map((player, index) => `<div>
           <span>${index + 1}. ${escapeHTML(player.name)}</span>
           <strong>${player.score}</strong>
         </div>`).join("")}
@@ -679,7 +691,7 @@ function renderDisplayLobby(state) {
       </div>
       <img src="/family-bible-bee/room/${encodeURIComponent(code)}/qr" alt="QR code to join room ${escapeHTML(code)}">
     </div>`}
-    <p class="display-count">${state.control_mode === "couch" && state.controller_status?.couch ? escapeHTML(couchReadyMessage) : `${state.players.length} ${state.players.length === 1 ? "player" : "players"} ready`}</p>
+    <p class="display-count">${state.control_mode === "couch" && state.controller_status?.couch ? escapeHTML(couchReadyMessage) : state.control_mode === "team_auto" ? `${Number(Boolean(state.controller_status?.gold)) + Number(Boolean(state.controller_status?.blue))} of 2 team phones paired` : `${state.players.filter(player => !player.is_controller).length} players ready`}</p>
     ${displayTeamRosters(state)}
   </section>`;
 }

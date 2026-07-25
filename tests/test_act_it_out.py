@@ -811,6 +811,34 @@ def test_team_auto_assigns_private_prompt_to_actor_or_waiting_guess_judge():
     assert _post(controller_client, f"/api/group-games/act-it-out/rooms/{code}/correct", json={}).status_code == 200
 
 
+def test_family_team_short_codes_pair_and_controller_players_cannot_be_moved():
+    from faithsparks.views import act_it_out
+
+    host = app.test_client()
+    gold = app.test_client()
+    _prime(host, "protected-family-controller@example.com")
+    _prime(gold)
+    _created, code = _create_family_room(host, control_mode="team_auto")
+    with host.session_transaction() as sess:
+        token = sess["family_game_pairing_tokens"][code]["gold"]
+
+    paired = gold.post(
+        f"/family-game-night/controller/{code}",
+        data={"pairing_token": act_it_out._pair_code(token).lower()},
+    )
+    assert paired.status_code == 302
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    controller = next(player for player in state["players"] if player["is_controller"])
+    gold_team = next(team for team in state["teams"] if team["id"] == "gold")
+    assert gold_team["players"] == 0
+    assert gold_team["controller_ready"] is True
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/players/{controller['id']}/team", json={}).status_code == 409
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/players/{controller['id']}/remove", json={}).status_code == 409
+    assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/teams/rebalance", json={}).status_code == 200
+    room = act_it_out._get_room(code)
+    assert room["players"][controller["id"]]["team_id"] == "gold"
+
+
 def test_couch_guess_answer_requires_deliberate_judge_reveal(monkeypatch):
     from faithsparks.views import act_it_out
 
@@ -863,7 +891,7 @@ def test_controller_pair_page_consumes_fragment_without_sending_it_to_server():
     script = open("static/act_it_out.js", encoding="utf-8").read()
     assert "location.hash.slice(1)" in template
     assert "history.replaceState" in template
-    assert "Share controller invite" in script
+    assert "Share invite" in script
     assert "controller-qr" in script
 
 
