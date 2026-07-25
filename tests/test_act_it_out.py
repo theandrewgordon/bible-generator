@@ -506,6 +506,29 @@ def test_family_game_night_host_keeps_control_when_oauth_state_disappears():
     assert _post(host, f"/api/group-games/act-it-out/rooms/{code}/start").status_code == 200
 
 
+def test_family_host_survives_complete_flask_session_cookie_loss():
+    host = app.test_client()
+    _prime(host, "durable-host@example.com")
+    created, code = _create_family_room(host, play_style="individual")
+    assert created.status_code == 302
+    assert f"faithsparks_family_game_night_host_{code}=" in created.headers["Set-Cookie"]
+
+    with host.session_transaction() as sess:
+        sess.clear()
+
+    assert host.get(f"/group-games/act-it-out/host/{code}").status_code == 200
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert state["viewer"]["is_host"] is True
+    with host.session_transaction() as sess:
+        refreshed_csrf = sess["_csrf_token"]
+    renamed = host.post(
+        f"/api/family-game-night/rooms/{code}/teams/names",
+        json={"gold": "Sun Team", "blue": "Sky Team"},
+        headers={"X-CSRF-Token": refreshed_csrf},
+    )
+    assert renamed.status_code == 200
+
+
 def test_room_code_alone_does_not_grant_host_control():
     host = app.test_client()
     visitor = app.test_client()

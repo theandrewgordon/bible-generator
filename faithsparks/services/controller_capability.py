@@ -15,6 +15,7 @@ from itsdangerous import BadData, URLSafeSerializer
 
 COOKIE_NAME = "faithsparks_game_controller"
 COOKIE_SALT = "faithsparks-controller-capability-v1"
+HOST_COOKIE_SALT = "faithsparks-room-host-capability-v1"
 MAX_AGE_SECONDS = 6 * 60 * 60
 
 
@@ -63,6 +64,51 @@ def set_controller_capability(
     )
     response.set_cookie(
         COOKIE_NAME,
+        signed,
+        max_age=MAX_AGE_SECONDS,
+        secure=request.is_secure,
+        httponly=True,
+        samesite="Lax",
+        path="/",
+    )
+
+
+def _host_cookie_name(game: str, code: str) -> str:
+    safe_game = "".join(character for character in game if character.isalnum() or character == "_")
+    safe_code = "".join(character for character in code.upper() if character.isalnum())
+    return f"faithsparks_{safe_game}_host_{safe_code}"
+
+
+def read_room_host_capability(game: str, code: str) -> str | None:
+    signed = request.cookies.get(_host_cookie_name(game, code))
+    if not signed:
+        return None
+    serializer = URLSafeSerializer(current_app.secret_key, salt=HOST_COOKIE_SALT)
+    try:
+        value = serializer.loads(signed)
+    except BadData:
+        return None
+    if not isinstance(value, dict):
+        return None
+    if value.get("game") != game or value.get("code") != code.upper():
+        return None
+    host_key = str(value.get("host_key") or "")
+    return host_key or None
+
+
+def set_room_host_capability(
+    response: Any,
+    *,
+    game: str,
+    code: str,
+    host_key: str,
+) -> None:
+    serializer = URLSafeSerializer(current_app.secret_key, salt=HOST_COOKIE_SALT)
+    signed = serializer.dumps(
+        {"game": game, "code": code.upper(), "host_key": host_key}
+    )
+    response.set_cookie(
+        _host_cookie_name(game, code),
         signed,
         max_age=MAX_AGE_SECONDS,
         secure=request.is_secure,

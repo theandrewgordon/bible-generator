@@ -4460,7 +4460,9 @@ def handle_403(e):
     try:
         return render_template("403.html"), 403
     except Exception:
-        return "Forbidden (CSRF)", 403
+        # Not every authorization failure is CSRF. In particular, stale game
+        # tabs can lose room ownership without making a mutating request.
+        return "Forbidden", 403
 
 
 @app.errorhandler(404)

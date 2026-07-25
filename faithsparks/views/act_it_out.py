@@ -23,7 +23,9 @@ from google.cloud import firestore as google_firestore
 from faithsparks.services.firestore import db
 from faithsparks.services.controller_capability import (
     read_controller_capability,
+    read_room_host_capability,
     set_controller_capability,
+    set_room_host_capability,
 )
 from faithsparks.services.game_content import (
     build_family_rounds,
@@ -393,7 +395,10 @@ def _is_host(code: str, room: dict | None = None) -> bool:
         return False
     if email and room.get("host_email") == email:
         return True
-    session_key = _session_host_key(code)
+    session_key = (
+        read_room_host_capability("family_game_night", code)
+        or _session_host_key(code)
+    )
     room_key = str(room.get("host_key") or "")
     return bool(session_key and room_key and secrets.compare_digest(session_key, room_key))
 
@@ -1243,7 +1248,14 @@ def create_family_game_night_room():
         [round_["prompt_id"] for round_ in rounds],
     )
     _record_family_funnel_event("room_created", room, code)
-    return redirect(f"/group-games/act-it-out/host/{code}")
+    response = redirect(f"/group-games/act-it-out/host/{code}")
+    set_room_host_capability(
+        response,
+        game="family_game_night",
+        code=code,
+        host_key=str(room["host_key"]),
+    )
+    return response
 
 
 @bp.get("/church-games/act-it-out")
@@ -1348,7 +1360,14 @@ def _create_room(game_type: str):
     _register_host_room(code, room)
     _set_room(code, room)
     host_path = f"/group-games/draw-it/host/{code}" if game_type == "draw_it" else f"/group-games/act-it-out/host/{code}"
-    return redirect(host_path)
+    response = redirect(host_path)
+    set_room_host_capability(
+        response,
+        game="family_game_night",
+        code=code,
+        host_key=str(room["host_key"]),
+    )
+    return response
 
 
 @bp.get("/church-games/act-it-out/host/<code>")
