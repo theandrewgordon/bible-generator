@@ -1430,6 +1430,28 @@ def test_bible_bee_controller_pairing_accepts_valid_one_time_token_without_sessi
     assert bible_bee._get_room(code)["controller_pairings"]["blue"]["claimed"] is True
 
 
+def test_initial_bible_bee_team_invites_survive_session_token_loss():
+    host = app.test_client()
+    _prime(host, "durable-bee-team-invites@example.com")
+    created = _post(
+        host,
+        "/family-bible-bee/create",
+        data={"csrf_token": CSRF, "control_mode": "team_auto", "round_count": "3"},
+    )
+    code = created.headers["Location"].rsplit("/", 1)[-1]
+
+    with host.session_transaction() as sess:
+        sess.pop("bible_bee_pairing_tokens", None)
+
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert set(state["viewer"]["pairing_tokens"]) == {"gold", "blue"}
+    assert state["controller_status"] == {"gold": False, "blue": False}
+    for role in ("gold", "blue"):
+        qr = host.get(f"/family-bible-bee/room/{code}/controller-qr/{role}")
+        assert qr.status_code == 200
+        assert qr.mimetype == "image/png"
+
+
 def test_bible_bee_controller_survives_flask_session_cookie_loss_after_pairing():
     host = app.test_client()
     controller = app.test_client()

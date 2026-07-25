@@ -529,6 +529,24 @@ def test_family_host_survives_complete_flask_session_cookie_loss():
     assert renamed.status_code == 200
 
 
+def test_initial_family_team_invites_survive_general_session_token_loss():
+    host = app.test_client()
+    _prime(host, "durable-team-invites@example.com")
+    created, code = _create_family_room(host, control_mode="team_auto")
+    assert created.status_code == 302
+
+    with host.session_transaction() as sess:
+        sess.pop("family_game_pairing_tokens", None)
+
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert set(state["viewer"]["pairing_tokens"]) == {"gold", "blue"}
+    assert state["controller_status"] == {"gold": False, "blue": False}
+    for role in ("gold", "blue"):
+        qr = host.get(f"/group-games/act-it-out/room/{code}/controller-qr/{role}")
+        assert qr.status_code == 200
+        assert qr.mimetype == "image/png"
+
+
 def test_room_code_alone_does_not_grant_host_control():
     host = app.test_client()
     visitor = app.test_client()

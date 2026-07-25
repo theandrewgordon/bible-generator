@@ -23,8 +23,10 @@ from google.cloud import firestore as google_firestore
 from faithsparks.services.firestore import db
 from faithsparks.services.controller_capability import (
     read_controller_capability,
+    read_controller_invite,
     read_room_host_capability,
     set_controller_capability,
+    set_controller_invite,
     set_room_host_capability,
 )
 from faithsparks.services.game_content import (
@@ -1255,6 +1257,14 @@ def create_family_game_night_room():
         code=code,
         host_key=str(room["host_key"]),
     )
+    for role, token in raw_pairings.items():
+        set_controller_invite(
+            response,
+            game="family_game_night",
+            code=code,
+            role=role,
+            token=token,
+        )
     return response
 
 
@@ -1487,6 +1497,7 @@ def controller_pair_qr(code: str, role: str):
         abort(403)
     all_tokens = session.get("family_game_pairing_tokens", {})
     token = all_tokens.get(code, {}).get(role) if isinstance(all_tokens, dict) else None
+    token = token or read_controller_invite("family_game_night", code, role)
     pairing = room.get("controller_pairings", {}).get(role, {})
     if not token or pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
         abort(410)
@@ -1540,7 +1551,15 @@ def replace_family_controller(code: str, role: str):
     all_tokens = dict(session.get("family_game_pairing_tokens", {}))
     room_tokens = dict(all_tokens.get(code, {})); room_tokens[role] = token; all_tokens[code] = room_tokens
     session["family_game_pairing_tokens"] = all_tokens
-    return jsonify({"ok": True, "token": token})
+    response = jsonify({"ok": True, "token": token})
+    set_controller_invite(
+        response,
+        game="family_game_night",
+        code=code,
+        role=role,
+        token=token,
+    )
+    return response
 
 
 @bp.post("/api/family-game-night/rooms/<code>/teams/names")
@@ -1896,7 +1915,13 @@ def room_state(code: str):
     }
     if viewer["is_host"]:
         all_tokens = session.get("family_game_pairing_tokens", {})
-        viewer["pairing_tokens"] = all_tokens.get(code, {}) if isinstance(all_tokens, dict) else {}
+        room_tokens = dict(all_tokens.get(code, {})) if isinstance(all_tokens, dict) else {}
+        for role, pairing in room.get("controller_pairings", {}).items():
+            if not pairing.get("claimed") and role not in room_tokens:
+                token = read_controller_invite("family_game_night", code, role)
+                if token:
+                    room_tokens[role] = token
+        viewer["pairing_tokens"] = room_tokens
     can_see_guess_answer = bool(
         active and active.get("mode") == "guess" and (
             host_can_run_game

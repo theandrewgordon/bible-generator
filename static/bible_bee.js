@@ -283,7 +283,7 @@ function displayTeamRosters(state) {
 
 function scoreRail(state, controls = "") {
   const controllerRecovery = role === "host" && state.viewer.is_owner
-    ? Object.keys(state.controller_status || {}).map(pairRole => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Replace ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller</button>`).join("")
+    ? Object.entries(state.controller_status || {}).map(([pairRole, paired]) => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">${paired ? "Replace" : "Create"} ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller${paired ? "" : " invite"}</button>`).join("")
     : "";
   const teamBoard = state.team_mode && state.teams?.length
     ? `<div class="team-scoreboard">
@@ -388,7 +388,7 @@ function renderLobby(state) {
     const label = pairRole === "couch" ? "Shared family controller" : pairRole === "host" ? "Private host controller" : `${pairRole} team controller`;
     return `<article class="controller-pair-card"><strong>${escapeHTML(label)}</strong>${paired
       ? `<span>Paired ✓</span><button class="bee-button secondary replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Revoke and replace</button>`
-      : `<img src="/family-bible-bee/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR for ${escapeHTML(label)}"><button class="bee-button secondary share-controller" data-pair-url="${escapeHTML(`${window.location.origin}/family-bible-bee/controller/${code}#${token}`)}" type="button">Share private invite</button><button class="text-button replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Generate a new invite</button>`}</article>`;
+      : `<img src="/family-bible-bee/room/${encodeURIComponent(code)}/controller-qr/${encodeURIComponent(pairRole)}" alt="Private QR for ${escapeHTML(label)}"><button class="bee-button secondary share-controller" data-pair-url="${escapeHTML(`${window.location.origin}/family-bible-bee/controller/${code}#${token}`)}" type="button">Share private invite</button><button class="text-button replace-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Generate a new invite</button><code>${escapeHTML(token)}</code>`}</article>`;
   }).join("");
   app.innerHTML = `<div class="game-layout">
     <section class="game-stage lobby-stage">

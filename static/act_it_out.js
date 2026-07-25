@@ -276,7 +276,7 @@ function playerRows(state, manage = false) {
 
 function scoreRail(state, controls = "") {
   const controllerRecovery = isFamilyGameNight && role === "host" && state.viewer.is_host
-    ? Object.keys(state.controller_status || {}).map(pairRole => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">Replace ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller</button>`).join("")
+    ? Object.entries(state.controller_status || {}).map(([pairRole, paired]) => `<button class="text-button recover-controller" data-controller-role="${escapeHTML(pairRole)}" type="button">${paired ? "Replace" : "Create"} ${escapeHTML(pairRole === "couch" ? "family" : pairRole)} controller${paired ? "" : " invite"}</button>`).join("")
     : "";
   return `<aside class="score-rail">
     <h2>Players <span class="family-score">${state.team_mode ? "Team points" : "Points"}</span></h2>

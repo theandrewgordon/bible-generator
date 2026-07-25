@@ -22,7 +22,9 @@ from google.cloud import firestore as google_firestore
 from faithsparks.services.firestore import db
 from faithsparks.services.controller_capability import (
     read_controller_capability,
+    read_controller_invite,
     set_controller_capability,
+    set_controller_invite,
 )
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.bible_bee_content import (
@@ -1032,7 +1034,16 @@ def create_room():
     if code not in host_rooms:
         host_rooms.append(code)
     session["bible_bee_host_rooms"] = host_rooms[-8:]
-    return redirect(url_for("bible_bee.host_room", code=code))
+    response = redirect(url_for("bible_bee.host_room", code=code))
+    for role, token in raw_pairings.items():
+        set_controller_invite(
+            response,
+            game="bible_bee",
+            code=code,
+            role=role,
+            token=token,
+        )
+    return response
 
 
 @bp.get("/family-bible-bee/host/<code>")
@@ -1142,6 +1153,7 @@ def controller_qr(code: str, role: str):
         abort(403)
     raw = session.get("bible_bee_pairing_tokens", {})
     token = raw.get(code, {}).get(role) if isinstance(raw, dict) else None
+    token = token or read_controller_invite("bible_bee", code, role)
     pairing = room["controller_pairings"][role]
     if not token or pairing.get("claimed") or time.time() > float(pairing.get("expires_at", 0)):
         abort(410)
@@ -1187,7 +1199,15 @@ def replace_controller(code: str, role: str):
     raw = dict(session.get("bible_bee_pairing_tokens", {}))
     room_tokens = dict(raw.get(code, {})); room_tokens[role] = token; raw[code] = room_tokens
     session["bible_bee_pairing_tokens"] = raw
-    return jsonify({"ok": True, "token": token})
+    response = jsonify({"ok": True, "token": token})
+    set_controller_invite(
+        response,
+        game="bible_bee",
+        code=code,
+        role=role,
+        token=token,
+    )
+    return response
 
 
 @bp.post("/api/family-bible-bee/rooms/<code>/teams/names")
@@ -1443,7 +1463,13 @@ def room_state(code: str):
     }
     if _is_host(code, room):
         tokens = session.get("bible_bee_pairing_tokens", {})
-        state["viewer"]["pairing_tokens"] = tokens.get(code, {}) if isinstance(tokens, dict) else {}
+        room_tokens = dict(tokens.get(code, {})) if isinstance(tokens, dict) else {}
+        for role, pairing in room.get("controller_pairings", {}).items():
+            if not pairing.get("claimed") and role not in room_tokens:
+                token = read_controller_invite("bible_bee", code, role)
+                if token:
+                    room_tokens[role] = token
+        state["viewer"]["pairing_tokens"] = room_tokens
     if _gameplay_host(code, room):
         state["oral_judgments"] = room.get("oral_judgments", {})
     visible_phase = room.get("resume_phase") if room.get("phase") == "paused" else room.get("phase")

@@ -16,7 +16,9 @@ from itsdangerous import BadData, URLSafeSerializer
 COOKIE_NAME = "faithsparks_game_controller"
 COOKIE_SALT = "faithsparks-controller-capability-v1"
 HOST_COOKIE_SALT = "faithsparks-room-host-capability-v1"
+INVITE_COOKIE_SALT = "faithsparks-controller-invite-v1"
 MAX_AGE_SECONDS = 6 * 60 * 60
+INVITE_MAX_AGE_SECONDS = 10 * 60
 
 
 def _serializer() -> URLSafeSerializer:
@@ -111,6 +113,57 @@ def set_room_host_capability(
         _host_cookie_name(game, code),
         signed,
         max_age=MAX_AGE_SECONDS,
+        secure=request.is_secure,
+        httponly=True,
+        samesite="Lax",
+        path="/",
+    )
+
+
+def _invite_cookie_name(game: str, code: str, role: str) -> str:
+    safe_game = "".join(character for character in game if character.isalnum() or character == "_")
+    safe_code = "".join(character for character in code.upper() if character.isalnum())
+    safe_role = "".join(character for character in role if character.isalnum() or character == "_")
+    return f"faithsparks_{safe_game}_invite_{safe_code}_{safe_role}"
+
+
+def read_controller_invite(game: str, code: str, role: str) -> str | None:
+    signed = request.cookies.get(_invite_cookie_name(game, code, role))
+    if not signed:
+        return None
+    serializer = URLSafeSerializer(current_app.secret_key, salt=INVITE_COOKIE_SALT)
+    try:
+        value = serializer.loads(signed)
+    except BadData:
+        return None
+    if not isinstance(value, dict):
+        return None
+    if (
+        value.get("game") != game
+        or value.get("code") != code.upper()
+        or value.get("role") != role
+    ):
+        return None
+    token = str(value.get("token") or "")
+    return token or None
+
+
+def set_controller_invite(
+    response: Any,
+    *,
+    game: str,
+    code: str,
+    role: str,
+    token: str,
+) -> None:
+    serializer = URLSafeSerializer(current_app.secret_key, salt=INVITE_COOKIE_SALT)
+    signed = serializer.dumps(
+        {"game": game, "code": code.upper(), "role": role, "token": token}
+    )
+    response.set_cookie(
+        _invite_cookie_name(game, code, role),
+        signed,
+        max_age=INVITE_MAX_AGE_SECONDS,
         secure=request.is_secure,
         httponly=True,
         samesite="Lax",
