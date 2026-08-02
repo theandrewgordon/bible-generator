@@ -3559,16 +3559,21 @@ def _looks_like_chord_fragmented_worship_parse(parsed: dict, source_lyrics: str)
     return suspicious >= 3
 
 
-def _polish_chord_rendered_worship_lines(parsed: dict, source_lyrics: str) -> dict:
-    """Restore sentence-start capitalization lost around rendered chord anchors."""
-    if sum(_is_chord_only_worship_line(line) for line in str(source_lyrics or "").splitlines()) < 3:
-        return parsed
+def _polish_worship_line_capitalization(parsed: dict, source_lyrics: str) -> dict:
+    """Repair systematic lowercase slide starts without overriding lowercase songs."""
+    chord_rendered = sum(
+        _is_chord_only_worship_line(line) for line in str(source_lyrics or "").splitlines()
+    ) >= 3
     normalized = normalize_worship_song(parsed)
     for part_name, lines in normalized.get("parts", {}).items():
-        normalized["parts"][part_name] = [
-            re.sub(r"[a-z]", lambda match: match.group(0).upper(), line, count=1)
-            for line in lines
-        ]
+        first_letters = [re.search(r"[A-Za-z]", line) for line in lines]
+        first_is_upper = bool(first_letters and first_letters[0] and first_letters[0].group(0).isupper())
+        lowercase_starts = sum(bool(match and match.group(0).islower()) for match in first_letters[1:])
+        if chord_rendered or (first_is_upper and lowercase_starts >= 2):
+            normalized["parts"][part_name] = [
+                re.sub(r"[a-z]", lambda match: match.group(0).upper(), line, count=1)
+                for line in lines
+            ]
     return normalized
 
 
@@ -4628,7 +4633,7 @@ OTHER RULES:
     # returns e.g. arrangement ["Chorus"] with parts {"chorus": [...]} (case/spacing
     # mismatch) is no longer falsely flagged "incomplete" and bounced to the fallback.
     song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
-    song = _polish_chord_rendered_worship_lines(song, parse_lyrics)
+    song = _polish_worship_line_capitalization(song, parse_lyrics)
     song = _apply_explicit_worship_arrangement(song, parse_lyrics)
     exploded = _looks_like_line_exploded_worship_parse(song)
     chord_fragmented = _looks_like_chord_fragmented_worship_parse(song, parse_lyrics)

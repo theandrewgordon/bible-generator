@@ -524,10 +524,38 @@ with my soul
             "arrangement": ["verse1", "chorus"],
         }
 
-        polished = app._polish_chord_rendered_worship_lines(parsed, source)
+        polished = app._polish_worship_line_capitalization(parsed, source)
 
         self.assertEqual(polished["parts"]["verse1"][1], "When sorrows like sea billows roll")
         self.assertEqual(polished["parts"]["chorus"][0], "It is well with my soul")
+
+    def test_systematic_lowercase_section_lines_are_capitalized_without_chords(self):
+        parsed = {
+            "parts": {
+                "verse1": [
+                    "When peace like a river attendeth my way",
+                    "when sorrows like sea billows roll",
+                    "whatever my lot thou hast taught me to say",
+                    "it is well with my soul",
+                ],
+            },
+            "arrangement": ["verse1"],
+        }
+
+        polished = app._polish_worship_line_capitalization(parsed, "VERSE 1\n" + "\n".join(parsed["parts"]["verse1"]))
+
+        self.assertEqual(polished["parts"]["verse1"][1], "When sorrows like sea billows roll")
+        self.assertEqual(polished["parts"]["verse1"][2], "Whatever my lot thou hast taught me to say")
+
+    def test_intentionally_lowercase_section_is_preserved(self):
+        parsed = {
+            "parts": {"verse1": ["quiet opening", "still lowercase", "softly continuing"]},
+            "arrangement": ["verse1"],
+        }
+
+        polished = app._polish_worship_line_capitalization(parsed, "VERSE 1\nquiet opening\nstill lowercase\nsoftly continuing")
+
+        self.assertEqual(polished["parts"]["verse1"], parsed["parts"]["verse1"])
 
     def test_chunk_lines_keeps_five_line_hymn_stanzas_together(self):
         slides = app.chunk_lines([
