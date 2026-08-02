@@ -460,6 +460,21 @@ Closing lyric
         self.assertEqual(slides[1]["lines"][:3], lines[3:6])
         self.assertEqual(slides[1]["font_size"], 38)
 
+    def test_chunk_lines_splits_repeated_refrain_before_new_thought(self):
+        lines = [
+            "So I throw up my hands",
+            "And praise You again and again",
+            "All that I have is a hallelujah, hallelujah",
+            "And I know it is not much",
+            "But I have nothing else fit for a king",
+            "Except for a heart singing hallelujah",
+            "Hallelujah",
+        ]
+
+        slides = app.chunk_lines(lines)
+
+        self.assertEqual([slide["lines"] for slide in slides], [lines[:3], lines[3:]])
+
     def test_fallback_parse_handles_inline_refrain_markers(self):
         pasted = """"Hymn With Refrain" lyrics
 Example Artist Lyrics

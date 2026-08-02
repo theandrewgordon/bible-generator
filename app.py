@@ -1757,6 +1757,17 @@ def _join_required(prev_line: str, next_line: str) -> bool:
     )
 
 
+def _is_strong_refrain_boundary(prev_line: str, next_line: str) -> bool:
+    """Recognize a repeated refrain ending even when the next thought starts 'And'."""
+    previous_words = _normalize_lyric_comparison_line(prev_line).split()
+    next_text = _normalize_lyric_comparison_line(next_line)
+    return (
+        len(previous_words) >= 2
+        and previous_words[-1] == previous_words[-2]
+        and next_text.startswith(("and ", "but "))
+    )
+
+
 
 
 def _split_at_midpoint(lines: list[str]) -> tuple[list[str], list[str]]:
@@ -1768,6 +1779,8 @@ def _split_at_midpoint(lines: list[str]) -> tuple[list[str], list[str]]:
             idx = mid + sign * offset
             if idx <= 0 or idx >= n:
                 continue
+            if _is_strong_refrain_boundary(lines[idx - 1], lines[idx]):
+                return lines[:idx], lines[idx:]
             if not _join_required(lines[idx - 1], lines[idx]):
                 return lines[:idx], lines[idx:]
     return lines[:mid], lines[mid:]  # fallback: hard split
