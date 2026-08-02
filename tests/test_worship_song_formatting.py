@@ -72,6 +72,23 @@ class WorshipSongFormattingTests(unittest.TestCase):
         self.assertEqual(app._worship_part_label("pre_chorus"), "Pre Chorus")
         self.assertEqual(app._worship_part_label("chorus2"), "Chorus 2")
 
+    def test_chunk_lines_shrinks_long_lyrics_before_powerpoint_wraps_them(self):
+        slides = app.chunk_lines([
+            "When peace like a river attendeth my way",
+            "when sorrows like sea billows roll",
+            "whatever my lot, thou hast taught me to say",
+            '"It is well, it is well with my soul"',
+        ])
+
+        self.assertEqual(len(slides), 1)
+        self.assertLess(slides[0]["font_size"], 48)
+        self.assertGreaterEqual(slides[0]["font_size"], 32)
+
+    def test_chunk_lines_keeps_large_type_for_short_lines(self):
+        slides = app.chunk_lines(["It is well", "With my soul"])
+
+        self.assertEqual(slides[0]["font_size"], 48)
+
     def test_unique_worship_song_id_uses_artist_and_suffix(self):
         existing = {"same-song-artist-a", "same-song-artist-a-2"}
         original_get = app.get_worship_song

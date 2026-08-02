@@ -1831,6 +1831,32 @@ def _is_causal_bridge_conclusion(lines: list[str]) -> bool:
     return normalized[0].startswith("because i know") and normalized[1].startswith(("he ", "you ", "god "))
 
 
+def _lyric_font_size_for_width(lines: list[str], preferred_size: int) -> int:
+    """Reduce type just enough to preserve authored lyric line breaks."""
+    def width_units(text: str) -> float:
+        total = 0.0
+        for char in text:
+            if char == " ":
+                total += 0.30
+            elif char in "ilIjtfr.,'!:;|\"":
+                total += 0.28
+            elif char in "mwMW@%&":
+                total += 0.88
+            elif char.isupper():
+                total += 0.66
+            else:
+                total += 0.54
+        return total
+
+    widest = max((width_units(line) for line in lines), default=0.0)
+    if not widest:
+        return preferred_size
+    # The lyric box has roughly 860 usable points after its inner margins.
+    # A small safety factor accounts for PowerPoint/LibreOffice font metrics.
+    width_limited = int(860 / (widest * 1.08))
+    return max(32, min(preferred_size, width_limited))
+
+
 def chunk_lines(lines: list[str]) -> list[dict]:
     """
     Lyric-aware chunking for PPTX slides.
@@ -1874,7 +1900,8 @@ def chunk_lines(lines: list[str]) -> list[dict]:
     for group in groups:
         for chunk in _chunks(group):
             n = len(chunk)
-            font_size = 48 if n <= 4 else 42 if n == 5 else 38
+            preferred_size = 48 if n <= 4 else 42 if n == 5 else 38
+            font_size = _lyric_font_size_for_width(chunk, preferred_size)
             slides.append({"lines": chunk, "font_size": font_size})
     return slides
 
