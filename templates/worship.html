@@ -118,7 +118,7 @@
   <h1 style="margin:0">Worship Slide Builder</h1>
   <span style="display:flex;gap:.5rem;align-items:center"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a><a href="{{ url_for('worship_add') }}"
     style="font-size:.9rem;font-weight:600;color:var(--primary);text-decoration:none;padding:5px 12px;border:1px solid var(--primary);border-radius:8px">
-    + Add Song
+    + Add Song or Slide
   </a></span>
 </div>
 
@@ -254,7 +254,7 @@
   </form>
 
   <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
-    Add songs from the library to build your set.
+    Add songs and service slides from the library to build your set.
   </p>
   <div id="set-summary" class="ws-set-summary" aria-live="polite">
     <strong id="set-summary-count"></strong>
@@ -501,7 +501,7 @@
     var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     if (!ids.length) {
       mobileShareEl.style.display = 'none';
-      mobileLinkEl.textContent = 'Add songs to create a mobile link';
+      mobileLinkEl.textContent = 'Add songs or slides to create a mobile link';
       mobileLinkEl.href = '#';
       mobileOpenEl.href = '#';
       mobileQrEl.removeAttribute('src');

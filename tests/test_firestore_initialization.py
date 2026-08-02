@@ -47,6 +47,19 @@ class FirestoreInitializationTests(unittest.TestCase):
         self.assertIsNone(storage_client)
         self.assertTrue(firestore_service._initialized)
 
+    def test_storage_bucket_defaults_from_firebase_project(self):
+        with patch.dict(
+            os.environ,
+            {
+                "FIREBASE_CREDS_JSON": json.dumps({"project_id": "faith-sparks"}),
+                "FIREBASE_STORAGE_BUCKET": "",
+                "STORAGE_BUCKET": "",
+            },
+        ):
+            bucket = firestore_service._configured_storage_bucket()
+
+        self.assertEqual(bucket, "faith-sparks.appspot.com")
+
     def test_failed_firestore_initialization_can_be_retried(self):
         credentials_json = json.dumps({"project_id": "test-project"})
         fake_firestore_client = object()

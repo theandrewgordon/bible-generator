@@ -49,10 +49,10 @@ from faithsparks.services.firestore import (
     validate_firebase_credentials,
 )
 from faithsparks.services.storage import (
-    blob_exists,
     download_from_storage,
     signed_url_for_path,
     upload_to_storage,
+    upload_to_storage_checked,
 )
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
@@ -2376,8 +2376,7 @@ def _save_worship_service_image(upload) -> str:
             image.save(output.name, "JPEG", quality=90, optimize=True)
         scope = _slugify_worship_token(_current_worship_scope()) or "default"
         storage_path = f"worship-media/{scope}/{uuid.uuid4().hex}.jpg"
-        upload_to_storage(output.name, storage_path)
-        if not blob_exists(storage_path):
+        if not upload_to_storage_checked(output.name, storage_path):
             raise RuntimeError("Image storage is temporarily unavailable.")
         return storage_path
     except (OSError, Image.DecompressionBombError) as exc:
@@ -4494,6 +4493,7 @@ def worship_service_slide_add():
         try:
             image_path = _save_worship_service_image(request.files.get("image"))
         except (ValueError, RuntimeError) as exc:
+            app.logger.warning("worship photo slide upload rejected: %s", exc)
             flash(str(exc), "error")
             return redirect(url_for("worship_add"))
     try:

@@ -1,8 +1,11 @@
 # faithsparks/services/storage.py
 import os
+import logging
 from datetime import timedelta
 
 from .firestore import STORAGE_BUCKET, storage_client  # storage_client is now a callable
+
+logger = logging.getLogger(__name__)
 
 
 def _get_bucket():
@@ -13,6 +16,7 @@ def _get_bucket():
             return None
         return client.bucket(STORAGE_BUCKET)
     except Exception:
+        logger.exception("Could not initialize storage bucket %s", STORAGE_BUCKET or "(not configured)")
         return None
 
 
@@ -30,7 +34,23 @@ def upload_to_storage(local_path: str, dst_path: str) -> str | None:
         blob.upload_from_filename(local_path)
         return None
     except Exception:
+        logger.exception("Storage upload failed for %s", dst_path)
         return None
+
+
+def upload_to_storage_checked(local_path: str, dst_path: str) -> bool:
+    """Upload a file and report whether the object now exists."""
+    bucket = _get_bucket()
+    if not bucket:
+        logger.error("Storage upload unavailable for %s: no configured bucket/client", dst_path)
+        return False
+    try:
+        blob = bucket.blob(dst_path)
+        blob.upload_from_filename(local_path)
+        return bool(blob.exists())
+    except Exception:
+        logger.exception("Checked storage upload failed for %s", dst_path)
+        return False
 
 
 def signed_url_for_path(dst_path: str, minutes: int = 120) -> str | None:

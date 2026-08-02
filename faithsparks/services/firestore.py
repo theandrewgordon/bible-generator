@@ -8,7 +8,22 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud import storage
 
-STORAGE_BUCKET = os.getenv("FIREBASE_STORAGE_BUCKET") or os.getenv("STORAGE_BUCKET")
+def _configured_storage_bucket() -> str | None:
+    explicit = os.getenv("FIREBASE_STORAGE_BUCKET") or os.getenv("STORAGE_BUCKET")
+    if explicit:
+        return explicit.strip().removeprefix("gs://").rstrip("/")
+    # Firestore can be correctly configured while the optional bucket variable
+    # is absent. Firebase's long-standing default bucket name is derived from
+    # the service-account project id, so use it as a safe production default.
+    try:
+        info = json.loads(os.getenv("FIREBASE_CREDS_JSON") or "{}")
+        project_id = str(info.get("project_id") or "").strip()
+        return f"{project_id}.appspot.com" if project_id else None
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+STORAGE_BUCKET = _configured_storage_bucket()
 
 _db = None
 _storage_client = None

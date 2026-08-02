@@ -51,7 +51,7 @@
 {% endblock %}
 
 {% block content %}
-<h1>Add Song</h1>
+<h1>Add Song or Service Slide</h1>
 <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
 
 <div class="wa-card" style="margin:1.5rem 0">
@@ -454,6 +454,21 @@
   addPart('chorus');
 
   updateHidden();
+})();
+</script>
+<script>
+(function () {
+  var type = document.getElementById('service-slide-type');
+  var fields = document.getElementById('service-photo-fields');
+  if (!type || !fields) return;
+  var file = fields.querySelector('input[type="file"]');
+  function syncPhotoFields() {
+    var isPhoto = type.value === 'photo';
+    fields.hidden = !isPhoto;
+    if (file) file.required = isPhoto;
+  }
+  type.addEventListener('change', syncPhotoFields);
+  syncPhotoFields();
 })();
 </script>
 {% endblock %}
