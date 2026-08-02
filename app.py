@@ -3588,10 +3588,8 @@ def _looks_like_invented_worship_repeats(parsed: dict, source_lyrics: str) -> bo
     return False
 
 
-def _apply_explicit_worship_repeats(parsed: dict, source_lyrics: str) -> dict:
-    """Apply repeat directions from a labelled chart without replacing AI lyrics."""
-    if not any(_worship_repeat_instruction(line)[0] for line in str(source_lyrics or "").splitlines()):
-        return parsed
+def _apply_explicit_worship_arrangement(parsed: dict, source_lyrics: str) -> dict:
+    """Use a labelled source's printed order without replacing AI-cleaned lyrics."""
     labelled = _parse_labeled_worship_lyrics(source_lyrics)
     if not labelled:
         return parsed
@@ -3614,7 +3612,21 @@ def _apply_explicit_worship_repeats(parsed: dict, source_lyrics: str) -> dict:
             )
         if not match:
             return parsed
-        mapped.append(match)
+        repeat_factor = 1
+        # Lyrics pages sometimes print a repeated section's words twice beneath
+        # one heading. Preserve that explicit repetition even though the AI
+        # correctly stores only one canonical part.
+        if labelled.get("arrangement", []).count(reference_part) == 1:
+            reference_lines = labelled.get("parts", {}).get(reference_part, [])
+            candidate_lines = normalized.get("parts", {}).get(match, [])
+            reference_text = re.sub(r"[^a-z0-9]+", "", " ".join(reference_lines).lower())
+            candidate_text = re.sub(r"[^a-z0-9]+", "", " ".join(candidate_lines).lower())
+            if candidate_text and reference_text != candidate_text:
+                for count in range(2, 13):
+                    if reference_text == candidate_text * count:
+                        repeat_factor = count
+                        break
+        mapped.extend([match] * repeat_factor)
     if mapped:
         normalized["arrangement"] = mapped
     return normalized
@@ -4499,7 +4511,7 @@ OTHER RULES:
     # returns e.g. arrangement ["Chorus"] with parts {"chorus": [...]} (case/spacing
     # mismatch) is no longer falsely flagged "incomplete" and bounced to the fallback.
     song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
-    song = _apply_explicit_worship_repeats(song, parse_lyrics)
+    song = _apply_explicit_worship_arrangement(song, parse_lyrics)
     exploded = _looks_like_line_exploded_worship_parse(song)
     under_arranged = _looks_under_arranged_worship_parse(song, parse_lyrics)
     invented_repeats = _looks_like_invented_worship_repeats(song, parse_lyrics)

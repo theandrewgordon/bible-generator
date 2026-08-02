@@ -360,13 +360,68 @@ Closing lyric
             "arrangement": ["verse1", "bridge", "verse2"],
         }
 
-        repaired = app._apply_explicit_worship_repeats(ai_song, source)
+        repaired = app._apply_explicit_worship_arrangement(ai_song, source)
 
         self.assertEqual(repaired["parts"], ai_song["parts"])
         self.assertEqual(
             repaired["arrangement"],
             ["verse1", "bridge", "bridge", "bridge", "bridge", "verse2"],
         )
+
+    def test_labeled_source_removes_ai_invented_chorus_repeat(self):
+        source = """VERSE 1
+Opening lyric
+VERSE 2
+Second lyric
+CHORUS
+Chains are gone
+VERSE 3
+Third lyric
+VERSE 4
+Forever mine
+"""
+        ai_song = {
+            "title": "Amazing Grace",
+            "parts": {
+                "verse1": ["Opening lyric"],
+                "verse2": ["Second lyric"],
+                "chorus": ["Chains are gone"],
+                "verse3": ["Third lyric"],
+                "verse4": ["Forever mine"],
+            },
+            "arrangement": ["verse1", "verse2", "chorus", "verse3", "chorus", "verse4"],
+        }
+
+        repaired = app._apply_explicit_worship_arrangement(ai_song, source)
+
+        self.assertEqual(
+            repaired["arrangement"],
+            ["verse1", "verse2", "chorus", "verse3", "verse4"],
+        )
+
+    def test_labeled_source_preserves_lyrics_printed_twice_under_one_heading(self):
+        source = """VERSE 1
+Opening lyric
+BRIDGE
+Every mountain sing high
+Sing the harmony
+Every mountain sing high
+Sing the harmony
+VERSE 2
+Closing lyric
+"""
+        ai_song = {
+            "parts": {
+                "verse1": ["Opening lyric"],
+                "bridge": ["Every mountain sing high", "Sing the harmony"],
+                "verse2": ["Closing lyric"],
+            },
+            "arrangement": ["verse1", "bridge", "bridge", "verse2"],
+        }
+
+        repaired = app._apply_explicit_worship_arrangement(ai_song, source)
+
+        self.assertEqual(repaired["arrangement"], ["verse1", "bridge", "bridge", "verse2"])
 
     def test_bare_section_shorthand_noise_is_ignored_but_bracketed_is_valid(self):
         self.assertEqual(app._extract_worship_section_label("V"), ("", False))
