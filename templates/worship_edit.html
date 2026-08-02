@@ -213,7 +213,7 @@
   </form>
   {% endif %}
   {% else %}
-  <p class="wa-helper">Not validated yet. Add a labelled chord sheet to check section boundaries, wording, and arrangement.</p>
+  <p class="wa-helper">Not validated yet. Add a labelled chord sheet—preferably from Worship Together or The Worship Initiative—to check section boundaries, wording, and arrangement.</p>
   {% endif %}
 
   <form method="post" action="{{ url_for('worship_validate', song_id=song.id) }}">
@@ -227,7 +227,7 @@
       <label class="wa-label">Or public chord-sheet link</label>
       <input type="url" name="validation_url" class="wa-input"
         value="{{ (song.sources.validation_url if song.sources is mapping else '') }}"
-        placeholder="https://example.com/song-chords">
+        placeholder="https://www.theworshipinitiative.com/songs/...">
     </div>
     <p class="wa-helper">Validation never changes saved lyrics or arrangement. Review any differences above, edit the song if needed, then validate again.</p>
     <button type="submit" class="wa-btn-primary">Validate Song</button>

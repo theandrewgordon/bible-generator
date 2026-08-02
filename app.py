@@ -1313,12 +1313,18 @@ def _list_worship_deck_history() -> list[dict]:
     return list(_local_worship_deck_history[:25])
 
 
-def _store_pending_worship_song(song: dict, used_fallback: bool, fallback_reason: str) -> str:
+def _store_pending_worship_song(
+    song: dict,
+    used_fallback: bool,
+    fallback_reason: str,
+    primary_labeled: bool = False,
+) -> str:
     token = secrets.token_urlsafe(24)
     payload = {
         "song": normalize_worship_song(song),
         "used_fallback": bool(used_fallback),
         "fallback_reason": str(fallback_reason or ""),
+        "primary_labeled": bool(primary_labeled),
         "owner": str(session.get("user_email") or ""),
         "scope": _current_worship_scope(),
         "expires_at": datetime.now(timezone.utc) + _WORSHIP_PENDING_TTL,
@@ -4583,7 +4589,15 @@ OTHER RULES:
         song["validation"] = validate_worship_song_against_source(song, validation_text, validation_url)
 
     try:
-        review_token = _store_pending_worship_song(song, used_fallback_parser, fallback_reason)
+        review_token = _store_pending_worship_song(
+            song,
+            used_fallback_parser,
+            fallback_reason,
+            primary_labeled=any(
+                _extract_worship_section_label(line)[0]
+                for line in parse_lyrics.splitlines()
+            ),
+        )
     except RuntimeError as exc:
         app.logger.warning("worship_add_parse review persistence failed: %s", exc)
         flash("The song was parsed, but its review could not be preserved. Please retry the import.", "error")

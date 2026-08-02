@@ -151,18 +151,18 @@
         <div class="wa-field">
           <label class="wa-label">Paste lyrics or whole page *</label>
           <textarea name="raw_lyrics" rows="18" required class="wa-input"
-            placeholder="Paste a whole lyrics page or plain lyrics. The importer will ignore navigation, recommendations, and footer text."></textarea>
+            placeholder="Paste a Worship Together or The Worship Initiative song page. Plain lyrics also work, but may not include section order."></textarea>
         </div>
-        <p class="wa-helper">Fastest path: copy the page text, keep blank lines between sections when you can, then review after save.</p>
+        <p class="wa-helper"><strong>Best sources:</strong> WorshipTogether.com or TheWorshipInitiative.com. Their Verse, Chorus, Bridge, and repeat labels produce a more reliable arrangement. Plain lyric sites such as AZLyrics are a fallback and should be validated against a labelled source.</p>
       </div>
 
       <div class="wa-import-panel" data-import-panel="link" hidden>
         <div class="wa-field">
           <label class="wa-label">Song page link *</label>
           <input type="url" name="import_url" class="wa-input"
-            placeholder="https://example.com/song-lyrics">
+            placeholder="https://www.worshiptogether.com/songs/...">
         </div>
-        <p class="wa-helper">Works best with public lyrics pages. Some sites block imports; if that happens, use Paste page.</p>
+        <p class="wa-helper">Try Worship Together or The Worship Initiative first. Some sites block link imports; if that happens, copy the whole page and use Paste page.</p>
       </div>
 
       <details class="wa-validation-box">
@@ -175,7 +175,7 @@
         </div>
         <div class="wa-field" style="margin-bottom:0">
           <label class="wa-label-muted">Or validation source link</label>
-          <input type="url" name="validation_url" class="wa-input" placeholder="https://example.com/song-chords">
+          <input type="url" name="validation_url" class="wa-input" placeholder="https://www.theworshipinitiative.com/songs/...">
         </div>
       </details>
 

@@ -54,7 +54,11 @@
         {% if validation.issues %}<ul>{% for issue in validation.issues %}<li>{{ issue.message }}</li>{% endfor %}</ul>{% endif %}
       </div>
       {% else %}
-      <p class="muted small">No second source was supplied. The structure is inferred and should be checked carefully.</p>
+      {% if payload.primary_labeled %}
+      <p class="muted small">No second source was supplied. The arrangement follows the labels in the primary source; check the lyrics and slides before saving.</p>
+      {% else %}
+      <p class="muted small">No second source was supplied. The structure is inferred and should be checked carefully. For a stronger check, use Worship Together or The Worship Initiative as a labelled source.</p>
+      {% endif %}
       {% endif %}
     </div>
 
