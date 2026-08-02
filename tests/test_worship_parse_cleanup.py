@@ -210,6 +210,72 @@ TURNAROUND
 
         self.assertFalse(app._looks_under_arranged_worship_parse(parsed, source))
 
+    def test_labeled_chart_allows_lyrics_split_around_chord_positions(self):
+        source = """VERSE 1
+All creatures of our God and
+King
+Lift up your voice and with us
+sing
+Thou burning sun with golden
+beam
+Thou silver moon with softer
+gleam
+VERSE 2
+Thou rushing wind that art so
+strong
+Ye clouds that sail in heaven a
+long
+Let all things their Creator
+bless
+And worship Him in humble
+ness
+"""
+        parsed = {
+            "parts": {
+                "verse1": [
+                    "All creatures of our God and King",
+                    "Lift up your voice and with us sing",
+                    "Thou burning sun with golden beam",
+                    "Thou silver moon with softer gleam",
+                ],
+                "verse2": [
+                    "Thou rushing wind that art so strong",
+                    "Ye clouds that sail in heaven along",
+                    "Let all things their Creator bless",
+                    "And worship Him in humbleness",
+                ],
+            },
+            "arrangement": ["verse1", "verse2", "verse1", "verse2"],
+        }
+
+        self.assertFalse(app._looks_under_arranged_worship_parse(parsed, source))
+
+    def test_labeled_chart_still_flags_missing_unique_lyrics(self):
+        source = """VERSE 1
+Alpha one
+Bravo two
+Charlie three
+Delta four
+Echo five
+Foxtrot six
+VERSE 2
+Golf seven
+Hotel eight
+India nine
+Juliet ten
+Kilo eleven
+Lima twelve
+"""
+        parsed = {
+            "parts": {
+                "verse1": ["Alpha one", "Bravo two", "Charlie three", "Delta four"],
+                "verse2": ["Golf seven", "Hotel eight", "India nine", "Juliet ten"],
+            },
+            "arrangement": ["verse1", "verse2", "verse1", "verse2"],
+        }
+
+        self.assertTrue(app._looks_under_arranged_worship_parse(parsed, source))
+
     def test_explicit_repeat_directions_override_ai_arrangement_only(self):
         source = """VERSE 1
 Opening lyric

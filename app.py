@@ -3445,9 +3445,10 @@ def _normalize_lyric_comparison_line(line: str) -> str:
 
 
 def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> bool:
+    source_rows = str(source_lyrics or "").splitlines()
     source_lines = {
         normalized
-        for line in str(source_lyrics or "").splitlines()
+        for line in source_rows
         if (normalized := _normalize_lyric_comparison_line(line))
         and not _extract_worship_section_label(line)[0]
         and not _is_lyrics_site_boilerplate_line(line)
@@ -3473,6 +3474,25 @@ def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> boo
     # Compare canonical content rather than arrangement-expanded content. Repeated
     # choruses must not compensate for unique source lines that the model dropped.
     coverage = len(source_lines & parsed_lines) / max(len(source_lines), 1)
+    if coverage < 0.80 and any(_extract_worship_section_label(line)[0] for line in source_rows):
+        # Rendered chord charts frequently split one lyric phrase into several
+        # rows wherever a chord was positioned. The AI correctly rejoins those
+        # fragments, so whole-line equality is too strict for labelled charts.
+        # Word coverage remains conservative: unique omitted wording still fails.
+        source_words = {
+            word
+            for normalized in source_lines
+            for word in normalized.split()
+            if len(word) > 1
+        }
+        parsed_words = {
+            word
+            for normalized in parsed_lines
+            for word in normalized.split()
+            if len(word) > 1
+        }
+        word_coverage = len(source_words & parsed_words) / max(len(source_words), 1)
+        return word_coverage < 0.90
     return coverage < 0.80
 
 
