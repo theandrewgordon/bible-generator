@@ -376,7 +376,13 @@ def load_user_info():
             try:
                 resp = google.get("/oauth2/v1/userinfo")
                 if resp.ok:
-                    session["user_info"] = resp.json()
+                    raw_google_info = resp.json()
+                    google_info = raw_google_info if isinstance(raw_google_info, dict) else {}
+                    session["user_info"] = {
+                        key: google_info.get(key)
+                        for key in ("email", "name", "picture")
+                        if google_info.get(key)
+                    }
                     session["user_email"] = session["user_info"].get("email")
                     session["clear_storage"] = True
                     _refresh_owned_packs(session["user_email"])
@@ -387,11 +393,81 @@ def load_user_info():
                 session.pop("user_owned_packs", None)
         elif not session.get("user_owned_packs"):
             _refresh_owned_packs(session.get("user_email"))
+        elif isinstance(session.get("user_info"), dict):
+            # Older cookies may still contain Google's full userinfo response.
+            session["user_info"] = {
+                key: session["user_info"].get(key)
+                for key in ("email", "name", "picture")
+                if session["user_info"].get(key)
+            }
     else:
         session.pop("user_info", None)
         session.pop("user_email", None)
         session.pop("user_owned_packs", None)
         session.pop("_uc", None)
+
+
+_COOKIE_SESSION_SOFT_LIMIT = 3400
+_COOKIE_SESSION_PRUNE_KEYS = (
+    "bible_bee_recent_references",
+    "family_game_night_recent_prompt_ids",
+    "family_game_night_hidden_prompt_ids",
+    "family_game_night_favorite_prompt_ids",
+    "bible_bee_host_rooms",
+    "act_it_out_host_rooms",
+    "invite",
+    "promo",
+    "plan",
+    "interval",
+    "utm",
+    "referrer",
+    "clear_storage",
+    "unlocked_pack_id",
+    # Capability maps are pruned only if lighter history state was insufficient.
+    "family_game_pairing_tokens",
+    "bible_bee_pairing_tokens",
+    "family_game_controller_roles",
+    "act_it_out_host_keys",
+)
+
+
+def _signed_session_size() -> int:
+    try:
+        serializer = app.session_interface.get_signing_serializer(app)
+        return len(serializer.dumps(dict(session))) if serializer else 0
+    except Exception:
+        return 0
+
+
+def _compact_cookie_session() -> tuple[int, int, list[str]]:
+    """Keep Flask's signed cookie below browser limits without losing auth."""
+    before = _signed_session_size()
+    if before <= _COOKIE_SESSION_SOFT_LIMIT:
+        return before, before, []
+    removed: list[str] = []
+    flashes = session.get("_flashes")
+    if isinstance(flashes, list) and flashes:
+        compact_flashes = []
+        for category, message in flashes[-3:]:
+            compact_flashes.append((str(category)[:30], str(message)[:500]))
+        session["_flashes"] = compact_flashes
+    for key in _COOKIE_SESSION_PRUNE_KEYS:
+        if _signed_session_size() <= _COOKIE_SESSION_SOFT_LIMIT:
+            break
+        if key in session:
+            session.pop(key, None)
+            removed.append(key)
+    return before, _signed_session_size(), removed
+
+
+@app.after_request
+def compact_oversized_cookie_session(response):
+    before, after, removed = _compact_cookie_session()
+    if removed:
+        app.logger.info("Compacted cookie session from %d to %d bytes; removed=%s", before, after, removed)
+    elif after > _COOKIE_SESSION_SOFT_LIMIT:
+        app.logger.warning("Cookie session remains large after safe compaction: %d bytes", after)
+    return response
 
 
 # -----------------------------
@@ -2338,6 +2414,11 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
     text = str(line or "").strip()
     if not text:
         return "", False
+    unwrapped = re.sub(r"^[\[(]\s*|\s*[\])]$", "", text).strip()
+    special = re.match(r"^(last\s+bridge|turnaround|interlude|instrumental|vamp)\s*(:?)$", unwrapped, flags=re.I)
+    if special:
+        raw_special = special.group(1).lower()
+        return ("bridge" if raw_special == "last bridge" else "intro"), bool(special.group(2))
     match = re.match(
         r"^\s*[\[(]?\s*((?:verse|v|chorus|ch|bridge|pre[-\s]?chorus|tag|intro|outro|ending|refrain)(?:\s*\d+)?)\s*(:?)\s*[\])]?\s*$",
         text,
@@ -2354,6 +2435,18 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
         if not bracketed:
             return "", False
     return _canonical_part_key(raw_label), has_colon
+
+
+def _worship_repeat_instruction(line: str) -> tuple[str, int]:
+    text = re.sub(r"^[\[(]\s*|\s*[\])]$", "", str(line or "").strip()).strip()
+    match = re.match(
+        r"^repeat\s+(verse|chorus|bridge|pre[-\s]?chorus|tag)(?:\s*\d+)?\s+(\d+)\s*x$",
+        text,
+        flags=re.I,
+    )
+    if not match:
+        return "", 0
+    return _canonical_part_key(match.group(1)), min(max(int(match.group(2)), 1), 12)
 
 
 def _parse_refrain_marker_worship_lyrics(
@@ -2541,7 +2634,7 @@ def _parse_continuous_worship_lyrics(
 def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str = "", version: str = "", key: str = "") -> dict | None:
     cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
     lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
-    raw_sections: list[tuple[str, list[str]]] = []
+    raw_sections: list[tuple[str, list[str] | None]] = []
     current_label = ""
     current_lines: list[str] = []
 
@@ -2556,12 +2649,19 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
         line = raw_line.strip()
         if not line:
             continue
+        repeat_label, repeat_count = _worship_repeat_instruction(line)
+        if repeat_label:
+            flush_current()
+            raw_sections.extend((repeat_label, None) for _ in range(repeat_count))
+            continue
         section_label, _has_colon = _extract_worship_section_label(line)
         if section_label:
             flush_current()
             current_label = section_label
             continue
         if not current_label:
+            continue
+        if _is_chord_only_worship_line(line) or _is_worship_non_lyric_instruction_line(line):
             continue
         current_lines.append(line)
     flush_current()
@@ -2573,10 +2673,16 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
     arrangement: list[str] = []
     used_counts: dict[str, int] = {}
     content_to_part: dict[str, str] = {}
+    latest_part_for_label: dict[str, str] = {}
     for raw_label, lines in raw_sections:
         base_key = _canonical_part_key(raw_label)
         if not base_key:
             base_key = "verse"
+        if lines is None:
+            repeated_part = latest_part_for_label.get(base_key)
+            if repeated_part:
+                arrangement.append(repeated_part)
+            continue
         content_key = "\n".join(lines).lower()
         if content_key in content_to_part:
             part_name = content_to_part[content_key]
@@ -2585,6 +2691,7 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
             part_name = base_key if used_counts[base_key] == 1 else f"{base_key}{used_counts[base_key]}"
             parts[part_name] = lines
             content_to_part[content_key] = part_name
+        latest_part_for_label[base_key] = part_name
         arrangement.append(part_name)
 
     if not parts or not arrangement:
@@ -2616,6 +2723,27 @@ def _is_chord_only_worship_line(line: str) -> bool:
         flags=re.I,
     )
     return all(chord.match(token) or re.fullmatch(r"[|:/x-]+", token, flags=re.I) for token in tokens)
+
+
+def _is_worship_non_lyric_instruction_line(line: str) -> bool:
+    text = str(line or "").strip()
+    if not text:
+        return True
+    if _is_chord_only_worship_line(text):
+        return True
+    if _worship_repeat_instruction(text)[0] or _extract_worship_section_label(text)[0]:
+        return True
+    if re.match(
+        r"^(?:original\s+key|recommended\s+keys?|key|tempo|bpm|capo|tuning|difficulty|author|writers?|ccli|scripture\s+reference)\s*:",
+        text,
+        flags=re.I,
+    ):
+        return True
+    # Bar-only chord progressions copied from rendered chord charts.
+    compact = re.sub(r"\s+", "", text)
+    if "|" in compact and re.fullmatch(r"[|:/()A-Ga-g#b0-9mM+sudijx.-]+", compact):
+        return True
+    return False
 
 
 def _prepare_worship_validation_source(raw_text: str) -> str:
@@ -3323,6 +3451,7 @@ def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> boo
         if (normalized := _normalize_lyric_comparison_line(line))
         and not _extract_worship_section_label(line)[0]
         and not _is_lyrics_site_boilerplate_line(line)
+        and not _is_worship_non_lyric_instruction_line(line)
     }
     if len(source_lines) < 12 or not isinstance(parsed, dict):
         return False
@@ -3361,6 +3490,7 @@ def _looks_like_invented_worship_repeats(parsed: dict, source_lyrics: str) -> bo
         for line in str(source_lyrics or "").splitlines()
         if (normalized := _normalize_lyric_comparison_line(line))
         and not _is_lyrics_site_boilerplate_line(line)
+        and not _is_worship_non_lyric_instruction_line(line)
     ]
     if any(_extract_worship_section_label(line)[0] for line in str(source_lyrics or "").splitlines()):
         return False
@@ -3384,6 +3514,38 @@ def _looks_like_invented_worship_repeats(parsed: dict, source_lyrics: str) -> bo
         if occurrences and requested > occurrences:
             return True
     return False
+
+
+def _apply_explicit_worship_repeats(parsed: dict, source_lyrics: str) -> dict:
+    """Apply repeat directions from a labelled chart without replacing AI lyrics."""
+    if not any(_worship_repeat_instruction(line)[0] for line in str(source_lyrics or "").splitlines()):
+        return parsed
+    labelled = _parse_labeled_worship_lyrics(source_lyrics)
+    if not labelled:
+        return parsed
+    normalized = normalize_worship_song(parsed)
+    available = list(normalized.get("parts", {}))
+    mapped: list[str] = []
+    for reference_part in labelled.get("arrangement", []):
+        reference_key = _worship_validation_part_key(reference_part)
+        match = next(
+            (part for part in available if _worship_validation_part_key(part) == reference_key),
+            None,
+        )
+        if not match:
+            # A labelled "last bridge" can be the same musical section with a
+            # slightly different ending. If the model kept one bridge, reuse it.
+            reference_family = re.sub(r"\d+$", "", reference_key)
+            match = next(
+                (part for part in available if re.sub(r"\d+$", "", _worship_validation_part_key(part)) == reference_family),
+                None,
+            )
+        if not match:
+            return parsed
+        mapped.append(match)
+    if mapped:
+        normalized["arrangement"] = mapped
+    return normalized
 
 
 def _repair_line_exploded_worship_song(song: dict) -> dict | None:
@@ -4265,6 +4427,7 @@ OTHER RULES:
     # returns e.g. arrangement ["Chorus"] with parts {"chorus": [...]} (case/spacing
     # mismatch) is no longer falsely flagged "incomplete" and bounced to the fallback.
     song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
+    song = _apply_explicit_worship_repeats(song, parse_lyrics)
     exploded = _looks_like_line_exploded_worship_parse(song)
     under_arranged = _looks_under_arranged_worship_parse(song, parse_lyrics)
     invented_repeats = _looks_like_invented_worship_repeats(song, parse_lyrics)

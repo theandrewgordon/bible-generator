@@ -144,6 +144,101 @@ Shared chorus line
         self.assertEqual(parsed["parts"]["verse1"], ["First verse line", "Second verse line"])
         self.assertEqual(parsed["parts"]["chorus"], ["Shared chorus line"])
 
+    def test_labeled_chord_sheet_ignores_instrumental_sections_and_applies_repeats(self):
+        pasted = """INTRO
+|D / Em/D / |D / Em/D / |
+
+VERSE 1
+D Bm A
+Opening lyric
+Second lyric
+
+TURNAROUND
+|D / Em/D / |
+
+BRIDGE
+G A G/B D
+Every mountain sing high
+Sing the harmony
+
+REPEAT BRIDGE 2x
+
+LAST BRIDGE
+Every mountain sing high
+Sing the harmony
+
+VERSE 2
+Closing lyric
+Final lyric
+"""
+
+        parsed = app._fallback_parse_worship_lyrics(pasted, title="Chart Song")
+
+        self.assertEqual(set(parsed["parts"]), {"verse1", "bridge", "verse2"})
+        self.assertEqual(
+            parsed["arrangement"],
+            ["verse1", "bridge", "bridge", "bridge", "bridge", "verse2"],
+        )
+        self.assertNotIn("D Bm A", parsed["parts"]["verse1"])
+
+    def test_chart_directions_do_not_trigger_under_arranged_coverage(self):
+        source = """VERSE 1
+Opening one
+Opening two
+Opening three
+Opening four
+Opening five
+Opening six
+BRIDGE
+Bridge one
+Bridge two
+Bridge three
+Bridge four
+Bridge five
+Bridge six
+REPEAT BRIDGE 2x
+TURNAROUND
+|D / Em/D / |D / Em/D / |
+"""
+        parsed = {
+            "parts": {
+                "verse1": [f"Opening {word}" for word in ("one", "two", "three", "four", "five", "six")],
+                "bridge": [f"Bridge {word}" for word in ("one", "two", "three", "four", "five", "six")],
+            },
+            "arrangement": ["verse1", "bridge", "bridge", "bridge"],
+        }
+
+        self.assertFalse(app._looks_under_arranged_worship_parse(parsed, source))
+
+    def test_explicit_repeat_directions_override_ai_arrangement_only(self):
+        source = """VERSE 1
+Opening lyric
+BRIDGE
+Bridge lyric
+REPEAT BRIDGE 2x
+LAST BRIDGE
+Bridge lyric
+VERSE 2
+Closing lyric
+"""
+        ai_song = {
+            "title": "Chart Song",
+            "parts": {
+                "verse1": ["Opening lyric"],
+                "bridge": ["Bridge lyric"],
+                "verse2": ["Closing lyric"],
+            },
+            "arrangement": ["verse1", "bridge", "verse2"],
+        }
+
+        repaired = app._apply_explicit_worship_repeats(ai_song, source)
+
+        self.assertEqual(repaired["parts"], ai_song["parts"])
+        self.assertEqual(
+            repaired["arrangement"],
+            ["verse1", "bridge", "bridge", "bridge", "bridge", "verse2"],
+        )
+
     def test_bare_section_shorthand_noise_is_ignored_but_bracketed_is_valid(self):
         self.assertEqual(app._extract_worship_section_label("V"), ("", False))
         self.assertEqual(app._extract_worship_section_label("[V]"), ("v", False))
