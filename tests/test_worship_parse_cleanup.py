@@ -103,6 +103,23 @@ rds fall short
         self.assertEqual(cleaned["artist"], "Benjamin William Hastings, Brandon Lake, Passion")
         self.assertEqual(cleaned["key"], "G")
 
+    def test_worship_together_metadata_allows_blank_before_download_link(self):
+        pasted = """As The Deer
+Steffany Gretzinger, Shane & Shane
+
+As The Deer
+
+Free Lyrics Download
+
+Verse 1
+As the deer panteth for the water
+"""
+
+        cleaned = app._clean_lyrics_site_paste(pasted)
+
+        self.assertEqual(cleaned["title"], "As The Deer")
+        self.assertEqual(cleaned["artist"], "Steffany Gretzinger, Shane & Shane")
+
     def test_fallback_parse_creates_parts_and_arrangement(self):
         pasted = '''"Sample Song" lyrics
 Example Artist Lyrics
@@ -446,6 +463,24 @@ Closing lyric
         repaired = app._apply_explicit_worship_arrangement(ai_song, source)
 
         self.assertEqual(repaired["arrangement"], ["verse1", "bridge", "bridge", "verse2"])
+
+    def test_labeled_source_preserves_repeated_chorus_with_trailing_tag(self):
+        chorus = [
+            "You alone are my strength my shield",
+            "To You alone may my spirit yield",
+            "You alone are my heart's desire",
+            "And I long to worship You",
+        ]
+        source = "\n".join(["VERSE 1", "Opening lyric", "CHORUS 2", *chorus, *chorus, chorus[-1]])
+        ai_song = {
+            "parts": {"verse1": ["Opening lyric"], "chorus": chorus},
+            "arrangement": ["verse1", "chorus"],
+        }
+
+        repaired = app._apply_explicit_worship_arrangement(ai_song, source)
+
+        self.assertEqual(repaired["arrangement"], ["verse1", "chorus", "chorus", "tag"])
+        self.assertEqual(repaired["parts"]["tag"], ["And I long to worship You"])
 
     def test_bare_section_shorthand_noise_is_ignored_but_bracketed_is_valid(self):
         self.assertEqual(app._extract_worship_section_label("V"), ("", False))

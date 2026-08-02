@@ -2382,16 +2382,20 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
         (idx for idx, line in enumerate(lines) if line.lower().startswith("free ") and "download" in line.lower()),
         -1,
     )
+    canonical_title_idx = next(
+        (idx for idx in range(download_idx - 1, -1, -1) if lines[idx].strip()),
+        -1,
+    ) if download_idx > 0 else -1
     if download_idx > 0 and not inferred_title:
-        inferred_title = lines[download_idx - 1].strip()
+        inferred_title = lines[canonical_title_idx].strip() if canonical_title_idx >= 0 else ""
     if download_idx > 1 and inferred_title and not inferred_artist:
         prior_title_idx = next(
-            (idx for idx in range(download_idx - 2, -1, -1) if lines[idx].strip() == inferred_title),
+            (idx for idx in range(canonical_title_idx - 1, -1, -1) if lines[idx].strip() == inferred_title),
             -1,
         )
         if prior_title_idx >= 0:
             inferred_artist = next(
-                (line.strip() for line in lines[prior_title_idx + 1:download_idx - 1] if line.strip()),
+                (line.strip() for line in lines[prior_title_idx + 1:canonical_title_idx] if line.strip()),
                 "",
             )
 
@@ -3741,10 +3745,42 @@ def _apply_explicit_worship_arrangement(parsed: dict, source_lyrics: str) -> dic
             reference_text = re.sub(r"[^a-z0-9]+", "", " ".join(reference_lines).lower())
             candidate_text = re.sub(r"[^a-z0-9]+", "", " ".join(candidate_lines).lower())
             if candidate_text and reference_text != candidate_text:
-                for count in range(2, 13):
-                    if reference_text == candidate_text * count:
+                trailing_part = ""
+                for count in range(12, 1, -1):
+                    repeated_text = candidate_text * count
+                    if reference_text == repeated_text:
                         repeat_factor = count
                         break
+                    if reference_text.startswith(repeated_text):
+                        remainder = reference_text[len(repeated_text):]
+                        trailing_line = next(
+                            (
+                                line for line in candidate_lines
+                                if re.sub(r"[^a-z0-9]+", "", line.lower()) == remainder
+                            ),
+                            "",
+                        )
+                        if trailing_line:
+                            repeat_factor = count
+                            trailing_part = next(
+                                (
+                                    part_name for part_name, lines in normalized.get("parts", {}).items()
+                                    if lines == [trailing_line]
+                                ),
+                                "",
+                            )
+                            if not trailing_part:
+                                trailing_part = "tag"
+                                suffix = 2
+                                while trailing_part in normalized.get("parts", {}):
+                                    trailing_part = f"tag{suffix}"
+                                    suffix += 1
+                                normalized["parts"][trailing_part] = [trailing_line]
+                            break
+                mapped.extend([match] * repeat_factor)
+                if trailing_part:
+                    mapped.append(trailing_part)
+                continue
         mapped.extend([match] * repeat_factor)
     if mapped:
         normalized["arrangement"] = mapped
