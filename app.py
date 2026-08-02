@@ -2752,6 +2752,61 @@ def validate_worship_song_against_source(
     reference_parts: dict[str, list[str]] = {}
     for raw_name, lines in reference.get("parts", {}).items():
         reference_parts[_worship_validation_part_key(raw_name)] = lines
+    song_parts = normalized.get("parts", {})
+
+    # Many hymn chord sheets print the same refrain at the end of every Verse
+    # block instead of labelling a Chorus. Extract it before comparing stanza
+    # boundaries so a 5-line saved verse is not compared against a 7-line chart
+    # block. Exact wording still comes from the saved primary lyric source.
+    embedded_chorus_parts: list[str] = []
+    saved_chorus = song_parts.get("chorus", [])
+    if saved_chorus:
+        saved_chorus_text = " ".join(_worship_validation_line(line) for line in saved_chorus)
+        for reference_name in list(reference_parts):
+            if not re.match(r"^verse\d+$", reference_name):
+                continue
+            reference_lines = reference_parts[reference_name]
+            if len(reference_lines) <= len(saved_chorus):
+                continue
+            suffix = reference_lines[-len(saved_chorus):]
+            suffix_text = " ".join(_worship_validation_line(line) for line in suffix)
+            if SequenceMatcher(None, saved_chorus_text, suffix_text).ratio() >= 0.78:
+                reference_parts[reference_name] = reference_lines[:-len(saved_chorus)]
+                embedded_chorus_parts.append(reference_name)
+        if embedded_chorus_parts:
+            reference_parts["chorus"] = list(saved_chorus)
+
+    # Align hymn stanzas by content, not their displayed number. An abridged
+    # chart's Verse 4 may correspond to the full hymn's saved Verse 5.
+    saved_verse_names = []
+    for candidate_name in normalized.get("arrangement", []):
+        if re.match(r"^verse\d+$", candidate_name) and candidate_name not in saved_verse_names:
+            saved_verse_names.append(candidate_name)
+    for candidate_name in song_parts:
+        if re.match(r"^verse\d+$", candidate_name) and candidate_name not in saved_verse_names:
+            saved_verse_names.append(candidate_name)
+    reference_verse_names = [name for name in reference_parts if re.match(r"^verse\d+$", name)]
+    verse_alignment: dict[str, dict] = {}
+    unused_saved_verses = set(saved_verse_names)
+    for reference_name in reference_verse_names:
+        reference_text = " ".join(_worship_validation_line(line) for line in reference_parts[reference_name])
+        best_saved_name = ""
+        best_match = 0.0
+        for saved_name in saved_verse_names:
+            if saved_name not in unused_saved_verses:
+                continue
+            saved_text = " ".join(_worship_validation_line(line) for line in song_parts[saved_name])
+            match_score = SequenceMatcher(None, saved_text, reference_text).ratio()
+            if match_score > best_match:
+                best_match = match_score
+                best_saved_name = saved_name
+        if best_saved_name and best_match >= 0.35:
+            verse_alignment[reference_name] = {
+                "saved_part": best_saved_name,
+                "match_percent": round(best_match * 100),
+            }
+            unused_saved_verses.discard(best_saved_name)
+
     parsed_arrangement = [
         _worship_validation_part_key(part_name)
         for part_name in reference.get("arrangement", [])
@@ -2761,7 +2816,12 @@ def validate_worship_song_against_source(
         if part_name in reference_parts or part_name in normalized.get("parts", {})
     ]
     reference_arrangement = declared_arrangement or parsed_arrangement
-    song_parts = normalized.get("parts", {})
+    if embedded_chorus_parts:
+        reference_arrangement = []
+        for part_name in parsed_arrangement:
+            reference_arrangement.append(part_name)
+            if part_name in embedded_chorus_parts:
+                reference_arrangement.append("chorus")
     issues: list[dict] = []
     scores: list[float] = []
     part_comparisons: list[dict] = []
@@ -2779,14 +2839,15 @@ def validate_worship_song_against_source(
     primary_flat = [line for name in ordered_primary_names for line in song_parts[name]]
     unused_primary_names = set(ordered_primary_names)
     for part_name, reference_lines in reference_parts.items():
-        if part_name not in song_parts:
+        aligned_saved_name = verse_alignment.get(part_name, {}).get("saved_part", part_name)
+        if aligned_saved_name not in song_parts:
             issues.append({
                 "severity": "error",
                 "code": "missing_part",
                 "part": part_name,
                 "message": f"The chord sheet contains {_worship_part_label(part_name)}, but the song does not.",
             })
-        saved_lines = song_parts.get(part_name, [])
+        saved_lines = song_parts.get(aligned_saved_name, [])
         primary_text = " ".join(_worship_validation_line(line) for line in saved_lines)
         reference_text = " ".join(_worship_validation_line(line) for line in reference_lines)
         score = SequenceMatcher(None, primary_text, reference_text).ratio()
@@ -2816,22 +2877,28 @@ def validate_worship_song_against_source(
         part_comparisons.append({
             "part": part_name,
             "label": _worship_part_label(part_name),
+            "saved_part": aligned_saved_name,
+            "saved_label": _worship_part_label(aligned_saved_name),
             "match_percent": round(score * 100),
             "lines": line_rows,
         })
+        mapping_note = (
+            f" (matched to saved {_worship_part_label(aligned_saved_name)})"
+            if aligned_saved_name != part_name else ""
+        )
         if saved_lines and score < 0.78:
             issues.append({
                 "severity": "error",
                 "code": "lyric_mismatch",
                 "part": part_name,
-                "message": f"{_worship_part_label(part_name)} has substantial wording or boundary differences ({round(score * 100)}% match).",
+                "message": f"Chord-sheet {_worship_part_label(part_name)}{mapping_note} has substantial wording differences ({round(score * 100)}% match).",
             })
         elif saved_lines and score < 0.94:
             issues.append({
                 "severity": "warning",
                 "code": "lyric_difference",
                 "part": part_name,
-                "message": f"{_worship_part_label(part_name)} has minor wording differences ({round(score * 100)}% match).",
+                "message": f"Chord-sheet {_worship_part_label(part_name)}{mapping_note} has minor wording differences ({round(score * 100)}% match).",
             })
 
         # Find the best contiguous group of WHOLE primary parts matching this
@@ -2898,8 +2965,13 @@ def validate_worship_song_against_source(
         preserved_unmatched.append(target_name)
         unused_primary_names.discard(original_name)
 
+    recognized_saved_parts = {
+        alignment["saved_part"] for alignment in verse_alignment.values()
+    } | {
+        part_name for part_name in reference_parts if part_name in song_parts and not re.match(r"^verse\d+$", part_name)
+    }
     for part_name in song_parts:
-        if part_name not in reference_parts:
+        if part_name not in recognized_saved_parts:
             issues.append({
                 "severity": "warning",
                 "code": "extra_part",
@@ -2949,11 +3021,92 @@ def validate_worship_song_against_source(
                 "message": f"The chord sheet identifies version “{reference_version},” while this song is “{saved_version or 'unspecified'}.”",
             })
 
+    aligned_verse_sequence = [
+        verse_alignment[name]["saved_part"]
+        for name in reference_verse_names
+        if name in verse_alignment
+    ]
+    omitted_saved_verses = [name for name in saved_verse_names if name not in aligned_verse_sequence]
+    is_abridged_version = bool(
+        omitted_saved_verses
+        and len(reference_verse_names) < len(saved_verse_names)
+        and len(aligned_verse_sequence) == len(reference_verse_names)
+        and all(
+            verse_alignment[name]["match_percent"] >= 70
+            for name in reference_verse_names
+            if name in verse_alignment
+        )
+    )
+    version_proposal: dict = {}
+    if is_abridged_version:
+        issues.append({
+            "severity": "warning",
+            "code": "abridged_version",
+            "message": (
+                f"This appears to be a {len(reference_verse_names)}-verse arrangement of a "
+                f"{len(saved_verse_names)}-verse saved hymn. It omits "
+                + ", ".join(_worship_part_label(name) for name in omitted_saved_verses)
+                + "."
+            ),
+        })
+        proposal_parts = {
+            f"verse{index}": list(song_parts[saved_name])
+            for index, saved_name in enumerate(aligned_verse_sequence, start=1)
+        }
+        if saved_chorus:
+            proposal_parts["chorus"] = list(saved_chorus)
+        proposal_arrangement: list[str] = []
+        for index, _saved_name in enumerate(aligned_verse_sequence, start=1):
+            proposal_arrangement.append(f"verse{index}")
+            if saved_chorus and (embedded_chorus_parts or "chorus" in reference_arrangement):
+                proposal_arrangement.append("chorus")
+
+        def slide_count(parts: dict, arrangement: list[str]) -> int:
+            return sum(len(chunk_lines(parts.get(name, []))) for name in arrangement)
+
+        version_proposal = {
+            "kind": "abridged_hymn",
+            "recommended": True,
+            "saved_verse_count": len(saved_verse_names),
+            "reference_verse_count": len(reference_verse_names),
+            "selected_saved_parts": aligned_verse_sequence,
+            "omitted_saved_parts": omitted_saved_verses,
+            "selections": [
+                {
+                    "saved_part": saved_name,
+                    "saved_label": _worship_part_label(saved_name),
+                    "new_label": _worship_part_label(f"verse{index}"),
+                    "match_percent": verse_alignment[reference_verse_names[index - 1]]["match_percent"],
+                    "preview": song_parts[saved_name][0] if song_parts[saved_name] else "",
+                }
+                for index, saved_name in enumerate(aligned_verse_sequence, start=1)
+            ],
+            "available_saved_verses": [
+                {
+                    "saved_part": saved_name,
+                    "saved_label": _worship_part_label(saved_name),
+                    "preview": song_parts[saved_name][0] if song_parts[saved_name] else "",
+                    "selected": saved_name in aligned_verse_sequence,
+                }
+                for saved_name in saved_verse_names
+            ],
+            "parts": proposal_parts,
+            "arrangement": proposal_arrangement,
+            "current_slide_count": slide_count(song_parts, primary_arrangement),
+            "proposed_slide_count": slide_count(proposal_parts, proposal_arrangement),
+            "suggested_version": f"{len(reference_verse_names)}-verse chord-chart arrangement",
+        }
+
     errors = sum(issue["severity"] == "error" for issue in issues)
     warnings = sum(issue["severity"] == "warning" for issue in issues)
     average_score = round((sum(scores) / len(scores)) * 100) if scores else 0
     status = "verified" if not errors and not warnings else ("needs_review" if errors else "review_recommended")
-    if status == "verified":
+    if is_abridged_version:
+        summary = (
+            f"This validation source appears to use {len(reference_verse_names)} of the "
+            f"{len(saved_verse_names)} saved hymn verses. Choose whether to create an abridged version."
+        )
+    elif status == "verified":
         summary = f"Verified against the labelled source ({average_score}% lyric match)."
     else:
         summary = f"Found {errors} blocking difference{'s' if errors != 1 else ''} and {warnings} warning{'s' if warnings != 1 else ''}."
@@ -2980,7 +3133,11 @@ def validate_worship_song_against_source(
             + "."
         )
     proposed_line_count = sum(len(lines) for lines in structure_proposal.values())
-    proposal_applicable = bool(structure_proposal) and proposed_line_count == len(primary_flat)
+    proposal_applicable = (
+        bool(structure_proposal)
+        and proposed_line_count == len(primary_flat)
+        and not is_abridged_version
+    )
 
     base.update({
         "status": status,
@@ -2991,7 +3148,7 @@ def validate_worship_song_against_source(
         "reference_arrangement": reference_arrangement,
         "coverage": {
             "lyrics": "verified" if scores and min(scores) >= 0.94 else ("conflict" if any(score < 0.78 for score in scores) else "partial"),
-            "structure": "verified" if set(song_parts) == set(reference_parts) else "conflict",
+            "structure": "alternate_version" if is_abridged_version else ("verified" if set(song_parts) == set(reference_parts) else "conflict"),
             "arrangement": "verified" if primary_arrangement == reference_arrangement else "conflict",
         },
         "part_comparisons": part_comparisons,
@@ -3004,6 +3161,8 @@ def validate_worship_song_against_source(
             and not preserved_unmatched,
             "warnings": proposal_warnings,
         },
+        "verse_alignment": verse_alignment,
+        "version_proposal": version_proposal,
     })
     return base
 
@@ -4421,6 +4580,104 @@ def worship_validate(song_id):
     report = normalized["validation"]
     flash(report.get("summary", "Validation finished."),
           "success" if report.get("status") == "verified" else "warning")
+    return redirect(url_for("worship_edit", song_id=song_id))
+
+
+@app.route("/worship/edit/<song_id>/create-validated-version", methods=["POST"])
+@login_required
+def worship_create_validated_version(song_id):
+    song = get_worship_song(song_id)
+    if not song:
+        flash("Song not found.", "warning")
+        return redirect(url_for("worship"))
+    normalized = normalize_worship_song(song)
+    validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
+    proposal = validation.get("version_proposal") if isinstance(validation.get("version_proposal"), dict) else {}
+    if proposal.get("kind") != "abridged_hymn" or validation.get("song_fingerprint") != _worship_structure_fingerprint(normalized):
+        flash("The validation proposal is no longer current. Validate the song again.", "warning")
+        return redirect(url_for("worship_edit", song_id=song_id))
+
+    available = [item.get("saved_part") for item in proposal.get("available_saved_verses", []) if item.get("saved_part")]
+    requested = set(request.form.getlist("selected_verses"))
+    selected = [part_name for part_name in available if part_name in requested]
+    if not selected:
+        flash("Choose at least one verse for the new version.", "warning")
+        return redirect(url_for("worship_edit", song_id=song_id))
+
+    new_parts = {
+        f"verse{index}": list(normalized["parts"][saved_name])
+        for index, saved_name in enumerate(selected, start=1)
+    }
+    chorus_lines = normalized.get("parts", {}).get("chorus", [])
+    if chorus_lines:
+        new_parts["chorus"] = list(chorus_lines)
+    new_arrangement: list[str] = []
+    for index in range(1, len(selected) + 1):
+        new_arrangement.append(f"verse{index}")
+        if chorus_lines:
+            new_arrangement.append("chorus")
+
+    requested_version = request.form.get("new_version", "").strip()
+    new_version = requested_version or str(proposal.get("suggested_version") or "Abridged hymn arrangement")
+    duplicate = normalize_worship_song({
+        **normalized,
+        "version": new_version,
+        "parts": new_parts,
+        "arrangement": new_arrangement,
+    })
+    duplicate["id"] = _make_unique_worship_song_id(
+        duplicate.get("title", ""), duplicate.get("artist", ""), duplicate.get("version", "")
+    )
+    duplicate.pop("review", None)
+    duplicate.pop("last_used", None)
+    duplicate.pop("last_deck_build", None)
+    duplicate.pop("structure_repair_backup", None)
+    duplicate["validation"] = _stale_worship_validation(
+        validation,
+        "Created from the chord sheet's selected verse arrangement. Validate wording and order once more.",
+    )
+    duplicate["derived_from"] = {
+        "song_id": normalized.get("id", ""),
+        "selected_saved_parts": selected,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    save_worship_song(duplicate)
+
+    normalized["validation"] = {
+        key: validation[key]
+        for key in ("checked_at", "source_url", "source_fingerprint")
+        if validation.get(key)
+    } | {
+        "status": "review_recommended",
+        "summary": f"Kept the full {proposal.get('saved_verse_count', len(available))}-verse original and created a separate {len(selected)}-verse version.",
+        "version_decision": "created_abridged_copy",
+    }
+    save_worship_song(normalized)
+    flash(f"Created '{duplicate['title']}' as a separate {len(selected)}-verse version. The full original was preserved.", "success")
+    return redirect(url_for("worship_edit", song_id=duplicate["id"]))
+
+
+@app.route("/worship/edit/<song_id>/keep-current-version", methods=["POST"])
+@login_required
+def worship_keep_current_version(song_id):
+    song = get_worship_song(song_id)
+    if not song:
+        flash("Song not found.", "warning")
+        return redirect(url_for("worship"))
+    normalized = normalize_worship_song(song)
+    validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
+    proposal = validation.get("version_proposal") if isinstance(validation.get("version_proposal"), dict) else {}
+    normalized["validation"] = {
+        key: validation[key]
+        for key in ("checked_at", "source_url", "source_fingerprint")
+        if validation.get(key)
+    } | {
+        "status": "review_recommended",
+        "summary": f"Kept the current {proposal.get('saved_verse_count', 'full')}-verse version. The abridged chord sheet was not applied.",
+        "version_decision": "keep_current",
+    }
+    save_worship_song(normalized)
+    flash("Kept the current song unchanged. Paste a different chord chart any time to validate this version.", "success")
     return redirect(url_for("worship_edit", song_id=song_id))
 
 

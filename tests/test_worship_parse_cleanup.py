@@ -685,6 +685,73 @@ Shared ending
         self.assertNotIn("part_comparisons", stale)
         self.assertNotIn("structure_proposal", stale)
 
+    def test_abridged_hymn_aligns_verses_by_content_and_extracts_chorus(self):
+        chorus = ["O praise Him", "Alleluia forever"]
+        song = {
+            "title": "Seven Verse Hymn",
+            "parts": {
+                "verse1": ["Creatures sing", "Lift your voice"],
+                "chorus": chorus,
+                "verse2": ["Rushing wind", "Clouds above"],
+                "verse3": ["Flowing water", "Fire so bright"],
+                "verse4": ["Mother earth", "Flowers grow"],
+                "verse5": ["Tender hearts", "Cast your care"],
+                "verse6": ["Gentle death", "Child of God"],
+                "verse7": ["Creator bless", "Three in one"],
+            },
+            "arrangement": [
+                "verse1", "chorus", "verse2", "chorus", "verse3", "chorus",
+                "verse4", "chorus", "verse5", "chorus", "verse6", "chorus", "verse7", "chorus",
+            ],
+        }
+        source = """[Verse 1]
+Creatures sing
+Lift your voice
+O praise Him
+Alleluia forever
+
+[Verse 2]
+Rushing wind
+Clouds above
+O praise Him
+Alleluia forever
+
+[Verse 3]
+Flowing water
+Fire so bright
+O praise Him
+Alleluia forever
+
+[Verse 4]
+Tender hearts
+Cast your care
+O praise Him
+Alleluia forever
+
+[Verse 5]
+Creator bless
+Three in one
+O praise Him
+Alleluia forever
+"""
+
+        report = app.validate_worship_song_against_source(song, source)
+        proposal = report["version_proposal"]
+
+        self.assertEqual(report["verse_alignment"]["verse4"]["saved_part"], "verse5")
+        self.assertEqual(report["verse_alignment"]["verse5"]["saved_part"], "verse7")
+        self.assertEqual(
+            proposal["selected_saved_parts"],
+            ["verse1", "verse2", "verse3", "verse5", "verse7"],
+        )
+        self.assertEqual(proposal["omitted_saved_parts"], ["verse4", "verse6"])
+        self.assertEqual(
+            proposal["arrangement"],
+            ["verse1", "chorus", "verse2", "chorus", "verse3", "chorus", "verse4", "chorus", "verse5", "chorus"],
+        )
+        self.assertFalse(report["structure_proposal"]["applicable"])
+        self.assertEqual(report["coverage"]["structure"], "alternate_version")
+
 
 if __name__ == "__main__":
     unittest.main()
