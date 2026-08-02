@@ -3,7 +3,7 @@ from flask import Flask, Response, render_template, request, send_file, send_fro
 from flask_dance.contrib.google import make_google_blueprint, google
 from datetime import datetime
 
-import os, json, re, traceback, hashlib
+import os, json, re, traceback, hashlib, base64
 import logging
 import sys
 import uuid
@@ -811,6 +811,7 @@ SONGS_DIR = os.path.join(app.root_path, "songs")  # kept for local fallback
 # --- Worship song persistence helpers ---
 _WORSHIP_COLLECTION = "worship_songs"
 _WORSHIP_SETLIST_COLLECTION = "worship_setlists"
+_WORSHIP_MEDIA_COLLECTION = "worship_media"
 _WORSHIP_SCOPE_COLLECTION = "worship_scopes"
 _WORSHIP_CHURCH_COLLECTION = "worship_churches"
 _DEFAULT_WORSHIP_SCOPE = "default"
@@ -940,6 +941,10 @@ def _legacy_worship_songs_ref(client=None):
 
 def _worship_setlists_ref():
     return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_SETLIST_COLLECTION)
+
+
+def _worship_media_ref():
+    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_MEDIA_COLLECTION)
 
 
 def _legacy_worship_setlists_ref():
@@ -2376,9 +2381,37 @@ def _save_worship_service_image(upload) -> str:
             image.save(output.name, "JPEG", quality=90, optimize=True)
         scope = _slugify_worship_token(_current_worship_scope()) or "default"
         storage_path = f"worship-media/{scope}/{uuid.uuid4().hex}.jpg"
-        if not upload_to_storage_checked(output.name, storage_path):
+        if upload_to_storage_checked(output.name, storage_path):
+            return storage_path
+
+        # Firebase Storage may be disabled while Firestore is fully healthy
+        # (for example, a closed Cloud billing account). Keep a deliberately
+        # bounded JPEG in a separate media document so photo slides still work
+        # without inflating every worship-song record.
+        media_id = uuid.uuid4().hex
+        with Image.open(output.name) as fallback_image:
+            fallback_image.thumbnail((1400, 1400), Image.Resampling.LANCZOS)
+            encoded = b""
+            for quality in (82, 72, 62, 52, 42):
+                buffer = BytesIO()
+                fallback_image.save(buffer, "JPEG", quality=quality, optimize=True)
+                encoded = buffer.getvalue()
+                if len(encoded) <= 650_000:
+                    break
+        if len(encoded) > 650_000:
+            raise RuntimeError("The image could not be reduced enough for safe storage.")
+        if not db:
             raise RuntimeError("Image storage is temporarily unavailable.")
-        return storage_path
+        try:
+            _worship_media_ref().document(media_id).set({
+                "data": base64.b64encode(encoded).decode("ascii"),
+                "mime_type": "image/jpeg",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        except Exception as exc:
+            raise RuntimeError("Image storage is temporarily unavailable.") from exc
+        app.logger.warning("Stored worship image %s in Firestore fallback because object storage was unavailable", media_id)
+        return f"firestore:{media_id}"
     except (OSError, Image.DecompressionBombError) as exc:
         raise ValueError("That file is not a valid supported image.") from exc
     finally:
@@ -2387,6 +2420,34 @@ def _save_worship_service_image(upload) -> str:
                 os.unlink(path)
             except OSError:
                 pass
+
+
+def _read_worship_firestore_media(image_path: str) -> tuple[bytes, str] | None:
+    if not str(image_path or "").startswith("firestore:") or not db:
+        return None
+    media_id = image_path.split(":", 1)[1]
+    if not re.fullmatch(r"[a-f0-9]{32}", media_id):
+        return None
+    media_doc = _worship_media_ref().document(media_id).get()
+    if not media_doc.exists:
+        return None
+    payload = media_doc.to_dict() or {}
+    try:
+        return base64.b64decode(payload.get("data") or "", validate=True), str(payload.get("mime_type") or "image/jpeg")
+    except (TypeError, ValueError):
+        return None
+
+
+def _download_worship_image(image_path: str, local_path: str) -> bool:
+    firestore_media = _read_worship_firestore_media(image_path)
+    if firestore_media:
+        try:
+            with open(local_path, "wb") as output:
+                output.write(firestore_media[0])
+            return True
+        except OSError:
+            return False
+    return download_from_storage(image_path, local_path)
 
 
 def _worship_set_filename(selected_items: list[dict], date_label: str) -> str:
@@ -4369,7 +4430,7 @@ def worship_build():
                 media_tmp = NamedTemporaryFile(delete=False, suffix=".jpg")
                 media_tmp.close()
                 media_temp_paths.append(media_tmp.name)
-                if download_from_storage(normalized["image_path"], media_tmp.name):
+                if _download_worship_image(normalized["image_path"], media_tmp.name):
                     local_image = media_tmp.name
                 else:
                     app.logger.warning("Could not download worship image for %s", normalized.get("id"))
@@ -4469,6 +4530,13 @@ def worship_media(song_id):
     image_path = str((song or {}).get("image_path") or "").strip()
     if not image_path:
         return Response("Image not found", status=404)
+    firestore_media = _read_worship_firestore_media(image_path)
+    if firestore_media:
+        return Response(
+            firestore_media[0],
+            mimetype=firestore_media[1],
+            headers={"Cache-Control": "private, max-age=300"},
+        )
     media_url = signed_url_for_path(image_path, minutes=15)
     if not media_url:
         return Response("Image temporarily unavailable", status=503)
