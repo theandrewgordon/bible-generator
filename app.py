@@ -2498,6 +2498,7 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
     text = str(line or "").strip()
     if not text:
         return "", False
+    text = re.sub(r"\s*\(\s*\d+\s*x\s*\)\s*$", "", text, flags=re.I).strip()
     unwrapped = re.sub(r"^[\[(]\s*|\s*[\])]$", "", text).strip()
     special = re.match(
         r"^(last\s+bridge|alt(?:ernate)?\s+chorus|turnaround|interlude|instrumental|channel(?:\s*\d+)?|vamp)\s*(:?)$",
@@ -2531,6 +2532,11 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
         if not bracketed:
             return "", False
     return _canonical_part_key(raw_label), has_colon
+
+
+def _worship_section_header_repeat_count(line: str) -> int:
+    match = re.search(r"\(\s*(\d+)\s*x\s*\)\s*$", str(line or "").strip(), flags=re.I)
+    return min(max(int(match.group(1)), 1), 12) if match else 1
 
 
 def _worship_repeat_instruction(line: str) -> tuple[str, int]:
@@ -2733,13 +2739,16 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
     raw_sections: list[tuple[str, list[str] | None]] = []
     current_label = ""
     current_lines: list[str] = []
+    current_repeat_count = 1
 
     def flush_current():
-        nonlocal current_label, current_lines
+        nonlocal current_label, current_lines, current_repeat_count
         if current_label and current_lines:
             raw_sections.append((current_label, current_lines))
+            raw_sections.extend((current_label, None) for _ in range(current_repeat_count - 1))
         current_label = ""
         current_lines = []
+        current_repeat_count = 1
 
     for raw_line in lyric_body.splitlines():
         line = raw_line.strip()
@@ -2754,6 +2763,7 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
         if section_label:
             flush_current()
             current_label = section_label
+            current_repeat_count = _worship_section_header_repeat_count(line)
             continue
         if not current_label:
             continue
@@ -3569,13 +3579,20 @@ def _polish_worship_line_capitalization(parsed: dict, source_lyrics: str) -> dic
         _is_chord_only_worship_line(line) for line in str(source_lyrics or "").splitlines()
     ) >= 3
     normalized = normalize_worship_song(parsed)
+
+    def capitalize_first_letter(line: str) -> str:
+        match = re.search(r"[A-Za-z]", line)
+        if not match or match.group(0).isupper():
+            return line
+        return line[:match.start()] + match.group(0).upper() + line[match.end():]
+
     for part_name, lines in normalized.get("parts", {}).items():
         first_letters = [re.search(r"[A-Za-z]", line) for line in lines]
         first_is_upper = bool(first_letters and first_letters[0] and first_letters[0].group(0).isupper())
         lowercase_starts = sum(bool(match and match.group(0).islower()) for match in first_letters[1:])
         if chord_rendered or (first_is_upper and lowercase_starts >= 2):
             normalized["parts"][part_name] = [
-                re.sub(r"[a-z]", lambda match: match.group(0).upper(), line, count=1)
+                capitalize_first_letter(line)
                 for line in lines
             ]
     return normalized

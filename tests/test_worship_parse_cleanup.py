@@ -491,6 +491,26 @@ Closing lyric
         self.assertEqual(app._extract_worship_section_label("Channel 2"), ("intro", False))
         self.assertEqual(app._extract_worship_section_label("Alt Chorus"), ("chorus2", False))
         self.assertEqual(app._worship_repeat_instruction("REPEAT CHORUS"), ("chorus", 1))
+        self.assertEqual(app._extract_worship_section_label("Bridge (3X)"), ("bridge", False))
+        self.assertEqual(app._worship_section_header_repeat_count("Bridge (3X)"), 3)
+
+    def test_labeled_section_repeat_suffix_expands_arrangement(self):
+        source = """Verse
+You give life
+Chorus
+It is Your breath
+Bridge (3X)
+All the earth will shout Your praise
+Chorus
+It is Your breath
+"""
+
+        parsed = app._parse_labeled_worship_lyrics(source, title="Great Are You Lord")
+
+        self.assertEqual(
+            parsed["arrangement"],
+            ["verse", "chorus", "bridge", "bridge", "bridge", "chorus"],
+        )
 
     def test_fragmented_chord_chart_parse_is_rejected(self):
         source = """Verse 1
@@ -553,16 +573,18 @@ with my soul
 """
         parsed = {
             "parts": {
-                "verse1": ["When peace like a river", "when sorrows like sea billows roll"],
-                "chorus": ["it is well with my soul"],
+                "verse1": ["You give life", "when sorrows like sea billows roll"],
+                "chorus": ["It's Your breath", "it is well with my soul"],
             },
             "arrangement": ["verse1", "chorus"],
         }
 
         polished = app._polish_worship_line_capitalization(parsed, source)
 
+        self.assertEqual(polished["parts"]["verse1"][0], "You give life")
         self.assertEqual(polished["parts"]["verse1"][1], "When sorrows like sea billows roll")
-        self.assertEqual(polished["parts"]["chorus"][0], "It is well with my soul")
+        self.assertEqual(polished["parts"]["chorus"][0], "It's Your breath")
+        self.assertEqual(polished["parts"]["chorus"][1], "It is well with my soul")
 
     def test_systematic_lowercase_section_lines_are_capitalized_without_chords(self):
         parsed = {
