@@ -642,6 +642,49 @@ First four
         self.assertNotIn("v", report["reference_parts"])
         self.assertIn("tag", proposal["parts"])
 
+    def test_structure_proposal_uses_arrangement_order_and_whole_parts(self):
+        song = {
+            "title": "Ordered Units",
+            "parts": {
+                "verse2": ["Later one", "Later two"],
+                "verse1": ["Opening one", "Opening two"],
+                "bridge": ["Bridge one", "Bridge two", "Bridge three", "Shared ending"],
+            },
+            "arrangement": ["verse1", "verse2", "bridge"],
+        }
+        source = """[Verse 1]
+Opening one
+Opening two
+Later one
+Later two
+
+[Chorus 2]
+Shared ending
+"""
+
+        proposal = app.validate_worship_song_against_source(song, source)["structure_proposal"]
+
+        self.assertEqual(
+            proposal["parts"]["verse1"],
+            ["Opening one", "Opening two", "Later one", "Later two"],
+        )
+        self.assertEqual(proposal["parts"]["bridge"], song["parts"]["bridge"])
+        self.assertNotIn("chorus2", proposal["parts"])
+
+    def test_stale_validation_discards_obsolete_findings(self):
+        stale = app._stale_worship_validation({
+            "checked_at": "2026-08-02T00:00:00+00:00",
+            "source_url": "https://example.com/chords",
+            "issues": [{"message": "Old mismatch"}],
+            "part_comparisons": [{"part": "verse1"}],
+            "structure_proposal": {"safe": True},
+        }, "Validate again")
+
+        self.assertEqual(stale["status"], "stale")
+        self.assertNotIn("issues", stale)
+        self.assertNotIn("part_comparisons", stale)
+        self.assertNotIn("structure_proposal", stale)
+
 
 if __name__ == "__main__":
     unittest.main()

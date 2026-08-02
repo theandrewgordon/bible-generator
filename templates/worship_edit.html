@@ -167,6 +167,12 @@
     <button type="submit">Apply matched structure</button>
   </form>
   {% endif %}
+  {% if song.structure_repair_backup is mapping %}
+  <form class="wa-inline-form" method="post" action="{{ url_for('worship_undo_validation_structure', song_id=song.id) }}" onsubmit="return confirm('Restore the lyrics and arrangement from before the last structural repair?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Undo last structural repair</button>
+  </form>
+  {% endif %}
   {% else %}
   <p class="wa-helper">Not validated yet. Add a labelled chord sheet to check section boundaries, wording, and arrangement.</p>
   {% endif %}
