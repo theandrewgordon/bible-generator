@@ -1804,6 +1804,14 @@ def _is_parallel_praise_conclusion(lines: list[str]) -> bool:
     )
 
 
+def _is_causal_bridge_conclusion(lines: list[str]) -> bool:
+    """Keep a short 'Because I know / He holds...' bridge resolution intact."""
+    if not 2 <= len(lines) <= 6:
+        return False
+    normalized = [_normalize_lyric_comparison_line(line) for line in lines[:2]]
+    return normalized[0].startswith("because i know") and normalized[1].startswith(("he ", "you ", "god "))
+
+
 def chunk_lines(lines: list[str]) -> list[dict]:
     """
     Lyric-aware chunking for PPTX slides.
@@ -1836,7 +1844,9 @@ def chunk_lines(lines: list[str]) -> list[dict]:
         # Prefer a slightly denser slide over separating Father, Son, and Spirit.
         for idx in range(max(1, len(grp) - 6), min(5, len(grp) - 2) + 1):
             tail = grp[idx:]
-            if len(grp[:idx]) <= 5 and _is_parallel_praise_conclusion(tail):
+            if len(grp[:idx]) <= 5 and (
+                _is_parallel_praise_conclusion(tail) or _is_causal_bridge_conclusion(tail)
+            ):
                 return _chunks(grp[:idx]) + [tail]
         left, right = _split_at_midpoint(grp)
         return _chunks(left) + _chunks(right)
@@ -2352,6 +2362,19 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
     lines = [line.strip() for line in str(raw_text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")]
     inferred_title = str(title_hint or "").strip()
     inferred_artist = str(artist_hint or "").strip()
+    inferred_key = ""
+
+    for idx, line in enumerate(lines):
+        key_match = re.match(r"^original\s+key\s*:?\s*([A-G](?:#|b)?)?\s*$", line, flags=re.I)
+        if not key_match:
+            continue
+        inferred_key = str(key_match.group(1) or "").strip()
+        if not inferred_key:
+            inferred_key = next(
+                (candidate for candidate in lines[idx + 1:idx + 4] if re.fullmatch(r"[A-G](?:#|b)?", candidate)),
+                "",
+            )
+        break
 
     # Worship Together's copied page text places the canonical title directly
     # above its download link, with a prior title/artist pair near the top.
@@ -2417,6 +2440,7 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
     return {
         "title": inferred_title,
         "artist": inferred_artist,
+        "key": inferred_key,
         "lyrics": "\n".join(cleaned).strip(),
     }
 
@@ -3535,6 +3559,19 @@ def _looks_like_chord_fragmented_worship_parse(parsed: dict, source_lyrics: str)
     return suspicious >= 3
 
 
+def _polish_chord_rendered_worship_lines(parsed: dict, source_lyrics: str) -> dict:
+    """Restore sentence-start capitalization lost around rendered chord anchors."""
+    if sum(_is_chord_only_worship_line(line) for line in str(source_lyrics or "").splitlines()) < 3:
+        return parsed
+    normalized = normalize_worship_song(parsed)
+    for part_name, lines in normalized.get("parts", {}).items():
+        normalized["parts"][part_name] = [
+            re.sub(r"[a-z]", lambda match: match.group(0).upper(), line, count=1)
+            for line in lines
+        ]
+    return normalized
+
+
 def _normalize_lyric_comparison_line(line: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(line or "").lower()).strip()
 
@@ -4486,6 +4523,7 @@ def worship_add_parse():
 
     title = title or cleaned_paste.get("title", "")
     artist = artist or cleaned_paste.get("artist", "")
+    key = key or cleaned_paste.get("key", "")
     app.logger.info("worship_add_parse: cleaned lyrics (%d chars, %d lines)",
                     len(parse_lyrics), parse_lyrics.count("\n"))
 
@@ -4590,6 +4628,7 @@ OTHER RULES:
     # returns e.g. arrangement ["Chorus"] with parts {"chorus": [...]} (case/spacing
     # mismatch) is no longer falsely flagged "incomplete" and bounced to the fallback.
     song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
+    song = _polish_chord_rendered_worship_lines(song, parse_lyrics)
     song = _apply_explicit_worship_arrangement(song, parse_lyrics)
     exploded = _looks_like_line_exploded_worship_parse(song)
     chord_fragmented = _looks_like_chord_fragmented_worship_parse(song, parse_lyrics)

@@ -88,6 +88,9 @@ Benjamin William Hastings, Brandon Lake, Passion
 Gratitude
 Free chord pro download
 
+Original Key:
+G
+
 Verse 1
 All my wo
 B
@@ -98,6 +101,7 @@ rds fall short
 
         self.assertEqual(cleaned["title"], "Gratitude")
         self.assertEqual(cleaned["artist"], "Benjamin William Hastings, Brandon Lake, Passion")
+        self.assertEqual(cleaned["key"], "G")
 
     def test_fallback_parse_creates_parts_and_arrangement(self):
         pasted = '''"Sample Song" lyrics
@@ -499,6 +503,32 @@ ow up my hands
 
         self.assertFalse(app._looks_like_chord_fragmented_worship_parse(parsed, source))
 
+    def test_chord_rendered_lines_restore_sentence_start_capitals(self):
+        source = """Verse 1
+When peace
+G
+like a river
+when sorrows
+D
+like sea billows roll
+Chorus
+it is well
+C
+with my soul
+"""
+        parsed = {
+            "parts": {
+                "verse1": ["When peace like a river", "when sorrows like sea billows roll"],
+                "chorus": ["it is well with my soul"],
+            },
+            "arrangement": ["verse1", "chorus"],
+        }
+
+        polished = app._polish_chord_rendered_worship_lines(parsed, source)
+
+        self.assertEqual(polished["parts"]["verse1"][1], "When sorrows like sea billows roll")
+        self.assertEqual(polished["parts"]["chorus"][0], "It is well with my soul")
+
     def test_chunk_lines_keeps_five_line_hymn_stanzas_together(self):
         slides = app.chunk_lines([
             "Line one",
@@ -545,6 +575,25 @@ ow up my hands
         slides = app.chunk_lines(lines)
 
         self.assertEqual([slide["lines"] for slide in slides], [lines[:3], lines[3:]])
+
+    def test_chunk_lines_keeps_because_i_know_with_he_holds_the_future(self):
+        lines = [
+            "Because He lives",
+            "I can face tomorrow",
+            "Because He lives",
+            "All fear is gone",
+            "Because I know",
+            "He holds the future",
+            "And life is worth the living",
+            "Just because He lives",
+            "He lives, He lives",
+            "He lives",
+        ]
+
+        slides = app.chunk_lines(lines)
+
+        self.assertEqual([len(slide["lines"]) for slide in slides], [4, 6])
+        self.assertEqual(slides[1]["lines"][:2], ["Because I know", "He holds the future"])
 
     def test_fallback_parse_handles_inline_refrain_markers(self):
         pasted = """"Hymn With Refrain" lyrics
