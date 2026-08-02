@@ -156,10 +156,15 @@
     {% endfor %}
   </details>
   {% endif %}
-  {% if validation.structure_proposal and validation.structure_proposal.safe %}
-  <form class="wa-inline-form" method="post" action="{{ url_for('worship_apply_validation_structure', song_id=song.id) }}" onsubmit="return confirm('Apply the chord-sheet section names and order? Saved lyric wording will be preserved, and you will validate again afterward.')">
+  {% if validation.structure_proposal and validation.structure_proposal.applicable %}
+  <div class="wa-validation-status{% if validation.structure_proposal.safe %} is-verified{% endif %}" style="margin-top:.75rem">
+    <strong>Suggested structural repair is available</strong>
+    <div>It uses only your saved primary lyrics and will not discard any lines.</div>
+    {% if validation.structure_proposal.warnings %}<ul>{% for warning in validation.structure_proposal.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  <form class="wa-inline-form" method="post" action="{{ url_for('worship_apply_validation_structure', song_id=song.id) }}" onsubmit="return confirm('Apply the matched chord-sheet section names and order? Every saved lyric line will be preserved, and you will validate again afterward.')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit">Apply structure only</button>
+    <button type="submit">Apply matched structure</button>
   </form>
   {% endif %}
   {% else %}

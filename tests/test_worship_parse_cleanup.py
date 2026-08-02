@@ -144,6 +144,11 @@ Shared chorus line
         self.assertEqual(parsed["parts"]["verse1"], ["First verse line", "Second verse line"])
         self.assertEqual(parsed["parts"]["chorus"], ["Shared chorus line"])
 
+    def test_bare_section_shorthand_noise_is_ignored_but_bracketed_is_valid(self):
+        self.assertEqual(app._extract_worship_section_label("V"), ("", False))
+        self.assertEqual(app._extract_worship_section_label("[V]"), ("v", False))
+        self.assertEqual(app._extract_worship_section_label("V1"), ("v1", False))
+
     def test_chunk_lines_keeps_five_line_hymn_stanzas_together(self):
         slides = app.chunk_lines([
             "Line one",
@@ -598,6 +603,44 @@ Line four
         self.assertTrue(proposal["safe"])
         self.assertEqual(proposal["parts"]["verse1"], ["Line one", "Line two", "Line three", "Line four"])
         self.assertEqual(proposal["parts"]["chorus"], ["Saved refrain", "Saved ending"])
+
+    def test_partial_structure_proposal_preserves_every_primary_line(self):
+        song = {
+            "title": "Partial Match",
+            "parts": {
+                "verse1": ["First one", "First two"],
+                "verse2": ["First three", "First four"],
+                "chorus": ["Main refrain", "Main ending"],
+                "tag": ["Primary-only tag"],
+            },
+            "arrangement": ["verse1", "verse2", "chorus", "tag"],
+        }
+        source = """[Verse 1]
+First one
+First two
+First three
+First four
+
+[Chorus]
+Main refrain
+Main ending
+
+[V]
+First one
+First two
+First three
+First four
+"""
+
+        report = app.validate_worship_song_against_source(song, source)
+        proposal = report["structure_proposal"]
+        original_lines = sorted(line for lines in song["parts"].values() for line in lines)
+        proposed_lines = sorted(line for lines in proposal["parts"].values() for line in lines)
+
+        self.assertTrue(proposal["applicable"])
+        self.assertEqual(original_lines, proposed_lines)
+        self.assertNotIn("v", report["reference_parts"])
+        self.assertIn("tag", proposal["parts"])
 
 
 if __name__ == "__main__":

@@ -2335,7 +2335,15 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
     )
     if not match:
         return "", False
-    return _canonical_part_key(match.group(1)), bool(match.group(2))
+    raw_label = match.group(1).strip()
+    has_colon = bool(match.group(2))
+    # A bare V/Ch is common page or chord-notation noise. Accept shorthand only
+    # when it is explicit via brackets, a number, or a trailing colon.
+    if raw_label.lower() in {"v", "ch"} and not has_colon:
+        bracketed = text.startswith(("[", "(")) and text.endswith(("]", ")"))
+        if not bracketed:
+            return "", False
+    return _canonical_part_key(raw_label), has_colon
 
 
 def _parse_refrain_marker_worship_lyrics(
@@ -2626,7 +2634,15 @@ def _worship_validation_line(line: str) -> str:
 
 def _worship_validation_part_key(part_name: str) -> str:
     canonical = _canonical_part_key(part_name)
+    shorthand = re.fullmatch(r"(v|c|b)(\d+)", canonical)
+    if shorthand:
+        base = {"v": "verse", "c": "chorus", "b": "bridge"}[shorthand.group(1)]
+        number = shorthand.group(2)
+        return _worship_validation_part_key(f"{base}{number}")
     return {
+        "v": "verse1",
+        "c": "chorus",
+        "b": "bridge",
         "verse": "verse1",
         "chorus1": "chorus",
         "bridge1": "bridge",
@@ -2731,6 +2747,7 @@ def validate_worship_song_against_source(
     part_comparisons: list[dict] = []
     structure_proposal: dict[str, list[str]] = {}
     primary_flat = [line for lines in song_parts.values() for line in lines]
+    primary_line_parts = [part_name for part_name, lines in song_parts.items() for _line in lines]
     unused_indexes = set(range(len(primary_flat)))
     for part_name, reference_lines in reference_parts.items():
         if part_name not in song_parts:
@@ -2793,6 +2810,7 @@ def validate_worship_song_against_source(
         best_window: list[str] = []
         best_indexes: set[int] = set()
         best_score = 0.0
+        best_quality = (0.0, 0.0, -999)
         target_len = len(reference_lines)
         for length in range(max(1, target_len - 2), min(len(primary_flat), target_len + 2) + 1):
             for start in range(0, len(primary_flat) - length + 1):
@@ -2801,14 +2819,52 @@ def validate_worship_song_against_source(
                     continue
                 candidate = primary_flat[start:start + length]
                 candidate_text = " ".join(_worship_validation_line(line) for line in candidate)
-                candidate_score = SequenceMatcher(None, candidate_text, reference_text).ratio()
-                if candidate_score > best_score:
+                text_score = SequenceMatcher(None, candidate_text, reference_text).ratio()
+                reference_line_set = {_worship_validation_line(line) for line in reference_lines}
+                candidate_norms = [_worship_validation_line(line) for line in candidate]
+                contained_score = (
+                    sum(line in reference_line_set for line in candidate_norms if line)
+                    / max(sum(bool(line) for line in candidate_norms), 1)
+                )
+                candidate_score = max(text_score, contained_score)
+                candidate_line_set = set(candidate_norms)
+                reference_coverage = (
+                    sum(line in candidate_line_set for line in reference_line_set if line)
+                    / max(sum(bool(line) for line in reference_line_set), 1)
+                )
+                quality = (candidate_score, reference_coverage, -abs(length - target_len))
+                if quality > best_quality:
+                    best_quality = quality
                     best_score = candidate_score
                     best_window = candidate
                     best_indexes = indexes
         if best_window and best_score >= 0.72:
             structure_proposal[part_name] = best_window
             unused_indexes -= best_indexes
+
+    # A proposed repair must never discard primary-source lyrics. Preserve any
+    # unmatched saved lines as their existing part (or a numbered variant when
+    # that name is now occupied by a regrouped part).
+    preserved_unmatched: list[str] = []
+    for original_name in song_parts:
+        remaining = [
+            primary_flat[index]
+            for index in sorted(unused_indexes)
+            if primary_line_parts[index] == original_name
+        ]
+        if not remaining:
+            continue
+        target_name = original_name
+        if target_name in structure_proposal:
+            suffix = 2
+            while f"{target_name}{suffix}" in structure_proposal:
+                suffix += 1
+            target_name = f"{target_name}{suffix}"
+        structure_proposal[target_name] = remaining
+        preserved_unmatched.append(target_name)
+        for index in list(unused_indexes):
+            if primary_line_parts[index] == original_name:
+                unused_indexes.discard(index)
 
     for part_name in song_parts:
         if part_name not in reference_parts:
@@ -2869,6 +2925,31 @@ def validate_worship_song_against_source(
         summary = f"Verified against the labelled source ({average_score}% lyric match)."
     else:
         summary = f"Found {errors} blocking difference{'s' if errors != 1 else ''} and {warnings} warning{'s' if warnings != 1 else ''}."
+    proposed_arrangement = [
+        part_name for part_name in reference_arrangement if part_name in structure_proposal
+    ]
+    for part_name in preserved_unmatched:
+        if part_name not in proposed_arrangement:
+            proposed_arrangement.append(part_name)
+    proposal_missing_reference = [
+        part_name for part_name in reference_parts if part_name not in structure_proposal
+    ]
+    proposal_warnings = []
+    if proposal_missing_reference:
+        proposal_warnings.append(
+            "Not imported from the chord sheet because matching primary lyrics were not found: "
+            + ", ".join(_worship_part_label(name) for name in proposal_missing_reference)
+            + "."
+        )
+    if preserved_unmatched:
+        proposal_warnings.append(
+            "Saved primary lyrics without a confident chord-sheet match will be preserved as: "
+            + ", ".join(_worship_part_label(name) for name in preserved_unmatched)
+            + "."
+        )
+    proposed_line_count = sum(len(lines) for lines in structure_proposal.values())
+    proposal_applicable = bool(structure_proposal) and proposed_line_count == len(primary_flat)
+
     base.update({
         "status": status,
         "summary": summary,
@@ -2884,10 +2965,12 @@ def validate_worship_song_against_source(
         "part_comparisons": part_comparisons,
         "structure_proposal": {
             "parts": structure_proposal,
-            "arrangement": reference_arrangement,
-            "safe": bool(structure_proposal)
-            and set(reference_arrangement) <= set(structure_proposal)
-            and set(structure_proposal) == set(reference_parts),
+            "arrangement": proposed_arrangement,
+            "applicable": proposal_applicable,
+            "safe": proposal_applicable
+            and not proposal_missing_reference
+            and not preserved_unmatched,
+            "warnings": proposal_warnings,
         },
     })
     return base
@@ -4316,8 +4399,8 @@ def worship_apply_validation_structure(song_id):
     if validation.get("song_fingerprint") != _worship_structure_fingerprint(normalized):
         flash("The song changed after validation. Validate it again before applying structure.", "warning")
         return redirect(url_for("worship_edit", song_id=song_id))
-    if not proposal.get("safe") or not isinstance(proposal.get("parts"), dict):
-        flash("The sources do not align safely enough to apply structure automatically.", "warning")
+    if not proposal.get("applicable") or not isinstance(proposal.get("parts"), dict):
+        flash("The sources do not align well enough to regroup the saved lyrics without losing content.", "warning")
         return redirect(url_for("worship_edit", song_id=song_id))
     proposed = normalize_worship_song({
         **normalized,
@@ -4331,7 +4414,7 @@ def worship_apply_validation_structure(song_id):
     }
     proposed.pop("review", None)
     save_worship_song(proposed)
-    flash("Applied the chord-sheet section names and arrangement using the saved lyric wording. Please validate again.", "success")
+    flash("Applied the matched chord-sheet structure and preserved every saved lyric line. Please review and validate again.", "success")
     return redirect(url_for("worship_edit", song_id=song_id))
 
 
