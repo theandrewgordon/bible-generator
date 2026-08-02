@@ -250,6 +250,69 @@ ness
 
         self.assertFalse(app._looks_under_arranged_worship_parse(parsed, source))
 
+    def test_labeled_chart_allows_many_words_split_inside_chord_anchors(self):
+        source = """VERSE 1
+All crea
+tures of our
+God and
+King
+Lift up your
+voice and with us
+sing
+Thou burn
+ing sun with golden
+beam
+VERSE 2
+Thou rush
+ing wind that art so
+strong
+Ye clouds that sail in heaven a
+long
+And worship Him in humble
+ness
+BRIDGE
+Every moun
+tain sing
+high
+And every
+thing in be
+tween
+Sing the har
+mony
+VERSE 3
+Let all
+things their Creator
+bless
+Praise the Fa
+ther praise the
+Son
+And praise the Spirit three in
+one
+"""
+        parsed = {
+            "parts": {
+                "verse1": [
+                    "All creatures of our God and King",
+                    "Lift up your voice and with us sing",
+                    "Thou burning sun with golden beam",
+                ],
+                "verse2": [
+                    "Thou rushing wind that art so strong",
+                    "Ye clouds that sail in heaven along",
+                    "And worship Him in humbleness",
+                ],
+                "bridge": ["Every mountain sing high", "And everything in between", "Sing the harmony"],
+                "verse3": [
+                    "Let all things their Creator bless",
+                    "Praise the Father praise the Son",
+                    "And praise the Spirit three in one",
+                ],
+            },
+            "arrangement": ["verse1", "verse2", "bridge", "bridge", "verse3"],
+        }
+
+        self.assertFalse(app._looks_under_arranged_worship_parse(parsed, source))
+
     def test_labeled_chart_still_flags_missing_unique_lyrics(self):
         source = """VERSE 1
 Alpha one

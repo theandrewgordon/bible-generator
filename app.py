@@ -3492,7 +3492,41 @@ def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> boo
             if len(word) > 1
         }
         word_coverage = len(source_words & parsed_words) / max(len(source_words), 1)
-        return word_coverage < 0.90
+        if word_coverage >= 0.90:
+            return False
+
+        # Some HTML chord charts split *inside* words at chord anchors (for
+        # example ``a`` + ``long`` or ``humble`` + ``ness``). Compare each
+        # labelled section again after removing whitespace. This preserves
+        # section boundaries and ordering while tolerating presentation markup.
+        labelled = _parse_labeled_worship_lyrics(source_lyrics)
+        if labelled:
+            from difflib import SequenceMatcher
+
+            parsed_parts = parsed.get("parts", {})
+            total_chars = 0
+            matched_chars = 0.0
+            for reference_name, reference_lines in labelled.get("parts", {}).items():
+                reference_key = _worship_validation_part_key(reference_name)
+                reference_family = re.sub(r"\d+$", "", reference_key)
+                reference_text = re.sub(r"[^a-z0-9]+", "", " ".join(reference_lines).lower())
+                if not reference_text:
+                    continue
+                candidates = [
+                    lines
+                    for part_name, lines in parsed_parts.items()
+                    if re.sub(r"\d+$", "", _worship_validation_part_key(part_name)) == reference_family
+                    and isinstance(lines, list)
+                ]
+                best = 0.0
+                for candidate_lines in candidates:
+                    candidate_text = re.sub(r"[^a-z0-9]+", "", " ".join(candidate_lines).lower())
+                    best = max(best, SequenceMatcher(None, reference_text, candidate_text).ratio())
+                total_chars += len(reference_text)
+                matched_chars += len(reference_text) * best
+            compact_coverage = matched_chars / max(total_chars, 1)
+            return compact_coverage < 0.82
+        return True
     return coverage < 0.80
 
 
