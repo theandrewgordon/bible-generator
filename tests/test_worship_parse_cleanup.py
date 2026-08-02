@@ -386,6 +386,25 @@ Closing lyric
         self.assertEqual(len(slides[0]["lines"]), 5)
         self.assertEqual(slides[0]["font_size"], 42)
 
+    def test_chunk_lines_keeps_trinitarian_praise_conclusion_together(self):
+        lines = [
+            "Let all things their Creator bless",
+            "And worship Him in humbleness",
+            "O praise Him hallelujah",
+            "Praise praise the Father",
+            "Praise the Son",
+            "And praise the Spirit",
+            "Three in one",
+            "O praise Him O praise Him",
+            "Hallelujah hallelujah hallelujah",
+        ]
+
+        slides = app.chunk_lines(lines)
+
+        self.assertEqual([len(slide["lines"]) for slide in slides], [3, 6])
+        self.assertEqual(slides[1]["lines"][:3], lines[3:6])
+        self.assertEqual(slides[1]["font_size"], 38)
+
     def test_fallback_parse_handles_inline_refrain_markers(self):
         pasted = """"Hymn With Refrain" lyrics
 Example Artist Lyrics

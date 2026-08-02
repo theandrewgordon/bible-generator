@@ -1773,6 +1773,18 @@ def _split_at_midpoint(lines: list[str]) -> tuple[list[str], list[str]]:
     return lines[:mid], lines[mid:]  # fallback: hard split
 
 
+def _is_parallel_praise_conclusion(lines: list[str]) -> bool:
+    """Keep a short Father/Son/Spirit doxology together on one slide."""
+    if not 3 <= len(lines) <= 6:
+        return False
+    normalized = [_normalize_lyric_comparison_line(line) for line in lines[:3]]
+    return (
+        normalized[0].startswith("praise ")
+        and normalized[1].startswith("praise ")
+        and normalized[2].startswith("and praise ")
+    )
+
+
 def chunk_lines(lines: list[str]) -> list[dict]:
     """
     Lyric-aware chunking for PPTX slides.
@@ -1801,6 +1813,12 @@ def chunk_lines(lines: list[str]) -> list[dict]:
     def _chunks(grp: list[str]) -> list[list[str]]:
         if len(grp) <= 5:
             return [grp]
+        # A six-line doxology comfortably fits at the existing 38pt fallback.
+        # Prefer a slightly denser slide over separating Father, Son, and Spirit.
+        for idx in range(max(1, len(grp) - 6), min(5, len(grp) - 2) + 1):
+            tail = grp[idx:]
+            if len(grp[:idx]) <= 5 and _is_parallel_praise_conclusion(tail):
+                return _chunks(grp[:idx]) + [tail]
         left, right = _split_at_midpoint(grp)
         return _chunks(left) + _chunks(right)
 
