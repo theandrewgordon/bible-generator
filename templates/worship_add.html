@@ -45,6 +45,8 @@
   .wa-slide-preview{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;min-height:0}
   .wa-slide-thumb{background:var(--box);border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:.78rem;line-height:1.35;color:var(--text);min-width:80px;max-width:200px;white-space:pre-wrap;font-family:inherit}
   .wa-slide-thumb-num{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:3px}
+  .wa-validation-box{margin:1rem 0;padding:1rem;border:1px solid #cbd5e1;border-radius:10px;background:var(--background)}
+  .wa-validation-box summary{cursor:pointer;font-weight:700;color:var(--text)}
 </style>
 {% endblock %}
 
@@ -162,6 +164,20 @@
         </div>
         <p class="wa-helper">Works best with public lyrics pages. Some sites block imports; if that happens, use Paste page.</p>
       </div>
+
+      <details class="wa-validation-box">
+        <summary>Validate with a second source (recommended)</summary>
+        <p class="wa-helper" style="margin-top:.75rem">Paste a section-labelled chord sheet, or provide its public link. It will verify section boundaries and arrangement without replacing your lyric text.</p>
+        <div class="wa-field">
+          <label class="wa-label-muted">Chord sheet or labelled lyrics</label>
+          <textarea name="validation_text" rows="9" class="wa-input"
+            placeholder="[Verse 1]&#10;...&#10;&#10;[Chorus]&#10;..."></textarea>
+        </div>
+        <div class="wa-field" style="margin-bottom:0">
+          <label class="wa-label-muted">Or validation source link</label>
+          <input type="url" name="validation_url" class="wa-input" placeholder="https://example.com/song-chords">
+        </div>
+      </details>
 
       <button type="submit" class="wa-btn-primary">Import Song</button>
 

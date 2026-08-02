@@ -326,7 +326,8 @@ Chorus line three
         parsed = app._fallback_parse_worship_lyrics("\n".join(lines), title="Continuous Song")
 
         self.assertIsNotNone(parsed)
-        self.assertEqual(parsed["arrangement"], ["verse1", "verse2", "chorus", "verse3", "chorus", "bridge", "chorus"])
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus", "bridge", "chorus"])
+        self.assertEqual(len(parsed["parts"]["verse1"]), 8)
         self.assertEqual(len(parsed["parts"]["chorus"]), 8)
         self.assertEqual(len(parsed["parts"]["bridge"]), 12)
 
@@ -386,7 +387,7 @@ Chorus line three
         parsed = app._fallback_parse_worship_lyrics("\n".join(lines), title="Tail Overlap")
 
         self.assertIsNotNone(parsed)
-        self.assertEqual(parsed["arrangement"], ["verse1", "verse2", "chorus", "verse3", "chorus", "bridge", "chorus"])
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus", "bridge", "chorus"])
         self.assertTrue(parsed["parts"]["bridge"][0].startswith("Chorus fifth"))
 
     def test_repairs_line_exploded_saved_song(self):
@@ -443,6 +444,160 @@ Chorus line three
         self.assertIn("chorus", repaired["parts"])
         self.assertIn("bridge", repaired["parts"])
         self.assertGreaterEqual(len(repaired["parts"]["chorus"]), 6)
+
+    def test_continuous_abide_shape_preserves_long_verses_and_second_chorus(self):
+        verse1 = [f"Opening verse {i}" for i in range(1, 9)]
+        chorus = ["Main refrain 1", "Main refrain 2", "Main refrain 3", "Shared resolution"]
+        verse2 = [f"Middle verse {i}" for i in range(1, 5)]
+        verse3 = [f"Closing verse {i}" for i in range(1, 9)]
+        chorus2 = ["Contrasting refrain 1", "Contrasting refrain 2", "Contrasting refrain 3", "Shared resolution"]
+        tag = ["Tag invitation", "Tag resolution"]
+        source = verse1 + chorus + verse2 + chorus + verse3 + chorus + chorus2 + tag
+
+        parsed = app._fallback_parse_worship_lyrics("\n".join(source), title="Abide Shape")
+
+        self.assertEqual(
+            parsed["arrangement"],
+            ["verse1", "chorus", "verse2", "chorus", "verse3", "chorus", "chorus2", "tag"],
+        )
+        self.assertEqual(parsed["parts"]["verse1"], verse1)
+        self.assertEqual(parsed["parts"]["verse3"], verse3)
+        self.assertEqual(parsed["parts"]["chorus2"], chorus2)
+        self.assertEqual(parsed["parts"]["tag"], tag)
+
+    def test_detects_repeats_not_present_in_unlabelled_source(self):
+        source = "\n".join(["Opening lyric", "Second lyric", "Refrain lyric", "Refrain ending"])
+        parsed = {
+            "parts": {
+                "verse1": ["Opening lyric", "Second lyric"],
+                "chorus": ["Refrain lyric", "Refrain ending"],
+            },
+            "arrangement": ["verse1", "chorus", "chorus"],
+        }
+
+        self.assertTrue(app._looks_like_invented_worship_repeats(parsed, source))
+
+    def test_second_source_validation_ignores_chords_and_verifies_structure(self):
+        song = {
+            "title": "Sample",
+            "parts": {
+                "verse1": ["For my waking breath", "I depend on You"],
+                "chorus": ["You are the way", "Teach me to abide"],
+            },
+            "arrangement": ["verse1", "chorus"],
+        }
+        chord_sheet = """[Verse 1]
+G       D/F#
+For my waking breath
+Em      C
+I depend on You
+
+[Chorus]
+C G D Em
+You are the way
+Teach me to abide
+"""
+
+        report = app.validate_worship_song_against_source(
+            song, chord_sheet, "https://example.com/chords"
+        )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["match_percent"], 100)
+        self.assertEqual(report["reference_arrangement"], ["verse1", "chorus"])
+        self.assertNotIn("D/F#", str(report))
+        self.assertEqual(report["coverage"]["structure"], "verified")
+
+    def test_second_source_validation_flags_part_and_arrangement_conflicts(self):
+        song = {
+            "title": "Sample",
+            "parts": {
+                "verse1": ["Opening lyric", "Second opening lyric"],
+                "bridge": ["Saved contrasting lyric", "Saved ending"],
+            },
+            "arrangement": ["verse1", "bridge", "bridge"],
+        }
+        chord_sheet = """[Verse 1]
+Opening lyric
+Second opening lyric
+
+[Chorus]
+Saved refrain!
+Saved ending.
+"""
+
+        report = app.validate_worship_song_against_source(song, chord_sheet)
+        codes = {issue["code"] for issue in report["issues"]}
+
+        self.assertEqual(report["status"], "needs_review")
+        self.assertIn("missing_part", codes)
+        self.assertIn("extra_part", codes)
+        self.assertIn("arrangement_mismatch", codes)
+
+    def test_song_normalization_preserves_validation_metadata(self):
+        song = app.normalize_worship_song({
+            "title": "Validated Song",
+            "parts": {"verse1": ["Line one"]},
+            "arrangement": ["verse1"],
+            "sources": {"primary_url": " https://lyrics.example/song ", "unused": "drop"},
+            "validation": {"status": "verified", "summary": "Looks good"},
+        })
+
+        self.assertEqual(song["sources"], {"primary_url": "https://lyrics.example/song"})
+        self.assertEqual(song["validation"]["status"], "verified")
+
+    def test_validation_supports_chordpro_and_unnumbered_first_sections(self):
+        song = {
+            "title": "ChordPro Song",
+            "parts": {
+                "verse1": ["Amazing grace", "That saved a soul"],
+                "chorus": ["Sing it again", "Amazing grace"],
+            },
+            "arrangement": ["verse1", "chorus", "chorus"],
+        }
+        source = """Order: V C C
+[Verse]
+[G]Amazing [D]grace
+That [Em]saved a [C]soul
+
+[Chorus 1]
+Sing it again
+[G]Amazing grace
+"""
+
+        report = app.validate_worship_song_against_source(song, source)
+
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["reference_parts"], ["verse1", "chorus"])
+        self.assertEqual(report["reference_arrangement"], ["verse1", "chorus", "chorus"])
+
+    def test_structure_proposal_uses_primary_wording(self):
+        song = {
+            "title": "Regroup Me",
+            "parts": {
+                "verse1": ["Line one", "Line two"],
+                "verse2": ["Line three", "Line four"],
+                "chorus": ["Saved refrain", "Saved ending"],
+            },
+            "arrangement": ["verse1", "verse2", "chorus"],
+        }
+        source = """[Verse 1]
+Line one
+Line two
+Line three
+Line four
+
+    [Chorus]
+    Saved refrain!
+    Saved ending.
+"""
+
+        report = app.validate_worship_song_against_source(song, source)
+        proposal = report["structure_proposal"]
+
+        self.assertTrue(proposal["safe"])
+        self.assertEqual(proposal["parts"]["verse1"], ["Line one", "Line two", "Line three", "Line four"])
+        self.assertEqual(proposal["parts"]["chorus"], ["Saved refrain", "Saved ending"])
 
 
 if __name__ == "__main__":

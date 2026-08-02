@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wir-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.8fr);gap:1.25rem;align-items:start}
+  .wir-card{background:var(--box);border-radius:14px;padding:1.25rem;box-shadow:var(--card-shadow);margin-bottom:1rem}
+  .wir-card h2{font-size:1rem;margin:0 0 .8rem}
+  .wir-meta{display:flex;gap:.5rem;flex-wrap:wrap;color:var(--text-secondary);font-size:.86rem}
+  .wir-order{font-family:monospace;overflow-wrap:anywhere;line-height:1.7}
+  .wir-part{border-top:1px solid #e2e8f0;padding:.8rem 0}
+  .wir-part:first-child{border-top:0}
+  .wir-part h3{font-size:.88rem;margin:0 0 .35rem;text-transform:capitalize}
+  .wir-lines{white-space:pre-wrap;font-size:.88rem;line-height:1.5}
+  .wir-slides{display:grid;gap:.65rem}
+  .wir-slide{border:1px solid #334155;border-radius:10px;padding:.75rem;background:#0f172a;color:#fff;min-height:90px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+  .wir-slide-label{text-align:left;text-transform:uppercase;font-size:.65rem;letter-spacing:.08em;color:#94a3b8;margin-bottom:.45rem}
+  .wir-validation{padding:.85rem;border-radius:10px;background:#fffbeb;border:1px solid #f59e0b}
+  .wir-validation.is-verified{background:#f0fdf4;border-color:#22c55e}
+  .wir-actions{display:flex;gap:.75rem;flex-wrap:wrap;position:sticky;bottom:.75rem;background:var(--box);padding:.8rem;border-radius:12px;box-shadow:var(--card-shadow)}
+  .wir-primary,.wir-secondary{padding:10px 18px;border-radius:9px;font-weight:800;cursor:pointer}
+  .wir-primary{border:0;background:var(--primary);color:#fff;flex:1}
+  .wir-secondary{border:1px solid #cbd5e1;background:transparent;color:var(--text)}
+  @media(max-width:800px){.wir-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Review Import</h1>
+<p class="muted">Nothing has been added to the library yet. Check the structure and every slide, then confirm.</p>
+
+<div class="wir-grid">
+  <div>
+    <div class="wir-card">
+      <h2>{{ song.title }}</h2>
+      <div class="wir-meta">
+        {% if song.artist %}<span>{{ song.artist }}</span>{% endif %}
+        {% if song.version %}<span>· {{ song.version }}</span>{% endif %}
+        {% if song.key %}<span>· Key {{ song.key }}</span>{% endif %}
+      </div>
+      <p><strong>Arrangement</strong></p>
+      <div class="wir-order">{{ song.arrangement|join(' → ') }}</div>
+    </div>
+
+    {% set validation = song.validation if song.validation is mapping else {} %}
+    <div class="wir-card">
+      <h2>Second-source validation</h2>
+      {% if validation %}
+      <div class="wir-validation{% if validation.status == 'verified' %} is-verified{% endif %}">
+        <strong>{{ 'Verified' if validation.status == 'verified' else 'Review differences' }}</strong>
+        <div>{{ validation.summary }}</div>
+        {% if validation.coverage %}
+        <div class="small" style="margin-top:.4rem">Lyrics: {{ validation.coverage.lyrics }} · Structure: {{ validation.coverage.structure }} · Arrangement: {{ validation.coverage.arrangement }}</div>
+        {% endif %}
+        {% if validation.issues %}<ul>{% for issue in validation.issues %}<li>{{ issue.message }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+      {% else %}
+      <p class="muted small">No second source was supplied. The structure is inferred and should be checked carefully.</p>
+      {% endif %}
+    </div>
+
+    <div class="wir-card">
+      <h2>Parsed parts</h2>
+      {% for name, lines in song.parts.items() %}
+      <div class="wir-part">
+        <h3>{{ name }}</h3>
+        <div class="wir-lines">{{ lines|join('\n') }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="wir-card">
+    <h2>Slide-by-slide preview</h2>
+    <div class="wir-slides">
+      {% for slide in slides if slide.kind == 'lyric' %}
+      <div class="wir-slide">
+        <div class="wir-slide-label">{{ loop.index }} · {{ slide.part_label }}</div>
+        <div>{% for line in slide.lines %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<form method="post" class="wir-actions">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="wir-secondary" type="submit" name="action" value="cancel">Cancel Import</button>
+  <button class="wir-primary" type="submit" name="action" value="save">Confirm and Save Song</button>
+</form>
+{% endblock %}

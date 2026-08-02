@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wdh-card{background:var(--box);border-radius:12px;padding:1rem 1.2rem;box-shadow:var(--card-shadow);margin-bottom:.8rem}
+  .wdh-meta{font-size:.8rem;color:var(--text-secondary);margin-bottom:.6rem}.wdh-song{padding:.4rem 0;border-top:1px solid #e2e8f0}.wdh-song:first-of-type{border-top:0}
+  .wdh-state{font-family:monospace;font-size:.75rem;color:var(--text-secondary)}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Deck History</h1>
+<p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
+{% if history %}
+  {% for build in history %}
+  <div class="wdh-card">
+    <div class="wdh-meta">{{ build.built_at[:19]|replace('T', ' ') }} UTC · {{ build.built_by or 'Worship editor' }} · {{ build.id[:8] }}</div>
+    {% for song in build.songs %}
+    <div class="wdh-song"><strong>{{ song.title }}</strong>{% if song.artist %} — {{ song.artist }}{% endif %}{% if song.version %} · {{ song.version }}{% endif %}
+      <div class="wdh-state">snapshot {{ song.fingerprint }} · validation {{ song.validation_status }} · review {{ song.review_status }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+{% else %}<p>No decks have been generated yet.</p>{% endif %}
+{% endblock %}

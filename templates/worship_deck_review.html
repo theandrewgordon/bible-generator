@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wdr-summary,.wdr-card{background:var(--box);border-radius:14px;padding:1.2rem;box-shadow:var(--card-shadow);margin-bottom:1rem}
+  .wdr-warning{background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:.8rem;margin:.75rem 0}
+  .wdr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.75rem}
+  .wdr-slide{background:#0f172a;color:#fff;border:2px solid #334155;border-radius:10px;padding:.8rem;min-height:120px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+  .wdr-slide.is-crowded{border-color:#f59e0b}
+  .wdr-label{text-align:left;color:#94a3b8;font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem}
+  .wdr-actions{display:flex;gap:.7rem;position:sticky;bottom:.75rem;background:var(--box);padding:.8rem;border-radius:12px;box-shadow:var(--card-shadow);margin-top:1rem}
+  .wdr-actions button,.wdr-actions a{padding:10px 18px;border-radius:9px;font-weight:800;text-decoration:none;text-align:center}
+  .wdr-actions button{border:0;background:var(--primary);color:#fff;flex:1;cursor:pointer}.wdr-actions a{border:1px solid #cbd5e1;color:var(--text)}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Pre-deck Checklist</h1>
+<p class="muted">This is the exact lyric sequence that will be rendered. Check it before downloading.</p>
+
+<div class="wdr-summary">
+  <strong>{{ selected_items|length }} song{% if selected_items|length != 1 %}s{% endif %} · {{ slides|selectattr('kind', 'equalto', 'lyric')|list|length }} lyric slides</strong>
+  {% if crowded_count %}<div class="wdr-warning">{{ crowded_count }} slide{% if crowded_count != 1 %}s{% endif %} contain five lines or unusually dense text and are outlined in amber.</div>{% endif %}
+  {% if findings %}
+  <div class="wdr-warning"><strong>Review before building:</strong><ul>{% for finding in findings %}<li>{{ finding }}</li>{% endfor %}</ul></div>
+  {% else %}<p style="color:#166534">✓ Every song has current automated validation and human approval.</p>{% endif %}
+</div>
+
+<div class="wdr-grid">
+{% for slide in slides %}
+  <div class="wdr-slide{% if slide.kind == 'lyric' and (slide.lines|length >= 5 or slide.lines|join('')|length > 210) %} is-crowded{% endif %}">
+    <div class="wdr-label">{{ loop.index }} · {% if slide.kind == 'divider' %}Title{% else %}{{ slide.part_label }}{% endif %}</div>
+    {% if slide.kind == 'divider' %}<strong>{{ slide.title }}</strong><span>{{ slide.artist }}</span>
+    {% else %}<div>{% for line in slide.lines %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>{% endif %}
+  </div>
+{% endfor %}
+</div>
+
+<form class="wdr-actions" method="post" action="{{ url_for('worship_build') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="song_order" value="{{ song_order }}">
+  {% if findings %}<input type="hidden" name="allow_validation_issues" value="1">{% endif %}
+  <a href="{{ url_for('worship') }}">Back to Set</a>
+  <button type="submit">Checklist Complete — Build Deck</button>
+</form>
+{% endblock %}

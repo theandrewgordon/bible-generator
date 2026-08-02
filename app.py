@@ -3,7 +3,7 @@ from flask import Flask, Response, render_template, request, send_file, send_fro
 from flask_dance.contrib.google import make_google_blueprint, google
 from datetime import datetime
 
-import os, json, re, traceback
+import os, json, re, traceback, hashlib
 import logging
 import sys
 import uuid
@@ -1099,6 +1099,14 @@ def normalize_worship_song(song: dict) -> dict:
 
     normalized["parts"] = parts
     normalized["arrangement"] = arrangement
+    raw_sources = normalized.get("sources") if isinstance(normalized.get("sources"), dict) else {}
+    normalized["sources"] = {
+        key: str(raw_sources.get(key) or "").strip()
+        for key in ("primary_url", "validation_url")
+        if str(raw_sources.get(key) or "").strip()
+    }
+    if isinstance(normalized.get("validation"), dict):
+        normalized["validation"] = dict(normalized["validation"])
     return normalized
 
 
@@ -1155,9 +1163,68 @@ def save_worship_song(song: dict) -> None:
 
 
 _WORSHIP_PENDING_COLLECTION = "worship_imports_pending"
+_WORSHIP_DECK_HISTORY_COLLECTION = "worship_deck_history"
 _WORSHIP_PENDING_TTL = timedelta(minutes=30)
 _local_pending_worship_imports: dict[str, dict] = {}
 _local_pending_worship_lock = threading.Lock()
+_local_worship_deck_history: list[dict] = []
+
+
+def _record_worship_deck_build(selected_items: list[dict]) -> dict:
+    build_id = uuid.uuid4().hex
+    built_at = datetime.now(timezone.utc).isoformat()
+    record = {
+        "id": build_id,
+        "built_at": built_at,
+        "built_by": str(session.get("user_email") or ""),
+        "scope": _current_worship_scope(),
+        "songs": [],
+    }
+    for item in selected_items:
+        normalized = normalize_worship_song(item)
+        validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
+        review = normalized.get("review") if isinstance(normalized.get("review"), dict) else {}
+        record["songs"].append({
+            "id": normalized.get("id", ""),
+            "title": normalized.get("title", ""),
+            "artist": normalized.get("artist", ""),
+            "version": normalized.get("version", ""),
+            "fingerprint": _worship_structure_fingerprint(normalized),
+            "validation_status": validation.get("status", "not_validated"),
+            "review_status": review.get("status", "not_reviewed"),
+        })
+        normalized["last_deck_build"] = {
+            "id": build_id,
+            "built_at": built_at,
+            "fingerprint": _worship_structure_fingerprint(normalized),
+        }
+        try:
+            save_worship_song(normalized)
+        except RuntimeError as exc:
+            app.logger.warning("Could not attach deck history to song %s: %s", normalized.get("id"), exc)
+    if db:
+        try:
+            db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(
+                _WORSHIP_DECK_HISTORY_COLLECTION
+            ).document(build_id).set(record)
+        except Exception as exc:
+            app.logger.warning("Worship deck history write failed: %s", exc)
+    else:
+        _local_worship_deck_history.insert(0, record)
+        del _local_worship_deck_history[50:]
+    return record
+
+
+def _list_worship_deck_history() -> list[dict]:
+    if db:
+        try:
+            docs = db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(
+                _WORSHIP_DECK_HISTORY_COLLECTION
+            ).order_by("built_at", direction=firestore.Query.DESCENDING).limit(25).stream()
+            return [doc.to_dict() for doc in docs if doc.to_dict()]
+        except Exception as exc:
+            app.logger.warning("Worship deck history read failed: %s", exc)
+    return list(_local_worship_deck_history[:25])
 
 
 def _store_pending_worship_song(song: dict, used_fallback: bool, fallback_reason: str) -> str:
@@ -2363,7 +2430,6 @@ def _parse_continuous_worship_lyrics(
     parts: dict[str, list[str]] = {"chorus": chorus_lines}
     arrangement: list[str] = []
     verse_count = 1
-    bridge_count = 1
     chorus_count = 0
 
     def is_chorus_at(index: int) -> bool:
@@ -2374,18 +2440,49 @@ def _parse_continuous_worship_lyrics(
             return False
         return _lyric_block_similarity(window, chorus_lines) >= 0.6
 
-    def add_block(block: list[str]) -> None:
-        nonlocal verse_count, bridge_count, chorus_count
+    def add_block(block: list[str], followed_by_chorus: bool) -> None:
+        nonlocal verse_count, chorus_count
         if not block:
             return
-        if chorus_count >= 2:
-            part_name = "bridge" if bridge_count == 1 else f"bridge{bridge_count}"
-            bridge_count += 1
-            parts[part_name] = block
-            arrangement.append(part_name)
+
+        # Do not infer musical function from position alone. In particular, a
+        # contrasting refrain after the last recurring chorus is often Chorus 2,
+        # not a bridge. A short trailing phrase is commonly a tag. Matching the
+        # cadence (last line) of the recurring chorus is useful evidence even
+        # when an unlabelled lyrics site has removed all stanza boundaries.
+        if chorus_count and not followed_by_chorus and len(block) >= 4:
+            refrain = block
+            tag: list[str] = []
+            if len(block) in {5, 6, 7}:
+                candidate = block[:4]
+                if _lyric_line_equalish(candidate[-1], chorus_lines[-1]):
+                    refrain, tag = candidate, block[4:]
+            if _lyric_line_equalish(refrain[-1], chorus_lines[-1]):
+                parts["chorus2"] = refrain
+                arrangement.append("chorus2")
+                if tag:
+                    parts["tag"] = tag
+                    arrangement.append("tag")
+                return
+
+        if chorus_count >= 2 and not followed_by_chorus:
+            parts["bridge"] = block
+            arrangement.append("bridge")
             return
-        for start in range(0, len(block), 4):
-            chunk = block[start:start + 4]
+
+        # A long contrasting passage between later choruses is stronger bridge
+        # evidence than position by itself; normal 4-8 line passages remain
+        # verses (as in songs whose third verse follows the second chorus).
+        if chorus_count >= 2 and followed_by_chorus and len(block) > 8:
+            parts["bridge"] = block
+            arrangement.append("bridge")
+            return
+
+        # A verse is not synonymous with four lyric lines. Preserve coherent
+        # passages of up to eight lines; only chunk unusually long runs where we
+        # have no better structural signal.
+        for start in range(0, len(block), 8):
+            chunk = block[start:start + 8]
             if not chunk:
                 continue
             part_name = f"verse{verse_count}"
@@ -2406,7 +2503,7 @@ def _parse_continuous_worship_lyrics(
                 next_chorus = candidate
                 break
         end = next_chorus if next_chorus >= 0 else len(lines)
-        add_block(lines[idx:end])
+        add_block(lines[idx:end], next_chorus >= 0)
         idx = end
 
     if chorus_count < 2 or len(parts) < 3:
@@ -2486,6 +2583,314 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
         "parts": parts,
         "arrangement": arrangement,
     }
+
+
+def _is_chord_only_worship_line(line: str) -> bool:
+    """Return true for a line made only of common chord symbols and separators."""
+    text = str(line or "").strip()
+    if not text or len(text) > 160:
+        return False
+    tokens = [token for token in re.split(r"\s+", text) if token]
+    if not tokens:
+        return False
+    chord = re.compile(
+        r"^[\[(]?[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?\d*(?:/[A-G](?:#|b)?)?[\])]?[,:|.-]*$",
+        flags=re.I,
+    )
+    return all(chord.match(token) or re.fullmatch(r"[|:/x-]+", token, flags=re.I) for token in tokens)
+
+
+def _prepare_worship_validation_source(raw_text: str) -> str:
+    lines = []
+    for raw_line in str(raw_text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw_line.strip()
+        if _is_chord_only_worship_line(line):
+            continue
+        # ChordPro and some exported chord sheets place chords inline with the
+        # lyric. Remove only bracket tokens that are unambiguously chords; keep
+        # section labels such as [Verse 1] intact.
+        if not _extract_worship_section_label(line)[0]:
+            raw_line = re.sub(
+                r"\[(?:[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?\d*(?:/[A-G](?:#|b)?)?|N\.C\.)\]",
+                "",
+                raw_line,
+                flags=re.I,
+            )
+        lines.append(raw_line)
+    return "\n".join(lines).strip()
+
+
+def _worship_validation_line(line: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", str(line or "").lower()).strip()
+
+
+def _worship_validation_part_key(part_name: str) -> str:
+    canonical = _canonical_part_key(part_name)
+    return {
+        "verse": "verse1",
+        "chorus1": "chorus",
+        "bridge1": "bridge",
+        "tag1": "tag",
+    }.get(canonical, canonical)
+
+
+def _worship_structure_fingerprint(song: dict) -> str:
+    normalized = normalize_worship_song(song)
+    payload = json.dumps(
+        {"parts": normalized.get("parts", {}), "arrangement": normalized.get("arrangement", [])},
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def _extract_worship_reference_arrangement(text: str) -> list[str]:
+    """Read explicit order lines, or fall back to section headers in source order."""
+    aliases = {"v": "verse", "c": "chorus", "b": "bridge", "pc": "pre_chorus", "t": "tag"}
+
+    def token_key(token: str) -> str:
+        compact = re.sub(r"[^a-z0-9]+", "", token.lower())
+        match = re.fullmatch(r"(verse|chorus|bridge|prechorus|tag|v|c|b|pc|t)(\d*)", compact)
+        if not match:
+            return ""
+        base = aliases.get(match.group(1), match.group(1)).replace("prechorus", "pre_chorus")
+        number = match.group(2)
+        return _worship_validation_part_key(f"{base}{number}")
+
+    headers: list[str] = []
+    for raw_line in str(text or "").splitlines():
+        line = raw_line.strip()
+        order_match = re.match(r"^(?:order|arrangement|structure)\s*:\s*(.+)$", line, flags=re.I)
+        if order_match:
+            keys = [token_key(token) for token in re.split(r"[\s,>→|/-]+", order_match.group(1))]
+            keys = [key for key in keys if key]
+            if keys:
+                return keys
+        label, _ = _extract_worship_section_label(line)
+        if label:
+            headers.append(_worship_validation_part_key(label))
+    return headers
+
+
+def validate_worship_song_against_source(
+    song: dict,
+    validation_text: str,
+    validation_url: str = "",
+) -> dict:
+    """Compare saved lyrics with a labelled chord/lyric sheet without mutating them."""
+    from difflib import SequenceMatcher
+
+    normalized = normalize_worship_song(song)
+    prepared = _prepare_worship_validation_source(validation_text)
+    reference = _parse_labeled_worship_lyrics(
+        prepared,
+        normalized.get("title", ""),
+        normalized.get("artist", ""),
+        normalized.get("version", ""),
+        normalized.get("key", ""),
+    )
+    checked_at = datetime.now(timezone.utc).isoformat()
+    base = {
+        "checked_at": checked_at,
+        "source_url": str(validation_url or "").strip(),
+        "source_fingerprint": hashlib.sha256(prepared.encode("utf-8")).hexdigest()[:16] if prepared else "",
+        "issues": [],
+        "reference_parts": [],
+        "reference_arrangement": [],
+        "song_fingerprint": _worship_structure_fingerprint(normalized),
+    }
+    if not reference:
+        base.update({
+            "status": "unable",
+            "summary": "No section labels were found in the validation source.",
+            "issues": [{
+                "severity": "error",
+                "code": "missing_labels",
+                "message": "Paste a chord sheet containing labels such as Verse 1, Chorus, or Bridge.",
+            }],
+        })
+        return base
+
+    reference = normalize_worship_song(reference)
+    reference_parts: dict[str, list[str]] = {}
+    for raw_name, lines in reference.get("parts", {}).items():
+        reference_parts[_worship_validation_part_key(raw_name)] = lines
+    parsed_arrangement = [
+        _worship_validation_part_key(part_name)
+        for part_name in reference.get("arrangement", [])
+    ]
+    declared_arrangement = [
+        part_name for part_name in _extract_worship_reference_arrangement(prepared)
+        if part_name in reference_parts or part_name in normalized.get("parts", {})
+    ]
+    reference_arrangement = declared_arrangement or parsed_arrangement
+    song_parts = normalized.get("parts", {})
+    issues: list[dict] = []
+    scores: list[float] = []
+    part_comparisons: list[dict] = []
+    structure_proposal: dict[str, list[str]] = {}
+    primary_flat = [line for lines in song_parts.values() for line in lines]
+    unused_indexes = set(range(len(primary_flat)))
+    for part_name, reference_lines in reference_parts.items():
+        if part_name not in song_parts:
+            issues.append({
+                "severity": "error",
+                "code": "missing_part",
+                "part": part_name,
+                "message": f"The chord sheet contains {_worship_part_label(part_name)}, but the song does not.",
+            })
+        saved_lines = song_parts.get(part_name, [])
+        primary_text = " ".join(_worship_validation_line(line) for line in saved_lines)
+        reference_text = " ".join(_worship_validation_line(line) for line in reference_lines)
+        score = SequenceMatcher(None, primary_text, reference_text).ratio()
+        if saved_lines:
+            scores.append(score)
+        line_rows = []
+        for index in range(max(len(saved_lines), len(reference_lines))):
+            primary_line = saved_lines[index] if index < len(saved_lines) else ""
+            reference_line = reference_lines[index] if index < len(reference_lines) else ""
+            primary_normalized = _worship_validation_line(primary_line)
+            reference_normalized = _worship_validation_line(reference_line)
+            if primary_line == reference_line:
+                line_status = "match"
+            elif primary_normalized == reference_normalized and primary_normalized:
+                line_status = "formatting"
+            elif primary_line and reference_line:
+                line_status = "different"
+            elif reference_line:
+                line_status = "missing"
+            else:
+                line_status = "extra"
+            line_rows.append({
+                "primary": primary_line,
+                "reference": reference_line,
+                "status": line_status,
+            })
+        part_comparisons.append({
+            "part": part_name,
+            "label": _worship_part_label(part_name),
+            "match_percent": round(score * 100),
+            "lines": line_rows,
+        })
+        if saved_lines and score < 0.78:
+            issues.append({
+                "severity": "error",
+                "code": "lyric_mismatch",
+                "part": part_name,
+                "message": f"{_worship_part_label(part_name)} has substantial wording or boundary differences ({round(score * 100)}% match).",
+            })
+        elif saved_lines and score < 0.94:
+            issues.append({
+                "severity": "warning",
+                "code": "lyric_difference",
+                "part": part_name,
+                "message": f"{_worship_part_label(part_name)} has minor wording differences ({round(score * 100)}% match).",
+            })
+
+        # Build a structure-only proposal from the PRIMARY wording. Find the
+        # best contiguous primary-line window matching this reference section.
+        best_window: list[str] = []
+        best_indexes: set[int] = set()
+        best_score = 0.0
+        target_len = len(reference_lines)
+        for length in range(max(1, target_len - 2), min(len(primary_flat), target_len + 2) + 1):
+            for start in range(0, len(primary_flat) - length + 1):
+                indexes = set(range(start, start + length))
+                if not indexes <= unused_indexes:
+                    continue
+                candidate = primary_flat[start:start + length]
+                candidate_text = " ".join(_worship_validation_line(line) for line in candidate)
+                candidate_score = SequenceMatcher(None, candidate_text, reference_text).ratio()
+                if candidate_score > best_score:
+                    best_score = candidate_score
+                    best_window = candidate
+                    best_indexes = indexes
+        if best_window and best_score >= 0.72:
+            structure_proposal[part_name] = best_window
+            unused_indexes -= best_indexes
+
+    for part_name in song_parts:
+        if part_name not in reference_parts:
+            issues.append({
+                "severity": "warning",
+                "code": "extra_part",
+                "part": part_name,
+                "message": f"{_worship_part_label(part_name)} is not identified in the chord sheet.",
+            })
+
+    primary_arrangement = normalized.get("arrangement", [])
+    if reference_arrangement and primary_arrangement != reference_arrangement:
+        issues.append({
+            "severity": "error",
+            "code": "arrangement_mismatch",
+            "message": "The saved arrangement differs from the labelled order in the chord sheet.",
+        })
+
+    version_line = next(
+        (line.strip() for line in prepared.splitlines() if re.match(r"^version\s*:", line.strip(), flags=re.I)),
+        "",
+    )
+    reference_version = version_line.split(":", 1)[1].strip() if version_line else ""
+    if not reference_version:
+        heading_lines = []
+        for line in prepared.splitlines()[:12]:
+            if _extract_worship_section_label(line)[0]:
+                break
+            heading_lines.append(line)
+        version_haystack = " ".join(heading_lines) + " " + str(validation_url or "")
+        detected_descriptors = []
+        for descriptor, pattern in (
+            ("Live", r"\blive\b"),
+            ("Acoustic", r"\bacoustic\b"),
+            ("Radio Edit", r"\bradio[-_\s]+edit\b"),
+            ("Kids", r"\bkids?\b"),
+            ("Instrumental", r"\binstrumental\b"),
+        ):
+            if re.search(pattern, version_haystack, flags=re.I):
+                detected_descriptors.append(descriptor)
+        reference_version = ", ".join(detected_descriptors)
+    if reference_version:
+        saved_version = normalized.get("version", "")
+        reference_terms = set(_worship_validation_line(reference_version).split())
+        saved_terms = set(_worship_validation_line(saved_version).split())
+        if not reference_terms <= saved_terms:
+            issues.append({
+                "severity": "warning",
+                "code": "version_mismatch",
+                "message": f"The chord sheet identifies version “{reference_version},” while this song is “{saved_version or 'unspecified'}.”",
+            })
+
+    errors = sum(issue["severity"] == "error" for issue in issues)
+    warnings = sum(issue["severity"] == "warning" for issue in issues)
+    average_score = round((sum(scores) / len(scores)) * 100) if scores else 0
+    status = "verified" if not errors and not warnings else ("needs_review" if errors else "review_recommended")
+    if status == "verified":
+        summary = f"Verified against the labelled source ({average_score}% lyric match)."
+    else:
+        summary = f"Found {errors} blocking difference{'s' if errors != 1 else ''} and {warnings} warning{'s' if warnings != 1 else ''}."
+    base.update({
+        "status": status,
+        "summary": summary,
+        "match_percent": average_score,
+        "issues": issues,
+        "reference_parts": list(reference_parts.keys()),
+        "reference_arrangement": reference_arrangement,
+        "coverage": {
+            "lyrics": "verified" if scores and min(scores) >= 0.94 else ("conflict" if any(score < 0.78 for score in scores) else "partial"),
+            "structure": "verified" if set(song_parts) == set(reference_parts) else "conflict",
+            "arrangement": "verified" if primary_arrangement == reference_arrangement else "conflict",
+        },
+        "part_comparisons": part_comparisons,
+        "structure_proposal": {
+            "parts": structure_proposal,
+            "arrangement": reference_arrangement,
+            "safe": bool(structure_proposal)
+            and set(reference_arrangement) <= set(structure_proposal)
+            and set(structure_proposal) == set(reference_parts),
+        },
+    })
+    return base
 
 
 def _fallback_parse_worship_lyrics(
@@ -2668,6 +3073,45 @@ def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> boo
     return coverage < 0.80
 
 
+def _looks_like_invented_worship_repeats(parsed: dict, source_lyrics: str) -> bool:
+    """Detect repeats added by inference when an unlabelled source has none.
+
+    Labelled sheets may intentionally use a bare ``[Chorus]`` marker instead of
+    printing the words again, so this conservative check only applies to lyric
+    text without section labels.
+    """
+    if not isinstance(parsed, dict):
+        return False
+    source_rows = [
+        normalized
+        for line in str(source_lyrics or "").splitlines()
+        if (normalized := _normalize_lyric_comparison_line(line))
+        and not _is_lyrics_site_boilerplate_line(line)
+    ]
+    if any(_extract_worship_section_label(line)[0] for line in str(source_lyrics or "").splitlines()):
+        return False
+    parts = parsed.get("parts")
+    arrangement = parsed.get("arrangement")
+    if not isinstance(parts, dict) or not isinstance(arrangement, list):
+        return False
+    for part_name, raw_lines in parts.items():
+        part_rows = [
+            normalized
+            for line in (raw_lines if isinstance(raw_lines, list) else [])
+            if (normalized := _normalize_lyric_comparison_line(line))
+        ]
+        requested = arrangement.count(part_name)
+        if requested <= 1 or len(part_rows) < 2:
+            continue
+        occurrences = sum(
+            source_rows[idx:idx + len(part_rows)] == part_rows
+            for idx in range(0, len(source_rows) - len(part_rows) + 1)
+        )
+        if occurrences and requested > occurrences:
+            return True
+    return False
+
+
 def _repair_line_exploded_worship_song(song: dict) -> dict | None:
     if not _looks_like_line_exploded_worship_parse(song):
         return None
@@ -2717,7 +3161,7 @@ def _repair_line_exploded_worship_song(song: dict) -> dict | None:
         nonlocal verse_count, bridge_count
         if not block:
             return
-        chunk_size = 4 if len(block) <= 8 else 4
+        chunk_size = 8
         for chunk_start in range(0, len(block), chunk_size):
             chunk = block[chunk_start:chunk_start + chunk_size]
             if not chunk:
@@ -3094,6 +3538,18 @@ def worship_build():
         flash("Select at least one item to build a deck.", "warning")
         return redirect(url_for("worship"))
 
+    validation_problems = []
+    for item in selected_items:
+        validation = item.get("validation") if isinstance(item.get("validation"), dict) else {}
+        if validation.get("status") in {"needs_review", "unable", "stale"}:
+            validation_problems.append(str(item.get("title") or "Untitled Song"))
+    if validation_problems and request.form.get("allow_validation_issues") != "1":
+        flash(
+            "Review validation findings before building slides for: " + ", ".join(validation_problems),
+            "warning",
+        )
+        return redirect(url_for("worship"))
+
     prs = Presentation()
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
@@ -3121,6 +3577,7 @@ def worship_build():
                 )
 
     today = datetime.now(timezone.utc).date().isoformat()
+    _record_worship_deck_build(selected_items)
     _touch_worship_songs_last_used([item.get("id", "") for item in selected_items if item.get("id")], today)
 
     tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
@@ -3141,6 +3598,48 @@ def worship_build():
         download_name=_worship_set_filename(selected_items, today),
         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
     )
+
+
+@app.route("/worship/deck/review", methods=["POST"])
+@login_required
+def worship_deck_review():
+    selected_items = _resolve_selected_worship_items(
+        request.form.get("song_order", ""), request.form.getlist("song_ids")
+    )
+    if not selected_items:
+        flash("Select at least one item to review.", "warning")
+        return redirect(url_for("worship"))
+    slides = _build_worship_mobile_slides(selected_items)
+    findings = []
+    for item in selected_items:
+        normalized = normalize_worship_song(item)
+        validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
+        review = normalized.get("review") if isinstance(normalized.get("review"), dict) else {}
+        if not validation:
+            findings.append(f"{normalized['title']} has not been validated against a second source.")
+        elif validation.get("status") != "verified":
+            findings.append(f"{normalized['title']} validation status is {validation.get('status', 'unknown').replace('_', ' ')}.")
+        if review.get("status") != "approved":
+            findings.append(f"{normalized['title']} has no current human approval.")
+    crowded = [
+        slide for slide in slides
+        if slide.get("kind") == "lyric"
+        and (len(slide.get("lines", [])) >= 5 or sum(len(line) for line in slide.get("lines", [])) > 210)
+    ]
+    return render_template(
+        "worship_deck_review.html",
+        selected_items=[normalize_worship_song(item) for item in selected_items],
+        slides=slides,
+        findings=findings,
+        crowded_count=len(crowded),
+        song_order=",".join(item.get("id", "") for item in selected_items),
+    )
+
+
+@app.route("/worship/deck/history", methods=["GET"])
+@login_required
+def worship_deck_history():
+    return render_template("worship_deck_history.html", history=_list_worship_deck_history())
 
 @app.route("/worship/add", methods=["GET", "POST"])
 @login_required
@@ -3313,12 +3812,14 @@ def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
 @app.route("/worship/add/parse", methods=["POST"])
 @login_required
 def worship_add_parse():
-    if request.content_length and request.content_length > 100_000:
+    if request.content_length and request.content_length > 180_000:
         flash("That import is too large. Please paste only the song lyrics.", "warning")
         return render_template("worship_add.html", conflict_song=None,
                                backgrounds=list(_load_bg_config().keys())), 413
     raw_lyrics = request.form.get("raw_lyrics", "").strip()
     import_url = request.form.get("import_url", "").strip()
+    validation_text = request.form.get("validation_text", "").strip()
+    validation_url = request.form.get("validation_url", "").strip()
     title = request.form.get("title", "").strip()
     artist = request.form.get("artist", "").strip()
     version = request.form.get("version", "").strip()
@@ -3343,6 +3844,10 @@ def worship_add_parse():
         flash("That paste is too large. Please include only the song page or lyrics.", "warning")
         return redirect(url_for("worship_add"))
 
+    if len(validation_text) > 60_000:
+        flash("That validation paste is too large. Please include only the chord or lyric sheet.", "warning")
+        return redirect(url_for("worship_add"))
+
     if import_url:
         try:
             fetched_text = _fetch_worship_import_text(import_url)
@@ -3351,6 +3856,15 @@ def worship_add_parse():
             flash("Could not read that song link. Please paste the lyrics directly and try again.", "error")
             return redirect(url_for("worship_add"))
         raw_lyrics = "\n\n".join(part for part in [raw_lyrics, fetched_text] if part)
+
+    if validation_url and not validation_text:
+        try:
+            fetched_validation = _fetch_worship_import_text(validation_url)
+        except Exception as e:
+            app.logger.warning("worship_add_parse: validation import failed: %s", e, exc_info=True)
+            flash("The song source was readable, but the validation link was not. Paste the chord sheet instead or validate after saving.", "warning")
+            fetched_validation = ""
+        validation_text = "\n\n".join(part for part in [validation_text, fetched_validation] if part)
 
     if len(raw_lyrics) > 60_000 or len(raw_lyrics.splitlines()) > 1_200:
         flash("That song page is too large to import. Please paste only the lyrics.", "warning")
@@ -3417,11 +3931,14 @@ DEDUPLICATION (most important rule):
 
 STANZA BOUNDARIES:
 - Blank lines, when present, separate stanzas — treat them as hard boundaries.
-- The lyrics may arrive with NO blank line separators (copy-paste from web pages often strips whitespace). In that case, use musical structure and repeated content to identify section breaks: verses typically have 4 lines, choruses are the repeated block, bridges come after the second chorus.
+- The lyrics may arrive with NO blank line separators (copy-paste from web pages often strips whitespace). In that case, identify recurring blocks first, then group the unique passages between them by complete lyrical thought.
+- A verse or chorus may contain 4, 5, 6, 8, or more lines. NEVER split a section merely because it reached four lines.
+- NEVER identify a bridge merely because a unique block occurs after the second chorus. Use its lyrical function. A contrasting refrain that resolves with the same line as the main chorus is usually chorus2.
 - Never split a stanza mid-thought across multiple parts.
 
-COMPLETENESS:
-- Every lyric line in the source must appear in exactly one part. Do not drop lines or truncate stanzas.
+COMPLETENESS AND ARRANGEMENT:
+- Every unique lyric line in the source must be represented in parts. Do not drop lines or truncate stanzas.
+- Arrangement must follow the occurrences actually printed in the source, in order. Do not invent performance repeats. If a section is printed once, list it once unless an explicit section/repeat marker says otherwise.
 - Count the lines. If verse 2 has 4 lines in the source, it must have 4 lines in the output.
 
 NEAR-DUPLICATE SECTIONS:
@@ -3476,16 +3993,19 @@ OTHER RULES:
     song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
     exploded = _looks_like_line_exploded_worship_parse(song)
     under_arranged = _looks_under_arranged_worship_parse(song, parse_lyrics)
-    app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s under_arranged=%s",
+    invented_repeats = _looks_like_invented_worship_repeats(song, parse_lyrics)
+    app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s under_arranged=%s invented_repeats=%s",
                     list(song.get("parts", {}).keys()),
                     len(song.get("arrangement", [])),
                     exploded,
-                    under_arranged)
+                    under_arranged,
+                    invented_repeats)
     if (
         not song.get("parts")
         or not song.get("arrangement")   # empty arrangement = incomplete parse
         or exploded
         or under_arranged
+        or invented_repeats
     ):
         fallback = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not fallback:
@@ -3517,24 +4037,70 @@ OTHER RULES:
     # Use the base ID (not a unique-suffixed one) so re-importing the same song
     # triggers the conflict/overwrite flow instead of creating gratitude-...-2, -3, etc.
     song["id"] = _worship_song_id_base(song.get("title", ""), song.get("artist", ""), song.get("version", "")) or "untitled-song"
+    song["sources"] = {
+        key: value
+        for key, value in {
+            "primary_url": import_url,
+            "validation_url": validation_url,
+        }.items()
+        if value
+    }
+    if validation_text:
+        song["validation"] = validate_worship_song_against_source(song, validation_text, validation_url)
 
     try:
-        if get_worship_song(song["id"]):
-            session["pending_worship_token"] = _store_pending_worship_song(
-                song, used_fallback_parser, fallback_reason
-            )
-            return redirect(url_for("worship_add", conflict=song["id"]))
-        save_worship_song(song)
+        review_token = _store_pending_worship_song(song, used_fallback_parser, fallback_reason)
     except RuntimeError as exc:
-        app.logger.warning("worship_add_parse persistence failed: %s", exc)
-        flash("The song was parsed, but the library is temporarily unavailable. Please retry the import.", "error")
+        app.logger.warning("worship_add_parse review persistence failed: %s", exc)
+        flash("The song was parsed, but its review could not be preserved. Please retry the import.", "error")
         return render_template("worship_add.html", conflict_song=None,
                                backgrounds=list(_load_bg_config().keys())), 503
-    if used_fallback_parser:
-        flash(f"'{song.get('title', song['id'])}' saved. {fallback_reason or 'Faith Sparks auto-structured the sections.'} Please review.", "success")
-    else:
-        flash(f"'{song.get('title', song['id'])}' parsed and saved.", "success")
-    return redirect(url_for("worship"))
+    return redirect(url_for("worship_import_review", token=review_token))
+
+
+@app.route("/worship/import/review/<token>", methods=["GET", "POST"])
+@login_required
+def worship_import_review(token):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,80}", str(token or "")):
+        flash("That import review link is invalid.", "warning")
+        return redirect(url_for("worship_add"))
+    try:
+        payload = _load_pending_worship_song(token)
+    except RuntimeError as exc:
+        app.logger.warning("worship_import_review load failed: %s", exc)
+        flash("The import review is temporarily unavailable.", "error")
+        return redirect(url_for("worship_add"))
+    if not payload:
+        flash("That import review expired. Please import the song again.", "warning")
+        return redirect(url_for("worship_add"))
+    song = normalize_worship_song(payload.get("song") or {})
+
+    if request.method == "POST":
+        if request.form.get("action") == "cancel":
+            _delete_pending_worship_song(token)
+            flash("Import cancelled; nothing was saved.", "success")
+            return redirect(url_for("worship_add"))
+        try:
+            if get_worship_song(song["id"]):
+                session["pending_worship_token"] = token
+                return redirect(url_for("worship_add", conflict=song["id"]))
+            save_worship_song(song)
+        except RuntimeError as exc:
+            app.logger.warning("worship_import_review save failed: %s", exc)
+            flash("The song could not be saved right now. Your review is still available.", "error")
+            return render_template("worship_import_review.html", song=song, token=token,
+                                   payload=payload, slides=_build_worship_mobile_slides([song])), 503
+        _delete_pending_worship_song(token)
+        validation = song.get("validation") if isinstance(song.get("validation"), dict) else {}
+        if validation:
+            flash(validation.get("summary", "Song saved with validation results."),
+                  "success" if validation.get("status") == "verified" else "warning")
+        else:
+            flash("Song saved. Validate it against a chord sheet when one is available.", "success")
+        return redirect(url_for("worship_edit", song_id=song["id"]))
+
+    return render_template("worship_import_review.html", song=song, token=token, payload=payload,
+                           slides=_build_worship_mobile_slides([song]))
 
 
 @app.route("/worship/preview-slides", methods=["POST"])
@@ -3625,6 +4191,7 @@ def worship_edit(song_id):
         pass  # auto-repair disabled: it produced worse results than the incomplete parse
 
     if request.method == "POST":
+        old_structure = normalize_worship_song(song)
         title = request.form.get("title", "").strip()
         artist = request.form.get("artist", "").strip()
         version = request.form.get("version", "").strip()
@@ -3662,12 +4229,130 @@ def worship_edit(song_id):
             "arrangement": arrangement,
         })
 
+        updated_structure = normalize_worship_song(song)
+        if (
+            isinstance(song.get("validation"), dict)
+            and (
+                old_structure.get("parts") != updated_structure.get("parts")
+                or old_structure.get("arrangement") != updated_structure.get("arrangement")
+            )
+        ):
+            song["validation"] = {
+                **song["validation"],
+                "status": "stale",
+                "summary": "Lyrics or arrangement changed after the last validation. Validate this version again.",
+            }
+        if isinstance(song.get("review"), dict) and (
+            old_structure.get("parts") != updated_structure.get("parts")
+            or old_structure.get("arrangement") != updated_structure.get("arrangement")
+        ):
+            song["review"] = {
+                **song["review"],
+                "status": "stale",
+                "summary": "Lyrics or arrangement changed after human approval.",
+            }
+
         save_worship_song(song)
         flash(f"'{title}' updated.", "success")
         return redirect(url_for("worship"))
 
     return render_template("worship_edit.html", song=song,
                             backgrounds=list(_load_bg_config().keys()))
+
+
+@app.route("/worship/edit/<song_id>/validate", methods=["POST"])
+@login_required
+def worship_validate(song_id):
+    if ".." in song_id or "/" in song_id or "\\" in song_id:
+        flash("Invalid song id.", "warning")
+        return redirect(url_for("worship"))
+    song = get_worship_song(song_id)
+    if not song:
+        flash("Song not found.", "warning")
+        return redirect(url_for("worship"))
+
+    validation_text = request.form.get("validation_text", "").strip()
+    validation_url = request.form.get("validation_url", "").strip()
+    if len(validation_text) > 60_000:
+        flash("That validation paste is too large. Please include only the chord or lyric sheet.", "warning")
+        return redirect(url_for("worship_edit", song_id=song_id))
+    if validation_url and not validation_text:
+        try:
+            fetched = _fetch_worship_import_text(validation_url)
+        except Exception as exc:
+            app.logger.warning("worship_validate(%s) URL fetch failed: %s", song_id, exc, exc_info=True)
+            flash("Could not read that validation link. Paste the chord sheet text instead.", "error")
+            return redirect(url_for("worship_edit", song_id=song_id))
+        validation_text = "\n\n".join(part for part in [validation_text, fetched] if part)
+    if not validation_text:
+        flash("Paste a labelled chord sheet or enter its public link.", "warning")
+        return redirect(url_for("worship_edit", song_id=song_id))
+
+    normalized = normalize_worship_song(song)
+    normalized["validation"] = validate_worship_song_against_source(
+        normalized, validation_text, validation_url
+    )
+    sources = dict(normalized.get("sources") or {})
+    if validation_url:
+        sources["validation_url"] = validation_url
+    normalized["sources"] = sources
+    save_worship_song(normalized)
+    report = normalized["validation"]
+    flash(report.get("summary", "Validation finished."),
+          "success" if report.get("status") == "verified" else "warning")
+    return redirect(url_for("worship_edit", song_id=song_id))
+
+
+@app.route("/worship/edit/<song_id>/apply-validation-structure", methods=["POST"])
+@login_required
+def worship_apply_validation_structure(song_id):
+    song = get_worship_song(song_id)
+    if not song:
+        flash("Song not found.", "warning")
+        return redirect(url_for("worship"))
+    normalized = normalize_worship_song(song)
+    validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
+    proposal = validation.get("structure_proposal") if isinstance(validation.get("structure_proposal"), dict) else {}
+    if validation.get("song_fingerprint") != _worship_structure_fingerprint(normalized):
+        flash("The song changed after validation. Validate it again before applying structure.", "warning")
+        return redirect(url_for("worship_edit", song_id=song_id))
+    if not proposal.get("safe") or not isinstance(proposal.get("parts"), dict):
+        flash("The sources do not align safely enough to apply structure automatically.", "warning")
+        return redirect(url_for("worship_edit", song_id=song_id))
+    proposed = normalize_worship_song({
+        **normalized,
+        "parts": proposal["parts"],
+        "arrangement": proposal.get("arrangement", []),
+    })
+    proposed["validation"] = {
+        **validation,
+        "status": "stale",
+        "summary": "Chord-sheet structure was applied using the primary lyrics. Validate once more to confirm.",
+    }
+    proposed.pop("review", None)
+    save_worship_song(proposed)
+    flash("Applied the chord-sheet section names and arrangement using the saved lyric wording. Please validate again.", "success")
+    return redirect(url_for("worship_edit", song_id=song_id))
+
+
+@app.route("/worship/edit/<song_id>/approve", methods=["POST"])
+@login_required
+def worship_approve(song_id):
+    song = get_worship_song(song_id)
+    if not song:
+        flash("Song not found.", "warning")
+        return redirect(url_for("worship"))
+    normalized = normalize_worship_song(song)
+    normalized["review"] = {
+        "status": "approved",
+        "reviewed_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_by": str(session.get("user_email") or "Worship editor"),
+        "song_fingerprint": _worship_structure_fingerprint(normalized),
+        "summary": "A person reviewed the saved lyrics, sections, arrangement, and slide previews.",
+    }
+    save_worship_song(normalized)
+    flash("Song marked as human-reviewed.", "success")
+    return redirect(url_for("worship_edit", song_id=song_id))
 
 
 @app.route("/worship/setlist/save", methods=["POST"])
