@@ -2353,6 +2353,25 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
     inferred_title = str(title_hint or "").strip()
     inferred_artist = str(artist_hint or "").strip()
 
+    # Worship Together's copied page text places the canonical title directly
+    # above its download link, with a prior title/artist pair near the top.
+    download_idx = next(
+        (idx for idx, line in enumerate(lines) if line.lower().startswith("free ") and "download" in line.lower()),
+        -1,
+    )
+    if download_idx > 0 and not inferred_title:
+        inferred_title = lines[download_idx - 1].strip()
+    if download_idx > 1 and inferred_title and not inferred_artist:
+        prior_title_idx = next(
+            (idx for idx in range(download_idx - 2, -1, -1) if lines[idx].strip() == inferred_title),
+            -1,
+        )
+        if prior_title_idx >= 0:
+            inferred_artist = next(
+                (line.strip() for line in lines[prior_title_idx + 1:download_idx - 1] if line.strip()),
+                "",
+            )
+
     for line in lines:
         if not inferred_title:
             match = re.match(r'^"(.+?)"\s+lyrics$', line, flags=re.I)
@@ -2452,10 +2471,22 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
     if not text:
         return "", False
     unwrapped = re.sub(r"^[\[(]\s*|\s*[\])]$", "", text).strip()
-    special = re.match(r"^(last\s+bridge|turnaround|interlude|instrumental|vamp)\s*(:?)$", unwrapped, flags=re.I)
+    special = re.match(
+        r"^(last\s+bridge|alt(?:ernate)?\s+chorus|turnaround|interlude|instrumental|channel(?:\s*\d+)?|vamp)\s*(:?)$",
+        unwrapped,
+        flags=re.I,
+    )
     if special:
         raw_special = special.group(1).lower()
-        return ("bridge" if raw_special == "last bridge" else "intro"), bool(special.group(2))
+        if raw_special == "last bridge":
+            label = "bridge"
+        elif raw_special.startswith("alt"):
+            label = "chorus2"
+        elif raw_special.startswith("channel"):
+            label = "intro"
+        else:
+            label = "intro"
+        return label, bool(special.group(2))
     match = re.match(
         r"^\s*[\[(]?\s*((?:verse|v|chorus|ch|bridge|pre[-\s]?chorus|tag|intro|outro|ending|refrain)(?:\s*\d+)?)\s*(:?)\s*[\])]?\s*$",
         text,
@@ -2477,13 +2508,13 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
 def _worship_repeat_instruction(line: str) -> tuple[str, int]:
     text = re.sub(r"^[\[(]\s*|\s*[\])]$", "", str(line or "").strip()).strip()
     match = re.match(
-        r"^repeat\s+(verse|chorus|bridge|pre[-\s]?chorus|tag)(?:\s*\d+)?\s+(\d+)\s*x$",
+        r"^repeat\s+(verse|chorus|bridge|pre[-\s]?chorus|tag)(?:\s*\d+)?(?:\s+(\d+)\s*x)?$",
         text,
         flags=re.I,
     )
     if not match:
         return "", 0
-    return _canonical_part_key(match.group(1)), min(max(int(match.group(2)), 1), 12)
+    return _canonical_part_key(match.group(1)), min(max(int(match.group(2) or 1), 1), 12)
 
 
 def _parse_refrain_marker_worship_lyrics(
@@ -3475,6 +3506,33 @@ def _looks_like_line_exploded_worship_parse(parsed: dict) -> bool:
         if isinstance(lines, list) and len([line for line in lines if str(line).strip()]) <= 1:
             one_line_parts += 1
     return one_line_parts / max(len(verse_like), 1) >= 0.75 and len(arrangement) >= 12
+
+
+def _looks_like_chord_fragmented_worship_parse(parsed: dict, source_lyrics: str) -> bool:
+    """Reject rendered chord-chart fragments that would make unusable slides."""
+    source_rows = str(source_lyrics or "").splitlines()
+    if sum(_is_chord_only_worship_line(line) for line in source_rows) < 3:
+        return False
+    parts = parsed.get("parts") if isinstance(parsed, dict) else None
+    if not isinstance(parts, dict):
+        return False
+    suspicious = 0
+    for raw_lines in parts.values():
+        if not isinstance(raw_lines, list):
+            continue
+        for raw_line in raw_lines:
+            line = str(raw_line or "").strip()
+            normalized = _normalize_lyric_comparison_line(line)
+            words = normalized.split()
+            if _is_worship_non_lyric_instruction_line(line):
+                suspicious += 2
+            elif re.search(r"\b[a-z]\s*-\s*[a-z](?:\s*-\s*[a-z])?\b", line, flags=re.I):
+                suspicious += 1
+            elif words and len(words[-1]) <= 2 and len(words) >= 2 and words[-1] not in {"i", "a", "to", "of", "in", "me", "do", "we", "he"}:
+                suspicious += 1
+            elif words and len(words[0]) <= 3 and line[:1].islower() and words[0] not in {"and", "but", "for", "the", "you"}:
+                suspicious += 1
+    return suspicious >= 3
 
 
 def _normalize_lyric_comparison_line(line: str) -> str:
@@ -4474,6 +4532,8 @@ STANZA BOUNDARIES:
 - A verse or chorus may contain 4, 5, 6, 8, or more lines. NEVER split a section merely because it reached four lines.
 - NEVER identify a bridge merely because a unique block occurs after the second chorus. Use its lyrical function. A contrasting refrain that resolves with the same line as the main chorus is usually chorus2.
 - Never split a stanza mid-thought across multiple parts.
+- Rendered chord charts may put a chord symbol in the MIDDLE of a lyric line or even a word. Rejoin those fragments into the natural lyric line: "wo" + chord + "rds" becomes "words"; "How could" + chord + "I express" becomes "How could I express". Never preserve syllable-break notation such as "hal - le - lu - jah".
+- Ignore non-lyric performance headings such as Intro, Turn, Channel, Channel 2, and Instrumental. "REPEAT CHORUS" adds one chorus occurrence to arrangement. "Alt Chorus" is a separate chorus only when its words differ.
 
 COMPLETENESS AND ARRANGEMENT:
 - Every unique lyric line in the source must be represented in parts. Do not drop lines or truncate stanzas.
@@ -4532,18 +4592,21 @@ OTHER RULES:
     song = normalize_worship_song(parsed) if isinstance(parsed, dict) else {"parts": {}, "arrangement": []}
     song = _apply_explicit_worship_arrangement(song, parse_lyrics)
     exploded = _looks_like_line_exploded_worship_parse(song)
+    chord_fragmented = _looks_like_chord_fragmented_worship_parse(song, parse_lyrics)
     under_arranged = _looks_under_arranged_worship_parse(song, parse_lyrics)
     invented_repeats = _looks_like_invented_worship_repeats(song, parse_lyrics)
-    app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s under_arranged=%s invented_repeats=%s",
+    app.logger.info("worship_add_parse: parts=%s arrangement_len=%d exploded=%s chord_fragmented=%s under_arranged=%s invented_repeats=%s",
                     list(song.get("parts", {}).keys()),
                     len(song.get("arrangement", [])),
                     exploded,
+                    chord_fragmented,
                     under_arranged,
                     invented_repeats)
     if (
         not song.get("parts")
         or not song.get("arrangement")   # empty arrangement = incomplete parse
         or exploded
+        or chord_fragmented
         or under_arranged
         or invented_repeats
     ):
@@ -4558,8 +4621,9 @@ OTHER RULES:
             not song.get("parts")
             or not song.get("arrangement")
             or _looks_under_arranged_worship_parse(song, parse_lyrics)
+            or _looks_like_chord_fragmented_worship_parse(song, parse_lyrics)
         ):
-            flash("We could not structure all of the lyrics reliably. Please add section labels or use manual entry.", "error")
+            flash("That chord chart split lyrics around chord symbols, and the result was not safe for slides. Try its Free Lyrics Download page, paste labelled lyrics, or use manual entry.", "error")
             return redirect(url_for("worship_add"))
 
     # The form explicitly promises that supplied metadata overrides inference.

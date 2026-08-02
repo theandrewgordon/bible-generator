@@ -79,6 +79,26 @@ Son of God, Messiah
         self.assertIn("Holy, holy, holy", cleaned["lyrics"])
         self.assertIn("Jesus", cleaned["lyrics"])
 
+    def test_clean_worship_together_chord_page_infers_title_and_artist(self):
+        pasted = """Songs
+Worship Leaders
+Gratitude
+Benjamin William Hastings, Brandon Lake, Passion
+
+Gratitude
+Free chord pro download
+
+Verse 1
+All my wo
+B
+rds fall short
+"""
+
+        cleaned = app._clean_lyrics_site_paste(pasted)
+
+        self.assertEqual(cleaned["title"], "Gratitude")
+        self.assertEqual(cleaned["artist"], "Benjamin William Hastings, Brandon Lake, Passion")
+
     def test_fallback_parse_creates_parts_and_arrangement(self):
         pasted = '''"Sample Song" lyrics
 Example Artist Lyrics
@@ -427,6 +447,57 @@ Closing lyric
         self.assertEqual(app._extract_worship_section_label("V"), ("", False))
         self.assertEqual(app._extract_worship_section_label("[V]"), ("v", False))
         self.assertEqual(app._extract_worship_section_label("V1"), ("v1", False))
+
+    def test_chord_chart_performance_labels_and_bare_repeat_are_recognized(self):
+        self.assertEqual(app._extract_worship_section_label("Channel 2"), ("intro", False))
+        self.assertEqual(app._extract_worship_section_label("Alt Chorus"), ("chorus2", False))
+        self.assertEqual(app._worship_repeat_instruction("REPEAT CHORUS"), ("chorus", 1))
+
+    def test_fragmented_chord_chart_parse_is_rejected(self):
+        source = """Verse 1
+All my wo
+B
+rds fall short
+I got n
+G#m
+othing new
+Chorus
+So I thr
+B
+ow up my hands
+"""
+        parsed = {
+            "parts": {
+                "verse1": ["All my wo", "rds fall short", "I got n", "othing new"],
+                "chorus": ["So I thr", "ow up my hands", "hal - le - lu - jah"],
+            },
+            "arrangement": ["verse1", "chorus", "verse1", "chorus"],
+        }
+
+        self.assertTrue(app._looks_like_chord_fragmented_worship_parse(parsed, source))
+
+    def test_clean_chord_chart_parse_passes_fragment_quality_gate(self):
+        source = """Verse 1
+All my wo
+B
+rds fall short
+I got n
+G#m
+othing new
+Chorus
+So I thr
+B
+ow up my hands
+"""
+        parsed = {
+            "parts": {
+                "verse1": ["All my words fall short", "I got nothing new"],
+                "chorus": ["So I throw up my hands", "Hallelujah"],
+            },
+            "arrangement": ["verse1", "chorus", "verse1", "chorus"],
+        }
+
+        self.assertFalse(app._looks_like_chord_fragmented_worship_parse(parsed, source))
 
     def test_chunk_lines_keeps_five_line_hymn_stanzas_together(self):
         slides = app.chunk_lines([
