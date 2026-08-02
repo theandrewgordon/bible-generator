@@ -54,6 +54,47 @@
 <h1>Add Song</h1>
 <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
 
+<div class="wa-card" style="margin:1.5rem 0">
+  <h2>Add a service slide</h2>
+  <p class="wa-helper">Create a reusable welcome, announcement, or photo slide and place it anywhere in a set.</p>
+  <form method="post" action="{{ url_for('worship_service_slide_add') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="wa-row">
+      <div class="wa-field">
+        <label class="wa-label">Slide type *</label>
+        <select class="wa-input" name="slide_type" id="service-slide-type">
+          <option value="welcome">Welcome</option>
+          <option value="announcement">Announcement</option>
+          <option value="photo">Photo</option>
+        </select>
+      </div>
+      <div class="wa-field">
+        <label class="wa-label">Title *</label>
+        <input class="wa-input" name="title" required placeholder="Welcome to Grace Church">
+      </div>
+    </div>
+    <div class="wa-field">
+      <label class="wa-label">Supporting text</label>
+      <textarea class="wa-input" name="service_text" rows="3" placeholder="Join us after worship for lunch&#10;or&#10;The Smith family · Serving in Guatemala"></textarea>
+    </div>
+    <div class="wa-row" id="service-photo-fields">
+      <div class="wa-field">
+        <label class="wa-label">Photo</label>
+        <input class="wa-input" type="file" name="image" accept="image/jpeg,image/png,image/webp">
+        <p class="wa-helper">JPG, PNG, or WebP, up to 10 MB. Only upload photos you have permission to display.</p>
+      </div>
+      <div class="wa-field">
+        <label class="wa-label">Photo layout</label>
+        <select class="wa-input" name="image_layout">
+          <option value="full">Full photo with text overlay</option>
+          <option value="split">Photo beside text</option>
+        </select>
+      </div>
+    </div>
+    <button class="wa-btn-primary" type="submit">Save Service Slide</button>
+  </form>
+</div>
+
 {% if conflict_song %}
 <div class="wa-conflict">
   <strong>"{{ conflict_song.title }}"</strong>

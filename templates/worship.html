@@ -7,6 +7,10 @@
   .set-item{display:flex;align-items:center;gap:.6rem;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:6px;background:var(--background);user-select:none}
   .drag-handle{color:#94a3b8;cursor:grab;font-size:1.1rem;flex-shrink:0;line-height:1;padding:0 2px}
   .drag-handle:active{cursor:grabbing}
+  .set-reorder{display:inline-flex;flex-direction:column;gap:2px;flex-shrink:0}
+  .set-reorder button{width:26px;height:22px;padding:0;border:1px solid #cbd5e1;border-radius:5px;background:var(--background);color:var(--text-secondary);cursor:pointer;font-size:.72rem;line-height:1}
+  .set-reorder button:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+  .set-reorder button:disabled{opacity:.3;cursor:default}
   .set-remove{background:none;border:none;cursor:pointer;color:#ef4444;font-size:1em;font-weight:700;padding:2px 5px;border-radius:4px;line-height:1;flex-shrink:0}
   .set-remove:hover{background:#fee2e2}
   .lib-row{display:flex;align-items:center;gap:.5rem;padding:6px 0;border-bottom:1px solid #f1f5f9}
@@ -96,6 +100,9 @@
     .ws-add{min-height:34px;padding:5px 10px}
     .ws-del,.set-remove{min-width:34px;min-height:34px;font-size:1rem}
     .set-item{align-items:flex-start;gap:.45rem;padding:10px 8px}
+    .drag-handle{font-size:1.3rem;padding:5px 4px;touch-action:none}
+    .set-reorder{flex-direction:row}
+    .set-reorder button{width:34px;height:34px;font-size:.85rem}
     .set-note{font-size:.85rem;margin-top:6px;padding:6px 0}
     .ws-btn-primary,.ws-btn-ghost{flex:1 1 100%;min-height:42px}
     .ws-share-card{padding:.85rem;border-radius:10px}
@@ -456,6 +463,12 @@
     if (lyricBtn) lyricBtn.disabled = !hasItems;
     saveBtn.disabled = !hasItems;
     if (mobileShareEl) mobileShareEl.style.display = hasItems ? 'block' : 'none';
+    Array.from(setListEl.children).forEach(function (item, index, items) {
+      var up = item.querySelector('.set-move-up');
+      var down = item.querySelector('.set-move-down');
+      if (up) up.disabled = index === 0;
+      if (down) down.disabled = index === items.length - 1;
+    });
   }
 
   function markLibrary(id, added) {
@@ -546,6 +559,8 @@
     var li = document.createElement('li');
     li.className = 'set-item';
     li.dataset.id = id;
+    li.draggable = true;
+    if (window.PointerEvent) li.style.touchAction = 'pan-y';
 
     var handle = document.createElement('span');
     handle.className = 'drag-handle';
@@ -585,6 +600,23 @@
     editLink.textContent = 'Edit';
     editLink.style.cssText = 'font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0';
 
+    var reorder = document.createElement('span');
+    reorder.className = 'set-reorder';
+    var moveUp = document.createElement('button');
+    moveUp.type = 'button';
+    moveUp.className = 'set-move-up';
+    moveUp.textContent = '↑';
+    moveUp.setAttribute('aria-label', 'Move ' + song.title + ' up');
+    moveUp.addEventListener('click', function () { moveSetItem(id, -1); });
+    var moveDown = document.createElement('button');
+    moveDown.type = 'button';
+    moveDown.className = 'set-move-down';
+    moveDown.textContent = '↓';
+    moveDown.setAttribute('aria-label', 'Move ' + song.title + ' down');
+    moveDown.addEventListener('click', function () { moveSetItem(id, 1); });
+    reorder.appendChild(moveUp);
+    reorder.appendChild(moveDown);
+
     var removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'set-remove';
@@ -594,6 +626,7 @@
 
     li.appendChild(handle);
     li.appendChild(info);
+    li.appendChild(reorder);
     li.appendChild(editLink);
     li.appendChild(removeBtn);
     setListEl.appendChild(li);
@@ -634,6 +667,20 @@
     updateMobileShare();
   }
 
+  function moveSetItem(id, direction) {
+    var item = setListEl.querySelector('[data-id="' + id + '"]');
+    if (!item) return;
+    if (direction < 0 && item.previousElementSibling) {
+      setListEl.insertBefore(item, item.previousElementSibling);
+    } else if (direction > 0 && item.nextElementSibling) {
+      setListEl.insertBefore(item.nextElementSibling, item);
+    } else {
+      return;
+    }
+    syncOrder();
+    syncUI();
+  }
+
   // ── SortableJS (set only) ─────────────────────────────────────────────────
 
   if (window.Sortable && setListEl) {
@@ -649,6 +696,11 @@
     } catch (e) {
       console.warn('Worship drag sorting unavailable.', e);
     }
+  }
+
+  document.getElementById('build-form').addEventListener('submit', syncOrder);
+  if (document.getElementById('lyric-sheet-form')) {
+    document.getElementById('lyric-sheet-form').addEventListener('submit', syncOrder);
   }
 
   // ── Library click delegation ──────────────────────────────────────────────

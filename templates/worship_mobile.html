@@ -30,6 +30,14 @@
   .wm-lines{font-size:1.65rem;line-height:1.16;font-weight:800;white-space:pre-wrap;max-width:16ch;hyphens:auto;overflow-wrap:anywhere}
   .wm-slide--divider .wm-card{background:linear-gradient(180deg,var(--box) 0%, color-mix(in srgb, var(--primary) 3%, var(--box)) 100%)}
   .wm-slide--lyric .wm-card{justify-content:center}
+  .wm-slide--service .wm-card{background:#0f172a;color:#fff}
+  .wm-service-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .wm-service-shade{position:absolute;inset:0;background:rgba(15,23,42,.48)}
+  .wm-service-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
+  .wm-service-lines{font-size:1.35rem;line-height:1.3;font-weight:650;white-space:pre-wrap;max-width:30ch}
+  .wm-service-split{display:grid;grid-template-columns:1.15fr .85fr;padding:0;text-align:center}
+  .wm-service-split .wm-service-photo{position:relative;height:100%;min-width:0}
+  .wm-service-split .wm-service-content{padding:1rem}
   .wm-part{font-size:.82rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin:0 0 .65rem}
   .wm-nav{position:absolute;inset:0;display:flex;align-items:stretch;justify-content:space-between;pointer-events:none;z-index:2}
   .wm-nav-btn{width:24%;min-width:76px;border:none;background:transparent;color:transparent;cursor:pointer;pointer-events:auto}
@@ -83,7 +91,17 @@
     {% for slide in slides %}
       <section class="wm-slide wm-slide--{{ slide.kind }}" data-title="{{ slide.title }}">
         <div class="wm-card">
-          {% if slide.kind == 'divider' %}
+          {% if slide.kind == 'service' %}
+            {% if slide.image_url and slide.image_layout == 'split' %}
+              <div class="wm-service-split" style="position:absolute;inset:0">
+                <img class="wm-service-photo" src="{{ slide.image_url }}" alt="">
+                <div class="wm-service-content"><div class="wm-kind">{{ slide.type }}</div><h2 class="wm-song">{{ slide.title }}</h2>{% if slide.lines %}<div class="wm-service-lines">{{ slide.lines|join('\n') }}</div>{% endif %}</div>
+              </div>
+            {% else %}
+              {% if slide.image_url %}<img class="wm-service-photo" src="{{ slide.image_url }}" alt=""><div class="wm-service-shade"></div>{% endif %}
+              <div class="wm-service-content"><div class="wm-kind">{{ slide.type }}</div><h2 class="wm-song">{{ slide.title }}</h2>{% if slide.lines %}<div class="wm-service-lines">{{ slide.lines|join('\n') }}</div>{% endif %}</div>
+            {% endif %}
+          {% elif slide.kind == 'divider' %}
             <div class="wm-kind">Song</div>
             <h2 class="wm-song">{{ slide.title }}</h2>
             {% if slide.artist or slide.version or slide.key %}

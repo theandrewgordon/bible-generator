@@ -58,6 +58,24 @@ class WorshipMobileViewTests(unittest.TestCase):
         labels = [slide.get("part_label") for slide in slides if slide.get("kind") == "lyric"]
         self.assertEqual(labels, ["Pre Chorus", "Chorus 2"])
 
+    def test_service_item_creates_one_mobile_slide_without_song_divider(self):
+        with app.app.test_request_context("/worship/mobile"):
+            slides = app._build_worship_mobile_slides([
+                {
+                    "id": "missionary-update-photo",
+                    "title": "The Smith Family",
+                    "type": "photo",
+                    "service_lines": ["Serving in Guatemala", "Pray for their new school"],
+                    "image_path": "worship-media/church/photo.jpg",
+                    "image_layout": "split",
+                }
+            ])
+
+        self.assertEqual(len(slides), 1)
+        self.assertEqual(slides[0]["kind"], "service")
+        self.assertEqual(slides[0]["image_layout"], "split")
+        self.assertIn("/worship/media/missionary-update-photo", slides[0]["image_url"])
+
     def test_resolve_selected_items_uses_cached_list_before_direct_reads(self):
         cached_song = {
             "id": "holy-forever",

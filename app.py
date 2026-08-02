@@ -35,7 +35,7 @@ from verse_helpers import (
     preserve_letter_suffix,
 )
 from build_pdf import generate_pdf
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 try:
     import markdown2  # type: ignore
 except Exception:
@@ -48,7 +48,12 @@ from faithsparks.services.firestore import (
     init_firebase,
     validate_firebase_credentials,
 )
-from faithsparks.services.storage import upload_to_storage, signed_url_for_path
+from faithsparks.services.storage import (
+    blob_exists,
+    download_from_storage,
+    signed_url_for_path,
+    upload_to_storage,
+)
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
 from faithsparks.services.users import get_user_doc
@@ -1117,6 +1122,7 @@ def _canonical_part_key(name: str | None) -> str:
 
 
 _REUSABLE_LYRIC_SHEET_PART_PREFIXES = ("chorus", "pre_chorus", "bridge", "tag")
+_WORSHIP_SERVICE_TYPES = {"welcome", "announcement", "photo"}
 
 
 def _is_reusable_part(part_name: str) -> bool:
@@ -1138,6 +1144,14 @@ def normalize_worship_song(song: dict) -> dict:
     normalized["key"] = str(normalized.get("key") or "").strip()
     normalized["type"] = str(normalized.get("type") or "song").strip() or "song"
     normalized["background"] = str(normalized.get("background") or "").strip()
+    normalized["service_lines"] = [
+        str(line).strip()
+        for line in (normalized.get("service_lines") if isinstance(normalized.get("service_lines"), list) else [])
+        if str(line).strip()
+    ]
+    normalized["image_path"] = str(normalized.get("image_path") or "").strip()
+    image_layout = str(normalized.get("image_layout") or "full").strip().lower()
+    normalized["image_layout"] = image_layout if image_layout in {"full", "split"} else "full"
     song_id = str(normalized.get("id") or "").strip()
     if not song_id:
         song_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "untitled-song"
@@ -1995,6 +2009,39 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
     return slide
 
 
+def create_service_slide(prs: Presentation, item: dict, image_path: str | None = None):
+    """Create one welcome, announcement, or photo slide."""
+    normalized = normalize_worship_song(item)
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    layout = normalized.get("image_layout", "full")
+    lines = normalized.get("service_lines", [])
+    title = normalized.get("title", "")
+    if image_path and layout == "full":
+        _apply_image_background(slide, image_path)
+        _add_overlay_rect(slide, 0, 0, 13.333, 7.5, 0.46)
+        add_centered_textbox(slide, title, 1.65, 1.45, 54, True)
+        if lines:
+            add_centered_textbox(slide, "\n".join(lines), 3.25, 2.1, 30, False)
+    elif image_path and layout == "split":
+        apply_dark_background(slide)
+        slide.shapes.add_picture(str(image_path), Inches(0), Inches(0), Inches(7.0), Inches(7.5))
+        add_centered_textbox(slide, title, 1.35, 1.55, 43, True, left=7.35, width=5.45)
+        if lines:
+            add_centered_textbox(slide, "\n".join(lines), 3.05, 2.5, 27, False, left=7.35, width=5.45)
+    else:
+        img_path, cfg = _resolve_bg(normalized.get("type", "announcement"), normalized.get("background"))
+        if img_path:
+            _apply_image_background(slide, img_path)
+        else:
+            apply_dark_background(slide, _TYPE_BG.get(normalized.get("type"), _DEFAULT_BG))
+        font_color = RGBColor(*cfg["font_color"])
+        add_centered_textbox(slide, title, 1.7, 1.5, 56, True, font_color=font_color)
+        if lines:
+            add_centered_textbox(slide, "\n".join(lines), 3.35, 2.2, 30, False, font_color=font_color)
+    add_link_footer(slide)
+    return slide
+
+
 def _add_part_label(slide, label: str, font_color: RGBColor) -> None:
     if not label:
         return
@@ -2298,6 +2345,49 @@ def _make_unique_worship_song_id(title: str, artist: str = "", version: str = ""
         candidate = f"{base}-{suffix}"
         suffix += 1
     return candidate
+
+
+def _save_worship_service_image(upload) -> str:
+    """Validate, normalize, and privately store a service-slide image."""
+    if not upload or not getattr(upload, "filename", ""):
+        raise ValueError("Choose a JPG, PNG, or WebP image.")
+    if request.content_length and request.content_length > 12 * 1024 * 1024:
+        raise ValueError("That image is too large. Please use an image under 10 MB.")
+    source = NamedTemporaryFile(delete=False, suffix=".upload")
+    output = NamedTemporaryFile(delete=False, suffix=".jpg")
+    source.close()
+    output.close()
+    try:
+        upload.save(source.name)
+        with Image.open(source.name) as probe:
+            probe.verify()
+        with Image.open(source.name) as opened:
+            image = ImageOps.exif_transpose(opened)
+            if image.width * image.height > 30_000_000:
+                raise ValueError("That image has too many pixels. Please resize it first.")
+            image.thumbnail((2400, 2400), Image.Resampling.LANCZOS)
+            if image.mode != "RGB":
+                canvas = Image.new("RGB", image.size, "white")
+                if "A" in image.getbands():
+                    canvas.paste(image, mask=image.getchannel("A"))
+                else:
+                    canvas.paste(image)
+                image = canvas
+            image.save(output.name, "JPEG", quality=90, optimize=True)
+        scope = _slugify_worship_token(_current_worship_scope()) or "default"
+        storage_path = f"worship-media/{scope}/{uuid.uuid4().hex}.jpg"
+        upload_to_storage(output.name, storage_path)
+        if not blob_exists(storage_path):
+            raise RuntimeError("Image storage is temporarily unavailable.")
+        return storage_path
+    except (OSError, Image.DecompressionBombError) as exc:
+        raise ValueError("That file is not a valid supported image.") from exc
+    finally:
+        for path in (source.name, output.name):
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
 
 def _worship_set_filename(selected_items: list[dict], date_label: str) -> str:
@@ -4039,6 +4129,19 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
         item_type = normalized.get("type", "song")
         song_bg = normalized.get("background")
         song_note = str(notes.get(song_id) or "").strip()
+        if item_type in _WORSHIP_SERVICE_TYPES:
+            slides.append({
+                "kind": "service",
+                "id": song_id,
+                "title": song_title,
+                "type": item_type,
+                "lines": normalized.get("service_lines", []),
+                "image_layout": normalized.get("image_layout", "full"),
+                "image_url": url_for("worship_media", song_id=song_id) if normalized.get("image_path") else "",
+                "background": song_bg,
+                "note": song_note,
+            })
+            continue
         slides.append(
             {
                 "kind": "divider",
@@ -4163,6 +4266,14 @@ def _build_worship_lyric_sheet_pdf(selected_items: list[dict], mobile_url: str =
         header.append(Paragraph(esc(" · ".join(sub_bits)), sub_style) if sub_bits else Spacer(1, 6))
         # Keep the title/subtitle with the first section so a song never orphans.
         story.append(KeepTogether(header))
+        if normalized.get("type") in _WORSHIP_SERVICE_TYPES:
+            for line in normalized.get("service_lines", []):
+                story.append(Paragraph(esc(line), line_style))
+            if normalized.get("type") == "photo":
+                story.append(Paragraph("Photo slide", ref_style))
+            if idx != len(selected_items) - 1:
+                story.append(Spacer(1, 22))
+            continue
         for block in build_lyric_sheet_blocks(normalized):
             story.append(Paragraph(esc(block["label"]).upper(), label_style))
             if block["reference_only"]:
@@ -4232,6 +4343,8 @@ def worship_build():
 
     validation_problems = []
     for item in selected_items:
+        if normalize_worship_song(item).get("type") in _WORSHIP_SERVICE_TYPES:
+            continue
         validation = item.get("validation") if isinstance(item.get("validation"), dict) else {}
         if validation.get("status") in {"needs_review", "unable", "stale"}:
             validation_problems.append(str(item.get("title") or "Untitled Song"))
@@ -4246,10 +4359,23 @@ def worship_build():
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
 
+    media_temp_paths = []
     for item in selected_items:
         normalized = normalize_worship_song(item)
         item_type = normalized.get("type", "song")
         song_bg = normalized.get("background")
+        if item_type in _WORSHIP_SERVICE_TYPES:
+            local_image = None
+            if normalized.get("image_path"):
+                media_tmp = NamedTemporaryFile(delete=False, suffix=".jpg")
+                media_tmp.close()
+                media_temp_paths.append(media_tmp.name)
+                if download_from_storage(normalized["image_path"], media_tmp.name):
+                    local_image = media_tmp.name
+                else:
+                    app.logger.warning("Could not download worship image for %s", normalized.get("id"))
+            create_service_slide(prs, normalized, local_image)
+            continue
         artist_bits = [bit for bit in (normalized.get("artist", ""), normalized.get("version", "")) if bit]
         create_divider_slide(prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg)
         parts = normalized.get("parts", {}) or {}
@@ -4278,10 +4404,11 @@ def worship_build():
 
     @after_this_request
     def _cleanup(response):
-        try:
-            os.unlink(tmp.name)
-        except Exception:
-            pass
+        for path in [tmp.name, *media_temp_paths]:
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
         return response
 
     return send_file(
@@ -4305,6 +4432,8 @@ def worship_deck_review():
     findings = []
     for item in selected_items:
         normalized = normalize_worship_song(item)
+        if normalized.get("type") in _WORSHIP_SERVICE_TYPES:
+            continue
         validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
         review = normalized.get("review") if isinstance(normalized.get("review"), dict) else {}
         if not validation:
@@ -4332,6 +4461,60 @@ def worship_deck_review():
 @login_required
 def worship_deck_history():
     return render_template("worship_deck_history.html", history=_list_worship_deck_history())
+
+
+@app.route("/worship/media/<song_id>", methods=["GET"])
+@login_required
+def worship_media(song_id):
+    song = get_worship_song(song_id)
+    image_path = str((song or {}).get("image_path") or "").strip()
+    if not image_path:
+        return Response("Image not found", status=404)
+    media_url = signed_url_for_path(image_path, minutes=15)
+    if not media_url:
+        return Response("Image temporarily unavailable", status=503)
+    return redirect(media_url)
+
+
+@app.route("/worship/service-slide/add", methods=["POST"])
+@login_required
+def worship_service_slide_add():
+    slide_type = request.form.get("slide_type", "").strip().lower()
+    title = request.form.get("title", "").strip()
+    service_lines = [line.strip() for line in request.form.get("service_text", "").splitlines() if line.strip()]
+    image_layout = request.form.get("image_layout", "full").strip().lower()
+    if slide_type not in _WORSHIP_SERVICE_TYPES:
+        flash("Choose a valid service slide type.", "warning")
+        return redirect(url_for("worship_add"))
+    if not title:
+        flash("A service slide title is required.", "warning")
+        return redirect(url_for("worship_add"))
+    image_path = ""
+    if slide_type == "photo":
+        try:
+            image_path = _save_worship_service_image(request.files.get("image"))
+        except (ValueError, RuntimeError) as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("worship_add"))
+    try:
+        item_id = _make_unique_worship_song_id(title, "", slide_type)
+        item = normalize_worship_song({
+            "id": item_id,
+            "title": title,
+            "type": slide_type,
+            "service_lines": service_lines,
+            "image_path": image_path,
+            "image_layout": image_layout,
+            "parts": {},
+            "arrangement": [],
+        })
+        save_worship_song(item)
+    except RuntimeError as exc:
+        app.logger.warning("worship service slide save failed: %s", exc)
+        flash("The worship library is temporarily unavailable. Please try again.", "error")
+        return redirect(url_for("worship_add"))
+    flash(f"'{title}' added to the service library.", "success")
+    return redirect(url_for("worship"))
 
 @app.route("/worship/add", methods=["GET", "POST"])
 @login_required
@@ -4909,6 +5092,29 @@ def worship_edit(song_id):
     if request.method == "POST":
         old_structure = normalize_worship_song(song)
         title = request.form.get("title", "").strip()
+        if song.get("type") in _WORSHIP_SERVICE_TYPES:
+            if not title:
+                flash("Title is required.", "warning")
+                return redirect(url_for("worship_edit", song_id=song_id))
+            image_path = song.get("image_path", "")
+            replacement = request.files.get("image")
+            if replacement and replacement.filename:
+                try:
+                    image_path = _save_worship_service_image(replacement)
+                except (ValueError, RuntimeError) as exc:
+                    flash(str(exc), "error")
+                    return redirect(url_for("worship_edit", song_id=song_id))
+            song.update({
+                "title": title,
+                "service_lines": [
+                    line.strip() for line in request.form.get("service_text", "").splitlines() if line.strip()
+                ],
+                "image_layout": request.form.get("image_layout", "full"),
+                "image_path": image_path,
+            })
+            save_worship_song(normalize_worship_song(song))
+            flash(f"'{title}' updated.", "success")
+            return redirect(url_for("worship"))
         artist = request.form.get("artist", "").strip()
         version = request.form.get("version", "").strip()
         key = request.form.get("key", "").strip()

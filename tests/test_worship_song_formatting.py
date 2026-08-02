@@ -33,6 +33,19 @@ class WorshipSongFormattingTests(unittest.TestCase):
         self.assertTrue(original.endswith("-original"))
         self.assertTrue(acoustic.endswith("-acoustic"))
 
+    def test_normalize_service_slide_cleans_text_and_layout(self):
+        normalized = app.normalize_worship_song({
+            "title": " Welcome ",
+            "type": "welcome",
+            "service_lines": ["  We are glad you're here  ", "", "Coffee after service"],
+            "image_layout": "unexpected",
+            "image_path": " worship-media/church/welcome.jpg ",
+        })
+
+        self.assertEqual(normalized["service_lines"], ["We are glad you're here", "Coffee after service"])
+        self.assertEqual(normalized["image_layout"], "full")
+        self.assertEqual(normalized["image_path"], "worship-media/church/welcome.jpg")
+
     def test_build_lyric_sheet_blocks_references_repeat_chorus(self):
         song = {
             "title": "Holy Forever",

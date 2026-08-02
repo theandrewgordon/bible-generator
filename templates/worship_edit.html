@@ -60,13 +60,36 @@
 
 <div class="wa-card" style="margin-top:1.5rem">
   <h2>{{ song.title }}</h2>
-  <form method="post" action="{{ url_for('worship_edit', song_id=song.id) }}">
+  <form method="post" action="{{ url_for('worship_edit', song_id=song.id) }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
     <div class="wa-field">
       <label class="wa-label">Title *</label>
       <input type="text" name="title" required class="wa-input" value="{{ song.title }}">
     </div>
+    {% if song.type in ['welcome', 'announcement', 'photo'] %}
+    <div class="wa-field">
+      <label class="wa-label">Supporting text</label>
+      <textarea name="service_text" rows="5" class="wa-input">{{ song.service_lines|join('\n') }}</textarea>
+    </div>
+    {% if song.type == 'photo' %}
+    <div class="wa-row">
+      <div class="wa-field">
+        <label class="wa-label">Replace photo</label>
+        <input type="file" name="image" class="wa-input" accept="image/jpeg,image/png,image/webp">
+        <p class="wa-helper">Leave blank to keep the current photo.</p>
+      </div>
+      <div class="wa-field">
+        <label class="wa-label">Photo layout</label>
+        <select name="image_layout" class="wa-input">
+          <option value="full"{% if song.image_layout == 'full' %} selected{% endif %}>Full photo with text overlay</option>
+          <option value="split"{% if song.image_layout == 'split' %} selected{% endif %}>Photo beside text</option>
+        </select>
+      </div>
+    </div>
+    {% endif %}
+    <button type="submit" class="wa-btn-primary">Save Changes</button>
+    {% else %}
     <div class="wa-row">
       <div class="wa-field">
         <label class="wa-label">Artist</label>
@@ -113,6 +136,7 @@
     <input type="hidden" name="arrangement" id="arrangement-input">
 
     <button type="submit" class="wa-btn-primary">Save Changes</button>
+    {% endif %}
   </form>
   <form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}" style="margin-top:.75rem">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -120,6 +144,7 @@
   </form>
 </div>
 
+{% if song.type not in ['welcome', 'announcement', 'photo'] %}
 <div class="wa-card" style="margin-top:1.5rem">
   <h2>Validate against a second source</h2>
   {% set validation = song.validation if song.validation is mapping else {} %}
@@ -233,6 +258,7 @@
     <button type="submit" class="wa-btn-primary">Validate Song</button>
   </form>
 </div>
+{% endif %}
 
 <div class="wa-card" style="margin-top:1.5rem">
   <h2>Human review</h2>
@@ -260,6 +286,7 @@ var SONG_DATA = {{ song | tojson }};
   var orderWrap = document.getElementById('arrangement-order');
   var orderInput = document.getElementById('arrangement-input');
   var placeholder = document.getElementById('arrangement-placeholder');
+  if (!partsList || !chipsWrap || !orderWrap || !orderInput || !placeholder) return;
 
   function updateHidden() {
     var names = Array.from(orderWrap.querySelectorAll('[data-name]')).map(function (el) { return el.dataset.name; });
