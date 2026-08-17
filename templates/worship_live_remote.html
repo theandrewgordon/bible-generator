@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{{ live.name }} · Remote</title>
+  <style>
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;min-height:100%;background:#07111f;color:#f8fafc;font-family:Arial,Helvetica,sans-serif}
+    body{padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom)}
+    .wr-shell{width:min(620px,100%);margin:auto;min-height:100dvh;display:flex;flex-direction:column;gap:12px;padding:12px 0}
+    .wr-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .wr-title{margin:0;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wr-status{display:flex;align-items:center;gap:6px;color:#cbd5e1;font-size:.78rem;white-space:nowrap}.wr-status::before{content:"";width:9px;height:9px;border-radius:50%;background:#22c55e}.wr-status.is-offline::before{background:#f59e0b}
+    .wr-preview{flex:1;min-height:260px;border:1px solid #233146;border-radius:18px;background:#0f172a;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;position:relative;overflow:hidden}
+    .wr-preview.is-blank{background:#000}.wr-preview.is-blank>*{visibility:hidden}
+    .wr-kind{position:absolute;left:14px;top:12px;color:#94a3b8;font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+    .wr-song{font-size:clamp(1.6rem,7vw,2.8rem);line-height:1.05;margin:0 0 .7rem;font-weight:850}
+    .wr-lines{font-size:clamp(1.35rem,5.8vw,2.2rem);line-height:1.18;font-weight:750;white-space:pre-line}
+    .wr-note{margin:.9rem 0 0;color:#fcd34d;font-size:.94rem;line-height:1.3;font-weight:700}
+    .wr-progress{text-align:center;color:#cbd5e1;font-size:.88rem;font-weight:700}
+    .wr-nav{display:grid;grid-template-columns:1fr 1.6fr;gap:10px}
+    .wr-btn{min-height:82px;border:0;border-radius:16px;font-size:1.15rem;font-weight:850;cursor:pointer;touch-action:manipulation}.wr-prev{background:#334155;color:#fff}.wr-next{background:#0ea5a8;color:#fff;font-size:1.35rem}.wr-btn:active{transform:scale(.985)}
+    .wr-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px}.wr-tool{min-height:54px;border:1px solid #475569;border-radius:13px;background:#111c2e;color:#fff;font-size:.95rem;font-weight:750}.wr-tool.is-blank{background:#b91c1c;border-color:#ef4444}
+    .wr-jump{width:100%;border:1px solid #475569;border-radius:12px;background:#111c2e;color:#fff;padding:12px;font-size:1rem}
+    .wr-help{text-align:center;color:#94a3b8;font-size:.75rem;margin:0 0 4px}
+  </style>
+</head>
+<body>
+  <main class="wr-shell">
+    <header class="wr-head"><h1 class="wr-title">{{ live.name }}</h1><span class="wr-status" id="wr-status">Connected</span></header>
+    <section class="wr-preview{% if live.blank %} is-blank{% endif %}" id="wr-preview" aria-live="polite">
+      <div><div class="wr-kind" id="wr-kind"></div><h2 class="wr-song" id="wr-song"></h2><div class="wr-lines" id="wr-lines"></div><p class="wr-note" id="wr-note"></p></div>
+    </section>
+    <div class="wr-progress" id="wr-progress">1 / {{ slides|length }}</div>
+    <div class="wr-nav"><button class="wr-btn wr-prev" data-action="previous">← Previous</button><button class="wr-btn wr-next" data-action="next">Next →</button></div>
+    <div class="wr-tools"><button class="wr-tool" id="wr-blank" data-action="toggle_blank">Blank screen</button><button class="wr-tool" id="wr-awake">Keep screen awake</button></div>
+    <select class="wr-jump" id="wr-jump" aria-label="Jump to slide">
+      {% for slide in slides %}<option value="{{ loop.index0 }}">{{ loop.index }} · {{ slide.title }}{% if slide.part_label %} — {{ slide.part_label }}{% endif %}</option>{% endfor %}
+    </select>
+    <p class="wr-help">This remote controls only the current Live Worship session and expires automatically.</p>
+  </main>
+  <script>
+  (function(){
+    var token={{ control_token|tojson }};
+    var slides={{ slides|tojson }};
+    var current={{ live.current_index|int }};
+    var blank={{ live.blank|tojson }};
+    var revision={{ live.revision|int }};
+    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank');
+    var wakeLock=null;
+    function draw(index,isBlank){
+      current=Math.max(0,Math.min(slides.length-1,Number(index)||0));blank=!!isBlank;var slide=slides[current]||{};
+      preview.classList.toggle('is-blank',blank);blankBtn.classList.toggle('is-blank',blank);blankBtn.textContent=blank?'Show screen':'Blank screen';
+      document.getElementById('wr-kind').textContent=slide.kind==='lyric'?(slide.part_label||'Lyrics'):(slide.type||slide.kind||'Slide');
+      document.getElementById('wr-song').textContent=slide.kind==='lyric'?'':(slide.title||'');
+      document.getElementById('wr-lines').textContent=(slide.lines||[]).join('\n');
+      var note=slide.note||'';document.getElementById('wr-note').textContent=note;document.getElementById('wr-note').style.display=note?'block':'none';
+      progress.textContent=(current+1)+' / '+slides.length+' · '+(slide.title||'');jump.value=String(current);
+    }
+    function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?'Connected':'Reconnecting…';}
+    function send(action,index){
+      if(action==='next')draw(current+1,blank);else if(action==='previous')draw(current-1,blank);else if(action==='toggle_blank')draw(current,!blank);else if(action==='index')draw(index,blank);
+      return fetch('/worship/live/control/'+encodeURIComponent(token),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action,index:index}),credentials:'omit'})
+        .then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error(data.error||'Remote failed');revision=data.revision;draw(data.current_index,data.blank);connected(true);}).catch(function(){connected(false);});
+    }
+    document.querySelectorAll('[data-action]').forEach(function(btn){btn.addEventListener('click',function(){send(btn.dataset.action);});});
+    jump.addEventListener('change',function(){send('index',Number(jump.value));});
+    document.getElementById('wr-awake').addEventListener('click',function(){var btn=this;if(!('wakeLock'in navigator)){btn.textContent='Not supported';return;}navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;btn.textContent='Screen stays awake';}).catch(function(){btn.textContent='Could not enable';});});
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(token),{cache:'no-store',credentials:'omit'}).then(function(r){return r.json();}).then(function(data){if(data.ok){if(data.revision!==revision){revision=data.revision;draw(data.current_index,data.blank);}connected(true);}else connected(false);}).catch(function(){connected(false);});}
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&wakeLock===null)poll();});
+    draw(current,blank);setInterval(poll,900);poll();
+  })();
+  </script>
+</body>
+</html>

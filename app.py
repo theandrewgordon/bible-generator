@@ -19,11 +19,12 @@ from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
+from itsdangerous import BadData, URLSafeTimedSerializer
 import time
 import pathlib
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.dml.color import RGBColor
 from verse_helpers import (
     request_verse_data,
@@ -512,6 +513,7 @@ _CSRF_EXEMPT_PREFIXES = (
 _CSRF_CAPABILITY_POST_PREFIXES = (
     "/family-game-night/controller/",
     "/family-bible-bee/controller/",
+    "/worship/live/control/",
 )
 
 @app.before_request
@@ -812,6 +814,7 @@ SONGS_DIR = os.path.join(app.root_path, "songs")  # kept for local fallback
 _WORSHIP_COLLECTION = "worship_songs"
 _WORSHIP_SETLIST_COLLECTION = "worship_setlists"
 _WORSHIP_MEDIA_COLLECTION = "worship_media"
+_WORSHIP_LIVE_COLLECTION = "worship_live_sessions"
 _WORSHIP_SCOPE_COLLECTION = "worship_scopes"
 _WORSHIP_CHURCH_COLLECTION = "worship_churches"
 _DEFAULT_WORSHIP_SCOPE = "default"
@@ -819,12 +822,25 @@ _worship_seeded = False
 # Per-scope cache: {scope_id: {"data": list[dict], "ts": float}}
 _worship_songs_cache: dict[str, dict] = {}
 _WORSHIP_CACHE_TTL = 60.0  # seconds
+_WORSHIP_MOBILE_TOKEN_TTL = 24 * 60 * 60
+_WORSHIP_MOBILE_TOKEN_SALT = "worship-mobile-v1"
+_WORSHIP_LIVE_TOKEN_TTL = 12 * 60 * 60
+_WORSHIP_LIVE_TOKEN_SALT = "worship-live-v1"
+_worship_live_memory: dict[tuple[str, str], dict] = {}
+_worship_live_lock = threading.Lock()
 
 
 def _current_worship_scope() -> str:
     raw = None
     if has_request_context():
         raw = session.get("worship_church_id") or session.get("worship_scope")
+        if raw:
+            candidate = _slugify_worship_token(str(raw))
+            must_verify = bool(db and session.get("user_email")) or APP_ENV in {"prod", "production"}
+            if candidate != _DEFAULT_WORSHIP_SCOPE and must_verify and not _user_can_access_worship_church(candidate):
+                session.pop("worship_church_id", None)
+                session.pop("worship_scope", None)
+                raw = None
         if not raw and db and session.get("user_email"):
             try:
                 user_doc = db.collection("users").document(session["user_email"]).get()
@@ -841,12 +857,12 @@ def _current_worship_scope() -> str:
 
 
 def _normalize_worship_invite_code(value: str) -> str:
-    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())[:24]
+    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())[:40]
 
 
 def _make_worship_invite_code(name: str) -> str:
     prefix = re.sub(r"[^A-Z0-9]+", "", str(name or "").upper())[:4] or "FS"
-    return f"{prefix}{secrets.token_hex(3).upper()}"
+    return f"{prefix}{secrets.token_hex(16).upper()}"
 
 
 def _user_can_access_worship_church(church_id: str) -> bool:
@@ -863,6 +879,62 @@ def _user_can_access_worship_church(church_id: str) -> bool:
         return member.exists
     except Exception:
         return False
+
+
+def _current_worship_role() -> str:
+    """Return the signed-in user's effective role for the active library."""
+    scope = _current_worship_scope()
+    email = session.get("user_email")
+    if not email:
+        return "viewer"
+    if scope == _DEFAULT_WORSHIP_SCOPE:
+        if APP_ENV not in {"prod", "production"}:
+            return "owner"
+        return "owner" if is_admin_email(email) else "viewer"
+    if not db:
+        return "viewer"
+    try:
+        member = (
+            db.collection(_WORSHIP_CHURCH_COLLECTION)
+            .document(scope)
+            .collection("members")
+            .document(email)
+            .get()
+        )
+        if not member.exists:
+            return "viewer"
+        return str((member.to_dict() or {}).get("role") or "viewer").strip().lower()
+    except Exception:
+        return "viewer"
+
+
+def _worship_can_edit(*, owner_only: bool = False) -> bool:
+    role = _current_worship_role()
+    return role == "owner" if owner_only else role in {"owner", "editor", "member"}
+
+
+def worship_editor_required(func):
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not _worship_can_edit():
+            abort(403)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def worship_owner_required(func):
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not _worship_can_edit(owner_only=True):
+            abort(403)
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def _load_worship_churches() -> list[dict]:
@@ -913,7 +985,7 @@ def _current_worship_church_context() -> dict:
     current_id = _current_worship_scope()
     current = next((church for church in churches if church["id"] == current_id), None)
     if not current:
-        current = {"id": _DEFAULT_WORSHIP_SCOPE, "name": "Shared Library", "invite_code": "", "role": "member"}
+        current = {"id": _DEFAULT_WORSHIP_SCOPE, "name": "Shared Library", "invite_code": "", "role": _current_worship_role()}
     return {"current": current, "churches": churches}
 
 
@@ -927,10 +999,14 @@ def _set_current_worship_church(church_id: str) -> None:
         db.collection("users").document(session["user_email"]).set(update_data, merge=True)
 
 
-def _worship_songs_ref(client=None):
+def _worship_songs_ref_for_scope(scope: str, client=None):
     if client is None:
         client = db
-    return client.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_COLLECTION)
+    return client.collection(_WORSHIP_SCOPE_COLLECTION).document(scope).collection(_WORSHIP_COLLECTION)
+
+
+def _worship_songs_ref(client=None):
+    return _worship_songs_ref_for_scope(_current_worship_scope(), client)
 
 
 def _legacy_worship_songs_ref(client=None):
@@ -939,12 +1015,24 @@ def _legacy_worship_songs_ref(client=None):
     return client.collection(_WORSHIP_COLLECTION)
 
 
+def _worship_setlists_ref_for_scope(scope: str):
+    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(scope).collection(_WORSHIP_SETLIST_COLLECTION)
+
+
 def _worship_setlists_ref():
-    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_SETLIST_COLLECTION)
+    return _worship_setlists_ref_for_scope(_current_worship_scope())
+
+
+def _worship_media_ref_for_scope(scope: str):
+    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(scope).collection(_WORSHIP_MEDIA_COLLECTION)
 
 
 def _worship_media_ref():
-    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(_current_worship_scope()).collection(_WORSHIP_MEDIA_COLLECTION)
+    return _worship_media_ref_for_scope(_current_worship_scope())
+
+
+def _worship_live_ref_for_scope(scope: str):
+    return db.collection(_WORSHIP_SCOPE_COLLECTION).document(scope).collection(_WORSHIP_LIVE_COLLECTION)
 
 
 def _legacy_worship_setlists_ref():
@@ -970,13 +1058,13 @@ def _seed_worship_from_files() -> None:
     global _worship_seeded
     if _worship_seeded:
         return
-    _worship_seeded = True
-    if not db:
+    if not db or _current_worship_scope() != _DEFAULT_WORSHIP_SCOPE or not _worship_can_edit():
         return
     try:
         if list(_worship_songs_ref().limit(1).stream()) or (
             _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE and list(_legacy_worship_songs_ref().limit(1).stream())
         ):
+            _worship_seeded = True
             return  # already has documents
         songs_folder = Path(app.root_path) / "songs"
         if not songs_folder.is_dir():
@@ -991,6 +1079,7 @@ def _seed_worship_from_files() -> None:
                 app.logger.info("Seeded worship song: %s", song_id)
             except Exception as exc:
                 app.logger.warning("Worship seed skip %s: %s", fp.name, exc)
+        _worship_seeded = True
     except Exception as exc:
         app.logger.warning("Worship seed failed: %s", exc)
 
@@ -1602,6 +1691,256 @@ def _get_worship_setlist(setlist_id: str) -> dict | None:
     return None
 
 
+def _get_worship_setlist_for_scope(setlist_id: str, scope: str) -> dict | None:
+    """Load a setlist from an explicitly authorized scope without changing the session."""
+    if not _valid_worship_setlist_id(setlist_id):
+        return None
+    scope = _slugify_worship_token(scope)
+    if not scope:
+        return None
+    if db:
+        refs = [_worship_setlists_ref_for_scope(scope)]
+        if scope == _DEFAULT_WORSHIP_SCOPE:
+            refs.insert(0, _legacy_worship_setlists_ref())
+        try:
+            for collection_ref in refs:
+                doc = collection_ref.document(setlist_id).get()
+                if doc.exists:
+                    data = doc.to_dict() or {}
+                    data["worship_scope"] = data.get("worship_scope") or scope
+                    return _normalize_worship_setlist(data, doc.id)
+        except Exception as exc:
+            app.logger.warning("_get_worship_setlist_for_scope(%s, %s) error: %s", setlist_id, scope, exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError("Worship setlist storage is temporarily unavailable.") from exc
+    if _is_local_storage_allowed():
+        fp = Path(app.root_path) / "setlists" / f"{setlist_id}.json"
+        if fp.exists():
+            try:
+                with open(fp, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                stored_scope = data.get("worship_scope") or _DEFAULT_WORSHIP_SCOPE
+                if stored_scope == scope:
+                    data["worship_scope"] = stored_scope
+                    return _normalize_worship_setlist(data, fp.stem)
+            except Exception:
+                pass
+    return None
+
+
+def _get_worship_song_for_scope(song_id: str, scope: str) -> dict | None:
+    """Load one exact song id from an explicitly authorized scope."""
+    if not song_id or ".." in song_id or "/" in song_id or "\\" in song_id:
+        return None
+    scope = _slugify_worship_token(scope)
+    if not scope:
+        return None
+    firestore_client, _ = init_firebase()
+    if firestore_client is not None:
+        refs = [_worship_songs_ref_for_scope(scope, firestore_client)]
+        if scope == _DEFAULT_WORSHIP_SCOPE:
+            refs.insert(0, _legacy_worship_songs_ref(firestore_client))
+        try:
+            for collection_ref in refs:
+                doc = collection_ref.document(song_id).get()
+                if doc.exists:
+                    return doc.to_dict()
+        except Exception as exc:
+            app.logger.warning("_get_worship_song_for_scope(%s, %s) error: %s", song_id, scope, exc)
+            if not _is_local_storage_allowed():
+                raise RuntimeError("Worship song storage is temporarily unavailable.") from exc
+    if _is_local_storage_allowed():
+        fp = Path(app.root_path) / "songs" / f"{song_id}.json"
+        if fp.exists():
+            try:
+                with open(fp, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                stored_scope = data.get("worship_scope") or _DEFAULT_WORSHIP_SCOPE
+                return data if stored_scope == scope else None
+            except Exception:
+                pass
+    return None
+
+
+def _resolve_worship_ids_for_scope(song_ids: list[str], scope: str) -> list[dict]:
+    selected: list[dict] = []
+    for song_id in list(dict.fromkeys(song_ids))[:100]:
+        song = _get_worship_song_for_scope(str(song_id).strip(), scope)
+        if song:
+            selected.append(song)
+    return selected
+
+
+def _worship_mobile_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(app.secret_key, salt=_WORSHIP_MOBILE_TOKEN_SALT)
+
+
+def _make_worship_mobile_token(*, scope: str, song_ids: list[str] | None = None, setlist_id: str = "") -> str:
+    payload = {
+        "v": 1,
+        "scope": _slugify_worship_token(scope) or _DEFAULT_WORSHIP_SCOPE,
+        "song_ids": [str(song_id) for song_id in (song_ids or []) if str(song_id).strip()][:100],
+        "setlist_id": str(setlist_id or "")[:160],
+    }
+    return _worship_mobile_serializer().dumps(payload)
+
+
+def _load_worship_mobile_token(token: str) -> dict:
+    payload = _worship_mobile_serializer().loads(token, max_age=_WORSHIP_MOBILE_TOKEN_TTL)
+    if not isinstance(payload, dict) or payload.get("v") != 1:
+        raise BadData("Unsupported worship mobile link")
+    scope = _slugify_worship_token(payload.get("scope", ""))
+    setlist_id = str(payload.get("setlist_id") or "")
+    song_ids = payload.get("song_ids") if isinstance(payload.get("song_ids"), list) else []
+    if not scope or (setlist_id and not _valid_worship_setlist_id(setlist_id)):
+        raise BadData("Invalid worship mobile link")
+    return {"scope": scope, "setlist_id": setlist_id, "song_ids": [str(song_id) for song_id in song_ids][:100]}
+
+
+def _worship_mobile_url(selected_items: list[dict], *, setlist_id: str = "") -> str:
+    token = _make_worship_mobile_token(
+        scope=_current_worship_scope(),
+        song_ids=[] if setlist_id else [item.get("id", "") for item in selected_items],
+        setlist_id=setlist_id,
+    )
+    return url_for("worship_mobile", token=token, _external=True)
+
+
+def _make_worship_live_token(*, scope: str, session_id: str, role: str) -> str:
+    if role not in {"view", "control"}:
+        raise ValueError("Invalid live worship role")
+    return URLSafeTimedSerializer(app.secret_key, salt=_WORSHIP_LIVE_TOKEN_SALT).dumps(
+        {"v": 1, "scope": _slugify_worship_token(scope), "session_id": session_id, "role": role}
+    )
+
+
+def _load_worship_live_token(token: str, *, required_role: str | None = None) -> dict:
+    payload = URLSafeTimedSerializer(app.secret_key, salt=_WORSHIP_LIVE_TOKEN_SALT).loads(
+        token, max_age=_WORSHIP_LIVE_TOKEN_TTL
+    )
+    if not isinstance(payload, dict) or payload.get("v") != 1:
+        raise BadData("Unsupported live worship link")
+    scope = _slugify_worship_token(payload.get("scope", ""))
+    session_id = str(payload.get("session_id") or "")
+    role = str(payload.get("role") or "")
+    if (
+        not scope
+        or not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id)
+        or role not in {"view", "control"}
+        or (required_role and role != required_role)
+    ):
+        raise BadData("Invalid live worship link")
+    return {"scope": scope, "session_id": session_id, "role": role}
+
+
+def _create_worship_live_session(data: dict) -> None:
+    scope = data["scope"]
+    session_id = data["id"]
+    if db:
+        _worship_live_ref_for_scope(scope).document(session_id).set(data)
+        return
+    if not _is_local_storage_allowed():
+        raise RuntimeError("Live Worship requires shared session storage.")
+    with _worship_live_lock:
+        _worship_live_memory[(scope, session_id)] = dict(data)
+
+
+def _get_worship_live_session(scope: str, session_id: str) -> dict | None:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", str(session_id or "")):
+        return None
+    data = None
+    if db:
+        snap = _worship_live_ref_for_scope(scope).document(session_id).get()
+        data = snap.to_dict() if snap.exists else None
+    elif _is_local_storage_allowed():
+        with _worship_live_lock:
+            stored = _worship_live_memory.get((scope, session_id))
+            data = dict(stored) if stored else None
+    if not data or float(data.get("expires_epoch") or 0) <= time.time():
+        if not db:
+            with _worship_live_lock:
+                _worship_live_memory.pop((scope, session_id), None)
+        return None
+    return data
+
+
+def _next_worship_live_state(data: dict, action: str, requested_index: int | None = None) -> dict:
+    slide_count = max(1, int(data.get("slide_count") or 1))
+    index = max(0, min(slide_count - 1, int(data.get("current_index") or 0)))
+    blank = bool(data.get("blank"))
+    if action == "next":
+        index = min(slide_count - 1, index + 1)
+    elif action == "previous":
+        index = max(0, index - 1)
+    elif action == "first":
+        index = 0
+    elif action == "last":
+        index = slide_count - 1
+    elif action == "index" and requested_index is not None:
+        index = max(0, min(slide_count - 1, requested_index))
+    elif action == "toggle_blank":
+        blank = not blank
+    elif action == "blank":
+        blank = True
+    elif action == "show":
+        blank = False
+    else:
+        raise ValueError("Unknown live worship action")
+    return {
+        **data,
+        "current_index": index,
+        "blank": blank,
+        "revision": int(data.get("revision") or 0) + 1,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _update_worship_live_session(scope: str, session_id: str, action: str, requested_index: int | None = None) -> dict:
+    if db:
+        ref = _worship_live_ref_for_scope(scope).document(session_id)
+        transaction = db.transaction()
+
+        @firestore.transactional
+        def _update(txn):
+            snap = ref.get(transaction=txn)
+            data = snap.to_dict() if snap.exists else None
+            if not data or float(data.get("expires_epoch") or 0) <= time.time():
+                raise LookupError("Live worship session expired")
+            updated = _next_worship_live_state(data, action, requested_index)
+            txn.set(
+                ref,
+                {
+                    "current_index": updated["current_index"],
+                    "blank": updated["blank"],
+                    "revision": updated["revision"],
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                },
+                merge=True,
+            )
+            return updated
+
+        return _update(transaction)
+    if not _is_local_storage_allowed():
+        raise RuntimeError("Live Worship requires shared session storage.")
+    with _worship_live_lock:
+        data = _worship_live_memory.get((scope, session_id))
+        if not data or float(data.get("expires_epoch") or 0) <= time.time():
+            raise LookupError("Live worship session expired")
+        updated = _next_worship_live_state(dict(data), action, requested_index)
+        _worship_live_memory[(scope, session_id)] = updated
+        return dict(updated)
+
+
+def _public_worship_live_state(data: dict) -> dict:
+    return {
+        "current_index": int(data.get("current_index") or 0),
+        "blank": bool(data.get("blank")),
+        "slide_count": int(data.get("slide_count") or 0),
+        "revision": int(data.get("revision") or 0),
+        "updated_at": str(data.get("updated_at") or ""),
+    }
+
+
 def _make_unique_worship_setlist_id(date_label: str, name: str, existing_id: str = "") -> str:
     base = _worship_setlist_id(date_label, name)
     candidate = base
@@ -1989,6 +2328,7 @@ def add_centered_textbox(slide, text: str, top: float, height: float, font_size:
     tf = box.text_frame
     tf.clear()
     tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
     run = p.add_run()
@@ -2000,7 +2340,8 @@ def add_centered_textbox(slide, text: str, top: float, height: float, font_size:
     return box
 
 
-def add_link_footer(slide, label: str = "faithsparksprintables.com", url: str = "https://faithsparksprintables.com"):
+def add_link_footer(slide, label: str = "faithsparksprintables.com", url: str = "https://faithsparksprintables.com",
+                    font_color: RGBColor | None = None):
     box = slide.shapes.add_textbox(Inches(0.4), Inches(7.02), Inches(12.5), Inches(0.18))
     tf = box.text_frame
     tf.clear()
@@ -2010,7 +2351,7 @@ def add_link_footer(slide, label: str = "faithsparksprintables.com", url: str = 
     run.text = label
     run.font.size = Pt(9)
     run.font.name = "Arial"
-    run.font.color.rgb = RGBColor(235, 235, 235)
+    run.font.color.rgb = font_color or RGBColor(235, 235, 235)
     run.hyperlink.address = url
     return box
 
@@ -2037,7 +2378,7 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
         add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.05, height=0.85, font_size=26, bold=False,
                               font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity,
                               left=1.5, width=10.333)
-    add_link_footer(slide)
+    add_link_footer(slide, font_color=font_color)
     return slide
 
 
@@ -2070,7 +2411,8 @@ def create_service_slide(prs: Presentation, item: dict, image_path: str | None =
         add_centered_textbox(slide, title, 1.7, 1.5, 56, True, font_color=font_color)
         if lines:
             add_centered_textbox(slide, "\n".join(lines), 3.35, 2.2, 30, False, font_color=font_color)
-    add_link_footer(slide)
+    footer_color = font_color if not image_path else RGBColor(235, 235, 235)
+    add_link_footer(slide, font_color=footer_color)
     return slide
 
 
@@ -2087,10 +2429,10 @@ def _add_part_label(slide, label: str, font_color: RGBColor) -> None:
     run.font.size = Pt(12)
     run.font.bold = True
     run.font.name = "Arial"
-    r = int(font_color[0] * 0.4)
-    g = int(font_color[1] * 0.4)
-    b = int(font_color[2] * 0.4)
-    run.font.color.rgb = RGBColor(r, g, b)
+    if max(font_color) > 127:
+        run.font.color.rgb = RGBColor(185, 185, 185)
+    else:
+        run.font.color.rgb = RGBColor(45, 45, 45)
 
 
 def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None, font_size: int = 48, part_label: str = ""):
@@ -2106,7 +2448,6 @@ def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "
     _add_part_label(slide, part_label, font_color)
     add_centered_textbox(slide, "\n".join(lines), top=1.25, height=5.0, font_size=font_size, bold=True,
                           font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity)
-    add_link_footer(slide)
     return slide
 
 
@@ -2209,6 +2550,7 @@ def worship():
 
 @app.route("/worship/cleanup-duplicates", methods=["POST"])
 @login_required
+@worship_owner_required
 def worship_cleanup_duplicates():
     """Delete duplicate songs (same title+artist), keeping the one with the most lyric content."""
     songs = list_worship_songs()
@@ -2315,6 +2657,15 @@ def worship_church_join():
     invite_code = _normalize_worship_invite_code(request.form.get("invite_code", ""))
     if not invite_code:
         flash("Enter a church invite code.", "warning")
+        return redirect(url_for("worship"))
+    email_limit = check_rate_limit(
+        "worship:church_join:user", session.get("user_email", ""), limit=8, window_seconds=15 * 60
+    )
+    ip_limit = check_rate_limit(
+        "worship:church_join:ip", get_client_ip(), limit=20, window_seconds=15 * 60
+    )
+    if not email_limit.allowed or not ip_limit.allowed:
+        flash("Too many invite attempts. Please wait and try again.", "warning")
         return redirect(url_for("worship"))
     try:
         matches = (
@@ -2449,13 +2800,14 @@ def _save_worship_service_image(upload) -> str:
                 pass
 
 
-def _read_worship_firestore_media(image_path: str) -> tuple[bytes, str] | None:
+def _read_worship_firestore_media(image_path: str, scope: str | None = None) -> tuple[bytes, str] | None:
     if not str(image_path or "").startswith("firestore:") or not db:
         return None
     media_id = image_path.split(":", 1)[1]
     if not re.fullmatch(r"[a-f0-9]{32}", media_id):
         return None
-    media_doc = _worship_media_ref().document(media_id).get()
+    media_ref = _worship_media_ref_for_scope(scope) if scope else _worship_media_ref()
+    media_doc = media_ref.document(media_id).get()
     if not media_doc.exists:
         return None
     payload = media_doc.to_dict() or {}
@@ -2478,6 +2830,8 @@ def _download_worship_image(image_path: str, local_path: str) -> bool:
 
 
 def _worship_set_filename(selected_items: list[dict], date_label: str) -> str:
+    if len(selected_items) > 2:
+        return f"worship-set-{date_label}.pptx"
     title_slugs = []
     for item in selected_items[:2]:
         normalized = normalize_worship_song(item)
@@ -4205,7 +4559,28 @@ def _resolve_selected_worship_items(song_order: str, fallback_song_ids: list[str
     return selected_items
 
 
-def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None = None) -> list[dict]:
+def _iter_worship_lyric_chunks(normalized: dict):
+    """Yield lyric slide chunks, suppressing only exact adjacent duplicate cues."""
+    parts = normalized.get("parts", {}) or {}
+    arrangement = normalized.get("arrangement", []) or []
+    previous_signature = None
+    for part_name in arrangement:
+        part_lines = parts.get(part_name, [])
+        if not isinstance(part_lines, list):
+            continue
+        for chunk in chunk_lines(part_lines):
+            signature = (
+                _worship_part_label(part_name),
+                tuple(chunk.get("lines", [])),
+                chunk.get("font_size", 48),
+            )
+            if signature == previous_signature:
+                continue
+            previous_signature = signature
+            yield part_name, chunk
+
+
+def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None = None, access_token: str = "") -> list[dict]:
     notes = notes if isinstance(notes, dict) else {}
     slides: list[dict] = []
     for item in selected_items:
@@ -4216,6 +4591,13 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
         item_type = normalized.get("type", "song")
         song_bg = normalized.get("background")
         song_note = str(notes.get(song_id) or "").strip()
+        bg_path, bg_cfg = _resolve_bg(item_type, song_bg)
+        background_url = ""
+        if bg_path:
+            relative_bg = f"worship/backgrounds/{bg_path.name}"
+            background_url = url_for("static", filename=relative_bg) if has_request_context() else f"/static/{relative_bg}"
+        font_rgb = bg_cfg.get("font_color", [255, 255, 255])
+        font_css = "#{:02x}{:02x}{:02x}".format(*font_rgb)
         if item_type in _WORSHIP_SERVICE_TYPES:
             slides.append({
                 "kind": "service",
@@ -4224,8 +4606,10 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                 "type": item_type,
                 "lines": normalized.get("service_lines", []),
                 "image_layout": normalized.get("image_layout", "full"),
-                "image_url": url_for("worship_media", song_id=song_id) if normalized.get("image_path") else "",
+                "image_url": url_for("worship_media", song_id=song_id, token=access_token) if normalized.get("image_path") else "",
                 "background": song_bg,
+                "background_url": background_url,
+                "font_color": font_css,
                 "note": song_note,
             })
             continue
@@ -4239,61 +4623,97 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                 "key": normalized.get("key", ""),
                 "type": item_type,
                 "background": song_bg,
+                "background_url": background_url,
+                "font_color": font_css,
                 "note": song_note,
             }
         )
-        parts = normalized.get("parts", {}) or {}
-        arrangement = normalized.get("arrangement", []) or []
-        for part_name in arrangement:
-            part_lines = parts.get(part_name, [])
-            if not isinstance(part_lines, list):
-                continue
-            for chunk in chunk_lines(part_lines):
-                slides.append(
-                    {
-                        "kind": "lyric",
-                        "id": song_id,
-                        "title": song_title,
-                        "version": song_version,
-                        "part": part_name,
-                        "part_label": _worship_part_label(part_name),
-                        "lines": chunk["lines"],
-                        "font_size": chunk.get("font_size", 48),
-                        "type": item_type,
-                        "background": song_bg,
-                        "note": song_note,
-                    }
-                )
+        for part_name, chunk in _iter_worship_lyric_chunks(normalized):
+            slides.append(
+                {
+                    "kind": "lyric",
+                    "id": song_id,
+                    "title": song_title,
+                    "version": song_version,
+                    "part": part_name,
+                    "part_label": _worship_part_label(part_name),
+                    "lines": chunk["lines"],
+                    "font_size": chunk.get("font_size", 48),
+                    "type": item_type,
+                    "background": song_bg,
+                    "background_url": background_url,
+                    "font_color": font_css,
+                    "note": song_note,
+                }
+            )
     return slides
 
 
 @app.route("/worship/mobile", methods=["GET"])
-@login_required
 def worship_mobile():
-    _seed_worship_from_files()
-    setlist_id = request.args.get("setlist_id", "").strip()
-    setlist = _get_worship_setlist(setlist_id) if setlist_id else None
-    if setlist:
-        selected_items = _resolve_selected_worship_items("", setlist.get("songs", []))
-        notes = setlist.get("notes", {})
+    token = request.args.get("token", "").strip()
+    if token:
+        try:
+            capability = _load_worship_mobile_token(token)
+        except BadData:
+            return Response("This mobile worship link is invalid or has expired.", status=410)
+        scope = capability["scope"]
+        setlist_id = capability["setlist_id"]
+        setlist = _get_worship_setlist_for_scope(setlist_id, scope) if setlist_id else None
+        song_ids = setlist.get("songs", []) if setlist else capability["song_ids"]
+        selected_items = _resolve_worship_ids_for_scope(song_ids, scope)
+        notes = setlist.get("notes", {}) if setlist else {}
     else:
-        selected_items = _resolve_selected_worship_items(
-            request.args.get("song_order", ""),
-            request.args.getlist("song_ids"),
-        )
-        notes = {}
+        if not google.authorized:
+            next_url = request.full_path.rstrip("?") if request.query_string else request.path
+            return redirect(url_for("google.login", next=next_url))
+        _seed_worship_from_files()
+        setlist_id = request.args.get("setlist_id", "").strip()
+        setlist = _get_worship_setlist(setlist_id) if setlist_id else None
+        if setlist:
+            selected_items = _resolve_selected_worship_items("", setlist.get("songs", []))
+            notes = setlist.get("notes", {})
+        else:
+            selected_items = _resolve_selected_worship_items(
+                request.args.get("song_order", ""),
+                request.args.getlist("song_ids"),
+            )
+            notes = {}
     if not selected_items:
+        if token:
+            return Response("This mobile worship set is no longer available.", status=404)
         flash("Select at least one item to preview the mobile slides.", "warning")
         return redirect(url_for("worship"))
-    slides = _build_worship_mobile_slides(selected_items, notes)
+    slides = _build_worship_mobile_slides(selected_items, notes, token)
     song_order = ",".join(item.get("id", "") for item in selected_items if item.get("id"))
-    return render_template(
+    rendered = render_template(
         "worship_mobile.html",
         slides=slides,
         selected_items=selected_items,
         song_order=song_order,
         setlist=setlist,
     )
+    if not token:
+        return rendered
+    response = app.make_response(rendered)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@app.route("/worship/mobile-link", methods=["POST"])
+@login_required
+def worship_mobile_link():
+    setlist_id = request.form.get("setlist_id", "").strip()
+    setlist = _get_worship_setlist(setlist_id) if setlist_id else None
+    if setlist:
+        selected_items = _resolve_selected_worship_items("", setlist.get("songs", []))
+    else:
+        selected_items = _resolve_selected_worship_items(
+            request.form.get("song_order", ""), request.form.getlist("song_ids"), prefer_direct=True
+        )
+    if not selected_items:
+        return jsonify({"ok": False, "error": "Select at least one item."}), 400
+    return jsonify({"ok": True, "url": _worship_mobile_url(selected_items, setlist_id=setlist_id if setlist else "")})
 
 
 @app.route("/worship/mobile-qr.png", methods=["GET"])
@@ -4311,6 +4731,210 @@ def worship_mobile_qr():
         return Response("QR support is not installed", status=503)
 
     image = qrcode.make(qr_url)
+    output = BytesIO()
+    image.save(output, format="PNG")
+    output.seek(0)
+    return send_file(output, mimetype="image/png", max_age=300)
+
+
+@app.route("/worship/live/start", methods=["POST"])
+@login_required
+def worship_live_start():
+    setlist_id = request.form.get("setlist_id", "").strip()
+    setlist = _get_worship_setlist(setlist_id) if setlist_id else None
+    if setlist:
+        selected_items = _resolve_selected_worship_items("", setlist.get("songs", []), prefer_direct=True)
+        notes = setlist.get("notes", {}) if isinstance(setlist.get("notes"), dict) else {}
+        live_name = setlist.get("name") or setlist.get("date") or "Live Worship"
+    else:
+        selected_items = _resolve_selected_worship_items(
+            request.form.get("song_order", ""), request.form.getlist("song_ids"), prefer_direct=True
+        )
+        try:
+            notes = json.loads(request.form.get("notes_json", "{}"))
+            if not isinstance(notes, dict):
+                notes = {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            notes = {}
+        live_name = request.form.get("live_name", "").strip() or "Live Worship"
+    if not selected_items:
+        return jsonify({"ok": False, "error": "Select at least one item to start worship."}), 400
+
+    slides = _build_worship_mobile_slides(selected_items, notes)
+    if not slides:
+        return jsonify({"ok": False, "error": "The selected set has no slides."}), 400
+    if len(json.dumps(slides, ensure_ascii=False)) > 750_000:
+        return jsonify({"ok": False, "error": "This set is too large for Live Worship. Use a smaller set."}), 400
+    scope = _current_worship_scope()
+    session_id = secrets.token_urlsafe(18)
+    now = datetime.now(timezone.utc)
+    data = {
+        "id": session_id,
+        "scope": scope,
+        "name": live_name[:120],
+        "song_ids": [item.get("id", "") for item in selected_items if item.get("id")][:100],
+        "notes": notes,
+        "slides": slides,
+        "slide_count": len(slides),
+        "current_index": 0,
+        "blank": False,
+        "revision": 0,
+        "created_by": session.get("user_email", ""),
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+        "expires_at": now + timedelta(seconds=_WORSHIP_LIVE_TOKEN_TTL),
+        "expires_epoch": now.timestamp() + _WORSHIP_LIVE_TOKEN_TTL,
+    }
+    try:
+        _create_worship_live_session(data)
+    except Exception as exc:
+        app.logger.warning("worship_live_start storage error: %s", exc)
+        return jsonify({"ok": False, "error": "Live Worship is temporarily unavailable."}), 503
+
+    view_token = _make_worship_live_token(scope=scope, session_id=session_id, role="view")
+    control_token = _make_worship_live_token(scope=scope, session_id=session_id, role="control")
+    presenter_url = url_for(
+        "worship_live_presenter", token=view_token, control=control_token, _external=True
+    )
+    return jsonify(
+        {
+            "ok": True,
+            "presenter_url": presenter_url,
+            "remote_url": url_for("worship_live_remote", token=control_token, _external=True),
+            "expires_in": _WORSHIP_LIVE_TOKEN_TTL,
+        }
+    )
+
+
+def _load_worship_live_request(token: str, required_role: str | None = None) -> tuple[dict, dict] | tuple[None, None]:
+    try:
+        capability = _load_worship_live_token(token, required_role=required_role)
+    except BadData:
+        return None, None
+    live = _get_worship_live_session(capability["scope"], capability["session_id"])
+    return (capability, live) if live else (None, None)
+
+
+def _slides_for_worship_live(live: dict, capability: dict, *, include_media: bool = False) -> list[dict]:
+    stored = live.get("slides")
+    if isinstance(stored, list) and stored:
+        slides = [dict(slide) for slide in stored if isinstance(slide, dict)]
+    else:
+        selected_items = _resolve_worship_ids_for_scope(live.get("song_ids", []), capability["scope"])
+        slides = _build_worship_mobile_slides(selected_items, live.get("notes", {}))
+    if include_media:
+        media_token = _make_worship_mobile_token(scope=capability["scope"], song_ids=live.get("song_ids", []))
+        for slide in slides:
+            if slide.get("kind") == "service" and slide.get("image_url") and slide.get("id"):
+                slide["image_url"] = url_for("worship_media", song_id=slide["id"], token=media_token)
+    return slides
+
+
+@app.route("/worship/live/present/<token>", methods=["GET"])
+def worship_live_presenter(token):
+    capability, live = _load_worship_live_request(token, "view")
+    if not live:
+        return Response("This Live Worship session is invalid or has expired.", status=410)
+    slides = _slides_for_worship_live(live, capability, include_media=True)
+    if not slides:
+        return Response("This worship set is no longer available.", status=404)
+    if len(slides) != int(live.get("slide_count") or 0):
+        return Response("This worship set changed after the live session started. Start a new session.", status=409)
+
+    control_token = request.args.get("control", "").strip()
+    remote_url = ""
+    if control_token:
+        try:
+            control = _load_worship_live_token(control_token, required_role="control")
+            if control["scope"] == capability["scope"] and control["session_id"] == capability["session_id"]:
+                remote_url = url_for("worship_live_remote", token=control_token, _external=True)
+            else:
+                control_token = ""
+        except BadData:
+            control_token = ""
+    response = app.make_response(
+        render_template(
+            "worship_live_presenter.html",
+            slides=slides,
+            live=live,
+            view_token=token,
+            control_token=control_token,
+            remote_url=remote_url,
+        )
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.route("/worship/live/remote/<token>", methods=["GET"])
+def worship_live_remote(token):
+    capability, live = _load_worship_live_request(token, "control")
+    if not live:
+        return Response("This Live Worship remote is invalid or has expired.", status=410)
+    slides = _slides_for_worship_live(live, capability)
+    if len(slides) != int(live.get("slide_count") or 0):
+        return Response("This worship set changed after the live session started. Start a new session.", status=409)
+    response = app.make_response(
+        render_template("worship_live_remote.html", slides=slides, live=live, control_token=token)
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.route("/worship/live/state/<token>", methods=["GET"])
+def worship_live_state(token):
+    capability, live = _load_worship_live_request(token)
+    if not live:
+        return jsonify({"ok": False, "error": "expired"}), 410
+    response = jsonify({"ok": True, **_public_worship_live_state(live)})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/worship/live/control/<token>", methods=["POST"])
+def worship_live_control(token):
+    capability, live = _load_worship_live_request(token, "control")
+    if not live:
+        return jsonify({"ok": False, "error": "expired"}), 410
+    rate = check_rate_limit(
+        "worship:live-control", f"{capability['session_id']}:{get_client_ip()}", limit=2000, window_seconds=60 * 60
+    )
+    if not rate.allowed:
+        return jsonify({"ok": False, "error": "Too many remote commands."}), 429
+    payload = request.get_json(silent=True) if request.is_json else request.form
+    action = str((payload or {}).get("action") or "").strip()
+    requested_index = None
+    if action == "index":
+        try:
+            requested_index = int((payload or {}).get("index"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid slide index."}), 400
+    try:
+        updated = _update_worship_live_session(
+            capability["scope"], capability["session_id"], action, requested_index
+        )
+    except ValueError:
+        return jsonify({"ok": False, "error": "Unknown command."}), 400
+    except LookupError:
+        return jsonify({"ok": False, "error": "expired"}), 410
+    except Exception as exc:
+        app.logger.warning("worship_live_control storage error: %s", exc)
+        return jsonify({"ok": False, "error": "Remote update failed."}), 503
+    return jsonify({"ok": True, **_public_worship_live_state(updated)})
+
+
+@app.route("/worship/live/remote-qr/<token>.png", methods=["GET"])
+def worship_live_remote_qr(token):
+    capability, live = _load_worship_live_request(token, "control")
+    if not live:
+        return Response("Invalid or expired remote", status=410)
+    try:
+        import qrcode
+    except Exception:
+        return Response("QR support is not installed", status=503)
+    image = qrcode.make(url_for("worship_live_remote", token=token, _external=True))
     output = BytesIO()
     image.save(output, format="PNG")
     output.seek(0)
@@ -4400,11 +5024,7 @@ def worship_export_lyric_sheet():
         flash("Select at least one item to export a lyric sheet.", "warning")
         return redirect(url_for("worship"))
 
-    mobile_url = url_for(
-        "worship_mobile",
-        _external=True,
-        song_order=",".join(item.get("id", "") for item in selected_items if item.get("id")),
-    )
+    mobile_url = _worship_mobile_url(selected_items)
     today = datetime.now(timezone.utc).date().isoformat()
     pdf = _build_worship_lyric_sheet_pdf(selected_items, mobile_url)
     return send_file(
@@ -4465,25 +5085,20 @@ def worship_build():
             continue
         artist_bits = [bit for bit in (normalized.get("artist", ""), normalized.get("version", "")) if bit]
         create_divider_slide(prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg)
-        parts = normalized.get("parts", {}) or {}
-        arrangement = normalized.get("arrangement", []) or []
-        for part_name in arrangement:
-            part_lines = parts.get(part_name, [])
-            if not isinstance(part_lines, list):
-                continue
-            for slide in chunk_lines(part_lines):
-                create_content_slide(
-                    prs,
-                    slide["lines"],
-                    item_type,
-                    song_bg,
-                    font_size=slide.get("font_size", 48),
-                    part_label=_worship_part_label(part_name),
-                )
+        for part_name, slide in _iter_worship_lyric_chunks(normalized):
+            create_content_slide(
+                prs,
+                slide["lines"],
+                item_type,
+                song_bg,
+                font_size=slide.get("font_size", 48),
+                part_label=_worship_part_label(part_name),
+            )
 
     today = datetime.now(timezone.utc).date().isoformat()
-    _record_worship_deck_build(selected_items)
-    _touch_worship_songs_last_used([item.get("id", "") for item in selected_items if item.get("id")], today)
+    if _worship_can_edit():
+        _record_worship_deck_build(selected_items)
+        _touch_worship_songs_last_used([item.get("id", "") for item in selected_items if item.get("id")], today)
 
     tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
     prs.save(tmp.name)
@@ -4551,13 +5166,30 @@ def worship_deck_history():
 
 
 @app.route("/worship/media/<song_id>", methods=["GET"])
-@login_required
 def worship_media(song_id):
-    song = get_worship_song(song_id)
+    token = request.args.get("token", "").strip()
+    scope = None
+    if token:
+        try:
+            capability = _load_worship_mobile_token(token)
+        except BadData:
+            return Response("Invalid or expired media link", status=410)
+        scope = capability["scope"]
+        allowed_ids = capability["song_ids"]
+        if capability["setlist_id"]:
+            setlist = _get_worship_setlist_for_scope(capability["setlist_id"], scope)
+            allowed_ids = setlist.get("songs", []) if setlist else []
+        if song_id not in allowed_ids:
+            return Response("Forbidden", status=403)
+        song = _get_worship_song_for_scope(song_id, scope)
+    else:
+        if not google.authorized:
+            return redirect(url_for("google.login", next=request.path))
+        song = get_worship_song(song_id)
     image_path = str((song or {}).get("image_path") or "").strip()
     if not image_path:
         return Response("Image not found", status=404)
-    firestore_media = _read_worship_firestore_media(image_path)
+    firestore_media = _read_worship_firestore_media(image_path, scope)
     if firestore_media:
         return Response(
             firestore_media[0],
@@ -4572,6 +5204,7 @@ def worship_media(song_id):
 
 @app.route("/worship/service-slide/add", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_service_slide_add():
     slide_type = request.form.get("slide_type", "").strip().lower()
     title = request.form.get("title", "").strip()
@@ -4613,6 +5246,7 @@ def worship_service_slide_add():
 
 @app.route("/worship/add", methods=["GET", "POST"])
 @login_required
+@worship_editor_required
 def worship_add():
     if request.method == "POST":
         # Overwrite confirmation branch
@@ -4781,6 +5415,7 @@ def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
 
 @app.route("/worship/add/parse", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_add_parse():
     if request.content_length and request.content_length > 180_000:
         flash("That import is too large. Please paste only the song lyrics.", "warning")
@@ -5047,6 +5682,7 @@ OTHER RULES:
 
 @app.route("/worship/import/review/<token>", methods=["GET", "POST"])
 @login_required
+@worship_editor_required
 def worship_import_review(token):
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,80}", str(token or "")):
         flash("That import review link is invalid.", "warning")
@@ -5102,6 +5738,7 @@ def worship_preview_slides():
 
 @app.route("/worship/delete", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_delete():
     song_id = request.form.get("song_id", "").strip()
     if not song_id or ".." in song_id or "/" in song_id or "\\" in song_id:
@@ -5124,6 +5761,7 @@ def worship_delete():
 
 @app.route("/worship/library/reset", methods=["POST"])
 @login_required
+@worship_owner_required
 def worship_library_reset():
     confirmation = request.form.get("confirmation", "").strip().upper()
     if confirmation != "DELETE":
@@ -5140,6 +5778,7 @@ def worship_library_reset():
 
 @app.route("/worship/duplicate/<song_id>", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_duplicate(song_id):
     if ".." in song_id or "/" in song_id or "\\" in song_id:
         flash("Invalid song id.", "warning")
@@ -5164,6 +5803,7 @@ def worship_duplicate(song_id):
 
 @app.route("/worship/edit/<song_id>", methods=["GET", "POST"])
 @login_required
+@worship_editor_required
 def worship_edit(song_id):
     if ".." in song_id or "/" in song_id or "\\" in song_id:
         flash("Invalid song id.", "warning")
@@ -5278,6 +5918,7 @@ def worship_edit(song_id):
 
 @app.route("/worship/edit/<song_id>/validate", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_validate(song_id):
     if ".." in song_id or "/" in song_id or "\\" in song_id:
         flash("Invalid song id.", "warning")
@@ -5321,6 +5962,7 @@ def worship_validate(song_id):
 
 @app.route("/worship/edit/<song_id>/create-validated-version", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_create_validated_version(song_id):
     song = get_worship_song(song_id)
     if not song:
@@ -5395,6 +6037,7 @@ def worship_create_validated_version(song_id):
 
 @app.route("/worship/edit/<song_id>/keep-current-version", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_keep_current_version(song_id):
     song = get_worship_song(song_id)
     if not song:
@@ -5419,6 +6062,7 @@ def worship_keep_current_version(song_id):
 
 @app.route("/worship/edit/<song_id>/apply-validation-structure", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_apply_validation_structure(song_id):
     song = get_worship_song(song_id)
     if not song:
@@ -5455,6 +6099,7 @@ def worship_apply_validation_structure(song_id):
 
 @app.route("/worship/edit/<song_id>/undo-structure", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_undo_validation_structure(song_id):
     song = get_worship_song(song_id)
     if not song:
@@ -5482,6 +6127,7 @@ def worship_undo_validation_structure(song_id):
 
 @app.route("/worship/edit/<song_id>/approve", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_approve(song_id):
     song = get_worship_song(song_id)
     if not song:
@@ -5503,6 +6149,7 @@ def worship_approve(song_id):
 
 @app.route("/worship/setlist/save", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_save():
     song_ids = request.form.getlist("song_ids")
     if not song_ids:
@@ -5546,6 +6193,7 @@ def worship_setlist_save():
 
 @app.route("/worship/setlist/delete", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_delete():
     setlist_id = request.form.get("setlist_id", "").strip() or request.form.get("date", "").strip()
     if not _valid_worship_setlist_id(setlist_id):
@@ -5556,6 +6204,7 @@ def worship_setlist_delete():
 
 @app.route("/worship/setlist/rename", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_rename():
     setlist_id = request.form.get("setlist_id", "").strip()
     new_name = request.form.get("setlist_name", "").strip()
@@ -5581,6 +6230,7 @@ def worship_setlist_rename():
 
 @app.route("/worship/setlist/duplicate", methods=["POST"])
 @login_required
+@worship_editor_required
 def worship_setlist_duplicate():
     setlist_id = request.form.get("setlist_id", "").strip()
     duplicate_name = request.form.get("setlist_name", "").strip()

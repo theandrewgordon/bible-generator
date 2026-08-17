@@ -1,6 +1,7 @@
 import unittest
 
 from flask import g
+from itsdangerous import BadData
 
 import app
 
@@ -57,6 +58,50 @@ class WorshipMobileViewTests(unittest.TestCase):
 
         labels = [slide.get("part_label") for slide in slides if slide.get("kind") == "lyric"]
         self.assertEqual(labels, ["Pre Chorus", "Chorus 2"])
+
+    def test_mobile_slides_collapse_only_exact_adjacent_duplicate_cues(self):
+        slides = app._build_worship_mobile_slides([
+            {
+                "id": "sample",
+                "title": "Sample",
+                "parts": {"chorus": ["Same words"], "verse1": ["Different words"]},
+                "arrangement": ["chorus", "chorus", "verse1", "chorus"],
+            }
+        ])
+
+        lyric_labels = [slide["part_label"] for slide in slides if slide["kind"] == "lyric"]
+        self.assertEqual(lyric_labels, ["Chorus", "Verse 1", "Chorus"])
+
+    def test_mobile_capability_is_signed_and_scope_bound(self):
+        with app.app.test_request_context("/worship"):
+            token = app._make_worship_mobile_token(scope="Grace Church", song_ids=["holy-forever"])
+            payload = app._load_worship_mobile_token(token)
+
+        self.assertEqual(payload["scope"], "grace-church")
+        self.assertEqual(payload["song_ids"], ["holy-forever"])
+        with self.assertRaises(BadData):
+            app._load_worship_mobile_token(token + "tampered")
+
+    def test_signed_mobile_link_renders_without_login(self):
+        selected = [{
+            "id": "holy-forever",
+            "title": "Holy Forever",
+            "parts": {"verse1": ["A thousand generations"]},
+            "arrangement": ["verse1"],
+        }]
+        original_resolve = app._resolve_worship_ids_for_scope
+        try:
+            app._resolve_worship_ids_for_scope = lambda ids, scope: selected if ids == ["holy-forever"] and scope == "grace" else []
+            with app.app.test_request_context("/worship/mobile"):
+                token = app._make_worship_mobile_token(scope="grace", song_ids=["holy-forever"])
+            with app.app.test_request_context("/worship/mobile?token=" + token):
+                response = app.worship_mobile()
+        finally:
+            app._resolve_worship_ids_for_scope = original_resolve
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Holy Forever", response.get_data(as_text=True))
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store")
 
     def test_service_item_creates_one_mobile_slide_without_song_divider(self):
         with app.app.test_request_context("/worship/mobile"):

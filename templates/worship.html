@@ -116,10 +116,10 @@
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem">
   <h1 style="margin:0">Worship Slide Builder</h1>
-  <span style="display:flex;gap:.5rem;align-items:center"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a><a href="{{ url_for('worship_add') }}"
+  <span style="display:flex;gap:.5rem;align-items:center"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a>{% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}"
     style="font-size:.9rem;font-weight:600;color:var(--primary);text-decoration:none;padding:5px 12px;border:1px solid var(--primary);border-radius:8px">
     + Add Song or Slide
-  </a></span>
+  </a>{% endif %}</span>
 </div>
 
 <div class="ws-church-card">
@@ -127,7 +127,7 @@
     <p class="ws-church-title">{{ worship_church.name }}</p>
     <p class="ws-church-meta">
       Shared worship library
-      {% if worship_church.invite_code %} · Invite code <strong>{{ worship_church.invite_code }}</strong>{% endif %}
+      {% if worship_church.invite_code and worship_church.role == 'owner' %} · Invite code <strong>{{ worship_church.invite_code }}</strong>{% endif %}
     </p>
   </div>
   <div class="ws-church-actions">
@@ -170,11 +170,12 @@
       <option value="artist">Artist</option>
       <option value="last_used">Last Played</option>
     </select>
-    <form method="post" action="{{ url_for('worship_cleanup_duplicates') }}" style="display:contents" id="clean-dupes-form">
+    {% if worship_church.role == 'owner' %}<form method="post" action="{{ url_for('worship_cleanup_duplicates') }}" style="display:contents" id="clean-dupes-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="ws-reset-library" style="margin-right:.5rem" onclick="return confirm('Remove duplicate songs (same title + artist + version)? The best-structured parse will be kept.')">Clean duplicates</button>
     </form>
     <button type="button" class="ws-reset-library" id="reset-library-btn">Reset library</button>
+    {% endif %}
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
@@ -198,6 +199,7 @@
         {% if song.review is mapping and song.review.status == 'approved' %}<span class="ws-validation-badge is-verified" title="Human reviewed">✓ Reviewed</span>{% endif %}
       </span>
       <button type="button" class="ws-add" data-id="{{ song.id }}">+ Add</button>
+      {% if worship_church.role in ['owner', 'editor', 'member'] %}
       <a href="{{ url_for('worship_edit', song_id=song.id) }}"
         style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0"
         title="Edit {{ song.title }}">Edit</a>
@@ -212,6 +214,7 @@
           data-id="{{ song.id }}" data-title="{{ song.title }}" data-artist="{{ song.artist or '' }}" data-version="{{ song.version or '' }}" data-key="{{ song.key or '' }}"
           title="Delete {{ song.title }}">×</button>
       </form>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -229,9 +232,11 @@
     <span class="setlist-chip-wrap">
       <button class="setlist-chip" data-id="{{ sl.id }}" data-date="{{ sl.date }}" data-name="{{ sl.name }}" data-updated="{{ sl.updated_at }}" data-count="{{ sl.song_count }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.name or sl.date }}</button>
       <button class="setlist-action setlist-mobile" data-id="{{ sl.id }}" title="Open mobile link">Mobile</button>
+      {% if worship_church.role in ['owner', 'editor', 'member'] %}
       <button class="setlist-action setlist-rename" data-id="{{ sl.id }}" title="Rename setlist">Rename</button>
       <button class="setlist-action setlist-copy" data-id="{{ sl.id }}" title="Duplicate setlist">Copy</button>
       <button class="setlist-chip-del" data-id="{{ sl.id }}" data-date="{{ sl.date }}" title="Delete setlist">×</button>
+      {% endif %}
       <span class="setlist-meta">{{ sl.song_count }} song{% if sl.song_count != 1 %}s{% endif %}{% if sl.updated_at %} · Updated {{ sl.updated_at[:10] }}{% endif %}</span>
     </span>
     {% endfor %}
@@ -262,10 +267,11 @@
   </div>
 
   <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
-    <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Build Deck</button>
+    <button type="button" class="ws-btn-primary" id="start-live-btn" disabled>Start Live Worship</button>
+    <button type="submit" form="build-form" class="ws-btn-ghost" id="build-btn" disabled>Build Deck</button>
     <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Export Lyric Sheet (PDF)</button>
     <button type="button" class="ws-btn-ghost" id="copy-last-set-btn" {% if not setlists %}disabled{% endif %}>Copy Last Set</button>
-    <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled>Save Setlist</button>
+    <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled{% if worship_church.role not in ['owner', 'editor', 'member'] %} style="display:none"{% endif %}>Save Setlist</button>
     <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
   </div>
 
@@ -306,7 +312,7 @@
   </div>
 </div>
 
-<div class="ws-modal-backdrop" id="reset-library-modal" aria-hidden="true">
+{% if worship_church.role == 'owner' %}<div class="ws-modal-backdrop" id="reset-library-modal" aria-hidden="true">
   <form class="ws-modal" method="post" action="{{ url_for('worship_library_reset') }}" role="dialog" aria-modal="true" aria-labelledby="reset-library-title">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 id="reset-library-title">Reset worship library</h2>
@@ -319,6 +325,7 @@
     </div>
   </form>
 </div>
+{% endif %}
 
 <script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}
@@ -328,6 +335,7 @@
 <script>
 (function () {
   var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+  var CAN_EDIT = {{ (worship_church.role in ['owner', 'editor', 'member']) | tojson }};
 
   // Index songs by id for O(1) lookup
   var SONGS_BY_ID = {};
@@ -340,6 +348,7 @@
   var lyricOrderInput = document.getElementById('lyric-song-order-input');
   var emptyState    = document.getElementById('set-empty');
   var buildBtn      = document.getElementById('build-btn');
+  var startLiveBtn  = document.getElementById('start-live-btn');
   var lyricBtn      = document.getElementById('lyric-sheet-btn');
   var saveBtn       = document.getElementById('save-setlist-btn');
   var copyLastBtn   = document.getElementById('copy-last-set-btn');
@@ -358,7 +367,7 @@
   var mobileNativeEl = document.querySelector('[data-mobile-native]');
   var mobileQrEl    = document.querySelector('[data-mobile-qr]');
   var mobileQrFallbackEl = document.querySelector('[data-mobile-qr-fallback]');
-  var mobileBaseUrl = window.location.origin + '/worship/mobile';
+  var mobileLinkRequest = 0;
   var saveModal     = document.getElementById('save-set-modal');
   var saveNameInput = document.getElementById('save-set-name');
   var saveConfirmBtn = document.getElementById('save-set-confirm');
@@ -375,16 +384,16 @@
   // Which ids are currently in the set
   var inSet = {};
 
-  // ── Set draft persistence (localStorage) ─────────────────────────────────
+  // ── Set draft persistence (per-library, per-tab session storage) ─────────
 
-  var DRAFT_KEY = 'worship_set_draft';
+  var DRAFT_KEY = 'worship_set_draft:' + {{ worship_church.id | tojson }};
 
   function saveSetDraft() {
     var items = Array.from(setListEl.querySelectorAll('[data-id]')).map(function (li) {
       var noteEl = li.querySelector('.set-note');
       return { id: li.dataset.id, note: noteEl ? noteEl.value : '' };
     });
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(items)); } catch (e) {}
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(items)); } catch (e) {}
   }
 
   function todayLabel() {
@@ -393,17 +402,17 @@
 
   function pruneSetDraftId(id) {
     try {
-      var raw = localStorage.getItem(DRAFT_KEY);
+      var raw = sessionStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       var items = JSON.parse(raw);
       if (!Array.isArray(items)) return;
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(items.filter(function (item) { return item.id !== id; })));
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(items.filter(function (item) { return item.id !== id; })));
     } catch (e) {}
   }
 
   function restoreSetDraft() {
     var raw;
-    try { raw = localStorage.getItem(DRAFT_KEY); } catch (e) { return; }
+    try { raw = sessionStorage.getItem(DRAFT_KEY); } catch (e) { return; }
     if (!raw) return;
     var items;
     try { items = JSON.parse(raw); } catch (e) { return; }
@@ -460,8 +469,9 @@
       }).join('  •  ');
     }
     buildBtn.disabled = !hasItems;
+    if (startLiveBtn) startLiveBtn.disabled = !hasItems;
     if (lyricBtn) lyricBtn.disabled = !hasItems;
-    saveBtn.disabled = !hasItems;
+    if (saveBtn) saveBtn.disabled = !hasItems || !CAN_EDIT;
     if (mobileShareEl) mobileShareEl.style.display = hasItems ? 'block' : 'none';
     Array.from(setListEl.children).forEach(function (item, index, items) {
       var up = item.querySelector('.set-move-up');
@@ -496,25 +506,74 @@
     return false;
   }
 
-  function updateMobileShare() {
-    if (!mobileShareEl || !mobileLinkEl || !mobileOpenEl || !mobileQrEl) return;
-    var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
-    if (!ids.length) {
-      mobileShareEl.style.display = 'none';
-      mobileLinkEl.textContent = 'Add songs or slides to create a mobile link';
-      mobileLinkEl.href = '#';
-      mobileOpenEl.href = '#';
-      mobileQrEl.removeAttribute('src');
-      mobileQrEl.hidden = true;
-      if (mobileQrFallbackEl) mobileQrFallbackEl.classList.remove('is-visible');
-      if (mobileCopyEl) mobileCopyEl.disabled = true;
-      if (mobileNativeEl) mobileNativeEl.disabled = true;
-      return;
+  function requestMobileUrl(ids, setlistId) {
+    var fd = new FormData();
+    fd.append('csrf_token', csrfToken);
+    if (setlistId) {
+      fd.append('setlist_id', setlistId);
+    } else {
+      fd.append('song_order', ids.join(','));
+      ids.forEach(function (id) { fd.append('song_ids', id); });
     }
-    mobileShareEl.style.display = 'block';
-    var url = (currentSetlistId && !setDirty)
-      ? mobileBaseUrl + '?setlist_id=' + encodeURIComponent(currentSetlistId)
-      : mobileBaseUrl + '?song_order=' + encodeURIComponent(ids.join(','));
+    return fetch('/worship/mobile-link', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok || !data.ok) throw new Error(data.error || 'Could not create mobile link.');
+          return data.url;
+        });
+      });
+  }
+
+  function collectSetNotes(ids) {
+    var notes = {};
+    ids.forEach(function (id) {
+      var li = setListEl.querySelector('[data-id="' + id + '"]');
+      var noteEl = li ? li.querySelector('.set-note') : null;
+      var value = noteEl ? noteEl.value.trim() : '';
+      if (value) notes[id] = value;
+    });
+    return notes;
+  }
+
+  function startLiveWorship() {
+    syncOrder();
+    var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
+    if (!ids.length) return;
+    var popup = window.open('about:blank', '_blank');
+    var fd = new FormData();
+    fd.append('csrf_token', csrfToken);
+    if (currentSetlistId && !setDirty) {
+      fd.append('setlist_id', currentSetlistId);
+    } else {
+      fd.append('song_order', ids.join(','));
+      ids.forEach(function (id) { fd.append('song_ids', id); });
+      fd.append('notes_json', JSON.stringify(collectSetNotes(ids)));
+      fd.append('live_name', currentSetlistName || 'Live Worship');
+    }
+    startLiveBtn.disabled = true;
+    startLiveBtn.textContent = 'Starting…';
+    fetch('/worship/live/start', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok || !data.ok) throw new Error(data.error || 'Could not start Live Worship.');
+          return data;
+        });
+      })
+      .then(function (data) {
+        if (popup) popup.location = data.presenter_url;
+        else window.location.href = data.presenter_url;
+      })
+      .catch(function (error) {
+        if (popup) popup.close();
+        alert(error.message || 'Could not start Live Worship.');
+      })
+      .finally(function () {
+        startLiveBtn.textContent = 'Start Live Worship';
+        startLiveBtn.disabled = !ids.length;
+      });
+  }
+
+  function showMobileUrl(url) {
     mobileLinkEl.textContent = url;
     mobileLinkEl.href = url;
     mobileOpenEl.href = url;
@@ -541,11 +600,43 @@
         navigator.clipboard.writeText(url).then(function () {
           setCopiedState(true);
           setTimeout(function () { setCopiedState(false); }, 1400);
-        }).catch(function () {
-          setCopiedState(false);
-        });
+        }).catch(function () { setCopiedState(false); });
       };
     }
+  }
+
+  function updateMobileShare() {
+    if (!mobileShareEl || !mobileLinkEl || !mobileOpenEl || !mobileQrEl) return;
+    var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
+    if (!ids.length) {
+      mobileShareEl.style.display = 'none';
+      mobileLinkEl.textContent = 'Add songs or slides to create a mobile link';
+      mobileLinkEl.href = '#';
+      mobileOpenEl.href = '#';
+      mobileQrEl.removeAttribute('src');
+      mobileQrEl.hidden = true;
+      if (mobileQrFallbackEl) mobileQrFallbackEl.classList.remove('is-visible');
+      if (mobileCopyEl) mobileCopyEl.disabled = true;
+      if (mobileNativeEl) mobileNativeEl.disabled = true;
+      return;
+    }
+    mobileShareEl.style.display = 'block';
+    mobileLinkEl.textContent = 'Preparing secure link…';
+    mobileLinkEl.href = '#';
+    mobileOpenEl.href = '#';
+    mobileQrEl.hidden = true;
+    if (mobileCopyEl) mobileCopyEl.disabled = true;
+    if (mobileNativeEl) mobileNativeEl.disabled = true;
+    var requestId = ++mobileLinkRequest;
+    requestMobileUrl(ids, currentSetlistId && !setDirty ? currentSetlistId : '')
+      .then(function (url) {
+        if (requestId === mobileLinkRequest) showMobileUrl(url);
+      })
+      .catch(function () {
+        if (requestId !== mobileLinkRequest) return;
+        mobileLinkEl.textContent = 'Mobile link unavailable';
+        if (mobileQrFallbackEl) mobileQrFallbackEl.classList.add('is-visible');
+      });
   }
 
   // ── Set operations ────────────────────────────────────────────────────────
@@ -627,7 +718,7 @@
     li.appendChild(handle);
     li.appendChild(info);
     li.appendChild(reorder);
-    li.appendChild(editLink);
+    if (CAN_EDIT) li.appendChild(editLink);
     li.appendChild(removeBtn);
     setListEl.appendChild(li);
 
@@ -699,6 +790,7 @@
   }
 
   document.getElementById('build-form').addEventListener('submit', syncOrder);
+  if (startLiveBtn) startLiveBtn.addEventListener('click', startLiveWorship);
   if (document.getElementById('lyric-sheet-form')) {
     document.getElementById('lyric-sheet-form').addEventListener('submit', syncOrder);
   }
@@ -907,7 +999,14 @@
       }
       var mobileBtn = e.target.closest('.setlist-mobile');
       if (mobileBtn) {
-        window.open(mobileBaseUrl + '?setlist_id=' + encodeURIComponent(mobileBtn.dataset.id), '_blank', 'noopener');
+        var popup = window.open('about:blank', '_blank');
+        requestMobileUrl([], mobileBtn.dataset.id).then(function (url) {
+          if (popup) popup.location = url;
+          else window.location.href = url;
+        }).catch(function () {
+          if (popup) popup.close();
+          alert('Could not create the mobile link.');
+        });
         return;
       }
       var renameBtn = e.target.closest('.setlist-rename');
