@@ -63,13 +63,13 @@
   <div class="wl-blank{% if live.blank %} is-active{% endif %}" id="wl-blank" aria-label="Screen blanked"></div>
   <header class="wl-hud" id="wl-hud">
     <div class="wl-hud-title">{{ live.name }}</div>
-    <div class="wl-hud-actions"><span class="wl-status" id="wl-status">Connected</span>{% if remote_url %}<button class="wl-btn" id="wl-remote-btn">Remote</button>{% endif %}<button class="wl-btn" id="wl-fullscreen-btn">Fullscreen</button></div>
+    <div class="wl-hud-actions"><span class="wl-status" id="wl-status">Connected</span>{% if remote_url %}<button class="wl-btn" id="wl-remote-btn">Remote</button><button class="wl-btn" id="wl-end-btn">End session</button>{% endif %}<button class="wl-btn" id="wl-fullscreen-btn">Fullscreen</button></div>
   </header>
   <footer class="wl-footer" id="wl-footer"><span id="wl-current-title"></span><span id="wl-progress">1 / {{ slides|length }}</span></footer>
 
   <div class="wl-setup" id="wl-setup">
     <div class="wl-setup-card">
-      {% if remote_url %}<img class="wl-qr" src="{{ url_for('worship_live_remote_qr', token=control_token) }}" alt="QR code for the worship remote">{% endif %}
+      {% if remote_url %}<img class="wl-qr" src="{{ url_for('worship_live_remote_qr', session_id=session_id) }}" alt="QR code for the worship remote">{% endif %}
       <div>
         <h1>{{ live.name }}</h1>
         {% if remote_url %}<p>Scan this QR code with the leader’s phone. The phone will control this screen.</p><p>No sign-in is needed, and the remote expires automatically.</p>{% else %}<p>This is a view-only presentation link.</p>{% endif %}
@@ -81,8 +81,8 @@
   <script>
   (function(){
     var slides=Array.from(document.querySelectorAll('.wl-slide'));
-    var stateToken={{ view_token|tojson }};
-    var controlToken={{ control_token|tojson }};
+    var sessionId={{ session_id|tojson }};
+    var canControl={{ (remote_url != '')|tojson }};
     var remoteUrl={{ remote_url|tojson }};
     var current={{ live.current_index|int }};
     var blank={{ live.blank|tojson }};
@@ -94,7 +94,7 @@
     var titleEl=document.getElementById('wl-current-title');
     var hud=document.getElementById('wl-hud');
     var footer=document.getElementById('wl-footer');
-    var idleTimer;
+    var idleTimer,pollTimer,activeUntil=Date.now()+5000;
 
     function render(index,isBlank){
       current=Math.max(0,Math.min(slides.length-1,Number(index)||0)); blank=!!isBlank;
@@ -106,18 +106,21 @@
     function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?'Connected':'Reconnecting…';}
     function showHud(){hud.classList.remove('is-idle');footer.classList.remove('is-idle');clearTimeout(idleTimer);idleTimer=setTimeout(function(){if(setup.hidden){hud.classList.add('is-idle');footer.classList.add('is-idle');}},3000);}
     function send(action,index){
-      if(!controlToken)return;
+      if(!canControl)return;
       if(action==='next')render(current+1,blank); else if(action==='previous')render(current-1,blank); else if(action==='first')render(0,blank); else if(action==='last')render(slides.length-1,blank); else if(action==='toggle_blank')render(current,!blank);
-      fetch('/worship/live/control/'+encodeURIComponent(controlToken),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action,index:index}),credentials:'omit'})
+      activeUntil=Date.now()+5000;
+      fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify({action:action,index:index}),credentials:'same-origin'})
         .then(function(r){return r.json();}).then(function(data){if(data.ok){revision=data.revision;render(data.current_index,data.blank);connected(true);}else connected(false);}).catch(function(){connected(false);});
     }
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(stateToken),{cache:'no-store',credentials:'omit'}).then(function(r){return r.json();}).then(function(data){if(data.ok){if(data.revision!==revision){revision=data.revision;render(data.current_index,data.blank);}connected(true);}else connected(false);}).catch(function(){connected(false);});}
+    function schedulePoll(delay){clearTimeout(pollTimer);if(document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){if(data.revision!==revision){revision=data.revision;render(data.current_index,data.blank);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){statusEl.textContent='Session ended';return;}schedulePoll(2500);});}
     document.addEventListener('keydown',function(e){if(!setup.hidden&&e.key!=='Escape')return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();send('next');}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();send('previous');}if(e.key==='Home')send('first');if(e.key==='End')send('last');if(e.key==='b'||e.key==='B')send('toggle_blank');if(e.key==='f'||e.key==='F')document.getElementById('wl-fullscreen-btn').click();showHud();});
     document.addEventListener('mousemove',showHud);document.addEventListener('click',showHud);
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){activeUntil=Date.now()+5000;poll();}else clearTimeout(pollTimer);});
     document.getElementById('wl-fullscreen-btn').addEventListener('click',function(){if(document.fullscreenElement){document.exitFullscreen&&document.exitFullscreen();}else{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});}});
     document.getElementById('wl-start-btn').addEventListener('click',function(){setup.hidden=true;document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});showHud();});
-    {% if remote_url %}document.getElementById('wl-remote-btn').addEventListener('click',function(){setup.hidden=false;showHud();});document.getElementById('wl-copy-btn').addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(remoteUrl);this.textContent='Copied';});{% endif %}
-    render(current,blank);showHud();setInterval(poll,900);poll();
+    {% if remote_url %}document.getElementById('wl-remote-btn').addEventListener('click',function(){setup.hidden=false;showHud();});document.getElementById('wl-copy-btn').addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(remoteUrl);this.textContent='Copied';});document.getElementById('wl-end-btn').addEventListener('click',function(){var btn=this;if(!canControl||!window.confirm('End this Live Worship session for everyone?'))return;fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify({action:'end'})}).then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error();canControl=false;clearTimeout(pollTimer);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';btn.disabled=true;}).catch(function(){connected(false);});});{% endif %}
+    render(current,blank);showHud();poll();
   })();
   </script>
 </body>

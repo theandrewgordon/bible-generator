@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Opening Live Worship…</title>
+  <style>
+    *{box-sizing:border-box}html,body{height:100%;margin:0;background:#07111f;color:#f8fafc;font-family:Arial,Helvetica,sans-serif}
+    body{display:grid;place-items:center;padding:24px}.card{width:min(520px,100%);padding:30px;border:1px solid #334155;border-radius:20px;background:#0f172a;text-align:center}
+    h1{margin:0 0 12px;font-size:1.8rem}p{margin:0;color:#cbd5e1;line-height:1.5}.error{color:#fca5a5}
+  </style>
+</head>
+<body>
+  <main class="card"><h1>Opening Live Worship…</h1><p id="message">Securing this {{ page }} on this device.</p></main>
+  <script>
+  (function(){
+    var params=new URLSearchParams(window.location.hash.slice(1));
+    var payload={};
+    if(params.get('view'))payload.view=params.get('view');
+    if(params.get('control'))payload.control=params.get('control');
+    var message=document.getElementById('message');
+    if(!payload.view&&!payload.control){message.className='error';message.textContent='The secure part of this link is missing. Open the original Live Worship link again.';return;}
+    fetch('/worship/live/exchange/{{ session_id }}',{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify(payload)})
+      .then(function(response){return response.json().then(function(data){if(!response.ok||!data.ok)throw new Error(data.error||'Could not open this Live Worship session.');});})
+      .then(function(){window.location.replace(window.location.pathname);})
+      .catch(function(error){message.className='error';message.textContent=error.message;});
+  })();
+  </script>
+</body>
+</html>

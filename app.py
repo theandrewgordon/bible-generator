@@ -513,6 +513,7 @@ _CSRF_EXEMPT_PREFIXES = (
 _CSRF_CAPABILITY_POST_PREFIXES = (
     "/family-game-night/controller/",
     "/family-bible-bee/controller/",
+    "/worship/live/exchange/",
     "/worship/live/control/",
 )
 
@@ -826,6 +827,8 @@ _WORSHIP_MOBILE_TOKEN_TTL = 24 * 60 * 60
 _WORSHIP_MOBILE_TOKEN_SALT = "worship-mobile-v1"
 _WORSHIP_LIVE_TOKEN_TTL = 12 * 60 * 60
 _WORSHIP_LIVE_TOKEN_SALT = "worship-live-v1"
+_WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
+_WORSHIP_LIVE_CONTROL_COOKIE = "fs_worship_live_control"
 _worship_live_memory: dict[tuple[str, str], dict] = {}
 _worship_live_lock = threading.Lock()
 
@@ -1862,6 +1865,19 @@ def _get_worship_live_session(scope: str, session_id: str) -> dict | None:
                 _worship_live_memory.pop((scope, session_id), None)
         return None
     return data
+
+
+def _delete_worship_live_session(scope: str, session_id: str) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", str(session_id or "")):
+        raise LookupError("Invalid live worship session")
+    if db:
+        _worship_live_ref_for_scope(scope).document(session_id).delete()
+        return
+    if not _is_local_storage_allowed():
+        raise RuntimeError("Live Worship requires shared session storage.")
+    with _worship_live_lock:
+        if _worship_live_memory.pop((scope, session_id), None) is None:
+            raise LookupError("Live worship session expired")
 
 
 def _next_worship_live_state(data: dict, action: str, requested_index: int | None = None) -> dict:
@@ -4793,14 +4809,18 @@ def worship_live_start():
 
     view_token = _make_worship_live_token(scope=scope, session_id=session_id, role="view")
     control_token = _make_worship_live_token(scope=scope, session_id=session_id, role="control")
-    presenter_url = url_for(
-        "worship_live_presenter", token=view_token, control=control_token, _external=True
+    presenter_url = (
+        url_for("worship_live_presenter", session_id=session_id, _external=True)
+        + f"#view={view_token}&control={control_token}"
     )
     return jsonify(
         {
             "ok": True,
             "presenter_url": presenter_url,
-            "remote_url": url_for("worship_live_remote", token=control_token, _external=True),
+            "remote_url": (
+                url_for("worship_live_remote", session_id=session_id, _external=True)
+                + f"#control={control_token}"
+            ),
             "expires_in": _WORSHIP_LIVE_TOKEN_TTL,
         }
     )
@@ -4813,6 +4833,84 @@ def _load_worship_live_request(token: str, required_role: str | None = None) -> 
         return None, None
     live = _get_worship_live_session(capability["scope"], capability["session_id"])
     return (capability, live) if live else (None, None)
+
+
+def _worship_live_capability_from_cookie(
+    session_id: str, required_role: str | None = None
+) -> tuple[dict, dict] | tuple[None, None]:
+    cookie_names = (
+        (_WORSHIP_LIVE_CONTROL_COOKIE,)
+        if required_role == "control"
+        else (_WORSHIP_LIVE_VIEW_COOKIE, _WORSHIP_LIVE_CONTROL_COOKIE)
+    )
+    for cookie_name in cookie_names:
+        token = request.cookies.get(cookie_name, "")
+        if not token:
+            continue
+        try:
+            capability = _load_worship_live_token(token, required_role=required_role)
+        except BadData:
+            continue
+        if capability["session_id"] != session_id:
+            continue
+        live = _get_worship_live_session(capability["scope"], session_id)
+        if live:
+            return capability, live
+    return None, None
+
+
+def _worship_live_bootstrap(session_id: str, page: str) -> Response:
+    response = app.make_response(
+        render_template("worship_live_bootstrap.html", session_id=session_id, page=page)
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+def _set_worship_live_cookie(response, name: str, token: str) -> None:
+    response.set_cookie(
+        name,
+        token,
+        max_age=_WORSHIP_LIVE_TOKEN_TTL,
+        secure=bool(app.config.get("SESSION_COOKIE_SECURE")),
+        httponly=True,
+        samesite="Strict",
+        path="/worship/live",
+    )
+
+
+@app.route("/worship/live/exchange/<session_id>", methods=["POST"])
+def worship_live_exchange(session_id):
+    if request.headers.get("X-Worship-Live") != "1" or not request.is_json:
+        return jsonify({"ok": False, "error": "Invalid link exchange."}), 400
+    payload = request.get_json(silent=True) or {}
+    accepted: dict[str, str] = {}
+    scope = ""
+    for role, cookie_name in (
+        ("view", _WORSHIP_LIVE_VIEW_COOKIE),
+        ("control", _WORSHIP_LIVE_CONTROL_COOKIE),
+    ):
+        token = str(payload.get(role) or "").strip()
+        if not token:
+            continue
+        try:
+            capability = _load_worship_live_token(token, required_role=role)
+        except BadData:
+            return jsonify({"ok": False, "error": "This Live Worship link is invalid or expired."}), 410
+        if capability["session_id"] != session_id or (scope and capability["scope"] != scope):
+            return jsonify({"ok": False, "error": "This Live Worship link does not match the session."}), 400
+        if not _get_worship_live_session(capability["scope"], session_id):
+            return jsonify({"ok": False, "error": "This Live Worship session has ended."}), 410
+        scope = capability["scope"]
+        accepted[cookie_name] = token
+    if not accepted:
+        return jsonify({"ok": False, "error": "The secure part of this link is missing."}), 400
+    response = jsonify({"ok": True})
+    for cookie_name, token in accepted.items():
+        _set_worship_live_cookie(response, cookie_name, token)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def _slides_for_worship_live(live: dict, capability: dict, *, include_media: bool = False) -> list[dict]:
@@ -4830,24 +4928,38 @@ def _slides_for_worship_live(live: dict, capability: dict, *, include_media: boo
     return slides
 
 
-@app.route("/worship/live/present/<token>", methods=["GET"])
-def worship_live_presenter(token):
-    capability, live = _load_worship_live_request(token, "view")
+@app.route("/worship/live/present/<session_id>", methods=["GET"])
+def worship_live_presenter(session_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        capability, live = _load_worship_live_request(session_id, "view")
+        if not live:
+            return Response("This Live Worship session is invalid or has expired.", status=410)
+        legacy_control = request.args.get("control", "").strip()
+        fragment = f"view={session_id}"
+        if legacy_control:
+            fragment += f"&control={legacy_control}"
+        return redirect(
+            url_for("worship_live_presenter", session_id=capability["session_id"]) + "#" + fragment
+        )
+    capability, live = _worship_live_capability_from_cookie(session_id, "view")
     if not live:
-        return Response("This Live Worship session is invalid or has expired.", status=410)
+        return _worship_live_bootstrap(session_id, "presenter")
     slides = _slides_for_worship_live(live, capability, include_media=True)
     if not slides:
         return Response("This worship set is no longer available.", status=404)
     if len(slides) != int(live.get("slide_count") or 0):
         return Response("This worship set changed after the live session started. Start a new session.", status=409)
 
-    control_token = request.args.get("control", "").strip()
+    control_token = request.cookies.get(_WORSHIP_LIVE_CONTROL_COOKIE, "").strip()
     remote_url = ""
     if control_token:
         try:
             control = _load_worship_live_token(control_token, required_role="control")
             if control["scope"] == capability["scope"] and control["session_id"] == capability["session_id"]:
-                remote_url = url_for("worship_live_remote", token=control_token, _external=True)
+                remote_url = (
+                    url_for("worship_live_remote", session_id=session_id, _external=True)
+                    + f"#control={control_token}"
+                )
             else:
                 control_token = ""
         except BadData:
@@ -4857,8 +4969,7 @@ def worship_live_presenter(token):
             "worship_live_presenter.html",
             slides=slides,
             live=live,
-            view_token=token,
-            control_token=control_token,
+            session_id=session_id,
             remote_url=remote_url,
         )
     )
@@ -4867,25 +4978,35 @@ def worship_live_presenter(token):
     return response
 
 
-@app.route("/worship/live/remote/<token>", methods=["GET"])
-def worship_live_remote(token):
-    capability, live = _load_worship_live_request(token, "control")
+@app.route("/worship/live/remote/<session_id>", methods=["GET"])
+def worship_live_remote(session_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        capability, live = _load_worship_live_request(session_id, "control")
+        if not live:
+            return Response("This Live Worship remote is invalid or has expired.", status=410)
+        return redirect(
+            url_for("worship_live_remote", session_id=capability["session_id"])
+            + f"#control={session_id}"
+        )
+    capability, live = _worship_live_capability_from_cookie(session_id, "control")
     if not live:
-        return Response("This Live Worship remote is invalid or has expired.", status=410)
+        return _worship_live_bootstrap(session_id, "remote")
     slides = _slides_for_worship_live(live, capability)
     if len(slides) != int(live.get("slide_count") or 0):
         return Response("This worship set changed after the live session started. Start a new session.", status=409)
     response = app.make_response(
-        render_template("worship_live_remote.html", slides=slides, live=live, control_token=token)
+        render_template("worship_live_remote.html", slides=slides, live=live, session_id=session_id)
     )
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
 
 
-@app.route("/worship/live/state/<token>", methods=["GET"])
-def worship_live_state(token):
-    capability, live = _load_worship_live_request(token)
+@app.route("/worship/live/state/<session_id>", methods=["GET"])
+def worship_live_state(session_id):
+    capability, live = _worship_live_capability_from_cookie(session_id)
+    if not live and not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        capability, live = _load_worship_live_request(session_id)
     if not live:
         return jsonify({"ok": False, "error": "expired"}), 410
     response = jsonify({"ok": True, **_public_worship_live_state(live)})
@@ -4893,9 +5014,14 @@ def worship_live_state(token):
     return response
 
 
-@app.route("/worship/live/control/<token>", methods=["POST"])
-def worship_live_control(token):
-    capability, live = _load_worship_live_request(token, "control")
+@app.route("/worship/live/control/<session_id>", methods=["POST"])
+def worship_live_control(session_id):
+    legacy_capability_url = not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id)
+    if not legacy_capability_url and request.headers.get("X-Worship-Live") != "1":
+        return jsonify({"ok": False, "error": "Invalid remote request."}), 400
+    capability, live = _worship_live_capability_from_cookie(session_id, "control")
+    if not live and legacy_capability_url:
+        capability, live = _load_worship_live_request(session_id, "control")
     if not live:
         return jsonify({"ok": False, "error": "expired"}), 410
     rate = check_rate_limit(
@@ -4905,6 +5031,18 @@ def worship_live_control(token):
         return jsonify({"ok": False, "error": "Too many remote commands."}), 429
     payload = request.get_json(silent=True) if request.is_json else request.form
     action = str((payload or {}).get("action") or "").strip()
+    if action == "end":
+        try:
+            _delete_worship_live_session(capability["scope"], capability["session_id"])
+        except LookupError:
+            return jsonify({"ok": False, "error": "expired"}), 410
+        except Exception as exc:
+            app.logger.warning("worship_live_end storage error: %s", exc)
+            return jsonify({"ok": False, "error": "Could not end the session."}), 503
+        response = jsonify({"ok": True, "ended": True})
+        response.delete_cookie(_WORSHIP_LIVE_VIEW_COOKIE, path="/worship/live")
+        response.delete_cookie(_WORSHIP_LIVE_CONTROL_COOKIE, path="/worship/live")
+        return response
     requested_index = None
     if action == "index":
         try:
@@ -4925,16 +5063,25 @@ def worship_live_control(token):
     return jsonify({"ok": True, **_public_worship_live_state(updated)})
 
 
-@app.route("/worship/live/remote-qr/<token>.png", methods=["GET"])
-def worship_live_remote_qr(token):
-    capability, live = _load_worship_live_request(token, "control")
+@app.route("/worship/live/remote-qr/<session_id>.png", methods=["GET"])
+def worship_live_remote_qr(session_id):
+    capability, live = _worship_live_capability_from_cookie(session_id, "control")
+    if not live and not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        capability, live = _load_worship_live_request(session_id, "control")
     if not live:
         return Response("Invalid or expired remote", status=410)
     try:
         import qrcode
     except Exception:
         return Response("QR support is not installed", status=503)
-    image = qrcode.make(url_for("worship_live_remote", token=token, _external=True))
+    control_token = _make_worship_live_token(
+        scope=capability["scope"], session_id=capability["session_id"], role="control"
+    )
+    remote_url = (
+        url_for("worship_live_remote", session_id=capability["session_id"], _external=True)
+        + f"#control={control_token}"
+    )
+    image = qrcode.make(remote_url)
     output = BytesIO()
     image.save(output, format="PNG")
     output.seek(0)

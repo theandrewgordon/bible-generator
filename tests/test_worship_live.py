@@ -1,5 +1,6 @@
 import time
 import unittest
+from urllib.parse import urlparse
 
 from flask import g
 from itsdangerous import BadData
@@ -82,6 +83,13 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertIn("/worship/live/present/", payload["presenter_url"])
         self.assertIn("/worship/live/remote/", payload["remote_url"])
+        presenter = urlparse(payload["presenter_url"])
+        remote = urlparse(payload["remote_url"])
+        self.assertFalse(presenter.query)
+        self.assertIn("view=", presenter.fragment)
+        self.assertIn("control=", presenter.fragment)
+        self.assertFalse(remote.query)
+        self.assertTrue(remote.fragment.startswith("control="))
         stored = next(iter(app._worship_live_memory.values()))
         self.assertEqual(stored["slides"][0]["title"], "Sample Song")
 
@@ -98,11 +106,19 @@ class WorshipLiveTests(unittest.TestCase):
         app._create_worship_live_session(data)
         view = app._make_worship_live_token(scope="grace", session_id=data["id"], role="view")
         control = app._make_worship_live_token(scope="grace", session_id=data["id"], role="control")
+        client = app.app.test_client()
+        bootstrap = client.get(f"/worship/live/present/{data['id']}")
+        self.assertIn("Securing this presenter", bootstrap.get_data(as_text=True))
+        exchange = client.post(
+            f"/worship/live/exchange/{data['id']}",
+            json={"view": view, "control": control},
+            headers={"X-Worship-Live": "1"},
+        )
+        self.assertEqual(exchange.status_code, 200)
         original_resolve = app._resolve_worship_ids_for_scope
         try:
             app._resolve_worship_ids_for_scope = lambda *_args: self.fail("stored live slides should be used")
-            with app.app.test_request_context(f"/worship/live/present/{view}?control={control}"):
-                response = app.worship_live_presenter(view)
+            response = client.get(f"/worship/live/present/{data['id']}")
         finally:
             app._resolve_worship_ids_for_scope = original_resolve
 
@@ -111,9 +127,11 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("Sample Song", html)
         self.assertIn("Start presenting", html)
         self.assertIn("remote-qr", html)
+        self.assertIn("End session", html)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
 
     def test_live_control_post_is_capability_csrf_exempt(self):
+        self.assertIn("/worship/live/exchange/", app._CSRF_CAPABILITY_POST_PREFIXES)
         self.assertIn("/worship/live/control/", app._CSRF_CAPABILITY_POST_PREFIXES)
 
     def test_control_route_updates_state_and_rejects_view_token(self):
@@ -135,6 +153,29 @@ class WorshipLiveTests(unittest.TestCase):
             response, status = app.worship_live_control(view)
         self.assertEqual(status, 410)
 
+    def test_cookie_control_requires_exchange_header_and_can_end_session(self):
+        data = self._session_data()
+        app._create_worship_live_session(data)
+        control = app._make_worship_live_token(scope="grace", session_id=data["id"], role="control")
+        client = app.app.test_client()
+
+        exchange = client.post(
+            f"/worship/live/exchange/{data['id']}",
+            json={"control": control},
+            headers={"X-Worship-Live": "1"},
+        )
+        self.assertEqual(exchange.status_code, 200)
+        rejected = client.post(f"/worship/live/control/{data['id']}", json={"action": "next"})
+        self.assertEqual(rejected.status_code, 400)
+        ended = client.post(
+            f"/worship/live/control/{data['id']}",
+            json={"action": "end"},
+            headers={"X-Worship-Live": "1"},
+        )
+        self.assertEqual(ended.status_code, 200)
+        self.assertTrue(ended.get_json()["ended"])
+        self.assertIsNone(app._get_worship_live_session("grace", data["id"]))
+
     def test_remote_and_qr_render_from_control_capability(self):
         data = self._session_data()
         selected = [{
@@ -148,13 +189,20 @@ class WorshipLiveTests(unittest.TestCase):
         app._create_worship_live_session(data)
         control = app._make_worship_live_token(scope="grace", session_id=data["id"], role="control")
 
-        with app.app.test_request_context(f"/worship/live/remote/{control}"):
-            remote = app.worship_live_remote(control)
+        client = app.app.test_client()
+        exchange = client.post(
+            f"/worship/live/exchange/{data['id']}",
+            json={"control": control},
+            headers={"X-Worship-Live": "1"},
+        )
+        self.assertEqual(exchange.status_code, 200)
+        remote = client.get(f"/worship/live/remote/{data['id']}")
         self.assertEqual(remote.status_code, 200)
         self.assertIn("Next →", remote.get_data(as_text=True))
+        self.assertIn("Up next", remote.get_data(as_text=True))
+        self.assertIn("End this session", remote.get_data(as_text=True))
 
-        with app.app.test_request_context(f"/worship/live/remote-qr/{control}.png"):
-            qr = app.worship_live_remote_qr(control)
+        qr = client.get(f"/worship/live/remote-qr/{data['id']}.png")
         self.assertEqual(qr.status_code, 200)
         self.assertEqual(qr.mimetype, "image/png")
 
