@@ -38,7 +38,7 @@
     <div class="wr-progress" id="wr-progress">1 / {{ slides|length }}</div>
     <div class="wr-next-up" id="wr-next-up"></div>
     <div class="wr-nav"><button class="wr-btn wr-prev" data-action="previous">← Previous</button><button class="wr-btn wr-next" data-action="next">Next →</button></div>
-    <div class="wr-smart"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Chorus</button><button class="wr-smart-btn" id="wr-next-song" data-smart="next-song">Next song ⏭</button></div>
+    <div class="wr-smart"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button></div>
     <div class="wr-tools"><button class="wr-tool" id="wr-blank" data-action="toggle_blank">Blank screen</button><button class="wr-tool" id="wr-awake">Keep screen awake</button></div>
     <select class="wr-jump" id="wr-jump" aria-label="Jump to slide">
       {% for slide in slides %}<option value="{{ loop.index0 }}">{{ loop.index }} · {{ slide.title }}{% if slide.part_label %} — {{ slide.part_label }}{% endif %}</option>{% endfor %}
@@ -53,13 +53,29 @@
     var current={{ live.current_index|int }};
     var blank={{ live.blank|tojson }};
     var revision={{ live.revision|int }};
-    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextUp=document.getElementById('wr-next-up'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextSongBtn=document.getElementById('wr-next-song');
+    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextUp=document.getElementById('wr-next-up'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item');
     var wakeLock=null,pollTimer=null,sending=false,ended=false;
-    function smartTarget(kind){
-      if(kind==='next-song'){for(var i=current+1;i<slides.length;i++){if(slides[i].kind==='divider')return i;}return -1;}
-      var songId=(slides[current]||{}).id;for(var j=0;j<slides.length;j++){var part=String(slides[j].part||slides[j].part_label||'').toLowerCase();if(slides[j].id===songId&&slides[j].kind==='lyric'&&part.indexOf('chorus')!==-1)return j;}return -1;
+    function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
+    function isChorusSlide(slide){return !!slide&&slide.kind==='lyric'&&/^chorus\d*$/.test(partKey(slide));}
+    function chorusStart(index){
+      var slide=slides[index]||{},key=partKey(slide);
+      while(index>0){var previous=slides[index-1]||{};if(previous.id!==slide.id||previous.kind!=='lyric'||partKey(previous)!==key)break;index--;}
+      return index;
     }
-    function updateSmartButtons(){chorusBtn.disabled=sending||ended||smartTarget('chorus')<0;nextSongBtn.disabled=sending||ended||smartTarget('next-song')<0;}
+    function smartTarget(kind){
+      var itemId=(slides[current]||{}).id;
+      if(kind==='next-item'){for(var i=current+1;i<slides.length;i++){if(slides[i].id!==itemId)return i;}return -1;}
+      for(var j=current;j>=0&&slides[j].id===itemId;j--){if(isChorusSlide(slides[j]))return chorusStart(j);}
+      for(var k=current+1;k<slides.length&&slides[k].id===itemId;k++){if(isChorusSlide(slides[k]))return chorusStart(k);}
+      return -1;
+    }
+    function updateSmartButtons(){
+      var chorusTarget=smartTarget('chorus'),nextItemTarget=smartTarget('next-item');
+      chorusBtn.disabled=sending||ended||chorusTarget<0;
+      chorusBtn.textContent=chorusTarget<0?'No chorus':'↩ Repeat chorus';
+      nextItemBtn.disabled=sending||ended||nextItemTarget<0;
+      nextItemBtn.textContent=nextItemTarget<0?'End of set':'Next: '+(slides[nextItemTarget].title||'item')+' ⏭';
+    }
     function draw(index,isBlank){
       current=Math.max(0,Math.min(slides.length-1,Number(index)||0));blank=!!isBlank;var slide=slides[current]||{};
       preview.classList.toggle('is-blank',blank);blankBtn.classList.toggle('is-blank',blank);blankBtn.textContent=blank?'Show screen':'Blank screen';
