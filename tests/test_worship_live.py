@@ -128,6 +128,8 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("Start presenting", html)
         self.assertIn("remote-qr", html)
         self.assertIn("End session", html)
+        self.assertIn("Keyboard backup:", html)
+        self.assertIn("render(current,true)", html)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
 
     def test_live_control_post_is_capability_csrf_exempt(self):
@@ -200,6 +202,10 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertEqual(remote.status_code, 200)
         self.assertIn("Next →", remote.get_data(as_text=True))
         self.assertIn("Up next", remote.get_data(as_text=True))
+        self.assertIn("Chorus", remote.get_data(as_text=True))
+        self.assertIn("Next song", remote.get_data(as_text=True))
+        self.assertIn("requestWakeLock(false)", remote.get_data(as_text=True))
+        self.assertIn("draw(current,true)", remote.get_data(as_text=True))
         self.assertIn("End this session", remote.get_data(as_text=True))
 
         qr = client.get(f"/worship/live/remote-qr/{data['id']}.png")
