@@ -93,6 +93,20 @@ class WorshipLiveTests(unittest.TestCase):
         stored = next(iter(app._worship_live_memory.values()))
         self.assertEqual(stored["slides"][0]["title"], "Sample Song")
 
+    def test_start_live_rejects_a_stale_library_tab(self):
+        with app.app.test_request_context(
+            "/worship/live/start",
+            method="POST",
+            data={"worship_scope": "old-library", "song_ids": ["sample"]},
+        ):
+            g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
+            app.session["user_email"] = "leader@example.com"
+            app.session["worship_church_id"] = "current-library"
+            response, status = app.worship_live_start()
+
+        self.assertEqual(status, 409)
+        self.assertIn("session changed", response.get_json()["error"])
+
     def test_presenter_renders_without_login(self):
         data = self._session_data()
         data["slide_count"] = 2

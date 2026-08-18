@@ -336,6 +336,7 @@
 (function () {
   var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
   var CAN_EDIT = {{ (worship_church.role in ['owner', 'editor', 'member']) | tojson }};
+  var WORSHIP_SCOPE = {{ worship_church.id | tojson }};
 
   // Index songs by id for O(1) lookup
   var SONGS_BY_ID = {};
@@ -368,6 +369,7 @@
   var mobileQrEl    = document.querySelector('[data-mobile-qr]');
   var mobileQrFallbackEl = document.querySelector('[data-mobile-qr-fallback]');
   var mobileLinkRequest = 0;
+  var mobileLinkTimer = null;
   var saveModal     = document.getElementById('save-set-modal');
   var saveNameInput = document.getElementById('save-set-name');
   var saveConfirmBtn = document.getElementById('save-set-confirm');
@@ -509,12 +511,10 @@
   function requestMobileUrl(ids, setlistId) {
     var fd = new FormData();
     fd.append('csrf_token', csrfToken);
-    if (setlistId) {
-      fd.append('setlist_id', setlistId);
-    } else {
-      fd.append('song_order', ids.join(','));
-      ids.forEach(function (id) { fd.append('song_ids', id); });
-    }
+    fd.append('worship_scope', WORSHIP_SCOPE);
+    if (setlistId) fd.append('setlist_id', setlistId);
+    fd.append('song_order', ids.join(','));
+    ids.forEach(function (id) { fd.append('song_ids', id); });
     return fetch('/worship/mobile-link', { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(function (response) {
         return response.json().then(function (data) {
@@ -542,14 +542,14 @@
     var popup = window.open('about:blank', '_blank');
     var fd = new FormData();
     fd.append('csrf_token', csrfToken);
+    fd.append('worship_scope', WORSHIP_SCOPE);
     if (currentSetlistId && !setDirty) {
       fd.append('setlist_id', currentSetlistId);
-    } else {
-      fd.append('song_order', ids.join(','));
-      ids.forEach(function (id) { fd.append('song_ids', id); });
-      fd.append('notes_json', JSON.stringify(collectSetNotes(ids)));
-      fd.append('live_name', currentSetlistName || 'Live Worship');
     }
+    fd.append('song_order', ids.join(','));
+    ids.forEach(function (id) { fd.append('song_ids', id); });
+    fd.append('notes_json', JSON.stringify(collectSetNotes(ids)));
+    fd.append('live_name', currentSetlistName || 'Live Worship');
     startLiveBtn.disabled = true;
     startLiveBtn.textContent = 'Starting…';
     fetch('/worship/live/start', { method: 'POST', body: fd, credentials: 'same-origin' })
@@ -605,7 +605,7 @@
     }
   }
 
-  function updateMobileShare() {
+  function refreshMobileShare() {
     if (!mobileShareEl || !mobileLinkEl || !mobileOpenEl || !mobileQrEl) return;
     var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     if (!ids.length) {
@@ -632,11 +632,16 @@
       .then(function (url) {
         if (requestId === mobileLinkRequest) showMobileUrl(url);
       })
-      .catch(function () {
+      .catch(function (error) {
         if (requestId !== mobileLinkRequest) return;
-        mobileLinkEl.textContent = 'Mobile link unavailable';
+        mobileLinkEl.textContent = error.message || 'Mobile link unavailable';
         if (mobileQrFallbackEl) mobileQrFallbackEl.classList.add('is-visible');
       });
+  }
+
+  function updateMobileShare() {
+    clearTimeout(mobileLinkTimer);
+    mobileLinkTimer = setTimeout(refreshMobileShare, 180);
   }
 
   // ── Set operations ────────────────────────────────────────────────────────
@@ -741,7 +746,6 @@
     markLibrary(id, true);
     syncOrder();
     syncUI();
-    updateMobileShare();
   }
 
   function removeFromSet(id) {
@@ -755,7 +759,6 @@
     markLibrary(id, false);
     syncOrder();
     syncUI();
-    updateMobileShare();
   }
 
   function moveSetItem(id, direction) {
@@ -927,7 +930,6 @@
     syncUI();
     loadingSet = false;
     setDirty = false;
-    updateMobileShare();
   }
 
   function upsertSetlistChip(id, date, name, songIds, notes, updatedAt) {

@@ -103,6 +103,20 @@ class WorshipMobileViewTests(unittest.TestCase):
         self.assertIn("Holy Forever", response.get_data(as_text=True))
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
 
+    def test_mobile_link_rejects_a_stale_library_tab(self):
+        with app.app.test_request_context(
+            "/worship/mobile-link",
+            method="POST",
+            data={"worship_scope": "old-library", "song_ids": ["holy-forever"]},
+        ):
+            g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
+            app.session["user_email"] = "leader@example.com"
+            app.session["worship_church_id"] = "current-library"
+            response, status = app.worship_mobile_link()
+
+        self.assertEqual(status, 409)
+        self.assertIn("session changed", response.get_json()["error"])
+
     def test_service_item_creates_one_mobile_slide_without_song_divider(self):
         with app.app.test_request_context("/worship/mobile"):
             slides = app._build_worship_mobile_slides([

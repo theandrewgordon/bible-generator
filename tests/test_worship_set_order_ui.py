@@ -19,6 +19,19 @@ class WorshipSetOrderUiTests(unittest.TestCase):
         self.assertIn("document.getElementById('build-form').addEventListener('submit', syncOrder)", template)
         self.assertIn("document.getElementById('lyric-sheet-form').addEventListener('submit', syncOrder)", template)
 
+    def test_live_requests_include_scope_and_direct_item_fallback(self):
+        template = (Path(__file__).parents[1] / "templates" / "worship.html").read_text(encoding="utf-8")
+
+        self.assertIn("fd.append('worship_scope', WORSHIP_SCOPE)", template)
+        self.assertGreaterEqual(template.count("fd.append('song_order', ids.join(','))"), 2)
+        self.assertGreaterEqual(template.count("fd.append('song_ids', id)"), 2)
+
+    def test_mobile_link_refresh_is_debounced(self):
+        template = (Path(__file__).parents[1] / "templates" / "worship.html").read_text(encoding="utf-8")
+
+        self.assertIn("clearTimeout(mobileLinkTimer)", template)
+        self.assertIn("setTimeout(refreshMobileShare, 180)", template)
+
 
 if __name__ == "__main__":
     unittest.main()

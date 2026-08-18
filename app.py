@@ -859,6 +859,17 @@ def _current_worship_scope() -> str:
     return scope or _DEFAULT_WORSHIP_SCOPE
 
 
+def _worship_scope_changed_response():
+    """Reject stale worship tabs before they resolve items in the wrong library."""
+    expected = _slugify_worship_token(request.form.get("worship_scope", "").strip())
+    if expected and expected != _current_worship_scope():
+        return jsonify({
+            "ok": False,
+            "error": "Your worship library session changed. Refresh the page and sign in again.",
+        }), 409
+    return None
+
+
 def _normalize_worship_invite_code(value: str) -> str:
     return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())[:40]
 
@@ -4719,6 +4730,9 @@ def worship_mobile():
 @app.route("/worship/mobile-link", methods=["POST"])
 @login_required
 def worship_mobile_link():
+    scope_changed = _worship_scope_changed_response()
+    if scope_changed is not None:
+        return scope_changed
     setlist_id = request.form.get("setlist_id", "").strip()
     setlist = _get_worship_setlist(setlist_id) if setlist_id else None
     if setlist:
@@ -4756,6 +4770,9 @@ def worship_mobile_qr():
 @app.route("/worship/live/start", methods=["POST"])
 @login_required
 def worship_live_start():
+    scope_changed = _worship_scope_changed_response()
+    if scope_changed is not None:
+        return scope_changed
     setlist_id = request.form.get("setlist_id", "").strip()
     setlist = _get_worship_setlist(setlist_id) if setlist_id else None
     if setlist:
