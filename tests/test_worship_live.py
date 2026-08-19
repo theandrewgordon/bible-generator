@@ -42,9 +42,13 @@ class WorshipLiveTests(unittest.TestCase):
         control = app._make_worship_live_token(
             scope="grace", session_id="live-session-abcdefghijkl", role="control"
         )
+        stage = app._make_worship_live_token(
+            scope="grace", session_id="live-session-abcdefghijkl", role="stage"
+        )
 
         self.assertEqual(app._load_worship_live_token(view, required_role="view")["role"], "view")
         self.assertEqual(app._load_worship_live_token(control, required_role="control")["role"], "control")
+        self.assertEqual(app._load_worship_live_token(stage, required_role="stage")["role"], "stage")
         with self.assertRaises(BadData):
             app._load_worship_live_token(view, required_role="control")
 
@@ -59,6 +63,35 @@ class WorshipLiveTests(unittest.TestCase):
         state = app._update_worship_live_session("grace", data["id"], "index", 99)
         self.assertEqual(state["current_index"], 2)
         self.assertEqual(state["revision"], 3)
+
+    def test_live_state_controls_words_stage_message_and_timer(self):
+        data = self._session_data()
+        app._create_worship_live_session(data)
+
+        state = app._update_worship_live_session("grace", data["id"], "toggle_clear")
+        self.assertTrue(state["clear_words"])
+        state = app._update_worship_live_session(
+            "grace", data["id"], "set_message", message="  Prayer   next  "
+        )
+        self.assertEqual(state["stage_message"], "Prayer next")
+        state = app._update_worship_live_session(
+            "grace", data["id"], "timer_countdown", duration=300
+        )
+        self.assertEqual(state["stage_timer_mode"], "countdown")
+        self.assertEqual(state["stage_timer_duration"], 300)
+        state = app._update_worship_live_session("grace", data["id"], "timer_reset")
+        self.assertEqual(state["stage_timer_mode"], "")
+
+    def test_stage_details_are_excluded_from_audience_state(self):
+        data = {**self._session_data(), "stage_message": "Private note", "stage_timer_mode": "elapsed"}
+
+        audience = app._public_worship_live_state(data)
+        stage = app._public_worship_live_state(data, include_stage=True)
+
+        self.assertNotIn("stage_message", audience)
+        self.assertNotIn("stage_timer_mode", audience)
+        self.assertEqual(stage["stage_message"], "Private note")
+        self.assertEqual(stage["stage_timer_mode"], "elapsed")
 
     def test_start_live_returns_presenter_and_remote_urls(self):
         selected = [{
@@ -83,6 +116,7 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertIn("/worship/live/present/", payload["presenter_url"])
         self.assertIn("/worship/live/remote/", payload["remote_url"])
+        self.assertIn("/worship/live/stage/", payload["stage_url"])
         presenter = urlparse(payload["presenter_url"])
         remote = urlparse(payload["remote_url"])
         self.assertFalse(presenter.query)
@@ -90,6 +124,7 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("control=", presenter.fragment)
         self.assertFalse(remote.query)
         self.assertTrue(remote.fragment.startswith("control="))
+        self.assertTrue(urlparse(payload["stage_url"]).fragment.startswith("stage="))
         stored = next(iter(app._worship_live_memory.values()))
         self.assertEqual(stored["slides"][0]["title"], "Sample Song")
 
@@ -141,9 +176,10 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("Sample Song", html)
         self.assertIn("Start presenting", html)
         self.assertIn("remote-qr", html)
+        self.assertIn("stage-qr", html)
         self.assertIn("End session", html)
         self.assertIn("Keyboard backup:", html)
-        self.assertIn("render(current,true)", html)
+        self.assertIn("render(current,true,clearWords)", html)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
 
     def test_live_control_post_is_capability_csrf_exempt(self):
@@ -218,11 +254,47 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("Up next", remote.get_data(as_text=True))
         self.assertIn("Repeat chorus", remote.get_data(as_text=True))
         self.assertIn("Next:", remote.get_data(as_text=True))
+        self.assertIn("Undo jump", remote.get_data(as_text=True))
+        self.assertIn("Clear words", remote.get_data(as_text=True))
+        self.assertIn("Start 5:00", remote.get_data(as_text=True))
+        self.assertIn("Open Stage View", remote.get_data(as_text=True))
         self.assertIn("requestWakeLock(false)", remote.get_data(as_text=True))
-        self.assertIn("draw(current,true)", remote.get_data(as_text=True))
+        self.assertIn("draw(current,true,clearWords)", remote.get_data(as_text=True))
         self.assertIn("End this session", remote.get_data(as_text=True))
 
         qr = client.get(f"/worship/live/remote-qr/{data['id']}.png")
+        self.assertEqual(qr.status_code, 200)
+        self.assertEqual(qr.mimetype, "image/png")
+
+    def test_stage_view_and_qr_render_from_stage_capability(self):
+        data = self._session_data()
+        selected = [{
+            "id": "sample",
+            "title": "Sample Song",
+            "parts": {"verse1": ["Current lyric"], "chorus": ["Upcoming lyric"]},
+            "arrangement": ["verse1", "chorus"],
+        }]
+        data["slides"] = app._build_worship_mobile_slides(selected)
+        data["slide_count"] = len(data["slides"])
+        app._create_worship_live_session(data)
+        stage_token = app._make_worship_live_token(scope="grace", session_id=data["id"], role="stage")
+        client = app.app.test_client()
+        exchange = client.post(
+            f"/worship/live/exchange/{data['id']}",
+            json={"stage": stage_token},
+            headers={"X-Worship-Live": "1"},
+        )
+        self.assertEqual(exchange.status_code, 200)
+
+        stage = client.get(f"/worship/live/stage/{data['id']}")
+        self.assertEqual(stage.status_code, 200)
+        html = stage.get_data(as_text=True)
+        self.assertIn("Stage View", html)
+        self.assertIn("Up next", html)
+        self.assertIn("Keep screen awake", html)
+        self.assertIn("Audience words are cleared", html)
+
+        qr = client.get(f"/worship/live/stage-qr/{data['id']}.png")
         self.assertEqual(qr.status_code, 200)
         self.assertEqual(qr.mimetype, "image/png")
 

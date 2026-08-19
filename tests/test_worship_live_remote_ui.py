@@ -32,6 +32,18 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("'Next: '+(slides[nextItemTarget].title||'item')", self.template)
         self.assertNotIn("kind==='divider')return i", self.template)
 
+    def test_section_buttons_and_jump_history_are_available(self):
+        self.assertIn("function sectionTargets()", self.template)
+        self.assertIn("className='wr-section-btn'", self.template)
+        self.assertIn("jumpHistory.push(current)", self.template)
+        self.assertIn("↶ Undo jump", self.template)
+
+    def test_remote_has_distinct_clear_words_and_stage_tools(self):
+        self.assertIn('data-action="toggle_clear"', self.template)
+        self.assertIn("Private stage message", self.template)
+        self.assertIn("Start 5:00", self.template)
+        self.assertIn("Start elapsed", self.template)
+
 
 if __name__ == "__main__":
     unittest.main()

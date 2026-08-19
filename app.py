@@ -829,6 +829,7 @@ _WORSHIP_LIVE_TOKEN_TTL = 12 * 60 * 60
 _WORSHIP_LIVE_TOKEN_SALT = "worship-live-v1"
 _WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
 _WORSHIP_LIVE_CONTROL_COOKIE = "fs_worship_live_control"
+_WORSHIP_LIVE_STAGE_COOKIE = "fs_worship_live_stage"
 _worship_live_memory: dict[tuple[str, str], dict] = {}
 _worship_live_lock = threading.Lock()
 
@@ -1821,7 +1822,7 @@ def _worship_mobile_url(selected_items: list[dict], *, setlist_id: str = "") -> 
 
 
 def _make_worship_live_token(*, scope: str, session_id: str, role: str) -> str:
-    if role not in {"view", "control"}:
+    if role not in {"view", "control", "stage"}:
         raise ValueError("Invalid live worship role")
     return URLSafeTimedSerializer(app.secret_key, salt=_WORSHIP_LIVE_TOKEN_SALT).dumps(
         {"v": 1, "scope": _slugify_worship_token(scope), "session_id": session_id, "role": role}
@@ -1840,7 +1841,7 @@ def _load_worship_live_token(token: str, *, required_role: str | None = None) ->
     if (
         not scope
         or not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id)
-        or role not in {"view", "control"}
+        or role not in {"view", "control", "stage"}
         or (required_role and role != required_role)
     ):
         raise BadData("Invalid live worship link")
@@ -1891,10 +1892,22 @@ def _delete_worship_live_session(scope: str, session_id: str) -> None:
             raise LookupError("Live worship session expired")
 
 
-def _next_worship_live_state(data: dict, action: str, requested_index: int | None = None) -> dict:
+def _next_worship_live_state(
+    data: dict,
+    action: str,
+    requested_index: int | None = None,
+    *,
+    message: str | None = None,
+    duration: int | None = None,
+) -> dict:
     slide_count = max(1, int(data.get("slide_count") or 1))
     index = max(0, min(slide_count - 1, int(data.get("current_index") or 0)))
     blank = bool(data.get("blank"))
+    clear_words = bool(data.get("clear_words"))
+    stage_message = str(data.get("stage_message") or "")[:160]
+    timer_mode = str(data.get("stage_timer_mode") or "")
+    timer_started_epoch = float(data.get("stage_timer_started_epoch") or 0)
+    timer_duration = max(0, int(data.get("stage_timer_duration") or 0))
     if action == "next":
         index = min(slide_count - 1, index + 1)
     elif action == "previous":
@@ -1911,18 +1924,51 @@ def _next_worship_live_state(data: dict, action: str, requested_index: int | Non
         blank = True
     elif action == "show":
         blank = False
+    elif action == "toggle_clear":
+        clear_words = not clear_words
+    elif action == "clear_words":
+        clear_words = True
+    elif action == "show_words":
+        clear_words = False
+    elif action == "set_message":
+        stage_message = re.sub(r"\s+", " ", str(message or "")).strip()[:160]
+    elif action == "timer_countdown":
+        timer_mode = "countdown"
+        timer_started_epoch = time.time()
+        timer_duration = max(1, min(60 * 60, int(duration or 300)))
+    elif action == "timer_elapsed":
+        timer_mode = "elapsed"
+        timer_started_epoch = time.time()
+        timer_duration = 0
+    elif action == "timer_reset":
+        timer_mode = ""
+        timer_started_epoch = 0
+        timer_duration = 0
     else:
         raise ValueError("Unknown live worship action")
     return {
         **data,
         "current_index": index,
         "blank": blank,
+        "clear_words": clear_words,
+        "stage_message": stage_message,
+        "stage_timer_mode": timer_mode,
+        "stage_timer_started_epoch": timer_started_epoch,
+        "stage_timer_duration": timer_duration,
         "revision": int(data.get("revision") or 0) + 1,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
-def _update_worship_live_session(scope: str, session_id: str, action: str, requested_index: int | None = None) -> dict:
+def _update_worship_live_session(
+    scope: str,
+    session_id: str,
+    action: str,
+    requested_index: int | None = None,
+    *,
+    message: str | None = None,
+    duration: int | None = None,
+) -> dict:
     if db:
         ref = _worship_live_ref_for_scope(scope).document(session_id)
         transaction = db.transaction()
@@ -1933,12 +1979,19 @@ def _update_worship_live_session(scope: str, session_id: str, action: str, reque
             data = snap.to_dict() if snap.exists else None
             if not data or float(data.get("expires_epoch") or 0) <= time.time():
                 raise LookupError("Live worship session expired")
-            updated = _next_worship_live_state(data, action, requested_index)
+            updated = _next_worship_live_state(
+                data, action, requested_index, message=message, duration=duration
+            )
             txn.set(
                 ref,
                 {
                     "current_index": updated["current_index"],
                     "blank": updated["blank"],
+                    "clear_words": updated["clear_words"],
+                    "stage_message": updated["stage_message"],
+                    "stage_timer_mode": updated["stage_timer_mode"],
+                    "stage_timer_started_epoch": updated["stage_timer_started_epoch"],
+                    "stage_timer_duration": updated["stage_timer_duration"],
                     "revision": updated["revision"],
                     "updated_at": firestore.SERVER_TIMESTAMP,
                 },
@@ -1953,19 +2006,31 @@ def _update_worship_live_session(scope: str, session_id: str, action: str, reque
         data = _worship_live_memory.get((scope, session_id))
         if not data or float(data.get("expires_epoch") or 0) <= time.time():
             raise LookupError("Live worship session expired")
-        updated = _next_worship_live_state(dict(data), action, requested_index)
+        updated = _next_worship_live_state(
+            dict(data), action, requested_index, message=message, duration=duration
+        )
         _worship_live_memory[(scope, session_id)] = updated
         return dict(updated)
 
 
-def _public_worship_live_state(data: dict) -> dict:
-    return {
+def _public_worship_live_state(data: dict, *, include_stage: bool = False) -> dict:
+    state = {
         "current_index": int(data.get("current_index") or 0),
         "blank": bool(data.get("blank")),
+        "clear_words": bool(data.get("clear_words")),
         "slide_count": int(data.get("slide_count") or 0),
         "revision": int(data.get("revision") or 0),
         "updated_at": str(data.get("updated_at") or ""),
+        "server_epoch": time.time(),
     }
+    if include_stage:
+        state.update({
+            "stage_message": str(data.get("stage_message") or "")[:160],
+            "stage_timer_mode": str(data.get("stage_timer_mode") or ""),
+            "stage_timer_started_epoch": float(data.get("stage_timer_started_epoch") or 0),
+            "stage_timer_duration": max(0, int(data.get("stage_timer_duration") or 0)),
+        })
+    return state
 
 
 def _make_unique_worship_setlist_id(date_label: str, name: str, existing_id: str = "") -> str:
@@ -4811,6 +4876,11 @@ def worship_live_start():
         "slide_count": len(slides),
         "current_index": 0,
         "blank": False,
+        "clear_words": False,
+        "stage_message": "",
+        "stage_timer_mode": "",
+        "stage_timer_started_epoch": 0,
+        "stage_timer_duration": 0,
         "revision": 0,
         "created_by": session.get("user_email", ""),
         "created_at": now.isoformat(),
@@ -4826,6 +4896,7 @@ def worship_live_start():
 
     view_token = _make_worship_live_token(scope=scope, session_id=session_id, role="view")
     control_token = _make_worship_live_token(scope=scope, session_id=session_id, role="control")
+    stage_token = _make_worship_live_token(scope=scope, session_id=session_id, role="stage")
     presenter_url = (
         url_for("worship_live_presenter", session_id=session_id, _external=True)
         + f"#view={view_token}&control={control_token}"
@@ -4837,6 +4908,10 @@ def worship_live_start():
             "remote_url": (
                 url_for("worship_live_remote", session_id=session_id, _external=True)
                 + f"#control={control_token}"
+            ),
+            "stage_url": (
+                url_for("worship_live_stage", session_id=session_id, _external=True)
+                + f"#stage={stage_token}"
             ),
             "expires_in": _WORSHIP_LIVE_TOKEN_TTL,
         }
@@ -4855,11 +4930,18 @@ def _load_worship_live_request(token: str, required_role: str | None = None) -> 
 def _worship_live_capability_from_cookie(
     session_id: str, required_role: str | None = None
 ) -> tuple[dict, dict] | tuple[None, None]:
-    cookie_names = (
-        (_WORSHIP_LIVE_CONTROL_COOKIE,)
-        if required_role == "control"
-        else (_WORSHIP_LIVE_VIEW_COOKIE, _WORSHIP_LIVE_CONTROL_COOKIE)
-    )
+    if required_role == "control":
+        cookie_names = (_WORSHIP_LIVE_CONTROL_COOKIE,)
+    elif required_role == "view":
+        cookie_names = (_WORSHIP_LIVE_VIEW_COOKIE,)
+    elif required_role == "stage":
+        cookie_names = (_WORSHIP_LIVE_STAGE_COOKIE,)
+    else:
+        cookie_names = (
+            _WORSHIP_LIVE_VIEW_COOKIE,
+            _WORSHIP_LIVE_CONTROL_COOKIE,
+            _WORSHIP_LIVE_STAGE_COOKIE,
+        )
     for cookie_name in cookie_names:
         token = request.cookies.get(cookie_name, "")
         if not token:
@@ -4907,6 +4989,7 @@ def worship_live_exchange(session_id):
     for role, cookie_name in (
         ("view", _WORSHIP_LIVE_VIEW_COOKIE),
         ("control", _WORSHIP_LIVE_CONTROL_COOKIE),
+        ("stage", _WORSHIP_LIVE_STAGE_COOKIE),
     ):
         token = str(payload.get(role) or "").strip()
         if not token:
@@ -4988,6 +5071,13 @@ def worship_live_presenter(session_id):
             live=live,
             session_id=session_id,
             remote_url=remote_url,
+            stage_url=(
+                url_for("worship_live_stage", session_id=session_id, _external=True)
+                + "#stage="
+                + _make_worship_live_token(
+                    scope=capability["scope"], session_id=capability["session_id"], role="stage"
+                )
+            ),
         )
     )
     response.headers["Cache-Control"] = "private, no-store"
@@ -5011,8 +5101,45 @@ def worship_live_remote(session_id):
     slides = _slides_for_worship_live(live, capability)
     if len(slides) != int(live.get("slide_count") or 0):
         return Response("This worship set changed after the live session started. Start a new session.", status=409)
+    stage_url = (
+        url_for("worship_live_stage", session_id=session_id, _external=True)
+        + "#stage="
+        + _make_worship_live_token(
+            scope=capability["scope"], session_id=capability["session_id"], role="stage"
+        )
+    )
     response = app.make_response(
-        render_template("worship_live_remote.html", slides=slides, live=live, session_id=session_id)
+        render_template(
+            "worship_live_remote.html",
+            slides=slides,
+            live=live,
+            session_id=session_id,
+            stage_url=stage_url,
+        )
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.route("/worship/live/stage/<session_id>", methods=["GET"])
+def worship_live_stage(session_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        capability, live = _load_worship_live_request(session_id, "stage")
+        if not live:
+            return Response("This Live Worship stage link is invalid or has expired.", status=410)
+        return redirect(
+            url_for("worship_live_stage", session_id=capability["session_id"])
+            + f"#stage={session_id}"
+        )
+    capability, live = _worship_live_capability_from_cookie(session_id, "stage")
+    if not live:
+        return _worship_live_bootstrap(session_id, "stage view")
+    slides = _slides_for_worship_live(live, capability)
+    if len(slides) != int(live.get("slide_count") or 0):
+        return Response("This worship set changed after the live session started. Start a new session.", status=409)
+    response = app.make_response(
+        render_template("worship_live_stage.html", slides=slides, live=live, session_id=session_id)
     )
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
@@ -5026,7 +5153,12 @@ def worship_live_state(session_id):
         capability, live = _load_worship_live_request(session_id)
     if not live:
         return jsonify({"ok": False, "error": "expired"}), 410
-    response = jsonify({"ok": True, **_public_worship_live_state(live)})
+    response = jsonify({
+        "ok": True,
+        **_public_worship_live_state(
+            live, include_stage=capability.get("role") in {"control", "stage"}
+        ),
+    })
     response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -5059,6 +5191,7 @@ def worship_live_control(session_id):
         response = jsonify({"ok": True, "ended": True})
         response.delete_cookie(_WORSHIP_LIVE_VIEW_COOKIE, path="/worship/live")
         response.delete_cookie(_WORSHIP_LIVE_CONTROL_COOKIE, path="/worship/live")
+        response.delete_cookie(_WORSHIP_LIVE_STAGE_COOKIE, path="/worship/live")
         return response
     requested_index = None
     if action == "index":
@@ -5066,9 +5199,21 @@ def worship_live_control(session_id):
             requested_index = int((payload or {}).get("index"))
         except (TypeError, ValueError):
             return jsonify({"ok": False, "error": "Invalid slide index."}), 400
+    message = str((payload or {}).get("message") or "") if action == "set_message" else None
+    duration = None
+    if action == "timer_countdown":
+        try:
+            duration = int((payload or {}).get("duration") or 300)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid timer duration."}), 400
     try:
         updated = _update_worship_live_session(
-            capability["scope"], capability["session_id"], action, requested_index
+            capability["scope"],
+            capability["session_id"],
+            action,
+            requested_index,
+            message=message,
+            duration=duration,
         )
     except ValueError:
         return jsonify({"ok": False, "error": "Unknown command."}), 400
@@ -5077,7 +5222,7 @@ def worship_live_control(session_id):
     except Exception as exc:
         app.logger.warning("worship_live_control storage error: %s", exc)
         return jsonify({"ok": False, "error": "Remote update failed."}), 503
-    return jsonify({"ok": True, **_public_worship_live_state(updated)})
+    return jsonify({"ok": True, **_public_worship_live_state(updated, include_stage=True)})
 
 
 @app.route("/worship/live/remote-qr/<session_id>.png", methods=["GET"])
@@ -5099,6 +5244,31 @@ def worship_live_remote_qr(session_id):
         + f"#control={control_token}"
     )
     image = qrcode.make(remote_url)
+    output = BytesIO()
+    image.save(output, format="PNG")
+    output.seek(0)
+    return send_file(output, mimetype="image/png", max_age=300)
+
+
+@app.route("/worship/live/stage-qr/<session_id>.png", methods=["GET"])
+def worship_live_stage_qr(session_id):
+    capability, live = _worship_live_capability_from_cookie(session_id)
+    if not live and not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        capability, live = _load_worship_live_request(session_id, "stage")
+    if not live:
+        return Response("Invalid or expired stage link", status=410)
+    try:
+        import qrcode
+    except Exception:
+        return Response("QR support is not installed", status=503)
+    stage_token = _make_worship_live_token(
+        scope=capability["scope"], session_id=capability["session_id"], role="stage"
+    )
+    stage_url = (
+        url_for("worship_live_stage", session_id=capability["session_id"], _external=True)
+        + f"#stage={stage_token}"
+    )
+    image = qrcode.make(stage_url)
     output = BytesIO()
     image.save(output, format="PNG")
     output.seek(0)
@@ -5364,6 +5534,98 @@ def worship_media(song_id):
     if not media_url:
         return Response("Image temporarily unavailable", status=503)
     return redirect(media_url)
+
+
+_WORSHIP_SCRIPTURE_VERSIONS = {"web": "WEB", "kjv": "KJV", "esv": "ESV"}
+
+
+def _worship_scripture_lines(text: str, max_chars: int = 58) -> list[str]:
+    """Wrap authoritative Scripture text into readable, deterministic slide lines."""
+    words = re.sub(r"\s+", " ", str(text or "")).strip().split(" ")
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if current and len(candidate) > max_chars:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _build_quick_worship_scripture(reference: str, version: str) -> dict:
+    reference = normalize_reference_title(re.sub(r"\s+", " ", str(reference or "")).strip())[:80]
+    version = str(version or "web").strip().lower()
+    if version not in _WORSHIP_SCRIPTURE_VERSIONS:
+        raise ValueError("Choose WEB, KJV, or ESV.")
+    if not reference or not re.search(r"\d+\s*:\s*\d+", reference):
+        raise ValueError("Enter a Bible reference such as John 3:16–17.")
+    from faithsparks.services.scripture import fetch_verse_text
+
+    text = fetch_verse_text(reference, version)
+    if not text:
+        raise RuntimeError(
+            f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} text is unavailable. Try WEB or KJV."
+        )
+    text = re.sub(r"\s+", " ", str(text)).strip()[:6000]
+    lines = _worship_scripture_lines(text)
+    if not lines:
+        raise RuntimeError("That passage did not return any displayable text.")
+    return normalize_worship_song({
+        "id": _worship_song_id_base(reference, "", _WORSHIP_SCRIPTURE_VERSIONS[version]),
+        "title": reference,
+        "version": _WORSHIP_SCRIPTURE_VERSIONS[version],
+        "type": "scripture",
+        "parts": {"reading": lines},
+        "arrangement": ["reading"],
+    })
+
+
+@app.route("/worship/scripture/preview", methods=["POST"])
+@login_required
+@worship_editor_required
+def worship_scripture_preview():
+    payload = request.get_json(silent=True) or request.form
+    try:
+        item = _build_quick_worship_scripture(
+            str(payload.get("reference") or ""), str(payload.get("version") or "web")
+        )
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 503
+    slides = [chunk["lines"] for chunk in chunk_lines(item["parts"]["reading"])]
+    return jsonify({
+        "ok": True,
+        "title": item["title"],
+        "version": item["version"],
+        "slides": slides,
+    })
+
+
+@app.route("/worship/scripture/add", methods=["POST"])
+@login_required
+@worship_editor_required
+def worship_scripture_add():
+    payload = request.get_json(silent=True) or request.form
+    try:
+        item = _build_quick_worship_scripture(
+            str(payload.get("reference") or ""), str(payload.get("version") or "web")
+        )
+        existing = get_worship_song(item["id"])
+        if existing:
+            item = normalize_worship_song(existing)
+        else:
+            save_worship_song(item)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except RuntimeError as exc:
+        app.logger.warning("quick worship scripture failed: %s", exc)
+        return jsonify({"ok": False, "error": str(exc)}), 503
+    return jsonify({"ok": True, "item": item})
 
 
 @app.route("/worship/service-slide/add", methods=["POST"])

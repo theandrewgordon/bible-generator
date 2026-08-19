@@ -83,7 +83,9 @@
   .ws-modal p{margin:.15rem 0 .85rem;color:var(--text-secondary);font-size:.86rem}
   .ws-modal label{display:block;font-weight:800;font-size:.82rem;margin-bottom:.35rem}
   .ws-modal input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}
+  .ws-modal select{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}
   .ws-modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
+  .ws-scripture-row{display:grid;grid-template-columns:1fr 92px;gap:.6rem}.ws-scripture-preview{display:grid;gap:.5rem;max-height:240px;overflow:auto;margin-top:.75rem}.ws-scripture-slide{padding:.75rem;border-radius:9px;background:#0f172a;color:#fff;text-align:center;white-space:pre-line;font-size:.86rem;line-height:1.35}.ws-scripture-status{min-height:1.2rem;margin-top:.6rem;font-size:.82rem;color:var(--text-secondary)}
   @media(max-width:640px){
     .ws-church-card{display:block}
     .ws-church-actions{justify-content:flex-start;margin-top:.75rem}
@@ -116,7 +118,7 @@
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem">
   <h1 style="margin:0">Worship Slide Builder</h1>
-  <span style="display:flex;gap:.5rem;align-items:center"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a>{% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}"
+  <span style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a>{% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn" class="ws-btn-ghost" style="padding:5px 12px">+ Scripture</button><a href="{{ url_for('worship_add') }}"
     style="font-size:.9rem;font-weight:600;color:var(--primary);text-decoration:none;padding:5px 12px;border:1px solid var(--primary);border-radius:8px">
     + Add Song or Slide
   </a>{% endif %}</span>
@@ -299,6 +301,24 @@
 </div>{# end ws-set-panel #}
 </div>{# end ws-workspace #}
 
+{% if worship_church.role in ['owner', 'editor', 'member'] %}<div class="ws-modal-backdrop" id="quick-scripture-modal" aria-hidden="true">
+  <form class="ws-modal" id="quick-scripture-form" role="dialog" aria-modal="true" aria-labelledby="quick-scripture-title">
+    <h2 id="quick-scripture-title">Quick Scripture</h2>
+    <p>Enter a passage, preview the exact sourced text, and add it directly to this week’s set.</p>
+    <div class="ws-scripture-row">
+      <div><label for="quick-scripture-reference">Bible reference</label><input id="quick-scripture-reference" placeholder="John 3:16–17" autocomplete="off" required></div>
+      <div><label for="quick-scripture-version">Version</label><select id="quick-scripture-version"><option value="web">WEB</option><option value="kjv">KJV</option><option value="esv">ESV</option></select></div>
+    </div>
+    <div class="ws-scripture-status" id="quick-scripture-status">WEB and KJV need no configured key. ESV requires the configured licensed API.</div>
+    <div class="ws-scripture-preview" id="quick-scripture-preview"></div>
+    <div class="ws-modal-actions">
+      <button type="button" class="ws-btn-ghost" id="quick-scripture-cancel">Cancel</button>
+      <button type="submit" class="ws-btn-ghost" id="quick-scripture-preview-btn">Preview</button>
+      <button type="button" class="ws-btn-primary" id="quick-scripture-add" disabled>Add to set</button>
+    </div>
+  </form>
+</div>{% endif %}
+
 <div class="ws-modal-backdrop" id="save-set-modal" aria-hidden="true">
   <div class="ws-modal" role="dialog" aria-modal="true" aria-labelledby="save-set-title">
     <h2 id="save-set-title">Save set</h2>
@@ -377,6 +397,15 @@
   var resetModal = document.getElementById('reset-library-modal');
   var resetInput = document.getElementById('reset-library-confirmation');
   var resetCancelBtn = document.getElementById('reset-library-cancel');
+  var quickScriptureBtn = document.getElementById('quick-scripture-btn');
+  var quickScriptureModal = document.getElementById('quick-scripture-modal');
+  var quickScriptureForm = document.getElementById('quick-scripture-form');
+  var quickScriptureReference = document.getElementById('quick-scripture-reference');
+  var quickScriptureVersion = document.getElementById('quick-scripture-version');
+  var quickScripturePreview = document.getElementById('quick-scripture-preview');
+  var quickScriptureStatus = document.getElementById('quick-scripture-status');
+  var quickScriptureAdd = document.getElementById('quick-scripture-add');
+  var quickScriptureCancel = document.getElementById('quick-scripture-cancel');
   var currentSetlistId = '';
   var currentSetlistName = '';
 
@@ -385,6 +414,87 @@
 
   // Which ids are currently in the set
   var inSet = {};
+
+  // ── Quick Scripture ──────────────────────────────────────────────────────
+
+  function closeQuickScripture() {
+    if (!quickScriptureModal) return;
+    quickScriptureModal.classList.remove('is-open');
+    quickScriptureModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function quickScripturePayload() {
+    return {
+      reference: quickScriptureReference ? quickScriptureReference.value.trim() : '',
+      version: quickScriptureVersion ? quickScriptureVersion.value : 'web'
+    };
+  }
+
+  function requestQuickScripture(path) {
+    return fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken},
+      body: JSON.stringify(quickScripturePayload())
+    }).then(function (response) {
+      return response.json().then(function (data) {
+        if (!response.ok || !data.ok) throw new Error(data.error || 'Could not load that passage.');
+        return data;
+      });
+    });
+  }
+
+  if (quickScriptureBtn && quickScriptureModal) {
+    quickScriptureBtn.addEventListener('click', function () {
+      quickScriptureModal.classList.add('is-open');
+      quickScriptureModal.setAttribute('aria-hidden', 'false');
+      setTimeout(function () { quickScriptureReference.focus(); }, 0);
+    });
+    quickScriptureModal.addEventListener('click', function (event) {
+      if (event.target === quickScriptureModal) closeQuickScripture();
+    });
+    quickScriptureCancel.addEventListener('click', closeQuickScripture);
+    [quickScriptureReference, quickScriptureVersion].forEach(function (field) {
+      field.addEventListener('input', function () {
+        quickScriptureAdd.disabled = true;
+        quickScripturePreview.textContent = '';
+      });
+    });
+    quickScriptureForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      quickScriptureAdd.disabled = true;
+      quickScriptureStatus.textContent = 'Loading authoritative Scripture text…';
+      quickScripturePreview.textContent = '';
+      requestQuickScripture('/worship/scripture/preview').then(function (data) {
+        data.slides.forEach(function (lines, index) {
+          var card = document.createElement('div');
+          card.className = 'ws-scripture-slide';
+          card.textContent = data.title + ' · ' + data.version + ' · Slide ' + (index + 1) + '\n\n' + lines.join('\n');
+          quickScripturePreview.appendChild(card);
+        });
+        quickScriptureStatus.textContent = data.slides.length + ' slide' + (data.slides.length === 1 ? '' : 's') + ' ready.';
+        quickScriptureAdd.disabled = false;
+      }).catch(function (error) {
+        quickScriptureStatus.textContent = error.message;
+      });
+    });
+    quickScriptureAdd.addEventListener('click', function () {
+      quickScriptureAdd.disabled = true;
+      quickScriptureStatus.textContent = 'Adding Scripture to this week’s set…';
+      saveSetDraft();
+      requestQuickScripture('/worship/scripture/add').then(function (data) {
+        var items = [];
+        try { items = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '[]'); } catch (e) {}
+        if (!Array.isArray(items)) items = [];
+        if (!items.some(function (item) { return item.id === data.item.id; })) items.push({id: data.item.id, note: ''});
+        try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(items)); } catch (e) {}
+        window.location.href = '/worship';
+      }).catch(function (error) {
+        quickScriptureAdd.disabled = false;
+        quickScriptureStatus.textContent = error.message;
+      });
+    });
+  }
 
   // ── Set draft persistence (per-library, per-tab session storage) ─────────
 

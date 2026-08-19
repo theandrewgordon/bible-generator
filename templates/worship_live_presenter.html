@@ -11,6 +11,7 @@
     .wl-stage{position:fixed;inset:0;background:#000;display:grid;place-items:center}
     .wl-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:6vh 6vw;color:var(--slide-color,#fff);background:#08111f center/cover no-repeat;background-image:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.12)),var(--slide-bg)}
     .wl-slide.is-active{display:flex}
+    .wl-stage.is-clear .wl-content,.wl-stage.is-clear .wl-part{visibility:hidden}
     .wl-slide::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.18);pointer-events:none}
     .wl-content{position:relative;z-index:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-shadow:0 2px 12px rgba(0,0,0,.72)}
     .wl-title{margin:0;font-size:clamp(3.2rem,7.2vw,7.8rem);line-height:1.02;font-weight:800;max-width:16ch}
@@ -34,14 +35,15 @@
     .wl-footer.is-idle{opacity:0}
     .wl-setup{position:fixed;inset:0;z-index:50;background:rgba(2,6,23,.96);display:flex;align-items:center;justify-content:center;padding:24px}
     .wl-setup[hidden]{display:none}
-    .wl-setup-card{width:min(920px,100%);display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:34px;align-items:center}
+    .wl-setup-card{width:min(1080px,100%);display:grid;grid-template-columns:minmax(320px,470px) 1fr;gap:34px;align-items:center}
+    .wl-share-codes{display:grid;grid-template-columns:1fr 1fr;gap:14px}.wl-share-code{margin:0;text-align:center}.wl-share-code figcaption{margin-top:7px;color:#cbd5e1;font-size:.85rem;font-weight:800}
     .wl-qr{width:100%;aspect-ratio:1;background:#fff;border-radius:18px;padding:12px}
     .wl-setup h1{font-size:clamp(2rem,4.5vw,4.5rem);line-height:1.02;margin:0 0 14px}
     .wl-setup p{font-size:clamp(1rem,1.8vw,1.4rem);line-height:1.45;color:#cbd5e1;margin:.4rem 0}
     .wl-setup .wl-keys{margin-top:1rem;font-size:clamp(.82rem,1.25vw,1rem);color:#94a3b8}
     .wl-start{margin-top:20px;border:0;border-radius:14px;background:#0ea5a8;color:#fff;padding:15px 24px;font-size:1.1rem;font-weight:800;cursor:pointer}
     .wl-copy{margin-left:8px;border:1px solid #64748b;border-radius:10px;background:transparent;color:#fff;padding:10px 14px;font-weight:700;cursor:pointer}
-    @media(max-width:700px){.wl-setup-card{grid-template-columns:1fr;text-align:center}.wl-qr{width:min(240px,70vw);margin:auto}.wl-title{font-size:clamp(2.6rem,11vw,5rem)}.wl-lines{font-size:clamp(2.2rem,8vw,4.5rem)}}
+    @media(max-width:700px){.wl-setup-card{grid-template-columns:1fr;text-align:center}.wl-share-codes{width:min(430px,100%);margin:auto}.wl-qr{width:100%;margin:auto}.wl-title{font-size:clamp(2.6rem,11vw,5rem)}.wl-lines{font-size:clamp(2.2rem,8vw,4.5rem)}}
   </style>
 </head>
 <body>
@@ -70,11 +72,11 @@
 
   <div class="wl-setup" id="wl-setup">
     <div class="wl-setup-card">
-      {% if remote_url %}<img class="wl-qr" src="{{ url_for('worship_live_remote_qr', session_id=session_id) }}" alt="QR code for the worship remote">{% endif %}
+      {% if remote_url %}<div class="wl-share-codes"><figure class="wl-share-code"><img class="wl-qr" src="{{ url_for('worship_live_remote_qr', session_id=session_id) }}" alt="QR code for the worship remote"><figcaption>Leader remote</figcaption></figure><figure class="wl-share-code"><img class="wl-qr" src="{{ url_for('worship_live_stage_qr', session_id=session_id) }}" alt="QR code for the stage view"><figcaption>Stage view</figcaption></figure></div>{% endif %}
       <div>
         <h1>{{ live.name }}</h1>
-        {% if remote_url %}<p>Scan this QR code with the leader’s phone. The phone will control this screen.</p><p>No sign-in is needed, and the remote expires automatically.</p><p class="wl-keys"><strong>Keyboard backup:</strong> ←/→ slides · B black · F fullscreen</p>{% else %}<p>This is a view-only presentation link.</p>{% endif %}
-        <button class="wl-start" id="wl-start-btn">Start presenting</button>{% if remote_url %}<button class="wl-copy" id="wl-copy-btn">Copy remote link</button>{% endif %}
+        {% if remote_url %}<p>Scan Leader Remote to control the screen. Scan Stage View for current and upcoming lyrics.</p><p>No sign-in is needed, and both links expire automatically.</p><p class="wl-keys"><strong>Keyboard backup:</strong> ←/→ slides · C clear words · B black · F fullscreen</p>{% else %}<p>This is a view-only presentation link.</p>{% endif %}
+        <button class="wl-start" id="wl-start-btn">Start presenting</button>{% if remote_url %}<button class="wl-copy" id="wl-copy-btn">Copy remote</button><button class="wl-copy" id="wl-stage-copy-btn">Copy stage view</button>{% endif %}
       </div>
     </div>
   </div>
@@ -85,8 +87,10 @@
     var sessionId={{ session_id|tojson }};
     var canControl={{ (remote_url != '')|tojson }};
     var remoteUrl={{ remote_url|tojson }};
+    var stageUrl={{ stage_url|tojson }};
     var current={{ live.current_index|int }};
     var blank={{ live.blank|tojson }};
+    var clearWords={{ live.clear_words|default(false)|tojson }};
     var revision={{ live.revision|int }};
     var setup=document.getElementById('wl-setup');
     var blankEl=document.getElementById('wl-blank');
@@ -97,9 +101,10 @@
     var footer=document.getElementById('wl-footer');
     var idleTimer,pollTimer,activeUntil=Date.now()+5000;
 
-    function render(index,isBlank){
-      current=Math.max(0,Math.min(slides.length-1,Number(index)||0)); blank=!!isBlank;
+    function render(index,isBlank,isClear){
+      current=Math.max(0,Math.min(slides.length-1,Number(index)||0)); blank=!!isBlank;clearWords=!!isClear;
       slides.forEach(function(slide,i){var active=i===current;slide.classList.toggle('is-active',active);slide.setAttribute('aria-hidden',active?'false':'true');});
+      document.getElementById('wl-stage').classList.toggle('is-clear',clearWords);
       blankEl.classList.toggle('is-active',blank);
       if(progressEl) progressEl.textContent=(current+1)+' / '+slides.length;
       if(titleEl) titleEl.textContent=(slides[current]&&slides[current].dataset.title)||'';
@@ -108,21 +113,21 @@
     function showHud(){hud.classList.remove('is-idle');footer.classList.remove('is-idle');clearTimeout(idleTimer);idleTimer=setTimeout(function(){if(setup.hidden){hud.classList.add('is-idle');footer.classList.add('is-idle');}},3000);}
     function send(action,index){
       if(!canControl)return;
-      if(action==='next')render(current+1,blank); else if(action==='previous')render(current-1,blank); else if(action==='first')render(0,blank); else if(action==='last')render(slides.length-1,blank); else if(action==='toggle_blank')render(current,!blank);
+      if(action==='next')render(current+1,blank,clearWords); else if(action==='previous')render(current-1,blank,clearWords); else if(action==='first')render(0,blank,clearWords); else if(action==='last')render(slides.length-1,blank,clearWords); else if(action==='toggle_blank')render(current,!blank,clearWords); else if(action==='toggle_clear')render(current,blank,!clearWords);
       activeUntil=Date.now()+5000;
       fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify({action:action,index:index}),credentials:'same-origin'})
-        .then(function(r){return r.json();}).then(function(data){if(data.ok){revision=data.revision;render(data.current_index,data.blank);connected(true);}else connected(false);}).catch(function(){connected(false);});
+        .then(function(r){return r.json();}).then(function(data){if(data.ok){revision=data.revision;render(data.current_index,data.blank,data.clear_words);connected(true);}else connected(false);}).catch(function(){connected(false);});
     }
     function schedulePoll(delay){clearTimeout(pollTimer);if(document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
-    function endLocally(){canControl=false;clearTimeout(pollTimer);render(current,true);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){if(data.revision!==revision){revision=data.revision;render(data.current_index,data.blank);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(2500);});}
-    document.addEventListener('keydown',function(e){if(!setup.hidden&&e.key!=='Escape')return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();send('next');}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();send('previous');}if(e.key==='Home')send('first');if(e.key==='End')send('last');if(e.key==='b'||e.key==='B')send('toggle_blank');if(e.key==='f'||e.key==='F')document.getElementById('wl-fullscreen-btn').click();showHud();});
+    function endLocally(){canControl=false;clearTimeout(pollTimer);render(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){if(data.revision!==revision){revision=data.revision;render(data.current_index,data.blank,data.clear_words);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(2500);});}
+    document.addEventListener('keydown',function(e){if(!setup.hidden&&e.key!=='Escape')return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();send('next');}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();send('previous');}if(e.key==='Home')send('first');if(e.key==='End')send('last');if(e.key==='c'||e.key==='C')send('toggle_clear');if(e.key==='b'||e.key==='B')send('toggle_blank');if(e.key==='f'||e.key==='F')document.getElementById('wl-fullscreen-btn').click();showHud();});
     document.addEventListener('mousemove',showHud);document.addEventListener('click',showHud);
     document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){activeUntil=Date.now()+5000;poll();}else clearTimeout(pollTimer);});
     document.getElementById('wl-fullscreen-btn').addEventListener('click',function(){if(document.fullscreenElement){document.exitFullscreen&&document.exitFullscreen();}else{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});}});
     document.getElementById('wl-start-btn').addEventListener('click',function(){setup.hidden=true;document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});showHud();});
-    {% if remote_url %}document.getElementById('wl-remote-btn').addEventListener('click',function(){setup.hidden=false;showHud();});document.getElementById('wl-copy-btn').addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(remoteUrl);this.textContent='Copied';});document.getElementById('wl-end-btn').addEventListener('click',function(){var btn=this;if(!canControl||!window.confirm('End this Live Worship session for everyone?'))return;fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify({action:'end'})}).then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error();endLocally();btn.disabled=true;}).catch(function(){connected(false);});});{% endif %}
-    render(current,blank);showHud();poll();
+    {% if remote_url %}document.getElementById('wl-remote-btn').addEventListener('click',function(){setup.hidden=false;showHud();});document.getElementById('wl-copy-btn').addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(remoteUrl);this.textContent='Copied';});document.getElementById('wl-stage-copy-btn').addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(stageUrl);this.textContent='Copied';});document.getElementById('wl-end-btn').addEventListener('click',function(){var btn=this;if(!canControl||!window.confirm('End this Live Worship session for everyone?'))return;fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify({action:'end'})}).then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error();endLocally();btn.disabled=true;}).catch(function(){connected(false);});});{% endif %}
+    render(current,blank,clearWords);showHud();poll();
   })();
   </script>
 </body>
