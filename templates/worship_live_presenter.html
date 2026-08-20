@@ -35,15 +35,15 @@
     .wl-footer.is-idle{opacity:0}
     .wl-setup{position:fixed;inset:0;z-index:50;background:rgba(2,6,23,.96);display:flex;align-items:center;justify-content:center;padding:24px}
     .wl-setup[hidden]{display:none}
-    .wl-setup-card{width:min(1080px,100%);display:grid;grid-template-columns:minmax(320px,470px) 1fr;gap:34px;align-items:center}
+    .wl-setup-card{width:min(1180px,100%);display:grid;grid-template-columns:minmax(440px,560px) 1fr;gap:38px;align-items:center}
     .wl-share-codes{display:grid;grid-template-columns:1fr 1fr;gap:14px}.wl-share-code{margin:0;text-align:center}.wl-share-code figcaption{margin-top:7px;color:#cbd5e1;font-size:.85rem;font-weight:800}
-    .wl-qr{width:100%;aspect-ratio:1;background:#fff;border-radius:18px;padding:12px}
+    .wl-qr{width:100%;aspect-ratio:1;background:#fff;border-radius:18px;padding:10px;image-rendering:pixelated}
     .wl-setup h1{font-size:clamp(2rem,4.5vw,4.5rem);line-height:1.02;margin:0 0 14px}
     .wl-setup p{font-size:clamp(1rem,1.8vw,1.4rem);line-height:1.45;color:#cbd5e1;margin:.4rem 0}
     .wl-setup .wl-keys{margin-top:1rem;font-size:clamp(.82rem,1.25vw,1rem);color:#94a3b8}
     .wl-start{margin-top:20px;border:0;border-radius:14px;background:#0ea5a8;color:#fff;padding:15px 24px;font-size:1.1rem;font-weight:800;cursor:pointer}
     .wl-copy{margin-left:8px;border:1px solid #64748b;border-radius:10px;background:transparent;color:#fff;padding:10px 14px;font-weight:700;cursor:pointer}
-    @media(max-width:700px){.wl-setup-card{grid-template-columns:1fr;text-align:center}.wl-share-codes{width:min(430px,100%);margin:auto}.wl-qr{width:100%;margin:auto}.wl-title{font-size:clamp(2.6rem,11vw,5rem)}.wl-lines{font-size:clamp(2.2rem,8vw,4.5rem)}}
+    @media(max-width:900px){.wl-setup{overflow:auto;align-items:flex-start}.wl-setup-card{grid-template-columns:1fr;text-align:center}.wl-share-codes{width:min(560px,100%);margin:auto}.wl-qr{width:100%;margin:auto}.wl-title{font-size:clamp(2.6rem,11vw,5rem)}.wl-lines{font-size:clamp(2.2rem,8vw,4.5rem)}}
   </style>
 </head>
 <body>
@@ -72,7 +72,7 @@
 
   <div class="wl-setup" id="wl-setup">
     <div class="wl-setup-card">
-      {% if remote_url %}<div class="wl-share-codes"><figure class="wl-share-code"><img class="wl-qr" src="{{ url_for('worship_live_remote_qr', session_id=session_id) }}" alt="QR code for the worship remote"><figcaption>Leader remote</figcaption></figure><figure class="wl-share-code"><img class="wl-qr" src="{{ url_for('worship_live_stage_qr', session_id=session_id) }}" alt="QR code for the stage view"><figcaption>Stage view</figcaption></figure></div>{% endif %}
+      {% if remote_url %}<div class="wl-share-codes"><figure class="wl-share-code"><img class="wl-qr" src="{{ url_for('worship_live_remote_qr', session_id=session_id) }}" alt="QR code for the worship remote"><figcaption>Leader remote · controls</figcaption></figure><figure class="wl-share-code"><img class="wl-qr" src="{{ url_for('worship_live_stage_qr', session_id=session_id) }}" alt="QR code for the stage view"><figcaption>Stage view · lyrics only</figcaption></figure></div>{% endif %}
       <div>
         <h1>{{ live.name }}</h1>
         {% if remote_url %}<p>Scan Leader Remote to control the screen. Scan Stage View for current and upcoming lyrics.</p><p>No sign-in is needed, and both links expire automatically.</p><p class="wl-keys"><strong>Keyboard backup:</strong> ←/→ slides · C clear words · B black · F fullscreen</p>{% else %}<p>This is a view-only presentation link.</p>{% endif %}
@@ -109,7 +109,7 @@
       if(progressEl) progressEl.textContent=(current+1)+' / '+slides.length;
       if(titleEl) titleEl.textContent=(slides[current]&&slides[current].dataset.title)||'';
     }
-    function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?'Connected':'Reconnecting…';}
+    function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?'Connected':'Remote offline · keyboard works';}
     function showHud(){hud.classList.remove('is-idle');footer.classList.remove('is-idle');clearTimeout(idleTimer);idleTimer=setTimeout(function(){if(setup.hidden){hud.classList.add('is-idle');footer.classList.add('is-idle');}},3000);}
     function send(action,index){
       if(!canControl)return;

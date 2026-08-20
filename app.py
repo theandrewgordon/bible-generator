@@ -830,6 +830,7 @@ _WORSHIP_LIVE_TOKEN_SALT = "worship-live-v1"
 _WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
 _WORSHIP_LIVE_CONTROL_COOKIE = "fs_worship_live_control"
 _WORSHIP_LIVE_STAGE_COOKIE = "fs_worship_live_stage"
+_WORSHIP_LIVE_ACTIVE_SESSION_KEY = "worship_live_active"
 _worship_live_memory: dict[tuple[str, str], dict] = {}
 _worship_live_lock = threading.Lock()
 
@@ -1879,6 +1880,38 @@ def _get_worship_live_session(scope: str, session_id: str) -> dict | None:
     return data
 
 
+def _active_worship_live_context() -> dict | None:
+    """Return fresh recovery links for the current user's last live session."""
+    pointer = session.get(_WORSHIP_LIVE_ACTIVE_SESSION_KEY)
+    if not isinstance(pointer, dict):
+        return None
+    scope = _slugify_worship_token(pointer.get("scope", ""))
+    session_id = str(pointer.get("session_id") or "")
+    if scope != _current_worship_scope() or not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
+        return None
+    live = _get_worship_live_session(scope, session_id)
+    user_email = str(session.get("user_email") or "").strip().casefold()
+    if not live or not user_email or str(live.get("created_by") or "").strip().casefold() != user_email:
+        session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
+        return None
+    view_token = _make_worship_live_token(scope=scope, session_id=session_id, role="view")
+    control_token = _make_worship_live_token(scope=scope, session_id=session_id, role="control")
+    return {
+        "name": str(live.get("name") or "Live Worship"),
+        "current_slide": int(live.get("current_index") or 0) + 1,
+        "slide_count": int(live.get("slide_count") or 0),
+        "presenter_url": (
+            url_for("worship_live_presenter", session_id=session_id, _external=True)
+            + f"#view={view_token}&control={control_token}"
+        ),
+        "remote_url": (
+            url_for("worship_live_remote", session_id=session_id, _external=True)
+            + f"#control={control_token}"
+        ),
+    }
+
+
 def _delete_worship_live_session(scope: str, session_id: str) -> None:
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", str(session_id or "")):
         raise LookupError("Invalid live worship session")
@@ -2637,7 +2670,14 @@ def worship():
     songs = list_worship_songs()
     setlists = _load_recent_setlists()
     church_context = _current_worship_church_context()
-    return render_template('worship.html', songs=songs, setlists=setlists, worship_church=church_context["current"], worship_churches=church_context["churches"])
+    return render_template(
+        'worship.html',
+        songs=songs,
+        setlists=setlists,
+        worship_church=church_context["current"],
+        worship_churches=church_context["churches"],
+        active_worship_live=_active_worship_live_context(),
+    )
 
 
 @app.route("/worship/cleanup-duplicates", methods=["POST"])
@@ -4727,6 +4767,7 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                     "id": song_id,
                     "title": song_title,
                     "version": song_version,
+                    "key": normalized.get("key", ""),
                     "part": part_name,
                     "part_label": _worship_part_label(part_name),
                     "lines": chunk["lines"],
@@ -4893,6 +4934,8 @@ def worship_live_start():
     except Exception as exc:
         app.logger.warning("worship_live_start storage error: %s", exc)
         return jsonify({"ok": False, "error": "Live Worship is temporarily unavailable."}), 503
+
+    session[_WORSHIP_LIVE_ACTIVE_SESSION_KEY] = {"scope": scope, "session_id": session_id}
 
     view_token = _make_worship_live_token(scope=scope, session_id=session_id, role="view")
     control_token = _make_worship_live_token(scope=scope, session_id=session_id, role="control")
@@ -5192,6 +5235,9 @@ def worship_live_control(session_id):
         response.delete_cookie(_WORSHIP_LIVE_VIEW_COOKIE, path="/worship/live")
         response.delete_cookie(_WORSHIP_LIVE_CONTROL_COOKIE, path="/worship/live")
         response.delete_cookie(_WORSHIP_LIVE_STAGE_COOKIE, path="/worship/live")
+        active_pointer = session.get(_WORSHIP_LIVE_ACTIVE_SESSION_KEY)
+        if isinstance(active_pointer, dict) and active_pointer.get("session_id") == capability["session_id"]:
+            session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
         return response
     requested_index = None
     if action == "index":
@@ -5232,10 +5278,6 @@ def worship_live_remote_qr(session_id):
         capability, live = _load_worship_live_request(session_id, "control")
     if not live:
         return Response("Invalid or expired remote", status=410)
-    try:
-        import qrcode
-    except Exception:
-        return Response("QR support is not installed", status=503)
     control_token = _make_worship_live_token(
         scope=capability["scope"], session_id=capability["session_id"], role="control"
     )
@@ -5243,24 +5285,17 @@ def worship_live_remote_qr(session_id):
         url_for("worship_live_remote", session_id=capability["session_id"], _external=True)
         + f"#control={control_token}"
     )
-    image = qrcode.make(remote_url)
-    output = BytesIO()
-    image.save(output, format="PNG")
-    output.seek(0)
-    return send_file(output, mimetype="image/png", max_age=300)
+    return _worship_live_qr_response(remote_url)
 
 
 @app.route("/worship/live/stage-qr/<session_id>.png", methods=["GET"])
 def worship_live_stage_qr(session_id):
-    capability, live = _worship_live_capability_from_cookie(session_id)
+    # Only a controller may mint a link that reveals private stage messages.
+    capability, live = _worship_live_capability_from_cookie(session_id, "control")
     if not live and not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
-        capability, live = _load_worship_live_request(session_id, "stage")
+        capability, live = _load_worship_live_request(session_id, "control")
     if not live:
         return Response("Invalid or expired stage link", status=410)
-    try:
-        import qrcode
-    except Exception:
-        return Response("QR support is not installed", status=503)
     stage_token = _make_worship_live_token(
         scope=capability["scope"], session_id=capability["session_id"], role="stage"
     )
@@ -5268,11 +5303,27 @@ def worship_live_stage_qr(session_id):
         url_for("worship_live_stage", session_id=capability["session_id"], _external=True)
         + f"#stage={stage_token}"
     )
-    image = qrcode.make(stage_url)
+    return _worship_live_qr_response(stage_url)
+
+
+def _worship_live_qr_response(target_url: str):
+    """Render a crisp, low-density QR without caching its live capability."""
+    try:
+        import qrcode
+        from qrcode.constants import ERROR_CORRECT_L
+    except Exception:
+        return Response("QR support is not installed", status=503)
+    qr = qrcode.QRCode(error_correction=ERROR_CORRECT_L, box_size=10, border=4)
+    qr.add_data(target_url)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="black", back_color="white")
     output = BytesIO()
     image.save(output, format="PNG")
     output.seek(0)
-    return send_file(output, mimetype="image/png", max_age=300)
+    response = send_file(output, mimetype="image/png", max_age=0)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 def _build_worship_lyric_sheet_pdf(selected_items: list[dict], mobile_url: str = "") -> BytesIO:

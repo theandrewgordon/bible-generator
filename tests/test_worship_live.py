@@ -109,6 +109,7 @@ class WorshipLiveTests(unittest.TestCase):
                 g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
                 app.session["user_email"] = "leader@example.com"
                 response = app.worship_live_start()
+                active_pointer = dict(app.session[app._WORSHIP_LIVE_ACTIVE_SESSION_KEY])
         finally:
             app._resolve_selected_worship_items = original_resolve
 
@@ -125,8 +126,46 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertFalse(remote.query)
         self.assertTrue(remote.fragment.startswith("control="))
         self.assertTrue(urlparse(payload["stage_url"]).fragment.startswith("stage="))
+        self.assertEqual(
+            active_pointer["session_id"],
+            next(iter(app._worship_live_memory.values()))["id"],
+        )
         stored = next(iter(app._worship_live_memory.values()))
         self.assertEqual(stored["slides"][0]["title"], "Sample Song")
+
+    def test_active_live_session_returns_fresh_owner_recovery_links(self):
+        data = {**self._session_data(), "created_by": "leader@example.com"}
+        app._create_worship_live_session(data)
+
+        with app.app.test_request_context("/worship"):
+            app.session["user_email"] = "leader@example.com"
+            app.session["worship_church_id"] = "grace"
+            app.session[app._WORSHIP_LIVE_ACTIVE_SESSION_KEY] = {
+                "scope": "grace",
+                "session_id": data["id"],
+            }
+            active = app._active_worship_live_context()
+
+        self.assertEqual(active["name"], "Sunday Worship")
+        self.assertEqual(active["current_slide"], 1)
+        self.assertEqual(active["slide_count"], 3)
+        self.assertIn("#view=", active["presenter_url"])
+        self.assertIn("&control=", active["presenter_url"])
+        self.assertIn("#control=", active["remote_url"])
+
+    def test_active_live_session_rejects_another_users_session(self):
+        data = {**self._session_data(), "created_by": "other@example.com"}
+        app._create_worship_live_session(data)
+
+        with app.app.test_request_context("/worship"):
+            app.session["user_email"] = "leader@example.com"
+            app.session["worship_church_id"] = "grace"
+            app.session[app._WORSHIP_LIVE_ACTIVE_SESSION_KEY] = {
+                "scope": "grace",
+                "session_id": data["id"],
+            }
+            self.assertIsNone(app._active_worship_live_context())
+            self.assertNotIn(app._WORSHIP_LIVE_ACTIVE_SESSION_KEY, app.session)
 
     def test_start_live_rejects_a_stale_library_tab(self):
         with app.app.test_request_context(
@@ -180,6 +219,7 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("End session", html)
         self.assertIn("Keyboard backup:", html)
         self.assertIn("render(current,true,clearWords)", html)
+        self.assertIn("Remote offline · keyboard works", html)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
 
     def test_live_control_post_is_capability_csrf_exempt(self):
@@ -265,14 +305,16 @@ class WorshipLiveTests(unittest.TestCase):
         qr = client.get(f"/worship/live/remote-qr/{data['id']}.png")
         self.assertEqual(qr.status_code, 200)
         self.assertEqual(qr.mimetype, "image/png")
+        self.assertEqual(qr.headers["Cache-Control"], "private, no-store")
 
-    def test_stage_view_and_qr_render_from_stage_capability(self):
+    def test_stage_view_is_stage_only_and_qr_creation_requires_control(self):
         data = self._session_data()
         selected = [{
             "id": "sample",
             "title": "Sample Song",
             "parts": {"verse1": ["Current lyric"], "chorus": ["Upcoming lyric"]},
             "arrangement": ["verse1", "chorus"],
+            "key": "E",
         }]
         data["slides"] = app._build_worship_mobile_slides(selected)
         data["slide_count"] = len(data["slides"])
@@ -291,12 +333,35 @@ class WorshipLiveTests(unittest.TestCase):
         html = stage.get_data(as_text=True)
         self.assertIn("Stage View", html)
         self.assertIn("Up next", html)
-        self.assertIn("Keep screen awake", html)
+        self.assertIn("Full screen + stay awake", html)
+        self.assertIn("requestFullscreen", html)
         self.assertIn("Audience words are cleared", html)
+        self.assertIn("Saved cue ·", html)
+        self.assertIn("function fitCards()", html)
+        self.assertIn("Reconnecting…", html)
+        self.assertIn("'Over '+formatSeconds(remaining)", html)
+        self.assertIn("function itemContext(index)", html)
+        self.assertIn('"key": "E"', html)
 
+        # A stage-only device may read private stage state, but cannot mint new
+        # stage links. QR creation is reserved for the controller.
         qr = client.get(f"/worship/live/stage-qr/{data['id']}.png")
+        self.assertEqual(qr.status_code, 410)
+
+        controller = app.app.test_client()
+        control_token = app._make_worship_live_token(
+            scope="grace", session_id=data["id"], role="control"
+        )
+        exchange = controller.post(
+            f"/worship/live/exchange/{data['id']}",
+            json={"control": control_token},
+            headers={"X-Worship-Live": "1"},
+        )
+        self.assertEqual(exchange.status_code, 200)
+        qr = controller.get(f"/worship/live/stage-qr/{data['id']}.png")
         self.assertEqual(qr.status_code, 200)
         self.assertEqual(qr.mimetype, "image/png")
+        self.assertEqual(qr.headers["Cache-Control"], "private, no-store")
 
 
 if __name__ == "__main__":

@@ -42,7 +42,18 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn('data-action="toggle_clear"', self.template)
         self.assertIn("Private stage message", self.template)
         self.assertIn("Start 5:00", self.template)
+        self.assertIn("Start 1:00", self.template)
+        self.assertIn("Start 10:00", self.template)
         self.assertIn("Start elapsed", self.template)
+
+    def test_stage_message_enter_key_and_timer_overtime_are_supported(self):
+        self.assertIn("event.key==='Enter'", self.template)
+        self.assertIn("value<0?'Over ':'Remaining '", self.template)
+
+    def test_remote_keeps_navigation_reachable_and_active_section_centered(self):
+        self.assertIn("position:sticky", self.template)
+        self.assertIn("activeButton.scrollIntoView", self.template)
+        self.assertIn("Number(btn.dataset.duration)||300", self.template)
 
 
 if __name__ == "__main__":

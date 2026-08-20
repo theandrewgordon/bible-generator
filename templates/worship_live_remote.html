@@ -22,7 +22,7 @@
     .wr-audience-state{position:absolute;right:14px;top:12px;color:#fcd34d;font-size:.72rem;font-weight:850;text-transform:uppercase}
     .wr-progress{text-align:center;color:#cbd5e1;font-size:.88rem;font-weight:700}
     .wr-next-up{min-height:1.25rem;text-align:center;color:#94a3b8;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .wr-nav{display:grid;grid-template-columns:1fr 1.6fr;gap:10px}
+    .wr-nav{position:sticky;top:max(8px,env(safe-area-inset-top));z-index:20;display:grid;grid-template-columns:1fr 1.6fr;gap:10px;padding:6px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
     .wr-btn{min-height:82px;border:0;border-radius:16px;font-size:1.15rem;font-weight:850;cursor:pointer;touch-action:manipulation}.wr-prev{background:#334155;color:#fff}.wr-next{background:#0ea5a8;color:#fff;font-size:1.35rem}.wr-btn:active{transform:scale(.985)}
     .wr-sections{display:flex;gap:7px;overflow-x:auto;padding:2px 0 5px;scrollbar-width:none}.wr-sections::-webkit-scrollbar{display:none}.wr-section-btn{flex:0 0 auto;min-height:38px;border:1px solid #475569;border-radius:999px;background:#111c2e;color:#e2e8f0;padding:7px 12px;font-weight:800}.wr-section-btn.is-current{background:#0f766e;border-color:#2dd4bf;color:#fff}
     .wr-smart{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.wr-smart-btn{min-height:48px;border:1px solid #334155;border-radius:13px;background:#172235;color:#e2e8f0;font-size:.88rem;font-weight:800}.wr-smart-btn:disabled{opacity:.4}
@@ -50,7 +50,7 @@
     <details class="wr-stage-tools"><summary>Stage tools</summary><div class="wr-stage-body">
       <div class="wr-stage-row"><a class="wr-stage-link" href="{{ stage_url }}" target="_blank" rel="noopener">Open Stage View</a></div>
       <div class="wr-stage-row"><input class="wr-stage-input" id="wr-stage-message" maxlength="160" placeholder="Private stage message"><button class="wr-stage-action" id="wr-send-message">Send</button><button class="wr-stage-action" id="wr-clear-message">Clear</button></div>
-      <div class="wr-stage-row"><button class="wr-stage-action" data-timer="countdown">Start 5:00</button><button class="wr-stage-action" data-timer="elapsed">Start elapsed</button><button class="wr-stage-action" data-timer="reset">Reset timer</button></div>
+      <div class="wr-stage-row"><button class="wr-stage-action" data-timer="countdown" data-duration="60">Start 1:00</button><button class="wr-stage-action" data-timer="countdown" data-duration="300">Start 5:00</button><button class="wr-stage-action" data-timer="countdown" data-duration="600">Start 10:00</button><button class="wr-stage-action" data-timer="elapsed">Start elapsed</button><button class="wr-stage-action" data-timer="reset">Reset timer</button></div>
       <div class="wr-stage-status" id="wr-stage-status"></div>
     </div></details>
     <button class="wr-end" id="wr-end">End this session</button>
@@ -67,7 +67,7 @@
     var timerMode={{ live.stage_timer_mode|default('')|tojson }},timerStarted=Number({{ live.stage_timer_started_epoch|default(0)|tojson }})||0,timerDuration=Number({{ live.stage_timer_duration|default(0)|tojson }})||0,serverOffset=0;
     var revision={{ live.revision|int }};
     var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextUp=document.getElementById('wr-next-up'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status');
-    var wakeLock=null,pollTimer=null,sending=false,ended=false,jumpHistory=[];
+    var wakeLock=null,pollTimer=null,sending=false,ended=false,jumpHistory=[],lastSectionTarget=-1;
     function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
     function isChorusSlide(slide){return !!slide&&slide.kind==='lyric'&&/^chorus\d*$/.test(partKey(slide));}
     function chorusStart(index){
@@ -97,11 +97,12 @@
     }
     function updateSections(){
       sectionsEl.textContent='';var targets=sectionTargets(),active=-1;targets.forEach(function(target){if(target<=current)active=target;});
-      targets.forEach(function(target){var button=document.createElement('button');button.type='button';button.className='wr-section-btn'+(target===active?' is-current':'');button.textContent=slides[target].part_label||'Section';button.disabled=sending||ended;button.addEventListener('click',function(){jumpTo(target);});sectionsEl.appendChild(button);});
+      var activeButton=null;targets.forEach(function(target){var button=document.createElement('button');button.type='button';button.className='wr-section-btn'+(target===active?' is-current':'');button.textContent=slides[target].part_label||'Section';button.disabled=sending||ended;button.addEventListener('click',function(){jumpTo(target);});sectionsEl.appendChild(button);if(target===active)activeButton=button;});
       sectionsEl.style.display=targets.length?'flex':'none';
+      if(activeButton&&active!==lastSectionTarget){lastSectionTarget=active;requestAnimationFrame(function(){activeButton.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});});}
     }
-    function formatSeconds(total){total=Math.max(0,Math.floor(total));return Math.floor(total/60)+':'+String(total%60).padStart(2,'0');}
-    function updateStageStatus(){var text=stageMessage?'Message: '+stageMessage:'';if(timerMode){var elapsed=Math.max(0,Date.now()/1000+serverOffset-timerStarted),value=timerMode==='countdown'?timerDuration-elapsed:elapsed;text+=(text?' · ':'')+(timerMode==='countdown'?'Remaining ':'Elapsed ')+formatSeconds(value);}stageStatus.textContent=text;if(document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;}
+    function formatSeconds(total){total=Math.max(0,Math.floor(Math.abs(total)));return Math.floor(total/60)+':'+String(total%60).padStart(2,'0');}
+    function updateStageStatus(){var text=stageMessage?'Message: '+stageMessage:'';if(timerMode){var elapsed=Math.max(0,Date.now()/1000+serverOffset-timerStarted),value=timerMode==='countdown'?timerDuration-elapsed:elapsed,label=timerMode==='countdown'?(value<0?'Over ':'Remaining '):'Elapsed ';text+=(text?' · ':'')+label+formatSeconds(value);}stageStatus.textContent=text;if(document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;}
     function draw(index,isBlank,isClear){
       current=Math.max(0,Math.min(slides.length-1,Number(index)||0));blank=!!isBlank;clearWords=!!isClear;var slide=slides[current]||{};
       preview.classList.toggle('is-blank',blank);blankBtn.classList.toggle('is-blank',blank);blankBtn.textContent=blank?'Show screen':'Black screen';clearBtn.classList.toggle('is-active',clearWords);clearBtn.textContent=clearWords?'Show words':'Clear words';document.getElementById('wr-audience-state').textContent=blank?'Audience black':clearWords?'Words cleared':'';
@@ -132,8 +133,9 @@
     undoBtn.addEventListener('click',function(){if(sending||!jumpHistory.length)return;send('index',jumpHistory.pop());});
     awakeBtn.addEventListener('click',function(){requestWakeLock(true);});
     document.getElementById('wr-send-message').addEventListener('click',function(){send('set_message',null,{message:stageMessageInput.value});});
+    stageMessageInput.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();send('set_message',null,{message:stageMessageInput.value});}});
     document.getElementById('wr-clear-message').addEventListener('click',function(){stageMessageInput.value='';send('set_message',null,{message:''});});
-    document.querySelectorAll('[data-timer]').forEach(function(btn){btn.addEventListener('click',function(){var kind=btn.dataset.timer;if(kind==='countdown')send('timer_countdown',null,{duration:300});else if(kind==='elapsed')send('timer_elapsed');else send('timer_reset');});});
+    document.querySelectorAll('[data-timer]').forEach(function(btn){btn.addEventListener('click',function(){var kind=btn.dataset.timer;if(kind==='countdown')send('timer_countdown',null,{duration:Number(btn.dataset.duration)||300});else if(kind==='elapsed')send('timer_elapsed');else send('timer_reset');});});
     function schedulePoll(delay){clearTimeout(pollTimer);if(!ended&&document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
     function endLocally(){ended=true;clearTimeout(pollTimer);if(wakeLock){var lock=wakeLock;wakeLock=null;lock.release().catch(function(){});}draw(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';document.querySelectorAll('button,select').forEach(function(el){el.disabled=true;});}
     function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){revision=data.revision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;draw(data.current_index,data.blank,data.clear_words);connected(true);}else connected(false);schedulePoll(8000);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(8000);});}
