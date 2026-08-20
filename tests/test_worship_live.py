@@ -264,6 +264,48 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("/worship/live/exchange/", app._CSRF_CAPABILITY_POST_PREFIXES)
         self.assertIn("/worship/live/control/", app._CSRF_CAPABILITY_POST_PREFIXES)
 
+    def test_live_routes_are_private_and_hidden_from_automated_indexing(self):
+        response = app.app.test_client().get(
+            "/worship/live/state/live-session-abcdefghijkl"
+        )
+
+        self.assertEqual(response.status_code, 410)
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store")
+        self.assertEqual(response.headers["Pragma"], "no-cache")
+        self.assertEqual(response.headers["Expires"], "0")
+        self.assertEqual(response.headers["Referrer-Policy"], "no-referrer")
+        self.assertEqual(
+            response.headers["X-Robots-Tag"],
+            "noindex, nofollow, noarchive, nosnippet",
+        )
+        robots = app.app.test_client().get("/robots.txt").get_data(as_text=True)
+        self.assertIn("Disallow: /worship/live/", robots)
+
+    def test_automated_preview_cannot_exchange_live_capability(self):
+        data = self._session_data()
+        app._create_worship_live_session(data)
+        stage = app._make_worship_live_token(
+            scope="grace", session_id=data["id"], role="stage"
+        )
+
+        with self.assertLogs(app.app.logger, level="INFO") as captured:
+            response = app.app.test_client().post(
+                f"/worship/live/exchange/{data['id']}",
+                json={"stage": stage},
+                headers={
+                    "X-Worship-Live": "1",
+                    "User-Agent": "Mozilla/5.0 (compatible; Google-Read-Aloud)",
+                },
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn(
+            app._WORSHIP_LIVE_STAGE_COOKIE,
+            "".join(response.headers.getlist("Set-Cookie")),
+        )
+        self.assertIn("event=exchange_rejected", "\n".join(captured.output))
+        self.assertNotIn(stage, "\n".join(captured.output))
+
     def test_control_route_updates_state_and_rejects_view_token(self):
         data = self._session_data()
         app._create_worship_live_session(data)
@@ -305,6 +347,37 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertEqual(ended.status_code, 200)
         self.assertTrue(ended.get_json()["ended"])
         self.assertIsNone(app._get_worship_live_session("grace", data["id"]))
+
+    def test_control_event_log_excludes_tokens_messages_and_raw_session_id(self):
+        data = self._session_data()
+        app._create_worship_live_session(data)
+        control = app._make_worship_live_token(
+            scope="grace", session_id=data["id"], role="control"
+        )
+        client = app.app.test_client()
+        exchange = client.post(
+            f"/worship/live/exchange/{data['id']}",
+            json={"control": control},
+            headers={"X-Worship-Live": "1"},
+        )
+        self.assertEqual(exchange.status_code, 200)
+
+        private_message = "Prayer for Jordan after worship"
+        with self.assertLogs(app.app.logger, level="INFO") as captured:
+            response = client.post(
+                f"/worship/live/control/{data['id']}",
+                json={"action": "set_message", "message": private_message},
+                headers={"X-Worship-Live": "1"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        log_output = "\n".join(captured.output)
+        self.assertIn("event=action", log_output)
+        self.assertIn("action=set_message", log_output)
+        self.assertIn("revision=1", log_output)
+        self.assertNotIn(private_message, log_output)
+        self.assertNotIn(control, log_output)
+        self.assertNotIn(data["id"], log_output)
 
     def test_remote_and_qr_render_from_control_capability(self):
         data = self._session_data()

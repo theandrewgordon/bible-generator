@@ -280,6 +280,7 @@ def robots_txt():
         [
             "User-agent: *",
             "Allow: /",
+            "Disallow: /worship/live/",
             "Sitemap: https://faithsparksprintables.com/sitemap.xml",
             "",
         ]
@@ -578,6 +579,14 @@ def add_correlation_headers(resp):
     req_id = getattr(g, "req_id", None)
     if req_id:
         resp.headers["X-Request-ID"] = req_id
+    if (request.path or "").startswith("/worship/live/"):
+        # Live links carry short-lived capabilities and must never be cached,
+        # indexed, previewed, or leaked through a referrer on any response path.
+        resp.headers["Cache-Control"] = "private, no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        resp.headers["Referrer-Policy"] = "no-referrer"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
     return resp
 
 
@@ -831,6 +840,19 @@ _WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
 _WORSHIP_LIVE_CONTROL_COOKIE = "fs_worship_live_control"
 _WORSHIP_LIVE_STAGE_COOKIE = "fs_worship_live_stage"
 _WORSHIP_LIVE_ACTIVE_SESSION_KEY = "worship_live_active"
+_WORSHIP_LIVE_AUTOMATED_UA_MARKERS = (
+    "google-read-aloud",
+    "googlebot",
+    "bingbot",
+    "duckduckbot",
+    "baiduspider",
+    "yandexbot",
+    "facebookexternalhit",
+    "twitterbot",
+    "slackbot",
+    "discordbot",
+    "linkedinbot",
+)
 _worship_live_memory: dict[tuple[str, str], dict] = {}
 _worship_live_lock = threading.Lock()
 
@@ -1847,6 +1869,18 @@ def _load_worship_live_token(token: str, *, required_role: str | None = None) ->
     ):
         raise BadData("Invalid live worship link")
     return {"scope": scope, "session_id": session_id, "role": role}
+
+
+def _worship_live_log_id(session_id: str) -> str:
+    """Return a stable, non-capability identifier for operational logs."""
+    return hashlib.sha256(str(session_id or "").encode("utf-8", "ignore")).hexdigest()[:12]
+
+
+def _is_worship_live_automated_client(user_agent: str | None = None) -> bool:
+    if user_agent is None and has_request_context():
+        user_agent = request.headers.get("User-Agent", "")
+    normalized = str(user_agent or "").casefold()
+    return any(marker in normalized for marker in _WORSHIP_LIVE_AUTOMATED_UA_MARKERS)
 
 
 def _create_worship_live_session(data: dict) -> None:
@@ -4962,6 +4996,11 @@ def worship_live_start():
     except Exception as exc:
         app.logger.warning("worship_live_start storage error: %s", exc)
         return jsonify({"ok": False, "error": "Live Worship is temporarily unavailable."}), 503
+    app.logger.info(
+        "worship_live event=start session=%s slides=%d",
+        _worship_live_log_id(session_id),
+        len(slides),
+    )
 
     session[_WORSHIP_LIVE_ACTIVE_SESSION_KEY] = {"scope": scope, "session_id": session_id}
 
@@ -5052,10 +5091,17 @@ def _set_worship_live_cookie(response, name: str, token: str) -> None:
 
 @app.route("/worship/live/exchange/<session_id>", methods=["POST"])
 def worship_live_exchange(session_id):
+    if _is_worship_live_automated_client():
+        app.logger.info(
+            "worship_live event=exchange_rejected session=%s reason=automated_client",
+            _worship_live_log_id(session_id),
+        )
+        return jsonify({"ok": False, "error": "Automated link previews cannot open Live Worship."}), 403
     if request.headers.get("X-Worship-Live") != "1" or not request.is_json:
         return jsonify({"ok": False, "error": "Invalid link exchange."}), 400
     payload = request.get_json(silent=True) or {}
     accepted: dict[str, str] = {}
+    accepted_roles: list[str] = []
     scope = ""
     for role, cookie_name in (
         ("view", _WORSHIP_LIVE_VIEW_COOKIE),
@@ -5075,12 +5121,18 @@ def worship_live_exchange(session_id):
             return jsonify({"ok": False, "error": "This Live Worship session has ended."}), 410
         scope = capability["scope"]
         accepted[cookie_name] = token
+        accepted_roles.append(role)
     if not accepted:
         return jsonify({"ok": False, "error": "The secure part of this link is missing."}), 400
     response = jsonify({"ok": True})
     for cookie_name, token in accepted.items():
         _set_worship_live_cookie(response, cookie_name, token)
     response.headers["Cache-Control"] = "no-store"
+    app.logger.info(
+        "worship_live event=connect session=%s roles=%s",
+        _worship_live_log_id(session_id),
+        ",".join(accepted_roles),
+    )
     return response
 
 
@@ -5266,6 +5318,10 @@ def worship_live_control(session_id):
         active_pointer = session.get(_WORSHIP_LIVE_ACTIVE_SESSION_KEY)
         if isinstance(active_pointer, dict) and active_pointer.get("session_id") == capability["session_id"]:
             session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
+        app.logger.info(
+            "worship_live event=end session=%s",
+            _worship_live_log_id(capability["session_id"]),
+        )
         return response
     requested_index = None
     if action == "index":
@@ -5296,6 +5352,12 @@ def worship_live_control(session_id):
     except Exception as exc:
         app.logger.warning("worship_live_control storage error: %s", exc)
         return jsonify({"ok": False, "error": "Remote update failed."}), 503
+    app.logger.info(
+        "worship_live event=action session=%s action=%s revision=%d",
+        _worship_live_log_id(capability["session_id"]),
+        action,
+        int(updated.get("revision") or 0),
+    )
     return jsonify({"ok": True, **_public_worship_live_state(updated, include_stage=True)})
 
 
