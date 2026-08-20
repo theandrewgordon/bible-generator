@@ -22,7 +22,8 @@
     .wr-audience-state{position:absolute;right:14px;top:12px;color:#fcd34d;font-size:.72rem;font-weight:850;text-transform:uppercase}
     .wr-progress{text-align:center;color:#cbd5e1;font-size:.88rem;font-weight:700}
     .wr-next-up{min-height:1.25rem;text-align:center;color:#94a3b8;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .wr-nav{position:sticky;top:max(8px,env(safe-area-inset-top));z-index:20;display:grid;grid-template-columns:1fr 1.6fr;gap:10px;padding:6px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
+    .wr-nav{position:sticky;top:max(8px,env(safe-area-inset-top));z-index:20;display:grid;grid-template-columns:1fr 1.6fr;gap:7px 10px;padding:7px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
+    .wr-nav-context{grid-column:1/-1;min-height:1rem;padding:0 8px;color:#cbd5e1;font-size:.76rem;font-weight:800;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .wr-btn{min-height:82px;border:0;border-radius:16px;font-size:1.15rem;font-weight:850;cursor:pointer;touch-action:manipulation}.wr-prev{background:#334155;color:#fff}.wr-next{background:#0ea5a8;color:#fff;font-size:1.35rem}.wr-btn:active{transform:scale(.985)}
     .wr-sections{display:flex;gap:7px;overflow-x:auto;padding:2px 0 5px;scrollbar-width:none}.wr-sections::-webkit-scrollbar{display:none}.wr-section-btn{flex:0 0 auto;min-height:38px;border:1px solid #475569;border-radius:999px;background:#111c2e;color:#e2e8f0;padding:7px 12px;font-weight:800}.wr-section-btn.is-current{background:#0f766e;border-color:#2dd4bf;color:#fff}
     .wr-smart{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.wr-smart-btn{min-height:48px;border:1px solid #334155;border-radius:13px;background:#172235;color:#e2e8f0;font-size:.88rem;font-weight:800}.wr-smart-btn:disabled{opacity:.4}
@@ -40,7 +41,7 @@
     </section>
     <div class="wr-progress" id="wr-progress">1 / {{ slides|length }}</div>
     <div class="wr-next-up" id="wr-next-up"></div>
-    <div class="wr-nav"><button class="wr-btn wr-prev" data-action="previous">← Previous</button><button class="wr-btn wr-next" data-action="next">Next →</button></div>
+    <div class="wr-nav"><div class="wr-nav-context" id="wr-nav-context"></div><button class="wr-btn wr-prev" data-action="previous">← Previous</button><button class="wr-btn wr-next" data-action="next">Next →</button></div>
     <div class="wr-sections" id="wr-sections" aria-label="Song sections"></div>
     <div class="wr-smart"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button><button class="wr-smart-btn" id="wr-undo" disabled>↶ Undo jump</button></div>
     <div class="wr-tools"><button class="wr-tool" id="wr-clear" data-action="toggle_clear">Clear words</button><button class="wr-tool" id="wr-blank" data-action="toggle_blank">Black screen</button><button class="wr-tool" id="wr-awake">Keep awake</button></div>
@@ -66,7 +67,7 @@
     var stageMessage={{ live.stage_message|default('')|tojson }};
     var timerMode={{ live.stage_timer_mode|default('')|tojson }},timerStarted=Number({{ live.stage_timer_started_epoch|default(0)|tojson }})||0,timerDuration=Number({{ live.stage_timer_duration|default(0)|tojson }})||0,serverOffset=0;
     var revision={{ live.revision|int }};
-    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextUp=document.getElementById('wr-next-up'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status');
+    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextUp=document.getElementById('wr-next-up'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status');
     var wakeLock=null,pollTimer=null,sending=false,ended=false,jumpHistory=[],lastSectionTarget=-1;
     function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
     function isChorusSlide(slide){return !!slide&&slide.kind==='lyric'&&/^chorus\d*$/.test(partKey(slide));}
@@ -110,6 +111,7 @@
       document.getElementById('wr-song').textContent=slide.kind==='lyric'?'':(slide.title||'');
       document.getElementById('wr-lines').textContent=(slide.lines||[]).join('\n');
       var note=slide.note||'';document.getElementById('wr-note').textContent=note;document.getElementById('wr-note').style.display=note?'block':'none';
+      navContext.textContent=(slide.title||'Slide')+(slide.kind==='lyric'&&slide.part_label?' · '+slide.part_label:'');
       progress.textContent=(current+1)+' / '+slides.length+' · '+(slide.title||'');jump.value=String(current);
       var upcoming=slides[current+1];nextUp.textContent=upcoming?'Up next: '+(upcoming.part_label||upcoming.title||'Slide'):'End of set';
       updateSections();updateSmartButtons();updateStageStatus();

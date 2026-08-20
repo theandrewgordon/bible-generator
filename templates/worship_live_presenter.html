@@ -9,7 +9,7 @@
     *{box-sizing:border-box}
     html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif}
     .wl-stage{position:fixed;inset:0;background:#000;display:grid;place-items:center}
-    .wl-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:6vh 6vw;color:var(--slide-color,#fff);background:#08111f center/cover no-repeat;background-image:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.12)),var(--slide-bg)}
+    .wl-slide{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:6vh 6vw;overflow:hidden;color:var(--slide-color,#fff);background:#08111f center/cover no-repeat;background-image:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.12)),var(--slide-bg)}
     .wl-slide.is-active{display:flex}
     .wl-stage.is-clear .wl-content,.wl-stage.is-clear .wl-part{visibility:hidden}
     .wl-slide::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.18);pointer-events:none}
@@ -99,7 +99,20 @@
     var titleEl=document.getElementById('wl-current-title');
     var hud=document.getElementById('wl-hud');
     var footer=document.getElementById('wl-footer');
-    var idleTimer,pollTimer,activeUntil=Date.now()+5000;
+    var idleTimer,pollTimer,fitFrame,activeUntil=Date.now()+5000;
+
+    function fitActiveSlide(){
+      fitFrame=null;var slide=slides[current];if(!slide)return;
+      var content=slide.querySelector('.wl-content');if(!content)return;
+      var elements=Array.from(content.querySelectorAll('.wl-lines,.wl-title,.wl-service-lines'));
+      elements.forEach(function(el){el.style.removeProperty('font-size');});
+      var sizes=elements.map(function(el){return parseFloat(getComputedStyle(el).fontSize)||32;});
+      var style=getComputedStyle(slide),availableHeight=slide.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom),availableWidth=slide.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+      for(var tries=0;(content.scrollHeight>availableHeight+1||content.scrollWidth>availableWidth+1)&&tries<36;tries++){
+        var changed=false;elements.forEach(function(el,index){var minimum=el.classList.contains('wl-lines')?28:24;if(el.textContent&&sizes[index]>minimum){sizes[index]=Math.max(minimum,sizes[index]-2);el.style.fontSize=sizes[index]+'px';changed=true;}});if(!changed)break;
+      }
+    }
+    function queueFit(){if(fitFrame)cancelAnimationFrame(fitFrame);fitFrame=requestAnimationFrame(fitActiveSlide);}
 
     function render(index,isBlank,isClear){
       current=Math.max(0,Math.min(slides.length-1,Number(index)||0)); blank=!!isBlank;clearWords=!!isClear;
@@ -108,6 +121,7 @@
       blankEl.classList.toggle('is-active',blank);
       if(progressEl) progressEl.textContent=(current+1)+' / '+slides.length;
       if(titleEl) titleEl.textContent=(slides[current]&&slides[current].dataset.title)||'';
+      queueFit();
     }
     function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?'Connected':'Remote offline · keyboard works';}
     function showHud(){hud.classList.remove('is-idle');footer.classList.remove('is-idle');clearTimeout(idleTimer);idleTimer=setTimeout(function(){if(setup.hidden){hud.classList.add('is-idle');footer.classList.add('is-idle');}},3000);}
@@ -122,7 +136,7 @@
     function endLocally(){canControl=false;clearTimeout(pollTimer);render(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';}
     function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){if(data.revision!==revision){revision=data.revision;render(data.current_index,data.blank,data.clear_words);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(2500);});}
     document.addEventListener('keydown',function(e){if(!setup.hidden&&e.key!=='Escape')return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();send('next');}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();send('previous');}if(e.key==='Home')send('first');if(e.key==='End')send('last');if(e.key==='c'||e.key==='C')send('toggle_clear');if(e.key==='b'||e.key==='B')send('toggle_blank');if(e.key==='f'||e.key==='F')document.getElementById('wl-fullscreen-btn').click();showHud();});
-    document.addEventListener('mousemove',showHud);document.addEventListener('click',showHud);
+    document.addEventListener('mousemove',showHud);document.addEventListener('click',showHud);window.addEventListener('resize',queueFit);document.addEventListener('fullscreenchange',queueFit);
     document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){activeUntil=Date.now()+5000;poll();}else clearTimeout(pollTimer);});
     document.getElementById('wl-fullscreen-btn').addEventListener('click',function(){if(document.fullscreenElement){document.exitFullscreen&&document.exitFullscreen();}else{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});}});
     document.getElementById('wl-start-btn').addEventListener('click',function(){setup.hidden=true;document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});showHud();});

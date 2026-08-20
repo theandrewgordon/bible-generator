@@ -2680,6 +2680,34 @@ def worship():
     )
 
 
+@app.route("/worship/live/end-active", methods=["POST"])
+@login_required
+def worship_live_end_active():
+    """End the signed-in leader's active session from the builder recovery banner."""
+    pointer = session.get(_WORSHIP_LIVE_ACTIVE_SESSION_KEY)
+    scope = _slugify_worship_token(pointer.get("scope", "")) if isinstance(pointer, dict) else ""
+    session_id = str(pointer.get("session_id") or "") if isinstance(pointer, dict) else ""
+    live = None
+    if scope == _current_worship_scope() and re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        live = _get_worship_live_session(scope, session_id)
+    user_email = str(session.get("user_email") or "").strip().casefold()
+    if not live or not user_email or str(live.get("created_by") or "").strip().casefold() != user_email:
+        session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
+        flash("That Live Worship session has already ended.", "info")
+        return redirect(url_for("worship"))
+    try:
+        _delete_worship_live_session(scope, session_id)
+    except LookupError:
+        pass
+    except Exception as exc:
+        app.logger.warning("worship_live_end_active storage error: %s", exc)
+        flash("Could not end Live Worship. Please try again.", "error")
+        return redirect(url_for("worship"))
+    session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
+    flash("Live Worship session ended.", "success")
+    return redirect(url_for("worship"))
+
+
 @app.route("/worship/cleanup-duplicates", methods=["POST"])
 @login_required
 @worship_owner_required

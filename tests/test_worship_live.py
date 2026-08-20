@@ -167,6 +167,23 @@ class WorshipLiveTests(unittest.TestCase):
             self.assertIsNone(app._active_worship_live_context())
             self.assertNotIn(app._WORSHIP_LIVE_ACTIVE_SESSION_KEY, app.session)
 
+    def test_active_live_session_can_be_ended_from_builder(self):
+        data = {**self._session_data(), "created_by": "leader@example.com"}
+        app._create_worship_live_session(data)
+
+        with app.app.test_request_context("/worship/live/end-active", method="POST"):
+            app.session["user_email"] = "leader@example.com"
+            app.session["worship_church_id"] = "grace"
+            app.session[app._WORSHIP_LIVE_ACTIVE_SESSION_KEY] = {
+                "scope": "grace",
+                "session_id": data["id"],
+            }
+            response = app.worship_live_end_active.__wrapped__()
+            self.assertEqual(response.status_code, 302)
+            self.assertNotIn(app._WORSHIP_LIVE_ACTIVE_SESSION_KEY, app.session)
+
+        self.assertIsNone(app._get_worship_live_session("grace", data["id"]))
+
     def test_start_live_rejects_a_stale_library_tab(self):
         with app.app.test_request_context(
             "/worship/live/start",
@@ -218,6 +235,8 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("stage-qr", html)
         self.assertIn("End session", html)
         self.assertIn("Keyboard backup:", html)
+        self.assertIn("function fitActiveSlide()", html)
+        self.assertIn("window.addEventListener('resize',queueFit)", html)
         self.assertIn("render(current,true,clearWords)", html)
         self.assertIn("Remote offline · keyboard works", html)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
@@ -291,6 +310,7 @@ class WorshipLiveTests(unittest.TestCase):
         remote = client.get(f"/worship/live/remote/{data['id']}")
         self.assertEqual(remote.status_code, 200)
         self.assertIn("Next →", remote.get_data(as_text=True))
+        self.assertIn('id="wr-nav-context"', remote.get_data(as_text=True))
         self.assertIn("Up next", remote.get_data(as_text=True))
         self.assertIn("Repeat chorus", remote.get_data(as_text=True))
         self.assertIn("Next:", remote.get_data(as_text=True))
@@ -338,6 +358,7 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("Audience words are cleared", html)
         self.assertIn("Saved cue ·", html)
         self.assertIn("function fitCards()", html)
+        self.assertIn("needsDraw=nextRevision!==revision", html)
         self.assertIn("Reconnecting…", html)
         self.assertIn("'Over '+formatSeconds(remaining)", html)
         self.assertIn("function itemContext(index)", html)
