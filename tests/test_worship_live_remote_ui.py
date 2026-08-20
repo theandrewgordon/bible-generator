@@ -25,6 +25,8 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("function chorusStart(index)", self.template)
         self.assertIn("partKey(previous)!==key", self.template)
         self.assertIn("↩ Repeat chorus", self.template)
+        self.assertIn("atChorusStart=chorusTarget===current", self.template)
+        self.assertIn("atChorusStart?'At chorus'", self.template)
 
     def test_next_item_uses_item_boundary_instead_of_song_divider(self):
         self.assertIn("data-smart=\"next-item\"", self.template)
@@ -49,6 +51,29 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
     def test_stage_message_enter_key_and_timer_overtime_are_supported(self):
         self.assertIn("event.key==='Enter'", self.template)
         self.assertIn("value<0?'Over ':'Remaining '", self.template)
+        self.assertIn("stageMessageInput.value=stageMessage", self.template)
+        self.assertNotIn(
+            "stageStatus.textContent=text;if(document.activeElement!==stageMessageInput)",
+            self.template,
+        )
+        self.assertIn("messageDirty=true", self.template)
+        self.assertIn("stageMessageInput.addEventListener('blur'", self.template)
+        self.assertIn("sendMessageBtn.addEventListener('pointerdown'", self.template)
+        self.assertIn("pendingStageMessage||stageMessageInput.value", self.template)
+        self.assertIn("!messageDirty&&document.activeElement!==stageMessageInput", self.template)
+
+    def test_stage_tools_are_disabled_while_a_command_is_in_flight(self):
+        self.assertIn("function setSending(value)", self.template)
+        self.assertIn(".wr-stage-action,#wr-end", self.template)
+        self.assertIn("stageMessageInput.disabled=sending||ended", self.template)
+
+    def test_stale_poll_cannot_overwrite_a_newer_command(self):
+        self.assertIn("nextRevision>=revision", self.template)
+        self.assertIn("!sending&&nextRevision>=revision", self.template)
+
+    def test_connected_remote_refreshes_quickly_but_errors_back_off(self):
+        self.assertIn("schedulePoll(3000)", self.template)
+        self.assertIn("schedulePoll(8000)", self.template)
 
     def test_remote_keeps_navigation_reachable_and_active_section_centered(self):
         self.assertIn("position:sticky", self.template)

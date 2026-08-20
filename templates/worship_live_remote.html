@@ -29,7 +29,7 @@
     .wr-smart{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.wr-smart-btn{min-height:48px;border:1px solid #334155;border-radius:13px;background:#172235;color:#e2e8f0;font-size:.88rem;font-weight:800}.wr-smart-btn:disabled{opacity:.4}
     .wr-tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.wr-tool{min-height:54px;border:1px solid #475569;border-radius:13px;background:#111c2e;color:#fff;font-size:.9rem;font-weight:750}.wr-tool.is-active{background:#92400e;border-color:#f59e0b}.wr-tool.is-blank{background:#b91c1c;border-color:#ef4444}.wr-tool:disabled,.wr-btn:disabled,.wr-section-btn:disabled{opacity:.58}
     .wr-jump{width:100%;border:1px solid #475569;border-radius:12px;background:#111c2e;color:#fff;padding:12px;font-size:1rem}
-    .wr-stage-tools{border:1px solid #334155;border-radius:14px;background:#0b1322;padding:0 12px}.wr-stage-tools summary{cursor:pointer;padding:13px 0;font-weight:850}.wr-stage-body{display:grid;gap:9px;padding:0 0 13px}.wr-stage-row{display:flex;gap:8px;flex-wrap:wrap}.wr-stage-input{flex:1;min-width:180px;border:1px solid #475569;border-radius:10px;background:#111c2e;color:#fff;padding:10px;font-size:.95rem}.wr-stage-action,.wr-stage-link{border:1px solid #475569;border-radius:10px;background:#172235;color:#fff;padding:9px 12px;font-weight:750;text-decoration:none}.wr-stage-status{min-height:1.1rem;color:#94a3b8;font-size:.78rem}
+    .wr-stage-tools{border:1px solid #334155;border-radius:14px;background:#0b1322;padding:0 12px}.wr-stage-tools summary{cursor:pointer;padding:13px 0;font-weight:850}.wr-stage-body{display:grid;gap:9px;padding:0 0 13px}.wr-stage-row{display:flex;gap:8px;flex-wrap:wrap}.wr-stage-input{flex:1;min-width:180px;border:1px solid #475569;border-radius:10px;background:#111c2e;color:#fff;padding:10px;font-size:.95rem}.wr-stage-action,.wr-stage-link{border:1px solid #475569;border-radius:10px;background:#172235;color:#fff;padding:9px 12px;font-weight:750;text-decoration:none}.wr-stage-action:disabled{opacity:.5}.wr-stage-status{min-height:1.1rem;color:#94a3b8;font-size:.78rem}
     .wr-end{border:0;background:transparent;color:#fca5a5;min-height:42px;font-weight:700}.wr-help{text-align:center;color:#94a3b8;font-size:.75rem;margin:0 0 4px}
   </style>
 </head>
@@ -68,7 +68,7 @@
     var timerMode={{ live.stage_timer_mode|default('')|tojson }},timerStarted=Number({{ live.stage_timer_started_epoch|default(0)|tojson }})||0,timerDuration=Number({{ live.stage_timer_duration|default(0)|tojson }})||0,serverOffset=0;
     var revision={{ live.revision|int }};
     var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextUp=document.getElementById('wr-next-up'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status');
-    var wakeLock=null,pollTimer=null,sending=false,ended=false,jumpHistory=[],lastSectionTarget=-1;
+    var wakeLock=null,pollTimer=null,sending=false,ended=false,messageDirty=false,pendingStageMessage='',jumpHistory=[],lastSectionTarget=-1;
     function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
     function isChorusSlide(slide){return !!slide&&slide.kind==='lyric'&&/^chorus\d*$/.test(partKey(slide));}
     function chorusStart(index){
@@ -84,9 +84,9 @@
       return -1;
     }
     function updateSmartButtons(){
-      var chorusTarget=smartTarget('chorus'),nextItemTarget=smartTarget('next-item');
-      chorusBtn.disabled=sending||ended||chorusTarget<0;
-      chorusBtn.textContent=chorusTarget<0?'No chorus':'↩ Repeat chorus';
+      var chorusTarget=smartTarget('chorus'),nextItemTarget=smartTarget('next-item'),atChorusStart=chorusTarget===current;
+      chorusBtn.disabled=sending||ended||chorusTarget<0||atChorusStart;
+      chorusBtn.textContent=chorusTarget<0?'No chorus':atChorusStart?'At chorus':'↩ Repeat chorus';
       nextItemBtn.disabled=sending||ended||nextItemTarget<0;
       nextItemBtn.textContent=nextItemTarget<0?'End of set':'Next: '+(slides[nextItemTarget].title||'item')+' ⏭';
       undoBtn.disabled=sending||ended||!jumpHistory.length;
@@ -103,7 +103,7 @@
       if(activeButton&&active!==lastSectionTarget){lastSectionTarget=active;requestAnimationFrame(function(){activeButton.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});});}
     }
     function formatSeconds(total){total=Math.max(0,Math.floor(Math.abs(total)));return Math.floor(total/60)+':'+String(total%60).padStart(2,'0');}
-    function updateStageStatus(){var text=stageMessage?'Message: '+stageMessage:'';if(timerMode){var elapsed=Math.max(0,Date.now()/1000+serverOffset-timerStarted),value=timerMode==='countdown'?timerDuration-elapsed:elapsed,label=timerMode==='countdown'?(value<0?'Over ':'Remaining '):'Elapsed ';text+=(text?' · ':'')+label+formatSeconds(value);}stageStatus.textContent=text;if(document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;}
+    function updateStageStatus(){var text=stageMessage?'Message: '+stageMessage:'';if(timerMode){var elapsed=Math.max(0,Date.now()/1000+serverOffset-timerStarted),value=timerMode==='countdown'?timerDuration-elapsed:elapsed,label=timerMode==='countdown'?(value<0?'Over ':'Remaining '):'Elapsed ';text+=(text?' · ':'')+label+formatSeconds(value);}stageStatus.textContent=text;}
     function draw(index,isBlank,isClear){
       current=Math.max(0,Math.min(slides.length-1,Number(index)||0));blank=!!isBlank;clearWords=!!isClear;var slide=slides[current]||{};
       preview.classList.toggle('is-blank',blank);blankBtn.classList.toggle('is-blank',blank);blankBtn.textContent=blank?'Show screen':'Black screen';clearBtn.classList.toggle('is-active',clearWords);clearBtn.textContent=clearWords?'Show words':'Clear words';document.getElementById('wr-audience-state').textContent=blank?'Audience black':clearWords?'Words cleared':'';
@@ -121,12 +121,13 @@
       if(wakeLock)return;if(!('wakeLock'in navigator)){if(showFailure)awakeBtn.textContent='Not supported';return;}
       navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;awakeBtn.textContent='Screen stays awake';lock.addEventListener('release',function(){wakeLock=null;awakeBtn.textContent='Keep screen awake';});}).catch(function(){wakeLock=null;if(showFailure)awakeBtn.textContent='Could not enable';});
     }
+    function setSending(value){sending=!!value;document.querySelectorAll('[data-action],[data-smart],.wr-stage-action,#wr-end').forEach(function(btn){btn.disabled=sending||ended;});jump.disabled=sending||ended;stageMessageInput.disabled=sending||ended;}
     function send(action,index,extra){
-      if(sending||ended)return Promise.resolve();requestWakeLock(false);sending=true;document.querySelectorAll('[data-action],[data-smart]').forEach(function(btn){btn.disabled=true;});
+      if(sending||ended)return Promise.resolve();requestWakeLock(false);setSending(true);
       if(action==='next')draw(current+1,blank,clearWords);else if(action==='previous')draw(current-1,blank,clearWords);else if(action==='toggle_blank')draw(current,!blank,clearWords);else if(action==='toggle_clear')draw(current,blank,!clearWords);else if(action==='index')draw(index,blank,clearWords);
       var body={action:action,index:index};Object.keys(extra||{}).forEach(function(key){body[key]=extra[key];});
       return fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify(body),credentials:'same-origin'})
-        .then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error(data.error||'Remote failed');revision=data.revision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;draw(data.current_index,data.blank,data.clear_words);connected(true);if(navigator.vibrate)navigator.vibrate(18);}).catch(function(){connected(false);}).finally(function(){sending=false;document.querySelectorAll('[data-action]').forEach(function(btn){btn.disabled=false;});updateSections();updateSmartButtons();});
+        .then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error(data.error||'Remote failed');var nextRevision=Number(data.revision)||0;if(nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(action==='set_message'){messageDirty=false;stageMessageInput.value=stageMessage;}else if(!messageDirty)stageMessageInput.value=stageMessage;draw(data.current_index,data.blank,data.clear_words);}connected(true);if(navigator.vibrate)navigator.vibrate(18);}).catch(function(){connected(false);}).finally(function(){setSending(false);updateSections();updateSmartButtons();});
     }
     function jumpTo(target){target=Number(target);if(sending||ended||target===current)return;if(jumpHistory.length>=10)jumpHistory.shift();jumpHistory.push(current);send('index',target);}
     document.querySelectorAll('[data-action]').forEach(function(btn){btn.addEventListener('click',function(){send(btn.dataset.action);});});
@@ -134,16 +135,17 @@
     jump.addEventListener('change',function(){jumpTo(Number(jump.value));});
     undoBtn.addEventListener('click',function(){if(sending||!jumpHistory.length)return;send('index',jumpHistory.pop());});
     awakeBtn.addEventListener('click',function(){requestWakeLock(true);});
-    document.getElementById('wr-send-message').addEventListener('click',function(){send('set_message',null,{message:stageMessageInput.value});});
+    var sendMessageBtn=document.getElementById('wr-send-message');stageMessageInput.addEventListener('input',function(){messageDirty=true;});stageMessageInput.addEventListener('blur',function(){if(stageMessageInput.value!==stageMessage)messageDirty=true;});
+    sendMessageBtn.addEventListener('pointerdown',function(){pendingStageMessage=stageMessageInput.value;messageDirty=true;});sendMessageBtn.addEventListener('click',function(){var message=pendingStageMessage||stageMessageInput.value;pendingStageMessage='';send('set_message',null,{message:message});});
     stageMessageInput.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();send('set_message',null,{message:stageMessageInput.value});}});
-    document.getElementById('wr-clear-message').addEventListener('click',function(){stageMessageInput.value='';send('set_message',null,{message:''});});
+    document.getElementById('wr-clear-message').addEventListener('click',function(){stageMessageInput.value='';messageDirty=true;send('set_message',null,{message:''});});
     document.querySelectorAll('[data-timer]').forEach(function(btn){btn.addEventListener('click',function(){var kind=btn.dataset.timer;if(kind==='countdown')send('timer_countdown',null,{duration:Number(btn.dataset.duration)||300});else if(kind==='elapsed')send('timer_elapsed');else send('timer_reset');});});
     function schedulePoll(delay){clearTimeout(pollTimer);if(!ended&&document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
-    function endLocally(){ended=true;clearTimeout(pollTimer);if(wakeLock){var lock=wakeLock;wakeLock=null;lock.release().catch(function(){});}draw(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';document.querySelectorAll('button,select').forEach(function(el){el.disabled=true;});}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){revision=data.revision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;draw(data.current_index,data.blank,data.clear_words);connected(true);}else connected(false);schedulePoll(8000);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(8000);});}
+    function endLocally(){ended=true;clearTimeout(pollTimer);if(wakeLock){var lock=wakeLock;wakeLock=null;lock.release().catch(function(){});}draw(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';document.querySelectorAll('button,select,input').forEach(function(el){el.disabled=true;});}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextRevision=Number(data.revision)||0;if(!sending&&nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(!messageDirty&&document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;draw(data.current_index,data.blank,data.clear_words);}connected(true);}else connected(false);schedulePoll(3000);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(8000);});}
     document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){requestWakeLock(false);poll();}else clearTimeout(pollTimer);});
     document.getElementById('wr-end').addEventListener('click',function(){if(ended||!window.confirm('End this Live Worship session for everyone?'))return;fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify({action:'end'})}).then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error();endLocally();}).catch(function(){connected(false);});});
-    draw(current,blank,clearWords);setInterval(updateStageStatus,500);poll();
+    stageMessageInput.value=stageMessage;draw(current,blank,clearWords);setInterval(updateStageStatus,500);poll();
   })();
   </script>
 </body>

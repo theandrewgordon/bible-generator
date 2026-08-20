@@ -99,7 +99,7 @@
     var titleEl=document.getElementById('wl-current-title');
     var hud=document.getElementById('wl-hud');
     var footer=document.getElementById('wl-footer');
-    var idleTimer,pollTimer,fitFrame,activeUntil=Date.now()+5000;
+    var idleTimer,pollTimer,fitFrame,commandQueue=Promise.resolve(),pendingCommands=0,activeUntil=Date.now()+5000;
 
     function fitActiveSlide(){
       fitFrame=null;var slide=slides[current];if(!slide)return;
@@ -108,8 +108,8 @@
       elements.forEach(function(el){el.style.removeProperty('font-size');});
       var sizes=elements.map(function(el){return parseFloat(getComputedStyle(el).fontSize)||32;});
       var style=getComputedStyle(slide),availableHeight=slide.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom),availableWidth=slide.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
-      for(var tries=0;(content.scrollHeight>availableHeight+1||content.scrollWidth>availableWidth+1)&&tries<36;tries++){
-        var changed=false;elements.forEach(function(el,index){var minimum=el.classList.contains('wl-lines')?28:24;if(el.textContent&&sizes[index]>minimum){sizes[index]=Math.max(minimum,sizes[index]-2);el.style.fontSize=sizes[index]+'px';changed=true;}});if(!changed)break;
+      for(var tries=0;(content.scrollHeight>availableHeight+1||content.scrollWidth>availableWidth+1)&&tries<60;tries++){
+        var changed=false;elements.forEach(function(el,index){var minimum=18;if(el.textContent&&sizes[index]>minimum){sizes[index]=Math.max(minimum,sizes[index]-2);el.style.fontSize=sizes[index]+'px';changed=true;}});if(!changed)break;
       }
     }
     function queueFit(){if(fitFrame)cancelAnimationFrame(fitFrame);fitFrame=requestAnimationFrame(fitActiveSlide);}
@@ -129,12 +129,13 @@
       if(!canControl)return;
       if(action==='next')render(current+1,blank,clearWords); else if(action==='previous')render(current-1,blank,clearWords); else if(action==='first')render(0,blank,clearWords); else if(action==='last')render(slides.length-1,blank,clearWords); else if(action==='toggle_blank')render(current,!blank,clearWords); else if(action==='toggle_clear')render(current,blank,!clearWords);
       activeUntil=Date.now()+5000;
-      fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify({action:action,index:index}),credentials:'same-origin'})
-        .then(function(r){return r.json();}).then(function(data){if(data.ok){revision=data.revision;render(data.current_index,data.blank,data.clear_words);connected(true);}else connected(false);}).catch(function(){connected(false);});
+      pendingCommands++;
+      commandQueue=commandQueue.then(function(){return fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify({action:action,index:index}),credentials:'same-origin'})
+        .then(function(r){return r.json();}).then(function(data){if(data.ok){revision=Math.max(revision,Number(data.revision)||0);if(pendingCommands===1)render(data.current_index,data.blank,data.clear_words);connected(true);}else connected(false);});}).catch(function(){connected(false);}).finally(function(){pendingCommands=Math.max(0,pendingCommands-1);});
     }
     function schedulePoll(delay){clearTimeout(pollTimer);if(document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
     function endLocally(){canControl=false;clearTimeout(pollTimer);render(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){if(data.revision!==revision){revision=data.revision;render(data.current_index,data.blank,data.clear_words);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(2500);});}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextRevision=Number(data.revision)||0;if(!pendingCommands&&nextRevision>revision){revision=nextRevision;render(data.current_index,data.blank,data.clear_words);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(2500);});}
     document.addEventListener('keydown',function(e){if(!setup.hidden&&e.key!=='Escape')return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();send('next');}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();send('previous');}if(e.key==='Home')send('first');if(e.key==='End')send('last');if(e.key==='c'||e.key==='C')send('toggle_clear');if(e.key==='b'||e.key==='B')send('toggle_blank');if(e.key==='f'||e.key==='F')document.getElementById('wl-fullscreen-btn').click();showHud();});
     document.addEventListener('mousemove',showHud);document.addEventListener('click',showHud);window.addEventListener('resize',queueFit);document.addEventListener('fullscreenchange',queueFit);
     document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){activeUntil=Date.now()+5000;poll();}else clearTimeout(pollTimer);});
