@@ -133,9 +133,19 @@
   .ws-set-options>summary{font-size:.84rem;text-align:center}
   .ws-set-secondary{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.65rem}
   .ws-set-secondary .ws-btn-ghost{padding:7px 9px;font-size:.8rem}
+  .ws-tour-backdrop{position:fixed;inset:0;z-index:1100;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.72)}
+  .ws-tour-backdrop.is-open{display:flex}
+  .ws-tour{width:min(920px,100%);max-height:calc(100vh - 2rem);overflow:auto;border:1px solid #dbe3ec;border-radius:18px;background:var(--box);box-shadow:0 28px 90px rgba(15,23,42,.35)}
+  .ws-tour-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1rem 1.1rem .75rem}
+  .ws-tour-eyebrow{margin:0 0 .25rem;color:var(--primary);font-size:.72rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+  .ws-tour h2{margin:0;font-size:1.25rem}.ws-tour-close{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:999px;background:var(--background);color:var(--text-secondary);font-size:1.35rem;cursor:pointer}.ws-tour-close:hover{color:var(--text);background:#e2e8f0}
+  .ws-tour-stage{padding:0 1.1rem}.ws-tour-image{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;border:1px solid #dbe3ec;border-radius:12px;background:#eef2f7}
+  .ws-tour-copy{padding:.9rem .1rem .25rem}.ws-tour-copy h3{margin:0 0 .35rem;font-size:1.05rem}.ws-tour-copy p{margin:0;color:var(--text-secondary);line-height:1.45}
+  .ws-tour-footer{display:flex;align-items:center;gap:.75rem;padding:.8rem 1.1rem 1.1rem}.ws-tour-progress{display:flex;gap:.35rem;margin-right:auto}.ws-tour-dot{width:9px;height:9px;padding:0;border:0;border-radius:999px;background:#cbd5e1;cursor:pointer}.ws-tour-dot.is-active{width:24px;background:var(--primary)}
+  .ws-tour-footer .ws-btn-primary,.ws-tour-footer .ws-btn-ghost{min-width:94px}
   @media(max-width:640px){
     .ws-page-head{display:block}.ws-page-actions{justify-content:flex-start;margin-top:.75rem}.ws-link-primary{flex:1;justify-content:center}.ws-flow{grid-template-columns:1fr}.ws-flow li{padding:.5rem .65rem}.ws-menu-panel{left:0;right:auto}.ws-library-tools{margin-left:0}.ws-library-tools .ws-menu-panel{left:auto;right:0}.ws-item-menu .ws-menu-panel{left:auto;right:0}.ws-set-primary-actions{grid-template-columns:1fr}.ws-set-secondary{grid-template-columns:1fr}.ws-church-card>summary:after{content:'Manage'}
-    .ws-live-resume{align-items:flex-start;flex-direction:column}.ws-live-resume-actions{width:100%}.ws-live-resume-actions a,.ws-live-resume-actions form{flex:1;text-align:center}.ws-live-resume-actions form button{width:100%}
+    .ws-live-resume{align-items:flex-start;flex-direction:column}.ws-live-resume-actions{width:100%}.ws-live-resume-actions a,.ws-live-resume-actions form{flex:1;text-align:center}.ws-live-resume-actions form button{width:100%}.ws-tour-backdrop{padding:.4rem}.ws-tour{max-height:calc(100vh - .8rem);border-radius:13px}.ws-tour-head,.ws-tour-stage,.ws-tour-footer{padding-left:.75rem;padding-right:.75rem}.ws-tour-footer{flex-wrap:wrap}.ws-tour-progress{width:100%;justify-content:center;order:-1}.ws-tour-footer .ws-btn-primary,.ws-tour-footer .ws-btn-ghost{flex:1}
     .ws-church-card{display:block}
     .ws-church-actions{justify-content:flex-start;margin-top:.75rem}
     .ws-church-actions form{width:100%;display:grid;grid-template-columns:1fr auto}
@@ -168,12 +178,24 @@
 <div class="ws-page-head">
   <div><p class="ws-kicker">Sunday workspace</p><h1>Plan Worship</h1><p>Build the service, check the slides, then present.</p></div>
   <div class="ws-page-actions">
+    <button type="button" class="ws-btn-ghost" id="worship-tour-btn">Quick tour</button>
     {% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}" class="ws-link-primary">+ New song or slide</a>{% endif %}
     <details class="ws-menu"><summary>More</summary><div class="ws-menu-panel">
       {% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn">Add Scripture</button><a href="{{ url_for('worship_presentation_import') }}">Import PowerPoint</a>{% endif %}
       <a href="{{ url_for('worship_getting_started') }}">Help & getting started</a><a href="{{ url_for('worship_deck_history') }}">Past slide decks</a><a href="{{ url_for('worship_licensing') }}">Licensing & sources</a>
     </div></details>
   </div>
+</div>
+
+<div class="ws-tour-backdrop" id="worship-tour" aria-hidden="true">
+  <section class="ws-tour" role="dialog" aria-modal="true" aria-labelledby="worship-tour-title">
+    <div class="ws-tour-head"><div><p class="ws-tour-eyebrow" id="worship-tour-step">Quick tour · 1 of 4</p><h2 id="worship-tour-title">Plan a service in a few minutes</h2></div><button type="button" class="ws-tour-close" id="worship-tour-close" aria-label="Close walkthrough">×</button></div>
+    <div class="ws-tour-stage">
+      <img class="ws-tour-image" id="worship-tour-image" src="{{ url_for('static', filename='tutorials/worship-tour-01-plan.png') }}" alt="Worship planning workspace with the library and service panel">
+      <div class="ws-tour-copy"><h3 id="worship-tour-heading">Start in the shared library</h3><p id="worship-tour-body">Search for songs and slides, or choose New song or slide to import lyrics, add an announcement, or upload a photo.</p></div>
+    </div>
+    <div class="ws-tour-footer"><div class="ws-tour-progress" id="worship-tour-progress" aria-label="Walkthrough progress"></div><button type="button" class="ws-btn-ghost" id="worship-tour-back">Back</button><button type="button" class="ws-btn-primary" id="worship-tour-next">Next</button></div>
+  </section>
 </div>
 <ol class="ws-flow" aria-label="Worship planning steps"><li><b>1</b>Add and arrange</li><li><b>2</b>Review the slides</li><li><b>3</b>Go live or export</li></ol>
 
@@ -471,6 +493,88 @@
   var quickScriptureCancel = document.getElementById('quick-scripture-cancel');
   var currentSetlistId = '';
   var currentSetlistName = '';
+
+  // ── First-run walkthrough ───────────────────────────────────────────────
+
+  var worshipTour = document.getElementById('worship-tour');
+  var worshipTourBtn = document.getElementById('worship-tour-btn');
+  var worshipTourClose = document.getElementById('worship-tour-close');
+  var worshipTourBack = document.getElementById('worship-tour-back');
+  var worshipTourNext = document.getElementById('worship-tour-next');
+  var worshipTourStep = document.getElementById('worship-tour-step');
+  var worshipTourTitle = document.getElementById('worship-tour-title');
+  var worshipTourHeading = document.getElementById('worship-tour-heading');
+  var worshipTourBody = document.getElementById('worship-tour-body');
+  var worshipTourImage = document.getElementById('worship-tour-image');
+  var worshipTourProgress = document.getElementById('worship-tour-progress');
+  var worshipTourIndex = 0;
+  var WORSHIP_TOUR_KEY = 'faithsparks:worship-quick-tour:v1';
+  var WORSHIP_TOUR_SLIDES = [
+    {title:'Plan a service in a few minutes', heading:'Start in the shared library', body:'Search for songs and slides, or choose New song or slide to import lyrics, add an announcement, or upload a photo.', image:{{ url_for('static', filename='tutorials/worship-tour-01-plan.png') | tojson }}, alt:'Worship planning workspace with the library and service panel'},
+    {title:'Build the order everyone will follow', heading:'Add, reorder, and leave notes', body:'Choose Add beside each item. Drag the service items—or use the arrow buttons—to put everything in order. Your draft stays in this browser tab while you work.', image:{{ url_for('static', filename='tutorials/worship-tour-02-add.png') | tojson }}, alt:'A song added to the service with reorder controls'},
+    {title:'Catch mistakes before Sunday', heading:'Review every projected slide', body:'Choose Review slides to see the exact sequence, line breaks, validation warnings, announcements, and photos. Fix anything questionable before building or presenting.', image:{{ url_for('static', filename='tutorials/worship-tour-03-review.png') | tojson }}, alt:'Pre-deck checklist showing exact worship slides'},
+    {title:'Present live or take the deck with you', heading:'Go live, export, or share', body:'Go live opens the presenter and gives you a phone remote plus a clean stage view. Save, share, and export also provides PowerPoint, PDF, musician, and mobile options.', image:{{ url_for('static', filename='tutorials/worship-tour-04-live.png') | tojson }}, alt:'Live Worship start screen with remote and stage QR codes'}
+  ];
+
+  function renderWorshipTour() {
+    var slide = WORSHIP_TOUR_SLIDES[worshipTourIndex];
+    if (!slide || !worshipTour) return;
+    worshipTourStep.textContent = 'Quick tour · ' + (worshipTourIndex + 1) + ' of ' + WORSHIP_TOUR_SLIDES.length;
+    worshipTourTitle.textContent = slide.title;
+    worshipTourHeading.textContent = slide.heading;
+    worshipTourBody.textContent = slide.body;
+    worshipTourImage.src = slide.image;
+    worshipTourImage.alt = slide.alt;
+    worshipTourBack.disabled = worshipTourIndex === 0;
+    worshipTourNext.textContent = worshipTourIndex === WORSHIP_TOUR_SLIDES.length - 1 ? 'Done' : 'Next';
+    worshipTourProgress.textContent = '';
+    WORSHIP_TOUR_SLIDES.forEach(function (_item, index) {
+      var dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'ws-tour-dot' + (index === worshipTourIndex ? ' is-active' : '');
+      dot.setAttribute('aria-label', 'Show walkthrough step ' + (index + 1));
+      dot.addEventListener('click', function () { worshipTourIndex = index; renderWorshipTour(); });
+      worshipTourProgress.appendChild(dot);
+    });
+  }
+
+  function openWorshipTour() {
+    if (!worshipTour) return;
+    worshipTourIndex = 0;
+    renderWorshipTour();
+    worshipTour.classList.add('is-open');
+    worshipTour.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { worshipTourClose.focus(); }, 0);
+  }
+
+  function closeWorshipTour(markSeen) {
+    if (!worshipTour) return;
+    worshipTour.classList.remove('is-open');
+    worshipTour.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (markSeen) try { localStorage.setItem(WORSHIP_TOUR_KEY, '1'); } catch (error) {}
+    if (worshipTourBtn) worshipTourBtn.focus();
+  }
+
+  if (worshipTourBtn) worshipTourBtn.addEventListener('click', openWorshipTour);
+  if (worshipTourClose) worshipTourClose.addEventListener('click', function () { closeWorshipTour(true); });
+  if (worshipTourBack) worshipTourBack.addEventListener('click', function () {
+    if (worshipTourIndex > 0) { worshipTourIndex -= 1; renderWorshipTour(); }
+  });
+  if (worshipTourNext) worshipTourNext.addEventListener('click', function () {
+    if (worshipTourIndex < WORSHIP_TOUR_SLIDES.length - 1) { worshipTourIndex += 1; renderWorshipTour(); }
+    else closeWorshipTour(true);
+  });
+  if (worshipTour) worshipTour.addEventListener('click', function (event) {
+    if (event.target === worshipTour) closeWorshipTour(true);
+  });
+  document.addEventListener('keydown', function (event) {
+    if (!worshipTour || !worshipTour.classList.contains('is-open')) return;
+    if (event.key === 'Escape') closeWorshipTour(true);
+    if (event.key === 'ArrowRight' && worshipTourIndex < WORSHIP_TOUR_SLIDES.length - 1) { worshipTourIndex += 1; renderWorshipTour(); }
+    if (event.key === 'ArrowLeft' && worshipTourIndex > 0) { worshipTourIndex -= 1; renderWorshipTour(); }
+  });
 
   var loadingSet = false;
   var setDirty = true;
@@ -1423,6 +1527,9 @@
   filterAndSortLibrary();
   syncUI();
   updateMobileShare();
+  try {
+    if (!localStorage.getItem(WORSHIP_TOUR_KEY)) setTimeout(openWorshipTour, 550);
+  } catch (error) {}
 })();
 </script>
 {% endblock %}
