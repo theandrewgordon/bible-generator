@@ -34,6 +34,7 @@ class WorshipBuilderUiTests(unittest.TestCase):
                 worship_church=church,
                 worship_churches=[],
                 active_worship_live=None,
+                worship_scripture_versions=[{"id": "web", "label": "WEB"}, {"id": "kjv", "label": "KJV"}],
             )
 
     def test_builder_presents_the_primary_sunday_workflow_first(self):

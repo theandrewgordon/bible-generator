@@ -3030,6 +3030,7 @@ def worship():
         worship_church=church_context["current"],
         worship_churches=church_context["churches"],
         active_worship_live=_active_worship_live_context(),
+        worship_scripture_versions=_worship_scripture_version_options(),
     )
 
 
@@ -6338,6 +6339,38 @@ _WORSHIP_SCRIPTURE_VERSIONS = {
 }
 
 
+def _worship_scripture_version_options() -> list[dict[str, str]]:
+    """Only advertise translations backed by an authoritative live source.
+
+    Permission/attribution language does not provide verse text. Public-domain
+    WEB/KJV are always available; copyrighted translations appear only when
+    their configured provider credentials are present.
+    """
+    options = [
+        {"id": "web", "label": "WEB"},
+        {"id": "kjv", "label": "KJV"},
+    ]
+    api_key = os.environ.get("API_BIBLE_KEY", "").strip()
+    api_ids = _api_bible_version_ids_from_env()
+    if os.environ.get("ESV_API_KEY", "").strip() or (api_key and api_ids.get("esv")):
+        options.append({"id": "esv", "label": "ESV"})
+    if api_key and api_ids.get("nlt"):
+        options.append({"id": "nlt", "label": "NLT"})
+    return options
+
+
+def _api_bible_version_ids_from_env() -> dict[str, str]:
+    out = {}
+    for pair in os.environ.get("API_BIBLE_IDS", "").split(","):
+        if ":" not in pair:
+            continue
+        version, bible_id = pair.split(":", 1)
+        version, bible_id = version.strip().lower(), bible_id.strip()
+        if version and bible_id:
+            out[version] = bible_id
+    return out
+
+
 def _worship_scripture_lines(text: str, max_chars: int = 58) -> list[str]:
     """Wrap authoritative Scripture text into readable, deterministic slide lines."""
     words = re.sub(r"\s+", " ", str(text or "")).strip().split(" ")
@@ -6366,6 +6399,13 @@ def _build_quick_worship_scripture(reference: str, version: str) -> dict:
 
     text = fetch_verse_text(reference, version)
     if not text:
+        if version in {"esv", "nlt"} and version not in {
+            option["id"] for option in _worship_scripture_version_options()
+        }:
+            raise RuntimeError(
+                f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} does not have an authoritative "
+                "text provider configured. Paste authorized text using Manual Entry instead."
+            )
         raise RuntimeError(
             f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} text is unavailable. Try WEB or KJV."
         )
@@ -6383,15 +6423,116 @@ def _build_quick_worship_scripture(reference: str, version: str) -> dict:
     })
 
 
+def _build_manual_worship_scripture(reference: str, version_label: str, text: str, rights_confirmed=False) -> dict:
+    """Build a Scripture item from exact user-supplied text without sourcing or rewriting it."""
+    reference = normalize_reference_title(re.sub(r"\s+", " ", str(reference or "")).strip())[:80]
+    version_label = re.sub(r"\s+", " ", str(version_label or "")).strip().upper()[:24]
+    text, cleanup = _clean_manual_scripture_paste(str(text or ""), reference, version_label)
+    if not reference:
+        raise ValueError("Enter the Scripture reference or passage title.")
+    if not version_label or not re.fullmatch(r"[A-Z0-9][A-Z0-9 ._/-]{0,23}", version_label):
+        raise ValueError("Enter a short translation label such as NIV, NASB 2020, or NRSV.")
+    if not text:
+        raise ValueError("Paste the exact Scripture text you are authorized to use.")
+    if len(text) > 6000:
+        raise ValueError("That Scripture text is too long. Keep it under 6,000 characters.")
+    if not _boolish(rights_confirmed):
+        raise ValueError("Confirm that you may use this text and that you checked its wording.")
+    lines = _worship_scripture_lines(text)
+    if not lines:
+        raise ValueError("That text did not contain any displayable Scripture.")
+    digest = hashlib.sha256(f"{reference}|{version_label}|{text}".encode("utf-8")).hexdigest()[:10]
+    return normalize_worship_song({
+        "id": f"{_worship_song_id_base(reference, '', version_label)}-{digest}",
+        "title": reference,
+        "version": version_label,
+        "type": "scripture",
+        "parts": {"reading": lines},
+        "arrangement": ["reading"],
+        "scripture_text_source": "user_supplied",
+        "import_rights_confirmed": True,
+        "import_rights_confirmed_at": _worship_timestamp(),
+        "import_rights_confirmed_by": str(session.get("user_email") or "") if has_request_context() else "",
+        "import_rights_confirmed_church": str(session.get("worship_church_id") or "") if has_request_context() else "",
+        "_manual_cleanup": cleanup,
+    })
+
+
+_SCRIPTURE_PASTE_NOISE = {
+    "audio", "listen", "share", "copy", "save", "bookmark", "print", "download",
+    "read full chapter", "view full chapter", "previous chapter", "next chapter",
+    "compare translations", "all versions", "study bible", "reading plans",
+}
+_SCRIPTURE_PASTE_TAIL = re.compile(
+    r"^(?:footnotes?|cross[ -]?references?|related passages?|copyright|all rights reserved|"
+    r"publisher(?: information)?|about this translation|bible gateway|youversion)\b",
+    re.IGNORECASE,
+)
+
+
+def _clean_manual_scripture_paste(text: str, reference: str = "", version_label: str = "") -> tuple[str, dict]:
+    """Remove unmistakable webpage chrome while preserving supplied Scripture words."""
+    raw_lines = str(text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    reference_key = re.sub(r"[^a-z0-9]", "", str(reference or "").lower())
+    version_key = re.sub(r"[^a-z0-9]", "", str(version_label or "").lower())
+    kept: list[str] = []
+    removed = 0
+    removed_numbers = 0
+    started = False
+    for raw_line in raw_lines:
+        line = re.sub(r"\s+", " ", raw_line).strip()
+        if not line:
+            continue
+        lowered = line.casefold().strip(" :|–—-")
+        compact = re.sub(r"[^a-z0-9]", "", lowered)
+        if started and _SCRIPTURE_PASTE_TAIL.match(line):
+            removed += 1
+            break
+        if (
+            lowered in _SCRIPTURE_PASTE_NOISE
+            or re.fullmatch(r"https?://\S+|www\.\S+", line, re.IGNORECASE)
+            or (reference_key and compact in {reference_key, reference_key + version_key})
+            or (version_key and compact == version_key)
+            or re.fullmatch(r"(?:chapter|verse|passage)\s+\d+", lowered)
+        ):
+            removed += 1
+            continue
+        # Verse-number prefixes commonly arrive on their own rendered lines.
+        # Only remove a number at the beginning, never numbers inside the text.
+        cleaned = re.sub(r"^\s*\[?\d{1,3}\]?\s+(?=[A-Za-z“‘\"'])", "", line)
+        if cleaned != line:
+            removed_numbers += 1
+        if cleaned:
+            kept.append(cleaned)
+            started = True
+    cleaned_text = "\n".join(kept).strip()
+    return cleaned_text, {
+        "removed_lines": removed,
+        "removed_verse_numbers": removed_numbers,
+        "changed": bool(removed or removed_numbers),
+    }
+
+
+def _build_worship_scripture_from_payload(payload) -> dict:
+    if str(payload.get("mode") or "sourced").strip().lower() == "manual":
+        return _build_manual_worship_scripture(
+            str(payload.get("reference") or ""),
+            str(payload.get("manual_version") or ""),
+            str(payload.get("manual_text") or ""),
+            payload.get("rights_confirmed"),
+        )
+    return _build_quick_worship_scripture(
+        str(payload.get("reference") or ""), str(payload.get("version") or "web")
+    )
+
+
 @app.route("/worship/scripture/preview", methods=["POST"])
 @login_required
 @worship_editor_required
 def worship_scripture_preview():
     payload = request.get_json(silent=True) or request.form
     try:
-        item = _build_quick_worship_scripture(
-            str(payload.get("reference") or ""), str(payload.get("version") or "web")
-        )
+        item = _build_worship_scripture_from_payload(payload)
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
     except RuntimeError as exc:
@@ -6402,6 +6543,7 @@ def worship_scripture_preview():
         "title": item["title"],
         "version": item["version"],
         "slides": slides,
+        "cleanup": item.get("_manual_cleanup", {}),
     })
 
 
@@ -6411,9 +6553,8 @@ def worship_scripture_preview():
 def worship_scripture_add():
     payload = request.get_json(silent=True) or request.form
     try:
-        item = _build_quick_worship_scripture(
-            str(payload.get("reference") or ""), str(payload.get("version") or "web")
-        )
+        item = _build_worship_scripture_from_payload(payload)
+        item.pop("_manual_cleanup", None)
         existing = get_worship_song(item["id"])
         if existing:
             item = normalize_worship_song(existing)

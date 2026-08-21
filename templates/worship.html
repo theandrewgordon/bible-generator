@@ -88,6 +88,7 @@
   .ws-modal select{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}
   .ws-modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
   .ws-scripture-row{display:grid;grid-template-columns:1fr 92px;gap:.6rem}.ws-scripture-preview{display:grid;gap:.5rem;max-height:240px;overflow:auto;margin-top:.75rem}.ws-scripture-slide{padding:.75rem;border-radius:9px;background:#0f172a;color:#fff;text-align:center;white-space:pre-line;font-size:.86rem;line-height:1.35}.ws-scripture-status{min-height:1.2rem;margin-top:.6rem;font-size:.82rem;color:var(--text-secondary)}
+  .ws-scripture-modes{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin:.75rem 0}.ws-scripture-mode{padding:.55rem;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font-weight:800;cursor:pointer}.ws-scripture-mode.is-active{background:var(--primary);border-color:var(--primary);color:#fff}.ws-scripture-panel[hidden]{display:none}.ws-modal textarea{width:100%;box-sizing:border-box;min-height:130px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font:inherit;resize:vertical}.ws-manual-rights{display:flex!important;gap:.5rem;align-items:flex-start;font-weight:500!important;line-height:1.35;margin-top:.65rem}.ws-manual-rights input{width:auto;margin-top:.15rem}
   .ws-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem}
   .ws-page-head h1{margin:.1rem 0 .25rem}
   .ws-page-head p{margin:0;color:var(--text-secondary);font-size:.92rem}
@@ -389,11 +390,17 @@
   <form class="ws-modal" id="quick-scripture-form" role="dialog" aria-modal="true" aria-labelledby="quick-scripture-title">
     <h2 id="quick-scripture-title">Quick Scripture</h2>
     <p>Enter a passage, preview the exact sourced text, and add it directly to this week’s set.</p>
-    <div class="ws-scripture-row">
+    <div class="ws-scripture-modes" role="tablist" aria-label="Scripture entry method"><button class="ws-scripture-mode is-active" type="button" data-scripture-mode="sourced">Find passage</button><button class="ws-scripture-mode" type="button" data-scripture-mode="manual">Paste your own text</button></div>
+    <div class="ws-scripture-panel" data-scripture-panel="sourced"><div class="ws-scripture-row">
       <div><label for="quick-scripture-reference">Bible reference</label><input id="quick-scripture-reference" placeholder="John 3:16–17" autocomplete="off" required></div>
-      <div><label for="quick-scripture-version">Version</label><select id="quick-scripture-version"><option value="web">WEB</option><option value="kjv">KJV</option><option value="esv">ESV</option><option value="nlt">NLT</option></select></div>
+      <div><label for="quick-scripture-version">Version</label><select id="quick-scripture-version">{% for version in worship_scripture_versions %}<option value="{{ version.id }}">{{ version.label }}</option>{% endfor %}</select></div>
+    </div></div>
+    <div class="ws-scripture-panel" data-scripture-panel="manual" hidden>
+      <div class="ws-scripture-row"><div><label for="manual-scripture-reference">Reference or title</label><input id="manual-scripture-reference" placeholder="John 1:1–2" autocomplete="off"></div><div><label for="manual-scripture-version">Version</label><input id="manual-scripture-version" placeholder="NIV"></div></div>
+      <label for="manual-scripture-text" style="margin-top:.65rem">Scripture text or copied webpage</label><textarea id="manual-scripture-text" placeholder="Paste exact text—or a copied Bible webpage. Obvious navigation, verse numbers, footnotes, and boilerplate will be removed before preview."></textarea>
+      <label class="ws-manual-rights"><input id="manual-scripture-rights" type="checkbox"><span>I confirm my church may display this translation and I checked the reference, wording, and attribution. Faith Sparks did not source or verify this text.</span></label>
     </div>
-    <div class="ws-scripture-status" id="quick-scripture-status">Use WEB, KJV, ESV, or NLT from Faith Sparks’ configured Scripture sources. For another translation, add the authorized text manually; Faith Sparks will not fetch or generate it.</div>
+    <div class="ws-scripture-status" id="quick-scripture-status">Only translations with an authoritative configured source appear here. For another translation, add the authorized text manually; Faith Sparks will not fetch or generate it.</div>
     <div class="ws-scripture-preview" id="quick-scripture-preview"></div>
     <div class="ws-modal-actions">
       <button type="button" class="ws-btn-ghost" id="quick-scripture-cancel">Cancel</button>
@@ -491,6 +498,13 @@
   var quickScriptureStatus = document.getElementById('quick-scripture-status');
   var quickScriptureAdd = document.getElementById('quick-scripture-add');
   var quickScriptureCancel = document.getElementById('quick-scripture-cancel');
+  var quickScriptureMode = 'sourced';
+  var quickScriptureModeButtons = Array.from(document.querySelectorAll('[data-scripture-mode]'));
+  var quickScripturePanels = Array.from(document.querySelectorAll('[data-scripture-panel]'));
+  var manualScriptureReference = document.getElementById('manual-scripture-reference');
+  var manualScriptureVersion = document.getElementById('manual-scripture-version');
+  var manualScriptureText = document.getElementById('manual-scripture-text');
+  var manualScriptureRights = document.getElementById('manual-scripture-rights');
   var currentSetlistId = '';
   var currentSetlistName = '';
 
@@ -591,7 +605,15 @@
   }
 
   function quickScripturePayload() {
+    if (quickScriptureMode === 'manual') return {
+      mode: 'manual',
+      reference: manualScriptureReference ? manualScriptureReference.value.trim() : '',
+      manual_version: manualScriptureVersion ? manualScriptureVersion.value.trim() : '',
+      manual_text: manualScriptureText ? manualScriptureText.value.trim() : '',
+      rights_confirmed: !!(manualScriptureRights && manualScriptureRights.checked)
+    };
     return {
+      mode: 'sourced',
       reference: quickScriptureReference ? quickScriptureReference.value.trim() : '',
       version: quickScriptureVersion ? quickScriptureVersion.value : 'web'
     };
@@ -623,7 +645,21 @@
       if (event.target === quickScriptureModal) closeQuickScripture();
     });
     quickScriptureCancel.addEventListener('click', closeQuickScripture);
-    [quickScriptureReference, quickScriptureVersion].forEach(function (field) {
+    quickScriptureModeButtons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        quickScriptureMode = button.dataset.scriptureMode;
+        quickScriptureModeButtons.forEach(function (item) { item.classList.toggle('is-active', item === button); });
+        quickScripturePanels.forEach(function (panel) { panel.hidden = panel.dataset.scripturePanel !== quickScriptureMode; });
+        quickScriptureReference.required = quickScriptureMode === 'sourced';
+        quickScriptureAdd.disabled = true;
+        quickScripturePreview.textContent = '';
+        quickScriptureStatus.textContent = quickScriptureMode === 'manual' ? 'Paste exact authorized text, then preview every slide.' : 'Only translations with an authoritative configured source appear here.';
+        var focusField = quickScriptureMode === 'manual' ? manualScriptureReference : quickScriptureReference;
+        if (focusField) focusField.focus();
+      });
+    });
+    [quickScriptureReference, quickScriptureVersion, manualScriptureReference, manualScriptureVersion, manualScriptureText, manualScriptureRights].forEach(function (field) {
+      if (!field) return;
       field.addEventListener('input', function () {
         quickScriptureAdd.disabled = true;
         quickScripturePreview.textContent = '';
@@ -632,7 +668,7 @@
     quickScriptureForm.addEventListener('submit', function (event) {
       event.preventDefault();
       quickScriptureAdd.disabled = true;
-      quickScriptureStatus.textContent = 'Loading authoritative Scripture text…';
+      quickScriptureStatus.textContent = quickScriptureMode === 'manual' ? 'Building slides from your exact text…' : 'Loading authoritative Scripture text…';
       quickScripturePreview.textContent = '';
       requestQuickScripture('/worship/scripture/preview').then(function (data) {
         data.slides.forEach(function (lines, index) {
@@ -641,7 +677,9 @@
           card.textContent = data.title + ' · ' + data.version + ' · Slide ' + (index + 1) + '\n\n' + lines.join('\n');
           quickScripturePreview.appendChild(card);
         });
-        quickScriptureStatus.textContent = data.slides.length + ' slide' + (data.slides.length === 1 ? '' : 's') + ' ready.';
+        var cleanup = data.cleanup || {};
+        var cleanupNote = cleanup.changed ? ' Cleaned ' + ((cleanup.removed_lines || 0) + (cleanup.removed_verse_numbers || 0)) + ' non-Scripture item' + (((cleanup.removed_lines || 0) + (cleanup.removed_verse_numbers || 0)) === 1 ? '' : 's') + '; review the wording below.' : '';
+        quickScriptureStatus.textContent = data.slides.length + ' slide' + (data.slides.length === 1 ? '' : 's') + ' ready.' + cleanupNote;
         quickScriptureAdd.disabled = false;
       }).catch(function (error) {
         quickScriptureStatus.textContent = error.message;
