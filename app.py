@@ -9,6 +9,7 @@ import sys
 import uuid
 import socket
 import ipaddress
+import shutil
 from html.parser import HTMLParser
 from urllib.parse import urlparse, urljoin, urlunparse
 from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
@@ -50,10 +51,19 @@ from faithsparks.services.firestore import (
     validate_firebase_credentials,
 )
 from faithsparks.services.storage import (
+    delete_storage_prefix,
     download_from_storage,
     signed_url_for_path,
     upload_to_storage,
     upload_to_storage_checked,
+)
+from faithsparks.services.worship_presentations import (
+    MAX_PRESENTATION_BYTES,
+    MAX_SERMON_NOTES_CHARS,
+    WorshipPresentationError,
+    extract_pptx_speaker_notes,
+    render_presentation,
+    suggest_sermon_highlights,
 )
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
@@ -1255,6 +1265,8 @@ def _canonical_part_key(name: str | None) -> str:
 
 _REUSABLE_LYRIC_SHEET_PART_PREFIXES = ("chorus", "pre_chorus", "bridge", "tag")
 _WORSHIP_SERVICE_TYPES = {"welcome", "announcement", "photo"}
+_WORSHIP_PRESENTATION_TYPE = "presentation"
+_WORSHIP_NON_SONG_TYPES = _WORSHIP_SERVICE_TYPES | {_WORSHIP_PRESENTATION_TYPE}
 
 
 def _is_reusable_part(part_name: str) -> bool:
@@ -1284,6 +1296,57 @@ def normalize_worship_song(song: dict) -> dict:
     normalized["image_path"] = str(normalized.get("image_path") or "").strip()
     image_layout = str(normalized.get("image_layout") or "full").strip().lower()
     normalized["image_layout"] = image_layout if image_layout in {"full", "split"} else "full"
+    presentation_slides = []
+    seen_slide_ids: set[str] = set()
+    raw_slides = normalized.get("presentation_slides") if isinstance(normalized.get("presentation_slides"), list) else []
+    for index, raw_slide in enumerate(raw_slides[:100], 1):
+        if not isinstance(raw_slide, dict):
+            continue
+        slide_id = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(raw_slide.get("id") or f"slide-{index}")).strip("-")
+        if not slide_id or slide_id in seen_slide_ids:
+            slide_id = f"slide-{index}"
+        seen_slide_ids.add(slide_id)
+        image_path = str(raw_slide.get("image_path") or "").strip()
+        if not image_path:
+            continue
+        try:
+            source_number = int(raw_slide.get("source_number") or index)
+        except (TypeError, ValueError):
+            source_number = index
+        presentation_slides.append({
+            "id": slide_id,
+            "image_path": image_path,
+            "source_number": source_number,
+            "hidden": _boolish(raw_slide.get("hidden"), False),
+        })
+    normalized["presentation_slides"] = presentation_slides
+    normalized["original_path"] = str(normalized.get("original_path") or "").strip()
+    normalized["original_filename"] = secure_filename(str(normalized.get("original_filename") or ""))
+    normalized["presentation_storage_prefix"] = str(normalized.get("presentation_storage_prefix") or "").strip().strip("/")
+    normalized["sermon_notes"] = str(normalized.get("sermon_notes") or "").strip()[:MAX_SERMON_NOTES_CHARS]
+    highlight_position = str(normalized.get("highlight_position") or "after").strip().lower()
+    normalized["highlight_position"] = highlight_position if highlight_position in {"before", "after"} else "after"
+    highlights = []
+    seen_highlight_ids: set[str] = set()
+    raw_highlights = normalized.get("highlight_suggestions") if isinstance(normalized.get("highlight_suggestions"), list) else []
+    for index, raw_highlight in enumerate(raw_highlights[:8], 1):
+        if isinstance(raw_highlight, dict):
+            text = re.sub(r"\s+", " ", str(raw_highlight.get("text") or "")).strip()
+            highlight_id = re.sub(
+                r"[^a-zA-Z0-9_-]+", "-", str(raw_highlight.get("id") or f"highlight-{index}")
+            ).strip("-")
+            enabled = _boolish(raw_highlight.get("enabled"), False)
+        else:
+            text = re.sub(r"\s+", " ", str(raw_highlight or "")).strip()
+            highlight_id = f"highlight-{index}"
+            enabled = False
+        if not text:
+            continue
+        if not highlight_id or highlight_id in seen_highlight_ids:
+            highlight_id = f"highlight-{index}"
+        seen_highlight_ids.add(highlight_id)
+        highlights.append({"id": highlight_id, "text": text[:240], "enabled": enabled})
+    normalized["highlight_suggestions"] = highlights
     song_id = str(normalized.get("id") or "").strip()
     if not song_id:
         song_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "untitled-song"
@@ -1541,6 +1604,10 @@ def _delete_pending_worship_song(token: str) -> None:
 
 def delete_worship_song(song_id: str) -> bool:
     """Delete a song from Firestore and local file if present. Returns True if anything was deleted."""
+    try:
+        existing_item = get_worship_song(song_id)
+    except RuntimeError:
+        existing_item = None
     deleted = False
     if db:
         try:
@@ -1575,6 +1642,8 @@ def delete_worship_song(song_id: str) -> bool:
             except Exception:
                 pass
     if deleted:
+        if existing_item:
+            _delete_worship_presentation_assets(existing_item)
         _invalidate_worship_cache()
     return deleted
 
@@ -1586,6 +1655,8 @@ def _delete_all_worship_library_data() -> dict:
         try:
             for collection_ref in _worship_song_refs_for_read():
                 for doc in collection_ref.stream():
+                    data = doc.to_dict() or {}
+                    _delete_worship_presentation_assets(data)
                     doc.reference.delete()
                     deleted["songs"] += 1
             for collection_ref in _worship_setlist_refs_for_read():
@@ -1601,6 +1672,9 @@ def _delete_all_worship_library_data() -> dict:
                 continue
             for fp in folder.glob("*.json"):
                 try:
+                    if folder_name == "songs":
+                        with open(fp, "r", encoding="utf-8") as source:
+                            _delete_worship_presentation_assets(json.load(source))
                     fp.unlink()
                     deleted[key] += 1
                 except Exception as exc:
@@ -2575,6 +2649,22 @@ def create_service_slide(prs: Presentation, item: dict, image_path: str | None =
     return slide
 
 
+def create_imported_presentation_slide(prs: Presentation, image_path: str):
+    """Place one rendered source slide on the canvas without cropping it."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    apply_dark_background(slide, RGBColor(0, 0, 0))
+    with Image.open(image_path) as image:
+        image_width, image_height = image.size
+    if not image_width or not image_height:
+        raise ValueError("Imported slide image is empty.")
+    canvas_width, canvas_height = 13.333, 7.5
+    scale = min(canvas_width / image_width, canvas_height / image_height)
+    width, height = image_width * scale, image_height * scale
+    left, top = (canvas_width - width) / 2, (canvas_height - height) / 2
+    slide.shapes.add_picture(str(image_path), Inches(left), Inches(top), Inches(width), Inches(height))
+    return slide
+
+
 def _add_part_label(slide, label: str, font_color: RGBColor) -> None:
     if not label:
         return
@@ -2693,7 +2783,7 @@ def logout():
     return redirect(url_for("browse"))
 
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 import json
 
 
@@ -2701,7 +2791,7 @@ import json
 @login_required
 def worship():
     _seed_worship_from_files()
-    songs = list_worship_songs()
+    songs = [normalize_worship_song(song) for song in list_worship_songs()]
     setlists = _load_recent_setlists()
     church_context = _current_worship_church_context()
     return render_template(
@@ -2992,6 +3082,95 @@ def _save_worship_service_image(upload) -> str:
                 os.unlink(path)
             except OSError:
                 pass
+
+
+_LOCAL_WORSHIP_PRESENTATIONS_ROOT = Path(app.root_path) / "uploads" / "worship-presentations"
+
+
+def _store_worship_presentation_asset(local_path: str, presentation_id: str, filename: str) -> str:
+    """Store one original or rendered page under an exact church/presentation prefix."""
+    scope = _slugify_worship_token(_current_worship_scope()) or _DEFAULT_WORSHIP_SCOPE
+    presentation_id = _slugify_worship_token(presentation_id)
+    filename = secure_filename(filename)
+    if not presentation_id or not filename:
+        raise RuntimeError("Invalid presentation storage path.")
+    storage_path = f"worship-presentations/{scope}/{presentation_id}/{filename}"
+    if upload_to_storage_checked(local_path, storage_path):
+        return storage_path
+    if not _is_local_storage_allowed():
+        raise RuntimeError("Presentation storage is temporarily unavailable.")
+    destination = _LOCAL_WORSHIP_PRESENTATIONS_ROOT / scope / presentation_id / filename
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(local_path, destination)
+    return f"local:{storage_path}"
+
+
+def _local_worship_presentation_path(asset_path: str) -> Path | None:
+    if not str(asset_path or "").startswith("local:worship-presentations/"):
+        return None
+    relative = str(asset_path).split("local:worship-presentations/", 1)[1]
+    candidate = (_LOCAL_WORSHIP_PRESENTATIONS_ROOT / relative).resolve()
+    root = _LOCAL_WORSHIP_PRESENTATIONS_ROOT.resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+def _download_worship_asset(asset_path: str, local_path: str) -> bool:
+    local_asset = _local_worship_presentation_path(asset_path)
+    if local_asset:
+        try:
+            shutil.copy2(local_asset, local_path)
+            return True
+        except OSError:
+            return False
+    return _download_worship_image(asset_path, local_path)
+
+
+def _iter_worship_presentation_slides(item: dict):
+    """Yield enabled note highlights and visible imported slides in presentation order."""
+    normalized = normalize_worship_song(item)
+    source_slides = [
+        {"kind": "presentation", **slide}
+        for slide in normalized.get("presentation_slides", [])
+        if not slide.get("hidden") and slide.get("image_path")
+    ]
+    highlights = [
+        {"kind": "highlight", **highlight}
+        for highlight in normalized.get("highlight_suggestions", [])
+        if highlight.get("enabled") and highlight.get("text")
+    ]
+    groups = (highlights, source_slides) if normalized.get("highlight_position") == "before" else (source_slides, highlights)
+    for group in groups:
+        yield from group
+
+
+def _presentation_slide_count(item: dict, *, include_highlights: bool = True) -> int:
+    slides = list(_iter_worship_presentation_slides(item))
+    if include_highlights:
+        return len(slides)
+    return sum(1 for slide in slides if slide.get("kind") == "presentation")
+
+
+def _delete_worship_presentation_assets(item: dict) -> None:
+    normalized = normalize_worship_song(item)
+    if normalized.get("type") != _WORSHIP_PRESENTATION_TYPE:
+        return
+    prefix = str(normalized.get("presentation_storage_prefix") or "").strip().strip("/")
+    expected = f"worship-presentations/{_slugify_worship_token(_current_worship_scope())}/{_slugify_worship_token(normalized.get('id'))}"
+    if prefix != expected:
+        return
+    delete_storage_prefix(prefix)
+    if _is_local_storage_allowed():
+        local_dir = (_LOCAL_WORSHIP_PRESENTATIONS_ROOT / _current_worship_scope() / normalized["id"]).resolve()
+        try:
+            local_dir.relative_to(_LOCAL_WORSHIP_PRESENTATIONS_ROOT.resolve())
+        except ValueError:
+            return
+        if local_dir.is_dir():
+            shutil.rmtree(local_dir)
 
 
 def _read_worship_firestore_media(image_path: str, scope: str | None = None) -> tuple[bytes, str] | None:
@@ -3621,8 +3800,22 @@ def _worship_validation_part_key(part_name: str) -> str:
 
 def _worship_structure_fingerprint(song: dict) -> str:
     normalized = normalize_worship_song(song)
+    if normalized.get("type") == _WORSHIP_PRESENTATION_TYPE:
+        structure = {
+            "slides": [
+                {"id": slide.get("id"), "hidden": bool(slide.get("hidden"))}
+                for slide in normalized.get("presentation_slides", [])
+            ],
+            "highlights": [
+                {"text": point.get("text"), "enabled": bool(point.get("enabled"))}
+                for point in normalized.get("highlight_suggestions", [])
+            ],
+            "highlight_position": normalized.get("highlight_position"),
+        }
+    else:
+        structure = {"parts": normalized.get("parts", {}), "arrangement": normalized.get("arrangement", [])}
     payload = json.dumps(
-        {"parts": normalized.get("parts", {}), "arrangement": normalized.get("arrangement", [])},
+        structure,
         sort_keys=True,
         ensure_ascii=False,
         separators=(",", ":"),
@@ -4792,6 +4985,37 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
             background_url = url_for("static", filename=relative_bg) if has_request_context() else f"/static/{relative_bg}"
         font_rgb = bg_cfg.get("font_color", [255, 255, 255])
         font_css = "#{:02x}{:02x}{:02x}".format(*font_rgb)
+        if item_type == _WORSHIP_PRESENTATION_TYPE:
+            for presentation_slide in _iter_worship_presentation_slides(normalized):
+                if presentation_slide.get("kind") == "presentation":
+                    media_slide_id = presentation_slide.get("id", "")
+                    slides.append({
+                        "kind": "presentation",
+                        "id": song_id,
+                        "title": song_title,
+                        "type": item_type,
+                        "lines": [],
+                        "media_slide_id": media_slide_id,
+                        "source_number": presentation_slide.get("source_number", ""),
+                        "image_url": url_for(
+                            "worship_media", song_id=song_id, slide=media_slide_id, token=access_token
+                        ),
+                        "note": song_note,
+                    })
+                else:
+                    slides.append({
+                        "kind": "highlight",
+                        "id": song_id,
+                        "title": song_title,
+                        "type": "Key Point",
+                        "part_label": "Key Point",
+                        "lines": [presentation_slide.get("text", "")],
+                        "font_size": 42,
+                        "background_url": background_url,
+                        "font_color": font_css,
+                        "note": song_note,
+                    })
+            continue
         if item_type in _WORSHIP_SERVICE_TYPES:
             slides.append({
                 "kind": "service",
@@ -5148,6 +5372,13 @@ def _slides_for_worship_live(live: dict, capability: dict, *, include_media: boo
         for slide in slides:
             if slide.get("kind") == "service" and slide.get("image_url") and slide.get("id"):
                 slide["image_url"] = url_for("worship_media", song_id=slide["id"], token=media_token)
+            elif slide.get("kind") == "presentation" and slide.get("id") and slide.get("media_slide_id"):
+                slide["image_url"] = url_for(
+                    "worship_media",
+                    song_id=slide["id"],
+                    slide=slide["media_slide_id"],
+                    token=media_token,
+                )
     return slides
 
 
@@ -5452,6 +5683,14 @@ def _build_worship_lyric_sheet_pdf(selected_items: list[dict], mobile_url: str =
         header.append(Paragraph(esc(" · ".join(sub_bits)), sub_style) if sub_bits else Spacer(1, 6))
         # Keep the title/subtitle with the first section so a song never orphans.
         story.append(KeepTogether(header))
+        if normalized.get("type") == _WORSHIP_PRESENTATION_TYPE:
+            story.append(Paragraph(
+                esc(f"Imported presentation · {_presentation_slide_count(normalized)} projected slides"),
+                ref_style,
+            ))
+            if idx != len(selected_items) - 1:
+                story.append(Spacer(1, 22))
+            continue
         if normalized.get("type") in _WORSHIP_SERVICE_TYPES:
             for line in normalized.get("service_lines", []):
                 story.append(Paragraph(esc(line), line_style))
@@ -5525,7 +5764,7 @@ def worship_build():
 
     validation_problems = []
     for item in selected_items:
-        if normalize_worship_song(item).get("type") in _WORSHIP_SERVICE_TYPES:
+        if normalize_worship_song(item).get("type") in _WORSHIP_NON_SONG_TYPES:
             continue
         validation = item.get("validation") if isinstance(item.get("validation"), dict) else {}
         if validation.get("status") in {"needs_review", "unable", "stale"}:
@@ -5546,6 +5785,31 @@ def worship_build():
         normalized = normalize_worship_song(item)
         item_type = normalized.get("type", "song")
         song_bg = normalized.get("background")
+        if item_type == _WORSHIP_PRESENTATION_TYPE:
+            for presentation_slide in _iter_worship_presentation_slides(normalized):
+                if presentation_slide.get("kind") == "highlight":
+                    create_content_slide(
+                        prs,
+                        [presentation_slide.get("text", "")],
+                        "scripture",
+                        song_bg,
+                        font_size=42,
+                        part_label="Key Point",
+                    )
+                    continue
+                media_tmp = NamedTemporaryFile(delete=False, suffix=".jpg")
+                media_tmp.close()
+                media_temp_paths.append(media_tmp.name)
+                if not _download_worship_asset(presentation_slide.get("image_path", ""), media_tmp.name):
+                    for path in media_temp_paths:
+                        try:
+                            os.unlink(path)
+                        except OSError:
+                            pass
+                    flash(f"An imported slide in {normalized.get('title', 'the presentation')} is unavailable.", "error")
+                    return redirect(url_for("worship"))
+                create_imported_presentation_slide(prs, media_tmp.name)
+            continue
         if item_type in _WORSHIP_SERVICE_TYPES:
             local_image = None
             if normalized.get("image_path"):
@@ -5609,7 +5873,7 @@ def worship_deck_review():
     findings = []
     for item in selected_items:
         normalized = normalize_worship_song(item)
-        if normalized.get("type") in _WORSHIP_SERVICE_TYPES:
+        if normalized.get("type") in _WORSHIP_NON_SONG_TYPES:
             continue
         validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
         review = normalized.get("review") if isinstance(normalized.get("review"), dict) else {}
@@ -5661,9 +5925,23 @@ def worship_media(song_id):
         if not google.authorized:
             return redirect(url_for("google.login", next=request.path))
         song = get_worship_song(song_id)
-    image_path = str((song or {}).get("image_path") or "").strip()
+    media_slide_id = re.sub(r"[^a-zA-Z0-9_-]+", "", request.args.get("slide", ""))
+    if media_slide_id and normalize_worship_song(song or {}).get("type") == _WORSHIP_PRESENTATION_TYPE:
+        normalized = normalize_worship_song(song or {})
+        matched = next(
+            (slide for slide in normalized.get("presentation_slides", []) if slide.get("id") == media_slide_id),
+            None,
+        )
+        image_path = str((matched or {}).get("image_path") or "").strip()
+    else:
+        image_path = str((song or {}).get("image_path") or "").strip()
     if not image_path:
         return Response("Image not found", status=404)
+    local_asset = _local_worship_presentation_path(image_path)
+    if local_asset:
+        response = send_file(local_asset, mimetype="image/jpeg", max_age=300)
+        response.headers["Cache-Control"] = "private, max-age=300"
+        return response
     firestore_media = _read_worship_firestore_media(image_path, scope)
     if firestore_media:
         return Response(
@@ -5810,6 +6088,181 @@ def worship_service_slide_add():
         return redirect(url_for("worship_add"))
     flash(f"'{title}' added to the service library.", "success")
     return redirect(url_for("worship"))
+
+
+@app.route("/worship/presentation/import", methods=["GET", "POST"])
+@login_required
+@worship_editor_required
+def worship_presentation_import():
+    if request.method == "GET":
+        return render_template("worship_presentation_import.html")
+    if request.content_length and request.content_length > MAX_PRESENTATION_BYTES + 2 * 1024 * 1024:
+        flash("Presentations must be 25 MB or smaller.", "warning")
+        return render_template("worship_presentation_import.html"), 413
+
+    user_key = str(session.get("user_email") or get_client_ip())
+    rate = check_rate_limit("worship_presentation_import:user", user_key, limit=12, window_seconds=3600)
+    if not rate.allowed:
+        flash("Too many presentations were imported recently. Please wait and try again.", "warning")
+        response = app.make_response((render_template("worship_presentation_import.html"), 429))
+        response.headers["Retry-After"] = str(rate.retry_after)
+        return response
+
+    upload = request.files.get("presentation")
+    original_filename = secure_filename(getattr(upload, "filename", ""))
+    suffix = Path(original_filename).suffix.lower()
+    if not upload or not original_filename or suffix not in {".pptx", ".pdf"}:
+        flash("Choose a .pptx or PDF presentation.", "warning")
+        return render_template("worship_presentation_import.html"), 400
+
+    title = request.form.get("title", "").strip() or Path(original_filename).stem.replace("_", " ").replace("-", " ").strip()
+    pasted_notes = request.form.get("sermon_notes", "").strip()[:MAX_SERMON_NOTES_CHARS]
+    presentation_id = _make_unique_worship_song_id(title, "", _WORSHIP_PRESENTATION_TYPE)
+    scope = _slugify_worship_token(_current_worship_scope()) or _DEFAULT_WORSHIP_SCOPE
+    cleanup_item = {
+        "id": presentation_id,
+        "title": title,
+        "type": _WORSHIP_PRESENTATION_TYPE,
+        "presentation_storage_prefix": f"worship-presentations/{scope}/{presentation_id}",
+    }
+    stored_item = None
+    try:
+        with TemporaryDirectory(prefix="faithsparks-worship-import-") as temp_dir:
+            source_path = Path(temp_dir) / f"source{suffix}"
+            upload.save(source_path)
+            if source_path.stat().st_size > MAX_PRESENTATION_BYTES:
+                raise WorshipPresentationError("Presentations must be 25 MB or smaller.")
+            rendered_paths = render_presentation(source_path, suffix, Path(temp_dir) / "rendered")
+            extracted_notes = extract_pptx_speaker_notes(source_path) if suffix == ".pptx" else ""
+            analysis_notes = pasted_notes
+            if extracted_notes and extracted_notes not in analysis_notes:
+                analysis_notes = "\n\n".join(part for part in (pasted_notes, extracted_notes) if part)
+            highlights = suggest_sermon_highlights(
+                analysis_notes,
+                api_key=os.getenv("OPENAI_API_KEY", ""),
+                model=os.getenv("WORSHIP_NOTES_MODEL", "gpt-4o-mini"),
+            )
+            original_path = _store_worship_presentation_asset(
+                str(source_path), presentation_id, f"original{suffix}"
+            )
+            presentation_slides = []
+            for index, rendered_path in enumerate(rendered_paths, 1):
+                slide_id = f"slide-{index}"
+                image_path = _store_worship_presentation_asset(
+                    str(rendered_path), presentation_id, f"{slide_id}.jpg"
+                )
+                presentation_slides.append({
+                    "id": slide_id,
+                    "image_path": image_path,
+                    "source_number": index,
+                    "hidden": False,
+                })
+            stored_item = normalize_worship_song({
+                "id": presentation_id,
+                "title": title[:160],
+                "type": _WORSHIP_PRESENTATION_TYPE,
+                "parts": {},
+                "arrangement": [],
+                "presentation_slides": presentation_slides,
+                "original_path": original_path,
+                "original_filename": original_filename,
+                "presentation_storage_prefix": f"worship-presentations/{scope}/{presentation_id}",
+                "sermon_notes": analysis_notes,
+                "highlight_position": "after",
+                "highlight_suggestions": [
+                    {"id": f"highlight-{index}", "text": text, "enabled": False}
+                    for index, text in enumerate(highlights, 1)
+                ],
+                "created_at": _worship_timestamp(),
+                "created_by": session.get("user_email", ""),
+            })
+            save_worship_song(stored_item)
+    except (WorshipPresentationError, RuntimeError, OSError) as exc:
+        app.logger.warning("worship presentation import failed: %s", exc)
+        _delete_worship_presentation_assets(stored_item or cleanup_item)
+        flash(str(exc), "error")
+        return render_template("worship_presentation_import.html"), 503 if isinstance(exc, RuntimeError) else 400
+
+    flash("Presentation imported. Review the slide order and choose any key points to project.", "success")
+    return redirect(url_for("worship_presentation_edit", presentation_id=presentation_id))
+
+
+@app.route("/worship/presentation/<presentation_id>", methods=["GET", "POST"])
+@login_required
+@worship_editor_required
+def worship_presentation_edit(presentation_id):
+    item = get_worship_song(presentation_id)
+    if not item or normalize_worship_song(item).get("type") != _WORSHIP_PRESENTATION_TYPE:
+        abort(404)
+    normalized = normalize_worship_song(item)
+    if request.method == "POST":
+        normalized["title"] = request.form.get("title", "").strip()[:160] or normalized["title"]
+        normalized["sermon_notes"] = request.form.get("sermon_notes", "").strip()[:MAX_SERMON_NOTES_CHARS]
+        if request.form.get("action") == "reanalyze":
+            suggestions = suggest_sermon_highlights(
+                normalized["sermon_notes"],
+                api_key=os.getenv("OPENAI_API_KEY", ""),
+                model=os.getenv("WORSHIP_NOTES_MODEL", "gpt-4o-mini"),
+            )
+            normalized["highlight_suggestions"] = [
+                {"id": f"highlight-{index}", "text": text, "enabled": False}
+                for index, text in enumerate(suggestions, 1)
+            ]
+            save_worship_song(normalized)
+            flash("Key points refreshed. Select the ones you want to project.", "success")
+            return redirect(url_for("worship_presentation_edit", presentation_id=presentation_id))
+
+        slide_lookup = {slide["id"]: slide for slide in normalized.get("presentation_slides", [])}
+        ordered_ids = [
+            slide_id for slide_id in request.form.get("slide_order", "").split(",")
+            if slide_id in slide_lookup
+        ]
+        ordered_ids.extend(slide_id for slide_id in slide_lookup if slide_id not in ordered_ids)
+        visible_ids = set(request.form.getlist("visible_slides"))
+        normalized["presentation_slides"] = [
+            {**slide_lookup[slide_id], "hidden": slide_id not in visible_ids}
+            for slide_id in ordered_ids
+        ]
+        enabled_highlights = set(request.form.getlist("enabled_highlights"))
+        updated_highlights = []
+        for highlight in normalized.get("highlight_suggestions", []):
+            highlight_id = highlight["id"]
+            text = re.sub(
+                r"\s+", " ", request.form.get(f"highlight_text_{highlight_id}", highlight.get("text", ""))
+            ).strip()
+            if text:
+                updated_highlights.append({
+                    "id": highlight_id,
+                    "text": text[:240],
+                    "enabled": highlight_id in enabled_highlights,
+                })
+        normalized["highlight_suggestions"] = updated_highlights
+        position = request.form.get("highlight_position", "after")
+        normalized["highlight_position"] = position if position in {"before", "after"} else "after"
+        normalized["updated_at"] = _worship_timestamp()
+        normalized["updated_by"] = session.get("user_email", "")
+        save_worship_song(normalized)
+        flash("Presentation updated.", "success")
+        return redirect(url_for("worship_presentation_edit", presentation_id=presentation_id))
+    return render_template("worship_presentation_edit.html", item=normalized)
+
+
+@app.route("/worship/presentation/<presentation_id>/original", methods=["GET"])
+@login_required
+def worship_presentation_original(presentation_id):
+    item = get_worship_song(presentation_id)
+    normalized = normalize_worship_song(item or {})
+    if normalized.get("type") != _WORSHIP_PRESENTATION_TYPE or not normalized.get("original_path"):
+        abort(404)
+    asset_path = normalized["original_path"]
+    local_asset = _local_worship_presentation_path(asset_path)
+    download_name = normalized.get("original_filename") or f"{presentation_id}{Path(asset_path).suffix}"
+    if local_asset:
+        return send_file(local_asset, as_attachment=True, download_name=download_name)
+    media_url = signed_url_for_path(asset_path, minutes=5)
+    if not media_url:
+        return Response("Original presentation temporarily unavailable", status=503)
+    return redirect(media_url)
 
 @app.route("/worship/add", methods=["GET", "POST"])
 @login_required
@@ -6355,6 +6808,9 @@ def worship_duplicate(song_id):
         flash("Song not found.", "warning")
         return redirect(url_for("worship"))
     duplicate = normalize_worship_song(song)
+    if duplicate.get("type") == _WORSHIP_PRESENTATION_TYPE:
+        flash("Import the original file again to create a separate presentation copy.", "warning")
+        return redirect(url_for("worship"))
     base_version = duplicate.get("version", "")
     duplicate["version"] = f"{base_version} Copy".strip() if base_version else "Copy"
     duplicate.pop("last_used", None)
@@ -6382,6 +6838,8 @@ def worship_edit(song_id):
         return redirect(url_for("worship"))
     raw_validation = song.get("validation") if isinstance(song.get("validation"), dict) else {}
     song = normalize_worship_song(song)
+    if song.get("type") == _WORSHIP_PRESENTATION_TYPE:
+        return redirect(url_for("worship_presentation_edit", presentation_id=song_id))
     if raw_validation.get("status") == "stale" and raw_validation != song.get("validation"):
         try:
             save_worship_song(song)

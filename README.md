@@ -12,6 +12,7 @@ This application is designed to run in stateless, ephemeral cloud hosting enviro
   * Local SQLite-based analytics database (`analytics.sqlite`) is completely disabled (writes are no-oped and reads return safe empty structures).
   * Standard client-side signed cookie sessions are used for stateless auth.
   * Cloud Firestore is the **single source of truth** for songs, setlists, and application configurations.
+  * Imported worship presentation originals and rendered slide images are stored privately in Firebase/Google Cloud Storage. Configure `FIREBASE_STORAGE_BUCKET` (or `STORAGE_BUCKET`); production presentation imports intentionally do not fall back to Firestore blobs or ephemeral disk.
   * **Fail-Fast Safety:** In production (`APP_ENV=prod` or `APP_ENV=production`), the application will fail loudly at startup if required cloud configurations (such as `FIREBASE_CREDS_JSON` and `FLASK_SECRET_KEY`) are missing, preventing silent fallbacks to local files.
 
 * **Development/Local Environments:**
@@ -38,3 +39,13 @@ Using pre-release or development builds of **Python 3.14+** will fail to build l
    ```bash
    flask run
    ```
+
+### Worship Presentation Imports
+
+The `/worship` presentation importer accepts `.pptx` and PDF files. It requires:
+
+* LibreOffice Impress (`soffice`) for PPTX-to-PDF conversion.
+* Poppler (`pdftoppm`) for static slide rendering.
+* `OPENAI_API_KEY` for AI-assisted sermon-note highlights. A deterministic, notes-only fallback is used if AI analysis is disabled or unavailable.
+
+Set `SOFFICE_BIN` or `PDFTOPPM_BIN` when those executables are not on `PATH`. The included Dockerfile installs both conversion tools and is used by `render.yaml`.

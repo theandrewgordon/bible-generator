@@ -98,3 +98,19 @@ def download_from_storage(dst_path: str, local_path: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def delete_storage_prefix(prefix: str) -> int:
+    """Delete every object under one explicit private-storage prefix."""
+    bucket = _get_bucket()
+    prefix = str(prefix or "").strip().lstrip("/")
+    if not bucket or not prefix or ".." in prefix:
+        return 0
+    deleted = 0
+    try:
+        for blob in bucket.list_blobs(prefix=prefix.rstrip("/") + "/"):
+            blob.delete()
+            deleted += 1
+    except Exception:
+        logger.exception("Storage prefix delete failed for %s", prefix)
+    return deleted

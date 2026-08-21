@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wpe-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}.wpe-card{background:var(--box);border-radius:15px;padding:1.2rem;box-shadow:var(--card-shadow);margin-bottom:1rem}
+  .wpe-input{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font:inherit}.wpe-card label{font-weight:800}
+  .wpe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.8rem;list-style:none;padding:0}.wpe-slide{border:2px solid #cbd5e1;border-radius:11px;padding:.55rem;background:var(--background);cursor:grab}.wpe-slide.is-hidden{opacity:.55}.wpe-slide img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#000;border-radius:7px}.wpe-slide-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.5rem;font-size:.82rem}.wpe-handle{font-size:1.2rem;color:var(--text-secondary)}
+  .wpe-highlight{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:flex-start;margin:.65rem 0}.wpe-highlight input[type=text]{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:var(--background);color:var(--text)}
+  .wpe-actions{position:sticky;bottom:.75rem;display:flex;gap:.7rem;padding:.8rem;border-radius:12px;background:var(--box);box-shadow:var(--card-shadow);z-index:4}.wpe-actions button,.wpe-actions a{padding:10px 18px;border-radius:9px;font-weight:800;text-decoration:none;text-align:center}.wpe-primary{border:0;background:var(--primary);color:#fff;flex:1;cursor:pointer}.wpe-secondary{border:1px solid #cbd5e1;background:transparent;color:var(--text);cursor:pointer}
+  .wpe-note-actions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.65rem}.wpe-meta{font-size:.86rem;color:var(--text-secondary)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wpe-head">
+  <div><p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p><h1 style="margin-bottom:.25rem">Review presentation</h1><p class="muted" style="margin-top:0">{{ item.original_filename }} · {{ item.presentation_slides|length }} imported slides</p></div>
+  <a href="{{ url_for('worship_presentation_original', presentation_id=item.id) }}">Download original</a>
+</div>
+
+<form method="post" id="presentation-review-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="slide_order" id="presentation-slide-order">
+  <section class="wpe-card">
+    <label for="presentation-title">Presentation name</label>
+    <input class="wpe-input" id="presentation-title" name="title" maxlength="160" value="{{ item.title }}" required>
+  </section>
+
+  <section class="wpe-card">
+    <h2>Slides</h2>
+    <p class="wpe-meta">Drag to reorder. Uncheck a slide to keep it in the library without projecting it.</p>
+    <ul class="wpe-grid" id="presentation-slides">
+      {% for slide in item.presentation_slides %}
+      <li class="wpe-slide{% if slide.hidden %} is-hidden{% endif %}" data-id="{{ slide.id }}" draggable="true">
+        <img src="{{ url_for('worship_media', song_id=item.id, slide=slide.id) }}" alt="Imported slide {{ slide.source_number }}">
+        <div class="wpe-slide-row"><span><span class="wpe-handle" aria-hidden="true">⠿</span> Slide {{ slide.source_number }}</span><label><input type="checkbox" name="visible_slides" value="{{ slide.id }}" {% if not slide.hidden %}checked{% endif %}> Show</label></div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="wpe-card">
+    <h2>Sermon notes and key points</h2>
+    <p class="wpe-meta">Suggestions are grounded in the notes, but nothing appears on screen until you check it.</p>
+    <textarea class="wpe-input" name="sermon_notes" rows="12" maxlength="60000">{{ item.sermon_notes }}</textarea>
+    <div class="wpe-note-actions"><button class="wpe-secondary" type="submit" name="action" value="reanalyze">Look for key points again</button><span class="wpe-meta">Editing the notes does not change the original presentation.</span></div>
+    {% if item.highlight_suggestions %}
+      <div style="margin-top:1rem">
+      {% for highlight in item.highlight_suggestions %}
+        <div class="wpe-highlight"><input type="checkbox" name="enabled_highlights" value="{{ highlight.id }}" {% if highlight.enabled %}checked{% endif %} aria-label="Project key point {{ loop.index }}"><input type="text" name="highlight_text_{{ highlight.id }}" value="{{ highlight.text }}" maxlength="240" aria-label="Key point {{ loop.index }}"></div>
+      {% endfor %}
+      </div>
+      <label for="highlight-position">Place selected key-point slides</label>
+      <select class="wpe-input" id="highlight-position" name="highlight_position"><option value="after" {% if item.highlight_position == 'after' %}selected{% endif %}>After the imported slides</option><option value="before" {% if item.highlight_position == 'before' %}selected{% endif %}>Before the imported slides</option></select>
+    {% else %}
+      <p class="wpe-meta">No strong key points were found yet. Add more detailed notes and analyze again.</p>
+    {% endif %}
+  </section>
+
+  <div class="wpe-actions"><a class="wpe-secondary" href="{{ url_for('worship') }}">Back</a><button class="wpe-primary" type="submit" name="action" value="save">Save presentation</button></div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='vendor/sortable-lite.js') }}"></script>
+<script>
+(function(){
+  var list=document.getElementById('presentation-slides'),order=document.getElementById('presentation-slide-order'),form=document.getElementById('presentation-review-form');
+  function sync(){order.value=Array.from(list.querySelectorAll('[data-id]')).map(function(el){return el.dataset.id;}).join(',');}
+  list.addEventListener('change',function(event){var card=event.target.closest('.wpe-slide');if(card)card.classList.toggle('is-hidden',!event.target.checked);});
+  if(window.Sortable)Sortable.create(list,{animation:150,handle:'.wpe-handle',onEnd:sync});
+  form.addEventListener('submit',sync);sync();
+})();
+</script>
+{% endblock %}

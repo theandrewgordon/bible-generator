@@ -19,6 +19,7 @@
     .wl-part{position:absolute;left:3.2vw;top:8vh;font-size:clamp(.9rem,1.25vw,1.35rem);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#d1d5db;text-shadow:0 1px 8px #000;z-index:2}
     .wl-lines{font-size:clamp(2.8rem,5.2vw,6.3rem);line-height:1.15;font-weight:800;white-space:pre-line;max-width:20ch;text-wrap:balance}
     .wl-service-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .wl-presentation-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
     .wl-service-shade{position:absolute;inset:0;background:rgba(0,0,0,.48)}
     .wl-service-lines{font-size:clamp(2rem,3.5vw,4.2rem);line-height:1.2;font-weight:650;white-space:pre-line;margin-top:1rem;max-width:25ch}
     .wl-blank{position:fixed;inset:0;background:#000;z-index:20;display:none;align-items:center;justify-content:center}
@@ -50,7 +51,9 @@
   <main class="wl-stage" id="wl-stage" aria-live="polite">
     {% for slide in slides %}
     <section class="wl-slide{% if loop.index0 == live.current_index %} is-active{% endif %}" data-index="{{ loop.index0 }}" data-title="{{ slide.title }}" style="--slide-bg:{% if slide.background_url %}url('{{ slide.background_url }}'){% else %}none{% endif %};--slide-color:{{ slide.font_color or '#fff' }}" aria-hidden="{{ 'false' if loop.index0 == live.current_index else 'true' }}">
-      {% if slide.kind == 'service' %}
+      {% if slide.kind == 'presentation' %}
+        <img class="wl-presentation-image" src="{{ slide.image_url }}" alt="{{ slide.title }} slide {{ slide.source_number }}">
+      {% elif slide.kind == 'service' %}
         {% if slide.image_url %}<img class="wl-service-photo" src="{{ slide.image_url }}" alt=""><div class="wl-service-shade"></div>{% endif %}
         <div class="wl-content"><h2 class="wl-title">{{ slide.title }}</h2>{% if slide.lines %}<div class="wl-service-lines">{{ slide.lines|join('\n') }}</div>{% endif %}</div>
       {% elif slide.kind == 'divider' %}

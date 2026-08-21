@@ -121,9 +121,9 @@
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem">
   <h1 style="margin:0">Worship Slide Builder</h1>
-  <span style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a>{% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn" class="ws-btn-ghost" style="padding:5px 12px">+ Scripture</button><a href="{{ url_for('worship_add') }}"
+  <span style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a>{% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn" class="ws-btn-ghost" style="padding:5px 12px">+ Scripture</button><a href="{{ url_for('worship_presentation_import') }}" class="ws-btn-ghost" style="padding:5px 12px;text-decoration:none">+ Import Presentation</a><a href="{{ url_for('worship_add') }}"
     style="font-size:.9rem;font-weight:600;color:var(--primary);text-decoration:none;padding:5px 12px;border:1px solid var(--primary);border-radius:8px">
-    + Add Song or Slide
+    + Add Song or Service Slide
   </a>{% endif %}</span>
 </div>
 
@@ -172,7 +172,7 @@
 <!-- ── Song Library ── -->
 <div>
   <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
-    <p class="ws-section-label" style="margin:0">Song Library</p>
+    <p class="ws-section-label" style="margin:0">Worship Library</p>
     <input id="library-search" type="search" placeholder="Search…"
       style="flex:1;max-width:260px;padding:5px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:.9rem;background:var(--background);color:var(--text)">
     <select id="library-sort" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;font-size:.85rem;background:var(--background);color:var(--text)">
@@ -196,8 +196,12 @@
         {% if song.version %} <span class="muted small">· {{ song.version }}</span>{% endif %}
         {% if song.key %} <span class="muted small">({{ song.key }})</span>{% endif %}
         {% if song.type and song.type != 'song' %} <span class="muted small">[{{ song.type }}]</span>{% endif %}
+        {% if song.type == 'presentation' %}{% set visible_slide_count = song.presentation_slides|rejectattr('hidden')|list|length %}{% set enabled_point_count = song.highlight_suggestions|selectattr('enabled')|list|length %} <span class="muted small">· {{ visible_slide_count }} slide{% if visible_slide_count != 1 %}s{% endif %}{% if enabled_point_count %} + {{ enabled_point_count }} key point{% if enabled_point_count != 1 %}s{% endif %}{% endif %}</span>{% endif %}
         {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
-        {% if song.validation is mapping and song.validation.status == 'verified' %}
+        {% if song.type == 'presentation' %}
+          <span class="ws-validation-badge is-verified" title="Imported presentation is ready">✓ Ready</span>
+        {% elif song.type in ['welcome', 'announcement', 'photo'] %}
+        {% elif song.validation is mapping and song.validation.status == 'verified' %}
           <span class="ws-validation-badge is-verified" title="Validated against a second source">✓ Validated</span>
         {% elif song.validation is mapping and song.validation.status in ['needs_review', 'unable', 'stale'] %}
           <span class="ws-validation-badge is-problem" title="Open Edit to review validation findings">Review validation</span>
@@ -210,13 +214,13 @@
       </span>
       <button type="button" class="ws-add" data-id="{{ song.id }}">+ Add</button>
       {% if worship_church.role in ['owner', 'editor', 'member'] %}
-      <a href="{{ url_for('worship_edit', song_id=song.id) }}"
+      <a href="{% if song.type == 'presentation' %}{{ url_for('worship_presentation_edit', presentation_id=song.id) }}{% else %}{{ url_for('worship_edit', song_id=song.id) }}{% endif %}"
         style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0"
         title="Edit {{ song.title }}">Edit</a>
-      <form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}" style="display:contents">
+      {% if song.type != 'presentation' %}<form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}" style="display:contents">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="ws-copy" title="Duplicate {{ song.title }}">Copy</button>
-      </form>
+      </form>{% endif %}
       <form method="post" action="{{ url_for('worship_delete') }}" style="display:contents">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="song_id" value="{{ song.id }}">
@@ -247,7 +251,7 @@
       <button class="setlist-action setlist-copy" data-id="{{ sl.id }}" title="Duplicate setlist">Copy</button>
       <button class="setlist-chip-del" data-id="{{ sl.id }}" data-date="{{ sl.date }}" title="Delete setlist">×</button>
       {% endif %}
-      <span class="setlist-meta">{{ sl.song_count }} song{% if sl.song_count != 1 %}s{% endif %}{% if sl.updated_at %} · Updated {{ sl.updated_at[:10] }}{% endif %}</span>
+      <span class="setlist-meta">{{ sl.song_count }} item{% if sl.song_count != 1 %}s{% endif %}{% if sl.updated_at %} · Updated {{ sl.updated_at[:10] }}{% endif %}</span>
     </span>
     {% endfor %}
   </div>
@@ -269,7 +273,7 @@
   </form>
 
   <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
-    Add songs and service slides from the library to build your set.
+    Add songs, presentations, and service slides from the library to build your set.
   </p>
   <div id="set-summary" class="ws-set-summary" aria-live="polite">
     <strong id="set-summary-count"></strong>
@@ -801,6 +805,14 @@
       key.textContent = ' (' + song.key + ')';
       info.appendChild(key);
     }
+    if (song.type === 'presentation') {
+      var deckMeta = document.createElement('span');
+      var visibleSlides = (song.presentation_slides || []).filter(function (slide) { return !slide.hidden; }).length;
+      var selectedHighlights = (song.highlight_suggestions || []).filter(function (point) { return point.enabled; }).length;
+      deckMeta.className = 'muted small';
+      deckMeta.textContent = ' · ' + visibleSlides + ' slide' + (visibleSlides === 1 ? '' : 's') + (selectedHighlights ? ' + ' + selectedHighlights + ' key point' + (selectedHighlights === 1 ? '' : 's') : '');
+      info.appendChild(deckMeta);
+    }
 
     var note = document.createElement('input');
     note.type = 'text';
@@ -810,7 +822,7 @@
     info.appendChild(note);
 
     var editLink = document.createElement('a');
-    editLink.href = '/worship/edit/' + id;
+    editLink.href = song.type === 'presentation' ? '/worship/presentation/' + id : '/worship/edit/' + id;
     editLink.textContent = 'Edit';
     editLink.style.cssText = 'font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0';
 

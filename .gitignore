@@ -9,6 +9,7 @@ __pycache__/
 secret.env
 firebase-creds.json
 .venv/
+uploads/
 
 # PDF and logs
 *.pdf

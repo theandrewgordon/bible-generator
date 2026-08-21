@@ -31,6 +31,8 @@
   .wm-slide--divider .wm-card{background:linear-gradient(180deg,var(--box) 0%, color-mix(in srgb, var(--primary) 3%, var(--box)) 100%)}
   .wm-slide--lyric .wm-card{justify-content:center}
   .wm-slide--service .wm-card{background:#0f172a;color:#fff}
+  .wm-slide--presentation .wm-card{padding:0;background:#000}
+  .wm-presentation-image{width:100%;height:100%;display:block;object-fit:contain;background:#000}
   .wm-service-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .wm-service-shade{position:absolute;inset:0;background:rgba(15,23,42,.48)}
   .wm-service-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
@@ -91,7 +93,9 @@
     {% for slide in slides %}
       <section class="wm-slide wm-slide--{{ slide.kind }}" data-title="{{ slide.title }}">
         <div class="wm-card">
-          {% if slide.kind == 'service' %}
+          {% if slide.kind == 'presentation' %}
+            <img class="wm-presentation-image" src="{{ slide.image_url }}" alt="{{ slide.title }} slide {{ slide.source_number }}">
+          {% elif slide.kind == 'service' %}
             {% if slide.image_url and slide.image_layout == 'split' %}
               <div class="wm-service-split" style="position:absolute;inset:0">
                 <img class="wm-service-photo" src="{{ slide.image_url }}" alt="">
@@ -115,7 +119,7 @@
             {% endif %}
             {% if slide.note %}<p class="wm-note">{{ slide.note }}</p>{% endif %}
           {% else %}
-            <div class="wm-kind">Lyrics</div>
+            <div class="wm-kind">{% if slide.kind == 'highlight' %}Key Point{% else %}Lyrics{% endif %}</div>
             <h2 class="wm-song">{{ slide.title }}</h2>
             <p class="wm-part">{{ slide.part_label }}</p>
             <div class="wm-lines" style="font-size: clamp({{ (slide.font_size or 48) * 0.04 }}rem, 4.6vw, {{ (slide.font_size or 48) * 0.058 }}rem)">

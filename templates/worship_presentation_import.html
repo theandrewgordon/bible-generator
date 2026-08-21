@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wpi-shell{max-width:760px;margin:0 auto}.wpi-card{background:var(--box);border-radius:16px;padding:1.35rem;box-shadow:var(--card-shadow)}
+  .wpi-card label{display:block;font-weight:800;margin:.9rem 0 .35rem}.wpi-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font:inherit}
+  .wpi-help{color:var(--text-secondary);font-size:.86rem;line-height:1.45}.wpi-actions{display:flex;gap:.75rem;align-items:center;margin-top:1.15rem;flex-wrap:wrap}
+  .wpi-actions button,.wpi-actions a{padding:10px 18px;border-radius:9px;font-weight:800;text-decoration:none}.wpi-actions button{border:0;background:var(--primary);color:#fff;cursor:pointer}.wpi-actions a{border:1px solid #cbd5e1;color:var(--text)}
+  .wpi-progress{display:none;margin-top:.85rem;padding:.75rem;border-radius:9px;background:color-mix(in srgb,var(--primary) 8%,var(--box));font-weight:700}.wpi-progress.is-visible{display:block}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wpi-shell">
+  <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
+  <h1>Import a presentation</h1>
+  <p class="muted">Bring a pastor’s slides into the same service order as songs, Scripture, and announcements.</p>
+  <form class="wpi-card" method="post" enctype="multipart/form-data" id="presentation-import-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="presentation-file">PowerPoint or PDF</label>
+    <input class="wpi-input" id="presentation-file" type="file" name="presentation" accept=".pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf" required>
+    <p class="wpi-help">Up to 25 MB and 100 slides. Slides are imported as faithful static images. Animations, transitions, and embedded video are not included.</p>
+
+    <label for="presentation-title">Presentation name</label>
+    <input class="wpi-input" id="presentation-title" name="title" maxlength="160" placeholder="Sunday Sermon — Romans 8">
+
+    <label for="sermon-notes">Sermon notes <span class="muted">(optional)</span></label>
+    <textarea class="wpi-input" id="sermon-notes" name="sermon_notes" rows="12" maxlength="60000" placeholder="Paste the outline, manuscript, or speaking notes here…"></textarea>
+    <p class="wpi-help">FaithSparks will suggest concise key points grounded in these notes. You review and approve each point before it becomes a projected slide. Speaker notes already inside a PPTX are included automatically.</p>
+
+    <div class="wpi-actions">
+      <button type="submit" id="presentation-import-submit">Import and review</button>
+      <a href="{{ url_for('worship') }}">Cancel</a>
+    </div>
+    <div class="wpi-progress" id="presentation-import-progress" role="status">Converting and checking every slide… this may take a minute.</div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function(){
+  var form=document.getElementById('presentation-import-form'),button=document.getElementById('presentation-import-submit'),progress=document.getElementById('presentation-import-progress');
+  if(!form)return;
+  form.addEventListener('submit',function(){button.disabled=true;button.textContent='Importing…';progress.classList.add('is-visible');});
+})();
+</script>
+{% endblock %}
