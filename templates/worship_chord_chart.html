@@ -6,43 +6,125 @@
   <meta name="robots" content="noindex,nofollow">
   <title>{{ song.title }} · {{ target_key }}</title>
   <style>
+    :root{--chart-size:19px;--ink:#0f172a;--muted:#64748b;--chord:#2563eb;--paper:#fff;--page:#f1f5f9}
     *{box-sizing:border-box}
-    body{margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif}
-    .bar{position:sticky;top:0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 18px;background:#0f172a;color:#fff;box-shadow:0 2px 12px #0003}
-    .bar h1{font-size:1rem;margin:0 auto 0 0}
-    .bar select,.bar button{padding:8px 11px;border-radius:8px;border:1px solid #64748b;font-weight:700}
-    .chart{max-width:900px;margin:24px auto;padding:30px;background:#fff;border-radius:14px;box-shadow:0 6px 25px #0f172a18}
-    .meta{color:#64748b;margin-top:0}
-    pre{font:600 clamp(14px,2vw,19px)/1.48 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
-    @media print{.bar{display:none}.chart{box-shadow:none;margin:0;max-width:none;padding:0}}
-    @media(max-width:600px){.chart{margin:0;border-radius:0;padding:18px}}
+    body{margin:0;background:var(--page);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,select{font:inherit}
+    .bar{position:sticky;z-index:10;top:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 18px;background:#0f172a;color:#fff;box-shadow:0 2px 12px #0003}
+    .bar h1{font-size:1rem;margin:0 auto 0 0;min-width:220px}
+    .control{display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:750}
+    .bar select,.bar button{min-height:38px;padding:7px 11px;border-radius:8px;border:1px solid #64748b;background:#fff;color:#0f172a;font-weight:750;cursor:pointer}
+    .bar button:hover,.bar select:hover{background:#f8fafc}
+    .size-controls{display:flex}.size-controls button{min-width:38px;border-radius:0}.size-controls button:first-child{border-radius:8px 0 0 8px}.size-controls button:last-child{border-radius:0 8px 8px 0;border-left:0}
+    .chart{max-width:940px;margin:24px auto;padding:38px 42px 48px;background:var(--paper);border-radius:16px;box-shadow:0 8px 30px #0f172a18}
+    .chart-header{padding-bottom:22px;margin-bottom:24px;border-bottom:2px solid #e2e8f0}
+    .chart-header h1{font-size:clamp(1.8rem,4vw,2.45rem);line-height:1.08;margin:0 0 8px;letter-spacing:-.025em}
+    .meta{color:var(--muted);font-size:.96rem;margin:0}
+    .details{display:flex;gap:7px 18px;flex-wrap:wrap;margin:12px 0 0;color:#475569;font-size:.82rem}.details span{white-space:nowrap}.details .wide{white-space:normal}
+    .error{padding:10px 12px;border-radius:8px;background:#fef2f2;color:#991b1b;font-weight:700}
+    .chart-body{column-count:1;column-gap:46px}
+    .chart-body.two-columns{column-count:2}
+    .section{display:inline-block;width:100%;break-inside:avoid-column;margin:0 0 28px}
+    .section-title{display:flex;align-items:center;gap:10px;margin:0 0 14px;color:#334155;font-size:.78rem;line-height:1;text-transform:uppercase;letter-spacing:.13em;font-weight:850}
+    .section-title::after{content:"";height:1px;flex:1;background:#cbd5e1}
+    .song-line{display:flex;align-items:flex-end;flex-wrap:wrap;font-size:var(--chart-size);line-height:1.38;margin:0 0 .36em}
+    .segment{display:inline-flex;min-width:.45em;max-width:100%;flex-direction:column;vertical-align:bottom}
+    .chord{min-height:1.25em;padding-right:.65em;color:var(--chord);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.8em;line-height:1.12;font-weight:850;white-space:pre}
+    .lyric{min-height:1.38em;padding-right:0;font-weight:540;white-space:pre-wrap;overflow-wrap:anywhere}
+    .lyric-line{font-size:var(--chart-size);line-height:1.45;font-weight:540;white-space:pre-wrap;margin:0 0 .36em}
+    .chord-line,.progression{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:var(--chord);font-size:calc(var(--chart-size) * .84);line-height:1.55;font-weight:800;white-space:pre-wrap;overflow-wrap:anywhere}
+    .progression{padding:10px 13px;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff}
+    .note{padding:8px 11px;border-left:3px solid #94a3b8;background:#f8fafc;color:#475569;font-size:calc(var(--chart-size) * .78);font-style:italic}
+    .spacer{height:.65em}
+    .empty{color:var(--muted);font-style:italic}
+    @media(max-width:760px){
+      .bar{padding:10px}.bar h1{width:100%;min-width:0}.chart{margin:0;border-radius:0;padding:26px 18px 40px;box-shadow:none}
+      .chart-body.two-columns{column-count:1}.columns-control{display:none}
+    }
+    @media print{
+      :root{--chart-size:13pt;--chord:#111827;--page:#fff}
+      @page{margin:.5in}
+      .bar{display:none}.chart{box-shadow:none;margin:0;max-width:none;padding:0}.chart-header{margin-bottom:16px;padding-bottom:13px}
+      .chart-header h1{font-size:22pt}.section{margin-bottom:18px}.progression{background:transparent;border-color:#94a3b8}
+    }
   </style>
 </head>
 <body>
-  <div class="bar">
+  <nav class="bar" aria-label="Chord chart controls">
     <h1>{{ song.title }}{% if song.artist %} · {{ song.artist }}{% endif %}</h1>
     {% if source_key %}
-      <label>Key
-        <select id="key">
+      <label class="control">Key
+        <select id="key" aria-label="Transpose chart to key">
           {% for key in keys %}<option value="{{ key }}" {% if key == target_key %}selected{% endif %}>{{ key }}</option>{% endfor %}
         </select>
       </label>
     {% endif %}
-    <button onclick="window.print()">Print / PDF</button>
-  </div>
+    <div class="control size-controls" aria-label="Text size">
+      <button type="button" id="smaller" title="Smaller text" aria-label="Smaller text">A−</button>
+      <button type="button" id="larger" title="Larger text" aria-label="Larger text">A+</button>
+    </div>
+    <button type="button" id="columns" class="columns-control" aria-pressed="false">2 columns</button>
+    <button type="button" onclick="window.print()">Print / PDF</button>
+  </nav>
   <main class="chart">
-    <h1>{{ song.title }}</h1>
-    <p class="meta">{{ resource.title }}{% if target_key %} · Key {{ target_key }}{% endif %}{% if resource.capo %} · {{ resource.capo }}{% endif %}</p>
-    {% if error %}<p>{{ error }}</p>{% endif %}
-    <pre>{{ chart }}</pre>
+    <header class="chart-header">
+      <h1>{{ song.title }}</h1>
+      <p class="meta">{{ resource.title }}{% if target_key %} · Key {{ target_key }}{% endif %}{% if resource.capo %} · {{ resource.capo }}{% endif %}</p>
+      {% if chart_metadata %}<div class="details">
+        {% if chart_metadata.ccli_song_number %}<span><strong>CCLI</strong> {{ chart_metadata.ccli_song_number }}</span>{% endif %}
+        {% if chart_metadata.bpm %}<span><strong>BPM</strong> {{ chart_metadata.bpm }}</span>{% endif %}
+        {% if chart_metadata.time_signature %}<span><strong>Time</strong> {{ chart_metadata.time_signature }}</span>{% endif %}
+        {% if chart_metadata.writers %}<span class="wide"><strong>Writers</strong> {{ chart_metadata.writers }}</span>{% endif %}
+        {% if chart_metadata.themes %}<span class="wide"><strong>Themes</strong> {{ chart_metadata.themes }}</span>{% endif %}
+        {% if chart_metadata.scripture %}<span class="wide"><strong>Scripture</strong> {{ chart_metadata.scripture }}</span>{% endif %}
+      </div>{% endif %}
+    </header>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <div class="chart-body" id="chartBody">
+      {% for section in chart_sections %}
+        <section class="section">
+          {% if section.title %}<h2 class="section-title">{{ section.title }}</h2>{% endif %}
+          {% for line in section.lines %}
+            {% if line.kind == 'song' %}
+              <div class="song-line">
+                {% for segment in line.segments %}<span class="segment"><span class="chord">{{ segment.chord }}</span><span class="lyric">{{ segment.lyric }}</span></span>{% endfor %}
+              </div>
+            {% elif line.kind == 'lyrics' %}<div class="lyric-line">{{ line.text }}</div>
+            {% elif line.kind == 'chords' %}<div class="chord-line">{{ line.text }}</div>
+            {% elif line.kind == 'progression' %}<div class="progression">{{ line.text }}</div>
+            {% elif line.kind == 'note' %}<div class="note">{{ line.text }}</div>
+            {% elif line.kind == 'spacer' %}<div class="spacer" aria-hidden="true"></div>
+            {% endif %}
+          {% endfor %}
+        </section>
+      {% else %}<p class="empty">This chart is empty.</p>{% endfor %}
+    </div>
   </main>
   <script>
-    var key = document.getElementById('key');
-    if (key) key.addEventListener('change', function () {
-      var url = new URL(location.href);
-      url.searchParams.set('key', key.value);
-      location.href = url;
-    });
+    (function () {
+      var root = document.documentElement;
+      var body = document.getElementById('chartBody');
+      var key = document.getElementById('key');
+      var columns = document.getElementById('columns');
+      var size = 19;
+
+      if (key) key.addEventListener('change', function () {
+        var url = new URL(location.href);
+        url.searchParams.set('key', key.value);
+        location.href = url;
+      });
+      document.getElementById('smaller').addEventListener('click', function () {
+        size = Math.max(14, size - 1); root.style.setProperty('--chart-size', size + 'px');
+      });
+      document.getElementById('larger').addEventListener('click', function () {
+        size = Math.min(28, size + 1); root.style.setProperty('--chart-size', size + 'px');
+      });
+      columns.addEventListener('click', function () {
+        var active = body.classList.toggle('two-columns');
+        columns.setAttribute('aria-pressed', active ? 'true' : 'false');
+        columns.textContent = active ? '1 column' : '2 columns';
+      });
+    }());
   </script>
 </body>
 </html>

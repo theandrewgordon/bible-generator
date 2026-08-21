@@ -3,8 +3,10 @@ import unittest
 import app
 from faithsparks.services.chords import (
     chart_has_chords,
+    clean_pasted_chord_chart,
     key_distance,
     normalize_key,
+    parse_chord_chart,
     transpose_chart,
     transpose_chord,
 )
@@ -17,6 +19,11 @@ class WorshipChordTests(unittest.TestCase):
         self.assertIn("{key: A}", transposed)
         self.assertIn("[A]Amazing [D]grace", transposed)
         self.assertIn("A  D  E/G#  F#m7", transposed)
+
+    def test_transposes_bar_separated_progressions(self):
+        chart = "Intro\n| G / / / | C / D/F# / |"
+        transposed = transpose_chart(chart, "G", "A")
+        self.assertEqual(transposed, "Intro\n| A / / / | D / E/G# / |")
 
     def test_flat_target_uses_readable_flat_spelling(self):
         self.assertEqual(transpose_chart("[E]Word [B/D#]word", "E", "Eb"), "[Eb]Word [Bb/D]word")
@@ -34,6 +41,99 @@ class WorshipChordTests(unittest.TestCase):
         transposed = transpose_chart(chart, "G", "A")
         self.assertEqual(transposed.splitlines(), ["A  D  E", "Grace is enough for me"])
         self.assertTrue(chart_has_chords(chart))
+
+    def test_chordpro_chart_is_grouped_and_chords_stay_with_lyrics(self):
+        chart = """{title: Sample}
+Intro
+[| C#m / B/D# / | A2/E / / / |]
+
+[Verse 1]
+[E]As the [B/D#]deer panteth [C#m]for the [B]water
+So my [A]soul longeth [B]after [E]Thee
+"""
+        sections = parse_chord_chart(chart)
+
+        self.assertEqual([section["title"] for section in sections], ["Intro", "Verse 1"])
+        self.assertEqual(sections[0]["lines"][0], {
+            "kind": "progression", "text": "| C#m / B/D# / | A2/E / / / |"
+        })
+        segments = sections[1]["lines"][0]["segments"]
+        self.assertEqual([segment["chord"] for segment in segments], ["E", "B/D#", "C#m", "B"])
+        self.assertEqual([segment["lyric"] for segment in segments], ["As the ", "deer panteth ", "for the ", "water"])
+
+    def test_parser_preserves_leading_lyrics_and_escapes_in_template(self):
+        sections = parse_chord_chart("Verse 1\nBefore [G]after <script>")
+        segments = sections[0]["lines"][0]["segments"]
+        self.assertEqual(segments[0], {"chord": "", "lyric": "Before "})
+        self.assertEqual(segments[1], {"chord": "G", "lyric": "after <script>"})
+
+    def test_cleans_copied_song_page_and_aligns_plain_chord_rows(self):
+        pasted = """Search song title, artist, or writer
+Home
+Abide
+Aaron Williams, CAIN
+CCLI: 7168160
+Key: B
+BPM: 150
+Time Sig: 6/8
+Writers: Aaron Keyes, Aaron Williams, Jake Fauber
+Scripture: John 15:5, Matthew 6:11
+Lyrics
+Chords
+
+B (Original)
+Intro
+
+B   F#   C#m7   G#m   E   B/F#   F#
+
+Verse 1
+
+       B                    F#
+For my waking breath for my daily bread
+G#m              E
+I depend on You, I depend on You
+
+Repeat Chorus:
+
+Verse 2
+B
+   You're The Way, The Truth, and The Life
+Videos
+Abide lyric video
+Links
+Other versions of this song
+"""
+        cleaned = clean_pasted_chord_chart(pasted)
+
+        self.assertTrue(cleaned["changed"])
+        self.assertEqual(cleaned["metadata"]["key"], "B")
+        self.assertEqual(cleaned["metadata"]["ccli_song_number"], "7168160")
+        self.assertEqual(cleaned["metadata"]["bpm"], "150")
+        self.assertNotIn("Search song", cleaned["chart"])
+        self.assertNotIn("Videos", cleaned["chart"])
+        self.assertIn("[B]waking breath for my [F#]daily bread", cleaned["chart"])
+        self.assertIn("[G#m]I depend on You, [E]I depend on You", cleaned["chart"])
+        self.assertIn("{comment: Repeat Chorus}", cleaned["chart"])
+
+        sections = parse_chord_chart(cleaned["chart"])
+        self.assertEqual([section["title"] for section in sections], ["Intro", "Verse 1", "Repeat Chorus", "Verse 2"])
+
+    def test_cleaner_leaves_hand_authored_chordpro_unchanged(self):
+        chart = "Verse 1\n[G]Amazing [C]grace"
+        cleaned = clean_pasted_chord_chart(chart)
+        self.assertFalse(cleaned["changed"])
+        self.assertEqual(cleaned["chart"], chart)
+
+    def test_cleaner_does_not_treat_listen_as_a_footer(self):
+        pasted = "Chords\nB (Original)\nVerse 1\nB\nListen\nVideos\nVideo title"
+        cleaned = clean_pasted_chord_chart(pasted)
+        self.assertIn("[B]Listen", cleaned["chart"])
+        self.assertNotIn("Videos", cleaned["chart"])
+
+    def test_chordpro_comments_remain_notes_unless_they_name_a_section(self):
+        sections = parse_chord_chart("{comment: Capo 2}\n{comment: Verse 1}\n[G]Grace")
+        self.assertEqual(sections[0]["lines"][0], {"kind": "note", "text": "Capo 2"})
+        self.assertEqual(sections[1]["title"], "Verse 1")
 
 
 class WorshipResourceAndVideoTests(unittest.TestCase):

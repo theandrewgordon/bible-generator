@@ -58,7 +58,13 @@ from faithsparks.services.storage import (
     upload_to_storage,
     upload_to_storage_checked,
 )
-from faithsparks.services.chords import chart_has_chords, normalize_key, transpose_chart
+from faithsparks.services.chords import (
+    chart_has_chords,
+    clean_pasted_chord_chart,
+    normalize_key,
+    parse_chord_chart,
+    transpose_chart,
+)
 from faithsparks.services.worship_presentations import (
     MAX_PRESENTATION_BYTES,
     MAX_SERMON_NOTES_CHARS,
@@ -1468,6 +1474,11 @@ def normalize_worship_song(song: dict) -> dict:
             "sha256": re.sub(r"[^a-fA-F0-9]", "", str(raw_resource.get("sha256") or ""))[:64].lower(),
             "chart_text": chart_text,
             "has_chords": bool(chart_text and chart_has_chords(chart_text)),
+            "bpm": re.sub(r"[^0-9]", "", str(raw_resource.get("bpm") or ""))[:3],
+            "time_signature": re.sub(r"[^0-9/]", "", str(raw_resource.get("time_signature") or ""))[:12],
+            "writers": re.sub(r"\s+", " ", str(raw_resource.get("writers") or "")).strip()[:500],
+            "themes": re.sub(r"\s+", " ", str(raw_resource.get("themes") or "")).strip()[:500],
+            "scripture": re.sub(r"\s+", " ", str(raw_resource.get("scripture") or "")).strip()[:500],
             "created_at": str(raw_resource.get("created_at") or "")[:64],
             "created_by": str(raw_resource.get("created_by") or "")[:254],
         })
@@ -6671,6 +6682,7 @@ def worship_song_resource_add(song_id):
     size = len(chart_text.encode("utf-8")) if chart_text else 0
     digest = hashlib.sha256(chart_text.encode("utf-8")).hexdigest() if chart_text else ""
     temp_path = ""
+    chart_cleanup: dict[str, object] = {}
     try:
         if has_upload:
             filename = secure_filename(upload.filename)[:180]
@@ -6700,10 +6712,18 @@ def worship_song_resource_add(song_id):
                     raise ValueError("Chord text files must use UTF-8 text.") from exc
                 kind = "chordpro"
                 mime_type = "text/plain; charset=utf-8"
+        if chart_text and _boolish(request.form.get("auto_clean_chart"), True):
+            chart_cleanup = clean_pasted_chord_chart(chart_text)
+            chart_text = str(chart_cleanup.get("chart") or chart_text)[:80_000]
+            size = len(chart_text.encode("utf-8"))
+            digest = hashlib.sha256(chart_text.encode("utf-8")).hexdigest()
+            kind = "chordpro"
+            mime_type = "text/plain; charset=utf-8"
         if not (storage_path or source_url or chart_text):
             raise ValueError("Add a PDF, chord chart text, or source link.")
         if digest and any(resource.get("sha256") == digest for resource in normalized.get("resources", [])):
             raise ValueError("That exact resource is already saved for this song.")
+        extracted_metadata = chart_cleanup.get("metadata") if isinstance(chart_cleanup.get("metadata"), dict) else {}
         resource = {
             "id": resource_id,
             "kind": kind,
@@ -6713,18 +6733,27 @@ def worship_song_resource_add(song_id):
             "source_url": source_url,
             "source_type": str(request.form.get("source_type") or "other").strip().lower(),
             "license_note": str(request.form.get("license_note") or "").strip()[:500],
-            "key": normalize_key(request.form.get("key") or normalized.get("key") or ""),
+            "key": normalize_key(request.form.get("key") or extracted_metadata.get("key") or normalized.get("key") or ""),
             "capo": str(request.form.get("capo") or "").strip()[:20],
             "arrangement": str(request.form.get("arrangement") or "").strip()[:120],
             "mime_type": mime_type,
             "size": size,
             "sha256": digest,
             "chart_text": chart_text,
+            "bpm": str(extracted_metadata.get("bpm") or "")[:8],
+            "time_signature": str(extracted_metadata.get("time_signature") or "")[:12],
+            "writers": str(extracted_metadata.get("writers") or "")[:500],
+            "themes": str(extracted_metadata.get("themes") or "")[:500],
+            "scripture": str(extracted_metadata.get("scripture") or "")[:500],
             "created_at": _worship_timestamp(),
             "created_by": session.get("user_email", ""),
         }
         normalized["resources"] = [*normalized.get("resources", []), resource]
-        normalized["ccli_song_number"] = request.form.get("ccli_song_number", normalized.get("ccli_song_number", ""))
+        normalized["ccli_song_number"] = (
+            request.form.get("ccli_song_number")
+            or extracted_metadata.get("ccli_song_number")
+            or normalized.get("ccli_song_number", "")
+        )
         normalized["copyright_notice"] = request.form.get("copyright_notice", normalized.get("copyright_notice", ""))
         save_worship_song(normalized)
     except (ValueError, RuntimeError) as exc:
@@ -6738,7 +6767,10 @@ def worship_song_resource_add(song_id):
                 os.unlink(temp_path)
             except OSError:
                 pass
-    flash("Song resource saved to this church library.", "success")
+    if chart_cleanup.get("changed"):
+        flash("Song resource saved and the pasted page was cleaned into a musician-ready chart.", "success")
+    else:
+        flash("Song resource saved to this church library.", "success")
     return redirect(url_for("worship_song_resources", song_id=song_id))
 
 
@@ -6803,9 +6835,17 @@ def worship_song_resource_chart(song_id, resource_id):
     resource = _worship_resource_for_song(song, resource_id)
     if not resource or not resource.get("chart_text"):
         abort(404)
-    source_key = resource.get("key") or song.get("key") or ""
+    cleanup = clean_pasted_chord_chart(resource["chart_text"])
+    chart_metadata = cleanup.get("metadata") if isinstance(cleanup.get("metadata"), dict) else {}
+    chart_metadata = {
+        **chart_metadata,
+        **{name: resource.get(name) for name in ("bpm", "time_signature", "writers", "themes", "scripture") if resource.get(name)},
+    }
+    if song.get("ccli_song_number") and not chart_metadata.get("ccli_song_number"):
+        chart_metadata["ccli_song_number"] = song["ccli_song_number"]
+    source_key = resource.get("key") or chart_metadata.get("key") or song.get("key") or ""
     target_key = normalize_key(request.args.get("key") or source_key)
-    chart = resource["chart_text"]
+    chart = str(cleanup.get("chart") or resource["chart_text"])
     error = ""
     if target_key and source_key and target_key != source_key:
         try:
@@ -6814,8 +6854,9 @@ def worship_song_resource_chart(song_id, resource_id):
             error = str(exc)
     target_keys = tuple(f"{key}m" for key in _WORSHIP_KEY_CHOICES) if source_key.endswith("m") else _WORSHIP_KEY_CHOICES
     return render_template(
-        "worship_chord_chart.html", song=song, resource=resource, chart=chart,
+        "worship_chord_chart.html", song=song, resource=resource, chart_sections=parse_chord_chart(chart),
         source_key=source_key, target_key=target_key or source_key, keys=target_keys, error=error,
+        chart_metadata=chart_metadata,
     )
 
 
