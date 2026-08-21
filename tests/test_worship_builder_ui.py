@@ -35,6 +35,7 @@ class WorshipBuilderUiTests(unittest.TestCase):
                 worship_churches=[],
                 active_worship_live=None,
                 worship_scripture_versions=[{"id": "web", "label": "WEB"}, {"id": "kjv", "label": "KJV"}],
+                legal_acceptance_current=False,
             )
 
     def test_builder_presents_the_primary_sunday_workflow_first(self):
@@ -68,6 +69,8 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn('data-library-filter="scripture"', html)
         self.assertIn('data-library-filter="service"', html)
         self.assertIn('data-library-filter="presentation"', html)
+        self.assertIn('data-library-filter="in_set"', html)
+        self.assertIn('data-library-filter="recent"', html)
         self.assertIn("function libraryCategory(type)", html)
         self.assertIn("JSON.stringify(song.parts || {})", html)
         self.assertIn("worship_library_filter:", html)
@@ -108,6 +111,18 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn("/worship/getting-started/run-service", routes)
         self.assertIn("/worship/getting-started/presentations", routes)
         self.assertIn("/copyright", routes)
+        self.assertIn("/terms", routes)
+        self.assertIn("/privacy", routes)
+        self.assertIn("/legal/accept", routes)
+        self.assertIn("/worship/church/delete", routes)
+
+    def test_builder_shows_durable_terms_acceptance_and_owner_delete_control(self):
+        html = self._render_builder()
+
+        self.assertIn('action="/legal/accept"', html)
+        self.assertIn("I agree to the", html)
+        self.assertIn('id="delete-church-btn"', html)
+        self.assertIn("DELETE Grace Church", html)
 
     def test_worship_forms_show_rights_acknowledgments(self):
         with worship_app.app.test_request_context("/worship/add"):

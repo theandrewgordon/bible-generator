@@ -63,6 +63,11 @@ def _normalize_versions(versions_used) -> list[str]:
     return [v for v in _NOTICE_ORDER if v in normalized]
 
 
+def scripture_notice_texts(versions_used) -> list[tuple[str, str]]:
+    """Return the standard attribution blocks for the requested translations."""
+    return [(code, _NOTICE_TEXT[code]) for code in _normalize_versions(versions_used)]
+
+
 def append_scripture_notices_page(c, versions_used=None, margin: float = 0.6 * inch) -> None:
     """
     Append a standard Scripture attribution/permissions page to the current PDF.

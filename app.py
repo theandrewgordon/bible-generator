@@ -871,6 +871,7 @@ _WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
 _WORSHIP_LIVE_CONTROL_COOKIE = "fs_worship_live_control"
 _WORSHIP_LIVE_STAGE_COOKIE = "fs_worship_live_stage"
 _WORSHIP_LIVE_ACTIVE_SESSION_KEY = "worship_live_active"
+_LEGAL_TERMS_VERSION = "2026-08-21"
 _WORSHIP_LIVE_AUTOMATED_UA_MARKERS = (
     "google-read-aloud",
     "googlebot",
@@ -1004,6 +1005,40 @@ def worship_owner_required(func):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def _has_current_legal_acceptance() -> bool:
+    if session.get("legal_terms_version") == _LEGAL_TERMS_VERSION:
+        return True
+    if not (db and session.get("user_email")):
+        return False
+    try:
+        snapshot = db.collection("users").document(session["user_email"]).get()
+        data = snapshot.to_dict() if snapshot.exists else {}
+        if data.get("legalTermsVersion") == _LEGAL_TERMS_VERSION:
+            session["legal_terms_version"] = _LEGAL_TERMS_VERSION
+            return True
+    except Exception as exc:
+        app.logger.warning("legal acceptance lookup failed: %s", exc)
+    return False
+
+
+@app.route("/legal/accept", methods=["POST"])
+@login_required
+def legal_accept():
+    if not _boolish(request.form.get("accept_terms")):
+        flash("Please accept the Terms and Privacy Policy to continue.", "warning")
+        return redirect(url_for("worship"))
+    accepted_at = _worship_timestamp()
+    session["legal_terms_version"] = _LEGAL_TERMS_VERSION
+    if db and session.get("user_email"):
+        db.collection("users").document(session["user_email"]).set({
+            "legalTermsVersion": _LEGAL_TERMS_VERSION,
+            "legalTermsAcceptedAt": accepted_at,
+        }, merge=True)
+    target = request.form.get("next", "")
+    flash("Terms accepted. Thank you.", "success")
+    return redirect(target if target and is_safe_url(target) else url_for("worship"))
 
 
 def _load_worship_churches() -> list[dict]:
@@ -1823,6 +1858,50 @@ def _delete_all_worship_library_data() -> dict:
     if deleted["songs"] or deleted["setlists"]:
         _invalidate_worship_cache()
     return deleted
+
+
+def _delete_worship_church_workspace(scope: str) -> dict:
+    """Permanently remove one non-default church workspace and its private media."""
+    scope = _slugify_worship_token(scope)
+    if not db or not scope or scope == _DEFAULT_WORSHIP_SCOPE:
+        raise ValueError("The shared default library cannot be deleted.")
+    church_ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(scope)
+    church_doc = church_ref.get()
+    if not church_doc.exists:
+        raise ValueError("That church workspace no longer exists.")
+    counts = {"songs": 0, "setlists": 0, "media": 0, "live_sessions": 0, "members": 0, "storage_files": 0}
+    scope_ref = db.collection(_WORSHIP_SCOPE_COLLECTION).document(scope)
+    for collection_name, count_key in (
+        (_WORSHIP_COLLECTION, "songs"),
+        (_WORSHIP_SETLIST_COLLECTION, "setlists"),
+        (_WORSHIP_MEDIA_COLLECTION, "media"),
+        (_WORSHIP_LIVE_COLLECTION, "live_sessions"),
+    ):
+        for doc in scope_ref.collection(collection_name).stream():
+            if collection_name == _WORSHIP_COLLECTION:
+                data = doc.to_dict() or {}
+                _delete_worship_presentation_assets(data)
+                _delete_worship_resource_assets(data)
+            doc.reference.delete()
+            counts[count_key] += 1
+    for member_doc in church_ref.collection("members").stream():
+        member = member_doc.to_dict() or {}
+        email = str(member.get("email") or member_doc.id).strip()
+        if email:
+            user_ref = db.collection("users").document(email)
+            user_snapshot = user_ref.get()
+            user_data = user_snapshot.to_dict() if user_snapshot.exists else {}
+            update = {"worshipChurchIds": firestore.ArrayRemove([scope])}
+            if user_data.get("worshipChurchId") == scope:
+                update["worshipChurchId"] = _DEFAULT_WORSHIP_SCOPE
+            user_ref.set(update, merge=True)
+        member_doc.reference.delete()
+        counts["members"] += 1
+    counts["storage_files"] = delete_storage_prefix(f"worship-media/{scope}")
+    scope_ref.delete()
+    church_ref.delete()
+    _invalidate_worship_cache(scope)
+    return counts
 
 
 def _remove_song_from_worship_setlists(song_id: str) -> int:
@@ -3031,6 +3110,7 @@ def worship():
         worship_churches=church_context["churches"],
         active_worship_live=_active_worship_live_context(),
         worship_scripture_versions=_worship_scripture_version_options(),
+        legal_acceptance_current=_has_current_legal_acceptance(),
     )
 
 
@@ -6070,6 +6150,28 @@ def _build_worship_lyric_sheet_pdf(selected_items: list[dict], mobile_url: str =
         story.append(Spacer(1, 18))
         story.append(Paragraph("Mobile view: " + esc(mobile_url), footer_style))
 
+    scripture_versions = [
+        normalize_worship_song(item).get("version", "")
+        for item in selected_items
+        if normalize_worship_song(item).get("type") == "scripture"
+    ]
+    if scripture_versions:
+        from faithsparks.pdf_notices import scripture_notice_texts
+        story.append(Spacer(1, 24))
+        story.append(Paragraph("Scripture Attribution &amp; Permissions", title_style))
+        notices = scripture_notice_texts(scripture_versions)
+        for code, notice in notices:
+            story.append(Paragraph(esc(code), label_style))
+            story.append(Paragraph(esc(notice), footer_style))
+        known = {code for code, _ in notices}
+        for version in dict.fromkeys(str(value or "").strip().upper() for value in scripture_versions):
+            if version and version not in known:
+                story.append(Paragraph(esc(version), label_style))
+                story.append(Paragraph(
+                    "User-supplied Scripture text. Verify permission, wording, and required attribution before distribution.",
+                    footer_style,
+                ))
+
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=letter,
@@ -6197,6 +6299,22 @@ def worship_build():
                 font_size=slide.get("font_size", 48),
                 part_label=_worship_part_label(part_name),
             )
+
+    scripture_versions = [
+        normalize_worship_song(item).get("version", "")
+        for item in selected_items
+        if normalize_worship_song(item).get("type") == "scripture"
+    ]
+    if scripture_versions:
+        from faithsparks.pdf_notices import scripture_notice_texts
+        lines = ["SCRIPTURE ATTRIBUTION"]
+        notices = scripture_notice_texts(scripture_versions)
+        lines.extend(f"{code}: {notice}" for code, notice in notices)
+        known = {code for code, _ in notices}
+        for version in dict.fromkeys(str(value or "").strip().upper() for value in scripture_versions):
+            if version and version not in known:
+                lines.append(f"{version}: User-supplied text; verify permission and required attribution.")
+        create_content_slide(prs, lines, "scripture", None, font_size=20, part_label="Attribution")
 
     today = datetime.now(timezone.utc).date().isoformat()
     if _worship_can_edit():
@@ -7890,6 +8008,35 @@ def worship_library_reset():
     if _worship_wants_json_response():
         return jsonify({"ok": True, **deleted})
     flash(f"Reset worship library: deleted {deleted['songs']} songs and {deleted['setlists']} saved setlists.", "success")
+    return redirect(url_for("worship"))
+
+
+@app.route("/worship/church/delete", methods=["POST"])
+@login_required
+@worship_owner_required
+def worship_church_delete():
+    scope = _current_worship_scope()
+    church = _current_worship_church_context()["current"]
+    expected = f"DELETE {church.get('name', '')}".strip()
+    confirmation = request.form.get("confirmation", "").strip()
+    if scope == _DEFAULT_WORSHIP_SCOPE:
+        abort(400)
+    if confirmation.casefold() != expected.casefold():
+        flash(f"Type {expected} to delete this workspace.", "warning")
+        return redirect(url_for("worship"))
+    try:
+        deleted = _delete_worship_church_workspace(scope)
+    except (ValueError, RuntimeError) as exc:
+        app.logger.warning("worship church delete failed for %s: %s", scope, exc)
+        flash(str(exc), "error")
+        return redirect(url_for("worship"))
+    session.pop("worship_church_id", None)
+    session.pop("worship_scope", None)
+    flash(
+        f"Deleted {church.get('name')}: {deleted['songs']} library items, "
+        f"{deleted['setlists']} saved services, and {deleted['members']} memberships.",
+        "success",
+    )
     return redirect(url_for("worship"))
 
 

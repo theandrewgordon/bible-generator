@@ -189,6 +189,14 @@
   </div>
 </div>
 
+{% if not legal_acceptance_current %}<aside class="ws-live-resume" aria-label="Terms acceptance required">
+  <form method="post" action="{{ url_for('legal_accept') }}" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;width:100%">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.path }}">
+    <label style="flex:1;min-width:260px"><input type="checkbox" name="accept_terms" value="1" required> I agree to the <a href="{{ url_for('public.terms') }}" target="_blank">Terms</a> and acknowledge the <a href="{{ url_for('public.privacy') }}" target="_blank">Privacy Policy</a>, including responsibility for content I upload or display.</label>
+    <button type="submit" class="ws-btn-primary">Accept</button>
+  </form>
+</aside>{% endif %}
+
 <div class="ws-tour-backdrop" id="worship-tour" aria-hidden="true">
   <section class="ws-tour" role="dialog" aria-modal="true" aria-labelledby="worship-tour-title">
     <div class="ws-tour-head"><div><p class="ws-tour-eyebrow" id="worship-tour-step">Quick tour · 1 of 4</p><h2 id="worship-tour-title">Plan a service in a few minutes</h2></div><button type="button" class="ws-tour-close" id="worship-tour-close" aria-label="Close walkthrough">×</button></div>
@@ -259,6 +267,7 @@
       <button type="submit" onclick="return confirm('Remove duplicate songs (same title + artist + version)? The best-structured parse will be kept.')">Clean duplicate songs</button>
     </form>
     <button type="button" class="is-danger" id="reset-library-btn">Reset entire library</button>
+    {% if worship_church.id != 'default' %}<button type="button" class="is-danger" id="delete-church-btn">Delete church workspace</button>{% endif %}
     {% endif %}
     </div></details>
   </div>
@@ -268,6 +277,8 @@
     <button type="button" class="ws-library-filter" data-library-filter="scripture">Scripture <span class="ws-library-filter-count" data-filter-count="scripture">{{ songs|selectattr('type', 'equalto', 'scripture')|list|length }}</span></button>
     <button type="button" class="ws-library-filter" data-library-filter="service">Service slides <span class="ws-library-filter-count" data-filter-count="service">{{ songs|selectattr('type', 'in', ['welcome', 'announcement', 'photo', 'video', 'prayer', 'reading'])|list|length }}</span></button>
     <button type="button" class="ws-library-filter" data-library-filter="presentation">Presentations <span class="ws-library-filter-count" data-filter-count="presentation">{{ songs|selectattr('type', 'equalto', 'presentation')|list|length }}</span></button>
+    <button type="button" class="ws-library-filter" data-library-filter="in_set">In this service <span class="ws-library-filter-count" data-filter-count="in_set">0</span></button>
+    <button type="button" class="ws-library-filter" data-library-filter="recent">Recently used <span class="ws-library-filter-count" data-filter-count="recent">{{ songs|selectattr('last_used')|list|length }}</span></button>
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
@@ -447,6 +458,17 @@
 </div>
 {% endif %}
 
+{% if worship_church.role == 'owner' and worship_church.id != 'default' %}<div class="ws-modal-backdrop" id="delete-church-modal" aria-hidden="true">
+  <form class="ws-modal" method="post" action="{{ url_for('worship_church_delete') }}" role="dialog" aria-modal="true" aria-labelledby="delete-church-title">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 id="delete-church-title">Delete {{ worship_church.name }}</h2>
+    <p>This permanently deletes this workspace, its library, saved services, uploaded media, live sessions, and memberships. This cannot be undone.</p>
+    <label for="delete-church-confirmation">Type <strong>DELETE {{ worship_church.name }}</strong></label>
+    <input id="delete-church-confirmation" name="confirmation" type="text" autocomplete="off">
+    <div class="ws-modal-actions"><button type="button" class="ws-btn-ghost" id="delete-church-cancel">Cancel</button><button type="submit" class="ws-btn-danger">Delete workspace</button></div>
+  </form>
+</div>{% endif %}
+
 <script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
 {% endblock %}
 
@@ -502,6 +524,10 @@
   var resetModal = document.getElementById('reset-library-modal');
   var resetInput = document.getElementById('reset-library-confirmation');
   var resetCancelBtn = document.getElementById('reset-library-cancel');
+  var deleteChurchBtn = document.getElementById('delete-church-btn');
+  var deleteChurchModal = document.getElementById('delete-church-modal');
+  var deleteChurchInput = document.getElementById('delete-church-confirmation');
+  var deleteChurchCancel = document.getElementById('delete-church-cancel');
   var quickScriptureBtn = document.getElementById('quick-scripture-btn');
   var quickScriptureModal = document.getElementById('quick-scripture-modal');
   var quickScriptureForm = document.getElementById('quick-scripture-form');
@@ -823,6 +849,8 @@
       btn.disabled = added;
     }
     row.classList.toggle('lib-row--in-set', added);
+    updateLibraryFilterCounts();
+    if (activeLibraryFilter === 'in_set') filterAndSortLibrary();
   }
 
   function setCopiedState(done) {
@@ -1232,6 +1260,20 @@
       if (e.target === resetModal) closeResetModal();
     });
   }
+  function closeDeleteChurchModal() {
+    if (!deleteChurchModal) return;
+    deleteChurchModal.classList.remove('is-open');
+    deleteChurchModal.setAttribute('aria-hidden', 'true');
+  }
+  if (deleteChurchBtn) deleteChurchBtn.addEventListener('click', function () {
+    deleteChurchModal.classList.add('is-open');
+    deleteChurchModal.setAttribute('aria-hidden', 'false');
+    if (deleteChurchInput) { deleteChurchInput.value = ''; setTimeout(function () { deleteChurchInput.focus(); }, 0); }
+  });
+  if (deleteChurchCancel) deleteChurchCancel.addEventListener('click', closeDeleteChurchModal);
+  if (deleteChurchModal) deleteChurchModal.addEventListener('click', function (event) {
+    if (event.target === deleteChurchModal) closeDeleteChurchModal();
+  });
 
   // ── Setlist chips ─────────────────────────────────────────────────────────
 
@@ -1559,10 +1601,12 @@
   }
 
   function updateLibraryFilterCounts() {
-    var counts = {all: 0, song: 0, scripture: 0, service: 0, presentation: 0};
+    var counts = {all: 0, song: 0, scripture: 0, service: 0, presentation: 0, in_set: 0, recent: 0};
     Object.keys(SONGS_BY_ID).forEach(function (id) {
       counts.all += 1;
       counts[libraryCategory((SONGS_BY_ID[id] || {}).type)] += 1;
+      if (inSet[id]) counts.in_set += 1;
+      if ((SONGS_BY_ID[id] || {}).last_used) counts.recent += 1;
     });
     Object.keys(counts).forEach(function (category) {
       var countEl = document.querySelector('[data-filter-count="' + category + '"]');
@@ -1588,7 +1632,10 @@
       var song = SONGS_BY_ID[row.dataset.id] || {};
       var haystack = [song.title, song.artist, song.version, song.key, song.type, JSON.stringify(song.parts || {}), JSON.stringify(song.service_lines || [])].filter(Boolean).join(' ').toLowerCase();
       var matchesSearch = !q || haystack.includes(q);
-      var matchesType = activeLibraryFilter === 'all' || libraryCategory(song.type) === activeLibraryFilter;
+      var matchesType = activeLibraryFilter === 'all' ||
+        (activeLibraryFilter === 'in_set' && !!inSet[row.dataset.id]) ||
+        (activeLibraryFilter === 'recent' && !!song.last_used) ||
+        libraryCategory(song.type) === activeLibraryFilter;
       var visible = matchesSearch && matchesType;
       row.style.display = visible ? '' : 'none';
       if (visible) visibleCount += 1;

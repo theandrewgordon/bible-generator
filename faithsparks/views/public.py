@@ -114,6 +114,16 @@ def copyright_policy():
     return render_template('copyright_policy.html')
 
 
+@bp.route('/terms')
+def terms():
+    return render_template('terms.html')
+
+
+@bp.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+
 @bp.route('/start-here')
 def start_here():
     return render_template(
