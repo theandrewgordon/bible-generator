@@ -9,7 +9,7 @@
 {% endblock %}
 {% block content %}
 <div class="wr-wrap">
-  <div class="wr-head"><div><h1 style="margin-bottom:.25rem">{{ song.title }} · Music resources</h1><p class="muted small">Private to the current church library. PDFs stay faithful; ChordPro/text charts can change key.</p></div><div class="wr-actions"><a class="wr-btn secondary" href="{{ url_for('worship') }}">← Worship</a><a class="wr-btn secondary" href="{{ url_for('worship_licensing') }}">Licensing report</a></div></div>
+  <div class="wr-head"><div><h1 style="margin-bottom:.25rem">{{ song.title }} · Music resources</h1><p class="muted small">Private to the current church library. PDFs stay faithful; ChordPro/text charts can change key.</p></div><div class="wr-actions"><a class="wr-btn secondary" href="{{ url_for('worship') }}">← Worship</a><a class="wr-btn secondary" href="{{ url_for('worship_music_getting_started') }}">How this works</a><a class="wr-btn secondary" href="{{ url_for('worship_licensing') }}">Licensing report</a></div></div>
 
   <section class="wr-card">
     <h2 style="margin-top:0">Song licensing details</h2>
@@ -36,7 +36,7 @@
     {% else %}<p class="wr-empty">No chord charts or source links saved yet.</p>{% endfor %}
   </section>
 
-  {% if can_edit %}<section class="wr-card">
+  {% if can_edit %}<section class="wr-card" id="add-chart-source">
     <h2 style="margin-top:0">Add a chart or source</h2>
     <p class="wr-note"><strong>Provider-safe workflow:</strong> save the Worship Together/SongSelect/publisher link as the source, then upload a chart your church is licensed to keep or paste authorized ChordPro text. Faith Sparks does not scrape or republish provider libraries.</p>
     <form method="post" action="{{ url_for('worship_song_resource_add', song_id=song.id) }}" enctype="multipart/form-data" class="wr-grid" style="margin-top:1rem">

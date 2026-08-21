@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wmg-hero{max-width:790px;margin-bottom:1.4rem}.wmg-hero h1{margin:.2rem 0 .45rem}.wmg-kicker{margin:0;color:var(--primary);font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.wmg-lead{margin:0;color:var(--text-secondary);font-size:1.02rem;line-height:1.55}
+  .wmg-actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}.wmg-primary,.wmg-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;text-decoration:none;font-weight:800;font-size:.9rem}.wmg-primary{background:var(--primary);color:#fff}.wmg-primary:hover{background:var(--primary-dark);color:#fff}.wmg-secondary{border:1px solid #cbd5e1;color:var(--text);background:var(--background)}
+  .wmg-note{max-width:790px;margin:1rem 0 1.5rem;padding:1rem 1.1rem;border:1px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#78350f;font-size:.9rem;line-height:1.5}.wmg-note strong{display:block;margin-bottom:.2rem}
+  .wmg-types{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;max-width:900px;margin:0 0 1.4rem}.wmg-type{padding:1rem;border:1px solid #e2e8f0;border-radius:12px;background:var(--box)}.wmg-type h2{font-size:.96rem;margin:0 0 .35rem}.wmg-type p{margin:0;color:var(--text-secondary);font-size:.86rem;line-height:1.5}.wmg-badge{display:inline-block;margin-top:.55rem;padding:.2rem .45rem;border-radius:999px;background:color-mix(in srgb,var(--primary) 12%,var(--background));color:var(--primary);font-size:.72rem;font-weight:800}
+  .wmg-steps{max-width:900px;display:grid;gap:.8rem;counter-reset:wmg-step}.wmg-step{counter-increment:wmg-step;display:grid;grid-template-columns:42px minmax(0,1fr);gap:.8rem;padding:1rem 1.1rem;border:1px solid #e2e8f0;border-radius:13px;background:var(--box);box-shadow:var(--card-shadow)}.wmg-step:before{content:counter(wmg-step);display:grid;place-items:center;width:34px;height:34px;border-radius:999px;background:var(--primary);color:#fff;font-weight:800}.wmg-step h2{margin:.1rem 0 .3rem;font-size:1rem}.wmg-step p{margin:.2rem 0;color:var(--text-secondary);line-height:1.55;font-size:.92rem}.wmg-step ul{margin:.5rem 0 .1rem;padding-left:1.2rem;color:var(--text-secondary);font-size:.9rem;line-height:1.6}
+  .wmg-keys{display:flex;gap:.4rem;flex-wrap:wrap;margin:.55rem 0}.wmg-key{display:inline-flex;padding:.35rem .55rem;border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:7px;background:var(--background);color:var(--text);font-family:monospace;font-size:.82rem;font-weight:700}
+  .wmg-tip{max-width:900px;margin-top:1.4rem;padding:1rem 1.1rem;border-radius:13px;background:color-mix(in srgb,var(--primary) 10%,var(--box))}.wmg-tip h2{margin:0 0 .45rem;font-size:1rem}.wmg-tip ul{margin:0;padding-left:1.2rem;color:var(--text-secondary);font-size:.9rem;line-height:1.65}
+  @media(max-width:760px){.wmg-types{grid-template-columns:1fr}.wmg-step{grid-template-columns:36px minmax(0,1fr);padding:.9rem}.wmg-actions a{width:100%;box-sizing:border-box}}
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="wmg-hero">
+  <p class="wmg-kicker">Worship getting started</p>
+  <h1>Music resources and chord charts</h1>
+  <p class="wmg-lead">Keep each song’s authorized source links, PDFs, and transposable chord charts together—then give musicians the key and format they need without rebuilding the chart.</p>
+  <div class="wmg-actions"><a class="wmg-primary" href="{{ url_for('worship') }}">Choose a song</a><a class="wmg-secondary" href="{{ url_for('worship_getting_started') }}">All worship help</a></div>
+</header>
+
+<aside class="wmg-note"><strong>Use provider-safe resources</strong>Save links to Worship Together, SongSelect, The Worship Initiative, or a publisher as references. Only upload or paste a chart when your church is licensed or otherwise permitted to store and use it. Faith Sparks does not scrape or republish provider libraries.</aside>
+
+<section class="wmg-types" aria-label="Music resource types">
+  <article class="wmg-type"><h2>Source link</h2><p>Saves the official HTTPS page without copying its content into Faith Sparks.</p><span class="wmg-badge">Reference only</span></article>
+  <article class="wmg-type"><h2>PDF</h2><p>Keeps the authorized original file exactly as supplied for faithful downloading.</p><span class="wmg-badge">Fixed key and layout</span></article>
+  <article class="wmg-type"><h2>ChordPro or chord text</h2><p>Creates a clean musician chart that can change key, resize, print, and export to PDF.</p><span class="wmg-badge">Transposable</span></article>
+</section>
+
+<section class="wmg-steps" aria-label="Music resource instructions">
+  <article class="wmg-step"><div><h2>Open Music & chord charts for a song</h2><p>On <strong>Plan Worship</strong>, open the song’s <strong>•••</strong> menu and choose <strong>Music & chord charts</strong>. Resources are private to the currently selected church library.</p></div></article>
+
+  <article class="wmg-step"><div><h2>Add the licensing details</h2><p>Enter the song’s CCLI number and copyright or attribution notice, then choose <strong>Save metadata</strong>. These details also help the church licensing report stay complete.</p></div></article>
+
+  <article class="wmg-step"><div><h2>Choose what you are saving</h2><p>Scroll to <strong>Add a chart or source</strong>. Give the resource a useful title such as “Sunday band chart,” then choose PDF, ChordPro/text, or Source link.</p><ul><li><strong>Link only:</strong> select the provider, paste its HTTPS address, and save. A link by itself does not copy the remote chart.</li><li><strong>PDF:</strong> upload an authorized PDF up to 20 MB. It remains in its original key.</li><li><strong>ChordPro/text:</strong> upload a .cho, .chordpro, .pro, or .txt file, or paste authorized chord text.</li></ul></div></article>
+
+  <article class="wmg-step"><div><h2>Paste a whole chord page when needed</h2><p>If your permitted source displays a chord chart as webpage text, select and copy the whole visible page, then paste it into <strong>Or paste ChordPro / chord text</strong>.</p><div class="wmg-keys"><span class="wmg-key">Windows / Chromebook: Ctrl + A, Ctrl + C, Ctrl + V</span><span class="wmg-key">Mac: ⌘ + A, ⌘ + C, ⌘ + V</span></div><p>Leave <strong>Clean pasted webpage text automatically</strong> checked. It removes common menus and footers, extracts chart details, and aligns separate chord rows with their lyrics.</p></div></article>
+
+  <article class="wmg-step"><div><h2>Record the original key and source</h2><p>Select the chart’s actual original key so transposition is reliable. Add capo or arrangement notes when useful, select the provider, paste the source HTTPS link, and add a short license note such as “SongSelect download under church CCLI subscription; internal worship use.”</p></div></article>
+
+  <article class="wmg-step"><div><h2>Confirm permission and save</h2><p>For uploaded or pasted material, check the permission confirmation and choose <strong>Save church resource</strong>. A source link alone does not require the upload confirmation.</p></div></article>
+
+  <article class="wmg-step"><div><h2>Open, transpose, or download</h2><p>The saved resource shows the actions that apply to it:</p><ul><li><strong>Open / transpose</strong> appears for ChordPro or chart text.</li><li><strong>Download</strong> retrieves an uploaded PDF in its original form.</li><li><strong>Source</strong> reopens the official provider page.</li></ul></div></article>
+
+  <article class="wmg-step"><div><h2>Prepare the musician’s chart</h2><p>On a transposable chart, choose a key from the top bar. Use <strong>A−</strong> or <strong>A+</strong> for text size, switch between one and two columns, then choose <strong>Download PDF</strong> or <strong>Print</strong>.</p><p>Always verify the new key, slash chords, capo instructions, arrangement, and every chord before rehearsal.</p></div></article>
+
+  <article class="wmg-step"><div><h2>Share the service’s musician packet</h2><p>After building the service, open <strong>Save, share & export</strong> and choose <strong>Musician packet</strong>. The church-private packet lists the songs in service order and links each saved chart, PDF, or official source. Packet links expire automatically.</p></div></article>
+</section>
+
+<section class="wmg-tip"><h2>If a chart does not look right</h2><ul><li>Use a clearly labelled chord or lyrics view rather than a page dominated by navigation and recommendations.</li><li>Confirm the original key before transposing.</li><li>For exact publisher formatting, upload the licensed PDF and use Download instead of conversion.</li><li>For transposition, paste clean chord text or ChordPro and check that chords align with the correct lyrics.</li><li>Remove a bad resource and save a corrected copy; the original provider file is never edited.</li></ul></section>
+{% endblock %}

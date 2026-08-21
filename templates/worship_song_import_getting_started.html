@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wgs-hero{max-width:760px;margin-bottom:1.5rem}
+  .wgs-hero h1{margin:.2rem 0 .45rem}
+  .wgs-kicker{margin:0;color:var(--primary);font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .wgs-lead{margin:0;color:var(--text-secondary);font-size:1.02rem;line-height:1.55}
+  .wgs-actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}
+  .wgs-primary,.wgs-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;text-decoration:none;font-weight:800;font-size:.9rem}
+  .wgs-primary{background:var(--primary);color:#fff}.wgs-primary:hover{background:var(--primary-dark);color:#fff}
+  .wgs-secondary{border:1px solid #cbd5e1;color:var(--text);background:var(--background)}
+  .wgs-note{max-width:760px;margin:1rem 0 1.5rem;padding:1rem 1.1rem;border:1px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#78350f;font-size:.9rem;line-height:1.5}
+  .wgs-note strong{display:block;margin-bottom:.2rem}
+  .wgs-steps{max-width:820px;display:grid;gap:.8rem;counter-reset:wgs-step}
+  .wgs-step{counter-increment:wgs-step;display:grid;grid-template-columns:42px minmax(0,1fr);gap:.8rem;padding:1rem 1.1rem;border:1px solid #e2e8f0;border-radius:13px;background:var(--box);box-shadow:var(--card-shadow)}
+  .wgs-step:before{content:counter(wgs-step);display:grid;place-items:center;width:34px;height:34px;border-radius:999px;background:var(--primary);color:#fff;font-weight:800}
+  .wgs-step h2{margin:.1rem 0 .3rem;font-size:1rem}
+  .wgs-step p{margin:.2rem 0;color:var(--text-secondary);line-height:1.55;font-size:.92rem}
+  .wgs-step ul{margin:.55rem 0 .1rem;padding-left:1.2rem;color:var(--text-secondary);font-size:.9rem;line-height:1.55}
+  .wgs-keys{display:flex;gap:.4rem;flex-wrap:wrap;margin:.55rem 0}
+  .wgs-key{display:inline-flex;align-items:center;gap:.25rem;padding:.35rem .55rem;border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:7px;background:var(--background);color:var(--text);font-family:monospace;font-size:.82rem;font-weight:700}
+  .wgs-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:820px;margin-top:1.5rem}
+  .wgs-card{padding:1rem 1.1rem;border:1px solid #e2e8f0;border-radius:13px;background:var(--box)}
+  .wgs-card h2{font-size:1rem;margin:0 0 .55rem}.wgs-card ul{margin:0;padding-left:1.2rem;color:var(--text-secondary);font-size:.9rem;line-height:1.6}
+  .wgs-finish{max-width:820px;margin-top:1.25rem;padding:1.1rem;border-radius:13px;background:color-mix(in srgb,var(--primary) 10%,var(--box));text-align:center}
+  .wgs-finish strong{display:block;margin-bottom:.3rem}.wgs-finish p{margin:.2rem 0 .8rem;color:var(--text-secondary)}
+  @media(max-width:680px){.wgs-grid{grid-template-columns:1fr}.wgs-step{grid-template-columns:36px minmax(0,1fr);padding:.9rem}.wgs-actions a{width:100%;box-sizing:border-box}}
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="wgs-hero">
+  <p class="wgs-kicker">Worship getting started</p>
+  <h1>Import a song from a webpage</h1>
+  <p class="wgs-lead">Copy a permitted song page, paste it into Faith Sparks, and let the importer organize the title, artist, key, sections, arrangement, and slides for you.</p>
+  <div class="wgs-actions"><a class="wgs-primary" href="{{ url_for('worship_add') }}#import-with-ai">Start a song import</a><a class="wgs-secondary" href="{{ url_for('worship_getting_started') }}">All worship help</a><a class="wgs-secondary" href="{{ url_for('worship') }}">Back to Plan Worship</a></div>
+</header>
+
+<aside class="wgs-note">
+  <strong>Before you copy lyrics</strong>
+  Use material your church is licensed or otherwise permitted to copy, store, and display. Faith Sparks helps organize the text; it does not provide lyric, chord-chart, or performance rights.
+</aside>
+
+<section class="wgs-steps" aria-label="Song import instructions">
+  <article class="wgs-step"><div><h2>Open a reliable song page</h2><p>Find the song on a source such as Worship Together, The Worship Initiative, the publisher’s website, or another source your church is permitted to use.</p><p>Pages that clearly label <strong>Verse</strong>, <strong>Chorus</strong>, <strong>Bridge</strong>, <strong>Tag</strong>, and repeats usually produce the best arrangement.</p></div></article>
+
+  <article class="wgs-step"><div><h2>Copy the whole visible page</h2><p>Click anywhere on the song page, select everything, and copy it. Including the page heading and song details helps Faith Sparks detect the title, artist, original key, and section order.</p><div class="wgs-keys"><span class="wgs-key">Windows / Chromebook: Ctrl + A</span><span class="wgs-key">then Ctrl + C</span><span class="wgs-key">Mac: ⌘ + A</span><span class="wgs-key">then ⌘ + C</span></div></div></article>
+
+  <article class="wgs-step"><div><h2>Open “New song or slide”</h2><p>In Faith Sparks, open <strong>Worship</strong>, choose <strong>New song or slide</strong>, and scroll to <strong>Import with AI</strong>. Keep the <strong>Paste page</strong> tab selected.</p></div></article>
+
+  <article class="wgs-step"><div><h2>Paste the page</h2><p>Click the <strong>Paste lyrics or whole page</strong> field and paste what you copied.</p><div class="wgs-keys"><span class="wgs-key">Windows / Chromebook: Ctrl + V</span><span class="wgs-key">Mac: ⌘ + V</span></div><p>You can usually leave the optional title, artist, version, and key fields blank. Fill one in only when you want to override what the importer detects.</p></div></article>
+
+  <article class="wgs-step"><div><h2>Confirm permission and import</h2><p>Check the permission confirmation, then choose <strong>Import Song</strong>. Faith Sparks removes common page navigation and footer text, finds the song details, separates the sections, and builds the likely arrangement.</p></div></article>
+
+  <article class="wgs-step"><div><h2>Review before saving</h2><p>On the review page, check the detected title, artist, key, arrangement, every lyric section, and the slide-by-slide preview.</p><ul><li>If everything is correct, choose <strong>Confirm and Save Song</strong>.</li><li>If anything looks wrong, cancel the import and try a cleaner or more clearly labelled source.</li><li>AI can make mistakes, so always compare the result with your authorized source before presenting it.</li></ul></div></article>
+</section>
+
+<section class="wgs-grid">
+  <article class="wgs-card"><h2>What Faith Sparks should detect</h2><ul><li>Song title and artist</li><li>Original key when the page includes it</li><li>Verses, choruses, bridges, tags, intros, and outros</li><li>The repeated section order</li><li>Readable lyric slide breaks</li></ul></article>
+  <article class="wgs-card"><h2>If the import is messy</h2><ul><li>Use the page’s Lyrics view instead of a chord-heavy view.</li><li>Try copying the whole page rather than only a few lines.</li><li>Prefer a source with visible section labels.</li><li>If link import is blocked, use Paste page.</li><li>Add a permitted second source for validation when available.</li></ul></article>
+</section>
+
+<div class="wgs-finish"><strong>Ready to try it?</strong><p>The importer will show a review before anything is saved to your worship library.</p><a class="wgs-primary" href="{{ url_for('worship_add') }}#import-with-ai">Open Import with AI</a></div>
+{% endblock %}

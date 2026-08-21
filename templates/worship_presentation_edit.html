@@ -13,7 +13,7 @@
 
 {% block content %}
 <div class="wpe-head">
-  <div><p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p><h1 style="margin-bottom:.25rem">Review presentation</h1><p class="muted" style="margin-top:0">{{ item.original_filename }} · {{ item.presentation_slides|length }} imported slides</p></div>
+  <div><p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a> · <a href="{{ url_for('worship_presentation_getting_started') }}">Help</a></p><h1 style="margin-bottom:.25rem">Review presentation</h1><p class="muted" style="margin-top:0">{{ item.original_filename }} · {{ item.presentation_slides|length }} imported slides</p></div>
   <a href="{{ url_for('worship_presentation_original', presentation_id=item.id) }}">Download original</a>
 </div>
 

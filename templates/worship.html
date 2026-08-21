@@ -171,7 +171,7 @@
     {% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}" class="ws-link-primary">+ New song or slide</a>{% endif %}
     <details class="ws-menu"><summary>More</summary><div class="ws-menu-panel">
       {% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn">Add Scripture</button><a href="{{ url_for('worship_presentation_import') }}">Import PowerPoint</a>{% endif %}
-      <a href="{{ url_for('worship_deck_history') }}">Past slide decks</a><a href="{{ url_for('worship_licensing') }}">Licensing & sources</a>
+      <a href="{{ url_for('worship_getting_started') }}">Help & getting started</a><a href="{{ url_for('worship_deck_history') }}">Past slide decks</a><a href="{{ url_for('worship_licensing') }}">Licensing & sources</a>
     </div></details>
   </div>
 </div>

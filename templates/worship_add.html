@@ -52,7 +52,7 @@
 
 {% block content %}
 <h1>Add Song or Service Slide</h1>
-<p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
+<p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a> · <a href="{{ url_for('worship_song_import_getting_started') }}">How to import a song from a webpage</a></p>
 
 <div class="wa-card" style="margin:1.5rem 0">
   <h2>Add a service slide</h2>
@@ -189,7 +189,7 @@
   </div>
 
   <!-- ── AI Parse ── -->
-  <div class="wa-card">
+  <div class="wa-card" id="import-with-ai">
     <h2>Import with AI</h2>
     <form method="post" action="{{ url_for('worship_add_parse') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

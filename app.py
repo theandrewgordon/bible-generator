@@ -7143,6 +7143,37 @@ def worship_licensing_csv():
         headers={"Content-Disposition": "attachment; filename=worship-licensing.csv", "Cache-Control": "private, no-store"},
     )
 
+
+@app.route("/worship/getting-started", methods=["GET"])
+@login_required
+def worship_getting_started():
+    return render_template("worship_getting_started.html")
+
+
+@app.route("/worship/getting-started/song-import", methods=["GET"])
+@login_required
+def worship_song_import_getting_started():
+    return render_template("worship_song_import_getting_started.html")
+
+
+@app.route("/worship/getting-started/music-chord-charts", methods=["GET"])
+@login_required
+def worship_music_getting_started():
+    return render_template("worship_music_getting_started.html")
+
+
+@app.route("/worship/getting-started/run-service", methods=["GET"])
+@login_required
+def worship_service_getting_started():
+    return render_template("worship_service_getting_started.html")
+
+
+@app.route("/worship/getting-started/presentations", methods=["GET"])
+@login_required
+def worship_presentation_getting_started():
+    return render_template("worship_presentation_getting_started.html")
+
+
 @app.route("/worship/add", methods=["GET", "POST"])
 @login_required
 @worship_editor_required

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wpg-shell{max-width:880px;margin:0 auto}.wpg-hero{max-width:770px;margin-bottom:1.35rem}.wpg-kicker{margin:0;color:var(--primary);font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.wpg-hero h1{margin:.2rem 0 .45rem}.wpg-hero p{margin:0;color:var(--text-secondary);line-height:1.55}.wpg-actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}.wpg-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;text-decoration:none;font-weight:800}.wpg-primary{background:var(--primary);color:#fff}.wpg-primary:hover{background:var(--primary-dark);color:#fff}.wpg-secondary{border:1px solid #cbd5e1;color:var(--text);background:var(--background)}
+  .wpg-callout{margin-bottom:1.35rem;padding:1rem 1.1rem;border:1px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#78350f;font-size:.9rem;line-height:1.5}.wpg-callout strong{display:block;margin-bottom:.2rem}.wpg-steps{display:grid;gap:.8rem;counter-reset:wpg-step}.wpg-step{counter-increment:wpg-step;display:grid;grid-template-columns:42px minmax(0,1fr);gap:.8rem;padding:1rem 1.1rem;border:1px solid #e2e8f0;border-radius:13px;background:var(--box);box-shadow:var(--card-shadow)}.wpg-step:before{content:counter(wpg-step);display:grid;place-items:center;width:34px;height:34px;border-radius:999px;background:var(--primary);color:#fff;font-weight:900}.wpg-step h2{margin:.1rem 0 .3rem;font-size:1rem}.wpg-step p{margin:.2rem 0;color:var(--text-secondary);font-size:.92rem;line-height:1.55}.wpg-step ul{margin:.5rem 0 .1rem;padding-left:1.2rem;color:var(--text-secondary);font-size:.9rem;line-height:1.6}
+  .wpg-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:1.25rem}.wpg-card{padding:1rem 1.1rem;border:1px solid #e2e8f0;border-radius:12px;background:var(--box)}.wpg-card h2{margin:0 0 .4rem;font-size:1rem}.wpg-card p{margin:0;color:var(--text-secondary);font-size:.9rem;line-height:1.55}
+  @media(max-width:680px){.wpg-grid{grid-template-columns:1fr}.wpg-step{grid-template-columns:36px minmax(0,1fr);padding:.9rem}.wpg-actions a{width:100%;box-sizing:border-box}}
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="wpg-shell">
+  <header class="wpg-hero">
+    <p class="wpg-kicker">Worship getting started</p>
+    <h1>Import PowerPoint, PDF, and sermon notes</h1>
+    <p>Keep the pastor’s slides in the service order and optionally turn the sermon notes into concise key-point suggestions that a person approves before projection.</p>
+    <div class="wpg-actions"><a class="wpg-button wpg-primary" href="{{ url_for('worship_presentation_import') }}">Import a presentation</a><a class="wpg-button wpg-secondary" href="{{ url_for('worship_getting_started') }}">All worship help</a></div>
+  </header>
+
+  <aside class="wpg-callout"><strong>The source design stays intact</strong>Each imported slide becomes a faithful static image. Faith Sparks does not rearrange its text or rebuild its layout. PowerPoint animations, transitions, and embedded videos are not included.</aside>
+
+  <section class="wpg-steps" aria-label="Presentation import instructions">
+    <article class="wpg-step"><div><h2>Open Import PowerPoint</h2><p>On Plan Worship, open <strong>More → Import PowerPoint</strong>. Choose a <strong>.pptx</strong> or <strong>.pdf</strong> file up to 25 MB and 100 slides. If PowerPoint conversion is unavailable, export the deck as a PDF first.</p></div></article>
+    <article class="wpg-step"><div><h2>Add the sermon notes if you have them</h2><p>Paste an outline, manuscript, or speaking notes into <strong>Sermon notes</strong>. Speaker notes already stored inside a PPTX are included automatically.</p></div></article>
+    <article class="wpg-step"><div><h2>Choose local or AI suggestions</h2><p>Leave <strong>Use AI to suggest key points</strong> unchecked for private, local suggestions. Check it for AI-assisted suggestions; the pasted notes and PPTX speaker notes are sent to the configured AI provider and may create a small usage charge.</p></div></article>
+    <article class="wpg-step"><div><h2>Import and review</h2><p>Choose <strong>Import and review</strong>. Conversion can take a minute. On the review page, rename the presentation, drag slides into order, and uncheck any slide that should stay in the library without being projected.</p></div></article>
+    <article class="wpg-step"><div><h2>Approve only the key points you want</h2><p>Suggestions never appear on screen automatically. Edit their wording and check only the ones to project, then place them before or after the imported deck. Choose <strong>Look for key points again</strong> after changing the notes.</p></div></article>
+    <article class="wpg-step"><div><h2>Save and place it in the service</h2><p>Choose <strong>Save presentation</strong>. Back on Plan Worship, add it to <strong>This service</strong>, drag it to the correct spot, and use <strong>Review slides</strong> before going live.</p></div></article>
+  </section>
+
+  <section class="wpg-grid">
+    <article class="wpg-card"><h2>If the layout looks wrong</h2><p>Open the original deck, export it as PDF, and import the PDF. This usually gives the most faithful result when a PowerPoint uses unusual fonts or effects.</p></article>
+    <article class="wpg-card"><h2>If no good key points appear</h2><p>Add clearer notes with complete thoughts, Scripture references, and main ideas, then analyze again. Always compare every suggestion with the pastor’s intended meaning.</p></article>
+  </section>
+</main>
+{% endblock %}

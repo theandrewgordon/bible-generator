@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wsg-shell{max-width:880px;margin:0 auto}.wsg-hero{max-width:760px;margin-bottom:1.35rem}.wsg-kicker{margin:0;color:var(--primary);font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.wsg-hero h1{margin:.2rem 0 .45rem}.wsg-hero p{margin:0;color:var(--text-secondary);line-height:1.55}.wsg-actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}.wsg-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;text-decoration:none;font-weight:800}.wsg-primary{background:var(--primary);color:#fff}.wsg-primary:hover{background:var(--primary-dark);color:#fff}.wsg-secondary{border:1px solid #cbd5e1;color:var(--text);background:var(--background)}
+  .wsg-steps{display:grid;gap:.8rem;counter-reset:wsg-step}.wsg-step{counter-increment:wsg-step;display:grid;grid-template-columns:42px minmax(0,1fr);gap:.8rem;padding:1rem 1.1rem;border:1px solid #e2e8f0;border-radius:13px;background:var(--box);box-shadow:var(--card-shadow)}.wsg-step:before{content:counter(wsg-step);display:grid;place-items:center;width:34px;height:34px;border-radius:999px;background:var(--primary);color:#fff;font-weight:900}.wsg-step h2{margin:.1rem 0 .3rem;font-size:1rem}.wsg-step p{margin:.2rem 0;color:var(--text-secondary);font-size:.92rem;line-height:1.55}.wsg-step ul{margin:.5rem 0 .1rem;padding-left:1.2rem;color:var(--text-secondary);font-size:.9rem;line-height:1.6}
+  .wsg-keys{display:flex;gap:.4rem;flex-wrap:wrap;margin:.55rem 0}.wsg-key{padding:.3rem .5rem;border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:7px;background:var(--background);font-family:monospace;font-size:.8rem;font-weight:800}.wsg-note{margin-top:1.25rem;padding:1rem 1.1rem;border-radius:12px;background:color-mix(in srgb,var(--primary) 9%,var(--box));color:var(--text-secondary);font-size:.9rem;line-height:1.55}.wsg-note strong{color:var(--text)}
+  @media(max-width:680px){.wsg-step{grid-template-columns:36px minmax(0,1fr);padding:.9rem}.wsg-actions a{width:100%;box-sizing:border-box}}
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="wsg-shell">
+  <header class="wsg-hero">
+    <p class="wsg-kicker">Worship getting started</p>
+    <h1>Build and run a Sunday service</h1>
+    <p>Put songs, Scripture, announcements, videos, and presentations in order; check the slides; then run the room from a computer and phone.</p>
+    <div class="wsg-actions"><a class="wsg-button wsg-primary" href="{{ url_for('worship') }}">Open Plan Worship</a><a class="wsg-button wsg-secondary" href="{{ url_for('worship_getting_started') }}">All worship help</a></div>
+  </header>
+
+  <section class="wsg-steps" aria-label="Sunday service instructions">
+    <article class="wsg-step"><div><h2>Add the service items</h2><p>Use <strong>Add</strong> beside each library item. Drag the items in <strong>This service</strong> into the order people will see them. Use <strong>Notes…</strong> for private planning reminders.</p></div></article>
+    <article class="wsg-step"><div><h2>Save when the plan should be reused</h2><p>Open <strong>Save, share &amp; export</strong> and choose <strong>Save service</strong> if the team will return to this plan. Saving is helpful, but it is <strong>not required</strong> before going live.</p></div></article>
+    <article class="wsg-step"><div><h2>Review every slide</h2><p>Choose <strong>Review slides</strong>. Check the exact order, lyric breaks, imported slides, videos, and any amber crowded-text warning. Choose <strong>Checklist Complete — Build Deck</strong> when it is ready.</p></div></article>
+    <article class="wsg-step"><div><h2>Put Presenter on the projector</h2><p>Back on Plan Worship, choose <strong>Go live</strong>. The <strong>Presenter</strong> window is the audience screen: move it to the projector or sanctuary display and choose <strong>Fullscreen</strong>. Keep that tab open for the whole service.</p></div></article>
+    <article class="wsg-step"><div><h2>Open the Remote on a phone or tablet</h2><p>Choose <strong>Remote</strong> in Presenter or scan the leader QR code. Use Previous/Next, jump to an item, repeat the chorus, control videos, clear words, or make the screen black. The link is temporary and does not require another sign-in.</p></div></article>
+    <article class="wsg-step"><div><h2>Use Stage View only when needed</h2><p>Open <strong>Stage View</strong> from the remote or scan its QR code. It shows current and upcoming lyrics, the clock, private messages, and a timer for the platform team; it is not the audience display.</p></div></article>
+    <article class="wsg-step"><div><h2>Keep the keyboard backup ready</h2><p>If the phone loses its connection, Presenter continues working.</p><div class="wsg-keys"><span class="wsg-key">← / → slides</span><span class="wsg-key">C clear words</span><span class="wsg-key">B black screen</span><span class="wsg-key">F fullscreen</span></div><p>The remote tries to reconnect automatically. If a window closes, use the active-session banner on Plan Worship to reopen Presenter or Remote.</p></div></article>
+    <article class="wsg-step"><div><h2>End the session when the service is over</h2><p>Choose <strong>End session</strong> in Presenter or from the active-session banner. For the team, <strong>Save, share &amp; export</strong> also offers a Mobile slide link, Musician packet, and Lyrics PDF.</p></div></article>
+  </section>
+
+  <aside class="wsg-note"><strong>Five-minute Sunday check:</strong> confirm the projector display, test Remote and Stage View on the church network, play each video with sound, check the first and last slide, and keep the keyboard shortcuts nearby.</aside>
+</main>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+  .wh-shell{max-width:920px;margin:0 auto}.wh-hero{text-align:center;margin-bottom:1.4rem}.wh-kicker{margin:0;color:var(--primary);font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.wh-hero h1{margin:.25rem 0 .45rem}.wh-hero p{max-width:650px;margin:0 auto;color:var(--text-secondary);line-height:1.55}
+  .wh-actions{display:flex;justify-content:center;gap:.65rem;flex-wrap:wrap;margin-top:1rem}.wh-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;background:var(--primary);color:#fff;text-decoration:none;font-weight:800}.wh-button:hover{background:var(--primary-dark);color:#fff}
+  .wh-guides{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}.wh-guide{display:flex;flex-direction:column;padding:1.15rem;border:1px solid #e2e8f0;border-radius:14px;background:var(--box);box-shadow:var(--card-shadow);text-decoration:none;color:var(--text)}.wh-guide:hover{border-color:var(--primary);transform:translateY(-1px)}.wh-number{display:grid;place-items:center;width:34px;height:34px;border-radius:999px;background:color-mix(in srgb,var(--primary) 12%,var(--background));color:var(--primary);font-weight:900}.wh-guide h2{margin:.75rem 0 .35rem;font-size:1.05rem}.wh-guide p{margin:0;color:var(--text-secondary);font-size:.9rem;line-height:1.5}.wh-open{margin-top:auto;padding-top:.75rem;color:var(--primary);font-size:.84rem;font-weight:800}
+  .wh-faq{margin-top:1.5rem}.wh-faq h2{margin-bottom:.7rem}.wh-faq details{border:1px solid #e2e8f0;border-radius:11px;background:var(--box);margin:.55rem 0;padding:.85rem 1rem}.wh-faq summary{cursor:pointer;font-weight:800}.wh-faq p{margin:.6rem 0 0;color:var(--text-secondary);font-size:.9rem;line-height:1.55}.wh-faq a{color:var(--primary);font-weight:700}
+  .wh-note{margin-top:1.25rem;padding:1rem 1.1rem;border-radius:12px;background:color-mix(in srgb,var(--primary) 9%,var(--box));color:var(--text-secondary);font-size:.9rem;line-height:1.5}.wh-note strong{color:var(--text)}
+  @media(max-width:700px){.wh-guides{grid-template-columns:1fr}.wh-actions a{width:100%;box-sizing:border-box}}
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="wh-shell">
+  <header class="wh-hero">
+    <p class="wh-kicker">Worship help</p>
+    <h1>What would you like to do?</h1>
+    <p>Choose one short guide. Each one follows the same labels and buttons you will see in Faith Sparks.</p>
+    <div class="wh-actions"><a class="wh-button" href="{{ url_for('worship') }}">Open Plan Worship</a></div>
+  </header>
+
+  <section class="wh-guides" aria-label="Worship guides">
+    <a class="wh-guide" href="{{ url_for('worship_song_import_getting_started') }}"><span class="wh-number">1</span><h2>Import a song</h2><p>Copy a permitted song webpage, let Faith Sparks find the title and sections, then review the slides before saving.</p><span class="wh-open">Open guide →</span></a>
+    <a class="wh-guide" href="{{ url_for('worship_music_getting_started') }}"><span class="wh-number">2</span><h2>Music and chord charts</h2><p>Save source links, authorized PDFs, and transposable chord charts, then prepare a musician packet.</p><span class="wh-open">Open guide →</span></a>
+    <a class="wh-guide" href="{{ url_for('worship_service_getting_started') }}"><span class="wh-number">3</span><h2>Build and run a Sunday service</h2><p>Arrange the service, check every slide, put the presenter on the projector, and control it from a phone.</p><span class="wh-open">Open guide →</span></a>
+    <a class="wh-guide" href="{{ url_for('worship_presentation_getting_started') }}"><span class="wh-number">4</span><h2>PowerPoint, PDF, and sermon notes</h2><p>Bring in a pastor’s deck and optionally turn the sermon notes into reviewable key-point slides.</p><span class="wh-open">Open guide →</span></a>
+  </section>
+
+  <section class="wh-faq" aria-labelledby="wh-faq-title">
+    <h2 id="wh-faq-title">Common questions</h2>
+    <details><summary>Which window goes on the projector?</summary><p>Put the <strong>Presenter</strong> window on the projector or sanctuary display, then choose <strong>Fullscreen</strong>. The <strong>Remote</strong> belongs on the worship leader’s phone or tablet. <strong>Stage View</strong> is optional and is only for the platform team.</p></details>
+    <details><summary>Do I have to save the service before going live?</summary><p>No. You can choose <strong>Go live</strong> as soon as items are in the service. Use <strong>Save service</strong> when the plan should be reused or shared with the team.</p></details>
+    <details><summary>Why did a YouTube video not autoplay?</summary><p>Browsers sometimes block autoplay with sound. Tap play once in the presenter or remote, then use the remote’s play, pause, restart, mute, and sound controls. Always test videos on the presentation computer before the service.</p></details>
+    <details><summary>How do I share slides or music with the team?</summary><p>On Plan Worship, open <strong>Save, share &amp; export</strong>. Use <strong>Mobile slide link</strong> for a swipeable phone view, <strong>Musician packet</strong> for charts and sources, or <strong>Lyrics PDF</strong> for a printable lyric copy. Shared links expire automatically.</p></details>
+    <details><summary>What if the remote disconnects?</summary><p>The presenter keeps running. Use the keyboard: Left/Right changes slides, <strong>C</strong> clears words, <strong>B</strong> makes the screen black, and <strong>F</strong> enters fullscreen. The remote tries to reconnect automatically; the active-session banner on Plan Worship can also reopen it.</p></details>
+    <details><summary>How do I fix a bad import or duplicate song?</summary><p>Do not approve a bad review. Go back and use a cleaner, clearly labelled source, or edit the existing library song. If a matching song is found, Faith Sparks asks before replacing it. Church owners can also use <strong>Library tools → Clean duplicate songs</strong>.</p></details>
+    <details><summary>Who can edit the shared church library?</summary><p>Owners, editors, and members can add and edit worship material. Viewers are read-only. Destructive library maintenance, such as duplicate cleanup or a library reset, is limited to the church owner.</p></details>
+  </section>
+
+  <aside class="wh-note"><strong>One good habit:</strong> review imported lyrics, chords, slides, videos, and AI suggestions against the authorized source before Sunday. Faith Sparks organizes your material; your church remains responsible for accuracy and licensing.</aside>
+</main>
+{% endblock %}

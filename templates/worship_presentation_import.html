@@ -14,7 +14,7 @@
 
 {% block content %}
 <div class="wpi-shell">
-  <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
+  <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a> · <a href="{{ url_for('worship_presentation_getting_started') }}">How presentation import works</a></p>
   <h1>Import a presentation</h1>
   <p class="muted">Bring a pastor’s slides into the same service order as songs, Scripture, and announcements.</p>
   {% set can_pptx = presentation_capabilities.pptx %}
