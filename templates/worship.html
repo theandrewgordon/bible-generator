@@ -119,6 +119,7 @@
   .ws-library-head{display:flex;align-items:center;gap:.65rem;margin-bottom:.75rem;flex-wrap:wrap}
   .ws-library-head h2{font-size:1.05rem;margin:0}
   .ws-library-tools{margin-left:auto}
+  .ws-library-filters{display:flex;gap:.4rem;flex-wrap:wrap;margin:-.15rem 0 .75rem}.ws-library-filter{border:1px solid #cbd5e1;border-radius:999px;background:var(--background);color:var(--text-secondary);padding:5px 10px;font-size:.78rem;font-weight:800;cursor:pointer}.ws-library-filter:hover{border-color:var(--primary);color:var(--primary)}.ws-library-filter.is-active{background:var(--primary);border-color:var(--primary);color:#fff}.ws-library-filter-count{opacity:.75;margin-left:.2rem}.ws-library-empty{display:none;margin:.75rem 0;padding:.8rem;border:1px dashed #cbd5e1;border-radius:9px;color:var(--text-secondary);font-size:.86rem;text-align:center}
   .ws-item-menu>summary{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;list-style:none;cursor:pointer;color:var(--text-secondary);font-weight:900;letter-spacing:.08em}
   .ws-item-menu>summary::-webkit-details-marker{display:none}
   .ws-item-menu>summary:hover{background:color-mix(in srgb,var(--primary) 8%,var(--background));color:var(--primary)}
@@ -261,9 +262,16 @@
     {% endif %}
     </div></details>
   </div>
+  <div class="ws-library-filters" id="library-filters" role="group" aria-label="Filter worship library">
+    <button type="button" class="ws-library-filter is-active" data-library-filter="all">All <span class="ws-library-filter-count" data-filter-count="all">{{ songs|length }}</span></button>
+    <button type="button" class="ws-library-filter" data-library-filter="song">Songs <span class="ws-library-filter-count" data-filter-count="song">{{ songs|selectattr('type', 'equalto', 'song')|list|length }}</span></button>
+    <button type="button" class="ws-library-filter" data-library-filter="scripture">Scripture <span class="ws-library-filter-count" data-filter-count="scripture">{{ songs|selectattr('type', 'equalto', 'scripture')|list|length }}</span></button>
+    <button type="button" class="ws-library-filter" data-library-filter="service">Service slides <span class="ws-library-filter-count" data-filter-count="service">{{ songs|selectattr('type', 'in', ['welcome', 'announcement', 'photo', 'video', 'prayer', 'reading'])|list|length }}</span></button>
+    <button type="button" class="ws-library-filter" data-library-filter="presentation">Presentations <span class="ws-library-filter-count" data-filter-count="presentation">{{ songs|selectattr('type', 'equalto', 'presentation')|list|length }}</span></button>
+  </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
-    <li class="lib-row" data-id="{{ song.id }}">
+    <li class="lib-row" data-id="{{ song.id }}" data-type="{{ song.type or 'song' }}">
       <span style="flex:1;font-size:.95rem;min-width:0">
         <strong>{{ song.title }}</strong>
         {% if song.artist %} — <span class="muted">{{ song.artist }}</span>{% endif %}
@@ -301,6 +309,7 @@
     </li>
     {% endfor %}
   </ul>
+  <p class="ws-library-empty" id="library-empty-filter">No library items match this filter and search.</p>
 </div>
 
 <!-- ── Saved Setlists ── -->
@@ -471,6 +480,10 @@
   var setSummaryTitlesEl = document.getElementById('set-summary-titles');
   var libraryEl     = document.getElementById('library-list');
   var librarySortEl = document.getElementById('library-sort');
+  var libraryFilterButtons = Array.from(document.querySelectorAll('[data-library-filter]'));
+  var libraryEmptyFilter = document.getElementById('library-empty-filter');
+  var activeLibraryFilter = 'all';
+  var LIBRARY_FILTER_KEY = 'worship_library_filter:' + WORSHIP_SCOPE;
   var resetLibraryBtn = document.getElementById('reset-library-btn');
   var chipsEl       = document.getElementById('setlist-chips');
   var mobileShareEl = document.querySelector('[data-mobile-share]');
@@ -1537,13 +1550,48 @@
 
   if (librarySortEl) librarySortEl.addEventListener('change', filterAndSortLibrary);
 
+  function libraryCategory(type) {
+    type = String(type || 'song').toLowerCase();
+    if (type === 'scripture') return 'scripture';
+    if (type === 'presentation') return 'presentation';
+    if (['welcome', 'announcement', 'photo', 'video', 'prayer', 'reading'].includes(type)) return 'service';
+    return 'song';
+  }
+
+  function updateLibraryFilterCounts() {
+    var counts = {all: 0, song: 0, scripture: 0, service: 0, presentation: 0};
+    Object.keys(SONGS_BY_ID).forEach(function (id) {
+      counts.all += 1;
+      counts[libraryCategory((SONGS_BY_ID[id] || {}).type)] += 1;
+    });
+    Object.keys(counts).forEach(function (category) {
+      var countEl = document.querySelector('[data-filter-count="' + category + '"]');
+      if (countEl) countEl.textContent = counts[category];
+    });
+  }
+
+  libraryFilterButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      activeLibraryFilter = button.dataset.libraryFilter || 'all';
+      libraryFilterButtons.forEach(function (item) { item.classList.toggle('is-active', item === button); });
+      try { sessionStorage.setItem(LIBRARY_FILTER_KEY, activeLibraryFilter); } catch (error) {}
+      filterAndSortLibrary();
+    });
+  });
+
   function filterAndSortLibrary() {
+    updateLibraryFilterCounts();
     var searchEl = document.getElementById('library-search');
     var q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+    var visibleCount = 0;
     Array.from(libraryEl.querySelectorAll('.lib-row')).forEach(function (row) {
       var song = SONGS_BY_ID[row.dataset.id] || {};
-      var haystack = [song.title, song.artist, song.version, song.key, song.type].filter(Boolean).join(' ').toLowerCase();
-      row.style.display = (!q || haystack.includes(q)) ? '' : 'none';
+      var haystack = [song.title, song.artist, song.version, song.key, song.type, JSON.stringify(song.parts || {}), JSON.stringify(song.service_lines || [])].filter(Boolean).join(' ').toLowerCase();
+      var matchesSearch = !q || haystack.includes(q);
+      var matchesType = activeLibraryFilter === 'all' || libraryCategory(song.type) === activeLibraryFilter;
+      var visible = matchesSearch && matchesType;
+      row.style.display = visible ? '' : 'none';
+      if (visible) visibleCount += 1;
     });
     var mode = librarySortEl ? librarySortEl.value : 'title';
     Array.from(libraryEl.querySelectorAll('.lib-row')).sort(function (a, b) {
@@ -1557,11 +1605,17 @@
       }
       return [sa.title || '', sa.artist || '', sa.version || ''].join(' ').localeCompare([sb.title || '', sb.artist || '', sb.version || ''].join(' '));
     }).forEach(function (row) { libraryEl.appendChild(row); });
+    if (libraryEmptyFilter) libraryEmptyFilter.style.display = visibleCount ? 'none' : 'block';
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
   restoreSetDraft();
+  try {
+    var savedLibraryFilter = sessionStorage.getItem(LIBRARY_FILTER_KEY);
+    if (savedLibraryFilter && libraryFilterButtons.some(function (button) { return button.dataset.libraryFilter === savedLibraryFilter; })) activeLibraryFilter = savedLibraryFilter;
+  } catch (error) {}
+  libraryFilterButtons.forEach(function (button) { button.classList.toggle('is-active', button.dataset.libraryFilter === activeLibraryFilter); });
   filterAndSortLibrary();
   syncUI();
   updateMobileShare();

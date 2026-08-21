@@ -60,6 +60,18 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn('class="ws-del is-danger"', html)
         self.assertNotIn(">Not validated</span>", html)
 
+    def test_library_can_filter_scripture_and_other_item_types(self):
+        html = self._render_builder()
+
+        self.assertIn('data-library-filter="all"', html)
+        self.assertIn('data-library-filter="song"', html)
+        self.assertIn('data-library-filter="scripture"', html)
+        self.assertIn('data-library-filter="service"', html)
+        self.assertIn('data-library-filter="presentation"', html)
+        self.assertIn("function libraryCategory(type)", html)
+        self.assertIn("JSON.stringify(song.parts || {})", html)
+        self.assertIn("worship_library_filter:", html)
+
     def test_help_hub_routes_people_to_the_four_primary_guides(self):
         with worship_app.app.test_request_context("/worship/getting-started"):
             html = render_template("worship_getting_started.html")
