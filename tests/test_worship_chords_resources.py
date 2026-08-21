@@ -1,5 +1,7 @@
 import unittest
 
+from pypdf import PdfReader
+
 import app
 from faithsparks.services.chords import (
     chart_has_chords,
@@ -134,6 +136,49 @@ Other versions of this song
         sections = parse_chord_chart("{comment: Capo 2}\n{comment: Verse 1}\n[G]Grace")
         self.assertEqual(sections[0]["lines"][0], {"kind": "note", "text": "Capo 2"})
         self.assertEqual(sections[1]["title"], "Verse 1")
+
+    def test_repeat_sections_are_marked_for_page_break_handling(self):
+        sections = parse_chord_chart("Verse 1\n[G]Line\n{comment: Repeat Chorus}\nVerse 2\n[G]Next")
+        self.assertEqual([section["title"] for section in sections], ["Verse 1", "Repeat Chorus", "Verse 2"])
+        self.assertTrue(sections[1]["repeat"])
+
+    def test_compact_chord_pdf_has_no_browser_headers_and_fits_one_page(self):
+        from faithsparks.services.chord_chart_pdf import build_chord_chart_pdf
+
+        chart = """Intro
+G  D  Em  C
+Verse 1
+[G]Opening line with [D]another phrase
+[Em]Second line with [C]another phrase
+Chorus
+[G]This is the first line of the chorus
+[D]This is the second line of the chorus
+[Em]This is the third line of the [C]chorus
+{comment: Repeat Chorus}
+Verse 2
+[G]Another verse line with [D]another phrase
+[Em]The final verse line with [C]another phrase
+Chorus
+[G]This is the first line of the chorus
+[D]This is the second line of the chorus
+[Em]This is the third line of the [C]chorus
+Tag
+[C]Final tag [D]line [G]here
+"""
+        pdf = build_chord_chart_pdf(
+            song={"title": "Sample Song"},
+            resource={"title": "Key of G from Publisher"},
+            sections=parse_chord_chart(chart),
+            target_key="G",
+            metadata={"ccli_song_number": "123456", "bpm": "72", "time_signature": "4/4"},
+        )
+        reader = PdfReader(pdf)
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+        self.assertEqual(len(reader.pages), 1)
+        self.assertNotIn("http", text.lower())
+        self.assertNotIn("Key of G from Publisher - Key G", text)
+        self.assertIn("REPEAT CHORUS", text)
 
 
 class WorshipResourceAndVideoTests(unittest.TestCase):

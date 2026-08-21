@@ -13,8 +13,8 @@
     .bar{position:sticky;z-index:10;top:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 18px;background:#0f172a;color:#fff;box-shadow:0 2px 12px #0003}
     .bar h1{font-size:1rem;margin:0 auto 0 0;min-width:220px}
     .control{display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:750}
-    .bar select,.bar button{min-height:38px;padding:7px 11px;border-radius:8px;border:1px solid #64748b;background:#fff;color:#0f172a;font-weight:750;cursor:pointer}
-    .bar button:hover,.bar select:hover{background:#f8fafc}
+    .bar select,.bar button,.bar-action{min-height:38px;padding:7px 11px;border-radius:8px;border:1px solid #64748b;background:#fff;color:#0f172a;font-weight:750;cursor:pointer}
+    .bar-action{display:inline-flex;align-items:center;text-decoration:none}.bar button:hover,.bar select:hover,.bar-action:hover{background:#f8fafc}
     .size-controls{display:flex}.size-controls button{min-width:38px;border-radius:0}.size-controls button:first-child{border-radius:8px 0 0 8px}.size-controls button:last-child{border-radius:0 8px 8px 0;border-left:0}
     .chart{max-width:940px;margin:24px auto;padding:38px 42px 48px;background:var(--paper);border-radius:16px;box-shadow:0 8px 30px #0f172a18}
     .chart-header{padding-bottom:22px;margin-bottom:24px;border-bottom:2px solid #e2e8f0}
@@ -30,11 +30,12 @@
     .song-line{display:flex;align-items:flex-end;flex-wrap:wrap;font-size:var(--chart-size);line-height:1.38;margin:0 0 .36em}
     .segment{display:inline-flex;min-width:.45em;max-width:100%;flex-direction:column;vertical-align:bottom}
     .chord{min-height:1.25em;padding-right:.65em;color:var(--chord);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.8em;line-height:1.12;font-weight:850;white-space:pre}
-    .lyric{min-height:1.38em;padding-right:0;font-weight:540;white-space:pre-wrap;overflow-wrap:anywhere}
-    .lyric-line{font-size:var(--chart-size);line-height:1.45;font-weight:540;white-space:pre-wrap;margin:0 0 .36em}
+    .lyric{min-height:1.38em;padding-right:0;font-weight:470;white-space:pre-wrap;overflow-wrap:anywhere}
+    .lyric-line{font-size:var(--chart-size);line-height:1.45;font-weight:470;white-space:pre-wrap;margin:0 0 .36em}
     .chord-line,.progression{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:var(--chord);font-size:calc(var(--chart-size) * .84);line-height:1.55;font-weight:800;white-space:pre-wrap;overflow-wrap:anywhere}
     .progression{padding:10px 13px;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff}
     .note{padding:8px 11px;border-left:3px solid #94a3b8;background:#f8fafc;color:#475569;font-size:calc(var(--chart-size) * .78);font-style:italic}
+    .repeat-section{margin-bottom:12px;break-after:avoid-page}.repeat-section .section-title{display:inline-flex;padding:6px 9px;border-radius:999px;background:#f1f5f9}.repeat-section .section-title::after{display:none}
     .spacer{height:.65em}
     .empty{color:var(--muted);font-style:italic}
     @media(max-width:760px){
@@ -42,10 +43,10 @@
       .chart-body.two-columns{column-count:1}.columns-control{display:none}
     }
     @media print{
-      :root{--chart-size:13pt;--chord:#111827;--page:#fff}
-      @page{margin:.5in}
+      :root{--chart-size:10.5pt;--chord:#111827;--page:#fff}
+      @page{margin:.42in}
       .bar{display:none}.chart{box-shadow:none;margin:0;max-width:none;padding:0}.chart-header{margin-bottom:16px;padding-bottom:13px}
-      .chart-header h1{font-size:22pt}.section{margin-bottom:18px}.progression{background:transparent;border-color:#94a3b8}
+      .chart-header h1{font-size:20pt}.chart-body{column-count:2;column-gap:.34in}.section{margin-bottom:14px}.progression{background:transparent;border-color:#94a3b8}.lyric,.lyric-line{font-weight:400}
     }
   </style>
 </head>
@@ -64,12 +65,13 @@
       <button type="button" id="larger" title="Larger text" aria-label="Larger text">A+</button>
     </div>
     <button type="button" id="columns" class="columns-control" aria-pressed="false">2 columns</button>
-    <button type="button" onclick="window.print()">Print / PDF</button>
+    <a class="bar-action" href="{{ pdf_url }}">Download PDF</a>
+    <button type="button" onclick="window.print()">Print</button>
   </nav>
   <main class="chart">
     <header class="chart-header">
       <h1>{{ song.title }}</h1>
-      <p class="meta">{{ resource.title }}{% if target_key %} · Key {{ target_key }}{% endif %}{% if resource.capo %} · {{ resource.capo }}{% endif %}</p>
+      <p class="meta">{{ resource.title }}{% if target_key and display_key_in_meta %} · Key {{ target_key }}{% endif %}{% if resource.capo %} · {{ resource.capo }}{% endif %}</p>
       {% if chart_metadata %}<div class="details">
         {% if chart_metadata.ccli_song_number %}<span><strong>CCLI</strong> {{ chart_metadata.ccli_song_number }}</span>{% endif %}
         {% if chart_metadata.bpm %}<span><strong>BPM</strong> {{ chart_metadata.bpm }}</span>{% endif %}
@@ -82,7 +84,7 @@
     {% if error %}<p class="error">{{ error }}</p>{% endif %}
     <div class="chart-body" id="chartBody">
       {% for section in chart_sections %}
-        <section class="section">
+        <section class="section{% if section.repeat %} repeat-section{% endif %}">
           {% if section.title %}<h2 class="section-title">{{ section.title }}</h2>{% endif %}
           {% for line in section.lines %}
             {% if line.kind == 'song' %}

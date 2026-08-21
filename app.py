@@ -6828,9 +6828,7 @@ def worship_song_resource_download(song_id, resource_id):
     return response
 
 
-@app.route("/worship/song/<song_id>/resources/<resource_id>/chart", methods=["GET"])
-@login_required
-def worship_song_resource_chart(song_id, resource_id):
+def _worship_chord_chart_context(song_id: str, resource_id: str, requested_key: str = "") -> dict:
     song = normalize_worship_song(get_worship_song(song_id) or {})
     resource = _worship_resource_for_song(song, resource_id)
     if not resource or not resource.get("chart_text"):
@@ -6844,7 +6842,7 @@ def worship_song_resource_chart(song_id, resource_id):
     if song.get("ccli_song_number") and not chart_metadata.get("ccli_song_number"):
         chart_metadata["ccli_song_number"] = song["ccli_song_number"]
     source_key = resource.get("key") or chart_metadata.get("key") or song.get("key") or ""
-    target_key = normalize_key(request.args.get("key") or source_key)
+    target_key = normalize_key(requested_key or source_key)
     chart = str(cleanup.get("chart") or resource["chart_text"])
     error = ""
     if target_key and source_key and target_key != source_key:
@@ -6853,11 +6851,51 @@ def worship_song_resource_chart(song_id, resource_id):
         except ValueError as exc:
             error = str(exc)
     target_keys = tuple(f"{key}m" for key in _WORSHIP_KEY_CHOICES) if source_key.endswith("m") else _WORSHIP_KEY_CHOICES
-    return render_template(
-        "worship_chord_chart.html", song=song, resource=resource, chart_sections=parse_chord_chart(chart),
-        source_key=source_key, target_key=target_key or source_key, keys=target_keys, error=error,
-        chart_metadata=chart_metadata,
+    shown_key = target_key or source_key
+    title_has_key = bool(shown_key and re.search(
+        rf"\bkey\s+(?:of\s+)?{re.escape(shown_key)}(?![A-Za-z0-9#b])",
+        str(resource.get("title") or ""), flags=re.I,
+    ))
+    return {
+        "song": song,
+        "resource": resource,
+        "chart_sections": parse_chord_chart(chart),
+        "source_key": source_key,
+        "target_key": shown_key,
+        "keys": target_keys,
+        "error": error,
+        "chart_metadata": chart_metadata,
+        "display_key_in_meta": not title_has_key,
+    }
+
+
+@app.route("/worship/song/<song_id>/resources/<resource_id>/chart", methods=["GET"])
+@login_required
+def worship_song_resource_chart(song_id, resource_id):
+    context = _worship_chord_chart_context(song_id, resource_id, request.args.get("key", ""))
+    context["pdf_url"] = url_for(
+        "worship_song_resource_chart_pdf", song_id=song_id, resource_id=resource_id,
+        key=context["target_key"],
     )
+    return render_template("worship_chord_chart.html", **context)
+
+
+@app.route("/worship/song/<song_id>/resources/<resource_id>/chart.pdf", methods=["GET"])
+@login_required
+def worship_song_resource_chart_pdf(song_id, resource_id):
+    from faithsparks.services.chord_chart_pdf import build_chord_chart_pdf
+
+    context = _worship_chord_chart_context(song_id, resource_id, request.args.get("key", ""))
+    pdf = build_chord_chart_pdf(
+        song=context["song"], resource=context["resource"], sections=context["chart_sections"],
+        target_key=context["target_key"], metadata=context["chart_metadata"],
+    )
+    filename = secure_filename(
+        f"{context['song'].get('title') or 'chord-chart'}-{context['target_key'] or 'original'}-chord-chart.pdf"
+    )
+    response = send_file(pdf, as_attachment=True, download_name=filename, mimetype="application/pdf")
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.route("/worship/musician-link", methods=["POST"])

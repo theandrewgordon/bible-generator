@@ -313,7 +313,7 @@ def parse_chord_chart(chart: str) -> list[dict[str, object]]:
     which keeps the musical cue attached to the right word on narrow screens.
     """
     sections: list[dict[str, object]] = []
-    current: dict[str, object] = {"title": "", "lines": []}
+    current: dict[str, object] = {"title": "", "lines": [], "repeat": False}
 
     def finish_section() -> None:
         nonlocal current
@@ -322,7 +322,7 @@ def parse_chord_chart(chart: str) -> list[dict[str, object]]:
             lines.pop()
         if current["title"] or lines:
             sections.append(current)
-        current = {"title": "", "lines": []}
+        current = {"title": "", "lines": [], "repeat": False}
 
     for raw_line in str(chart or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
         stripped = raw_line.strip()
@@ -336,12 +336,12 @@ def parse_chord_chart(chart: str) -> list[dict[str, object]]:
         if directive:
             name = directive.group(1).strip().lower().replace("-", "_").replace(" ", "_")
             value = directive.group(2).strip()
-            comment_is_section = name in {"comment", "c"} and bool(
-                _section_title(value) or re.match(r"^repeat\s+(?:verse|chorus|bridge|tag)", value, flags=re.I)
-            )
+            is_repeat = bool(re.match(r"^repeat\s+(?:verse|chorus|bridge|tag)", value, flags=re.I))
+            comment_is_section = name in {"comment", "c"} and bool(_section_title(value) or is_repeat)
             if value and (name in _SECTION_DIRECTIVES - {"comment", "c"} or comment_is_section):
                 finish_section()
                 current["title"] = value
+                current["repeat"] = is_repeat
             elif name not in _HIDDEN_DIRECTIVES and value:
                 current["lines"].append({"kind": "note", "text": value})
             continue
