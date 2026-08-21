@@ -42,15 +42,39 @@ def _wrap_text(text: str, font: str, size: float, width: float) -> list[str]:
     words = _safe_text(text).split()
     if not words:
         return [""]
+
+    def split_oversized_word(word: str) -> list[str]:
+        pieces: list[str] = []
+        remaining = word
+        while remaining and stringWidth(remaining, font, size) > width:
+            low, high, best = 1, len(remaining), 1
+            while low <= high:
+                midpoint = (low + high) // 2
+                if stringWidth(remaining[:midpoint], font, size) <= width:
+                    best = midpoint
+                    low = midpoint + 1
+                else:
+                    high = midpoint - 1
+            pieces.append(remaining[:best])
+            remaining = remaining[best:]
+        if remaining:
+            pieces.append(remaining)
+        return pieces or [word]
+
     lines: list[str] = []
     current = ""
-    for word in words:
-        candidate = f"{current} {word}".strip()
-        if not current or stringWidth(candidate, font, size) <= width:
-            current = candidate
-        else:
-            lines.append(current)
-            current = word
+    for raw_word in words:
+        pieces = split_oversized_word(raw_word)
+        for piece_index, word in enumerate(pieces):
+            candidate = f"{current} {word}".strip()
+            if not current or stringWidth(candidate, font, size) <= width:
+                current = candidate
+            else:
+                lines.append(current)
+                current = word
+            if piece_index < len(pieces) - 1:
+                lines.append(current)
+                current = ""
     if current:
         lines.append(current)
     return lines
@@ -67,6 +91,26 @@ def _song_rows(segments: list[dict[str, str]], width: float) -> list[list[dict[s
             stringWidth(chord, _CHORD_FONT, _CHORD_SIZE),
             stringWidth(lyric or " ", _LYRIC_FONT, _LYRIC_SIZE),
         ) + 2.5
+        if segment_width > width:
+            if current:
+                rows.append(current)
+                current = []
+                used = 0.0
+            lyric_lines = _wrap_text(
+                lyric, _LYRIC_FONT, _LYRIC_SIZE, max(1.0, width - 2.5)
+            )
+            for line_index, lyric_line in enumerate(lyric_lines):
+                wrapped_chord = chord if line_index == 0 else ""
+                wrapped_width = min(width, max(
+                    stringWidth(wrapped_chord, _CHORD_FONT, _CHORD_SIZE),
+                    stringWidth(lyric_line or " ", _LYRIC_FONT, _LYRIC_SIZE),
+                ) + 2.5)
+                rows.append([{
+                    "chord": wrapped_chord,
+                    "lyric": lyric_line,
+                    "width": wrapped_width,
+                }])
+            continue
         if current and used + segment_width > width:
             rows.append(current)
             current = []
@@ -198,8 +242,20 @@ def build_chord_chart_pdf(
         subtitle = f"{subtitle} - Key {target_key}" if subtitle else f"Key {target_key}"
 
     metadata = dict(metadata or {})
+    title_size = 19.0
+    title_lines = _wrap_text(title, "Helvetica-Bold", title_size, full_width)
+    if len(title_lines) > 2:
+        title_size = 16.0
+        title_lines = _wrap_text(title, "Helvetica-Bold", title_size, full_width)
+    subtitle_lines = _wrap_text(subtitle, "Helvetica", 8.3, full_width) if subtitle else []
     metadata_lines = _meta_lines(metadata, full_width)
-    header_height = 44 + len(metadata_lines) * 9
+    title_leading = title_size + 2
+    header_height = (
+        len(title_lines) * title_leading
+        + len(subtitle_lines) * 10
+        + len(metadata_lines) * 9
+        + 14
+    )
     body_top = top - header_height
     available = body_top - bottom
     total_one_column = sum(_section_height(section, full_width) for section in sections)
@@ -213,14 +269,24 @@ def build_chord_chart_pdf(
     def draw_header(continued: bool = False) -> float:
         y = top
         pdf.setFillColor(_DARK)
-        pdf.setFont("Helvetica-Bold", 19 if not continued else 13)
-        pdf.drawString(margin_x, y, title + (" (continued)" if continued else ""))
-        y -= 16 if continued else 18
-        if not continued and subtitle:
+        if continued:
+            pdf.setFont("Helvetica-Bold", 13)
+            for continued_line in _wrap_text(
+                f"{title} (continued)", "Helvetica-Bold", 13, full_width
+            ):
+                pdf.drawString(margin_x, y, continued_line)
+                y -= 15
+        else:
+            pdf.setFont("Helvetica-Bold", title_size)
+            for title_line in title_lines:
+                pdf.drawString(margin_x, y, title_line)
+                y -= title_leading
+        if not continued and subtitle_lines:
             pdf.setFillColor(_MUTED)
             pdf.setFont("Helvetica", 8.3)
-            pdf.drawString(margin_x, y, subtitle)
-            y -= 12
+            for subtitle_line in subtitle_lines:
+                pdf.drawString(margin_x, y, subtitle_line)
+                y -= 10
         if not continued:
             pdf.setFillColor(_MUTED)
             pdf.setFont("Helvetica", 7.1)
@@ -238,11 +304,17 @@ def build_chord_chart_pdf(
         pdf_buffer.seek(0)
         return pdf_buffer
 
-    if use_columns and sum(_section_height(section, content_width) for section in sections) <= available * 2:
-        heights = [_section_height(section, content_width) for section in sections]
+    section_heights = [_section_height(section, content_width) for section in sections]
+    if (
+        use_columns
+        and sum(section_heights) <= available * 2
+        and all(height <= available for height in section_heights)
+    ):
         best_split = min(
             range(1, len(sections) + 1),
-            key=lambda index: abs(sum(heights[:index]) - sum(heights[index:])),
+            key=lambda index: abs(
+                sum(section_heights[:index]) - sum(section_heights[index:])
+            ),
         )
         if best_split < len(sections) and sections[best_split - 1].get("repeat"):
             best_split -= 1
@@ -257,18 +329,76 @@ def build_chord_chart_pdf(
         column_index = 0
         x = margin_x
         y = y_top
+
+        def advance_column() -> None:
+            nonlocal column_index, x, y, y_top
+            column_index += 1
+            if column_index >= columns_per_page:
+                pdf.showPage()
+                y_top = draw_header(continued=True)
+                column_index = 0
+            x = margin_x + column_index * (content_width + gap)
+            y = y_top
+
         for section_index, section in enumerate(sections):
-            section_height = _section_height(section, content_width)
-            next_height = _section_height(sections[section_index + 1], content_width) if section.get("repeat") and section_index + 1 < len(sections) else 0
-            if y - section_height - next_height < bottom and y < y_top:
-                column_index += 1
-                if column_index >= columns_per_page:
-                    pdf.showPage()
-                    y_top = draw_header(continued=True)
-                    column_index = 0
-                x = margin_x + column_index * (content_width + gap)
-                y = y_top
-            y = _draw_section(pdf, section, x, y, content_width)
+            if section.get("repeat"):
+                next_height = 0.0
+                if section_index + 1 < len(sections):
+                    next_section = sections[section_index + 1]
+                    next_lines = next_section.get("lines", [])
+                    next_height = (14.0 if next_section.get("title") else 0.0) + _SECTION_GAP
+                    if next_lines:
+                        next_height += _line_height(next_lines[0], content_width)
+                if y - _section_height(section, content_width) - next_height < bottom and y < y_top:
+                    advance_column()
+                y = _draw_section(pdf, section, x, y, content_width)
+                continue
+
+            remaining_lines = list(section.get("lines", []))
+            original_title = _safe_text(section.get("title", ""))
+            continued = False
+            if not remaining_lines:
+                if y - _section_height(section, content_width) < bottom and y < y_top:
+                    advance_column()
+                y = _draw_section(pdf, section, x, y, content_width)
+                continue
+
+            while remaining_lines:
+                fragment_title = (
+                    f"{original_title} (continued)" if continued and original_title else original_title
+                )
+                fixed_height = (14.0 if fragment_title else 0.0) + _SECTION_GAP
+                room = y - bottom - fixed_height
+                fragment_lines: list[dict] = []
+                used_height = 0.0
+                for line in remaining_lines:
+                    line_height = _line_height(line, content_width)
+                    if fragment_lines and used_height + line_height > room:
+                        break
+                    if not fragment_lines and line_height > room:
+                        break
+                    fragment_lines.append(line)
+                    used_height += line_height
+
+                if not fragment_lines and y < y_top:
+                    advance_column()
+                    continue
+                if not fragment_lines:
+                    # A single pathological source line can exceed a page; draw it once
+                    # so the paginator always makes progress.
+                    fragment_lines.append(remaining_lines[0])
+
+                fragment = {
+                    **section,
+                    "title": fragment_title,
+                    "lines": fragment_lines,
+                    "repeat": False,
+                }
+                y = _draw_section(pdf, fragment, x, y, content_width)
+                remaining_lines = remaining_lines[len(fragment_lines):]
+                if remaining_lines:
+                    continued = True
+                    advance_column()
 
     pdf.save()
     pdf_buffer.seek(0)

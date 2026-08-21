@@ -180,6 +180,67 @@ Tag
         self.assertNotIn("Key of G from Publisher - Key G", text)
         self.assertIn("REPEAT CHORUS", text)
 
+    def test_pdf_wraps_a_single_oversized_lyric_segment(self):
+        from faithsparks.services.chord_chart_pdf import _song_rows
+
+        rows = _song_rows([{
+            "chord": "G",
+            "lyric": "This unusually long phrase must wrap safely inside a narrow chart column",
+        }], 130)
+
+        self.assertGreater(len(rows), 1)
+        self.assertEqual(rows[0][0]["chord"], "G")
+        self.assertTrue(all(not row[0]["chord"] for row in rows[1:]))
+        self.assertTrue(all(sum(segment["width"] for segment in row) <= 130 for row in rows))
+
+    def test_pdf_wraps_long_titles_and_subtitles(self):
+        from faithsparks.services.chord_chart_pdf import build_chord_chart_pdf
+
+        title = "A Very Long Worship Song Title That Needs to Wrap Without Leaving the Printable Page"
+        resource_title = "Authorized publisher arrangement for the Sunday morning worship team and musicians"
+        pdf = build_chord_chart_pdf(
+            song={"title": title},
+            resource={"title": resource_title},
+            sections=parse_chord_chart("Verse 1\n[G]Grace for every season"),
+            target_key="G",
+            metadata={},
+        )
+        reader = PdfReader(pdf)
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+        self.assertEqual(len(reader.pages), 1)
+        self.assertIn("A Very Long Worship Song Title", text)
+        self.assertIn("Authorized publisher arrangement", text)
+
+    def test_pdf_fragments_an_unusually_long_section(self):
+        from faithsparks.services.chord_chart_pdf import build_chord_chart_pdf
+
+        chart = "Verse 1\n" + "\n".join(
+            f"[G]Rehearsal line {number}" for number in range(50)
+        )
+        pdf = build_chord_chart_pdf(
+            song={"title": "Long Rehearsal Chart"},
+            resource={"title": "Authorized chart"},
+            sections=parse_chord_chart(chart),
+            target_key="G",
+            metadata={},
+        )
+        reader = PdfReader(pdf)
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+        self.assertEqual(len(reader.pages), 1)
+        self.assertIn("VERSE 1 (CONTINUED)", text)
+        self.assertIn("Rehearsal line 49", text)
+
+    def test_auto_cleanup_form_values_allow_an_explicit_opt_out(self):
+        from werkzeug.datastructures import MultiDict
+
+        checked = MultiDict([("auto_clean_chart", "1"), ("auto_clean_chart", "0")])
+        unchecked = MultiDict([("auto_clean_chart", "0")])
+
+        self.assertTrue(app._boolish(checked.get("auto_clean_chart"), True))
+        self.assertFalse(app._boolish(unchecked.get("auto_clean_chart"), True))
+
 
 class WorshipResourceAndVideoTests(unittest.TestCase):
     def test_resource_storage_path_is_bound_to_current_scope_and_song(self):

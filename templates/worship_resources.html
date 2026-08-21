@@ -50,6 +50,7 @@
       <div class="wr-field wr-wide"><label>Upload PDF or ChordPro/text</label><input class="wr-input" type="file" name="file" accept="application/pdf,.cho,.chordpro,.pro,.txt,text/plain"><small class="muted">Up to 20 MB.</small></div>
       <div class="wr-field wr-wide"><label>Or paste ChordPro / chord text</label><textarea class="wr-input" name="chart_text" placeholder="{title: Amazing Grace}\n{key: G}\n[G]Amazing grace..."></textarea></div>
       <label class="wr-check wr-wide"><input type="checkbox" name="auto_clean_chart" value="1" checked><span><strong>Clean pasted webpage text automatically.</strong> Removes menus and footers, extracts chart details, and aligns separate chord rows with their lyrics.</span></label>
+      <input type="hidden" name="auto_clean_chart" value="0">
       <div class="wr-field wr-wide"><label>License note</label><input class="wr-input" name="license_note" placeholder="SongSelect download under church CCLI subscription; internal worship use"></div>
       <label class="wr-check wr-wide"><input type="checkbox" name="rights_confirmed" value="1"><span>I confirm this church has permission to store and use uploaded or pasted material. A source link alone does not require an upload confirmation.</span></label>
       <input type="hidden" name="ccli_song_number" value="{{ song.ccli_song_number }}"><input type="hidden" name="copyright_notice" value="{{ song.copyright_notice }}">
