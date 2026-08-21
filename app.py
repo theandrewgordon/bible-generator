@@ -60,8 +60,10 @@ from faithsparks.services.storage import (
 from faithsparks.services.worship_presentations import (
     MAX_PRESENTATION_BYTES,
     MAX_SERMON_NOTES_CHARS,
+    WorshipPresentationDependencyError,
     WorshipPresentationError,
     extract_pptx_speaker_notes,
+    presentation_conversion_capabilities,
     render_presentation,
     suggest_sermon_highlights,
 )
@@ -6094,17 +6096,25 @@ def worship_service_slide_add():
 @login_required
 @worship_editor_required
 def worship_presentation_import():
+    capabilities = presentation_conversion_capabilities()
+
+    def render_import_page():
+        return render_template(
+            "worship_presentation_import.html",
+            presentation_capabilities=capabilities,
+        )
+
     if request.method == "GET":
-        return render_template("worship_presentation_import.html")
+        return render_import_page()
     if request.content_length and request.content_length > MAX_PRESENTATION_BYTES + 2 * 1024 * 1024:
         flash("Presentations must be 25 MB or smaller.", "warning")
-        return render_template("worship_presentation_import.html"), 413
+        return render_import_page(), 413
 
     user_key = str(session.get("user_email") or get_client_ip())
     rate = check_rate_limit("worship_presentation_import:user", user_key, limit=12, window_seconds=3600)
     if not rate.allowed:
         flash("Too many presentations were imported recently. Please wait and try again.", "warning")
-        response = app.make_response((render_template("worship_presentation_import.html"), 429))
+        response = app.make_response((render_import_page(), 429))
         response.headers["Retry-After"] = str(rate.retry_after)
         return response
 
@@ -6113,7 +6123,15 @@ def worship_presentation_import():
     suffix = Path(original_filename).suffix.lower()
     if not upload or not original_filename or suffix not in {".pptx", ".pdf"}:
         flash("Choose a .pptx or PDF presentation.", "warning")
-        return render_template("worship_presentation_import.html"), 400
+        return render_import_page(), 400
+    if not capabilities.get(suffix.removeprefix("."), False):
+        app.logger.error(
+            "worship presentation import unavailable for %s; capabilities=%s",
+            suffix,
+            capabilities,
+        )
+        flash("Presentation importing is temporarily unavailable while the server is being updated.", "error")
+        return render_import_page(), 503
 
     title = request.form.get("title", "").strip() or Path(original_filename).stem.replace("_", " ").replace("-", " ").strip()
     pasted_notes = request.form.get("sermon_notes", "").strip()[:MAX_SERMON_NOTES_CHARS]
@@ -6180,8 +6198,13 @@ def worship_presentation_import():
     except (WorshipPresentationError, RuntimeError, OSError) as exc:
         app.logger.warning("worship presentation import failed: %s", exc)
         _delete_worship_presentation_assets(stored_item or cleanup_item)
-        flash(str(exc), "error")
-        return render_template("worship_presentation_import.html"), 503 if isinstance(exc, RuntimeError) else 400
+        if isinstance(exc, WorshipPresentationDependencyError):
+            flash("Presentation importing is temporarily unavailable while the server is being updated.", "error")
+            status = 503
+        else:
+            flash(str(exc), "error")
+            status = 503 if isinstance(exc, RuntimeError) else 400
+        return render_import_page(), status
 
     flash("Presentation imported. Review the slide order and choose any key points to project.", "success")
     return redirect(url_for("worship_presentation_edit", presentation_id=presentation_id))

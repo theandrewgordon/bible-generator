@@ -1,9 +1,9 @@
 services:
   - type: web
     name: bible-generator
-    env: docker
+    runtime: docker
     dockerfilePath: ./Dockerfile
-    branch: master
+    branch: main
     envVars:
       - key: OPENAI_API_KEY
         sync: false

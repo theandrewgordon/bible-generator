@@ -26,14 +26,40 @@ class WorshipPresentationError(ValueError):
     """A presentation cannot be safely imported or converted."""
 
 
-def _binary(env_name: str, executable: str) -> str:
+class WorshipPresentationDependencyError(RuntimeError):
+    """The server is missing a required presentation conversion tool."""
+
+
+def _resolve_binary(env_name: str, executable: str) -> str:
     configured = str(os.getenv(env_name) or "").strip()
-    candidate = configured or shutil.which(executable) or ""
-    if not candidate or not Path(candidate).is_file():
-        raise WorshipPresentationError(
+    if configured:
+        resolved = shutil.which(configured)
+        if resolved:
+            return resolved
+        candidate = Path(configured)
+        if candidate.is_file():
+            return str(candidate)
+        return ""
+    return shutil.which(executable) or ""
+
+
+def _binary(env_name: str, executable: str) -> str:
+    candidate = _resolve_binary(env_name, executable)
+    if not candidate:
+        raise WorshipPresentationDependencyError(
             f"Presentation conversion is not installed ({executable} is unavailable)."
         )
     return candidate
+
+
+def presentation_conversion_capabilities() -> dict[str, bool]:
+    """Report which import formats the current server can render."""
+    has_pdftoppm = bool(_resolve_binary("PDFTOPPM_BIN", "pdftoppm"))
+    has_soffice = bool(_resolve_binary("SOFFICE_BIN", "soffice"))
+    return {
+        "pdf": has_pdftoppm,
+        "pptx": has_pdftoppm and has_soffice,
+    }
 
 
 def validate_pptx(path: str | Path) -> None:

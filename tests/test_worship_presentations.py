@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 from pptx import Presentation
@@ -11,12 +12,34 @@ from reportlab.pdfgen import canvas
 import app
 from faithsparks.services.worship_presentations import (
     deterministic_highlights,
+    presentation_conversion_capabilities,
     render_presentation,
     suggest_sermon_highlights,
 )
 
 
 class WorshipPresentationTests(unittest.TestCase):
+    def test_conversion_capabilities_require_both_tools_for_powerpoint(self):
+        def resolve(executable):
+            return f"/usr/bin/{executable}" if executable == "pdftoppm" else None
+
+        with patch("faithsparks.services.worship_presentations.shutil.which", side_effect=resolve):
+            capabilities = presentation_conversion_capabilities()
+
+        self.assertEqual(capabilities, {"pdf": True, "pptx": False})
+
+    def test_configured_converter_command_can_be_resolved_from_path(self):
+        def resolve(executable):
+            if executable in {"custom-soffice", "pdftoppm"}:
+                return f"/usr/local/bin/{executable}"
+            return None
+
+        with patch.dict(os.environ, {"SOFFICE_BIN": "custom-soffice"}, clear=False):
+            with patch("faithsparks.services.worship_presentations.shutil.which", side_effect=resolve):
+                capabilities = presentation_conversion_capabilities()
+
+        self.assertEqual(capabilities, {"pdf": True, "pptx": True})
+
     def test_notes_create_grounded_editable_highlight_candidates(self):
         notes = """
         - Grace meets us before we have everything figured out.

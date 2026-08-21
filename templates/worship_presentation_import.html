@@ -6,6 +6,7 @@
   .wpi-card label{display:block;font-weight:800;margin:.9rem 0 .35rem}.wpi-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font:inherit}
   .wpi-help{color:var(--text-secondary);font-size:.86rem;line-height:1.45}.wpi-actions{display:flex;gap:.75rem;align-items:center;margin-top:1.15rem;flex-wrap:wrap}
   .wpi-actions button,.wpi-actions a{padding:10px 18px;border-radius:9px;font-weight:800;text-decoration:none}.wpi-actions button{border:0;background:var(--primary);color:#fff;cursor:pointer}.wpi-actions a{border:1px solid #cbd5e1;color:var(--text)}
+  .wpi-actions button:disabled{cursor:not-allowed;opacity:.55}.wpi-notice{margin:0 0 1rem;padding:.85rem 1rem;border:1px solid #f59e0b;border-radius:10px;background:color-mix(in srgb,#f59e0b 12%,var(--box));line-height:1.45}
   .wpi-progress{display:none;margin-top:.85rem;padding:.75rem;border-radius:9px;background:color-mix(in srgb,var(--primary) 8%,var(--box));font-weight:700}.wpi-progress.is-visible{display:block}
 </style>
 {% endblock %}
@@ -15,10 +16,17 @@
   <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
   <h1>Import a presentation</h1>
   <p class="muted">Bring a pastor’s slides into the same service order as songs, Scripture, and announcements.</p>
+  {% set can_pptx = presentation_capabilities.pptx %}
+  {% set can_pdf = presentation_capabilities.pdf %}
+  {% if not can_pptx and not can_pdf %}
+    <div class="wpi-notice" role="alert"><strong>Presentation importing is temporarily unavailable.</strong><br>The server is being updated with the slide-conversion tools this feature needs.</div>
+  {% elif not can_pptx %}
+    <div class="wpi-notice" role="status"><strong>PDF import is available.</strong> PowerPoint import is temporarily unavailable, so export the deck as a PDF first.</div>
+  {% endif %}
   <form class="wpi-card" method="post" enctype="multipart/form-data" id="presentation-import-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label for="presentation-file">PowerPoint or PDF</label>
-    <input class="wpi-input" id="presentation-file" type="file" name="presentation" accept=".pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf" required>
+    <input class="wpi-input" id="presentation-file" type="file" name="presentation" accept="{% if can_pptx %}.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,{% endif %}{% if can_pdf %}.pdf,application/pdf{% endif %}" required {% if not can_pptx and not can_pdf %}disabled{% endif %}>
     <p class="wpi-help">Up to 25 MB and 100 slides. Slides are imported as faithful static images. Animations, transitions, and embedded video are not included.</p>
 
     <label for="presentation-title">Presentation name</label>
@@ -29,7 +37,7 @@
     <p class="wpi-help">FaithSparks will suggest concise key points grounded in these notes. You review and approve each point before it becomes a projected slide. Speaker notes already inside a PPTX are included automatically.</p>
 
     <div class="wpi-actions">
-      <button type="submit" id="presentation-import-submit">Import and review</button>
+      <button type="submit" id="presentation-import-submit" {% if not can_pptx and not can_pdf %}disabled{% endif %}>Import and review</button>
       <a href="{{ url_for('worship') }}">Cancel</a>
     </div>
     <div class="wpi-progress" id="presentation-import-progress" role="status">Converting and checking every slide… this may take a minute.</div>
