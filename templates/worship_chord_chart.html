@@ -71,7 +71,7 @@
   <main class="chart">
     <header class="chart-header">
       <h1>{{ song.title }}</h1>
-      <p class="meta">{{ resource.title }}{% if target_key and display_key_in_meta %} · Key {{ target_key }}{% endif %}{% if resource.capo %} · {{ resource.capo }}{% endif %}</p>
+      <p class="meta">{{ chart_subtitle }}{% if resource.capo %} · {{ resource.capo }}{% endif %}</p>
       {% if chart_metadata %}<div class="details">
         {% if chart_metadata.ccli_song_number %}<span><strong>CCLI</strong> {{ chart_metadata.ccli_song_number }}</span>{% endif %}
         {% if chart_metadata.bpm %}<span><strong>BPM</strong> {{ chart_metadata.bpm }}</span>{% endif %}

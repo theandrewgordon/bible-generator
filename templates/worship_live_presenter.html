@@ -19,6 +19,7 @@
     .wl-part{position:absolute;left:3.2vw;top:8vh;font-size:clamp(.9rem,1.25vw,1.35rem);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#d1d5db;text-shadow:0 1px 8px #000;z-index:2}
     .wl-lines{font-size:clamp(2.8rem,5.2vw,6.3rem);line-height:1.15;font-weight:800;white-space:pre-line;max-width:20ch;text-wrap:balance}
     .wl-service-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .wl-service-split{position:absolute;inset:0;z-index:1;display:grid;grid-template-columns:1.15fr .85fr;background:#0f172a}.wl-service-split .wl-service-photo{position:relative;height:100%;min-width:0}.wl-service-split .wl-content{padding:5vh 3vw}
     .wl-presentation-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
     .wl-video-frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:1}
     .wl-service-shade{position:absolute;inset:0;background:rgba(0,0,0,.48)}
@@ -57,8 +58,8 @@
       {% elif slide.kind == 'video' %}
         <iframe class="wl-video-frame" title="{{ slide.title }}" data-video-frame data-start="{{ slide.video_start or 0 }}" src="https://www.youtube-nocookie.com/embed/{{ slide.video_id }}?enablejsapi=1&amp;origin={{ request.url_root.rstrip('/')|urlencode }}&amp;rel=0&amp;playsinline=1{% if slide.video_start %}&amp;start={{ slide.video_start }}{% endif %}{% if slide.video_end %}&amp;end={{ slide.video_end }}{% endif %}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       {% elif slide.kind == 'service' %}
-        {% if slide.image_url %}<img class="wl-service-photo" src="{{ slide.image_url }}" alt=""><div class="wl-service-shade"></div>{% endif %}
-        <div class="wl-content"><h2 class="wl-title">{{ slide.title }}</h2>{% if slide.lines %}<div class="wl-service-lines">{{ slide.lines|join('\n') }}</div>{% endif %}</div>
+        {% if slide.image_url and slide.image_layout == 'split' %}<div class="wl-service-split"><img class="wl-service-photo" src="{{ slide.image_url }}" alt=""><div class="wl-content"><h2 class="wl-title">{{ slide.title }}</h2>{% if slide.lines %}<div class="wl-service-lines">{{ slide.lines|join('\n') }}</div>{% endif %}</div></div>
+        {% else %}{% if slide.image_url %}<img class="wl-service-photo" src="{{ slide.image_url }}" alt=""><div class="wl-service-shade"></div>{% endif %}<div class="wl-content"><h2 class="wl-title">{{ slide.title }}</h2>{% if slide.lines %}<div class="wl-service-lines">{{ slide.lines|join('\n') }}</div>{% endif %}</div>{% endif %}
       {% elif slide.kind == 'divider' %}
         <div class="wl-content"><h2 class="wl-title">{{ slide.title }}</h2>{% if slide.artist or slide.version or slide.key %}<p class="wl-meta">{{ [slide.artist, slide.version, ('Key: ' ~ slide.key) if slide.key else '']|select|join(' · ') }}</p>{% endif %}</div>
       {% else %}

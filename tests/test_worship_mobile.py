@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from flask import g
 from itsdangerous import BadData
@@ -43,6 +44,7 @@ class WorshipMobileViewTests(unittest.TestCase):
         self.assertIn("Holy Forever", html)
         self.assertIn("Copy link", html)
         self.assertIn("song order: holy-forever", html)
+        self.assertIn("/static/worship/backgrounds/", html)
 
     def test_mobile_slides_use_human_part_labels(self):
         slides = app._build_worship_mobile_slides(
@@ -58,6 +60,63 @@ class WorshipMobileViewTests(unittest.TestCase):
 
         labels = [slide.get("part_label") for slide in slides if slide.get("kind") == "lyric"]
         self.assertEqual(labels, ["Pre Chorus", "Chorus 2"])
+
+    def test_auto_backgrounds_are_stable_and_do_not_repeat_between_songs(self):
+        selected = [
+            {
+                "id": f"song-{index}",
+                "title": f"Song {index}",
+                "type": "song",
+                "parts": {"verse1": [f"Words for song {index}"]},
+                "arrangement": ["verse1"],
+            }
+            for index in range(1, 5)
+        ]
+
+        first = app._with_effective_worship_backgrounds(selected)
+        second = app._with_effective_worship_backgrounds(selected)
+        first_names = [item["_effective_background"] for item in first]
+
+        self.assertEqual(first_names, [item["_effective_background"] for item in second])
+        self.assertTrue(all(first_names))
+        self.assertTrue(all(left != right for left, right in zip(first_names, first_names[1:])))
+
+        slides = app._build_worship_mobile_slides(selected)
+        by_song = {}
+        for slide in slides:
+            by_song.setdefault(slide["id"], set()).add(slide.get("background"))
+        self.assertTrue(all(len(backgrounds) == 1 for backgrounds in by_song.values()))
+
+    def test_explicit_background_is_preserved_and_auto_avoids_it(self):
+        selected = [
+            {"id": "pinned", "title": "Pinned", "type": "song", "background": "ocean-waves.png"},
+            {"id": "auto", "title": "Auto", "type": "song"},
+        ]
+
+        prepared = app._with_effective_worship_backgrounds(selected)
+
+        self.assertEqual(prepared[0]["_effective_background"], "ocean-waves.png")
+        self.assertFalse(prepared[0]["_background_is_auto"])
+        self.assertTrue(prepared[1]["_background_is_auto"])
+        self.assertNotEqual(prepared[1]["_effective_background"], "ocean-waves.png")
+
+    def test_background_resolver_never_leaves_approved_directory(self):
+        path, _config = app._resolve_bg("song", "../../app.py")
+
+        self.assertIsNotNone(path)
+        self.assertEqual(Path(path).parent, app._BG_DIR.resolve())
+        self.assertNotEqual(Path(path).name, "app.py")
+
+    def test_crowded_detection_accounts_for_projected_line_wrapping(self):
+        long_lines = [
+            "This is a deliberately long worship lyric line that will wrap on the projected slide",
+            "A second deliberately long line should also occupy more than one visible row",
+            "The third line completes the thought without adding five source lines",
+            "And the fourth line makes the projected result visually dense",
+        ]
+
+        self.assertGreaterEqual(app._worship_visual_row_count(long_lines, 48), 6)
+        self.assertTrue(app._worship_slide_is_crowded(long_lines, 48))
 
     def test_mobile_slides_collapse_only_exact_adjacent_duplicate_cues(self):
         slides = app._build_worship_mobile_slides([

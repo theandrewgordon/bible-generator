@@ -107,11 +107,12 @@
     <div class="wa-field">
       <label class="wa-label">Background</label>
       <select name="background" class="wa-input">
-        <option value="">Default</option>
+        <option value="">Auto — avoid repeats</option>
         {% for bg in backgrounds %}
         <option value="{{ bg }}"{% if song.background == bg %} selected{% endif %}>{{ bg }}</option>
         {% endfor %}
       </select>
+      <p class="wa-helper">Auto keeps this song visually consistent while avoiding nearby song backgrounds in each set.</p>
     </div>
     <div class="wa-field">
       <label class="wa-label">Type</label>

@@ -42,7 +42,7 @@
     <h2>Sermon notes and key points</h2>
     <p class="wpe-meta">Suggestions are grounded in the notes, but nothing appears on screen until you check it.</p>
     <textarea class="wpe-input" name="sermon_notes" rows="12" maxlength="60000">{{ item.sermon_notes }}</textarea>
-    <div class="wpe-note-actions"><button class="wpe-secondary" type="submit" name="action" value="reanalyze">Look for key points again</button><span class="wpe-meta">Editing the notes does not change the original presentation.</span></div>
+    <div class="wpe-note-actions"><button class="wpe-secondary" type="submit" name="action" value="reanalyze">Look for key points again</button><label class="wpe-meta" style="display:flex;gap:.45rem;align-items:flex-start"><input type="checkbox" name="use_ai_highlights" value="1" style="margin-top:.15rem"><span>Use AI for this analysis; notes will be sent to the configured provider and may create a small usage charge. Leave unchecked for local suggestions.</span></label><span class="wpe-meta">Editing the notes does not change the original presentation.</span></div>
     {% if item.highlight_suggestions %}
       <div style="margin-top:1rem">
       {% for highlight in item.highlight_suggestions %}

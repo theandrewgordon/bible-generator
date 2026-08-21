@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from pypdf import PdfReader
 
@@ -193,6 +194,28 @@ Tag
         self.assertTrue(all(not row[0]["chord"] for row in rows[1:]))
         self.assertTrue(all(sum(segment["width"] for segment in row) <= 130 for row in rows))
 
+    def test_transposed_chart_subtitle_states_source_and_target_keys_cleanly(self):
+        subtitle = app._worship_chord_chart_subtitle(
+            "Key of B from Integrity Worship", "B", "E"
+        )
+        from faithsparks.services.chord_chart_pdf import build_chord_chart_pdf
+
+        self.assertEqual(subtitle, "Integrity Worship chart · Transposed B to E")
+
+        pdf = build_chord_chart_pdf(
+            song={"title": "Abide"},
+            resource={"title": "Key of B from Integrity Worship"},
+            sections=parse_chord_chart("Verse 1\n[E]I depend on You"),
+            target_key="E",
+            metadata={},
+            subtitle=subtitle,
+        )
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(pdf).pages)
+
+        self.assertIn("Transposed B", text)
+        self.assertIn("E", text)
+        self.assertNotIn("Key of B from Integrity Worship", text)
+
     def test_pdf_wraps_long_titles_and_subtitles(self):
         from faithsparks.services.chord_chart_pdf import build_chord_chart_pdf
 
@@ -243,6 +266,21 @@ Tag
 
 
 class WorshipResourceAndVideoTests(unittest.TestCase):
+    def test_licensing_report_counts_saved_lyric_source_links(self):
+        song = {
+            "id": "abide",
+            "title": "Abide",
+            "type": "song",
+            "sources": {"primary_url": "https://integrityworship.com/songs/abide/"},
+            "parts": {"verse1": ["I depend on You"]},
+            "arrangement": ["verse1"],
+        }
+        with mock.patch.object(app, "list_worship_songs", return_value=[song]):
+            row = app._worship_licensing_rows()[0]
+
+        self.assertIn("integrityworship.com", row["sources"])
+        self.assertNotIn("source/resource", row["missing"])
+
     def test_resource_storage_path_is_bound_to_current_scope_and_song(self):
         resource = {
             "id": "chart-1",

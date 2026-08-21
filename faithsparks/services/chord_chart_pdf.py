@@ -225,7 +225,8 @@ def _title_mentions_key(title: str, key: str) -> bool:
 
 
 def build_chord_chart_pdf(
-    *, song: dict, resource: dict, sections: list[dict], target_key: str, metadata: dict
+    *, song: dict, resource: dict, sections: list[dict], target_key: str, metadata: dict,
+    subtitle: str = "",
 ) -> BytesIO:
     """Build a clean chart PDF with automatic one-page/two-column fitting."""
     page_width, page_height = letter
@@ -237,9 +238,11 @@ def build_chord_chart_pdf(
     column_width = (full_width - gap) / 2
     title = _safe_text(song.get("title") or "Chord Chart")
     resource_title = _safe_text(resource.get("title") or "")
-    subtitle = resource_title
-    if target_key and not _title_mentions_key(resource_title, target_key):
-        subtitle = f"{subtitle} - Key {target_key}" if subtitle else f"Key {target_key}"
+    subtitle = _safe_text(subtitle or "")
+    if not subtitle:
+        subtitle = resource_title
+        if target_key and not _title_mentions_key(resource_title, target_key):
+            subtitle = f"{subtitle} · Key {target_key}" if subtitle else f"Key {target_key}"
 
     metadata = dict(metadata or {})
     title_size = 19.0

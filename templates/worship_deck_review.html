@@ -5,11 +5,13 @@
   .wdr-summary,.wdr-card{background:var(--box);border-radius:14px;padding:1.2rem;box-shadow:var(--card-shadow);margin-bottom:1rem}
   .wdr-warning{background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:.8rem;margin:.75rem 0}
   .wdr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.75rem}
-  .wdr-slide{background:#0f172a;color:#fff;border:2px solid #334155;border-radius:10px;padding:.8rem;min-height:120px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+  .wdr-slide{background-color:#0f172a;background-image:linear-gradient(rgba(0,0,0,var(--wdr-overlay,0)),rgba(0,0,0,var(--wdr-overlay,0))),var(--wdr-bg);background-position:center;background-size:cover;color:var(--wdr-color,#fff);border:2px solid #334155;border-radius:10px;padding:.8rem;min-height:150px;display:flex;flex-direction:column;justify-content:center;text-align:center;overflow:hidden}
   .wdr-slide.is-crowded{border-color:#f59e0b}
   .wdr-photo{width:100%;max-height:150px;object-fit:cover;border-radius:6px;margin-bottom:.5rem}
   .wdr-presentation{width:100%;aspect-ratio:16/9;object-fit:contain;background:#000;border-radius:6px}
-  .wdr-label{text-align:left;color:#94a3b8;font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem}
+  .wdr-video{width:100%;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:6px;margin-bottom:.45rem}.wdr-video-meta{font-size:.75rem;opacity:.86}
+  .wdr-service-split{display:grid;grid-template-columns:1.15fr .85fr;align-items:stretch;min-height:130px;margin:-.8rem}.wdr-service-split .wdr-photo{height:100%;max-height:none;margin:0;border-radius:0}.wdr-service-content{display:flex;flex-direction:column;justify-content:center;padding:.75rem}
+  .wdr-label{text-align:left;color:color-mix(in srgb,var(--wdr-color,#fff) 76%,transparent);font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem;text-shadow:0 1px 5px rgba(0,0,0,.7)}
   .wdr-actions{display:flex;gap:.7rem;position:sticky;bottom:.75rem;background:var(--box);padding:.8rem;border-radius:12px;box-shadow:var(--card-shadow);margin-top:1rem}
   .wdr-actions button,.wdr-actions a{padding:10px 18px;border-radius:9px;font-weight:800;text-decoration:none;text-align:center}
   .wdr-actions button{border:0;background:var(--primary);color:#fff;flex:1;cursor:pointer}.wdr-actions a{border:1px solid #cbd5e1;color:var(--text)}
@@ -30,12 +32,14 @@
 
 <div class="wdr-grid">
 {% for slide in slides %}
-  <div class="wdr-slide{% if slide.kind == 'lyric' and (slide.lines|length >= 5 or slide.lines|join('')|length > 210) %} is-crowded{% endif %}">
-    <div class="wdr-label">{{ loop.index }} · {% if slide.kind == 'divider' %}Title{% elif slide.kind == 'service' %}{{ slide.type }}{% elif slide.kind == 'presentation' %}Imported slide {{ slide.source_number }}{% else %}{{ slide.part_label }}{% endif %}</div>
+  <div class="wdr-slide{% if slide.is_crowded %} is-crowded{% endif %}" style="--wdr-bg:{% if slide.background_url %}url('{{ slide.background_url }}'){% else %}none{% endif %};--wdr-color:{{ slide.font_color or '#fff' }};--wdr-overlay:{{ slide.background_overlay or 0 }}">
+    <div class="wdr-label">{{ loop.index }} · {% if slide.kind == 'divider' %}Title{% elif slide.kind == 'service' %}{{ slide.type }}{% elif slide.kind == 'presentation' %}Imported slide {{ slide.source_number }}{% elif slide.kind == 'video' %}Video{% else %}{{ slide.part_label }}{% endif %}</div>
     {% if slide.kind == 'presentation' %}<img class="wdr-presentation" src="{{ slide.image_url }}" alt="{{ slide.title }} slide {{ slide.source_number }}">
+    {% elif slide.kind == 'video' %}<img class="wdr-video" src="{{ slide.thumbnail_url }}" alt=""><strong>{{ slide.title }}</strong><span class="wdr-video-meta">YouTube{% if slide.video_start %} · starts at {{ slide.video_start }}s{% endif %}{% if slide.video_end %} · ends at {{ slide.video_end }}s{% endif %}</span>
+    {% elif slide.kind == 'service' and slide.image_url and slide.image_layout == 'split' %}<div class="wdr-service-split"><img class="wdr-photo" src="{{ slide.image_url }}" alt=""><div class="wdr-service-content"><strong>{{ slide.title }}</strong>{% if slide.lines %}<span>{{ slide.lines|join(' · ') }}</span>{% endif %}</div></div>
     {% elif slide.kind == 'service' %}{% if slide.image_url %}<img class="wdr-photo" src="{{ slide.image_url }}" alt="">{% endif %}<strong>{{ slide.title }}</strong>{% if slide.lines %}<span>{{ slide.lines|join(' · ') }}</span>{% endif %}
     {% elif slide.kind == 'divider' %}<strong>{{ slide.title }}</strong><span>{{ slide.artist }}</span>
-    {% else %}<div>{% for line in slide.lines %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>{% endif %}
+    {% else %}<div style="font-size:{{ ((slide.font_size or 48) / 48) }}rem">{% for line in slide.lines %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>{% endif %}
   </div>
 {% endfor %}
 </div>

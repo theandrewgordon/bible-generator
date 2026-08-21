@@ -2673,6 +2673,18 @@ _DEFAULT_BACKGROUNDS = {
     "reading":   "soft-clouds.png",
 }
 _FALLBACK_BG = "dark-gradient.png"
+_SONG_AUTO_BACKGROUNDS = (
+    "deep-blue-abstract.png",
+    "forest-mist.png",
+    "ocean-waves.png",
+    "desert-wilderness.png",
+    "stars-night.png",
+    "mountain-silhouette.png",
+    "sunrise-glow.png",
+    "dark-green-abstract.png",
+    "stone-texture.png",
+    "dark-gradient.png",
+)
 _bg_config_cache: dict | None = None
 
 
@@ -2688,14 +2700,51 @@ def _load_bg_config() -> dict:
     return _bg_config_cache
 
 
+def _valid_worship_background(value: str | None) -> str:
+    """Return an approved background filename, never a caller-controlled path."""
+    filename = str(value or "").strip()
+    return filename if filename in _load_bg_config() else ""
+
+
+def _with_effective_worship_backgrounds(selected_items: list[dict]) -> list[dict]:
+    """Choose stable, varied backgrounds for songs that are left on Auto."""
+    normalized_items = [normalize_worship_song(item) for item in selected_items]
+    pool = [name for name in _SONG_AUTO_BACKGROUNDS if _valid_worship_background(name)]
+    if not pool:
+        pool = [name for name in _load_bg_config() if _valid_worship_background(name)]
+    set_signature = "|".join(
+        f"{item.get('id', '')}:{item.get('type', '')}" for item in normalized_items
+    )
+    recent_song_backgrounds: list[str] = []
+    prepared: list[dict] = []
+    for index, item in enumerate(normalized_items):
+        explicit = _valid_worship_background(item.get("background"))
+        effective = explicit
+        is_auto = False
+        if item.get("type", "song") == "song" and not explicit and pool:
+            is_auto = True
+            seed = f"{set_signature}|{item.get('id', '')}|{index}"
+            start = int(hashlib.sha256(seed.encode("utf-8")).hexdigest()[:12], 16) % len(pool)
+            rotated = pool[start:] + pool[:start]
+            recent = set(recent_song_backgrounds[-2:])
+            effective = next((name for name in rotated if name not in recent), rotated[0])
+        item["_effective_background"] = effective
+        item["_background_is_auto"] = is_auto
+        if item.get("type", "song") == "song" and effective:
+            recent_song_backgrounds.append(effective)
+        prepared.append(item)
+    return prepared
+
+
 def _resolve_bg(item_type: str, song_bg: str | None) -> tuple:
     """Return (Path | None, config dict) for the best available background."""
     cfg = _load_bg_config()
     for filename in (song_bg, _DEFAULT_BACKGROUNDS.get(item_type), _FALLBACK_BG):
+        filename = _valid_worship_background(filename)
         if not filename:
             continue
-        path = _BG_DIR / filename
-        if path.exists():
+        path = (_BG_DIR / filename).resolve()
+        if path.parent == _BG_DIR.resolve() and path.is_file():
             defaults = {"font_color": [255, 255, 255], "overlay": False, "overlay_opacity": 0}
             return path, {**defaults, **cfg.get(filename, {})}
     return None, {"font_color": [255, 255, 255], "overlay": False, "overlay_opacity": 0}
@@ -5216,16 +5265,40 @@ def _iter_worship_lyric_chunks(normalized: dict):
             yield part_name, chunk
 
 
+def _worship_visual_row_count(lines: list[str], font_size: int = 48) -> int:
+    """Estimate 16:9 projected rows after browser/PowerPoint line wrapping."""
+    try:
+        size = max(18, int(font_size or 48))
+    except (TypeError, ValueError):
+        size = 48
+    characters_per_row = max(18, int(42 * (48 / size)))
+    return sum(max(1, (len(str(line)) + characters_per_row - 1) // characters_per_row) for line in lines)
+
+
+def _worship_slide_is_crowded(lines: list[str], font_size: int = 48) -> bool:
+    try:
+        size = int(font_size or 48)
+    except (TypeError, ValueError):
+        size = 48
+    return (
+        len(lines) >= 5
+        or sum(len(str(line)) for line in lines) > 210
+        or _worship_visual_row_count(lines, size) >= 6
+        or size < 38
+    )
+
+
 def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None = None, access_token: str = "") -> list[dict]:
     notes = notes if isinstance(notes, dict) else {}
     slides: list[dict] = []
-    for item in selected_items:
+    for item in _with_effective_worship_backgrounds(selected_items):
         normalized = normalize_worship_song(item)
         song_id = normalized.get("id", "")
         song_title = normalized.get("title", "Untitled")
         song_version = normalized.get("version", "")
         item_type = normalized.get("type", "song")
-        song_bg = normalized.get("background")
+        song_bg = normalized.get("_effective_background") or normalized.get("background")
+        background_is_auto = bool(normalized.get("_background_is_auto"))
         song_note = str(notes.get(song_id) or "").strip()
         bg_path, bg_cfg = _resolve_bg(item_type, song_bg)
         background_url = ""
@@ -5234,6 +5307,7 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
             background_url = url_for("static", filename=relative_bg) if has_request_context() else f"/static/{relative_bg}"
         font_rgb = bg_cfg.get("font_color", [255, 255, 255])
         font_css = "#{:02x}{:02x}{:02x}".format(*font_rgb)
+        background_overlay = bg_cfg.get("overlay_opacity", 0.0) if bg_cfg.get("overlay") else 0.0
         if item_type == _WORSHIP_PRESENTATION_TYPE:
             for presentation_slide in _iter_worship_presentation_slides(normalized):
                 if presentation_slide.get("kind") == "presentation":
@@ -5262,6 +5336,7 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                         "font_size": 42,
                         "background_url": background_url,
                         "font_color": font_css,
+                        "background_overlay": background_overlay,
                         "note": song_note,
                     })
             continue
@@ -5289,8 +5364,10 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                 "image_layout": normalized.get("image_layout", "full"),
                 "image_url": url_for("worship_media", song_id=song_id, token=access_token) if normalized.get("image_path") else "",
                 "background": song_bg,
+                "background_is_auto": background_is_auto,
                 "background_url": background_url,
                 "font_color": font_css,
+                "background_overlay": background_overlay,
                 "note": song_note,
             })
             continue
@@ -5304,12 +5381,16 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                 "key": normalized.get("key", ""),
                 "type": item_type,
                 "background": song_bg,
+                "background_is_auto": background_is_auto,
                 "background_url": background_url,
                 "font_color": font_css,
+                "background_overlay": background_overlay,
                 "note": song_note,
             }
         )
         for part_name, chunk in _iter_worship_lyric_chunks(normalized):
+            chunk_lines = chunk["lines"]
+            chunk_font_size = chunk.get("font_size", 48)
             slides.append(
                 {
                     "kind": "lyric",
@@ -5319,12 +5400,16 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                     "key": normalized.get("key", ""),
                     "part": part_name,
                     "part_label": _worship_part_label(part_name),
-                    "lines": chunk["lines"],
-                    "font_size": chunk.get("font_size", 48),
+                    "lines": chunk_lines,
+                    "font_size": chunk_font_size,
+                    "visual_row_count": _worship_visual_row_count(chunk_lines, chunk_font_size),
+                    "is_crowded": _worship_slide_is_crowded(chunk_lines, chunk_font_size),
                     "type": item_type,
                     "background": song_bg,
+                    "background_is_auto": background_is_auto,
                     "background_url": background_url,
                     "font_color": font_css,
+                    "background_overlay": background_overlay,
                     "note": song_note,
                 }
             )
@@ -6031,6 +6116,7 @@ def worship_build():
     if not selected_items:
         flash("Select at least one item to build a deck.", "warning")
         return redirect(url_for("worship"))
+    selected_items = _with_effective_worship_backgrounds(selected_items)
 
     validation_problems = []
     for item in selected_items:
@@ -6054,7 +6140,7 @@ def worship_build():
     for item in selected_items:
         normalized = normalize_worship_song(item)
         item_type = normalized.get("type", "song")
-        song_bg = normalized.get("background")
+        song_bg = normalized.get("_effective_background") or normalized.get("background")
         if item_type == _WORSHIP_PRESENTATION_TYPE:
             for presentation_slide in _iter_worship_presentation_slides(normalized):
                 if presentation_slide.get("kind") == "highlight":
@@ -6145,10 +6231,26 @@ def worship_deck_review():
     if not selected_items:
         flash("Select at least one item to review.", "warning")
         return redirect(url_for("worship"))
+    selected_items = _with_effective_worship_backgrounds(selected_items)
     slides = _build_worship_mobile_slides(selected_items)
     findings = []
+    previous_item = None
     for item in selected_items:
         normalized = normalize_worship_song(item)
+        if (
+            previous_item
+            and previous_item.get("type", "song") == "song"
+            and normalized.get("type", "song") == "song"
+            and not previous_item.get("_background_is_auto")
+            and not normalized.get("_background_is_auto")
+            and previous_item.get("_effective_background")
+            and previous_item.get("_effective_background") == normalized.get("_effective_background")
+        ):
+            findings.append(
+                f"{previous_item.get('title', 'Previous song')} and {normalized.get('title', 'next song')} "
+                "are pinned to the same background. Choose Auto or another background if you want more visual variety."
+            )
+        previous_item = normalized
         if normalized.get("type") in _WORSHIP_NON_SONG_TYPES:
             continue
         validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
@@ -6159,11 +6261,7 @@ def worship_deck_review():
             findings.append(f"{normalized['title']} validation status is {validation.get('status', 'unknown').replace('_', ' ')}.")
         if review.get("status") != "approved":
             findings.append(f"{normalized['title']} has no current human approval.")
-    crowded = [
-        slide for slide in slides
-        if slide.get("kind") == "lyric"
-        and (len(slide.get("lines", [])) >= 5 or sum(len(line) for line in slide.get("lines", [])) > 210)
-    ]
+    crowded = [slide for slide in slides if slide.get("kind") == "lyric" and slide.get("is_crowded")]
     return render_template(
         "worship_deck_review.html",
         selected_items=[normalize_worship_song(item) for item in selected_items],
@@ -6435,6 +6533,25 @@ def worship_video_edit(video_item_id):
     return render_template("worship_video_edit.html", item=item)
 
 
+def _worship_notes_highlight_api_key(ai_requested: bool, notes: str) -> str:
+    """Return an AI key only after explicit consent and a bounded daily allowance."""
+    if not ai_requested or not str(notes or "").strip():
+        return ""
+    if os.getenv("WORSHIP_NOTES_AI_ENABLED", "1") == "0":
+        flash("AI note analysis is disabled, so Faith Sparks used local key-point suggestions.", "warning")
+        return ""
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key:
+        flash("AI note analysis is not configured, so Faith Sparks used local key-point suggestions.", "warning")
+        return ""
+    user_key = str(session.get("user_email") or get_client_ip())
+    rate = check_rate_limit("worship_notes_ai:user", user_key, limit=20, window_seconds=86_400)
+    if not rate.allowed:
+        flash("The daily AI note-analysis allowance has been reached; local suggestions were used instead.", "warning")
+        return ""
+    return api_key
+
+
 @app.route("/worship/presentation/import", methods=["GET", "POST"])
 @login_required
 @worship_editor_required
@@ -6478,6 +6595,7 @@ def worship_presentation_import():
 
     title = request.form.get("title", "").strip() or Path(original_filename).stem.replace("_", " ").replace("-", " ").strip()
     pasted_notes = request.form.get("sermon_notes", "").strip()[:MAX_SERMON_NOTES_CHARS]
+    use_ai_highlights = _boolish(request.form.get("use_ai_highlights"))
     presentation_id = _make_unique_worship_song_id(title, "", _WORSHIP_PRESENTATION_TYPE)
     scope = _slugify_worship_token(_current_worship_scope()) or _DEFAULT_WORSHIP_SCOPE
     cleanup_item = {
@@ -6498,9 +6616,10 @@ def worship_presentation_import():
             analysis_notes = pasted_notes
             if extracted_notes and extracted_notes not in analysis_notes:
                 analysis_notes = "\n\n".join(part for part in (pasted_notes, extracted_notes) if part)
+            highlight_api_key = _worship_notes_highlight_api_key(use_ai_highlights, analysis_notes)
             highlights = suggest_sermon_highlights(
                 analysis_notes,
-                api_key=os.getenv("OPENAI_API_KEY", ""),
+                api_key=highlight_api_key,
                 model=os.getenv("WORSHIP_NOTES_MODEL", "gpt-4o-mini"),
             )
             original_path = _store_worship_presentation_asset(
@@ -6529,6 +6648,7 @@ def worship_presentation_import():
                 "original_filename": original_filename,
                 "presentation_storage_prefix": f"worship-presentations/{scope}/{presentation_id}",
                 "sermon_notes": analysis_notes,
+                "ai_highlights_enabled": bool(highlight_api_key),
                 "highlight_position": "after",
                 "highlight_suggestions": [
                     {"id": f"highlight-{index}", "text": text, "enabled": False}
@@ -6565,11 +6685,16 @@ def worship_presentation_edit(presentation_id):
         normalized["title"] = request.form.get("title", "").strip()[:160] or normalized["title"]
         normalized["sermon_notes"] = request.form.get("sermon_notes", "").strip()[:MAX_SERMON_NOTES_CHARS]
         if request.form.get("action") == "reanalyze":
+            use_ai_highlights = _boolish(request.form.get("use_ai_highlights"))
+            highlight_api_key = _worship_notes_highlight_api_key(
+                use_ai_highlights, normalized["sermon_notes"]
+            )
             suggestions = suggest_sermon_highlights(
                 normalized["sermon_notes"],
-                api_key=os.getenv("OPENAI_API_KEY", ""),
+                api_key=highlight_api_key,
                 model=os.getenv("WORSHIP_NOTES_MODEL", "gpt-4o-mini"),
             )
+            normalized["ai_highlights_enabled"] = bool(highlight_api_key)
             normalized["highlight_suggestions"] = [
                 {"id": f"highlight-{index}", "text": text, "enabled": False}
                 for index, text in enumerate(suggestions, 1)
@@ -6828,6 +6953,31 @@ def worship_song_resource_download(song_id, resource_id):
     return response
 
 
+def _worship_chord_chart_subtitle(resource_title: str, source_key: str, shown_key: str) -> str:
+    resource_title = str(resource_title or "").strip()
+    title_has_key = bool(shown_key and re.search(
+        rf"\bkey\s+(?:of\s+)?{re.escape(shown_key)}(?![A-Za-z0-9#b])",
+        resource_title,
+        flags=re.I,
+    ))
+    subtitle = resource_title
+    if source_key and shown_key and source_key != shown_key:
+        provider_match = re.match(
+            rf"^\s*key\s+(?:of\s+)?{re.escape(source_key)}\s+from\s+(.+?)\s*$",
+            resource_title,
+            flags=re.I,
+        )
+        if provider_match:
+            subtitle = f"{provider_match.group(1)} chart"
+        return (
+            f"{subtitle} · Transposed {source_key} to {shown_key}"
+            if subtitle else f"Transposed {source_key} to {shown_key}"
+        )
+    if shown_key and not title_has_key:
+        return f"{subtitle} · Key {shown_key}" if subtitle else f"Key {shown_key}"
+    return subtitle
+
+
 def _worship_chord_chart_context(song_id: str, resource_id: str, requested_key: str = "") -> dict:
     song = normalize_worship_song(get_worship_song(song_id) or {})
     resource = _worship_resource_for_song(song, resource_id)
@@ -6856,6 +7006,9 @@ def _worship_chord_chart_context(song_id: str, resource_id: str, requested_key: 
         rf"\bkey\s+(?:of\s+)?{re.escape(shown_key)}(?![A-Za-z0-9#b])",
         str(resource.get("title") or ""), flags=re.I,
     ))
+    chart_subtitle = _worship_chord_chart_subtitle(
+        resource.get("title") or "", source_key, shown_key
+    )
     return {
         "song": song,
         "resource": resource,
@@ -6866,6 +7019,7 @@ def _worship_chord_chart_context(song_id: str, resource_id: str, requested_key: 
         "error": error,
         "chart_metadata": chart_metadata,
         "display_key_in_meta": not title_has_key,
+        "chart_subtitle": chart_subtitle,
     }
 
 
@@ -6889,6 +7043,7 @@ def worship_song_resource_chart_pdf(song_id, resource_id):
     pdf = build_chord_chart_pdf(
         song=context["song"], resource=context["resource"], sections=context["chart_sections"],
         target_key=context["target_key"], metadata=context["chart_metadata"],
+        subtitle=context["chart_subtitle"],
     )
     filename = secure_filename(
         f"{context['song'].get('title') or 'chord-chart'}-{context['target_key'] or 'original'}-chord-chart.pdf"
@@ -6945,7 +7100,13 @@ def _worship_licensing_rows() -> list[dict]:
         if song.get("type") in _WORSHIP_NON_SONG_TYPES:
             continue
         resources = song.get("resources", [])
-        source_names = sorted({r.get("source_type", "other") for r in resources})
+        source_names = {r.get("source_type", "other") for r in resources}
+        song_sources = song.get("sources") if isinstance(song.get("sources"), dict) else {}
+        for label, source_url in song_sources.items():
+            hostname = (urlparse(str(source_url or "")).hostname or "").removeprefix("www.")
+            if hostname:
+                source_names.add(f"{label.replace('_url', '').replace('_', ' ')}: {hostname}")
+        source_names = sorted(source_names)
         rows.append({
             "title": song.get("title", ""), "artist": song.get("artist", ""),
             "ccli_song_number": song.get("ccli_song_number", ""),
@@ -6955,7 +7116,7 @@ def _worship_licensing_rows() -> list[dict]:
             "missing": ", ".join(label for value, label in (
                 (song.get("ccli_song_number"), "CCLI #"),
                 (song.get("copyright_notice"), "copyright"),
-                (resources, "source/resource"),
+                (source_names, "source/resource"),
             ) if not value),
             "id": song.get("id", ""),
         })
@@ -7024,6 +7185,9 @@ def worship_add():
         key = request.form.get("key", "").strip()
         song_type = request.form.get("type", "song").strip() or "song"
         background = request.form.get("background", "").strip()
+        if background and not _valid_worship_background(background):
+            flash("Choose a background from the approved worship library.", "warning")
+            return redirect(url_for("worship_add"))
 
         part_names = request.form.getlist("part_name")
         part_lines_raw = request.form.getlist("part_lines")
@@ -7169,6 +7333,14 @@ def worship_add_parse():
     key = request.form.get("key", "").strip()
     submitted_title, submitted_artist = title, artist
     submitted_version, submitted_key = version, key
+
+    if not _boolish(request.form.get("rights_confirmed")):
+        flash("Confirm that your church has permission to store and use the imported lyrics or chart material.", "warning")
+        return render_template(
+            "worship_add.html",
+            conflict_song=None,
+            backgrounds=list(_load_bg_config().keys()),
+        ), 400
 
     user_key = str(session.get("user_email") or get_client_ip())
     user_rate = check_rate_limit("worship_import:user", user_key, limit=30, window_seconds=3600)
@@ -7397,6 +7569,8 @@ OTHER RULES:
         }.items()
         if value
     }
+    song["import_rights_confirmed"] = True
+    song["import_rights_confirmed_at"] = _worship_timestamp()
     if validation_text:
         song["validation"] = validate_worship_song_against_source(song, validation_text, validation_url)
 
@@ -7603,6 +7777,9 @@ def worship_edit(song_id):
         key = request.form.get("key", "").strip()
         song_type = request.form.get("type", "song").strip() or "song"
         background = request.form.get("background", "").strip()
+        if background and not _valid_worship_background(background):
+            flash("Choose a background from the approved worship library.", "warning")
+            return redirect(url_for("worship_edit", song_id=song_id))
 
         part_names = request.form.getlist("part_name")
         part_lines_raw = request.form.getlist("part_lines")

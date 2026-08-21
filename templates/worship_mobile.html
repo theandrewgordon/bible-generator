@@ -22,15 +22,16 @@
      inside base.html's max-width container, so 100vw overflowed the stage and
      pushed cards off-screen on desktop. 100% tracks the stage in every mode. */
   .wm-slide{scroll-snap-align:start;flex:0 0 100%;min-width:100%;display:flex;align-items:center;justify-content:center;padding:.55rem .55rem .75rem}
-  .wm-card{width:min(760px, 100%);height:calc(100dvh - 7.25rem);border-radius:22px;background:var(--box);box-shadow:0 18px 50px rgba(15,23,42,.16);border:1px solid rgba(148,163,184,.18);padding:1rem .95rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden}
+  .wm-card{width:min(760px, 100%);height:calc(100dvh - 7.25rem);border-radius:22px;background:var(--box);box-shadow:0 18px 50px rgba(15,23,42,.16);border:1px solid rgba(148,163,184,.18);padding:1rem .95rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;color:var(--wm-color,var(--text))}
   .wm-kind{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.55rem}
   .wm-song{font-size:1.35rem;line-height:1.08;font-weight:900;margin:0 0 .45rem;max-width:18ch;overflow-wrap:anywhere}
   .wm-meta{font-size:.88rem;color:var(--text-secondary);margin:0 0 .85rem}
   .wm-note{font-size:.9rem;line-height:1.32;color:var(--text-secondary);margin:.4rem auto 0;max-width:28ch;padding:.45rem .6rem;border-radius:10px;background:color-mix(in srgb, var(--primary) 6%, transparent)}
   .wm-lines{font-size:1.65rem;line-height:1.16;font-weight:800;white-space:pre-wrap;max-width:16ch;hyphens:auto;overflow-wrap:anywhere}
-  .wm-slide--divider .wm-card{background:linear-gradient(180deg,var(--box) 0%, color-mix(in srgb, var(--primary) 3%, var(--box)) 100%)}
+  .wm-slide--divider .wm-card,.wm-slide--lyric .wm-card,.wm-slide--highlight .wm-card{background-image:linear-gradient(rgba(0,0,0,var(--wm-overlay,0)),rgba(0,0,0,var(--wm-overlay,0))),var(--wm-bg);background-position:center;background-size:cover;background-repeat:no-repeat}
+  .wm-slide--divider .wm-kind,.wm-slide--divider .wm-meta,.wm-slide--divider .wm-note,.wm-slide--lyric .wm-kind,.wm-slide--lyric .wm-part,.wm-slide--highlight .wm-kind,.wm-slide--highlight .wm-part{color:color-mix(in srgb,var(--wm-color,#fff) 82%,transparent)}
   .wm-slide--lyric .wm-card{justify-content:center}
-  .wm-slide--service .wm-card{background:#0f172a;color:#fff}
+  .wm-slide--service .wm-card{background-color:#0f172a;background-image:linear-gradient(rgba(0,0,0,var(--wm-overlay,0)),rgba(0,0,0,var(--wm-overlay,0))),var(--wm-bg);background-position:center;background-size:cover;color:var(--wm-color,#fff)}
   .wm-slide--presentation .wm-card{padding:0;background:#000}
   .wm-slide--video .wm-card{padding:0;background:#000}
   .wm-presentation-image{width:100%;height:100%;display:block;object-fit:contain;background:#000}
@@ -94,7 +95,7 @@
   <div class="wm-stage" id="wm-stage" tabindex="0" aria-label="Worship slides">
     {% for slide in slides %}
       <section class="wm-slide wm-slide--{{ slide.kind }}" data-title="{{ slide.title }}">
-        <div class="wm-card">
+        <div class="wm-card" style="--wm-bg:{% if slide.background_url %}url('{{ slide.background_url }}'){% else %}none{% endif %};--wm-color:{{ slide.font_color or '#fff' }};--wm-overlay:{{ slide.background_overlay or 0 }}">
           {% if slide.kind == 'presentation' %}
             <img class="wm-presentation-image" src="{{ slide.image_url }}" alt="{{ slide.title }} slide {{ slide.source_number }}">
           {% elif slide.kind == 'video' %}

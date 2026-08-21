@@ -80,6 +80,23 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("activeButton.scrollIntoView", self.template)
         self.assertIn("Number(btn.dataset.duration)||300", self.template)
 
+    def test_presenter_supports_split_service_slides(self):
+        presenter = (
+            Path(__file__).parents[1] / "templates" / "worship_live_presenter.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("slide.image_layout == 'split'", presenter)
+        self.assertIn("wl-service-split", presenter)
+
+    def test_deck_review_previews_video_and_real_backgrounds(self):
+        review = (
+            Path(__file__).parents[1] / "templates" / "worship_deck_review.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("slide.thumbnail_url", review)
+        self.assertIn("slide.background_url", review)
+        self.assertIn("slide.is_crowded", review)
+
 
 if __name__ == "__main__":
     unittest.main()

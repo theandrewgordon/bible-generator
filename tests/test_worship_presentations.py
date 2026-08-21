@@ -54,6 +54,23 @@ class WorshipPresentationTests(unittest.TestCase):
         self.assertIn("Romans 8:1", " ".join(highlights))
         self.assertTrue(all(point in notes for point in highlights))
 
+    def test_note_ai_key_requires_explicit_consent(self):
+        with app.app.test_request_context("/worship/presentation/import"):
+            with patch.dict(os.environ, {"OPENAI_API_KEY": "live-test-key"}, clear=False):
+                self.assertEqual(app._worship_notes_highlight_api_key(False, "Private sermon notes"), "")
+
+    def test_song_import_requires_rights_confirmation_before_parsing(self):
+        parse_handler = app.worship_add_parse.__wrapped__.__wrapped__
+        with app.app.test_request_context(
+            "/worship/add/parse",
+            method="POST",
+            data={"raw_lyrics": "Verse 1\nA lyric line"},
+        ):
+            response, status = parse_handler()
+
+        self.assertEqual(status, 400)
+        self.assertIn("permission", response)
+
     def test_presentation_expands_visible_pages_and_selected_highlights_in_order(self):
         item = {
             "id": "romans-8-sermon",

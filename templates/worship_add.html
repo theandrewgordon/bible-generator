@@ -155,11 +155,12 @@
       <div class="wa-field">
         <label class="wa-label">Background</label>
         <select name="background" class="wa-input">
-          <option value="">Default</option>
+          <option value="">Auto — avoid repeats</option>
           {% for bg in backgrounds %}
           <option value="{{ bg }}">{{ bg }}</option>
           {% endfor %}
         </select>
+        <p class="wa-helper">Auto keeps one background for the whole song and chooses a different look for nearby songs in the set.</p>
       </div>
       <div class="wa-field">
         <label class="wa-label">Type</label>
@@ -230,6 +231,11 @@
           <input type="url" name="validation_url" class="wa-input" placeholder="https://www.theworshipinitiative.com/songs/...">
         </div>
       </details>
+
+      <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
+        <input type="checkbox" name="rights_confirmed" value="1" required style="margin-top:.2rem">
+        <span>I confirm this church is licensed or otherwise permitted to copy, store, and use these lyrics and any validation material. Faith Sparks does not grant lyric or chart rights.</span>
+      </label>
 
       <button type="submit" class="wa-btn-primary">Import Song</button>
 
