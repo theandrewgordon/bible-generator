@@ -88,7 +88,53 @@
   .ws-modal select{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}
   .ws-modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
   .ws-scripture-row{display:grid;grid-template-columns:1fr 92px;gap:.6rem}.ws-scripture-preview{display:grid;gap:.5rem;max-height:240px;overflow:auto;margin-top:.75rem}.ws-scripture-slide{padding:.75rem;border-radius:9px;background:#0f172a;color:#fff;text-align:center;white-space:pre-line;font-size:.86rem;line-height:1.35}.ws-scripture-status{min-height:1.2rem;margin-top:.6rem;font-size:.82rem;color:var(--text-secondary)}
+  .ws-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem}
+  .ws-page-head h1{margin:.1rem 0 .25rem}
+  .ws-page-head p{margin:0;color:var(--text-secondary);font-size:.92rem}
+  .ws-kicker{font-size:.74rem!important;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--primary)!important}
+  .ws-page-actions{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-end}
+  .ws-link-primary{display:inline-flex;align-items:center;min-height:38px;padding:0 15px;border-radius:9px;background:var(--primary);color:#fff;text-decoration:none;font-weight:800;font-size:.9rem;white-space:nowrap}
+  .ws-link-primary:hover{background:var(--primary-dark);color:#fff}
+  .ws-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:0 0 1rem;padding:0;list-style:none}
+  .ws-flow li{display:flex;align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #e2e8f0;border-radius:10px;background:var(--box);color:var(--text-secondary);font-size:.8rem;font-weight:700}
+  .ws-flow b{display:grid;place-items:center;width:24px;height:24px;flex:0 0 24px;border-radius:999px;background:color-mix(in srgb,var(--primary) 12%,var(--background));color:var(--primary)}
+  .ws-menu{position:relative}
+  .ws-menu>summary,.ws-set-options>summary,.ws-saved-sets>summary{list-style:none;cursor:pointer;font-weight:800;color:var(--text-secondary)}
+  .ws-menu>summary::-webkit-details-marker,.ws-set-options>summary::-webkit-details-marker,.ws-saved-sets>summary::-webkit-details-marker{display:none}
+  .ws-menu>summary{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);font-size:.86rem}
+  .ws-menu>summary:after,.ws-set-options>summary:after,.ws-saved-sets>summary:after{content:'⌄';margin-left:.4rem;font-size:.85em}
+  .ws-menu[open]>summary:after,.ws-set-options[open]>summary:after,.ws-saved-sets[open]>summary:after{content:'⌃'}
+  .ws-menu-panel{position:absolute;right:0;z-index:20;display:grid;gap:.25rem;width:220px;margin-top:.35rem;padding:.45rem;border:1px solid #dbe3ec;border-radius:10px;background:var(--box);box-shadow:0 16px 36px rgba(15,23,42,.16)}
+  .ws-menu-panel a,.ws-menu-panel button{display:block;width:100%;box-sizing:border-box;padding:.55rem .65rem;border:0;border-radius:7px;background:transparent;color:var(--text);text-align:left;text-decoration:none;font:inherit;font-size:.86rem;font-weight:700;cursor:pointer}
+  .ws-menu-panel a:hover,.ws-menu-panel button:hover{background:color-mix(in srgb,var(--primary) 8%,var(--background));color:var(--primary)}
+  .ws-menu-panel .is-danger{color:#b91c1c}
+  .ws-menu-panel .is-danger:hover{background:#fee2e2;color:#991b1b}
+  .ws-church-card{display:block;padding:0;overflow:visible}
+  .ws-church-card>summary{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1rem;list-style:none;cursor:pointer}
+  .ws-church-card>summary::-webkit-details-marker{display:none}
+  .ws-church-card>summary:after{content:'Manage church';color:var(--primary);font-size:.78rem;font-weight:800;white-space:nowrap}
+  .ws-church-card[open]>summary{border-bottom:1px solid #e2e8f0}
+  .ws-church-card .ws-church-actions{padding:.8rem 1rem}
+  .ws-library-head{display:flex;align-items:center;gap:.65rem;margin-bottom:.75rem;flex-wrap:wrap}
+  .ws-library-head h2{font-size:1.05rem;margin:0}
+  .ws-library-tools{margin-left:auto}
+  .ws-item-menu>summary{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;list-style:none;cursor:pointer;color:var(--text-secondary);font-weight:900;letter-spacing:.08em}
+  .ws-item-menu>summary::-webkit-details-marker{display:none}
+  .ws-item-menu>summary:hover{background:color-mix(in srgb,var(--primary) 8%,var(--background));color:var(--primary)}
+  .ws-item-menu .ws-menu-panel{width:170px}
+  .ws-saved-sets{margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:.8rem}
+  .ws-saved-sets>summary{display:flex;align-items:center;font-size:.86rem}
+  .ws-saved-count{margin-left:.4rem;color:var(--text-secondary);font-weight:600}
+  .ws-set-card h2{font-size:1.15rem;margin:.1rem 0 .25rem}
+  .ws-set-help{margin:0 0 .85rem;color:var(--text-secondary);font-size:.82rem}
+  .ws-set-primary-actions{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem}
+  .ws-set-primary-actions .ws-btn-primary,.ws-set-primary-actions .ws-btn-ghost{width:100%;min-height:42px;padding:9px 12px}
+  .ws-set-options{margin-top:.75rem;border-top:1px solid #e2e8f0;padding-top:.7rem}
+  .ws-set-options>summary{font-size:.84rem;text-align:center}
+  .ws-set-secondary{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.65rem}
+  .ws-set-secondary .ws-btn-ghost{padding:7px 9px;font-size:.8rem}
   @media(max-width:640px){
+    .ws-page-head{display:block}.ws-page-actions{justify-content:flex-start;margin-top:.75rem}.ws-link-primary{flex:1;justify-content:center}.ws-flow{grid-template-columns:1fr}.ws-flow li{padding:.5rem .65rem}.ws-menu-panel{left:0;right:auto}.ws-library-tools{margin-left:0}.ws-library-tools .ws-menu-panel{left:auto;right:0}.ws-item-menu .ws-menu-panel{left:auto;right:0}.ws-set-primary-actions{grid-template-columns:1fr}.ws-set-secondary{grid-template-columns:1fr}.ws-church-card>summary:after{content:'Manage'}
     .ws-live-resume{align-items:flex-start;flex-direction:column}.ws-live-resume-actions{width:100%}.ws-live-resume-actions a,.ws-live-resume-actions form{flex:1;text-align:center}.ws-live-resume-actions form button{width:100%}
     .ws-church-card{display:block}
     .ws-church-actions{justify-content:flex-start;margin-top:.75rem}
@@ -109,7 +155,7 @@
     .set-reorder{flex-direction:row}
     .set-reorder button{width:34px;height:34px;font-size:.85rem}
     .set-note{font-size:.85rem;margin-top:6px;padding:6px 0}
-    .ws-btn-primary,.ws-btn-ghost{flex:1 1 100%;min-height:42px}
+    .ws-btn-primary,.ws-btn-ghost{min-height:42px}
     .ws-share-card{padding:.85rem;border-radius:10px}
     .ws-share-row{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
     .ws-share-link{grid-column:1 / -1;min-width:0;width:100%;box-sizing:border-box}
@@ -119,28 +165,30 @@
 {% endblock %}
 
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:1.25rem">
-  <h1 style="margin:0">Worship Slide Builder</h1>
-  <span style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><a href="{{ url_for('worship_deck_history') }}" class="muted small">Deck history</a>{% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn" class="ws-btn-ghost" style="padding:5px 12px">+ Scripture</button><a href="{{ url_for('worship_presentation_import') }}" class="ws-btn-ghost" style="padding:5px 12px;text-decoration:none">+ Import Presentation</a><a href="{{ url_for('worship_add') }}"
-    style="font-size:.9rem;font-weight:600;color:var(--primary);text-decoration:none;padding:5px 12px;border:1px solid var(--primary);border-radius:8px">
-    + Add Song or Service Slide
-  </a>{% endif %}</span>
+<div class="ws-page-head">
+  <div><p class="ws-kicker">Sunday workspace</p><h1>Plan Worship</h1><p>Build the service, check the slides, then present.</p></div>
+  <div class="ws-page-actions">
+    {% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}" class="ws-link-primary">+ New song or slide</a>{% endif %}
+    <details class="ws-menu"><summary>More</summary><div class="ws-menu-panel">
+      {% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn">Add Scripture</button><a href="{{ url_for('worship_presentation_import') }}">Import PowerPoint</a>{% endif %}
+      <a href="{{ url_for('worship_deck_history') }}">Past slide decks</a><a href="{{ url_for('worship_licensing') }}">Licensing & sources</a>
+    </div></details>
+  </div>
 </div>
+<ol class="ws-flow" aria-label="Worship planning steps"><li><b>1</b>Add and arrange</li><li><b>2</b>Review the slides</li><li><b>3</b>Go live or export</li></ol>
 
 {% if active_worship_live %}<aside class="ws-live-resume" aria-label="Active Live Worship session">
   <div><strong>Live Worship is still active</strong><span>{{ active_worship_live.name }} · Slide {{ active_worship_live.current_slide }} of {{ active_worship_live.slide_count }}</span></div>
   <div class="ws-live-resume-actions"><a class="ws-btn-primary" href="{{ active_worship_live.presenter_url }}" target="_blank" rel="noopener">Reopen presenter</a><a class="ws-btn-ghost" href="{{ active_worship_live.remote_url }}" target="_blank" rel="noopener">Open remote</a><form method="post" action="{{ url_for('worship_live_end_active') }}" onsubmit="return confirm('End this Live Worship session for everyone?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="ws-btn-ghost ws-live-end">End session</button></form></div>
 </aside>{% endif %}
 
-<div class="ws-church-card">
-  <div>
+<details class="ws-church-card">
+  <summary><div>
     <p class="ws-church-title">{{ worship_church.name }}</p>
-    <p class="ws-church-meta">
-      Shared worship library
-      {% if worship_church.invite_code and worship_church.role == 'owner' %} · Invite code <strong>{{ worship_church.invite_code }}</strong>{% endif %}
-    </p>
-  </div>
+    <p class="ws-church-meta">Shared worship library</p>
+  </div></summary>
   <div class="ws-church-actions">
+    {% if worship_church.invite_code and worship_church.role == 'owner' %}<p class="ws-church-meta" style="width:100%;margin:.2rem 0">Invite code <strong>{{ worship_church.invite_code }}</strong></p>{% endif %}
     {% if worship_churches %}
     <form class="switch-form" method="post" action="{{ url_for('worship_church_switch') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -164,29 +212,31 @@
       <button type="submit" class="secondary">Create</button>
     </form>
   </div>
-</div>
+</details>
 
 <div class="ws-workspace">
 <div class="ws-library-panel">
 
 <!-- ── Song Library ── -->
 <div>
-  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
-    <p class="ws-section-label" style="margin:0">Worship Library</p>
-    <input id="library-search" type="search" placeholder="Search…"
+  <div class="ws-library-head">
+    <h2>Add to this service</h2>
+    <input id="library-search" type="search" placeholder="Search songs and slides…" aria-label="Search worship library"
       style="flex:1;max-width:260px;padding:5px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:.9rem;background:var(--background);color:var(--text)">
-    <select id="library-sort" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;font-size:.85rem;background:var(--background);color:var(--text)">
+    <select id="library-sort" aria-label="Sort worship library" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;font-size:.85rem;background:var(--background);color:var(--text)">
       <option value="title">Title</option>
       <option value="artist">Artist</option>
       <option value="last_used">Last Played</option>
     </select>
-    {% if worship_church.role == 'owner' %}<form method="post" action="{{ url_for('worship_cleanup_duplicates') }}" style="display:contents" id="clean-dupes-form">
+    <details class="ws-menu ws-library-tools"><summary>Library tools</summary><div class="ws-menu-panel">
+    <a href="{{ url_for('worship_licensing') }}">Licensing & sources</a>
+    {% if worship_church.role == 'owner' %}<form method="post" action="{{ url_for('worship_cleanup_duplicates') }}" id="clean-dupes-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="ws-reset-library" style="margin-right:.5rem" onclick="return confirm('Remove duplicate songs (same title + artist + version)? The best-structured parse will be kept.')">Clean duplicates</button>
+      <button type="submit" onclick="return confirm('Remove duplicate songs (same title + artist + version)? The best-structured parse will be kept.')">Clean duplicate songs</button>
     </form>
-    <button type="button" class="ws-reset-library" id="reset-library-btn">Reset library</button>
+    <button type="button" class="is-danger" id="reset-library-btn">Reset entire library</button>
     {% endif %}
-    <a href="{{ url_for('worship_licensing') }}" style="font-size:.8rem;font-weight:800;color:var(--primary);text-decoration:none">Licensing & sources</a>
+    </div></details>
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
@@ -199,37 +249,31 @@
         {% if song.type and song.type != 'song' %} <span class="muted small">[{{ song.type }}]</span>{% endif %}
         {% if song.type == 'presentation' %}{% set visible_slide_count = song.presentation_slides|rejectattr('hidden')|list|length %}{% set enabled_point_count = song.highlight_suggestions|selectattr('enabled')|list|length %} <span class="muted small">· {{ visible_slide_count }} slide{% if visible_slide_count != 1 %}s{% endif %}{% if enabled_point_count %} + {{ enabled_point_count }} key point{% if enabled_point_count != 1 %}s{% endif %}{% endif %}</span>{% endif %}
         {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
-        {% if song.type == 'presentation' %}
-          <span class="ws-validation-badge is-verified" title="Imported presentation is ready">✓ Ready</span>
-        {% elif song.type in ['welcome', 'announcement', 'photo', 'video'] %}
+        {% if song.type == 'presentation' or song.type in ['welcome', 'announcement', 'photo', 'video'] %}
         {% elif song.validation is mapping and song.validation.status == 'verified' %}
-          <span class="ws-validation-badge is-verified" title="Validated against a second source">✓ Validated</span>
         {% elif song.validation is mapping and song.validation.status in ['needs_review', 'unable', 'stale'] %}
           <span class="ws-validation-badge is-problem" title="Open Edit to review validation findings">Review validation</span>
         {% elif song.validation is mapping and song.validation.status == 'review_recommended' %}
           <span class="ws-validation-badge" title="Open Edit to review validation warnings">Validation warning</span>
-        {% else %}
-          <span class="ws-validation-badge" title="No second-source validation has been recorded">Not validated</span>
         {% endif %}
-        {% if song.review is mapping and song.review.status == 'approved' %}<span class="ws-validation-badge is-verified" title="Human reviewed">✓ Reviewed</span>{% endif %}
       </span>
-      <button type="button" class="ws-add" data-id="{{ song.id }}">+ Add</button>
-      {% if song.type not in ['presentation', 'welcome', 'announcement', 'photo', 'video'] %}<a href="{{ url_for('worship_song_resources', song_id=song.id) }}" style="font-size:.8em;color:var(--primary);text-decoration:none;white-space:nowrap" title="Chord charts and sources">Music</a>{% endif %}
+      <button type="button" class="ws-add" data-id="{{ song.id }}">Add</button>
       {% if worship_church.role in ['owner', 'editor', 'member'] %}
-      <a href="{% if song.type == 'presentation' %}{{ url_for('worship_presentation_edit', presentation_id=song.id) }}{% elif song.type == 'video' %}{{ url_for('worship_video_edit', video_item_id=song.id) }}{% else %}{{ url_for('worship_edit', song_id=song.id) }}{% endif %}"
-        style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0"
-        title="Edit {{ song.title }}">Edit</a>
-      {% if song.type != 'presentation' %}<form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}" style="display:contents">
+      <details class="ws-menu ws-item-menu"><summary aria-label="More actions for {{ song.title }}">•••</summary><div class="ws-menu-panel">
+      {% if song.type not in ['presentation', 'welcome', 'announcement', 'photo', 'video'] %}<a href="{{ url_for('worship_song_resources', song_id=song.id) }}">Music & chord charts</a>{% endif %}
+      <a href="{% if song.type == 'presentation' %}{{ url_for('worship_presentation_edit', presentation_id=song.id) }}{% elif song.type == 'video' %}{{ url_for('worship_video_edit', video_item_id=song.id) }}{% else %}{{ url_for('worship_edit', song_id=song.id) }}{% endif %}">Edit</a>
+      {% if song.type != 'presentation' %}<form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="ws-copy" title="Duplicate {{ song.title }}">Copy</button>
+        <button type="submit">Make a copy</button>
       </form>{% endif %}
-      <form method="post" action="{{ url_for('worship_delete') }}" style="display:contents">
+      <form method="post" action="{{ url_for('worship_delete') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="song_id" value="{{ song.id }}">
-        <button type="submit" class="ws-del"
+        <button type="submit" class="ws-del is-danger"
           data-id="{{ song.id }}" data-title="{{ song.title }}" data-artist="{{ song.artist or '' }}" data-version="{{ song.version or '' }}" data-key="{{ song.key or '' }}"
-          title="Delete {{ song.title }}">×</button>
+          title="Delete {{ song.title }}">Delete</button>
       </form>
+      </div></details>
       {% endif %}
     </li>
     {% endfor %}
@@ -237,9 +281,11 @@
 </div>
 
 <!-- ── Saved Setlists ── -->
-<div style="margin-top:1.25rem">
+<details class="ws-saved-sets">
+  <summary>Saved services <span class="ws-saved-count">{{ setlists|length }}</span></summary>
+  <div style="margin-top:.75rem">
   <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
-    <p class="ws-section-label" style="margin:0">Saved Setlists</p>
+    <p class="ws-section-label" style="margin:0">Find a saved service</p>
     <input id="setlist-search" type="search" placeholder="Search by date…"
       style="flex:1;max-width:200px;padding:4px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:.85rem;background:var(--background);color:var(--text)">
   </div>
@@ -258,14 +304,14 @@
     {% endfor %}
   </div>
   <button id="setlist-show-more" style="display:none;background:none;border:none;cursor:pointer;margin-top:6px;padding:2px 0;font-size:.82rem;color:var(--text-secondary)">Show more…</button>
-</div>
+</div></details>
 
 </div>{# end ws-library-panel #}
 <div class="ws-set-panel">
 
 <!-- ── This Week's Set ── -->
 <div class="ws-set-card" style="margin-top:0">
-  <p class="ws-section-label">This Week's Set</p>
+  <p class="ws-kicker">Step 1</p><h2>This service</h2><p class="ws-set-help">Add items from the library, then drag them into order.</p>
 
   <form id="build-form" action="{{ url_for('worship_deck_review') }}" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -275,23 +321,24 @@
   </form>
 
   <p id="set-empty" class="muted small" style="margin:.5rem 0 0">
-    Add songs, presentations, and service slides from the library to build your set.
+    Choose songs or slides from the library to begin.
   </p>
   <div id="set-summary" class="ws-set-summary" aria-live="polite">
     <strong id="set-summary-count"></strong>
     <span id="set-summary-titles"></span>
   </div>
 
-  <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
-    <button type="button" class="ws-btn-primary" id="start-live-btn" disabled>Start Live Worship</button>
-    <button type="submit" form="build-form" class="ws-btn-ghost" id="build-btn" disabled>Build Deck</button>
-    <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Export Lyric Sheet (PDF)</button>
-    <button type="button" class="ws-btn-ghost" id="musician-packet-btn" disabled>Musician Packet</button>
-    <button type="button" class="ws-btn-ghost" id="copy-last-set-btn" {% if not setlists %}disabled{% endif %}>Copy Last Set</button>
-    <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled{% if worship_church.role not in ['owner', 'editor', 'member'] %} style="display:none"{% endif %}>Save Setlist</button>
-    <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
+  <div class="ws-set-primary-actions">
+    <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Review slides</button>
+    <button type="button" class="ws-btn-ghost" id="start-live-btn" disabled>Go live</button>
   </div>
-
+  <details class="ws-set-options"><summary>Save, share & export</summary>
+  <div class="ws-set-secondary">
+    <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled{% if worship_church.role not in ['owner', 'editor', 'member'] %} style="display:none"{% endif %}>Save service</button>
+    <button type="button" class="ws-btn-ghost" id="copy-last-set-btn" {% if not setlists %}disabled{% endif %}>Use last service</button>
+    <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Lyrics PDF</button>
+    <button type="button" class="ws-btn-ghost" id="musician-packet-btn" disabled>Musician packet</button>
+  </div><span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
   <div class="ws-share-card" data-mobile-share>
     <div class="ws-section-label" style="margin-bottom:.4rem">Mobile slide link</div>
     <p class="muted small" style="margin:.1rem 0 .75rem">Open this on a phone and swipe through the set.</p>
@@ -303,7 +350,7 @@
       <img class="ws-share-qr" src="" alt="QR code for mobile slide link" data-mobile-qr hidden>
       <span class="ws-share-fallback" data-mobile-qr-fallback>QR unavailable. Use Copy link.</span>
     </div>
-  </div>
+  </div></details>
 </div>
 
 <form id="lyric-sheet-form" action="/worship/export/lyric-sheet" method="post" data-download="1" style="display:none">
@@ -462,6 +509,8 @@
 
   if (quickScriptureBtn && quickScriptureModal) {
     quickScriptureBtn.addEventListener('click', function () {
+      var sourceMenu = quickScriptureBtn.closest('details');
+      if (sourceMenu) sourceMenu.removeAttribute('open');
       quickScriptureModal.classList.add('is-open');
       quickScriptureModal.setAttribute('aria-hidden', 'false');
       setTimeout(function () { quickScriptureReference.focus(); }, 0);
@@ -615,7 +664,7 @@
     if (!row) return;
     var btn = row.querySelector('.ws-add');
     if (btn) {
-      btn.textContent = added ? 'In Set' : '+ Add';
+      btn.textContent = added ? 'Added' : 'Add';
       btn.disabled = added;
     }
     row.classList.toggle('lib-row--in-set', added);
@@ -695,7 +744,7 @@
         alert(error.message || 'Could not start Live Worship.');
       })
       .finally(function () {
-        startLiveBtn.textContent = 'Start Live Worship';
+        startLiveBtn.textContent = 'Go live';
         startLiveBtn.disabled = !ids.length;
       });
   }
