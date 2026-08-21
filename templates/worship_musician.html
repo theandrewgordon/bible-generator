@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block head_extra %}
+<style>
+  .wm-wrap{max-width:1050px;margin:auto}
+  .wm-head{display:flex;justify-content:space-between;gap:1rem;align-items:center}
+  .wm-song{margin:1rem 0;padding:1.1rem;border:1px solid #e2e8f0;border-radius:13px;background:var(--box)}
+  .wm-song h2{margin:0}
+  .wm-meta{color:var(--text-secondary);font-size:.86rem;margin:.3rem 0 .8rem}
+  .wm-resources{display:flex;gap:.5rem;flex-wrap:wrap}
+  .wm-link{display:inline-flex;padding:.6rem .8rem;border:1px solid var(--primary);border-radius:8px;color:var(--primary);text-decoration:none;font-weight:800;font-size:.84rem}
+  .wm-empty{color:#b45309;font-size:.86rem}
+  .wm-number{display:inline-grid;place-items:center;width:2rem;height:2rem;border-radius:50%;background:var(--primary);color:#fff;font-weight:900;margin-right:.5rem}
+  @media print{nav,.wm-actions{display:none}.wm-song{break-inside:avoid;box-shadow:none}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wm-wrap">
+  <div class="wm-head">
+    <div><h1>{{ name }}</h1><p class="muted small">Church-private musician packet · links expire automatically</p></div>
+    <div class="wm-actions"><button onclick="window.print()">Print packet index</button></div>
+  </div>
+  {% for item in items %}
+  <section class="wm-song">
+    <h2><span class="wm-number">{{ loop.index }}</span>{{ item.title }}</h2>
+    <div class="wm-meta">{{ item.artist }}{% if item.key %} · Set key {{ item.key }}{% endif %}{% if item.ccli_song_number %} · CCLI #{{ item.ccli_song_number }}{% endif %}</div>
+    <div class="wm-resources">
+      {% for resource in item.resources %}
+        {% if resource.chart_text %}
+          <a class="wm-link" href="{{ url_for('worship_song_resource_chart', song_id=item.id, resource_id=resource.id) }}" target="_blank" rel="noopener">{{ resource.title }} · transpose</a>
+        {% elif resource.storage_path %}
+          <a class="wm-link" href="{{ url_for('worship_song_resource_download', song_id=item.id, resource_id=resource.id) }}">{{ resource.title }} · download</a>
+        {% elif resource.source_url %}
+          <a class="wm-link" href="{{ resource.source_url }}" target="_blank" rel="noopener noreferrer">{{ resource.title }} · source</a>
+        {% endif %}
+      {% else %}
+        <span class="wm-empty">No musician resource saved. <a href="{{ url_for('worship_song_resources', song_id=item.id) }}">Add one</a></span>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <p>This packet contains no song or reading items.</p>
+  {% endfor %}
+</div>
+{% endblock %}

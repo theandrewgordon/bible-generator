@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="max-width:720px;margin:auto">
+  <h1>Edit video item</h1>
+  <p><a href="{{ url_for('worship') }}">← Worship</a></p>
+  <form method="post" style="display:grid;gap:1rem;padding:1.25rem;background:var(--box);border:1px solid #e2e8f0;border-radius:14px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label><strong>Service title</strong><input name="title" required value="{{ item.title }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
+    <label><strong>YouTube link</strong><input type="url" name="video_url" required value="{{ item.video_url }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <label><strong>Start (seconds)</strong><input type="number" min="0" name="video_start" value="{{ item.video_start }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
+      <label><strong>End (seconds)</strong><input type="number" min="0" name="video_end" value="{{ item.video_end or '' }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
+    </div>
+    <button type="submit" style="padding:.75rem;background:var(--primary);color:#fff;border:0;border-radius:9px;font-weight:800">Save video</button>
+  </form>
+</div>
+{% endblock %}

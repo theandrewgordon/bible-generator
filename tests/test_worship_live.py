@@ -82,6 +82,18 @@ class WorshipLiveTests(unittest.TestCase):
         state = app._update_worship_live_session("grace", data["id"], "timer_reset")
         self.assertEqual(state["stage_timer_mode"], "")
 
+    def test_live_state_sends_idempotent_video_commands(self):
+        data = self._session_data()
+        app._create_worship_live_session(data)
+
+        state = app._update_worship_live_session("grace", data["id"], "video_play")
+        self.assertEqual(state["video_action"], "play")
+        self.assertEqual(state["video_revision"], 1)
+        state = app._update_worship_live_session("grace", data["id"], "video_restart")
+        self.assertEqual(state["video_action"], "restart")
+        self.assertEqual(state["video_revision"], 2)
+        self.assertEqual(app._public_worship_live_state(state)["video_revision"], 2)
+
     def test_stage_details_are_excluded_from_audience_state(self):
         data = {**self._session_data(), "stage_message": "Private note", "stage_timer_mode": "elapsed"}
 

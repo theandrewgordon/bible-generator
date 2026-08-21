@@ -114,3 +114,20 @@ def delete_storage_prefix(prefix: str) -> int:
     except Exception:
         logger.exception("Storage prefix delete failed for %s", prefix)
     return deleted
+
+
+def delete_storage_path(dst_path: str) -> bool:
+    """Delete one exact private-storage object."""
+    bucket = _get_bucket()
+    dst_path = str(dst_path or "").strip().lstrip("/")
+    if not bucket or not dst_path or ".." in dst_path or dst_path.endswith("/"):
+        return False
+    try:
+        blob = bucket.blob(dst_path)
+        if not blob.exists():
+            return False
+        blob.delete()
+        return True
+    except Exception:
+        logger.exception("Storage object delete failed for %s", dst_path)
+        return False

@@ -3,7 +3,7 @@ from flask import Flask, Response, render_template, request, send_file, send_fro
 from flask_dance.contrib.google import make_google_blueprint, google
 from datetime import datetime
 
-import os, json, re, traceback, hashlib, base64
+import os, json, re, traceback, hashlib, base64, csv
 import logging
 import sys
 import uuid
@@ -15,7 +15,7 @@ from urllib.parse import urlparse, urljoin, urlunparse
 from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
 from zipfile import ZipFile
 import threading
-from io import BytesIO
+from io import BytesIO, StringIO
 from datetime import datetime, timedelta, timezone
 from firebase_admin import firestore
 from werkzeug.utils import secure_filename
@@ -51,12 +51,14 @@ from faithsparks.services.firestore import (
     validate_firebase_credentials,
 )
 from faithsparks.services.storage import (
+    delete_storage_path,
     delete_storage_prefix,
     download_from_storage,
     signed_url_for_path,
     upload_to_storage,
     upload_to_storage_checked,
 )
+from faithsparks.services.chords import chart_has_chords, normalize_key, transpose_chart
 from faithsparks.services.worship_presentations import (
     MAX_PRESENTATION_BYTES,
     MAX_SERMON_NOTES_CHARS,
@@ -599,6 +601,14 @@ def add_correlation_headers(resp):
         resp.headers["Expires"] = "0"
         resp.headers["Referrer-Policy"] = "no-referrer"
         resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+    elif (
+        (request.path or "").startswith("/worship/musician")
+        or "/resources" in (request.path or "")
+        or (request.path or "").startswith("/worship/licensing")
+    ):
+        resp.headers["Cache-Control"] = "private, no-store"
+        resp.headers["Referrer-Policy"] = "no-referrer"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
     return resp
 
 
@@ -846,6 +856,8 @@ _worship_songs_cache: dict[str, dict] = {}
 _WORSHIP_CACHE_TTL = 60.0  # seconds
 _WORSHIP_MOBILE_TOKEN_TTL = 24 * 60 * 60
 _WORSHIP_MOBILE_TOKEN_SALT = "worship-mobile-v1"
+_WORSHIP_MUSICIAN_TOKEN_TTL = 8 * 60 * 60
+_WORSHIP_MUSICIAN_TOKEN_SALT = "worship-musician-v1"
 _WORSHIP_LIVE_TOKEN_TTL = 12 * 60 * 60
 _WORSHIP_LIVE_TOKEN_SALT = "worship-live-v1"
 _WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
@@ -1268,7 +1280,49 @@ def _canonical_part_key(name: str | None) -> str:
 _REUSABLE_LYRIC_SHEET_PART_PREFIXES = ("chorus", "pre_chorus", "bridge", "tag")
 _WORSHIP_SERVICE_TYPES = {"welcome", "announcement", "photo"}
 _WORSHIP_PRESENTATION_TYPE = "presentation"
-_WORSHIP_NON_SONG_TYPES = _WORSHIP_SERVICE_TYPES | {_WORSHIP_PRESENTATION_TYPE}
+_WORSHIP_VIDEO_TYPE = "video"
+_WORSHIP_NON_SONG_TYPES = _WORSHIP_SERVICE_TYPES | {_WORSHIP_PRESENTATION_TYPE, _WORSHIP_VIDEO_TYPE}
+_WORSHIP_RESOURCE_KINDS = {"pdf", "chordpro", "link", "audio", "video", "other"}
+_WORSHIP_RESOURCE_SOURCES = {
+    "church_created", "public_domain", "songselect", "worship_together", "publisher", "other"
+}
+_WORSHIP_KEY_CHOICES = (
+    "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb",
+    "G", "G#", "Ab", "A", "A#", "Bb", "B",
+)
+_WORSHIP_CHART_KEYS = _WORSHIP_KEY_CHOICES + tuple(f"{key}m" for key in _WORSHIP_KEY_CHOICES)
+
+
+def _safe_https_url(value: str) -> str:
+    value = str(value or "").strip()[:2000]
+    if not value:
+        return ""
+    parsed = urlparse(value)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+        return ""
+    return value
+
+
+def _youtube_video_id(value: str) -> str:
+    """Extract only a canonical YouTube video id from supported HTTPS URLs or an id."""
+    raw = str(value or "").strip()
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", raw):
+        return raw
+    parsed = urlparse(raw)
+    if parsed.scheme != "https":
+        return ""
+    host = (parsed.hostname or "").lower().removeprefix("www.")
+    candidate = ""
+    if host == "youtu.be":
+        candidate = parsed.path.strip("/").split("/", 1)[0]
+    elif host in {"youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com"}:
+        if parsed.path == "/watch":
+            from urllib.parse import parse_qs
+            candidate = (parse_qs(parsed.query).get("v") or [""])[0]
+        else:
+            match = re.match(r"^/(?:embed|shorts|live)/([A-Za-z0-9_-]{11})(?:/|$)", parsed.path)
+            candidate = match.group(1) if match else ""
+    return candidate if re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate or "") else ""
 
 
 def _is_reusable_part(part_name: str) -> bool:
@@ -1289,6 +1343,22 @@ def normalize_worship_song(song: dict) -> dict:
     normalized["version"] = str(normalized.get("version") or "").strip()
     normalized["key"] = str(normalized.get("key") or "").strip()
     normalized["type"] = str(normalized.get("type") or "song").strip() or "song"
+    normalized["ccli_song_number"] = re.sub(r"[^0-9]", "", str(normalized.get("ccli_song_number") or ""))[:16]
+    normalized["copyright_notice"] = re.sub(
+        r"\s+", " ", str(normalized.get("copyright_notice") or "")
+    ).strip()[:500]
+    normalized["video_id"] = _youtube_video_id(normalized.get("video_id") or normalized.get("video_url") or "")
+    normalized["video_url"] = (
+        f"https://www.youtube.com/watch?v={normalized['video_id']}" if normalized["video_id"] else ""
+    )
+    normalized["video_title"] = str(normalized.get("video_title") or normalized.get("title") or "").strip()[:160]
+    for field, maximum in (("video_start", 24 * 60 * 60), ("video_end", 24 * 60 * 60)):
+        try:
+            normalized[field] = max(0, min(maximum, int(normalized.get(field) or 0)))
+        except (TypeError, ValueError):
+            normalized[field] = 0
+    if normalized["video_end"] and normalized["video_end"] <= normalized["video_start"]:
+        normalized["video_end"] = 0
     normalized["background"] = str(normalized.get("background") or "").strip()
     normalized["service_lines"] = [
         str(line).strip()
@@ -1349,6 +1419,59 @@ def normalize_worship_song(song: dict) -> dict:
         seen_highlight_ids.add(highlight_id)
         highlights.append({"id": highlight_id, "text": text[:240], "enabled": enabled})
     normalized["highlight_suggestions"] = highlights
+
+    resources = []
+    seen_resource_ids: set[str] = set()
+    total_chart_chars = 0
+    raw_resources = normalized.get("resources") if isinstance(normalized.get("resources"), list) else []
+    for index, raw_resource in enumerate(raw_resources[:30], 1):
+        if not isinstance(raw_resource, dict):
+            continue
+        resource_id = re.sub(
+            r"[^a-zA-Z0-9_-]+", "-", str(raw_resource.get("id") or f"resource-{index}")
+        ).strip("-")[:80]
+        if not resource_id or resource_id in seen_resource_ids:
+            resource_id = f"resource-{index}"
+        seen_resource_ids.add(resource_id)
+        kind = str(raw_resource.get("kind") or "other").strip().lower()
+        kind = kind if kind in _WORSHIP_RESOURCE_KINDS else "other"
+        source_type = str(raw_resource.get("source_type") or "other").strip().lower()
+        source_type = source_type if source_type in _WORSHIP_RESOURCE_SOURCES else "other"
+        chart_text = str(raw_resource.get("chart_text") or "")
+        # Keep the complete song document below Firestore's 1 MiB limit even
+        # when charts contain four-byte Unicode characters.
+        remaining = max(0, 180_000 - total_chart_chars)
+        chart_text = chart_text[: min(80_000, remaining)]
+        total_chart_chars += len(chart_text)
+        storage_path = str(raw_resource.get("storage_path") or "").strip()[:800]
+        source_url = _safe_https_url(raw_resource.get("source_url") or "")
+        if not (storage_path or source_url or chart_text):
+            continue
+        try:
+            size = max(0, int(raw_resource.get("size") or 0))
+        except (TypeError, ValueError):
+            size = 0
+        resources.append({
+            "id": resource_id,
+            "kind": kind,
+            "title": str(raw_resource.get("title") or "Chord resource").strip()[:160],
+            "filename": secure_filename(str(raw_resource.get("filename") or ""))[:180],
+            "storage_path": storage_path,
+            "source_url": source_url,
+            "source_type": source_type,
+            "license_note": re.sub(r"\s+", " ", str(raw_resource.get("license_note") or "")).strip()[:500],
+            "key": normalize_key(raw_resource.get("key") or ""),
+            "capo": str(raw_resource.get("capo") or "").strip()[:20],
+            "arrangement": str(raw_resource.get("arrangement") or "").strip()[:120],
+            "mime_type": str(raw_resource.get("mime_type") or "application/octet-stream").strip()[:120],
+            "size": size,
+            "sha256": re.sub(r"[^a-fA-F0-9]", "", str(raw_resource.get("sha256") or ""))[:64].lower(),
+            "chart_text": chart_text,
+            "has_chords": bool(chart_text and chart_has_chords(chart_text)),
+            "created_at": str(raw_resource.get("created_at") or "")[:64],
+            "created_by": str(raw_resource.get("created_by") or "")[:254],
+        })
+    normalized["resources"] = resources
     song_id = str(normalized.get("id") or "").strip()
     if not song_id:
         song_id = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "untitled-song"
@@ -1646,6 +1769,7 @@ def delete_worship_song(song_id: str) -> bool:
     if deleted:
         if existing_item:
             _delete_worship_presentation_assets(existing_item)
+            _delete_worship_resource_assets(existing_item)
         _invalidate_worship_cache()
     return deleted
 
@@ -1659,6 +1783,7 @@ def _delete_all_worship_library_data() -> dict:
                 for doc in collection_ref.stream():
                     data = doc.to_dict() or {}
                     _delete_worship_presentation_assets(data)
+                    _delete_worship_resource_assets(data)
                     doc.reference.delete()
                     deleted["songs"] += 1
             for collection_ref in _worship_setlist_refs_for_read():
@@ -1676,7 +1801,9 @@ def _delete_all_worship_library_data() -> dict:
                 try:
                     if folder_name == "songs":
                         with open(fp, "r", encoding="utf-8") as source:
-                            _delete_worship_presentation_assets(json.load(source))
+                            stored_item = json.load(source)
+                            _delete_worship_presentation_assets(stored_item)
+                            _delete_worship_resource_assets(stored_item)
                     fp.unlink()
                     deleted[key] += 1
                 except Exception as exc:
@@ -1920,6 +2047,34 @@ def _worship_mobile_url(selected_items: list[dict], *, setlist_id: str = "") -> 
     return url_for("worship_mobile", token=token, _external=True)
 
 
+def _worship_musician_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(app.secret_key, salt=_WORSHIP_MUSICIAN_TOKEN_SALT)
+
+
+def _make_worship_musician_token(*, scope: str, song_ids: list[str], name: str = "") -> str:
+    return _worship_musician_serializer().dumps({
+        "v": 1,
+        "scope": _slugify_worship_token(scope) or _DEFAULT_WORSHIP_SCOPE,
+        "song_ids": [str(song_id) for song_id in song_ids if str(song_id).strip()][:100],
+        "name": str(name or "Musician Packet")[:120],
+    })
+
+
+def _load_worship_musician_token(token: str) -> dict:
+    payload = _worship_musician_serializer().loads(token, max_age=_WORSHIP_MUSICIAN_TOKEN_TTL)
+    if not isinstance(payload, dict) or payload.get("v") != 1:
+        raise BadData("Unsupported musician link")
+    scope = _slugify_worship_token(payload.get("scope") or "")
+    song_ids = payload.get("song_ids") if isinstance(payload.get("song_ids"), list) else []
+    if not scope:
+        raise BadData("Invalid musician link")
+    return {
+        "scope": scope,
+        "song_ids": [str(song_id) for song_id in song_ids if str(song_id).strip()][:100],
+        "name": str(payload.get("name") or "Musician Packet")[:120],
+    }
+
+
 def _make_worship_live_token(*, scope: str, session_id: str, role: str) -> str:
     if role not in {"view", "control", "stage"}:
         raise ValueError("Invalid live worship role")
@@ -2051,6 +2206,8 @@ def _next_worship_live_state(
     timer_mode = str(data.get("stage_timer_mode") or "")
     timer_started_epoch = float(data.get("stage_timer_started_epoch") or 0)
     timer_duration = max(0, int(data.get("stage_timer_duration") or 0))
+    video_action = str(data.get("video_action") or "")
+    video_revision = max(0, int(data.get("video_revision") or 0))
     if action == "next":
         index = min(slide_count - 1, index + 1)
     elif action == "previous":
@@ -2087,6 +2244,9 @@ def _next_worship_live_state(
         timer_mode = ""
         timer_started_epoch = 0
         timer_duration = 0
+    elif action in {"video_play", "video_pause", "video_restart", "video_mute", "video_unmute"}:
+        video_action = action.removeprefix("video_")
+        video_revision += 1
     else:
         raise ValueError("Unknown live worship action")
     return {
@@ -2098,6 +2258,8 @@ def _next_worship_live_state(
         "stage_timer_mode": timer_mode,
         "stage_timer_started_epoch": timer_started_epoch,
         "stage_timer_duration": timer_duration,
+        "video_action": video_action,
+        "video_revision": video_revision,
         "revision": int(data.get("revision") or 0) + 1,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -2135,6 +2297,8 @@ def _update_worship_live_session(
                     "stage_timer_mode": updated["stage_timer_mode"],
                     "stage_timer_started_epoch": updated["stage_timer_started_epoch"],
                     "stage_timer_duration": updated["stage_timer_duration"],
+                    "video_action": updated["video_action"],
+                    "video_revision": updated["video_revision"],
                     "revision": updated["revision"],
                     "updated_at": firestore.SERVER_TIMESTAMP,
                 },
@@ -2165,6 +2329,8 @@ def _public_worship_live_state(data: dict, *, include_stage: bool = False) -> di
         "revision": int(data.get("revision") or 0),
         "updated_at": str(data.get("updated_at") or ""),
         "server_epoch": time.time(),
+        "video_action": str(data.get("video_action") or ""),
+        "video_revision": max(0, int(data.get("video_revision") or 0)),
     }
     if include_stage:
         state.update({
@@ -3087,6 +3253,8 @@ def _save_worship_service_image(upload) -> str:
 
 
 _LOCAL_WORSHIP_PRESENTATIONS_ROOT = Path(app.root_path) / "uploads" / "worship-presentations"
+_LOCAL_WORSHIP_RESOURCES_ROOT = Path(app.root_path) / "uploads" / "worship-resources"
+_MAX_WORSHIP_RESOURCE_BYTES = 20 * 1024 * 1024
 
 
 def _store_worship_presentation_asset(local_path: str, presentation_id: str, filename: str) -> str:
@@ -3118,6 +3286,74 @@ def _local_worship_presentation_path(asset_path: str) -> Path | None:
     except ValueError:
         return None
     return candidate if candidate.is_file() else None
+
+
+def _store_worship_resource_asset(local_path: str, song_id: str, resource_id: str, filename: str) -> str:
+    scope = _slugify_worship_token(_current_worship_scope()) or _DEFAULT_WORSHIP_SCOPE
+    song_id = _slugify_worship_token(song_id)
+    resource_id = _slugify_worship_token(resource_id)
+    filename = secure_filename(filename)
+    if not song_id or not resource_id or not filename:
+        raise RuntimeError("Invalid song resource storage path.")
+    storage_path = f"worship-resources/{scope}/{song_id}/{resource_id}/{filename}"
+    if upload_to_storage_checked(local_path, storage_path):
+        return storage_path
+    if not _is_local_storage_allowed():
+        raise RuntimeError("Song resource storage is temporarily unavailable.")
+    destination = _LOCAL_WORSHIP_RESOURCES_ROOT / scope / song_id / resource_id / filename
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(local_path, destination)
+    return f"local:{storage_path}"
+
+
+def _local_worship_resource_path(asset_path: str) -> Path | None:
+    if not str(asset_path or "").startswith("local:worship-resources/"):
+        return None
+    relative = str(asset_path).split("local:worship-resources/", 1)[1]
+    candidate = (_LOCAL_WORSHIP_RESOURCES_ROOT / relative).resolve()
+    root = _LOCAL_WORSHIP_RESOURCES_ROOT.resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+def _delete_worship_resource_asset(song_id: str, resource: dict) -> None:
+    path = str(resource.get("storage_path") or "")
+    if not _valid_worship_resource_storage_path(song_id, resource):
+        return
+    if path.startswith("local:"):
+        local_path = _local_worship_resource_path(path)
+        if local_path:
+            try:
+                local_path.unlink()
+                parent = local_path.parent
+                if parent.is_dir() and not any(parent.iterdir()):
+                    parent.rmdir()
+            except OSError:
+                pass
+    else:
+        delete_storage_path(path)
+
+
+def _valid_worship_resource_storage_path(song_id: str, resource: dict) -> bool:
+    """Bind one stored resource path to the active church, song, and resource id."""
+    path = str(resource.get("storage_path") or "").strip()
+    scope = _slugify_worship_token(_current_worship_scope()) or _DEFAULT_WORSHIP_SCOPE
+    song_token = _slugify_worship_token(song_id)
+    resource_id = _slugify_worship_token(resource.get("id") or "")
+    if not path or not song_token or not resource_id or ".." in path:
+        return False
+    comparable = path.removeprefix("local:")
+    expected_prefix = f"worship-resources/{scope}/{song_token}/{resource_id}/"
+    return comparable.startswith(expected_prefix) and len(comparable) > len(expected_prefix)
+
+
+def _delete_worship_resource_assets(item: dict) -> None:
+    normalized = normalize_worship_song(item)
+    for resource in normalized.get("resources", []):
+        _delete_worship_resource_asset(normalized.get("id", ""), resource)
 
 
 def _download_worship_asset(asset_path: str, local_path: str) -> bool:
@@ -5018,6 +5254,20 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                         "note": song_note,
                     })
             continue
+        if item_type == _WORSHIP_VIDEO_TYPE and normalized.get("video_id"):
+            slides.append({
+                "kind": "video",
+                "id": song_id,
+                "title": song_title,
+                "type": item_type,
+                "lines": [],
+                "video_id": normalized["video_id"],
+                "video_start": normalized.get("video_start", 0),
+                "video_end": normalized.get("video_end", 0),
+                "thumbnail_url": f"https://i.ytimg.com/vi/{normalized['video_id']}/hqdefault.jpg",
+                "note": song_note,
+            })
+            continue
         if item_type in _WORSHIP_SERVICE_TYPES:
             slides.append({
                 "kind": "service",
@@ -5210,6 +5460,8 @@ def worship_live_start():
         "stage_timer_mode": "",
         "stage_timer_started_epoch": 0,
         "stage_timer_duration": 0,
+        "video_action": "",
+        "video_revision": 0,
         "revision": 0,
         "created_by": session.get("user_email", ""),
         "created_at": now.isoformat(),
@@ -5693,6 +5945,11 @@ def _build_worship_lyric_sheet_pdf(selected_items: list[dict], mobile_url: str =
             if idx != len(selected_items) - 1:
                 story.append(Spacer(1, 22))
             continue
+        if normalized.get("type") == _WORSHIP_VIDEO_TYPE:
+            story.append(Paragraph("YouTube video · " + esc(normalized.get("video_url", "")), ref_style))
+            if idx != len(selected_items) - 1:
+                story.append(Spacer(1, 22))
+            continue
         if normalized.get("type") in _WORSHIP_SERVICE_TYPES:
             for line in normalized.get("service_lines", []):
                 story.append(Paragraph(esc(line), line_style))
@@ -5811,6 +6068,12 @@ def worship_build():
                     flash(f"An imported slide in {normalized.get('title', 'the presentation')} is unavailable.", "error")
                     return redirect(url_for("worship"))
                 create_imported_presentation_slide(prs, media_tmp.name)
+            continue
+        if item_type == _WORSHIP_VIDEO_TYPE:
+            create_divider_slide(
+                prs, normalized.get("title", "Video"), "YouTube video · play from Live Worship",
+                "", item_type, song_bg,
+            )
             continue
         if item_type in _WORSHIP_SERVICE_TYPES:
             local_image = None
@@ -6092,6 +6355,75 @@ def worship_service_slide_add():
     return redirect(url_for("worship"))
 
 
+@app.route("/worship/video/add", methods=["POST"])
+@login_required
+@worship_editor_required
+def worship_video_add():
+    video_url = request.form.get("video_url", "").strip()
+    video_id = _youtube_video_id(video_url)
+    title = request.form.get("title", "").strip()
+    if not video_id:
+        flash("Paste a valid HTTPS YouTube link.", "warning")
+        return redirect(url_for("worship_add"))
+    if not title:
+        flash("Give the video a title for the service order.", "warning")
+        return redirect(url_for("worship_add"))
+    try:
+        start = max(0, int(request.form.get("video_start") or 0))
+        end = max(0, int(request.form.get("video_end") or 0))
+    except (TypeError, ValueError):
+        flash("Video start and end must be seconds.", "warning")
+        return redirect(url_for("worship_add"))
+    item_id = _make_unique_worship_song_id(title, "", _WORSHIP_VIDEO_TYPE)
+    item = normalize_worship_song({
+        "id": item_id,
+        "title": title,
+        "type": _WORSHIP_VIDEO_TYPE,
+        "video_id": video_id,
+        "video_url": video_url,
+        "video_start": start,
+        "video_end": end,
+        "parts": {},
+        "arrangement": [],
+        "created_at": _worship_timestamp(),
+        "created_by": session.get("user_email", ""),
+    })
+    try:
+        save_worship_song(item)
+    except RuntimeError as exc:
+        app.logger.warning("worship video save failed: %s", exc)
+        flash("The video could not be saved right now.", "error")
+        return redirect(url_for("worship_add"))
+    flash("YouTube video added to the worship library.", "success")
+    return redirect(url_for("worship"))
+
+
+@app.route("/worship/video/<video_item_id>", methods=["GET", "POST"])
+@login_required
+@worship_editor_required
+def worship_video_edit(video_item_id):
+    item = normalize_worship_song(get_worship_song(video_item_id) or {})
+    if item.get("type") != _WORSHIP_VIDEO_TYPE:
+        abort(404)
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        video_id = _youtube_video_id(request.form.get("video_url", ""))
+        if not title or not video_id:
+            flash("A title and valid HTTPS YouTube link are required.", "warning")
+            return redirect(url_for("worship_video_edit", video_item_id=video_item_id))
+        try:
+            start = max(0, int(request.form.get("video_start") or 0))
+            end = max(0, int(request.form.get("video_end") or 0))
+        except (TypeError, ValueError):
+            flash("Video start and end must be seconds.", "warning")
+            return redirect(url_for("worship_video_edit", video_item_id=video_item_id))
+        item.update({"title": title, "video_id": video_id, "video_start": start, "video_end": end})
+        save_worship_song(item)
+        flash("Video item updated.", "success")
+        return redirect(url_for("worship"))
+    return render_template("worship_video_edit.html", item=item)
+
+
 @app.route("/worship/presentation/import", methods=["GET", "POST"])
 @login_required
 @worship_editor_required
@@ -6286,6 +6618,290 @@ def worship_presentation_original(presentation_id):
     if not media_url:
         return Response("Original presentation temporarily unavailable", status=503)
     return redirect(media_url)
+
+
+def _worship_resource_for_song(song: dict, resource_id: str) -> dict | None:
+    return next(
+        (resource for resource in normalize_worship_song(song).get("resources", []) if resource.get("id") == resource_id),
+        None,
+    )
+
+
+@app.route("/worship/song/<song_id>/resources", methods=["GET"])
+@login_required
+def worship_song_resources(song_id):
+    song = get_worship_song(song_id)
+    if not song:
+        abort(404)
+    return render_template(
+        "worship_resources.html",
+        song=normalize_worship_song(song),
+        can_edit=_worship_can_edit(),
+        keys=_WORSHIP_CHART_KEYS,
+        source_types=sorted(_WORSHIP_RESOURCE_SOURCES),
+    )
+
+
+@app.route("/worship/song/<song_id>/resources/add", methods=["POST"])
+@login_required
+@worship_editor_required
+def worship_song_resource_add(song_id):
+    song = get_worship_song(song_id)
+    if not song:
+        abort(404)
+    normalized = normalize_worship_song(song)
+    kind = str(request.form.get("kind") or "link").strip().lower()
+    if kind not in _WORSHIP_RESOURCE_KINDS:
+        kind = "other"
+    source_url = _safe_https_url(request.form.get("source_url") or "")
+    chart_text = str(request.form.get("chart_text") or "")[:80_000]
+    upload = request.files.get("file")
+    has_upload = bool(upload and getattr(upload, "filename", ""))
+    if (has_upload or chart_text) and not _boolish(request.form.get("rights_confirmed")):
+        flash("Confirm that your church is permitted to store and use this chart.", "warning")
+        return redirect(url_for("worship_song_resources", song_id=song_id))
+    if request.form.get("source_url") and not source_url:
+        flash("Source links must be valid HTTPS links.", "warning")
+        return redirect(url_for("worship_song_resources", song_id=song_id))
+
+    resource_id = uuid.uuid4().hex
+    filename = ""
+    storage_path = ""
+    mime_type = "text/plain" if chart_text else "application/octet-stream"
+    size = len(chart_text.encode("utf-8")) if chart_text else 0
+    digest = hashlib.sha256(chart_text.encode("utf-8")).hexdigest() if chart_text else ""
+    temp_path = ""
+    try:
+        if has_upload:
+            filename = secure_filename(upload.filename)[:180]
+            suffix = Path(filename).suffix.lower()
+            if suffix not in {".pdf", ".cho", ".chordpro", ".pro", ".txt"}:
+                raise ValueError("Upload a PDF, ChordPro (.cho/.chordpro/.pro), or text chart.")
+            temp = NamedTemporaryFile(delete=False, suffix=suffix)
+            temp_path = temp.name
+            temp.close()
+            upload.save(temp_path)
+            size = os.path.getsize(temp_path)
+            if size <= 0 or size > _MAX_WORSHIP_RESOURCE_BYTES:
+                raise ValueError("Song resources must be between 1 byte and 20 MB.")
+            with open(temp_path, "rb") as source:
+                raw = source.read()
+            digest = hashlib.sha256(raw).hexdigest()
+            if suffix == ".pdf":
+                if not raw.startswith(b"%PDF-"):
+                    raise ValueError("That file is not a valid PDF.")
+                kind = "pdf"
+                mime_type = "application/pdf"
+                storage_path = _store_worship_resource_asset(temp_path, song_id, resource_id, filename)
+            else:
+                try:
+                    chart_text = raw.decode("utf-8-sig")[:80_000]
+                except UnicodeDecodeError as exc:
+                    raise ValueError("Chord text files must use UTF-8 text.") from exc
+                kind = "chordpro"
+                mime_type = "text/plain; charset=utf-8"
+        if not (storage_path or source_url or chart_text):
+            raise ValueError("Add a PDF, chord chart text, or source link.")
+        if digest and any(resource.get("sha256") == digest for resource in normalized.get("resources", [])):
+            raise ValueError("That exact resource is already saved for this song.")
+        resource = {
+            "id": resource_id,
+            "kind": kind,
+            "title": str(request.form.get("title") or filename or "Chord resource").strip()[:160],
+            "filename": filename,
+            "storage_path": storage_path,
+            "source_url": source_url,
+            "source_type": str(request.form.get("source_type") or "other").strip().lower(),
+            "license_note": str(request.form.get("license_note") or "").strip()[:500],
+            "key": normalize_key(request.form.get("key") or normalized.get("key") or ""),
+            "capo": str(request.form.get("capo") or "").strip()[:20],
+            "arrangement": str(request.form.get("arrangement") or "").strip()[:120],
+            "mime_type": mime_type,
+            "size": size,
+            "sha256": digest,
+            "chart_text": chart_text,
+            "created_at": _worship_timestamp(),
+            "created_by": session.get("user_email", ""),
+        }
+        normalized["resources"] = [*normalized.get("resources", []), resource]
+        normalized["ccli_song_number"] = request.form.get("ccli_song_number", normalized.get("ccli_song_number", ""))
+        normalized["copyright_notice"] = request.form.get("copyright_notice", normalized.get("copyright_notice", ""))
+        save_worship_song(normalized)
+    except (ValueError, RuntimeError) as exc:
+        if storage_path:
+            _delete_worship_resource_asset(song_id, {"id": resource_id, "storage_path": storage_path})
+        flash(str(exc), "error")
+        return redirect(url_for("worship_song_resources", song_id=song_id))
+    finally:
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+    flash("Song resource saved to this church library.", "success")
+    return redirect(url_for("worship_song_resources", song_id=song_id))
+
+
+@app.route("/worship/song/<song_id>/resources/metadata", methods=["POST"])
+@login_required
+@worship_editor_required
+def worship_song_resource_metadata(song_id):
+    song = get_worship_song(song_id)
+    if not song:
+        abort(404)
+    normalized = normalize_worship_song(song)
+    normalized["ccli_song_number"] = request.form.get("ccli_song_number", "")
+    normalized["copyright_notice"] = request.form.get("copyright_notice", "")
+    save_worship_song(normalized)
+    flash("Song licensing metadata updated.", "success")
+    return redirect(url_for("worship_song_resources", song_id=song_id))
+
+
+@app.route("/worship/song/<song_id>/resources/<resource_id>/delete", methods=["POST"])
+@login_required
+@worship_editor_required
+def worship_song_resource_delete(song_id, resource_id):
+    song = get_worship_song(song_id)
+    if not song:
+        abort(404)
+    normalized = normalize_worship_song(song)
+    resource = _worship_resource_for_song(normalized, resource_id)
+    if not resource:
+        abort(404)
+    _delete_worship_resource_asset(song_id, resource)
+    normalized["resources"] = [item for item in normalized.get("resources", []) if item.get("id") != resource_id]
+    save_worship_song(normalized)
+    flash("Song resource removed.", "success")
+    return redirect(url_for("worship_song_resources", song_id=song_id))
+
+
+@app.route("/worship/song/<song_id>/resources/<resource_id>/download", methods=["GET"])
+@login_required
+def worship_song_resource_download(song_id, resource_id):
+    song = get_worship_song(song_id)
+    resource = _worship_resource_for_song(song or {}, resource_id)
+    if not resource or not _valid_worship_resource_storage_path(song_id, resource):
+        abort(404)
+    asset_path = resource["storage_path"]
+    local_asset = _local_worship_resource_path(asset_path)
+    download_name = resource.get("filename") or f"{song_id}-{resource_id}.pdf"
+    if local_asset:
+        response = send_file(local_asset, as_attachment=True, download_name=download_name)
+    else:
+        signed = signed_url_for_path(asset_path, minutes=5)
+        if not signed:
+            return Response("Resource temporarily unavailable", status=503)
+        response = redirect(signed)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@app.route("/worship/song/<song_id>/resources/<resource_id>/chart", methods=["GET"])
+@login_required
+def worship_song_resource_chart(song_id, resource_id):
+    song = normalize_worship_song(get_worship_song(song_id) or {})
+    resource = _worship_resource_for_song(song, resource_id)
+    if not resource or not resource.get("chart_text"):
+        abort(404)
+    source_key = resource.get("key") or song.get("key") or ""
+    target_key = normalize_key(request.args.get("key") or source_key)
+    chart = resource["chart_text"]
+    error = ""
+    if target_key and source_key and target_key != source_key:
+        try:
+            chart = transpose_chart(chart, source_key, target_key)
+        except ValueError as exc:
+            error = str(exc)
+    target_keys = tuple(f"{key}m" for key in _WORSHIP_KEY_CHOICES) if source_key.endswith("m") else _WORSHIP_KEY_CHOICES
+    return render_template(
+        "worship_chord_chart.html", song=song, resource=resource, chart=chart,
+        source_key=source_key, target_key=target_key or source_key, keys=target_keys, error=error,
+    )
+
+
+@app.route("/worship/musician-link", methods=["POST"])
+@login_required
+def worship_musician_link():
+    scope_changed = _worship_scope_changed_response()
+    if scope_changed is not None:
+        return scope_changed
+    setlist_id = request.form.get("setlist_id", "").strip()
+    setlist = _get_worship_setlist(setlist_id) if setlist_id else None
+    if setlist:
+        song_ids = [str(value) for value in setlist.get("songs", [])]
+        name = setlist.get("name") or setlist.get("date") or "Musician Packet"
+    else:
+        selected = _resolve_selected_worship_items(
+            request.form.get("song_order", ""), request.form.getlist("song_ids"), prefer_direct=True
+        )
+        song_ids = [item.get("id", "") for item in selected]
+        name = request.form.get("name", "") or "Musician Packet"
+    if not song_ids:
+        return jsonify({"ok": False, "error": "Select at least one item."}), 400
+    token = _make_worship_musician_token(scope=_current_worship_scope(), song_ids=song_ids, name=name)
+    return jsonify({"ok": True, "url": url_for("worship_musician_packet", token=token, _external=True)})
+
+
+@app.route("/worship/musician", methods=["GET"])
+@login_required
+def worship_musician_packet():
+    try:
+        capability = _load_worship_musician_token(request.args.get("token", ""))
+    except BadData:
+        return Response("This musician packet link is invalid or expired.", status=410)
+    if capability["scope"] != _current_worship_scope():
+        return Response("Switch to the church library that created this musician packet, then reopen the link.", status=403)
+    items = [
+        normalized
+        for item in _resolve_worship_ids_for_scope(capability["song_ids"], capability["scope"])
+        if (normalized := normalize_worship_song(item)).get("type") not in _WORSHIP_NON_SONG_TYPES
+    ]
+    return render_template("worship_musician.html", name=capability["name"], items=items)
+
+
+def _worship_licensing_rows() -> list[dict]:
+    rows = []
+    for raw_song in list_worship_songs():
+        song = normalize_worship_song(raw_song)
+        if song.get("type") in _WORSHIP_NON_SONG_TYPES:
+            continue
+        resources = song.get("resources", [])
+        source_names = sorted({r.get("source_type", "other") for r in resources})
+        rows.append({
+            "title": song.get("title", ""), "artist": song.get("artist", ""),
+            "ccli_song_number": song.get("ccli_song_number", ""),
+            "copyright_notice": song.get("copyright_notice", ""),
+            "resource_count": len(resources), "sources": ", ".join(source_names),
+            "last_used": str(song.get("last_used") or ""),
+            "missing": ", ".join(label for value, label in (
+                (song.get("ccli_song_number"), "CCLI #"),
+                (song.get("copyright_notice"), "copyright"),
+                (resources, "source/resource"),
+            ) if not value),
+            "id": song.get("id", ""),
+        })
+    return sorted(rows, key=lambda row: (row["title"].casefold(), row["artist"].casefold()))
+
+
+@app.route("/worship/licensing", methods=["GET"])
+@login_required
+def worship_licensing():
+    return render_template("worship_licensing.html", rows=_worship_licensing_rows())
+
+
+@app.route("/worship/licensing.csv", methods=["GET"])
+@login_required
+def worship_licensing_csv():
+    output = StringIO()
+    fields = ["title", "artist", "ccli_song_number", "copyright_notice", "resource_count", "sources", "last_used", "missing"]
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    for row in _worship_licensing_rows():
+        writer.writerow({field: row.get(field, "") for field in fields})
+    return Response(
+        output.getvalue(), mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=worship-licensing.csv", "Cache-Control": "private, no-store"},
+    )
 
 @app.route("/worship/add", methods=["GET", "POST"])
 @login_required
@@ -6837,6 +7453,9 @@ def worship_duplicate(song_id):
     base_version = duplicate.get("version", "")
     duplicate["version"] = f"{base_version} Copy".strip() if base_version else "Copy"
     duplicate.pop("last_used", None)
+    # Resource files remain owned by the original song record; do not create
+    # a second metadata record that appears to own (and may later delete) them.
+    duplicate["resources"] = []
     duplicate["id"] = _make_unique_worship_song_id(
         duplicate.get("title", ""),
         duplicate.get("artist", ""),
@@ -6863,6 +7482,8 @@ def worship_edit(song_id):
     song = normalize_worship_song(song)
     if song.get("type") == _WORSHIP_PRESENTATION_TYPE:
         return redirect(url_for("worship_presentation_edit", presentation_id=song_id))
+    if song.get("type") == _WORSHIP_VIDEO_TYPE:
+        return redirect(url_for("worship_video_edit", video_item_id=song_id))
     if raw_validation.get("status") == "stale" and raw_validation != song.get("validation"):
         try:
             save_worship_song(song)

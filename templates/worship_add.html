@@ -95,6 +95,17 @@
   </form>
 </div>
 
+<div class="wa-card" style="margin:1.5rem 0">
+  <h2>Add a YouTube video</h2>
+  <p class="wa-helper">Adds a cueable video to the service order. Playback uses YouTube's privacy-enhanced embed and may still require one tap to start.</p>
+  <form method="post" action="{{ url_for('worship_video_add') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="wa-row"><div class="wa-field"><label class="wa-label">Service title *</label><input class="wa-input" name="title" required placeholder="Mission trip video"></div><div class="wa-field"><label class="wa-label">YouTube link *</label><input class="wa-input" type="url" name="video_url" required placeholder="https://youtu.be/..."></div></div>
+    <div class="wa-row"><div class="wa-field"><label class="wa-label">Start at (seconds)</label><input class="wa-input" type="number" min="0" name="video_start" value="0"></div><div class="wa-field"><label class="wa-label">Stop at (seconds, optional)</label><input class="wa-input" type="number" min="0" name="video_end"></div></div>
+    <button class="wa-btn-primary" type="submit">Save Video Item</button>
+  </form>
+</div>
+
 {% if conflict_song %}
 <div class="wa-conflict">
   <strong>"{{ conflict_song.title }}"</strong>

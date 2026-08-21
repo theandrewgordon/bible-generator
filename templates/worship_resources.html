@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block head_extra %}
+<style>
+  .wr-wrap{max-width:1050px;margin:auto}.wr-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}.wr-card{margin-top:1rem;padding:1.2rem;border:1px solid #e2e8f0;border-radius:14px;background:var(--box);box-shadow:var(--card-shadow)}
+  .wr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem}.wr-field label{display:block;font-size:.82rem;font-weight:800;margin-bottom:.3rem}.wr-input{width:100%;box-sizing:border-box;padding:.68rem;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}textarea.wr-input{min-height:130px;font-family:monospace}.wr-wide{grid-column:1/-1}
+  .wr-resource{display:grid;grid-template-columns:1fr auto;gap:.8rem;padding:1rem 0;border-top:1px solid #e2e8f0}.wr-resource:first-of-type{border-top:0}.wr-meta{color:var(--text-secondary);font-size:.82rem;margin:.3rem 0}.wr-actions{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center}.wr-btn{display:inline-flex;border:1px solid var(--primary);border-radius:8px;background:var(--primary);color:#fff;text-decoration:none;padding:.55rem .8rem;font-weight:800;font-size:.82rem;cursor:pointer}.wr-btn.secondary{background:transparent;color:var(--primary)}.wr-btn.danger{border-color:#fca5a5;background:transparent;color:#b91c1c}.wr-note{padding:.8rem;border-left:4px solid #f59e0b;background:#fffbeb;color:#78350f;font-size:.86rem;border-radius:6px}.wr-empty{color:var(--text-secondary);padding:.7rem 0}.wr-check{display:flex;gap:.55rem;align-items:flex-start;font-size:.86rem}
+  @media(max-width:700px){.wr-grid{grid-template-columns:1fr}.wr-wide{grid-column:auto}.wr-resource{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wr-wrap">
+  <div class="wr-head"><div><h1 style="margin-bottom:.25rem">{{ song.title }} · Music resources</h1><p class="muted small">Private to the current church library. PDFs stay faithful; ChordPro/text charts can change key.</p></div><div class="wr-actions"><a class="wr-btn secondary" href="{{ url_for('worship') }}">← Worship</a><a class="wr-btn secondary" href="{{ url_for('worship_licensing') }}">Licensing report</a></div></div>
+
+  <section class="wr-card">
+    <h2 style="margin-top:0">Song licensing details</h2>
+    <form method="post" action="{{ url_for('worship_song_resource_metadata', song_id=song.id) }}" class="wr-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="wr-field"><label>CCLI song number</label><input class="wr-input" name="ccli_song_number" inputmode="numeric" value="{{ song.ccli_song_number }}" placeholder="e.g. 7139337" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="wr-field"><label>Copyright / attribution notice</label><input class="wr-input" name="copyright_notice" value="{{ song.copyright_notice }}" placeholder="© year publisher / administrator" {% if not can_edit %}disabled{% endif %}></div>
+      {% if can_edit %}<div class="wr-wide"><button class="wr-btn" type="submit">Save metadata</button></div>{% endif %}
+    </form>
+  </section>
+
+  <section class="wr-card">
+    <h2 style="margin-top:0">Saved resources</h2>
+    {% for resource in song.resources %}
+    <article class="wr-resource">
+      <div><strong>{{ resource.title }}</strong><div class="wr-meta">{{ resource.kind|upper }}{% if resource.key %} · key {{ resource.key }}{% endif %}{% if resource.capo %} · capo {{ resource.capo }}{% endif %} · {{ resource.source_type|replace('_',' ') }}{% if resource.license_note %}<br>{{ resource.license_note }}{% endif %}</div></div>
+      <div class="wr-actions">
+        {% if resource.chart_text %}<a class="wr-btn" href="{{ url_for('worship_song_resource_chart', song_id=song.id, resource_id=resource.id) }}" target="_blank" rel="noopener">Open / transpose</a>{% endif %}
+        {% if resource.storage_path %}<a class="wr-btn secondary" href="{{ url_for('worship_song_resource_download', song_id=song.id, resource_id=resource.id) }}">Download</a>{% endif %}
+        {% if resource.source_url %}<a class="wr-btn secondary" href="{{ resource.source_url }}" target="_blank" rel="noopener noreferrer">Source</a>{% endif %}
+        {% if can_edit %}<form method="post" action="{{ url_for('worship_song_resource_delete', song_id=song.id, resource_id=resource.id) }}" onsubmit="return confirm('Remove this resource?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="wr-btn danger">Remove</button></form>{% endif %}
+      </div>
+    </article>
+    {% else %}<p class="wr-empty">No chord charts or source links saved yet.</p>{% endfor %}
+  </section>
+
+  {% if can_edit %}<section class="wr-card">
+    <h2 style="margin-top:0">Add a chart or source</h2>
+    <p class="wr-note"><strong>Provider-safe workflow:</strong> save the Worship Together/SongSelect/publisher link as the source, then upload a chart your church is licensed to keep or paste authorized ChordPro text. Faith Sparks does not scrape or republish provider libraries.</p>
+    <form method="post" action="{{ url_for('worship_song_resource_add', song_id=song.id) }}" enctype="multipart/form-data" class="wr-grid" style="margin-top:1rem">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="wr-field"><label>Resource title</label><input class="wr-input" name="title" placeholder="Sunday band chart"></div>
+      <div class="wr-field"><label>Type</label><select class="wr-input" name="kind"><option value="pdf">PDF</option><option value="chordpro">ChordPro / text</option><option value="link">Source link</option><option value="other">Other</option></select></div>
+      <div class="wr-field"><label>Original key</label><select class="wr-input" name="key"><option value="">Unknown</option>{% for key in keys %}<option value="{{ key }}" {% if song.key == key %}selected{% endif %}>{{ key }}</option>{% endfor %}</select></div>
+      <div class="wr-field"><label>Capo / arrangement</label><div style="display:flex;gap:.5rem"><input class="wr-input" name="capo" placeholder="Capo 2"><input class="wr-input" name="arrangement" placeholder="Acoustic"></div></div>
+      <div class="wr-field"><label>Source</label><select class="wr-input" name="source_type">{% for source in source_types %}<option value="{{ source }}">{{ source|replace('_',' ')|title }}</option>{% endfor %}</select></div>
+      <div class="wr-field"><label>Source HTTPS link</label><input class="wr-input" type="url" name="source_url" placeholder="https://..."></div>
+      <div class="wr-field wr-wide"><label>Upload PDF or ChordPro/text</label><input class="wr-input" type="file" name="file" accept="application/pdf,.cho,.chordpro,.pro,.txt,text/plain"><small class="muted">Up to 20 MB.</small></div>
+      <div class="wr-field wr-wide"><label>Or paste ChordPro / chord text</label><textarea class="wr-input" name="chart_text" placeholder="{title: Amazing Grace}\n{key: G}\n[G]Amazing grace..."></textarea></div>
+      <div class="wr-field wr-wide"><label>License note</label><input class="wr-input" name="license_note" placeholder="SongSelect download under church CCLI subscription; internal worship use"></div>
+      <label class="wr-check wr-wide"><input type="checkbox" name="rights_confirmed" value="1"><span>I confirm this church has permission to store and use uploaded or pasted material. A source link alone does not require an upload confirmation.</span></label>
+      <input type="hidden" name="ccli_song_number" value="{{ song.ccli_song_number }}"><input type="hidden" name="copyright_notice" value="{{ song.copyright_notice }}">
+      <div class="wr-wide"><button class="wr-btn" type="submit">Save church resource</button></div>
+    </form>
+  </section>{% endif %}
+</div>
+{% endblock %}

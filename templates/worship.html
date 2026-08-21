@@ -186,6 +186,7 @@
     </form>
     <button type="button" class="ws-reset-library" id="reset-library-btn">Reset library</button>
     {% endif %}
+    <a href="{{ url_for('worship_licensing') }}" style="font-size:.8rem;font-weight:800;color:var(--primary);text-decoration:none">Licensing & sources</a>
   </div>
   <ul id="library-list" style="list-style:none;padding:0;margin:0">
     {% for song in songs %}
@@ -200,7 +201,7 @@
         {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
         {% if song.type == 'presentation' %}
           <span class="ws-validation-badge is-verified" title="Imported presentation is ready">✓ Ready</span>
-        {% elif song.type in ['welcome', 'announcement', 'photo'] %}
+        {% elif song.type in ['welcome', 'announcement', 'photo', 'video'] %}
         {% elif song.validation is mapping and song.validation.status == 'verified' %}
           <span class="ws-validation-badge is-verified" title="Validated against a second source">✓ Validated</span>
         {% elif song.validation is mapping and song.validation.status in ['needs_review', 'unable', 'stale'] %}
@@ -213,8 +214,9 @@
         {% if song.review is mapping and song.review.status == 'approved' %}<span class="ws-validation-badge is-verified" title="Human reviewed">✓ Reviewed</span>{% endif %}
       </span>
       <button type="button" class="ws-add" data-id="{{ song.id }}">+ Add</button>
+      {% if song.type not in ['presentation', 'welcome', 'announcement', 'photo', 'video'] %}<a href="{{ url_for('worship_song_resources', song_id=song.id) }}" style="font-size:.8em;color:var(--primary);text-decoration:none;white-space:nowrap" title="Chord charts and sources">Music</a>{% endif %}
       {% if worship_church.role in ['owner', 'editor', 'member'] %}
-      <a href="{% if song.type == 'presentation' %}{{ url_for('worship_presentation_edit', presentation_id=song.id) }}{% else %}{{ url_for('worship_edit', song_id=song.id) }}{% endif %}"
+      <a href="{% if song.type == 'presentation' %}{{ url_for('worship_presentation_edit', presentation_id=song.id) }}{% elif song.type == 'video' %}{{ url_for('worship_video_edit', video_item_id=song.id) }}{% else %}{{ url_for('worship_edit', song_id=song.id) }}{% endif %}"
         style="font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0"
         title="Edit {{ song.title }}">Edit</a>
       {% if song.type != 'presentation' %}<form method="post" action="{{ url_for('worship_duplicate', song_id=song.id) }}" style="display:contents">
@@ -284,6 +286,7 @@
     <button type="button" class="ws-btn-primary" id="start-live-btn" disabled>Start Live Worship</button>
     <button type="submit" form="build-form" class="ws-btn-ghost" id="build-btn" disabled>Build Deck</button>
     <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Export Lyric Sheet (PDF)</button>
+    <button type="button" class="ws-btn-ghost" id="musician-packet-btn" disabled>Musician Packet</button>
     <button type="button" class="ws-btn-ghost" id="copy-last-set-btn" {% if not setlists %}disabled{% endif %}>Copy Last Set</button>
     <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled{% if worship_church.role not in ['owner', 'editor', 'member'] %} style="display:none"{% endif %}>Save Setlist</button>
     <span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
@@ -383,6 +386,7 @@
   var buildBtn      = document.getElementById('build-btn');
   var startLiveBtn  = document.getElementById('start-live-btn');
   var lyricBtn      = document.getElementById('lyric-sheet-btn');
+  var musicianBtn   = document.getElementById('musician-packet-btn');
   var saveBtn       = document.getElementById('save-setlist-btn');
   var copyLastBtn   = document.getElementById('copy-last-set-btn');
   var setlistStatus = document.getElementById('setlist-status');
@@ -595,6 +599,7 @@
     buildBtn.disabled = !hasItems;
     if (startLiveBtn) startLiveBtn.disabled = !hasItems;
     if (lyricBtn) lyricBtn.disabled = !hasItems;
+    if (musicianBtn) musicianBtn.disabled = !hasItems;
     if (saveBtn) saveBtn.disabled = !hasItems || !CAN_EDIT;
     if (mobileShareEl) mobileShareEl.style.display = hasItems ? 'block' : 'none';
     Array.from(setListEl.children).forEach(function (item, index, items) {
@@ -693,6 +698,18 @@
         startLiveBtn.textContent = 'Start Live Worship';
         startLiveBtn.disabled = !ids.length;
       });
+  }
+
+  function openMusicianPacket() {
+    syncOrder();
+    var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
+    if (!ids.length) return;
+    var popup = window.open('about:blank', '_blank');
+    var fd = new FormData();
+    fd.append('csrf_token', csrfToken);fd.append('worship_scope', WORSHIP_SCOPE);
+    if (currentSetlistId && !setDirty) fd.append('setlist_id', currentSetlistId);
+    fd.append('song_order', ids.join(','));ids.forEach(function(id){fd.append('song_ids',id);});
+    fetch('/worship/musician-link',{method:'POST',body:fd,credentials:'same-origin'}).then(function(response){return response.json().then(function(data){if(!response.ok||!data.ok)throw new Error(data.error||'Could not create musician packet.');return data;});}).then(function(data){if(popup)popup.location=data.url;else window.location.href=data.url;}).catch(function(error){if(popup)popup.close();alert(error.message);});
   }
 
   function showMobileUrl(url) {
@@ -924,6 +941,7 @@
 
   document.getElementById('build-form').addEventListener('submit', syncOrder);
   if (startLiveBtn) startLiveBtn.addEventListener('click', startLiveWorship);
+  if (musicianBtn) musicianBtn.addEventListener('click', openMusicianPacket);
   if (document.getElementById('lyric-sheet-form')) {
     document.getElementById('lyric-sheet-form').addEventListener('submit', syncOrder);
   }

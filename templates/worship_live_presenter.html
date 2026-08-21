@@ -20,6 +20,7 @@
     .wl-lines{font-size:clamp(2.8rem,5.2vw,6.3rem);line-height:1.15;font-weight:800;white-space:pre-line;max-width:20ch;text-wrap:balance}
     .wl-service-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
     .wl-presentation-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
+    .wl-video-frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;z-index:1}
     .wl-service-shade{position:absolute;inset:0;background:rgba(0,0,0,.48)}
     .wl-service-lines{font-size:clamp(2rem,3.5vw,4.2rem);line-height:1.2;font-weight:650;white-space:pre-line;margin-top:1rem;max-width:25ch}
     .wl-blank{position:fixed;inset:0;background:#000;z-index:20;display:none;align-items:center;justify-content:center}
@@ -53,6 +54,8 @@
     <section class="wl-slide{% if loop.index0 == live.current_index %} is-active{% endif %}" data-index="{{ loop.index0 }}" data-title="{{ slide.title }}" style="--slide-bg:{% if slide.background_url %}url('{{ slide.background_url }}'){% else %}none{% endif %};--slide-color:{{ slide.font_color or '#fff' }}" aria-hidden="{{ 'false' if loop.index0 == live.current_index else 'true' }}">
       {% if slide.kind == 'presentation' %}
         <img class="wl-presentation-image" src="{{ slide.image_url }}" alt="{{ slide.title }} slide {{ slide.source_number }}">
+      {% elif slide.kind == 'video' %}
+        <iframe class="wl-video-frame" title="{{ slide.title }}" data-video-frame data-start="{{ slide.video_start or 0 }}" src="https://www.youtube-nocookie.com/embed/{{ slide.video_id }}?enablejsapi=1&amp;origin={{ request.url_root.rstrip('/')|urlencode }}&amp;rel=0&amp;playsinline=1{% if slide.video_start %}&amp;start={{ slide.video_start }}{% endif %}{% if slide.video_end %}&amp;end={{ slide.video_end }}{% endif %}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       {% elif slide.kind == 'service' %}
         {% if slide.image_url %}<img class="wl-service-photo" src="{{ slide.image_url }}" alt=""><div class="wl-service-shade"></div>{% endif %}
         <div class="wl-content"><h2 class="wl-title">{{ slide.title }}</h2>{% if slide.lines %}<div class="wl-service-lines">{{ slide.lines|join('\n') }}</div>{% endif %}</div>
@@ -95,6 +98,7 @@
     var blank={{ live.blank|tojson }};
     var clearWords={{ live.clear_words|default(false)|tojson }};
     var revision={{ live.revision|int }};
+    var videoRevision=Number({{ live.video_revision|default(0)|tojson }})||0;
     var setup=document.getElementById('wl-setup');
     var blankEl=document.getElementById('wl-blank');
     var statusEl=document.getElementById('wl-status');
@@ -117,8 +121,15 @@
     }
     function queueFit(){if(fitFrame)cancelAnimationFrame(fitFrame);fitFrame=requestAnimationFrame(fitActiveSlide);}
 
+    function videoCommand(frame,func,args){if(frame&&frame.contentWindow)frame.contentWindow.postMessage(JSON.stringify({event:'command',func:func,args:args||[]}), 'https://www.youtube-nocookie.com');}
+    function applyVideoAction(action,nextVideoRevision){
+      if(Number(nextVideoRevision)<=videoRevision)return;videoRevision=Number(nextVideoRevision)||videoRevision;
+      var frame=(slides[current]||{}).querySelector&&slides[current].querySelector('[data-video-frame]');if(!frame)return;
+      if(action==='play')videoCommand(frame,'playVideo');else if(action==='pause')videoCommand(frame,'pauseVideo');else if(action==='mute')videoCommand(frame,'mute');else if(action==='unmute')videoCommand(frame,'unMute');else if(action==='restart'){videoCommand(frame,'seekTo',[Number(frame.dataset.start)||0,true]);videoCommand(frame,'playVideo');}
+    }
     function render(index,isBlank,isClear){
-      current=Math.max(0,Math.min(slides.length-1,Number(index)||0)); blank=!!isBlank;clearWords=!!isClear;
+      var previous=slides[current],nextIndex=Math.max(0,Math.min(slides.length-1,Number(index)||0));if(previous&&nextIndex!==current)videoCommand(previous.querySelector('[data-video-frame]'),'pauseVideo');
+      current=nextIndex; blank=!!isBlank;clearWords=!!isClear;
       slides.forEach(function(slide,i){var active=i===current;slide.classList.toggle('is-active',active);slide.setAttribute('aria-hidden',active?'false':'true');});
       document.getElementById('wl-stage').classList.toggle('is-clear',clearWords);
       blankEl.classList.toggle('is-active',blank);
@@ -138,7 +149,7 @@
     }
     function schedulePoll(delay){clearTimeout(pollTimer);if(document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
     function endLocally(){canControl=false;clearTimeout(pollTimer);render(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextRevision=Number(data.revision)||0;if(!pendingCommands&&nextRevision>revision){revision=nextRevision;render(data.current_index,data.blank,data.clear_words);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(2500);});}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextRevision=Number(data.revision)||0;if(!pendingCommands&&nextRevision>revision){revision=nextRevision;render(data.current_index,data.blank,data.clear_words);applyVideoAction(data.video_action,data.video_revision);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?500:1200);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(2500);});}
     document.addEventListener('keydown',function(e){if(!setup.hidden&&e.key!=='Escape')return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();send('next');}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();send('previous');}if(e.key==='Home')send('first');if(e.key==='End')send('last');if(e.key==='c'||e.key==='C')send('toggle_clear');if(e.key==='b'||e.key==='B')send('toggle_blank');if(e.key==='f'||e.key==='F')document.getElementById('wl-fullscreen-btn').click();showHud();});
     document.addEventListener('mousemove',showHud);document.addEventListener('click',showHud);window.addEventListener('resize',queueFit);document.addEventListener('fullscreenchange',queueFit);
     document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){activeUntil=Date.now()+5000;poll();}else clearTimeout(pollTimer);});

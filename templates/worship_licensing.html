@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block head_extra %}
+<style>
+  .wl-wrap{max-width:1150px;margin:auto}
+  .wl-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+  .wl-table{width:100%;border-collapse:collapse;margin-top:1rem;background:var(--box);border-radius:12px;overflow:hidden;box-shadow:var(--card-shadow)}
+  .wl-table th,.wl-table td{text-align:left;padding:.75rem;border-bottom:1px solid #e2e8f0;vertical-align:top}
+  .wl-table th{font-size:.75rem;text-transform:uppercase;color:var(--text-secondary)}
+  .wl-missing{color:#b45309;font-weight:700;font-size:.82rem}
+  .wl-ok{color:#15803d;font-weight:700}
+  .wl-btn{padding:.6rem .85rem;border-radius:8px;background:var(--primary);color:#fff;text-decoration:none;font-weight:800}
+  @media(max-width:700px){.wl-table thead{display:none}.wl-table,.wl-table tbody,.wl-table tr,.wl-table td{display:block}.wl-table tr{padding:.7rem;border-bottom:1px solid #cbd5e1}.wl-table td{border:0;padding:.25rem .7rem}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wl-wrap">
+  <div class="wl-head">
+    <div>
+      <h1>Worship licensing report</h1>
+      <p class="muted small">A preparation aid for source and attribution gaps—not a substitute for your CCLI report or license terms.</p>
+    </div>
+    <div><a class="wl-btn" href="{{ url_for('worship_licensing_csv') }}">Export CSV</a> <a href="{{ url_for('worship') }}">Back to Worship</a></div>
+  </div>
+  <table class="wl-table">
+    <thead><tr><th>Song</th><th>CCLI / copyright</th><th>Resources</th><th>Last used</th><th>Attention</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td><a href="{{ url_for('worship_song_resources', song_id=row.id) }}"><strong>{{ row.title }}</strong></a><br><small>{{ row.artist }}</small></td>
+        <td>{% if row.ccli_song_number %}CCLI #{{ row.ccli_song_number }}{% endif %}<br><small>{{ row.copyright_notice }}</small></td>
+        <td>{{ row.resource_count }}{% if row.sources %} · {{ row.sources }}{% endif %}</td>
+        <td>{{ row.last_used or '—' }}</td>
+        <td>{% if row.missing %}<span class="wl-missing">Missing {{ row.missing }}</span>{% else %}<span class="wl-ok">Ready</span>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No songs in this library.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>{{ song.title }} · {{ target_key }}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif}
+    .bar{position:sticky;top:0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 18px;background:#0f172a;color:#fff;box-shadow:0 2px 12px #0003}
+    .bar h1{font-size:1rem;margin:0 auto 0 0}
+    .bar select,.bar button{padding:8px 11px;border-radius:8px;border:1px solid #64748b;font-weight:700}
+    .chart{max-width:900px;margin:24px auto;padding:30px;background:#fff;border-radius:14px;box-shadow:0 6px 25px #0f172a18}
+    .meta{color:#64748b;margin-top:0}
+    pre{font:600 clamp(14px,2vw,19px)/1.48 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+    @media print{.bar{display:none}.chart{box-shadow:none;margin:0;max-width:none;padding:0}}
+    @media(max-width:600px){.chart{margin:0;border-radius:0;padding:18px}}
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <h1>{{ song.title }}{% if song.artist %} · {{ song.artist }}{% endif %}</h1>
+    {% if source_key %}
+      <label>Key
+        <select id="key">
+          {% for key in keys %}<option value="{{ key }}" {% if key == target_key %}selected{% endif %}>{{ key }}</option>{% endfor %}
+        </select>
+      </label>
+    {% endif %}
+    <button onclick="window.print()">Print / PDF</button>
+  </div>
+  <main class="chart">
+    <h1>{{ song.title }}</h1>
+    <p class="meta">{{ resource.title }}{% if target_key %} · Key {{ target_key }}{% endif %}{% if resource.capo %} · {{ resource.capo }}{% endif %}</p>
+    {% if error %}<p>{{ error }}</p>{% endif %}
+    <pre>{{ chart }}</pre>
+  </main>
+  <script>
+    var key = document.getElementById('key');
+    if (key) key.addEventListener('change', function () {
+      var url = new URL(location.href);
+      url.searchParams.set('key', key.value);
+      location.href = url;
+    });
+  </script>
+</body>
+</html>
