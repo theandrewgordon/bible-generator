@@ -6435,6 +6435,9 @@ def worship_service_slide_add():
     if not title:
         flash("A service slide title is required.", "warning")
         return redirect(url_for("worship_add"))
+    if slide_type == "photo" and not _boolish(request.form.get("rights_confirmed")):
+        flash("Confirm that you have permission to display this photo.", "warning")
+        return redirect(url_for("worship_add"))
     image_path = ""
     if slide_type == "photo":
         try:
@@ -6452,6 +6455,10 @@ def worship_service_slide_add():
             "service_lines": service_lines,
             "image_path": image_path,
             "image_layout": image_layout,
+            "media_rights_confirmed": slide_type == "photo",
+            "media_rights_confirmed_at": _worship_timestamp() if slide_type == "photo" else "",
+            "media_rights_confirmed_by": str(session.get("user_email") or "") if slide_type == "photo" else "",
+            "media_rights_confirmed_church": str(session.get("worship_church_id") or "") if slide_type == "photo" else "",
             "parts": {},
             "arrangement": [],
         })
@@ -7228,6 +7235,10 @@ def worship_add():
             flash("Title is required.", "warning")
             return redirect(url_for("worship_add"))
 
+        if not _boolish(request.form.get("rights_confirmed")):
+            flash("Confirm that your church has permission to store and use this material.", "warning")
+            return redirect(url_for("worship_add"))
+
         parts = {}
         for name, lines_text in zip(part_names, part_lines_raw):
             name = _canonical_part_key(name)
@@ -7249,6 +7260,12 @@ def worship_add():
             "key": key,
             "type": song_type,
             "background": background,
+            "ccli_song_number": request.form.get("ccli_song_number", ""),
+            "copyright_notice": request.form.get("copyright_notice", ""),
+            "import_rights_confirmed": True,
+            "import_rights_confirmed_at": _worship_timestamp(),
+            "import_rights_confirmed_by": str(session.get("user_email") or ""),
+            "import_rights_confirmed_church": str(session.get("worship_church_id") or ""),
             "parts": parts,
             "arrangement": arrangement,
         })
@@ -7602,6 +7619,8 @@ OTHER RULES:
     }
     song["import_rights_confirmed"] = True
     song["import_rights_confirmed_at"] = _worship_timestamp()
+    song["import_rights_confirmed_by"] = str(session.get("user_email") or "")
+    song["import_rights_confirmed_church"] = str(session.get("worship_church_id") or "")
     if validation_text:
         song["validation"] = validate_worship_song_against_source(song, validation_text, validation_url)
 
@@ -7646,6 +7665,14 @@ def worship_import_review(token):
             _delete_pending_worship_song(token)
             flash("Import cancelled; nothing was saved.", "success")
             return redirect(url_for("worship_add"))
+        if not _boolish(request.form.get("rights_confirmed")):
+            flash("Confirm the rights and accuracy statement before saving this song.", "warning")
+            return render_template("worship_import_review.html", song=song, token=token,
+                                   payload=payload, slides=_build_worship_mobile_slides([song])), 400
+        song["import_rights_confirmed"] = True
+        song["import_rights_confirmed_at"] = _worship_timestamp()
+        song["import_rights_confirmed_by"] = str(session.get("user_email") or "")
+        song["import_rights_confirmed_church"] = str(session.get("worship_church_id") or "")
         try:
             if get_worship_song(song["id"]):
                 session["pending_worship_token"] = token

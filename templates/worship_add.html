@@ -91,6 +91,10 @@
         </select>
       </div>
     </div>
+    <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
+      <input type="checkbox" name="rights_confirmed" value="1" style="margin-top:.2rem">
+      <span>I confirm I have permission from the photographer and any identifiable people (or their parent/guardian where appropriate) to display an uploaded photo.</span>
+    </label>
     <button class="wa-btn-primary" type="submit">Save Service Slide</button>
   </form>
 </div>
@@ -171,6 +175,16 @@
           <option value="reading">reading</option>
         </select>
       </div>
+      <div class="wa-row">
+        <div class="wa-field">
+          <label class="wa-label">CCLI song number</label>
+          <input type="text" name="ccli_song_number" inputmode="numeric" class="wa-input" placeholder="e.g. 7158417">
+        </div>
+        <div class="wa-field">
+          <label class="wa-label">Copyright / attribution</label>
+          <input type="text" name="copyright_notice" class="wa-input" placeholder="© year publisher / administrator">
+        </div>
+      </div>
 
       <p class="wa-section-label">Parts</p>
       <div id="parts-list"></div>
@@ -183,6 +197,11 @@
         <span id="arrangement-placeholder" class="small muted">Arrangement will appear here…</span>
       </div>
       <input type="hidden" name="arrangement" id="arrangement-input">
+
+      <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
+        <input type="checkbox" name="rights_confirmed" value="1" required style="margin-top:.2rem">
+        <span>I confirm my church is licensed or otherwise permitted to copy, store, display, and export this material. I am responsible for following applicable license, attribution, and reporting requirements; Faith Sparks does not grant content rights.</span>
+      </label>
 
       <button type="submit" class="wa-btn-primary">Save Song</button>
     </form>
@@ -234,7 +253,7 @@
 
       <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
         <input type="checkbox" name="rights_confirmed" value="1" required style="margin-top:.2rem">
-        <span>I confirm this church is licensed or otherwise permitted to copy, store, and use these lyrics and any validation material. Faith Sparks does not grant lyric or chart rights.</span>
+        <span>I confirm my church is licensed or otherwise permitted to copy, store, display, and export these lyrics and any validation material. I am responsible for following the applicable license and reporting requirements; Faith Sparks does not grant lyric or chart rights.</span>
       </label>
 
       <button type="submit" class="wa-btn-primary">Import Song</button>

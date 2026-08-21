@@ -109,6 +109,11 @@ def about():
     return render_template('about.html')
 
 
+@bp.route('/copyright')
+def copyright_policy():
+    return render_template('copyright_policy.html')
+
+
 @bp.route('/start-here')
 def start_here():
     return render_template(

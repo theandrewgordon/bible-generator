@@ -94,6 +94,15 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn("/worship/getting-started/music-chord-charts", routes)
         self.assertIn("/worship/getting-started/run-service", routes)
         self.assertIn("/worship/getting-started/presentations", routes)
+        self.assertIn("/copyright", routes)
+
+    def test_worship_forms_show_rights_acknowledgments(self):
+        with worship_app.app.test_request_context("/worship/add"):
+            html = render_template("worship_add.html", conflict_song=None, backgrounds=[])
+
+        self.assertGreaterEqual(html.count('name="rights_confirmed"'), 3)
+        self.assertIn("Faith Sparks does not grant lyric or chart rights", html)
+        self.assertIn("permission from the photographer", html)
 
     def test_music_guide_explains_resources_transposition_and_packets(self):
         with worship_app.app.test_request_context("/worship/getting-started/music-chord-charts"):

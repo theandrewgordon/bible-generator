@@ -88,7 +88,11 @@
 
 <form method="post" class="wir-actions">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button class="wir-secondary" type="submit" name="action" value="cancel">Cancel Import</button>
+  <button class="wir-secondary" type="submit" name="action" value="cancel" formnovalidate>Cancel Import</button>
+  <label class="small" style="flex-basis:100%;display:flex;gap:.55rem;align-items:flex-start">
+    <input type="checkbox" name="rights_confirmed" value="1" required style="margin-top:.2rem">
+    <span>I reviewed the lyrics and slides, and confirm my church has permission to store, display, and export this material. I am responsible for license compliance and reporting.</span>
+  </label>
   <button class="wir-primary" type="submit" name="action" value="save">Confirm and Save Song</button>
 </form>
 {% endblock %}
