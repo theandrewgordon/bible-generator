@@ -21,8 +21,18 @@ class WorshipQuickScriptureTests(unittest.TestCase):
     def test_rejects_invalid_reference_and_unsupported_version(self):
         with self.assertRaisesRegex(ValueError, "Bible reference"):
             app._build_quick_worship_scripture("John", "web")
-        with self.assertRaisesRegex(ValueError, "WEB, KJV, or ESV"):
-            app._build_quick_worship_scripture("John 3:16", "nlt")
+        with self.assertRaisesRegex(ValueError, "Enter other translations manually"):
+            app._build_quick_worship_scripture("John 3:16", "nasb")
+
+    def test_all_copywork_picker_versions_are_available_to_worship(self):
+        expected = {"web": "WEB", "kjv": "KJV", "esv": "ESV", "nlt": "NLT"}
+        self.assertEqual(app._WORSHIP_SCRIPTURE_VERSIONS, expected)
+        for version, label in expected.items():
+            with self.subTest(version=version), mock.patch(
+                "faithsparks.services.scripture.fetch_verse_text", return_value="Authorized verse text."
+            ):
+                item = app._build_quick_worship_scripture("John 3:16", version)
+                self.assertEqual(item["version"], label)
 
     def test_reports_when_authoritative_text_is_unavailable(self):
         with mock.patch("faithsparks.services.scripture.fetch_verse_text", return_value=None):

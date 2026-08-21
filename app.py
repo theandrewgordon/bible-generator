@@ -607,14 +607,15 @@ def add_correlation_headers(resp):
         resp.headers["Expires"] = "0"
         resp.headers["Referrer-Policy"] = "no-referrer"
         resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
-    elif (
-        (request.path or "").startswith("/worship/musician")
-        or "/resources" in (request.path or "")
-        or (request.path or "").startswith("/worship/licensing")
-    ):
+    elif (request.path or "").startswith("/worship"):
+        # Worship pages can contain private church material or short-lived
+        # capability links. Keep every response out of caches, search indexes,
+        # previews, and outbound referrers—not only the live-control routes.
         resp.headers["Cache-Control"] = "private, no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
         resp.headers["Referrer-Policy"] = "no-referrer"
-        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
     return resp
 
 
@@ -6329,7 +6330,12 @@ def worship_media(song_id):
     return redirect(media_url)
 
 
-_WORSHIP_SCRIPTURE_VERSIONS = {"web": "WEB", "kjv": "KJV", "esv": "ESV"}
+_WORSHIP_SCRIPTURE_VERSIONS = {
+    "web": "WEB",
+    "kjv": "KJV",
+    "esv": "ESV",
+    "nlt": "NLT",
+}
 
 
 def _worship_scripture_lines(text: str, max_chars: int = 58) -> list[str]:
@@ -6353,7 +6359,7 @@ def _build_quick_worship_scripture(reference: str, version: str) -> dict:
     reference = normalize_reference_title(re.sub(r"\s+", " ", str(reference or "")).strip())[:80]
     version = str(version or "web").strip().lower()
     if version not in _WORSHIP_SCRIPTURE_VERSIONS:
-        raise ValueError("Choose WEB, KJV, or ESV.")
+        raise ValueError("Choose WEB, KJV, ESV, or NLT. Enter other translations manually.")
     if not reference or not re.search(r"\d+\s*:\s*\d+", reference):
         raise ValueError("Enter a Bible reference such as John 3:16–17.")
     from faithsparks.services.scripture import fetch_verse_text
