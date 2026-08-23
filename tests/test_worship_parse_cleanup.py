@@ -512,6 +512,75 @@ It is Your breath
             ["verse", "chorus", "bridge", "bridge", "bridge", "chorus"],
         )
 
+    def test_worship_together_chord_fragments_parse_locally_with_explicit_order(self):
+        source = """Christ Be Magnified
+Cody Carnes, Travis Cottrell, The Belonging Co
+
+Christ Be Magnified
+Free chord pro download
+
+Verse 1
+Were cre
+A
+ation suddenly artic
+C#m
+ulate
+With a
+D
+thousand tongues to lift on
+E
+e cry
+Verse 2
+Were the whole earth echoing His em
+A
+inence
+Chorus
+O Christ be magnifie
+A
+d
+Let His praise ari
+E
+se
+Christ be magnified in me
+Verse 3
+When every creature finds its inmost mel
+A
+ody
+REPEAT CHORUS
+Bridge
+I won't bow to idols
+I'll stand strong and worship You
+REPEAT CHORUS
+Final Chorus
+O Christ be magnifie
+A
+d
+Let His praise ari
+E
+se
+Christ be magnified in me
+Writer(s):
+Cody Carnes
+"""
+
+        parsed = app._parse_labeled_worship_lyrics(source)
+
+        self.assertEqual(parsed["title"], "Christ Be Magnified")
+        self.assertEqual(parsed["artist"], "Cody Carnes, Travis Cottrell, The Belonging Co")
+        self.assertEqual(parsed["parts"]["verse1"], [
+            "Were creation suddenly articulate",
+            "With a thousand tongues to lift one cry",
+        ])
+        self.assertEqual(parsed["parts"]["verse2"], ["Were the whole earth echoing His eminence"])
+        self.assertEqual(parsed["parts"]["chorus"], [
+            "O Christ be magnified", "Let His praise arise", "Christ be magnified in me",
+        ])
+        self.assertEqual(
+            parsed["arrangement"],
+            ["verse1", "verse2", "chorus", "verse3", "chorus", "bridge", "chorus", "chorus"],
+        )
+        self.assertFalse(app._looks_like_chord_fragmented_worship_parse(parsed, source))
+
     def test_fragmented_chord_chart_parse_is_rejected(self):
         source = """Verse 1
 All my wo

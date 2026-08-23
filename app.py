@@ -3785,7 +3785,7 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
     text = re.sub(r"\s*\(\s*\d+\s*x\s*\)\s*$", "", text, flags=re.I).strip()
     unwrapped = re.sub(r"^[\[(]\s*|\s*[\])]$", "", text).strip()
     special = re.match(
-        r"^(last\s+bridge|alt(?:ernate)?\s+chorus|turnaround|interlude|instrumental|channel(?:\s*\d+)?|vamp)\s*(:?)$",
+        r"^(last\s+bridge|final\s+chorus|alt(?:ernate)?\s+chorus|turnaround|interlude|instrumental|channel(?:\s*\d+)?|vamp)\s*(:?)$",
         unwrapped,
         flags=re.I,
     )
@@ -3793,6 +3793,8 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
         raw_special = special.group(1).lower()
         if raw_special == "last bridge":
             label = "bridge"
+        elif raw_special == "final chorus":
+            label = "chorus"
         elif raw_special.startswith("alt"):
             label = "chorus2"
         elif raw_special.startswith("channel"):
@@ -4034,7 +4036,68 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
         current_lines = []
         current_repeat_count = 1
 
+    # Rendered chord pages often split a single lyric line around each inline
+    # chord ("cre" / A / "ation"). Reassemble those visual-line fragments
+    # before interpreting the explicit Verse/Chorus/Bridge labels.
+    repaired_lines: list[str] = []
+    pending_fragment = ""
+    chord_between = False
+
+    def join_fragment(left: str, right: str) -> str:
+        left = left.rstrip()
+        right = right.lstrip()
+        if not left:
+            return right
+        left_word = re.search(r"([A-Za-z’']+)$", left)
+        right_word = re.match(r"([A-Za-z’']+)", right)
+        if not left_word or not right_word:
+            return f"{left} {right}".strip()
+        left_token, right_token = left_word.group(1), right_word.group(1)
+        standalone = {"a", "an", "and", "as", "at", "be", "by", "for", "from", "he", "his", "i", "in", "is", "it", "me", "my", "of", "on", "or", "our", "the", "to", "we", "with", "you", "your"}
+        concatenate = (
+            len(right_token) == 1
+            or (len(left_token) <= 6 and len(right_token) <= 6 and left_token.lower() not in standalone)
+        )
+        separator = "" if concatenate else " "
+        return f"{left}{separator}{right}"
+
+    def flush_fragment() -> None:
+        nonlocal pending_fragment, chord_between
+        if pending_fragment:
+            repaired_lines.append(pending_fragment)
+        pending_fragment = ""
+        chord_between = False
+
     for raw_line in lyric_body.splitlines():
+        candidate = raw_line.strip()
+        if not candidate:
+            continue
+        repeat_label, _repeat_count = _worship_repeat_instruction(candidate)
+        section_label, _has_colon = _extract_worship_section_label(candidate)
+        if repeat_label or section_label:
+            flush_fragment()
+            repaired_lines.append(candidate)
+            continue
+        lowercase_fragment = bool(chord_between and re.fullmatch(r"[a-z]{1,3}", candidate))
+        if _is_chord_only_worship_line(candidate) and not lowercase_fragment:
+            if pending_fragment:
+                chord_between = True
+            continue
+        if _is_worship_non_lyric_instruction_line(candidate) and not lowercase_fragment:
+            flush_fragment()
+            repaired_lines.append(candidate)
+            continue
+        if not pending_fragment:
+            pending_fragment = candidate
+        elif chord_between:
+            pending_fragment = join_fragment(pending_fragment, candidate)
+            chord_between = False
+        else:
+            flush_fragment()
+            pending_fragment = candidate
+    flush_fragment()
+
+    for raw_line in repaired_lines:
         line = raw_line.strip()
         if not line:
             continue
@@ -7789,10 +7852,23 @@ OTHER RULES:
     used_fallback_parser = False
     fallback_reason = ""
 
-    # Provider order: Claude first (strongest at structured lyric extraction),
-    # then OpenAI, then the local heuristic parser.
-    parsed = None
-    if anthropic_key:
+    # Explicit section labels are authoritative and need no model call. Parsing
+    # those locally also avoids provider copyright filters and truncated JSON.
+    parsed = _parse_labeled_worship_lyrics(parse_lyrics, title, artist, version, key)
+    if parsed:
+        local_song = normalize_worship_song(parsed)
+        if (
+            len(local_song.get("parts", {})) < 2
+            or _looks_like_chord_fragmented_worship_parse(local_song, parse_lyrics)
+            or _looks_under_arranged_worship_parse(local_song, parse_lyrics)
+        ):
+            parsed = None
+        else:
+            app.logger.info("worship_add_parse: used deterministic labelled-source parser")
+
+    # Unlabelled sources still use Claude first, then OpenAI, then the local
+    # heuristic parser.
+    if parsed is None and anthropic_key:
         try:
             parsed = _parse_worship_lyrics_claude(prompt, anthropic_key)
         except Exception as e:
