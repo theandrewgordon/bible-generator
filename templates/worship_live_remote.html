@@ -21,7 +21,7 @@
     .wr-note{margin:.9rem 0 0;color:#fcd34d;font-size:.94rem;line-height:1.3;font-weight:700}
     .wr-audience-state{position:absolute;right:14px;top:12px;color:#fcd34d;font-size:.72rem;font-weight:850;text-transform:uppercase}
     .wr-progress{text-align:center;color:#cbd5e1;font-size:.88rem;font-weight:700}
-    .wr-next-up{min-height:1.25rem;text-align:center;color:#94a3b8;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wr-next-preview{min-height:112px;border:1px solid #233146;border-radius:15px;background:#0b1322;padding:12px 14px;overflow:hidden}.wr-next-preview.is-end{display:flex;align-items:center;justify-content:center;color:#64748b}.wr-next-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.wr-next-label{color:#2dd4bf;font-size:.68rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.wr-next-title{color:#94a3b8;font-size:.75rem;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr-next-lines{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;color:#e2e8f0;font-size:.95rem;line-height:1.28;font-weight:700;white-space:pre-line}
     .wr-nav{position:sticky;top:max(8px,env(safe-area-inset-top));z-index:20;display:grid;grid-template-columns:1fr 1.6fr;gap:7px 10px;padding:7px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
     .wr-nav-context{grid-column:1/-1;min-height:1rem;padding:0 8px;color:#cbd5e1;font-size:.76rem;font-weight:800;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .wr-btn{min-height:82px;border:0;border-radius:16px;font-size:1.15rem;font-weight:850;cursor:pointer;touch-action:manipulation}.wr-prev{background:#334155;color:#fff}.wr-next{background:#0ea5a8;color:#fff;font-size:1.35rem}.wr-btn:active{transform:scale(.985)}
@@ -30,6 +30,7 @@
     .wr-tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.wr-tool{min-height:54px;border:1px solid #475569;border-radius:13px;background:#111c2e;color:#fff;font-size:.9rem;font-weight:750}.wr-tool.is-active{background:#92400e;border-color:#f59e0b}.wr-tool.is-blank{background:#b91c1c;border-color:#ef4444}.wr-tool:disabled,.wr-btn:disabled,.wr-section-btn:disabled{opacity:.58}
     .wr-video-tools{display:none;grid-template-columns:repeat(5,1fr);gap:8px;padding:9px;border:1px solid #0f766e;border-radius:14px;background:#0b2c32}.wr-video-tools.is-visible{display:grid}.wr-video-btn{min-height:48px;border:1px solid #14b8a6;border-radius:10px;background:#0f766e;color:#fff;font-weight:850}.wr-video-btn:disabled{opacity:.5}
     .wr-jump{width:100%;border:1px solid #475569;border-radius:12px;background:#111c2e;color:#fff;padding:12px;font-size:1rem}
+    .wr-quick{border:1px solid #334155;border-radius:14px;background:#0b1322;padding:0 12px}.wr-quick summary{cursor:pointer;padding:13px 0;font-weight:850}.wr-quick-body{display:grid;gap:10px;padding:0 0 13px}
     .wr-stage-tools{border:1px solid #334155;border-radius:14px;background:#0b1322;padding:0 12px}.wr-stage-tools summary{cursor:pointer;padding:13px 0;font-weight:850}.wr-stage-body{display:grid;gap:9px;padding:0 0 13px}.wr-stage-row{display:flex;gap:8px;flex-wrap:wrap}.wr-stage-input{flex:1;min-width:180px;border:1px solid #475569;border-radius:10px;background:#111c2e;color:#fff;padding:10px;font-size:.95rem}.wr-stage-action,.wr-stage-link{border:1px solid #475569;border-radius:10px;background:#172235;color:#fff;padding:9px 12px;font-weight:750;text-decoration:none}.wr-stage-action:disabled{opacity:.5}.wr-stage-status{min-height:1.1rem;color:#94a3b8;font-size:.78rem}
     .wr-end{border:0;background:transparent;color:#fca5a5;min-height:42px;font-weight:700}.wr-help{text-align:center;color:#94a3b8;font-size:.75rem;margin:0 0 4px}
   </style>
@@ -41,15 +42,15 @@
       <div><div class="wr-kind" id="wr-kind"></div><div class="wr-audience-state" id="wr-audience-state"></div><h2 class="wr-song" id="wr-song"></h2><div class="wr-lines" id="wr-lines"></div><p class="wr-note" id="wr-note"></p></div>
     </section>
     <div class="wr-progress" id="wr-progress">1 / {{ slides|length }}</div>
-    <div class="wr-next-up" id="wr-next-up"></div>
+    <section class="wr-next-preview" id="wr-next-preview" aria-label="Next slide preview"><div><div class="wr-next-head"><span class="wr-next-label">Next slide</span><span class="wr-next-title" id="wr-next-title"></span></div><div class="wr-next-lines" id="wr-next-lines"></div></div></section>
     <div class="wr-nav"><div class="wr-nav-context" id="wr-nav-context"></div><button class="wr-btn wr-prev" data-action="previous">← Previous</button><button class="wr-btn wr-next" data-action="next">Next →</button></div>
-    <div class="wr-sections" id="wr-sections" aria-label="Song sections"></div>
-    <div class="wr-smart"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button><button class="wr-smart-btn" id="wr-undo" disabled>↶ Undo jump</button></div>
     <div class="wr-tools"><button class="wr-tool" id="wr-clear" data-action="toggle_clear">Clear words</button><button class="wr-tool" id="wr-blank" data-action="toggle_blank">Black screen</button><button class="wr-tool" id="wr-awake">Keep awake</button></div>
     <div class="wr-video-tools" id="wr-video-tools" aria-label="Video controls"><button class="wr-video-btn" data-video-action="video_play">▶ Play</button><button class="wr-video-btn" data-video-action="video_pause">Pause</button><button class="wr-video-btn" data-video-action="video_restart">Restart</button><button class="wr-video-btn" data-video-action="video_mute">Mute</button><button class="wr-video-btn" data-video-action="video_unmute">Sound</button></div>
-    <select class="wr-jump" id="wr-jump" aria-label="Jump to slide">
-      {% for slide in slides %}<option value="{{ loop.index0 }}">{{ loop.index }} · {{ slide.title }}{% if slide.part_label %} — {{ slide.part_label }}{% endif %}</option>{% endfor %}
-    </select>
+    <details class="wr-quick"><summary>Jump or repeat</summary><div class="wr-quick-body">
+      <div class="wr-sections" id="wr-sections" aria-label="Song sections"></div>
+      <div class="wr-smart"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button><button class="wr-smart-btn" id="wr-undo" disabled>↶ Undo jump</button></div>
+      <select class="wr-jump" id="wr-jump" aria-label="Jump to slide">{% for slide in slides %}<option value="{{ loop.index0 }}">{{ loop.index }} · {{ slide.title }}{% if slide.part_label %} — {{ slide.part_label }}{% endif %}</option>{% endfor %}</select>
+    </div></details>
     <details class="wr-stage-tools"><summary>Stage tools</summary><div class="wr-stage-body">
       <div class="wr-stage-row"><a class="wr-stage-link" href="{{ stage_url }}" target="_blank" rel="noopener">Open Stage View</a></div>
       <div class="wr-stage-row"><input class="wr-stage-input" id="wr-stage-message" maxlength="160" placeholder="Private stage message"><button class="wr-stage-action" id="wr-send-message">Send</button><button class="wr-stage-action" id="wr-clear-message">Clear</button></div>
@@ -69,7 +70,7 @@
     var stageMessage={{ live.stage_message|default('')|tojson }};
     var timerMode={{ live.stage_timer_mode|default('')|tojson }},timerStarted=Number({{ live.stage_timer_started_epoch|default(0)|tojson }})||0,timerDuration=Number({{ live.stage_timer_duration|default(0)|tojson }})||0,serverOffset=0;
     var revision={{ live.revision|int }};
-    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextUp=document.getElementById('wr-next-up'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status'),videoTools=document.getElementById('wr-video-tools');
+    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextPreview=document.getElementById('wr-next-preview'),nextTitle=document.getElementById('wr-next-title'),nextLines=document.getElementById('wr-next-lines'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status'),videoTools=document.getElementById('wr-video-tools');
     var wakeLock=null,pollTimer=null,sending=false,ended=false,messageDirty=false,pendingStageMessage='',jumpHistory=[],lastSectionTarget=-1;
     function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
     function isChorusSlide(slide){return !!slide&&slide.kind==='lyric'&&/^chorus\d*$/.test(partKey(slide));}
@@ -116,7 +117,7 @@
       videoTools.classList.toggle('is-visible',slide.kind==='video');
       navContext.textContent=(slide.title||'Slide')+(slide.kind==='lyric'&&slide.part_label?' · '+slide.part_label:'');
       progress.textContent=(current+1)+' / '+slides.length+' · '+(slide.title||'');jump.value=String(current);
-      var upcoming=slides[current+1];nextUp.textContent=upcoming?'Up next: '+(upcoming.part_label||upcoming.title||'Slide'):'End of set';
+      var upcoming=slides[current+1];nextPreview.classList.toggle('is-end',!upcoming);nextTitle.textContent=upcoming?((upcoming.title||'Slide')+(upcoming.part_label?' · '+upcoming.part_label:'')):'';nextLines.textContent=upcoming?((upcoming.lines||[]).join('\n')||upcoming.title||'Slide'):'End of set';
       updateSections();updateSmartButtons();updateStageStatus();
     }
     function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?'Connected':'Reconnecting…';}
