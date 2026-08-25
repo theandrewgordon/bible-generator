@@ -9,7 +9,7 @@
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;min-height:100%;background:#07111f;color:#f8fafc;font-family:Arial,Helvetica,sans-serif}
     body{padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom)}
-    .wr-shell{width:min(620px,100%);margin:auto;min-height:100dvh;display:flex;flex-direction:column;gap:12px;padding:12px 0}
+    .wr-shell{width:min(620px,100%);margin:auto;min-height:100dvh;display:flex;flex-direction:column;gap:12px;padding:12px 0 calc(132px + env(safe-area-inset-bottom))}
     .wr-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
     .wr-title{margin:0;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .wr-status{display:flex;align-items:center;gap:6px;color:#cbd5e1;font-size:.78rem;white-space:nowrap}.wr-status::before{content:"";width:9px;height:9px;border-radius:50%;background:#22c55e}.wr-status.is-offline::before{background:#f59e0b}
@@ -21,8 +21,8 @@
     .wr-note{margin:.9rem 0 0;color:#fcd34d;font-size:.94rem;line-height:1.3;font-weight:700}
     .wr-audience-state{position:absolute;right:14px;top:12px;color:#fcd34d;font-size:.72rem;font-weight:850;text-transform:uppercase}
     .wr-progress{text-align:center;color:#cbd5e1;font-size:.88rem;font-weight:700}
-    .wr-next-preview{min-height:112px;border:1px solid #233146;border-radius:15px;background:#0b1322;padding:12px 14px;overflow:hidden}.wr-next-preview.is-end{display:flex;align-items:center;justify-content:center;color:#64748b}.wr-next-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.wr-next-label{color:#2dd4bf;font-size:.68rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.wr-next-title{color:#94a3b8;font-size:.75rem;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr-next-lines{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;color:#e2e8f0;font-size:.95rem;line-height:1.28;font-weight:700;white-space:pre-line}
-    .wr-nav{position:sticky;top:max(8px,env(safe-area-inset-top));z-index:20;display:grid;grid-template-columns:1fr 1.6fr;gap:7px 10px;padding:7px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
+    .wr-next-preview{width:100%;min-height:112px;border:1px solid #233146;border-radius:15px;background:#0b1322;color:inherit;padding:12px 14px;overflow:hidden;text-align:left;cursor:pointer;touch-action:manipulation}.wr-next-preview>span{display:block}.wr-next-preview:active{transform:scale(.992)}.wr-next-preview:disabled{cursor:default;opacity:.66}.wr-next-preview.is-end{display:flex;align-items:center;justify-content:center;color:#64748b}.wr-next-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.wr-next-label{color:#2dd4bf;font-size:.68rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.wr-next-title{color:#94a3b8;font-size:.75rem;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr-next-lines{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;color:#e2e8f0;font-size:.95rem;line-height:1.28;font-weight:700;white-space:pre-line}
+    .wr-nav{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(calc(100% - 28px),620px);z-index:20;display:grid;grid-template-columns:1fr 1.6fr;gap:7px 10px;padding:7px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
     .wr-nav-context{grid-column:1/-1;min-height:1rem;padding:0 8px;color:#cbd5e1;font-size:.76rem;font-weight:800;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .wr-btn{min-height:82px;border:0;border-radius:16px;font-size:1.15rem;font-weight:850;cursor:pointer;touch-action:manipulation}.wr-prev{background:#334155;color:#fff}.wr-next{background:#0ea5a8;color:#fff;font-size:1.35rem}.wr-btn:active{transform:scale(.985)}
     .wr-sections{display:flex;gap:7px;overflow-x:auto;padding:2px 0 5px;scrollbar-width:none}.wr-sections::-webkit-scrollbar{display:none}.wr-section-btn{flex:0 0 auto;min-height:38px;border:1px solid #475569;border-radius:999px;background:#111c2e;color:#e2e8f0;padding:7px 12px;font-weight:800}.wr-section-btn.is-current{background:#0f766e;border-color:#2dd4bf;color:#fff}
@@ -38,17 +38,17 @@
 <body>
   <main class="wr-shell">
     <header class="wr-head"><h1 class="wr-title">{{ live.name }}</h1><span class="wr-status" id="wr-status">Connected</span></header>
-    <section class="wr-preview{% if live.blank %} is-blank{% endif %}" id="wr-preview" aria-live="polite">
+    <section class="wr-preview{% if live.blank %} is-blank{% endif %}" id="wr-preview" aria-live="polite" aria-label="Current slide. Swipe left for next or right for previous.">
       <div><div class="wr-kind" id="wr-kind"></div><div class="wr-audience-state" id="wr-audience-state"></div><h2 class="wr-song" id="wr-song"></h2><div class="wr-lines" id="wr-lines"></div><p class="wr-note" id="wr-note"></p></div>
     </section>
     <div class="wr-progress" id="wr-progress">1 / {{ slides|length }}</div>
-    <section class="wr-next-preview" id="wr-next-preview" aria-label="Next slide preview"><div><div class="wr-next-head"><span class="wr-next-label">Next slide</span><span class="wr-next-title" id="wr-next-title"></span></div><div class="wr-next-lines" id="wr-next-lines"></div></div></section>
-    <div class="wr-nav"><div class="wr-nav-context" id="wr-nav-context"></div><button class="wr-btn wr-prev" data-action="previous">← Previous</button><button class="wr-btn wr-next" data-action="next">Next →</button></div>
+    <button type="button" class="wr-next-preview" id="wr-next-preview" aria-label="Show next slide"><span><span class="wr-next-head"><span class="wr-next-label">Next slide · tap to show</span><span class="wr-next-title" id="wr-next-title"></span></span><span class="wr-next-lines" id="wr-next-lines"></span></span></button>
+    <div class="wr-nav"><div class="wr-nav-context" id="wr-nav-context"></div><button class="wr-btn wr-prev" id="wr-previous" data-action="previous">← Previous</button><button class="wr-btn wr-next" id="wr-next" data-action="next">Next →</button></div>
     <div class="wr-tools"><button class="wr-tool" id="wr-clear" data-action="toggle_clear">Clear words</button><button class="wr-tool" id="wr-blank" data-action="toggle_blank">Black screen</button><button class="wr-tool" id="wr-awake">Keep awake</button></div>
     <div class="wr-video-tools" id="wr-video-tools" aria-label="Video controls"><button class="wr-video-btn" data-video-action="video_play">▶ Play</button><button class="wr-video-btn" data-video-action="video_pause">Pause</button><button class="wr-video-btn" data-video-action="video_restart">Restart</button><button class="wr-video-btn" data-video-action="video_mute">Mute</button><button class="wr-video-btn" data-video-action="video_unmute">Sound</button></div>
-    <details class="wr-quick"><summary>Jump or repeat</summary><div class="wr-quick-body">
+    <div class="wr-smart" aria-label="Quick live controls"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button><button class="wr-smart-btn" id="wr-undo" disabled>↶ Undo jump</button></div>
+    <details class="wr-quick"><summary>Jump or repeat · section or slide</summary><div class="wr-quick-body">
       <div class="wr-sections" id="wr-sections" aria-label="Song sections"></div>
-      <div class="wr-smart"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button><button class="wr-smart-btn" id="wr-undo" disabled>↶ Undo jump</button></div>
       <select class="wr-jump" id="wr-jump" aria-label="Jump to slide">{% for slide in slides %}<option value="{{ loop.index0 }}">{{ loop.index }} · {{ slide.title }}{% if slide.part_label %} — {{ slide.part_label }}{% endif %}</option>{% endfor %}</select>
     </div></details>
     <details class="wr-stage-tools"><summary>Stage tools</summary><div class="wr-stage-body">
@@ -58,7 +58,7 @@
       <div class="wr-stage-status" id="wr-stage-status"></div>
     </div></details>
     <button class="wr-end" id="wr-end">End this session</button>
-    <p class="wr-help">This remote controls only the current Live Worship session and expires automatically.</p>
+    <p class="wr-help">Tap the next preview, swipe the current slide, or use arrows, Page Up/Down, or Space. This remote expires automatically.</p>
   </main>
   <script>
   (function(){
@@ -70,8 +70,8 @@
     var stageMessage={{ live.stage_message|default('')|tojson }};
     var timerMode={{ live.stage_timer_mode|default('')|tojson }},timerStarted=Number({{ live.stage_timer_started_epoch|default(0)|tojson }})||0,timerDuration=Number({{ live.stage_timer_duration|default(0)|tojson }})||0,serverOffset=0;
     var revision={{ live.revision|int }};
-    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextPreview=document.getElementById('wr-next-preview'),nextTitle=document.getElementById('wr-next-title'),nextLines=document.getElementById('wr-next-lines'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status'),videoTools=document.getElementById('wr-video-tools');
-    var wakeLock=null,pollTimer=null,sending=false,ended=false,messageDirty=false,pendingStageMessage='',jumpHistory=[],lastSectionTarget=-1;
+    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),progress=document.getElementById('wr-progress'),nextPreview=document.getElementById('wr-next-preview'),nextTitle=document.getElementById('wr-next-title'),nextLines=document.getElementById('wr-next-lines'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),previousBtn=document.getElementById('wr-previous'),nextBtn=document.getElementById('wr-next'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status'),videoTools=document.getElementById('wr-video-tools');
+    var wakeLock=null,pollTimer=null,sending=false,ended=false,messageDirty=false,pendingStageMessage='',jumpHistory=[],lastSectionTarget=-1,commandQueue=Promise.resolve(),pendingCommands=0,swipeStart=null,needsReconcile=false;
     function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
     function isChorusSlide(slide){return !!slide&&slide.kind==='lyric'&&/^chorus\d*$/.test(partKey(slide));}
     function chorusStart(index){
@@ -94,6 +94,19 @@
       nextItemBtn.textContent=nextItemTarget<0?'End of set':'Next: '+(slides[nextItemTarget].title||'item')+' ⏭';
       undoBtn.disabled=sending||ended||!jumpHistory.length;
     }
+    function itemContext(index){
+      var boundaries=[],position=0,itemStart=0,itemEnd=slides.length-1;
+      for(var i=0;i<slides.length;i++){if(i===0||(slides[i]||{}).id!==(slides[i-1]||{}).id)boundaries.push(i);}
+      for(var j=0;j<boundaries.length;j++){if(boundaries[j]<=index)position=j;}
+      itemStart=boundaries[position]||0;itemEnd=boundaries[position+1]===undefined?slides.length-1:boundaries[position+1]-1;
+      return 'Item '+(position+1)+' of '+boundaries.length+' · Slide '+(index-itemStart+1)+' of '+(itemEnd-itemStart+1);
+    }
+    function updateNavigation(){
+      var atStart=current<=0,atEnd=current>=slides.length-1;
+      previousBtn.disabled=ended||atStart;nextBtn.disabled=ended||atEnd;nextPreview.disabled=ended||atEnd;
+      previousBtn.textContent=atStart?'Start of set':'← Previous';nextBtn.textContent=atEnd?'End of set':'Next →';
+      nextPreview.setAttribute('aria-label',atEnd?'End of set':'Show next slide');
+    }
     function sectionTargets(){
       var itemId=(slides[current]||{}).id,targets=[];
       for(var i=0;i<slides.length;i++){var slide=slides[i]||{},previous=slides[i-1]||{};if(slide.id===itemId&&slide.kind==='lyric'&&(previous.id!==itemId||previous.kind!=='lyric'||partKey(previous)!==partKey(slide)))targets.push(i);}
@@ -115,30 +128,49 @@
       document.getElementById('wr-lines').textContent=(slide.lines||[]).join('\n');
       var note=slide.note||'';document.getElementById('wr-note').textContent=note;document.getElementById('wr-note').style.display=note?'block':'none';
       videoTools.classList.toggle('is-visible',slide.kind==='video');
-      navContext.textContent=(slide.title||'Slide')+(slide.kind==='lyric'&&slide.part_label?' · '+slide.part_label:'');
+      navContext.textContent=itemContext(current)+' · '+(slide.title||'Slide')+(slide.kind==='lyric'&&slide.part_label?' · '+slide.part_label:'');
       progress.textContent=(current+1)+' / '+slides.length+' · '+(slide.title||'');jump.value=String(current);
       var upcoming=slides[current+1];nextPreview.classList.toggle('is-end',!upcoming);nextTitle.textContent=upcoming?((upcoming.title||'Slide')+(upcoming.part_label?' · '+upcoming.part_label:'')):'';nextLines.textContent=upcoming?((upcoming.lines||[]).join('\n')||upcoming.title||'Slide'):'End of set';
-      updateSections();updateSmartButtons();updateStageStatus();
+      updateNavigation();updateSections();updateSmartButtons();updateStageStatus();
     }
-    function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?'Connected':'Reconnecting…';}
+    function connected(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?(pendingCommands?'Sending…':'Connected'):'Reconnecting…';}
     function requestWakeLock(showFailure){
       if(wakeLock)return;if(!('wakeLock'in navigator)){if(showFailure)awakeBtn.textContent='Not supported';return;}
       navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;awakeBtn.textContent='Screen stays awake';lock.addEventListener('release',function(){wakeLock=null;awakeBtn.textContent='Keep screen awake';});}).catch(function(){wakeLock=null;if(showFailure)awakeBtn.textContent='Could not enable';});
     }
-    function setSending(value){sending=!!value;document.querySelectorAll('[data-action],[data-smart],[data-video-action],.wr-stage-action,#wr-end').forEach(function(btn){btn.disabled=sending||ended;});jump.disabled=sending||ended;stageMessageInput.disabled=sending||ended;}
+    function setSending(value){sending=!!value;document.querySelectorAll('[data-action]:not(.wr-btn),[data-smart],[data-video-action],.wr-stage-action,#wr-end').forEach(function(btn){btn.disabled=sending||ended;});jump.disabled=sending||ended;stageMessageInput.disabled=sending||ended;updateNavigation();if(!statusEl.classList.contains('is-offline'))connected(true);}
     function send(action,index,extra){
-      if(sending||ended)return Promise.resolve();requestWakeLock(false);setSending(true);
+      if(ended)return Promise.resolve();requestWakeLock(false);
       if(action==='next')draw(current+1,blank,clearWords);else if(action==='previous')draw(current-1,blank,clearWords);else if(action==='toggle_blank')draw(current,!blank,clearWords);else if(action==='toggle_clear')draw(current,blank,!clearWords);else if(action==='index')draw(index,blank,clearWords);
       var body={action:action,index:index};Object.keys(extra||{}).forEach(function(key){body[key]=extra[key];});
-      return fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify(body),credentials:'same-origin'})
-        .then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error(data.error||'Remote failed');var nextRevision=Number(data.revision)||0;if(nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(action==='set_message'){messageDirty=false;stageMessageInput.value=stageMessage;}else if(!messageDirty)stageMessageInput.value=stageMessage;draw(data.current_index,data.blank,data.clear_words);}connected(true);if(navigator.vibrate)navigator.vibrate(18);}).catch(function(){connected(false);}).finally(function(){setSending(false);updateSections();updateSmartButtons();});
+      pendingCommands++;setSending(true);if(navigator.vibrate)navigator.vibrate(10);
+      commandQueue=commandQueue.then(function(){return fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify(body),credentials:'same-origin'})
+        .then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error(data.error||'Remote failed');var nextRevision=Number(data.revision)||0;if(nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(action==='set_message'){messageDirty=false;stageMessageInput.value=stageMessage;}else if(!messageDirty)stageMessageInput.value=stageMessage;if(pendingCommands===1)draw(data.current_index,data.blank,data.clear_words);}connected(true);}).catch(function(){needsReconcile=true;connected(false);}).finally(function(){pendingCommands=Math.max(0,pendingCommands-1);setSending(pendingCommands>0);updateSections();updateSmartButtons();if(!pendingCommands&&needsReconcile){needsReconcile=false;poll();}});});
+      return commandQueue;
     }
-    function jumpTo(target){target=Number(target);if(sending||ended||target===current)return;if(jumpHistory.length>=10)jumpHistory.shift();jumpHistory.push(current);send('index',target);}
-    document.querySelectorAll('[data-action]').forEach(function(btn){btn.addEventListener('click',function(){send(btn.dataset.action);});});
+    function jumpTo(target){target=Number(target);if(ended||target===current)return;if(jumpHistory.length>=10)jumpHistory.shift();jumpHistory.push(current);send('index',target);}
+    function bindFastPress(button,handler){
+      var handledPointerUntil=0;
+      button.addEventListener('pointerdown',function(event){if((event.pointerType==='touch'||event.pointerType==='pen')&&!button.disabled){event.preventDefault();handledPointerUntil=Date.now()+700;handler();}});
+      button.addEventListener('click',function(){if(Date.now()<handledPointerUntil){handledPointerUntil=0;return;}if(!button.disabled)handler();});
+    }
+    document.querySelectorAll('[data-action]').forEach(function(btn){bindFastPress(btn,function(){send(btn.dataset.action);});});
+    bindFastPress(nextPreview,function(){send('next');});
     document.querySelectorAll('[data-video-action]').forEach(function(btn){btn.addEventListener('click',function(){send(btn.dataset.videoAction);});});
     document.querySelectorAll('[data-smart]').forEach(function(btn){btn.addEventListener('click',function(){var target=smartTarget(btn.dataset.smart);if(target>=0)jumpTo(target);});});
     jump.addEventListener('change',function(){jumpTo(Number(jump.value));});
-    undoBtn.addEventListener('click',function(){if(sending||!jumpHistory.length)return;send('index',jumpHistory.pop());});
+    undoBtn.addEventListener('click',function(){if(!jumpHistory.length)return;send('index',jumpHistory.pop());});
+    preview.addEventListener('pointerdown',function(event){if(event.pointerType==='touch'||event.pointerType==='pen')swipeStart={x:event.clientX,y:event.clientY,time:Date.now()};});
+    preview.addEventListener('pointerup',function(event){if(!swipeStart)return;var dx=event.clientX-swipeStart.x,dy=event.clientY-swipeStart.y,elapsed=Date.now()-swipeStart.time;swipeStart=null;if(elapsed<700&&Math.abs(dx)>=50&&Math.abs(dx)>Math.abs(dy)*1.4){if(dx<0&&!nextBtn.disabled)send('next');else if(dx>0&&!previousBtn.disabled)send('previous');}});
+    document.addEventListener('keydown',function(event){
+      var target=event.target,tag=target&&target.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(target&&target.isContentEditable))return;
+      if(event.key==='ArrowRight'||event.key==='PageDown'||event.key===' '){event.preventDefault();if(!nextBtn.disabled)send('next');}
+      else if(event.key==='ArrowLeft'||event.key==='PageUp'){event.preventDefault();if(!previousBtn.disabled)send('previous');}
+      else if(event.key==='Home'){event.preventDefault();jumpTo(0);}
+      else if(event.key==='End'){event.preventDefault();jumpTo(slides.length-1);}
+      else if(event.key==='c'||event.key==='C'){event.preventDefault();send('toggle_clear');}
+      else if(event.key==='b'||event.key==='B'){event.preventDefault();send('toggle_blank');}
+    });
     awakeBtn.addEventListener('click',function(){requestWakeLock(true);});
     var sendMessageBtn=document.getElementById('wr-send-message');stageMessageInput.addEventListener('input',function(){messageDirty=true;});stageMessageInput.addEventListener('blur',function(){if(stageMessageInput.value!==stageMessage)messageDirty=true;});
     sendMessageBtn.addEventListener('pointerdown',function(){pendingStageMessage=stageMessageInput.value;messageDirty=true;});sendMessageBtn.addEventListener('click',function(){var message=pendingStageMessage||stageMessageInput.value;pendingStageMessage='';send('set_message',null,{message:message});});

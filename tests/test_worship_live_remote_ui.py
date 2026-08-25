@@ -76,9 +76,68 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("schedulePoll(8000)", self.template)
 
     def test_remote_keeps_navigation_reachable_and_active_section_centered(self):
-        self.assertIn("position:sticky", self.template)
+        self.assertIn("position:fixed", self.template)
+        self.assertIn("bottom:max(8px,env(safe-area-inset-bottom))", self.template)
         self.assertIn("activeButton.scrollIntoView", self.template)
         self.assertIn("Number(btn.dataset.duration)||300", self.template)
+
+    def test_remote_queues_rapid_navigation_instead_of_dropping_taps(self):
+        self.assertIn("commandQueue=Promise.resolve()", self.template)
+        self.assertIn("pendingCommands++", self.template)
+        self.assertIn("commandQueue=commandQueue.then", self.template)
+        self.assertIn("if(pendingCommands===1)draw", self.template)
+        self.assertIn("if(!pendingCommands&&needsReconcile)", self.template)
+        self.assertNotIn("if(sending||ended)return Promise.resolve()", self.template)
+
+    def test_remote_fires_touch_navigation_early_with_feedback(self):
+        self.assertIn("function bindFastPress(button,handler)", self.template)
+        self.assertIn("event.pointerType==='touch'||event.pointerType==='pen'", self.template)
+        self.assertIn("navigator.vibrate(10)", self.template)
+        self.assertIn("pendingCommands?'Sending…':'Connected'", self.template)
+
+    def test_remote_has_boundary_aware_navigation(self):
+        self.assertIn("function updateNavigation()", self.template)
+        self.assertIn("previousBtn.disabled=ended||atStart", self.template)
+        self.assertIn("nextBtn.disabled=ended||atEnd", self.template)
+        self.assertIn("atStart?'Start of set'", self.template)
+        self.assertIn("atEnd?'End of set'", self.template)
+
+    def test_next_preview_is_a_direct_advance_control(self):
+        self.assertIn('id="wr-next-preview" aria-label="Show next slide"', self.template)
+        self.assertIn("bindFastPress(nextPreview,function(){send('next');})", self.template)
+        self.assertIn("Next slide · tap to show", self.template)
+
+    def test_remote_supports_swipe_and_keyboard_clickers(self):
+        self.assertIn("preview.addEventListener('pointerdown'", self.template)
+        self.assertIn("Math.abs(dx)>=50", self.template)
+        self.assertIn("event.key==='ArrowRight'||event.key==='PageDown'||event.key===' '", self.template)
+        self.assertIn("event.key==='ArrowLeft'||event.key==='PageUp'", self.template)
+        self.assertIn("event.key==='Home'", self.template)
+        self.assertIn("event.key==='End'", self.template)
+
+    def test_quick_recovery_controls_are_not_hidden_in_details(self):
+        quick_controls = self.template.index('class="wr-smart"')
+        jump_details = self.template.index('class="wr-quick"')
+        self.assertLess(quick_controls, jump_details)
+        self.assertIn("Jump or repeat · section or slide", self.template)
+
+    def test_remote_shows_item_and_slide_context(self):
+        self.assertIn("function itemContext(index)", self.template)
+        self.assertIn("'Item '+(position+1)+' of '+boundaries.length", self.template)
+        self.assertIn("' · Slide '+(index-itemStart+1)+' of '+(itemEnd-itemStart+1)", self.template)
+
+    def test_presenter_and_stage_poll_at_live_control_speed(self):
+        presenter = (
+            Path(__file__).parents[1] / "templates" / "worship_live_presenter.html"
+        ).read_text(encoding="utf-8")
+        stage = (
+            Path(__file__).parents[1] / "templates" / "worship_live_stage.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("schedulePoll(Date.now()<activeUntil?200:350)", presenter)
+        self.assertIn("schedulePoll(350)", stage)
+        self.assertNotIn("schedulePoll(Date.now()<activeUntil?500:1200)", presenter)
+        self.assertNotIn("schedulePoll(1500)", stage)
 
     def test_presenter_supports_split_service_slides(self):
         presenter = (
