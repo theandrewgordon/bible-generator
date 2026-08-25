@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import app
 
@@ -73,6 +74,81 @@ class WorshipChurchScopeTests(unittest.TestCase):
         finally:
             app.db = original_db
             app._user_can_access_worship_church = original_access
+
+    def test_stale_scope_guard_accepts_header_and_rejects_mismatch(self):
+        with app.app.test_request_context(
+            "/worship/set/save",
+            method="POST",
+            headers={"X-Worship-Scope": "first-church"},
+        ):
+            with patch.object(app, "_current_worship_scope", return_value="second-church"):
+                response, status = app._worship_scope_changed_response()
+
+        self.assertEqual(status, 409)
+        self.assertFalse(response.get_json()["ok"])
+
+    def test_church_creation_uses_unique_id_and_atomic_batch(self):
+        class _Ref:
+            def __init__(self, path):
+                self.path = path
+
+            def collection(self, name):
+                return _Collection(f"{self.path}/{name}")
+
+        class _Collection:
+            def __init__(self, path):
+                self.path = path
+
+            def document(self, document_id):
+                return _Ref(f"{self.path}/{document_id}")
+
+        class _Batch:
+            def __init__(self):
+                self.operations = []
+                self.committed = False
+
+            def create(self, ref, data):
+                self.operations.append(("create", ref.path, data))
+
+            def set(self, ref, data, merge=False):
+                self.operations.append(("set", ref.path, data, merge))
+
+            def commit(self):
+                self.committed = True
+
+        class _Db:
+            def __init__(self):
+                self.writes = _Batch()
+
+            def collection(self, name):
+                return _Collection(name)
+
+            def batch(self):
+                return self.writes
+
+        fake_db = _Db()
+        original_db = app.db
+        try:
+            app.db = fake_db
+            with app.app.test_request_context(
+                "/worship/church/create",
+                method="POST",
+                data={"church_name": "Grace Church"},
+            ):
+                app.session["user_email"] = "owner@example.com"
+                with patch.object(app, "_invalidate_worship_cache"):
+                    response = app.worship_church_create.__wrapped__()
+                selected = app.session["worship_church_id"]
+        finally:
+            app.db = original_db
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRegex(selected, r"^grace-church-[0-9a-f]{12}$")
+        self.assertTrue(fake_db.writes.committed)
+        self.assertEqual([op[0] for op in fake_db.writes.operations], ["create", "set", "set"])
+        self.assertEqual(fake_db.writes.operations[0][1], f"worship_churches/{selected}")
+        self.assertEqual(fake_db.writes.operations[1][1], f"worship_churches/{selected}/members/owner@example.com")
+        self.assertEqual(fake_db.writes.operations[2][1], "users/owner@example.com")
 
 
 if __name__ == "__main__":

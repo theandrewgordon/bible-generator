@@ -32,6 +32,36 @@ class WorshipSetOrderUiTests(unittest.TestCase):
         self.assertIn("clearTimeout(mobileLinkTimer)", template)
         self.assertIn("setTimeout(refreshMobileShare, 180)", template)
 
+    def test_dynamic_video_items_link_to_video_editor(self):
+        template = (Path(__file__).parents[1] / "templates" / "worship.html").read_text(encoding="utf-8")
+
+        self.assertIn("song.type === 'video'", template)
+        self.assertIn("'/worship/video/' + encodeURIComponent(id)", template)
+
+    def test_mobile_set_panel_can_shrink_without_horizontal_overflow(self):
+        template = (Path(__file__).parents[1] / "templates" / "worship.html").read_text(encoding="utf-8")
+
+        self.assertIn(".ws-set-panel{position:sticky;top:1rem;align-self:start;min-width:0", template)
+        self.assertIn(".ws-set-panel{position:static;order:-1;width:100%;min-width:0", template)
+        self.assertIn("overflow-y:visible;box-sizing:border-box", template)
+        self.assertIn(".set-item{align-items:flex-start;min-width:0", template)
+
+    def test_scripture_tabs_and_dialogs_have_keyboard_support(self):
+        template = (Path(__file__).parents[1] / "templates" / "worship.html").read_text(encoding="utf-8")
+
+        self.assertIn('role="tablist"', template)
+        self.assertIn('role="tabpanel"', template)
+        self.assertIn("function trapDialogFocus", template)
+        self.assertIn("event.key === 'Escape'", template)
+        self.assertIn("openModalBackdrop(quickScriptureModal, quickScriptureReference, returnFocus)", template)
+
+    def test_base_template_propagates_worship_scope_to_all_writes(self):
+        template = (Path(__file__).parents[1] / "templates" / "base.html").read_text(encoding="utf-8")
+
+        self.assertIn('name="worship-scope"', template)
+        self.assertIn('init.headers.set("X-Worship-Scope", worshipScope)', template)
+        self.assertIn('scopeInput.name = "worship_scope"', template)
+
 
 if __name__ == "__main__":
     unittest.main()

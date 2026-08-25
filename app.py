@@ -574,8 +574,14 @@ def csrf_protect():
 
 @app.context_processor
 def inject_csrf():
-    """Expose csrf_token() helper to all templates."""
-    return {"csrf_token": _get_csrf_token}
+    """Expose request-bound security context to all templates."""
+    worship_scope = ""
+    if (request.path or "").startswith("/worship") and session.get("user_email"):
+        try:
+            worship_scope = _current_worship_scope()
+        except Exception:
+            worship_scope = ""
+    return {"csrf_token": _get_csrf_token, "worship_scope": worship_scope}
 
 
 @app.before_request
@@ -917,13 +923,40 @@ def _current_worship_scope() -> str:
 
 def _worship_scope_changed_response():
     """Reject stale worship tabs before they resolve items in the wrong library."""
-    expected = _slugify_worship_token(request.form.get("worship_scope", "").strip())
+    payload = request.get_json(silent=True) if request.is_json else request.form
+    expected = _slugify_worship_token(
+        str(request.headers.get("X-Worship-Scope") or (payload or {}).get("worship_scope") or "").strip()
+    )
     if expected and expected != _current_worship_scope():
         return jsonify({
             "ok": False,
             "error": "Your worship library session changed. Refresh the page and sign in again.",
         }), 409
     return None
+
+
+_WORSHIP_SCOPE_GUARD_EXEMPT_PREFIXES = (
+    "/worship/church/create",
+    "/worship/church/join",
+    "/worship/church/switch",
+    "/worship/live/exchange/",
+    "/worship/live/control/",
+)
+
+
+@app.before_request
+def reject_stale_worship_tab():
+    """Apply the page's immutable worship scope to every session-backed write."""
+    path = request.path or ""
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"} or not path.startswith("/worship"):
+        return None
+    if any(path.startswith(prefix) for prefix in _WORSHIP_SCOPE_GUARD_EXEMPT_PREFIXES):
+        return None
+    response = _worship_scope_changed_response()
+    if response is None or request.headers.get("X-Worship-Scope"):
+        return response
+    flash("Your worship library changed in another tab. Refresh this page and try again.", "warning")
+    return redirect(url_for("worship"))
 
 
 def _normalize_worship_invite_code(value: str) -> str:
@@ -3210,16 +3243,21 @@ def worship_church_create():
     if not name:
         flash("Church name is required.", "warning")
         return redirect(url_for("worship"))
-    church_id = _slugify_worship_token(name) or f"church-{secrets.token_hex(3)}"
-    base_id = church_id
-    suffix = 2
+    if len(name) > 120:
+        flash("Keep the church name under 120 characters.", "warning")
+        return redirect(url_for("worship"))
+    base_id = (_slugify_worship_token(name) or "church")[:80]
+    # A random internal suffix prevents two unrelated churches with the same
+    # display name from ever resolving to the same tenant document.
+    church_id = f"{base_id}-{secrets.token_hex(6)}"
     try:
-        while db.collection(_WORSHIP_CHURCH_COLLECTION).document(church_id).get().exists:
-            church_id = f"{base_id}-{suffix}"
-            suffix += 1
         invite_code = _make_worship_invite_code(name)
         church_ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(church_id)
-        church_ref.set(
+        member_ref = church_ref.collection("members").document(session["user_email"])
+        user_ref = db.collection("users").document(session["user_email"])
+        batch = db.batch()
+        batch.create(
+            church_ref,
             {
                 "id": church_id,
                 "name": name,
@@ -3227,13 +3265,23 @@ def worship_church_create():
                 "created_by": session.get("user_email"),
                 "created_at": firestore.SERVER_TIMESTAMP,
                 "updated_at": firestore.SERVER_TIMESTAMP,
-            }
+            },
         )
-        church_ref.collection("members").document(session["user_email"]).set(
+        batch.set(
+            member_ref,
             {"email": session["user_email"], "role": "owner", "joined_at": firestore.SERVER_TIMESTAMP},
             merge=True,
         )
-        _set_current_worship_church(church_id)
+        batch.set(
+            user_ref,
+            {
+                "worshipChurchId": church_id,
+                "worshipChurchIds": firestore.ArrayUnion([church_id]),
+            },
+            merge=True,
+        )
+        batch.commit()
+        session["worship_church_id"] = church_id
         _invalidate_worship_cache()
         flash(f"Created {name}. Invite code: {invite_code}", "success")
     except Exception as exc:

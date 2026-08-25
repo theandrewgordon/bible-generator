@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta name="csrf-token" content="{{ csrf_token() }}" />
+    {% if worship_scope %}<meta name="worship-scope" content="{{ worship_scope }}" />{% endif %}
 
     <meta charset="UTF-8" />
     <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
@@ -751,6 +752,9 @@
         const token = document.querySelector(
           'meta[name="csrf-token"]'
         )?.content;
+        const worshipScope = document.querySelector(
+          'meta[name="worship-scope"]'
+        )?.content;
         if (!token) return;
 
         const _fetch = window.fetch.bind(window);
@@ -769,6 +773,26 @@
                 init.headers["X-CSRF-Token"] = token;
             }
             init.credentials = init.credentials || "same-origin";
+            try {
+              const dest = new URL(
+                typeof input === "string" ? input : input.url,
+                window.location.href
+              );
+              if (
+                worshipScope &&
+                dest.origin === window.location.origin &&
+                dest.pathname.startsWith("/worship")
+              ) {
+                if (init.headers instanceof Headers) {
+                  if (!init.headers.get("X-Worship-Scope"))
+                    init.headers.set("X-Worship-Scope", worshipScope);
+                } else if (!init.headers["X-Worship-Scope"]) {
+                  init.headers["X-Worship-Scope"] = worshipScope;
+                }
+              }
+            } catch (err) {
+              /* Leave malformed or non-URL fetch inputs unchanged. */
+            }
           }
 
           return _fetch(input, init);
@@ -784,6 +808,9 @@
         const token = document.querySelector(
           'meta[name="csrf-token"]'
         )?.content;
+        const worshipScope = document.querySelector(
+          'meta[name="worship-scope"]'
+        )?.content;
         if (!token) return;
         document.addEventListener(
           "submit",
@@ -792,19 +819,32 @@
             if (!form || form.tagName !== "FORM") return;
             if ((form.getAttribute("method") || "GET").toUpperCase() !== "POST")
               return;
-            if (form.querySelector('input[name="csrf_token"]')) return;
             // Same-origin only — never leak the token to an external action.
+            let dest;
             try {
-              const dest = new URL(form.action, window.location.href);
+              dest = new URL(form.action, window.location.href);
               if (dest.origin !== window.location.origin) return;
             } catch (err) {
               return;
             }
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = "csrf_token";
-            input.value = token;
-            form.appendChild(input);
+            if (!form.querySelector('input[name="csrf_token"]')) {
+              const input = document.createElement("input");
+              input.type = "hidden";
+              input.name = "csrf_token";
+              input.value = token;
+              form.appendChild(input);
+            }
+            if (
+              worshipScope &&
+              dest.pathname.startsWith("/worship") &&
+              !form.querySelector('input[name="worship_scope"]')
+            ) {
+              const scopeInput = document.createElement("input");
+              scopeInput.type = "hidden";
+              scopeInput.name = "worship_scope";
+              scopeInput.value = worshipScope;
+              form.appendChild(scopeInput);
+            }
           },
           true
         );

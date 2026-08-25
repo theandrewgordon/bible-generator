@@ -54,12 +54,12 @@
   .ws-share-copy.is-copied:hover{background:#15803d}
   .ws-del:hover{background:#fee2e2}
   .set-note{display:block;width:100%;margin-top:4px;padding:2px 4px;font-size:.78rem;color:var(--text-secondary);border:none;border-bottom:1px solid transparent;background:transparent;outline:none;font-family:inherit}
-  .set-note:focus{border-bottom-color:#cbd5e1}
+  .set-note:focus-visible{border-bottom-color:transparent;outline:2px solid var(--primary);outline-offset:2px}
   .set-note::placeholder{color:#94a3b8}
   .lib-row--in-set{background:color-mix(in srgb, var(--primary) 6%, var(--background));border-left:3px solid var(--primary);padding-left:7px}
   .ws-workspace{display:grid;grid-template-columns:1fr 360px;gap:1.5rem;align-items:start}
   .ws-library-panel{min-width:0}
-  .ws-set-panel{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow-y:auto}
+  .ws-set-panel{position:sticky;top:1rem;align-self:start;min-width:0;max-height:calc(100vh - 2rem);overflow-y:auto}
   .ws-set-summary{display:none;margin:.4rem 0 .75rem;padding:.6rem .75rem;border:1px solid #e2e8f0;border-radius:8px;background:var(--background)}
   .ws-set-summary strong{display:block;font-size:.84rem;margin-bottom:.2rem}
   .ws-set-summary span{display:block;font-size:.78rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -155,17 +155,17 @@
     .setlist-chip-wrap{width:100%;display:grid;grid-template-columns:1fr auto auto auto auto}
     .setlist-meta{grid-column:1 / -1}
     .ws-workspace{display:flex;flex-direction:column;gap:1rem}
-    .ws-set-panel{position:static;order:-1;max-height:none;overflow-y:visible}
+    .ws-set-panel{position:static;order:-1;width:100%;min-width:0;max-height:none;overflow-y:visible;box-sizing:border-box}
     .ws-set-card{padding:1rem;margin-top:0;border-radius:10px}
     .ws-library-panel{width:100%}
     .lib-row{align-items:flex-start;padding:10px 0;gap:.45rem}
     .lib-row > span{display:block;line-height:1.25}
-    .ws-add{min-height:34px;padding:5px 10px}
-    .ws-del,.set-remove{min-width:34px;min-height:34px;font-size:1rem}
-    .set-item{align-items:flex-start;gap:.45rem;padding:10px 8px}
+    .ws-add{min-height:44px;padding:5px 10px}
+    .ws-del,.set-remove{min-width:44px;min-height:44px;font-size:1rem}
+    .set-item{align-items:flex-start;min-width:0;gap:.45rem;padding:10px 8px}
     .drag-handle{font-size:1.3rem;padding:5px 4px;touch-action:none}
     .set-reorder{flex-direction:row}
-    .set-reorder button{width:34px;height:34px;font-size:.85rem}
+    .set-reorder button{width:44px;height:44px;font-size:.85rem}
     .set-note{font-size:.85rem;margin-top:6px;padding:6px 0}
     .ws-btn-primary,.ws-btn-ghost{min-height:42px}
     .ws-share-card{padding:.85rem;border-radius:10px}
@@ -410,12 +410,12 @@
   <form class="ws-modal" id="quick-scripture-form" role="dialog" aria-modal="true" aria-labelledby="quick-scripture-title">
     <h2 id="quick-scripture-title">Quick Scripture</h2>
     <p>Enter a passage, preview the exact sourced text, and add it directly to this week’s set.</p>
-    <div class="ws-scripture-modes" role="tablist" aria-label="Scripture entry method"><button class="ws-scripture-mode is-active" type="button" data-scripture-mode="sourced">Find passage</button><button class="ws-scripture-mode" type="button" data-scripture-mode="manual">Paste your own text</button></div>
-    <div class="ws-scripture-panel" data-scripture-panel="sourced"><div class="ws-scripture-row">
+    <div class="ws-scripture-modes" role="tablist" aria-label="Scripture entry method"><button class="ws-scripture-mode is-active" id="scripture-tab-sourced" type="button" role="tab" aria-selected="true" aria-controls="scripture-panel-sourced" data-scripture-mode="sourced">Find passage</button><button class="ws-scripture-mode" id="scripture-tab-manual" type="button" role="tab" aria-selected="false" aria-controls="scripture-panel-manual" tabindex="-1" data-scripture-mode="manual">Paste your own text</button></div>
+    <div class="ws-scripture-panel" id="scripture-panel-sourced" role="tabpanel" aria-labelledby="scripture-tab-sourced" data-scripture-panel="sourced"><div class="ws-scripture-row">
       <div><label for="quick-scripture-reference">Bible reference</label><input id="quick-scripture-reference" placeholder="John 3:16–17" autocomplete="off" required></div>
       <div><label for="quick-scripture-version">Version</label><select id="quick-scripture-version">{% for version in worship_scripture_versions %}<option value="{{ version.id }}">{{ version.label }}</option>{% endfor %}</select></div>
     </div></div>
-    <div class="ws-scripture-panel" data-scripture-panel="manual" hidden>
+    <div class="ws-scripture-panel" id="scripture-panel-manual" role="tabpanel" aria-labelledby="scripture-tab-manual" data-scripture-panel="manual" hidden>
       <div class="ws-scripture-row"><div><label for="manual-scripture-reference">Reference or title</label><input id="manual-scripture-reference" placeholder="John 1:1–2" autocomplete="off"></div><div><label for="manual-scripture-version">Version</label><input id="manual-scripture-version" placeholder="NIV"></div></div>
       <label for="manual-scripture-text" style="margin-top:.65rem">Scripture text or copied webpage</label><textarea id="manual-scripture-text" placeholder="Paste exact text—or a copied Bible webpage. Obvious navigation, verse numbers, footnotes, and boilerplate will be removed before preview."></textarea>
       <label class="ws-manual-rights"><input id="manual-scripture-rights" type="checkbox"><span>I confirm my church may display this translation and I checked the reference, wording, and attribution. Faith Sparks did not source or verify this text.</span></label>
@@ -547,6 +547,48 @@
   var currentSetlistId = '';
   var currentSetlistName = '';
 
+  function openModalBackdrop(backdrop, initialFocus, returnFocus) {
+    if (!backdrop) return;
+    backdrop._returnFocus = returnFocus || document.activeElement;
+    backdrop.classList.add('is-open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () {
+      var target = initialFocus || backdrop.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (target) target.focus();
+    }, 0);
+  }
+
+  function closeModalBackdrop(backdrop, fallbackFocus) {
+    if (!backdrop) return;
+    backdrop.classList.remove('is-open');
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    var returnFocus = backdrop._returnFocus;
+    if (!returnFocus || returnFocus === document.body) returnFocus = fallbackFocus;
+    backdrop._returnFocus = null;
+    if (returnFocus && document.contains(returnFocus)) returnFocus.focus();
+  }
+
+  function openDialogBackdrop() {
+    return document.querySelector('.ws-tour-backdrop.is-open, .ws-modal-backdrop.is-open');
+  }
+
+  function trapDialogFocus(event, backdrop) {
+    var dialog = backdrop ? backdrop.querySelector('[role="dialog"]') : null;
+    if (!dialog) return;
+    var focusable = Array.from(dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      .filter(function (element) { return !element.hidden && element.getClientRects().length; });
+    if (!focusable.length) { event.preventDefault(); dialog.focus(); return; }
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+      event.preventDefault(); first.focus();
+    }
+  }
+
   // ── First-run walkthrough ───────────────────────────────────────────────
 
   var worshipTour = document.getElementById('worship-tour');
@@ -586,6 +628,7 @@
       dot.type = 'button';
       dot.className = 'ws-tour-dot' + (index === worshipTourIndex ? ' is-active' : '');
       dot.setAttribute('aria-label', 'Show walkthrough step ' + (index + 1));
+      if (index === worshipTourIndex) dot.setAttribute('aria-current', 'step');
       dot.addEventListener('click', function () { worshipTourIndex = index; renderWorshipTour(); });
       worshipTourProgress.appendChild(dot);
     });
@@ -595,19 +638,13 @@
     if (!worshipTour) return;
     worshipTourIndex = 0;
     renderWorshipTour();
-    worshipTour.classList.add('is-open');
-    worshipTour.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    setTimeout(function () { worshipTourClose.focus(); }, 0);
+    openModalBackdrop(worshipTour, worshipTourClose);
   }
 
   function closeWorshipTour(markSeen) {
     if (!worshipTour) return;
-    worshipTour.classList.remove('is-open');
-    worshipTour.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
     if (markSeen) try { localStorage.setItem(WORSHIP_TOUR_KEY, '1'); } catch (error) {}
-    if (worshipTourBtn) worshipTourBtn.focus();
+    closeModalBackdrop(worshipTour, worshipTourBtn);
   }
 
   if (worshipTourBtn) worshipTourBtn.addEventListener('click', openWorshipTour);
@@ -623,10 +660,20 @@
     if (event.target === worshipTour) closeWorshipTour(true);
   });
   document.addEventListener('keydown', function (event) {
-    if (!worshipTour || !worshipTour.classList.contains('is-open')) return;
-    if (event.key === 'Escape') closeWorshipTour(true);
-    if (event.key === 'ArrowRight' && worshipTourIndex < WORSHIP_TOUR_SLIDES.length - 1) { worshipTourIndex += 1; renderWorshipTour(); }
-    if (event.key === 'ArrowLeft' && worshipTourIndex > 0) { worshipTourIndex -= 1; renderWorshipTour(); }
+    var backdrop = openDialogBackdrop();
+    if (!backdrop) return;
+    if (event.key === 'Tab') { trapDialogFocus(event, backdrop); return; }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      if (backdrop === worshipTour) closeWorshipTour(true);
+      else if (backdrop === quickScriptureModal) closeQuickScripture();
+      else if (backdrop === saveModal) closeSaveModal();
+      else if (backdrop === resetModal) closeResetModal();
+      else if (backdrop === deleteChurchModal) closeDeleteChurchModal();
+      return;
+    }
+    if (backdrop === worshipTour && event.key === 'ArrowRight' && worshipTourIndex < WORSHIP_TOUR_SLIDES.length - 1) { worshipTourIndex += 1; renderWorshipTour(); }
+    if (backdrop === worshipTour && event.key === 'ArrowLeft' && worshipTourIndex > 0) { worshipTourIndex -= 1; renderWorshipTour(); }
   });
 
   var loadingSet = false;
@@ -639,8 +686,7 @@
 
   function closeQuickScripture() {
     if (!quickScriptureModal) return;
-    quickScriptureModal.classList.remove('is-open');
-    quickScriptureModal.setAttribute('aria-hidden', 'true');
+    closeModalBackdrop(quickScriptureModal, quickScriptureBtn);
   }
 
   function quickScripturePayload() {
@@ -675,10 +721,9 @@
   if (quickScriptureBtn && quickScriptureModal) {
     quickScriptureBtn.addEventListener('click', function () {
       var sourceMenu = quickScriptureBtn.closest('details');
+      var returnFocus = sourceMenu ? sourceMenu.querySelector('summary') : quickScriptureBtn;
       if (sourceMenu) sourceMenu.removeAttribute('open');
-      quickScriptureModal.classList.add('is-open');
-      quickScriptureModal.setAttribute('aria-hidden', 'false');
-      setTimeout(function () { quickScriptureReference.focus(); }, 0);
+      openModalBackdrop(quickScriptureModal, quickScriptureReference, returnFocus);
     });
     quickScriptureModal.addEventListener('click', function (event) {
       if (event.target === quickScriptureModal) closeQuickScripture();
@@ -687,7 +732,12 @@
     quickScriptureModeButtons.forEach(function (button) {
       button.addEventListener('click', function () {
         quickScriptureMode = button.dataset.scriptureMode;
-        quickScriptureModeButtons.forEach(function (item) { item.classList.toggle('is-active', item === button); });
+        quickScriptureModeButtons.forEach(function (item) {
+          var selected = item === button;
+          item.classList.toggle('is-active', selected);
+          item.setAttribute('aria-selected', selected ? 'true' : 'false');
+          item.tabIndex = selected ? 0 : -1;
+        });
         quickScripturePanels.forEach(function (panel) { panel.hidden = panel.dataset.scripturePanel !== quickScriptureMode; });
         quickScriptureReference.required = quickScriptureMode === 'sourced';
         quickScriptureAdd.disabled = true;
@@ -695,6 +745,16 @@
         quickScriptureStatus.textContent = quickScriptureMode === 'manual' ? 'Paste exact authorized text, then preview every slide.' : 'Only translations with an authoritative configured source appear here.';
         var focusField = quickScriptureMode === 'manual' ? manualScriptureReference : quickScriptureReference;
         if (focusField) focusField.focus();
+      });
+    });
+    quickScriptureModeButtons.forEach(function (button, index) {
+      button.addEventListener('keydown', function (event) {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        var nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? quickScriptureModeButtons.length - 1 :
+          (index + (event.key === 'ArrowRight' ? 1 : -1) + quickScriptureModeButtons.length) % quickScriptureModeButtons.length;
+        quickScriptureModeButtons[nextIndex].click();
+        quickScriptureModeButtons[nextIndex].focus();
       });
     });
     [quickScriptureReference, quickScriptureVersion, manualScriptureReference, manualScriptureVersion, manualScriptureText, manualScriptureRights].forEach(function (field) {
@@ -1071,7 +1131,11 @@
     info.appendChild(note);
 
     var editLink = document.createElement('a');
-    editLink.href = song.type === 'presentation' ? '/worship/presentation/' + id : '/worship/edit/' + id;
+    editLink.href = song.type === 'presentation'
+      ? '/worship/presentation/' + encodeURIComponent(id)
+      : song.type === 'video'
+        ? '/worship/video/' + encodeURIComponent(id)
+        : '/worship/edit/' + encodeURIComponent(id);
     editLink.textContent = 'Edit';
     editLink.style.cssText = 'font-size:.8em;color:var(--text-secondary);text-decoration:none;white-space:nowrap;padding:2px 4px;border-radius:4px;flex-shrink:0';
 
@@ -1239,19 +1303,14 @@
   if (resetLibraryBtn) {
     resetLibraryBtn.addEventListener('click', function () {
       if (!resetModal) return;
-      resetModal.classList.add('is-open');
-      resetModal.setAttribute('aria-hidden', 'false');
-      if (resetInput) {
-        resetInput.value = '';
-        setTimeout(function () { resetInput.focus(); }, 0);
-      }
+      if (resetInput) resetInput.value = '';
+      openModalBackdrop(resetModal, resetInput);
     });
   }
 
   function closeResetModal() {
     if (!resetModal) return;
-    resetModal.classList.remove('is-open');
-    resetModal.setAttribute('aria-hidden', 'true');
+    closeModalBackdrop(resetModal, resetLibraryBtn);
   }
 
   if (resetCancelBtn) resetCancelBtn.addEventListener('click', closeResetModal);
@@ -1262,13 +1321,11 @@
   }
   function closeDeleteChurchModal() {
     if (!deleteChurchModal) return;
-    deleteChurchModal.classList.remove('is-open');
-    deleteChurchModal.setAttribute('aria-hidden', 'true');
+    closeModalBackdrop(deleteChurchModal, deleteChurchBtn);
   }
   if (deleteChurchBtn) deleteChurchBtn.addEventListener('click', function () {
-    deleteChurchModal.classList.add('is-open');
-    deleteChurchModal.setAttribute('aria-hidden', 'false');
-    if (deleteChurchInput) { deleteChurchInput.value = ''; setTimeout(function () { deleteChurchInput.focus(); }, 0); }
+    if (deleteChurchInput) deleteChurchInput.value = '';
+    openModalBackdrop(deleteChurchModal, deleteChurchInput);
   });
   if (deleteChurchCancel) deleteChurchCancel.addEventListener('click', closeDeleteChurchModal);
   if (deleteChurchModal) deleteChurchModal.addEventListener('click', function (event) {
@@ -1487,15 +1544,13 @@
       return;
     }
     saveNameInput.value = currentSetlistName || todayLabel();
-    saveModal.classList.add('is-open');
-    saveModal.setAttribute('aria-hidden', 'false');
-    setTimeout(function () { saveNameInput.focus(); saveNameInput.select(); }, 0);
+    openModalBackdrop(saveModal, saveNameInput);
+    setTimeout(function () { saveNameInput.select(); }, 0);
   }
 
   function closeSaveModal() {
     if (!saveModal) return;
-    saveModal.classList.remove('is-open');
-    saveModal.setAttribute('aria-hidden', 'true');
+    closeModalBackdrop(saveModal, saveBtn);
   }
 
   function saveCurrentSet(enteredName) {
