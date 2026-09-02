@@ -8,9 +8,8 @@ release the parent between its assisted phases.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Iterable
-
+from collections.abc import Iterable
+from dataclasses import dataclass, replace
 
 PARENT = "parent"
 STUDENT = "student"
@@ -30,7 +29,7 @@ class Task:
     subject: str
     student_ids: tuple[str, ...]
     phases: tuple[Phase, ...]
-    due_day: int = 1
+    due_day: int = 2
     priority: int = 0
     preferred_start: tuple[int, int] | None = None
 
@@ -68,10 +67,18 @@ STUDENTS = {
 
 DAYS = (
     Day(
+        "mon",
+        "Monday",
+        9 * 60,
+        16 * 60,
+        parent_unavailable=((10 * 60 + 30, 11 * 60),),
+        preferred_parent=((9 * 60 + 30, 10 * 60 + 30),),
+    ),
+    Day(
         "tue",
         "Tuesday",
         9 * 60,
-        12 * 60 + 30,
+        16 * 60,
         parent_unavailable=((10 * 60 + 30, 11 * 60),),
         preferred_parent=((9 * 60 + 30, 10 * 60 + 30),),
     ),
@@ -79,7 +86,7 @@ DAYS = (
         "wed",
         "Wednesday",
         9 * 60,
-        12 * 60 + 30,
+        16 * 60,
         parent_unavailable=((10 * 60 + 30, 11 * 60),),
         preferred_parent=((9 * 60 + 30, 10 * 60 + 30),),
     ),
@@ -87,7 +94,7 @@ DAYS = (
         "thu",
         "Thursday",
         9 * 60,
-        12 * 60 + 30,
+        16 * 60,
         parent_unavailable=((10 * 60 + 30, 11 * 60),),
         preferred_parent=((9 * 60 + 30, 10 * 60 + 30),),
     ),
@@ -95,11 +102,142 @@ DAYS = (
         "fri",
         "Friday",
         9 * 60,
-        12 * 60 + 30,
+        16 * 60,
         parent_unavailable=((10 * 60 + 30, 11 * 60),),
         preferred_parent=((9 * 60 + 30, 10 * 60 + 30),),
     ),
 )
+
+
+MORNING_END = 12 * 60 + 30
+EXTENDED_END = 16 * 60
+DEFAULT_EXTENDED_DAYS = ("mon", "tue", "wed", "thu")
+KNOWN_DISRUPTIONS = {
+    "sick_monday",
+    "grandma_wednesday",
+    "parent_appointment_tuesday",
+    "missed_nap_wednesday",
+    "friday_off",
+    "lost_tuesday",
+}
+COOP_CREDIT_SUBJECTS = {"Science", "History", "Fine Arts"}
+
+
+def default_scenario() -> dict[str, object]:
+    """Return the realistic weekly rhythm used by the interactive lab."""
+
+    availability_end = {
+        PARENT: {day.id: MORNING_END for day in DAYS},
+        "tessa": {
+            day.id: EXTENDED_END if day.id in DEFAULT_EXTENDED_DAYS else MORNING_END
+            for day in DAYS
+        },
+        "diana": {day.id: MORNING_END for day in DAYS},
+        "elsie": {day.id: MORNING_END for day in DAYS},
+    }
+    return {
+        "coop_monday": True,
+        "coop_credit_subjects": [],
+        "extended_days": list(DEFAULT_EXTENDED_DAYS),
+        "availability_end": availability_end,
+        "disruptions": [],
+        "completed_task_ids": [],
+        "allow_next_week": True,
+        "deadline_policy": "strict",
+    }
+
+
+def normalize_scenario(
+    scenario: dict[str, object] | None = None,
+    *,
+    missed_tuesday: bool = False,
+) -> dict[str, object]:
+    """Validate and normalize user-facing planning controls."""
+
+    supplied = scenario or {}
+    normalized = default_scenario()
+    if scenario:
+        normalized.update(scenario)
+
+    for field in ("coop_monday", "allow_next_week"):
+        if not isinstance(normalized.get(field), bool):
+            raise TypeError(f"{field} must be a boolean")
+
+    deadline_policy = normalized.get("deadline_policy")
+    if deadline_policy not in {"strict", "essentials", "balanced"}:
+        raise ValueError("deadline_policy must be strict, essentials, or balanced")
+
+    extended_days = normalized.get("extended_days", [])
+    if not isinstance(extended_days, list) or not all(
+        isinstance(day_id, str) and day_id in {day.id for day in DAYS}
+        for day_id in extended_days
+    ):
+        raise ValueError("extended_days must contain valid weekday ids")
+    normalized["extended_days"] = list(dict.fromkeys(extended_days))
+
+    if "availability_end" not in supplied:
+        availability_end = default_scenario()["availability_end"]
+        availability_end["tessa"] = {
+            day.id: EXTENDED_END if day.id in extended_days else MORNING_END
+            for day in DAYS
+        }
+    else:
+        availability_end = normalized.get("availability_end")
+    resources = {PARENT, *STUDENTS}
+    day_ids = {day.id for day in DAYS}
+    if not isinstance(availability_end, dict) or set(availability_end) != resources:
+        raise ValueError("availability_end must include parent and every student")
+    for resource, day_values in availability_end.items():
+        if not isinstance(day_values, dict) or set(day_values) != day_ids:
+            raise ValueError(
+                f"availability_end.{resource} must include every weekday"
+            )
+        if not all(
+            isinstance(end, int)
+            and not isinstance(end, bool)
+            and (end == 0 or 9 * 60 <= end <= EXTENDED_END)
+            for end in day_values.values()
+        ):
+            raise ValueError("availability end times must be off or between 9 AM and 4 PM")
+    normalized["availability_end"] = {
+        resource: dict(day_values)
+        for resource, day_values in availability_end.items()
+    }
+    normalized["extended_days"] = [
+        day.id
+        for day in DAYS
+        if normalized["availability_end"]["tessa"][day.id] > MORNING_END
+    ]
+
+    disruptions = normalized.get("disruptions", [])
+    if not isinstance(disruptions, list) or not all(
+        isinstance(item, str) and item in KNOWN_DISRUPTIONS for item in disruptions
+    ):
+        raise ValueError("disruptions contains an unknown event")
+    disruptions = list(dict.fromkeys(disruptions))
+    if missed_tuesday and "lost_tuesday" not in disruptions:
+        disruptions.append("lost_tuesday")
+    normalized["disruptions"] = disruptions
+
+    completed = normalized.get("completed_task_ids", [])
+    task_ids = {task.id for task in TASKS}
+    if not isinstance(completed, list) or not all(
+        isinstance(task_id, str) and task_id in task_ids for task_id in completed
+    ):
+        raise ValueError("completed_task_ids contains an unknown assignment")
+    normalized["completed_task_ids"] = list(dict.fromkeys(completed))
+
+    credits = normalized.get("coop_credit_subjects", [])
+    if not isinstance(credits, list) or not all(
+        isinstance(subject, str) and subject in COOP_CREDIT_SUBJECTS
+        for subject in credits
+    ):
+        raise ValueError("coop_credit_subjects contains an unsupported subject")
+    normalized["coop_credit_subjects"] = list(dict.fromkeys(credits))
+    if not normalized["coop_monday"]:
+        normalized["coop_credit_subjects"] = []
+
+    return normalized
 
 
 TASKS = (
@@ -241,6 +379,163 @@ TASKS = (
 )
 
 
+def _set_window(
+    bits: list[bool], day: Day, start: int, end: int, *, available: bool
+) -> None:
+    left = max(0, start - day.start_minute)
+    right = min(day.duration, end - day.start_minute)
+    if right > left:
+        bits[left:right] = [available] * (right - left)
+
+
+def _build_availability(
+    scenario: dict[str, object],
+) -> tuple[dict[str, dict[str, list[bool]]], dict[str, list[dict[str, object]]]]:
+    resources = [PARENT, *STUDENTS]
+    availability = {
+        resource: {day.id: [False] * day.duration for day in DAYS}
+        for resource in resources
+    }
+    events = {day.id: [] for day in DAYS}
+    availability_end = scenario["availability_end"]
+
+    for day in DAYS:
+        for resource in resources:
+            end = availability_end[resource][day.id]
+            if not end:
+                continue
+            _set_window(
+                availability[resource][day.id],
+                day,
+                day.start_minute,
+                end,
+                available=True,
+            )
+        for start, end in day.parent_unavailable:
+            _set_window(
+                availability[PARENT][day.id],
+                day,
+                start,
+                end,
+                available=False,
+            )
+
+    def block(
+        day_id: str,
+        start: int,
+        end: int,
+        affected: Iterable[str],
+        *,
+        event_id: str,
+        title: str,
+        detail: str,
+        kind: str,
+    ) -> None:
+        day = next(item for item in DAYS if item.id == day_id)
+        affected_ids = list(affected)
+        for resource in affected_ids:
+            _set_window(
+                availability[resource][day_id],
+                day,
+                start,
+                end,
+                available=False,
+            )
+        events[day_id].append(
+            {
+                "id": event_id,
+                "title": title,
+                "detail": detail,
+                "kind": kind,
+                "start": _fmt_time(start),
+                "end": _fmt_time(end),
+                "affected": affected_ids,
+            }
+        )
+
+    if scenario["coop_monday"]:
+        block(
+            "mon",
+            8 * 60 + 30,
+            15 * 60 + 15,
+            resources,
+            event_id="coop_monday",
+            title="CC / co-op day",
+            detail="Includes travel and transition time; Tessa can resume independent work at 3:15 PM.",
+            kind="commitment",
+        )
+
+    disruptions = set(scenario["disruptions"])
+    if "sick_monday" in disruptions:
+        block(
+            "mon",
+            9 * 60,
+            16 * 60,
+            resources,
+            event_id="sick_monday",
+            title="Family sick day",
+            detail="No school capacity is assumed for the household.",
+            kind="disruption",
+        )
+    if "grandma_wednesday" in disruptions:
+        block(
+            "wed",
+            11 * 60 + 30,
+            16 * 60,
+            resources,
+            event_id="grandma_wednesday",
+            title="Grandma arrives",
+            detail="The school day ends at 11:30 AM so the family can be present.",
+            kind="disruption",
+        )
+    if "parent_appointment_tuesday" in disruptions:
+        block(
+            "tue",
+            10 * 60,
+            11 * 60 + 30,
+            (PARENT,),
+            event_id="parent_appointment_tuesday",
+            title="Parent appointment",
+            detail="Students may continue independent work while parent-led phases pause.",
+            kind="disruption",
+        )
+    if "missed_nap_wednesday" in disruptions:
+        block(
+            "wed",
+            9 * 60 + 30,
+            10 * 60 + 30,
+            (PARENT,),
+            event_id="missed_nap_wednesday",
+            title="Nap window lost",
+            detail="The preferred one-on-one hour is unavailable to the parent.",
+            kind="disruption",
+        )
+    if "friday_off" in disruptions:
+        block(
+            "fri",
+            9 * 60,
+            16 * 60,
+            resources,
+            event_id="friday_off",
+            title="Friday off",
+            detail="No catch-up work is placed on Friday.",
+            kind="disruption",
+        )
+    if "lost_tuesday" in disruptions:
+        block(
+            "tue",
+            9 * 60,
+            16 * 60,
+            resources,
+            event_id="lost_tuesday",
+            title="Tuesday lost",
+            detail="The full school day is unavailable after an unexpected interruption.",
+            kind="disruption",
+        )
+
+    return availability, events
+
+
 def _fmt_time(minute: int) -> str:
     hour, mins = divmod(minute, 60)
     suffix = "AM" if hour < 12 else "PM"
@@ -308,24 +603,27 @@ def _candidate_cost(
     return cost
 
 
-def _capacity_metrics(missed_tuesday: bool) -> dict[str, object]:
-    due_day = max(task.due_day for task in TASKS)
+def _capacity_metrics(
+    tasks: tuple[Task, ...],
+    availability: dict[str, dict[str, list[bool]]],
+) -> dict[str, object]:
+    due_day = max((task.due_day for task in tasks), default=2)
     due_days = DAYS[: due_day + 1]
 
-    parent_capacity = 0
-    student_capacity = {student_id: 0 for student_id in STUDENTS}
-    for day_index, day in enumerate(due_days):
-        if missed_tuesday and day_index == 0:
-            continue
-        unavailable = sum(end - start for start, end in day.parent_unavailable)
-        parent_capacity += day.duration - unavailable
-        for student_id in student_capacity:
-            student_capacity[student_id] += day.duration
+    parent_capacity = sum(
+        sum(availability[PARENT][day.id]) for day in due_days
+    )
+    student_capacity = {
+        student_id: sum(
+            sum(availability[student_id][day.id]) for day in due_days
+        )
+        for student_id in STUDENTS
+    }
 
-    parent_demand = sum(task.parent_minutes for task in TASKS)
+    parent_demand = sum(task.parent_minutes for task in tasks)
     student_demand = {
         student_id: sum(
-            task.total_minutes for task in TASKS if student_id in task.student_ids
+            task.total_minutes for task in tasks if student_id in task.student_ids
         )
         for student_id in STUDENTS
     }
@@ -414,61 +712,114 @@ def _build_explanations(entries: list[dict[str, object]]) -> list[dict[str, str]
 
 
 def _build_recommendations(
-    metrics: dict[str, object], late_entries: list[dict[str, object]]
+    metrics: dict[str, object],
+    late_entries: list[dict[str, object]],
+    unscheduled: list[Task],
+    scenario: dict[str, object],
 ) -> list[dict[str, object]]:
     shortfall = int(metrics["parent_shortfall"])
-    if not shortfall:
+    if not shortfall and not late_entries and not unscheduled:
         return []
 
     late_names = [str(entry["title"]) for entry in late_entries]
-    return [
-        {
-            "kind": "accept",
-            "title": "Keep the conflict-free recovery plan",
-            "body": (
-                f"Let {len(late_names)} assignments move to Thursday: "
-                f"{', '.join(late_names)}. Nothing is double-booked, and all "
-                "fifteen assignments still fit this week."
-            ),
-            "task_ids": [str(entry["task_id"]) for entry in late_entries],
-        },
-        {
-            "kind": "move",
-            "title": "Move three selected lessons past Wednesday",
-            "body": (
-                "Move Plant Cells Lab (40 parent minutes), Fractions Practice "
-                "(13 parent minutes), and Spelling Pattern (15 parent minutes) "
-                "to Thursday. The scheduler verifies that the remaining thirteen "
-                "assignments then fit by Wednesday without conflicts."
-            ),
-            "minutes_freed": 68,
-            "task_ids": ["science", "diana-math", "diana-spelling"],
-        },
-        {
-            "kind": "extend",
-            "title": f"Add {shortfall} minutes of teaching availability",
-            "body": (
-                f"Extending Wednesday's parent availability by {shortfall} "
-                "minutes closes the raw attention-capacity gap. WeekFlow would "
-                "then re-run the phase placement before promising the deadline."
-            ),
-            "minutes_added": shortfall,
-            "task_ids": [],
-        },
-    ]
+    recommendations: list[dict[str, object]] = []
+    if late_entries:
+        recommendations.append(
+            {
+                "kind": "accept",
+                "title": "Keep the conflict-free recovery plan",
+                "body": (
+                    f"Let {len(late_names)} assignment"
+                    f"{'s' if len(late_names) != 1 else ''} move later this week: "
+                    f"{', '.join(late_names)}. The displayed plan remains free of "
+                    "student and parent conflicts."
+                ),
+                "task_ids": [str(entry["task_id"]) for entry in late_entries],
+            }
+        )
+
+        moved_parent_minutes = sum(
+            int(entry["parent_minutes"]) for entry in late_entries
+        )
+        recommendations.append(
+            {
+                "kind": "extend",
+                "title": f"Restore at least {moved_parent_minutes} parent minutes",
+                "body": (
+                    f"The recovery plan moved {moved_parent_minutes} minutes of "
+                    "parent-led work beyond the deadline after accounting for phase "
+                    "sequencing. Add a usable teaching window, then re-run WeekFlow "
+                    "before promising the original due date."
+                ),
+                "minutes_added": moved_parent_minutes,
+                "task_ids": [],
+            }
+        )
+
+    if unscheduled:
+        if scenario["allow_next_week"]:
+            title = "Roll unscheduled work into next week"
+            body = (
+                "No conflict-free slot remains for: "
+                f"{', '.join(task.title for task in unscheduled)}. Preserve the "
+                "work as an explicit rollover instead of silently dropping it."
+            )
+            kind = "rollover"
+        else:
+            title = "Add capacity or remove optional work"
+            body = (
+                "Rollover is disabled, and no conflict-free slot remains for: "
+                f"{', '.join(task.title for task in unscheduled)}. Restore availability "
+                "or explicitly remove work before accepting this plan."
+            )
+            kind = "capacity"
+        recommendations.append(
+            {
+                "kind": kind,
+                "title": title,
+                "body": body,
+                "task_ids": [task.id for task in unscheduled],
+            }
+        )
+
+    return recommendations
 
 
-def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
+def generate_demo_schedule(
+    missed_tuesday: bool = False,
+    scenario: dict[str, object] | None = None,
+) -> dict[str, object]:
     """Generate the deterministic WeekFlow demo schedule."""
 
+    normalized = normalize_scenario(scenario, missed_tuesday=missed_tuesday)
+    availability, events = _build_availability(normalized)
+    completed_ids = set(normalized["completed_task_ids"])
+    credit_subjects = set(normalized["coop_credit_subjects"])
+    credited_ids = {
+        task.id
+        for task in TASKS
+        if normalized["coop_monday"] and task.subject in credit_subjects
+    } - completed_ids
+    satisfied_ids = completed_ids | credited_ids
+    active_tasks = tuple(task for task in TASKS if task.id not in satisfied_ids)
+    if normalized["deadline_policy"] == "essentials":
+        active_tasks = tuple(
+            replace(task, due_day=4) if task.priority < 4 else task
+            for task in active_tasks
+        )
+    elif normalized["deadline_policy"] == "balanced":
+        active_tasks = tuple(replace(task, due_day=4) for task in active_tasks)
+
     day_states: list[dict[str, object]] = []
-    for day_index, day in enumerate(DAYS):
-        missed = missed_tuesday and day_index == 0
-        parent_available = [not missed] * day.duration
-        for start, end in day.parent_unavailable:
-            left = max(0, start - day.start_minute)
-            right = min(day.duration, end - day.start_minute)
-            parent_available[left:right] = [False] * max(0, right - left)
+    for day in DAYS:
+        parent_available = availability[PARENT][day.id].copy()
+        student_available = {
+            student_id: availability[student_id][day.id].copy()
+            for student_id in STUDENTS
+        }
+        missed = not any(parent_available) and not any(
+            any(bits) for bits in student_available.values()
+        )
         day_states.append(
             {
                 "day": day,
@@ -476,7 +827,8 @@ def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
                 "parent_available": parent_available,
                 "parent_busy": [False] * day.duration,
                 "student_busy": {
-                    student_id: [missed] * day.duration for student_id in STUDENTS
+                    student_id: [not available for available in bits]
+                    for student_id, bits in student_available.items()
                 },
             }
         )
@@ -484,7 +836,7 @@ def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
     entries: list[dict[str, object]] = []
     unscheduled: list[Task] = []
 
-    for task in sorted(TASKS, key=_task_order):
+    for task in sorted(active_tasks, key=_task_order):
         candidates: list[tuple[int, int, int]] = []
         for day_index, state in enumerate(day_states):
             if state["missed"]:
@@ -504,12 +856,14 @@ def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
                             break
                     if not valid:
                         break
-                    if phase.resource == PARENT:
-                        if not all(state["parent_available"][left:right]) or not _is_free(
+                    if phase.resource == PARENT and (
+                        not all(state["parent_available"][left:right])
+                        or not _is_free(
                             state["parent_busy"], left, right
-                        ):
-                            valid = False
-                            break
+                        )
+                    ):
+                        valid = False
+                        break
                     cursor = phase_end
                 if valid:
                     candidates.append(
@@ -579,7 +933,7 @@ def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
         )
 
     entries.sort(key=lambda item: (item["day_index"], item["start_minute"], item["title"]))
-    metrics = _capacity_metrics(missed_tuesday)
+    metrics = _capacity_metrics(active_tasks, availability)
     late_entries = [entry for entry in entries if entry["late"]]
 
     warnings = []
@@ -600,7 +954,11 @@ def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
         warnings.append(
             {
                 "kind": "late",
-                "title": f"{len(late_entries)} assignment{'s' if len(late_entries) != 1 else ''} moved past Wednesday",
+                "title": (
+                    f"{len(late_entries)} assignment"
+                    f"{'s' if len(late_entries) != 1 else ''} moved past "
+                    "their protected deadlines"
+                ),
                 "body": ", ".join(str(entry["title"]) for entry in late_entries),
             }
         )
@@ -624,20 +982,58 @@ def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
                 "label": day.label,
                 "start": _fmt_time(day.start_minute),
                 "end": _fmt_time(day.end_minute),
-                "missed": missed_tuesday and day_index == 0,
+                "missed": bool(day_states[day_index]["missed"]),
+                "events": events[day.id],
+                "availability": {
+                    "parent_minutes": sum(availability[PARENT][day.id]),
+                    "students": {
+                        student_id: sum(availability[student_id][day.id])
+                        for student_id in STUDENTS
+                    },
+                },
                 "entries": [entry for entry in entries if entry["day_index"] == day_index],
             }
         )
 
+    completed_rows = [
+        {
+            "task_id": task.id,
+            "title": task.title,
+            "subject": task.subject,
+            "student_names": [STUDENTS[item]["name"] for item in task.student_ids],
+            "kind": "ahead" if task.id in completed_ids else "coop_credit",
+            "detail": (
+                "Already completed before this planning run."
+                if task.id in completed_ids
+                else "Satisfied by Monday's CC / co-op work."
+            ),
+        }
+        for task in TASKS
+        if task.id in satisfied_ids
+    ]
+    has_completed_work = bool(
+        normalized["completed_task_ids"] or normalized["coop_credit_subjects"]
+    )
+    mode = (
+        "disrupted"
+        if normalized["disruptions"]
+        else "adjusted" if has_completed_work else "baseline"
+    )
     return {
-        "mode": "disrupted" if missed_tuesday else "baseline",
+        "mode": mode,
+        "scenario": normalized,
         "days": day_rows,
         "metrics": metrics,
         "warnings": warnings,
-        "recommendations": _build_recommendations(metrics, late_entries),
+        "recommendations": _build_recommendations(
+            metrics, late_entries, unscheduled, normalized
+        ),
         "explanations": _build_explanations(entries),
         "scheduled_count": len(entries),
         "unscheduled_count": len(unscheduled),
+        "completed_count": len(completed_rows),
+        "total_count": len(TASKS),
+        "completed": completed_rows,
     }
 
 
@@ -645,6 +1041,49 @@ def demo_payload() -> dict[str, object]:
     """Return human-readable constraints and assignments for the lab UI."""
 
     return {
+        "default_scenario": default_scenario(),
+        "availability_people": [
+            {"id": PARENT, "name": "Parent"},
+            *[
+                {"id": student_id, "name": student["name"]}
+                for student_id, student in STUDENTS.items()
+            ],
+        ],
+        "availability_end_options": [
+            {"value": 0, "label": "Off"},
+            {"value": 12 * 60, "label": "12:00 PM"},
+            {"value": MORNING_END, "label": "12:30 PM"},
+            {"value": 14 * 60, "label": "2:00 PM"},
+            {"value": EXTENDED_END, "label": "4:00 PM"},
+        ],
+        "coop_credit_subjects": sorted(COOP_CREDIT_SUBJECTS),
+        "disruptions": [
+            {
+                "id": "sick_monday",
+                "title": "Monday sick day",
+                "detail": "Remove school capacity for the entire household.",
+            },
+            {
+                "id": "grandma_wednesday",
+                "title": "Grandma comes Wednesday",
+                "detail": "End the family school day at 11:30 AM.",
+            },
+            {
+                "id": "parent_appointment_tuesday",
+                "title": "Parent appointment",
+                "detail": "Pause parent-led work Tuesday from 10:00–11:30 AM.",
+            },
+            {
+                "id": "missed_nap_wednesday",
+                "title": "Nap window disappears",
+                "detail": "Remove Wednesday's preferred one-on-one hour.",
+            },
+            {
+                "id": "friday_off",
+                "title": "Take Friday off",
+                "detail": "Protect Friday from scheduled and catch-up work.",
+            },
+        ],
         "students": [
             {"id": student_id, **student} for student_id, student in STUDENTS.items()
         ],

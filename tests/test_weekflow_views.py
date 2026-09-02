@@ -19,6 +19,10 @@ def test_lab_page_renders_demo_configuration():
     assert 'content="noindex,nofollow"' in html
     assert 'csrfToken: "test-token"' in html
     assert 'scheduleUrl: "/labs/weekflow/schedule"' in html
+    assert "CC / co-op Monday" in html
+    assert "Daily availability" in html
+    assert "Already worked ahead" in html
+    assert "Grandma comes Wednesday" in html
 
 
 def test_schedule_endpoint_accepts_supported_modes_and_default():
@@ -38,6 +42,30 @@ def test_schedule_endpoint_accepts_supported_modes_and_default():
         assert response.get_json()["mode"] == expected_mode
 
 
+def test_schedule_endpoint_applies_weekly_scenario_controls():
+    response = _client().post(
+        "/labs/weekflow/schedule",
+        json={
+            "mode": "baseline",
+            "scenario": {
+                "coop_monday": True,
+                "coop_credit_subjects": ["Science", "History"],
+                "extended_days": ["mon", "tue", "wed", "thu"],
+                "disruptions": ["grandma_wednesday"],
+                "completed_task_ids": ["tessa-algebra"],
+                "allow_next_week": True,
+            },
+        },
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["mode"] == "disrupted"
+    assert payload["completed_count"] == 3
+    assert payload["scenario"]["disruptions"] == ["grandma_wednesday"]
+    assert payload["days"][2]["events"][0]["id"] == "grandma_wednesday"
+
+
 def test_schedule_endpoint_rejects_malformed_json_shapes_without_500():
     client = _client()
 
@@ -52,6 +80,23 @@ def test_schedule_endpoint_rejects_malformed_json_shapes_without_500():
         response = client.post("/labs/weekflow/schedule", json={"mode": mode})
         assert response.status_code == 400
         assert response.get_json() == {"error": "Unknown scheduling mode."}
+
+    for scenario in ([], "week", 1):
+        response = client.post(
+            "/labs/weekflow/schedule",
+            json={"mode": "baseline", "scenario": scenario},
+        )
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "scenario must be a JSON object."}
+
+    invalid_scenario = client.post(
+        "/labs/weekflow/schedule",
+        json={"scenario": {"disruptions": ["meteor"]}},
+    )
+    assert invalid_scenario.status_code == 400
+    assert invalid_scenario.get_json() == {
+        "error": "disruptions contains an unknown event"
+    }
 
     malformed = client.post(
         "/labs/weekflow/schedule",

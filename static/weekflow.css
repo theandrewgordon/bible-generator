@@ -245,6 +245,276 @@ h1 {
   background: var(--amber-soft);
 }
 
+.wf-planner {
+  margin-top: 22px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: var(--shadow);
+}
+
+.wf-planner-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.wf-planner-heading h2,
+.wf-completed h2 {
+  margin: 5px 0 0;
+  font-size: clamp(1.45rem, 2.6vw, 2.2rem);
+  letter-spacing: -0.03em;
+}
+
+.wf-planner-heading > p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--muted);
+  text-align: right;
+  line-height: 1.5;
+}
+
+.wf-planner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.15fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.wf-plan-card {
+  min-width: 0;
+  min-inline-size: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(250, 249, 244, 0.9);
+}
+
+.wf-plan-card legend {
+  padding: 0 7px;
+  color: var(--sage-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wf-availability-card {
+  grid-column: 1 / -1;
+}
+
+.wf-availability-card > p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.wf-availability-matrix {
+  display: grid;
+  gap: 6px;
+}
+
+.wf-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1.2fr) repeat(5, minmax(90px, 1fr));
+  gap: 6px;
+  align-items: center;
+}
+
+.wf-matrix-row > strong,
+.wf-matrix-row > span {
+  padding: 0 6px;
+  font-size: 0.72rem;
+}
+
+.wf-matrix-header {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.wf-matrix-row select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+  color: var(--ink);
+  padding: 6px;
+  font: inherit;
+  font-size: 0.7rem;
+}
+
+.wf-visually-hidden {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wf-toggle-row,
+.wf-event-option,
+.wf-ahead-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.wf-toggle-row input,
+.wf-event-option input,
+.wf-ahead-list input,
+.wf-chip-checks input {
+  accent-color: var(--sage);
+  margin-top: 3px;
+}
+
+.wf-toggle-row strong,
+.wf-toggle-row small,
+.wf-event-option strong,
+.wf-event-option small,
+.wf-ahead-list strong,
+.wf-ahead-list small {
+  display: block;
+}
+
+.wf-toggle-row strong,
+.wf-event-option strong,
+.wf-ahead-list strong {
+  font-size: 0.8rem;
+}
+
+.wf-toggle-row small,
+.wf-event-option small,
+.wf-ahead-list small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.69rem;
+  line-height: 1.35;
+}
+
+.wf-toggle-row.compact {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+
+.wf-subcontrol {
+  margin-top: 15px;
+}
+
+.wf-subcontrol > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.wf-policy-control {
+  display: block;
+  margin-top: 15px;
+}
+
+.wf-policy-control > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.wf-policy-control select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+  color: var(--ink);
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.wf-chip-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wf-chip-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.wf-event-options,
+.wf-ahead-list {
+  display: grid;
+  gap: 7px;
+}
+
+.wf-event-option,
+.wf-ahead-list label {
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.wf-event-option:has(input:checked),
+.wf-ahead-list label:has(input:checked) {
+  border-color: #b8cec7;
+  background: #eef6f2;
+}
+
+.wf-ahead-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.wf-text-button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--sage);
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wf-ahead-list {
+  max-height: 270px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
 .wf-input-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -577,6 +847,47 @@ details[open] .wf-chevron {
   background: linear-gradient(135deg, rgba(252, 233, 235, 0.9), rgba(255, 248, 237, 0.86));
 }
 
+.wf-completed {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.6fr) minmax(0, 1.4fr);
+  gap: 20px;
+  margin: 8px 0 34px;
+  padding: 22px;
+  border: 1px solid #bdd8cd;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #edf7f2, rgba(255, 255, 255, 0.85));
+}
+
+.wf-completed-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wf-completed-item {
+  padding: 12px;
+  border: 1px solid #cbe0d7;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.wf-completed-item span,
+.wf-completed-item strong,
+.wf-completed-item small {
+  display: block;
+}
+
+.wf-completed-item span {
+  color: var(--sage);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wf-completed-item strong { margin-top: 4px; font-size: 0.8rem; }
+.wf-completed-item small { margin-top: 3px; color: var(--muted); font-size: 0.68rem; }
+
 .wf-resolution-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
@@ -657,7 +968,7 @@ details[open] .wf-chevron {
 
 .wf-week {
   display: grid;
-  grid-template-columns: repeat(4, minmax(230px, 1fr));
+  grid-template-columns: repeat(5, minmax(215px, 1fr));
   gap: 12px;
   align-items: start;
 }
@@ -705,6 +1016,36 @@ details[open] .wf-chevron {
 .wf-day-body {
   padding: 10px;
 }
+
+.wf-event-block {
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px dashed #b9c7c2;
+  border-radius: 12px;
+  background: #edf3f0;
+}
+
+.wf-event-block.disruption {
+  border-color: #dfadb3;
+  background: var(--rose-soft);
+}
+
+.wf-event-block span,
+.wf-event-block strong,
+.wf-event-block small {
+  display: block;
+}
+
+.wf-event-block span {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.wf-event-block strong { margin-top: 4px; font-size: 0.78rem; }
+.wf-event-block small { margin-top: 3px; color: var(--muted); font-size: 0.66rem; line-height: 1.4; }
 
 .wf-block {
   position: relative;
@@ -840,6 +1181,14 @@ details[open] .wf-chevron {
     overflow-x: auto;
     padding-bottom: 8px;
   }
+
+  .wf-planner-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .wf-ahead-card {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 800px) {
@@ -849,8 +1198,37 @@ details[open] .wf-chevron {
   }
 
   .wf-hero,
-  .wf-input-grid {
+  .wf-input-grid,
+  .wf-planner-grid,
+  .wf-completed {
     grid-template-columns: 1fr;
+  }
+
+  .wf-ahead-card {
+    grid-column: auto;
+  }
+
+  .wf-availability-card {
+    grid-column: auto;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .wf-availability-matrix {
+    min-width: 600px;
+  }
+
+  .wf-planner {
+    padding: 17px;
+  }
+
+  .wf-planner-heading {
+    display: block;
+  }
+
+  .wf-planner-heading > p {
+    margin-top: 10px;
+    text-align: left;
   }
 
   .wf-hero {
@@ -879,7 +1257,8 @@ details[open] .wf-chevron {
   .wf-constraint-list,
   .wf-metrics,
   .wf-resolution-grid,
-  .wf-explanation-list {
+  .wf-explanation-list,
+  .wf-completed-list {
     grid-template-columns: 1fr;
   }
 

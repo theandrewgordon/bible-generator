@@ -18,7 +18,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='weekflow.css') }}?v=2"
+      href="{{ url_for('static', filename='weekflow.css') }}?v=6"
     />
   </head>
   <body>
@@ -45,29 +45,126 @@
       <section class="wf-controls" aria-label="Scheduler actions">
         <div class="wf-step is-active" data-step="1">
           <span>1</span>
-          <div><strong>Generate</strong><small>Build the baseline</small></div>
+          <div><strong>Set rhythm</strong><small>Availability + commitments</small></div>
         </div>
         <div class="wf-step" data-step="2">
           <span>2</span>
-          <div><strong>Disrupt</strong><small>Lose Tuesday</small></div>
+          <div><strong>Add real life</strong><small>Changes + work ahead</small></div>
         </div>
         <div class="wf-step" data-step="3">
           <span>3</span>
-          <div><strong>Re-optimize</strong><small>Protect constraints</small></div>
+          <div><strong>Optimize</strong><small>Protect constraints</small></div>
         </div>
         <div class="wf-action-row">
           <button class="wf-button wf-button-primary" id="generateButton" type="button">
-            Generate Best Schedule
+            Optimize This Week
           </button>
           <button class="wf-button" id="explainButton" type="button" disabled>
             Explain This Schedule
           </button>
           <button class="wf-button wf-button-warning" id="missButton" type="button" disabled>
-            Miss Tuesday Morning
+            Quick test: Lose Tuesday
           </button>
           <button class="wf-button wf-button-primary" id="rebalanceButton" type="button" hidden>
             Re-Optimize Remaining Week
           </button>
+          <button class="wf-button" id="resetButton" type="button">
+            Reset Plan
+          </button>
+        </div>
+      </section>
+
+      <section class="wf-planner" aria-label="Week planning controls">
+        <div class="wf-planner-heading">
+          <div>
+            <span class="wf-eyebrow">Plan the real week</span>
+            <h2>Rhythms, interruptions, and progress all count.</h2>
+          </div>
+          <p id="scenarioSummary">Monday co-op · Tessa can work independently until 4:00 PM Monday–Thursday.</p>
+        </div>
+
+        <div class="wf-planner-grid">
+          <fieldset class="wf-plan-card wf-availability-card">
+            <legend>Daily availability</legend>
+            <p>Choose when each person's usable school time ends. WeekFlow still protects appointments, co-op, and parent blackout windows inside that time.</p>
+            <div class="wf-availability-matrix" id="availabilityMatrix" role="table" aria-label="Daily availability end times">
+              <div class="wf-matrix-row wf-matrix-header" role="row">
+                <span role="columnheader">Person</span>
+                {% for day in demo.days %}<span role="columnheader">{{ day.label[:3] }}</span>{% endfor %}
+              </div>
+              {% for person in demo.availability_people %}
+              <div class="wf-matrix-row" role="row">
+                <strong role="rowheader">{{ person.name }}</strong>
+                {% for day in demo.days %}
+                <label>
+                  <span class="wf-visually-hidden">{{ person.name }} {{ day.label }} availability ends</span>
+                  <select data-resource="{{ person.id }}" data-day="{{ day.id }}">
+                    {% for option in demo.availability_end_options %}
+                    <option value="{{ option.value }}" {{ 'selected' if option.value == demo.default_scenario.availability_end[person.id][day.id] else '' }}>{{ option.label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset class="wf-plan-card">
+            <legend>Recurring rhythm</legend>
+            <label class="wf-toggle-row">
+              <input id="coopMonday" type="checkbox" checked />
+              <span><strong>CC / co-op Monday</strong><small>8:30 AM–3:15 PM including travel</small></span>
+            </label>
+            <div class="wf-subcontrol">
+              <span>Co-op satisfies</span>
+              <div class="wf-chip-checks" id="coopCredits">
+                {% for subject in demo.coop_credit_subjects %}
+                <label><input type="checkbox" value="{{ subject }}" /> {{ subject }}</label>
+                {% endfor %}
+              </div>
+            </div>
+            <label class="wf-policy-control">
+              <span>Deadline policy</span>
+              <select id="deadlinePolicy">
+                <option value="strict">Strict — everything due Wednesday</option>
+                <option value="essentials">Protect essentials — flexible work may move</option>
+                <option value="balanced">Balanced week — use through Friday</option>
+              </select>
+            </label>
+            <label class="wf-toggle-row compact">
+              <input id="allowNextWeek" type="checkbox" checked />
+              <span><strong>Allow explicit rollover</strong><small>Never silently drop unfinished work</small></span>
+            </label>
+          </fieldset>
+
+          <fieldset class="wf-plan-card">
+            <legend>Life happened</legend>
+            <div class="wf-event-options" id="disruptionOptions">
+              {% for event in demo.disruptions %}
+              <label class="wf-event-option">
+                <input type="checkbox" value="{{ event.id }}" />
+                <span><strong>{{ event.title }}</strong><small>{{ event.detail }}</small></span>
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <fieldset class="wf-plan-card wf-ahead-card">
+            <legend>Already worked ahead</legend>
+            <div class="wf-ahead-actions">
+              <button type="button" class="wf-text-button" id="tessaAheadButton">Mark Tessa's independent work done</button>
+              <button type="button" class="wf-text-button" id="clearAheadButton">Clear</button>
+            </div>
+            <div class="wf-ahead-list" id="aheadOptions">
+              {% for task in demo.tasks %}
+              <label>
+                <input type="checkbox" value="{{ task.id }}" data-students="{{ task.student_names|join(',') }}" data-parent-minutes="{{ task.parent_minutes }}" />
+                <span><strong>{{ task.title }}</strong><small>{{ task.student_names|join(' + ') }} · {{ task.subject }} · {{ task.minutes }} min</small></span>
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
         </div>
       </section>
 
@@ -75,7 +172,7 @@
         <details class="wf-input-card">
           <summary>
             <span class="wf-summary-icon">⌁</span>
-            <span><strong>Family constraints</strong><small>One parent · three students · real interruptions</small></span>
+            <span><strong>Family constraints</strong><small>Person-specific hours · commitments · real interruptions</small></span>
             <span class="wf-chevron">⌄</span>
           </summary>
           <div class="wf-card-body">
@@ -84,15 +181,16 @@
               <div class="wf-student">
                 <span class="wf-dot" style="--student: {{ student.color }}"></span>
                 <strong>{{ student.name }}</strong>
-                <span>Available 9:00 AM–12:30 PM</span>
+                <span>{{ 'Extended independent afternoons available' if student.id == 'tessa' else 'Default school window 9:00 AM–12:30 PM' }}</span>
               </div>
               {% endfor %}
             </div>
             <ul class="wf-constraint-list">
-              <li><strong>Teaching parents:</strong> 1</li>
+              <li><strong>Teaching parents:</strong> 1, with editable daily end times</li>
               <li><strong>Parent unavailable:</strong> 10:30–11:00 AM daily</li>
               <li><strong>Preferred one-on-one:</strong> 9:30–10:30 AM baby nap</li>
-              <li><strong>All work due:</strong> end of Wednesday</li>
+              <li><strong>Recurring anchor:</strong> Monday CC / co-op, including travel</li>
+              <li><strong>Default deadline:</strong> end of Wednesday, with an optional flexible-work policy</li>
             </ul>
           </div>
         </details>
@@ -135,6 +233,14 @@
         <div class="wf-status" id="statusBanner"></div>
 
         <div class="wf-metrics" id="metrics"></div>
+
+        <section class="wf-completed" id="completedPanel" hidden>
+          <div>
+            <span class="wf-eyebrow">Already satisfied</span>
+            <h2>Work that does not need another slot</h2>
+          </div>
+          <div class="wf-completed-list" id="completedList"></div>
+        </section>
 
         <section class="wf-resolution" id="resolutionPanel" hidden>
           <div class="wf-section-heading">
@@ -181,9 +287,10 @@
       window.WEEKFLOW_CONFIG = {
         scheduleUrl: {{ url_for('weekflow.schedule')|tojson }},
         csrfToken: {{ csrf_token()|tojson }},
-        students: {{ demo.students|tojson }}
+        students: {{ demo.students|tojson }},
+        defaultScenario: {{ demo.default_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow.js') }}?v=3" defer></script>
+    <script src="{{ url_for('static', filename='weekflow.js') }}?v=7" defer></script>
   </body>
 </html>
