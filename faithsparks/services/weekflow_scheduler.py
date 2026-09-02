@@ -434,14 +434,15 @@ def _build_recommendations(
         },
         {
             "kind": "move",
-            "title": "Move two selected lessons past Wednesday",
+            "title": "Move three selected lessons past Wednesday",
             "body": (
-                "Move Plant Cells Lab (40 parent minutes) and Spelling Pattern "
-                "(15 parent minutes) to Thursday. Together they free exactly "
-                f"{shortfall} minutes before the deadline."
+                "Move Plant Cells Lab (40 parent minutes), Fractions Practice "
+                "(13 parent minutes), and Spelling Pattern (15 parent minutes) "
+                "to Thursday. The scheduler verifies that the remaining thirteen "
+                "assignments then fit by Wednesday without conflicts."
             ),
-            "minutes_freed": shortfall,
-            "task_ids": ["science", "diana-spelling"],
+            "minutes_freed": 68,
+            "task_ids": ["science", "diana-math", "diana-spelling"],
         },
         {
             "kind": "extend",
@@ -607,7 +608,10 @@ def generate_demo_schedule(missed_tuesday: bool = False) -> dict[str, object]:
         warnings.append(
             {
                 "kind": "unscheduled",
-                "title": f"{len(unscheduled)} assignments could not fit this week",
+                "title": (
+                    f"{len(unscheduled)} assignment"
+                    f"{'s' if len(unscheduled) != 1 else ''} could not fit this week"
+                ),
                 "body": ", ".join(task.title for task in unscheduled),
             }
         )

@@ -206,6 +206,7 @@
 
   async function fetchSchedule(mode, button) {
     setBusy(button, true, mode === "baseline" ? "Optimizing…" : "Re-optimizing…");
+    let succeeded = false;
     try {
       const response = await fetch(config.scheduleUrl, {
         method: "POST",
@@ -218,8 +219,10 @@
       });
       if (!response.ok) throw new Error(`Scheduler returned ${response.status}`);
       render(await response.json());
+      succeeded = true;
       if (mode === "baseline") {
         missButton.disabled = false;
+        missButton.textContent = "Miss Tuesday Morning";
         rebalanceButton.hidden = true;
         setStep(1);
       } else {
@@ -234,7 +237,7 @@
       results.hidden = false;
     } finally {
       setBusy(button, false);
-      if (mode === "disrupted") button.hidden = true;
+      if (mode === "disrupted" && succeeded) button.hidden = true;
     }
   }
 

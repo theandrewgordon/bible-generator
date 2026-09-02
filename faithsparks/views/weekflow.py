@@ -14,8 +14,14 @@ def index():
 
 @bp.post("/schedule")
 def schedule():
-    body = request.get_json(silent=True) or {}
+    if not request.data:
+        body = {}
+    else:
+        body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "Request body must be a JSON object."}), 400
+
     mode = body.get("mode", "baseline")
-    if mode not in {"baseline", "disrupted"}:
+    if not isinstance(mode, str) or mode not in {"baseline", "disrupted"}:
         return jsonify({"error": "Unknown scheduling mode."}), 400
     return jsonify(generate_demo_schedule(missed_tuesday=mode == "disrupted"))
