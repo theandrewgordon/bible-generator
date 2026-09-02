@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta
+      name="description"
+      content="WeekFlow Labs prototype: optimize a homeschool family around student work and finite parent attention."
+    />
+    <title>WeekFlow Scheduler Lab · FaithSparks Labs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='weekflow.css') }}?v=2"
+    />
+  </head>
+  <body>
+    <main class="wf-shell">
+      <header class="wf-hero">
+        <div>
+          <div class="wf-kicker"><span>FaithSparks Labs</span> Prototype</div>
+          <h1>Build the family day,<br />not three separate calendars.</h1>
+          <p class="wf-lede">
+            WeekFlow coordinates fifteen assignments across three children and
+            one finite source of parent attention. The scheduling decisions are
+            deterministic, inspectable, and conflict-free.
+          </p>
+        </div>
+        <aside class="wf-hypothesis" aria-label="Experiment hypothesis">
+          <span class="wf-hypothesis-label">Hypothesis</span>
+          <p>
+            A homeschool plan becomes substantially more useful when it models
+            <strong>who needs Mom, when, and for how long.</strong>
+          </p>
+        </aside>
+      </header>
+
+      <section class="wf-controls" aria-label="Scheduler actions">
+        <div class="wf-step is-active" data-step="1">
+          <span>1</span>
+          <div><strong>Generate</strong><small>Build the baseline</small></div>
+        </div>
+        <div class="wf-step" data-step="2">
+          <span>2</span>
+          <div><strong>Disrupt</strong><small>Lose Tuesday</small></div>
+        </div>
+        <div class="wf-step" data-step="3">
+          <span>3</span>
+          <div><strong>Re-optimize</strong><small>Protect constraints</small></div>
+        </div>
+        <div class="wf-action-row">
+          <button class="wf-button wf-button-primary" id="generateButton" type="button">
+            Generate Best Schedule
+          </button>
+          <button class="wf-button" id="explainButton" type="button" disabled>
+            Explain This Schedule
+          </button>
+          <button class="wf-button wf-button-warning" id="missButton" type="button" disabled>
+            Miss Tuesday Morning
+          </button>
+          <button class="wf-button wf-button-primary" id="rebalanceButton" type="button" hidden>
+            Re-Optimize Remaining Week
+          </button>
+        </div>
+      </section>
+
+      <section class="wf-input-grid" aria-label="Demo inputs">
+        <details class="wf-input-card">
+          <summary>
+            <span class="wf-summary-icon">⌁</span>
+            <span><strong>Family constraints</strong><small>One parent · three students · real interruptions</small></span>
+            <span class="wf-chevron">⌄</span>
+          </summary>
+          <div class="wf-card-body">
+            <div class="wf-students">
+              {% for student in demo.students %}
+              <div class="wf-student">
+                <span class="wf-dot" style="--student: {{ student.color }}"></span>
+                <strong>{{ student.name }}</strong>
+                <span>Available 9:00 AM–12:30 PM</span>
+              </div>
+              {% endfor %}
+            </div>
+            <ul class="wf-constraint-list">
+              <li><strong>Teaching parents:</strong> 1</li>
+              <li><strong>Parent unavailable:</strong> 10:30–11:00 AM daily</li>
+              <li><strong>Preferred one-on-one:</strong> 9:30–10:30 AM baby nap</li>
+              <li><strong>All work due:</strong> end of Wednesday</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="wf-input-card">
+          <summary>
+            <span class="wf-summary-icon">≋</span>
+            <span><strong>Assignment requirements</strong><small>15 assignments · 235 parent minutes</small></span>
+            <span class="wf-chevron">⌄</span>
+          </summary>
+          <div class="wf-card-body wf-task-list">
+            {% for task in demo.tasks %}
+            <article class="wf-task">
+              <div>
+                <span class="wf-task-owner">{{ task.student_names|join(' + ') }}</span>
+                <strong>{{ task.title }}</strong>
+                <small>{{ task.subject }} · {{ task.minutes }} min</small>
+              </div>
+              <div class="wf-phase-flow" aria-label="Assignment phases">
+                {% for phase in task.phases %}
+                <span class="wf-phase-chip {{ 'needs-parent' if phase.resource == 'parent' else 'independent' }}">
+                  {{ phase.minutes }}m {{ 'Mom' if phase.resource == 'parent' else 'solo' }}
+                </span>
+                {% if not loop.last %}<span class="wf-arrow">→</span>{% endif %}
+                {% endfor %}
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+        </details>
+      </section>
+
+      <section class="wf-empty" id="emptyState">
+        <div class="wf-orbit" aria-hidden="true"><span></span><i></i><b></b></div>
+        <h2>The constraints are ready.</h2>
+        <p>Generate the baseline to see how parent-led, independent, and group work interlock.</p>
+      </section>
+
+      <section id="results" hidden aria-live="polite">
+        <div class="wf-status" id="statusBanner"></div>
+
+        <div class="wf-metrics" id="metrics"></div>
+
+        <section class="wf-resolution" id="resolutionPanel" hidden>
+          <div class="wf-section-heading">
+            <div>
+              <span class="wf-eyebrow">Capacity decision</span>
+              <h2>The schedule needs a tradeoff.</h2>
+            </div>
+            <p>WeekFlow shows valid options instead of silently creating an impossible day.</p>
+          </div>
+          <div class="wf-resolution-grid">
+            <div class="wf-warning-list" id="warningList"></div>
+            <div class="wf-recommendation-list" id="recommendationList"></div>
+          </div>
+        </section>
+
+        <div class="wf-section-heading">
+          <div>
+            <span class="wf-eyebrow">Optimized result</span>
+            <h2 id="scheduleTitle">Family schedule</h2>
+          </div>
+          <div class="wf-legend" aria-label="Schedule legend">
+            <span><i class="parent"></i> Parent attention</span>
+            <span><i class="solo"></i> Independent</span>
+            <span><i class="group"></i> Whole family</span>
+          </div>
+        </div>
+
+        <div class="wf-week" id="week"></div>
+
+        <section class="wf-explanations" id="explanations" hidden>
+          <div class="wf-section-heading">
+            <div>
+              <span class="wf-eyebrow">Decision trace</span>
+              <h2>Why this schedule?</h2>
+            </div>
+            <p>Every placement is derived from availability and resource constraints.</p>
+          </div>
+          <div class="wf-explanation-list" id="explanationList"></div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      window.WEEKFLOW_CONFIG = {
+        scheduleUrl: {{ url_for('weekflow.schedule')|tojson }},
+        csrfToken: {{ csrf_token()|tojson }},
+        students: {{ demo.students|tojson }}
+      };
+    </script>
+    <script src="{{ url_for('static', filename='weekflow.js') }}?v=2" defer></script>
+  </body>
+</html>

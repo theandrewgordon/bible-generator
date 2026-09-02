@@ -3083,6 +3083,13 @@ try:
 except Exception:
     app.logger.exception("Act It Out routes could not be registered")
 
+# WeekFlow is intentionally isolated as a demo-only Labs blueprint.
+try:
+    from faithsparks.views.weekflow import bp as weekflow_bp
+    app.register_blueprint(weekflow_bp)
+except Exception:
+    app.logger.exception("WeekFlow Labs routes could not be registered")
+
 @app.route("/logout")
 def logout():
     session.clear()
