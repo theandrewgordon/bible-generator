@@ -18,7 +18,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='weekflow.css') }}?v=6"
+      href="{{ url_for('static', filename='weekflow.css') }}?v=8"
     />
   </head>
   <body>
@@ -41,6 +41,48 @@
           </p>
         </aside>
       </header>
+
+      <section class="wf-beta-bar" aria-label="WeekFlow beta workspace">
+        <div>
+          <span class="wf-eyebrow">Invite beta workspace</span>
+          <strong id="familyDisplayName">Our homeschool</strong>
+          <small id="saveStatus" role="status" aria-live="polite">Drafts recover automatically on this device.</small>
+          <label class="wf-week-picker"><span>Week of</span><input id="weekStart" type="date" /></label>
+        </div>
+        <div class="wf-beta-actions">
+          <button class="wf-button" id="familySetupButton" type="button">Family setup</button>
+          <button class="wf-button" id="saveButton" type="button">Save draft</button>
+          <button class="wf-button wf-button-primary" id="approveButton" type="button" disabled>Approve week</button>
+          <button class="wf-button" id="undoButton" type="button" disabled>Undo replan</button>
+          <button class="wf-button" id="printButton" type="button" disabled>Print</button>
+          <button class="wf-button" id="calendarButton" type="button" disabled>Export calendar</button>
+          <button class="wf-button" id="clearDraftButton" type="button">Clear device draft</button>
+          {% if weekflow_user %}<button class="wf-button" id="deleteCloudButton" type="button">Delete cloud plan</button>{% endif %}
+        </div>
+        {% if weekflow_user %}
+        <span class="wf-cloud-state">Cloud account: {{ weekflow_user }}</span>
+        {% else %}
+        <a class="wf-sign-in" href="/login/google/start?next=/labs/weekflow">Sign in for cloud saving</a>
+        {% endif %}
+      </section>
+
+      <dialog class="wf-family-dialog" id="familyDialog" aria-labelledby="familyDialogTitle">
+        <form method="dialog" id="familyForm">
+          <div class="wf-dialog-heading">
+            <div><span class="wf-eyebrow">Family setup</span><h2 id="familyDialogTitle">Make WeekFlow yours</h2></div>
+            <button class="wf-dialog-close" value="cancel" aria-label="Close family setup">×</button>
+          </div>
+          <div class="wf-family-fields">
+            <label><span>Family or homeschool name</span><input id="familyName" maxlength="80" required /></label>
+            <label><span>Teaching adult label</span><input id="parentLabel" maxlength="40" required /></label>
+            <label><span>Timezone</span><select id="familyTimezone"><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option><option>America/Anchorage</option><option>Pacific/Honolulu</option></select></label>
+          </div>
+          <fieldset><legend>Student names</legend><div class="wf-family-students">
+            {% for student in demo.students %}<label><span>{{ student.name }}</span><input data-student-name="{{ student.id }}" maxlength="60" required /></label>{% endfor %}
+          </div></fieldset>
+          <div class="wf-dialog-actions"><button class="wf-button" value="cancel">Cancel</button><button class="wf-button wf-button-primary" id="saveFamilyButton" value="default">Save family</button></div>
+        </form>
+      </dialog>
 
       <section class="wf-controls" aria-label="Scheduler actions">
         <div class="wf-step is-active" data-step="1">
@@ -80,7 +122,7 @@
             <span class="wf-eyebrow">Plan the real week</span>
             <h2>Rhythms, interruptions, and progress all count.</h2>
           </div>
-          <p id="scenarioSummary">Monday co-op · Tessa can work independently until 4:00 PM Monday–Thursday.</p>
+          <p id="scenarioSummary">Thursday co-op · Tessa can work independently until 4:00 PM Monday–Thursday.</p>
         </div>
 
         <div class="wf-planner-grid">
@@ -110,20 +152,15 @@
             </div>
           </fieldset>
 
+          <fieldset class="wf-plan-card wf-events-card">
+            <legend>Commitments &amp; real life</legend>
+            <p>Turn on a preset or add your own event. Every event can happen on any day and affect the whole family or only selected people.</p>
+            <div class="wf-event-editors" id="eventEditors"></div>
+            <button class="wf-button wf-button-small" id="addEventButton" type="button">+ Add another event</button>
+          </fieldset>
+
           <fieldset class="wf-plan-card">
-            <legend>Recurring rhythm</legend>
-            <label class="wf-toggle-row">
-              <input id="coopMonday" type="checkbox" checked />
-              <span><strong>CC / co-op Monday</strong><small>8:30 AM–3:15 PM including travel</small></span>
-            </label>
-            <div class="wf-subcontrol">
-              <span>Co-op satisfies</span>
-              <div class="wf-chip-checks" id="coopCredits">
-                {% for subject in demo.coop_credit_subjects %}
-                <label><input type="checkbox" value="{{ subject }}" /> {{ subject }}</label>
-                {% endfor %}
-              </div>
-            </div>
+            <legend>Planning policy</legend>
             <label class="wf-policy-control">
               <span>Deadline policy</span>
               <select id="deadlinePolicy">
@@ -138,32 +175,15 @@
             </label>
           </fieldset>
 
-          <fieldset class="wf-plan-card">
-            <legend>Life happened</legend>
-            <div class="wf-event-options" id="disruptionOptions">
-              {% for event in demo.disruptions %}
-              <label class="wf-event-option">
-                <input type="checkbox" value="{{ event.id }}" />
-                <span><strong>{{ event.title }}</strong><small>{{ event.detail }}</small></span>
-              </label>
-              {% endfor %}
-            </div>
-          </fieldset>
-
           <fieldset class="wf-plan-card wf-ahead-card">
-            <legend>Already worked ahead</legend>
+            <legend>Assignments &amp; progress</legend>
             <div class="wf-ahead-actions">
+              <button type="button" class="wf-text-button" id="addTaskButton">+ Add assignment</button>
               <button type="button" class="wf-text-button" id="tessaAheadButton">Mark Tessa's independent work done</button>
-              <button type="button" class="wf-text-button" id="clearAheadButton">Clear</button>
+              <button type="button" class="wf-text-button" id="clearAheadButton">Clear completed</button>
             </div>
-            <div class="wf-ahead-list" id="aheadOptions">
-              {% for task in demo.tasks %}
-              <label>
-                <input type="checkbox" value="{{ task.id }}" data-students="{{ task.student_names|join(',') }}" data-parent-minutes="{{ task.parent_minutes }}" />
-                <span><strong>{{ task.title }}</strong><small>{{ task.student_names|join(' + ') }} · {{ task.subject }} · {{ task.minutes }} min</small></span>
-              </label>
-              {% endfor %}
-            </div>
+            <p>Edit the work itself, including who does it, its deadline, duration, priority, and how much adult help it needs.</p>
+            <div class="wf-task-editors" id="aheadOptions"></div>
           </fieldset>
         </div>
       </section>
@@ -189,7 +209,7 @@
               <li><strong>Teaching parents:</strong> 1, with editable daily end times</li>
               <li><strong>Parent unavailable:</strong> 10:30–11:00 AM daily</li>
               <li><strong>Preferred one-on-one:</strong> 9:30–10:30 AM baby nap</li>
-              <li><strong>Recurring anchor:</strong> Monday CC / co-op, including travel</li>
+              <li><strong>Recurring anchor:</strong> Thursday CC / co-op, including travel</li>
               <li><strong>Default deadline:</strong> end of Wednesday, with an optional flexible-work policy</li>
             </ul>
           </div>
@@ -256,6 +276,11 @@
           </div>
         </section>
 
+        <section class="wf-completed wf-rollover" id="rolloverPanel" hidden>
+          <div><span class="wf-eyebrow">Next week</span><h2>Explicit rollover queue</h2></div>
+          <div class="wf-completed-list" id="rolloverList"></div>
+        </section>
+
         <div class="wf-section-heading">
           <div>
             <span class="wf-eyebrow">Optimized result</span>
@@ -281,16 +306,33 @@
           <div class="wf-explanation-list" id="explanationList"></div>
         </section>
       </section>
+
+      <section class="wf-feedback" aria-labelledby="feedbackTitle">
+        <div><span class="wf-eyebrow">Help shape the beta</span><h2 id="feedbackTitle">Did this plan feel realistic?</h2><p>Send only product feedback—do not include private information about a child.</p></div>
+        <form id="feedbackForm">
+          <label><span>How close was it?</span><select id="feedbackRealistic" required><option value="">Choose one</option><option value="yes">Yes, realistic</option><option value="mostly">Mostly</option><option value="no">Not yet</option></select></label>
+          <label><span>What did WeekFlow misunderstand?</span><textarea id="feedbackComment" maxlength="1000" rows="3"></textarea></label>
+          <label class="wf-feedback-contact"><input id="feedbackContact" type="checkbox" /> You may contact me about this feedback</label>
+          <button class="wf-button" type="submit">Send feedback</button>
+          <span id="feedbackStatus" role="status" aria-live="polite"></span>
+        </form>
+      </section>
     </main>
 
     <script>
       window.WEEKFLOW_CONFIG = {
         scheduleUrl: {{ url_for('weekflow.schedule')|tojson }},
+        stateUrl: {{ url_for('weekflow.state')|tojson }},
+        feedbackUrl: {{ url_for('weekflow.feedback')|tojson }},
+        signedIn: {{ (weekflow_user is not none)|tojson }},
         csrfToken: {{ csrf_token()|tojson }},
         students: {{ demo.students|tojson }},
+        availabilityPeople: {{ demo.availability_people|tojson }},
+        creditSubjects: {{ demo.coop_credit_subjects|tojson }},
+        eventPresets: {{ demo.event_presets|tojson }},
         defaultScenario: {{ demo.default_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow.js') }}?v=7" defer></script>
+    <script src="{{ url_for('static', filename='weekflow.js') }}?v=9" defer></script>
   </body>
 </html>

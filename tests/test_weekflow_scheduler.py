@@ -113,7 +113,10 @@ def test_group_lesson_uses_one_parent_block_for_all_students():
 
 
 def test_missing_tuesday_creates_real_parent_capacity_shortfall():
-    result = generate_demo_schedule(missed_tuesday=True)
+    result = generate_demo_schedule(
+        missed_tuesday=True,
+        scenario={"disruptions": ["sick_monday"]},
+    )
 
     assert result["metrics"]["parent_demand"] == 235
     assert result["metrics"]["parent_capacity"] == 180
@@ -126,7 +129,10 @@ def test_missing_tuesday_creates_real_parent_capacity_shortfall():
 
 
 def test_disrupted_schedule_offers_capacity_valid_remedies():
-    result = generate_demo_schedule(missed_tuesday=True)
+    result = generate_demo_schedule(
+        missed_tuesday=True,
+        scenario={"disruptions": ["sick_monday"]},
+    )
     entries = _all_entries(result)
     late_entries = [entry for entry in entries if entry["late"]]
     accept_option = next(
@@ -155,7 +161,10 @@ def test_impossible_assignment_is_reported_instead_of_silently_dropped(monkeypat
         "Impossible Assignment",
         "Stress test",
         ("tessa",),
-        (Phase("Oversized work", DAYS[0].duration + 1, STUDENT),),
+        (
+            Phase("Oversized work part one", 211, STUDENT),
+            Phase("Oversized work part two", 210, STUDENT),
+        ),
     )
     monkeypatch.setattr(scheduler, "TASKS", (impossible,))
 
@@ -178,21 +187,60 @@ def test_impossible_assignment_is_reported_instead_of_silently_dropped(monkeypat
     )
 
 
-def test_default_week_models_monday_coop_and_extended_teen_time():
+def test_default_week_models_thursday_coop_and_extended_teen_time():
     result = generate_demo_schedule()
-    monday = result["days"][0]
+    thursday = result["days"][3]
 
     assert result["scenario"] == default_scenario()
-    assert monday["events"][0]["id"] == "coop_monday"
-    assert monday["availability"]["parent_minutes"] == 0
-    assert monday["availability"]["students"]["tessa"] == 45
-    assert monday["availability"]["students"]["diana"] == 0
+    assert thursday["events"][0]["id"] == "coop"
+    assert thursday["availability"]["parent_minutes"] == 0
+    assert thursday["availability"]["students"]["tessa"] == 45
+    assert thursday["availability"]["students"]["diana"] == 0
     assert all(
         entry["student_ids"] == ["tessa"]
         and entry["parent_minutes"] == 0
         and entry["start_minute"] >= 15 * 60 + 15
-        for entry in monday["entries"]
+        for entry in thursday["entries"]
     )
+
+
+def test_editable_events_can_move_coop_and_grandma_to_any_weekday():
+    scenario = default_scenario()
+    coop = scenario["events"][0]
+    coop["day_id"] = "thu"
+    grandma = {
+        "id": "grandma-visits-friday",
+        "title": "Grandma visits",
+        "detail": "Family time after lunch.",
+        "day_id": "fri",
+        "start_minute": 12 * 60,
+        "end_minute": 16 * 60,
+        "affected": [PARENT, *scheduler.STUDENTS],
+        "kind": "disruption",
+        "recurring": False,
+        "credit_subjects": [],
+    }
+    scenario["events"].append(grandma)
+
+    result = generate_demo_schedule(scenario=scenario)
+
+    assert result["days"][3]["events"][0]["id"] == "coop"
+    assert result["days"][4]["events"][0]["id"] == "grandma-visits-friday"
+    assert result["days"][4]["availability"]["parent_minutes"] == 150
+    assert result["scenario"]["disruptions"] == ["grandma-visits-friday"]
+
+
+def test_event_credit_satisfies_subject_work_on_non_monday_coop():
+    scenario = default_scenario()
+    scenario["events"][0]["credit_subjects"] = ["Science", "History"]
+
+    result = generate_demo_schedule(scenario=scenario)
+
+    assert {item["task_id"] for item in result["completed"]} == {
+        "science",
+        "history",
+    }
+    assert all("CC / co-op day" in item["detail"] for item in result["completed"])
 
 
 def test_coop_subject_credit_satisfies_assignments_without_rescheduling_them():
@@ -242,6 +290,48 @@ def test_entire_week_can_be_marked_complete_ahead_of_time():
     assert result["warnings"] == []
 
 
+def test_user_created_assignment_is_validated_and_scheduled():
+    scenario = default_scenario()
+    scenario["tasks"].append(
+        {
+            "id": "custom-nature-journal",
+            "title": "Nature Journal",
+            "subject": "Science",
+            "student_ids": ["diana"],
+            "phases": [
+                {"label": "Set up together", "minutes": 5, "resource": PARENT},
+                {"label": "Draw independently", "minutes": 20, "resource": STUDENT},
+            ],
+            "due_day": 4,
+            "priority": 3,
+            "preferred_start": None,
+        }
+    )
+
+    result = generate_demo_schedule(scenario=scenario)
+
+    assert result["total_count"] == 16
+    custom = next(
+        entry
+        for entry in _all_entries(result)
+        if entry["task_id"] == "custom-nature-journal"
+    )
+    assert custom["duration"] == 25
+    assert custom["parent_minutes"] == 5
+
+
+def test_user_can_remove_sample_assignments_without_leaving_ghost_completions():
+    scenario = default_scenario()
+    scenario["tasks"] = scenario["tasks"][:2]
+    scenario["completed_task_ids"] = [scenario["tasks"][0]["id"]]
+
+    result = generate_demo_schedule(scenario=scenario)
+
+    assert result["total_count"] == 2
+    assert result["completed_count"] == 1
+    assert result["scheduled_count"] == 1
+
+
 def test_per_person_daily_availability_changes_capacity_and_placement():
     scenario = default_scenario()
     scenario["availability_end"]["diana"]["tue"] = 0
@@ -258,17 +348,18 @@ def test_per_person_daily_availability_changes_capacity_and_placement():
 
 
 def test_deadline_policy_distinguishes_hard_work_from_flexible_work():
+    disruption = {"disruptions": ["sick_monday"]}
     strict = generate_demo_schedule(
         missed_tuesday=True,
-        scenario={"deadline_policy": "strict"},
+        scenario={**disruption, "deadline_policy": "strict"},
     )
     essentials = generate_demo_schedule(
         missed_tuesday=True,
-        scenario={"deadline_policy": "essentials"},
+        scenario={**disruption, "deadline_policy": "essentials"},
     )
     balanced = generate_demo_schedule(
         missed_tuesday=True,
-        scenario={"deadline_policy": "balanced"},
+        scenario={**disruption, "deadline_policy": "balanced"},
     )
     tasks_by_id = {task.id: task for task in TASKS}
     essential_late = [entry for entry in _all_entries(essentials) if entry["late"]]
@@ -300,7 +391,7 @@ def test_combined_life_events_are_layered_without_conflicts():
     assert result["days"][0]["missed"] is True
     assert result["days"][4]["missed"] is True
     assert {event["id"] for day in result["days"] for event in day["events"]} >= {
-        "coop_monday",
+        "coop",
         "sick_monday",
         "grandma_wednesday",
         "parent_appointment_tuesday",
@@ -324,6 +415,23 @@ def test_scenario_validation_rejects_unknown_values():
         {"completed_task_ids": ["not-a-task"]},
         {"coop_credit_subjects": ["Underwater Basket Weaving"]},
         {"availability_end": {}},
+        {"events": None},
+        {
+            "events": [
+                {
+                    **default_scenario()["events"][0],
+                    "end_minute": 8 * 60,
+                }
+            ]
+        },
+        {
+            "events": [
+                {
+                    **default_scenario()["events"][0],
+                    "affected": ["stranger"],
+                }
+            ]
+        },
         {
             "availability_end": {
                 **default_scenario()["availability_end"],
