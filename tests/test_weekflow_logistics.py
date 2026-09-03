@@ -294,6 +294,162 @@ def test_separate_dropoff_and_pickup_conflicts_are_both_reported():
     } == {"dropoff", "pickup"}
 
 
+def test_unconfirmed_helper_is_never_presented_as_a_workable_assignment():
+    scenario = default_logistics_scenario()
+    grandma = next(person for person in scenario["people"] if person["id"] == "grandma")
+    grandma["confirmed"] = False
+
+    result = analyze_family_logistics(scenario)
+    suggestion = result["suggestions"][0]
+
+    assert suggestion["kind"] == "confirm_helper"
+    assert suggestion["adult_id"] == "grandma"
+    assert "will not count that help until it is confirmed" in suggestion["body"]
+    assert not any(item["kind"] == "reassign" for item in result["suggestions"])
+
+
+def test_helper_must_cover_the_entire_responsibility_window():
+    scenario = default_logistics_scenario()
+    grandma = next(person for person in scenario["people"] if person["id"] == "grandma")
+    grandma["available_windows"] = [
+        {"start_minute": 18 * 60, "end_minute": 20 * 60}
+    ]
+
+    result = analyze_family_logistics(scenario)
+    suggestion = result["suggestions"][0]
+
+    assert suggestion["kind"] == "external_help"
+    blocked_grandma = next(
+        item
+        for item in suggestion["blocked_alternatives"]
+        if item["adult_id"] == "grandma"
+    )
+    assert blocked_grandma["blocker_kind"] == "availability"
+
+
+def test_unconfirmed_helper_already_in_a_rule_is_not_counted_as_coverage():
+    scenario = default_logistics_scenario()
+    grandma = next(person for person in scenario["people"] if person["id"] == "grandma")
+    grandma["confirmed"] = False
+    football_rule = next(
+        rule for rule in scenario["rules"] if rule["series_id"] == "fall-football"
+    )
+    football_rule["adult_id"] = "grandma"
+    football_rule["fallback_adult_ids"] = ["dad"]
+
+    result = analyze_family_logistics(scenario)
+    football = next(item for item in result["assignments"] if item["id"] == "football")
+
+    assert result["unassigned_count"] == 1
+    assert football["responsibilities"][0]["adult_id"] is None
+    assert football["responsibilities"][0]["configured_adult_id"] == "grandma"
+    assert not any(
+        block["event_id"] == "football" for block in result["timeline"]["grandma"]
+    )
+
+
+def test_manual_change_cannot_assign_an_unconfirmed_helper():
+    scenario = default_logistics_scenario()
+    grandma = next(person for person in scenario["people"] if person["id"] == "grandma")
+    grandma["confirmed"] = False
+
+    with pytest.raises(ValueError, match="cannot be assigned.*not been confirmed"):
+        apply_responsibility_change(
+            scenario,
+            event_id="football",
+            adult_id="grandma",
+            scope="occurrence",
+        )
+
+
+def _split_school_into_shared_calendar_entries(scenario):
+    school = next(event for event in scenario["events"] if event["id"] == "school")
+    scenario["events"] = [
+        event for event in scenario["events"] if event["id"] != "school"
+    ]
+    for child_id in ("ethan", "sophie"):
+        child_school = deepcopy(school)
+        child_school["id"] = f"school-{child_id}"
+        child_school["participant_ids"] = [child_id]
+        child_school["ride_group_id"] = "school-carpool"
+        child_school["location_id"] = "school-campus"
+        scenario["events"].append(child_school)
+    return scenario
+
+
+def test_shared_sibling_ride_is_one_driver_obligation_and_one_travel_cost():
+    scenario = _split_school_into_shared_calendar_entries(
+        family_four_school_sports_scenario()
+    )
+
+    result = analyze_family_logistics(scenario)
+    school_pair = {"school-ethan", "school-sophie"}
+    school_appointment_issues = [
+        issue
+        for issue in result["issues"]
+        if "dad-appointment" in issue["event_ids"]
+        and school_pair.intersection(issue["event_ids"])
+    ]
+
+    assert not any(set(issue["event_ids"]) == school_pair for issue in result["issues"])
+    assert len(school_appointment_issues) == 1
+    assert sum(
+        item["invisible_travel_minutes"] for item in result["assignments"]
+    ) == 260
+
+
+def test_unassigned_shared_ride_has_one_alert_per_transport_leg():
+    scenario = _split_school_into_shared_calendar_entries(
+        family_four_school_sports_scenario()
+    )
+    scenario["rules"] = [
+        rule for rule in scenario["rules"] if rule["series_id"] != "school-week"
+    ]
+
+    result = analyze_family_logistics(scenario)
+    school_unassigned = [
+        issue
+        for issue in result["issues"]
+        if issue["kind"] == "unassigned"
+        and issue["event_ids"][0].startswith("school-")
+    ]
+
+    assert len(school_unassigned) == 2
+    assert {
+        next(iter(issue["responsibility_kinds"].values()))
+        for issue in school_unassigned
+    } == {"dropoff", "pickup"}
+
+
+def test_changing_one_shared_ride_leg_changes_every_linked_calendar_entry():
+    scenario = _split_school_into_shared_calendar_entries(
+        family_four_school_sports_scenario()
+    )
+
+    changed = apply_responsibility_change(
+        scenario,
+        event_id="school-ethan",
+        adult_id="mom",
+        scope="occurrence",
+        responsibility_kind="pickup",
+    )
+    result = analyze_family_logistics(changed)
+    school_assignments = [
+        item for item in result["assignments"] if item["id"].startswith("school-")
+    ]
+
+    assert len(school_assignments) == 2
+    assert all(
+        next(
+            responsibility
+            for responsibility in item["responsibilities"]
+            if responsibility["kind"] == "pickup"
+        )["adult_id"]
+        == "mom"
+        for item in school_assignments
+    )
+
+
 def test_hundreds_of_family_four_time_variations_preserve_core_invariants():
     for offset in range(240):
         scenario = family_four_school_sports_scenario()

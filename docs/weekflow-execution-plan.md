@@ -33,6 +33,11 @@ exposed and now covers several important failure modes:
   never presented as a solution.
 - Separate drop-off and pickup conflicts are both reported, even when they
   involve the same two calendar events.
+- Helpers outside the household are not counted unless both confirmation and a
+  full availability window cover the responsibility; direct assignment obeys
+  the same guardrail.
+- Separate sibling calendar entries can be linked as one shared ride, so they
+  produce one driver obligation, one travel cost, and one linked update.
 
 The deterministic stress harness also ran 10,000 varied family days and checked
 6,262 suggested handoffs against the actual resource timeline before and after
@@ -42,10 +47,10 @@ Open modeling risks, in priority order:
 
 1. Travel is still a family-entered buffer rather than location- and
    traffic-aware routing between consecutive commitments.
-2. Carpools, vehicle capacity, car-seat constraints, and shared rides are not
-   modeled yet.
-3. A helper outside the household can be saved as an adult, but invitation,
-   confirmation, and availability workflows are not built.
+2. Vehicle capacity and car-seat constraints are not modeled yet; shared
+   sibling rides are modeled, while multi-household carpool invitations are not.
+3. Helper confirmation and availability are enforced by the planner, but the
+   invitation and response workflow is not yet connected to notifications.
 4. The planner proves feasibility but does not yet optimize fairness across the
    adults over multiple weeks.
 

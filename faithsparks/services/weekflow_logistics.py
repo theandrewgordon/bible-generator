@@ -24,6 +24,8 @@ class Reservation:
     start_minute: int
     end_minute: int
     reason: str
+    ride_group_id: str | None = None
+    location_id: str | None = None
 
 
 def default_logistics_scenario() -> dict[str, object]:
@@ -40,6 +42,11 @@ def default_logistics_scenario() -> dict[str, object]:
                 "name": "Grandma",
                 "role": "adult",
                 "color": "#a06d35",
+                "household_member": False,
+                "confirmed": True,
+                "available_windows": [
+                    {"start_minute": 15 * 60, "end_minute": 20 * 60}
+                ],
             },
             {
                 "id": "avery",
@@ -310,7 +317,7 @@ def normalize_logistics_scenario(
     if not isinstance(events, list) or not 1 <= len(events) <= MAX_EVENTS:
         raise ValueError(f"events must contain between 1 and {MAX_EVENTS} items")
 
-    normalized_people: list[dict[str, str]] = []
+    normalized_people: list[dict[str, object]] = []
     person_ids: set[str] = set()
     for person in people:
         if not isinstance(person, dict):
@@ -328,6 +335,30 @@ def normalize_logistics_scenario(
             int(color[1:], 16)
         except ValueError as exc:
             raise ValueError("person.color must use six-digit hex") from exc
+        household_member = person.get("household_member", True)
+        if not isinstance(household_member, bool):
+            raise TypeError("person.household_member must be a boolean")
+        confirmed = person.get("confirmed", household_member)
+        if not isinstance(confirmed, bool):
+            raise TypeError("person.confirmed must be a boolean")
+        raw_windows = person.get("available_windows", [])
+        if not isinstance(raw_windows, list) or len(raw_windows) > 14:
+            raise ValueError("person.available_windows must contain at most 14 windows")
+        available_windows = []
+        for window in raw_windows:
+            if not isinstance(window, dict):
+                raise TypeError("each availability window must be a JSON object")
+            window_start = _minute(
+                window.get("start_minute"), "availability.start_minute"
+            )
+            window_end = _minute(
+                window.get("end_minute"), "availability.end_minute"
+            )
+            if window_end <= window_start:
+                raise ValueError("availability end must be later than its start")
+            available_windows.append(
+                {"start_minute": window_start, "end_minute": window_end}
+            )
         person_ids.add(person_id)
         normalized_people.append(
             {
@@ -335,6 +366,9 @@ def normalize_logistics_scenario(
                 "name": _name(person.get("name"), "person.name"),
                 "role": role,
                 "color": color.lower(),
+                "household_member": household_member,
+                "confirmed": confirmed,
+                "available_windows": available_windows,
             }
         )
     roles = {person["id"]: person["role"] for person in normalized_people}
@@ -429,6 +463,12 @@ def normalize_logistics_scenario(
         series_id = event.get("series_id")
         if series_id is not None:
             series_id = _safe_id(series_id, "event.series_id")
+        ride_group_id = event.get("ride_group_id")
+        if ride_group_id is not None:
+            ride_group_id = _safe_id(ride_group_id, "event.ride_group_id")
+        location_id = event.get("location_id")
+        if location_id is not None:
+            location_id = _safe_id(location_id, "event.location_id")
         assigned_adult = event.get("assigned_adult_id")
         if assigned_adult is not None and assigned_adult not in adult_ids:
             raise ValueError("event.assigned_adult_id must identify an adult")
@@ -453,6 +493,8 @@ def normalize_logistics_scenario(
                 "requires_adult": requires_adult,
                 "responsibility_mode": responsibility_mode,
                 "series_id": series_id,
+                "ride_group_id": ride_group_id,
+                "location_id": location_id,
                 "assigned_adult_id": assigned_adult,
                 "dropoff_adult_id": dropoff_adult,
                 "pickup_adult_id": pickup_adult,
@@ -485,6 +527,23 @@ def _fmt_time(minute: int) -> str:
     return f"{hour % 12 or 12}:{minutes:02d} {'AM' if hour < 12 else 'PM'}"
 
 
+def _availability_blocker(
+    adult: dict[str, object], start_minute: int, end_minute: int
+) -> tuple[str, str] | None:
+    if not adult["confirmed"]:
+        return "confirmation", "their help has not been confirmed"
+    windows = adult["available_windows"]
+    if windows and not any(
+        window["start_minute"] <= start_minute
+        and end_minute <= window["end_minute"]
+        for window in windows
+    ):
+        return "availability", "they are not marked available for that whole window"
+    if not adult["household_member"] and not windows:
+        return "availability", "no availability window has been confirmed"
+    return None
+
+
 def analyze_family_logistics(
     scenario: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -498,6 +557,7 @@ def analyze_family_logistics(
     rules = {rule["series_id"]: rule for rule in normalized["rules"]}
     reservations: list[Reservation] = []
     assignments: list[dict[str, object]] = []
+    counted_rides: set[tuple[object, ...]] = set()
 
     for event in normalized["events"]:
         rule = rules.get(event["series_id"])
@@ -557,6 +617,24 @@ def analyze_family_logistics(
                 ]
             )
         for responsibility in responsibilities:
+            configured_adult_id = responsibility["adult_id"]
+            blocker = (
+                _availability_blocker(
+                    people[configured_adult_id],
+                    responsibility["start_minute"],
+                    responsibility["end_minute"],
+                )
+                if configured_adult_id
+                else None
+            )
+            if blocker:
+                blocker_kind, blocker_reason = blocker
+                responsibility["configured_adult_id"] = configured_adult_id
+                responsibility["availability_blocker"] = {
+                    "kind": blocker_kind,
+                    "reason": blocker_reason,
+                }
+                responsibility["adult_id"] = None
             responsibility["adult_name"] = (
                 people[responsibility["adult_id"]]["name"]
                 if responsibility["adult_id"]
@@ -577,6 +655,21 @@ def analyze_family_logistics(
             else "series_rule" if any(item["adult_id"] for item in responsibilities)
             else "unassigned"
         )
+        ride_key = (
+            event["ride_group_id"],
+            event["location_id"],
+            event["start_minute"],
+            event["end_minute"],
+            travel_before,
+            travel_after,
+        )
+        shared_ride_duplicate = bool(
+            responsibility_mode == "transport"
+            and event["ride_group_id"]
+            and ride_key in counted_rides
+        )
+        if responsibility_mode == "transport" and event["ride_group_id"]:
+            counted_rides.add(ride_key)
         assignment = {
             **event,
             "adult_id": default_adult_id,
@@ -587,8 +680,13 @@ def analyze_family_logistics(
             "rule_label": rule["label"] if rule else None,
             "travel_before": travel_before,
             "travel_after": travel_after,
-            "invisible_travel_minutes": (travel_before + travel_after)
-            * (2 if responsibility_mode == "transport" else 1),
+            "invisible_travel_minutes": (
+                0
+                if shared_ride_duplicate
+                else (travel_before + travel_after)
+                * (2 if responsibility_mode == "transport" else 1)
+            ),
+            "shared_ride_duplicate": shared_ride_duplicate,
             "responsibility_start": responsibility_start,
             "responsibility_end": responsibility_end,
             "responsibility_window": (
@@ -609,24 +707,41 @@ def analyze_family_logistics(
                     responsibility_start,
                     responsibility_end,
                     "participant",
+                    event["ride_group_id"],
+                    event["location_id"],
                 )
             )
         for responsibility in responsibilities:
             adult_id = responsibility["adult_id"]
             if adult_id and adult_id not in event["participant_ids"]:
-                reservations.append(
-                    Reservation(
-                        adult_id,
-                        event["id"],
-                        responsibility["start_minute"],
-                        responsibility["end_minute"],
-                        (
-                            "responsible_adult"
-                            if responsibility["kind"] == "throughout"
-                            else responsibility["kind"]
-                        ),
+                reservation = Reservation(
+                    adult_id,
+                    event["id"],
+                    responsibility["start_minute"],
+                    responsibility["end_minute"],
+                    (
+                        "responsible_adult"
+                        if responsibility["kind"] == "throughout"
+                        else responsibility["kind"]
+                    ),
+                    event["ride_group_id"],
+                    event["location_id"],
+                )
+                duplicate_ride_reservation = bool(
+                    reservation.ride_group_id
+                    and reservation.location_id
+                    and any(
+                        existing.resource_id == reservation.resource_id
+                        and existing.ride_group_id == reservation.ride_group_id
+                        and existing.location_id == reservation.location_id
+                        and existing.reason == reservation.reason
+                        and existing.start_minute == reservation.start_minute
+                        and existing.end_minute == reservation.end_minute
+                        for existing in reservations
                     )
                 )
+                if not duplicate_ride_reservation:
+                    reservations.append(reservation)
 
     assignments_by_id = {assignment["id"]: assignment for assignment in assignments}
     issues: list[dict[str, object]] = []
@@ -639,6 +754,18 @@ def analyze_family_logistics(
                 left.start_minute, right.start_minute
             )
             if overlap <= 0:
+                continue
+            same_confirmed_ride = bool(
+                people[left.resource_id]["role"] == "adult"
+                and left.ride_group_id
+                and left.ride_group_id == right.ride_group_id
+                and left.location_id
+                and left.location_id == right.location_id
+                and left.reason == right.reason
+                and left.start_minute == right.start_minute
+                and left.end_minute == right.end_minute
+            )
+            if same_confirmed_ride:
                 continue
             pair = tuple(sorted((left.event_id, right.event_id)))
             reasons_by_event = {
@@ -671,10 +798,26 @@ def analyze_family_logistics(
                     ),
                 }
             )
+    seen_unassigned: set[tuple[object, ...]] = set()
     for assignment in assignments:
         for responsibility in assignment["responsibilities"]:
             if responsibility["adult_id"]:
                 continue
+            shared_key = (
+                assignment["ride_group_id"],
+                assignment["location_id"],
+                assignment["start_minute"],
+                assignment["end_minute"],
+                responsibility["kind"],
+            )
+            unassigned_key = (
+                shared_key
+                if assignment["ride_group_id"] and assignment["location_id"]
+                else (assignment["id"], responsibility["kind"])
+            )
+            if unassigned_key in seen_unassigned:
+                continue
+            seen_unassigned.add(unassigned_key)
             label = (
                 "responsible adult"
                 if responsibility["kind"] == "throughout"
@@ -737,6 +880,20 @@ def analyze_family_logistics(
             for adult_id in dict.fromkeys(ordered_candidates):
                 if adult_id == target["adult_id"]:
                     continue
+                blocker = _availability_blocker(
+                    people[adult_id], target["start_minute"], target["end_minute"]
+                )
+                if blocker:
+                    blocker_kind, reason = blocker
+                    blocked_alternatives.append(
+                        {
+                            "adult_id": adult_id,
+                            "adult_name": people[adult_id]["name"],
+                            "blocker_kind": blocker_kind,
+                            "reason": reason,
+                        }
+                    )
+                    continue
                 conflict = next(
                     (
                         reservation
@@ -769,52 +926,76 @@ def analyze_family_logistics(
                 blocked_text = (
                     " "
                     + " ".join(
-                        f"{item['adult_name']} cannot cover because "
-                        f"{item['blocked_by']} already occupies that window."
+                        (
+                            f"{item['adult_name']} cannot cover because "
+                            f"{item['reason']}."
+                            if item.get("reason")
+                            else f"{item['adult_name']} cannot cover because "
+                            f"{item['blocked_by']} already occupies that window."
+                        )
                         for item in blocked_alternatives
                     )
                     if blocked_alternatives
                     else ""
                 )
                 suggestion = {
-                        "kind": "reassign",
-                        "event_id": assignment["id"],
-                        "adult_id": adult_id,
-                        "title": (
-                            f"Ask {adult_name} to handle {assignment['title']}"
-                            f"{responsibility_label}"
-                        ),
-                        "body": (
-                            f"{adult_name} is free for the full "
-                            f"{target['window']} responsibility "
-                            "window. Apply this once or remember it for the recurring "
-                            f"series.{blocked_text}"
-                        ),
-                        "blocked_alternatives": blocked_alternatives,
-                        "resolves_issue": issue["title"],
-                    }
+                    "kind": "reassign",
+                    "event_id": assignment["id"],
+                    "adult_id": adult_id,
+                    "title": (
+                        f"Ask {adult_name} to handle {assignment['title']}"
+                        f"{responsibility_label}"
+                    ),
+                    "body": (
+                        f"{adult_name} is free for the full "
+                        f"{target['window']} responsibility "
+                        "window. Apply this once or remember it for the recurring "
+                        f"series.{blocked_text}"
+                    ),
+                    "blocked_alternatives": blocked_alternatives,
+                    "resolves_issue": issue["title"],
+                }
                 if responsibility_kind != "throughout":
                     suggestion["responsibility_kind"] = responsibility_kind
                 suggestions.append(suggestion)
                 suggested_responsibilities.add(suggestion_key)
             else:
+                confirmation = next(
+                    (
+                        item
+                        for item in blocked_alternatives
+                        if item.get("blocker_kind") == "confirmation"
+                    ),
+                    None,
+                )
                 suggestion = {
-                        "kind": "external_help",
-                        "event_id": assignment["id"],
-                        "adult_id": None,
-                        "title": (
+                    "kind": "confirm_helper" if confirmation else "external_help",
+                    "event_id": assignment["id"],
+                    "adult_id": confirmation["adult_id"] if confirmation else None,
+                    "title": (
+                        f"Confirm {confirmation['adult_name']} before assigning "
+                        f"{assignment['title']}"
+                        if confirmation
+                        else (
                             f"Find another adult for {assignment['title']} "
                             f"{responsibility_kind.replace('off', '-off')}"
                             if responsibility_kind != "throughout"
                             else f"Find another driver or move {assignment['title']}"
-                        ),
-                        "body": (
-                            "Every saved adult is already occupied for part of the "
-                            f"{target['window']} responsibility window."
-                        ),
-                        "blocked_alternatives": blocked_alternatives,
-                        "resolves_issue": issue["title"],
-                    }
+                        )
+                    ),
+                    "body": (
+                        f"{confirmation['adult_name']} is saved as a possible "
+                        "helper, but WeekFlow will not count that help until it is "
+                        "confirmed."
+                        if confirmation
+                        else (
+                            "Every saved adult is already occupied or unavailable "
+                            f"for part of the {target['window']} responsibility window."
+                        )
+                    ),
+                    "blocked_alternatives": blocked_alternatives,
+                    "resolves_issue": issue["title"],
+                }
                 if responsibility_kind != "throughout":
                     suggestion["responsibility_kind"] = responsibility_kind
                 suggestions.append(suggestion)
@@ -841,6 +1022,8 @@ def analyze_family_logistics(
                 "start": _fmt_time(reservation.start_minute),
                 "end": _fmt_time(reservation.end_minute),
                 "reason": reservation.reason,
+                "ride_group_id": reservation.ride_group_id,
+                "location_id": reservation.location_id,
                 "conflict": any(
                     issue["resource_id"] == person["id"]
                     and reservation.event_id in issue["event_ids"]
@@ -909,48 +1092,92 @@ def apply_responsibility_change(
         if responsibility_kind in {"dropoff", "pickup"}
         else None
     )
+    selected_adult = next(
+        person for person in normalized["people"] if person["id"] == adult_id
+    )
+    current_assignment = next(
+        item
+        for item in analyze_family_logistics(normalized)["assignments"]
+        if item["id"] == event_id
+    )
+    target_responsibilities = [
+        responsibility
+        for responsibility in current_assignment["responsibilities"]
+        if responsibility_kind in {None, responsibility["kind"]}
+    ]
+    for responsibility in target_responsibilities:
+        blocker = _availability_blocker(
+            selected_adult,
+            responsibility["start_minute"],
+            responsibility["end_minute"],
+        )
+        if blocker:
+            _, reason = blocker
+            raise ValueError(
+                f"{selected_adult['name']} cannot be assigned: {reason}."
+            )
+    affected_events = [event]
+    if event["ride_group_id"] and event["location_id"]:
+        affected_events = [
+            item
+            for item in normalized["events"]
+            if item["kind"] == "child_activity"
+            and item["ride_group_id"] == event["ride_group_id"]
+            and item["location_id"] == event["location_id"]
+            and item["start_minute"] == event["start_minute"]
+            and item["end_minute"] == event["end_minute"]
+            and item["responsibility_mode"] == event["responsibility_mode"]
+        ]
 
     if scope == "occurrence":
-        if segment_field:
-            event[segment_field] = adult_id
-        else:
-            event["assigned_adult_id"] = adult_id
+        for affected in affected_events:
+            if segment_field:
+                affected[segment_field] = adult_id
+            else:
+                affected["assigned_adult_id"] = adult_id
     else:
-        if not event["series_id"]:
+        if any(not affected["series_id"] for affected in affected_events):
             raise ValueError("a one-time event has no recurring series to update")
-        rule = next(
-            (
-                item
-                for item in normalized["rules"]
-                if item["series_id"] == event["series_id"]
-            ),
-            None,
-        )
-        if rule is None:
-            raise ValueError("the recurring series has no responsibility rule")
-        rule_field = segment_field or "adult_id"
-        previous = rule.get(rule_field) or rule["adult_id"]
-        rule[rule_field] = adult_id
         adult_name = next(
             person["name"]
             for person in normalized["people"]
             if person["id"] == adult_id
         )
-        responsibility_label = (
-            f" {responsibility_kind.replace('off', '-off')}"
-            if segment_field
-            else ""
-        )
-        rule["label"] = (
-            f"{adult_name} normally handles {event['title']}{responsibility_label}"
-        )[:120]
-        rule["fallback_adult_ids"] = [
-            item
-            for item in dict.fromkeys([previous, *rule["fallback_adult_ids"]])
-            if item != adult_id
-        ]
-        if segment_field:
-            event[segment_field] = None
-        else:
-            event["assigned_adult_id"] = None
+        updated_series: set[str] = set()
+        for affected in affected_events:
+            if affected["series_id"] in updated_series:
+                continue
+            rule = next(
+                (
+                    item
+                    for item in normalized["rules"]
+                    if item["series_id"] == affected["series_id"]
+                ),
+                None,
+            )
+            if rule is None:
+                raise ValueError("the recurring series has no responsibility rule")
+            rule_field = segment_field or "adult_id"
+            previous = rule.get(rule_field) or rule["adult_id"]
+            rule[rule_field] = adult_id
+            responsibility_label = (
+                f" {responsibility_kind.replace('off', '-off')}"
+                if segment_field
+                else ""
+            )
+            rule["label"] = (
+                f"{adult_name} normally handles {affected['title']}"
+                f"{responsibility_label}"
+            )[:120]
+            rule["fallback_adult_ids"] = [
+                item
+                for item in dict.fromkeys([previous, *rule["fallback_adult_ids"]])
+                if item != adult_id
+            ]
+            updated_series.add(affected["series_id"])
+        for affected in affected_events:
+            if segment_field:
+                affected[segment_field] = None
+            else:
+                affected["assigned_adult_id"] = None
     return normalized
