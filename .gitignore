@@ -3,6 +3,10 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+__MACOSX/
+.pytest_cache/
+.ruff_cache/
+/Archive.zip
 
 # Environment
 .env

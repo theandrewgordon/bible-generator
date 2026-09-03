@@ -26,9 +26,9 @@ def _overlaps(left, right):
     )
 
 
-def test_demo_has_fifteen_assignments_and_expected_parent_demand():
+def test_demo_has_fifteen_assignments_and_meaningful_parent_demand():
     assert len(TASKS) == 15
-    assert sum(task.parent_minutes for task in TASKS) == 235
+    assert sum(task.parent_minutes for task in TASKS) == 390
 
 
 def test_generated_schedule_never_double_books_parent():
@@ -110,19 +110,16 @@ def test_group_lesson_uses_one_parent_block_for_all_students():
     )
 
     assert science["student_ids"] == ["tessa", "diana", "elsie"]
-    assert science["parent_minutes"] == 40
+    assert science["parent_minutes"] == 50
     assert len(science["phases"]) == 1
 
 
-def test_missing_tuesday_creates_real_parent_capacity_shortfall():
-    result = generate_demo_schedule(
-        missed_tuesday=True,
-        scenario={"disruptions": ["sick_monday"]},
-    )
+def test_tuesday_morning_disruption_creates_real_parent_capacity_shortfall():
+    result = generate_demo_schedule(missed_tuesday=True)
 
-    assert result["metrics"]["parent_demand"] == 235
-    assert result["metrics"]["parent_capacity"] == 180
-    assert result["metrics"]["parent_shortfall"] == 55
+    assert result["metrics"]["parent_demand"] == 390
+    assert result["metrics"]["parent_capacity"] == 330
+    assert result["metrics"]["parent_shortfall"] == 60
     assert all(
         student["shortfall"] == 0
         for student in result["metrics"]["students"].values()
@@ -131,10 +128,7 @@ def test_missing_tuesday_creates_real_parent_capacity_shortfall():
 
 
 def test_disrupted_schedule_offers_capacity_valid_remedies():
-    result = generate_demo_schedule(
-        missed_tuesday=True,
-        scenario={"disruptions": ["sick_monday"]},
-    )
+    result = generate_demo_schedule(missed_tuesday=True)
     entries = _all_entries(result)
     late_entries = [entry for entry in entries if entry["late"]]
     accept_option = next(
@@ -157,6 +151,56 @@ def test_baseline_needs_no_warning_or_remedy():
     assert result["recommendations"] == []
 
 
+def test_default_baseline_uses_three_days_without_front_loading():
+    result = generate_demo_schedule()
+    counts = [len(day["entries"]) for day in result["days"]]
+
+    assert all(counts[index] > 0 for index in range(3))
+    assert counts[3:] == [0, 0]
+    assert max(counts[:3]) - min(counts[:3]) <= 2
+    assert result["feasibility"]["deadline_feasible"] is True
+
+
+def test_unavailable_minutes_cannot_count_as_productive_concurrency():
+    task = next(task for task in TASKS if task.id == "diana-math")
+    day = DAYS[0]
+    blank = {student_id: [False] * day.duration for student_id in scheduler.STUDENTS}
+    actual_work = {student_id: bits.copy() for student_id, bits in blank.items()}
+    actual_work["tessa"][: task.total_minutes] = [True] * task.total_minutes
+    adult_load = {PARENT: 0}
+    student_load = {student_id: 0 for student_id in scheduler.STUDENTS}
+
+    neutral = scheduler._candidate_cost(
+        task, 0, day.start_minute, day, blank, adult_load, student_load
+    )
+    productive = scheduler._candidate_cost(
+        task, 0, day.start_minute, day, actual_work, adult_load, student_load
+    )
+
+    assert productive < neutral
+
+
+def test_candidate_starts_use_human_friendly_five_minute_grid():
+    for result in (generate_demo_schedule(), generate_demo_schedule(missed_tuesday=True)):
+        assert all(entry["start_minute"] % 5 == 0 for entry in _all_entries(result))
+
+
+def test_tuesday_rebuild_preserves_independent_afternoon_and_all_work():
+    result = generate_demo_schedule(missed_tuesday=True)
+    tuesday = result["days"][1]
+
+    assert tuesday["events"][0]["title"] == "Tuesday morning fell apart"
+    assert tuesday["entries"]
+    assert all(entry["start_minute"] >= 12 * 60 + 30 for entry in tuesday["entries"])
+    assert all(entry["parent_minutes"] == 0 for entry in tuesday["entries"])
+    assert (
+        result["scheduled_count"]
+        + result["unscheduled_count"]
+        + result["completed_count"]
+        == result["total_count"]
+    )
+
+
 def test_impossible_assignment_is_reported_instead_of_silently_dropped(monkeypatch):
     impossible = Task(
         "impossible",
@@ -174,13 +218,14 @@ def test_impossible_assignment_is_reported_instead_of_silently_dropped(monkeypat
 
     assert result["scheduled_count"] == 0
     assert result["unscheduled_count"] == 1
-    assert result["warnings"] == [
+    assert result["warnings"][0] == (
         {
             "kind": "unscheduled",
             "title": "1 assignment could not fit this week",
             "body": "Impossible Assignment",
         }
-    ]
+    )
+    assert result["warnings"][1]["kind"] == "synchronization"
 
     no_rollover = generate_demo_schedule(scenario={"allow_next_week": False})
     assert no_rollover["recommendations"][0]["kind"] == "capacity"
@@ -278,7 +323,7 @@ def test_coop_subject_credit_satisfies_assignments_without_rescheduling_them():
     }
     assert all(item["kind"] == "coop_credit" for item in result["completed"])
     assert not {"science", "history"} & scheduled_ids
-    assert result["metrics"]["parent_demand"] == 165
+    assert result["metrics"]["parent_demand"] == 295
 
 
 def test_work_completed_ahead_is_removed_and_takes_precedence_over_coop_credit():
@@ -419,7 +464,7 @@ def test_per_person_daily_availability_changes_capacity_and_placement():
     assert result["scenario"]["availability_end"]["diana"]["tue"] == 0
     assert result["scenario"]["availability_end"]["parent"]["wed"] == 14 * 60
     assert result["days"][1]["availability"]["students"]["diana"] == 0
-    assert result["days"][2]["availability"]["parent_minutes"] == 270
+    assert result["days"][2]["availability"]["parent_minutes"] == 240
     assert result["days"][4]["availability"]["students"]["tessa"] == 420
 
 
@@ -440,8 +485,8 @@ def test_deadline_policy_distinguishes_hard_work_from_flexible_work():
     tasks_by_id = {task.id: task for task in TASKS}
     essential_late = [entry for entry in _all_entries(essentials) if entry["late"]]
 
-    assert len([entry for entry in _all_entries(strict) if entry["late"]]) == 5
-    assert strict["metrics"]["parent_shortfall"] == 55
+    assert len([entry for entry in _all_entries(strict) if entry["late"]]) == 4
+    assert strict["metrics"]["parent_shortfall"] == 240
     assert essential_late
     assert all(tasks_by_id[entry["task_id"]].priority >= 4 for entry in essential_late)
     assert not any(entry["late"] for entry in _all_entries(balanced))

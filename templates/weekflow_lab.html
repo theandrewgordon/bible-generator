@@ -5,332 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="robots" content="noindex,nofollow" />
-    <meta
-      name="description"
-      content="WeekFlow Labs prototype: optimize a homeschool family around student work and finite parent attention."
-    />
+    <meta name="description" content="WeekFlow coordinates one homeschool family around finite parent attention." />
     <title>WeekFlow Scheduler Lab · FaithSparks Labs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='weekflow.css') }}?v=10"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow.css') }}?v=12" />
   </head>
   <body>
     <main class="wf-shell">
       <header class="wf-hero">
-        <div>
-          <div class="wf-kicker"><span>FaithSparks Labs</span> Prototype</div>
-          <h1>Build the family day,<br />not three separate calendars.</h1>
-          <p class="wf-lede">
-            WeekFlow coordinates fifteen assignments across three children and
-            one finite source of parent attention. The scheduling decisions are
-            deterministic, inspectable, and conflict-free.
-          </p>
-        </div>
-        <aside class="wf-hypothesis" aria-label="Experiment hypothesis">
-          <span class="wf-hypothesis-label">Hypothesis</span>
-          <p>
-            A homeschool plan becomes substantially more useful when it models
-            <strong>who needs Mom, when, and for how long.</strong>
-          </p>
-        </aside>
+        <div class="wf-kicker"><span>FaithSparks Labs</span> Scheduler experiment</div>
+        <h1>Build the family day,<br />not three separate calendars.</h1>
+        <p class="wf-lede">One parent. Three students. WeekFlow coordinates who needs you, who can work independently, and what can happen at the same time.</p>
       </header>
 
-      <section class="wf-beta-bar" aria-label="WeekFlow beta workspace">
-        <div>
-          <span class="wf-eyebrow">Invite beta workspace</span>
-          <strong id="familyDisplayName">Our homeschool</strong>
-          <small id="saveStatus" role="status" aria-live="polite">Drafts recover automatically on this device.</small>
-          <label class="wf-week-picker"><span>Week of</span><input id="weekStart" type="date" /></label>
+      <section class="wf-sample" aria-labelledby="sampleTitle">
+        <div class="wf-sample-heading">
+          <div><span class="wf-eyebrow">Predefined experiment</span><h2 id="sampleTitle">One real homeschool week</h2></div>
+          <p>Fifteen assignments, finite parent attention, and no double-booking.</p>
         </div>
-        <div class="wf-beta-actions">
-          <button class="wf-button" id="familySetupButton" type="button">Family setup</button>
-          <button class="wf-button" id="saveButton" type="button">Save draft</button>
-          <button class="wf-button wf-button-primary" id="approveButton" type="button" disabled>Approve week</button>
-          <button class="wf-button" id="undoButton" type="button" disabled>Undo replan</button>
-          <button class="wf-button" id="printButton" type="button" disabled>Print</button>
-          <button class="wf-button" id="calendarButton" type="button" disabled>Export calendar</button>
-          <label class="wf-button wf-file-button" for="calendarImport">Import calendar<input id="calendarImport" type="file" accept=".ics,text/calendar" /></label>
-          {% if weekflow_user %}<a class="wf-button" id="backupButton" href="{{ url_for('weekflow.backup') }}">Download backup</a>{% endif %}
-          <button class="wf-button" id="clearDraftButton" type="button">Clear device draft</button>
-          {% if weekflow_user %}<button class="wf-button" id="deleteCloudButton" type="button">Delete WeekFlow cloud data</button>{% endif %}
+        <div class="wf-sample-grid">
+          <article><i style="--person:#6657d9"></i><strong>Avery</strong><span>Older · mostly independent</span></article>
+          <article><i style="--person:#d45e86"></i><strong>Maya</strong><span>Mixed parent help + solo work</span></article>
+          <article><i style="--person:#168a80"></i><strong>Lucy</strong><span>Younger · substantial one-on-one</span></article>
+          <article><strong>Thursday</strong><span>CC / co-op day</span></article>
+          <article><strong>Wednesday</strong><span>Fixed parent appointment</span></article>
+          <article><strong>Baby nap</strong><span>Preferred teaching window</span></article>
         </div>
-        {% if weekflow_user %}
-        <span class="wf-cloud-state">Cloud account: {{ weekflow_user }} · {{ weekflow_limits.tier|title }} tier · up to {{ weekflow_limits.students }} students, {{ weekflow_limits.adults }} adults, {{ weekflow_limits.saved_weeks }} saved weeks, and {{ weekflow_limits.templates }} templates</span>
-        {% else %}
-        <a class="wf-sign-in" href="/login/google/start?next=/labs/weekflow">Sign in for cloud saving</a>
-        {% endif %}
-      </section>
-
-      <aside class="wf-beta-notice" aria-label="WeekFlow beta privacy notice">
-        <strong>Adult-planned, privacy-aware beta.</strong>
-        <span>Use simple labels such as “sick day”; do not enter diagnoses or other sensitive details about a child. Device drafts stay in this browser, and signed-in cloud drafts are saved to the adult account.</span>
-        <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
-      </aside>
-
-      <section class="wf-library-bar" aria-label="Saved WeekFlow plans and templates">
-        <label><span>Saved weeks</span><select id="historySelect"><option value="">Current device week</option></select></label>
-        <button class="wf-button" id="loadWeekButton" type="button" disabled>Load week</button>
-        <label><span>Reusable templates</span><select id="templateSelect"><option value="">Choose a template</option></select></label>
-        <button class="wf-button" id="applyTemplateButton" type="button" disabled>Apply template</button>
-        <label><span>New template name</span><input id="templateName" maxlength="80" placeholder="Normal school week" /></label>
-        <button class="wf-button" id="saveTemplateButton" type="button">Save as template</button>
-        <button class="wf-text-button" id="deleteTemplateButton" type="button" disabled>Delete template</button>
-        {% if not weekflow_limits.plus %}<a class="wf-text-button" href="/plus">Compare Plus capacity</a>{% endif %}
-        {% if not weekflow_beta_access %}<p>This signed-in account is not on the configured WeekFlow invite list yet. Device planning still works.</p>{% endif %}
-      </section>
-
-      <dialog class="wf-family-dialog" id="familyDialog" aria-labelledby="familyDialogTitle">
-        <form method="dialog" id="familyForm">
-          <div class="wf-dialog-heading">
-            <div><span class="wf-eyebrow">Family setup</span><h2 id="familyDialogTitle">Make WeekFlow yours</h2></div>
-            <button class="wf-dialog-close" value="cancel" aria-label="Close family setup">×</button>
-          </div>
-          <div class="wf-family-fields">
-            <label><span>Family or homeschool name</span><input id="familyName" maxlength="80" required /></label>
-            <label><span>Timezone</span><select id="familyTimezone"><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option><option>America/Anchorage</option><option>Pacific/Honolulu</option></select></label>
-          </div>
-          <fieldset><legend>Teaching adults</legend><div class="wf-family-people" id="familyAdultEditors"></div><button class="wf-text-button" id="addAdultButton" type="button">+ Add teaching adult</button></fieldset>
-          <fieldset><legend>Students</legend><div class="wf-family-people" id="familyStudentEditors"></div><button class="wf-text-button" id="addStudentButton" type="button">+ Add student</button></fieldset>
-          <div class="wf-dialog-actions"><button class="wf-button" value="cancel">Cancel</button><button class="wf-button wf-button-primary" id="saveFamilyButton" value="default">Save family</button></div>
-        </form>
-      </dialog>
-
-      <section class="wf-controls" aria-label="Scheduler actions">
-        <div class="wf-step is-active" data-step="1">
-          <span>1</span>
-          <div><strong>Set rhythm</strong><small>Availability + commitments</small></div>
-        </div>
-        <div class="wf-step" data-step="2">
-          <span>2</span>
-          <div><strong>Add real life</strong><small>Changes + work ahead</small></div>
-        </div>
-        <div class="wf-step" data-step="3">
-          <span>3</span>
-          <div><strong>Optimize</strong><small>Protect constraints</small></div>
-        </div>
-        <div class="wf-action-row">
-          <button class="wf-button wf-button-primary" id="generateButton" type="button">
-            Optimize This Week
-          </button>
-          <button class="wf-button" id="explainButton" type="button" disabled>
-            Explain This Schedule
-          </button>
-          <button class="wf-button wf-button-warning" id="missButton" type="button" disabled>
-            Quick test: Lose Tuesday
-          </button>
-          <button class="wf-button wf-button-primary" id="rebalanceButton" type="button" hidden>
-            Re-Optimize Remaining Week
-          </button>
-          <button class="wf-button" id="resetButton" type="button">
-            Reset Plan
-          </button>
-        </div>
-      </section>
-
-      <section class="wf-planner" aria-label="Week planning controls">
-        <div class="wf-planner-heading">
-          <div>
-            <span class="wf-eyebrow">Plan the real week</span>
-            <h2>Rhythms, interruptions, and progress all count.</h2>
-          </div>
-          <p id="scenarioSummary">Thursday co-op · Tessa can work independently until 4:00 PM Monday–Thursday.</p>
-        </div>
-
-        <div class="wf-planner-grid">
-          <fieldset class="wf-plan-card wf-availability-card">
-            <legend>Daily availability</legend>
-            <p>Choose when each person's usable school time ends. WeekFlow still protects appointments, co-op, and parent blackout windows inside that time.</p>
-            <div class="wf-availability-matrix" id="availabilityMatrix" role="table" aria-label="Daily availability end times">
-              <div class="wf-matrix-row wf-matrix-header" role="row">
-                <span role="columnheader">Person</span>
-                {% for day in demo.days %}<span role="columnheader">{{ day.label[:3] }}</span>{% endfor %}
-              </div>
-              {% for person in demo.availability_people %}
-              <div class="wf-matrix-row" role="row">
-                <strong role="rowheader">{{ person.name }}</strong>
-                {% for day in demo.days %}
-                <label>
-                  <span class="wf-visually-hidden">{{ person.name }} {{ day.label }} availability ends</span>
-                  <select data-resource="{{ person.id }}" data-day="{{ day.id }}">
-                    {% for option in demo.availability_end_options %}
-                    <option value="{{ option.value }}" {{ 'selected' if option.value == demo.default_scenario.availability_end[person.id][day.id] else '' }}>{{ option.label }}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                {% endfor %}
-              </div>
-              {% endfor %}
-            </div>
-          </fieldset>
-
-          <fieldset class="wf-plan-card wf-events-card">
-            <legend>Commitments &amp; real life</legend>
-            <p>Turn on a preset or add your own event. Every event can happen on any day and affect the whole family or only selected people.</p>
-            <div class="wf-event-editors" id="eventEditors"></div>
-            <button class="wf-button wf-button-small" id="addEventButton" type="button">+ Add another event</button>
-          </fieldset>
-
-          <fieldset class="wf-plan-card">
-            <legend>Planning policy</legend>
-            <label class="wf-policy-control">
-              <span>Deadline policy</span>
-              <select id="deadlinePolicy">
-                <option value="strict">Strict — everything due Wednesday</option>
-                <option value="essentials">Protect essentials — flexible work may move</option>
-                <option value="balanced">Balanced week — use through Friday</option>
-              </select>
-            </label>
-            <label class="wf-toggle-row compact">
-              <input id="allowNextWeek" type="checkbox" checked />
-              <span><strong>Allow explicit rollover</strong><small>Never silently drop unfinished work</small></span>
-            </label>
-          </fieldset>
-
-          <fieldset class="wf-plan-card wf-ahead-card">
-            <legend>Assignments &amp; progress</legend>
-            <div class="wf-ahead-actions">
-              <button type="button" class="wf-text-button" id="addTaskButton">+ Add assignment</button>
-              <button type="button" class="wf-text-button" id="tessaAheadButton">Mark Tessa's independent work done</button>
-              <button type="button" class="wf-text-button" id="clearAheadButton">Clear completed</button>
-            </div>
-            <p>Edit the work itself, including who does it, its deadline, duration, priority, and how much adult help it needs.</p>
-            <div class="wf-task-editors" id="aheadOptions"></div>
-          </fieldset>
-        </div>
-      </section>
-
-      <section class="wf-input-grid" aria-label="Demo inputs">
-        <details class="wf-input-card">
-          <summary>
-            <span class="wf-summary-icon">⌁</span>
-            <span><strong>Family constraints</strong><small>Person-specific hours · commitments · real interruptions</small></span>
-            <span class="wf-chevron">⌄</span>
-          </summary>
-          <div class="wf-card-body">
-            <div class="wf-students">
-              {% for student in demo.students %}
-              <div class="wf-student">
-                <span class="wf-dot" style="--student: {{ student.color }}"></span>
-                <strong>{{ student.name }}</strong>
-                <span>{{ 'Extended independent afternoons available' if student.id == 'tessa' else 'Default school window 9:00 AM–12:30 PM' }}</span>
-              </div>
-              {% endfor %}
-            </div>
-            <ul class="wf-constraint-list">
-              <li><strong>Teaching parents:</strong> 1, with editable daily end times</li>
-              <li><strong>Parent unavailable:</strong> 10:30–11:00 AM daily</li>
-              <li><strong>Preferred one-on-one:</strong> 9:30–10:30 AM baby nap</li>
-              <li><strong>Recurring anchor:</strong> Thursday CC / co-op, including travel</li>
-              <li><strong>Default deadline:</strong> end of Wednesday, with an optional flexible-work policy</li>
-            </ul>
-          </div>
-        </details>
-
-        <details class="wf-input-card">
-          <summary>
-            <span class="wf-summary-icon">≋</span>
-            <span><strong>Assignment requirements</strong><small>15 assignments · 235 parent minutes</small></span>
-            <span class="wf-chevron">⌄</span>
-          </summary>
-          <div class="wf-card-body wf-task-list">
-            {% for task in demo.tasks %}
-            <article class="wf-task">
-              <div>
-                <span class="wf-task-owner">{{ task.student_names|join(' + ') }}</span>
-                <strong>{{ task.title }}</strong>
-                <small>{{ task.subject }} · {{ task.minutes }} min</small>
-              </div>
-              <div class="wf-phase-flow" aria-label="Assignment phases">
-                {% for phase in task.phases %}
-                <span class="wf-phase-chip {{ 'needs-parent' if phase.resource == 'parent' else 'independent' }}">
-                  {{ phase.minutes }}m {{ 'Mom' if phase.resource == 'parent' else 'solo' }}
-                </span>
-                {% if not loop.last %}<span class="wf-arrow">→</span>{% endif %}
-                {% endfor %}
-              </div>
-            </article>
-            {% endfor %}
-          </div>
-        </details>
-      </section>
-
-      <section class="wf-empty" id="emptyState">
-        <div class="wf-orbit" aria-hidden="true"><span></span><i></i><b></b></div>
-        <h2>The constraints are ready.</h2>
-        <p>Generate the baseline to see how parent-led, independent, and group work interlock.</p>
+        <button class="wf-button wf-button-primary wf-build" id="generateButton" type="button">Build Family Schedule</button>
+        <p class="wf-action-status" id="actionStatus" role="status" aria-live="polite"></p>
       </section>
 
       <section id="results" hidden aria-live="polite">
-        <div class="wf-status" id="statusBanner"></div>
-
-        <div class="wf-metrics" id="metrics"></div>
-
-        <section class="wf-completed" id="completedPanel" hidden>
-          <div>
-            <span class="wf-eyebrow">Already satisfied</span>
-            <h2>Work that does not need another slot</h2>
-          </div>
-          <div class="wf-completed-list" id="completedList"></div>
-        </section>
-
-        <section class="wf-resolution" id="resolutionPanel" hidden>
-          <div class="wf-section-heading">
-            <div>
-              <span class="wf-eyebrow">Capacity decision</span>
-              <h2>The schedule needs a tradeoff.</h2>
-            </div>
-            <p>WeekFlow shows valid options instead of silently creating an impossible day.</p>
-          </div>
-          <div class="wf-resolution-grid">
-            <div class="wf-warning-list" id="warningList"></div>
-            <div class="wf-recommendation-list" id="recommendationList"></div>
-          </div>
-        </section>
-
-        <section class="wf-completed wf-rollover" id="rolloverPanel" hidden>
-          <div><span class="wf-eyebrow">Next week</span><h2>Explicit rollover queue</h2><button class="wf-button wf-button-primary" id="createRolloverButton" type="button">Create next week's draft</button></div>
-          <div class="wf-completed-list" id="rolloverList"></div>
-        </section>
-
-        <div class="wf-section-heading">
-          <div>
-            <span class="wf-eyebrow">Optimized result</span>
-            <h2 id="scheduleTitle">Family schedule</h2>
-          </div>
-          <div class="wf-legend" aria-label="Schedule legend">
-            <span><i class="parent"></i> Parent attention</span>
-            <span><i class="solo"></i> Independent</span>
-            <span><i class="group"></i> Whole family</span>
-          </div>
+        <div class="wf-result-intro">
+          <div><span class="wf-eyebrow">Family schedule</span><h2 id="scheduleTitle">Baseline family week</h2></div>
+          <button class="wf-text-button" id="explainButton" type="button">Why this schedule?</button>
         </div>
 
-        <div class="wf-week" id="week"></div>
+        <div class="wf-status" id="statusBanner"></div>
+        <div class="wf-metrics" id="metrics"></div>
+
+        <section class="wf-timeline-section" aria-labelledby="timelineTitle">
+          <div class="wf-timeline-heading">
+            <div><span class="wf-eyebrow">Shared resource timeline</span><h2 id="timelineTitle">What everyone is doing together</h2></div>
+            <div class="wf-legend" aria-label="Timeline legend"><span><i class="parent"></i> Parent-led</span><span><i class="solo"></i> Independent</span><span><i class="group"></i> Group lesson</span></div>
+          </div>
+          <div class="wf-day-tabs" id="dayTabs" role="tablist" aria-label="Choose a day"></div>
+          <p class="wf-timeline-tip">Wednesday shows kickoff → independent work → parent return. Monday shows the whole-family group lab.</p>
+          <div class="wf-resource-timeline" id="resourceTimeline"></div>
+          <div class="wf-mobile-timeline" id="mobileTimeline"></div>
+        </section>
+
+        <section class="wf-disruption" id="disruptionPanel">
+          <div><span class="wf-eyebrow">Test the scheduler</span><h2>Tuesday morning fell apart.</h2><p id="disruptionCopy">Remove Tuesday morning while keeping genuinely available independent afternoon work.</p></div>
+          <div class="wf-disruption-actions">
+            <button class="wf-button wf-button-warning" id="disruptButton" type="button">Tuesday Morning Fell Apart</button>
+            <button class="wf-button wf-button-primary" id="rebuildButton" type="button" hidden>Rebuild Remaining Week</button>
+          </div>
+        </section>
+
+        <section class="wf-change-summary" id="changePanel" hidden aria-labelledby="changeTitle">
+          <span class="wf-eyebrow">What changed</span><h2 id="changeTitle">The rebuild protected every shared resource.</h2>
+          <div id="changeSummary"></div>
+        </section>
+
+        <section class="wf-week-overview" aria-labelledby="weekTitle">
+          <div class="wf-section-heading"><div><span class="wf-eyebrow">Compact week</span><h2 id="weekTitle">Workload at a glance</h2></div><p>Daily assignment and parent-attention load.</p></div>
+          <div class="wf-week" id="week"></div>
+        </section>
 
         <section class="wf-explanations" id="explanations" hidden>
-          <div class="wf-section-heading">
-            <div>
-              <span class="wf-eyebrow">Decision trace</span>
-              <h2>Why this schedule?</h2>
-            </div>
-            <p>Every placement is derived from availability and resource constraints.</p>
-          </div>
+          <div class="wf-section-heading"><div><span class="wf-eyebrow">Decision trace</span><h2>Why this schedule?</h2></div><p>Household-resource decisions, not AI guesses.</p></div>
           <div class="wf-explanation-list" id="explanationList"></div>
         </section>
       </section>
 
-      <section class="wf-feedback" aria-labelledby="feedbackTitle">
-        <div><span class="wf-eyebrow">Help shape the beta</span><h2 id="feedbackTitle">Did this plan feel realistic?</h2><p>Send only product feedback—do not include private information about a child.</p></div>
+      <section class="wf-feedback" id="feedbackPanel" hidden aria-labelledby="feedbackTitle">
+        <div><span class="wf-eyebrow">Help shape the experiment</span><h2 id="feedbackTitle">Did the family timeline make sense?</h2><p>Please share product feedback only—no private information about a child.</p></div>
         <form id="feedbackForm">
           <label><span>How close was it?</span><select id="feedbackRealistic" required><option value="">Choose one</option><option value="yes">Yes, realistic</option><option value="mostly">Mostly</option><option value="no">Not yet</option></select></label>
           <label><span>What did WeekFlow misunderstand?</span><textarea id="feedbackComment" maxlength="1000" rows="3"></textarea></label>
-          <label class="wf-feedback-contact"><input id="feedbackContact" type="checkbox" /> You may contact me about this feedback</label>
           <button class="wf-button" type="submit">Send feedback</button>
           <span id="feedbackStatus" role="status" aria-live="polite"></span>
         </form>
@@ -340,26 +95,13 @@
     <script>
       window.WEEKFLOW_CONFIG = {
         scheduleUrl: {{ url_for('weekflow.schedule')|tojson }},
-        stateUrl: {{ url_for('weekflow.state')|tojson }},
         feedbackUrl: {{ url_for('weekflow.feedback')|tojson }},
-        weeksUrl: {{ url_for('weekflow.weeks')|tojson }},
-        templatesUrl: {{ url_for('weekflow.templates')|tojson }},
-        rolloverUrl: {{ url_for('weekflow.rollover')|tojson }},
-        analyticsUrl: {{ url_for('weekflow.analytics')|tojson }},
-        signedIn: {{ (weekflow_user is not none)|tojson }},
-        betaAccess: {{ weekflow_beta_access|tojson }},
-        limits: {{ weekflow_limits|tojson }},
         csrfToken: {{ csrf_token()|tojson }},
         students: {{ demo.students|tojson }},
         adults: {{ demo.adults|tojson }},
-        availabilityPeople: {{ demo.availability_people|tojson }},
-        availabilityEndOptions: {{ demo.availability_end_options|tojson }},
-        creditSubjects: {{ demo.coop_credit_subjects|tojson }},
-        eventPresets: {{ demo.event_presets|tojson }},
         defaultScenario: {{ demo.default_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow_calendar.js') }}?v=1" defer></script>
-    <script src="{{ url_for('static', filename='weekflow.js') }}?v=12" defer></script>
+    <script src="{{ url_for('static', filename='weekflow.js') }}?v=15" defer></script>
   </body>
 </html>

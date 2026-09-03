@@ -68,15 +68,10 @@ def _weekflow_limits(email: str | None) -> dict[str, int | str | bool]:
 @bp.get("")
 @bp.get("/")
 def index():
-    email = _signed_in_email()
-    limits = _weekflow_limits(email)
     return render_template(
         "weekflow_lab.html",
         demo=demo_payload(),
         noindex=True,
-        weekflow_user=session.get("user_email"),
-        weekflow_beta_access=_has_beta_access(email),
-        weekflow_limits=limits,
     )
 
 

@@ -60,9 +60,9 @@ class Day:
 
 
 STUDENTS = {
-    "tessa": {"name": "Tessa", "color": "#6657d9"},
-    "diana": {"name": "Diana", "color": "#d45e86"},
-    "elsie": {"name": "Elsie", "color": "#168a80"},
+    "tessa": {"name": "Avery", "color": "#6657d9"},
+    "diana": {"name": "Maya", "color": "#d45e86"},
+    "elsie": {"name": "Lucy", "color": "#168a80"},
 }
 
 ADULTS = {
@@ -404,7 +404,19 @@ def default_scenario() -> dict[str, object]:
         "schema_version": 2,
         "household": _default_household(),
         "week_start": None,
-        "events": [_event_preset("coop")],
+        "events": [
+            _event_preset("coop"),
+            {
+                **_event_preset("parent-appointment"),
+                "id": "wednesday-appointment",
+                "title": "Wednesday appointment",
+                "detail": "Parent-led work pauses for a fixed appointment.",
+                "day_id": "wed",
+                "start_minute": 12 * 60,
+                "end_minute": 12 * 60 + 30,
+                "kind": "commitment",
+            },
+        ],
         "tasks": [_task_payload(task) for task in TASKS],
         # Retained for clients created before the editable event model.
         "coop_monday": False,
@@ -548,7 +560,11 @@ def normalize_scenario(
     else:
         raw_events = deepcopy(default_scenario()["events"])
         for event in raw_events:
-            event["affected"] = [*adult_id_list, *student_id_list]
+            event["affected"] = (
+                [first_adult_id]
+                if event["affected"] == [PARENT]
+                else [*adult_id_list, *student_id_list]
+            )
         if "coop_monday" in supplied:
             raw_events = [event for event in raw_events if event["id"] != "coop"]
             if normalized["coop_monday"]:
@@ -590,8 +606,10 @@ def normalize_scenario(
             if legacy_id == "lost_tuesday":
                 event.update(
                     {
-                        "title": "Tuesday lost",
-                        "detail": "The full school day is unavailable after an unexpected interruption.",
+                        "title": "Tuesday morning fell apart",
+                        "detail": "The household lost its Tuesday morning school window; genuinely available independent afternoon work can remain.",
+                        "start_minute": 9 * 60,
+                        "end_minute": MORNING_END,
                     }
                 )
             raw_events.append(event)
@@ -607,9 +625,11 @@ def normalize_scenario(
         lost_tuesday.update(
             {
                 "id": "lost_tuesday",
-                "title": "Tuesday lost",
-                "detail": "The full school day is unavailable after an unexpected interruption.",
+                "title": "Tuesday morning fell apart",
+                "detail": "The household lost its Tuesday morning school window; genuinely available independent afternoon work can remain.",
                 "day_id": "tue",
+                "start_minute": 9 * 60,
+                "end_minute": MORNING_END,
             }
         )
         lost_tuesday["affected"] = [*adult_id_list, *student_id_list]
@@ -711,7 +731,7 @@ TASKS = (
         "Plant Cells Lab",
         "Science",
         ("tessa", "diana", "elsie"),
-        (Phase("Group instruction", 40, PARENT),),
+        (Phase("Group instruction", 50, PARENT),),
         priority=4,
         preferred_start=(11 * 60, 12 * 60 + 30),
     ),
@@ -720,7 +740,7 @@ TASKS = (
         "Revolution Timeline",
         "History",
         ("tessa", "diana", "elsie"),
-        (Phase("Family lesson", 30, PARENT),),
+        (Phase("Family lesson", 45, PARENT),),
         priority=3,
     ),
     Task(
@@ -729,9 +749,9 @@ TASKS = (
         "Writing",
         ("tessa",),
         (
-            Phase("Plan with Mom", 15, PARENT),
+            Phase("Plan with Parent", 20, PARENT),
             Phase("Draft independently", 30, STUDENT),
-            Phase("Review with Mom", 5, PARENT),
+            Phase("Review with Parent", 10, PARENT),
         ),
         priority=4,
     ),
@@ -741,9 +761,9 @@ TASKS = (
         "Math",
         ("diana",),
         (
-            Phase("Kickoff with Mom", 8, PARENT),
+            Phase("Kickoff with Parent", 10, PARENT),
             Phase("Practice independently", 22, STUDENT),
-            Phase("Check with Mom", 5, PARENT),
+            Phase("Check with Parent", 10, PARENT),
         ),
         priority=5,
     ),
@@ -753,7 +773,7 @@ TASKS = (
         "Reading",
         ("diana",),
         (
-            Phase("Read aloud with Mom", 15, PARENT),
+            Phase("Read aloud with Parent", 30, PARENT),
             Phase("Finish independently", 15, STUDENT),
         ),
         priority=3,
@@ -764,7 +784,7 @@ TASKS = (
         "Spelling",
         ("diana",),
         (
-            Phase("Teach pattern", 15, PARENT),
+            Phase("Teach pattern", 25, PARENT),
             Phase("Independent check", 5, STUDENT),
         ),
         priority=2,
@@ -774,7 +794,7 @@ TASKS = (
         "Diagram Sentences",
         "Grammar",
         ("diana",),
-        (Phase("Direct instruction", 20, PARENT),),
+        (Phase("Direct instruction", 35, PARENT),),
         priority=4,
     ),
     Task(
@@ -782,7 +802,7 @@ TASKS = (
         "Beginning Reader",
         "Reading",
         ("elsie",),
-        (Phase("One-on-one reading", 25, PARENT),),
+        (Phase("One-on-one reading", 45, PARENT),),
         priority=5,
     ),
     Task(
@@ -790,7 +810,7 @@ TASKS = (
         "Number Bonds",
         "Math",
         ("elsie",),
-        (Phase("One-on-one math", 20, PARENT),),
+        (Phase("One-on-one math", 40, PARENT),),
         priority=4,
     ),
     Task(
@@ -798,7 +818,7 @@ TASKS = (
         "Short Vowels",
         "Phonics",
         ("elsie",),
-        (Phase("Guided phonics", 22, PARENT),),
+        (Phase("Guided phonics", 40, PARENT),),
         priority=4,
     ),
     Task(
@@ -806,7 +826,7 @@ TASKS = (
         "Picture Book Read-Aloud",
         "Literature",
         ("elsie",),
-        (Phase("Read aloud together", 15, PARENT),),
+        (Phase("Read aloud together", 30, PARENT),),
         priority=2,
     ),
     Task(
@@ -960,10 +980,11 @@ def _mark(bits: list[bool], start: int, end: int) -> None:
     bits[start:end] = [True] * (end - start)
 
 
-def _task_order(task: Task) -> tuple[int, int, int, int, str]:
+def _task_order(task: Task) -> tuple[int, int, int, int, int, str]:
     return (
         task.due_day,
         -len(task.student_ids),
+        -len(task.phases),
         -task.parent_minutes,
         -task.priority,
         task.id,
@@ -975,11 +996,34 @@ def _candidate_cost(
     day_index: int,
     start_minute: int,
     day: Day,
-    student_busy: dict[str, list[bool]],
+    student_scheduled: dict[str, list[bool]],
+    adult_load: dict[str, int],
+    student_load: dict[str, int],
 ) -> int:
     lateness = max(0, day_index - task.due_day)
-    cost = lateness * 1_000_000 + day_index * 20_000
+    cost = lateness * 1_000_000 + day_index * 60
     cost += start_minute - day.start_minute
+
+    # Valid is not the same as humane. Once hard constraints and deadlines are
+    # satisfied, prefer the day with the lighter projected adult/student load.
+    # This marginal-square penalty spreads work without hardcoding placements.
+    phase_load_by_adult: dict[str, int] = {}
+    for phase in task.phases:
+        if phase.resource != STUDENT:
+            phase_load_by_adult[phase.resource] = (
+                phase_load_by_adult.get(phase.resource, 0) + phase.minutes
+            )
+    balance_delta = sum(
+        (adult_load.get(adult_id, 0) + minutes) ** 2
+        - adult_load.get(adult_id, 0) ** 2
+        for adult_id, minutes in phase_load_by_adult.items()
+    )
+    balance_delta += sum(
+        (student_load.get(student_id, 0) + task.total_minutes) ** 2
+        - student_load.get(student_id, 0) ** 2
+        for student_id in task.student_ids
+    )
+    cost += balance_delta // 8
 
     if task.preferred_start:
         preferred_left, preferred_right = task.preferred_start
@@ -997,11 +1041,11 @@ def _candidate_cost(
 
         # Prefer household concurrency: another child doing useful work while
         # this phase runs makes the family day shorter without adding conflict.
-        for student_id, bits in student_busy.items():
+        for student_id, bits in student_scheduled.items():
             if student_id not in task.student_ids:
                 offset_start = cursor - day.start_minute
                 offset_end = phase_end - day.start_minute
-                cost -= sum(bits[offset_start:offset_end])
+                cost -= sum(bits[offset_start:offset_end]) * 3
         cursor = phase_end
     return cost
 
@@ -1096,7 +1140,13 @@ def _build_explanations(
     for entry in entries:
         for phase in entry["phases"]:
             if phase["resource"] != STUDENT:
-                parent_phases.append({**phase, "task_title": entry["title"]})
+                parent_phases.append(
+                    {
+                        **phase,
+                        "task_title": entry["title"],
+                        "student_names": entry["student_names"],
+                    }
+                )
 
     for entry in entries:
         phases = entry["phases"]
@@ -1113,14 +1163,41 @@ def _build_explanations(
         elif len(phases) > 1 and any(
             phase["resource"] == STUDENT for phase in phases
         ) and any(phase["resource"] != STUDENT for phase in phases):
-            phase_text = " → ".join(
-                f"{phase['minutes']} min {phase_description(phase)}"
-                for phase in phases
+            independent = next(
+                phase for phase in phases if phase["resource"] == STUDENT
+            )
+            assisted = [phase for phase in phases if phase["resource"] != STUDENT]
+            overlapping = next(
+                (
+                    parent_phase
+                    for parent_phase in parent_phases
+                    if parent_phase["task_title"] != entry["title"]
+                    and parent_phase["day_id"] == independent["day_id"]
+                    and parent_phase["start_minute"] < independent["end_minute"]
+                    and independent["start_minute"] < parent_phase["end_minute"]
+                ),
+                None,
+            )
+            adult_name = adult_names.get(str(assisted[0]["resource"]), "Parent")
+            first_action = str(assisted[0]["label"]).replace(" with Parent", "").lower()
+            if overlapping:
+                other_students = ", ".join(overlapping["student_names"])
+                concurrency = (
+                    f"{adult_name} teaches {other_students} "
+                    f"{overlapping['task_title']}"
+                )
+            else:
+                concurrency = f"{adult_name} is free to teach another student"
+            return_text = (
+                f", then returns for a {assisted[-1]['minutes']}-minute review"
+                if len(assisted) > 1
+                else ""
             )
             body = (
-                f"{student_names[0]}'s {entry['title']} is kept as one learning "
-                f"sequence ({phase_text}). The independent phase releases the adult "
-                "to teach another child before returning for the next assisted phase."
+                f"{student_names[0]}'s {entry['title']} begins with a "
+                f"{assisted[0]['minutes']}-minute {adult_name} {first_action}. "
+                f"During the {independent['minutes']}-minute independent phase, "
+                f"{concurrency}{return_text}."
             )
         elif all(phase["resource"] == STUDENT for phase in phases):
             overlaps = []
@@ -1293,10 +1370,12 @@ def generate_demo_schedule(
                 "adult_busy": {
                     adult_id: [False] * day.duration for adult_id in adult_ids
                 },
-                "student_busy": {
-                    student_id: [not available for available in bits]
-                    for student_id, bits in student_available.items()
+                "student_available": student_available,
+                "student_scheduled": {
+                    student_id: [False] * day.duration for student_id in student_ids
                 },
+                "adult_load": {adult_id: 0 for adult_id in adult_ids},
+                "student_load": {student_id: 0 for student_id in student_ids},
             }
         )
 
@@ -1310,7 +1389,7 @@ def generate_demo_schedule(
                 continue
             day: Day = state["day"]
             latest_start = day.end_minute - task.total_minutes
-            for start_minute in range(day.start_minute, latest_start + 1):
+            for start_minute in range(day.start_minute, latest_start + 1, 5):
                 cursor = start_minute
                 valid = True
                 for phase in task.phases:
@@ -1318,7 +1397,12 @@ def generate_demo_schedule(
                     left = cursor - day.start_minute
                     right = phase_end - day.start_minute
                     for student_id in task.student_ids:
-                        if not _is_free(state["student_busy"][student_id], left, right):
+                        if (
+                            not all(state["student_available"][student_id][left:right])
+                            or not _is_free(
+                                state["student_scheduled"][student_id], left, right
+                            )
+                        ):
                             valid = False
                             break
                     if not valid:
@@ -1340,7 +1424,9 @@ def generate_demo_schedule(
                                 day_index,
                                 start_minute,
                                 day,
-                                state["student_busy"],
+                                state["student_scheduled"],
+                                state["adult_load"],
+                                state["student_load"],
                             ),
                             day_index,
                             start_minute,
@@ -1361,7 +1447,7 @@ def generate_demo_schedule(
             left = cursor - day.start_minute
             right = phase_end - day.start_minute
             for student_id in task.student_ids:
-                _mark(state["student_busy"][student_id], left, right)
+                _mark(state["student_scheduled"][student_id], left, right)
             if phase.resource != STUDENT:
                 _mark(state["adult_busy"][phase.resource], left, right)
             phase_rows.append(
@@ -1377,6 +1463,12 @@ def generate_demo_schedule(
                 }
             )
             cursor = phase_end
+
+        for student_id in task.student_ids:
+            state["student_load"][student_id] += task.total_minutes
+        for phase in task.phases:
+            if phase.resource != STUDENT:
+                state["adult_load"][phase.resource] += phase.minutes
 
         entries.append(
             {
@@ -1438,6 +1530,23 @@ def generate_demo_schedule(
                     f"{'s' if len(unscheduled) != 1 else ''} could not fit this week"
                 ),
                 "body": ", ".join(task.title for task in unscheduled),
+            }
+        )
+
+    raw_capacity_sufficient = not metrics["parent_shortfall"] and all(
+        not student["shortfall"] for student in metrics["students"].values()
+    )
+    deadline_feasible = not late_entries and not unscheduled
+    if raw_capacity_sufficient and not deadline_feasible:
+        warnings.append(
+            {
+                "kind": "synchronization",
+                "title": "Raw capacity exists, but the shared windows do not line up",
+                "body": (
+                    "Adult and student minutes are sufficient in total, but phase "
+                    "order, simultaneous group availability, or protected windows "
+                    "prevent every assignment from meeting its deadline."
+                ),
             }
         )
 
@@ -1519,6 +1628,23 @@ def generate_demo_schedule(
         "scenario": normalized,
         "days": day_rows,
         "metrics": metrics,
+        "feasibility": {
+            "raw_capacity_sufficient": raw_capacity_sufficient,
+            "all_work_scheduled": not unscheduled,
+            "deadline_feasible": deadline_feasible,
+            "bottleneck": (
+                "parent_capacity"
+                if metrics["parent_shortfall"]
+                else "student_capacity"
+                if any(
+                    student["shortfall"]
+                    for student in metrics["students"].values()
+                )
+                else "synchronization"
+                if not deadline_feasible
+                else "none"
+            ),
+        },
         "warnings": warnings,
         "recommendations": _build_recommendations(
             metrics, late_entries, unscheduled, normalized

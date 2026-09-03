@@ -26,17 +26,17 @@ def test_lab_page_renders_demo_configuration():
     assert 'content="noindex,nofollow"' in html
     assert 'csrfToken: "test-token"' in html
     assert 'scheduleUrl: "/labs/weekflow/schedule"' in html
-    assert 'stateUrl: "/labs/weekflow/state"' in html
     assert 'feedbackUrl: "/labs/weekflow/feedback"' in html
-    assert 'weeksUrl: "/labs/weekflow/weeks"' in html
-    assert 'templatesUrl: "/labs/weekflow/templates"' in html
-    assert 'rolloverUrl: "/labs/weekflow/rollover"' in html
-    assert "Thursday co-op" in html
-    assert "Commitments &amp; real life" in html
-    assert "Add another event" in html
-    assert "Daily availability" in html
-    assert "Assignments &amp; progress" in html
-    assert '"title": "Grandma comes"' in html
+    assert "Build Family Schedule" in html
+    assert "Shared resource timeline" in html
+    assert "Tuesday Morning Fell Apart" in html
+    assert "Avery" in html and "Maya" in html and "Lucy" in html
+    assert "Thursday" in html and "CC / co-op day" in html
+    assert "Saved weeks" not in html
+    assert "Reusable templates" not in html
+    assert "Approve week" not in html
+    assert "Export calendar" not in html
+    assert "Optimize" not in html
 
 
 def test_schedule_endpoint_accepts_supported_modes_and_default(monkeypatch):
@@ -86,7 +86,9 @@ def test_schedule_endpoint_applies_weekly_scenario_controls():
     assert payload["mode"] == "disrupted"
     assert payload["completed_count"] == 3
     assert payload["scenario"]["disruptions"] == ["grandma_wednesday"]
-    assert payload["days"][2]["events"][0]["id"] == "grandma_wednesday"
+    assert "grandma_wednesday" in {
+        event["id"] for event in payload["days"][2]["events"]
+    }
 
 
 def test_schedule_endpoint_is_rate_limited(monkeypatch):
