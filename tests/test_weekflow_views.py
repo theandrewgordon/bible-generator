@@ -28,6 +28,9 @@ def test_lab_page_renders_demo_configuration():
     assert 'scheduleUrl: "/labs/weekflow/schedule"' in html
     assert 'stateUrl: "/labs/weekflow/state"' in html
     assert 'feedbackUrl: "/labs/weekflow/feedback"' in html
+    assert 'weeksUrl: "/labs/weekflow/weeks"' in html
+    assert 'templatesUrl: "/labs/weekflow/templates"' in html
+    assert 'rolloverUrl: "/labs/weekflow/rollover"' in html
     assert "Thursday co-op" in html
     assert "Commitments &amp; real life" in html
     assert "Add another event" in html
@@ -172,6 +175,21 @@ def test_cloud_state_routes_require_an_adult_account():
         assert "adult account" in response.get_json()["error"]
 
 
+def test_saved_weeks_templates_and_rollover_require_an_adult_account():
+    client = _client()
+
+    for method, path in (
+        (client.get, "/labs/weekflow/weeks"),
+        (client.get, "/labs/weekflow/weeks/2026-08-31"),
+        (client.get, "/labs/weekflow/templates"),
+        (client.post, "/labs/weekflow/templates"),
+        (client.post, "/labs/weekflow/rollover"),
+        (client.get, "/labs/weekflow/backup"),
+    ):
+        response = method(path, json={} if method == client.post else None)
+        assert response.status_code == 401
+
+
 def test_signed_in_adult_can_load_save_and_delete_state(monkeypatch):
     client = _client()
     state = default_beta_state()
@@ -261,3 +279,75 @@ def test_feedback_is_validated_rate_limited_and_saved_without_schedule_data(monk
             {"realistic": "mostly", "comment": "Move reading earlier", "contact": False},
         )
     ]
+
+
+def test_signed_in_beta_can_use_week_history_templates_and_rollover(monkeypatch):
+    client = _client()
+    state = default_beta_state()
+    state["scenario"]["week_start"] = "2026-08-31"
+    saved = {**state, "revision": 2, "plan": {"total_count": 1}}
+    deleted = []
+    monkeypatch.setattr(
+        weekflow_view,
+        "list_saved_weeks",
+        lambda email, limit: [{"week_start": "2026-08-31", "approved": True}],
+    )
+    monkeypatch.setattr(weekflow_view, "load_saved_week", lambda *args: saved)
+    monkeypatch.setattr(
+        weekflow_view,
+        "list_week_templates",
+        lambda email: [{"id": "abc", "name": "Normal", "scenario": state["scenario"]}],
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_week_template",
+        lambda email, body: {"id": "new", **body},
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "delete_week_template",
+        lambda email, template_id: deleted.append((email, template_id)),
+    )
+    monkeypatch.setattr(weekflow_view, "create_rollover_state", lambda *args: saved)
+    monkeypatch.setattr(weekflow_view, "get_user_doc", lambda email: {"isPro": True})
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    assert client.get("/labs/weekflow/weeks").status_code == 200
+    assert client.get("/labs/weekflow/weeks/2026-08-31").get_json()["revision"] == 2
+    assert client.get("/labs/weekflow/templates").status_code == 200
+    created = client.post(
+        "/labs/weekflow/templates",
+        json={"name": "Friday light", "scenario": state["scenario"]},
+    )
+    assert created.status_code == 201
+    assert client.delete("/labs/weekflow/templates/abc").status_code == 200
+    assert client.post("/labs/weekflow/rollover", json=state).status_code == 200
+    assert deleted == [("parent@example.com", "abc")]
+
+
+def test_beta_allowlist_and_subscription_limits_are_enforced(monkeypatch):
+    client = _client()
+    state = default_beta_state()
+    monkeypatch.setenv("WEEKFLOW_BETA_EMAILS", "invited@example.com")
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "waiting@example.com"
+
+    assert client.get("/labs/weekflow/state").status_code == 403
+
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "invited@example.com"
+    monkeypatch.setattr(weekflow_view, "get_user_doc", lambda email: {"isPro": False})
+    state["family"]["students"]["fourth"] = {
+        "name": "Fourth",
+        "color": "#4776c5",
+    }
+    state["family"]["students"]["fifth"] = {
+        "name": "Fifth",
+        "color": "#2c7a4b",
+    }
+
+    response = client.put("/labs/weekflow/state", json=state)
+
+    assert response.status_code == 403
+    assert "up to 4 students" in response.get_json()["error"]

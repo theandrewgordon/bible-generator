@@ -42,21 +42,32 @@
   const familyDialog = document.querySelector("#familyDialog");
   const familyForm = document.querySelector("#familyForm");
   const familyName = document.querySelector("#familyName");
-  const parentLabel = document.querySelector("#parentLabel");
   const familyTimezone = document.querySelector("#familyTimezone");
+  const familyAdultEditors = document.querySelector("#familyAdultEditors");
+  const familyStudentEditors = document.querySelector("#familyStudentEditors");
+  const addAdultButton = document.querySelector("#addAdultButton");
+  const addStudentButton = document.querySelector("#addStudentButton");
   const weekStart = document.querySelector("#weekStart");
   const feedbackForm = document.querySelector("#feedbackForm");
   const feedbackStatus = document.querySelector("#feedbackStatus");
+  const historySelect = document.querySelector("#historySelect");
+  const loadWeekButton = document.querySelector("#loadWeekButton");
+  const templateSelect = document.querySelector("#templateSelect");
+  const templateName = document.querySelector("#templateName");
+  const applyTemplateButton = document.querySelector("#applyTemplateButton");
+  const saveTemplateButton = document.querySelector("#saveTemplateButton");
+  const deleteTemplateButton = document.querySelector("#deleteTemplateButton");
+  const createRolloverButton = document.querySelector("#createRolloverButton");
+  const calendarImport = document.querySelector("#calendarImport");
   const steps = Array.from(document.querySelectorAll(".wf-step"));
 
-  const studentColors = Object.fromEntries(
-    config.students.map((student) => [student.id, student.color]),
-  );
+  const personColorPalette = ["#6657d9", "#d45e86", "#168a80", "#4776c5", "#a45c2f", "#7d5a9e", "#2c7a4b", "#b26b87"];
 
   let current = null;
   let previousSnapshot = null;
   let customEventSequence = 0;
   let saveTimer = null;
+  let savedTemplates = [];
   const storageKey = "faithsparks:weekflow:beta:v2";
   let betaState = {
     schema_version: 1,
@@ -65,6 +76,9 @@
       name: "Our homeschool",
       parent_label: "Parent",
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
+      adults: Object.fromEntries(
+        config.adults.map((adult) => [adult.id, { name: adult.name, color: adult.color }]),
+      ),
       students: Object.fromEntries(
         config.students.map((student) => [student.id, { name: student.name, color: student.color }]),
       ),
@@ -97,30 +111,129 @@
     return betaState.family;
   }
 
+  function familyPeople(group) {
+    return Object.entries(currentFamily()[group] || {}).map(([id, person]) => ({ id, ...person }));
+  }
+
+  function currentAdults() {
+    return familyPeople("adults");
+  }
+
+  function currentStudents() {
+    return familyPeople("students");
+  }
+
+  function availabilityPeople() {
+    return [...currentAdults(), ...currentStudents()];
+  }
+
+  function primaryAdult() {
+    return currentAdults()[0] || { id: "parent", name: currentFamily().parent_label || "Parent", color: "#d49a3a" };
+  }
+
   function personalizeText(value) {
     let text = String(value ?? "");
     config.students.forEach((student) => {
-      text = text.replaceAll(student.name, currentFamily().students[student.id].name);
+      const replacement = currentFamily().students[student.id]?.name;
+      if (replacement) text = text.replaceAll(student.name, replacement);
     });
-    return text.replaceAll("Mom", currentFamily().parent_label);
+    return text.replaceAll("Mom", primaryAdult().name).replaceAll("Parent", primaryAdult().name);
   }
 
-  function applyFamily(family) {
+  function normalizeClientFamily(family) {
+    const adults = family.adults && Object.keys(family.adults).length
+      ? family.adults
+      : { parent: { name: family.parent_label || "Parent", color: "#d49a3a" } };
+    return {
+      ...family,
+      parent_label: Object.values(adults)[0].name,
+      adults,
+    };
+  }
+
+  function appendFamilyPersonEditor(container, group, person, { removable = true } = {}) {
+    const row = document.createElement("div");
+    row.className = "wf-family-person";
+    row.dataset.personId = person.id;
+    row.dataset.personGroup = group;
+    row.innerHTML = `<label><span>${group === "adults" ? "Teaching adult" : "Student"}</span><input maxlength="60" required /></label>${removable ? '<button class="wf-text-button wf-remove-person" type="button">Remove</button>' : ""}`;
+    row.querySelector("input").value = person.name;
+    row.querySelector(".wf-remove-person")?.addEventListener("click", () => {
+      if (container.querySelectorAll(".wf-family-person").length === 1) {
+        saveStatus.textContent = `WeekFlow needs at least one ${group === "adults" ? "teaching adult" : "student"}.`;
+        return;
+      }
+      row.remove();
+    });
+    container.append(row);
+  }
+
+  function renderFamilyEditors(family) {
+    familyAdultEditors.replaceChildren();
+    familyStudentEditors.replaceChildren();
+    Object.entries(family.adults).forEach(([id, person]) => appendFamilyPersonEditor(
+      familyAdultEditors,
+      "adults",
+      { id, ...person },
+      { removable: Object.keys(family.adults).length > 1 },
+    ));
+    Object.entries(family.students).forEach(([id, person]) => appendFamilyPersonEditor(
+      familyStudentEditors,
+      "students",
+      { id, ...person },
+      { removable: Object.keys(family.students).length > 1 },
+    ));
+  }
+
+  function applyFamily(rawFamily) {
+    const family = normalizeClientFamily(rawFamily);
     betaState.family = family;
     familyDisplayName.textContent = family.name;
     familyName.value = family.name;
-    parentLabel.value = family.parent_label;
     if (Array.from(familyTimezone.options).some((option) => option.value === family.timezone)) {
       familyTimezone.value = family.timezone;
     }
-    document.querySelectorAll("[data-student-name]").forEach((input) => {
-      input.value = family.students[input.dataset.studentName].name;
-    });
-    document.querySelectorAll(".wf-task-student").forEach((select) => {
-      config.students.forEach((student) => {
-        const option = select.querySelector(`option[value="${student.id}"]`);
-        if (option) option.textContent = family.students[student.id].name;
+    renderFamilyEditors(family);
+    tessaAheadButton.textContent = `Mark ${currentStudents()[0].name}'s independent work done`;
+  }
+
+  function renderAvailabilityMatrix(availabilityEnd = {}) {
+    const matrix = document.querySelector("#availabilityMatrix");
+    const header = document.createElement("div");
+    header.className = "wf-matrix-row wf-matrix-header";
+    header.setAttribute("role", "row");
+    header.innerHTML = '<span role="columnheader">Person</span>' + Object.entries(dayLabels)
+      .map(([, label]) => `<span role="columnheader">${label.slice(0, 3)}</span>`)
+      .join("");
+    matrix.replaceChildren(header);
+    availabilityPeople().forEach((person) => {
+      const row = document.createElement("div");
+      row.className = "wf-matrix-row";
+      row.setAttribute("role", "row");
+      const heading = document.createElement("strong");
+      heading.setAttribute("role", "rowheader");
+      heading.textContent = person.name;
+      row.append(heading);
+      Object.entries(dayLabels).forEach(([dayId, dayLabel]) => {
+        const label = document.createElement("label");
+        const hidden = document.createElement("span");
+        hidden.className = "wf-visually-hidden";
+        hidden.textContent = `${person.name} ${dayLabel} availability ends`;
+        const select = document.createElement("select");
+        select.dataset.resource = person.id;
+        select.dataset.day = dayId;
+        config.availabilityEndOptions.forEach((choice) => {
+          const option = document.createElement("option");
+          option.value = choice.value;
+          option.textContent = choice.label;
+          select.append(option);
+        });
+        const fallback = person.id === currentStudents()[0]?.id && ["mon", "tue", "wed", "thu"].includes(dayId) ? 16 * 60 : 12 * 60 + 30;
+        select.value = String(availabilityEnd[person.id]?.[dayId] ?? fallback);
+        label.append(hidden, select);
+        row.append(label);
       });
+      matrix.append(row);
     });
   }
 
@@ -153,6 +266,7 @@
     const row = document.createElement("article");
     row.className = "wf-event-editor";
     row.dataset.eventId = event.id;
+    row._weekflowEventDetail = event.detail || "Added in the WeekFlow event planner.";
     row.innerHTML = `
       <div class="wf-event-editor-head">
         <label class="wf-event-enabled-label"><input class="wf-event-enabled" type="checkbox" /> <span>Use event</span></label>
@@ -181,9 +295,10 @@
     row.querySelector(".wf-event-kind").value = event.kind || "disruption";
     row.querySelector(".wf-event-recurring").checked = Boolean(event.recurring);
 
-    const affected = new Set(event.affected || config.availabilityPeople.map((person) => person.id));
+    const people = availabilityPeople();
+    const affected = new Set(event.affected || people.map((person) => person.id));
     const affectedGroup = row.querySelector(".wf-event-affected");
-    config.availabilityPeople.forEach((person) => {
+    people.forEach((person) => {
       const label = document.createElement("label");
       const input = document.createElement("input");
       input.type = "checkbox";
@@ -221,9 +336,13 @@
     row._weekflowTask = structuredClone(task);
     const totalMinutes = task.phases.reduce((total, phase) => total + phase.minutes, 0);
     const parentMinutes = task.phases
-      .filter((phase) => phase.resource === "parent")
+      .filter((phase) => phase.resource !== "student")
       .reduce((total, phase) => total + phase.minutes, 0);
-    const studentChoice = task.student_ids.length === config.students.length ? "all" : task.student_ids[0];
+    const students = currentStudents();
+    const adults = currentAdults();
+    const studentChoice = task.student_ids.length === students.length ? "all" : task.student_ids[0];
+    const requestedAdult = task.phases.find((phase) => phase.resource !== "student")?.resource;
+    const adultChoice = adults.some((adult) => adult.id === requestedAdult) ? requestedAdult : adults[0].id;
     row.innerHTML = `
       <div class="wf-task-editor-head">
         <label class="wf-task-complete-label"><input class="wf-task-completed" type="checkbox" /> Done</label>
@@ -233,11 +352,12 @@
       <div class="wf-task-editor-grid">
         <label><span>Subject</span><input class="wf-task-subject" maxlength="60" required /></label>
         <label><span>Student</span><select class="wf-task-student">
-          ${config.students.map((student) => `<option value="${student.id}">${escapeHtml(currentFamily().students[student.id]?.name || student.name)}</option>`).join("")}
+          ${students.map((student) => `<option value="${student.id}">${escapeHtml(student.name)}</option>`).join("")}
           <option value="all">Whole family</option>
         </select></label>
         <label><span>Total min</span><input class="wf-task-total" type="number" min="1" max="420" required /></label>
         <label><span>Adult min</span><input class="wf-task-parent" type="number" min="0" max="240" required /></label>
+        <label><span>Teaching adult</span><select class="wf-task-adult">${adults.map((adult) => `<option value="${adult.id}">${escapeHtml(adult.name)}</option>`).join("")}</select></label>
         <label><span>Due</span><select class="wf-task-due">
           ${Object.entries(dayLabels).map(([value, label], index) => `<option value="${index}">${label}</option>`).join("")}
         </select></label>
@@ -249,6 +369,7 @@
     row.querySelector(".wf-task-student").value = studentChoice;
     row.querySelector(".wf-task-total").value = totalMinutes;
     row.querySelector(".wf-task-parent").value = parentMinutes;
+    row.querySelector(".wf-task-adult").value = adultChoice;
     row.querySelector(".wf-task-due").value = String(task.due_day ?? 2);
     row.querySelector(".wf-task-priority").value = [1, 3, 5].includes(task.priority) ? String(task.priority) : task.priority >= 4 ? "5" : task.priority >= 2 ? "3" : "1";
     row.querySelectorAll("input:not(.wf-task-completed), select").forEach((input) => {
@@ -271,9 +392,10 @@
     const totalMinutes = Number(row.querySelector(".wf-task-total").value);
     const parentMinutes = Number(row.querySelector(".wf-task-parent").value);
     const studentValue = row.querySelector(".wf-task-student").value;
-    const studentIds = studentValue === "all" ? config.students.map((student) => student.id) : [studentValue];
+    const studentIds = studentValue === "all" ? currentStudents().map((student) => student.id) : [studentValue];
+    const adultId = row.querySelector(".wf-task-adult").value;
     const phases = [];
-    if (parentMinutes > 0) phases.push({ label: "Adult-guided work", minutes: Math.min(parentMinutes, totalMinutes), resource: "parent" });
+    if (parentMinutes > 0) phases.push({ label: "Adult-guided work", minutes: Math.min(parentMinutes, totalMinutes), resource: adultId });
     if (totalMinutes > parentMinutes) phases.push({ label: "Independent work", minutes: totalMinutes - parentMinutes, resource: "student" });
     return {
       id: row.dataset.taskId,
@@ -295,7 +417,8 @@
         select.value,
       );
     });
-    const extendedDays = Object.entries(availabilityEnd.tessa)
+    const leadStudentId = currentStudents()[0].id;
+    const extendedDays = Object.entries(availabilityEnd[leadStudentId])
       .filter(([, end]) => end > 12 * 60 + 30)
       .map(([day]) => day);
     const events = Array.from(eventEditors.querySelectorAll(".wf-event-editor"))
@@ -303,7 +426,7 @@
       .map((row) => ({
         id: row.dataset.eventId,
         title: row.querySelector(".wf-event-title").value.trim(),
-        detail: "Added in the WeekFlow event planner.",
+        detail: row._weekflowEventDetail,
         day_id: row.querySelector(".wf-event-day").value,
         start_minute: timeValueToMinutes(row.querySelector(".wf-event-start").value),
         end_minute: timeValueToMinutes(row.querySelector(".wf-event-end").value),
@@ -316,6 +439,10 @@
     const tasks = taskRows.map(taskFromEditor);
     return {
       schema_version: 2,
+      household: {
+        adults: currentAdults(),
+        students: currentStudents(),
+      },
       week_start: weekStart.value || null,
       events,
       tasks,
@@ -374,6 +501,7 @@
     (scenario.tasks || config.defaultScenario.tasks).forEach((task) => {
       appendTaskEditor(task, { completed: completedIds.has(task.id) });
     });
+    renderAvailabilityMatrix(scenario.availability_end);
     document.querySelectorAll("#availabilityMatrix select").forEach((select) => {
       select.value = String(
         scenario.availability_end[select.dataset.resource][select.dataset.day],
@@ -505,12 +633,12 @@
         !allStudentsFit,
       ),
       metricCard(
-        "Parent attention",
+        "Teaching attention",
         formatMinutes(parent.parent_demand),
         `remaining before ${parent.due_label} ends`,
       ),
       metricCard(
-        "Parent shortfall",
+        "Adult shortfall",
         parent.parent_shortfall ? formatMinutes(parent.parent_shortfall) : "None",
         `${formatMinutes(parent.parent_capacity)} usable before the deadline`,
         parent.parent_shortfall > 0,
@@ -519,13 +647,14 @@
   }
 
   function phaseMarkup(phase) {
-    return `<span class="wf-mini-phase ${phase.resource === "parent" ? "parent" : ""}">${escapeHtml(phase.start.replace(" AM", "a").replace(" PM", "p"))} · ${Number(phase.minutes)}m ${phase.resource === "parent" ? escapeHtml(currentFamily().parent_label) : "solo"}</span>`;
+    const adult = currentFamily().adults?.[phase.resource];
+    return `<span class="wf-mini-phase ${phase.resource !== "student" ? "parent" : ""}">${escapeHtml(phase.start.replace(" AM", "a").replace(" PM", "p"))} · ${Number(phase.minutes)}m ${phase.resource !== "student" ? escapeHtml(adult?.name || primaryAdult().name) : "solo"}</span>`;
   }
 
   function blockMarkup(entry) {
     const hasParent = entry.parent_minutes > 0;
     const group = entry.student_ids.length > 1;
-    const color = studentColors[entry.student_ids[0]] || "#315f53";
+    const color = currentFamily().students[entry.student_ids[0]]?.color || "#315f53";
     return `
       <article class="wf-block${hasParent ? " has-parent" : ""}${group ? " is-group" : ""}${entry.late ? " is-late" : ""}" style="--owner:${color}">
         <div class="wf-block-top">
@@ -716,6 +845,7 @@
       if (!response.ok) throw new Error(payload.error || `Scheduler returned ${response.status}`);
       const before = current ? { plan: current, scenario: current.scenario } : null;
       render(payload);
+      trackEvent("plan_generated");
       if (before) {
         previousSnapshot = before;
         undoButton.disabled = false;
@@ -782,6 +912,7 @@
     betaState.approved = approved;
     persistLocal(approved ? "Approved plan saved on this device." : "Draft saved on this device.");
     if (approved) approveButton.textContent = "Approved on device";
+    if (approved) trackEvent("plan_approved");
     if (!config.signedIn) {
       return;
     }
@@ -811,6 +942,94 @@
       approveButton.disabled = false;
       if (approved) approveButton.textContent = cloudSaved ? "Approved" : "Approved on device";
     }
+  }
+
+  function trackEvent(event) {
+    fetch(config.analyticsUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+      body: JSON.stringify({ event }),
+    }).catch(() => {});
+  }
+
+  function replaceSelectOptions(select, placeholder, rows, value, label) {
+    select.replaceChildren();
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = placeholder;
+    select.append(first);
+    rows.forEach((row) => {
+      const option = document.createElement("option");
+      option.value = value(row);
+      option.textContent = label(row);
+      select.append(option);
+    });
+  }
+
+  async function loadCloudLibrary() {
+    if (!config.signedIn || !config.betaAccess) return;
+    try {
+      const [weeksResponse, templatesResponse] = await Promise.all([
+        fetch(config.weeksUrl, { credentials: "same-origin" }),
+        fetch(config.templatesUrl, { credentials: "same-origin" }),
+      ]);
+      if (!weeksResponse.ok || !templatesResponse.ok) return;
+      const weekPayload = await weeksResponse.json();
+      const templatePayload = await templatesResponse.json();
+      savedTemplates = templatePayload.templates || [];
+      replaceSelectOptions(
+        historySelect,
+        "Current device week",
+        weekPayload.weeks || [],
+        (weekRow) => weekRow.week_start,
+        (weekRow) => `${weekRow.week_start}${weekRow.approved ? " · approved" : " · draft"}`,
+      );
+      replaceSelectOptions(
+        templateSelect,
+        "Choose a template",
+        savedTemplates,
+        (template) => template.id,
+        (template) => template.name,
+      );
+    } catch {
+      // The device-first planner remains usable during cloud outages.
+    }
+  }
+
+  function applyLoadedState(payload, message) {
+    betaState = { ...payload, current: payload.plan };
+    applyFamily(betaState.family);
+    applyScenario(betaState.scenario);
+    render(payload.plan);
+    betaState.approved = Boolean(payload.approved);
+    if (betaState.approved) approveButton.textContent = "Approved";
+    persistLocal(message);
+  }
+
+  function importCalendarText(text) {
+    const room = Math.max(0, 40 - eventEditors.querySelectorAll(".wf-event-editor").length);
+    const importedEvents = window.WeekFlowCalendar.parseWeekEvents(text, weekStart.value, room);
+    importedEvents.forEach((importedEvent) => {
+      customEventSequence += 1;
+      appendEventEditor(
+        {
+          id: `calendar-${Date.now()}-${customEventSequence}`,
+          ...importedEvent,
+          detail: "Imported from an iCalendar file.",
+          affected: availabilityPeople().map((person) => person.id),
+          kind: "commitment",
+          recurring: false,
+          credit_subjects: [],
+        },
+        { enabled: true, removable: true },
+      );
+    });
+    if (!importedEvents.length) throw new Error("No Monday–Friday events from this week were found in that calendar file.");
+    updateScenarioSummary();
+    markPlanStale();
+    saveStatus.textContent = `${importedEvents.length} calendar event${importedEvents.length === 1 ? "" : "s"} imported. Optimize again.`;
+    trackEvent("calendar_imported");
   }
 
   function startOfCurrentWeek() {
@@ -865,13 +1084,14 @@
     link.download = "weekflow-week.ics";
     link.click();
     URL.revokeObjectURL(url);
+    trackEvent("calendar_exported");
   }
 
   function restoreLocalState() {
     try {
       const stored = JSON.parse(localStorage.getItem(storageKey));
       if (!stored?.family?.students || !stored?.scenario) return false;
-      if (!config.students.every((student) => stored.family.students[student.id]?.name)) return false;
+      if (!Object.values(stored.family.students).length || !Object.values(stored.family.students).every((student) => student?.name)) return false;
       betaState = stored;
       applyFamily(betaState.family);
       applyScenario(betaState.scenario);
@@ -933,6 +1153,93 @@
   rebalanceButton.addEventListener("click", () => fetchSchedule("disrupted", rebalanceButton));
   resetButton.addEventListener("click", resetPlan);
 
+  function newPersonId(prefix) {
+    customEventSequence += 1;
+    return `${prefix}-${Date.now()}-${customEventSequence}`;
+  }
+
+  function collectFamilyPeople(container, group) {
+    const people = {};
+    Array.from(container.querySelectorAll(".wf-family-person")).forEach((row, index) => {
+      const id = row.dataset.personId;
+      const existing = currentFamily()[group]?.[id];
+      people[id] = {
+        name: row.querySelector("input").value.trim(),
+        color: existing?.color || personColorPalette[index % personColorPalette.length],
+      };
+    });
+    return people;
+  }
+
+  function migrateScenarioForFamily(scenario, family) {
+    const oldStudentIds = scenario.household?.students?.map((person) => person.id)
+      || Object.keys(currentFamily().students);
+    const oldAdultIds = scenario.household?.adults?.map((person) => person.id)
+      || Object.keys(currentFamily().adults || { parent: {} });
+    const studentIds = Object.keys(family.students);
+    const adultIds = Object.keys(family.adults);
+    const oldPeople = new Set([...oldAdultIds, ...oldStudentIds]);
+    const newPeople = [...adultIds, ...studentIds];
+    const availabilityEnd = {};
+    newPeople.forEach((id) => {
+      availabilityEnd[id] = {};
+      Object.keys(dayLabels).forEach((dayId) => {
+        availabilityEnd[id][dayId] = scenario.availability_end[id]?.[dayId]
+          ?? (id === studentIds[0] && ["mon", "tue", "wed", "thu"].includes(dayId) ? 16 * 60 : 12 * 60 + 30);
+      });
+    });
+    const tasks = scenario.tasks.map((task) => {
+      const wasWholeFamily = task.student_ids.length === oldStudentIds.length
+        && task.student_ids.every((id) => oldStudentIds.includes(id));
+      const assignedStudents = wasWholeFamily
+        ? studentIds
+        : task.student_ids.filter((id) => studentIds.includes(id));
+      return {
+        ...task,
+        student_ids: assignedStudents.length ? assignedStudents : [studentIds[0]],
+        phases: task.phases.map((phase) => ({
+          ...phase,
+          resource: phase.resource === "student" || adultIds.includes(phase.resource)
+            ? phase.resource
+            : adultIds[0],
+        })),
+      };
+    });
+    const events = scenario.events.map((event) => {
+      const affectedSet = new Set(event.affected);
+      const affectedEveryone = [...oldPeople].every((id) => affectedSet.has(id));
+      const affected = affectedEveryone
+        ? newPeople
+        : event.affected.filter((id) => newPeople.includes(id));
+      return { ...event, affected: affected.length ? affected : newPeople };
+    });
+    return {
+      ...scenario,
+      household: {
+        adults: Object.entries(family.adults).map(([id, person]) => ({ id, ...person })),
+        students: Object.entries(family.students).map(([id, person]) => ({ id, ...person })),
+      },
+      availability_end: availabilityEnd,
+      tasks,
+      events,
+      extended_days: Object.entries(availabilityEnd[studentIds[0]])
+        .filter(([, end]) => end > 12 * 60 + 30)
+        .map(([dayId]) => dayId),
+    };
+  }
+
+  function clearRenderedPlanAfterFamilyChange() {
+    current = null;
+    previousSnapshot = null;
+    results.hidden = true;
+    emptyState.hidden = false;
+    approveButton.disabled = true;
+    printButton.disabled = true;
+    calendarButton.disabled = true;
+    undoButton.disabled = true;
+    setStep(2);
+  }
+
   familySetupButton.addEventListener("click", () => {
     applyFamily(currentFamily());
     familyDialog.showModal();
@@ -942,23 +1249,50 @@
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
     if (!familyForm.reportValidity()) return;
-    const students = {};
-    document.querySelectorAll("[data-student-name]").forEach((input) => {
-      const studentId = input.dataset.studentName;
-      students[studentId] = {
-        ...currentFamily().students[studentId],
-        name: input.value.trim(),
-      };
-    });
-    applyFamily({
+    const scenario = collectScenario();
+    const adults = collectFamilyPeople(familyAdultEditors, "adults");
+    const students = collectFamilyPeople(familyStudentEditors, "students");
+    const family = {
       name: familyName.value.trim(),
-      parent_label: parentLabel.value.trim(),
+      parent_label: Object.values(adults)[0].name,
       timezone: familyTimezone.value,
+      adults,
       students,
-    });
+    };
+    const migratedScenario = migrateScenarioForFamily(scenario, family);
+    applyFamily(family);
+    applyScenario(migratedScenario);
+    clearRenderedPlanAfterFamilyChange();
     familyDialog.close();
-    if (current) render(current);
     persistLocal("Family setup saved on this device.");
+    if (!localStorage.getItem(`${storageKey}:onboarded`)) {
+      localStorage.setItem(`${storageKey}:onboarded`, "1");
+      trackEvent("onboarding_complete");
+    }
+  });
+
+  addAdultButton.addEventListener("click", () => {
+    if (familyAdultEditors.querySelectorAll(".wf-family-person").length >= config.limits.adults) {
+      saveStatus.textContent = `Your ${config.limits.tier} tier supports up to ${config.limits.adults} teaching adults.`;
+      return;
+    }
+    appendFamilyPersonEditor(
+      familyAdultEditors,
+      "adults",
+      { id: newPersonId("adult"), name: "Teaching adult" },
+    );
+  });
+
+  addStudentButton.addEventListener("click", () => {
+    if (familyStudentEditors.querySelectorAll(".wf-family-person").length >= config.limits.students) {
+      saveStatus.textContent = `Your ${config.limits.tier} tier supports up to ${config.limits.students} students.`;
+      return;
+    }
+    appendFamilyPersonEditor(
+      familyStudentEditors,
+      "students",
+      { id: newPersonId("student"), name: "Student" },
+    );
   });
 
   saveButton.addEventListener("click", () => saveState());
@@ -980,7 +1314,7 @@
     saveStatus.textContent = "The device draft was cleared.";
   });
   deleteCloudButton?.addEventListener("click", async () => {
-    if (!window.confirm("Delete the saved WeekFlow cloud plan? This cannot be undone.")) return;
+    if (!window.confirm("Delete every saved WeekFlow week and template from your cloud account? Download a backup first if you need one. This cannot be undone.")) return;
     try {
       const response = await fetch(config.stateUrl, {
         method: "DELETE",
@@ -992,7 +1326,7 @@
       localStorage.removeItem(storageKey);
       betaState.revision = 0;
       resetPlan();
-      saveStatus.textContent = "The cloud plan and device draft were deleted.";
+      saveStatus.textContent = "All WeekFlow cloud data and the device draft were deleted.";
     } catch (error) {
       saveStatus.textContent = error.message;
     }
@@ -1051,9 +1385,9 @@
     document.querySelectorAll(".wf-task-editor").forEach((row) => {
       const task = taskFromEditor(row);
       const parentMinutes = task.phases
-        .filter((phase) => phase.resource === "parent")
+        .filter((phase) => phase.resource !== "student")
         .reduce((total, phase) => total + phase.minutes, 0);
-      if (task.student_ids.length === 1 && task.student_ids[0] === "tessa" && parentMinutes === 0) {
+      if (task.student_ids.length === 1 && task.student_ids[0] === currentStudents()[0].id && parentMinutes === 0) {
         row.querySelector(".wf-task-completed").checked = true;
       }
     });
@@ -1076,7 +1410,7 @@
         id: `task-${Date.now()}-${customEventSequence}`,
         title: "New assignment",
         subject: "General",
-        student_ids: [config.students[0].id],
+        student_ids: [currentStudents()[0].id],
         phases: [{ label: "Independent work", minutes: 20, resource: "student" }],
         due_day: 2,
         priority: 3,
@@ -1099,7 +1433,7 @@
         day_id: "mon",
         start_minute: 9 * 60,
         end_minute: 12 * 60,
-        affected: config.availabilityPeople.map((person) => person.id),
+        affected: availabilityPeople().map((person) => person.id),
         kind: "disruption",
         recurring: false,
         credit_subjects: [],
@@ -1111,6 +1445,130 @@
     eventEditors.lastElementChild.querySelector(".wf-event-title").focus();
   });
 
+  historySelect.addEventListener("change", () => {
+    loadWeekButton.disabled = !historySelect.value;
+  });
+
+  loadWeekButton.addEventListener("click", async () => {
+    if (!historySelect.value) return;
+    setBusy(loadWeekButton, true, "Loading…");
+    try {
+      const response = await fetch(`${config.weeksUrl}/${encodeURIComponent(historySelect.value)}`, { credentials: "same-origin" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "The saved week could not be loaded.");
+      applyLoadedState(payload, `Week of ${historySelect.value} loaded.`);
+    } catch (error) {
+      saveStatus.textContent = error.message;
+    } finally {
+      setBusy(loadWeekButton, false);
+    }
+  });
+
+  templateSelect.addEventListener("change", () => {
+    applyTemplateButton.disabled = !templateSelect.value;
+    deleteTemplateButton.disabled = !templateSelect.value;
+  });
+
+  applyTemplateButton.addEventListener("click", () => {
+    const template = savedTemplates.find((item) => item.id === templateSelect.value);
+    if (!template) return;
+    const scenario = structuredClone(template.scenario);
+    scenario.week_start = weekStart.value;
+    scenario.completed_task_ids = [];
+    applyScenario(migrateScenarioForFamily(scenario, currentFamily()));
+    clearRenderedPlanAfterFamilyChange();
+    updateScenarioSummary();
+    persistLocal(`Template “${template.name}” applied. Optimize when ready.`);
+  });
+
+  saveTemplateButton.addEventListener("click", async () => {
+    const name = templateName.value.trim();
+    if (!name) {
+      saveStatus.textContent = "Name the reusable template first.";
+      templateName.focus();
+      return;
+    }
+    if (!config.signedIn || !config.betaAccess) {
+      saveStatus.textContent = "Sign in with a WeekFlow beta account to save cloud templates.";
+      return;
+    }
+    setBusy(saveTemplateButton, true, "Saving…");
+    try {
+      const response = await fetch(config.templatesUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ name, scenario: collectScenario() }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "The template could not be saved.");
+      templateName.value = "";
+      saveStatus.textContent = `Template “${payload.name}” saved.`;
+      trackEvent("template_saved");
+      await loadCloudLibrary();
+    } catch (error) {
+      saveStatus.textContent = error.message;
+    } finally {
+      setBusy(saveTemplateButton, false);
+    }
+  });
+
+  deleteTemplateButton.addEventListener("click", async () => {
+    const selected = savedTemplates.find((item) => item.id === templateSelect.value);
+    if (!selected || !window.confirm(`Delete the “${selected.name}” template?`)) return;
+    try {
+      const response = await fetch(`${config.templatesUrl}/${encodeURIComponent(selected.id)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: { "X-CSRF-Token": config.csrfToken },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "The template could not be deleted.");
+      saveStatus.textContent = `Template “${selected.name}” deleted.`;
+      await loadCloudLibrary();
+    } catch (error) {
+      saveStatus.textContent = error.message;
+    }
+  });
+
+  createRolloverButton.addEventListener("click", async () => {
+    if (!config.signedIn || !config.betaAccess) {
+      saveStatus.textContent = "Sign in with a WeekFlow beta account to create a saved rollover week.";
+      return;
+    }
+    setBusy(createRolloverButton, true, "Creating…");
+    try {
+      const response = await fetch(config.rolloverUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify(statePayload({ approved: false })),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "The rollover week could not be created.");
+      applyLoadedState(payload, `Rollover draft created for ${payload.scenario.week_start}.`);
+      trackEvent("rollover_created");
+      await loadCloudLibrary();
+    } catch (error) {
+      saveStatus.textContent = error.message;
+    } finally {
+      setBusy(createRolloverButton, false);
+    }
+  });
+
+  calendarImport.addEventListener("change", async () => {
+    const file = calendarImport.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 500000) throw new Error("Calendar files must be smaller than 500 KB.");
+      importCalendarText(await file.text());
+    } catch (error) {
+      saveStatus.textContent = error.message;
+    } finally {
+      calendarImport.value = "";
+    }
+  });
+
   planner.addEventListener("change", () => {
     updateScenarioSummary();
     markPlanStale();
@@ -1118,6 +1576,11 @@
 
   resetPlan();
   applyFamily(currentFamily());
-  restoreLocalState();
+  const restoredDeviceState = restoreLocalState();
   loadCloudState();
+  loadCloudLibrary();
+  trackEvent("page_view");
+  if (!restoredDeviceState && !localStorage.getItem(`${storageKey}:onboarded`)) {
+    window.setTimeout(() => familySetupButton.click(), 350);
+  }
 })();

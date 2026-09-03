@@ -18,7 +18,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='weekflow.css') }}?v=9"
+      href="{{ url_for('static', filename='weekflow.css') }}?v=10"
     />
   </head>
   <body>
@@ -56,11 +56,13 @@
           <button class="wf-button" id="undoButton" type="button" disabled>Undo replan</button>
           <button class="wf-button" id="printButton" type="button" disabled>Print</button>
           <button class="wf-button" id="calendarButton" type="button" disabled>Export calendar</button>
+          <label class="wf-button wf-file-button" for="calendarImport">Import calendar<input id="calendarImport" type="file" accept=".ics,text/calendar" /></label>
+          {% if weekflow_user %}<a class="wf-button" id="backupButton" href="{{ url_for('weekflow.backup') }}">Download backup</a>{% endif %}
           <button class="wf-button" id="clearDraftButton" type="button">Clear device draft</button>
-          {% if weekflow_user %}<button class="wf-button" id="deleteCloudButton" type="button">Delete cloud plan</button>{% endif %}
+          {% if weekflow_user %}<button class="wf-button" id="deleteCloudButton" type="button">Delete WeekFlow cloud data</button>{% endif %}
         </div>
         {% if weekflow_user %}
-        <span class="wf-cloud-state">Cloud account: {{ weekflow_user }}</span>
+        <span class="wf-cloud-state">Cloud account: {{ weekflow_user }} · {{ weekflow_limits.tier|title }} tier · up to {{ weekflow_limits.students }} students, {{ weekflow_limits.adults }} adults, {{ weekflow_limits.saved_weeks }} saved weeks, and {{ weekflow_limits.templates }} templates</span>
         {% else %}
         <a class="wf-sign-in" href="/login/google/start?next=/labs/weekflow">Sign in for cloud saving</a>
         {% endif %}
@@ -72,6 +74,18 @@
         <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
       </aside>
 
+      <section class="wf-library-bar" aria-label="Saved WeekFlow plans and templates">
+        <label><span>Saved weeks</span><select id="historySelect"><option value="">Current device week</option></select></label>
+        <button class="wf-button" id="loadWeekButton" type="button" disabled>Load week</button>
+        <label><span>Reusable templates</span><select id="templateSelect"><option value="">Choose a template</option></select></label>
+        <button class="wf-button" id="applyTemplateButton" type="button" disabled>Apply template</button>
+        <label><span>New template name</span><input id="templateName" maxlength="80" placeholder="Normal school week" /></label>
+        <button class="wf-button" id="saveTemplateButton" type="button">Save as template</button>
+        <button class="wf-text-button" id="deleteTemplateButton" type="button" disabled>Delete template</button>
+        {% if not weekflow_limits.plus %}<a class="wf-text-button" href="/plus">Compare Plus capacity</a>{% endif %}
+        {% if not weekflow_beta_access %}<p>This signed-in account is not on the configured WeekFlow invite list yet. Device planning still works.</p>{% endif %}
+      </section>
+
       <dialog class="wf-family-dialog" id="familyDialog" aria-labelledby="familyDialogTitle">
         <form method="dialog" id="familyForm">
           <div class="wf-dialog-heading">
@@ -80,12 +94,10 @@
           </div>
           <div class="wf-family-fields">
             <label><span>Family or homeschool name</span><input id="familyName" maxlength="80" required /></label>
-            <label><span>Teaching adult label</span><input id="parentLabel" maxlength="40" required /></label>
             <label><span>Timezone</span><select id="familyTimezone"><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option><option>America/Anchorage</option><option>Pacific/Honolulu</option></select></label>
           </div>
-          <fieldset><legend>Student names</legend><div class="wf-family-students">
-            {% for student in demo.students %}<label><span>{{ student.name }}</span><input data-student-name="{{ student.id }}" maxlength="60" required /></label>{% endfor %}
-          </div></fieldset>
+          <fieldset><legend>Teaching adults</legend><div class="wf-family-people" id="familyAdultEditors"></div><button class="wf-text-button" id="addAdultButton" type="button">+ Add teaching adult</button></fieldset>
+          <fieldset><legend>Students</legend><div class="wf-family-people" id="familyStudentEditors"></div><button class="wf-text-button" id="addStudentButton" type="button">+ Add student</button></fieldset>
           <div class="wf-dialog-actions"><button class="wf-button" value="cancel">Cancel</button><button class="wf-button wf-button-primary" id="saveFamilyButton" value="default">Save family</button></div>
         </form>
       </dialog>
@@ -283,7 +295,7 @@
         </section>
 
         <section class="wf-completed wf-rollover" id="rolloverPanel" hidden>
-          <div><span class="wf-eyebrow">Next week</span><h2>Explicit rollover queue</h2></div>
+          <div><span class="wf-eyebrow">Next week</span><h2>Explicit rollover queue</h2><button class="wf-button wf-button-primary" id="createRolloverButton" type="button">Create next week's draft</button></div>
           <div class="wf-completed-list" id="rolloverList"></div>
         </section>
 
@@ -330,15 +342,24 @@
         scheduleUrl: {{ url_for('weekflow.schedule')|tojson }},
         stateUrl: {{ url_for('weekflow.state')|tojson }},
         feedbackUrl: {{ url_for('weekflow.feedback')|tojson }},
+        weeksUrl: {{ url_for('weekflow.weeks')|tojson }},
+        templatesUrl: {{ url_for('weekflow.templates')|tojson }},
+        rolloverUrl: {{ url_for('weekflow.rollover')|tojson }},
+        analyticsUrl: {{ url_for('weekflow.analytics')|tojson }},
         signedIn: {{ (weekflow_user is not none)|tojson }},
+        betaAccess: {{ weekflow_beta_access|tojson }},
+        limits: {{ weekflow_limits|tojson }},
         csrfToken: {{ csrf_token()|tojson }},
         students: {{ demo.students|tojson }},
+        adults: {{ demo.adults|tojson }},
         availabilityPeople: {{ demo.availability_people|tojson }},
+        availabilityEndOptions: {{ demo.availability_end_options|tojson }},
         creditSubjects: {{ demo.coop_credit_subjects|tojson }},
         eventPresets: {{ demo.event_presets|tojson }},
         defaultScenario: {{ demo.default_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow.js') }}?v=10" defer></script>
+    <script src="{{ url_for('static', filename='weekflow_calendar.js') }}?v=1" defer></script>
+    <script src="{{ url_for('static', filename='weekflow.js') }}?v=12" defer></script>
   </body>
 </html>

@@ -56,6 +56,20 @@ def test_admin_analytics_exposes_family_game_night_funnel(monkeypatch):
                 "playAgain": {"yes": 2},
                 "favoriteMode": {"draw": 1, "mixed": 1},
             },
+            "weekflow_funnel": {
+                "events": {
+                    "page_view": 30,
+                    "onboarding_complete": 12,
+                    "plan_generated": 9,
+                    "plan_approved": 6,
+                    "rollover_created": 2,
+                }
+            },
+            "weekflow_feedback": {
+                "total": 5,
+                "realistic": {"yes": 2, "mostly": 2, "no": 1},
+                "contactRequested": 2,
+            },
         }
     )
     captured = {}
@@ -95,6 +109,18 @@ def test_admin_analytics_exposes_family_game_night_funnel(monkeypatch):
     }
     assert captured["family_feedback"]["total"] == 2
     assert captured["family_feedback"]["average_enjoyment"] == 4.5
+    assert captured["weekflow"]["page_view"] == 30
+    assert captured["weekflow"]["plan_approved"] == 6
+    assert captured["weekflow_conversions"] == {
+        "onboarded": 40,
+        "generated": 75,
+        "approved": 67,
+    }
+    assert captured["weekflow_feedback"]["realistic"] == {
+        "yes": 2,
+        "mostly": 2,
+        "no": 1,
+    }
 
 
 def test_admin_analytics_keeps_zeroes_when_funnel_is_unavailable(monkeypatch):

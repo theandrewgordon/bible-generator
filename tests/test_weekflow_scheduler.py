@@ -341,6 +341,61 @@ def test_user_created_assignment_is_validated_and_scheduled():
     assert custom["parent_minutes"] == 5
 
 
+def test_variable_household_schedules_specific_teaching_adults_concurrently():
+    scenario = default_scenario()
+    scenario["household"] = {
+        "adults": [
+            {"id": "alex", "name": "Alex", "color": "#d49a3a"},
+            {"id": "jordan", "name": "Jordan", "color": "#4776c5"},
+        ],
+        "students": [
+            {"id": "sam", "name": "Sam", "color": "#6657d9"},
+            {"id": "riley", "name": "Riley", "color": "#168a80"},
+        ],
+    }
+    scenario["availability_end"] = {
+        person_id: {day.id: 12 * 60 + 30 for day in DAYS}
+        for person_id in ("alex", "jordan", "sam", "riley")
+    }
+    scenario["events"] = []
+    scenario["tasks"] = [
+        {
+            "id": "sam-math",
+            "title": "Sam math",
+            "subject": "Math",
+            "student_ids": ["sam"],
+            "phases": [{"label": "Teach", "minutes": 30, "resource": "alex"}],
+            "due_day": 0,
+            "priority": 5,
+            "preferred_start": None,
+        },
+        {
+            "id": "riley-reading",
+            "title": "Riley reading",
+            "subject": "Reading",
+            "student_ids": ["riley"],
+            "phases": [
+                {"label": "Read", "minutes": 30, "resource": "jordan"}
+            ],
+            "due_day": 0,
+            "priority": 5,
+            "preferred_start": None,
+        },
+    ]
+
+    result = generate_demo_schedule(scenario=scenario)
+    entries = _all_entries(result)
+
+    assert result["total_count"] == 2
+    assert len({entry["start_minute"] for entry in entries}) == 1
+    assert set(result["metrics"]["adults"]) == {"alex", "jordan"}
+    assert set(result["metrics"]["students"]) == {"sam", "riley"}
+    assert {entry["phases"][0]["resource"] for entry in entries} == {
+        "alex",
+        "jordan",
+    }
+
+
 def test_user_can_remove_sample_assignments_without_leaving_ghost_completions():
     scenario = default_scenario()
     scenario["tasks"] = scenario["tasks"][:2]

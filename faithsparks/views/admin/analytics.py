@@ -1,8 +1,10 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from flask import render_template
-from faithsparks.services.firestore import db
-from faithsparks.services.collections import get_collections
+
 from faithsparks.services import analytics as analytics_svc
+from faithsparks.services.collections import get_collections
+from faithsparks.services.firestore import db
 from faithsparks.services.game_content_health import load_precomputed_health
 
 
@@ -42,6 +44,22 @@ def admin_analytics():
         "average_enjoyment": None,
         "play_again": {"yes": 0, "maybe": 0, "no": 0},
         "favorite_modes": {"act": 0, "draw": 0, "clue": 0, "guess": 0, "mixed": 0},
+        "recent_comments": [],
+    }
+    weekflow = {
+        "page_view": 0,
+        "onboarding_complete": 0,
+        "plan_generated": 0,
+        "plan_approved": 0,
+        "rollover_created": 0,
+        "template_saved": 0,
+        "calendar_imported": 0,
+        "calendar_exported": 0,
+    }
+    weekflow_feedback = {
+        "total": 0,
+        "realistic": {"yes": 0, "mostly": 0, "no": 0},
+        "contact_requested": 0,
         "recent_comments": [],
     }
     try:
@@ -112,6 +130,37 @@ def admin_analytics():
         except Exception:
             pass
         try:
+            weekflow_events = (
+                _document_data(db, "weekflow_funnel").get("events") or {}
+            )
+            weekflow.update(
+                {key: int(weekflow_events.get(key, 0)) for key in weekflow}
+            )
+            feedback = _document_data(db, "weekflow_feedback")
+            weekflow_feedback.update(
+                {
+                    "total": int(feedback.get("total", 0)),
+                    "realistic": {
+                        key: int((feedback.get("realistic") or {}).get(key, 0))
+                        for key in ("yes", "mostly", "no")
+                    },
+                    "contact_requested": int(feedback.get("contactRequested", 0)),
+                }
+            )
+            snapshots = (
+                db.collection("weekflow_feedback")
+                .order_by("createdAt", direction="DESCENDING")
+                .limit(25)
+                .stream()
+            )
+            weekflow_feedback["recent_comments"] = [
+                data
+                for snapshot in snapshots
+                if (data := (snapshot.to_dict() or {})).get("comment")
+            ][:10]
+        except Exception:
+            pass
+        try:
             doc = db.collection("analytics").document("packs").get()
             if doc.exists:
                 counts = doc.to_dict() or {}
@@ -174,5 +223,12 @@ def admin_analytics():
             "purchase": _conversion(family_game_night["checkout_fulfilled"], family_game_night["checkout_started"]),
         },
         family_feedback=family_feedback,
+        weekflow=weekflow,
+        weekflow_conversions={
+            "onboarded": _conversion(weekflow["onboarding_complete"], weekflow["page_view"]),
+            "generated": _conversion(weekflow["plan_generated"], weekflow["onboarding_complete"]),
+            "approved": _conversion(weekflow["plan_approved"], weekflow["plan_generated"]),
+        },
+        weekflow_feedback=weekflow_feedback,
         content_health=content_health,
     )

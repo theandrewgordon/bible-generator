@@ -1,9 +1,8 @@
-"""Deterministic resource scheduler for the WeekFlow Labs prototype.
+"""Deterministic, inspectable household scheduler for WeekFlow.
 
-The lab intentionally models a small, fixed family.  Assignments are made of
-contiguous phases, and only the phases that need a parent reserve the shared
-parent resource.  This lets a kickoff -> independent work -> review assignment
-release the parent between its assisted phases.
+Assignments are made of contiguous phases. Only assisted phases reserve their
+selected teaching adult, so independent work releases that adult to help
+another child before returning for review.
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ class Task:
     @property
     def parent_minutes(self) -> int:
         return sum(
-            phase.minutes for phase in self.phases if phase.resource == PARENT
+            phase.minutes for phase in self.phases if phase.resource != STUDENT
         )
 
 
@@ -65,6 +64,13 @@ STUDENTS = {
     "diana": {"name": "Diana", "color": "#d45e86"},
     "elsie": {"name": "Elsie", "color": "#168a80"},
 }
+
+ADULTS = {
+    PARENT: {"name": "Parent", "color": "#d49a3a"},
+}
+
+MAX_STUDENTS = 8
+MAX_ADULTS = 3
 
 
 DAYS = (
@@ -192,6 +198,73 @@ EVENT_PRESETS = (
 )
 
 
+def _default_household() -> dict[str, list[dict[str, str]]]:
+    return {
+        "adults": [{"id": adult_id, **adult} for adult_id, adult in ADULTS.items()],
+        "students": [
+            {"id": student_id, **student} for student_id, student in STUDENTS.items()
+        ],
+    }
+
+
+def _normalize_people(
+    raw_people: object,
+    *,
+    kind: str,
+    maximum: int,
+) -> list[dict[str, str]]:
+    if not isinstance(raw_people, list) or not 1 <= len(raw_people) <= maximum:
+        raise ValueError(f"household.{kind} must contain between 1 and {maximum} people")
+    normalized: list[dict[str, str]] = []
+    identifiers: set[str] = set()
+    for raw_person in raw_people:
+        if not isinstance(raw_person, dict):
+            raise TypeError(f"each household {kind[:-1]} must be a JSON object")
+        person_id = raw_person.get("id")
+        name = raw_person.get("name")
+        color = raw_person.get("color", "#315f53")
+        if (
+            not isinstance(person_id, str)
+            or not person_id
+            or len(person_id) > 60
+            or person_id in identifiers
+            or not all(character.isalnum() or character in "-_" for character in person_id)
+        ):
+            raise ValueError(f"household.{kind} ids must be unique safe identifiers")
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 60:
+            raise ValueError(f"household.{kind} names must be between 1 and 60 characters")
+        if not isinstance(color, str) or len(color) != 7 or not color.startswith("#"):
+            raise ValueError(f"household.{kind} colors must use six-digit hex values")
+        try:
+            int(color[1:], 16)
+        except ValueError as exc:
+            raise ValueError(
+                f"household.{kind} colors must use six-digit hex values"
+            ) from exc
+        identifiers.add(person_id)
+        normalized.append(
+            {"id": person_id, "name": name.strip(), "color": color.lower()}
+        )
+    return normalized
+
+
+def _normalize_household(raw_household: object) -> dict[str, list[dict[str, str]]]:
+    if raw_household is None:
+        return _default_household()
+    if not isinstance(raw_household, dict):
+        raise TypeError("household must be a JSON object")
+    adults = _normalize_people(
+        raw_household.get("adults"), kind="adults", maximum=MAX_ADULTS
+    )
+    students = _normalize_people(
+        raw_household.get("students"), kind="students", maximum=MAX_STUDENTS
+    )
+    all_ids = [person["id"] for person in [*adults, *students]]
+    if len(all_ids) != len(set(all_ids)):
+        raise ValueError("household adult and student ids must not overlap")
+    return {"adults": adults, "students": students}
+
+
 def _event_preset(event_id: str) -> dict[str, object]:
     return deepcopy(next(event for event in EVENT_PRESETS if event["id"] == event_id))
 
@@ -216,7 +289,14 @@ def _task_payload(task: Task) -> dict[str, object]:
     }
 
 
-def _normalize_tasks(raw_tasks: object) -> tuple[Task, ...]:
+def _normalize_tasks(
+    raw_tasks: object,
+    *,
+    student_ids: set[str] | None = None,
+    adult_ids: set[str] | None = None,
+) -> tuple[Task, ...]:
+    valid_students = student_ids or set(STUDENTS)
+    valid_adults = adult_ids or set(ADULTS)
     if not isinstance(raw_tasks, list) or not 1 <= len(raw_tasks) <= MAX_WEEK_TASKS:
         raise ValueError(f"tasks must contain between 1 and {MAX_WEEK_TASKS} assignments")
     task_ids: set[str] = set()
@@ -249,7 +329,7 @@ def _normalize_tasks(raw_tasks: object) -> tuple[Task, ...]:
             not isinstance(student_ids, list)
             or not student_ids
             or not all(
-                isinstance(student_id, str) and student_id in STUDENTS
+                isinstance(student_id, str) and student_id in valid_students
                 for student_id in student_ids
             )
         ):
@@ -271,8 +351,8 @@ def _normalize_tasks(raw_tasks: object) -> tuple[Task, ...]:
                 or not 1 <= minutes <= 240
             ):
                 raise ValueError("phase minutes must be between 1 and 240")
-            if resource not in {PARENT, STUDENT}:
-                raise ValueError("phase resource must be parent or student")
+            if resource not in {*valid_adults, STUDENT}:
+                raise ValueError("phase resource must be a known adult or student")
             phases.append(Phase(label.strip(), minutes, resource))
         if not isinstance(due_day, int) or isinstance(due_day, bool) or not 0 <= due_day < len(DAYS):
             raise ValueError("task due_day must identify Monday through Friday")
@@ -322,6 +402,7 @@ def default_scenario() -> dict[str, object]:
     }
     return {
         "schema_version": 2,
+        "household": _default_household(),
         "week_start": None,
         "events": [_event_preset("coop")],
         "tasks": [_task_payload(task) for task in TASKS],
@@ -348,6 +429,17 @@ def normalize_scenario(
     normalized = deepcopy(default_scenario())
     if scenario:
         normalized.update(scenario)
+
+    household = _normalize_household(normalized.get("household"))
+    normalized["household"] = household
+    adult_id_list = [person["id"] for person in household["adults"]]
+    student_id_list = [person["id"] for person in household["students"]]
+    adult_ids = set(adult_id_list)
+    student_ids = set(student_id_list)
+    first_adult_id = household["adults"][0]["id"]
+    extended_student_id = (
+        "tessa" if "tessa" in student_ids else household["students"][0]["id"]
+    )
 
     for field in ("coop_monday", "allow_next_week"):
         if not isinstance(normalized.get(field), bool):
@@ -378,14 +470,17 @@ def normalize_scenario(
     normalized["extended_days"] = list(dict.fromkeys(extended_days))
 
     if "availability_end" not in supplied:
-        availability_end = default_scenario()["availability_end"]
-        availability_end["tessa"] = {
+        availability_end = {
+            person_id: {day.id: MORNING_END for day in DAYS}
+            for person_id in adult_ids | student_ids
+        }
+        availability_end[extended_student_id] = {
             day.id: EXTENDED_END if day.id in extended_days else MORNING_END
             for day in DAYS
         }
     else:
         availability_end = normalized.get("availability_end")
-    resources = {PARENT, *STUDENTS}
+    resources = adult_ids | student_ids
     day_ids = {day.id for day in DAYS}
     if not isinstance(availability_end, dict) or set(availability_end) != resources:
         raise ValueError("availability_end must include parent and every student")
@@ -408,7 +503,7 @@ def normalize_scenario(
     normalized["extended_days"] = [
         day.id
         for day in DAYS
-        if normalized["availability_end"]["tessa"][day.id] > MORNING_END
+        if normalized["availability_end"][extended_student_id][day.id] > MORNING_END
     ]
 
     disruptions = normalized.get("disruptions", [])
@@ -425,7 +520,11 @@ def normalize_scenario(
             disruptions.append("lost_tuesday")
     normalized["disruptions"] = disruptions
 
-    tasks = _normalize_tasks(normalized.get("tasks"))
+    tasks = _normalize_tasks(
+        normalized.get("tasks"),
+        student_ids=student_ids,
+        adult_ids=adult_ids,
+    )
     normalized["tasks"] = [_task_payload(task) for task in tasks]
 
     completed = normalized.get("completed_task_ids", [])
@@ -448,11 +547,14 @@ def normalize_scenario(
         raw_events = deepcopy(normalized.get("events"))
     else:
         raw_events = deepcopy(default_scenario()["events"])
+        for event in raw_events:
+            event["affected"] = [*adult_id_list, *student_id_list]
         if "coop_monday" in supplied:
             raw_events = [event for event in raw_events if event["id"] != "coop"]
             if normalized["coop_monday"]:
                 coop = _event_preset("coop")
                 coop["day_id"] = "mon"
+                coop["affected"] = [*adult_id_list, *student_id_list]
                 coop["credit_subjects"] = normalized["coop_credit_subjects"]
                 raw_events.append(coop)
 
@@ -480,6 +582,11 @@ def normalize_scenario(
             preset_id, day_id = legacy_events[legacy_id]
             event = _event_preset(preset_id)
             event.update({"id": legacy_id, "day_id": day_id})
+            event["affected"] = (
+                [first_adult_id]
+                if preset_id == "parent-appointment"
+                else [*adult_id_list, *student_id_list]
+            )
             if legacy_id == "lost_tuesday":
                 event.update(
                     {
@@ -505,6 +612,7 @@ def normalize_scenario(
                 "day_id": "tue",
             }
         )
+        lost_tuesday["affected"] = [*adult_id_list, *student_id_list]
         raw_events.append(lost_tuesday)
 
     event_ids: set[str] = set()
@@ -748,7 +856,10 @@ def _set_window(
 def _build_availability(
     scenario: dict[str, object],
 ) -> tuple[dict[str, dict[str, list[bool]]], dict[str, list[dict[str, object]]]]:
-    resources = [PARENT, *STUDENTS]
+    household = scenario["household"]
+    adult_ids = [person["id"] for person in household["adults"]]
+    student_ids = [person["id"] for person in household["students"]]
+    resources = [*adult_ids, *student_ids]
     availability = {
         resource: {day.id: [False] * day.duration for day in DAYS}
         for resource in resources
@@ -768,14 +879,15 @@ def _build_availability(
                 end,
                 available=True,
             )
-        for start, end in day.parent_unavailable:
-            _set_window(
-                availability[PARENT][day.id],
-                day,
-                start,
-                end,
-                available=False,
-            )
+        for adult_id in adult_ids:
+            for start, end in day.parent_unavailable:
+                _set_window(
+                    availability[adult_id][day.id],
+                    day,
+                    start,
+                    end,
+                    available=False,
+                )
 
     def block(
         day_id: str,
@@ -879,7 +991,7 @@ def _candidate_cost(
     cursor = start_minute
     for phase in task.phases:
         phase_end = cursor + phase.minutes
-        if phase.resource == PARENT and day.preferred_parent:
+        if phase.resource != STUDENT and day.preferred_parent:
             preferred = _overlap_minutes(cursor, phase_end, day.preferred_parent)
             cost += (phase.minutes - preferred) * 7
 
@@ -897,50 +1009,93 @@ def _candidate_cost(
 def _capacity_metrics(
     tasks: tuple[Task, ...],
     availability: dict[str, dict[str, list[bool]]],
+    household: dict[str, list[dict[str, str]]],
 ) -> dict[str, object]:
     due_day = max((task.due_day for task in tasks), default=2)
     due_days = DAYS[: due_day + 1]
-
-    parent_capacity = sum(
-        sum(availability[PARENT][day.id]) for day in due_days
-    )
+    adults = household["adults"]
+    students = household["students"]
+    adult_capacity = {
+        person["id"]: sum(sum(availability[person["id"]][day.id]) for day in due_days)
+        for person in adults
+    }
+    adult_demand = {
+        person["id"]: sum(
+            phase.minutes
+            for task in tasks
+            for phase in task.phases
+            if phase.resource == person["id"]
+        )
+        for person in adults
+    }
     student_capacity = {
-        student_id: sum(
-            sum(availability[student_id][day.id]) for day in due_days
+        person["id"]: sum(
+            sum(availability[person["id"]][day.id]) for day in due_days
         )
-        for student_id in STUDENTS
+        for person in students
     }
 
-    parent_demand = sum(task.parent_minutes for task in tasks)
     student_demand = {
-        student_id: sum(
-            task.total_minutes for task in tasks if student_id in task.student_ids
+        person["id"]: sum(
+            task.total_minutes for task in tasks if person["id"] in task.student_ids
         )
-        for student_id in STUDENTS
+        for person in students
     }
+    parent_demand = sum(adult_demand.values())
+    parent_capacity = sum(adult_capacity.values())
+    parent_shortfall = sum(
+        max(0, adult_demand[person["id"]] - adult_capacity[person["id"]])
+        for person in adults
+    )
     return {
         "due_label": DAYS[due_day].label,
         "parent_demand": parent_demand,
         "parent_capacity": parent_capacity,
-        "parent_shortfall": max(0, parent_demand - parent_capacity),
-        "students": {
-            student_id: {
-                "name": STUDENTS[student_id]["name"],
-                "demand": demand,
-                "capacity": student_capacity[student_id],
-                "shortfall": max(0, demand - student_capacity[student_id]),
+        "parent_shortfall": parent_shortfall,
+        "adults": {
+            person["id"]: {
+                "name": person["name"],
+                "demand": adult_demand[person["id"]],
+                "capacity": adult_capacity[person["id"]],
+                "shortfall": max(
+                    0,
+                    adult_demand[person["id"]] - adult_capacity[person["id"]],
+                ),
             }
-            for student_id, demand in student_demand.items()
+            for person in adults
+        },
+        "students": {
+            person["id"]: {
+                "name": person["name"],
+                "demand": student_demand[person["id"]],
+                "capacity": student_capacity[person["id"]],
+                "shortfall": max(
+                    0,
+                    student_demand[person["id"]]
+                    - student_capacity[person["id"]],
+                ),
+            }
+            for person in students
         },
     }
 
 
-def _build_explanations(entries: list[dict[str, object]]) -> list[dict[str, str]]:
+def _build_explanations(
+    entries: list[dict[str, object]],
+    household: dict[str, list[dict[str, str]]],
+) -> list[dict[str, str]]:
     explanations: list[dict[str, str]] = []
     parent_phases: list[dict[str, object]] = []
+    adult_names = {person["id"]: person["name"] for person in household["adults"]}
+
+    def phase_description(phase: dict[str, object]) -> str:
+        if phase["resource"] == STUDENT:
+            return "independent"
+        return f"with {adult_names.get(str(phase['resource']), 'adult')}"
+
     for entry in entries:
         for phase in entry["phases"]:
-            if phase["resource"] == PARENT:
+            if phase["resource"] != STUDENT:
                 parent_phases.append({**phase, "task_title": entry["title"]})
 
     for entry in entries:
@@ -951,20 +1106,20 @@ def _build_explanations(entries: list[dict[str, object]]) -> list[dict[str, str]
 
         if len(entry["student_ids"]) > 1:
             body = (
-                f"{entry['title']} starts {day_label} at {at} because all three "
-                "students are free together; one parent-led block satisfies the "
+                f"{entry['title']} starts {day_label} at {at} because all assigned "
+                "students are free together; one adult-led block satisfies the "
                 "instruction requirement for the whole family."
             )
         elif len(phases) > 1 and any(
             phase["resource"] == STUDENT for phase in phases
-        ) and any(phase["resource"] == PARENT for phase in phases):
+        ) and any(phase["resource"] != STUDENT for phase in phases):
             phase_text = " → ".join(
-                f"{phase['minutes']} min {'with Mom' if phase['resource'] == PARENT else 'independent'}"
+                f"{phase['minutes']} min {phase_description(phase)}"
                 for phase in phases
             )
             body = (
                 f"{student_names[0]}'s {entry['title']} is kept as one learning "
-                f"sequence ({phase_text}). The independent phase releases Mom "
+                f"sequence ({phase_text}). The independent phase releases the adult "
                 "to teach another child before returning for the next assisted phase."
             )
         elif all(phase["resource"] == STUDENT for phase in phases):
@@ -979,7 +1134,7 @@ def _build_explanations(entries: list[dict[str, object]]) -> list[dict[str, str]
             if overlaps:
                 body = (
                     f"{student_names[0]}'s independent {entry['title']} overlaps "
-                    f"{overlaps[0]}, using student capacity while Mom's attention "
+                    f"{overlaps[0]}, using student capacity while adult attention "
                     "is committed elsewhere."
                 )
             else:
@@ -990,7 +1145,7 @@ def _build_explanations(entries: list[dict[str, object]]) -> list[dict[str, str]
         else:
             body = (
                 f"{entry['title']} uses an open parent-attention window without "
-                f"double-booking {student_names[0]} or Mom."
+                f"double-booking {student_names[0]} or a teaching adult."
             )
 
         explanations.append(
@@ -1083,7 +1238,17 @@ def generate_demo_schedule(
     """Generate the deterministic WeekFlow demo schedule."""
 
     normalized = normalize_scenario(scenario, missed_tuesday=missed_tuesday)
-    tasks = _normalize_tasks(normalized["tasks"])
+    household = normalized["household"]
+    adults = household["adults"]
+    students = household["students"]
+    adult_ids = [person["id"] for person in adults]
+    student_ids = [person["id"] for person in students]
+    student_names = {person["id"]: person["name"] for person in students}
+    tasks = _normalize_tasks(
+        normalized["tasks"],
+        student_ids=set(student_ids),
+        adult_ids=set(adult_ids),
+    )
     availability, events = _build_availability(normalized)
     completed_ids = set(normalized["completed_task_ids"])
     credit_sources = {
@@ -1109,20 +1274,25 @@ def generate_demo_schedule(
 
     day_states: list[dict[str, object]] = []
     for day in DAYS:
-        parent_available = availability[PARENT][day.id].copy()
+        adult_available = {
+            adult_id: availability[adult_id][day.id].copy()
+            for adult_id in adult_ids
+        }
         student_available = {
             student_id: availability[student_id][day.id].copy()
-            for student_id in STUDENTS
+            for student_id in student_ids
         }
-        missed = not any(parent_available) and not any(
+        missed = not any(any(bits) for bits in adult_available.values()) and not any(
             any(bits) for bits in student_available.values()
         )
         day_states.append(
             {
                 "day": day,
                 "missed": missed,
-                "parent_available": parent_available,
-                "parent_busy": [False] * day.duration,
+                "adult_available": adult_available,
+                "adult_busy": {
+                    adult_id: [False] * day.duration for adult_id in adult_ids
+                },
                 "student_busy": {
                     student_id: [not available for available in bits]
                     for student_id, bits in student_available.items()
@@ -1153,10 +1323,10 @@ def generate_demo_schedule(
                             break
                     if not valid:
                         break
-                    if phase.resource == PARENT and (
-                        not all(state["parent_available"][left:right])
+                    if phase.resource != STUDENT and (
+                        not all(state["adult_available"][phase.resource][left:right])
                         or not _is_free(
-                            state["parent_busy"], left, right
+                            state["adult_busy"][phase.resource], left, right
                         )
                     ):
                         valid = False
@@ -1192,8 +1362,8 @@ def generate_demo_schedule(
             right = phase_end - day.start_minute
             for student_id in task.student_ids:
                 _mark(state["student_busy"][student_id], left, right)
-            if phase.resource == PARENT:
-                _mark(state["parent_busy"], left, right)
+            if phase.resource != STUDENT:
+                _mark(state["adult_busy"][phase.resource], left, right)
             phase_rows.append(
                 {
                     "label": phase.label,
@@ -1214,7 +1384,7 @@ def generate_demo_schedule(
                 "title": task.title,
                 "subject": task.subject,
                 "student_ids": list(task.student_ids),
-                "student_names": [STUDENTS[item]["name"] for item in task.student_ids],
+                "student_names": [student_names[item] for item in task.student_ids],
                 "start": _fmt_time(start_minute),
                 "end": _fmt_time(cursor),
                 "start_minute": start_minute,
@@ -1230,7 +1400,7 @@ def generate_demo_schedule(
         )
 
     entries.sort(key=lambda item: (item["day_index"], item["start_minute"], item["title"]))
-    metrics = _capacity_metrics(active_tasks, availability)
+    metrics = _capacity_metrics(active_tasks, availability, household)
     late_entries = [entry for entry in entries if entry["late"]]
 
     warnings = []
@@ -1292,10 +1462,17 @@ def generate_demo_schedule(
                 "missed": bool(day_states[day_index]["missed"]),
                 "events": events[day.id],
                 "availability": {
-                    "parent_minutes": sum(availability[PARENT][day.id]),
+                    "parent_minutes": sum(
+                        sum(availability[adult_id][day.id])
+                        for adult_id in adult_ids
+                    ),
+                    "adults": {
+                        adult_id: sum(availability[adult_id][day.id])
+                        for adult_id in adult_ids
+                    },
                     "students": {
                         student_id: sum(availability[student_id][day.id])
-                        for student_id in STUDENTS
+                        for student_id in student_ids
                     },
                 },
                 "entries": [entry for entry in entries if entry["day_index"] == day_index],
@@ -1308,7 +1485,7 @@ def generate_demo_schedule(
             "title": task.title,
             "subject": task.subject,
             "student_ids": list(task.student_ids),
-            "student_names": [STUDENTS[item]["name"] for item in task.student_ids],
+            "student_names": [student_names[item] for item in task.student_ids],
             "kind": "ahead" if task.id in completed_ids else "coop_credit",
             "detail": (
                 "Already completed before this planning run."
@@ -1346,7 +1523,7 @@ def generate_demo_schedule(
         "recommendations": _build_recommendations(
             metrics, late_entries, unscheduled, normalized
         ),
-        "explanations": _build_explanations(entries),
+        "explanations": _build_explanations(entries, household),
         "scheduled_count": len(entries),
         "unscheduled_count": len(unscheduled),
         "unscheduled": unscheduled_rows,
@@ -1363,7 +1540,10 @@ def demo_payload() -> dict[str, object]:
     return {
         "default_scenario": default_scenario(),
         "availability_people": [
-            {"id": PARENT, "name": "Parent"},
+            *[
+                {"id": adult_id, "name": adult["name"]}
+                for adult_id, adult in ADULTS.items()
+            ],
             *[
                 {"id": student_id, "name": student["name"]}
                 for student_id, student in STUDENTS.items()
@@ -1411,6 +1591,9 @@ def demo_payload() -> dict[str, object]:
         ],
         "students": [
             {"id": student_id, **student} for student_id, student in STUDENTS.items()
+        ],
+        "adults": [
+            {"id": adult_id, **adult} for adult_id, adult in ADULTS.items()
         ],
         "days": [
             {

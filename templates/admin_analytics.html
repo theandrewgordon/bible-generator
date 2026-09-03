@@ -80,6 +80,28 @@ block content %}
   {% if family_feedback.recent_comments %}<ul>{% for feedback in family_feedback.recent_comments %}<li><p>{{ feedback.comment|e }}</p><small>{% if feedback.quoteApproved %}Approved for anonymous quotation{% else %}Not approved for quotation{% endif %}</small></li>{% endfor %}</ul>{% else %}<p class="muted">No optional comments yet.</p>{% endif %}
 </section>
 <section class="block">
+  <h2>WeekFlow beta operations</h2>
+  <table class="admin-table">
+    <caption>WeekFlow product funnel</caption>
+    <thead><tr><th scope="col">Step</th><th scope="col">Total</th><th scope="col">Conversion</th></tr></thead>
+    <tbody>
+      <tr><td>Page views</td><td class="num">{{ weekflow.page_view }}</td><td class="num">—</td></tr>
+      <tr><td>Onboarding completed</td><td class="num">{{ weekflow.onboarding_complete }}</td><td class="num">{{ (weekflow_conversions.onboarded ~ '%') if weekflow_conversions.onboarded is not none else '—' }}</td></tr>
+      <tr><td>Plans generated</td><td class="num">{{ weekflow.plan_generated }}</td><td class="num">{{ (weekflow_conversions.generated ~ '%') if weekflow_conversions.generated is not none else '—' }}</td></tr>
+      <tr><td>Plans approved</td><td class="num">{{ weekflow.plan_approved }}</td><td class="num">{{ (weekflow_conversions.approved ~ '%') if weekflow_conversions.approved is not none else '—' }}</td></tr>
+      <tr><td>Rollover drafts</td><td class="num">{{ weekflow.rollover_created }}</td><td class="num">—</td></tr>
+      <tr><td>Templates saved</td><td class="num">{{ weekflow.template_saved }}</td><td class="num">—</td></tr>
+      <tr><td>Calendar imports / exports</td><td class="num">{{ weekflow.calendar_imported }} / {{ weekflow.calendar_exported }}</td><td class="num">—</td></tr>
+    </tbody>
+  </table>
+  <h3>WeekFlow feedback</h3>
+  <p><strong>{{ weekflow_feedback.total }}</strong> responses · {{ weekflow_feedback.contact_requested }} requested contact</p>
+  <table class="admin-table"><caption>Did the plan feel realistic?</caption><tbody>{% for key, label in [('yes','Yes'),('mostly','Mostly'),('no','Not yet')] %}<tr><td>{{ label }}</td><td class="num">{{ weekflow_feedback.realistic[key] }}</td></tr>{% endfor %}</tbody></table>
+  <h3>Recent WeekFlow comments</h3>
+  {% if weekflow_feedback.recent_comments %}<ul>{% for feedback in weekflow_feedback.recent_comments %}<li><p>{{ feedback.comment|e }}</p><small>{{ feedback.realistic|e }}{% if feedback.contactRequested and feedback.contactEmail %} · contact {{ feedback.contactEmail|e }}{% endif %}</small></li>{% endfor %}</ul>{% else %}<p class="muted">No optional WeekFlow comments yet.</p>{% endif %}
+  <p class="small muted">Operational events use aggregate counts and hashed account identifiers. Schedule contents are not copied into analytics.</p>
+</section>
+<section class="block">
   <table class="admin-table">
     <caption>Traffic (Last 7 Days)</caption>
     <thead>
