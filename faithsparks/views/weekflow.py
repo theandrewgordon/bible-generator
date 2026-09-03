@@ -13,6 +13,7 @@ from faithsparks.services.weekflow_store import (
     record_beta_feedback,
     save_beta_state,
 )
+from faithsparks.util.request_utils import get_client_ip
 
 bp = Blueprint("weekflow", __name__, url_prefix="/labs/weekflow")
 
@@ -30,6 +31,18 @@ def index():
 
 @bp.post("/schedule")
 def schedule():
+    email = _signed_in_email()
+    limit = check_rate_limit(
+        "weekflow-schedule",
+        email or get_client_ip(),
+        limit=120,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        response = jsonify({"error": "Too many WeekFlow plans. Try again shortly."})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(limit.retry_after)
+        return response
     if request.content_length and request.content_length > 120_000:
         return jsonify({"error": "Schedule request is too large."}), 413
     if not request.data:

@@ -36,8 +36,17 @@ def test_lab_page_renders_demo_configuration():
     assert '"title": "Grandma comes"' in html
 
 
-def test_schedule_endpoint_accepts_supported_modes_and_default():
+def test_schedule_endpoint_accepts_supported_modes_and_default(monkeypatch):
     client = _client()
+
+    # The request-shape tests exercise the scheduler, not the shared limiter.
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
 
     empty_response = client.post("/labs/weekflow/schedule")
     assert empty_response.status_code == 200
@@ -75,6 +84,24 @@ def test_schedule_endpoint_applies_weekly_scenario_controls():
     assert payload["completed_count"] == 3
     assert payload["scenario"]["disruptions"] == ["grandma_wednesday"]
     assert payload["days"][2]["events"][0]["id"] == "grandma_wednesday"
+
+
+def test_schedule_endpoint_is_rate_limited(monkeypatch):
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": False, "retry_after": 37}
+        )(),
+    )
+
+    response = _client().post("/labs/weekflow/schedule", json={})
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "37"
+    assert response.get_json() == {
+        "error": "Too many WeekFlow plans. Try again shortly."
+    }
 
 
 def test_schedule_endpoint_rejects_malformed_json_shapes_without_500():

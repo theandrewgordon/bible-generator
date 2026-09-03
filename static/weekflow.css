@@ -206,6 +206,30 @@ h1 {
   font-weight: 800;
 }
 
+.wf-beta-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -12px 4px 18px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.wf-beta-notice strong {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.wf-beta-notice a {
+  color: var(--sage);
+  font-weight: 800;
+}
+
+.wf-beta-notice > span:last-child {
+  flex: 0 0 auto;
+}
+
 .wf-family-dialog {
   width: min(720px, calc(100% - 24px));
   max-height: calc(100vh - 40px);
@@ -1602,6 +1626,13 @@ details[open] .wf-chevron {
   .wf-shell {
     width: min(100% - 20px, 680px);
     padding-top: 20px;
+  }
+
+  .wf-beta-notice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    margin-inline: 2px;
   }
 
   .wf-hero,

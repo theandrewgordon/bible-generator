@@ -1,3 +1,5 @@
+import pytest
+
 import faithsparks.services.weekflow_scheduler as scheduler
 from faithsparks.services.weekflow_scheduler import (
     DAYS,
@@ -202,6 +204,25 @@ def test_default_week_models_thursday_coop_and_extended_teen_time():
         and entry["start_minute"] >= 15 * 60 + 15
         for entry in thursday["entries"]
     )
+
+
+def test_dated_week_emits_exact_dates_and_rejects_non_monday_start():
+    scenario = default_scenario()
+    scenario["week_start"] = "2026-08-31"
+
+    result = generate_demo_schedule(scenario=scenario)
+
+    assert [day["date"] for day in result["days"]] == [
+        "2026-08-31",
+        "2026-09-01",
+        "2026-09-02",
+        "2026-09-03",
+        "2026-09-04",
+    ]
+
+    scenario["week_start"] = "2026-09-03"
+    with pytest.raises(ValueError, match="Monday"):
+        generate_demo_schedule(scenario=scenario)
 
 
 def test_editable_events_can_move_coop_and_grandma_to_any_weekday():

@@ -786,6 +786,8 @@
       return;
     }
 
+    let cloudSaved = false;
+    approveButton.disabled = true;
     setBusy(saveButton, true, "Saving…");
     try {
       const response = await fetch(config.stateUrl, {
@@ -801,11 +803,13 @@
       if (!response.ok) throw new Error(payload.error || `Cloud save returned ${response.status}`);
       betaState = { ...betaState, ...payload, current };
       persistLocal(approved ? "Approved plan saved to your account." : "Draft saved to your account.");
-      if (approved) approveButton.textContent = "Approved";
+      cloudSaved = true;
     } catch (error) {
       saveStatus.textContent = `${error.message} Your device copy is still safe.`;
     } finally {
       setBusy(saveButton, false);
+      approveButton.disabled = false;
+      if (approved) approveButton.textContent = cloudSaved ? "Approved" : "Approved on device";
     }
   }
 
