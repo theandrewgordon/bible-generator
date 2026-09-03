@@ -1,6 +1,7 @@
 # test08-28-2025
 from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g, after_this_request, has_request_context
 from flask_dance.contrib.google import make_google_blueprint, google
+from flask_dance.consumer import OAuth2ConsumerBlueprint
 from datetime import datetime
 
 import os, json, re, traceback, hashlib, base64, csv
@@ -89,6 +90,11 @@ from faithsparks.services.stripe_svc import (
 from faithsparks.util.slug import normalize_slug
 from faithsparks.services import analytics as analytics_svc
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.weekflow_calendar import (
+    CALENDAR_READONLY_SCOPE,
+    EncryptedFirestoreCalendarTokenStorage,
+    calendar_oauth_configured,
+)
 from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
 
@@ -362,6 +368,54 @@ google_bp = make_google_blueprint(
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
+# Calendar access is a separate, optional grant. Unlike the ordinary sign-in
+# token, this more sensitive token is encrypted in Firestore and never stored in
+# the browser session cookie.
+weekflow_calendar_google_bp = OAuth2ConsumerBlueprint(
+    "weekflow_google_calendar",
+    __name__,
+    client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
+    scope=[
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        CALENDAR_READONLY_SCOPE,
+    ],
+    base_url="https://www.googleapis.com/",
+    authorization_url="https://accounts.google.com/o/oauth2/auth",
+    token_url="https://accounts.google.com/o/oauth2/token",
+    auto_refresh_url="https://accounts.google.com/o/oauth2/token",
+    auto_refresh_kwargs={
+        "client_id": os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
+        "client_secret": os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
+    },
+    authorization_url_params={
+        "access_type": "offline",
+        "include_granted_scopes": "true",
+        "prompt": "consent select_account",
+    },
+    redirect_to="weekflow.calendar_oauth_finish",
+    storage=EncryptedFirestoreCalendarTokenStorage(),
+    use_pkce=True,
+)
+
+
+@weekflow_calendar_google_bp.before_app_request
+def expose_weekflow_calendar_session():
+    g.weekflow_calendar_google = weekflow_calendar_google_bp.session
+
+
+@weekflow_calendar_google_bp.before_request
+def protect_weekflow_calendar_oauth():
+    if not session.get("user_email"):
+        destination = url_for("weekflow_google_calendar.login")
+        return redirect(url_for("start_google_login", next=destination))
+    if not calendar_oauth_configured():
+        return "Google Calendar connection is not configured.", 503
+
+
+app.register_blueprint(weekflow_calendar_google_bp, url_prefix="/connect")
+
 @app.before_request
 def add_request_id():
     if not getattr(g, "req_id", None):
@@ -602,6 +656,17 @@ def add_correlation_headers(resp):
     if (request.path or "").startswith("/worship/live/"):
         # Live links carry short-lived capabilities and must never be cached,
         # indexed, previewed, or leaked through a referrer on any response path.
+        resp.headers["Cache-Control"] = "private, no-store"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        resp.headers["Referrer-Policy"] = "no-referrer"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+    elif (request.path or "").startswith((
+        "/labs/weekflow/calendar",
+        "/connect/weekflow_google_calendar",
+    )):
+        # Calendar lists and event previews are private family data. OAuth and
+        # API responses must not enter browser, CDN, or intermediary caches.
         resp.headers["Cache-Control"] = "private, no-store"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Expires"] = "0"

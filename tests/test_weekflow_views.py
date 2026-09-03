@@ -39,6 +39,237 @@ def test_lab_page_renders_demo_configuration():
     assert "Optimize" not in html
 
 
+def test_logistics_lab_renders_the_family_handoff_experiment():
+    response = _client().get("/labs/weekflow/logistics")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Carry less of the family schedule in your head" in html
+    assert "Dad’s appointment" in html
+    assert "Football practice" in html
+    assert "Dance class" in html
+    assert 'planUrl: "/labs/weekflow/logistics/plan"' in html
+    assert 'calendarStatusUrl: "/labs/weekflow/calendar/status"' in html
+    assert "Availability only" in html
+    assert "Previewed event content is not saved" in html
+    assert "Simulate family of four · school + sports" in html
+    assert "familyFourScenario:" in html
+    assert 'content="noindex,nofollow"' in html
+
+
+def test_logistics_endpoint_detects_and_resolves_the_driver_conflict(monkeypatch):
+    client = _client()
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+
+    baseline = client.post("/labs/weekflow/logistics/plan", json={})
+    baseline_payload = baseline.get_json()
+    fixed = client.post(
+        "/labs/weekflow/logistics/plan",
+        json={
+            "scenario": baseline_payload["scenario"],
+            "change": {
+                "event_id": "football",
+                "adult_id": "grandma",
+                "scope": "occurrence",
+            },
+        },
+    )
+
+    assert baseline.status_code == 200
+    assert baseline_payload["status"] == "needs_decision"
+    assert baseline_payload["suggestions"][0]["adult_id"] == "grandma"
+    assert fixed.status_code == 200
+    assert fixed.get_json()["status"] == "workable"
+
+
+def test_logistics_endpoint_rejects_bad_shapes_and_rate_limits(monkeypatch):
+    client = _client()
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+
+    assert client.post("/labs/weekflow/logistics/plan", json=[]).status_code == 400
+    assert client.post(
+        "/labs/weekflow/logistics/plan", json={"scenario": []}
+    ).status_code == 400
+    assert client.post(
+        "/labs/weekflow/logistics/plan", json={"change": []}
+    ).status_code == 400
+
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": False, "retry_after": 19}
+        )(),
+    )
+    limited = client.post("/labs/weekflow/logistics/plan", json={})
+    assert limited.status_code == 429
+    assert limited.headers["Retry-After"] == "19"
+
+
+def test_calendar_status_requires_adult_sign_in_before_optional_consent(
+    monkeypatch,
+):
+    monkeypatch.setattr(weekflow_view, "calendar_oauth_configured", lambda: True)
+
+    response = _client().get("/labs/weekflow/calendar/status")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "signed_in": False,
+        "configured": True,
+        "connected": False,
+        "sign_in_url": "/login/google/start?next=/labs/weekflow/logistics",
+        "connect_url": None,
+        "preferences": {"calendar_ids": [], "detail_mode": "details"},
+    }
+
+
+def test_connected_adult_can_select_and_preview_read_only_calendars(monkeypatch):
+    client = _client()
+    fake_oauth = type("OAuth", (), {"authorized": True})()
+    calendars = [
+        {
+            "id": "family@example.com",
+            "name": "Family",
+            "primary": True,
+            "access_role": "owner",
+            "color": "#315f53",
+        }
+    ]
+    saved = []
+    analytics = []
+    monkeypatch.setattr(weekflow_view, "calendar_oauth_configured", lambda: True)
+    monkeypatch.setattr(weekflow_view, "_calendar_session", lambda: fake_oauth)
+    monkeypatch.setattr(
+        weekflow_view,
+        "load_calendar_preferences",
+        lambda email: {"calendar_ids": ["family@example.com"], "detail_mode": "details"},
+    )
+    monkeypatch.setattr(
+        weekflow_view, "list_google_calendars", lambda oauth: calendars
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "preview_google_week",
+        lambda oauth, available_calendars, payload: {
+            "week_start": payload["week_start"],
+            "timezone": payload["timezone"],
+            "detail_mode": payload["detail_mode"],
+            "selected_calendars": calendars,
+            "events": [],
+            "event_count": 0,
+            "source_owned": True,
+            "persisted_event_content": False,
+        },
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_calendar_preferences",
+        lambda email, payload: saved.append((email, payload)),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "record_weekflow_event",
+        lambda email, payload: analytics.append((email, payload)),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    status = client.get("/labs/weekflow/calendar/status")
+    choices = client.get("/labs/weekflow/calendar/calendars")
+    payload = {
+        "calendar_ids": ["family@example.com"],
+        "detail_mode": "details",
+        "week_start": "2026-08-31",
+        "timezone": "America/New_York",
+    }
+    preview = client.post("/labs/weekflow/calendar/preview", json=payload)
+
+    assert status.get_json()["connected"] is True
+    assert choices.get_json()["calendars"] == calendars
+    assert preview.status_code == 200
+    assert preview.get_json()["source_owned"] is True
+    assert saved == [("parent@example.com", payload)]
+    assert analytics == [
+        ("parent@example.com", {"event": "calendar_imported"})
+    ]
+
+
+def test_calendar_routes_reject_unconnected_and_disconnect_cleanly(monkeypatch):
+    client = _client()
+    disconnected = []
+    monkeypatch.setattr(weekflow_view, "calendar_oauth_configured", lambda: True)
+    monkeypatch.setattr(
+        weekflow_view,
+        "_calendar_session",
+        lambda: type("OAuth", (), {"authorized": False})(),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "disconnect_google_calendar",
+        lambda email: disconnected.append(email),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    unconnected = client.get("/labs/weekflow/calendar/calendars")
+    removed = client.post("/labs/weekflow/calendar/disconnect", json={})
+
+    assert unconnected.status_code == 401
+    assert "Connect Google Calendar" in unconnected.get_json()["error"]
+    assert removed.get_json() == {"disconnected": True}
+    assert disconnected == ["parent@example.com"]
+
+
+def test_calendar_oauth_rejects_a_different_google_account(monkeypatch):
+    client = _client()
+    disconnected = []
+
+    class _OAuth:
+        authorized = True
+
+        def get(self, path):
+            return type(
+                "Response",
+                (),
+                {"ok": True, "json": lambda self: {"email": "other@example.com"}},
+            )()
+
+    monkeypatch.setattr(weekflow_view, "_calendar_session", lambda: _OAuth())
+    monkeypatch.setattr(
+        weekflow_view,
+        "disconnect_google_calendar",
+        lambda email: disconnected.append(email),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    response = client.get("/labs/weekflow/calendar/oauth-finish")
+
+    assert response.status_code == 302
+    assert "calendar=wrong-account" in response.headers["Location"]
+    assert disconnected == ["parent@example.com"]
+
+
 def test_schedule_endpoint_accepts_supported_modes_and_default(monkeypatch):
     client = _client()
 

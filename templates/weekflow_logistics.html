@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="WeekFlow turns family calendar events into an explainable logistics plan." />
+    <title>WeekFlow Family Logistics Lab · FaithSparks Labs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_logistics.css') }}?v=6" />
+  </head>
+  <body>
+    <main class="wfl-shell">
+      <nav><a href="{{ url_for('weekflow.index') }}">← Homeschool scheduler experiment</a></nav>
+      <header class="wfl-hero">
+        <div class="wfl-kicker"><span>FaithSparks Labs</span> Family logistics experiment</div>
+        <h1>Carry less of the family schedule in your head.</h1>
+        <p>Calendars record where everyone needs to be. WeekFlow works out who is responsible, includes the travel nobody wrote down, and catches the handoffs that cannot actually happen.</p>
+      </header>
+
+      <section class="wfl-scenario" aria-labelledby="scenarioTitle">
+        <div class="wfl-heading"><div><span class="wfl-eyebrow" id="scenarioEyebrow">Tuesday test</span><h2 id="scenarioTitle">Three ordinary events. One hidden collision.</h2></div><p id="scenarioDescription">These commitments do not overlap cleanly once drivers and travel are treated as real resources.</p></div>
+        <div class="wfl-event-grid" id="scenarioEvents">
+          <article><time>4:00–5:00</time><strong>Dad’s appointment</strong><span>Dad · 25 minutes travel each way</span></article>
+          <article><time>5:00–6:30</time><strong>Football practice</strong><span>Avery + Maya · Dad normally drives · 20 minutes travel</span></article>
+          <article><time>5:30–6:30</time><strong>Dance class</strong><span>Lucy · Mom normally drives · 15 minutes travel</span></article>
+        </div>
+        <div class="wfl-rules" id="scenarioRules"><strong>Rules WeekFlow remembers</strong><span>Football → Dad</span><span>Dance → Mom</span><span>Grandma → saved backup</span></div>
+        <div class="wfl-scenario-actions"><button class="wfl-button wfl-primary" id="planButton" type="button">Plan Tuesday Logistics</button><button class="wfl-button" id="familyFourButton" type="button">Simulate family of four · school + sports</button></div>
+        <span class="wfl-action-status" id="actionStatus" role="status" aria-live="polite"></span>
+      </section>
+
+      <section class="wfl-calendar" aria-labelledby="calendarTitle">
+        <div class="wfl-heading">
+          <div><span class="wfl-eyebrow">Use what you already entered</span><h2 id="calendarTitle">Bring in selected Google calendars.</h2></div>
+          <p>WeekFlow reads only the calendars you choose. Source events remain read-only and are never silently rewritten.</p>
+        </div>
+        <div class="wfl-calendar-status" id="calendarStatus" role="status" aria-live="polite">
+          <div><strong>Checking connection…</strong><span>Calendar access is optional and separate from sign-in.</span></div>
+        </div>
+        <div class="wfl-calendar-controls" id="calendarControls" hidden>
+          <form id="calendarForm">
+            <fieldset>
+              <legend>Calendars to use</legend>
+              <div class="wfl-calendar-list" id="calendarList"></div>
+            </fieldset>
+            <fieldset>
+              <legend>What WeekFlow may read</legend>
+              <label class="wfl-choice"><input type="radio" name="detailMode" value="details" checked /><span><strong>Event details</strong><small>Title, time, and location help WeekFlow understand the commitment.</small></span></label>
+              <label class="wfl-choice"><input type="radio" name="detailMode" value="availability" /><span><strong>Availability only</strong><small>WeekFlow sees busy windows without titles or locations.</small></span></label>
+            </fieldset>
+            <label class="wfl-date"><span>Week beginning</span><input id="calendarWeek" type="date" required /></label>
+            <div class="wfl-calendar-actions"><button class="wfl-button" type="submit">Preview selected week</button><button class="wfl-text-button" id="disconnectCalendarButton" type="button">Disconnect Google Calendar</button></div>
+          </form>
+          <div class="wfl-calendar-preview" id="calendarPreview" hidden></div>
+        </div>
+        <p class="wfl-calendar-privacy">Previewed event content is not saved. WeekFlow stores only your selected calendar IDs and privacy mode at this stage.</p>
+      </section>
+
+      <section id="results" hidden aria-live="polite">
+        <div class="wfl-result-heading"><div><span class="wfl-eyebrow">Responsibility plan</span><h2 id="resultTitle">Tuesday needs a decision.</h2></div><button class="wfl-text-button" id="resetRulesButton" type="button">Reset remembered rules</button></div>
+        <div class="wfl-status" id="status"></div>
+        <div class="wfl-metrics" id="metrics"></div>
+
+        <section class="wfl-timeline-section" aria-labelledby="timelineTitle">
+          <div class="wfl-heading"><div><span class="wfl-eyebrow">The invisible schedule</span><h2 id="timelineTitle">Who is actually occupied?</h2></div><p>Travel expands each calendar event into its true responsibility window.</p></div>
+          <div class="wfl-timeline" id="timeline"></div>
+          <div class="wfl-mobile-timeline" id="mobileTimeline"></div>
+        </section>
+
+        <section class="wfl-decision" id="decisionPanel">
+          <div class="wfl-issues" id="issues"></div>
+          <div class="wfl-suggestions" id="suggestions"></div>
+        </section>
+
+        <section class="wfl-update" aria-labelledby="updateTitle">
+          <div><span class="wfl-eyebrow">Easy update</span><h2 id="updateTitle">Change it once—or let it ride.</h2><p>An occurrence override changes only this Tuesday. A series rule becomes the remembered default for future matching events.</p></div>
+          <form id="responsibilityForm">
+            <label><span>Activity</span><select id="activitySelect"></select></label>
+            <label><span>Responsible adult</span><select id="adultSelect"></select></label>
+            <label><span>Apply to</span><select id="scopeSelect"><option value="occurrence">This occurrence</option><option value="series">Entire recurring series</option></select></label>
+            <button class="wfl-button" type="submit">Update and replan</button>
+          </form>
+          <p class="wfl-memory" id="ruleMemory"></p>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      window.WEEKFLOW_LOGISTICS_CONFIG = {
+        planUrl: {{ url_for('weekflow.logistics_plan')|tojson }},
+        calendarStatusUrl: {{ url_for('weekflow.calendar_status')|tojson }},
+        calendarsUrl: {{ url_for('weekflow.calendars')|tojson }},
+        calendarPreviewUrl: {{ url_for('weekflow.calendar_preview')|tojson }},
+        calendarDisconnectUrl: {{ url_for('weekflow.calendar_disconnect')|tojson }},
+        csrfToken: {{ csrf_token()|tojson }},
+        defaultScenario: {{ scenario|tojson }},
+        familyFourScenario: {{ family_four_scenario|tojson }}
+      };
+    </script>
+    <script src="{{ url_for('static', filename='weekflow_logistics.js') }}?v=6" defer></script>
+  </body>
+</html>

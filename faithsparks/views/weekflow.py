@@ -4,16 +4,35 @@ import os
 from flask import (
     Blueprint,
     current_app,
+    g,
     jsonify,
     make_response,
+    redirect,
     render_template,
     request,
     session,
+    url_for,
 )
 
 from faithsparks.services.firestore import db, firebase_init_diagnostic
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.users import get_user_doc, has_active_plus
+from faithsparks.services.weekflow_calendar import (
+    WeekFlowCalendarProviderError,
+    WeekFlowCalendarUnavailable,
+    calendar_oauth_configured,
+    disconnect_google_calendar,
+    list_google_calendars,
+    load_calendar_preferences,
+    preview_google_week,
+    save_calendar_preferences,
+)
+from faithsparks.services.weekflow_logistics import (
+    analyze_family_logistics,
+    apply_responsibility_change,
+    default_logistics_scenario,
+    family_four_school_sports_scenario,
+)
 from faithsparks.services.weekflow_scheduler import (
     demo_payload,
     generate_demo_schedule,
@@ -73,6 +92,221 @@ def index():
         demo=demo_payload(),
         noindex=True,
     )
+
+
+@bp.get("/logistics")
+def logistics():
+    return render_template(
+        "weekflow_logistics.html",
+        scenario=default_logistics_scenario(),
+        family_four_scenario=family_four_school_sports_scenario(),
+        noindex=True,
+    )
+
+
+@bp.post("/logistics/plan")
+def logistics_plan():
+    limit = check_rate_limit(
+        "weekflow-logistics",
+        _signed_in_email() or get_client_ip(),
+        limit=120,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        response = jsonify({"error": "Too many family plans. Try again shortly."})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(limit.retry_after)
+        return response
+    if request.content_length and request.content_length > 80_000:
+        return jsonify({"error": "Family logistics request is too large."}), 413
+    body = request.get_json(silent=True) if request.data else {}
+    if not isinstance(body, dict):
+        return jsonify({"error": "Request body must be a JSON object."}), 400
+    scenario = body.get("scenario")
+    change = body.get("change")
+    if scenario is not None and not isinstance(scenario, dict):
+        return jsonify({"error": "scenario must be a JSON object."}), 400
+    if change is not None and not isinstance(change, dict):
+        return jsonify({"error": "change must be a JSON object."}), 400
+    try:
+        if change is not None:
+            scenario = apply_responsibility_change(
+                scenario or default_logistics_scenario(),
+                event_id=change.get("event_id"),
+                adult_id=change.get("adult_id"),
+                scope=change.get("scope"),
+                responsibility_kind=change.get("responsibility_kind"),
+            )
+        return jsonify(analyze_family_logistics(scenario))
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+def _calendar_session():
+    return getattr(g, "weekflow_calendar_google", None)
+
+
+def _calendar_connect_url() -> str | None:
+    if "weekflow_google_calendar.login" not in current_app.view_functions:
+        return None
+    return url_for("weekflow_google_calendar.login")
+
+
+def _calendar_is_connected() -> bool:
+    oauth = _calendar_session()
+    return bool(oauth and oauth.authorized)
+
+
+def _calendar_connection_required():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    if not calendar_oauth_configured():
+        return jsonify(
+            {"error": "Google Calendar connection is not configured yet."}
+        ), 503
+    try:
+        if not _calendar_is_connected():
+            return jsonify(
+                {
+                    "error": "Connect Google Calendar before choosing calendars.",
+                    "connect_url": _calendar_connect_url(),
+                }
+            ), 401
+    except WeekFlowCalendarUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    return None
+
+
+@bp.get("/calendar/status")
+def calendar_status():
+    email = _signed_in_email()
+    configured = calendar_oauth_configured()
+    if not email:
+        return jsonify(
+            {
+                "signed_in": False,
+                "configured": configured,
+                "connected": False,
+                "sign_in_url": "/login/google/start?next=/labs/weekflow/logistics",
+                "connect_url": None,
+                "preferences": {"calendar_ids": [], "detail_mode": "details"},
+            }
+        )
+    connected = False
+    preferences = {"calendar_ids": [], "detail_mode": "details"}
+    if configured:
+        try:
+            connected = _calendar_is_connected()
+            if connected:
+                preferences = load_calendar_preferences(email)
+        except WeekFlowCalendarUnavailable as exc:
+            return jsonify({"error": str(exc)}), 503
+    return jsonify(
+        {
+            "signed_in": True,
+            "configured": configured,
+            "connected": connected,
+            "sign_in_url": None,
+            "connect_url": _calendar_connect_url() if configured else None,
+            "preferences": preferences,
+        }
+    )
+
+
+@bp.get("/calendar/oauth-finish")
+def calendar_oauth_finish():
+    email = _signed_in_email()
+    if not email:
+        return redirect("/login/google/start?next=/labs/weekflow/logistics")
+    try:
+        if not _calendar_is_connected():
+            return redirect(url_for("weekflow.logistics", calendar="not-connected"))
+        response = _calendar_session().get("/oauth2/v2/userinfo")
+        account = response.json() if response.ok else {}
+        account_email = (
+            str(account.get("email") or "").strip().casefold()
+            if isinstance(account, dict)
+            else ""
+        )
+        if not account_email or account_email != email:
+            disconnect_google_calendar(email)
+            return redirect(url_for("weekflow.logistics", calendar="wrong-account"))
+    except (WeekFlowCalendarUnavailable, ValueError):
+        return redirect(url_for("weekflow.logistics", calendar="connection-error"))
+    except Exception:
+        current_app.logger.warning(
+            "WeekFlow Calendar account validation failed", exc_info=True
+        )
+        return redirect(url_for("weekflow.logistics", calendar="connection-error"))
+    response = make_response(
+        redirect(url_for("weekflow.logistics", calendar="connected"))
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@bp.get("/calendar/calendars")
+def calendars():
+    if required := _calendar_connection_required():
+        return required
+    try:
+        return jsonify({"calendars": list_google_calendars(_calendar_session())})
+    except WeekFlowCalendarProviderError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except WeekFlowCalendarUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
+@bp.post("/calendar/preview")
+def calendar_preview():
+    if required := _calendar_connection_required():
+        return required
+    email = _signed_in_email()
+    limit = check_rate_limit(
+        "weekflow-calendar-preview",
+        email,
+        limit=30,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        response = jsonify({"error": "Too many calendar previews. Try again shortly."})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(limit.retry_after)
+        return response
+    if request.content_length and request.content_length > 24_000:
+        return jsonify({"error": "Calendar preview request is too large."}), 413
+    payload = request.get_json(silent=True)
+    try:
+        available = list_google_calendars(_calendar_session())
+        preview = preview_google_week(
+            _calendar_session(),
+            available_calendars=available,
+            payload=payload,
+        )
+        save_calendar_preferences(email, payload)
+        record_weekflow_event(email, {"event": "calendar_imported"})
+        return jsonify(preview)
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except WeekFlowCalendarProviderError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except WeekFlowCalendarUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
+@bp.post("/calendar/disconnect")
+def calendar_disconnect():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    try:
+        disconnect_google_calendar(email)
+    except WeekFlowCalendarUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"disconnected": True})
 
 
 @bp.post("/schedule")
