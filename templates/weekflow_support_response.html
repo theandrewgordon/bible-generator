@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>WeekFlow help request</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_logistics.css') }}?v=9" />
+  </head>
+  <body>
+    <main class="wfl-response-shell">
+      <span class="wfl-eyebrow">WeekFlow request</span>
+      {% if error %}
+        <h1>This link can’t be used.</h1><p>{{ error }}</p>
+      {% elif support_request.status == 'pending' %}
+        <h1>{{ support_request.adult_name }}, can you help?</h1>
+        <p><strong>{{ support_request.event_title }}</strong> needs help with {{ support_request.responsibility_kind|replace('off', '-off') }}.</p>
+        <p>Your answer shares only yes or no. You cannot see the family’s calendar.</p>
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button class="wfl-button wfl-primary" name="response" value="accept">Yes, I can help</button>
+          <button class="wfl-button" name="response" value="decline">No, I can’t</button>
+        </form>
+      {% elif support_request.status == 'accepted' %}
+        <h1>Thank you—you’re confirmed.</h1><p>The family will see that you accepted.</p>
+      {% else %}
+        <h1>Your answer was saved.</h1><p>The family will make another plan.</p>
+      {% endif %}
+    </main>
+  </body>
+</html>

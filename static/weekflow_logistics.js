@@ -16,6 +16,7 @@
   const mobileTimeline = byId("mobileTimeline");
   const issues = byId("issues");
   const suggestions = byId("suggestions");
+  const conflictDetails = document.querySelector(".wfl-conflict-details");
   const responsibilityForm = byId("responsibilityForm");
   const activitySelect = byId("activitySelect");
   const adultSelect = byId("adultSelect");
@@ -46,6 +47,12 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function firstSentence(value) {
+    const text = String(value ?? "");
+    const ending = text.search(/[.!?](?:\s|$)/);
+    return ending === -1 ? text : text.slice(0, ending + 1);
   }
 
   function loadRememberedRules() {
@@ -92,11 +99,11 @@
     const isFamilyFour = householdCount === 4 && value.events.some((event) => event.id === "school");
     scenarioEyebrow.textContent = `${value.day_label} test`;
     scenarioTitle.textContent = isFamilyFour
-      ? "School, two jobs, and two sports—with the handoffs included."
-      : "Three ordinary events. One hidden collision.";
+      ? "A busy school-and-sports day."
+      : "See the hidden handoff.";
     scenarioDescription.textContent = isFamilyFour
-      ? "Two parents and two children expose whether WeekFlow removes decisions or merely displays them."
-      : "These commitments do not overlap cleanly once drivers and travel are treated as real resources.";
+      ? "WeekFlow checks the travel, drivers, and pickup plan for you."
+      : "Start with this example. Nothing changes until you choose an option.";
     scenarioEvents.innerHTML = value.events.map((event) => {
       const participantNames = event.participant_ids.map((id) => people[id]?.name).filter(Boolean).join(" + ");
       const rule = rules[event.series_id];
@@ -110,13 +117,13 @@
 
   function renderStatus(result) {
     if (result.status === "workable") {
-      resultTitle.textContent = `${result.scenario.day_label} has a workable handoff plan.`;
+      resultTitle.textContent = `${result.scenario.day_label} is covered.`;
       status.className = "wfl-status good";
-      status.innerHTML = "<strong>Every responsibility is covered.</strong><span>No adult or child is expected in two places once travel is included.</span>";
+      status.innerHTML = "<strong>You’re set.</strong><span>Every ride and responsibility has an available person.</span>";
     } else {
-      resultTitle.textContent = `${result.scenario.day_label} needs a decision.`;
+      resultTitle.textContent = `${result.scenario.day_label} needs ${result.issue_count === 1 ? "one decision" : `${result.issue_count} decisions`}.`;
       status.className = "wfl-status warning";
-      status.innerHTML = `<strong>The calendar contains ${result.assignments.length} valid events.</strong><span>The family plan still has ${result.issue_count} ${result.issue_count === 1 ? "responsibility problem" : "responsibility problems"}.</span>`;
+      status.innerHTML = `<strong>Here’s what needs you.</strong><span>Start with the first option below.</span>`;
     }
   }
 
@@ -195,6 +202,15 @@
   }
 
   function suggestionButtons(item) {
+    if (item.kind === "external_help") {
+      return '<div class="wfl-suggestion-actions"><button class="wfl-button" type="button" data-carpool-option>Show a carpool option</button></div>';
+    }
+    if (item.kind === "request_support") {
+      const request = current?.support_requests.find((candidate) => candidate.event_id === item.event_id && candidate.adult_id === item.adult_id && candidate.status === "pending");
+      if (request) {
+        return `<div class="wfl-suggestion-actions"><button class="wfl-button" type="button" data-request="${escapeHtml(request.id)}" data-request-action="accept">They said yes</button><button class="wfl-button" type="button" data-request="${escapeHtml(request.id)}" data-request-action="decline">They can’t help</button></div>`;
+      }
+    }
     if (item.kind === "switch_vehicle") {
       return `<div class="wfl-suggestion-actions"><button class="wfl-button" type="button" data-event="${item.event_id}" data-vehicle="${item.vehicle_id}" data-scope="occurrence">Use this day</button><button class="wfl-button" type="button" data-event="${item.event_id}" data-vehicle="${item.vehicle_id}" data-scope="series">Remember vehicle</button></div>`;
     }
@@ -207,12 +223,17 @@
     if (!result.issues.length) {
       issues.innerHTML = '<div class="wfl-empty-decision"><span class="wfl-eyebrow">Resolved</span><h3>No uncovered handoffs remain.</h3><p>Change an assignment below to pressure-test another option.</p></div>';
       suggestions.replaceChildren();
+      conflictDetails.hidden = true;
       return;
     }
+    conflictDetails.hidden = false;
     issues.innerHTML = result.issues.map((item) => `<article><span class="wfl-eyebrow">Conflict detected</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p></article>`).join("");
-    suggestions.innerHTML = result.suggestions.map((item) => `<article><span class="wfl-eyebrow">${item.kind === "reassign" ? "Workable option" : "Family decision needed"}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p>${suggestionButtons(item)}</article>`).join("");
+    const cards = result.suggestions.map((item, index) => `<article><span class="wfl-eyebrow">${index === 0 ? "Do this next" : item.kind === "reassign" ? "Another option" : "Family decision"}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(firstSentence(item.body))}</p>${suggestionButtons(item)}</article>`);
+    suggestions.innerHTML = `${cards[0] || ""}${cards.length > 1 ? `<details class="wfl-more-options"><summary>See ${cards.length - 1} more ${cards.length === 2 ? "decision" : "decisions"}</summary><div>${cards.slice(1).join("")}</div></details>` : ""}`;
     suggestions.querySelectorAll("button[data-adult]").forEach((button) => button.addEventListener("click", () => applyChange(button.dataset.event, button.dataset.adult, button.dataset.scope, button.dataset.responsibility)));
     suggestions.querySelectorAll("button[data-vehicle]").forEach((button) => button.addEventListener("click", () => requestPlan({ kind: "vehicle", event_id: button.dataset.event, vehicle_id: button.dataset.vehicle, scope: button.dataset.scope })));
+    suggestions.querySelectorAll("button[data-request]").forEach((button) => button.addEventListener("click", () => requestPlan({ kind: "support_request", request_id: button.dataset.request, action: button.dataset.requestAction })));
+    suggestions.querySelectorAll("button[data-carpool-option]").forEach((button) => button.addEventListener("click", () => useScenario(config.carpoolScenario)));
   }
 
   function renderForm(result) {
@@ -245,7 +266,7 @@
 
   async function requestPlan(change = null) {
     planButton.disabled = true;
-    actionStatus.textContent = "Checking drivers, travel, participants, and handoffs…";
+    actionStatus.textContent = "Checking the family plan…";
     try {
       const response = await fetch(config.planUrl, {
         method: "POST",
@@ -258,8 +279,8 @@
       render(payload);
       if (change?.scope === "series") rememberRules();
       actionStatus.textContent = "";
-      planButton.textContent = `Recheck ${payload.scenario.day_label} Logistics`;
-      if (change) document.querySelector(".wfl-result-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+      planButton.textContent = "Check again";
+      document.querySelector(".wfl-result-heading").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       actionStatus.textContent = error.message;
     } finally {
@@ -269,6 +290,13 @@
 
   function applyChange(eventId, adultId, scope, responsibilityKind = null) {
     return requestPlan({ event_id: eventId, adult_id: adultId, scope, ...(responsibilityKind ? { responsibility_kind: responsibilityKind } : {}) });
+  }
+
+  function useScenario(nextScenario) {
+    scenario = structuredClone(nextScenario);
+    renderScenarioSummary(scenario);
+    planButton.textContent = "Check this day";
+    requestPlan();
   }
 
   function mondayFor(date = new Date()) {
@@ -409,18 +437,8 @@
   }
 
   planButton.addEventListener("click", () => requestPlan());
-  familyFourButton.addEventListener("click", () => {
-    scenario = structuredClone(config.familyFourScenario);
-    renderScenarioSummary(scenario);
-    planButton.textContent = "Recheck Family Logistics";
-    requestPlan();
-  });
-  carpoolButton.addEventListener("click", () => {
-    scenario = structuredClone(config.carpoolScenario);
-    renderScenarioSummary(scenario);
-    planButton.textContent = "Recheck Carpool Logistics";
-    requestPlan();
-  });
+  familyFourButton.addEventListener("click", () => useScenario(config.familyFourScenario));
+  carpoolButton.addEventListener("click", () => useScenario(config.carpoolScenario));
   responsibilityForm.addEventListener("submit", (event) => {
     event.preventDefault();
     applyChange(activitySelect.value, adultSelect.value, scopeSelect.value);

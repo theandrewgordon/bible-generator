@@ -10,33 +10,36 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_logistics.css') }}?v=8" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_logistics.css') }}?v=12" />
   </head>
   <body>
     <main class="wfl-shell">
-      <nav><a href="{{ url_for('weekflow.index') }}">← Homeschool scheduler experiment</a></nav>
+      <nav><a href="{{ url_for('weekflow.index') }}">← WeekFlow planner</a></nav>
       <header class="wfl-hero">
         <div class="wfl-kicker"><span>FaithSparks Labs</span> Family logistics experiment</div>
-        <h1>Carry less of the family schedule in your head.</h1>
-        <p>Calendars record where everyone needs to be. WeekFlow works out who is responsible, includes the travel nobody wrote down, and catches the handoffs that cannot actually happen.</p>
+        <h1>Know who’s doing what.</h1>
+        <p>WeekFlow puts the hidden handoffs on one clear plan—and shows the next decision that needs you.</p>
       </header>
 
       <section class="wfl-scenario" aria-labelledby="scenarioTitle">
-        <div class="wfl-heading"><div><span class="wfl-eyebrow" id="scenarioEyebrow">Tuesday test</span><h2 id="scenarioTitle">Three ordinary events. One hidden collision.</h2></div><p id="scenarioDescription">These commitments do not overlap cleanly once drivers and travel are treated as real resources.</p></div>
+        <div class="wfl-heading"><div><span class="wfl-eyebrow" id="scenarioEyebrow">Try it</span><h2 id="scenarioTitle">See the hidden handoff.</h2></div><p id="scenarioDescription">Start with this example. Nothing changes until you choose an option.</p></div>
+        <p class="wfl-one-step"><strong>Start here:</strong> check the day. WeekFlow will tell you the one decision to make next.</p>
+        <div class="wfl-scenario-actions"><button class="wfl-button wfl-primary" id="planButton" type="button">Check this day</button><details class="wfl-example-picker"><summary>Try another example</summary><div><button class="wfl-button" id="familyFourButton" type="button">School + sports</button><button class="wfl-button" id="carpoolButton" type="button">School carpool</button></div></details></div>
+        <span class="wfl-action-status" id="actionStatus" role="status" aria-live="polite"></span>
         <div class="wfl-event-grid" id="scenarioEvents">
           <article><time>4:00–5:00</time><strong>Dad’s appointment</strong><span>Dad · 25 minutes travel each way</span></article>
           <article><time>5:00–6:30</time><strong>Football practice</strong><span>Avery + Maya · Dad normally drives · 20 minutes travel</span></article>
           <article><time>5:30–6:30</time><strong>Dance class</strong><span>Lucy · Mom normally drives · 15 minutes travel</span></article>
         </div>
-        <div class="wfl-rules" id="scenarioRules"><strong>Rules WeekFlow remembers</strong><span>Football → Dad</span><span>Dance → Mom</span><span>Grandma → saved backup</span></div>
-        <div class="wfl-scenario-actions"><button class="wfl-button wfl-primary" id="planButton" type="button">Plan Tuesday Logistics</button><button class="wfl-button" id="familyFourButton" type="button">Simulate family of four · school + sports</button><button class="wfl-button" id="carpoolButton" type="button">Add a pending school carpool</button></div>
-        <span class="wfl-action-status" id="actionStatus" role="status" aria-live="polite"></span>
+        <details class="wfl-compact-details"><summary>See the saved family rules</summary><div class="wfl-rules" id="scenarioRules"><strong>WeekFlow remembers</strong><span>Football → Dad</span><span>Dance → Mom</span><span>Grandma → saved backup</span></div></details>
       </section>
 
-      <section class="wfl-calendar" aria-labelledby="calendarTitle">
+      <details class="wfl-calendar wfl-disclosure">
+        <summary>Connect Google Calendar <span>Optional</span></summary>
+        <div class="wfl-disclosure-body">
         <div class="wfl-heading">
-          <div><span class="wfl-eyebrow">Use what you already entered</span><h2 id="calendarTitle">Bring in selected Google calendars.</h2></div>
-          <p>WeekFlow reads only the calendars you choose. Source events remain read-only and are never silently rewritten.</p>
+          <div><span class="wfl-eyebrow">Use what you already entered</span><h2>Choose calendars to read.</h2></div>
+          <p>Your original Google events stay unchanged.</p>
         </div>
         <div class="wfl-calendar-status" id="calendarStatus" role="status" aria-live="polite">
           <div><strong>Checking connection…</strong><span>Calendar access is optional and separate from sign-in.</span></div>
@@ -58,13 +61,21 @@
           <div class="wfl-calendar-preview" id="calendarPreview" hidden></div>
         </div>
         <p class="wfl-calendar-privacy">Previewed event content is not saved. WeekFlow stores only your selected calendar IDs and privacy mode at this stage.</p>
-      </section>
+        </div>
+      </details>
 
       <section id="results" hidden aria-live="polite">
         <div class="wfl-result-heading"><div><span class="wfl-eyebrow">Responsibility plan</span><h2 id="resultTitle">Tuesday needs a decision.</h2></div><button class="wfl-text-button" id="resetRulesButton" type="button">Reset remembered rules</button></div>
         <div class="wfl-status" id="status"></div>
+
+        <section class="wfl-decision" id="decisionPanel">
+          <div class="wfl-suggestions" id="suggestions"></div>
+          <details class="wfl-conflict-details"><summary>Why does this need attention?</summary><div class="wfl-issues" id="issues"></div></details>
+        </section>
+
+        <details class="wfl-plan-details"><summary>See how WeekFlow worked this out</summary><div class="wfl-plan-details-body">
         <div class="wfl-metrics" id="metrics"></div>
-        <section class="wfl-beta-grid" aria-label="Beta planning safeguards">
+        <section class="wfl-beta-grid" aria-label="Planning checks">
           <article><span class="wfl-eyebrow">Route + ride confidence</span><h3>What WeekFlow verified</h3><div id="guardrailSummary"></div></article>
           <article><span class="wfl-eyebrow">Four-week balance</span><h3>Who has been carrying it?</h3><div id="fairnessSummary"></div></article>
           <article id="supportPanel"><span class="wfl-eyebrow">Helper + carpool requests</span><h3>No assumed yeses</h3><div id="supportSummary"></div></article>
@@ -75,14 +86,11 @@
           <div class="wfl-timeline" id="timeline"></div>
           <div class="wfl-mobile-timeline" id="mobileTimeline"></div>
         </section>
+        </div></details>
 
-        <section class="wfl-decision" id="decisionPanel">
-          <div class="wfl-issues" id="issues"></div>
-          <div class="wfl-suggestions" id="suggestions"></div>
-        </section>
-
-        <section class="wfl-update" aria-labelledby="updateTitle">
-          <div><span class="wfl-eyebrow">Easy update</span><h2 id="updateTitle">Change it once—or let it ride.</h2><p>An occurrence override changes only this Tuesday. A series rule becomes the remembered default for future matching events.</p></div>
+        <details class="wfl-update wfl-update-details">
+          <summary>Make a different change</summary>
+          <div class="wfl-update-body"><div><span class="wfl-eyebrow">Easy update</span><h2>Change it once—or remember it.</h2><p>Choose this day only, or make it the normal plan.</p></div>
           <form id="responsibilityForm">
             <label><span>Activity</span><select id="activitySelect"></select></label>
             <label><span>Responsible adult</span><select id="adultSelect"></select></label>
@@ -90,7 +98,8 @@
             <button class="wfl-button" type="submit">Update and replan</button>
           </form>
           <p class="wfl-memory" id="ruleMemory"></p>
-        </section>
+          </div>
+        </details>
       </section>
     </main>
 
@@ -107,6 +116,6 @@
         carpoolScenario: {{ carpool_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow_logistics.js') }}?v=8" defer></script>
+    <script src="{{ url_for('static', filename='weekflow_logistics.js') }}?v=12" defer></script>
   </body>
 </html>

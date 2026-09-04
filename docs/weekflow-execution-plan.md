@@ -1,8 +1,10 @@
 # WeekFlow execution plan
 
-WeekFlow's product promise is **carry less of the family schedule in your head**.
+WeekFlow's product promise is **put the hidden handoffs on one clear plan**.
 It should use existing calendars as inputs, then solve the ownership, travel,
-supervision, and recovery work those calendars do not express.
+supervision, and recovery work those calendars do not express. The interface
+shows one next decision first; explanations, alternate choices, and planning
+diagnostics stay available behind progressive disclosure.
 
 ## 1. Prove family-logistics orchestration
 
@@ -51,19 +53,38 @@ The deterministic stress harness also ran 10,000 varied family days and checked
 6,262 suggested handoffs against the actual resource timeline before and after
 application.
 
-Remaining production-integration risks, in priority order:
+Production bridge implemented in September 2026:
 
-1. Route and traffic values use deterministic saved profiles. A routing provider
-   still needs to refresh those profiles; the planner does not make live traffic
-   claims when that data is absent.
-2. Notification states and response links are modeled and validated, but no SMS
-   or email is sent until a provider, consent copy, delivery receipts, and abuse
-   controls are configured.
-3. Fairness currently measures responsibility minutes and handoff counts. Beta
+- Google Routes API v2 can opt-in to refresh saved directional route profiles
+  with traffic-aware durations. Unroutable locations retain deterministic
+  fallback times and the planner labels which data was refreshed.
+- Twilio SMS and SendGrid email adapters can deliver helper or carpool requests.
+- Helper responses use expiring, tamper-evident, one-purpose links. The recipient
+  sees only the requested handoff, never the household calendar or contact
+  details. The first response wins atomically.
+- Operational analytics record privacy-safe outcome dimensions for generated
+  logistics plans, route refreshes, sent requests, and responses.
+
+Production configuration is opt-in. Live routes require
+`GOOGLE_MAPS_ROUTES_API_KEY`. SMS requires `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`. Email requires
+`SENDGRID_API_KEY` and `WEEKFLOW_FROM_EMAIL`. Response links require Firestore
+and a dedicated `WEEKFLOW_SUPPORT_SIGNING_KEY` of at least 24 characters.
+
+Remaining beta risks, in priority order:
+
+1. Provider credentials, sender verification, consent copy, delivery receipts,
+   and operational alerting must be configured and exercised in staging before
+   inviting families. Automated tests use fakes and do not send messages.
+2. Fairness currently measures responsibility minutes and handoff counts. Beta
    interviews must establish whether families also want weighting for planning,
    waiting, schedule changes, and emotional labor.
-4. Multi-household carpools need scoped account permissions so another family
-   sees only the request they received—not the household calendar behind it.
+3. Saved contacts and multi-household carpool membership need a consented,
+   encrypted address book so a family can enter a helper once without exposing
+   one household's calendar to another.
+4. Live route refresh needs to be connected to persisted household locations and
+   scheduled departures; the provider adapter and secure endpoint exist, but the
+   lab examples intentionally continue to work without addresses or credentials.
 
 ## 2. Make responsibility rules durable
 

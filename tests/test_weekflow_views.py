@@ -45,7 +45,9 @@ def test_logistics_lab_renders_the_family_handoff_experiment():
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "Carry less of the family schedule in your head" in html
+    assert "Know who’s doing what" in html
+    assert "Start here:" in html
+    assert "See how WeekFlow worked this out" in html
     assert "Dad’s appointment" in html
     assert "Football practice" in html
     assert "Dance class" in html
@@ -53,8 +55,8 @@ def test_logistics_lab_renders_the_family_handoff_experiment():
     assert 'calendarStatusUrl: "/labs/weekflow/calendar/status"' in html
     assert "Availability only" in html
     assert "Previewed event content is not saved" in html
-    assert "Simulate family of four · school + sports" in html
-    assert "Add a pending school carpool" in html
+    assert "School + sports" in html
+    assert "School carpool" in html
     assert "carpoolScenario:" in html
     assert "What WeekFlow verified" in html
     assert "Who has been carrying it?" in html
@@ -159,6 +161,112 @@ def test_logistics_endpoint_dispatches_vehicle_and_support_workflows(monkeypatch
         and issue["event_ids"] == ["school"]
         for issue in switched.get_json()["issues"]
     )
+
+
+def test_logistics_production_endpoints_require_an_adult_account(monkeypatch):
+    monkeypatch.setattr(
+        weekflow_view,
+        "integration_status",
+        lambda: {"live_routes": True, "sms": True, "email": True},
+    )
+    client = _client()
+
+    status = client.get("/labs/weekflow/logistics/integrations/status")
+    routes = client.post(
+        "/labs/weekflow/logistics/routes/refresh", json={"scenario": {}}
+    )
+    support = client.post("/labs/weekflow/logistics/support/send", json={})
+
+    assert status.status_code == 200
+    assert status.get_json()["live_routes"] is True
+    assert "routes-secret" not in status.get_data(as_text=True)
+    assert routes.status_code == 401
+    assert support.status_code == 401
+
+
+def test_signed_in_adult_can_refresh_routes_and_send_support(monkeypatch):
+    client = _client()
+    scenario = family_four_school_sports_scenario()
+    analytics = []
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "refresh_live_routes",
+        lambda value: (
+            value,
+            {
+                "refreshed": 2,
+                "skipped": 0,
+                "provider": "fake",
+                "refreshed_at": "2026-09-04T12:00:00+00:00",
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "create_and_send_support_request",
+        lambda *args, **kwargs: {
+            "id": "request-123",
+            "status": "pending",
+            "notification_status": "sent",
+            "channel": "email",
+            "destination_hint": ".com",
+            "expires_at": "2026-09-11T12:00:00+00:00",
+        },
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "record_weekflow_event",
+        lambda email, payload: analytics.append((email, payload)),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    routes = client.post(
+        "/labs/weekflow/logistics/routes/refresh", json={"scenario": scenario}
+    )
+    support = client.post(
+        "/labs/weekflow/logistics/support/send",
+        json={"channel": "email", "destination": "helper@example.com"},
+    )
+
+    assert routes.status_code == 200
+    assert routes.get_json()["refresh"]["refreshed"] == 2
+    assert support.status_code == 201
+    assert support.get_json()["id"] == "request-123"
+    assert [entry[1]["event"] for entry in analytics] == [
+        "route_refresh",
+        "support_request_sent",
+    ]
+
+
+def test_public_support_response_page_discloses_only_the_request(monkeypatch):
+    response = {
+        "request_id": "request-123",
+        "event_title": "School pickup",
+        "adult_name": "Grandma",
+        "responsibility_kind": "pickup",
+        "kind": "carpool",
+        "status": "pending",
+    }
+    monkeypatch.setattr(
+        weekflow_view, "load_support_response", lambda *args, **kwargs: response
+    )
+
+    page = _client().get("/labs/weekflow/logistics/respond/signed-token")
+    html = page.get_data(as_text=True)
+
+    assert page.status_code == 200
+    assert "School pickup" in html
+    assert "Grandma" in html
+    assert "Yes, I can help" in html and "No, I can’t" in html
+    assert "parent@example.com" not in html
 
 
 def test_calendar_status_requires_adult_sign_in_before_optional_consent(

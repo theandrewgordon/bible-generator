@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import re
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Callable, Protocol
+from typing import Protocol
 from uuid import uuid4
 
 from firebase_admin import firestore
@@ -15,7 +16,6 @@ from itsdangerous import BadData, URLSafeTimedSerializer
 from faithsparks.services.firestore import db
 from faithsparks.services.weekflow_integrations import (
     NotificationProvider,
-    NotificationResult,
     notification_provider,
 )
 
@@ -37,6 +37,8 @@ class SupportRequestRepository(Protocol):
     def get(self, request_id: str) -> dict[str, object] | None: ...
 
     def update(self, request_id: str, payload: dict[str, object]) -> None: ...
+
+    def respond_if_pending(self, request_id: str, status: str) -> bool: ...
 
 
 class FirestoreSupportRequestRepository:
@@ -64,6 +66,24 @@ class FirestoreSupportRequestRepository:
     def update(self, request_id: str, payload: dict[str, object]) -> None:
         self._document(request_id).update(payload)
 
+    def respond_if_pending(self, request_id: str, status: str) -> bool:
+        document = self._document(request_id)
+        transaction = self.client.transaction()
+
+        @firestore.transactional
+        def update_status(transaction):
+            snapshot = document.get(transaction=transaction)
+            record = snapshot.to_dict() if snapshot.exists else None
+            if not record or record.get("status") != "pending":
+                return False
+            transaction.update(
+                document,
+                {"status": status, "respondedAt": firestore.SERVER_TIMESTAMP},
+            )
+            return True
+
+        return bool(update_status(transaction))
+
 
 class MemorySupportRequestRepository:
     """Deterministic repository used by tests and local integration exercises."""
@@ -84,6 +104,13 @@ class MemorySupportRequestRepository:
         if request_id not in self.requests:
             raise ValueError("support request does not exist")
         self.requests[request_id].update(payload)
+
+    def respond_if_pending(self, request_id: str, status: str) -> bool:
+        request = self.requests.get(request_id)
+        if not request or request.get("status") != "pending":
+            return False
+        request.update({"status": status, "respondedAt": datetime.now(UTC)})
+        return True
 
 
 def _clean_text(value: object, field: str, maximum: int) -> str:
@@ -269,10 +296,8 @@ def respond_to_support_request(
     if public["status"] != "pending":
         raise WeekFlowSupportTokenError("This request has already been answered.")
     status = "accepted" if response == "accept" else "declined"
-    store.update(
-        public["request_id"],
-        {"status": status, "respondedAt": firestore.SERVER_TIMESTAMP},
-    )
+    if not store.respond_if_pending(public["request_id"], status):
+        raise WeekFlowSupportTokenError("This request has already been answered.")
     return {**public, "status": status}
 
 

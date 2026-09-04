@@ -555,25 +555,28 @@ def record_weekflow_event(email: str | None, payload: object) -> None:
         raise ValueError("analytics dimensions are not supported")
     dimensions: dict[str, int | str | bool] = {}
     for key, value in raw_dimensions.items():
-        if isinstance(value, bool):
-            dimensions[key] = value
-        elif isinstance(value, int) and 0 <= value <= 10_000:
-            dimensions[key] = value
-        elif isinstance(value, str) and value in {
-            "accepted",
-            "balanced",
-            "carpool",
-            "email",
-            "helper",
-            "needs_balance",
-            "needs_decision",
-            "none",
-            "responsibility",
-            "sms",
-            "support_request",
-            "vehicle",
-            "workable",
-        }:
+        if (
+            isinstance(value, bool)
+            or isinstance(value, int)
+            and 0 <= value <= 10_000
+            or isinstance(value, str)
+            and value
+            in {
+                "accepted",
+                "balanced",
+                "carpool",
+                "email",
+                "helper",
+                "needs_balance",
+                "needs_decision",
+                "none",
+                "responsibility",
+                "sms",
+                "support_request",
+                "vehicle",
+                "workable",
+            }
+        ):
             dimensions[key] = value
         else:
             raise ValueError("analytics dimension value is not supported")
