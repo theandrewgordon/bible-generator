@@ -55,6 +55,7 @@ def admin_analytics():
         "template_saved": 0,
         "calendar_imported": 0,
         "calendar_exported": 0,
+        "custom_scenario_saved": 0,
         "logistics_plan_generated": 0,
         "route_refresh": 0,
         "support_request_sent": 0,

@@ -51,16 +51,19 @@ from faithsparks.services.weekflow_store import (
     WeekFlowStorageUnavailable,
     create_rollover_state,
     delete_beta_state,
+    delete_logistics_state,
     delete_week_template,
     export_weekflow_backup,
     list_saved_weeks,
     list_week_templates,
     load_beta_state,
+    load_logistics_state,
     load_saved_week,
     prune_week_history,
     record_beta_feedback,
     record_weekflow_event,
     save_beta_state,
+    save_logistics_state,
     save_week_template,
 )
 from faithsparks.services.weekflow_support import (
@@ -214,6 +217,59 @@ def logistics_integration_status():
             "support_links": len(_support_signing_key()) >= 24 and bool(db),
         }
     )
+
+
+@bp.get("/logistics/state")
+def logistics_state():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    try:
+        return jsonify(load_logistics_state(email))
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
+@bp.put("/logistics/state")
+def logistics_state_save():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    limit = check_rate_limit(
+        "weekflow-logistics-save", email, limit=60, window_seconds=60 * 60
+    )
+    if not limit.allowed:
+        return jsonify({"error": "Your family day can be saved again shortly."}), 429
+    if request.content_length and request.content_length > 80_000:
+        return jsonify({"error": "Family logistics state is too large."}), 413
+    try:
+        saved = save_logistics_state(email, request.get_json(silent=True))
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except WeekFlowRevisionConflict as exc:
+        return jsonify({"error": str(exc), "conflict": True}), 409
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    record_weekflow_event(email, {"event": "custom_scenario_saved"})
+    return jsonify(saved)
+
+
+@bp.delete("/logistics/state")
+def logistics_state_delete():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    try:
+        delete_logistics_state(email)
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"deleted": True})
 
 
 @bp.post("/logistics/routes/refresh")

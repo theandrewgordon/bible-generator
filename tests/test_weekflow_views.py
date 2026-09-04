@@ -52,6 +52,9 @@ def test_logistics_lab_renders_the_family_handoff_experiment():
     assert "Football practice" in html
     assert "Dance class" in html
     assert 'planUrl: "/labs/weekflow/logistics/plan"' in html
+    assert 'logisticsStateUrl: "/labs/weekflow/logistics/state"' in html
+    assert "Enter my family’s day" in html
+    assert "Add a commitment" in html
     assert 'calendarStatusUrl: "/labs/weekflow/calendar/status"' in html
     assert "Availability only" in html
     assert "Previewed event content is not saved" in html
@@ -244,6 +247,62 @@ def test_signed_in_adult_can_refresh_routes_and_send_support(monkeypatch):
         "route_refresh",
         "support_request_sent",
     ]
+
+
+def test_signed_in_adult_can_save_and_load_a_custom_family_day(monkeypatch):
+    client = _client()
+    scenario = family_four_school_sports_scenario()
+    saved_payloads = []
+    deleted = []
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_logistics_state",
+        lambda email, payload: saved_payloads.append((email, payload))
+        or {"revision": 1, "scenario": scenario, "updated_at": "now"},
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "load_logistics_state",
+        lambda email: {"revision": 1, "scenario": scenario, "updated_at": "now"},
+    )
+    monkeypatch.setattr(
+        weekflow_view, "delete_logistics_state", lambda email: deleted.append(email)
+    )
+    monkeypatch.setattr(weekflow_view, "record_weekflow_event", lambda *args: None)
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    saved = client.put(
+        "/labs/weekflow/logistics/state",
+        json={"revision": 0, "scenario": scenario},
+    )
+    loaded = client.get("/labs/weekflow/logistics/state")
+    removed = client.delete("/labs/weekflow/logistics/state")
+
+    assert saved.status_code == 200
+    assert saved.get_json()["revision"] == 1
+    assert loaded.status_code == 200
+    assert removed.status_code == 200
+    assert loaded.get_json()["scenario"]["day_label"] == "Monday"
+    assert saved_payloads == [
+        ("parent@example.com", {"revision": 0, "scenario": scenario})
+    ]
+    assert deleted == ["parent@example.com"]
+
+
+def test_custom_family_day_cloud_routes_require_sign_in():
+    client = _client()
+
+    assert client.get("/labs/weekflow/logistics/state").status_code == 401
+    assert client.put("/labs/weekflow/logistics/state", json={}).status_code == 401
+    assert client.delete("/labs/weekflow/logistics/state").status_code == 401
 
 
 def test_public_support_response_page_discloses_only_the_request(monkeypatch):

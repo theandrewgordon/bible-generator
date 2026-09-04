@@ -86,10 +86,19 @@ Remaining beta risks, in priority order:
    scheduled departures; the provider adapter and secure endpoint exist, but the
    lab examples intentionally continue to work without addresses or credentials.
 
-## 2. Make responsibility rules durable
+## 2. Let families enter and keep their real day
 
-Status: **device-level experiment implemented**
+Status: **personal entry and optional cloud persistence implemented**
 
+- Add, edit, and remove household adults, children, adult commitments, school,
+  co-op, sports, appointments, and other child activities.
+- Capture the day, participants, responsible adult, drop-off/pickup versus
+  stay-through responsibility, travel time, optional place/address, and whether
+  the assignment repeats.
+- Save drafts automatically on the current device, even without an account.
+- Keep “Check my day” device-local. Use a separate explicit action for
+  account-owned cloud storage, with revision protection across browsers and a
+  separate delete-cloud-copy control.
 - Support “this occurrence” and “entire recurring series.”
 - Remember series responsibility rules and fallback adults.
 - Preserve travel buffers as part of the rule.

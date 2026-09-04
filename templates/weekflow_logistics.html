@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_logistics.css') }}?v=12" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_logistics.css') }}?v=17" />
   </head>
   <body>
     <main class="wfl-shell">
@@ -24,7 +24,7 @@
       <section class="wfl-scenario" aria-labelledby="scenarioTitle">
         <div class="wfl-heading"><div><span class="wfl-eyebrow" id="scenarioEyebrow">Try it</span><h2 id="scenarioTitle">See the hidden handoff.</h2></div><p id="scenarioDescription">Start with this example. Nothing changes until you choose an option.</p></div>
         <p class="wfl-one-step"><strong>Start here:</strong> check the day. WeekFlow will tell you the one decision to make next.</p>
-        <div class="wfl-scenario-actions"><button class="wfl-button wfl-primary" id="planButton" type="button">Check this day</button><details class="wfl-example-picker"><summary>Try another example</summary><div><button class="wfl-button" id="familyFourButton" type="button">School + sports</button><button class="wfl-button" id="carpoolButton" type="button">School carpool</button></div></details></div>
+        <div class="wfl-scenario-actions"><button class="wfl-button wfl-primary" id="planButton" type="button">Check this day</button><button class="wfl-button" id="customizeButton" type="button">Enter my family’s day</button><details class="wfl-example-picker"><summary>Try another example</summary><div><button class="wfl-button" id="familyFourButton" type="button">School + sports</button><button class="wfl-button" id="carpoolButton" type="button">School carpool</button></div></details></div>
         <span class="wfl-action-status" id="actionStatus" role="status" aria-live="polite"></span>
         <div class="wfl-event-grid" id="scenarioEvents">
           <article><time>4:00–5:00</time><strong>Dad’s appointment</strong><span>Dad · 25 minutes travel each way</span></article>
@@ -32,6 +32,52 @@
           <article><time>5:30–6:30</time><strong>Dance class</strong><span>Lucy · Mom normally drives · 15 minutes travel</span></article>
         </div>
         <details class="wfl-compact-details"><summary>See the saved family rules</summary><div class="wfl-rules" id="scenarioRules"><strong>WeekFlow remembers</strong><span>Football → Dad</span><span>Dance → Mom</span><span>Grandma → saved backup</span></div></details>
+      </section>
+
+      <section class="wfl-custom-builder" id="customBuilder" hidden aria-labelledby="customBuilderTitle">
+        <div class="wfl-custom-heading"><div><span class="wfl-eyebrow">Your real day</span><h2 id="customBuilderTitle">Put it down once.</h2><p>Add the people and commitments. WeekFlow will carry the handoffs.</p></div><div class="wfl-inline-actions"><button class="wfl-text-button" id="newCustomDayButton" type="button">Start a new day</button><button class="wfl-text-button" id="closeCustomButton" type="button">Close</button></div></div>
+
+        <div class="wfl-custom-step">
+          <span class="wfl-step-number">1</span>
+          <div class="wfl-custom-step-body">
+            <h3>Your family</h3>
+            <div class="wfl-custom-basics"><label><span>Day</span><select id="customDay"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></label><label><span>Home address <small>optional</small></span><input id="customHomeAddress" type="text" maxlength="300" autocomplete="street-address" placeholder="Used only for travel time" /></label></div>
+            <div class="wfl-people-list" id="customPeopleList"></div>
+            <div class="wfl-inline-actions"><button class="wfl-text-button" id="addAdultButton" type="button">+ Add adult</button><button class="wfl-text-button" id="addChildButton" type="button">+ Add child</button></div>
+          </div>
+        </div>
+
+        <div class="wfl-custom-step">
+          <span class="wfl-step-number">2</span>
+          <div class="wfl-custom-step-body">
+            <h3>Commitments</h3>
+            <div class="wfl-custom-events" id="customEvents"><p class="wfl-empty-copy">Nothing entered yet.</p></div>
+            <details class="wfl-add-event" id="eventEditor">
+              <summary>+ Add a commitment</summary>
+              <form id="customEventForm">
+                <input id="customEventId" type="hidden" />
+                <label><span>What is it?</span><input id="customEventTitle" type="text" maxlength="120" required placeholder="Football, co-op, sick day, appointment…" /></label>
+                <label><span>Type</span><select id="customEventType"><option value="child_activity">Child activity, school, or co-op</option><option value="adult_commitment">Adult appointment or work</option></select></label>
+                <fieldset class="wfl-participants"><legend>Who is going?</legend><div id="customParticipantChoices"></div></fieldset>
+                <label class="wfl-child-option"><span>Who handles it?</span><select id="customResponsibleAdult"></select></label>
+                <label><span>Starts</span><input id="customStartTime" type="time" required value="15:00" /></label>
+                <label><span>Ends</span><input id="customEndTime" type="time" required value="16:00" /></label>
+                <label class="wfl-child-option"><span>Adult’s job</span><select id="customResponsibilityMode"><option value="transport">Drop off + pick up</option><option value="throughout">Stay the whole time</option></select></label>
+                <label><span>Travel each way</span><input id="customTravel" type="number" min="0" max="180" value="15" inputmode="numeric" /></label>
+                <label><span>Place <small>optional</small></span><input id="customLocationName" type="text" maxlength="120" placeholder="School, dance studio…" /></label>
+                <label><span>Address <small>optional</small></span><input id="customLocationAddress" type="text" maxlength="300" autocomplete="street-address" /></label>
+                <label class="wfl-check wfl-child-option"><input id="customRecurring" type="checkbox" /><span>Remember this as the normal plan</span></label>
+                <div class="wfl-event-form-actions"><button class="wfl-button wfl-primary" type="submit">Add commitment</button><button class="wfl-text-button" id="cancelEventButton" type="button">Cancel</button></div>
+              </form>
+            </details>
+          </div>
+        </div>
+
+        <div class="wfl-custom-finish">
+          <div><strong id="customSaveState">Saved on this device.</strong><span id="customCloudState">Sign in to save across devices.</span></div>
+          <div class="wfl-inline-actions"><button class="wfl-text-button" id="loadCloudButton" type="button" hidden>Load cloud copy</button><button class="wfl-text-button" id="deleteCloudButton" type="button" hidden>Delete cloud copy</button><button class="wfl-button" id="saveCloudButton" type="button" hidden>Save across devices</button><button class="wfl-button" id="refreshRoutesButton" type="button" hidden>Refresh live travel</button><button class="wfl-button wfl-primary" id="saveCustomButton" type="button">Check my day</button></div>
+        </div>
+        <p class="wfl-custom-error" id="customError" role="alert"></p>
       </section>
 
       <details class="wfl-calendar wfl-disclosure">
@@ -106,6 +152,9 @@
     <script>
       window.WEEKFLOW_LOGISTICS_CONFIG = {
         planUrl: {{ url_for('weekflow.logistics_plan')|tojson }},
+        integrationStatusUrl: {{ url_for('weekflow.logistics_integration_status')|tojson }},
+        routeRefreshUrl: {{ url_for('weekflow.logistics_route_refresh')|tojson }},
+        logisticsStateUrl: {{ url_for('weekflow.logistics_state')|tojson }},
         calendarStatusUrl: {{ url_for('weekflow.calendar_status')|tojson }},
         calendarsUrl: {{ url_for('weekflow.calendars')|tojson }},
         calendarPreviewUrl: {{ url_for('weekflow.calendar_preview')|tojson }},
@@ -116,6 +165,6 @@
         carpoolScenario: {{ carpool_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow_logistics.js') }}?v=12" defer></script>
+    <script src="{{ url_for('static', filename='weekflow_logistics.js') }}?v=17" defer></script>
   </body>
 </html>

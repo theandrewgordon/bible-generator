@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
+from faithsparks.services.weekflow_logistics import normalize_logistics_scenario
 from faithsparks.services.weekflow_scheduler import (
     ADULTS,
     MAX_ADULTS,
@@ -25,6 +26,7 @@ from faithsparks.services.weekflow_scheduler import (
 )
 
 STATE_SCHEMA_VERSION = 2
+LOGISTICS_STATE_SCHEMA_VERSION = 1
 MAX_STATE_BYTES = 120_000
 MAX_TEMPLATE_NAME = 80
 MAX_WEEK_HISTORY = 12
@@ -32,6 +34,7 @@ MAX_TEMPLATES = 8
 WEEKFLOW_ANALYTICS_EVENTS = {
     "calendar_exported",
     "calendar_imported",
+    "custom_scenario_saved",
     "onboarding_complete",
     "page_view",
     "plan_approved",
@@ -214,6 +217,10 @@ def _state_ref(email: str):
     return _weekflow_collection(email).document("state")
 
 
+def _logistics_state_ref(email: str):
+    return _weekflow_collection(email).document("logistics-state")
+
+
 def _weekflow_collection(email: str):
     return (
         db.collection("users")
@@ -236,6 +243,94 @@ def load_beta_state(email: str) -> dict[str, object]:
         return normalize_beta_state(stored.get("state") or {})
     except (TypeError, ValueError) as exc:
         raise WeekFlowStorageUnavailable("The saved WeekFlow plan could not be read") from exc
+
+
+def load_logistics_state(email: str) -> dict[str, object]:
+    """Load the adult-owned logistics day without exposing another household."""
+
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    try:
+        snapshot = _logistics_state_ref(email).get()
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+    if not snapshot.exists:
+        return {"revision": 0, "scenario": None, "updated_at": None}
+    stored = snapshot.to_dict() or {}
+    try:
+        revision = int(stored.get("revision") or 0)
+        scenario = normalize_logistics_scenario(stored.get("scenario"))
+        updated_at = stored.get("updatedAtClient")
+        if revision < 1 or not isinstance(updated_at, str):
+            raise ValueError("saved logistics metadata is invalid")
+    except (TypeError, ValueError) as exc:
+        raise WeekFlowStorageUnavailable(
+            "The saved family day could not be read"
+        ) from exc
+    return {
+        "revision": revision,
+        "scenario": scenario,
+        "updated_at": updated_at,
+    }
+
+
+def save_logistics_state(email: str, payload: object) -> dict[str, object]:
+    """Save a validated logistics day with optimistic revision protection."""
+
+    if not isinstance(payload, dict):
+        raise TypeError("logistics state must be a JSON object")
+    revision = payload.get("revision", 0)
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 0:
+        raise ValueError("revision must be a nonnegative integer")
+    scenario = normalize_logistics_scenario(payload.get("scenario"))
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    ref = _logistics_state_ref(email)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def save(txn):
+        snapshot = ref.get(transaction=txn)
+        stored = snapshot.to_dict() or {} if snapshot.exists else {}
+        current_revision = int(stored.get("revision") or 0)
+        if revision != current_revision:
+            raise WeekFlowRevisionConflict(
+                "A newer family day was saved in another browser"
+            )
+        new_revision = current_revision + 1
+        saved_at = datetime.now(UTC).isoformat()
+        txn.set(
+            ref,
+            {
+                "kind": "logistics-state",
+                "schemaVersion": LOGISTICS_STATE_SCHEMA_VERSION,
+                "revision": new_revision,
+                "scenario": scenario,
+                "updatedAtClient": saved_at,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+        )
+        return {
+            "revision": new_revision,
+            "scenario": scenario,
+            "updated_at": saved_at,
+        }
+
+    try:
+        return save(transaction)
+    except WeekFlowRevisionConflict:
+        raise
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+
+
+def delete_logistics_state(email: str) -> None:
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    try:
+        _logistics_state_ref(email).delete()
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
 
 
 def save_beta_state(email: str, payload: object) -> dict[str, object]:

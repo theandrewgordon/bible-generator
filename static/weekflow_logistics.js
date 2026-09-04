@@ -4,6 +4,7 @@
   const planButton = byId("planButton");
   const familyFourButton = byId("familyFourButton");
   const carpoolButton = byId("carpoolButton");
+  const customizeButton = byId("customizeButton");
   const actionStatus = byId("actionStatus");
   const results = byId("results");
   const resultTitle = byId("resultTitle");
@@ -35,10 +36,81 @@
   const calendarWeek = byId("calendarWeek");
   const calendarPreview = byId("calendarPreview");
   const disconnectCalendarButton = byId("disconnectCalendarButton");
+  const customBuilder = byId("customBuilder");
+  const newCustomDayButton = byId("newCustomDayButton");
+  const closeCustomButton = byId("closeCustomButton");
+  const customDay = byId("customDay");
+  const customHomeAddress = byId("customHomeAddress");
+  const customPeopleList = byId("customPeopleList");
+  const addAdultButton = byId("addAdultButton");
+  const addChildButton = byId("addChildButton");
+  const customEvents = byId("customEvents");
+  const eventEditor = byId("eventEditor");
+  const customEventForm = byId("customEventForm");
+  const customEventId = byId("customEventId");
+  const customEventTitle = byId("customEventTitle");
+  const customEventType = byId("customEventType");
+  const customParticipantChoices = byId("customParticipantChoices");
+  const customResponsibleAdult = byId("customResponsibleAdult");
+  const customStartTime = byId("customStartTime");
+  const customEndTime = byId("customEndTime");
+  const customResponsibilityMode = byId("customResponsibilityMode");
+  const customTravel = byId("customTravel");
+  const customLocationName = byId("customLocationName");
+  const customLocationAddress = byId("customLocationAddress");
+  const customRecurring = byId("customRecurring");
+  const cancelEventButton = byId("cancelEventButton");
+  const saveCustomButton = byId("saveCustomButton");
+  const customSaveState = byId("customSaveState");
+  const customCloudState = byId("customCloudState");
+  const customError = byId("customError");
+  const loadCloudButton = byId("loadCloudButton");
+  const saveCloudButton = byId("saveCloudButton");
+  const deleteCloudButton = byId("deleteCloudButton");
+  const refreshRoutesButton = byId("refreshRoutesButton");
   const STORAGE_KEY = "faithsparks:weekflow:logistics-rules:v1";
+  const CUSTOM_STORAGE_KEY = "faithsparks:weekflow:custom-day:v1";
+  const PERSON_COLORS = ["#315f53", "#d45e86", "#6657d9", "#168a80", "#4776c5", "#a06d35", "#8a5b32"];
   let scenario = structuredClone(config.defaultScenario);
+  let scenarioMode = "demo";
   let current = null;
   let calendarPreferences = { calendar_ids: [], detail_mode: "details" };
+  let accountStatus = { signed_in: false };
+  let integrationConfig = { live_routes: false, sms: false, email: false, support_links: false };
+  let customRevision = 0;
+
+  function blankCustomScenario() {
+    return {
+      schema_version: 1,
+      day_label: "Monday",
+      people: [
+        { id: "adult-1", name: "Parent", role: "adult", color: PERSON_COLORS[0] },
+        { id: "child-1", name: "Child", role: "child", color: PERSON_COLORS[2] },
+      ],
+      home_location_id: "home",
+      locations: [{ id: "home", name: "Home" }],
+      routes: [],
+      vehicles: [],
+      rules: [],
+      events: [],
+      support_requests: [],
+      responsibility_history: [],
+    };
+  }
+
+  function loadCustomScenario() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(CUSTOM_STORAGE_KEY) || "null");
+      return stored && Array.isArray(stored.people) && Array.isArray(stored.events)
+        ? stored
+        : blankCustomScenario();
+    } catch {
+      localStorage.removeItem(CUSTOM_STORAGE_KEY);
+      return blankCustomScenario();
+    }
+  }
+
+  let customScenario = loadCustomScenario();
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -53,6 +125,209 @@
     const text = String(value ?? "");
     const ending = text.search(/[.!?](?:\s|$)/);
     return ending === -1 ? text : text.slice(0, ending + 1);
+  }
+
+  function uniqueId(prefix) {
+    const suffix = typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return `${prefix}-${suffix}`;
+  }
+
+  function minuteFromTime(value) {
+    const [hours, minutes] = String(value).split(":").map(Number);
+    return hours * 60 + minutes;
+  }
+
+  function inputTime(minute) {
+    return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+  }
+
+  function saveCustomLocally(markDirty = true) {
+    localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(customScenario));
+    if (markDirty && !customBuilder.hidden) results.hidden = true;
+    customSaveState.textContent = "Saved on this device.";
+    customizeButton.textContent = customScenario.events.length ? "Continue my family’s day" : "Enter my family’s day";
+  }
+
+  function customPeople(role) {
+    return customScenario.people.filter((person) => person.role === role);
+  }
+
+  function personName(personId) {
+    return customScenario.people.find((person) => person.id === personId)?.name || "Not assigned";
+  }
+
+  function referencedPerson(personId) {
+    return customScenario.events.some((event) => event.participant_ids.includes(personId)
+      || event.assigned_adult_id === personId
+      || event.dropoff_adult_id === personId
+      || event.pickup_adult_id === personId)
+      || customScenario.rules.some((rule) => rule.adult_id === personId || rule.fallback_adult_ids.includes(personId));
+  }
+
+  function renderCustomPeople() {
+    customPeopleList.innerHTML = customScenario.people.map((person) => `
+      <div class="wfl-person-row" data-person-id="${escapeHtml(person.id)}">
+        <i style="--person:${escapeHtml(person.color)}"></i>
+        <label><span>${person.role === "adult" ? "Adult" : "Child"}</span><input type="text" maxlength="120" value="${escapeHtml(person.name)}" aria-label="${person.role === "adult" ? "Adult" : "Child"} name" /></label>
+        <button class="wfl-text-button" type="button" data-remove-person="${escapeHtml(person.id)}" aria-label="Remove ${escapeHtml(person.name)}">Remove</button>
+      </div>`).join("");
+    customPeopleList.querySelectorAll("[data-person-id] input").forEach((input) => {
+      input.addEventListener("input", () => {
+        const person = customScenario.people.find((item) => item.id === input.closest("[data-person-id]").dataset.personId);
+        if (person) person.name = input.value;
+        saveCustomLocally();
+      });
+      input.addEventListener("blur", () => {
+        renderParticipantChoices();
+        renderCustomEvents();
+      });
+    });
+    customPeopleList.querySelectorAll("[data-remove-person]").forEach((button) => button.addEventListener("click", () => {
+      const personId = button.dataset.removePerson;
+      const person = customScenario.people.find((item) => item.id === personId);
+      if (referencedPerson(personId)) {
+        customError.textContent = `${person?.name || "That person"} is used by a commitment. Remove or edit that commitment first.`;
+        return;
+      }
+      if (person?.role === "adult" && customPeople("adult").length === 1) {
+        customError.textContent = "Keep at least one adult in the family.";
+        return;
+      }
+      if (customScenario.people.length === 2) {
+        customError.textContent = "Keep at least two people in the family.";
+        return;
+      }
+      customScenario.people = customScenario.people.filter((item) => item.id !== personId);
+      customError.textContent = "";
+      saveCustomLocally();
+      renderCustomBuilder();
+    }));
+  }
+
+  function renderParticipantChoices(selectedIds = []) {
+    const role = customEventType.value === "adult_commitment" ? "adult" : "child";
+    const people = customPeople(role);
+    customParticipantChoices.innerHTML = people.length
+      ? people.map((person) => `<label class="wfl-check"><input type="${role === "adult" ? "radio" : "checkbox"}" name="customParticipant" value="${escapeHtml(person.id)}" ${selectedIds.includes(person.id) ? "checked" : ""} /><span>${escapeHtml(person.name)}</span></label>`).join("")
+      : `<p>Add a ${role} above first.</p>`;
+    customResponsibleAdult.innerHTML = '<option value="">Not decided yet</option>' + customPeople("adult").map((person) => `<option value="${escapeHtml(person.id)}">${escapeHtml(person.name)}</option>`).join("");
+    document.querySelectorAll(".wfl-child-option").forEach((element) => {
+      element.hidden = role === "adult";
+    });
+  }
+
+  function eventLocation(event) {
+    return customScenario.locations.find((location) => location.id === event.location_id);
+  }
+
+  function renderCustomEvents() {
+    const people = Object.fromEntries(customScenario.people.map((person) => [person.id, person]));
+    const rules = Object.fromEntries(customScenario.rules.map((rule) => [rule.series_id, rule]));
+    customEvents.innerHTML = customScenario.events.length
+      ? customScenario.events.map((event) => {
+        const rule = rules[event.series_id];
+        const participants = event.participant_ids.map(personName).join(" + ");
+        const ownership = ownershipLabel(event, rule, people);
+        return `<article><div><time>${shortTime(event.start_minute)}–${shortTime(event.end_minute)}</time><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(participants)}${ownership ? ` · ${escapeHtml(ownership)}` : ""}${event.series_id ? " · repeats" : ""}</span></div><div><button class="wfl-text-button" type="button" data-edit-event="${escapeHtml(event.id)}">Edit</button><button class="wfl-text-button" type="button" data-remove-event="${escapeHtml(event.id)}">Remove</button></div></article>`;
+      }).join("")
+      : '<p class="wfl-empty-copy">Nothing entered yet.</p>';
+    customEvents.querySelectorAll("[data-edit-event]").forEach((button) => button.addEventListener("click", () => editCustomEvent(button.dataset.editEvent)));
+    customEvents.querySelectorAll("[data-remove-event]").forEach((button) => button.addEventListener("click", () => {
+      removeEventArtifacts(button.dataset.removeEvent);
+      saveCustomLocally();
+      renderCustomBuilder();
+    }));
+  }
+
+  function renderCustomBuilder() {
+    customDay.value = customScenario.day_label;
+    customHomeAddress.value = customScenario.locations.find((location) => location.id === "home")?.address || "";
+    renderCustomPeople();
+    renderCustomEvents();
+    renderParticipantChoices();
+    updateCustomSyncUi();
+  }
+
+  function addCustomPerson(role) {
+    if (customScenario.people.length >= 12) {
+      customError.textContent = "A family day can include up to 12 people.";
+      return;
+    }
+    const count = customPeople(role).length + 1;
+    customScenario.people.push({
+      id: uniqueId(role),
+      name: role === "adult" ? `Adult ${count}` : `Child ${count}`,
+      role,
+      color: PERSON_COLORS[customScenario.people.length % PERSON_COLORS.length],
+    });
+    customError.textContent = "";
+    saveCustomLocally();
+    renderCustomBuilder();
+  }
+
+  function startNewCustomDay() {
+    if (customScenario.events.length && newCustomDayButton.dataset.confirm !== "true") {
+      newCustomDayButton.dataset.confirm = "true";
+      newCustomDayButton.textContent = "Click again to clear this device";
+      customError.textContent = "Your cloud copy will not be deleted.";
+      return;
+    }
+    customScenario = blankCustomScenario();
+    scenarioMode = "demo";
+    scenario = structuredClone(config.defaultScenario);
+    newCustomDayButton.dataset.confirm = "false";
+    newCustomDayButton.textContent = "Start a new day";
+    customError.textContent = "Started a blank day on this device.";
+    saveCustomLocally();
+    renderCustomBuilder();
+    renderScenarioSummary(scenario);
+    resetRulesButton.hidden = false;
+  }
+
+  function removeEventArtifacts(eventId) {
+    const event = customScenario.events.find((item) => item.id === eventId);
+    if (!event) return;
+    customScenario.events = customScenario.events.filter((item) => item.id !== eventId);
+    if (event.series_id) customScenario.rules = customScenario.rules.filter((rule) => rule.series_id !== event.series_id);
+    if (event.location_id && event.location_id !== "home") {
+      customScenario.locations = customScenario.locations.filter((location) => location.id !== event.location_id);
+      customScenario.routes = customScenario.routes.filter((route) => route.from_location_id !== event.location_id && route.to_location_id !== event.location_id);
+    }
+  }
+
+  function resetCustomEventForm() {
+    customEventForm.reset();
+    customEventId.value = "";
+    customStartTime.value = "15:00";
+    customEndTime.value = "16:00";
+    customTravel.value = "15";
+    customEventType.value = "child_activity";
+    customEventForm.querySelector('button[type="submit"]').textContent = "Add commitment";
+    renderParticipantChoices();
+  }
+
+  function editCustomEvent(eventId) {
+    const event = customScenario.events.find((item) => item.id === eventId);
+    if (!event) return;
+    const rule = customScenario.rules.find((item) => item.series_id === event.series_id);
+    const location = eventLocation(event);
+    customEventId.value = event.id;
+    customEventTitle.value = event.title;
+    customEventType.value = event.kind;
+    customStartTime.value = inputTime(event.start_minute);
+    customEndTime.value = inputTime(event.end_minute);
+    customResponsibilityMode.value = event.responsibility_mode;
+    customTravel.value = String(event.travel_before ?? rule?.travel_before ?? customScenario.routes.find((route) => route.from_location_id === "home" && route.to_location_id === event.location_id)?.base_minutes ?? 0);
+    customLocationName.value = location?.name || "";
+    customLocationAddress.value = location?.address || "";
+    customRecurring.checked = Boolean(event.series_id);
+    renderParticipantChoices(event.participant_ids);
+    customResponsibleAdult.value = event.assigned_adult_id || rule?.adult_id || "";
+    customEventForm.querySelector('button[type="submit"]').textContent = "Save change";
+    eventEditor.open = true;
+    eventEditor.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   function loadRememberedRules() {
@@ -83,7 +358,9 @@
   }
 
   function renderRuleMemory() {
-    ruleMemory.textContent = `Remembered on this device: ${scenario.rules.map((rule) => rule.label).join(" · ")}`;
+    ruleMemory.textContent = scenario.rules.length
+      ? `Remembered on this device: ${scenario.rules.map((rule) => rule.label).join(" · ")}`
+      : "No repeating responsibility rules are saved yet.";
   }
 
   function shortTime(minute) {
@@ -92,25 +369,41 @@
     return `${hour % 12 || 12}:${minutes} ${hour < 12 ? "AM" : "PM"}`;
   }
 
+  function ownershipLabel(event, rule, people) {
+    if (!event.requires_adult) return "";
+    const defaultAdultId = event.assigned_adult_id || rule?.adult_id;
+    if (event.responsibility_mode === "transport") {
+      const dropoffId = event.dropoff_adult_id || rule?.dropoff_adult_id || defaultAdultId;
+      const pickupId = event.pickup_adult_id || rule?.pickup_adult_id || defaultAdultId;
+      if (!dropoffId || !pickupId) return "Needs an adult";
+      if (dropoffId === pickupId) return `${people[dropoffId]?.name || "Adult"} drives`;
+      return `${people[dropoffId]?.name || "Adult"} drops off · ${people[pickupId]?.name || "Adult"} picks up`;
+    }
+    return defaultAdultId ? `${people[defaultAdultId]?.name || "Adult"} stays` : "Needs an adult";
+  }
+
   function renderScenarioSummary(value) {
     const people = Object.fromEntries(value.people.map((person) => [person.id, person]));
     const rules = Object.fromEntries(value.rules.map((rule) => [rule.series_id, rule]));
     const householdCount = value.people.filter((person) => person.household_member !== false).length;
     const isFamilyFour = householdCount === 4 && value.events.some((event) => event.id === "school");
-    scenarioEyebrow.textContent = `${value.day_label} test`;
-    scenarioTitle.textContent = isFamilyFour
-      ? "A busy school-and-sports day."
-      : "See the hidden handoff.";
-    scenarioDescription.textContent = isFamilyFour
-      ? "WeekFlow checks the travel, drivers, and pickup plan for you."
-      : "Start with this example. Nothing changes until you choose an option.";
+    scenarioEyebrow.textContent = `${value.day_label} ${scenarioMode === "custom" ? "plan" : "test"}`;
+    scenarioTitle.textContent = scenarioMode === "custom"
+      ? "Your family day."
+      : isFamilyFour
+        ? "A busy school-and-sports day."
+        : "See the hidden handoff.";
+    scenarioDescription.textContent = scenarioMode === "custom"
+      ? "WeekFlow checks every person, ride, and travel window you entered."
+      : isFamilyFour
+        ? "WeekFlow checks the travel, drivers, and pickup plan for you."
+        : "Start with this example. Nothing changes until you choose an option.";
     scenarioEvents.innerHTML = value.events.map((event) => {
       const participantNames = event.participant_ids.map((id) => people[id]?.name).filter(Boolean).join(" + ");
       const rule = rules[event.series_id];
-      const driver = rule ? people[rule.adult_id]?.name : "";
-      const mode = event.responsibility_mode === "transport" ? "drop-off + pickup" : event.requires_adult ? "responsible throughout" : "fixed commitment";
+      const ownership = ownershipLabel(event, rule, people);
       const travel = (event.travel_before ?? rule?.travel_before ?? 0) || (event.travel_after ?? rule?.travel_after ?? 0);
-      return `<article><time>${shortTime(event.start_minute)}–${shortTime(event.end_minute)}</time><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(participantNames)}${driver ? ` · ${escapeHtml(driver)} ${mode}` : ""}${travel ? ` · ${travel} minutes each way` : ""}</span></article>`;
+      return `<article><time>${shortTime(event.start_minute)}–${shortTime(event.end_minute)}</time><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(participantNames)}${ownership ? ` · ${escapeHtml(ownership)}` : ""}${travel ? ` · ${travel} minutes each way` : ""}</span></article>`;
     }).join("");
     scenarioRules.innerHTML = `<strong>Rules WeekFlow remembers</strong>${value.rules.map((rule) => `<span>${escapeHtml(rule.label)}</span>`).join("")}`;
   }
@@ -262,6 +555,11 @@
     renderDecisions(result);
     renderForm(result);
     renderRuleMemory();
+    if (scenarioMode === "custom") {
+      customScenario = structuredClone(result.scenario);
+      saveCustomLocally(false);
+      renderCustomBuilder();
+    }
   }
 
   async function requestPlan(change = null) {
@@ -293,10 +591,227 @@
   }
 
   function useScenario(nextScenario) {
+    scenarioMode = "demo";
+    resetRulesButton.hidden = false;
     scenario = structuredClone(nextScenario);
     renderScenarioSummary(scenario);
     planButton.textContent = "Check this day";
     requestPlan();
+  }
+
+  function saveCustomEvent(event) {
+    event.preventDefault();
+    const participantIds = [...customParticipantChoices.querySelectorAll("input:checked")].map((input) => input.value);
+    const startMinute = minuteFromTime(customStartTime.value);
+    const endMinute = minuteFromTime(customEndTime.value);
+    if (!participantIds.length) {
+      customError.textContent = "Choose at least one person for this commitment.";
+      return;
+    }
+    if (endMinute <= startMinute) {
+      customError.textContent = "The end time needs to be later than the start time.";
+      return;
+    }
+    const eventId = customEventId.value || uniqueId("event");
+    const previousEvent = customScenario.events.find((item) => item.id === eventId);
+    const previousRule = customScenario.rules.find((item) => item.series_id === previousEvent?.series_id);
+    const isChildActivity = customEventType.value === "child_activity";
+    const adultId = isChildActivity ? customResponsibleAdult.value || null : null;
+    const travelMinutes = Math.max(0, Math.min(180, Number(customTravel.value) || 0));
+    const recurring = isChildActivity && customRecurring.checked;
+    const preserveSplit = adultId && adultId === (previousEvent?.assigned_adult_id || previousRule?.adult_id);
+    removeEventArtifacts(eventId);
+    const locationName = customLocationName.value.trim();
+    const locationAddress = customLocationAddress.value.trim();
+    const locationId = locationName || locationAddress ? `location-${eventId}` : null;
+    if (locationId) {
+      customScenario.locations.push({
+        id: locationId,
+        name: locationName || customEventTitle.value.trim(),
+        ...(locationAddress ? { address: locationAddress } : {}),
+      });
+      customScenario.routes.push(
+        { from_location_id: "home", to_location_id: locationId, base_minutes: travelMinutes, traffic_minutes: 0 },
+        { from_location_id: locationId, to_location_id: "home", base_minutes: travelMinutes, traffic_minutes: 0 },
+      );
+    }
+    const seriesId = recurring ? `series-${eventId}` : null;
+    customScenario.events.push({
+      id: eventId,
+      title: customEventTitle.value.trim(),
+      kind: customEventType.value,
+      start_minute: startMinute,
+      end_minute: endMinute,
+      participant_ids: participantIds,
+      requires_adult: isChildActivity,
+      responsibility_mode: isChildActivity ? customResponsibilityMode.value : "none",
+      series_id: seriesId,
+      assigned_adult_id: recurring ? null : adultId,
+      dropoff_adult_id: !recurring && preserveSplit ? previousEvent?.dropoff_adult_id || null : null,
+      pickup_adult_id: !recurring && preserveSplit ? previousEvent?.pickup_adult_id || null : null,
+      location_id: locationId,
+      vehicle_id: null,
+      travel_before: locationId ? null : travelMinutes,
+      travel_after: locationId ? null : travelMinutes,
+      fixed: true,
+    });
+    if (seriesId && adultId) {
+      customScenario.rules.push({
+        id: `rule-${eventId}`,
+        series_id: seriesId,
+        label: `${personName(adultId)} normally handles ${customEventTitle.value.trim()}`,
+        adult_id: adultId,
+        dropoff_adult_id: preserveSplit ? previousRule?.dropoff_adult_id || null : null,
+        pickup_adult_id: preserveSplit ? previousRule?.pickup_adult_id || null : null,
+        fallback_adult_ids: customPeople("adult").map((person) => person.id).filter((id) => id !== adultId),
+        travel_before: travelMinutes,
+        travel_after: travelMinutes,
+      });
+    }
+    customScenario.events.sort((left, right) => left.start_minute - right.start_minute || left.title.localeCompare(right.title));
+    customError.textContent = "";
+    saveCustomLocally();
+    renderCustomEvents();
+    resetCustomEventForm();
+    eventEditor.open = false;
+  }
+
+  function updateCustomSyncUi() {
+    loadCloudButton.hidden = !accountStatus.signed_in;
+    saveCloudButton.hidden = !accountStatus.signed_in;
+    deleteCloudButton.hidden = !accountStatus.signed_in;
+    refreshRoutesButton.hidden = !(accountStatus.signed_in && integrationConfig.live_routes);
+    customCloudState.textContent = accountStatus.signed_in
+      ? customRevision
+        ? `Cloud copy saved · version ${customRevision}.`
+        : "Ready to save across devices."
+      : "Sign in to save across devices.";
+  }
+
+  async function saveCustomCloud() {
+    if (!accountStatus.signed_in) return;
+    if (!customScenario.events.length) {
+      customCloudState.textContent = "Add a commitment before saving across devices.";
+      return;
+    }
+    saveCloudButton.disabled = true;
+    try {
+      const payload = await responseJson(config.logisticsStateUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ revision: customRevision, scenario: customScenario }),
+      });
+      customRevision = payload.revision;
+      customScenario = payload.scenario;
+      saveCustomLocally(false);
+      updateCustomSyncUi();
+    } catch (error) {
+      customCloudState.textContent = error.message;
+    } finally {
+      saveCloudButton.disabled = false;
+    }
+  }
+
+  async function deleteCustomCloud() {
+    if (!accountStatus.signed_in || !window.confirm("Delete this family day from cloud storage? The copy on this device will stay.")) return;
+    deleteCloudButton.disabled = true;
+    try {
+      await responseJson(config.logisticsStateUrl, {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": config.csrfToken },
+      });
+      customRevision = 0;
+      customCloudState.textContent = "Cloud copy deleted. This device still has your day.";
+    } catch (error) {
+      customCloudState.textContent = error.message;
+    } finally {
+      deleteCloudButton.disabled = false;
+    }
+  }
+
+  async function loadCustomCloud() {
+    loadCloudButton.disabled = true;
+    try {
+      const payload = await responseJson(config.logisticsStateUrl);
+      customRevision = payload.revision;
+      if (!payload.scenario) {
+        customCloudState.textContent = "No cloud copy yet. Save this day first.";
+        return;
+      }
+      customScenario = payload.scenario;
+      saveCustomLocally();
+      renderCustomBuilder();
+      customCloudState.textContent = `Cloud copy loaded · version ${customRevision}.`;
+    } catch (error) {
+      customCloudState.textContent = error.message;
+    } finally {
+      loadCloudButton.disabled = false;
+    }
+  }
+
+  async function refreshCustomRoutes() {
+    const routable = customScenario.routes.some((route) => {
+      const from = customScenario.locations.find((location) => location.id === route.from_location_id);
+      const to = customScenario.locations.find((location) => location.id === route.to_location_id);
+      return from?.address && to?.address;
+    });
+    if (!routable) {
+      customError.textContent = "Add your home address and at least one commitment address first.";
+      return;
+    }
+    refreshRoutesButton.disabled = true;
+    try {
+      const payload = await responseJson(config.routeRefreshUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ scenario: customScenario }),
+      });
+      customScenario = payload.scenario;
+      saveCustomLocally();
+      customError.textContent = `${payload.refresh.refreshed} travel routes refreshed.`;
+      scenarioMode = "custom";
+      resetRulesButton.hidden = true;
+      scenario = structuredClone(customScenario);
+      renderScenarioSummary(scenario);
+      await requestPlan();
+    } catch (error) {
+      customError.textContent = error.message;
+    } finally {
+      refreshRoutesButton.disabled = false;
+    }
+  }
+
+  async function saveAndPlanCustomDay() {
+    const home = customScenario.locations.find((location) => location.id === "home");
+    const address = customHomeAddress.value.trim();
+    if (address) home.address = address;
+    else delete home.address;
+    customScenario.day_label = customDay.value;
+    if (customScenario.people.some((person) => !person.name.trim())) {
+      customError.textContent = "Give each family member a name.";
+      return;
+    }
+    if (!customScenario.events.length) {
+      customError.textContent = "Add at least one commitment before checking the day.";
+      eventEditor.open = true;
+      return;
+    }
+    customError.textContent = "";
+    saveCustomLocally();
+    scenarioMode = "custom";
+    resetRulesButton.hidden = true;
+    scenario = structuredClone(customScenario);
+    renderScenarioSummary(scenario);
+    await requestPlan();
+  }
+
+  async function loadIntegrationStatus() {
+    try {
+      integrationConfig = await responseJson(config.integrationStatusUrl);
+    } catch {
+      integrationConfig = { live_routes: false, sms: false, email: false, support_links: false };
+    }
+    updateCustomSyncUi();
   }
 
   function mondayFor(date = new Date()) {
@@ -309,7 +824,7 @@
   async function responseJson(url, options = {}) {
     const response = await fetch(url, { credentials: "same-origin", ...options });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "Google Calendar could not be reached.");
+    if (!response.ok) throw new Error(payload.error || "WeekFlow could not complete that request.");
     return payload;
   }
 
@@ -335,7 +850,10 @@
 
   async function loadCalendarStatus() {
     try {
-      renderCalendarConnection(await responseJson(config.calendarStatusUrl));
+      const payload = await responseJson(config.calendarStatusUrl);
+      accountStatus = payload;
+      updateCustomSyncUi();
+      renderCalendarConnection(payload);
     } catch (error) {
       calendarStatus.innerHTML = `<div><strong>Calendar status is unavailable.</strong><span>${escapeHtml(error.message)}</span></div>`;
     }
@@ -439,6 +957,40 @@
   planButton.addEventListener("click", () => requestPlan());
   familyFourButton.addEventListener("click", () => useScenario(config.familyFourScenario));
   carpoolButton.addEventListener("click", () => useScenario(config.carpoolScenario));
+  customizeButton.addEventListener("click", () => {
+    customBuilder.hidden = false;
+    renderCustomBuilder();
+    customBuilder.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  closeCustomButton.addEventListener("click", () => {
+    customBuilder.hidden = true;
+    customizeButton.focus();
+  });
+  newCustomDayButton.addEventListener("click", startNewCustomDay);
+  addAdultButton.addEventListener("click", () => addCustomPerson("adult"));
+  addChildButton.addEventListener("click", () => addCustomPerson("child"));
+  customDay.addEventListener("change", () => {
+    customScenario.day_label = customDay.value;
+    saveCustomLocally();
+  });
+  customHomeAddress.addEventListener("input", () => {
+    const home = customScenario.locations.find((location) => location.id === "home");
+    const address = customHomeAddress.value.trim();
+    if (address) home.address = address;
+    else delete home.address;
+    saveCustomLocally();
+  });
+  customEventType.addEventListener("change", () => renderParticipantChoices());
+  customEventForm.addEventListener("submit", saveCustomEvent);
+  cancelEventButton.addEventListener("click", () => {
+    resetCustomEventForm();
+    eventEditor.open = false;
+  });
+  saveCustomButton.addEventListener("click", saveAndPlanCustomDay);
+  loadCloudButton.addEventListener("click", loadCustomCloud);
+  saveCloudButton.addEventListener("click", saveCustomCloud);
+  deleteCloudButton.addEventListener("click", deleteCustomCloud);
+  refreshRoutesButton.addEventListener("click", refreshCustomRoutes);
   responsibilityForm.addEventListener("submit", (event) => {
     event.preventDefault();
     applyChange(activitySelect.value, adultSelect.value, scopeSelect.value);
@@ -455,5 +1007,8 @@
 
   loadRememberedRules();
   renderScenarioSummary(scenario);
+  saveCustomLocally();
+  renderCustomBuilder();
   loadCalendarStatus();
+  loadIntegrationStatus();
 })();

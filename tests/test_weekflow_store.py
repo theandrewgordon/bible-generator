@@ -1,20 +1,24 @@
 import pytest
 
 from faithsparks.services import weekflow_store
+from faithsparks.services.weekflow_logistics import default_logistics_scenario
 from faithsparks.services.weekflow_store import (
     MAX_STATE_BYTES,
     WeekFlowRevisionConflict,
     create_rollover_state,
     default_beta_state,
     delete_beta_state,
+    delete_logistics_state,
     export_weekflow_backup,
     list_saved_weeks,
     list_week_templates,
     load_beta_state,
+    load_logistics_state,
     load_saved_week,
     normalize_beta_state,
     record_beta_feedback,
     save_beta_state,
+    save_logistics_state,
     save_week_template,
 )
 
@@ -231,6 +235,36 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
 
     delete_beta_state("parent@example.com")
     assert database.documents == {}
+
+
+def test_logistics_state_round_trip_is_validated_and_revision_protected(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    scenario = default_logistics_scenario()
+
+    assert load_logistics_state("parent@example.com") == {
+        "revision": 0,
+        "scenario": None,
+        "updated_at": None,
+    }
+    saved = save_logistics_state(
+        "Parent@Example.com", {"revision": 0, "scenario": scenario}
+    )
+
+    assert saved["revision"] == 1
+    assert load_logistics_state("parent@example.com")["scenario"]["day_label"] == (
+        "Tuesday"
+    )
+    with pytest.raises(WeekFlowRevisionConflict):
+        save_logistics_state(
+            "parent@example.com", {"revision": 0, "scenario": scenario}
+        )
+
+    delete_logistics_state("parent@example.com")
+    assert load_logistics_state("parent@example.com")["scenario"] is None
 
 
 @pytest.mark.parametrize(
