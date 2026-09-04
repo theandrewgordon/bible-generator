@@ -38,21 +38,32 @@ exposed and now covers several important failure modes:
   the same guardrail.
 - Separate sibling calendar entries can be linked as one shared ride, so they
   produce one driver obligation, one travel cost, and one linked update.
+- Saved locations and directional routes can replace generic buffers, with
+  time-window traffic padding called out separately in the plan.
+- Every transport plan can verify passenger capacity, required car-seat spots,
+  and whether the assigned adult can use the selected vehicle.
+- Named helper and carpool requests move through draft, queued, delivered,
+  accepted, or declined states; pending help is never counted as coverage.
+- Four-week responsibility history is combined with the current day, and safe
+  alternatives prefer the less-loaded available household adult.
 
 The deterministic stress harness also ran 10,000 varied family days and checked
 6,262 suggested handoffs against the actual resource timeline before and after
 application.
 
-Open modeling risks, in priority order:
+Remaining production-integration risks, in priority order:
 
-1. Travel is still a family-entered buffer rather than location- and
-   traffic-aware routing between consecutive commitments.
-2. Vehicle capacity and car-seat constraints are not modeled yet; shared
-   sibling rides are modeled, while multi-household carpool invitations are not.
-3. Helper confirmation and availability are enforced by the planner, but the
-   invitation and response workflow is not yet connected to notifications.
-4. The planner proves feasibility but does not yet optimize fairness across the
-   adults over multiple weeks.
+1. Route and traffic values use deterministic saved profiles. A routing provider
+   still needs to refresh those profiles; the planner does not make live traffic
+   claims when that data is absent.
+2. Notification states and response links are modeled and validated, but no SMS
+   or email is sent until a provider, consent copy, delivery receipts, and abuse
+   controls are configured.
+3. Fairness currently measures responsibility minutes and handoff counts. Beta
+   interviews must establish whether families also want weighting for planning,
+   waiting, schedule changes, and emotional labor.
+4. Multi-household carpools need scoped account permissions so another family
+   sees only the request they received—not the household calendar behind it.
 
 ## 2. Make responsibility rules durable
 

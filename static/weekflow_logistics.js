@@ -3,11 +3,15 @@
   const byId = (id) => document.getElementById(id);
   const planButton = byId("planButton");
   const familyFourButton = byId("familyFourButton");
+  const carpoolButton = byId("carpoolButton");
   const actionStatus = byId("actionStatus");
   const results = byId("results");
   const resultTitle = byId("resultTitle");
   const status = byId("status");
   const metrics = byId("metrics");
+  const guardrailSummary = byId("guardrailSummary");
+  const fairnessSummary = byId("fairnessSummary");
+  const supportSummary = byId("supportSummary");
   const timeline = byId("timeline");
   const mobileTimeline = byId("mobileTimeline");
   const issues = byId("issues");
@@ -84,7 +88,8 @@
   function renderScenarioSummary(value) {
     const people = Object.fromEntries(value.people.map((person) => [person.id, person]));
     const rules = Object.fromEntries(value.rules.map((rule) => [rule.series_id, rule]));
-    const isFamilyFour = value.people.length === 4 && value.events.some((event) => event.id === "school");
+    const householdCount = value.people.filter((person) => person.household_member !== false).length;
+    const isFamilyFour = householdCount === 4 && value.events.some((event) => event.id === "school");
     scenarioEyebrow.textContent = `${value.day_label} test`;
     scenarioTitle.textContent = isFamilyFour
       ? "School, two jobs, and two sports—with the handoffs included."
@@ -121,7 +126,29 @@
     metrics.innerHTML = `
       <article><span>Calendar events</span><strong>${result.assignments.length}</strong></article>
       <article><span>Invisible travel</span><strong>${travel} minutes</strong></article>
-      <article><span>Rules applied automatically</span><strong>${ruleCount}</strong></article>`;
+      <article><span>Rules applied automatically</span><strong>${ruleCount}</strong></article>
+      <article><span>Traffic-aware routes</span><strong>${result.routing.traffic_aware_events}</strong></article>
+      <article><span>Vehicle checks</span><strong>${result.vehicle_checks}</strong></article>`;
+  }
+
+  function renderBetaSafeguards(result) {
+    const routeCount = result.routing.route_aware_events;
+    guardrailSummary.innerHTML = `<p><strong>${routeCount}</strong> ${routeCount === 1 ? "event uses" : "events use"} saved location routes${result.routing.traffic_aware_events ? ", including traffic padding" : ""}.</p><p><strong>${result.vehicle_checks}</strong> transport ${result.vehicle_checks === 1 ? "plan was" : "plans were"} checked for passenger room, car seats, and driver access.</p>`;
+    const fairness = result.fairness;
+    fairnessSummary.innerHTML = `${fairness.rows.map((row) => `<div class="wfl-fairness-row"><span>${escapeHtml(row.adult_name)}</span><strong>${row.total_minutes} min · ${row.handoffs} handoffs</strong></div>`).join("")}<p class="${fairness.status === "needs_balance" ? "needs-balance" : ""}">${escapeHtml(fairness.recommendation)}</p>`;
+    supportSummary.innerHTML = result.support_requests.length
+      ? result.support_requests.map((item) => {
+        const actions = item.status === "draft"
+          ? `<button class="wfl-text-button" data-request="${item.id}" data-request-action="send" type="button">Queue request</button>`
+          : item.status === "pending" && ["queued", "sent"].includes(item.notification_status)
+            ? `<button class="wfl-text-button" data-request="${item.id}" data-request-action="mark_delivered" type="button">Mark notification delivered</button>`
+            : item.status === "pending"
+            ? `<div class="wfl-request-actions"><button class="wfl-text-button" data-request="${item.id}" data-request-action="accept" type="button">Simulate accept</button><button class="wfl-text-button" data-request="${item.id}" data-request-action="decline" type="button">Simulate decline</button></div>`
+            : "";
+        return `<div class="wfl-support-row"><p><strong>${escapeHtml(item.adult_name)}</strong> · ${escapeHtml(item.event_title)} ${escapeHtml(item.responsibility_kind)}<br><span>${escapeHtml(item.kind)} request: ${escapeHtml(item.status)} · notification: ${escapeHtml(item.notification_status)}</span></p>${actions}</div>`;
+      }).join("")
+      : "<p>No outside help is assumed in this plan. Add a named helper or carpool request before WeekFlow counts it.</p>";
+    supportSummary.querySelectorAll("button[data-request]").forEach((button) => button.addEventListener("click", () => requestPlan({ kind: "support_request", request_id: button.dataset.request, action: button.dataset.requestAction })));
   }
 
   function placeInSlots(blocks) {
@@ -168,6 +195,9 @@
   }
 
   function suggestionButtons(item) {
+    if (item.kind === "switch_vehicle") {
+      return `<div class="wfl-suggestion-actions"><button class="wfl-button" type="button" data-event="${item.event_id}" data-vehicle="${item.vehicle_id}" data-scope="occurrence">Use this day</button><button class="wfl-button" type="button" data-event="${item.event_id}" data-vehicle="${item.vehicle_id}" data-scope="series">Remember vehicle</button></div>`;
+    }
     if (item.kind !== "reassign") return "";
     const responsibility = item.responsibility_kind ? ` data-responsibility="${item.responsibility_kind}"` : "";
     return `<div class="wfl-suggestion-actions"><button class="wfl-button" type="button" data-event="${item.event_id}" data-adult="${item.adult_id}" data-scope="occurrence"${responsibility}>Apply this day</button><button class="wfl-button" type="button" data-event="${item.event_id}" data-adult="${item.adult_id}" data-scope="series"${responsibility}>Remember for the series</button></div>`;
@@ -181,12 +211,14 @@
     }
     issues.innerHTML = result.issues.map((item) => `<article><span class="wfl-eyebrow">Conflict detected</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p></article>`).join("");
     suggestions.innerHTML = result.suggestions.map((item) => `<article><span class="wfl-eyebrow">${item.kind === "reassign" ? "Workable option" : "Family decision needed"}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p>${suggestionButtons(item)}</article>`).join("");
-    suggestions.querySelectorAll("button[data-event]").forEach((button) => button.addEventListener("click", () => applyChange(button.dataset.event, button.dataset.adult, button.dataset.scope, button.dataset.responsibility)));
+    suggestions.querySelectorAll("button[data-adult]").forEach((button) => button.addEventListener("click", () => applyChange(button.dataset.event, button.dataset.adult, button.dataset.scope, button.dataset.responsibility)));
+    suggestions.querySelectorAll("button[data-vehicle]").forEach((button) => button.addEventListener("click", () => requestPlan({ kind: "vehicle", event_id: button.dataset.event, vehicle_id: button.dataset.vehicle, scope: button.dataset.scope })));
   }
 
   function renderForm(result) {
     const activities = result.assignments.filter((item) => item.kind === "child_activity");
-    const adults = result.scenario.people.filter((person) => person.role === "adult");
+    const acceptedHelpers = new Set(result.support_requests.filter((item) => item.status === "accepted").map((item) => item.adult_id));
+    const adults = result.scenario.people.filter((person) => person.role === "adult" && (person.household_member !== false || acceptedHelpers.has(person.id)));
     activitySelect.innerHTML = activities.map((item) => `<option value="${item.id}">${escapeHtml(item.title)}</option>`).join("");
     adultSelect.innerHTML = adults.map((person) => `<option value="${person.id}">${escapeHtml(person.name)}</option>`).join("");
     const selected = activities[0];
@@ -204,6 +236,7 @@
     results.hidden = false;
     renderStatus(result);
     renderMetrics(result);
+    renderBetaSafeguards(result);
     renderTimeline(result);
     renderDecisions(result);
     renderForm(result);
@@ -380,6 +413,12 @@
     scenario = structuredClone(config.familyFourScenario);
     renderScenarioSummary(scenario);
     planButton.textContent = "Recheck Family Logistics";
+    requestPlan();
+  });
+  carpoolButton.addEventListener("click", () => {
+    scenario = structuredClone(config.carpoolScenario);
+    renderScenarioSummary(scenario);
+    planButton.textContent = "Recheck Carpool Logistics";
     requestPlan();
   });
   responsibilityForm.addEventListener("submit", (event) => {

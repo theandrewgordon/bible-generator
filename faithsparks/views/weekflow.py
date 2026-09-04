@@ -30,7 +30,10 @@ from faithsparks.services.weekflow_calendar import (
 from faithsparks.services.weekflow_logistics import (
     analyze_family_logistics,
     apply_responsibility_change,
+    apply_support_request_action,
+    apply_vehicle_change,
     default_logistics_scenario,
+    family_four_carpool_scenario,
     family_four_school_sports_scenario,
 )
 from faithsparks.services.weekflow_scheduler import (
@@ -100,6 +103,7 @@ def logistics():
         "weekflow_logistics.html",
         scenario=default_logistics_scenario(),
         family_four_scenario=family_four_school_sports_scenario(),
+        carpool_scenario=family_four_carpool_scenario(),
         noindex=True,
     )
 
@@ -130,13 +134,31 @@ def logistics_plan():
         return jsonify({"error": "change must be a JSON object."}), 400
     try:
         if change is not None:
-            scenario = apply_responsibility_change(
-                scenario or default_logistics_scenario(),
-                event_id=change.get("event_id"),
-                adult_id=change.get("adult_id"),
-                scope=change.get("scope"),
-                responsibility_kind=change.get("responsibility_kind"),
-            )
+            scenario = scenario or default_logistics_scenario()
+            change_kind = change.get("kind", "responsibility")
+            if change_kind == "responsibility":
+                scenario = apply_responsibility_change(
+                    scenario,
+                    event_id=change.get("event_id"),
+                    adult_id=change.get("adult_id"),
+                    scope=change.get("scope"),
+                    responsibility_kind=change.get("responsibility_kind"),
+                )
+            elif change_kind == "vehicle":
+                scenario = apply_vehicle_change(
+                    scenario,
+                    event_id=change.get("event_id"),
+                    vehicle_id=change.get("vehicle_id"),
+                    scope=change.get("scope"),
+                )
+            elif change_kind == "support_request":
+                scenario = apply_support_request_action(
+                    scenario,
+                    request_id=change.get("request_id"),
+                    action=change.get("action"),
+                )
+            else:
+                raise ValueError("change.kind is invalid")
         return jsonify(analyze_family_logistics(scenario))
     except (TypeError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400

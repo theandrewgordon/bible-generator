@@ -1,6 +1,7 @@
 from flask import Flask
 
 import faithsparks.views.weekflow as weekflow_view
+from faithsparks.services.weekflow_logistics import family_four_school_sports_scenario
 from faithsparks.services.weekflow_store import (
     WeekFlowRevisionConflict,
     WeekFlowStorageUnavailable,
@@ -53,6 +54,11 @@ def test_logistics_lab_renders_the_family_handoff_experiment():
     assert "Availability only" in html
     assert "Previewed event content is not saved" in html
     assert "Simulate family of four · school + sports" in html
+    assert "Add a pending school carpool" in html
+    assert "carpoolScenario:" in html
+    assert "What WeekFlow verified" in html
+    assert "Who has been carrying it?" in html
+    assert "No assumed yeses" in html
     assert "familyFourScenario:" in html
     assert 'content="noindex,nofollow"' in html
 
@@ -116,6 +122,43 @@ def test_logistics_endpoint_rejects_bad_shapes_and_rate_limits(monkeypatch):
     limited = client.post("/labs/weekflow/logistics/plan", json={})
     assert limited.status_code == 429
     assert limited.headers["Retry-After"] == "19"
+
+
+def test_logistics_endpoint_dispatches_vehicle_and_support_workflows(monkeypatch):
+    client = _client()
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+    scenario = family_four_school_sports_scenario()
+    sedan = next(
+        vehicle for vehicle in scenario["vehicles"] if vehicle["id"] == "family-sedan"
+    )
+    sedan["passenger_capacity"] = 1
+    sedan["car_seat_capacity"] = 1
+
+    switched = client.post(
+        "/labs/weekflow/logistics/plan",
+        json={
+            "scenario": scenario,
+            "change": {
+                "kind": "vehicle",
+                "event_id": "school",
+                "vehicle_id": "family-suv",
+                "scope": "occurrence",
+            },
+        },
+    )
+
+    assert switched.status_code == 200
+    assert not any(
+        issue["kind"] == "vehicle_constraint"
+        and issue["event_ids"] == ["school"]
+        for issue in switched.get_json()["issues"]
+    )
 
 
 def test_calendar_status_requires_adult_sign_in_before_optional_consent(

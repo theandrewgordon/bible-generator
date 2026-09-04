@@ -5,7 +5,10 @@ import pytest
 from faithsparks.services.weekflow_logistics import (
     analyze_family_logistics,
     apply_responsibility_change,
+    apply_support_request_action,
+    apply_vehicle_change,
     default_logistics_scenario,
+    family_four_carpool_scenario,
     family_four_school_sports_scenario,
     normalize_logistics_scenario,
 )
@@ -448,6 +451,288 @@ def test_changing_one_shared_ride_leg_changes_every_linked_calendar_entry():
         == "mom"
         for item in school_assignments
     )
+
+
+def test_family_routes_replace_generic_rule_buffers_and_include_traffic():
+    result = analyze_family_logistics(family_four_school_sports_scenario())
+    assignments = {item["id"]: item for item in result["assignments"]}
+
+    assert result["routing"] == {
+        "route_aware_events": 3,
+        "traffic_aware_events": 3,
+    }
+    assert assignments["school"]["travel_source"] == "traffic_route"
+    assert (assignments["school"]["travel_before"], assignments["school"]["travel_after"]) == (20, 20)
+    assert (assignments["football"]["travel_before"], assignments["football"]["travel_after"]) == (25, 25)
+
+
+def test_route_traffic_padding_only_applies_inside_its_peak_window():
+    scenario = family_four_school_sports_scenario()
+    for route in scenario["routes"]:
+        route["peak_start_minute"] = 17 * 60
+        route["peak_end_minute"] = 18 * 60
+
+    result = analyze_family_logistics(scenario)
+    school = next(item for item in result["assignments"] if item["id"] == "school")
+
+    assert school["travel_before"] == 15
+    assert school["travel_after"] == 15
+    assert school["travel_source"] == "route"
+
+
+def test_vehicle_capacity_problem_suggests_and_applies_a_safe_vehicle():
+    scenario = family_four_school_sports_scenario()
+    sedan = next(vehicle for vehicle in scenario["vehicles"] if vehicle["id"] == "family-sedan")
+    sedan["passenger_capacity"] = 1
+    sedan["car_seat_capacity"] = 1
+
+    result = analyze_family_logistics(scenario)
+    issue = next(
+        issue
+        for issue in result["issues"]
+        if issue["kind"] == "vehicle_constraint" and issue["event_ids"] == ["school"]
+    )
+    suggestion = next(
+        item
+        for item in result["suggestions"]
+        if item["resolves_issue"] == issue["title"]
+    )
+
+    assert issue["blocker_kind"] == "vehicle_capacity"
+    assert suggestion["kind"] == "switch_vehicle"
+    assert suggestion["vehicle_id"] == "family-suv"
+
+    changed = apply_vehicle_change(
+        scenario,
+        event_id="school",
+        vehicle_id="family-suv",
+        scope="occurrence",
+    )
+    replanned = analyze_family_logistics(changed)
+    assert not any(
+        item["kind"] == "vehicle_constraint" and item["event_ids"] == ["school"]
+        for item in replanned["issues"]
+    )
+
+
+def test_car_seat_shortage_is_detected_separately_from_passenger_capacity():
+    scenario = family_four_school_sports_scenario()
+    sedan = next(vehicle for vehicle in scenario["vehicles"] if vehicle["id"] == "family-sedan")
+    sedan["car_seat_capacity"] = 0
+
+    result = analyze_family_logistics(scenario)
+    school_issue = next(
+        issue
+        for issue in result["issues"]
+        if issue["kind"] == "vehicle_constraint" and issue["event_ids"] == ["school"]
+    )
+
+    assert school_issue["blocker_kind"] == "car_seat"
+    assert "car-seat spots" in school_issue["body"]
+
+
+def _add_carpool_parent(scenario, *, request_status="pending"):
+    scenario["people"].append(
+        {
+            "id": "jordan",
+            "name": "Jordan (carpool parent)",
+            "role": "adult",
+            "color": "#8a5b32",
+            "household_member": False,
+            "confirmed": True,
+            "available_windows": [
+                {"start_minute": 14 * 60, "end_minute": 16 * 60}
+            ],
+            "default_vehicle_id": "family-suv",
+            "contact_method": "sms",
+            "notification_opt_in": True,
+        }
+    )
+    suv = next(vehicle for vehicle in scenario["vehicles"] if vehicle["id"] == "family-suv")
+    suv["available_adult_ids"].append("jordan")
+    school_rule = next(rule for rule in scenario["rules"] if rule["series_id"] == "school-week")
+    school_rule["fallback_adult_ids"] = ["jordan", "mom"]
+    scenario["support_requests"] = [
+        {
+            "id": "school-carpool-pickup",
+            "kind": "carpool",
+            "event_id": "school",
+            "adult_id": "jordan",
+            "responsibility_kind": "pickup",
+            "status": request_status,
+            "notification_status": "delivered" if request_status != "draft" else "draft",
+        }
+    ]
+    return scenario
+
+
+def test_pending_carpool_is_not_counted_until_the_other_parent_accepts():
+    scenario = _add_carpool_parent(family_four_school_sports_scenario())
+
+    waiting = analyze_family_logistics(scenario)
+    suggestion = next(
+        item
+        for item in waiting["suggestions"]
+        if item["event_id"] == "school"
+    )
+    assert suggestion["kind"] == "request_support"
+    assert suggestion["adult_id"] == "jordan"
+    assert "still pending" in suggestion["body"]
+
+    accepted = apply_support_request_action(
+        scenario,
+        request_id="school-carpool-pickup",
+        action="accept",
+    )
+    ready = analyze_family_logistics(accepted)
+    carpool = next(
+        item for item in ready["suggestions"] if item["event_id"] == "school"
+    )
+    assert carpool["kind"] == "reassign"
+    assert carpool["adult_id"] == "jordan"
+
+
+def test_visible_carpool_scenario_exercises_the_pending_response_path():
+    result = analyze_family_logistics(family_four_carpool_scenario())
+    suggestion = next(
+        item for item in result["suggestions"] if item["event_id"] == "school"
+    )
+
+    assert suggestion["kind"] == "request_support"
+    assert result["support_requests"][0]["status"] == "pending"
+    assert result["support_requests"][0]["notification_status"] == "delivered"
+
+
+def test_helper_notification_and_response_state_machine():
+    scenario = _add_carpool_parent(
+        family_four_school_sports_scenario(), request_status="draft"
+    )
+
+    queued = apply_support_request_action(
+        scenario,
+        request_id="school-carpool-pickup",
+        action="send",
+    )
+    request = queued["support_requests"][0]
+    assert (request["status"], request["notification_status"]) == ("pending", "queued")
+
+    delivered = apply_support_request_action(
+        queued,
+        request_id="school-carpool-pickup",
+        action="mark_delivered",
+    )
+    assert delivered["support_requests"][0]["notification_status"] == "delivered"
+
+    declined = apply_support_request_action(
+        delivered,
+        request_id="school-carpool-pickup",
+        action="decline",
+    )
+    assert declined["support_requests"][0]["status"] == "declined"
+    with pytest.raises(ValueError, match="only a pending"):
+        apply_support_request_action(
+            declined,
+            request_id="school-carpool-pickup",
+            action="accept",
+        )
+
+
+def test_multiweek_fairness_prefers_the_less_loaded_available_parent():
+    scenario = family_four_school_sports_scenario()
+    scenario["rules"] = []
+    scenario["events"] = [
+        {
+            "id": "library-club",
+            "title": "Library club",
+            "kind": "child_activity",
+            "start_minute": 12 * 60,
+            "end_minute": 13 * 60,
+            "participant_ids": ["ethan"],
+            "requires_adult": True,
+            "responsibility_mode": "throughout",
+            "series_id": None,
+            "assigned_adult_id": None,
+            "travel_before": 0,
+            "travel_after": 0,
+            "location_id": "school-campus",
+            "fixed": True,
+        }
+    ]
+
+    result = analyze_family_logistics(scenario)
+
+    assert result["fairness"]["status"] == "balanced"
+    assert result["suggestions"][0]["adult_id"] == "mom"
+    assert result["suggestions"][0]["kind"] == "reassign"
+
+
+def test_family_four_reports_four_week_load_and_next_handoff_advice():
+    result = analyze_family_logistics(family_four_school_sports_scenario())
+
+    assert result["fairness"]["status"] == "needs_balance"
+    assert result["fairness"]["gap_minutes"] == 170
+    assert "Prefer Mom" in result["fairness"]["recommendation"]
+    assert result["vehicle_checks"] == 2
+
+
+def test_route_vehicle_carpool_and_fairness_interactions_stay_consistent():
+    for offset in range(120):
+        request_status = "accepted" if offset % 2 else "pending"
+        scenario = _add_carpool_parent(
+            family_four_school_sports_scenario(), request_status=request_status
+        )
+        traffic = offset % 16
+        for route in scenario["routes"]:
+            route["traffic_minutes"] = traffic
+        sedan = next(
+            vehicle
+            for vehicle in scenario["vehicles"]
+            if vehicle["id"] == "family-sedan"
+        )
+        sedan["passenger_capacity"] = 1 if offset % 3 == 0 else 3
+
+        result = analyze_family_logistics(scenario)
+        school = next(
+            item for item in result["assignments"] if item["id"] == "school"
+        )
+        school_vehicle_issues = [
+            issue
+            for issue in result["issues"]
+            if issue["kind"] == "vehicle_constraint"
+            and issue["event_ids"] == ["school"]
+        ]
+        school_suggestions = [
+            item
+            for item in result["suggestions"]
+            if item["event_id"] == "school"
+        ]
+
+        assert school["travel_before"] == 15 + traffic
+        assert bool(school_vehicle_issues) is (offset % 3 == 0)
+        assert result["fairness"]["gap_minutes"] == abs(
+            result["fairness"]["rows"][0]["total_minutes"]
+            - result["fairness"]["rows"][1]["total_minutes"]
+        )
+        if request_status == "pending":
+            assert not any(
+                item["kind"] == "reassign" and item["adult_id"] == "jordan"
+                for item in school_suggestions
+            )
+        if school_vehicle_issues:
+            vehicle_suggestion = next(
+                item for item in school_suggestions if item["kind"] == "switch_vehicle"
+            )
+            changed = apply_vehicle_change(
+                scenario,
+                event_id="school",
+                vehicle_id=vehicle_suggestion["vehicle_id"],
+                scope="occurrence",
+            )
+            assert not any(
+                issue["kind"] == "vehicle_constraint"
+                and issue["event_ids"] == ["school"]
+                for issue in analyze_family_logistics(changed)["issues"]
+            )
 
 
 def test_hundreds_of_family_four_time_variations_preserve_core_invariants():

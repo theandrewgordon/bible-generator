@@ -86,11 +86,22 @@ h2 { margin: 5px 0 0; font-size: clamp(1.65rem, 3vw, 2.25rem); line-height: 1.08
 .wfl-status.warning { color: #6f3c32; background: var(--danger-soft); }
 .wfl-status.good { color: #24584e; background: var(--good-soft); }
 .wfl-status span { opacity: .86; }
-.wfl-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 12px 0 34px; }
+.wfl-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(155px,1fr)); gap: 10px; margin: 12px 0 18px; }
 .wfl-metrics article { padding: 17px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
 .wfl-metrics span, .wfl-metrics strong { display: block; }
 .wfl-metrics span { margin-bottom: 7px; color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .wfl-metrics strong { font-family: "Fraunces", serif; font-size: 1.35rem; }
+.wfl-beta-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 34px; }
+.wfl-beta-grid > article { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,253,248,.82); }
+.wfl-beta-grid h3 { margin: 6px 0 12px; font-family: "Fraunces", serif; font-size: 1.08rem; }
+.wfl-beta-grid p { margin: 7px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.wfl-beta-grid p strong { color: var(--ink); }
+.wfl-fairness-row { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid #e8ebe6; font-size: .75rem; }
+.wfl-fairness-row strong { text-align: right; }
+.wfl-beta-grid .needs-balance { color: var(--danger); font-weight: 700; }
+.wfl-support-row { padding: 8px 0; border-bottom: 1px solid #e8ebe6; }
+.wfl-support-row span { text-transform: capitalize; }
+.wfl-request-actions { display: flex; gap: 12px; }
 .wfl-timeline-section { overflow-x: auto; }
 .wfl-timeline { min-width: 830px; margin-top: 28px; }
 .wfl-axis, .wfl-lane { display: grid; grid-template-columns: 105px 1fr; }
@@ -134,7 +145,7 @@ h2 { margin: 5px 0 0; font-size: clamp(1.65rem, 3vw, 2.25rem); line-height: 1.08
   .wfl-heading > p { text-align: left; }
   .wfl-event-grid { grid-template-columns: 1fr; }
   .wfl-metrics { grid-template-columns: 1fr; }
-  .wfl-decision, .wfl-update, .wfl-calendar-controls form { grid-template-columns: 1fr; }
+  .wfl-decision, .wfl-update, .wfl-calendar-controls form, .wfl-beta-grid { grid-template-columns: 1fr; }
   .wfl-memory { grid-column: 1; margin: 0; }
 }
 
