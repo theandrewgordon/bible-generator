@@ -468,7 +468,7 @@ def normalize_logistics_scenario(
             f"responsibility_history must contain at most {MAX_HISTORY_ROWS} items"
         )
 
-    normalized_locations: list[dict[str, str]] = []
+    normalized_locations: list[dict[str, object]] = []
     location_ids: set[str] = set()
     for location in locations:
         if not isinstance(location, dict):
@@ -477,8 +477,38 @@ def normalize_logistics_scenario(
         if location_id in location_ids:
             raise ValueError("location ids must be unique")
         location_ids.add(location_id)
+        address = location.get("address")
+        if address is not None:
+            if (
+                not isinstance(address, str)
+                or not address.strip()
+                or len(address.strip()) > 300
+            ):
+                raise ValueError(
+                    "location.address must be between 1 and 300 characters"
+                )
+            address = address.strip()
+        latitude = location.get("latitude")
+        longitude = location.get("longitude")
+        if (latitude is None) != (longitude is None):
+            raise ValueError("location coordinates must include latitude and longitude")
+        if latitude is not None and (
+            not isinstance(latitude, (int, float))
+            or isinstance(latitude, bool)
+            or not -90 <= latitude <= 90
+            or not isinstance(longitude, (int, float))
+            or isinstance(longitude, bool)
+            or not -180 <= longitude <= 180
+        ):
+            raise ValueError("location coordinates are invalid")
         normalized_locations.append(
-            {"id": location_id, "name": _name(location.get("name"), "location.name")}
+            {
+                "id": location_id,
+                "name": _name(location.get("name"), "location.name"),
+                "address": address,
+                "latitude": latitude,
+                "longitude": longitude,
+            }
         )
     home_location_id = raw.get("home_location_id")
     if home_location_id is not None:
@@ -519,8 +549,23 @@ def normalize_logistics_scenario(
                 ),
                 "peak_start_minute": peak_start,
                 "peak_end_minute": peak_end,
+                "distance_meters": route.get("distance_meters"),
+                "provider": route.get("provider"),
+                "refreshed_at": route.get("refreshed_at"),
+                "expires_at": route.get("expires_at"),
             }
         )
+        if normalized_routes[-1]["distance_meters"] is not None and (
+            not isinstance(normalized_routes[-1]["distance_meters"], int)
+            or normalized_routes[-1]["distance_meters"] < 0
+        ):
+            raise ValueError("route.distance_meters must be nonnegative")
+        for metadata_field in ("provider", "refreshed_at", "expires_at"):
+            metadata_value = normalized_routes[-1][metadata_field]
+            if metadata_value is not None and (
+                not isinstance(metadata_value, str) or len(metadata_value) > 120
+            ):
+                raise ValueError(f"route.{metadata_field} is invalid")
 
     normalized_people: list[dict[str, object]] = []
     person_ids: set[str] = set()

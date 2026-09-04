@@ -36,6 +36,20 @@ from faithsparks.services.weekflow_logistics import (
     family_four_carpool_scenario,
     family_four_school_sports_scenario,
 )
+from faithsparks.services.weekflow_integrations import (
+    WeekFlowIntegrationUnavailable,
+    WeekFlowProviderError,
+    integration_status,
+    refresh_live_routes,
+)
+from faithsparks.services.weekflow_support import (
+    WeekFlowSupportTokenError,
+    WeekFlowSupportUnavailable,
+    create_and_send_support_request,
+    load_owner_support_status,
+    load_support_response,
+    respond_to_support_request,
+)
 from faithsparks.services.weekflow_scheduler import (
     demo_payload,
     generate_demo_schedule,
@@ -159,9 +173,180 @@ def logistics_plan():
                 )
             else:
                 raise ValueError("change.kind is invalid")
-        return jsonify(analyze_family_logistics(scenario))
+        result = analyze_family_logistics(scenario)
+        record_weekflow_event(
+            _signed_in_email(),
+            {
+                "event": "logistics_plan_generated",
+                "dimensions": {
+                    "status": result["status"],
+                    "issue_count": result["issue_count"],
+                    "route_aware_events": result["routing"]["route_aware_events"],
+                    "vehicle_issues": sum(
+                        issue["kind"] == "vehicle_constraint"
+                        for issue in result["issues"]
+                    ),
+                    "support_pending": sum(
+                        item["status"] == "pending"
+                        for item in result["support_requests"]
+                    ),
+                    "fairness_status": result["fairness"]["status"],
+                    "change_kind": change.get("kind", "responsibility")
+                    if change
+                    else "none",
+                },
+            },
+        )
+        return jsonify(result)
     except (TypeError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
+
+
+def _support_signing_key() -> str:
+    return os.getenv("WEEKFLOW_SUPPORT_SIGNING_KEY", "").strip()
+
+
+@bp.get("/logistics/integrations/status")
+def logistics_integration_status():
+    return jsonify(
+        {
+            **integration_status(),
+            "support_links": len(_support_signing_key()) >= 24 and bool(db),
+        }
+    )
+
+
+@bp.post("/logistics/routes/refresh")
+def logistics_route_refresh():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    limit = check_rate_limit(
+        "weekflow-live-routes", email, limit=20, window_seconds=60 * 60
+    )
+    if not limit.allowed:
+        return jsonify({"error": "Live routes can be refreshed again shortly."}), 429
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or not isinstance(body.get("scenario"), dict):
+        return jsonify({"error": "scenario must be a JSON object."}), 400
+    try:
+        scenario, refresh = refresh_live_routes(body["scenario"])
+    except WeekFlowIntegrationUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    except WeekFlowProviderError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    record_weekflow_event(
+        email,
+        {
+            "event": "route_refresh",
+            "dimensions": {"route_aware_events": refresh["refreshed"]},
+        },
+    )
+    return jsonify(
+        {
+            "scenario": scenario,
+            "refresh": refresh,
+            "plan": analyze_family_logistics(scenario),
+        }
+    )
+
+
+@bp.post("/logistics/support/send")
+def logistics_support_send():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    limit = check_rate_limit(
+        "weekflow-support-send", email, limit=12, window_seconds=60 * 60
+    )
+    if not limit.allowed:
+        return jsonify({"error": "Too many support requests. Try again later."}), 429
+    try:
+        result = create_and_send_support_request(
+            email,
+            request.get_json(silent=True),
+            secret_key=_support_signing_key(),
+            response_url_builder=lambda token: url_for(
+                "weekflow.logistics_support_response",
+                token=token,
+                _external=True,
+            ),
+        )
+    except (TypeError, ValueError, WeekFlowSupportTokenError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except WeekFlowIntegrationUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    except WeekFlowProviderError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except WeekFlowSupportUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    record_weekflow_event(
+        email,
+        {
+            "event": "support_request_sent",
+            "dimensions": {"channel": result["channel"]},
+        },
+    )
+    return jsonify(result), 201
+
+
+@bp.get("/logistics/support/<request_id>/status")
+def logistics_support_status(request_id: str):
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    try:
+        return jsonify(load_owner_support_status(email, request_id))
+    except WeekFlowSupportTokenError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except WeekFlowSupportUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
+@bp.route("/logistics/respond/<token>", methods=["GET", "POST"])
+def logistics_support_response(token: str):
+    error = None
+    status_code = 200
+    try:
+        support_request = load_support_response(
+            token, secret_key=_support_signing_key()
+        )
+        if request.method == "POST":
+            support_request = respond_to_support_request(
+                token,
+                request.form.get("response", ""),
+                secret_key=_support_signing_key(),
+            )
+            record_weekflow_event(
+                None,
+                {
+                    "event": "support_request_responded",
+                    "dimensions": {"status": support_request["status"]},
+                },
+            )
+    except (ValueError, WeekFlowSupportTokenError) as exc:
+        support_request = None
+        error = str(exc)
+        status_code = 400
+    except WeekFlowSupportUnavailable as exc:
+        support_request = None
+        error = str(exc)
+        status_code = 503
+    return (
+        render_template(
+            "weekflow_support_response.html",
+            support_request=support_request,
+            error=error,
+            noindex=True,
+        ),
+        status_code,
+    )
 
 
 def _calendar_session():

@@ -38,6 +38,20 @@ WEEKFLOW_ANALYTICS_EVENTS = {
     "plan_generated",
     "rollover_created",
     "template_saved",
+    "logistics_plan_generated",
+    "route_refresh",
+    "support_request_sent",
+    "support_request_responded",
+}
+WEEKFLOW_ANALYTICS_DIMENSIONS = {
+    "change_kind",
+    "channel",
+    "fairness_status",
+    "issue_count",
+    "route_aware_events",
+    "status",
+    "support_pending",
+    "vehicle_issues",
 }
 
 
@@ -534,6 +548,35 @@ def record_weekflow_event(email: str | None, payload: object) -> None:
     event = payload.get("event")
     if event not in WEEKFLOW_ANALYTICS_EVENTS:
         raise ValueError("analytics event is not supported")
+    raw_dimensions = payload.get("dimensions", {})
+    if not isinstance(raw_dimensions, dict) or any(
+        key not in WEEKFLOW_ANALYTICS_DIMENSIONS for key in raw_dimensions
+    ):
+        raise ValueError("analytics dimensions are not supported")
+    dimensions: dict[str, int | str | bool] = {}
+    for key, value in raw_dimensions.items():
+        if isinstance(value, bool):
+            dimensions[key] = value
+        elif isinstance(value, int) and 0 <= value <= 10_000:
+            dimensions[key] = value
+        elif isinstance(value, str) and value in {
+            "accepted",
+            "balanced",
+            "carpool",
+            "email",
+            "helper",
+            "needs_balance",
+            "needs_decision",
+            "none",
+            "responsibility",
+            "sms",
+            "support_request",
+            "vehicle",
+            "workable",
+        }:
+            dimensions[key] = value
+        else:
+            raise ValueError("analytics dimension value is not supported")
     if not db:
         return
     normalized_email = str(email or "").strip().casefold()
@@ -554,6 +597,7 @@ def record_weekflow_event(email: str | None, payload: object) -> None:
             {
                 "event": event,
                 "anonymousUser": anonymous_user,
+                "dimensions": dimensions,
                 "createdAt": firestore.SERVER_TIMESTAMP,
             }
         )
