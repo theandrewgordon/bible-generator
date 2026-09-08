@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow.css') }}?v=12" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow.css') }}?v=13" />
   </head>
   <body>
     <main class="wf-shell">
@@ -18,8 +18,19 @@
         <div class="wf-kicker"><span>FaithSparks Labs</span> Scheduler experiment</div>
         <h1>Build the family day,<br />not three separate calendars.</h1>
         <p class="wf-lede">One parent. Three students. WeekFlow coordinates who needs you, who can work independently, and what can happen at the same time.</p>
-        <p><a class="wf-text-button" href="{{ url_for('weekflow.logistics') }}">Try the family logistics experiment →</a></p>
       </header>
+
+      <section class="wf-how" aria-labelledby="howTitle">
+        <div class="wf-section-heading">
+          <div><span class="wf-eyebrow">How WeekFlow works</span><h2 id="howTitle">One plan around shared attention.</h2></div>
+          <a class="wf-text-button" href="{{ url_for('weekflow.logistics') }}">Try family logistics →</a>
+        </div>
+        <ol class="wf-how-grid">
+          <li><span>1</span><strong>Add the real constraints</strong><p>Students, assignments, appointments, co-op days, and the windows when a parent can teach.</p></li>
+          <li><span>2</span><strong>Build one family timeline</strong><p>WeekFlow coordinates parent-led work, independent work, and group lessons without double-booking anyone.</p></li>
+          <li><span>3</span><strong>Adapt when life changes</strong><p>Remove an unavailable window and see what moved, what stayed protected, and whether every deadline still works.</p></li>
+        </ol>
+      </section>
 
       <section class="wf-sample" aria-labelledby="sampleTitle">
         <div class="wf-sample-heading">
@@ -38,10 +49,10 @@
         <p class="wf-action-status" id="actionStatus" role="status" aria-live="polite"></p>
       </section>
 
-      <section id="results" hidden aria-live="polite">
+      <section id="results" hidden aria-live="polite" aria-labelledby="scheduleTitle" tabindex="-1">
         <div class="wf-result-intro">
           <div><span class="wf-eyebrow">Family schedule</span><h2 id="scheduleTitle">Baseline family week</h2></div>
-          <button class="wf-text-button" id="explainButton" type="button">Why this schedule?</button>
+          <button class="wf-text-button" id="explainButton" type="button" aria-expanded="false" aria-controls="explanations">Why this schedule?</button>
         </div>
 
         <div class="wf-status" id="statusBanner"></div>
@@ -54,8 +65,8 @@
           </div>
           <div class="wf-day-tabs" id="dayTabs" role="tablist" aria-label="Choose a day"></div>
           <p class="wf-timeline-tip">Wednesday shows kickoff → independent work → parent return. Monday shows the whole-family group lab.</p>
-          <div class="wf-resource-timeline" id="resourceTimeline"></div>
-          <div class="wf-mobile-timeline" id="mobileTimeline"></div>
+          <div class="wf-resource-timeline" id="resourceTimeline" role="tabpanel" aria-label="Selected day visual timeline"></div>
+          <div class="wf-mobile-timeline" id="mobileTimeline" aria-label="Selected day agenda"></div>
         </section>
 
         <section class="wf-disruption" id="disruptionPanel">
@@ -103,6 +114,6 @@
         defaultScenario: {{ demo.default_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow.js') }}?v=15" defer></script>
+    <script src="{{ url_for('static', filename='weekflow.js') }}?v=16" defer></script>
   </body>
 </html>

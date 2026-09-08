@@ -68,9 +68,9 @@
       .reduce((total, phase) => total + phase.minutes, 0);
     const cards = [
       ["Assignments placed", `${plan.scheduled_count} / ${plan.total_count}`, plan.unscheduled_count ? "needs-attention" : "good"],
-      ["Raw parent capacity", `${parent.parent_demand}m / ${parent.parent_capacity}m`, parent.parent_shortfall ? "needs-attention" : "good"],
-      ["Deadline feasibility", plan.feasibility.deadline_feasible ? "Feasible" : "Tradeoff needed", plan.feasibility.deadline_feasible ? "good" : "needs-attention"],
-      ["Independent runway", `${independentMinutes} minutes`, "neutral"],
+      ["Parent time scheduled", `${parent.parent_demand} of ${parent.parent_capacity} min`, parent.parent_shortfall ? "needs-attention" : "good"],
+      ["Deadline status", plan.feasibility.deadline_feasible ? "All deadlines met" : "Tradeoff needed", plan.feasibility.deadline_feasible ? "good" : "needs-attention"],
+      ["Independent work created", `${independentMinutes} minutes`, "neutral"],
     ];
     metrics.innerHTML = cards.map(([label, value, state]) => `
       <article class="wf-metric ${state}"><span>${label}</span><strong>${value}</strong></article>
@@ -187,18 +187,31 @@
       const active = button.dataset.day === selectedDay;
       button.classList.toggle("is-active", active);
       button.setAttribute("aria-selected", String(active));
+      button.setAttribute("tabindex", active ? "0" : "-1");
     });
     renderDesktopTimeline(day);
     renderMobileTimeline(day);
   }
 
   function renderDayTabs(plan) {
-    dayTabs.innerHTML = plan.days.map((day) => `<button type="button" role="tab" data-day="${day.id}"><strong>${day.label.slice(0, 3)}</strong><span>${day.entries.length} assignment${day.entries.length === 1 ? "" : "s"}</span></button>`).join("");
+    dayTabs.innerHTML = plan.days.map((day) => `<button type="button" role="tab" id="day-tab-${day.id}" aria-controls="resourceTimeline" data-day="${day.id}"><strong>${day.label.slice(0, 3)}</strong><span>${day.entries.length} assignment${day.entries.length === 1 ? "" : "s"}</span></button>`).join("");
     dayTabs.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
       selectedDay = button.dataset.day;
       renderSelectedDay();
     }));
   }
+
+  dayTabs.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = [...dayTabs.querySelectorAll("button")];
+    const currentIndex = tabs.indexOf(document.activeElement);
+    if (currentIndex < 0) return;
+    event.preventDefault();
+    let nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : currentIndex + (event.key === "ArrowRight" ? 1 : -1);
+    nextIndex = (nextIndex + tabs.length) % tabs.length;
+    tabs[nextIndex].click();
+    tabs[nextIndex].focus();
+  });
 
   function renderWeek(plan) {
     const maxParent = Math.max(...plan.days.map((day) => day.entries.reduce((total, entry) => total + entry.parent_minutes, 0)), 1);
@@ -246,7 +259,9 @@
     renderExplanations(plan);
     explanations.hidden = true;
     explainButton.textContent = "Why this schedule?";
+    explainButton.setAttribute("aria-expanded", "false");
     if (plan.mode === "disrupted") renderChanges(plan);
+    results.focus({ preventScroll: true });
   }
 
   async function build(mode) {
@@ -296,6 +311,7 @@
   explainButton.addEventListener("click", () => {
     explanations.hidden = !explanations.hidden;
     explainButton.textContent = explanations.hidden ? "Why this schedule?" : "Hide explanations";
+    explainButton.setAttribute("aria-expanded", String(!explanations.hidden));
     if (!explanations.hidden) explanations.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 

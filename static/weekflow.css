@@ -42,6 +42,41 @@ button { color: inherit; }
   margin-bottom: 40px;
 }
 
+.wf-how {
+  margin-bottom: 22px;
+  padding: 26px 30px;
+  border: 1px solid rgba(49, 95, 83, 0.15);
+  border-radius: 22px;
+  background: rgba(220, 233, 226, 0.48);
+}
+
+.wf-how h2 { font-size: clamp(1.55rem, 2.5vw, 2rem); }
+.wf-how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.wf-how-grid li { position: relative; padding-left: 42px; }
+.wf-how-grid li > span {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--forest);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.wf-how-grid strong { display: block; font-size: 0.94rem; }
+.wf-how-grid p { margin: 7px 0 0; color: #536762; font-size: 0.84rem; line-height: 1.55; }
+
 .wf-kicker, .wf-eyebrow {
   color: var(--forest);
   font-size: 0.72rem;
@@ -213,7 +248,7 @@ h2 { margin: 6px 0 0; font-size: clamp(1.65rem, 3vw, 2.35rem); line-height: 1.08
   box-shadow: 0 12px 40px rgba(34, 61, 53, 0.08);
 }
 
-.wf-legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 0.78rem; }
+.wf-legend { display: flex; flex-wrap: wrap; gap: 14px; color: #52635f; font-size: 0.82rem; }
 .wf-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .wf-legend i { width: 10px; height: 10px; border-radius: 3px; }
 .wf-legend .parent { background: #f4c86d; }
@@ -242,7 +277,7 @@ h2 { margin: 6px 0 0; font-size: clamp(1.65rem, 3vw, 2.35rem); line-height: 1.08
 .wf-day-tabs button span { margin-top: 3px; font-size: 0.68rem; }
 .wf-day-tabs button.is-active { color: var(--ink); background: #fff; box-shadow: 0 3px 12px rgba(45, 67, 61, 0.1); }
 
-.wf-timeline-tip { margin: -17px 0 26px; color: var(--muted); font-size: 0.76rem; }
+.wf-timeline-tip { margin: -17px 0 26px; color: #52635f; font-size: 0.84rem; line-height: 1.5; }
 
 .wf-resource-timeline { min-width: 860px; }
 .wf-timeline-section { overflow-x: auto; }
@@ -253,13 +288,13 @@ h2 { margin: 6px 0 0; font-size: clamp(1.65rem, 3vw, 2.35rem); line-height: 1.08
 }
 
 .wf-time-axis { height: 32px; }
-.wf-time-axis > time { position: absolute; transform: translateX(-50%); color: #78827f; font-size: 0.67rem; }
+.wf-time-axis > time { position: absolute; transform: translateX(-50%); color: #596864; font-size: 0.74rem; font-weight: 600; }
 .wf-time-axis { position: relative; margin-left: 118px; display: block; }
 
 .wf-resource-row { min-height: 82px; border-top: 1px solid #eceee9; }
 .wf-resource-name { display: flex; align-items: center; gap: 9px; padding-right: 14px; }
 .wf-resource-name i { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--person); }
-.wf-resource-name strong { font-size: 0.82rem; }
+.wf-resource-name strong { font-size: 0.9rem; }
 .wf-resource-track { position: relative; min-height: 82px; background: linear-gradient(180deg, rgba(247, 248, 244, 0.8), rgba(255,255,255,0)); }
 .wf-gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: #edf0eb; }
 
@@ -276,8 +311,8 @@ h2 { margin: 6px 0 0; font-size: clamp(1.65rem, 3vw, 2.35rem); line-height: 1.08
   color: #203c35;
 }
 .wf-time-block strong, .wf-time-block span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wf-time-block strong { font-size: 0.69rem; }
-.wf-time-block span { margin-top: 4px; font-size: 0.61rem; opacity: 0.75; }
+.wf-time-block strong { font-size: 0.76rem; }
+.wf-time-block span { margin-top: 4px; font-size: 0.68rem; opacity: 0.86; }
 .wf-time-block.parent { background: #f8d890; }
 .wf-time-block.solo { background: #cce9e2; }
 .wf-time-block.group { background: #d5d0f3; }
@@ -363,6 +398,7 @@ h2 { margin: 6px 0 0; font-size: clamp(1.65rem, 3vw, 2.35rem); line-height: 1.08
   .wf-explanation-list { grid-template-columns: 1fr; }
   .wf-disruption { align-items: flex-start; flex-direction: column; }
   .wf-feedback { grid-template-columns: 1fr; gap: 12px; }
+  .wf-how-grid { grid-template-columns: 1fr; gap: 18px; }
 }
 
 @media (max-width: 620px) {

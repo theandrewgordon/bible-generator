@@ -29,10 +29,15 @@ def test_lab_page_renders_demo_configuration():
     assert 'scheduleUrl: "/labs/weekflow/schedule"' in html
     assert 'feedbackUrl: "/labs/weekflow/feedback"' in html
     assert "Build Family Schedule" in html
+    assert "How WeekFlow works" in html
+    assert "One plan around shared attention" in html
+    assert "Add the real constraints" in html
     assert "Shared resource timeline" in html
     assert "Tuesday Morning Fell Apart" in html
     assert "Avery" in html and "Maya" in html and "Lucy" in html
     assert "Thursday" in html and "CC / co-op day" in html
+    assert 'aria-expanded="false"' in html
+    assert 'aria-controls="explanations"' in html
     assert "Saved weeks" not in html
     assert "Reusable templates" not in html
     assert "Approve week" not in html
