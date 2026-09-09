@@ -105,6 +105,86 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertEqual(stage["stage_message"], "Private note")
         self.assertEqual(stage["stage_timer_mode"], "elapsed")
 
+    def test_mixed_role_cookies_prefer_control_state_details(self):
+        data = {
+            **self._session_data(),
+            "stage_message": "Prayer next",
+            "stage_timer_mode": "elapsed",
+        }
+        app._create_worship_live_session(data)
+        tokens = {
+            role: app._make_worship_live_token(
+                scope="grace", session_id=data["id"], role=role
+            )
+            for role in ("view", "control", "stage")
+        }
+        with app.app.test_client() as client:
+            exchanged = client.post(
+                f"/worship/live/exchange/{data['id']}",
+                json=tokens,
+                headers={"X-Worship-Live": "1", "User-Agent": "Mozilla/5.0"},
+            )
+            self.assertEqual(exchanged.status_code, 200)
+            state = client.get(f"/worship/live/state/{data['id']}").get_json()
+
+        self.assertEqual(state["stage_message"], "Prayer next")
+        self.assertEqual(state["stage_timer_mode"], "elapsed")
+
+    def test_live_deck_can_edit_split_and_insert_scripture(self):
+        data = {
+            **self._session_data(),
+            "slides": [
+                {
+                    "kind": "lyric",
+                    "id": "sample",
+                    "title": "Sample",
+                    "part_label": "Verse 1",
+                    "lines": ["Line one", "Line two", "Line three", "Line four"],
+                    "font_size": 48,
+                },
+                {"kind": "divider", "id": "next", "title": "Next song", "lines": []},
+            ],
+            "slide_count": 2,
+            "deck_revision": 0,
+        }
+        app._create_worship_live_session(data)
+
+        edited = app._update_worship_live_session(
+            "grace", data["id"], "edit_slide", 0, lines=["Corrected one", "Corrected two"]
+        )
+        self.assertEqual(edited["slides"][0]["lines"], ["Corrected one", "Corrected two"])
+        self.assertEqual(edited["deck_revision"], 1)
+
+        split = app._update_worship_live_session(
+            "grace", data["id"], "split_slide", 0, split_after=1
+        )
+        self.assertEqual(split["slide_count"], 3)
+        self.assertEqual(split["slides"][0]["lines"], ["Corrected one"])
+        self.assertEqual(split["slides"][1]["lines"], ["Corrected two"])
+
+        inserted = app._update_worship_live_session(
+            "grace", data["id"], "insert_scripture", 0,
+            title="John 3:16", version="KJV",
+            lines=["For God so loved the world,", "that he gave his only begotten Son."],
+        )
+        self.assertEqual(inserted["slides"][1]["title"], "John 3:16")
+        self.assertEqual(inserted["slides"][1]["version"], "KJV")
+        self.assertEqual(inserted["slides"][1]["type"], "scripture")
+        self.assertEqual(inserted["deck_revision"], 3)
+
+    def test_live_edit_rejects_a_stale_slide_index(self):
+        data = {
+            **self._session_data(),
+            "slides": [{"kind": "lyric", "id": "sample", "title": "Sample", "lines": ["One", "Two"]}],
+            "slide_count": 1,
+        }
+        app._create_worship_live_session(data)
+
+        with self.assertRaisesRegex(ValueError, "live slide changed"):
+            app._update_worship_live_session(
+                "grace", data["id"], "edit_slide", 1, lines=["Correction"]
+            )
+
     def test_start_live_returns_presenter_and_remote_urls(self):
         selected = [{
             "id": "sample",
@@ -122,6 +202,12 @@ class WorshipLiveTests(unittest.TestCase):
             ):
                 g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
                 app.session["user_email"] = "leader@example.com"
+                fingerprint = app._worship_deck_fingerprint(app._build_worship_mobile_slides(selected))
+                app.session[app._WORSHIP_DECK_REVIEW_SESSION_KEY] = {
+                    "scope": "default",
+                    "fingerprint": fingerprint,
+                    "reviewed_epoch": time.time(),
+                }
                 response = app.worship_live_start()
                 active_pointer = dict(app.session[app._WORSHIP_LIVE_ACTIVE_SESSION_KEY])
         finally:
@@ -395,6 +481,48 @@ class WorshipLiveTests(unittest.TestCase):
         ):
             response, status = app.worship_live_control(view)
         self.assertEqual(status, 410)
+
+    def test_control_route_applies_live_slide_edits(self):
+        data = {
+            **self._session_data(),
+            "slides": [{"kind": "lyric", "id": "sample", "title": "Sample", "lines": ["Old one", "Old two"]}],
+            "slide_count": 1,
+            "deck_revision": 0,
+        }
+        app._create_worship_live_session(data)
+        control = app._make_worship_live_token(scope="grace", session_id=data["id"], role="control")
+        client = app.app.test_client()
+        client.post(
+            f"/worship/live/exchange/{data['id']}",
+            json={"control": control},
+            headers={"X-Worship-Live": "1"},
+        )
+
+        response = client.post(
+            f"/worship/live/control/{data['id']}",
+            json={"action": "edit_slide", "index": 0, "lines": ["New one", "New two"]},
+            headers={"X-Worship-Live": "1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["deck_revision"], 1)
+        stored = app._get_worship_live_session("grace", data["id"])
+        self.assertEqual(stored["slides"][0]["lines"], ["New one", "New two"])
+
+    def test_exact_deck_review_fingerprint_ignores_private_notes_and_expires(self):
+        slides = [{"kind": "lyric", "title": "Song", "lines": ["Line"], "note": "Start softly"}]
+        same_visuals = [{"kind": "lyric", "title": "Song", "lines": ["Line"], "note": "Different cue"}]
+        changed_visuals = [{"kind": "lyric", "title": "Song", "lines": ["Changed"]}]
+
+        with app.app.test_request_context("/worship"):
+            fingerprint = app._worship_deck_fingerprint(slides)
+            app._remember_worship_deck_review(fingerprint)
+            self.assertTrue(app._worship_deck_was_reviewed(app._worship_deck_fingerprint(same_visuals)))
+            self.assertFalse(app._worship_deck_was_reviewed(app._worship_deck_fingerprint(changed_visuals)))
+            app.session[app._WORSHIP_DECK_REVIEW_SESSION_KEY]["reviewed_epoch"] = (
+                time.time() - app._WORSHIP_DECK_REVIEW_TTL - 1
+            )
+            self.assertFalse(app._worship_deck_was_reviewed(fingerprint))
 
     def test_cookie_control_requires_exchange_header_and_can_end_session(self):
         data = self._session_data()

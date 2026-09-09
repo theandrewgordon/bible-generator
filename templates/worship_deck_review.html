@@ -17,7 +17,8 @@
   .wdr-actions{display:flex;gap:.7rem;position:sticky;bottom:.75rem;background:var(--box);padding:.8rem;border-radius:12px;box-shadow:var(--card-shadow);margin-top:1rem}
   .wdr-actions button,.wdr-actions a{padding:10px 18px;border-radius:9px;font-weight:800;text-decoration:none;text-align:center}
   .wdr-actions button{border:0;background:var(--primary);color:#fff;flex:1;cursor:pointer}.wdr-actions a{border:1px solid #cbd5e1;color:var(--text)}
-  @media(max-width:600px){.wdr-summary,.wdr-card{padding:1rem}.wdr-warning ul{padding-left:1.25rem}.wdr-grid{grid-template-columns:1fr}.wdr-actions{position:static;display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);margin-bottom:1rem;padding:.65rem}.wdr-actions button,.wdr-actions a{display:flex;align-items:center;justify-content:center;padding:10px 8px}.wdr-slide{border-radius:12px}}
+  .wdr-actions button.wdr-review-return{background:#334155}
+  @media(max-width:600px){.wdr-summary,.wdr-card{padding:1rem}.wdr-warning ul{padding-left:1.25rem}.wdr-grid{grid-template-columns:1fr}.wdr-actions{position:static;display:grid;grid-template-columns:1fr;margin-bottom:1rem;padding:.65rem}.wdr-actions button,.wdr-actions a{display:flex;align-items:center;justify-content:center;padding:10px 8px}.wdr-slide{border-radius:12px}}
 </style>
 {% endblock %}
 
@@ -47,11 +48,14 @@
 {% endfor %}
 </div>
 
-<form class="wdr-actions" method="post" action="{{ url_for('worship_build') }}">
+<form class="wdr-actions" method="post" action="{{ url_for('worship_deck_review_complete') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="worship_scope" value="{{ worship_church.id if worship_church else '' }}">
   <input type="hidden" name="song_order" value="{{ song_order }}">
+  <input type="hidden" name="review_fingerprint" value="{{ review_fingerprint }}">
   {% if findings %}<input type="hidden" name="allow_validation_issues" value="1">{% endif %}
   <a href="{{ url_for('worship') }}">Back to Set</a>
-  <button type="submit">Checklist Complete — Build Deck</button>
+  <button type="submit" class="wdr-review-return">Mark reviewed &amp; return</button>
+  <button type="submit" formaction="{{ url_for('worship_build') }}">Checklist Complete — Build Deck</button>
 </form>
 {% endblock %}

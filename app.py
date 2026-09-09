@@ -4,7 +4,7 @@ from flask_dance.contrib.google import make_google_blueprint, google
 from flask_dance.consumer import OAuth2ConsumerBlueprint
 from datetime import datetime
 
-import os, json, re, traceback, hashlib, base64, csv
+import os, json, re, traceback, hashlib, hmac, base64, csv
 import logging
 import sys
 import uuid
@@ -936,6 +936,8 @@ _WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
 _WORSHIP_LIVE_CONTROL_COOKIE = "fs_worship_live_control"
 _WORSHIP_LIVE_STAGE_COOKIE = "fs_worship_live_stage"
 _WORSHIP_LIVE_ACTIVE_SESSION_KEY = "worship_live_active"
+_WORSHIP_DECK_REVIEW_SESSION_KEY = "worship_deck_reviewed"
+_WORSHIP_DECK_REVIEW_TTL = 7 * 24 * 60 * 60
 _LEGAL_TERMS_VERSION = "2026-08-21"
 _WORSHIP_LIVE_AUTOMATED_UA_MARKERS = (
     "google-read-aloud",
@@ -2346,6 +2348,18 @@ def _delete_worship_live_session(scope: str, session_id: str) -> None:
             raise LookupError("Live worship session expired")
 
 
+def _normalize_worship_live_lines(value, *, max_lines: int) -> list[str]:
+    raw_lines = value if isinstance(value, list) else str(value or "").splitlines()
+    cleaned = []
+    for raw_line in raw_lines:
+        line = re.sub(r"[ \t]+", " ", str(raw_line or "")).strip()
+        if line:
+            cleaned.append(line[:220])
+        if len(cleaned) >= max_lines:
+            break
+    return cleaned
+
+
 def _next_worship_live_state(
     data: dict,
     action: str,
@@ -2353,8 +2367,13 @@ def _next_worship_live_state(
     *,
     message: str | None = None,
     duration: int | None = None,
+    lines: list[str] | str | None = None,
+    title: str | None = None,
+    version: str | None = None,
+    split_after: int | None = None,
 ) -> dict:
-    slide_count = max(1, int(data.get("slide_count") or 1))
+    slides = [dict(slide) for slide in data.get("slides", []) if isinstance(slide, dict)]
+    slide_count = max(1, len(slides) or int(data.get("slide_count") or 1))
     index = max(0, min(slide_count - 1, int(data.get("current_index") or 0)))
     blank = bool(data.get("blank"))
     clear_words = bool(data.get("clear_words"))
@@ -2364,6 +2383,7 @@ def _next_worship_live_state(
     timer_duration = max(0, int(data.get("stage_timer_duration") or 0))
     video_action = str(data.get("video_action") or "")
     video_revision = max(0, int(data.get("video_revision") or 0))
+    deck_revision = max(0, int(data.get("deck_revision") or 0))
     if action == "next":
         index = min(slide_count - 1, index + 1)
     elif action == "previous":
@@ -2403,10 +2423,79 @@ def _next_worship_live_state(
     elif action in {"video_play", "video_pause", "video_restart", "video_mute", "video_unmute"}:
         video_action = action.removeprefix("video_")
         video_revision += 1
+    elif action == "edit_slide":
+        if requested_index is not None and requested_index != index:
+            raise ValueError("The live slide changed. Refresh the remote before editing.")
+        if not slides:
+            raise ValueError("This live deck cannot be edited.")
+        slide = dict(slides[index])
+        if slide.get("kind") in {"presentation", "video", "divider"}:
+            raise ValueError("Title, imported, and video slides cannot be edited live.")
+        cleaned_lines = _normalize_worship_live_lines(lines, max_lines=12)
+        if not cleaned_lines:
+            raise ValueError("Enter at least one line for this slide.")
+        slide["lines"] = cleaned_lines
+        if title is not None and str(title).strip():
+            slide["title"] = re.sub(r"\s+", " ", str(title)).strip()[:120]
+        slide["visual_row_count"] = _worship_visual_row_count(cleaned_lines, slide.get("font_size", 48))
+        slide["is_crowded"] = _worship_slide_is_crowded(cleaned_lines, slide.get("font_size", 48))
+        slides[index] = slide
+        deck_revision += 1
+    elif action == "split_slide":
+        if requested_index is not None and requested_index != index:
+            raise ValueError("The live slide changed. Refresh the remote before splitting.")
+        if not slides:
+            raise ValueError("This live deck cannot be edited.")
+        slide = dict(slides[index])
+        source_lines = _normalize_worship_live_lines(slide.get("lines", []), max_lines=12)
+        if slide.get("kind") in {"presentation", "video", "divider"} or len(source_lines) < 2:
+            raise ValueError("This slide does not have enough editable lines to split.")
+        point = int(split_after or 0)
+        if point < 1 or point >= len(source_lines):
+            raise ValueError("Choose a valid line to split after.")
+        first, second = dict(slide), dict(slide)
+        first["lines"], second["lines"] = source_lines[:point], source_lines[point:]
+        for candidate in (first, second):
+            candidate["visual_row_count"] = _worship_visual_row_count(candidate["lines"], candidate.get("font_size", 48))
+            candidate["is_crowded"] = _worship_slide_is_crowded(candidate["lines"], candidate.get("font_size", 48))
+        slides[index:index + 1] = [first, second]
+        slide_count = len(slides)
+        deck_revision += 1
+    elif action == "insert_scripture":
+        if requested_index is not None and requested_index != index:
+            raise ValueError("The live slide changed. Refresh the remote before inserting Scripture.")
+        cleaned_lines = _normalize_worship_live_lines(lines, max_lines=40)
+        scripture_title = re.sub(r"\s+", " ", str(title or "Scripture")).strip()[:120] or "Scripture"
+        scripture_version = re.sub(r"\s+", " ", str(version or "")).strip()[:24]
+        if not cleaned_lines:
+            raise ValueError("Paste Scripture text before inserting it.")
+        chunks = list(chunk_lines(cleaned_lines))
+        if not chunks:
+            raise ValueError("The Scripture text could not be divided into slides.")
+        scripture_id = f"live-scripture-{int(time.time() * 1000)}"
+        inserted = []
+        for number, chunk in enumerate(chunks, start=1):
+            chunk_value = chunk.get("lines", [])
+            inserted.append({
+                "kind": "service", "id": scripture_id, "title": scripture_title,
+                "version": scripture_version, "type": "scripture", "part_label": f"Reading {number}",
+                "lines": chunk_value, "font_size": chunk.get("font_size", 48),
+                "visual_row_count": _worship_visual_row_count(chunk_value, chunk.get("font_size", 48)),
+                "is_crowded": _worship_slide_is_crowded(chunk_value, chunk.get("font_size", 48)),
+                "background_url": "", "font_color": "#ffffff", "background_overlay": 0,
+                "note": "Inserted during Live Worship",
+            })
+        slides[index + 1:index + 1] = inserted
+        slide_count = len(slides)
+        deck_revision += 1
     else:
         raise ValueError("Unknown live worship action")
+    if slides and len(json.dumps(slides, ensure_ascii=False)) > 750_000:
+        raise ValueError("This edit would make the live deck too large.")
     return {
         **data,
+        "slides": slides or data.get("slides", []),
+        "slide_count": slide_count,
         "current_index": index,
         "blank": blank,
         "clear_words": clear_words,
@@ -2416,6 +2505,7 @@ def _next_worship_live_state(
         "stage_timer_duration": timer_duration,
         "video_action": video_action,
         "video_revision": video_revision,
+        "deck_revision": deck_revision,
         "revision": int(data.get("revision") or 0) + 1,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -2429,6 +2519,10 @@ def _update_worship_live_session(
     *,
     message: str | None = None,
     duration: int | None = None,
+    lines: list[str] | str | None = None,
+    title: str | None = None,
+    version: str | None = None,
+    split_after: int | None = None,
 ) -> dict:
     if db:
         ref = _worship_live_ref_for_scope(scope).document(session_id)
@@ -2441,25 +2535,27 @@ def _update_worship_live_session(
             if not data or float(data.get("expires_epoch") or 0) <= time.time():
                 raise LookupError("Live worship session expired")
             updated = _next_worship_live_state(
-                data, action, requested_index, message=message, duration=duration
+                data, action, requested_index, message=message, duration=duration,
+                lines=lines, title=title, version=version, split_after=split_after,
             )
-            txn.set(
-                ref,
-                {
-                    "current_index": updated["current_index"],
-                    "blank": updated["blank"],
-                    "clear_words": updated["clear_words"],
-                    "stage_message": updated["stage_message"],
-                    "stage_timer_mode": updated["stage_timer_mode"],
-                    "stage_timer_started_epoch": updated["stage_timer_started_epoch"],
-                    "stage_timer_duration": updated["stage_timer_duration"],
-                    "video_action": updated["video_action"],
-                    "video_revision": updated["video_revision"],
-                    "revision": updated["revision"],
-                    "updated_at": firestore.SERVER_TIMESTAMP,
-                },
-                merge=True,
-            )
+            fields = {
+                "current_index": updated["current_index"],
+                "blank": updated["blank"],
+                "clear_words": updated["clear_words"],
+                "stage_message": updated["stage_message"],
+                "stage_timer_mode": updated["stage_timer_mode"],
+                "stage_timer_started_epoch": updated["stage_timer_started_epoch"],
+                "stage_timer_duration": updated["stage_timer_duration"],
+                "video_action": updated["video_action"],
+                "video_revision": updated["video_revision"],
+                "deck_revision": updated["deck_revision"],
+                "revision": updated["revision"],
+                "updated_at": firestore.SERVER_TIMESTAMP,
+            }
+            if updated["deck_revision"] != int(data.get("deck_revision") or 0):
+                fields["slides"] = updated["slides"]
+                fields["slide_count"] = updated["slide_count"]
+            txn.set(ref, fields, merge=True)
             return updated
 
         return _update(transaction)
@@ -2470,7 +2566,8 @@ def _update_worship_live_session(
         if not data or float(data.get("expires_epoch") or 0) <= time.time():
             raise LookupError("Live worship session expired")
         updated = _next_worship_live_state(
-            dict(data), action, requested_index, message=message, duration=duration
+            dict(data), action, requested_index, message=message, duration=duration,
+            lines=lines, title=title, version=version, split_after=split_after,
         )
         _worship_live_memory[(scope, session_id)] = updated
         return dict(updated)
@@ -2487,6 +2584,7 @@ def _public_worship_live_state(data: dict, *, include_stage: bool = False) -> di
         "server_epoch": time.time(),
         "video_action": str(data.get("video_action") or ""),
         "video_revision": max(0, int(data.get("video_revision") or 0)),
+        "deck_revision": max(0, int(data.get("deck_revision") or 0)),
     }
     if include_stage:
         state.update({
@@ -5633,6 +5731,38 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
     return slides
 
 
+def _worship_deck_fingerprint(slides: list[dict]) -> str:
+    """Identify the exact visual deck that a person reviewed."""
+    visual_slides = [
+        {key: value for key, value in slide.items() if key != "note"}
+        for slide in slides
+        if isinstance(slide, dict)
+    ]
+    canonical = json.dumps(visual_slides, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _remember_worship_deck_review(fingerprint: str) -> None:
+    session[_WORSHIP_DECK_REVIEW_SESSION_KEY] = {
+        "scope": _current_worship_scope(),
+        "fingerprint": str(fingerprint or ""),
+        "reviewed_epoch": time.time(),
+    }
+
+
+def _worship_deck_was_reviewed(fingerprint: str) -> bool:
+    review = session.get(_WORSHIP_DECK_REVIEW_SESSION_KEY)
+    if not isinstance(review, dict):
+        return False
+    if review.get("scope") != _current_worship_scope() or review.get("fingerprint") != fingerprint:
+        return False
+    try:
+        age = time.time() - float(review.get("reviewed_epoch") or 0)
+    except (TypeError, ValueError):
+        return False
+    return 0 <= age <= _WORSHIP_DECK_REVIEW_TTL
+
+
 @app.route("/worship/mobile", methods=["GET"])
 def worship_mobile():
     token = request.args.get("token", "").strip()
@@ -5724,7 +5854,9 @@ def worship_mobile_qr():
     return send_file(output, mimetype="image/png", max_age=300)
 
 
-def _worship_live_preflight_warnings(selected_items: list[dict], slides: list[dict]) -> list[str]:
+def _worship_live_preflight_warnings(
+    selected_items: list[dict], slides: list[dict], *, exact_deck_reviewed: bool | None = None
+) -> list[str]:
     """Return short, operator-facing checks without adding network or media probes."""
     unchecked: list[str] = []
     validation_attention: list[str] = []
@@ -5751,6 +5883,8 @@ def _worship_live_preflight_warnings(selected_items: list[dict], slides: list[di
         return f"{label}: {', '.join(visible)}{suffix}."
 
     warnings: list[str] = []
+    if exact_deck_reviewed is False:
+        warnings.append("This exact service order and slide content has not completed slide review.")
     if unchecked:
         warnings.append(describe("Not checked against a second source", unchecked))
     if validation_attention:
@@ -5803,7 +5937,12 @@ def worship_live_start():
         return jsonify({"ok": False, "error": "The selected set has no slides."}), 400
     if len(json.dumps(slides, ensure_ascii=False)) > 750_000:
         return jsonify({"ok": False, "error": "This set is too large for Live Worship. Use a smaller set."}), 400
-    preflight_warnings = _worship_live_preflight_warnings(selected_items, slides)
+    deck_fingerprint = _worship_deck_fingerprint(slides)
+    preflight_warnings = _worship_live_preflight_warnings(
+        selected_items,
+        slides,
+        exact_deck_reviewed=_worship_deck_was_reviewed(deck_fingerprint),
+    )
     if preflight_warnings and request.form.get("confirm_preflight") != "1":
         return jsonify({
             "ok": False,
@@ -5831,6 +5970,7 @@ def worship_live_start():
         "stage_timer_duration": 0,
         "video_action": "",
         "video_revision": 0,
+        "deck_revision": 0,
         "revision": 0,
         "created_by": session.get("user_email", ""),
         "created_at": now.isoformat(),
@@ -5896,9 +6036,9 @@ def _worship_live_capability_from_cookie(
         cookie_names = (_WORSHIP_LIVE_STAGE_COOKIE,)
     else:
         cookie_names = (
-            _WORSHIP_LIVE_VIEW_COOKIE,
             _WORSHIP_LIVE_CONTROL_COOKIE,
             _WORSHIP_LIVE_STAGE_COOKIE,
+            _WORSHIP_LIVE_VIEW_COOKIE,
         )
     for cookie_name in cookie_names:
         token = request.cookies.get(cookie_name, "")
@@ -6179,7 +6319,7 @@ def worship_live_control(session_id):
         )
         return response
     requested_index = None
-    if action == "index":
+    if action in {"index", "edit_slide", "split_slide", "insert_scripture"}:
         try:
             requested_index = int((payload or {}).get("index"))
         except (TypeError, ValueError):
@@ -6191,6 +6331,15 @@ def worship_live_control(session_id):
             duration = int((payload or {}).get("duration") or 300)
         except (TypeError, ValueError):
             return jsonify({"ok": False, "error": "Invalid timer duration."}), 400
+    lines = (payload or {}).get("lines") if action in {"edit_slide", "insert_scripture"} else None
+    title = str((payload or {}).get("title") or "") if action in {"edit_slide", "insert_scripture"} else None
+    version = str((payload or {}).get("version") or "") if action == "insert_scripture" else None
+    split_after = None
+    if action == "split_slide":
+        try:
+            split_after = int((payload or {}).get("split_after"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Choose a valid line to split after."}), 400
     try:
         updated = _update_worship_live_session(
             capability["scope"],
@@ -6199,9 +6348,13 @@ def worship_live_control(session_id):
             requested_index,
             message=message,
             duration=duration,
+            lines=lines,
+            title=title,
+            version=version,
+            split_after=split_after,
         )
-    except ValueError:
-        return jsonify({"ok": False, "error": "Unknown command."}), 400
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc) or "Unknown command."}), 400
     except LookupError:
         return jsonify({"ok": False, "error": "expired"}), 410
     except Exception as exc:
@@ -6413,6 +6566,11 @@ def worship_build():
         flash("Select at least one item to build a deck.", "warning")
         return redirect(url_for("worship"))
     selected_items = _with_effective_worship_backgrounds(selected_items)
+    submitted_review = request.form.get("review_fingerprint", "").strip()
+    if submitted_review:
+        current_review = _worship_deck_fingerprint(_build_worship_mobile_slides(selected_items))
+        if hmac.compare_digest(submitted_review, current_review):
+            _remember_worship_deck_review(current_review)
 
     validation_problems = []
     for item in selected_items:
@@ -6581,7 +6739,31 @@ def worship_deck_review():
         findings=findings,
         crowded_count=len(crowded),
         song_order=",".join(item.get("id", "") for item in selected_items),
+        review_fingerprint=_worship_deck_fingerprint(slides),
     )
+
+
+@app.route("/worship/deck/review-complete", methods=["POST"])
+@login_required
+def worship_deck_review_complete():
+    scope_changed = _worship_scope_changed_response()
+    if scope_changed is not None:
+        return scope_changed
+    selected_items = _resolve_selected_worship_items(
+        request.form.get("song_order", ""), request.form.getlist("song_ids")
+    )
+    if not selected_items:
+        flash("Select at least one item to review.", "warning")
+        return redirect(url_for("worship"))
+    selected_items = _with_effective_worship_backgrounds(selected_items)
+    fingerprint = _worship_deck_fingerprint(_build_worship_mobile_slides(selected_items))
+    submitted = request.form.get("review_fingerprint", "").strip()
+    if not submitted or not hmac.compare_digest(submitted, fingerprint):
+        flash("The service changed during review. Review the updated slides again.", "warning")
+        return redirect(url_for("worship"))
+    _remember_worship_deck_review(fingerprint)
+    flash("This exact service is reviewed and ready to present.", "success")
+    return redirect(url_for("worship"))
 
 
 @app.route("/worship/deck/history", methods=["GET"])

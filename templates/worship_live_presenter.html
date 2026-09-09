@@ -99,6 +99,7 @@
     var blank={{ live.blank|tojson }};
     var clearWords={{ live.clear_words|default(false)|tojson }};
     var revision={{ live.revision|int }};
+    var deckRevision=Number({{ live.deck_revision|default(0)|tojson }})||0;
     var videoRevision=Number({{ live.video_revision|default(0)|tojson }})||0;
     var setup=document.getElementById('wl-setup');
     var blankEl=document.getElementById('wl-blank');
@@ -107,7 +108,7 @@
     var titleEl=document.getElementById('wl-current-title');
     var hud=document.getElementById('wl-hud');
     var footer=document.getElementById('wl-footer');
-    var idleTimer,pollTimer,fitFrame,commandQueue=Promise.resolve(),pendingCommands=0,activeUntil=Date.now()+5000;
+    var idleTimer,pollTimer,fitFrame,commandQueue=Promise.resolve(),pendingCommands=0,activeUntil=Date.now()+1500;
 
     function fitActiveSlide(){
       fitFrame=null;var slide=slides[current];if(!slide)return;
@@ -143,17 +144,17 @@
     function send(action,index){
       if(!canControl)return;
       if(action==='next')render(current+1,blank,clearWords); else if(action==='previous')render(current-1,blank,clearWords); else if(action==='first')render(0,blank,clearWords); else if(action==='last')render(slides.length-1,blank,clearWords); else if(action==='toggle_blank')render(current,!blank,clearWords); else if(action==='toggle_clear')render(current,blank,!clearWords);
-      activeUntil=Date.now()+5000;
+      activeUntil=Date.now()+1500;
       pendingCommands++;
       commandQueue=commandQueue.then(function(){return fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify({action:action,index:index}),credentials:'same-origin'})
         .then(function(r){return r.json();}).then(function(data){if(data.ok){revision=Math.max(revision,Number(data.revision)||0);if(pendingCommands===1)render(data.current_index,data.blank,data.clear_words);connected(true);}else connected(false);});}).catch(function(){connected(false);}).finally(function(){pendingCommands=Math.max(0,pendingCommands-1);});
     }
     function schedulePoll(delay){clearTimeout(pollTimer);if(document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
     function endLocally(){canControl=false;clearTimeout(pollTimer);render(current,true,clearWords);statusEl.classList.add('is-offline');statusEl.textContent='Session ended';}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextRevision=Number(data.revision)||0;if(!pendingCommands&&nextRevision>revision){revision=nextRevision;render(data.current_index,data.blank,data.clear_words);applyVideoAction(data.video_action,data.video_revision);activeUntil=Date.now()+5000;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?200:350);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(1000);});}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextDeckRevision=Number(data.deck_revision)||0;if(nextDeckRevision>deckRevision){window.location.reload();return;}var nextRevision=Number(data.revision)||0;if(!pendingCommands&&nextRevision>revision){revision=nextRevision;render(data.current_index,data.blank,data.clear_words);applyVideoAction(data.video_action,data.video_revision);activeUntil=Date.now()+1500;}connected(true);}else connected(false);schedulePoll(Date.now()<activeUntil?180:800);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(1200);});}
     document.addEventListener('keydown',function(e){if(!setup.hidden&&e.key!=='Escape')return;if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();send('next');}if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();send('previous');}if(e.key==='Home')send('first');if(e.key==='End')send('last');if(e.key==='c'||e.key==='C')send('toggle_clear');if(e.key==='b'||e.key==='B')send('toggle_blank');if(e.key==='f'||e.key==='F')document.getElementById('wl-fullscreen-btn').click();showHud();});
     document.addEventListener('mousemove',showHud);document.addEventListener('click',showHud);window.addEventListener('resize',queueFit);document.addEventListener('fullscreenchange',queueFit);
-    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){activeUntil=Date.now()+5000;poll();}else clearTimeout(pollTimer);});
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){activeUntil=Date.now()+1500;poll();}else clearTimeout(pollTimer);});
     document.getElementById('wl-fullscreen-btn').addEventListener('click',function(){if(document.fullscreenElement){document.exitFullscreen&&document.exitFullscreen();}else{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});}});
     document.getElementById('wl-start-btn').addEventListener('click',function(){setup.hidden=true;document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(function(){});showHud();});
     {% if remote_url %}document.getElementById('wl-remote-btn').addEventListener('click',function(){setup.hidden=false;showHud();});document.getElementById('wl-copy-btn').addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(remoteUrl);this.textContent='Copied';});document.getElementById('wl-stage-copy-btn').addEventListener('click',function(){navigator.clipboard&&navigator.clipboard.writeText(stageUrl);this.textContent='Copied';});document.getElementById('wl-end-btn').addEventListener('click',function(){var btn=this;if(!canControl||!window.confirm('End this Live Worship session for everyone?'))return;fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify({action:'end'})}).then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error();endLocally();btn.disabled=true;}).catch(function(){connected(false);});});{% endif %}

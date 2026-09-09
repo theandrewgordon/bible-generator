@@ -65,15 +65,16 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
     def test_stage_tools_are_disabled_while_a_command_is_in_flight(self):
         self.assertIn("function setSending(value)", self.template)
         self.assertIn(".wr-stage-action,#wr-end", self.template)
-        self.assertIn("stageMessageInput.disabled=sending||ended", self.template)
+        self.assertIn("stageMessageInput.disabled=sending||ended||offlineLocked", self.template)
 
     def test_stale_poll_cannot_overwrite_a_newer_command(self):
         self.assertIn("nextRevision>=revision", self.template)
         self.assertIn("!sending&&nextRevision>=revision", self.template)
 
-    def test_connected_remote_refreshes_quickly_but_errors_back_off(self):
+    def test_connected_remote_refreshes_and_retries_outages_promptly(self):
         self.assertIn("schedulePoll(3000)", self.template)
-        self.assertIn("schedulePoll(8000)", self.template)
+        self.assertIn("Audience not responding", self.template)
+        self.assertIn("draw(confirmed.current,confirmed.blank,confirmed.clearWords)", self.template)
 
     def test_remote_keeps_navigation_reachable_and_active_section_centered(self):
         self.assertIn("position:fixed", self.template)
@@ -97,8 +98,8 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
 
     def test_remote_has_boundary_aware_navigation(self):
         self.assertIn("function updateNavigation()", self.template)
-        self.assertIn("previousBtn.disabled=ended||atStart", self.template)
-        self.assertIn("nextBtn.disabled=ended||atEnd", self.template)
+        self.assertIn("previousBtn.disabled=ended||offlineLocked||atStart", self.template)
+        self.assertIn("nextBtn.disabled=ended||offlineLocked||atEnd", self.template)
         self.assertIn("atStart?'Start of set'", self.template)
         self.assertIn("atEnd?'End of set'", self.template)
 
@@ -147,7 +148,7 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("fd.set('confirm_preflight', '1')", builder)
         self.assertIn("if (!error.cancelled)", builder)
 
-    def test_presenter_and_stage_poll_at_live_control_speed(self):
+    def test_presenter_and_stage_use_fast_active_and_lighter_idle_polling(self):
         presenter = (
             Path(__file__).parents[1] / "templates" / "worship_live_presenter.html"
         ).read_text(encoding="utf-8")
@@ -155,10 +156,18 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
             Path(__file__).parents[1] / "templates" / "worship_live_stage.html"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("schedulePoll(Date.now()<activeUntil?200:350)", presenter)
-        self.assertIn("schedulePoll(350)", stage)
-        self.assertNotIn("schedulePoll(Date.now()<activeUntil?500:1200)", presenter)
-        self.assertNotIn("schedulePoll(1500)", stage)
+        self.assertIn("schedulePoll(Date.now()<activeUntil?180:800)", presenter)
+        self.assertIn("schedulePoll(Date.now()<activeUntil?250:900)", stage)
+        self.assertIn("activeUntil=Date.now()+1500", presenter)
+        self.assertIn("activeUntil=Date.now()+1500", stage)
+
+    def test_remote_has_guarded_emergency_live_edit_tools(self):
+        self.assertIn("Emergency slide tools", self.template)
+        self.assertIn("id=\"wr-update-slide\"", self.template)
+        self.assertIn("id=\"wr-split-slide\"", self.template)
+        self.assertIn("id=\"wr-insert-scripture\"", self.template)
+        self.assertIn("['edit_slide','split_slide','insert_scripture'].includes(action)", self.template)
+        self.assertIn("nextDeckRevision>deckRevision", self.template)
 
     def test_presenter_supports_split_service_slides(self):
         presenter = (
@@ -179,6 +188,9 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("aspect-ratio:16/9", review)
         self.assertIn(".wdr-service-fill", review)
         self.assertIn("@media(max-width:600px)", review)
+        self.assertIn("review_fingerprint", review)
+        self.assertIn("Mark reviewed &amp; return", review)
+        self.assertIn("worship_deck_review_complete", review)
 
 
 if __name__ == "__main__":
