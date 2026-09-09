@@ -6,37 +6,16 @@ Printables{% endblock %} {% block head_extra %}
   content="Printable Bible games for homeschool, family nights, and co-ops. Easy to download, ready to print."
 />
 {% endblock %} {% block content %}
-<h1 class="page-title">Games</h1>
-<p class="muted">
-  Printable Bible games for family time, co-op, and quiet mornings.
-</p>
+<h1 class="page-title">Bible Games</h1>
+<p class="muted">Choose a live game for the whole room or print something for the table.</p>
 
-<section class="game-highlight">
-  <div>
-    <strong>New: Group Games</strong>
-    <p class="muted small">
-      Start Family Bible Bee or Act It Out and let the group join from their phones.
-    </p>
-  </div>
-  <div class="highlight-actions">
-    <a class="button small" href="{{ url_for('act_it_out.hub') }}">Open group games</a>
-  </div>
+<section class="play-format-grid" aria-label="Ways to play">
+  <article class="play-format-card live"><span class="pill info">Live family games</span><h2>Play together on a shared screen</h2><p>Family Game Night and Family Bible Bee use a room code, a TV or computer, and the phones you already own.</p><div><a class="button small" href="{{ url_for('act_it_out.family_game_night') }}">Open Family Game Night</a><a class="button ghost small" href="{{ url_for('bible_bee.home') }}">Open Family Bible Bee</a></div></article>
+  <article class="play-format-card"><span class="pill ok">Print &amp; play</span><h2>Make a game for the table</h2><p>Create an ink-friendly word search or choose a ready-to-print Bible game for a quiet morning, co-op, or class.</p><div><a class="button small" href="{{ url_for('games_create', gameType='word-search') }}">Make a word search</a><a class="button ghost small" href="#printable-games">Browse printables</a></div></article>
 </section>
 
-<section class="game-highlight">
-  <div>
-    <strong>Try a ready-to-print word search</strong>
-    <p class="muted small">
-      Easy printable word searches that focus on a single theme—no prep needed.
-    </p>
-  </div>
-  <div class="highlight-actions">
-    <a class="button small" href="{{ url_for('games_create', gameType='word-search') }}">Start a sample word search</a>
-    <a class="button ghost small" href="{{ url_for('games_create') }}">Customize a game</a>
-  </div>
-</section>
-
-<div class="game-cta">
+<div class="game-cta" id="printable-games">
+  <h2>Printable games</h2>
   <a class="button" href="{{ url_for('games_create') }}">Create a game</a>
 </div>
 
@@ -225,6 +204,7 @@ not is_signed_in %}
 </script>
 
 <style>
+  .play-format-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.25rem 0 2rem}.play-format-card{padding:clamp(1.1rem,3vw,1.6rem);border:1px solid rgba(15,23,42,.1);border-radius:18px;background:var(--box);box-shadow:var(--card-shadow)}.play-format-card.live{background:linear-gradient(145deg,var(--box),color-mix(in srgb,var(--primary) 8%,var(--box)))}.play-format-card h2{margin:.65rem 0 .35rem;font-size:1.3rem}.play-format-card p{margin:.25rem 0 1rem;color:var(--text-secondary)}.play-format-card>div{display:flex;gap:.55rem;flex-wrap:wrap}.game-cta{display:flex;align-items:center;justify-content:space-between;gap:1rem}.game-cta h2{margin:0}@media(max-width:720px){.play-format-grid{grid-template-columns:1fr}.play-format-card>div .button{flex:1}.game-cta{align-items:flex-start;flex-direction:column}}
   .game-cta {
     margin: 0.5rem 0 1rem;
   }

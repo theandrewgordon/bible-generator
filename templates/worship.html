@@ -99,6 +99,8 @@
   .ws-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:0 0 1rem;padding:0;list-style:none}
   .ws-flow li{display:flex;align-items:center;gap:.55rem;padding:.65rem .75rem;border:1px solid #e2e8f0;border-radius:10px;background:var(--box);color:var(--text-secondary);font-size:.8rem;font-weight:700}
   .ws-flow b{display:grid;place-items:center;width:24px;height:24px;flex:0 0 24px;border-radius:999px;background:color-mix(in srgb,var(--primary) 12%,var(--background));color:var(--primary)}
+  .ws-first-service{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 1rem;padding:1rem 1.1rem;border:1px solid color-mix(in srgb,var(--primary) 28%,#dbe4ea);border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 8%,var(--box)),var(--box));box-shadow:var(--card-shadow)}
+  .ws-first-service h2{margin:.1rem 0 .25rem;font-size:1.05rem}.ws-first-service p{margin:0;color:var(--text-secondary);font-size:.86rem;max-width:62ch}.ws-first-service-actions{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;flex:0 0 auto}
   .ws-menu{position:relative}
   .ws-menu>summary,.ws-set-options>summary,.ws-saved-sets>summary{list-style:none;cursor:pointer;font-weight:800;color:var(--text-secondary)}
   .ws-menu>summary::-webkit-details-marker,.ws-set-options>summary::-webkit-details-marker,.ws-saved-sets>summary::-webkit-details-marker{display:none}
@@ -146,7 +148,7 @@
   .ws-tour-footer{display:flex;align-items:center;gap:.75rem;padding:.8rem 1.1rem 1.1rem}.ws-tour-progress{display:flex;gap:.35rem;margin-right:auto}.ws-tour-dot{width:9px;height:9px;padding:0;border:0;border-radius:999px;background:#cbd5e1;cursor:pointer}.ws-tour-dot.is-active{width:24px;background:var(--primary)}
   .ws-tour-footer .ws-btn-primary,.ws-tour-footer .ws-btn-ghost{min-width:94px}
   @media(max-width:640px){
-    .ws-page-head{display:block}.ws-page-actions{justify-content:flex-start;margin-top:.75rem}.ws-link-primary{flex:1;justify-content:center}.ws-flow{grid-template-columns:1fr}.ws-flow li{padding:.5rem .65rem}.ws-menu-panel{left:0;right:auto}.ws-library-tools{margin-left:0}.ws-library-tools .ws-menu-panel{left:auto;right:0}.ws-item-menu .ws-menu-panel{left:auto;right:0}.ws-set-primary-actions{grid-template-columns:1fr}.ws-set-secondary{grid-template-columns:1fr}.ws-church-card>summary:after{content:'Manage'}
+    .ws-page-head{display:block}.ws-page-actions{justify-content:flex-start;margin-top:.75rem}.ws-link-primary{flex:1;justify-content:center}.ws-flow{grid-template-columns:1fr}.ws-flow li{padding:.5rem .65rem}.ws-first-service{align-items:stretch;flex-direction:column}.ws-first-service-actions{justify-content:flex-start}.ws-first-service-actions>*{flex:1;justify-content:center}.ws-menu-panel{left:0;right:auto}.ws-library-tools{margin-left:0}.ws-library-tools .ws-menu-panel{left:auto;right:0}.ws-item-menu .ws-menu-panel{left:auto;right:0}.ws-set-primary-actions{grid-template-columns:1fr}.ws-set-secondary{grid-template-columns:1fr}.ws-church-card>summary:after{content:'Manage'}
     .ws-live-resume{align-items:flex-start;flex-direction:column}.ws-live-resume-actions{width:100%}.ws-live-resume-actions a,.ws-live-resume-actions form{flex:1;text-align:center}.ws-live-resume-actions form button{width:100%}.ws-tour-backdrop{padding:.4rem}.ws-tour{max-height:calc(100vh - .8rem);border-radius:13px}.ws-tour-head,.ws-tour-stage,.ws-tour-footer{padding-left:.75rem;padding-right:.75rem}.ws-tour-footer{flex-wrap:wrap}.ws-tour-progress{width:100%;justify-content:center;order:-1}.ws-tour-footer .ws-btn-primary,.ws-tour-footer .ws-btn-ghost{flex:1}
     .ws-church-card{display:block}
     .ws-church-actions{justify-content:flex-start;margin-top:.75rem}
@@ -178,7 +180,7 @@
 
 {% block content %}
 <div class="ws-page-head">
-  <div><p class="ws-kicker">Sunday workspace</p><h1>Plan Worship</h1><p>Build the service, check the slides, then present.</p></div>
+  <div><p class="ws-kicker">Sunday workspace</p><h1>Plan Worship</h1><p>Build Sunday, check every slide, and run the service from one place.</p></div>
   <div class="ws-page-actions">
     <button type="button" class="ws-btn-ghost" id="worship-tour-btn">Quick tour</button>
     {% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}" class="ws-link-primary">+ New song or slide</a>{% endif %}
@@ -208,6 +210,23 @@
   </section>
 </div>
 <ol class="ws-flow" aria-label="Worship planning steps"><li><b>1</b>Add and arrange</li><li><b>2</b>Review the slides</li><li><b>3</b>Go live or export</li></ol>
+
+{% if not setlists %}<section class="ws-first-service" aria-labelledby="first-service-heading">
+  <div>
+    <p class="ws-kicker">Your first service</p>
+    {% if songs %}
+      <h2 id="first-service-heading">Start with a ready-made outline</h2>
+      <p>We’ll add a balanced starter order from this library. Nothing is saved until you choose Save service.</p>
+    {% else %}
+      <h2 id="first-service-heading">Add the first item to your worship library</h2>
+      <p>Import a song or add Scripture, then Faith Sparks will keep the service order ready for review and presentation.</p>
+    {% endif %}
+  </div>
+  <div class="ws-first-service-actions">
+    {% if songs %}<button type="button" class="ws-btn-primary" id="starter-service-btn">Build starter service</button>{% endif %}
+    {% if worship_church.role in ['owner', 'editor', 'member'] %}<a class="ws-btn-ghost" href="{{ url_for('worship_add') }}">Add first song</a>{% if not songs %}<button type="button" class="ws-btn-ghost" id="first-scripture-btn">Add Scripture</button>{% endif %}{% endif %}
+  </div>
+</section>{% endif %}
 
 {% if active_worship_live %}<aside class="ws-live-resume" aria-label="Active Live Worship session">
   <div><strong>Live Worship is still active</strong><span>{{ active_worship_live.name }} · Slide {{ active_worship_live.current_slide }} of {{ active_worship_live.slide_count }}</span></div>
@@ -496,6 +515,8 @@
   var musicianBtn   = document.getElementById('musician-packet-btn');
   var saveBtn       = document.getElementById('save-setlist-btn');
   var copyLastBtn   = document.getElementById('copy-last-set-btn');
+  var starterServiceBtn = document.getElementById('starter-service-btn');
+  var firstScriptureBtn = document.getElementById('first-scripture-btn');
   var setlistStatus = document.getElementById('setlist-status');
   var setSummaryEl  = document.getElementById('set-summary');
   var setSummaryCountEl = document.getElementById('set-summary-count');
@@ -741,6 +762,7 @@
       });
     });
   }
+  if (firstScriptureBtn && quickScriptureBtn) firstScriptureBtn.addEventListener('click', function () { quickScriptureBtn.click(); });
 
   // ── Set draft persistence (per-library, per-tab session storage) ─────────
 
@@ -1153,6 +1175,31 @@
     syncOrder();
     syncUI();
   }
+
+  function buildStarterService() {
+    var chosen = [];
+    var used = {};
+    function take(category, maximum) {
+      LIBRARY_SONGS.forEach(function (item) {
+        if (chosen.length >= 6 || maximum <= 0 || used[item.id]) return;
+        if (libraryCategory(item.type) !== category) return;
+        used[item.id] = true;
+        chosen.push(item.id);
+        maximum -= 1;
+      });
+    }
+    take('service', 1);
+    take('song', 3);
+    take('scripture', 1);
+    take('presentation', 1);
+    if (!chosen.length) chosen = LIBRARY_SONGS.slice(0, 5).map(function (item) { return item.id; });
+    chosen.forEach(addToSet);
+    setDirty = true;
+    syncUI();
+    if (setListEl && setListEl.children.length) setListEl.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  if (starterServiceBtn) starterServiceBtn.addEventListener('click', buildStarterService);
 
   // ── SortableJS (set only) ─────────────────────────────────────────────────
 

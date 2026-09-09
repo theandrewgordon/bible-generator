@@ -56,6 +56,12 @@ MAX_VERSE_INPUT_LEN = 1200
 MAX_CUSTOM_TEXT_LEN = 2500
 MAX_CUSTOM_TITLE_LEN = 120
 MAX_CUSTOM_PROMPT_LEN = 300
+ANONYMOUS_SAMPLE_LIMIT = 1
+LEARNER_LEVEL_LINES = {
+    "beginner": 5,
+    "growing": 3,
+    "confident": 2,
+}
 
 
 def _safe_local_path(base_dir: str, filename: str, allowed_exts: set[str] | None = None) -> Path | None:
@@ -186,9 +192,13 @@ def generate():
                     default_version_override = meta.get("defaultVersion")
                     clear_storage = False
             email = session.get("user_email")
+            anonymous_mode = not bool(email)
             plan = _get_user_plan(email)
             m_limit, l_limit = _quota_for_plan(plan)
             used_life, used_m = _get_usage(email)
+            if anonymous_mode:
+                used_life = used_m = max(0, int(session.get("anonymous_worksheet_count", 0) or 0))
+                m_limit = l_limit = ANONYMOUS_SAMPLE_LIMIT
 
             def r(limit, used):
                 return None if limit is None else max(0, int(limit) - int(used))
@@ -217,6 +227,7 @@ def generate():
                 collection_slug=col,
                 usage_info=usage_info,
                 proverb_of_day=get_proverb_of_day(),
+                anonymous_mode=anonymous_mode,
             )
 
         payload, payload_mode = get_request_payload()
@@ -236,6 +247,9 @@ def generate():
         custom_title = (payload.get("custom_title") or "").strip()
         selected_version = (payload.get("version") or "web").strip().lower()
         custom_prompt = (payload.get("custom_prompt") or "").strip()
+        learner_level = (payload.get("learner_level") or "growing").strip().lower()
+        if learner_level not in LEARNER_LEVEL_LINES:
+            learner_level = "growing"
         if (
             len(verse_input) > MAX_VERSE_INPUT_LEN
             or len(custom_text) > MAX_CUSTOM_TEXT_LEN
@@ -256,7 +270,14 @@ def generate():
             use_cursive = cursive_raw.lower() in {"on", "true", "1", "yes"}
         else:
             use_cursive = False
-        user_email = session.get("user_email", "anonymous")
+        user_email = (session.get("user_email") or "").strip().lower()
+        anonymous_mode = not bool(user_email)
+        if anonymous_mode and custom_text:
+            msg = "Sign in to make worksheets from your own text. Your first Bible-reference worksheet does not require an account."
+            if request.is_json:
+                return jsonify(error=msg), 403
+            flash(msg, "info")
+            return redirect(url_for("generate"))
         tag_list = [v.strip() for v in re.split(r"[,;\n]+", verse_input) if v.strip()]
         verse_items = []
         for v in tag_list:
@@ -273,8 +294,10 @@ def generate():
             flash("Please enter a verse or custom text to generate.", "warning")
             return redirect(url_for("generate"))
 
-        user_limit = check_rate_limit("worksheet_generate:user", user_email, limit=24, window_seconds=60 * 60)
-        ip_limit = check_rate_limit("worksheet_generate:ip", get_client_ip(), limit=60, window_seconds=60 * 60)
+        client_ip = get_client_ip()
+        rate_identity = user_email or f"anonymous:{client_ip}"
+        user_limit = check_rate_limit("worksheet_generate:user", rate_identity, limit=24, window_seconds=60 * 60)
+        ip_limit = check_rate_limit("worksheet_generate:ip", client_ip, limit=60, window_seconds=60 * 60)
         if not user_limit.allowed or not ip_limit.allowed:
             msg = "You've made several worksheet requests recently. Please wait a bit before creating more."
             if request.is_json:
@@ -303,6 +326,18 @@ def generate():
         is_daily_proverb = False
         if not custom_item and len(verse_items) == 1:
             is_daily_proverb = normalize_slug(verse_items[0]["verse"]) == daily_ref
+
+        if anonymous_mode and not is_daily_proverb:
+            anonymous_used = max(0, int(session.get("anonymous_worksheet_count", 0) or 0))
+            if anonymous_used >= ANONYMOUS_SAMPLE_LIMIT:
+                msg = "Your free sample is ready. Sign in to make more worksheets and keep them in My Prints."
+                if request.is_json:
+                    return jsonify(error=msg, sign_in=url_for("google.login", next=url_for("generate"))), 403
+                flash(msg, "info")
+                return redirect(url_for("google.login", next=url_for("generate")))
+            if len(verse_items) > 1:
+                verse_items = verse_items[:1]
+                flash("The no-account sample creates one worksheet. Sign in to make a bundle.", "info")
 
         generated_target = len(verse_items) + (1 if custom_item else 0)
         user_plan = _get_user_plan(user_email)
@@ -358,7 +393,8 @@ def generate():
                 is_custom = item["is_custom"]
                 text = item.get("text")
                 slug = item["slug"]
-                suffix = "_cursive" if use_cursive else ""
+                level_suffix = "" if learner_level == "growing" else f"_{learner_level}"
+                suffix = ("_cursive" if use_cursive else "") + level_suffix
                 pdf_path = f"output/{slug}_{version}{suffix}.pdf"
                 json_path = f"output/{slug}_{version}.json"
 
@@ -379,7 +415,7 @@ def generate():
                 contexts.append(context)
 
                 existing_path = None
-                if db:
+                if db and user_email:
                     try:
                         existing_stream = (
                             db.collection("worksheets")
@@ -392,7 +428,9 @@ def generate():
                         )
                         doc = next(existing_stream, None)
                         if doc:
-                            filename = doc.to_dict().get("filename")
+                            existing_meta = doc.to_dict() or {}
+                            stored_level = existing_meta.get("learnerLevel") or "growing"
+                            filename = existing_meta.get("filename") if stored_level == learner_level else None
                             if filename:
                                 existing_path = os.path.join("output", filename)
                                 try:
@@ -486,6 +524,8 @@ def generate():
                     data["verse"] = preserve_letter_suffix(ctx["verse"], data.get("verse"))
                     data = normalize_verse_data(data, ctx["verse"], ctx["version"])
                     data["cursive"] = use_cursive
+                    data["handwritingLines"] = LEARNER_LEVEL_LINES[learner_level]
+                    data["learnerLevel"] = learner_level
                     if not data.get("fullVerse"):
                         flash(
                             f"AI response missing fullVerse for {ctx['verse']} ({ctx['version']}); skipping.",
@@ -533,7 +573,7 @@ def generate():
                 ctx["pdf_path"] = pdf_path
                 _record_existing(pdf_path)
 
-                if db:
+                if db and user_email:
                     db.collection("worksheets").add(
                         {
                             "email": user_email,
@@ -542,6 +582,7 @@ def generate():
                             "filename": os.path.basename(pdf_path),
                             "timestamp": firestore.SERVER_TIMESTAMP,
                             "cursive": use_cursive,
+                            "learnerLevel": learner_level,
                             "custom": ctx["is_custom"],
                             **({"text": ctx["text"], "imageIdea": custom_prompt} if ctx["is_custom"] else {}),
                         }
@@ -572,6 +613,12 @@ def generate():
                 _update_usage(user_email, success_count)
         except Exception:
             pass
+        delivered_count = len(bundle_files)
+        if anonymous_mode and delivered_count and not is_daily_proverb:
+            session["anonymous_worksheet_count"] = min(
+                ANONYMOUS_SAMPLE_LIMIT,
+                max(0, int(session.get("anonymous_worksheet_count", 0) or 0)) + delivered_count,
+            )
         session["clear_storage"] = True
 
         if len(items_to_generate) == 1 and last_pdf and os.path.exists(last_pdf):
@@ -788,18 +835,22 @@ def regenerate(filename):
     verse = meta["verse"]
     version = meta["version"]
     use_cursive = meta.get("cursive", False)
+    learner_level = meta.get("learnerLevel") or "growing"
+    if learner_level not in LEARNER_LEVEL_LINES:
+        learner_level = "growing"
     is_custom = meta.get("custom", False)
     original_text = meta.get("text", verse)
     custom_prompt = meta.get("imageIdea", "An open Bible or prayer hands")
     slug = normalize_slug(verse)
-    pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}.pdf"
+    level_suffix = "" if learner_level == "growing" else f"_{learner_level}"
+    pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}{level_suffix}.pdf"
     try:
         if is_custom:
             data = {
                 "verse": verse,
                 "fullVerse": original_text,
                 "traceableVerse": original_text,
-                "handwritingLines": 3,
+                "handwritingLines": LEARNER_LEVEL_LINES[learner_level],
                 "reflectionQuestion": "Why is this meaningful to you?",
                 "imageIdea": custom_prompt,
                 "version": "DIY",
@@ -812,7 +863,12 @@ def regenerate(filename):
                 flash("Verse fetch failed during regeneration.", "error")
                 return redirect(url_for("prints"))
             data = parse_and_clean_json(content)
-            data.update({"version": version.upper(), "cursive": use_cursive})
+            data.update({
+                "version": version.upper(),
+                "cursive": use_cursive,
+                "handwritingLines": LEARNER_LEVEL_LINES[learner_level],
+                "learnerLevel": learner_level,
+            })
         generate_pdf(data, pdf_path, use_cursive=use_cursive)
         if os.path.exists(pdf_path):
             try:

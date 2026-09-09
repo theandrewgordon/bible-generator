@@ -49,6 +49,27 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn(">Review slides</button>", html)
         self.assertIn('id="start-live-btn"', html)
         self.assertIn(">Go live</button>", html)
+        self.assertIn('id="starter-service-btn"', html)
+        self.assertIn("Start with a ready-made outline", html)
+        self.assertIn("function buildStarterService()", html)
+
+    def test_empty_worship_library_points_to_the_first_two_actions(self):
+        church = {"id": "grace", "name": "Grace Church", "role": "owner", "invite_code": "GRACE123"}
+        with worship_app.app.test_request_context("/worship"):
+            html = render_template(
+                "worship.html",
+                songs=[],
+                setlists=[],
+                worship_church=church,
+                worship_churches=[],
+                active_worship_live=None,
+                worship_scripture_versions=[{"id": "web", "label": "WEB"}],
+                legal_acceptance_current=True,
+            )
+
+        self.assertIn("Add the first item to your worship library", html)
+        self.assertIn("Add first song", html)
+        self.assertIn("Add Scripture", html)
 
     def test_secondary_controls_use_progressive_disclosure(self):
         html = self._render_builder()

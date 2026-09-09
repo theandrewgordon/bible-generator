@@ -39,7 +39,7 @@ from faithsparks.services.game_content import (
 )
 from faithsparks.services.game_content_health import load_precomputed_health
 from faithsparks.services.rate_limit import check_rate_limit
-from faithsparks.services.stripe_svc import STRIPE_PRICE_FAMILY_GAME_NIGHT
+from faithsparks.services.stripe_svc import STRIPE_PRICE_FAMILY_GAME_NIGHT, STRIPE_SECRET_KEY, stripe
 from faithsparks.services.users import get_user_doc, has_active_plus, has_family_game_night_access
 from faithsparks.util.request_utils import get_client_ip
 
@@ -1121,7 +1121,7 @@ def family_game_night():
         "family_game_night.html",
         owns_complete_game=owns_complete_game,
         included_with_plus=has_active_plus(user_data),
-        checkout_available=bool(STRIPE_PRICE_FAMILY_GAME_NIGHT),
+        checkout_available=bool(STRIPE_PRICE_FAMILY_GAME_NIGHT and STRIPE_SECRET_KEY and stripe and db),
     )
 
 
@@ -1187,19 +1187,25 @@ def create_family_game_night_room():
     if not rate.allowed:
         return _render_family_setup("Too many rooms were created recently. Please try again later.", 429)
 
-    play_style = (request.form.get("play_style") or "").strip()
-    control_mode = (request.form.get("control_mode") or "hosted").strip()
-    game_mode = (request.form.get("game_mode") or "").strip()
-    difficulty = (request.form.get("difficulty") or "").strip()
-    pace = (request.form.get("pace") or "standard").strip()
-    scoring_style = (request.form.get("scoring_style") or "competitive").strip()
+    owns_complete_game = _owns_family_game_night(email)
+    quick_start = request.form.get("quick_start") == "1"
+
+    play_style = "teams" if quick_start else (request.form.get("play_style") or "").strip()
+    control_mode = "team_auto" if quick_start else (request.form.get("control_mode") or "hosted").strip()
+    game_mode = "mixed" if quick_start else (request.form.get("game_mode") or "").strip()
+    difficulty = "whole_family" if quick_start else (request.form.get("difficulty") or "").strip()
+    pace = "standard" if quick_start else (request.form.get("pace") or "standard").strip()
+    scoring_style = "competitive" if quick_start else (request.form.get("scoring_style") or "competitive").strip()
     include_favorites = request.form.get("include_favorites") == "on"
     category_values = request.form.getlist("categories")
-    categories = {value.strip() for value in category_values if value.strip()}
-    try:
-        round_count = int(request.form.get("round_count", ""))
-    except (TypeError, ValueError):
-        round_count = -1
+    categories = set(FAMILY_CATEGORIES) if quick_start else {value.strip() for value in category_values if value.strip()}
+    if quick_start:
+        round_count = 15 if owns_complete_game else 10
+    else:
+        try:
+            round_count = int(request.form.get("round_count", ""))
+        except (TypeError, ValueError):
+            round_count = -1
 
     errors = []
     if control_mode not in CONTROL_MODES:
@@ -1226,7 +1232,6 @@ def create_family_game_night_room():
     if play_style == "individual" and control_mode in {"couch", "team_auto"}:
         control_mode = "hosted"
 
-    owns_complete_game = _owns_family_game_night(email)
     if not owns_complete_game and (round_count != 10 or game_mode != "mixed" or difficulty != "whole_family" or categories != set(FAMILY_CATEGORIES)):
         return _render_family_setup("The free game includes 10 mixed rounds for the whole family with all categories. Unlock the complete game to customize these choices.", 403)
 

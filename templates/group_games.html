@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
-    <title>Group Games · FaithSparks</title>
+    <title>Family Games · FaithSparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
   </head>
@@ -18,8 +18,9 @@
     </header>
     <main class="bee-home game-hub">
       <section class="home-copy">
-        <h1>Faith Sparks Family Game Night</h1>
-        <p>Laugh together. Learn Scripture. Make memories—with one shared screen and the phones you already own.</p>
+        <span class="section-kicker">Faith Sparks Group Games</span>
+        <h1>Faith Sparks Family Games</h1>
+        <p>Choose a party game or Scripture challenge, then play together with one shared screen and the phones you already own.</p>
       </section>
       <section class="game-pick-grid">
         <a class="game-pick-card" href="{{ url_for('bible_bee.home') }}">
@@ -33,9 +34,9 @@
           <p>Act It, Draw It, Don’t Say It, and Guess It through Bible stories together.</p>
         </a>
         <a class="game-pick-card" href="{{ url_for('act_it_out.draw_it_home') }}">
-          <span>Quick start</span>
+          <span>Classic mode · existing rooms supported</span>
           <strong>Draw It!</strong>
-          <p>Jump straight into the drawing mode while existing game links remain available.</p>
+          <p>Jump straight into the original drawing mode. New families can also find Draw It inside Family Game Night.</p>
         </a>
       </section>
       <section class="how-to-panel group-how" aria-labelledby="group-how-heading">
@@ -46,7 +47,7 @@
         <ol class="how-steps">
           <li>
             <strong>Pick a game</strong>
-            <span>Bible Bee is quiz-style. Act It Out is host-scored. Draw It is phone guessing.</span>
+            <span>Family Bible Bee is quiz-style. Family Game Night mixes acting, drawing, clues, and guessing.</span>
           </li>
           <li>
             <strong>Open TV display</strong>

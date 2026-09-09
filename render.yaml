@@ -13,3 +13,19 @@ services:
         sync: false
       - key: API_BIBLE_IDS
         sync: false
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: FIREBASE_CREDS_JSON
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_FAMILY_GAME_NIGHT
+        sync: false

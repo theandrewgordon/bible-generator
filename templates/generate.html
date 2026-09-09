@@ -23,6 +23,16 @@ SEO (base will add noindex for /generate, but these help sharing/consistency) #}
 {% endblock %} {% block content %}
 <h1 class="page-title">Make a Bible Worksheet</h1>
 
+{% if anonymous_mode %}<aside class="anonymous-sample" aria-label="Free worksheet sample">
+  <div>{% if usage_info.monthly_remaining|int > 0 %}<strong>Your first worksheet is free—no account needed.</strong><p class="muted small">Enter one Bible reference and download the finished PDF. Sign in afterward to make more and save them in My Prints.</p>{% else %}<strong>Your no-account sample has been used.</strong><p class="muted small">Sign in to keep creating, use custom text, and save worksheets in My Prints. Today’s proverb remains free.</p>{% endif %}</div>
+  <a class="button ghost small" href="{{ url_for('google.login', next=url_for('generate')) }}">Sign in</a>
+</aside>{% endif %}
+
+<section class="copywork-rhythm" aria-labelledby="copywork-rhythm-title">
+  <div><strong id="copywork-rhythm-title">This week’s copywork rhythm</strong><p class="muted small" id="copywork-rhythm-copy">Aim for three calm Scripture-writing days. Each finished worksheet counts once.</p></div>
+  <div class="copywork-rhythm-progress"><div class="small" id="copywork-rhythm-count">0 of 3 days</div><div class="copywork-rhythm-bar" aria-hidden="true"><span id="copywork-rhythm-fill"></span></div></div>
+</section>
+
 <div class="generate-hero">
   <div>
     <strong>Need something quick?</strong>
@@ -48,7 +58,7 @@ SEO (base will add noindex for /generate, but these help sharing/consistency) #}
   </div>
 </div>
 
-{# ---------- Usage / Plan Banner ---------- #} {% if usage_info %} {% set m_lim
+{# ---------- Usage / Plan Banner ---------- #} {% if usage_info and not anonymous_mode %} {% set m_lim
 = usage_info.monthly_limit %} {% set m_used = usage_info.monthly_used %} {% if
 m_lim is not none and usage_info.monthly_pct_used >= 70 %}
 <div class="usage-banner" aria-live="polite">
@@ -79,7 +89,7 @@ m_lim is not none and usage_info.monthly_pct_used >= 70 %}
   </div>
   {% endif %}
 </div>
-{% endif %} {% endif %} {% set out_of_quota = usage_info and
+{% endif %} {% endif %} {% set out_of_quota = usage_info and not anonymous_mode and
 usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 %} {% if out_of_quota %}
 <div class="quota-upsell" role="alert">
@@ -147,6 +157,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           New here? Type one verse and press Enter, or tap a quick pick.
         </div>
 
+        <div class="learner-row">
+          <label for="learnerLevel"><strong>Writer level</strong><select id="learnerLevel" name="learner_level"><option value="beginner">Beginning writer</option><option value="growing" selected>Growing writer</option><option value="confident">Confident writer</option></select></label>
+          <p class="muted small" id="learnerHelp">Balanced tracing and writing space for everyday practice.</p>
+        </div>
+
         <div
           id="recentVerses"
           class="recent-verses"
@@ -199,7 +214,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         </button>
       </details>
 
-      <details class="advanced block" id="customBlock">
+      <details class="advanced block" id="customBlock"{% if anonymous_mode %} hidden{% endif %}>
         <summary>Use your own text (optional)</summary>
         <input
           id="customTitle"
@@ -309,7 +324,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
         <summary>Show preview</summary>
         <div class="preview card-lite" aria-live="polite">
           <h3 class="muted">Preview</h3>
-          <div class="preview-card">
+          <div class="preview-sheet">
+            <div class="preview-sheet-title">Bible Copywork Worksheet</div>
             <div class="preview-header">
               <div class="preview-verse" id="previewVerse">—</div>
               <div class="preview-badges">
@@ -317,15 +333,15 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
                 <span class="pill" id="previewCursive" hidden>✍️ Cursive</span>
               </div>
             </div>
-            <div class="preview-body">
-              <div class="preview-lines"></div>
-              <div class="preview-draw">
-                <span class="muted small">Coloring prompt:</span>
-                <div id="previewPrompt" class="muted small">—</div>
-              </div>
+            <div class="preview-section"><strong>Copy this verse</strong><div class="preview-copy-box" id="previewCopy">Your sourced Bible text will appear in the finished PDF.</div></div>
+            <div class="preview-section"><strong>Trace the verse</strong><div class="preview-trace" id="previewTrace">Tracing text</div></div>
+            <div class="preview-section"><strong>Write the verse yourself</strong><div class="preview-writing-lines" id="previewWritingLines"><i></i><i></i><i></i></div></div>
+            <div class="preview-bottom">
+              <div class="preview-section"><strong>Think about this</strong><div class="preview-reflect">A reflection question will appear here.</div></div>
+              <div class="preview-section"><strong>Coloring prompt</strong><div id="previewPrompt" class="muted small">—</div><div class="preview-color-box"></div></div>
             </div>
           </div>
-          <p class="muted micro">Layout preview (not full fidelity).</p>
+          <p class="muted micro">Structural preview. Exact Scripture text and line wrapping appear in the downloaded PDF.</p>
         </div>
       </details>
     </aside>
@@ -356,6 +372,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
   const versionSelect  = document.getElementById('versionSelect');
   const cursiveToggle  = document.getElementById('cursiveToggle');
+  const learnerLevel   = document.getElementById('learnerLevel');
+  const learnerHelp    = document.getElementById('learnerHelp');
   const submitBtn      = document.getElementById('submitBtn');
   const clearBtn       = document.getElementById('clearBtn');
   const toastEl        = document.getElementById('toast');
@@ -372,6 +390,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const previewVersion = document.getElementById('previewVersion');
   const previewCursive = document.getElementById('previewCursive');
   const previewPrompt  = document.getElementById('previewPrompt');
+  const previewCopy    = document.getElementById('previewCopy');
+  const previewTrace   = document.getElementById('previewTrace');
+  const previewWritingLines = document.getElementById('previewWritingLines');
 
   // Hints
   const filenamePreview= document.getElementById('filenamePreview');
@@ -382,6 +403,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const proverbBtn     = document.getElementById('todayProverbBtn');
   const RECENT_KEY     = 'recentVerseList';
   const MAX_RECENT     = 4;
+  const RHYTHM_KEY     = 'faithsparks:copywork-rhythm:v1';
 
   /* ===== Helpers ===== */
   const PRIMARY_VERSIONS = ['NLT','ESV','KJV'];
@@ -544,22 +566,32 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       previewVerse.textContent   = verse;
       previewVersion.textContent = effectiveVersion();
       previewPrompt.textContent  = '—';
+      previewCopy.textContent    = `Exact ${effectiveVersion()} text for ${verse} will appear here.`;
+      previewTrace.textContent   = 'The verse will be formatted in traceable handwriting.';
     } else if (title || body){
       previewVerse.textContent   = title || '(Custom text)';
       previewVersion.textContent = 'Custom';
       previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
+      previewCopy.textContent    = body || 'Your text will appear here.';
+      previewTrace.textContent   = body || 'Tracing text';
     } else {
       previewVerse.textContent   = '—';
       previewVersion.textContent = effectiveVersion();
       previewPrompt.textContent  = '—';
+      previewCopy.textContent    = 'Your sourced Bible text will appear in the finished PDF.';
+      previewTrace.textContent   = 'Tracing text';
     }
+    const lineCounts = {beginner:5, growing:3, confident:2};
+    const lineCount = lineCounts[learnerLevel?.value] || 3;
+    previewWritingLines.innerHTML = Array.from({length:lineCount},()=>'<i></i>').join('');
     previewCursive.hidden = !cursiveToggle.checked;
     document.body.classList.toggle('has-preview-data', Boolean(verse || title || body));
   }
 
   function updateVerseFilenames(){
     const tags = getNormalizedTags();
-    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+    const levelSuffix = learnerLevel?.value && learnerLevel.value !== 'growing' ? `_${learnerLevel.value}` : '';
+    const suffix = (cursiveToggle.checked ? "_cursive" : "") + levelSuffix + ".pdf";
     filenamePreview.textContent = tags.length ? tags.map(v => slug(v) + suffix).join(", ") : "";
     if (zipHint){
       if (tags.length > 1){ zipHint.style.display='block'; zipHint.textContent = `Will download ${tags.length} worksheets together in one file.`; }
@@ -569,7 +601,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
   function updateCustomFilename(){
     const name = (customTitle.value||'').trim() || (customText.value||'').slice(0,24).trim() || 'custom_text';
-    const suffix = cursiveToggle.checked ? "_cursive.pdf" : ".pdf";
+    const levelSuffix = learnerLevel?.value && learnerLevel.value !== 'growing' ? `_${learnerLevel.value}` : '';
+    const suffix = (cursiveToggle.checked ? "_cursive" : "") + levelSuffix + ".pdf";
     customFilename.textContent = `Will create: ${slug(name)}${suffix}`;
   }
 
@@ -650,6 +683,12 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   });
   cursiveToggle.addEventListener('change', ()=>{
     localStorage.setItem('useCursive', cursiveToggle.checked);
+    updateVerseFilenames(); updateCustomFilename(); updatePreview();
+  });
+  learnerLevel?.addEventListener('change', ()=>{
+    const help = {beginner:'Extra writing space for larger, early handwriting.',growing:'Balanced tracing and writing space for everyday practice.',confident:'A compact page for independent writers.'};
+    learnerHelp.textContent = help[learnerLevel.value] || help.growing;
+    localStorage.setItem('learnerLevel', learnerLevel.value);
     updateVerseFilenames(); updateCustomFilename(); updatePreview();
   });
 
@@ -738,6 +777,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       URL.revokeObjectURL(url);
 
       showToast('✅ Worksheet ready');
+      recordCopyworkDay();
 
       // If the API exists, update usage chip immediately
       window.refreshUsageChip?.();
@@ -773,6 +813,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const urlVerses = params.get('v');
     const urlVer    = params.get('version');
     const urlCur    = params.get('cursive') === '1';
+    const savedLearnerLevel = localStorage.getItem('learnerLevel');
+    if (savedLearnerLevel && ['beginner','growing','confident'].includes(savedLearnerLevel)) learnerLevel.value = savedLearnerLevel;
 
     const prefill   = {{ prefill_verse|tojson|default('""') }};
     const defaultVersionOverride = {{ default_version_override|tojson|default('null') }};
@@ -826,6 +868,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
     cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');
     updatePreview();
+    renderCopyworkRhythm();
 
     // Upgrade banner dismissal
     const el = document.getElementById('upgradeCta');
@@ -840,10 +883,64 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       }
     }
   });
+
+  function currentWeekKey(date=new Date()){
+    const copy=new Date(date); copy.setHours(0,0,0,0); const day=(copy.getDay()+6)%7; copy.setDate(copy.getDate()-day); return copy.toISOString().slice(0,10);
+  }
+  function rhythmState(){
+    try{const value=JSON.parse(localStorage.getItem(RHYTHM_KEY)||'{}');return value.week===currentWeekKey()&&Array.isArray(value.days)?value:{week:currentWeekKey(),days:[]};}catch{return {week:currentWeekKey(),days:[]};}
+  }
+  function renderCopyworkRhythm(){
+    const state=rhythmState(); const count=Math.min(3,new Set(state.days).size); const countEl=document.getElementById('copywork-rhythm-count'); const fill=document.getElementById('copywork-rhythm-fill'); const copy=document.getElementById('copywork-rhythm-copy');
+    if(countEl)countEl.textContent=`${count} of 3 days`; if(fill)fill.style.width=`${Math.round(count/3*100)}%`; if(copy&&count>=3)copy.textContent='Rhythm complete. Keep going if another verse would serve your week.';
+  }
+  function recordCopyworkDay(){
+    const state=rhythmState(); const today=new Date().toISOString().slice(0,10); state.days=[...new Set([...state.days,today])]; localStorage.setItem(RHYTHM_KEY,JSON.stringify(state)); renderCopyworkRhythm();
+  }
 </script>
 
 <style>
   /* ==== Page-local polish (uses theme tokens) ==== */
+  .anonymous-sample {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #b7dfd0;
+    border-radius: 14px;
+    background: #effaf5;
+  }
+  .anonymous-sample p { margin: 0.15rem 0 0; }
+  .copywork-rhythm {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 14px;
+    background: var(--box);
+  }
+  .copywork-rhythm p { margin: 0.15rem 0 0; }
+  .copywork-rhythm-progress { min-width: 170px; }
+  .copywork-rhythm-bar { height: 8px; overflow: hidden; border-radius: 999px; background: #dbe6e2; }
+  .copywork-rhythm-bar span { display: block; height: 100%; width: 0; background: var(--primary); transition: width 0.2s ease; }
+  .learner-row { display: grid; grid-template-columns: minmax(140px, 0.65fr) 1fr; gap: 0.8rem; align-items: end; margin-top: 0.75rem; }
+  .learner-row select { display: block; width: 100%; margin-top: 0.25rem; }
+  .learner-row p { margin: 0 0 0.35rem; }
+  .preview-sheet { aspect-ratio: 8.5 / 11; padding: 1rem; background: #fff; border: 1px solid #cbd5e1; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1); color: #1f2937; }
+  .preview-sheet-title { text-align: center; font-weight: 800; font-size: 0.78rem; }
+  .preview-section { margin-top: 0.65rem; }
+  .preview-section strong { display: block; margin-bottom: 0.25rem; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .preview-copy-box, .preview-reflect { min-height: 38px; padding: 0.4rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; }
+  .preview-trace { min-height: 34px; padding: 0.35rem; border-radius: 6px; background: repeating-linear-gradient(#f8fafc 0, #f8fafc 10px, #d8dee7 11px, #f8fafc 12px); font-size: 0.64rem; color: #64748b; }
+  .preview-writing-lines { display: grid; gap: 7px; padding-top: 4px; }
+  .preview-writing-lines i { display: block; height: 1px; background: #9ca3af; }
+  .preview-bottom { display: grid; grid-template-columns: 1fr 1.4fr; gap: 0.5rem; }
+  .preview-color-box { min-height: 72px; border: 1px solid #94a3b8; border-radius: 6px; }
   .grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
@@ -859,6 +956,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     .preview {
       position: static;
     }
+  }
+  @media (max-width: 640px) {
+    .anonymous-sample, .copywork-rhythm { align-items: stretch; flex-direction: column; }
+    .copywork-rhythm-progress { min-width: 0; }
+    .learner-row { grid-template-columns: 1fr; }
   }
   .col-side {
     position: relative;

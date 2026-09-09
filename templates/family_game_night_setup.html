@@ -22,6 +22,12 @@
 
       {% if error %}<p class="setup-error" role="alert">{{ error }}</p>{% endif %}
       {% if is_host_signed_in %}
+        <section class="recommended-game" aria-labelledby="recommended-game-heading">
+          <div><span class="section-kicker">Fastest start</span><h2 id="recommended-game-heading">Play the recommended family game</h2><p>{% if owns_complete_game %}15 mixed rounds{% else %}10 free mixed rounds{% endif %}, Team Play, whole-family difficulty, and standard pacing. You can be in the lobby with one tap.</p></div>
+          <form method="post" action="{{ url_for('act_it_out.create_family_game_night_room') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="quick_start" value="1"><button class="bee-button primary large" type="submit">Start recommended game</button></form>
+        </section>
+        <details class="family-customize">
+          <summary>Customize devices, scoring, length, modes, and difficulty</summary>
         <form class="family-setup-form" method="post" action="{{ url_for('act_it_out.create_family_game_night_room') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <section class="quick-start-presets" aria-labelledby="family-quick-start-heading">
@@ -90,6 +96,7 @@
           {% if not owns_complete_game %}<aside class="free-game-note"><div><strong>You’re setting up the free game</strong><span>10 mixed rounds, all categories, and up to six players. Players never need to buy.</span></div><a href="{{ url_for('act_it_out.family_game_night') }}#complete-game">Unlock customization</a></aside>{% endif %}
           <button class="bee-button primary large setup-submit" type="submit">Create Game Room</button>
         </form>
+        </details>
       {% else %}
         <section class="setup-sign-in"><h2>Ready to host?</h2><p>Only the host needs a Faith Sparks account. Everyone else joins free with the room code.</p><a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('act_it_out.family_game_night_setup')) }}">Sign in to create a room</a></section>
       {% endif %}

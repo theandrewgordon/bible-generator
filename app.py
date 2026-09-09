@@ -8688,7 +8688,6 @@ def worship_setlist_duplicate():
 ## about + healthz moved to public blueprint
 
 @app.route("/generate", methods=["GET", "POST"])
-@login_required
 def generate():
     from faithsparks.views.worksheets import generate as _impl
     return _impl()
