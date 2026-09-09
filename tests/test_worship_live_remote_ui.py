@@ -126,6 +126,25 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("'Item '+(position+1)+' of '+boundaries.length", self.template)
         self.assertIn("' · Slide '+(index-itemStart+1)+' of '+(itemEnd-itemStart+1)", self.template)
 
+    def test_remote_becomes_a_two_column_booth_console_without_extra_requests(self):
+        self.assertIn('class="wr-output"', self.template)
+        self.assertIn('class="wr-controls"', self.template)
+        self.assertIn("@media(min-width:900px)", self.template)
+        self.assertIn("grid-template-columns:minmax(0,1.3fr) minmax(360px,.8fr)", self.template)
+        self.assertIn(".wr-nav{position:sticky", self.template)
+        self.assertIn(".wr-controls{grid-column:2;grid-row:2", self.template)
+        self.assertNotIn("/worship/live/operator/", self.template)
+
+    def test_builder_only_retries_live_start_after_preflight_confirmation(self):
+        builder = (
+            Path(__file__).parents[1] / "templates" / "worship.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("data.preflight_required", builder)
+        self.assertIn("Quick service check", builder)
+        self.assertIn("fd.set('confirm_preflight', '1')", builder)
+        self.assertIn("if (!error.cancelled)", builder)
+
     def test_presenter_and_stage_poll_at_live_control_speed(self):
         presenter = (
             Path(__file__).parents[1] / "templates" / "worship_live_presenter.html"
@@ -155,6 +174,9 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("slide.thumbnail_url", review)
         self.assertIn("slide.background_url", review)
         self.assertIn("slide.is_crowded", review)
+        self.assertIn("aspect-ratio:16/9", review)
+        self.assertIn(".wdr-service-fill", review)
+        self.assertIn("@media(max-width:600px)", review)
 
 
 if __name__ == "__main__":

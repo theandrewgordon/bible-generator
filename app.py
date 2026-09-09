@@ -5724,6 +5724,54 @@ def worship_mobile_qr():
     return send_file(output, mimetype="image/png", max_age=300)
 
 
+def _worship_live_preflight_warnings(selected_items: list[dict], slides: list[dict]) -> list[str]:
+    """Return short, operator-facing checks without adding network or media probes."""
+    unchecked: list[str] = []
+    validation_attention: list[str] = []
+    unapproved: list[str] = []
+    for item in selected_items:
+        normalized = normalize_worship_song(item)
+        if normalized.get("type") != "song":
+            continue
+        title = str(normalized.get("title") or "Untitled item")
+        validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
+        review = normalized.get("review") if isinstance(normalized.get("review"), dict) else {}
+        if not validation:
+            unchecked.append(title)
+        elif validation.get("status") != "verified":
+            validation_attention.append(title)
+        if review.get("status") != "approved":
+            unapproved.append(title)
+
+    def describe(label: str, titles: list[str]) -> str:
+        titles = list(dict.fromkeys(titles))
+        visible = titles[:3]
+        remainder = len(titles) - len(visible)
+        suffix = f" and {remainder} more" if remainder > 0 else ""
+        return f"{label}: {', '.join(visible)}{suffix}."
+
+    warnings: list[str] = []
+    if unchecked:
+        warnings.append(describe("Not checked against a second source", unchecked))
+    if validation_attention:
+        warnings.append(describe("Validation still needs attention", validation_attention))
+    if unapproved:
+        warnings.append(describe("No current human approval", unapproved))
+    crowded_count = sum(
+        1 for slide in slides if slide.get("kind") == "lyric" and slide.get("is_crowded")
+    )
+    if crowded_count:
+        warnings.append(
+            f"{crowded_count} crowded lyric slide{'s' if crowded_count != 1 else ''} should be checked on the presentation screen."
+        )
+    video_count = sum(1 for slide in slides if slide.get("kind") == "video")
+    if video_count:
+        warnings.append(
+            f"{video_count} online video{'s' if video_count != 1 else ''}: test internet, sound, and playback before the service."
+        )
+    return warnings
+
+
 @app.route("/worship/live/start", methods=["POST"])
 @login_required
 def worship_live_start():
@@ -5755,6 +5803,14 @@ def worship_live_start():
         return jsonify({"ok": False, "error": "The selected set has no slides."}), 400
     if len(json.dumps(slides, ensure_ascii=False)) > 750_000:
         return jsonify({"ok": False, "error": "This set is too large for Live Worship. Use a smaller set."}), 400
+    preflight_warnings = _worship_live_preflight_warnings(selected_items, slides)
+    if preflight_warnings and request.form.get("confirm_preflight") != "1":
+        return jsonify({
+            "ok": False,
+            "preflight_required": True,
+            "warnings": preflight_warnings,
+            "error": "Review the quick service check before going live.",
+        }), 409
     scope = _current_worship_scope()
     session_id = secrets.token_urlsafe(18)
     now = datetime.now(timezone.utc)
@@ -5815,6 +5871,7 @@ def worship_live_start():
                 + f"#stage={stage_token}"
             ),
             "expires_in": _WORSHIP_LIVE_TOKEN_TTL,
+            "preflight_warnings": preflight_warnings,
         }
     )
 

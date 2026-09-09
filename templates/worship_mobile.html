@@ -8,7 +8,7 @@
      max-width container, so pin the shell to the viewport for a full-bleed
      slide experience (windowed and fullscreen alike). */
   .wm-shell{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;overflow:hidden;background:var(--background)}
-  .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;padding:.65rem .9rem;border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10;flex:0 0 auto}
+  .wm-topbar{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;padding:max(.65rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) .65rem max(.9rem,env(safe-area-inset-left));border-bottom:1px solid #e2e8f0;background:var(--background);position:sticky;top:0;z-index:10;flex:0 0 auto}
   .wm-title{font-size:1.05rem;font-weight:800;margin:0}
   .wm-sub{margin:.1rem 0 0;color:var(--text-secondary);font-size:.85rem}
   .wm-actions{display:flex;gap:.45rem;flex-wrap:wrap;align-items:center}
@@ -16,18 +16,18 @@
   .wm-link.secondary,.wm-btn.secondary{background:transparent;color:var(--primary)}
   .wm-link:hover,.wm-btn:hover{background:var(--primary-dark);color:#fff}
   .wm-link.secondary:hover,.wm-btn.secondary:hover{background:var(--primary);color:#fff}
-  .wm-stage{position:relative;flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,color-mix(in srgb, var(--primary) 5%, var(--background)) 0%, var(--background) 100%);height:100%;padding-bottom:.35rem;touch-action:pan-x}
+  .wm-stage{position:relative;flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,color-mix(in srgb, var(--primary) 5%, var(--background)) 0%, var(--background) 100%);touch-action:pan-x}
   .wm-stage::-webkit-scrollbar{display:none}
   /* Size slides to the scroll stage (not the viewport): the mobile view renders
      inside base.html's max-width container, so 100vw overflowed the stage and
      pushed cards off-screen on desktop. 100% tracks the stage in every mode. */
-  .wm-slide{scroll-snap-align:start;flex:0 0 100%;min-width:100%;display:flex;align-items:center;justify-content:center;padding:.55rem .55rem .75rem}
-  .wm-card{width:min(760px, 100%);height:calc(100dvh - 7.25rem);border-radius:22px;background:var(--box);box-shadow:0 18px 50px rgba(15,23,42,.16);border:1px solid rgba(148,163,184,.18);padding:1rem .95rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;color:var(--wm-color,var(--text))}
+  .wm-slide{scroll-snap-align:start;scroll-snap-stop:always;flex:0 0 100%;min-width:100%;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:.55rem .55rem .75rem}
+  .wm-card{width:min(760px,100%);height:100%;border-radius:22px;background:var(--box);box-shadow:0 18px 50px rgba(15,23,42,.16);border:1px solid rgba(148,163,184,.18);padding:1rem .95rem;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;color:var(--wm-color,var(--text))}
   .wm-kind{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:.55rem}
-  .wm-song{font-size:1.35rem;line-height:1.08;font-weight:900;margin:0 0 .45rem;max-width:18ch;overflow-wrap:anywhere}
+  .wm-song{font-size:1.35rem;line-height:1.08;font-weight:900;margin:0 0 .45rem;max-width:min(100%,28ch);overflow-wrap:normal;word-break:normal;text-wrap:balance}
   .wm-meta{font-size:.88rem;color:var(--text-secondary);margin:0 0 .85rem}
   .wm-note{font-size:.9rem;line-height:1.32;color:var(--text-secondary);margin:.4rem auto 0;max-width:28ch;padding:.45rem .6rem;border-radius:10px;background:color-mix(in srgb, var(--primary) 6%, transparent)}
-  .wm-lines{font-size:1.65rem;line-height:1.16;font-weight:800;white-space:pre-wrap;max-width:16ch;hyphens:auto;overflow-wrap:anywhere}
+  .wm-lines{width:100%;max-width:min(100%,26ch);padding:0 .35rem;font-size:clamp(1.45rem,4.6vw,var(--wm-lyric-size,2.8rem));line-height:1.16;font-weight:800;white-space:pre-wrap;hyphens:none;overflow-wrap:normal;word-break:normal;text-wrap:wrap}
   .wm-slide--divider .wm-card,.wm-slide--lyric .wm-card,.wm-slide--highlight .wm-card{background-image:linear-gradient(rgba(0,0,0,var(--wm-overlay,0)),rgba(0,0,0,var(--wm-overlay,0))),var(--wm-bg);background-position:center;background-size:cover;background-repeat:no-repeat}
   .wm-slide--divider .wm-kind,.wm-slide--divider .wm-meta,.wm-slide--divider .wm-note,.wm-slide--lyric .wm-kind,.wm-slide--lyric .wm-part,.wm-slide--highlight .wm-kind,.wm-slide--highlight .wm-part{color:color-mix(in srgb,var(--wm-color,#fff) 82%,transparent)}
   .wm-slide--lyric .wm-card{justify-content:center}
@@ -39,38 +39,48 @@
   .wm-service-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .wm-service-shade{position:absolute;inset:0;background:rgba(15,23,42,.48)}
   .wm-service-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%}
-  .wm-service-lines{font-size:1.35rem;line-height:1.3;font-weight:650;white-space:pre-wrap;max-width:30ch}
+  .wm-service-lines{font-size:1.35rem;line-height:1.3;font-weight:650;white-space:pre-wrap;max-width:min(100%,30ch);hyphens:none;overflow-wrap:normal;word-break:normal;text-wrap:wrap}
   .wm-service-split{display:grid;grid-template-columns:1.15fr .85fr;padding:0;text-align:center}
   .wm-service-split .wm-service-photo{position:relative;height:100%;min-width:0}
   .wm-service-split .wm-service-content{padding:1rem}
   .wm-part{font-size:.82rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--primary);margin:0 0 .65rem}
-  .wm-nav{position:absolute;inset:0;display:flex;align-items:stretch;justify-content:space-between;pointer-events:none;z-index:2}
-  .wm-nav-btn{width:24%;min-width:76px;border:none;background:transparent;color:transparent;cursor:pointer;pointer-events:auto}
-  .wm-nav-btn:focus-visible{outline:3px solid var(--primary);outline-offset:-8px}
   .wm-progress-bar{height:4px;background:#e2e8f0;flex:0 0 auto}
   .wm-progress-fill{height:100%;width:0;background:var(--primary);transition:width .18s ease}
-  .wm-footer{padding:.45rem .9rem .65rem;color:var(--text-secondary);font-size:.78rem;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .wm-footer{padding:.4rem max(.7rem,env(safe-area-inset-right)) max(.45rem,env(safe-area-inset-bottom)) max(.7rem,env(safe-area-inset-left));color:var(--text-secondary);font-size:.78rem;flex:0 0 auto;display:grid;grid-template-columns:minmax(76px,auto) minmax(0,1fr) minmax(76px,auto);align-items:center;gap:.55rem;background:var(--background)}
+  .wm-footer-btn{min-height:44px;padding:.45rem .7rem;border:1px solid color-mix(in srgb,var(--primary) 55%,#cbd5e1);border-radius:12px;background:color-mix(in srgb,var(--primary) 7%,var(--background));color:var(--primary);font:inherit;font-weight:850;cursor:pointer;touch-action:manipulation}
+  .wm-footer-btn:disabled{opacity:.38;cursor:default}.wm-footer-btn:not(:disabled):active{transform:scale(.98)}.wm-footer-btn:focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 45%,transparent);outline-offset:2px}
+  .wm-footer-status{min-width:0;text-align:center}
   .wm-progress{font-size:.82rem;font-weight:700;color:var(--text);white-space:nowrap}
-  .wm-progress-song{font-size:.78rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-  .wm-shell.is-fullscreen .wm-topbar,.wm-shell.is-fullscreen .wm-footer{display:none}
-  .wm-shell.is-fullscreen .wm-card{height:calc(100dvh - 1.65rem);border-radius:18px}
-  .wm-shell.is-fullscreen .wm-lines{font-size:2rem}
+  .wm-progress-song{display:block;font-size:.75rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .wm-shell.is-fullscreen .wm-topbar{display:none}
+  .wm-shell.is-fullscreen .wm-card{border-radius:18px}
   @media (min-width: 900px){
-    .wm-card{height:calc(100dvh - 7.05rem)}
     .wm-song{font-size:2rem}
-    .wm-lines{font-size:2.55rem;max-width:18ch}
+    .wm-lines{font-size:clamp(1.8rem,3.2vw,var(--wm-lyric-size,3rem));max-width:min(100%,28ch)}
   }
   @media (max-width: 520px){
     .wm-topbar{align-items:flex-start}
     .wm-sub{display:none}
     .wm-actions{width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:.4rem}
     .wm-link,.wm-btn{min-height:40px;padding:7px 8px;font-size:.8rem}
-    .wm-slide{padding:.35rem .35rem .55rem}
-    .wm-card{height:calc(100dvh - 8.55rem);border-radius:16px;padding:.8rem .65rem}
+    .wm-slide{padding:.35rem .35rem .45rem}
+    .wm-card{border-radius:16px;padding:.8rem .9rem}
     .wm-kind{font-size:.66rem;margin-bottom:.4rem}
     .wm-song{font-size:1.12rem;max-width:20ch}
     .wm-part{font-size:.72rem;margin-bottom:.45rem}
-    .wm-lines{font-size:1.46rem;line-height:1.14;max-width:15ch}
+    .wm-lines{font-size:clamp(1.18rem,6vw,min(1.55rem,var(--wm-lyric-size,2.8rem)));line-height:1.16;max-width:100%;padding:0 .2rem}
+    .wm-slide.is-crowded .wm-lines{font-size:clamp(1.05rem,5.2vw,1.38rem);line-height:1.14}
+    .wm-service-lines{font-size:clamp(1rem,4.8vw,1.25rem)}
+    .wm-footer{grid-template-columns:82px minmax(0,1fr) 82px;gap:.4rem;padding-left:.45rem;padding-right:.45rem}
+    .wm-footer-btn{padding:.4rem .3rem;font-size:.78rem}
+  }
+  @media (orientation:landscape) and (max-height:520px){
+    .wm-topbar{padding-top:.4rem;padding-bottom:.4rem}.wm-sub{display:none}.wm-title{font-size:.92rem}.wm-link,.wm-btn{padding:6px 10px;font-size:.78rem}
+    .wm-slide{padding:.3rem .45rem}.wm-card{border-radius:14px;padding:.55rem 1rem}
+    .wm-kind{font-size:.6rem;margin-bottom:.25rem}.wm-song{font-size:1.08rem;margin-bottom:.25rem}.wm-meta{font-size:.75rem;margin-bottom:.4rem}.wm-part{font-size:.64rem;margin-bottom:.3rem}
+    .wm-lines{font-size:clamp(1.05rem,3.05vw,1.5rem);line-height:1.1;max-width:min(100%,34ch)}.wm-slide.is-crowded .wm-lines{font-size:clamp(.95rem,2.65vw,1.25rem);line-height:1.08}
+    .wm-service-lines{font-size:clamp(.95rem,2.7vw,1.2rem);line-height:1.12}.wm-note{font-size:.72rem;margin-top:.2rem;padding:.3rem .45rem}
+    .wm-footer{padding-top:.25rem;padding-bottom:max(.25rem,env(safe-area-inset-bottom))}.wm-footer-btn{min-height:38px}.wm-progress-song{font-size:.68rem}
   }
 </style>
 {% endblock %}
@@ -94,7 +104,7 @@
 
   <div class="wm-stage" id="wm-stage" tabindex="0" aria-label="Worship slides">
     {% for slide in slides %}
-      <section class="wm-slide wm-slide--{{ slide.kind }}" data-title="{{ slide.title }}">
+      <section class="wm-slide wm-slide--{{ slide.kind }}{% if slide.is_crowded %} is-crowded{% endif %}" data-title="{{ slide.title }}" aria-label="Slide {{ loop.index }} of {{ slides|length }}">
         <div class="wm-card" style="--wm-bg:{% if slide.background_url %}url('{{ slide.background_url }}'){% else %}none{% endif %};--wm-color:{{ slide.font_color or '#fff' }};--wm-overlay:{{ slide.background_overlay or 0 }}">
           {% if slide.kind == 'presentation' %}
             <img class="wm-presentation-image" src="{{ slide.image_url }}" alt="{{ slide.title }} slide {{ slide.source_number }}">
@@ -127,23 +137,17 @@
             <div class="wm-kind">{% if slide.kind == 'highlight' %}Key Point{% else %}Lyrics{% endif %}</div>
             <h2 class="wm-song">{{ slide.title }}</h2>
             <p class="wm-part">{{ slide.part_label }}</p>
-            <div class="wm-lines" style="font-size: clamp({{ (slide.font_size or 48) * 0.04 }}rem, 4.6vw, {{ (slide.font_size or 48) * 0.058 }}rem)">
-              {{ slide.lines | join('\n') }}
-            </div>
+            <div class="wm-lines" style="--wm-lyric-size:{{ (slide.font_size or 48) * 0.058 }}rem">{{ slide.lines | join('\n') }}</div>
           {% endif %}
         </div>
       </section>
     {% endfor %}
-    <div class="wm-nav" aria-hidden="true">
-      <button class="wm-nav-btn" type="button" data-wm-prev tabindex="-1">Previous</button>
-      <button class="wm-nav-btn" type="button" data-wm-next tabindex="-1">Next</button>
-    </div>
   </div>
 
   <div class="wm-footer">
-    <span class="wm-progress" id="wm-progress">1 / {{ slides|length }}</span>
-    <span class="wm-progress-song" id="wm-progress-song"></span>
-    <span style="color:var(--text-secondary);font-size:.75rem;white-space:nowrap">{{ slides|length }} slide{% if slides|length != 1 %}s{% endif %}</span>
+    <button class="wm-footer-btn" type="button" id="wm-previous" aria-label="Previous slide">← Previous</button>
+    <div class="wm-footer-status" aria-live="polite"><span class="wm-progress" id="wm-progress">1 / {{ slides|length }}</span><span class="wm-progress-song" id="wm-progress-song"></span></div>
+    <button class="wm-footer-btn" type="button" id="wm-next" aria-label="Next slide">Next →</button>
   </div>
 </div>
 {% endblock %}
@@ -156,10 +160,14 @@
   var stage = document.getElementById('wm-stage');
   var shell = document.querySelector('.wm-shell');
   var progressFill = document.getElementById('wm-progress-fill');
+  var previousBtn = document.getElementById('wm-previous');
+  var nextBtn = document.getElementById('wm-next');
   var url = window.location.href;
+  var activeIndex = 0;
   function scrollToIndex(idx) {
     if (!stage || !slides.length) return;
     idx = Math.max(0, Math.min(slides.length - 1, idx));
+    activeIndex = idx;
     stage.scrollTo({ left: idx * stage.clientWidth, behavior: 'smooth' });
   }
   function copyUrl() {
@@ -215,8 +223,16 @@
   function updateProgress() {
     if (!stage || !total) return;
     var idx = currentIndex();
+    activeIndex = idx;
     if (progressEl) progressEl.textContent = (idx + 1) + ' / ' + total;
     if (progressFill) progressFill.style.width = (((idx + 1) / total) * 100) + '%';
+    if (previousBtn) previousBtn.disabled = idx === 0;
+    if (nextBtn) nextBtn.disabled = idx === total - 1;
+    slides.forEach(function (slide, index) {
+      slide.setAttribute('aria-hidden', index === idx ? 'false' : 'true');
+      if (index === idx) slide.setAttribute('aria-current', 'true');
+      else slide.removeAttribute('aria-current');
+    });
     if (progressSongEl) {
       var slide = slides[idx];
       progressSongEl.textContent = slide ? (slide.dataset.title || '') : '';
@@ -225,12 +241,19 @@
 
   if (stage) {
     stage.addEventListener('scroll', updateProgress, { passive: true });
-    stage.addEventListener('click', function (e) {
-      if (e.target.closest('[data-wm-prev]')) scrollToIndex(currentIndex() - 1);
-      if (e.target.closest('[data-wm-next]')) scrollToIndex(currentIndex() + 1);
-    });
     updateProgress();
   }
+  if (previousBtn) previousBtn.addEventListener('click', function () { scrollToIndex(activeIndex - 1); });
+  if (nextBtn) nextBtn.addEventListener('click', function () { scrollToIndex(activeIndex + 1); });
+  window.addEventListener('resize', function () {
+    var keepIndex = activeIndex;
+    requestAnimationFrame(function () {
+      if (!stage) return;
+      activeIndex = keepIndex;
+      stage.scrollTo({left: keepIndex * stage.clientWidth, behavior:'auto'});
+      updateProgress();
+    });
+  });
 })();
 </script>
 {% endblock %}

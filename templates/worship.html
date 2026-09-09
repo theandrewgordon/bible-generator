@@ -933,20 +933,34 @@
     fd.append('live_name', currentSetlistName || 'Live Worship');
     startLiveBtn.disabled = true;
     startLiveBtn.textContent = 'Starting…';
-    fetch('/worship/live/start', { method: 'POST', body: fd, credentials: 'same-origin' })
+    function requestStart() {
+      return fetch('/worship/live/start', { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(function (response) {
         return response.json().then(function (data) {
+          if (response.status === 409 && data.preflight_required) {
+            var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+            var message = 'Quick service check\n\n' + warnings.map(function (warning) { return '• ' + warning; }).join('\n') + '\n\nOpen the presenter anyway?';
+            if (!window.confirm(message)) {
+              var cancelled = new Error('Live Worship cancelled.');
+              cancelled.cancelled = true;
+              throw cancelled;
+            }
+            fd.set('confirm_preflight', '1');
+            return requestStart();
+          }
           if (!response.ok || !data.ok) throw new Error(data.error || 'Could not start Live Worship.');
           return data;
         });
-      })
+      });
+    }
+    requestStart()
       .then(function (data) {
         if (popup) popup.location = data.presenter_url;
         else window.location.href = data.presenter_url;
       })
       .catch(function (error) {
         if (popup) popup.close();
-        alert(error.message || 'Could not start Live Worship.');
+        if (!error.cancelled) alert(error.message || 'Could not start Live Worship.');
       })
       .finally(function () {
         startLiveBtn.textContent = 'Go live';

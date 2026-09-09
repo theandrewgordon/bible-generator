@@ -45,6 +45,37 @@ class WorshipMobileViewTests(unittest.TestCase):
         self.assertIn("Copy link", html)
         self.assertIn("song order: holy-forever", html)
         self.assertIn("/static/worship/backgrounds/", html)
+        self.assertIn('id="wm-previous"', html)
+        self.assertIn('id="wm-next"', html)
+        self.assertIn("hyphens:none", html)
+        self.assertIn("(orientation:landscape) and (max-height:520px)", html)
+        self.assertIn('rem">A thousand generations</div>', html)
+        self.assertNotIn("height:calc(100dvh -", html)
+        self.assertIn('aria-label="Slide 1 of 2"', html)
+
+    def test_mobile_layout_keeps_words_intact_and_uses_available_stage_height(self):
+        template = (
+            Path(__file__).parents[1] / "templates" / "worship_mobile.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("flex:1;min-height:0", template)
+        self.assertIn("height:100%", template)
+        self.assertIn("hyphens:none", template)
+        self.assertIn("overflow-wrap:normal", template)
+        self.assertIn(".wm-slide.is-crowded .wm-lines", template)
+        self.assertNotIn("height:calc(100dvh -", template)
+        self.assertNotIn("data-wm-next", template)
+
+    def test_mobile_navigation_preserves_slide_on_resize_and_exposes_controls(self):
+        template = (
+            Path(__file__).parents[1] / "templates" / "worship_mobile.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("var activeIndex = 0", template)
+        self.assertIn("keepIndex * stage.clientWidth", template)
+        self.assertIn("previousBtn.disabled = idx === 0", template)
+        self.assertIn("nextBtn.disabled = idx === total - 1", template)
+        self.assertIn("slide.setAttribute('aria-hidden'", template)
 
     def test_mobile_slides_use_human_part_labels(self):
         slides = app._build_worship_mobile_slides(

@@ -176,6 +176,8 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn("Presenter", html)
         self.assertIn("Remote", html)
         self.assertIn("Stage View", html)
+        self.assertIn("quick service check", html)
+        self.assertIn("two-column booth view", html)
         self.assertIn("C clear words", html)
         self.assertIn("End session", html)
 

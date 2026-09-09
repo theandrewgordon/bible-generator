@@ -111,6 +111,8 @@ class WorshipLiveTests(unittest.TestCase):
             "title": "Sample Song",
             "parts": {"verse1": ["A lyric line"]},
             "arrangement": ["verse1"],
+            "validation": {"status": "verified"},
+            "review": {"status": "approved"},
         }]
         original_resolve = app._resolve_selected_worship_items
         try:
@@ -144,6 +146,63 @@ class WorshipLiveTests(unittest.TestCase):
         )
         stored = next(iter(app._worship_live_memory.values()))
         self.assertEqual(stored["slides"][0]["title"], "Sample Song")
+        self.assertEqual(payload["preflight_warnings"], [])
+
+    def test_live_preflight_warns_before_starting_questionable_service(self):
+        selected = [{
+            "id": "sample",
+            "title": "Unchecked Song",
+            "parts": {"verse1": ["A lyric line"]},
+            "arrangement": ["verse1"],
+        }]
+        original_resolve = app._resolve_selected_worship_items
+        try:
+            app._resolve_selected_worship_items = lambda *_args, **_kwargs: selected
+            with app.app.test_request_context(
+                "/worship/live/start", method="POST", data={"song_order": "sample"}
+            ):
+                g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
+                app.session["user_email"] = "leader@example.com"
+                response, status = app.worship_live_start()
+                payload = response.get_json()
+
+            self.assertEqual(status, 409)
+            self.assertTrue(payload["preflight_required"])
+            self.assertTrue(any("second source" in warning for warning in payload["warnings"]))
+            self.assertTrue(any("human approval" in warning for warning in payload["warnings"]))
+            self.assertFalse(app._worship_live_memory)
+
+            with app.app.test_request_context(
+                "/worship/live/start",
+                method="POST",
+                data={"song_order": "sample", "confirm_preflight": "1"},
+            ):
+                g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
+                app.session["user_email"] = "leader@example.com"
+                confirmed = app.worship_live_start()
+
+            self.assertEqual(confirmed.status_code, 200)
+            self.assertTrue(confirmed.get_json()["ok"])
+            self.assertTrue(app._worship_live_memory)
+        finally:
+            app._resolve_selected_worship_items = original_resolve
+
+    def test_live_preflight_flags_crowded_lyrics_and_online_video(self):
+        items = [{
+            "id": "video",
+            "title": "Welcome video",
+            "type": "video",
+            "video_id": "abcdefghijk",
+        }]
+        slides = [
+            {"kind": "lyric", "is_crowded": True},
+            {"kind": "video"},
+        ]
+
+        warnings = app._worship_live_preflight_warnings(items, slides)
+
+        self.assertTrue(any("crowded lyric slide" in warning for warning in warnings))
+        self.assertTrue(any("online video" in warning for warning in warnings))
 
     def test_active_live_session_returns_fresh_owner_recovery_links(self):
         data = {**self._session_data(), "created_by": "leader@example.com"}
