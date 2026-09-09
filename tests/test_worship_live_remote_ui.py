@@ -133,6 +133,8 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("grid-template-columns:minmax(0,1.3fr) minmax(360px,.8fr)", self.template)
         self.assertIn(".wr-nav{position:sticky", self.template)
         self.assertIn(".wr-controls{grid-column:2;grid-row:2", self.template)
+        self.assertIn("@media(orientation:landscape) and (max-height:600px)", self.template)
+        self.assertIn(".wr-nav-context{display:none}", self.template)
         self.assertNotIn("/worship/live/operator/", self.template)
 
     def test_builder_only_retries_live_start_after_preflight_confirmation(self):
