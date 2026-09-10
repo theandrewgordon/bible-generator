@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -6,7 +7,11 @@ from flask import Blueprint, render_template, redirect, url_for, session, Respon
 from flask_dance.contrib.google import google
 from faithsparks.util.proverb import get_proverb_of_day
 from faithsparks.services.collections import get_collections
-from faithsparks.services.lesson_pack import create_lesson_pack
+from faithsparks.services.lesson_pack import (
+    LESSON_PACK_AGE_PROFILES,
+    LESSON_PACK_VERSIONS,
+    create_lesson_pack,
+)
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.firestore import db
 from faithsparks.services.storage import signed_url_for_path
@@ -23,9 +28,9 @@ def _is_signed_in() -> bool:
     return bool(google.authorized and session.get("user_email"))
 
 
-def _require_login():
+def _require_login(next_url: str | None = None):
     flash("Please sign in to use your lesson packs.", "warning")
-    return redirect(url_for("google.login", next=request.url))
+    return redirect(url_for("google.login", next=next_url or request.url))
 
 
 def _valid_lesson_pack_slug(slug: str) -> bool:
@@ -46,13 +51,15 @@ def _owned_lesson_pack(slug: str) -> dict | None:
             .stream()
         )
         doc = next(docs, None)
-        return doc.to_dict() if doc else None
+        if doc:
+            return doc.to_dict()
+        return {"slug": slug} if slug in session_owned else None
     except Exception as exc:
         try:
             current_app.logger.warning("[%s] lesson pack ownership check failed: %s", getattr(g, "req_id", ""), exc)
         except Exception:
             pass
-        return None
+        return {"slug": slug} if slug in session_owned else None
 
 
 def _remember_lesson_pack_slug(slug: str) -> None:
@@ -76,6 +83,39 @@ def _lesson_pack_storage_paths(owned: dict, slug: str) -> tuple[str | None, str 
 def _lesson_pack_local_paths(slug: str) -> tuple[Path, Path]:
     pack_dir = Path('output') / 'lesson_packs' / slug
     return pack_dir / f'{slug}.pdf', pack_dir / f'{slug}.zip'
+
+
+def _lesson_pack_local_manifest(slug: str) -> dict:
+    manifest_path = Path("output") / "lesson_packs" / slug / f"{slug}-manifest.json"
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _lesson_pack_result_details(owned: dict, slug: str) -> dict:
+    manifest = _lesson_pack_local_manifest(slug)
+    raw_components = owned.get("components") or manifest.get("components") or {}
+    components = raw_components if isinstance(raw_components, dict) else {}
+    normalized_components = {
+        "worksheet": bool(components.get("worksheet", True)),
+        "coloring": bool(components.get("coloring", False)),
+        "word_search": bool(components.get("word_search", True)),
+        "parent_guide": bool(components.get("parent_guide", True)),
+        "combined_pdf": bool(components.get("combined_pdf", owned.get("pdf_storage_path"))),
+    }
+    warnings = owned.get("warnings") or manifest.get("warnings") or []
+    if not isinstance(warnings, list):
+        warnings = []
+    pdf_path, _ = _lesson_pack_local_paths(slug)
+    has_pdf = pdf_path.exists() or bool(owned.get("pdf_storage_path")) or normalized_components["combined_pdf"]
+    return {
+        "components": normalized_components,
+        "status": owned.get("status") or manifest.get("status") or "ready",
+        "warnings": [str(item) for item in warnings if str(item).strip()][:5],
+        "download_format": "PDF" if has_pdf else "ZIP",
+    }
 
 
 def _lesson_pack_artifact_available(owned: dict, slug: str) -> bool:
@@ -136,16 +176,22 @@ def start_here():
 @bp.route('/lesson-pack', methods=['GET', 'POST'])
 def lesson_pack():
     if request.method == 'GET':
+        version_prefill = (request.args.get('version') or 'web').strip().lower()
+        age_prefill = (request.args.get('age') or '6-8').strip()
+        if version_prefill not in LESSON_PACK_VERSIONS:
+            version_prefill = 'web'
+        if age_prefill not in LESSON_PACK_AGE_PROFILES:
+            age_prefill = '6-8'
         return render_template(
             'lesson_pack.html',
             verse_prefill=(request.args.get('verse') or '').strip(),
-            version_prefill=(request.args.get('version') or 'web').strip().lower(),
-            age_prefill=(request.args.get('age') or '6-8').strip(),
+            version_prefill=version_prefill,
+            age_prefill=age_prefill,
+            cursive_prefill=(request.args.get('cursive') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
+            selection_from_url=any(key in request.args for key in ('verse', 'version', 'age', 'cursive')),
+            lesson_pack_signed_in=_is_signed_in(),
             proverb_of_day=get_proverb_of_day(),
         )
-
-    if not _is_signed_in():
-        return _require_login()
 
     verse_input = (request.form.get('verse') or '').strip()
     version = (request.form.get('version') or 'web').strip().lower()
@@ -154,6 +200,12 @@ def lesson_pack():
     if not verse_input:
         flash('Please enter a verse reference.', 'warning')
         return redirect(url_for('public.lesson_pack'))
+    if version not in LESSON_PACK_VERSIONS or age_bracket not in LESSON_PACK_AGE_PROFILES:
+        flash("Choose one of the available versions and age ranges.", "warning")
+        return redirect(url_for(
+            'public.lesson_pack', verse=verse_input, version='web', age='6-8',
+            cursive='1' if use_cursive else None,
+        ))
     if (
         _too_long(verse_input, MAX_LESSON_PACK_VERSE_LEN)
         or _too_long(version, MAX_LESSON_PACK_VERSION_LEN)
@@ -161,6 +213,12 @@ def lesson_pack():
     ):
         flash("Please shorten the lesson pack details and try again.", "warning")
         return redirect(url_for('public.lesson_pack'))
+    if not _is_signed_in():
+        next_url = url_for(
+            'public.lesson_pack', verse=verse_input, version=version, age=age_bracket,
+            cursive='1' if use_cursive else None,
+        )
+        return _require_login(next_url)
 
     user_key = session.get("user_email") or get_client_ip()
     ip_key = get_client_ip()
@@ -178,13 +236,22 @@ def lesson_pack():
             age_bracket=age_bracket,
             use_cursive=use_cursive,
         )
+    except ValueError as exc:
+        flash(str(exc) or "We couldn't build that lesson pack.", 'warning')
+        return redirect(url_for(
+            'public.lesson_pack', verse=verse_input, version=version, age=age_bracket,
+            cursive='1' if use_cursive else None,
+        ))
     except Exception as exc:
         try:
             current_app.logger.exception("[%s] lesson pack creation failed: %s", getattr(g, "req_id", ""), exc)
         except Exception:
             pass
         flash("We couldn't create that lesson pack yet. Please check the verse and try again.", 'warning')
-        return redirect(url_for('public.lesson_pack', verse=verse_input, version=version, age=age_bracket))
+        return redirect(url_for(
+            'public.lesson_pack', verse=verse_input, version=version, age=age_bracket,
+            cursive='1' if use_cursive else None,
+        ))
 
     _remember_lesson_pack_slug(result['slug'])
     return redirect(url_for('public.lesson_pack_result', slug=result['slug']))
@@ -203,13 +270,17 @@ def lesson_pack_result(slug):
     if not _lesson_pack_artifact_available(owned, slug):
         flash('That pack is no longer available. Build a new one below.', 'warning')
         return redirect(url_for('public.lesson_pack'))
-    _, zip_path = _lesson_pack_local_paths(slug)
     title = owned.get('title') or slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
+    details = _lesson_pack_result_details(owned, slug)
     return render_template(
         'lesson_pack_result.html',
         slug=slug,
         title=title,
-        has_coloring=(zip_path.exists() and zip_path.stat().st_size > 50_000),  # rough proxy
+        verse=owned.get('verse') or '',
+        version=str(owned.get('version') or 'web').lower(),
+        age_bracket=owned.get('age_bracket') or '6-8',
+        use_cursive=bool(owned.get('use_cursive')),
+        **details,
     )
 
 

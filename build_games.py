@@ -457,12 +457,18 @@ def generate_word_search_pdf(
     difficulty_note: str | None = None,
     show_word_list: bool = True,
     scripture_versions: List[str] | None = None,
+    allowed_directions: List[Tuple[int, int]] | None = None,
 ) -> None:
     width, height = letter
     margin = 0.6 * inch
     usable_width = width - 2 * margin
     y = height - margin - 10
     c = canvas.Canvas(str(pdf_path), pagesize=letter)
+    c.setTitle(title)
+    c.setAuthor("Faith Sparks Printables")
+    c.setCreator("Faith Sparks")
+    c.setSubject("Printable Bible word-search activity and answer key")
+    c.setKeywords("Faith Sparks, Bible, word search, family discipleship")
     logo_size = 36
 
     def draw_header(title_text: str, subtitle_text: str | None):
@@ -537,7 +543,14 @@ def generate_word_search_pdf(
     c.setFont("Helvetica-Bold", 8.8)
     c.drawString(margin + 10, y - 12, "Directions:")
     c.setFont("Helvetica", 9)
-    c.drawString(margin + 72, y - 12, "Find each word. Words may go forward, backward, or diagonal.")
+    direction_set = set(allowed_directions or [])
+    if direction_set and direction_set.issubset({(1, 0), (0, 1)}):
+        direction_copy = "Find each word. Words go forward, across or down."
+    elif direction_set and direction_set.issubset({(1, 0), (-1, 0), (0, 1), (0, -1)}):
+        direction_copy = "Find each word. Words go across or down, forward or backward."
+    else:
+        direction_copy = "Find each word. Words may go forward, backward, or diagonal."
+    c.drawString(margin + 72, y - 12, direction_copy)
     y -= directions_h + 4
     if print_tip:
         c.setFont("Helvetica", 7.5)
@@ -559,7 +572,10 @@ def generate_word_search_pdf(
 
     rng = random.Random(title)
     grid = [["" for _ in range(size)] for _ in range(size)]
-    directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+    all_directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+    directions = [direction for direction in (allowed_directions or all_directions) if direction in all_directions]
+    if not directions:
+        directions = all_directions
     clean_words = []
     seen = set()
     for raw in words:
@@ -611,7 +627,7 @@ def generate_word_search_pdf(
         list_rows = int(math.ceil(len(display_words) / list_cols))
         line_h = 11
         label_h = 13
-        list_box_h = max(50, label_h + 14 + list_rows * line_h)
+        list_box_h = max(62, label_h + 27 + list_rows * line_h)
         list_box_bottom = list_box_top - list_box_h
         c.setFillColorRGB(1, 1, 1)
         c.setStrokeGray(0.84)
@@ -622,13 +638,13 @@ def generate_word_search_pdf(
         c.setFillGray(0)
         _draw_section_label(c, margin + 4, list_box_top, "Word list")
         c.setFont("Helvetica-Bold", 9)
-        c.drawString(margin + 12, list_box_top - 16, f"Find these words ({len(display_words)}):")
+        c.drawString(margin + 12, list_box_top - 30, f"Find these words ({len(display_words)}):")
         c.setFont("Helvetica", 8.8)
         col_gap = 0.32 * inch
         col_width = (usable_width - 24 - (col_gap * (list_cols - 1))) / list_cols
         max_word_width = col_width - 6
         left_x = margin + 12
-        y_cursor = list_box_top - 28
+        y_cursor = list_box_top - 43
         for idx, word in enumerate(display_words):
             col = idx % list_cols
             row = idx // list_cols

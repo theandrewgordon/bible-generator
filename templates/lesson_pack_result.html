@@ -8,23 +8,36 @@
     <h1 class="page-title">Your lesson pack is ready</h1>
     <p class="muted">{{ title }}</p>
 
+    {% if status == 'partial' %}
+    <div class="lpr-warning" role="alert">
+      <strong>Most of your pack is ready.</strong>
+      {% for warning in warnings %}<div>{{ warning }}</div>{% endfor %}
+      <div>You can download what is ready now or rebuild to retry the missing piece.</div>
+    </div>
+    {% elif status == 'complete' %}
+    <div class="lpr-ready" role="status">All four learning pieces passed their file checks.</div>
+    {% else %}
+    <div class="lpr-ready" role="status">Your saved pack is available. Component-level checks were added after this pack was created.</div>
+    {% endif %}
+
     <div class="lpr-actions">
       <a class="button primary" href="{{ url_for('public.lesson_pack_download', slug=slug) }}">
-        Download pack (PDF)
+        Download pack ({{ download_format }})
       </a>
+      <a class="button ghost" href="{{ url_for('public.lesson_pack', verse=verse, version=version, age=age_bracket, cursive=('1' if use_cursive else None)) }}">Rebuild this pack</a>
       <a class="button ghost" href="{{ url_for('public.lesson_pack') }}">Build another</a>
       <a class="button ghost" href="{{ url_for('prints') }}">See in My Prints</a>
     </div>
 
     <div class="lpr-contents card flat mt-4">
       <div class="settings-owner-section-title" style="font-size:0.9rem;font-weight:700;margin-bottom:0.5rem;">What's inside</div>
-      <ul>
-        <li>Worksheet with tracing and reflection</li>
-        {% if has_coloring %}<li>Coloring page</li>{% endif %}
-        <li>Word search built from the theme</li>
-        <li>Parent guide PDF with a 5-day mini plan</li>
-      </ul>
-      <p class="field-hint mt-2">The download link stays active until the server restarts. Bookmark this page or download now. If the PDF isn’t available yet, we’ll fall back to the ZIP.</p>
+      <div class="lpr-components">
+        <div class="lpr-component {{ 'is-ready' if components.worksheet else 'is-missing' }}"><span>{{ '✓' if components.worksheet else '!' }}</span><div><strong>Copywork worksheet</strong><small>Age-sized writing space and reflection</small></div></div>
+        <div class="lpr-component {{ 'is-ready' if components.coloring else 'is-missing' }}"><span>{{ '✓' if components.coloring else '!' }}</span><div><strong>Coloring page</strong><small>{{ 'Ready to print' if components.coloring else 'Unavailable in this build' }}</small></div></div>
+        <div class="lpr-component {{ 'is-ready' if components.word_search else 'is-missing' }}"><span>{{ '✓' if components.word_search else '!' }}</span><div><strong>Word search + answer key</strong><small>Difficulty matched to {{ age_bracket }}</small></div></div>
+        <div class="lpr-component {{ 'is-ready' if components.parent_guide else 'is-missing' }}"><span>{{ '✓' if components.parent_guide else '!' }}</span><div><strong>Five-day family guide</strong><small>Conversation, activity, memory, and prayer prompts</small></div></div>
+      </div>
+      <p class="field-hint mt-2">This pack is saved in My Prints. PDF is preferred when every page can be combined safely; ZIP remains available as a complete file bundle fallback.</p>
     </div>
   </div>
 </section>
@@ -60,6 +73,8 @@
     margin: 0.25rem 0 0;
     padding-left: 1.2rem;
   }
+  .lpr-ready,.lpr-warning{margin-top:1rem;padding:.8rem .9rem;border-radius:12px;font-size:.9rem}.lpr-ready{background:#ecfdf5;border:1px solid #86efac;color:#166534}.lpr-warning{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}.lpr-warning strong{display:block;margin-bottom:.25rem}
+  .lpr-components{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-top:.7rem}.lpr-component{display:flex;align-items:flex-start;gap:.65rem;padding:.75rem;border-radius:11px;border:1px solid rgba(15,23,42,.1)}.lpr-component>span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;font-weight:900}.lpr-component.is-ready>span{background:#dcfce7;color:#166534}.lpr-component.is-missing>span{background:#ffedd5;color:#9a3412}.lpr-component strong,.lpr-component small{display:block}.lpr-component small{margin-top:.15rem;color:var(--muted);line-height:1.3}
   .kicker {
     display: inline-flex;
     margin: 0 0 0.4rem;
@@ -82,17 +97,6 @@
   .flat {
     box-shadow: none;
   }
+  @media(max-width:640px){.lpr-actions{display:grid;grid-template-columns:1fr}.lpr-actions .button{text-align:center;width:100%}.lpr-components{grid-template-columns:1fr}}
 </style>
-
-<script>
-  // Auto-trigger the download once on page load
-  (function () {
-    const a = document.createElement('a');
-    a.href = {{ url_for('public.lesson_pack_download', slug=slug) | tojson }};
-    a.download = '';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  })();
-</script>
 {% endblock %}

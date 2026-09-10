@@ -11,11 +11,18 @@
       The theme is inferred automatically.
     </p>
 
-    <form method="post" class="lesson-pack__form">
+    {% if not lesson_pack_signed_in %}
+    <div class="lesson-pack__notice" role="note">
+      <strong>Sign in is required to build a pack.</strong>
+      Choose your options first; they will be preserved through sign-in.
+    </div>
+    {% endif %}
+
+    <form method="post" class="lesson-pack__form" id="lesson-pack-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <label>
         Verse reference
-        <input type="text" name="verse" value="{{ verse_prefill }}" placeholder="Enter a verse reference" autofocus />
+        <input type="text" name="verse" value="{{ verse_prefill }}" placeholder="Enter a verse reference" maxlength="120" required autofocus />
         <span class="muted small">Example: John 3:16</span>
       </label>
 
@@ -23,32 +30,38 @@
         <label>
           Version
           <select name="version" data-version-select>
-            <option value="nlt">NLT</option>
-            <option value="esv">ESV</option>
-            <option value="kjv">KJV</option>
-            <option value="web" selected>WEB (World English)</option>
+            <option value="nlt" {% if version_prefill == 'nlt' %}selected{% endif %}>NLT</option>
+            <option value="esv" {% if version_prefill == 'esv' %}selected{% endif %}>ESV</option>
+            <option value="kjv" {% if version_prefill == 'kjv' %}selected{% endif %}>KJV</option>
+            <option value="web" {% if version_prefill == 'web' %}selected{% endif %}>WEB (World English)</option>
           </select>
         </label>
 
         <label>
           Age range
           <select name="age_bracket" data-age-select>
-            <option value="3-5">3–5</option>
-            <option value="6-8">6–8</option>
-            <option value="9-10">9–10</option>
-            <option value="10+">10+</option>
+            <option value="3-5" {% if age_prefill == '3-5' %}selected{% endif %}>3–5</option>
+            <option value="6-8" {% if age_prefill == '6-8' %}selected{% endif %}>6–8</option>
+            <option value="9-10" {% if age_prefill == '9-10' %}selected{% endif %}>9–10</option>
+            <option value="10+" {% if age_prefill == '10+' %}selected{% endif %}>10+</option>
           </select>
+          <span class="muted small" id="lesson-pack-age-note"></span>
         </label>
       </div>
 
       <label class="lesson-pack__checkbox">
-        <input type="checkbox" name="use_cursive" data-cursive-check />
+        <input type="checkbox" name="use_cursive" data-cursive-check {% if cursive_prefill %}checked{% endif %} />
         Use cursive tracing on the worksheet
       </label>
 
       <div class="cta-row">
-        <button class="button primary" type="submit">Build my pack</button>
+        <button class="button primary" type="submit" id="lesson-pack-submit">{{ 'Build my pack' if lesson_pack_signed_in else 'Sign in to build' }}</button>
         <a class="button ghost" href="{{ url_for('generate') }}">Just make a worksheet</a>
+      </div>
+      <p class="lesson-pack__time muted small">A new pack usually takes 1–3 minutes. Keep this page open while the four printable pieces are prepared.</p>
+      <div class="lesson-pack__progress" id="lesson-pack-progress" role="status" aria-live="polite" hidden>
+        <span class="lesson-pack__spinner" aria-hidden="true"></span>
+        <span id="lesson-pack-progress-text">Preparing your Scripture and age settings…</span>
       </div>
     </form>
 
@@ -106,6 +119,20 @@
     gap: 0.9rem;
     margin-top: 1rem;
   }
+  .lesson-pack__notice {
+    margin-top: 1rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary) 8%, var(--box));
+    color: var(--text);
+  }
+  .lesson-pack__notice strong { display: block; margin-bottom: 0.15rem; }
+  .lesson-pack__time { margin: -0.25rem 0 0; }
+  .lesson-pack__progress { display: flex; align-items: center; gap: 0.65rem; padding: 0.8rem 0.9rem; border-radius: 12px; background: color-mix(in srgb, var(--primary) 9%, var(--box)); font-weight: 700; }
+  .lesson-pack__progress[hidden] { display: none; }
+  .lesson-pack__spinner { width: 18px; height: 18px; flex: 0 0 auto; border: 3px solid color-mix(in srgb, var(--primary) 25%, transparent); border-top-color: var(--primary); border-radius: 50%; animation: lesson-pack-spin .8s linear infinite; }
+  @keyframes lesson-pack-spin { to { transform: rotate(360deg); } }
   .lesson-pack__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -152,6 +179,12 @@
     margin: 0.5rem 0 0;
     padding-left: 1.2rem;
   }
+  @media (max-width: 560px) {
+    .lesson-pack__hero, .lesson-pack__card { padding: 1rem; }
+    .lesson-pack .cta-row { display: grid; grid-template-columns: 1fr; }
+    .lesson-pack .cta-row .button, .lesson-pack__quick .button { width: 100%; text-align: center; }
+    .lesson-pack__quick { display: grid; grid-template-columns: 1fr; }
+  }
 </style>
 
 <script>
@@ -159,18 +192,59 @@
     const versionSelect = document.querySelector('[data-version-select]');
     const ageSelect = document.querySelector('[data-age-select]');
     const cursiveCheck = document.querySelector('[data-cursive-check]');
+    const selectionFromUrl = {{ selection_from_url|tojson }};
+    const hasOption = (select, value) => Array.from(select.options).some((option) => option.value === value);
     if (versionSelect) {
-      versionSelect.value = localStorage.getItem('preferredVersion') || '{{ version_prefill }}';
+      const savedVersion = localStorage.getItem('preferredVersion');
+      if (!selectionFromUrl && savedVersion && hasOption(versionSelect, savedVersion)) versionSelect.value = savedVersion;
       versionSelect.addEventListener('change', () => localStorage.setItem('preferredVersion', versionSelect.value));
     }
     if (ageSelect) {
-      ageSelect.value = localStorage.getItem('lessonPackAge') || '{{ age_prefill }}';
+      const savedAge = localStorage.getItem('lessonPackAge');
+      if (!selectionFromUrl && savedAge && hasOption(ageSelect, savedAge)) ageSelect.value = savedAge;
       ageSelect.addEventListener('change', () => localStorage.setItem('lessonPackAge', ageSelect.value));
     }
     if (cursiveCheck) {
-      cursiveCheck.checked = localStorage.getItem('lessonPackCursive') === '1';
+      if (!selectionFromUrl) cursiveCheck.checked = localStorage.getItem('lessonPackCursive') === '1';
       cursiveCheck.addEventListener('change', () => localStorage.setItem('lessonPackCursive', cursiveCheck.checked ? '1' : '0'));
     }
+    const ageNotes = {
+      '3-5': 'Larger writing space and an 8×8 right-or-down word search.',
+      '6-8': 'More writing practice and a 10×10 forward-or-backward word search.',
+      '9-10': 'Deeper reflection and a 12×12 word search in every direction.',
+      '10+': 'Context study, fewer handwriting lines, and a 14×14 challenge.'
+    };
+    const ageNote = document.getElementById('lesson-pack-age-note');
+    function updateAgeNote() { if (ageNote && ageSelect) ageNote.textContent = ageNotes[ageSelect.value] || ''; }
+    if (ageSelect) ageSelect.addEventListener('change', updateAgeNote);
+    updateAgeNote();
+
+    const form = document.getElementById('lesson-pack-form');
+    const submit = document.getElementById('lesson-pack-submit');
+    const progress = document.getElementById('lesson-pack-progress');
+    const progressText = document.getElementById('lesson-pack-progress-text');
+    if (form) form.addEventListener('submit', (event) => {
+      if (submit.disabled) {
+        event.preventDefault();
+        return;
+      }
+      submit.disabled = true;
+      submit.setAttribute('aria-disabled', 'true');
+      submit.textContent = {{ ('Building your pack…' if lesson_pack_signed_in else 'Opening sign in…')|tojson }};
+      progress.hidden = false;
+      if (!{{ lesson_pack_signed_in|tojson }}) {
+        progressText.textContent = 'Saving your choices for sign in…';
+        return;
+      }
+      const messages = [
+        'Preparing your Scripture and age settings…',
+        'Building the worksheet and family guide…',
+        'Creating the coloring page and word search…',
+        'Checking and packaging every printable…'
+      ];
+      let index = 0;
+      window.setInterval(() => { index = Math.min(index + 1, messages.length - 1); progressText.textContent = messages[index]; }, 12000);
+    });
   })();
 </script>
 {% endblock %}
