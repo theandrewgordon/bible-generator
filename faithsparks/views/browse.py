@@ -1,7 +1,8 @@
 import os
-from datetime import datetime, timezone, timedelta
+import threading
+import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
 
 from urllib.parse import urlparse
 
@@ -17,6 +18,10 @@ from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 
 
 bp = Blueprint("browse_views", __name__)
+MEMBER_PLANS = {"family", "classroom", "plus", "plus_family", "plus_classroom"}
+PRICE_CACHE_SECONDS = 10 * 60
+_price_cache: dict[str, tuple[float, dict | None]] = {}
+_price_cache_lock = threading.Lock()
 
 
 def _safe_pack_path(filename: str):
@@ -31,7 +36,7 @@ def _safe_pack_path(filename: str):
 
 
 def _is_public_browse_enabled() -> bool:
-    return os.getenv("PUBLIC_BROWSE", "0") in ("1", "true", "True", "yes", "on")
+    return os.getenv("PUBLIC_BROWSE", "1") in ("1", "true", "True", "yes", "on")
 
 
 def _is_admin_email(email: str) -> bool:
@@ -42,20 +47,70 @@ def _is_admin_email(email: str) -> bool:
     return (email or "").lower() in allowed
 
 
+def _effective_price_id(meta: dict) -> str | None:
+    price_id = str(meta.get("priceId") or "").strip()
+    if not price_id:
+        price_id = os.getenv("STRIPE_DEFAULT_PACK_PRICE", "").strip()
+    return price_id or None
+
+
+def _price_meta(price_id: str | None) -> dict | None:
+    if not (price_id and stripe and STRIPE_SECRET_KEY):
+        return None
+    now = time.monotonic()
+    with _price_cache_lock:
+        cached = _price_cache.get(price_id)
+        if cached and now - cached[0] < PRICE_CACHE_SECONDS:
+            return cached[1]
+    try:
+        price = stripe.Price.retrieve(price_id)
+        result = {
+            "amount": (price.get("unit_amount") or 0) / 100.0,
+            "currency": (price.get("currency") or "usd").upper(),
+        }
+    except Exception:
+        result = None
+    with _price_cache_lock:
+        _price_cache[price_id] = (now, result)
+    return result
+
+
+def _bundle_has_download(meta: dict) -> bool:
+    prewarm = meta.get("prewarm") if isinstance(meta.get("prewarm"), dict) else {}
+    local_path = Path("output") / "packs" / f"{meta.get('slug', '')}.zip"
+    return bool(meta.get("zipUrl") or prewarm.get("status") == "done" or local_path.exists())
+
+
+def _bundle_access(meta: dict, user_doc: dict | None = None) -> dict:
+    user_doc = user_doc if isinstance(user_doc, dict) else {}
+    slug = str(meta.get("slug") or "")
+    is_free = bool(meta.get("isFree"))
+    is_member = bool(user_doc.get("isPro") or user_doc.get("plan") in MEMBER_PLANS)
+    purchased = bool((user_doc.get("purchases") or {}).get(slug))
+    entitled = bool(is_free or is_member or purchased)
+    price_id = _effective_price_id(meta)
+    return {
+        "is_free": is_free,
+        "is_member": is_member,
+        "purchased": purchased,
+        "entitled": entitled,
+        "locked": not entitled,
+        "price_id": price_id,
+        "can_buy": bool(not entitled and price_id),
+        "has_download": _bundle_has_download(meta),
+        "can_download": bool(entitled and _bundle_has_download(meta)),
+    }
+
+
 def browse():
     if not _is_public_browse_enabled() and not google.authorized:
         return redirect(url_for("google.login", next=request.url))
-    items = []
-    if db and google.authorized:
-        user_email = session.get("user_email")
-        recent = (
-            db.collection("worksheets")
-            .where(filter=firestore.FieldFilter("email", "==", user_email))
-            .order_by("timestamp", direction=firestore.Query.DESCENDING)
-            .limit(24)
-            .stream()
-        )
-        items = [doc.to_dict() for doc in recent]
+    user_doc = {}
+    if db and google.authorized and session.get("user_email"):
+        try:
+            user_doc = get_user_doc(session.get("user_email")) or {}
+        except Exception:
+            user_doc = {}
     is_admin = _is_admin_email(session.get("user_email"))
     col_items = get_collections(show_all=is_admin)
     col_items = [c for c in col_items if (c.get("kind") or "bundle") == "bundle"]
@@ -66,32 +121,23 @@ def browse():
             "title": c.get("displayTitle") or c["title"],
             "displayTitle": c.get("displayTitle") or c["title"],
             "count": c.get("count") or len(c["verses"]),
+            "sampleVerse": (c.get("verses") or [""])[0],
             "zipUrl": c.get("zipUrl"),
             "isFree": c.get("isFree"),
             "isSubscriberOnly": c.get("isSubscriberOnly"),
             "priceId": c.get("priceId"),
             "searchText": c.get("searchText") or "",
+            "description": c.get("description") or "",
+            "ageRange": c.get("ageRange") or "Ages 6-10",
+            "skills": c.get("skills") or [],
+            "useCases": c.get("useCases") or [],
+            "previewImages": c.get("previewImages") or [],
+            "prewarm": c.get("prewarm") or {},
+            "access": _bundle_access(c, user_doc),
         }
         for c in col_items
     ]
-    if stripe and STRIPE_SECRET_KEY:
-        seen: Dict[str, dict] = {}
-        for c in collections:
-            pid = c.get("priceId")
-            if not pid:
-                continue
-            if pid in seen:
-                c["priceMeta"] = seen[pid]
-                continue
-            try:
-                p = stripe.Price.retrieve(pid)
-                meta = {"amount": (p.get("unit_amount") or 0) / 100.0, "currency": (p.get("currency") or "usd").upper()}
-                c["priceMeta"] = meta
-                seen[pid] = meta
-            except Exception:
-                c["priceMeta"] = None
     top_packs = []
-    top_packs_week = []
     if db:
         try:
             doc = db.collection("analytics").document("packs").get()
@@ -102,31 +148,21 @@ def browse():
                 for slug, cnt in sorted_slugs[:6]:
                     meta = by_slug.get(slug)
                     if meta:
-                        top_packs.append({"slug": slug, "title": meta.get("displayTitle") or meta["title"], "downloads": cnt, "zipUrl": meta.get("zipUrl"), "isFree": meta.get("isFree"), "count": meta.get("count") or len(meta.get("verses") or [])})
+                        top_packs.append({
+                            "slug": slug,
+                            "title": meta.get("displayTitle") or meta["title"],
+                            "downloads": cnt,
+                            "zipUrl": meta.get("zipUrl"),
+                            "isFree": meta.get("isFree"),
+                            "count": meta.get("count") or len(meta.get("verses") or []),
+                        })
         except Exception:
             pass
-        try:
-            by_slug = {c["slug"]: c for c in collections}
-            agg: Dict[str, int] = {}
-            today = datetime.now(timezone.utc).date()
-            for i in range(7):
-                d = (today - timedelta(days=i)).strftime("%Y%m%d")
-                dd = db.collection("analytics_daily").document(f"packs_{d}").get()
-                if dd.exists:
-                    data = dd.to_dict() or {}
-                    for slug, n in data.items():
-                        agg[slug] = agg.get(slug, 0) + int(n)
-            sorted_slugs = sorted(agg.items(), key=lambda kv: kv[1], reverse=True)
-            for slug, cnt in sorted_slugs[:6]:
-                meta = by_slug.get(slug)
-                if meta:
-                    top_packs_week.append({"slug": slug, "title": meta.get("displayTitle") or meta["title"], "downloads": cnt, "zipUrl": meta.get("zipUrl"), "isFree": meta.get("isFree"), "count": meta.get("count") or len(meta.get("verses") or [])})
-        except Exception:
-            pass
-    purchases = {}
-    if db and google.authorized:
-        purchases = (get_user_doc(session.get("user_email")) or {}).get("purchases") or {}
-    return render_template("browse.html", items=items, collections=collections, top_packs=top_packs, top_packs_week=top_packs_week, purchases=purchases)
+    return render_template(
+        "browse.html",
+        collections=collections,
+        top_packs=top_packs,
+    )
 
 
 def browse_detail(slug):
@@ -137,30 +173,20 @@ def browse_detail(slug):
         return "Not found", 404
     if (meta.get("kind") or "bundle") == "game":
         return redirect(url_for("games_detail", slug=slug))
-    can_download = False
-    needs_purchase = False
+    user_doc = {}
     if google.authorized and db:
-        email = session.get("user_email")
         try:
-            ud = get_user_doc(email)
-            if ud:
-                if meta.get("isFree"):
-                    can_download = True
-                elif ud.get("isPro") or (ud.get("plan") in ("family", "classroom", "plus", "plus_family", "plus_classroom")):
-                    can_download = True
-                elif (ud.get("purchases") or {}).get(slug):
-                    can_download = True
-                elif meta.get("priceId"):
-                    needs_purchase = True
+            user_doc = get_user_doc(session.get("user_email")) or {}
         except Exception:
-            pass
-    if meta.get("priceId") and stripe and STRIPE_SECRET_KEY:
-        try:
-            p = stripe.Price.retrieve(meta["priceId"])
-            meta["priceMeta"] = {"amount": (p.get("unit_amount") or 0) / 100.0, "currency": (p.get("currency") or "usd").upper()}
-        except Exception:
-            meta["priceMeta"] = None
-    return render_template("browse_detail.html", c=meta, can_download=can_download, needs_purchase=needs_purchase)
+            user_doc = {}
+    access = _bundle_access(meta, user_doc)
+    price_meta = _price_meta(access["price_id"]) if access["can_buy"] else None
+    return render_template(
+        "browse_detail.html",
+        c=meta,
+        access=access,
+        price_meta=price_meta,
+    )
 
 
 def serve_pack(filename):
@@ -173,45 +199,32 @@ def serve_pack(filename):
 
 
 def dl_pack(slug):
-    if not db:
-        return "Firestore not configured", 500
-    d = db.collection("collections").document(slug).get()
-    if not d.exists:
+    meta = get_collection_meta(slug)
+    if not meta:
         return "Not found", 404
-    meta = d.to_dict()
-    is_free = bool(meta.get("isFree"))
-    if not is_free and not google.authorized:
+    user_doc = {}
+    if db and google.authorized and session.get("user_email"):
+        try:
+            user_doc = get_user_doc(session.get("user_email")) or {}
+        except Exception:
+            user_doc = {}
+    access = _bundle_access(meta, user_doc)
+    if access["locked"] and not (google.authorized and session.get("user_email")):
         flash("Please sign in to download packs.", "warning")
         return redirect(url_for("google.login", next=request.url))
-    # Any non-free pack requires entitlement — membership/ownership for
-    # subscriber packs, or a purchase for a-la-carte (priceId) packs. Gating only
-    # on isSubscriberOnly would let a paid a-la-carte pack be downloaded free.
-    if (not is_free) and (meta.get("isSubscriberOnly") or meta.get("priceId")):
-        allowed = False
-        if google.authorized:
-            email = session.get("user_email")
-            try:
-                ud = get_user_doc(email)
-                if ud:
-                    if ud.get("isPro") or (ud.get("plan") in ("family", "classroom", "plus", "plus_family", "plus_classroom")):
-                        allowed = True
-                    purchases = ud.get("purchases") or {}
-                    if purchases.get(slug):
-                        allowed = True
-            except Exception:
-                pass
-        if not allowed:
-            if meta.get("priceId"):
-                flash("This pack is included with Plus, or buy it a la carte.", "info")
-                return redirect(url_for("browse_detail", slug=slug))
-            flash("This pack is included with Plus.", "info")
-            return redirect(url_for("plus_pricing"))
-    try:
-        db.collection("analytics").document("packs").set({slug: firestore.Increment(1)}, merge=True)
-        today = datetime.now(timezone.utc).strftime("%Y%m%d")
-        db.collection("analytics_daily").document(f"packs_{today}").set({slug: firestore.Increment(1)}, merge=True)
-    except Exception:
-        pass
+    if access["locked"]:
+        if access["can_buy"]:
+            flash("This bundle is included with Plus, or available as a one-time purchase.", "info")
+            return redirect(url_for("browse_detail", slug=slug))
+        flash("This bundle is included with Plus.", "info")
+        return redirect(url_for("plus_pricing"))
+    if db:
+        try:
+            db.collection("analytics").document("packs").set({slug: firestore.Increment(1)}, merge=True)
+            today = datetime.now(timezone.utc).strftime("%Y%m%d")
+            db.collection("analytics_daily").document(f"packs_{today}").set({slug: firestore.Increment(1)}, merge=True)
+        except Exception:
+            pass
     url = meta.get("zipUrl")
     try:
         gcs_signed = signed_url_for_path(f"packs/{slug}.zip", minutes=120)
@@ -229,4 +242,8 @@ def dl_pack(slug):
     path = os.path.join("output", "packs", f"{slug}.zip")
     if os.path.exists(path):
         return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
-    return "Pack not available", 404
+    flash(
+        "The prepared ZIP is temporarily unavailable. You can still use the verse list to make worksheets.",
+        "warning",
+    )
+    return redirect(url_for("browse_detail", slug=slug))

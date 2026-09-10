@@ -689,10 +689,42 @@ def stripe_webhook():
                         )
                         _increment_metric("family_game_night_checkout_fulfilled", entitlement_id)
                 elif pack_slug:
-                    db.collection("users").document(email).set(
-                        {"purchases": {pack_slug: True}, "updatedAt": firestore.SERVER_TIMESTAMP},
-                        merge=True,
-                    )
+                    try:
+                        payment_status = obj.get("payment_status")
+                        pack_doc = db.collection("collections").document(pack_slug).get()
+                        pack_data = pack_doc.to_dict() if pack_doc.exists else {}
+                        expected_price_id = str(
+                            (pack_data or {}).get("priceId")
+                            or os.getenv("STRIPE_DEFAULT_PACK_PRICE", "")
+                        ).strip()
+                        checkout_price_id = str(checkout_meta.get("price_id") or "").strip()
+                        price_matches = not (
+                            expected_price_id and checkout_price_id and expected_price_id != checkout_price_id
+                        )
+                        if (
+                            payment_status in {"paid", "no_payment_required"}
+                            and pack_doc.exists
+                            and price_matches
+                        ):
+                            db.collection("users").document(email).set(
+                                {
+                                    "purchases": {pack_slug: True},
+                                    "purchaseDetails": {
+                                        pack_slug: {
+                                            "checkoutSessionId": obj.get("id"),
+                                            "stripeCustomerId": customer_id,
+                                            "priceId": checkout_price_id or expected_price_id,
+                                            "paymentStatus": payment_status,
+                                            "purchasedAt": firestore.SERVER_TIMESTAMP,
+                                        }
+                                    },
+                                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                                },
+                                merge=True,
+                            )
+                    except Exception:
+                        current_app.logger.exception("Bundle purchase fulfillment failed")
+                        return ("", 500)
         elif et == "customer.subscription.updated":
             sub = obj
             customer_id = sub.get("customer")
@@ -898,7 +930,7 @@ def buy_pack(slug):
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=url_for("buy_success", slug=slug, _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=url_for("browse_detail", slug=slug, _external=True),
-            metadata={"email": email, "pack_slug": slug},
+            metadata={"email": email, "pack_slug": slug, "price_id": price_id},
         )
         return redirect(chk.url, code=303)
     except Exception as e:
@@ -909,6 +941,7 @@ def buy_pack(slug):
 
 def buy_success(slug):
     session_id = (request.args.get("session_id") or "").strip()
+    confirmed = False
     if session_id and stripe and STRIPE_SECRET_KEY:
         try:
             checkout = stripe.checkout.Session.retrieve(
@@ -916,13 +949,25 @@ def buy_success(slug):
                 expand=["line_items.data.price.product"],
             )
             checkout = _stripe_dict(checkout)
+            checkout_meta = checkout.get("metadata") or {}
+            checkout_email = (
+                (checkout.get("customer_details") or {}).get("email")
+                or checkout.get("customer_email")
+                or checkout_meta.get("email")
+                or ""
+            ).strip().lower()
+            signed_in_email = (session.get("user_email") or "").strip().lower()
             line_items = (checkout.get("line_items") or {}).get("data") or []
             line = line_items[0] if line_items else None
             price_obj = (line.get("price") or {}) if line else {}
             price_id = price_obj.get("id")
             unit_amount = price_obj.get("unit_amount")
             quantity = line.get("quantity") if line and line.get("quantity") else 1
-            amount_total = line.get("amount_total") if line and line.get("amount_total") is not None else checkout.get("amount_total")
+            amount_total = (
+                line.get("amount_total")
+                if line and line.get("amount_total") is not None
+                else checkout.get("amount_total")
+            )
             currency = (
                 (line.get("currency") if line else checkout.get("currency")) or "USD"
             ).upper()
@@ -931,38 +976,75 @@ def buy_success(slug):
             if isinstance(product, dict):
                 product_name = product.get("name")
             value_amount = round(((amount_total or 0) / 100.0), 2)
-            params = {
-                "value": value_amount,
-                "currency": currency,
-                "num_items": quantity,
-                "content_category": "Pack",
-            }
-            if price_id:
-                params["content_ids"] = [price_id]
-                params["content_type"] = "product"
-            contents = []
-            if price_id:
-                item = {"id": price_id, "quantity": quantity}
-                if unit_amount is not None:
-                    item["item_price"] = round(unit_amount / 100.0, 2)
-                contents.append(item)
-            if contents:
-                params["contents"] = contents
             pack_title = None
+            pack_exists = False
+            expected_price_id = None
             if db:
                 try:
                     doc = db.collection("collections").document(slug).get()
                     if doc.exists:
-                        pack_title = (doc.to_dict() or {}).get("title")
+                        pack_exists = True
+                        pack_data = doc.to_dict() or {}
+                        pack_title = pack_data.get("title")
+                        expected_price_id = (
+                            pack_data.get("priceId") or os.getenv("STRIPE_DEFAULT_PACK_PRICE", "")
+                        ).strip()
                 except Exception:
                     pack_title = None
-            params["content_name"] = product_name or pack_title or slug.replace("-", " ").title()
-            session["fb_purchase"] = {
-                "params": params,
-                "events": ["Purchase"],
-                "eventID": session_id,
-            }
+            metadata_price_id = str(checkout_meta.get("price_id") or "").strip()
+            verified = bool(
+                db
+                and pack_exists
+                and checkout.get("payment_status") in {"paid", "no_payment_required"}
+                and checkout_meta.get("pack_slug") == slug
+                and checkout_email
+                and checkout_email == signed_in_email
+                and (not expected_price_id or (price_id or metadata_price_id) == expected_price_id)
+            )
+            if verified:
+                db.collection("users").document(signed_in_email).set(
+                    {
+                        "purchases": {slug: True},
+                        "purchaseDetails": {
+                            slug: {
+                                "checkoutSessionId": session_id,
+                                "stripeCustomerId": checkout.get("customer"),
+                                "priceId": price_id or metadata_price_id,
+                                "paymentStatus": checkout.get("payment_status"),
+                                "purchasedAt": firestore.SERVER_TIMESTAMP,
+                            }
+                        },
+                        "updatedAt": firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
+                confirmed = True
+                params = {
+                    "value": value_amount,
+                    "currency": currency,
+                    "num_items": quantity,
+                    "content_category": "Pack",
+                    "content_name": product_name or pack_title or slug.replace("-", " ").title(),
+                }
+                if price_id:
+                    params["content_ids"] = [price_id]
+                    params["content_type"] = "product"
+                    item = {"id": price_id, "quantity": quantity}
+                    if unit_amount is not None:
+                        item["item_price"] = round(unit_amount / 100.0, 2)
+                    params["contents"] = [item]
+                session["fb_purchase"] = {
+                    "params": params,
+                    "events": ["Purchase"],
+                    "eventID": session_id,
+                }
         except Exception:
             traceback.print_exc()
-    flash("Purchase successful. You can now download this pack.", "success")
+    if confirmed:
+        flash("Purchase confirmed. Your bundle is ready.", "success")
+    else:
+        flash(
+            "We're still confirming this purchase. Refresh in a moment or contact support if access does not appear.",
+            "warning",
+        )
     return redirect(url_for("browse_detail", slug=slug))

@@ -20,40 +20,47 @@ COLLECTIONS = load_collections()
 
 _BUNDLE_DEFAULTS = {
     "starter": {
+        "title": "Free Starter Bundle",
+        "description": "Five welcoming verses for trying Faith Sparks copywork at home.",
         "ageRange": "Ages 6-10",
         "skills": ["Copywork", "Handwriting", "Scripture memory"],
         "useCases": ["Morning basket", "Quiet time", "Family worship"],
-        "previewImages": ["Copywork1.png", "Copywork2.png"],
+        "previewImages": ["/static/hero_john_316.png"],
     },
     "psalms": {
+        "description": "A calm collection from Psalms for prayer, praise, and reflection.",
         "ageRange": "Ages 6-12",
         "skills": ["Copywork", "Reflection", "Handwriting"],
         "useCases": ["Quiet time", "Morning basket", "Memory work"],
-        "previewImages": ["Copywork3.png", "Copywork4.png"],
+        "previewImages": ["/static/hero_john_316.png"],
     },
     "advent": {
+        "description": "Follow the promise and arrival of Jesus through the Advent season.",
         "ageRange": "Ages 5-11",
         "skills": ["Copywork", "Seasonal devotions", "Handwriting"],
         "useCases": ["Advent", "Morning basket", "Family worship"],
-        "previewImages": ["Copywork4.png", "Copywork5.png"],
+        "previewImages": ["/static/hero_john_316.png"],
     },
     "easter": {
+        "description": "Trace the hope of the resurrection through an Easter Scripture collection.",
         "ageRange": "Ages 5-11",
         "skills": ["Copywork", "Reflection", "Handwriting"],
         "useCases": ["Easter week", "Sunday school", "Family worship"],
-        "previewImages": ["Copywork2.png", "Copywork5.png"],
+        "previewImages": ["/static/hero_john_316.png"],
     },
     "back-to-school": {
+        "description": "Begin a school season with Scripture about wisdom, purpose, and character.",
         "ageRange": "Ages 6-12",
         "skills": ["Copywork", "Character", "Handwriting"],
         "useCases": ["Back to school", "Morning basket", "Co-op"],
-        "previewImages": ["Copywork2.png", "Copywork3.png"],
+        "previewImages": ["/static/hero_john_316.png"],
     },
     "memory-verses": {
+        "description": "Practice foundational passages chosen for Scripture memory and daily life.",
         "ageRange": "Ages 6-12",
         "skills": ["Scripture memory", "Copywork", "Handwriting"],
         "useCases": ["Memory work", "Quiet time", "Morning basket"],
-        "previewImages": ["Copywork1.png", "Copywork4.png"],
+        "previewImages": ["/static/hero_john_316.png"],
     },
 }
 
@@ -135,6 +142,12 @@ def _apply_bundle_defaults(meta: dict) -> dict:
             meta["previewImages"] = list(defaults["previewImages"])
         meta["previewImages"] = _normalize_preview_images(meta.get("previewImages") or [])
         return _normalize_collection_shape(meta)
+    if defaults.get("title") and (
+        not meta.get("title") or meta.get("title") == slug.replace("-", " ").title()
+    ):
+        meta["title"] = defaults["title"]
+    if not meta.get("description") and defaults.get("description"):
+        meta["description"] = defaults["description"]
     if not meta.get("ageRange") and defaults.get("ageRange"):
         meta["ageRange"] = defaults["ageRange"]
     if not meta.get("skills") and defaults.get("skills"):
@@ -215,13 +228,13 @@ def get_collections(show_all: bool = False):
         kind = "game" if slug in _GAME_SLUGS else "bundle"
         items.append(_apply_bundle_defaults({
             'slug': slug,
-            'title': slug.replace('-', ' ').title(),
+            'title': "Free Starter Bundle" if slug == "starter" else slug.replace('-', ' ').title(),
             'verses': verses,
             'defaultVersion': None,
             'zipUrl': None,
             'description': '',
-            'isFree': False,
-            'isSubscriberOnly': False,
+            'isFree': slug == "starter",
+            'isSubscriberOnly': slug != "starter",
             'priceId': None,
             'kind': kind,
             'ageRange': None,
@@ -276,14 +289,14 @@ def get_collection_meta(slug: str):
     kind = "game" if slug in _GAME_SLUGS else "bundle"
     return _apply_bundle_defaults({
         'slug': slug,
-        'title': slug.replace('-', ' ').title(),
+        'title': "Free Starter Bundle" if slug == "starter" else slug.replace('-', ' ').title(),
         'verses': verses,
         'defaultVersion': None,
         'zipUrl': None,
         'description': '',
         'prewarm': None,
-        'isFree': False,
-        'isSubscriberOnly': False,
+        'isFree': slug == "starter",
+        'isSubscriberOnly': slug != "starter",
         'priceId': None,
         'kind': kind,
         'ageRange': None,

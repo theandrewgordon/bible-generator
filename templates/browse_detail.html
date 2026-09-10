@@ -1,371 +1,100 @@
-{% extends "base.html" %} {% block title %}{{ c.title }} | Bundles{%
-endblock %} {% block head_extra %}
-<meta
-  name="description"
-  content="{{ (c.description ~ ' — ' if c.description else '') ~ (c.verses|length) ~ ' Bible copywork verses for Christian homeschool, co-ops, and Sunday school. Use this pack to make printable worksheets.' }}"
-/>
+{% extends "base.html" %}
+{% block title %}{{ c.title }} | Bible Copywork Bundles{% endblock %}
+{% block head_extra %}
+<link rel="canonical" href="{{ url_for('browse_detail', slug=c.slug, _external=True) }}" />
+<meta name="description" content="{{ (c.description ~ ' ' if c.description else '') ~ (c.verses|length) ~ ' curated Bible verses for copywork, Scripture memory, family worship, and class use.' }}" />
 <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "name": "{{ c.title|e }} — Bible Copywork Bundle",
-    "numberOfItems": {{ c.verses|length }},
-    "itemListElement": [
-      {% for verse in c.verses %}
-      { "@type": "ListItem", "position": {{ loop.index }}, "name": "{{ verse|e }}" }{{ "," if not loop.last }}
-      {% endfor %}
-    ],
-    "isAccessibleForFree": {{ "true" if c.isFree else "false" }},
-    "inLanguage": "en"
-  }
+{{ {
+  "@context": "https://schema.org",
+  "@type": "CreativeWork",
+  "name": c.title,
+  "description": c.description or "A curated Bible copywork collection.",
+  "isAccessibleForFree": access.is_free,
+  "learningResourceType": "Printable Bible copywork bundle"
+}|tojson }}
 </script>
-{% endblock %} {% block content %} {% set purchased = purchases.get(c.slug) if
-purchases else None %} {% set locked = (c.isSubscriberOnly and not is_pro and
-not purchased) %} {% set pid = pack_effective_price_id(c) %} {% set verses_param
-= (c.verses|join(' | ') if c.verses else '') %} {# Build the intended Generate
-URL for this pack #} {% if verses_param %} {% set use_url = url_for('generate',
-v=verses_param) %} {% else %} {% set use_url = url_for('generate',
-collection=c.slug) %} {% endif %}
-{% set age_range = c.ageRange or 'Ages 6–10' %}
-{% set skills = c.skills or ['Copywork', 'Scripture memory', 'Handwriting'] %}
-{% set use_cases = c.useCases or ['Morning basket', 'Quiet time', 'Sunday school'] %}
-{% set preview_images = c.previewImages or [
-  url_for('static', filename='CopyworkStock/Copywork2.png'),
-  url_for('static', filename='CopyworkStock/Copywork4.png')
-] %}
+{% endblock %}
 
-<header class="head">
-  <div>
-    <h1 class="page-title">{{ c.title }}</h1>
-    <div class="badges">
-      {% if c.isFree %}<span class="pill ok">Free</span>{% endif %} {% if
-      purchased %}<span class="pill alt">Purchased</span>{% endif %} {% if
-      locked %}<span class="pill info">Included with membership</span>{% endif %}
-      <span class="pill">{{ c.verses|length }} verses</span>
-    </div>
-
-    {% if c.description %}
-    <p class="muted">{{ c.description }}</p>
+{% macro bundle_actions() %}
+  {% set use_url = url_for('generate', v=c.verses[0]) if access.is_free and not is_signed_in and c.verses else url_for('generate', collection=c.slug) %}
+  {% if access.entitled %}
+    <a class="button primary" href="{{ use_url }}">Use these verses</a>
+    {% if access.can_download %}<a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}">Download prepared ZIP</a>{% endif %}
+  {% elif access.can_buy %}
+    {% set buy_label = ('Buy $%.2f' % price_meta.amount) if price_meta and price_meta.amount is not none else 'Buy bundle' %}
+    {% if is_signed_in %}
+      <a class="button primary" href="{{ url_for('buy_pack', slug=c.slug) }}" data-fb-track="AddToCart,InitiateCheckout" data-fb-content-name="{{ c.title }}">{{ buy_label }}</a>
+    {% else %}
+      <a class="button primary" href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}">Sign in to buy</a>
     {% endif %}
+    <a class="button ghost" href="{{ url_for('plus_pricing') }}">Included with membership</a>
+  {% else %}
+    <a class="button primary" href="{{ url_for('plus_pricing') }}">See membership</a>
+    {% if not is_signed_in %}<a class="button ghost" href="{{ url_for('google.login', next=request.path) }}">Sign in</a>{% endif %}
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<nav class="bundle-breadcrumb" aria-label="Breadcrumb"><a href="{{ url_for('browse') }}">Bundles</a><span aria-hidden="true">›</span><span>{{ c.title }}</span></nav>
+
+<header class="bundle-detail-head">
+  <div>
+    <p class="bundle-kicker">Curated Scripture collection</p>
+    <h1 class="page-title">{{ c.title }}</h1>
+    <div class="bundle-badges">
+      {% if access.is_free %}<span class="pill ok">Free</span>{% endif %}
+      {% if access.purchased %}<span class="pill alt">Purchased</span>{% elif access.is_member and not access.is_free %}<span class="pill alt">Included in your membership</span>{% elif access.locked %}<span class="pill">Membership bundle</span>{% endif %}
+      <span class="pill subtle">{{ c.verses|length }} verses</span>
+    </div>
+    <p class="bundle-description">{{ c.description or 'A focused set of Bible passages for copywork, Scripture memory, and unhurried conversation.' }}</p>
   </div>
+  <div class="bundle-head-actions">{{ bundle_actions() }}</div>
 </header>
 
-<div class="mobile-cta">
-  <div class="sticky-cta">
-    {% if is_signed_in %}
-    <a
-      class="button"
-      href="{{ use_url }}"
-      aria-label="Use {{ c.title }} to make a worksheet"
-      >Use this bundle</a
-      >
-    {% else %}
-    <a
-      class="button"
-      href="{{ url_for('google.login', next=use_url) }}"
-      aria-label="Sign in to use {{ c.title }} to make a worksheet"
-      >Use this bundle</a
-      >
-    {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
-    ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
-    {% set pack_amount = c.priceMeta.amount if c.priceMeta and c.priceMeta.amount is not none else 0 %}
-    {% set pack_currency = c.priceMeta.currency if c.priceMeta and c.priceMeta.currency else 'USD' %}
-    {% if is_signed_in %}
-    <a
-      class="button"
-      href="{{ url_for('buy_pack', slug=c.slug) }}"
-      data-fb-track="AddToCart,InitiateCheckout"
-      data-fb-value="{{ '%.2f'|format(pack_amount) }}"
-      data-fb-currency="{{ pack_currency }}"
-      data-fb-content-name="{{ c.title }}"
-      data-fb-content-type="product"
-      data-fb-num-items="1"
-      {% if pid %}
-      data-fb-content-ids="{{ pid }}"
-      data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
-      {% endif %}
-      >Buy {{ display_price }}</a
-    >
-    {% else %}
-    <a
-      class="button"
-      href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}"
-      data-fb-track="AddToCart,InitiateCheckout"
-      data-fb-value="{{ '%.2f'|format(pack_amount) }}"
-      data-fb-currency="{{ pack_currency }}"
-      data-fb-content-name="{{ c.title }}"
-      data-fb-content-type="product"
-      data-fb-num-items="1"
-      {% if pid %}
-      data-fb-content-ids="{{ pid }}"
-      data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
-      {% endif %}
-      >Buy {{ display_price }}</a
-    >
-    {% endif %} {% endif %}
-    <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>
-    {% else %} {% if is_signed_in or c.isFree %}
-    <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
-      >Download bundle</a
-      >
-    {% else %}
-    <a
-      class="button ghost"
-      href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
-      >Sign in to download</a
-    >
-    {% endif %} {% endif %} {% endif %} {% if is_admin %}
-    <form
-      method="post"
-      action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}"
-      onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');"
-    >
-      <button class="button" style="background: #e0e7ff; color: #111827">
-        Prewarm & Build ZIP
-      </button>
-    </form>
-    {% if pid %}
-    <a
-      class="button ghost"
-      href="{{ stripe_price_url(pid) }}"
-      target="_blank"
-      rel="noopener"
-      >Open in Stripe</a
-    >
-    {% endif %} {% endif %}
-  </div>
-</div>
+{% if access.purchased %}<div class="bundle-status success" role="status"><strong>You own this bundle.</strong> Use the verse collection with any writer level{% if access.can_download %}, or download the prepared files{% endif %}.</div>
+{% elif access.is_free %}<div class="bundle-status success" role="status"><strong>Start without an account.</strong> Your first reference worksheet is free; signing in lets you save and make more.</div>
+{% elif access.locked %}<div class="bundle-status" role="status"><strong>Preview everything before you choose.</strong> This collection is available with membership{% if access.can_buy %} or as a one-time purchase{% endif %}.</div>{% endif %}
 
-<div class="grid">
-  <aside class="side">
-    <div class="sticky-cta">
-      {# Use Bundle → if not signed in, bounce through Google with next=use_url #}
-      {% if is_signed_in %}
-      <a
-        class="button"
-        href="{{ use_url }}"
-        aria-label="Use {{ c.title }} to make a worksheet"
-        >Use this bundle</a
-        >
-      {% else %}
-      <a
-        class="button"
-        href="{{ url_for('google.login', next=use_url) }}"
-        aria-label="Sign in to use {{ c.title }} to make a worksheet"
-        >Use this bundle</a
-        >
-      {% endif %} {% if c.zipUrl %} {% if locked %} {% set display_price =
-      ('$%.2f' % (c.priceMeta.amount if c.priceMeta else 2.50)) %} {% if pid %}
-      {% set pack_amount = c.priceMeta.amount if c.priceMeta and c.priceMeta.amount is not none else 0 %}
-      {% set pack_currency = c.priceMeta.currency if c.priceMeta and c.priceMeta.currency else 'USD' %}
-      {% if is_signed_in %}
-      <a
-        class="button"
-        href="{{ url_for('buy_pack', slug=c.slug) }}"
-        data-fb-track="AddToCart,InitiateCheckout"
-        data-fb-value="{{ '%.2f'|format(pack_amount) }}"
-        data-fb-currency="{{ pack_currency }}"
-        data-fb-content-name="{{ c.title }}"
-        data-fb-content-type="product"
-        data-fb-num-items="1"
-        {% if pid %}
-        data-fb-content-ids="{{ pid }}"
-        data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
-        {% endif %}
-        >Buy {{ display_price }}</a
-      >
-      {% else %}
-      <a
-        class="button"
-        href="{{ url_for('google.login', next=url_for('buy_pack', slug=c.slug)) }}"
-        data-fb-track="AddToCart,InitiateCheckout"
-        data-fb-value="{{ '%.2f'|format(pack_amount) }}"
-        data-fb-currency="{{ pack_currency }}"
-        data-fb-content-name="{{ c.title }}"
-        data-fb-content-type="product"
-        data-fb-num-items="1"
-        {% if pid %}
-        data-fb-content-ids="{{ pid }}"
-        data-fb-contents='{{ [{"id": pid, "quantity": 1, "item_price": pack_amount}]|tojson }}'
-        {% endif %}
-        >Buy {{ display_price }}</a
-      >
-      {% endif %} {% endif %}
-      <a class="button ghost" href="{{ url_for('plus_pricing') }}">See membership</a>
-      {% else %} {% if is_signed_in or c.isFree %}
-      <a class="button ghost" href="{{ url_for('dl_pack', slug=c.slug) }}"
-        >Download bundle</a
-        >
-      {% else %}
-      <a
-        class="button ghost"
-        href="{{ url_for('google.login', next=url_for('dl_pack', slug=c.slug)) }}"
-        >Sign in to download</a
-        >
-      {% endif %} {% endif %} {% endif %} {% if is_admin %}
-      <form
-        method="post"
-        action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}"
-        onsubmit="return confirm('Prebuild all PDFs and ZIP this pack?');"
-      >
-        <button class="button" style="background: #e0e7ff; color: #111827">
-          Prewarm & Build ZIP
-        </button>
-      </form>
-      {% if pid %}
-      <a
-        class="button ghost"
-        href="{{ stripe_price_url(pid) }}"
-        target="_blank"
-        rel="noopener"
-        >Open in Stripe</a
-      >
-      {% endif %} {% endif %}
-    </div>
-  </aside>
-
-  <main class="main">
-    <section class="pack-intro">
-      <div class="pack-previews">
-        {% for img in preview_images[:2] %}
-        <img
-          src="{{ img }}"
-          alt="Preview of {{ c.title }}"
-          loading="lazy"
-          width="520"
-          height="360"
-        />
-        {% endfor %}
+<div class="bundle-detail-grid">
+  <main>
+    <section class="bundle-preview" aria-labelledby="preview-heading">
+      <div class="bundle-section-heading"><p class="bundle-kicker">Format preview</p><h2 id="preview-heading">What the worksheets look like</h2></div>
+      {% set previews = c.previewImages or [url_for('static', filename='hero_john_316.png')] %}
+      <div class="bundle-preview__images">
+        {% for img in previews[:2] %}<img src="{{ img }}" alt="Sample Faith Sparks printable worksheet layout" loading="lazy" width="360" height="465" />{% endfor %}
       </div>
-      <div class="pack-details">
-        <div class="detail-row">
-          <span class="detail-label">Best for ages:</span>
-          <span class="detail-value">{{ age_range }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Skills:</span>
-          <span class="detail-value">{{ skills|join(', ') }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Great for:</span>
-          <span class="detail-value">{{ use_cases|join(', ') }}</span>
-        </div>
-        <div class="detail-row muted small">Instant download. Ready to print.</div>
-      </div>
+      <p class="small muted">Sample worksheet format. The downloaded or generated pages use the verses listed in this collection.</p>
     </section>
-    <h2>Verses ({{ c.verses|length }})</h2>
-    <ul class="verse-list" id="verseList">
-      {% for verse in c.verses %}
-      <li>{{ verse }}</li>
-      {% endfor %}
-    </ul>
+
+    <section class="bundle-verses" aria-labelledby="verses-heading">
+      <div class="bundle-section-heading"><p class="bundle-kicker">Included Scripture</p><h2 id="verses-heading">{{ c.verses|length }} verses</h2></div>
+      <ol>{% for verse in c.verses %}<li>{{ verse }}</li>{% endfor %}</ol>
+    </section>
   </main>
+
+  <aside class="bundle-summary" aria-label="Bundle details">
+    <h2>At a glance</h2>
+    <dl>
+      <div><dt>Best for</dt><dd>{{ c.ageRange or 'Ages 6-10' }}</dd></div>
+      <div><dt>Skills</dt><dd>{{ (c.skills or ['Copywork', 'Scripture memory', 'Handwriting'])|join(', ') }}</dd></div>
+      <div><dt>Great for</dt><dd>{{ (c.useCases or ['Morning basket', 'Quiet time', 'Sunday school'])|join(', ') }}</dd></div>
+      <div><dt>Prepared files</dt><dd>{{ 'ZIP ready to download' if access.has_download else 'Create worksheets with your chosen writer level' }}</dd></div>
+    </dl>
+    <div class="bundle-summary__actions">{{ bundle_actions() }}</div>
+    {% if is_admin %}
+      <form method="post" action="{{ url_for('admin_prewarm_pack', slug=c.slug) }}" onsubmit="return confirm('Prebuild all PDFs and ZIP this bundle?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button class="button ghost" type="submit">Build prepared ZIP</button>
+      </form>
+    {% endif %}
+  </aside>
 </div>
-{% endblock %} {% block extra_scripts %}
+{% endblock %}
+
+{% block extra_scripts %}
 <style>
-  .head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  .badges {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    margin: 0.25rem 0;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: 320px minmax(0, 1fr);
-    gap: 1rem;
-  }
-  .mobile-cta {
-    display: none;
-  }
-  @media (max-width: 980px) {
-    .grid {
-      grid-template-columns: 1fr;
-    }
-    .side {
-      order: -1;
-    }
-    .side {
-      display: none;
-    }
-    .mobile-cta {
-      display: block;
-      margin-bottom: 1rem;
-    }
-  }
-  .side {
-    position: relative;
-  }
-  .sticky-cta {
-    position: sticky;
-    top: 1rem;
-    display: grid;
-    gap: 0.45rem;
-  }
-  .verse-list {
-    columns: 2;
-    column-gap: 1rem;
-    list-style: disc;
-    padding-left: 1.1rem;
-  }
-  .verse-list li {
-    break-inside: avoid;
-    margin: 0.15rem 0;
-  }
-  .pack-intro {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  .pack-previews {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.6rem;
-  }
-  .pack-previews img {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    border-radius: 12px;
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    box-shadow: none;
-  }
-  .pack-details {
-    background: var(--box);
-    border: 1px solid rgba(15, 23, 42, 0.06);
-    border-radius: 12px;
-    padding: 1rem;
-    box-shadow: none;
-  }
-  .detail-row {
-    margin-bottom: 0.5rem;
-    line-height: 1.4;
-  }
-  .detail-label {
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-right: 0.2rem;
-  }
-  .detail-value {
-    color: var(--text);
-  }
-  @media (max-width: 720px) {
-    .verse-list {
-      columns: 1;
-    }
-  }
-  @media (max-width: 980px) {
-    .pack-intro {
-      grid-template-columns: 1fr;
-    }
-  }
+  .bundle-breadcrumb{display:flex;gap:.4rem;align-items:center;font-size:.82rem;color:var(--muted);margin-bottom:.8rem}.bundle-detail-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,300px);gap:1.2rem;align-items:end;padding:1.25rem;border:1px solid rgba(15,23,42,.08);border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 9%,var(--box)),var(--box));box-shadow:var(--card-shadow)}.bundle-kicker{margin:0 0 .25rem;color:var(--primary-dark);font-size:.74rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.bundle-detail-head .page-title{margin-bottom:.4rem}.bundle-description{max-width:680px;color:var(--muted);line-height:1.55;margin:.55rem 0 0}.bundle-badges{display:flex;gap:.35rem;flex-wrap:wrap}.pill{display:inline-flex;padding:3px 8px;border-radius:999px;background:#f1f5f9;color:#0f172a;font-weight:700;font-size:.72rem;border:1px solid #e2e8f0}.pill.ok{background:#e7f8ef;border-color:#b7e4c7;color:#14532d}.pill.alt{background:#e0f2fe;border-color:#bae6fd;color:#0c4a6e}.pill.subtle{background:transparent;color:var(--muted)}.bundle-head-actions,.bundle-summary__actions{display:grid;gap:.5rem}.bundle-head-actions .button,.bundle-summary__actions .button{text-align:center}.bundle-status{margin:1rem 0;padding:.85rem 1rem;border:1px solid #bae6fd;border-radius:13px;background:#f0f9ff;color:#0c4a6e}.bundle-status.success{border-color:#86efac;background:#f0fdf4;color:#166534}.bundle-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:1.2rem;margin-top:1.2rem}.bundle-preview,.bundle-verses,.bundle-summary{border:1px solid rgba(15,23,42,.08);border-radius:16px;background:var(--box);padding:1rem}.bundle-verses{margin-top:1rem}.bundle-section-heading h2,.bundle-summary h2{margin:.1rem 0 .75rem}.bundle-preview__images{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,280px));gap:.8rem}.bundle-preview__images img{display:block;width:100%;height:auto;aspect-ratio:360/465;object-fit:contain;object-position:top;background:white;border:1px solid rgba(15,23,42,.12);border-radius:12px;box-shadow:0 10px 28px rgba(15,23,42,.08)}.bundle-verses ol{columns:2;column-gap:2rem;margin:0;padding-left:1.5rem}.bundle-verses li{break-inside:avoid;margin:.35rem 0;padding-left:.2rem}.bundle-summary{align-self:start;position:sticky;top:1rem}.bundle-summary dl{margin:.2rem 0 1rem}.bundle-summary dl>div{padding:.65rem 0;border-bottom:1px solid rgba(15,23,42,.08)}.bundle-summary dt{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}.bundle-summary dd{margin:.2rem 0 0;line-height:1.4}.bundle-summary form{margin-top:.5rem}.bundle-summary form .button{width:100%}
+  @media(max-width:860px){.bundle-detail-head{grid-template-columns:1fr}.bundle-head-actions{grid-template-columns:1fr 1fr}.bundle-detail-grid{grid-template-columns:1fr}.bundle-summary{position:static;grid-row:1}.bundle-verses ol{columns:1}}
+  @media(max-width:520px){.bundle-detail-head{padding:1rem}.bundle-head-actions{grid-template-columns:1fr}.bundle-preview__images{grid-template-columns:minmax(0,1fr)}.bundle-preview__images img{max-height:560px}.bundle-status{font-size:.9rem}}
 </style>
 {% endblock %}
