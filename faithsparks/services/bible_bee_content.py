@@ -563,7 +563,7 @@ def load_passages(
     if version not in TRANSLATIONS:
         raise ValueError("Choose an available Bible version.")
     if not translation_is_configured(version):
-        raise ValueError(f"{TRANSLATIONS[version]['code']} text access is not configured on this server yet.")
+        raise ValueError(f"{TRANSLATIONS[version]['code']} is temporarily unavailable. Please choose another translation.")
 
     seeds = deepcopy(_all_builtin_passages() if deck_id == RANDOM_DECK_ID else deck["passages"])
     rng = random.Random(strong_seed("bible-bee-passages", seed or "", deck_id, version, needed))
@@ -628,7 +628,7 @@ def load_reference_passages(references: list[str], version: str) -> list[dict]:
     if version not in TRANSLATIONS:
         raise ValueError("Choose an available Bible version.")
     if not translation_is_configured(version):
-        raise ValueError(f"{TRANSLATIONS[version]['code']} text access is not configured on this server yet.")
+        raise ValueError(f"{TRANSLATIONS[version]['code']} is temporarily unavailable. Please choose another translation.")
     passages = []
     for reference in references[:10]:
         text = _copyworksheet_verse_text(reference, version)

@@ -6958,11 +6958,11 @@ def _build_quick_worship_scripture(reference: str, version: str) -> dict:
             option["id"] for option in _worship_scripture_version_options()
         }:
             raise RuntimeError(
-                f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} does not have an authoritative "
-                "text provider configured. Paste authorized text using Manual Entry instead."
+                f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} is temporarily unavailable. "
+                "Paste the exact text your church is permitted to use with Manual Entry instead."
             )
         raise RuntimeError(
-            f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} text is unavailable. Try WEB or KJV."
+            f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} is temporarily unavailable. Try WEB or KJV."
         )
     text = re.sub(r"\s+", " ", str(text)).strip()[:6000]
     lines = _worship_scripture_lines(text)

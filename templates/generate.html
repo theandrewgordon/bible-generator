@@ -3,7 +3,7 @@ Printable Bible Worksheets{% endblock %} {% block head_extra %} {# Page-specific
 SEO (base will add noindex for /generate, but these help sharing/consistency) #}
 <meta
   name="description"
-  content="Make printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses, versions (NLT,ESV, or KJV), cursive or manuscript."
+  content="Make printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses, versions (NLT, ESV, KJV, or WEB), cursive or manuscript."
 />
 <meta property="og:title" content="Make Printable Bible Worksheets" />
 <meta
@@ -192,7 +192,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
             style="max-width: 220px"
           >
             {% for bible_version in scripture_versions %}
-              <option value="{{ bible_version.id }}" {% if bible_version.id == 'web' %}selected{% endif %} data-source-available="{{ '1' if bible_version.available else '0' }}" title="{{ bible_version.name }}{% if not bible_version.available %} · live text source not configured; Copywork can still use its normal generation path{% endif %}">{{ bible_version.code }}</option>
+              <option value="{{ bible_version.id }}" {% if bible_version.id == 'web' %}selected{% endif %} data-source-available="{{ '1' if bible_version.available else '0' }}" title="{{ bible_version.name }}">{{ bible_version.code }}</option>
             {% endfor %}
             <option value="" data-role="override" hidden></option>
           </select>
@@ -332,7 +332,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
                 <span class="pill" id="previewCursive" hidden>✍️ Cursive</span>
               </div>
             </div>
-            <div class="preview-section"><strong>Copy this verse</strong><div class="preview-copy-box" id="previewCopy">Your sourced Bible text will appear in the finished PDF.</div></div>
+            <div class="preview-section"><strong>Copy this verse</strong><div class="preview-copy-box" id="previewCopy">Your Bible text will appear in the finished PDF.</div></div>
             <div class="preview-section"><strong>Trace the verse</strong><div class="preview-trace" id="previewTrace">Tracing text</div></div>
             <div class="preview-section"><strong>Write the verse yourself</strong><div class="preview-writing-lines" id="previewWritingLines"><i></i><i></i><i></i></div></div>
             <div class="preview-bottom">
@@ -577,7 +577,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       previewVerse.textContent   = '—';
       previewVersion.textContent = effectiveVersion();
       previewPrompt.textContent  = '—';
-      previewCopy.textContent    = 'Your sourced Bible text will appear in the finished PDF.';
+      previewCopy.textContent    = 'Your Bible text will appear in the finished PDF.';
       previewTrace.textContent   = 'Tracing text';
     }
     const lineCounts = {beginner:5, growing:3, confident:2};

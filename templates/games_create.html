@@ -56,7 +56,7 @@ Printables{% endblock %} {% block content %} {% set fs = form_state or {} %}
       <select id="version" name="version" class="wide-input version-pref">
         {% for bible_version in scripture_versions %}
           <option value="{{ bible_version.id }}" {% if fs.version == bible_version.id or (not fs.version and bible_version.id == 'web') %}selected{% endif %}>
-            {{ bible_version.code }}{% if not bible_version.available %} — uses the Copywork text path{% endif %}
+            {{ bible_version.code }}
           </option>
         {% endfor %}
       </select>

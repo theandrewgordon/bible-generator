@@ -428,7 +428,7 @@
 {% if worship_church.role in ['owner', 'editor', 'member'] %}<div class="ws-modal-backdrop" id="quick-scripture-modal" aria-hidden="true">
   <form class="ws-modal" id="quick-scripture-form" role="dialog" aria-modal="true" aria-labelledby="quick-scripture-title">
     <h2 id="quick-scripture-title">Quick Scripture</h2>
-    <p>Enter a passage, preview the exact sourced text, and add it directly to this week’s set.</p>
+    <p>Enter a passage, preview it, and add it directly to this week’s set.</p>
     <div class="ws-scripture-modes" role="tablist" aria-label="Scripture entry method"><button class="ws-scripture-mode is-active" type="button" data-scripture-mode="sourced">Find passage</button><button class="ws-scripture-mode" type="button" data-scripture-mode="manual">Paste your own text</button></div>
     <div class="ws-scripture-panel" data-scripture-panel="sourced"><div class="ws-scripture-row">
       <div><label for="quick-scripture-reference">Bible reference</label><input id="quick-scripture-reference" placeholder="John 3:16–17" autocomplete="off" required></div>
@@ -437,9 +437,9 @@
     <div class="ws-scripture-panel" data-scripture-panel="manual" hidden>
       <div class="ws-scripture-row"><div><label for="manual-scripture-reference">Reference or title</label><input id="manual-scripture-reference" placeholder="John 1:1–2" autocomplete="off"></div><div><label for="manual-scripture-version">Version</label><input id="manual-scripture-version" placeholder="NIV"></div></div>
       <label for="manual-scripture-text" style="margin-top:.65rem">Scripture text or copied webpage</label><textarea id="manual-scripture-text" placeholder="Paste exact text—or a copied Bible webpage. Obvious navigation, verse numbers, footnotes, and boilerplate will be removed before preview."></textarea>
-      <label class="ws-manual-rights"><input id="manual-scripture-rights" type="checkbox"><span>I confirm my church may display this translation and I checked the reference, wording, and attribution. Faith Sparks did not source or verify this text.</span></label>
+      <label class="ws-manual-rights"><input id="manual-scripture-rights" type="checkbox"><span>I confirm my church may display this translation and that I checked the reference, wording, and attribution.</span></label>
     </div>
-    <div class="ws-scripture-status" id="quick-scripture-status">Only translations with an authoritative configured source appear here. For another translation, add the authorized text manually; Faith Sparks will not fetch or generate it.</div>
+    <div class="ws-scripture-status" id="quick-scripture-status">Choose a translation to preview a passage, or paste the exact text your church is permitted to use.</div>
     <div class="ws-scripture-preview" id="quick-scripture-preview"></div>
     <div class="ws-modal-actions">
       <button type="button" class="ws-btn-ghost" id="quick-scripture-cancel">Cancel</button>
@@ -714,7 +714,7 @@
         quickScriptureReference.required = quickScriptureMode === 'sourced';
         quickScriptureAdd.disabled = true;
         quickScripturePreview.textContent = '';
-        quickScriptureStatus.textContent = quickScriptureMode === 'manual' ? 'Paste exact authorized text, then preview every slide.' : 'Only translations with an authoritative configured source appear here.';
+      quickScriptureStatus.textContent = quickScriptureMode === 'manual' ? 'Paste the exact text your church is permitted to use, then preview every slide.' : 'Choose a translation to preview a passage.';
         var focusField = quickScriptureMode === 'manual' ? manualScriptureReference : quickScriptureReference;
         if (focusField) focusField.focus();
       });
@@ -729,7 +729,7 @@
     quickScriptureForm.addEventListener('submit', function (event) {
       event.preventDefault();
       quickScriptureAdd.disabled = true;
-      quickScriptureStatus.textContent = quickScriptureMode === 'manual' ? 'Building slides from your exact text…' : 'Loading authoritative Scripture text…';
+      quickScriptureStatus.textContent = quickScriptureMode === 'manual' ? 'Building slides from your exact text…' : 'Loading your passage…';
       quickScripturePreview.textContent = '';
       requestQuickScripture('/worship/scripture/preview').then(function (data) {
         data.slides.forEach(function (lines, index) {

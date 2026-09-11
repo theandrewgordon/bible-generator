@@ -58,7 +58,7 @@
           <select name="version" data-version-select>
             {% for bible_version in scripture_versions %}
               <option value="{{ bible_version.id }}" {% if version_prefill == bible_version.id %}selected{% endif %} {% if bible_version.id not in selectable_versions %}disabled{% endif %}>
-                {{ bible_version.code }}{% if not bible_version.available %} — uses the Copywork text path{% endif %}
+                {{ bible_version.code }}
               </option>
             {% endfor %}
           </select>

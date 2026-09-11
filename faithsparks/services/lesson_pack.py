@@ -894,8 +894,7 @@ def create_lesson_pack(
         scripture_source = "copywork"
     if not authoritative_text:
         raise ValueError(
-            "We could not load that Scripture text from an authoritative source or Copywork. "
-            "Check the reference or try KJV or WEB."
+            "We couldn’t load that passage right now. Please check the reference or try another translation."
         )
     normalized = {
         "verse": verse_ref,

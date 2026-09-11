@@ -236,7 +236,7 @@ def test_create_fails_closed_when_scripture_cannot_be_verified():
         mock.patch.object(lesson_pack, "fetch_verse_text", return_value=None),
         mock.patch.object(lesson_pack, "_build_lesson_pack_artifacts") as builder,
     ):
-        with pytest.raises(ValueError, match="authoritative source"):
+        with pytest.raises(ValueError, match="couldn’t load that passage"):
             lesson_pack.create_lesson_pack(
                 user_email="leader@example.com", verse_input="John 3:16", version="web"
             )

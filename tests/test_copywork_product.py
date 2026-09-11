@@ -23,6 +23,17 @@ def test_generate_page_allows_a_no_account_sample():
     assert b"Structural preview" in page.data
 
 
+def test_generate_page_keeps_translation_picker_customer_facing():
+    client = app.test_client()
+
+    page = client.get("/generate")
+
+    assert page.status_code == 200
+    assert b"Copywork text path" not in page.data
+    assert b"live text source not configured" not in page.data
+    assert b"Your Bible text will appear" in page.data
+
+
 def test_anonymous_custom_text_requires_sign_in_before_processing():
     client = app.test_client()
     _prime(client)
