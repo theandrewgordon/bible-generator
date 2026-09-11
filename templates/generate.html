@@ -191,10 +191,9 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
             class="wide-input"
             style="max-width: 220px"
           >
-            <option value="nlt">NLT</option>
-            <option value="esv">ESV</option>
-            <option value="kjv">KJV</option>
-            <option value="web" selected>WEB (World English)</option>
+            {% for bible_version in scripture_versions %}
+              <option value="{{ bible_version.id }}" {% if bible_version.id == 'web' %}selected{% endif %} data-source-available="{{ '1' if bible_version.available else '0' }}" title="{{ bible_version.name }}{% if not bible_version.available %} · live text source not configured; Copywork can still use its normal generation path{% endif %}">{{ bible_version.code }}</option>
+            {% endfor %}
             <option value="" data-role="override" hidden></option>
           </select>
         </div>
@@ -406,16 +405,16 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const RHYTHM_KEY     = 'faithsparks:copywork-rhythm:v1';
 
   /* ===== Helpers ===== */
-  const PRIMARY_VERSIONS = ['NLT','ESV','KJV'];
+  const PRIMARY_VERSIONS = {{ scripture_versions | map(attribute='code') | list | tojson }};
   const slug  = s => (s||'').replace(/[^\w\s]/g,'').replace(/\s+/g,'_').toLowerCase();
   const overrideOption = versionSelect ? versionSelect.querySelector('option[data-role="override"]') : null;
   const normalizeVerseText = (value) => {
     if (!value) return "";
     let text = String(value).replace(/\s+/g, " ").trim();
-    text = text.replace(/\(\s*(NLT|ESV|KJV)\s*\)$/i, " ($1)");
+    text = text.replace(/\(\s*(NLT|ESV|KJV|WEB)\s*\)$/i, " ($1)");
     return text;
   };
-  const isVersionOnly = value => /^\(?\s*(NLT|ESV|KJV)\s*\)?$/i.test((value || "").trim());
+  const isVersionOnly = value => /^\(?\s*(NLT|ESV|KJV|WEB)\s*\)?$/i.test((value || "").trim());
   const getNormalizedTags = () => {
     const values = tagify.value.map(t => (t.value || "").trim()).filter(Boolean);
     const merged = [];

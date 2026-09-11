@@ -567,6 +567,7 @@
   var manualScriptureRights = document.getElementById('manual-scripture-rights');
   var currentSetlistId = '';
   var currentSetlistName = '';
+  var currentSetlistUpdatedAt = '';
 
   // ── First-run walkthrough ───────────────────────────────────────────────
 
@@ -1380,6 +1381,7 @@
     });
     currentSetlistId = chip.dataset.id || '';
     currentSetlistName = chip.dataset.name || chip.dataset.date || '';
+    currentSetlistUpdatedAt = chip.dataset.updated || '';
     setDirty = false;
     syncOrder();
     syncUI();
@@ -1568,6 +1570,7 @@
     var fd = new FormData();
     fd.append('csrf_token', csrfToken);
     if (currentSetlistId) fd.append('setlist_id', currentSetlistId);
+    if (currentSetlistId && currentSetlistUpdatedAt) fd.append('expected_updated_at', currentSetlistUpdatedAt);
     ids.forEach(function (id) { fd.append('song_ids', id); });
     fd.append('setlist_name', setlistName);
     var notes = {};
@@ -1583,6 +1586,7 @@
         if (data.ok) {
           currentSetlistId = data.id;
           currentSetlistName = data.name || data.date;
+          currentSetlistUpdatedAt = data.updated_at || '';
           setDirty = false;
           upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes, data.updated_at);
           updateMobileShare();
@@ -1590,7 +1594,7 @@
           setlistStatus.style.display = 'inline';
           setTimeout(function () { setlistStatus.style.display = 'none'; }, 2500);
         } else {
-          alert('Save failed.');
+          alert(data.error || 'Save failed.');
         }
       })
       .catch(function () { alert('Save failed.'); });
@@ -1628,6 +1632,7 @@
       loadSetlistFromChip(firstChip);
       currentSetlistId = '';
       currentSetlistName = '';
+      currentSetlistUpdatedAt = '';
       setDirty = true;
       setlistStatus.textContent = 'Copied last set into this week. Save when ready.';
       setlistStatus.style.display = 'inline';

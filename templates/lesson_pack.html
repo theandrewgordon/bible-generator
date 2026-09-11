@@ -56,10 +56,11 @@
         <label>
           Bible version
           <select name="version" data-version-select>
-            <option value="web" {% if version_prefill == 'web' %}selected{% endif %}>WEB (World English)</option>
-            <option value="kjv" {% if version_prefill == 'kjv' %}selected{% endif %}>KJV</option>
-            <option value="nlt" {% if version_prefill == 'nlt' %}selected{% endif %} {% if 'nlt' not in available_versions %}disabled{% endif %}>NLT{% if 'nlt' not in available_versions %} — licensed source unavailable{% endif %}</option>
-            <option value="esv" {% if version_prefill == 'esv' %}selected{% endif %} {% if 'esv' not in available_versions %}disabled{% endif %}>ESV{% if 'esv' not in available_versions %} — licensed source unavailable{% endif %}</option>
+            {% for bible_version in scripture_versions %}
+              <option value="{{ bible_version.id }}" {% if version_prefill == bible_version.id %}selected{% endif %} {% if bible_version.id not in selectable_versions %}disabled{% endif %}>
+                {{ bible_version.code }}{% if not bible_version.available %} — uses the Copywork text path{% endif %}
+              </option>
+            {% endfor %}
           </select>
         </label>
         <label>

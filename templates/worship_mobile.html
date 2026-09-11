@@ -71,6 +71,11 @@
     .wm-lines{font-size:clamp(1.18rem,6vw,min(1.55rem,var(--wm-lyric-size,2.8rem)));line-height:1.16;max-width:100%;padding:0 .2rem}
     .wm-slide.is-crowded .wm-lines{font-size:clamp(1.05rem,5.2vw,1.38rem);line-height:1.14}
     .wm-service-lines{font-size:clamp(1rem,4.8vw,1.25rem)}
+    /* A split service slide is useful on a tablet, but side-by-side content is
+       unreadable on a portrait phone. Stack it and let each half breathe. */
+    .wm-service-split{grid-template-columns:1fr;grid-template-rows:minmax(0,.9fr) minmax(0,1.1fr)}
+    .wm-service-split .wm-service-photo{min-height:0}
+    .wm-service-split .wm-service-content{min-height:0;padding:.7rem}
     .wm-footer{grid-template-columns:82px minmax(0,1fr) 82px;gap:.4rem;padding-left:.45rem;padding-right:.45rem}
     .wm-footer-btn{padding:.4rem .3rem;font-size:.78rem}
   }

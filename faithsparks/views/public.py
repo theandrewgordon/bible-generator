@@ -12,6 +12,7 @@ from faithsparks.services.lesson_pack import (
     LESSON_PACK_MODES,
     LESSON_PACK_SESSION_MINUTES,
     available_lesson_pack_versions,
+    selectable_lesson_pack_versions,
     create_lesson_pack,
 )
 from faithsparks.services.rate_limit import check_rate_limit
@@ -252,7 +253,7 @@ def lesson_pack():
             minutes_prefill = int(request.args.get('minutes') or 40)
         except (TypeError, ValueError):
             minutes_prefill = 40
-        if version_prefill not in available_versions:
+        if version_prefill not in selectable_lesson_pack_versions():
             version_prefill = 'web'
         if age_prefill not in LESSON_PACK_AGE_PROFILES:
             age_prefill = '6-8'
@@ -271,6 +272,7 @@ def lesson_pack():
             coloring_prefill=(request.args.get('coloring') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
             lesson_pack_modes=LESSON_PACK_MODES,
             available_versions=available_versions,
+            selectable_versions=selectable_lesson_pack_versions(),
             selection_from_url=any(key in request.args for key in ('verse', 'version', 'age', 'cursive', 'mode', 'minutes', 'coloring')),
             lesson_pack_signed_in=_is_signed_in(),
             proverb_of_day=get_proverb_of_day(),
@@ -305,7 +307,7 @@ def lesson_pack():
         flash('Please enter a verse reference.', 'warning')
         return redirect(url_for('public.lesson_pack'))
     if (
-        version not in available_lesson_pack_versions()
+        version not in selectable_lesson_pack_versions()
         or age_bracket not in LESSON_PACK_AGE_PROFILES
         or lesson_mode not in LESSON_PACK_MODES
         or session_minutes not in LESSON_PACK_SESSION_MINUTES

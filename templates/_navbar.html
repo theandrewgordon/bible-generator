@@ -37,10 +37,7 @@
             <label class="version-toggle" for="versionPrefMobile">
               <span class="version-label">Default version</span>
               <select id="versionPrefMobile" class="version-pref" aria-label="Default Bible version">
-                <option value="nlt">NLT</option>
-                <option value="esv">ESV</option>
-                <option value="kjv">KJV</option>
-                <option value="web">WEB (World English)</option>
+                {% for bible_version in scripture_versions %}<option value="{{ bible_version.id }}">{{ bible_version.code }}</option>{% endfor %}
               </select>
             </label>
             <button
@@ -92,10 +89,7 @@
             <label class="version-toggle" for="versionPref">
               <span class="version-label">Default version</span>
               <select id="versionPref" class="version-pref" aria-label="Default Bible version">
-                <option value="nlt">NLT</option>
-                <option value="esv">ESV</option>
-                <option value="kjv">KJV</option>
-                <option value="web">WEB (World English)</option>
+                {% for bible_version in scripture_versions %}<option value="{{ bible_version.id }}">{{ bible_version.code }}</option>{% endfor %}
               </select>
             </label>
             <button

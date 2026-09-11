@@ -58,6 +58,36 @@ class WorshipSetlistTests(unittest.TestCase):
         self.assertEqual(data["songs"], ["song-one"])
         self.assertFalse((setlists_dir / "2026-05-31.json").exists())
 
+    def test_save_rejects_stale_second_tab(self):
+        setlists_dir = Path(self.tmp.name) / "setlists"
+        setlists_dir.mkdir()
+        (setlists_dir / "2026-05-31.json").write_text(
+            json.dumps({
+                "id": "2026-05-31",
+                "date": "2026-05-31",
+                "songs": ["song-one"],
+                "notes": {},
+                "updated_at": "2026-05-31T10:00:00+00:00",
+            }),
+            encoding="utf-8",
+        )
+        with app.app.test_request_context(
+            "/worship/setlist/save",
+            method="POST",
+            data={
+                "setlist_id": "2026-05-31",
+                "expected_updated_at": "2026-05-31T09:00:00+00:00",
+                "song_ids": ["song-two"],
+            },
+        ):
+            app.g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
+            app.session["user_email"] = "leader@example.com"
+            response = app.worship_setlist_save()
+
+        response, status = response
+        self.assertEqual(status, 409)
+        self.assertTrue(response.get_json()["conflict"])
+
     def test_duplicate_setlist_creates_copy(self):
         setlists_dir = Path(self.tmp.name) / "setlists"
         setlists_dir.mkdir()

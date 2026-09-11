@@ -16,6 +16,7 @@ from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.scripture import TRANSLATIONS as SCRIPTURE_TRANSLATIONS
 from faithsparks.util.request_utils import get_client_ip
 from build_games import generate_match_game_pdf, generate_word_search_pdf, generate_crossword_pdf, MatchItem
 from verse_helpers import (
@@ -552,6 +553,8 @@ def games_create():
 
     raw_title = (request.form.get("title") or "").strip()
     version = (request.form.get("version") or "web").strip().lower()
+    if version not in SCRIPTURE_TRANSLATIONS:
+        version = "web"
     game_type = (request.form.get("gameType") or "match").strip().lower()
     if raw_title:
         title = raw_title

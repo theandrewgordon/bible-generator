@@ -33,6 +33,98 @@ _PUBLIC_DOMAIN = {
     "rccv", "bbe", "darby", "ylt", "asv", "dra",
 }
 
+# One translation catalog shared by every product picker.  Keep the ids lower
+# case in data and use ``code`` for display so a lesson pack, game, worksheet,
+# and worship item all describe the same source in the same way.
+TRANSLATIONS = {
+    "web": {
+        "code": "WEB",
+        "name": "World English Bible",
+        "source": "bible-api.com",
+        "licensed": False,
+    },
+    "kjv": {
+        "code": "KJV",
+        "name": "King James Version",
+        "source": "bible-api.com",
+        "licensed": False,
+    },
+    "esv": {
+        "code": "ESV",
+        "name": "English Standard Version",
+        "source": "ESV API or API.Bible",
+        "licensed": True,
+    },
+    "nlt": {
+        "code": "NLT",
+        "name": "New Living Translation",
+        "source": "API.Bible",
+        "licensed": True,
+    },
+}
+
+
+def _api_bible_ids() -> dict[str, str]:
+    """Return configured API.Bible ids (``API_BIBLE_IDS=nlt:id,esv:id``)."""
+    raw = os.getenv("API_BIBLE_IDS", "")
+    out: dict[str, str] = {}
+    for pair in raw.split(","):
+        if ":" not in pair:
+            continue
+        version, bible_id = pair.split(":", 1)
+        version, bible_id = version.strip().lower(), bible_id.strip()
+        if version and bible_id:
+            out[version] = bible_id
+    return out
+
+
+def available_translation_ids() -> set[str]:
+    """Translations backed by a source that this installation can call."""
+    available = {version for version in TRANSLATIONS if version in _PUBLIC_DOMAIN}
+    api_key = os.getenv("API_BIBLE_KEY", "").strip()
+    api_ids = _api_bible_ids()
+    if os.getenv("ESV_API_KEY", "").strip() or (api_key and api_ids.get("esv")):
+        available.add("esv")
+    if api_key and api_ids.get("nlt"):
+        available.add("nlt")
+    return available
+
+
+def translation_options(*, include_unavailable: bool = True) -> list[dict]:
+    """Return picker-ready metadata for the canonical translation catalog."""
+    available = available_translation_ids()
+    options = []
+    for version, metadata in TRANSLATIONS.items():
+        if not include_unavailable and version not in available:
+            continue
+        options.append({
+            "id": version,
+            **metadata,
+            "available": version in available,
+        })
+    return options
+
+
+def fetch_copywork_text(reference: str, version: str, *, authoritative_fetch=None) -> str | None:
+    """Use the same text path as Copywork for products that permit its fallback.
+
+    An authoritative provider is always preferred.  If one is not configured,
+    Copywork's existing worksheet pipeline is the shared fallback, so a user
+    who has permission for a licensed translation sees the same result in
+    games and lesson materials.
+    """
+    text = (authoritative_fetch or fetch_verse_text)(reference, version)
+    if text:
+        return text
+    try:
+        from verse_helpers import request_verse_data
+
+        payload = request_verse_data(reference, version)
+        data = json.loads(payload) if payload else {}
+        return _clean(data.get("fullVerse")) or None
+    except Exception:
+        return None
+
 # In-process cache: (reference_lower, version) -> str | None
 _cache: dict[tuple[str, str], str | None] = {}
 
@@ -70,19 +162,6 @@ def _fetch_esv(reference: str) -> str | None:
     data = _http_get_json(url, {"Authorization": "Token " + key})
     passages = data.get("passages") or []
     return passages[0] if passages else None
-
-
-def _api_bible_ids() -> dict:
-    """version -> bibleId map from env, e.g. API_BIBLE_IDS='nlt:abc123,csb:def456'."""
-    raw = os.getenv("API_BIBLE_IDS", "")
-    out: dict[str, str] = {}
-    for pair in raw.split(","):
-        if ":" in pair:
-            ver, bid = pair.split(":", 1)
-            ver, bid = ver.strip().lower(), bid.strip()
-            if ver and bid:
-                out[ver] = bid
-    return out
 
 
 def _fetch_api_bible(reference: str, bible_id: str) -> str | None:

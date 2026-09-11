@@ -8,13 +8,15 @@ import re
 from copy import deepcopy
 
 from faithsparks.services.game_content import BIBLE_BOOK_METADATA, load_bible_bee_content, strong_seed
-from faithsparks.services.scripture import fetch_verse_text
+from faithsparks.services.scripture import TRANSLATIONS as SCRIPTURE_TRANSLATIONS, fetch_verse_text
 
 
+# Keep the Bible Bee's picker in lockstep with the site-wide Scripture catalog.
+# Availability remains intentionally permissive here: the Bee already uses the
+# Copywork fallback pipeline when a live provider is not configured.
 TRANSLATIONS = {
-    "kjv": {"code": "KJV", "name": "King James Version"},
-    "esv": {"code": "ESV", "name": "English Standard Version"},
-    "nlt": {"code": "NLT", "name": "New Living Translation"},
+    version: {"code": metadata["code"], "name": metadata["name"]}
+    for version, metadata in SCRIPTURE_TRANSLATIONS.items()
 }
 
 GAME_STYLES = {

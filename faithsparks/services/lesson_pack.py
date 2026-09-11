@@ -12,7 +12,13 @@ from pathlib import Path
 
 from firebase_admin import firestore
 from faithsparks.services.firestore import db
-from faithsparks.services.scripture import derive_traceable, fetch_verse_text
+from faithsparks.services.scripture import (
+    TRANSLATIONS,
+    available_translation_ids,
+    derive_traceable,
+    fetch_copywork_text,
+    fetch_verse_text,
+)
 from faithsparks.services.storage import blob_exists, upload_to_storage_checked
 from faithsparks.pdf_notices import draw_scripture_notices_page
 from reportlab.lib import colors
@@ -74,7 +80,7 @@ STOPWORDS = {
 
 FALLBACK_WORDS = ["BIBLE", "JESUS", "GOD", "LOVE", "FAITH", "PRAY", "TRUST", "PEACE"]
 
-LESSON_PACK_VERSIONS = {"nlt", "esv", "kjv", "web"}
+LESSON_PACK_VERSIONS = set(TRANSLATIONS)
 LESSON_PACK_MODES = {
     "house-church": {
         "label": "House church gathering",
@@ -164,18 +170,12 @@ _lesson_pack_build_locks_guard = threading.Lock()
 
 def available_lesson_pack_versions() -> set[str]:
     """Return translations with an authoritative provider configured."""
-    available = {"kjv", "web"}
-    api_key_ready = bool(os.getenv("API_BIBLE_KEY", "").strip())
-    configured_ids = {
-        pair.split(":", 1)[0].strip().lower()
-        for pair in os.getenv("API_BIBLE_IDS", "").split(",")
-        if ":" in pair and pair.split(":", 1)[1].strip()
-    }
-    if os.getenv("ESV_API_KEY", "").strip() or (api_key_ready and "esv" in configured_ids):
-        available.add("esv")
-    if api_key_ready and "nlt" in configured_ids:
-        available.add("nlt")
-    return available
+    return available_translation_ids()
+
+
+def selectable_lesson_pack_versions() -> set[str]:
+    """Versions a parent may choose; licensed versions use Copywork fallback."""
+    return set(LESSON_PACK_VERSIONS)
 
 
 def _normalize_lesson_pack_options(version: str, age_bracket: str) -> tuple[str, str]:
@@ -884,9 +884,17 @@ def create_lesson_pack(
 
     verse_ref = normalize_reference_title(verse_input)
     authoritative_text = fetch_verse_text(verse_ref, version)
+    scripture_source = "authoritative"
+    if not authoritative_text:
+        # Match Copywork's existing licensed-translation path when an API key
+        # has not yet been added to this deployment.
+        authoritative_text = fetch_copywork_text(
+            verse_ref, version, authoritative_fetch=fetch_verse_text
+        )
+        scripture_source = "copywork"
     if not authoritative_text:
         raise ValueError(
-            "We could not verify that Scripture text from an authoritative source. "
+            "We could not load that Scripture text from an authoritative source or Copywork. "
             "Check the reference or try KJV or WEB."
         )
     normalized = {
@@ -897,6 +905,7 @@ def create_lesson_pack(
         "traceableVerse": derive_traceable(authoritative_text, None),
         "imageIdea": f"Draw a simple symbol that helps your group remember {verse_ref}.",
         "scriptureVerified": True,
+        "scriptureSource": scripture_source,
     }
 
     cache_key = _lesson_pack_cache_key(

@@ -78,6 +78,7 @@ from faithsparks.services.worship_presentations import (
     suggest_sermon_highlights,
 )
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
+from faithsparks.services.scripture import TRANSLATIONS as SCRIPTURE_TRANSLATIONS, translation_options as scripture_translation_options, available_translation_ids
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
 from faithsparks.services.users import get_user_doc
 from faithsparks.services.themes import THEMES, get_theme_vars, list_all_themes, get_theme_selection
@@ -6901,10 +6902,7 @@ def worship_media(song_id):
 
 
 _WORSHIP_SCRIPTURE_VERSIONS = {
-    "web": "WEB",
-    "kjv": "KJV",
-    "esv": "ESV",
-    "nlt": "NLT",
+    version: metadata["code"] for version, metadata in SCRIPTURE_TRANSLATIONS.items()
 }
 
 
@@ -6915,29 +6913,17 @@ def _worship_scripture_version_options() -> list[dict[str, str]]:
     WEB/KJV are always available; copyrighted translations appear only when
     their configured provider credentials are present.
     """
-    options = [
-        {"id": "web", "label": "WEB"},
-        {"id": "kjv", "label": "KJV"},
+    return [
+        {"id": option["id"], "label": option["code"]}
+        for option in scripture_translation_options(include_unavailable=False)
     ]
-    api_key = os.environ.get("API_BIBLE_KEY", "").strip()
-    api_ids = _api_bible_version_ids_from_env()
-    if os.environ.get("ESV_API_KEY", "").strip() or (api_key and api_ids.get("esv")):
-        options.append({"id": "esv", "label": "ESV"})
-    if api_key and api_ids.get("nlt"):
-        options.append({"id": "nlt", "label": "NLT"})
-    return options
 
 
 def _api_bible_version_ids_from_env() -> dict[str, str]:
-    out = {}
-    for pair in os.environ.get("API_BIBLE_IDS", "").split(","):
-        if ":" not in pair:
-            continue
-        version, bible_id = pair.split(":", 1)
-        version, bible_id = version.strip().lower(), bible_id.strip()
-        if version and bible_id:
-            out[version] = bible_id
-    return out
+    # Compatibility wrapper for older callers; the source registry owns this
+    # parsing now so worship and every other product cannot drift apart.
+    from faithsparks.services.scripture import _api_bible_ids
+    return _api_bible_ids()
 
 
 def _worship_scripture_lines(text: str, max_chars: int = 58) -> list[str]:
@@ -8907,6 +8893,13 @@ def worship_setlist_save():
         notes = {}
 
     existing = _get_worship_setlist(existing_id) if existing_id else None
+    expected_updated_at = request.form.get("expected_updated_at", "").strip()
+    if existing and expected_updated_at and str(existing.get("updated_at") or "") != expected_updated_at:
+        return jsonify({
+            "ok": False,
+            "conflict": True,
+            "error": "This service changed in another tab. Reload it before saving your changes.",
+        }), 409
     today = datetime.now().strftime("%Y-%m-%d")
     date_label = existing.get("date") if existing else today
     setlist_id = existing_id if existing else _worship_setlist_id(today, setlist_name)
@@ -9236,6 +9229,8 @@ def inject_helpers():
             'static_v': STATIC_VERSION,
             'product_navigation': PRIMARY_NAVIGATION,
             'faith_sparks_mission': MISSION,
+            'scripture_versions': scripture_translation_options(),
+            'scripture_available_versions': available_translation_ids(),
 
         }
     except Exception:
@@ -9256,6 +9251,8 @@ def inject_helpers():
             'static_v': STATIC_VERSION,
             'product_navigation': PRIMARY_NAVIGATION,
             'faith_sparks_mission': MISSION,
+            'scripture_versions': scripture_translation_options(),
+            'scripture_available_versions': available_translation_ids(),
         }
 
 # --- Plus / Checkout ---

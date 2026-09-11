@@ -45,3 +45,13 @@ logged for review. Build-only files are excluded from the production image.
 Longer term, generation that routinely exceeds a normal request should move to
 a durable job queue. Until then, do not lower worker/thread capacity or put
 extra network calls on `/worship/live/*` polling and control paths.
+
+## Scripture source contract
+
+`faithsparks/services/scripture.py` owns the translation catalog and provider
+configuration. Every version picker should render `scripture_versions` from
+the app context rather than maintaining its own NLT/ESV/KJV/WEB list. Public
+domain WEB/KJV use bible-api.com; licensed ESV uses the ESV API (or API.Bible),
+and licensed NLT uses API.Bible. Configure `ESV_API_KEY`, `API_BIBLE_KEY`, and
+the matching `API_BIBLE_IDS` entries in the deployment environment before
+offering licensed text in products that require authoritative verification.
