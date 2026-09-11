@@ -360,7 +360,7 @@ def robots_txt():
 def sitemap_xml():
     """Small, explicit sitemap; private workspaces and Labs stay out."""
     paths = (
-        "/", "/about", "/start-here", "/prepare", "/lesson-pack",
+        "/", "/about", "/start-here", "/families", "/churches", "/prepare", "/lesson-pack",
         "/generate", "/browse", "/play", "/games", "/family-game-night",
         "/verse-of-the-week", "/plus", "/terms", "/privacy", "/copyright",
     )

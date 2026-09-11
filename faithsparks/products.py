@@ -17,7 +17,7 @@ PRIMARY_NAVIGATION = (
     {"id": "worship", "label": "Worship", "path": "/worship", "prefixes": ("/worship",)},
     {"id": "play", "label": "Play", "path": "/play", "prefixes": ("/play", "/games", "/family-game-night", "/family-bible-bee", "/group-games", "/church-games")},
     {"id": "library", "label": "My Library", "path": "/prints", "prefixes": ("/prints",)},
-    {"id": "labs", "label": "Labs", "path": "/labs", "prefixes": ("/labs", "/speeddie")},
+    {"id": "labs", "label": "Labs", "path": "/labs", "prefixes": ("/labs",)},
 )
 
 PRODUCTS = (
@@ -71,11 +71,6 @@ PRODUCTS = (
         "maturity": "experiment", "path": "/lesson-pack?coloring=1", "accent": "rose",
         "description": "Try optional generated coloring art inside a gathering pack.",
     },
-    {
-        "id": "speed-die", "name": "Speed Die", "area": "labs",
-        "maturity": "sandbox", "path": "/speeddie", "accent": "purple",
-        "description": "A tiny helper for fast, energetic group-game rounds.",
-    },
 )
 
 MATURITY = {
@@ -85,6 +80,53 @@ MATURITY = {
     "sandbox": "Small prototype; may change or disappear",
 }
 
+AUDIENCE_PRODUCT_IDS = {
+    "families": (
+        "copywork", "gathering-builder", "verse-of-the-week",
+        "family-game-night", "printable-games",
+    ),
+    "churches": (
+        "gathering-builder", "worship", "family-game-night",
+        "bible-bee", "printable-games",
+    ),
+}
+
+AUDIENCE_DESCRIPTIONS = {
+    "families": {
+        "gathering-builder": "Turn one passage into a five-day family rhythm for reading, conversation, practice, and prayer.",
+        "family-game-night": "Bring everyone together with a Bible-centered game that starts quickly.",
+        "printable-games": "Keep a few print-and-play Bible activities ready for slow afternoons or co-op days.",
+    },
+    "churches": {
+        "gathering-builder": "Build a ready-to-lead, all-age house-church gathering from one Bible passage.",
+        "family-game-night": "Use low-prep participation to help a small gathering relax and connect.",
+        "bible-bee": "Host an inclusive Scripture challenge using the phones already in the room.",
+        "printable-games": "Keep table activities ready for children, mixed ages, or an informal gathering.",
+    },
+}
+
+AUDIENCE_PATHS = {
+    "families": {"gathering-builder": "/lesson-pack?mode=family"},
+    "churches": {"gathering-builder": "/lesson-pack?mode=house-church"},
+}
+
 
 def products_for(area: str) -> tuple[dict, ...]:
     return tuple(product for product in PRODUCTS if product["area"] == area)
+
+
+def products_for_audience(audience: str) -> tuple[dict, ...]:
+    product_by_id = {product["id"]: product for product in PRODUCTS}
+    overrides = AUDIENCE_DESCRIPTIONS.get(audience, {})
+    path_overrides = AUDIENCE_PATHS.get(audience, {})
+    return tuple(
+        {
+            **product_by_id[product_id],
+            "description": overrides.get(
+                product_id, product_by_id[product_id]["description"]
+            ),
+            "path": path_overrides.get(product_id, product_by_id[product_id]["path"]),
+        }
+        for product_id in AUDIENCE_PRODUCT_IDS.get(audience, ())
+        if product_id in product_by_id
+    )

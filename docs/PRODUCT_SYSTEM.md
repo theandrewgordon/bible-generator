@@ -11,6 +11,11 @@ The public information architecture is task-first:
 - **My Library** — owned and generated materials.
 - **Labs** — experiments that are intentionally outside the core promise.
 
+The default audience is **families and homeschool parents**, especially the
+parent carrying planning and teaching. `/families` is the primary audience
+entry. `/churches` gives house churches and small groups a tailored start
+without creating a separate product or duplicating the task navigation.
+
 `faithsparks/products.py` is the source of truth for navigation, product
 ownership, public paths, and maturity. A product moves into the primary
 experience only by changing its maturity and area there.
@@ -25,6 +30,9 @@ experience only by changing its maturity and area there.
 Labs pages are not indexed. Experimental visuals may have their own accent,
 but every entry point identifies Faith Sparks and provides a route back to the
 parent product.
+
+Unrelated utilities are not listed in the registry or Labs. They may remain at
+an unlinked, no-index direct URL, but they must not borrow Faith Sparks branding.
 
 ## Runtime lanes
 

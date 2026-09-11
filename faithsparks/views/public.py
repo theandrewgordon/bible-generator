@@ -18,7 +18,7 @@ from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.firestore import db
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.util.request_utils import get_client_ip
-from faithsparks.products import MATURITY, products_for
+from faithsparks.products import MATURITY, products_for, products_for_audience
 
 
 bp = Blueprint('public', __name__)
@@ -186,6 +186,38 @@ def start_here():
         'start_here.html',
         proverb_of_day=get_proverb_of_day(),
         game_of_week=_get_game_of_week(),
+    )
+
+
+@bp.get('/families')
+def families():
+    return render_template(
+        'audience_start.html',
+        audience_kicker='For Families & Homeschool',
+        audience_title='Bring Scripture into the week you already have.',
+        page_description='Simple tools for homeschool mornings, family worship, memory work, and time together—without another complicated curriculum.',
+        primary_label="Make today’s worksheet",
+        primary_path='/generate',
+        secondary_label='Plan a family Scripture week',
+        secondary_path='/lesson-pack?mode=family',
+        products=products_for_audience('families'),
+        audience='families',
+    )
+
+
+@bp.get('/churches')
+def churches():
+    return render_template(
+        'audience_start.html',
+        audience_kicker='For Churches & Small Groups',
+        audience_title='Prepare the gathering. Lead it from the room.',
+        page_description='Low-prep tools for house churches and small teams: build the plan, present worship clearly, and help mixed ages participate.',
+        primary_label='Build a gathering',
+        primary_path='/lesson-pack?mode=house-church',
+        secondary_label='Open Worship',
+        secondary_path='/worship',
+        products=products_for_audience('churches'),
+        audience='churches',
     )
 
 

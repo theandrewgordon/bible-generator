@@ -13,7 +13,8 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     ]
     labs = [product for product in PRODUCTS if product["area"] == "labs"]
     assert {product["maturity"] for product in labs} <= {"beta", "experiment", "sandbox"}
-    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "speed-die"}
+    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio"}
+    assert all(product["path"] != "/speeddie" for product in PRODUCTS)
 
 
 def test_task_landing_pages_and_parent_brand_render():
@@ -23,12 +24,16 @@ def test_task_landing_pages_and_parent_brand_render():
             ("/prepare", b"Gathering Builder"),
             ("/play", b"Family Game Night"),
             ("/labs", b"maturity guide"),
+            ("/families", b"Families &amp; Homeschool"),
+            ("/churches", b"Churches &amp; Small Groups"),
         ):
             response = client.get(path)
             assert response.status_code == 200
             assert expected in response.data
             assert b"Faith Sparks" in response.data
             assert response.headers["Server-Timing"].startswith("app;dur=")
+        assert b"Bring Scripture into the week you already have" in client.get("/families").data
+        assert b"Prepare the gathering. Lead it from the room" in client.get("/churches").data
 
 
 def test_labs_are_noindex_and_sitemap_only_lists_public_core_routes():
@@ -42,8 +47,22 @@ def test_labs_are_noindex_and_sitemap_only_lists_public_core_routes():
         assert sitemap.mimetype == "application/xml"
         assert b"/prepare</loc>" in sitemap.data
         assert b"/play</loc>" in sitemap.data
+        assert b"/families</loc>" in sitemap.data
+        assert b"/churches</loc>" in sitemap.data
         assert b"/labs" not in sitemap.data
         assert b"/worship/live" not in sitemap.data
+
+
+def test_speed_die_is_direct_url_only_and_not_faith_sparks_branded():
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        labs = client.get("/labs")
+        speed_die = client.get("/speeddie")
+    assert b"Speed Die" not in labs.data
+    assert speed_die.status_code == 200
+    assert b"Speed Die Helper" in speed_die.data
+    assert b"Faith Sparks" not in speed_die.data
+    assert speed_die.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 def test_homepage_uses_single_optimized_hero_and_task_language():
@@ -51,11 +70,25 @@ def test_homepage_uses_single_optimized_hero_and_task_language():
     with app.test_client() as client:
         response = client.get("/")
     assert response.status_code == 200
-    assert b"Prepare meaningful family and house-church gatherings" in response.data
+    assert b"Bring Scripture into your homeschool day" in response.data
+    assert b"Start with your family" in response.data
+    assert b"Leading a church or small group?" in response.data
     assert b"faith-sparks-home-hero.jpg" in response.data
     assert b"CopyworkStock/Copywork" not in response.data
     assert b"data-hero-images" not in response.data
     assert (ROOT / "static" / "faith-sparks-home-hero.jpg").stat().st_size < 300_000
+
+
+def test_start_here_routes_by_audience_before_task():
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        response = client.get("/start-here")
+    assert response.status_code == 200
+    assert b"Start with your setting" in response.data
+    assert b"Families &amp; Homeschool" in response.data
+    assert b"Churches &amp; Small Groups" in response.data
+    assert b'href="/families"' in response.data
+    assert b'href="/churches"' in response.data
 
 
 def test_production_server_keeps_live_capacity_available():

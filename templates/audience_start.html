@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ audience_kicker }} | Faith Sparks{% endblock %}
+{% set description = page_description %}
+{% block content %}
+<section class="product-hero audience-hero audience-hero--{{ audience }}">
+  <p class="product-kicker">{{ audience_kicker }}</p>
+  <h1>{{ audience_title }}</h1>
+  <p>{{ page_description }}</p>
+  <div class="audience-actions">
+    <a class="button primary" href="{{ primary_path }}">{{ primary_label }}</a>
+    <a class="button ghost" href="{{ secondary_path }}">{{ secondary_label }}</a>
+  </div>
+</section>
+
+<section class="audience-intro" aria-labelledby="audience-tools-title">
+  <p class="product-kicker">Start small</p>
+  <h2 id="audience-tools-title">Choose the tool that matches today.</h2>
+  <p>Faith Sparks tools share one purpose and account, but each stays focused enough to use without a tutorial.</p>
+</section>
+
+<section class="product-grid audience-product-grid" aria-label="Recommended Faith Sparks tools">
+  {% for product in products %}
+  <article class="product-card product-card--{{ product.accent }}">
+    <span class="status-badge status-badge--{{ product.maturity }}">{{ product.maturity|title }}</span>
+    <h2>{{ product.name }}</h2>
+    <p>{{ product.description }}</p>
+    <a class="button ghost" href="{{ product.path }}">Open {{ product.name }}</a>
+  </article>
+  {% endfor %}
+</section>
+
+{% if audience == 'families' %}
+<aside class="audience-callout">
+  <div>
+    <p class="product-kicker">Optional experiment</p>
+    <h2>Need help coordinating the whole week?</h2>
+    <p>WeekFlow is a family-planning beta in Labs. It is separate from the core Scripture tools while we learn what is genuinely useful.</p>
+  </div>
+  <a class="button ghost" href="/labs/weekflow">Try WeekFlow beta</a>
+</aside>
+{% else %}
+<aside class="audience-callout">
+  <div>
+    <p class="product-kicker">Designed for small rooms</p>
+    <h2>No production team required.</h2>
+    <p>Start with one leader, one shared screen, and the phones already in the room. The tools scale down gracefully.</p>
+  </div>
+  <a class="button ghost" href="{{ url_for('public.start_here') }}">See every starting path</a>
+</aside>
+{% endif %}
+{% endblock %}

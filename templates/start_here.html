@@ -3,37 +3,47 @@
 
 {% block content %}
 <section class="start-here">
-  <h1 class="page-title">Start Here</h1>
+  <h1 class="page-title">Start with your setting</h1>
   <p class="muted">
-    Start with the moment in front of you. The fastest path for most families and house churches is a Gathering Builder pack.
+    Faith Sparks is built first for family life, with a focused path for churches and small groups. Choose the setting that sounds most like today.
   </p>
 
-  <div class="start-steps">
-    <article class="start-card">
-      <div class="step-num">1</div>
-      <h2>Prepare a gathering</h2>
-      <p>Turn one passage into a low-prep, all-age plan and activities.</p>
-      <a class="button ghost" href="{{ url_for('public.lesson_pack') }}">Open Gathering Builder</a>
+  <div class="audience-grid">
+    <article class="audience-choice audience-choice--family">
+      <span class="audience-icon" aria-hidden="true">⌂</span>
+      <p class="product-kicker">Primary path</p>
+      <h2>Families &amp; Homeschool</h2>
+      <p>For homeschool mornings, family worship, Scripture memory, and meaningful time together.</p>
+      <ul>
+        <li>Make today’s worksheet</li>
+        <li>Plan a family Scripture week</li>
+        <li>Choose a game for mixed ages</li>
+      </ul>
+      <a class="button primary" href="{{ url_for('public.families') }}">Start with your family</a>
     </article>
-    <article class="start-card">
-      <div class="step-num">2</div>
-      <h2>Make a worksheet</h2>
-      <p>Create clean handwriting lines and an age-aware layout.</p>
-      <a class="button ghost" href="{{ url_for('generate') }}">Open Copywork</a>
-    </article>
-    <article class="start-card">
-      <div class="step-num">3</div>
-      <h2>Lead worship</h2>
-      <p>Build a simple service and present lyrics from the room.</p>
-      <a class="button ghost" href="{{ url_for('worship') }}">Open Worship</a>
-    </article>
-    <article class="start-card">
-      <div class="step-num">4</div>
-      <h2>Play together</h2>
-      <p>Choose a hosted or printable Bible game for mixed ages.</p>
-      <a class="button ghost" href="{{ url_for('public.play') }}">Choose a game</a>
+    <article class="audience-choice audience-choice--church">
+      <span class="audience-icon" aria-hidden="true">✦</span>
+      <p class="product-kicker">Supporting path</p>
+      <h2>Churches &amp; Small Groups</h2>
+      <p>For house churches and small teams preparing worship, all-age gatherings, and group participation.</p>
+      <ul>
+        <li>Build an all-age gathering</li>
+        <li>Plan and present worship</li>
+        <li>Start a room-friendly game</li>
+      </ul>
+      <a class="button ghost" href="{{ url_for('public.churches') }}">Start with your church</a>
     </article>
   </div>
+
+  <section class="quick-starts" aria-labelledby="quick-starts-title">
+    <h2 id="quick-starts-title">Or jump straight to a task</h2>
+    <div class="start-steps">
+      <a class="start-card" href="{{ url_for('generate') }}"><strong>Make a worksheet</strong><span>Copywork in seconds</span></a>
+      <a class="start-card" href="{{ url_for('public.lesson_pack') }}"><strong>Prepare a gathering</strong><span>One passage, ready-to-lead plan</span></a>
+      <a class="start-card" href="{{ url_for('worship') }}"><strong>Lead worship</strong><span>Plan, present, and share</span></a>
+      <a class="start-card" href="{{ url_for('public.play') }}"><strong>Play together</strong><span>Hosted and printable games</span></a>
+    </div>
+  </section>
 
   {% if proverb_of_day %}
   <div class="start-proverb">
@@ -74,8 +84,8 @@
       src="{{ url_for('static', filename='faith-sparks-home-hero.jpg') }}"
       alt="Children working on a worksheet together"
       loading="lazy"
-      width="840"
-      height="560"
+      width="1400"
+      height="787"
     />
   </div>
 </section>
@@ -93,23 +103,25 @@
     gap: 1rem;
   }
   .start-card {
+    display: grid;
+    gap: 0.35rem;
     border: 1px solid rgba(15, 23, 42, 0.08);
     background: var(--box);
     border-radius: 16px;
     padding: 1rem;
     box-shadow: var(--card-shadow);
+    color: var(--text);
+    text-decoration: none;
   }
-  .step-num {
-    width: 32px;
-    height: 32px;
-    border-radius: 999px;
-    background: var(--primary);
-    color: #fff;
-    display: grid;
-    place-items: center;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-  }
+  .start-card span { color: var(--text-secondary); font-size: 0.9rem; }
+  .audience-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .audience-choice { padding: clamp(1.25rem, 3vw, 2rem); border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent); border-radius: 20px; background: var(--box); box-shadow: var(--card-shadow); }
+  .audience-choice--family { border-top: 5px solid var(--primary); }
+  .audience-choice--church { border-top: 5px solid #6657d9; }
+  .audience-choice h2 { margin: 0.4rem 0; font-family: ui-serif, Georgia, serif; }
+  .audience-choice ul { padding-left: 1.2rem; color: var(--text-secondary); line-height: 1.7; }
+  .audience-icon { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 0.8rem; border-radius: 12px; background: color-mix(in srgb, var(--primary) 15%, var(--background)); font-weight: 900; }
+  .quick-starts { margin-top: 0.5rem; }
   .start-visual img {
     width: 100%;
     height: auto;
@@ -129,6 +141,7 @@
     box-shadow: var(--card-shadow);
   }
   @media (max-width: 640px) {
+    .audience-grid { grid-template-columns: 1fr; }
     .start-proverb {
       flex-direction: column;
       align-items: stretch;

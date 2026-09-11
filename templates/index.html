@@ -1,26 +1,26 @@
-{% extends "base.html" %} {% block title %}Faith Sparks | Prepare, Worship & Play Together{% endblock %}
+{% extends "base.html" %} {% block title %}Bible Tools for Homeschool Families | Faith Sparks{% endblock %}
 {% set positioning_v2 = site_content and site_content.home_positioning_version == 2 %}
 {% set default_hero_image = url_for('static', filename='faith-sparks-home-hero.jpg') %}
 {% set hero_primary_image = site_content.home_hero_image_url if positioning_v2 and site_content.home_hero_image_url else default_hero_image %}
 {% set hero_images = [hero_primary_image] %} {% set hero_og_image =
 hero_images[0] %} {% if hero_og_image and not hero_og_image.startswith('http')
 %} {% set hero_og_image = request.url_root.rstrip('/') ~ hero_og_image %} {%
-endif %} {% set hero_cta_text = site_content.home_cta_text if positioning_v2 and site_content.home_cta_text else 'Prepare a gathering' %} {% set hero_cta_url =
-site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else url_for('public.lesson_pack') %} {% block head_extra %}
+endif %} {% set hero_cta_text = site_content.home_cta_text if positioning_v2 and site_content.home_cta_text else 'Start with your family' %} {% set hero_cta_url =
+site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else url_for('public.families') %} {% block head_extra %}
 <meta
   name="description"
-  content="Scripture-centered tools that help families and small churches prepare, worship, and play together with less prep."
+  content="Simple Scripture-centered tools for homeschool mornings, family worship, Bible memory, and meaningful time together."
 />
 
 <!-- Open Graph / Twitter -->
 <meta
   property="og:title"
-  content="Faith Sparks: Prepare, Worship & Play Together"
+  content="Bible Tools for Homeschool Families | Faith Sparks"
 />
 <meta property="og:site_name" content="Faith Sparks" />
 <meta
   property="og:description"
-  content="Turn a Bible passage into something useful for your family or gathering in minutes."
+  content="Bring Scripture into your family’s real week with less prep and more meaningful time together."
 />
 <meta property="og:type" content="website" />
 <meta
@@ -522,11 +522,11 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
     style="background-image: url('{{ hero_images[0] }}')"
   ></div>
   <div class="hero-content">
-    <span class="hero-kicker">Scripture for real life together</span>
-    <h1 class="hero-title">{{ site_content.home_title if positioning_v2 and site_content.home_title else 'Prepare meaningful family and house-church gatherings in minutes.' }}</h1>
+    <span class="hero-kicker">Built for family life</span>
+    <h1 class="hero-title">{{ site_content.home_title if positioning_v2 and site_content.home_title else 'Bring Scripture into your homeschool day without adding more prep.' }}</h1>
 
     <p class="hero-sub">
-      {{ site_content.home_subtitle if positioning_v2 and site_content.home_subtitle else 'Start with a Bible passage. Build a gathering plan, printable activity, worship service, or game without adding another night of prep.' }}
+      {{ site_content.home_subtitle if positioning_v2 and site_content.home_subtitle else 'Make today’s worksheet in seconds, plan a family Scripture week from one passage, or choose a Bible game everyone can join.' }}
     </p>
 
     <p class="hero-clarifier muted small">
@@ -537,14 +537,14 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
       <a class="button primary" href="{{ hero_cta_url }}"
         >{{ hero_cta_text }}</a
       >
-      <a class="button ghost" href="{{ url_for('public.prepare') }}">Explore the tools</a>
+      <a class="button ghost" href="{{ url_for('public.churches') }}">Leading a church or small group?</a>
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
-        <span class="hero-stat-icon" aria-hidden="true">For real rooms</span>
+        <span class="hero-stat-icon" aria-hidden="true">For real family life</span>
         <div class="hero-stat-content">
           <strong>Mixed-age friendly</strong>
-          <span>for families and small churches</span>
+          <span>across ages and ability levels</span>
         </div>
       </div>
       <div class="hero-stat">
@@ -563,7 +563,7 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
       </div>
     </div>
     <p class="muted small cta-note">
-      Begin with a gathering, a worksheet, worship, or a game.
+      Start with the family path, or jump directly to the task you need.
       <a href="{{ url_for('public.start_here') }}">Start here</a>.
     </p>
     {% if proverb_of_day %}
@@ -602,7 +602,7 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
 </section>
 
 <section class="how-it-works" id="how-it-works">
-  <h2>What are you preparing?</h2>
+  <h2>What would help today?</h2>
   <div class="how-grid">
     <article class="how-step">
       <h3>Prepare</h3>
