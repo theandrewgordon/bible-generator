@@ -196,6 +196,26 @@ def _cleanup_output_dirs():
                     child.unlink()
             except Exception:
                 continue
+    # Lesson packs are directory bundles rather than loose files. Keep recent
+    # local fallbacks, but remove stale bundles after the same retention window;
+    # durable production copies live in private object storage.
+    lesson_pack_root = pathlib.Path("output") / "lesson_packs"
+    if lesson_pack_root.exists():
+        try:
+            resolved_root = lesson_pack_root.resolve()
+            for child in lesson_pack_root.iterdir():
+                try:
+                    resolved_child = child.resolve()
+                    if (
+                        child.is_dir()
+                        and resolved_child.parent == resolved_root
+                        and child.stat().st_mtime < cutoff
+                    ):
+                        shutil.rmtree(child)
+                except Exception:
+                    continue
+        except Exception:
+            pass
 # --- App Setup ---
 # --- Environment / config flags (MUST be defined before use) ---
 APP_ENV = os.getenv("APP_ENV", "dev").lower()
@@ -664,9 +684,11 @@ def add_correlation_headers(resp):
     elif (request.path or "").startswith((
         "/labs/weekflow/calendar",
         "/connect/weekflow_google_calendar",
+        "/lesson-pack/result/",
+        "/lesson-pack/download/",
     )):
-        # Calendar lists and event previews are private family data. OAuth and
-        # API responses must not enter browser, CDN, or intermediary caches.
+        # Calendar views and owned lesson-pack artifacts are private data. They
+        # must not enter browser, CDN, or intermediary caches.
         resp.headers["Cache-Control"] = "private, no-store"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Expires"] = "0"

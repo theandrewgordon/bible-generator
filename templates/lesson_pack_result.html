@@ -1,43 +1,63 @@
 {% extends "base.html" %}
-{% block title %}Faith Sparks Copilot | Pack Ready{% endblock %}
+{% block title %}Your {{ mode_label }} Pack Is Ready | Faith Sparks{% endblock %}
 
 {% block content %}
-<section class="lesson-pack">
-  <div class="lesson-pack__hero">
+<section class="lesson-pack-result">
+  <div class="lpr-card">
     <p class="kicker">Faith Sparks Copilot</p>
-    <h1 class="page-title">Your lesson pack is ready</h1>
+    <h1 class="page-title">Your {{ mode_label|lower }} pack is ready</h1>
     <p class="muted">{{ title }}</p>
+    <div class="lpr-badges">
+      <span>{{ mode_label }}</span>
+      {% if lesson_mode == 'house-church' %}<span>{{ session_minutes }} minutes</span>{% endif %}
+      <span>Ages {{ age_bracket }}</span>
+      <span>{{ version|upper }}</span>
+      {% if scripture_verified %}<span>✓ Scripture verified</span>{% endif %}
+    </div>
 
     {% if status == 'partial' %}
     <div class="lpr-warning" role="alert">
-      <strong>Most of your pack is ready.</strong>
+      <strong>Your core pack is ready.</strong>
       {% for warning in warnings %}<div>{{ warning }}</div>{% endfor %}
-      <div>You can download what is ready now or rebuild to retry the missing piece.</div>
+      <div>Download what is ready now, or rebuild to retry the optional piece.</div>
     </div>
     {% elif status == 'complete' %}
-    <div class="lpr-ready" role="status">All four learning pieces passed their file checks.</div>
+    <div class="lpr-ready" role="status">Every requested piece passed its file checks.</div>
     {% else %}
-    <div class="lpr-ready" role="status">Your saved pack is available. Component-level checks were added after this pack was created.</div>
+    <div class="lpr-ready" role="status">Your saved pack is available.</div>
     {% endif %}
 
     <div class="lpr-actions">
-      <a class="button primary" href="{{ url_for('public.lesson_pack_download', slug=slug) }}">
-        Download pack ({{ download_format }})
-      </a>
-      <a class="button ghost" href="{{ url_for('public.lesson_pack', verse=verse, version=version, age=age_bracket, cursive=('1' if use_cursive else None)) }}">Rebuild this pack</a>
+      <a class="button primary" href="{{ url_for('public.lesson_pack_download', slug=slug) }}">Download pack ({{ download_format }})</a>
+      <a class="button ghost" href="{{ url_for('public.lesson_pack', verse=verse, version=version, age=age_bracket, mode=lesson_mode, minutes=session_minutes, cursive=('1' if use_cursive else None), coloring=('1' if include_coloring else None)) }}">Rebuild this pack</a>
       <a class="button ghost" href="{{ url_for('public.lesson_pack') }}">Build another</a>
       <a class="button ghost" href="{{ url_for('prints') }}">See in My Prints</a>
     </div>
 
-    <div class="lpr-contents card flat mt-4">
-      <div class="settings-owner-section-title" style="font-size:0.9rem;font-weight:700;margin-bottom:0.5rem;">What's inside</div>
+    <div class="lpr-contents">
+      <h2>What’s inside</h2>
       <div class="lpr-components">
-        <div class="lpr-component {{ 'is-ready' if components.worksheet else 'is-missing' }}"><span>{{ '✓' if components.worksheet else '!' }}</span><div><strong>Copywork worksheet</strong><small>Age-sized writing space and reflection</small></div></div>
-        <div class="lpr-component {{ 'is-ready' if components.coloring else 'is-missing' }}"><span>{{ '✓' if components.coloring else '!' }}</span><div><strong>Coloring page</strong><small>{{ 'Ready to print' if components.coloring else 'Unavailable in this build' }}</small></div></div>
-        <div class="lpr-component {{ 'is-ready' if components.word_search else 'is-missing' }}"><span>{{ '✓' if components.word_search else '!' }}</span><div><strong>Word search + answer key</strong><small>Difficulty matched to {{ age_bracket }}</small></div></div>
-        <div class="lpr-component {{ 'is-ready' if components.parent_guide else 'is-missing' }}"><span>{{ '✓' if components.parent_guide else '!' }}</span><div><strong>Five-day family guide</strong><small>Conversation, activity, memory, and prayer prompts</small></div></div>
+        <div class="lpr-component {{ 'is-ready' if components.worksheet else 'is-missing' }}">
+          <span>{{ '✓' if components.worksheet else '!' }}</span>
+          <div><strong>Copywork worksheet</strong><small>Age-sized writing space and reflection</small></div>
+        </div>
+        <div class="lpr-component {{ 'is-ready' if components.word_search else 'is-missing' }}">
+          <span>{{ '✓' if components.word_search else '!' }}</span>
+          <div><strong>Word search + answer key</strong><small>Difficulty matched to ages {{ age_bracket }}</small></div>
+        </div>
+        <div class="lpr-component {{ 'is-ready' if components.parent_guide else 'is-missing' }}">
+          <span>{{ '✓' if components.parent_guide else '!' }}</span>
+          <div>
+            <strong>{{ 'House church gathering plan' if lesson_mode == 'house-church' else 'Five-day family guide' }}</strong>
+            <small>{{ 'All-age flow, leader notes, response, and prayer' if lesson_mode == 'house-church' else 'Conversation, activity, memory, and prayer prompts' }}</small>
+          </div>
+        </div>
+        <div class="lpr-component {{ 'is-ready' if components.coloring else ('is-skipped' if not include_coloring else 'is-missing') }}">
+          <span>{{ '✓' if components.coloring else ('–' if not include_coloring else '!') }}</span>
+          <div><strong>Coloring page</strong><small>{{ 'Ready to print' if components.coloring else ('Skipped for a faster build' if not include_coloring else 'Unavailable in this build') }}</small></div>
+        </div>
       </div>
-      <p class="field-hint mt-2">This pack is saved in My Prints. PDF is preferred when every page can be combined safely; ZIP remains available as a complete file bundle fallback.</p>
+      <p class="field-hint">Saved in My Prints. The combined PDF has one Scripture permissions page; ZIP is used only when a safe PDF merge is unavailable.</p>
     </div>
   </div>
 </section>
@@ -45,58 +65,7 @@
 
 {% block extra_scripts %}
 <style>
-  .lesson-pack {
-    display: grid;
-    gap: 1rem;
-    max-width: 860px;
-  }
-  .lesson-pack__hero {
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: var(--box);
-    border-radius: 18px;
-    padding: 1.1rem;
-    box-shadow: var(--card-shadow);
-  }
-  .lpr-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 1.25rem;
-  }
-  .lpr-contents {
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 12px;
-    padding: 1rem;
-    background: var(--box);
-  }
-  .lpr-contents ul {
-    margin: 0.25rem 0 0;
-    padding-left: 1.2rem;
-  }
-  .lpr-ready,.lpr-warning{margin-top:1rem;padding:.8rem .9rem;border-radius:12px;font-size:.9rem}.lpr-ready{background:#ecfdf5;border:1px solid #86efac;color:#166534}.lpr-warning{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}.lpr-warning strong{display:block;margin-bottom:.25rem}
-  .lpr-components{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-top:.7rem}.lpr-component{display:flex;align-items:flex-start;gap:.65rem;padding:.75rem;border-radius:11px;border:1px solid rgba(15,23,42,.1)}.lpr-component>span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;font-weight:900}.lpr-component.is-ready>span{background:#dcfce7;color:#166534}.lpr-component.is-missing>span{background:#ffedd5;color:#9a3412}.lpr-component strong,.lpr-component small{display:block}.lpr-component small{margin-top:.15rem;color:var(--muted);line-height:1.3}
-  .kicker {
-    display: inline-flex;
-    margin: 0 0 0.4rem;
-    padding: 0.35rem 0.65rem;
-    border-radius: 999px;
-    background: rgba(14, 165, 233, 0.12);
-    color: var(--primary-dark);
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .mt-2 { margin-top: 0.5rem; }
-  .mt-4 { margin-top: 1rem; }
-  .field-hint {
-    font-size: 0.78rem;
-    color: var(--muted);
-    margin: 0;
-  }
-  .flat {
-    box-shadow: none;
-  }
-  @media(max-width:640px){.lpr-actions{display:grid;grid-template-columns:1fr}.lpr-actions .button{text-align:center;width:100%}.lpr-components{grid-template-columns:1fr}}
+  .lesson-pack-result{max-width:920px;margin:0 auto}.lpr-card{border:1px solid rgba(15,23,42,.08);background:var(--box);border-radius:20px;padding:clamp(1rem,3vw,1.7rem);box-shadow:var(--card-shadow)}.kicker{display:inline-flex;margin:0 0 .35rem;padding:.34rem .65rem;border-radius:999px;background:rgba(14,165,233,.12);color:var(--primary-dark);font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.lpr-badges{display:flex;flex-wrap:wrap;gap:.45rem;margin:.9rem 0}.lpr-badges span{padding:.35rem .65rem;border-radius:999px;background:color-mix(in srgb,var(--primary) 12%,var(--box));color:var(--primary-dark);font-size:.78rem;font-weight:800}.lpr-ready,.lpr-warning{margin-top:1rem;padding:.8rem .9rem;border-radius:12px;font-size:.9rem}.lpr-ready{background:#ecfdf5;border:1px solid #86efac;color:#166534}.lpr-warning{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}.lpr-warning strong{display:block;margin-bottom:.25rem}.lpr-actions{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.2rem}.lpr-contents{margin-top:1rem;border:1px solid rgba(15,23,42,.08);border-radius:14px;padding:1rem}.lpr-contents h2{font-size:1rem;margin:0 0 .65rem}.lpr-components{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}.lpr-component{display:flex;align-items:flex-start;gap:.65rem;padding:.75rem;border-radius:11px;border:1px solid rgba(15,23,42,.1)}.lpr-component>span{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;font-weight:900}.lpr-component.is-ready>span{background:#dcfce7;color:#166534}.lpr-component.is-missing>span{background:#ffedd5;color:#9a3412}.lpr-component.is-skipped>span{background:#e2e8f0;color:#475569}.lpr-component strong,.lpr-component small{display:block}.lpr-component small{margin-top:.15rem;color:var(--text-secondary);line-height:1.3}.field-hint{font-size:.78rem;color:var(--text-secondary);margin:.8rem 0 0}
+  @media(max-width:640px){.lpr-actions{display:grid;grid-template-columns:1fr}.lpr-actions .button{width:100%;text-align:center}.lpr-components{grid-template-columns:1fr}.lpr-card{border-radius:16px}}
 </style>
 {% endblock %}

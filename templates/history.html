@@ -90,6 +90,7 @@ endblock %} {% block content %}
         <div class="title">{{ pack.title }}</div>
         <div class="meta small muted">
           {{ pack.verse }} • {{ pack.version }}{% if pack.age_bracket %} • Ages {{ pack.age_bracket }}{% endif %}
+          {% if pack.lesson_mode == 'house-church' %} • House church{% if pack.session_minutes %}, {{ pack.session_minutes }} min{% endif %}{% elif pack.lesson_mode == 'family' %} • Family week{% endif %}
         </div>
         <div class="meta small muted">
           Created {{ pack.timestamp.strftime('%Y-%m-%d %H:%M') if pack.timestamp else '' }}

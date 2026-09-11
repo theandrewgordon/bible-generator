@@ -11,6 +11,7 @@ from reportlab.pdfgen import canvas
 import build_games
 import build_pdf
 from app import app as flask_app
+from faithsparks.pdf_notices import append_scripture_notices_page
 from faithsparks.services import illustrate, lesson_pack
 from faithsparks.services.lesson_pack import (
     _build_parent_guide,
@@ -34,9 +35,6 @@ def _install_pack_fakes(monkeypatch, tmp_path: Path, *, coloring: bool = True) -
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(lesson_pack, "LESSON_PACK_OUTPUT_DIR", Path("lesson-packs"))
     monkeypatch.setattr(lesson_pack, "db", None)
-    monkeypatch.setattr(lesson_pack, "request_verse_meaning", lambda *args, **kwargs: "God shows faithful love.")
-    monkeypatch.setattr(lesson_pack, "request_theme_label", lambda *args, **kwargs: "Faithful Love")
-    monkeypatch.setattr(lesson_pack, "upload_to_storage", lambda *args, **kwargs: None)
     captured = {}
 
     def fake_worksheet(data, path, use_cursive=False):
@@ -86,8 +84,9 @@ def test_parent_guide_includes_key_pack_details():
     )
 
     assert "John 3:16" in guide
-    assert "Age focus: Ages 6-8" in guide
-    assert "5-day family rhythm" in guide
+    assert "Worksheet focus: Ages 6-8" in guide
+    assert "All-age gathering plan" in guide
+    assert "Leader note" in guide
     assert "LOVE" in guide
     assert "Hands-on connection" in guide
     assert "Prayer prompt" in guide
@@ -101,6 +100,17 @@ def test_age_profiles_materially_change_printables():
     assert youngest["word_search_size"] < oldest["word_search_size"]
     assert youngest["word_search_directions"] == [(1, 0), (0, 1)]
     assert oldest["reflection"] != youngest["reflection"]
+
+
+def test_coloring_blueprint_has_explicit_ten_plus_complexity():
+    blueprint, _ = illustrate.build_scene_blueprint(
+        {"sensitivity": {}},
+        age_bracket="10+",
+        user_symbols_only=True,
+        allow_historical_props=False,
+    )
+
+    assert blueprint["composition"] == {"foreground_max": 6, "background_max": 3}
 
 
 def test_variant_slug_is_unique_for_age_and_handwriting_style():
@@ -131,7 +141,8 @@ def test_parent_guide_pdf_is_substantive_and_readable(tmp_path):
     reader = PdfReader(str(output))
     text = "\n".join(page.extract_text() or "" for page in reader.pages)
     assert reader.pages
-    assert "5-day family rhythm" in text
+    assert "All-age gathering plan" in text
+    assert "Make room for every age" in text
     assert "Conversation starters" in text
     assert "Memory help" in text
     assert "Prayer prompt" in text
@@ -151,6 +162,7 @@ def test_complete_pack_has_verified_manifest_and_variant_settings(monkeypatch, t
         use_cursive=True,
         profile=profile,
         cache_key="john-3-16-web-3-5-cursive",
+        include_coloring=True,
     )
 
     assert result["status"] == "complete"
@@ -162,7 +174,8 @@ def test_complete_pack_has_verified_manifest_and_variant_settings(monkeypatch, t
     assert captured["word_search"]["allowed_directions"] == [(1, 0), (0, 1)]
 
     manifest = json.loads(Path(result["manifest_json"]).read_text(encoding="utf-8"))
-    assert manifest["schemaVersion"] == 2
+    assert manifest["schemaVersion"] == 3
+    assert manifest["scriptureVerified"] is True
     assert manifest["components"]["coloring"] is True
     with zipfile.ZipFile(result["zip_path"]) as archive:
         names = archive.namelist()
@@ -182,6 +195,7 @@ def test_partial_pack_is_truthful_when_coloring_fails(monkeypatch, tmp_path):
         use_cursive=False,
         profile=_lesson_pack_age_profile("6-8"),
         cache_key="psalm-23-1-kjv-6-8-print",
+        include_coloring=True,
     )
 
     assert result["status"] == "partial"
@@ -191,6 +205,82 @@ def test_partial_pack_is_truthful_when_coloring_fails(monkeypatch, tmp_path):
     manifest = json.loads(Path(result["manifest_json"]).read_text(encoding="utf-8"))
     assert manifest["status"] == "partial"
     assert not lesson_pack._cached_lesson_pack_has_artifact(result)
+
+
+def test_quick_pack_skips_slow_coloring_but_is_complete(monkeypatch, tmp_path):
+    captured = _install_pack_fakes(monkeypatch, tmp_path)
+    result = lesson_pack._build_lesson_pack_artifacts(
+        user_email="leader@example.com",
+        normalized={
+            "verse": "Acts 2:42", "version": "web", "title": "Acts 2:42",
+            "fullVerse": "They continued steadfastly in the apostles' teaching and fellowship.",
+        },
+        age_bracket="6-8",
+        use_cursive=False,
+        profile=_lesson_pack_age_profile("6-8"),
+        cache_key="quick-pack",
+        lesson_mode="house-church",
+        session_minutes=40,
+        include_coloring=False,
+    )
+
+    assert result["status"] == "complete"
+    assert result["components"]["coloring"] is False
+    assert "coloring" not in captured
+    assert result["include_coloring"] is False
+    assert result["lesson_mode"] == "house-church"
+
+
+def test_create_fails_closed_when_scripture_cannot_be_verified():
+    with (
+        mock.patch.object(lesson_pack, "fetch_verse_text", return_value=None),
+        mock.patch.object(lesson_pack, "_build_lesson_pack_artifacts") as builder,
+    ):
+        with pytest.raises(ValueError, match="authoritative source"):
+            lesson_pack.create_lesson_pack(
+                user_email="leader@example.com", verse_input="John 3:16", version="web"
+            )
+    builder.assert_not_called()
+
+
+def test_combined_pdf_has_one_consolidated_scripture_notice(tmp_path):
+    sources = []
+    for index in range(2):
+        source = tmp_path / f"source-{index}.pdf"
+        doc = canvas.Canvas(str(source))
+        doc.drawString(72, 720, f"Printable {index + 1}")
+        append_scripture_notices_page(doc, versions_used=["WEB"])
+        doc.save()
+        sources.append(source)
+
+    output = tmp_path / "combined.pdf"
+    assert _merge_pdf_files(output, sources, required_paths=sources, notice_versions=["WEB"])
+    reader = PdfReader(str(output))
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    assert text.count("Scripture Attribution & Permissions") == 1
+    assert len(reader.pages) == 3
+
+
+def test_cloud_pack_is_not_recorded_when_verified_upload_fails(monkeypatch, tmp_path):
+    _install_pack_fakes(monkeypatch, tmp_path)
+    monkeypatch.setattr(lesson_pack, "db", object())
+    monkeypatch.setattr(lesson_pack, "_upload_pack_artifacts", lambda _items: False)
+    record = mock.Mock()
+    monkeypatch.setattr(lesson_pack, "_record_user_lesson_pack", record)
+
+    with pytest.raises(RuntimeError, match="saved reliably"):
+        lesson_pack._build_lesson_pack_artifacts(
+            user_email="leader@example.com",
+            normalized={
+                "verse": "Acts 2:42", "version": "web", "title": "Acts 2:42",
+                "fullVerse": "They continued steadfastly in the apostles' teaching and fellowship.",
+            },
+            age_bracket="6-8",
+            use_cursive=False,
+            profile=_lesson_pack_age_profile("6-8"),
+            cache_key="upload-failure",
+        )
+    record.assert_not_called()
 
 
 def test_merge_rejects_a_missing_required_pdf(tmp_path):
@@ -205,7 +295,7 @@ def test_merge_rejects_a_missing_required_pdf(tmp_path):
 
 
 def test_create_rejects_unsupported_options_before_external_lookup():
-    with mock.patch.object(lesson_pack, "request_verse_data") as lookup:
+    with mock.patch.object(lesson_pack, "fetch_verse_text") as lookup:
         with pytest.raises(ValueError, match="supported Bible version"):
             lesson_pack.create_lesson_pack(
                 user_email="parent@example.com", verse_input="John 3:16", version="made-up"
@@ -215,6 +305,18 @@ def test_create_rejects_unsupported_options_before_external_lookup():
                 user_email="parent@example.com", verse_input="John 3:16", age_bracket="adult"
             )
     lookup.assert_not_called()
+
+
+def test_only_configured_authoritative_versions_are_offered(monkeypatch):
+    monkeypatch.delenv("ESV_API_KEY", raising=False)
+    monkeypatch.delenv("API_BIBLE_KEY", raising=False)
+    monkeypatch.delenv("API_BIBLE_IDS", raising=False)
+    assert lesson_pack.available_lesson_pack_versions() == {"kjv", "web"}
+
+    monkeypatch.setenv("ESV_API_KEY", "configured")
+    monkeypatch.setenv("API_BIBLE_KEY", "configured")
+    monkeypatch.setenv("API_BIBLE_IDS", "nlt:nlt-id")
+    assert lesson_pack.available_lesson_pack_versions() == {"kjv", "web", "esv", "nlt"}
 
 
 def test_ownership_falls_back_to_signed_session_when_database_fails():
@@ -247,7 +349,8 @@ def test_anonymous_build_preserves_choices_through_sign_in():
     next_url = login_query["next"][0]
     preserved = parse_qs(urlparse(next_url).query)
     assert preserved == {
-        "verse": ["John 3:16"], "version": ["kjv"], "age": ["9-10"], "cursive": ["1"]
+        "verse": ["John 3:16"], "version": ["kjv"], "age": ["9-10"], "cursive": ["1"],
+        "mode": ["house-church"], "minutes": ["40"],
     }
 
 
@@ -272,8 +375,8 @@ def test_result_details_use_manifest_not_zip_size(monkeypatch, tmp_path):
 @pytest.mark.parametrize(
     ("status", "coloring_ready", "format_name", "expected_copy"),
     [
-        ("complete", True, "PDF", "All four learning pieces passed their file checks."),
-        ("partial", False, "ZIP", "Most of your pack is ready."),
+        ("complete", True, "PDF", "Every requested piece passed its file checks."),
+        ("partial", False, "ZIP", "Your core pack is ready."),
     ],
 )
 def test_result_page_reports_actual_pack_state(
@@ -298,6 +401,11 @@ def test_result_page_reports_actual_pack_state(
         },
         "warnings": [] if coloring_ready else ["The coloring page could not be created this time."],
         "download_format": format_name,
+        "lesson_mode": "house-church",
+        "session_minutes": 40,
+        "include_coloring": True,
+        "scripture_verified": True,
+        "mode_label": "House Church",
     }
     client = flask_app.test_client()
     with (
@@ -315,6 +423,23 @@ def test_result_page_reports_actual_pack_state(
     assert "age=9-10" in page
     assert "cursive=1" in page
     assert ("Unavailable in this build" in page) is (not coloring_ready)
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert "noindex" in response.headers["X-Robots-Tag"]
+    assert '<meta name="robots" content="noindex,follow"' in page
+
+
+def test_default_builder_is_house_church_first_and_quick():
+    client = flask_app.test_client()
+    with mock.patch.object(public, "_is_signed_in", return_value=False):
+        response = client.get("/lesson-pack?verse=Acts+2%3A42")
+
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert 'value="house-church" selected' in page
+    assert 'value="40" selected' in page
+    assert 'name="include_coloring" data-coloring-check  />' in page
+    assert "Build quick gathering pack" not in page
+    assert "Sign in to build" in page
 
 
 def test_templates_have_progress_and_no_forced_download():
@@ -324,6 +449,6 @@ def test_templates_have_progress_and_no_forced_download():
 
     assert "lesson-pack-progress" in builder
     assert "Saving your choices for sign in" in builder
-    assert "submit.disabled = true" in builder
+    assert "submit.disabled=true" in builder
     assert "window.setInterval" not in result
     assert "Download pack ({{ download_format }})" in result

@@ -9,7 +9,9 @@ from faithsparks.util.proverb import get_proverb_of_day
 from faithsparks.services.collections import get_collections
 from faithsparks.services.lesson_pack import (
     LESSON_PACK_AGE_PROFILES,
-    LESSON_PACK_VERSIONS,
+    LESSON_PACK_MODES,
+    LESSON_PACK_SESSION_MINUTES,
+    available_lesson_pack_versions,
     create_lesson_pack,
 )
 from faithsparks.services.rate_limit import check_rate_limit
@@ -110,11 +112,24 @@ def _lesson_pack_result_details(owned: dict, slug: str) -> dict:
         warnings = []
     pdf_path, _ = _lesson_pack_local_paths(slug)
     has_pdf = pdf_path.exists() or bool(owned.get("pdf_storage_path")) or normalized_components["combined_pdf"]
+    lesson_mode = owned.get("lesson_mode") or manifest.get("lessonMode") or "house-church"
+    session_minutes = owned.get("session_minutes") or manifest.get("sessionMinutes") or 40
+    include_coloring = owned.get("include_coloring")
+    if include_coloring is None:
+        include_coloring = manifest.get("includeColoring", normalized_components["coloring"])
+    scripture_verified = owned.get("scripture_verified")
+    if scripture_verified is None:
+        scripture_verified = manifest.get("scriptureVerified", False)
     return {
         "components": normalized_components,
         "status": owned.get("status") or manifest.get("status") or "ready",
         "warnings": [str(item) for item in warnings if str(item).strip()][:5],
         "download_format": "PDF" if has_pdf else "ZIP",
+        "lesson_mode": lesson_mode if lesson_mode in LESSON_PACK_MODES else "house-church",
+        "session_minutes": int(session_minutes) if str(session_minutes).isdigit() else 40,
+        "include_coloring": bool(include_coloring),
+        "scripture_verified": bool(scripture_verified),
+        "mode_label": LESSON_PACK_MODES.get(lesson_mode, LESSON_PACK_MODES["house-church"])["short_label"],
     }
 
 
@@ -176,36 +191,74 @@ def start_here():
 @bp.route('/lesson-pack', methods=['GET', 'POST'])
 def lesson_pack():
     if request.method == 'GET':
+        available_versions = available_lesson_pack_versions()
         version_prefill = (request.args.get('version') or 'web').strip().lower()
         age_prefill = (request.args.get('age') or '6-8').strip()
-        if version_prefill not in LESSON_PACK_VERSIONS:
+        mode_prefill = (request.args.get('mode') or 'house-church').strip().lower()
+        try:
+            minutes_prefill = int(request.args.get('minutes') or 40)
+        except (TypeError, ValueError):
+            minutes_prefill = 40
+        if version_prefill not in available_versions:
             version_prefill = 'web'
         if age_prefill not in LESSON_PACK_AGE_PROFILES:
             age_prefill = '6-8'
+        if mode_prefill not in LESSON_PACK_MODES:
+            mode_prefill = 'house-church'
+        if minutes_prefill not in LESSON_PACK_SESSION_MINUTES:
+            minutes_prefill = 40
         return render_template(
             'lesson_pack.html',
             verse_prefill=(request.args.get('verse') or '').strip(),
             version_prefill=version_prefill,
             age_prefill=age_prefill,
             cursive_prefill=(request.args.get('cursive') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
-            selection_from_url=any(key in request.args for key in ('verse', 'version', 'age', 'cursive')),
+            mode_prefill=mode_prefill,
+            minutes_prefill=minutes_prefill,
+            coloring_prefill=(request.args.get('coloring') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
+            lesson_pack_modes=LESSON_PACK_MODES,
+            available_versions=available_versions,
+            selection_from_url=any(key in request.args for key in ('verse', 'version', 'age', 'cursive', 'mode', 'minutes', 'coloring')),
             lesson_pack_signed_in=_is_signed_in(),
             proverb_of_day=get_proverb_of_day(),
+            description="Build a low-prep, all-age house church gathering pack from one verified Bible passage.",
+            og_description="A fast house church lesson pack with a gathering plan, worksheet, word search, and optional coloring page.",
         )
 
     verse_input = (request.form.get('verse') or '').strip()
     version = (request.form.get('version') or 'web').strip().lower()
     age_bracket = (request.form.get('age_bracket') or '6-8').strip()
     use_cursive = (request.form.get('use_cursive') or '').lower() in {'1', 'true', 'yes', 'on'}
+    lesson_mode = (request.form.get('lesson_mode') or 'house-church').strip().lower()
+    include_coloring = (request.form.get('include_coloring') or '').lower() in {'1', 'true', 'yes', 'on'}
+    try:
+        session_minutes = int(request.form.get('session_minutes') or 40)
+    except (TypeError, ValueError):
+        session_minutes = 40
+
+    def builder_url(**overrides):
+        values = {
+            "verse": verse_input,
+            "version": version,
+            "age": age_bracket,
+            "mode": lesson_mode,
+            "minutes": session_minutes,
+            "cursive": "1" if use_cursive else None,
+            "coloring": "1" if include_coloring else None,
+        }
+        values.update(overrides)
+        return url_for('public.lesson_pack', **values)
     if not verse_input:
         flash('Please enter a verse reference.', 'warning')
         return redirect(url_for('public.lesson_pack'))
-    if version not in LESSON_PACK_VERSIONS or age_bracket not in LESSON_PACK_AGE_PROFILES:
-        flash("Choose one of the available versions and age ranges.", "warning")
-        return redirect(url_for(
-            'public.lesson_pack', verse=verse_input, version='web', age='6-8',
-            cursive='1' if use_cursive else None,
-        ))
+    if (
+        version not in available_lesson_pack_versions()
+        or age_bracket not in LESSON_PACK_AGE_PROFILES
+        or lesson_mode not in LESSON_PACK_MODES
+        or session_minutes not in LESSON_PACK_SESSION_MINUTES
+    ):
+        flash("Choose one of the available formats, lengths, versions, and age ranges.", "warning")
+        return redirect(builder_url(version='web', age='6-8', mode='house-church', minutes=40))
     if (
         _too_long(verse_input, MAX_LESSON_PACK_VERSE_LEN)
         or _too_long(version, MAX_LESSON_PACK_VERSION_LEN)
@@ -214,10 +267,7 @@ def lesson_pack():
         flash("Please shorten the lesson pack details and try again.", "warning")
         return redirect(url_for('public.lesson_pack'))
     if not _is_signed_in():
-        next_url = url_for(
-            'public.lesson_pack', verse=verse_input, version=version, age=age_bracket,
-            cursive='1' if use_cursive else None,
-        )
+        next_url = builder_url()
         return _require_login(next_url)
 
     user_key = session.get("user_email") or get_client_ip()
@@ -235,23 +285,23 @@ def lesson_pack():
             version=version,
             age_bracket=age_bracket,
             use_cursive=use_cursive,
+            lesson_mode=lesson_mode,
+            session_minutes=session_minutes,
+            include_coloring=include_coloring,
         )
     except ValueError as exc:
         flash(str(exc) or "We couldn't build that lesson pack.", 'warning')
-        return redirect(url_for(
-            'public.lesson_pack', verse=verse_input, version=version, age=age_bracket,
-            cursive='1' if use_cursive else None,
-        ))
+        return redirect(builder_url())
     except Exception as exc:
         try:
             current_app.logger.exception("[%s] lesson pack creation failed: %s", getattr(g, "req_id", ""), exc)
         except Exception:
             pass
-        flash("We couldn't create that lesson pack yet. Please check the verse and try again.", 'warning')
-        return redirect(url_for(
-            'public.lesson_pack', verse=verse_input, version=version, age=age_bracket,
-            cursive='1' if use_cursive else None,
-        ))
+        if "could not be saved reliably" in str(exc).lower():
+            flash("Your pages were built, but we could not save them reliably. Please try again.", 'warning')
+        else:
+            flash("We couldn't create that lesson pack yet. Please check the verse and try again.", 'warning')
+        return redirect(builder_url())
 
     _remember_lesson_pack_slug(result['slug'])
     return redirect(url_for('public.lesson_pack_result', slug=result['slug']))
@@ -270,16 +320,18 @@ def lesson_pack_result(slug):
     if not _lesson_pack_artifact_available(owned, slug):
         flash('That pack is no longer available. Build a new one below.', 'warning')
         return redirect(url_for('public.lesson_pack'))
-    title = owned.get('title') or slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
+    manifest = _lesson_pack_local_manifest(slug)
+    title = owned.get('title') or manifest.get('title') or slug.replace('-lesson-pack-', ': ').replace('-', ' ').title()
     details = _lesson_pack_result_details(owned, slug)
     return render_template(
         'lesson_pack_result.html',
         slug=slug,
         title=title,
-        verse=owned.get('verse') or '',
-        version=str(owned.get('version') or 'web').lower(),
-        age_bracket=owned.get('age_bracket') or '6-8',
-        use_cursive=bool(owned.get('use_cursive')),
+        verse=owned.get('verse') or manifest.get('verse') or '',
+        version=str(owned.get('version') or manifest.get('version') or 'web').lower(),
+        age_bracket=owned.get('age_bracket') or manifest.get('ageBracket') or '6-8',
+        use_cursive=bool(owned.get('use_cursive') if owned.get('use_cursive') is not None else manifest.get('useCursive')),
+        noindex=True,
         **details,
     )
 
@@ -315,7 +367,8 @@ def lesson_pack_download(slug):
     signed_zip = signed_url_for_path(zip_storage_path) if zip_storage_path else None
     if signed_zip:
         return redirect(signed_zip)
-    abort(404)
+    flash('That pack is no longer available. Build it again below.', 'warning')
+    return redirect(url_for('public.lesson_pack'))
 
 
 @bp.route('/scripture-attribution')

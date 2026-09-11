@@ -4,8 +4,8 @@ The worksheet generator must never paraphrase or misquote the Bible — for this
 audience an inaccurate verse is a trust-killer, and copyrighted translations
 (NLT/CSB/ESV) can't be reproduced from an LLM's memory without a license.
 
-This module fetches verse text from trustworthy sources so the AI only handles
-non-scripture content (reflection question, coloring idea, title):
+This module fetches verse text from trustworthy sources so generated products
+can keep Scripture separate from any optional creative assistance:
 
   * Public-domain translations (KJV, WEB, ASV, ...) -> bible-api.com (no key,
     free to reproduce).
@@ -14,8 +14,8 @@ non-scripture content (reflection question, coloring idea, title):
     and a version->bibleId mapping (API_BIBLE_IDS) are set (licensed).
 
 fetch_verse_text() returns authoritative text, or None when no trustworthy
-source is configured/available for that translation — in which case the caller
-keeps the existing behavior (so nothing breaks).
+source is configured or available. Products that print Scripture should fail
+closed when None is returned.
 """
 from __future__ import annotations
 
@@ -134,7 +134,10 @@ def fetch_verse_text(reference: str, version: str) -> str | None:
         text = None
 
     text = _clean(text) or None
-    _cache[cache_key] = text
+    # A missing provider or a brief network outage must not poison this process
+    # for the rest of its lifetime. Cache only verified Scripture text.
+    if text:
+        _cache[cache_key] = text
     return text
 
 

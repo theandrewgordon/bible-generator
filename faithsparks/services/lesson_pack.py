@@ -6,28 +6,24 @@ import os
 import re
 import threading
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from html import escape
 from pathlib import Path
 
 from firebase_admin import firestore
 from faithsparks.services.firestore import db
-from faithsparks.services.storage import blob_exists, upload_to_storage
+from faithsparks.services.scripture import derive_traceable, fetch_verse_text
+from faithsparks.services.storage import blob_exists, upload_to_storage_checked
+from faithsparks.pdf_notices import draw_scripture_notices_page
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from verse_helpers import (
-    fetch_passage_text,
-    normalize_reference_title,
-    normalize_verse_data,
-    parse_and_clean_json,
-    request_theme_label,
-    request_verse_data,
-    request_verse_meaning,
-)
+from verse_helpers import normalize_reference_title
 
 
 STOPWORDS = {
@@ -61,11 +57,37 @@ STOPWORDS = {
     "MOST",
     "VERY",
     "GOOD",
+    "ONLY",
+    "SHOULD",
+    "WOULD",
+    "COULD",
+    "SHALL",
+    "THEM",
+    "THEY",
+    "THOSE",
+    "THESE",
+    "THAN",
+    "ALSO",
+    "BEEN",
+    "BEING",
 }
 
 FALLBACK_WORDS = ["BIBLE", "JESUS", "GOD", "LOVE", "FAITH", "PRAY", "TRUST", "PEACE"]
 
 LESSON_PACK_VERSIONS = {"nlt", "esv", "kjv", "web"}
+LESSON_PACK_MODES = {
+    "house-church": {
+        "label": "House church gathering",
+        "short_label": "House Church",
+        "description": "An all-age gathering plan with Scripture, discussion, activity, response, and prayer.",
+    },
+    "family": {
+        "label": "Family discipleship week",
+        "short_label": "Family",
+        "description": "A five-day rhythm for reading, copywork, conversation, practice, and prayer.",
+    },
+}
+LESSON_PACK_SESSION_MINUTES = {25, 40, 60}
 LESSON_PACK_AGE_PROFILES = {
     "3-5": {
         "label": "Ages 3-5",
@@ -140,6 +162,22 @@ _lesson_pack_build_locks: dict[str, threading.Lock] = {}
 _lesson_pack_build_locks_guard = threading.Lock()
 
 
+def available_lesson_pack_versions() -> set[str]:
+    """Return translations with an authoritative provider configured."""
+    available = {"kjv", "web"}
+    api_key_ready = bool(os.getenv("API_BIBLE_KEY", "").strip())
+    configured_ids = {
+        pair.split(":", 1)[0].strip().lower()
+        for pair in os.getenv("API_BIBLE_IDS", "").split(",")
+        if ":" in pair and pair.split(":", 1)[1].strip()
+    }
+    if os.getenv("ESV_API_KEY", "").strip() or (api_key_ready and "esv" in configured_ids):
+        available.add("esv")
+    if api_key_ready and "nlt" in configured_ids:
+        available.add("nlt")
+    return available
+
+
 def _normalize_lesson_pack_options(version: str, age_bracket: str) -> tuple[str, str]:
     normalized_version = (version or "web").strip().lower()
     normalized_age = (age_bracket or "6-8").strip()
@@ -155,14 +193,40 @@ def _lesson_pack_age_profile(age_bracket: str) -> dict:
     return dict(LESSON_PACK_AGE_PROFILES[normalized_age])
 
 
+def _normalize_lesson_pack_mode(lesson_mode: str, session_minutes: int | str) -> tuple[str, int]:
+    normalized_mode = (lesson_mode or "house-church").strip().lower()
+    if normalized_mode not in LESSON_PACK_MODES:
+        raise ValueError("Choose a supported lesson format.")
+    try:
+        normalized_minutes = int(session_minutes or 40)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Choose a supported gathering length.") from exc
+    if normalized_minutes not in LESSON_PACK_SESSION_MINUTES:
+        raise ValueError("Choose a supported gathering length.")
+    if normalized_mode == "family":
+        normalized_minutes = 40
+    return normalized_mode, normalized_minutes
+
+
 def _normalize_lesson_pack_version(version: str) -> str:
     normalized_version, _ = _normalize_lesson_pack_options(version, "6-8")
     return normalized_version
 
 
-def _lesson_pack_variant_id(age_bracket: str, use_cursive: bool) -> str:
+def _lesson_pack_variant_id(
+    age_bracket: str,
+    use_cursive: bool,
+    lesson_mode: str = "house-church",
+    session_minutes: int = 40,
+    include_coloring: bool = False,
+) -> str:
     age_token = age_bracket.replace("+", "-plus").replace(" ", "")
-    return f"ages-{age_token}-{'cursive' if use_cursive else 'print'}"
+    mode_token = "church" if lesson_mode == "house-church" else "family"
+    art_token = "with-art" if include_coloring else "quick"
+    return (
+        f"{mode_token}-{session_minutes}m-ages-{age_token}-"
+        f"{'cursive' if use_cursive else 'print'}-{art_token}"
+    )
 
 
 def _lesson_pack_slug(
@@ -171,11 +235,20 @@ def _lesson_pack_slug(
     version: str,
     age_bracket: str,
     use_cursive: bool,
+    lesson_mode: str = "house-church",
+    session_minutes: int = 40,
+    include_coloring: bool = False,
 ) -> str:
     raw_base = f"{pack_title}-{verse}-{version}"
-    base = re.sub(r"[^a-z0-9]+", "-", raw_base.lower()).strip("-")[:96].rstrip("-")
+    base = re.sub(r"[^a-z0-9]+", "-", raw_base.lower()).strip("-")[:72].rstrip("-")
     base = base or "lesson-pack"
-    variant = _lesson_pack_variant_id(age_bracket, use_cursive)
+    variant = _lesson_pack_variant_id(
+        age_bracket,
+        use_cursive,
+        lesson_mode=lesson_mode,
+        session_minutes=session_minutes,
+        include_coloring=include_coloring,
+    )
     digest = hashlib.sha256(f"{raw_base}|{variant}".encode("utf-8")).hexdigest()[:10]
     return f"{base}-{variant}-{digest}"
 
@@ -183,44 +256,6 @@ def _lesson_pack_slug(
 def _lesson_pack_lock(cache_key: str) -> threading.Lock:
     with _lesson_pack_build_locks_guard:
         return _lesson_pack_build_locks.setdefault(cache_key, threading.Lock())
-
-
-def _clean_theme_label(raw: str | None, fallback: str) -> str:
-    text = (raw or "").strip()
-    if not text:
-        return fallback
-    try:
-        data = json.loads(text)
-        if isinstance(data, dict):
-            text = str(data.get("theme") or data.get("label") or "").strip()
-    except Exception:
-        pass
-    text = re.sub(r"^[\s\-:•]+", "", text)
-    text = text.replace('"', "").replace("'", "")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text or fallback
-
-
-def _clean_meaning_text(raw: str | None, fallback: str) -> str:
-    text = (raw or "").strip()
-    if not text:
-        return fallback
-    try:
-        data = json.loads(text)
-        if isinstance(data, dict):
-            text = str(data.get("meaning") or data.get("summary") or data.get("label") or "").strip()
-    except Exception:
-        pass
-    try:
-        parsed = parse_and_clean_json(text)
-        if isinstance(parsed, dict):
-            text = str(parsed.get("meaning") or parsed.get("summary") or parsed.get("label") or text).strip()
-    except Exception:
-        pass
-    text = re.sub(r"^[\s\-:•]+", "", text)
-    text = text.replace('"', "").replace("'", "")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text or fallback
 
 
 def _pick_pack_words(*parts: str, minimum: int = 8, maximum: int = 12) -> list[str]:
@@ -253,29 +288,59 @@ def _build_parent_guide(
     age_bracket: str,
     theme_label: str,
     words: list[str],
+    lesson_mode: str = "house-church",
+    session_minutes: int = 40,
+    include_coloring: bool = False,
 ) -> str:
     profile = _lesson_pack_age_profile(age_bracket)
-    big_idea = meaning.strip() or f"Talk about {theme_label.lower()} and how God shows it here."
+    lesson_mode, session_minutes = _normalize_lesson_pack_mode(lesson_mode, session_minutes)
+    big_idea = meaning.strip() or _default_big_idea(verse, lesson_mode)
     prompt_words = ", ".join(words[:4]) if words else theme_label
-    days = _parent_guide_days(profile)
     lines = [
         title,
         "",
         f"Verse: {verse} ({version.upper()})",
-        f"Age focus: {profile['label']}",
-        f"Daily time: {profile['minutes']}",
+        f"Worksheet focus: {profile['label']}",
         "",
         "Big idea:",
         big_idea,
         "",
-        "Before you begin:",
-        "Gather the printed pack, a pencil, crayons or colored pencils, and a Bible.",
-        "",
-        "5-day family rhythm:",
-        "",
     ]
-    for day, focus, activity in days:
-        lines.append(f"{day} - {focus}: {activity}")
+    if lesson_mode == "house-church":
+        lines.extend([
+            f"Gathering length: {session_minutes} minutes",
+            "",
+            "Before people arrive:",
+            "Set out Bibles, printed worksheets, pencils, and the word search. "
+            + ("Add crayons for the optional coloring page." if include_coloring else "No extra preparation is required."),
+            "",
+            "All-age gathering plan:",
+            "",
+        ])
+        for minutes, focus, activity in _house_church_session_steps(profile, session_minutes):
+            lines.append(f"{minutes} min - {focus}: {activity}")
+        lines.extend([
+            "",
+            "Make room for every age:",
+            "- Young children: echo one phrase, trace or draw, and answer with a word or picture.",
+            "- Readers: copy the verse, circle a key word, and retell it in their own words.",
+            "- Teens and adults: read the surrounding paragraph and name one belief or practice it challenges.",
+            "",
+            "Leader note:",
+            "Invite participation without putting anyone on the spot. Let parents guide their own children, and keep returning to the words of Scripture.",
+        ])
+    else:
+        lines.extend([
+            f"Daily time: {profile['minutes']}",
+            "",
+            "Before you begin:",
+            "Gather the printed pack, a pencil, crayons or colored pencils, and a Bible.",
+            "",
+            "5-day family rhythm:",
+            "",
+        ])
+        for day, focus, activity in _parent_guide_days(profile, include_coloring=include_coloring):
+            lines.append(f"{day} - {focus}: {activity}")
     lines.extend([
         "",
         "Quick talk prompts:",
@@ -289,15 +354,49 @@ def _build_parent_guide(
         profile["memory_help"],
         "",
         "Prayer prompt:",
-        f"Thank God for what this verse teaches about {theme_label.lower()}, and ask for help living it today.",
+        "Thank God for what this passage reveals, and ask for help responding faithfully together.",
         "",
         "Print tip:",
-        "Use the worksheet first, the coloring page for conversation, and the word search for review.",
+        "Use the worksheet for reflection and the word search for review."
+        + (" The coloring page gives younger children another way to participate." if include_coloring else ""),
     ])
     return "\n".join(lines).strip() + "\n"
 
 
-def _parent_guide_days(profile: dict) -> list[tuple[str, str, str]]:
+def _default_big_idea(verse: str, lesson_mode: str) -> str:
+    if lesson_mode == "house-church":
+        return (
+            f"Read {verse} in context. Notice what it reveals about God and people, "
+            "then choose one faithful response your church can practice together."
+        )
+    return (
+        f"Read {verse} in context and notice what it reveals about God, people, "
+        "and one faithful response for this week."
+    )
+
+
+def _house_church_session_steps(profile: dict, session_minutes: int) -> list[tuple[int, str, str]]:
+    timings = {
+        25: (3, 5, 6, 7, 4),
+        40: (5, 8, 10, 12, 5),
+        60: (7, 12, 15, 18, 8),
+    }[session_minutes]
+    activities = [
+        ("Welcome and pray", "Share one brief high or low from the week, then ask God to help everyone hear His Word."),
+        ("Read the passage", "Read the surrounding paragraph once and the focus verse twice. Invite a child or newer reader to read one repetition."),
+        ("Notice and discuss", f"Name repeated or surprising words. Ask: {profile['conversation'][1]} Then ask what the passage calls the group to believe or do."),
+        ("Practice together", f"Use the worksheet or word search in pairs. Younger children may draw while someone reads aloud. {profile['activity']}"),
+        ("Respond and pray", "Let each household name one small response for the week. Pray short, voluntary prayers and include needs shared at the start."),
+    ]
+    return [(minutes, focus, activity) for minutes, (focus, activity) in zip(timings, activities)]
+
+
+def _parent_guide_days(profile: dict, *, include_coloring: bool = True) -> list[tuple[str, str, str]]:
+    creative_activity = (
+        f"Use the coloring page while you discuss the big idea. {profile['activity']}"
+        if include_coloring
+        else f"Draw a simple symbol from the verse while you discuss the big idea. {profile['activity']}"
+    )
     return [
         (
             "Day 1",
@@ -312,7 +411,7 @@ def _parent_guide_days(profile: dict) -> list[tuple[str, str, str]]:
         (
             "Day 3",
             "Create and talk",
-            f"Use the coloring page while you discuss the big idea. {profile['activity']}",
+            creative_activity,
         ),
         (
             "Day 4",
@@ -348,6 +447,7 @@ def _merge_pdf_files(
     source_paths: list[Path | None],
     *,
     required_paths: list[Path] | None = None,
+    notice_versions: list[str] | None = None,
 ) -> bool:
     try:
         from pypdf import PdfReader, PdfWriter
@@ -358,6 +458,7 @@ def _merge_pdf_files(
     if any(_pdf_page_count(path) <= 0 for path in required_paths):
         return False
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     writer = PdfWriter()
     added = False
     for source in source_paths:
@@ -366,16 +467,38 @@ def _merge_pdf_files(
         try:
             reader = PdfReader(str(source))
             for page in reader.pages:
+                if notice_versions is not None:
+                    try:
+                        if "Scripture Attribution & Permissions" in (page.extract_text() or ""):
+                            continue
+                    except Exception:
+                        pass
                 writer.add_page(page)
-            added = True
+                added = True
         except Exception:
             continue
     if not added:
         return False
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    notice_path = None
+    if notice_versions is not None:
+        notice_path = output_path.with_suffix(".notice.pdf")
+        try:
+            notice_canvas = canvas.Canvas(str(notice_path), pagesize=letter)
+            draw_scripture_notices_page(notice_canvas, versions_used=notice_versions)
+            notice_canvas.save()
+            notice_reader = PdfReader(str(notice_path))
+            for page in notice_reader.pages:
+                writer.add_page(page)
+        except Exception:
+            notice_path.unlink(missing_ok=True)
+            return False
+
     temporary = output_path.with_suffix(".tmp.pdf")
     with open(temporary, 'wb') as fh:
         writer.write(fh)
+    if notice_path:
+        notice_path.unlink(missing_ok=True)
     if _pdf_page_count(temporary) <= 0:
         temporary.unlink(missing_ok=True)
         return False
@@ -393,25 +516,29 @@ def _write_parent_guide_pdf(
     age_bracket: str,
     theme_label: str,
     words: list[str],
+    lesson_mode: str = "house-church",
+    session_minutes: int = 40,
+    include_coloring: bool = False,
 ) -> None:
     profile = _lesson_pack_age_profile(age_bracket)
+    lesson_mode, session_minutes = _normalize_lesson_pack_mode(lesson_mode, session_minutes)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "LessonPackTitle",
         parent=styles["Title"],
         fontName="Helvetica-Bold",
-        fontSize=20,
-        leading=23,
+        fontSize=18,
+        leading=21,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#163047"),
-        spaceAfter=8,
+        spaceAfter=5,
     )
     subtitle_style = ParagraphStyle(
         "LessonPackSubtitle",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=9.2,
-        leading=11,
+        fontSize=8.8,
+        leading=10.2,
         textColor=colors.HexColor("#52606D"),
         alignment=TA_CENTER,
         spaceAfter=4,
@@ -420,29 +547,29 @@ def _write_parent_guide_pdf(
         "LessonPackSection",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=11.2,
-        leading=13,
+        fontSize=10.4,
+        leading=11.5,
         textColor=colors.HexColor("#1B6B70"),
-        spaceBefore=7,
-        spaceAfter=4,
+        spaceBefore=4,
+        spaceAfter=2,
     )
     body_style = ParagraphStyle(
         "LessonPackBody",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=9,
-        leading=11.2,
+        fontSize=8.3,
+        leading=9.7,
         textColor=colors.HexColor("#17212B"),
-        spaceAfter=3,
+        spaceAfter=1.5,
     )
     small_style = ParagraphStyle(
         "LessonPackSmall",
         parent=styles["BodyText"],
         fontName="Helvetica",
-        fontSize=7.8,
-        leading=9.5,
+        fontSize=7.4,
+        leading=8.6,
         textColor=colors.HexColor("#64748B"),
-        spaceAfter=2,
+        spaceAfter=1,
     )
 
     def p(text: str) -> Paragraph:
@@ -451,20 +578,41 @@ def _write_parent_guide_pdf(
     def bullet(text: str) -> Paragraph:
         return Paragraph(f"&bull;&nbsp; {escape(text)}", body_style)
 
-    big_idea = meaning.strip() or f"Talk about {theme_label.lower()} and how God shows it here."
+    big_idea = meaning.strip() or _default_big_idea(verse, lesson_mode)
     prompt_words = ", ".join(words[:4]) if words else theme_label
-    days = _parent_guide_days(profile)
+    if lesson_mode == "house-church":
+        schedule = [
+            (f"{minutes} min", focus, activity)
+            for minutes, focus, activity in _house_church_session_steps(profile, session_minutes)
+        ]
+        schedule_heading = "All-age gathering plan"
+        first_column = "Time"
+        second_column = "Gathering flow"
+        detail_headings = ("FORMAT", "LENGTH", "WORKSHEET FOCUS")
+        detail_values = ("House church", f"{session_minutes} minutes", profile["label"])
+        before_text = (
+            "Set out Bibles, printed worksheets, pencils, and the word search. "
+            + ("Add crayons for the optional coloring page." if include_coloring else "No extra preparation is required.")
+        )
+    else:
+        schedule = _parent_guide_days(profile, include_coloring=include_coloring)
+        schedule_heading = "5-day family rhythm"
+        first_column = "Day"
+        second_column = "Family rhythm"
+        detail_headings = ("FORMAT", "DAILY TIME", "WORKSHEET FOCUS")
+        detail_values = ("Family week", profile["minutes"], profile["label"])
+        before_text = "Gather the printed pack, a pencil, crayons or colored pencils, and a Bible."
 
-    day_rows = [[
-        Paragraph("Day", ParagraphStyle("GuideTableHead", parent=body_style, fontName="Helvetica-Bold", textColor=colors.white)),
-        Paragraph("Family rhythm", ParagraphStyle("GuideTableHead2", parent=body_style, fontName="Helvetica-Bold", textColor=colors.white)),
+    schedule_rows = [[
+        Paragraph(first_column, ParagraphStyle("GuideTableHead", parent=body_style, fontName="Helvetica-Bold", textColor=colors.white)),
+        Paragraph(second_column, ParagraphStyle("GuideTableHead2", parent=body_style, fontName="Helvetica-Bold", textColor=colors.white)),
     ]]
-    for day, focus, activity in days:
-        day_rows.append([
-            Paragraph(escape(day), ParagraphStyle("GuideDay", parent=body_style, fontName="Helvetica-Bold", textColor=colors.HexColor("#163047"))),
+    for marker, focus, activity in schedule:
+        schedule_rows.append([
+            Paragraph(escape(str(marker)), ParagraphStyle("GuideMarker", parent=body_style, fontName="Helvetica-Bold", textColor=colors.HexColor("#163047"))),
             Paragraph(f"<b>{escape(focus)}</b><br/>{escape(activity)}", body_style),
         ])
-    rhythm = Table(day_rows, colWidths=[0.72 * inch, 5.95 * inch], repeatRows=1, hAlign="LEFT")
+    rhythm = Table(schedule_rows, colWidths=[0.72 * inch, 5.95 * inch], repeatRows=1, hAlign="LEFT")
     rhythm.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1B6B70")),
         ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F5FAFA")),
@@ -473,13 +621,13 @@ def _write_parent_guide_pdf(
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 7),
         ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3.5),
     ]))
 
     details = Table([
-        [Paragraph("AGE", small_style), Paragraph("DAILY TIME", small_style), Paragraph("THEME", small_style)],
-        [Paragraph(escape(profile["label"]), body_style), Paragraph(escape(profile["minutes"]), body_style), Paragraph(escape(theme_label), body_style)],
+        [Paragraph(label, small_style) for label in detail_headings],
+        [Paragraph(escape(value), body_style) for value in detail_values],
     ], colWidths=[1.35 * inch, 1.55 * inch, 3.77 * inch], hAlign="LEFT")
     details.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EEF7F7")),
@@ -487,22 +635,33 @@ def _write_parent_guide_pdf(
         ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8E5E6")),
         ("LEFTPADDING", (0, 0), (-1, -1), 7),
         ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
 
     story = [
         Paragraph(escape(title), title_style),
         Paragraph(escape(f"Verse: {verse} ({version.upper()})"), subtitle_style),
-        Spacer(1, 0.06 * inch),
+        Spacer(1, 0.03 * inch),
         details,
-        Spacer(1, 0.08 * inch),
+        Spacer(1, 0.04 * inch),
         Paragraph("Big idea", section_style),
         p(big_idea),
         Paragraph("Before you begin", section_style),
-        p("Gather the printed pack, a pencil, crayons or colored pencils, and a Bible."),
-        Paragraph("5-day family rhythm", section_style),
+        p(before_text),
+        Paragraph(schedule_heading, section_style),
         rhythm,
+    ]
+    if lesson_mode == "house-church":
+        story.extend([
+            Paragraph("Make room for every age", section_style),
+            bullet("Young children: echo one phrase, trace or draw, and answer with a word or picture."),
+            bullet("Readers: copy the verse, circle a key word, and retell it in their own words."),
+            bullet("Teens and adults: read the surrounding paragraph and name one belief or practice it challenges."),
+            Paragraph("Leader note", section_style),
+            p("Invite participation without putting anyone on the spot. Let parents guide their own children, and keep returning to the words of Scripture."),
+        ])
+    story.extend([
         Paragraph("Conversation starters", section_style),
         bullet(f"Words to notice: {prompt_words}"),
         *[bullet(prompt) for prompt in profile["conversation"]],
@@ -511,17 +670,23 @@ def _write_parent_guide_pdf(
         Paragraph("Memory help", section_style),
         p(profile["memory_help"]),
         Paragraph("Prayer prompt", section_style),
-        p(f"Thank God for what this verse teaches about {theme_label.lower()}, and ask for help living it today."),
+        p("Thank God for what this passage reveals, and ask for help responding faithfully together."),
         Spacer(1, 0.04 * inch),
-        Paragraph(escape("Use the worksheet first, the coloring page for conversation, and the word search for review."), small_style),
-    ]
+        Paragraph(
+            escape(
+                "Use the worksheet for reflection and the word search for review."
+                + (" The coloring page gives younger children another way to participate." if include_coloring else "")
+            ),
+            small_style,
+        ),
+    ])
     doc = SimpleDocTemplate(
         str(pdf_path),
         pagesize=letter,
         leftMargin=0.75 * inch,
         rightMargin=0.75 * inch,
-        topMargin=0.55 * inch,
-        bottomMargin=0.58 * inch,
+        topMargin=0.48 * inch,
+        bottomMargin=0.5 * inch,
         title=title,
         author="Faith Sparks Printables",
     )
@@ -532,7 +697,8 @@ def _write_parent_guide_pdf(
         canvas.roundRect(0.42 * inch, 0.42 * inch, 7.66 * inch, 10.16 * inch, 12, fill=0, stroke=1)
         canvas.setFont("Helvetica", 7.5)
         canvas.setFillColor(colors.HexColor("#64748B"))
-        canvas.drawString(0.62 * inch, 0.28 * inch, "Faith Sparks Family Lesson Guide")
+        footer_label = "Faith Sparks House Church Guide" if lesson_mode == "house-church" else "Faith Sparks Family Lesson Guide"
+        canvas.drawString(0.62 * inch, 0.28 * inch, footer_label)
         canvas.drawRightString(7.88 * inch, 0.28 * inch, f"Page {document.page}")
         canvas.restoreState()
 
@@ -562,6 +728,10 @@ def _record_user_lesson_pack(user_email: str, result: dict, *, mark_created: boo
         "version": str(result.get("version") or "").upper(),
         "age_bracket": result.get("age_bracket"),
         "use_cursive": bool(result.get("use_cursive") or result.get("useCursive")),
+        "lesson_mode": result.get("lesson_mode") or "house-church",
+        "session_minutes": int(result.get("session_minutes") or 40),
+        "include_coloring": bool(result.get("include_coloring")),
+        "scripture_verified": bool(result.get("scripture_verified")),
         "pdf_filename": f"{slug}.pdf" if result.get("combined_pdf") or result.get("pdf_path") else None,
         "pdf_path": result.get("combined_pdf") or result.get("pdf_path"),
         "pdf_storage_path": result.get("pdf_storage_path"),
@@ -585,8 +755,23 @@ def _record_user_lesson_pack(user_email: str, result: dict, *, mark_created: boo
         pass
 
 
-def _lesson_pack_cache_key(verse: str, version: str, age_bracket: str, use_cursive: bool) -> str:
-    raw = f"{verse}-{(version or 'nlt').strip().lower()}-{(age_bracket or '').strip().lower()}-{'cursive' if use_cursive else 'print'}"
+def _lesson_pack_cache_key(
+    verse: str,
+    version: str,
+    age_bracket: str,
+    use_cursive: bool,
+    *,
+    lesson_mode: str = "house-church",
+    session_minutes: int = 40,
+    include_coloring: bool = False,
+    full_verse: str = "",
+) -> str:
+    scripture_digest = hashlib.sha256((full_verse or "").encode("utf-8")).hexdigest()[:10]
+    raw = (
+        f"{verse}-{(version or 'web').strip().lower()}-{(age_bracket or '').strip().lower()}-"
+        f"{'cursive' if use_cursive else 'print'}-{lesson_mode}-{session_minutes}-"
+        f"{'art' if include_coloring else 'quick'}-{scripture_digest}"
+    )
     return re.sub(r"[^a-z0-9]+", "-", raw.lower()).strip("-")
 
 
@@ -616,6 +801,23 @@ def _lesson_pack_storage_path(slug: str, filename: str) -> str:
     return f"lesson_packs/{slug}/{filename}"
 
 
+def _upload_pack_artifacts(items: list[tuple[Path, str]]) -> bool:
+    """Upload independent pack artifacts concurrently and verify each object."""
+    if not items:
+        return True
+    try:
+        with ThreadPoolExecutor(max_workers=min(3, len(items))) as executor:
+            results = list(
+                executor.map(
+                    lambda item: upload_to_storage_checked(str(item[0]), item[1]),
+                    items,
+                )
+            )
+    except Exception:
+        return False
+    return all(results)
+
+
 def _safe_cached_pack_path(raw_path: str | None, slug: str, suffix: str) -> Path | None:
     if not raw_path:
         return None
@@ -637,12 +839,15 @@ def _cached_lesson_pack_has_artifact(cached_pack: dict) -> bool:
     slug = cached_pack.get("slug")
     if not slug or not re.fullmatch(r"[a-z0-9\-]+", slug):
         return False
-    if cached_pack.get("status") == "partial":
+    if not cached_pack.get("scripture_verified") or cached_pack.get("status") == "partial":
         return False
     components = cached_pack.get("components")
-    if isinstance(components, dict) and not all(
-        components.get(name) for name in ("worksheet", "coloring", "word_search", "parent_guide")
-    ):
+    if not isinstance(components, dict):
+        return False
+    required_components = ["worksheet", "word_search", "parent_guide"]
+    if cached_pack.get("include_coloring"):
+        required_components.append("coloring")
+    if not all(components.get(name) for name in required_components):
         return False
     pdf_path = _safe_cached_pack_path(cached_pack.get("combined_pdf") or cached_pack.get("pdf_path"), slug, ".pdf")
     zip_path = _safe_cached_pack_path(cached_pack.get("zip_path"), slug, ".zip")
@@ -661,31 +866,49 @@ def create_lesson_pack(
     *,
     user_email: str,
     verse_input: str,
-    version: str = "nlt",
+    version: str = "web",
     age_bracket: str = "6-8",
     use_cursive: bool = False,
+    lesson_mode: str = "house-church",
+    session_minutes: int = 40,
+    include_coloring: bool = False,
 ) -> dict:
     verse_input = (verse_input or "").strip()
     if not verse_input:
         raise ValueError("Please enter a verse reference.")
     version = _normalize_lesson_pack_version(version)
     profile = _lesson_pack_age_profile(age_bracket)
+    lesson_mode, session_minutes = _normalize_lesson_pack_mode(lesson_mode, session_minutes)
     use_cursive = bool(use_cursive)
+    include_coloring = bool(include_coloring)
 
-    raw_verse = request_verse_data(verse_input, version=version)
-    verse_data = parse_and_clean_json(raw_verse) if raw_verse else {}
     verse_ref = normalize_reference_title(verse_input)
-    normalized = normalize_verse_data(verse_data, verse_ref, version)
-    normalized["version"] = version
-    if not normalized.get("fullVerse"):
-        try:
-            normalized["fullVerse"] = fetch_passage_text(normalized["verse"], version)
-        except Exception:
-            normalized["fullVerse"] = ""
-    if not str(normalized.get("fullVerse") or "").strip():
-        raise ValueError("We could not find Scripture text for that reference and version.")
+    authoritative_text = fetch_verse_text(verse_ref, version)
+    if not authoritative_text:
+        raise ValueError(
+            "We could not verify that Scripture text from an authoritative source. "
+            "Check the reference or try KJV or WEB."
+        )
+    normalized = {
+        "verse": verse_ref,
+        "version": version,
+        "title": verse_ref,
+        "fullVerse": authoritative_text,
+        "traceableVerse": derive_traceable(authoritative_text, None),
+        "imageIdea": f"Draw a simple symbol that helps your group remember {verse_ref}.",
+        "scriptureVerified": True,
+    }
 
-    cache_key = _lesson_pack_cache_key(normalized["verse"], version, age_bracket, use_cursive)
+    cache_key = _lesson_pack_cache_key(
+        normalized["verse"],
+        version,
+        age_bracket,
+        use_cursive,
+        lesson_mode=lesson_mode,
+        session_minutes=session_minutes,
+        include_coloring=include_coloring,
+        full_verse=authoritative_text,
+    )
     cached_pack = _load_cached_lesson_pack(cache_key)
     if cached_pack and _cached_lesson_pack_has_artifact(cached_pack):
         _record_user_lesson_pack(user_email, cached_pack)
@@ -703,6 +926,9 @@ def create_lesson_pack(
             use_cursive=use_cursive,
             profile=profile,
             cache_key=cache_key,
+            lesson_mode=lesson_mode,
+            session_minutes=session_minutes,
+            include_coloring=include_coloring,
         )
 
 
@@ -714,22 +940,28 @@ def _build_lesson_pack_artifacts(
     use_cursive: bool,
     profile: dict,
     cache_key: str,
+    lesson_mode: str = "house-church",
+    session_minutes: int = 40,
+    include_coloring: bool = False,
 ) -> dict:
     from build_games import generate_word_search_pdf
     from build_pdf import generate_pdf
     from faithsparks.services.illustrate import create_coloring_sheet
 
-    meaning = _clean_meaning_text(
-        request_verse_meaning(normalized["verse"], normalized["fullVerse"], version=normalized["version"]),
-        fallback=f"Talk about {normalized['title'].lower()} and how God shows it here.",
-    )
-    theme_label = _clean_theme_label(
-        request_theme_label(f"{normalized['fullVerse']}\n\n{meaning}", context_label="lesson pack"),
-        fallback=normalized["title"],
-    )
-    pack_title = f"{theme_label} Lesson Pack"
+    lesson_mode, session_minutes = _normalize_lesson_pack_mode(lesson_mode, session_minutes)
+    meaning = _default_big_idea(normalized["verse"], lesson_mode)
+    theme_label = normalized["verse"]
+    format_label = LESSON_PACK_MODES[lesson_mode]["short_label"]
+    pack_title = f"{normalized['verse']} {format_label} Pack"
     slug = _lesson_pack_slug(
-        pack_title, normalized["verse"], normalized["version"], age_bracket, use_cursive
+        pack_title,
+        normalized["verse"],
+        normalized["version"],
+        age_bracket,
+        use_cursive,
+        lesson_mode=lesson_mode,
+        session_minutes=session_minutes,
+        include_coloring=include_coloring,
     )
     pack_dir = LESSON_PACK_OUTPUT_DIR / slug
     pack_dir.mkdir(parents=True, exist_ok=True)
@@ -747,41 +979,41 @@ def _build_lesson_pack_artifacts(
     if _pdf_page_count(worksheet_pdf) <= 0:
         raise RuntimeError("The worksheet PDF could not be verified.")
 
-    coloring_title = f"{theme_label} Coloring Page"
+    coloring_title = f"{normalized['verse']} Coloring Page"
     warnings: list[str] = []
-    try:
-        coloring_result = create_coloring_sheet(
-            user_email=user_email or "anonymous",
-            verse_input=normalized["verse"],
-            custom_text="",
-            title_override=coloring_title,
-            age_bracket=age_bracket,
-            include_reference=True,
-            symbols_only=True,
-            historical_props=False,
-        )
-        coloring_pdf: Path | None = Path("output") / coloring_result["pdf_filename"]
-        coloring_png: Path | None = Path("worksheets") / coloring_result["png_filename"]
-        if _pdf_page_count(coloring_pdf) <= 0:
+    coloring_pdf: Path | None = None
+    coloring_png: Path | None = None
+    if include_coloring:
+        try:
+            coloring_result = create_coloring_sheet(
+                user_email=user_email or "anonymous",
+                verse_input=f"{normalized['verse']} ({normalized['version'].upper()})",
+                custom_text="",
+                title_override=coloring_title,
+                age_bracket=age_bracket,
+                include_reference=True,
+                symbols_only=True,
+                historical_props=False,
+            )
+            coloring_pdf = Path("output") / coloring_result["pdf_filename"]
+            coloring_png = Path("worksheets") / coloring_result["png_filename"]
+            if _pdf_page_count(coloring_pdf) <= 0:
+                coloring_pdf = None
+                coloring_png = None
+                warnings.append("The optional coloring page could not be verified and was left out of this pack.")
+        except Exception:
             coloring_pdf = None
             coloring_png = None
-            warnings.append("The coloring page could not be verified and was left out of this pack.")
-    except Exception:
-        coloring_pdf = None
-        coloring_png = None
-        warnings.append("The coloring page was temporarily unavailable and was left out of this pack.")
+            warnings.append("The optional coloring page was temporarily unavailable and was left out of this pack.")
 
     word_search_words = _pick_pack_words(
-        theme_label,
-        normalized["title"],
         normalized["fullVerse"],
-        meaning,
         minimum=min(6, profile["word_search_words"]),
         maximum=profile["word_search_words"],
     )
     word_search_pdf = pack_dir / f"{slug}-word-search.pdf"
     generate_word_search_pdf(
-        title=f"{theme_label} Word Search",
+        title=f"{normalized['verse']} Word Search",
         words=word_search_words,
         pdf_path=word_search_pdf,
         size=profile["word_search_size"],
@@ -803,6 +1035,9 @@ def _build_lesson_pack_artifacts(
         age_bracket=age_bracket,
         theme_label=theme_label,
         words=word_search_words,
+        lesson_mode=lesson_mode,
+        session_minutes=session_minutes,
+        include_coloring=include_coloring,
     )
     if _pdf_page_count(guide_pdf) <= 0:
         raise RuntimeError("The parent-guide PDF could not be verified.")
@@ -813,13 +1048,16 @@ def _build_lesson_pack_artifacts(
         "word_search": True,
         "parent_guide": True,
     }
-    status = "complete" if all(components.values()) else "partial"
+    required_components = ["worksheet", "word_search", "parent_guide"]
+    if include_coloring:
+        required_components.append("coloring")
+    status = "complete" if all(components[name] for name in required_components) else "partial"
     generated_files = [worksheet_pdf.name]
     if coloring_pdf:
         generated_files.append(coloring_pdf.name)
     generated_files.extend([word_search_pdf.name, guide_pdf.name])
     manifest = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "slug": slug,
         "title": pack_title,
         "theme": theme_label,
@@ -827,6 +1065,10 @@ def _build_lesson_pack_artifacts(
         "version": normalized["version"],
         "ageBracket": age_bracket,
         "useCursive": bool(use_cursive),
+        "lessonMode": lesson_mode,
+        "sessionMinutes": session_minutes,
+        "includeColoring": include_coloring,
+        "scriptureVerified": True,
         "status": status,
         "components": components,
         "warnings": warnings,
@@ -842,6 +1084,7 @@ def _build_lesson_pack_artifacts(
         combined_pdf,
         [worksheet_pdf, coloring_pdf, word_search_pdf, guide_pdf],
         required_paths=[worksheet_pdf, word_search_pdf, guide_pdf],
+        notice_versions=[normalized["version"].upper()],
     )
     components["combined_pdf"] = combined_ok
     manifest["components"] = components
@@ -860,10 +1103,12 @@ def _build_lesson_pack_artifacts(
     pdf_storage_path = _lesson_pack_storage_path(slug, f"{slug}.pdf") if combined_ok else None
     zip_storage_path = _lesson_pack_storage_path(slug, f"{slug}.zip")
     manifest_storage_path = _lesson_pack_storage_path(slug, manifest_json.name)
-    if combined_ok:
-        upload_to_storage(str(combined_pdf), pdf_storage_path)
-    upload_to_storage(str(zip_path), zip_storage_path)
-    upload_to_storage(str(manifest_json), manifest_storage_path)
+    if db:
+        uploads = [(zip_path, zip_storage_path), (manifest_json, manifest_storage_path)]
+        if combined_ok and pdf_storage_path:
+            uploads.append((combined_pdf, pdf_storage_path))
+        if not _upload_pack_artifacts(uploads):
+            raise RuntimeError("The lesson pack was built but could not be saved reliably. Please try again.")
 
     result = {
         "slug": slug,
@@ -873,6 +1118,10 @@ def _build_lesson_pack_artifacts(
         "version": normalized["version"],
         "age_bracket": age_bracket,
         "use_cursive": bool(use_cursive),
+        "lesson_mode": lesson_mode,
+        "session_minutes": session_minutes,
+        "include_coloring": include_coloring,
+        "scripture_verified": True,
         "meaning": meaning,
         "worksheet_pdf": str(worksheet_pdf),
         "coloring_pdf": str(coloring_pdf) if coloring_pdf else None,

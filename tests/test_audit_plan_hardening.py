@@ -77,6 +77,9 @@ class AuditPlanHardeningTests(unittest.TestCase):
             "combined_pdf": "output/lesson_packs/gods-love-john-3-16-nlt/gods-love-john-3-16-nlt.pdf",
             "zip_path": "output/lesson_packs/gods-love-john-3-16-nlt/gods-love-john-3-16-nlt.zip",
             "cache_key": "john-3-16-nlt-6-8-print",
+            "status": "complete",
+            "scripture_verified": True,
+            "components": {"worksheet": True, "word_search": True, "parent_guide": True},
         }
         fake_db = _FakeDb(
             {
@@ -85,9 +88,8 @@ class AuditPlanHardeningTests(unittest.TestCase):
             }
         )
         with mock.patch.object(lesson_pack, "db", fake_db), \
-            mock.patch.object(lesson_pack, "request_verse_data", return_value='{"verse":"John 3:16","fullVerse":"For God so loved the world.","title":"John 3:16"}'), \
-            mock.patch.object(lesson_pack, "parse_and_clean_json", return_value={"verse": "John 3:16", "fullVerse": "For God so loved the world.", "title": "John 3:16"}), \
-            mock.patch.object(lesson_pack, "normalize_verse_data", return_value={"verse": "John 3:16", "version": "nlt", "fullVerse": "For God so loved the world.", "title": "John 3:16"}), \
+            mock.patch.object(lesson_pack, "fetch_verse_text", return_value="For God so loved the world."), \
+            mock.patch.object(lesson_pack, "_lesson_pack_cache_key", return_value="john-3-16-nlt-6-8-print"), \
             mock.patch.object(Path, "exists", return_value=True):
             result = lesson_pack.create_lesson_pack(user_email="owner@example.com", verse_input="John 3:16")
 

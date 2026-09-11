@@ -698,17 +698,20 @@ def history():
             history_items = history_items[:history_limit]
 
         lesson_pack_items = []
+        lesson_pack_limit = int(os.getenv("LESSON_PACK_HISTORY_LIMIT", "100"))
         try:
             pack_docs = (
                 db.collection("lesson_packs")
                 .where(filter=firestore.FieldFilter("email", "==", user_email))
                 .order_by("timestamp", direction=firestore.Query.DESCENDING)
+                .limit(lesson_pack_limit)
                 .stream()
             )
         except Exception:
             pack_docs = (
                 db.collection("lesson_packs")
                 .where(filter=firestore.FieldFilter("email", "==", user_email))
+                .limit(lesson_pack_limit)
                 .stream()
             )
         for d in pack_docs:

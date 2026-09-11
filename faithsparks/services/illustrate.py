@@ -202,6 +202,7 @@ COMPOSITION_BY_AGE = {
     "3-5": {"foreground": 3, "background": 1},
     "6-8": {"foreground": 4, "background": 2},
     "9-10": {"foreground": 5, "background": 2},
+    "10+": {"foreground": 6, "background": 3},
 }
 
 SENSITIVITY_FLAGS = ("violence", "death", "demons", "adult_themes")

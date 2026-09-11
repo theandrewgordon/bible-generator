@@ -68,13 +68,9 @@ def scripture_notice_texts(versions_used) -> list[tuple[str, str]]:
     return [(code, _NOTICE_TEXT[code]) for code in _normalize_versions(versions_used)]
 
 
-def append_scripture_notices_page(c, versions_used=None, margin: float = 0.6 * inch) -> None:
-    """
-    Append a standard Scripture attribution/permissions page to the current PDF.
-    """
+def draw_scripture_notices_page(c, versions_used=None, margin: float = 0.6 * inch) -> None:
+    """Draw standard Scripture notices on the current PDF page."""
     width, height = letter
-    c.showPage()
-
     y = height - margin
     max_width = width - (2 * margin)
 
@@ -125,3 +121,9 @@ def append_scripture_notices_page(c, versions_used=None, margin: float = 0.6 * i
         y = height - margin
     c.setFont("Helvetica-Oblique", 9)
     c.drawString(margin, y, "All Scripture quotations are provided in English only.")
+
+
+def append_scripture_notices_page(c, versions_used=None, margin: float = 0.6 * inch) -> None:
+    """Append a standard Scripture attribution/permissions page."""
+    c.showPage()
+    draw_scripture_notices_page(c, versions_used=versions_used, margin=margin)
