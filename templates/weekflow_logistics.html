@@ -6,17 +6,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow turns family calendar events into an explainable logistics plan." />
-    <title>WeekFlow Family Logistics Lab · FaithSparks Labs</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <title>WeekFlow Family Logistics Lab · Faith Sparks Labs</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_logistics.css') }}?v=17" />
   </head>
   <body>
     <main class="wfl-shell">
-      <nav><a href="{{ url_for('weekflow.index') }}">← WeekFlow planner</a></nav>
+      <nav><a href="{{ url_for('weekflow.index') }}">← WeekFlow planner</a> · <a href="/labs">Faith Sparks Labs</a></nav>
       <header class="wfl-hero">
-        <div class="wfl-kicker"><span>FaithSparks Labs</span> Family logistics experiment</div>
+        <div class="wfl-kicker"><span>Faith Sparks Labs</span> Family logistics experiment</div>
         <h1>Know who’s doing what.</h1>
         <p>WeekFlow puts the hidden handoffs on one clear plan—and shows the next decision that needs you.</p>
       </header>

@@ -1,13 +1,8 @@
 <header class="main-header" role="banner">
   <div class="logo-nav">
-    <!-- Left: Logo -->
-    <a href="/" class="logo" aria-label="Faith Sparks Printables">
-      <img
-        src="{{ logo_url or url_for('static', filename='faith_sparks_logo.png') }}"
-        alt="Faith Sparks Logo"
-        width="180" height="40"
-        decoding="async" fetchpriority="high" loading="eager"
-      />
+    <a href="/" class="logo brand-lockup" aria-label="Faith Sparks home">
+      <span class="brand-mark" aria-hidden="true">✦</span>
+      <span class="brand-name">Faith Sparks</span>
     </a>
 
     <!-- Mobile menu button -->
@@ -20,17 +15,18 @@
     <!-- Primary nav -->
     <nav id="mainNav" class="nav-links" aria-label="Primary">
       {% set p = request.path or '' %}
-      <a class="nav-link" href="/"               {% if p == '/' %}aria-current="page"{% endif %}>Home</a>
-      <a class="nav-link" href="/generate"       {% if p.startswith('/generate') %}aria-current="page"{% endif %}>Make a worksheet</a>
-      <a class="nav-link" href="/browse"         {% if p.startswith('/browse') %}aria-current="page"{% endif %}>Bundles</a>
-      <a class="nav-link" href="{{ url_for('public.lesson_pack') }}" {% if p.startswith('/lesson-pack') %}aria-current="page"{% endif %}>Copilot</a>
-      <a class="nav-link" href="/games"          {% if p.startswith('/games') %}aria-current="page"{% endif %}>Games</a>
-      <a class="nav-link" href="/worship"        {% if p.startswith('/worship') %}aria-current="page"{% endif %}>Worship</a>
-      {% if session.user_info %}
-        <a class="nav-link" href="/prints"      {% if p.startswith('/prints') %}aria-current="page"{% endif %}>My Prints</a>
-      {% else %}
-        <a class="nav-link" href="{{ url_for('google.login', next=url_for('prints')) }}">My Prints</a>
-      {% endif %}
+      {% for item in product_navigation %}
+        {% set active = namespace(value=false) %}
+        {% for prefix in item.prefixes %}
+          {% if p == prefix or p.startswith(prefix ~ '/') %}{% set active.value = true %}{% endif %}
+        {% endfor %}
+        {% if item.id == 'library' and not session.user_info %}
+          {% set item_href = url_for('google.login', next=url_for('prints')) %}
+        {% else %}
+          {% set item_href = item.path %}
+        {% endif %}
+        <a class="nav-link nav-link--{{ item.id }}" href="{{ item_href }}" {% if active.value %}aria-current="page"{% endif %}>{{ item.label }}</a>
+      {% endfor %}
       {% if session.user_info %}
         <details class="profile-drop mobile-only" aria-label="Account menu">
           <summary class="profile-summary" aria-haspopup="menu">

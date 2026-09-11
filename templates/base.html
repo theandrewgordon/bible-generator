@@ -4,7 +4,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
 
     <meta charset="UTF-8" />
-    <title>{% block title %}Faith Sparks Printables{% endblock %}</title>
+    <title>{% block title %}Faith Sparks{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     {# Canonical + SEO #}
@@ -15,13 +15,12 @@
     {# SEO: description + OG/Twitter (override per-page via
     'description'/'og_description') #} {% set page_title =
     self.title()|striptags %} {% set default_desc =
-    (site_content.seo_description or 'Printable Bible copywork worksheets for
-    Christian homeschool, Sunday School, and family worship.') %}
+    (site_content.seo_description or 'Scripture-centered tools that help families and small churches prepare, worship, and play together with less prep.') %}
     <meta
       name="description"
       content="{{ description|default(default_desc) }}"
     />
-    <meta property="og:site_name" content="Faith Sparks Printables" />
+    <meta property="og:site_name" content="Faith Sparks" />
     <meta property="og:title" content="{{ page_title }}" />
     <meta
       property="og:description"
@@ -71,14 +70,6 @@
       rel="apple-touch-icon"
       sizes="512x512"
       href="{{ url_for('static', filename='faith_sparks_logo_512.png') }}"
-    />
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
-      rel="stylesheet"
     />
 
     <!-- Theme / Admin CSS (cache-busted) -->
@@ -604,12 +595,15 @@
 
     <footer class="site-footer">
       <span
-        >&copy; {{ current_year }} Faith Sparks Printables. All rights
+        >&copy; {{ current_year }} Faith Sparks. All rights
         reserved.</span
       >
 
       <nav class="footer-links" aria-label="Footer">
         <a href="/about">About</a>
+        <a href="/prepare">Prepare</a>
+        <a href="/play">Play</a>
+        <a href="/labs">Labs</a>
         <a href="/verse-of-the-week">Verse of the Week</a>
         <a href="/scripture-attribution">Scripture Attribution</a>
         <a href="/terms">Terms</a>

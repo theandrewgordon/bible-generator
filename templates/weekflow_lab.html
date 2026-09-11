@@ -6,16 +6,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow coordinates one homeschool family around finite parent attention." />
-    <title>WeekFlow Scheduler Lab · FaithSparks Labs</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <title>WeekFlow Scheduler Lab · Faith Sparks Labs</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow.css') }}?v=13" />
   </head>
   <body>
     <main class="wf-shell">
+      <nav class="wf-lab-nav"><a href="/labs">← Faith Sparks Labs</a><a href="/">Faith Sparks home</a></nav>
       <header class="wf-hero">
-        <div class="wf-kicker"><span>FaithSparks Labs</span> Scheduler experiment</div>
+        <div class="wf-kicker"><span>Faith Sparks Labs</span> Scheduler beta</div>
         <h1>Build the family day,<br />not three separate calendars.</h1>
         <p class="wf-lede">One parent. Three students. WeekFlow coordinates who needs you, who can work independently, and what can happen at the same time.</p>
       </header>

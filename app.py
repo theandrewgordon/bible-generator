@@ -39,6 +39,7 @@ from verse_helpers import (
 )
 from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+from faithsparks.products import MISSION, PRIMARY_NAVIGATION
 try:
     import markdown2  # type: ignore
 except Exception:
@@ -137,6 +138,10 @@ _CONFIG_TTL_SECS = 60
 CLEANUP_INTERVAL_S = 60 * 60
 CLEANUP_MAX_AGE_S = 7 * 24 * 60 * 60
 _LAST_CLEANUP: float = 0.0
+try:
+    SLOW_REQUEST_LOG_MS = max(0.0, float(os.getenv("SLOW_REQUEST_LOG_MS", "1500")))
+except ValueError:
+    SLOW_REQUEST_LOG_MS = 1500.0
 
 def _get_cached_config(doc_id: str) -> dict | None:
     """Cache repeated config reads for a short TTL."""
@@ -175,6 +180,23 @@ def _should_fetch_usage(path: str) -> bool:
         if path.startswith(prefix):
             return True
     return False
+
+
+_LATENCY_CRITICAL_PREFIXES = (
+    "/worship/live/",
+    "/family-bible-bee/",
+    "/family-game-night/",
+    "/group-games/",
+    "/church-games/",
+    "/api/family-bible-bee/",
+    "/api/family-game-night/rooms/",
+    "/api/group-games/",
+    "/api/church-games/",
+)
+
+
+def _is_latency_critical_path(path: str) -> bool:
+    return bool(path and path.startswith(_LATENCY_CRITICAL_PREFIXES))
 
 def _cleanup_output_dirs():
     global _LAST_CLEANUP
@@ -333,6 +355,24 @@ def robots_txt():
     )
     return Response(body, mimetype="text/plain")
 
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    """Small, explicit sitemap; private workspaces and Labs stay out."""
+    paths = (
+        "/", "/about", "/start-here", "/prepare", "/lesson-pack",
+        "/generate", "/browse", "/play", "/games", "/family-game-night",
+        "/verse-of-the-week", "/plus", "/terms", "/privacy", "/copyright",
+    )
+    origin = request.url_root.rstrip("/")
+    urls = "".join(f"<url><loc>{origin}{path}</loc></url>" for path in paths)
+    return Response(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f"{urls}</urlset>",
+        mimetype="application/xml",
+    )
+
 @app.route("/speeddie")
 @app.route("/speeddie/")
 def speeddie_app():
@@ -440,9 +480,13 @@ app.register_blueprint(weekflow_calendar_google_bp, url_prefix="/connect")
 def add_request_id():
     if not getattr(g, "req_id", None):
         g.req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    g.request_started_at = time.perf_counter()
 
 @app.before_request
 def cleanup_old_outputs():
+    # Never make a presenter poll or in-room game action pay for maintenance.
+    if _is_latency_critical_path(request.path or ""):
+        return
     _cleanup_output_dirs()
 
 @app.before_request
@@ -658,7 +702,7 @@ def track_visit():
         return
     endpoint = request.endpoint or ""
     path = request.path or ""
-    if endpoint == "static" or path.startswith("/static/"):
+    if endpoint == "static" or path.startswith("/static/") or _is_latency_critical_path(path):
         return
     try:
         ip = get_client_ip()
@@ -673,6 +717,15 @@ def add_correlation_headers(resp):
     req_id = getattr(g, "req_id", None)
     if req_id:
         resp.headers["X-Request-ID"] = req_id
+    started_at = getattr(g, "request_started_at", None)
+    if started_at is not None:
+        duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000)
+        resp.headers["Server-Timing"] = f"app;dur={duration_ms:.1f}"
+        if duration_ms >= SLOW_REQUEST_LOG_MS:
+            app.logger.warning(
+                "Slow request id=%s method=%s path=%s duration_ms=%.1f status=%s",
+                req_id, request.method, request.path, duration_ms, resp.status_code,
+            )
     if (request.path or "").startswith("/worship/live/"):
         # Live links carry short-lived capabilities and must never be cached,
         # indexed, previewed, or leaked through a referrer on any response path.
@@ -694,6 +747,8 @@ def add_correlation_headers(resp):
         resp.headers["Expires"] = "0"
         resp.headers["Referrer-Policy"] = "no-referrer"
         resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+    elif (request.path or "").startswith(("/labs", "/speeddie")):
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow"
     elif (request.path or "").startswith("/worship"):
         # Worship pages can contain private church material or short-lived
         # capability links. Keep every response out of caches, search indexes,
@@ -9179,6 +9234,8 @@ def inject_helpers():
             'plan_label': plan_label,
             'current_year': datetime.now().year,
             'static_v': STATIC_VERSION,
+            'product_navigation': PRIMARY_NAVIGATION,
+            'faith_sparks_mission': MISSION,
 
         }
     except Exception:
@@ -9197,6 +9254,8 @@ def inject_helpers():
             'site_content': {},
             'usage_nav': None,
             'static_v': STATIC_VERSION,
+            'product_navigation': PRIMARY_NAVIGATION,
+            'faith_sparks_mission': MISSION,
         }
 
 # --- Plus / Checkout ---

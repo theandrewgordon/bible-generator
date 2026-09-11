@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Labs | Faith Sparks{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow" />{% endblock %}
+{% block content %}
+<section class="product-hero product-hero--labs">
+  <p class="product-kicker">Faith Sparks Labs</p>
+  <h1>A clear home for useful experiments.</h1>
+  <p>Labs is where we test ideas that may help family and church life. These tools are usable, but their shape and availability can change as we learn.</p>
+</section>
+
+<aside class="lab-notice" aria-label="Labs maturity guide">
+  {% for status, label in maturity_labels.items() %}
+    <span><b>{{ status|title }}</b> — {{ label }}</span>
+  {% endfor %}
+</aside>
+
+<section class="product-grid" aria-label="Experimental tools">
+  {% for product in products %}
+  <article class="product-card product-card--{{ product.accent }}">
+    <span class="status-badge status-badge--{{ product.maturity }}">{{ product.maturity|title }}</span>
+    <h2>{{ product.name }}</h2>
+    <p>{{ product.description }}</p>
+    <a class="button ghost" href="{{ product.path }}">Try {{ product.name }}</a>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

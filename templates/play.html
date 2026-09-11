@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Play Together | Faith Sparks{% endblock %}
+{% set description = "Low-prep Bible games for families, house churches, co-ops, and small groups." %}
+{% block content %}
+<section class="product-hero product-hero--play">
+  <p class="product-kicker">Play</p>
+  <h1>Bring Scripture into the room through play.</h1>
+  <p>Choose a hosted phone game or a printable activity. Every option is designed to start quickly and include mixed ages.</p>
+  <a class="button primary" href="{{ url_for('act_it_out.family_game_night') }}">Start with Family Game Night</a>
+</section>
+
+<section class="product-grid" aria-label="Play tools">
+  {% for product in products %}
+  <article class="product-card product-card--{{ product.accent }}">
+    <span class="status-badge status-badge--{{ product.maturity }}">{{ product.maturity|title }}</span>
+    <h2>{{ product.name }}</h2>
+    <p>{{ product.description }}</p>
+    <a class="button ghost" href="{{ product.path }}">Open {{ product.name }}</a>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

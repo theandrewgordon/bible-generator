@@ -5,6 +5,14 @@ services:
     dockerfilePath: ./Dockerfile
     branch: main
     envVars:
+      - key: WEB_CONCURRENCY
+        value: 2
+      - key: GUNICORN_THREADS
+        value: 4
+      - key: GUNICORN_TIMEOUT
+        value: 240
+      - key: SLOW_REQUEST_LOG_MS
+        value: 1500
       - key: OPENAI_API_KEY
         sync: false
       - key: ESV_API_KEY

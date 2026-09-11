@@ -1,15 +1,12 @@
-{% extends "base.html" %} {% set description = "About Faith Sparks Printables —
-we help Christian homeschool families, churches, and co-ops create Bible
-copywork worksheets in seconds." %} {% block title %}About | Faith Sparks
-Printables{% endblock %} {% block content %}
+{% extends "base.html" %} {% set description = "About Faith Sparks—practical, Scripture-centered tools for families and small churches." %} {% block title %}About | Faith Sparks{% endblock %} {% block content %}
 <article class="prose">
-  <h1 class="page-title">About Faith Sparks Printables</h1>
+  <h1 class="page-title">About Faith Sparks</h1>
 
   <p>
-    Faith Sparks helps Christian homeschool families, churches, and co-ops
-    create beautiful <strong>Bible copywork</strong> worksheets in seconds. Pick
-    a verse, choose a version, and we’ll generate a clean, kid-friendly PDF —
-    perfect for handwriting practice, memory work, or Sunday School.
+    Faith Sparks helps families and small churches live their faith together
+    with less prep, less friction, and more meaningful shared time. Start with
+    a Bible passage and make something useful for the room: a gathering plan,
+    worksheet, worship service, or game.
   </p>
 
   <h2>Who we are</h2>
@@ -22,19 +19,14 @@ Printables{% endblock %} {% block content %}
 
   <h2>Why we built this</h2>
   <p>
-    We wanted an easy, family-friendly way to make scripture copywork that looks
-    consistent across grades — print at home, share with your class, or send
-    home as homework.
+    It began with an easy way to make Scripture copywork. The same need kept
+    appearing in other moments: preparing a house-church gathering, leading
+    worship from a phone, and helping mixed ages play together. Faith Sparks is
+    the shared home for those focused tools.
   </p>
 
-  <h2>How it works</h2>
-  <ol>
-    <li>
-      Go to <a href="{{ url_for('generate') }}">Make a worksheet</a> and enter verse(s).
-    </li>
-    <li>Pick a Bible version, and optionally enable cursive tracing.</li>
-    <li>Download your PDF — multiple verses download together.</li>
-  </ol>
+  <h2>Built for real rooms</h2>
+  <p>Core tools are dependable and supported. Newer ideas live openly in <a href="{{ url_for('public.labs') }}">Labs</a> until they prove they deserve a permanent place. That boundary lets us experiment without making the main experience feel unfinished.</p>
 
   <p class="muted small">
     Need help or have a request? Email {% if support_email %}
@@ -47,10 +39,8 @@ Printables{% endblock %} {% block content %}
   </p>
 
   <div class="actions" style="margin-top: 1rem">
-    <a class="button primary" href="{{ url_for('generate') }}"
-      >Make a worksheet</a
-    >
-    <a class="button ghost" href="{{ url_for('browse') }}">Browse Bundles</a>
+    <a class="button primary" href="{{ url_for('public.lesson_pack') }}">Prepare a gathering</a>
+    <a class="button ghost" href="{{ url_for('public.play') }}">Explore the tools</a>
   </div>
 </article>
 {% endblock %}

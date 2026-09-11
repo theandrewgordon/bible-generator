@@ -25,8 +25,11 @@ body {
   background:
     radial-gradient(circle at 92% 2%, rgba(212, 154, 58, 0.12), transparent 24rem),
     linear-gradient(180deg, #fbf8f0 0, #f4f0e7 100%);
-  font-family: "DM Sans", sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+
+.wf-lab-nav { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; font-size: .9rem; }
+.wf-lab-nav a { color: var(--forest); font-weight: 700; }
 
 button, select, textarea { font: inherit; }
 button { color: inherit; }

@@ -4,16 +4,18 @@
 
 /* ---------- CSS variables ---------- */
 :root {
-  --background: #ffffff;
-  --text: #2d3748;
-  --text-secondary: #718096;
-  --box: #f6f8fb;
+  --background: #fffdf8;
+  --text: #19332d;
+  --text-secondary: #60716c;
+  --box: #f7f3e9;
 
-  --primary: #3182ce;
-  --primary-dark: #2b6cb0;
+  --primary: #168a80;
+  --primary-dark: #0f6f68;
+  --brand-ink: #19332d;
+  --brand-gold: #d49a3a;
 
   /* Header (navbar) */
-  --header-bg: var(--primary);
+  --header-bg: var(--brand-ink);
   --header-fg: #ffffff;
   --header-fg-subtle: rgba(255, 255, 255, 0.9);
   --header-hover-bg: rgba(255, 255, 255, 0.12);
@@ -343,10 +345,29 @@ input[type="checkbox"] + label,
   align-items: center;
   gap: 14px;
 }
-.logo img {
-  display: block;
-  height: 40px;
-  width: auto;
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #19332d;
+  background: var(--brand-gold);
+  font-size: 1.05rem;
+}
+.brand-name {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .nav-links {
@@ -354,6 +375,46 @@ input[type="checkbox"] + label,
   grid-auto-flow: column;
   align-items: center;
   gap: 6px;
+}
+
+/* ---------- Faith Sparks product system ---------- */
+.product-hero {
+  position: relative;
+  overflow: hidden;
+  margin: 1.25rem 0 1.5rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  border-radius: 24px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 13%, var(--box)), var(--background));
+  box-shadow: var(--card-shadow);
+}
+.product-hero--play { --primary: #315f53; }
+.product-hero--labs { --primary: #6657d9; }
+.product-hero h1 {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  font-size: clamp(2rem, 6vw, 4.3rem);
+  line-height: 1.02;
+  max-width: 14ch;
+  margin: .25rem 0 .8rem;
+}
+.product-hero > p:not(.product-kicker) { max-width: 62ch; font-size: 1.08rem; color: var(--text-secondary); }
+.product-kicker { margin: 0; color: var(--primary); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: .78rem; }
+.product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 0 0 2rem; }
+.product-card { --product-accent: var(--primary); display: flex; flex-direction: column; align-items: flex-start; min-height: 250px; padding: 1.25rem; border: 1px solid color-mix(in srgb, var(--product-accent) 28%, transparent); border-top: 5px solid var(--product-accent); border-radius: 18px; background: var(--box); box-shadow: var(--card-shadow); }
+.product-card--blue { --product-accent: #3182ce; }
+.product-card--gold { --product-accent: #b7791f; }
+.product-card--purple { --product-accent: #6657d9; }
+.product-card--rose { --product-accent: #b84d73; }
+.product-card--forest { --product-accent: #315f53; }
+.product-card h2 { margin: .7rem 0 .4rem; font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif; }
+.product-card p { color: var(--text-secondary); flex: 1; }
+.status-badge { display: inline-flex; padding: .22rem .52rem; border-radius: 999px; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--product-accent); background: color-mix(in srgb, var(--product-accent) 12%, var(--background)); }
+.lab-notice { display: grid; grid-template-columns: repeat(2, 1fr); gap: .55rem 1rem; margin: 0 0 1.25rem; padding: 1rem; border: 1px dashed color-mix(in srgb, var(--primary) 35%, transparent); border-radius: 14px; color: var(--text-secondary); background: var(--box); font-size: .88rem; }
+
+@media (max-width: 760px) {
+  .product-grid { grid-template-columns: 1fr; }
+  .product-card { min-height: 0; }
+  .lab-notice { grid-template-columns: 1fr; }
 }
 .mobile-tools {
   display: none;

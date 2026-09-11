@@ -48,7 +48,7 @@ def _create(repository, provider, *, destination="helper@example.com"):
         or f"https://example.test/respond/{token}",
         repository=repository,
         provider=provider,
-        now=datetime(2026, 9, 4, 12, tzinfo=UTC),
+        now=datetime.now(UTC),
     )
     return result, urls[0]
 

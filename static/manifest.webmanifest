@@ -1,13 +1,12 @@
 {
-  "name": "Faith Sparks Printables",
+  "name": "Faith Sparks",
   "short_name": "FaithSparks",
-  "description": "Printable Bible copywork worksheets with custom themes and history tracking.",
+  "description": "Scripture-centered tools for families and small churches to prepare, worship, and play together.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0ea5a8",
-  "orientation": "portrait",
+  "background_color": "#fffdf8",
+  "theme_color": "#19332d",
   "icons": [
     {
       "src": "/static/faith_sparks_logo_32.png",

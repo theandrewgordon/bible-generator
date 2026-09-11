@@ -57,13 +57,14 @@ def admin_content():
                 return redirect(url_for('admin_content'))
             try:
                 payload = {
+                    'home_positioning_version': 2,
                     'announcement_enabled': request.form.get('announcement_enabled') == 'on',
                     'announcement_text': (request.form.get('announcement_text') or '').strip(),
                     'home_title': (request.form.get('home_title') or '').strip(),
                     'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
                     'home_hero_image_url': (request.form.get('home_hero_image_url') or '').strip(),
-                    'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Make a worksheet',
-                    'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
+                    'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Prepare a gathering',
+                    'home_cta_url': (request.form.get('home_cta_url') or '/lesson-pack').strip(),
                     'home_stat_families': (request.form.get('home_stat_families') or '').strip(),
                     'home_stat_worksheets': (request.form.get('home_stat_worksheets') or '').strip(),
                     'home_stat_rating': (request.form.get('home_stat_rating') or '').strip(),
@@ -88,13 +89,14 @@ def admin_content():
             return redirect(url_for('admin_content'))
         else:
             payload = {
+                'home_positioning_version': 2,
                 'announcement_enabled': request.form.get('announcement_enabled') == 'on',
                 'announcement_text': (request.form.get('announcement_text') or '').strip(),
                 'home_title': (request.form.get('home_title') or '').strip(),
                 'home_subtitle': (request.form.get('home_subtitle') or '').strip(),
                 'home_hero_image_url': (request.form.get('home_hero_image_url') or '').strip(),
-                'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Make a worksheet',
-                'home_cta_url': (request.form.get('home_cta_url') or '/generate').strip(),
+                'home_cta_text': (request.form.get('home_cta_text') or '').strip() or 'Prepare a gathering',
+                'home_cta_url': (request.form.get('home_cta_url') or '/lesson-pack').strip(),
                 'home_stat_families': (request.form.get('home_stat_families') or '').strip(),
                 'home_stat_worksheets': (request.form.get('home_stat_worksheets') or '').strip(),
                 'home_stat_rating': (request.form.get('home_stat_rating') or '').strip(),

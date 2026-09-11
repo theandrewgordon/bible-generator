@@ -1,33 +1,26 @@
-{% extends "base.html" %} {% block title %}Bible Copywork Worksheets for
-Homeschool & Church | Faith Sparks{% endblock %} {% set _default_hero_image =
-url_for('static', filename='CopyworkStock/Copywork1.png') %} {% set
-hero_primary_image = (site_content.home_hero_image_url if site_content and
-site_content.home_hero_image_url else _default_hero_image) %} {% set hero_images
-= [ hero_primary_image, url_for('static',
-filename='CopyworkStock/Copywork2.png'), url_for('static',
-filename='CopyworkStock/Copywork3.png'), url_for('static',
-filename='CopyworkStock/Copywork4.png'), url_for('static',
-filename='CopyworkStock/Copywork5.png') ] %} {% set hero_og_image =
+{% extends "base.html" %} {% block title %}Faith Sparks | Prepare, Worship & Play Together{% endblock %}
+{% set positioning_v2 = site_content and site_content.home_positioning_version == 2 %}
+{% set default_hero_image = url_for('static', filename='faith-sparks-home-hero.jpg') %}
+{% set hero_primary_image = site_content.home_hero_image_url if positioning_v2 and site_content.home_hero_image_url else default_hero_image %}
+{% set hero_images = [hero_primary_image] %} {% set hero_og_image =
 hero_images[0] %} {% if hero_og_image and not hero_og_image.startswith('http')
 %} {% set hero_og_image = request.url_root.rstrip('/') ~ hero_og_image %} {%
-endif %} {% set hero_cta_text = site_content.home_cta_text if site_content and
-site_content.home_cta_text else 'Make a worksheet' %} {% set hero_cta_url =
-site_content.home_cta_url if site_content and site_content.home_cta_url else
-url_for('generate') %} {% block head_extra %}
+endif %} {% set hero_cta_text = site_content.home_cta_text if positioning_v2 and site_content.home_cta_text else 'Prepare a gathering' %} {% set hero_cta_url =
+site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else url_for('public.lesson_pack') %} {% block head_extra %}
 <meta
   name="description"
-  content="Make printable Bible copywork worksheets (NLT, ESV, KJV, or your own translation tag) for Christian homeschool, co-ops, and children’s ministry. Ready-to-print PDFs with tracing, copywork, and reflection prompts."
+  content="Scripture-centered tools that help families and small churches prepare, worship, and play together with less prep."
 />
 
 <!-- Open Graph / Twitter -->
 <meta
   property="og:title"
-  content="Bible Copywork Worksheets for Homeschool & Church"
+  content="Faith Sparks: Prepare, Worship & Play Together"
 />
-<meta property="og:site_name" content="Faith Sparks Printables" />
+<meta property="og:site_name" content="Faith Sparks" />
 <meta
   property="og:description"
-  content="Make beautiful Bible copywork in seconds. Free starter plan plus subscriber-only packs for homeschool families and classrooms."
+  content="Turn a Bible passage into something useful for your family or gathering in minutes."
 />
 <meta property="og:type" content="website" />
 <meta
@@ -35,8 +28,8 @@ url_for('generate') %} {% block head_extra %}
   content="{{ request.url_root.rstrip('/') ~ request.path }}"
 />
 <meta property="og:image" content="{{ hero_og_image }}" />
-<meta property="og:image:width" content="2400" />
-<meta property="og:image:height" content="1350" />
+<meta property="og:image:width" content="1400" />
+<meta property="og:image:height" content="787" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:image" content="{{ hero_og_image }}" />
 
@@ -45,7 +38,7 @@ url_for('generate') %} {% block head_extra %}
   {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": {{ "Faith Sparks Printables"|tojson }},
+    "name": {{ "Faith Sparks"|tojson }},
     "url": {{ request.url_root.rstrip('/')|tojson }},
     "logo": {{ (request.url_root.rstrip('/') ~ (logo_url or url_for('static', filename='faith_sparks_logo.png')))|tojson }}
   }
@@ -54,7 +47,7 @@ url_for('generate') %} {% block head_extra %}
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": {{ "Faith Sparks Printables"|tojson }},
+    "name": {{ "Faith Sparks"|tojson }},
     "url": {{ request.url_root.rstrip('/')|tojson }},
     "potentialAction": {
       "@type": "SearchAction",
@@ -522,65 +515,55 @@ url_for('generate') %} {% block head_extra %}
 {% endblock %} {% block content %}
 <section
   class="hero hero-rotator"
-  data-hero-images="{{ hero_images|tojson }}"
-  aria-label="Families using Faith Sparks printable Bible copywork worksheets"
+  aria-label="A family learning from Scripture together"
 >
   <div
     class="hero-media hero-media--visible"
     style="background-image: url('{{ hero_images[0] }}')"
   ></div>
-  <div class="hero-media hero-media--hidden hero-media--next"></div>
   <div class="hero-content">
-    <span class="hero-kicker">Faith-filled learning made easy</span>
-    <h1 class="hero-title">
-      {{ (site_content.home_title or 'Printable Bible worksheets for busy
-      homeschool days') if site_content else 'Printable Bible worksheets for
-      busy homeschool days' }}
-    </h1>
+    <span class="hero-kicker">Scripture for real life together</span>
+    <h1 class="hero-title">{{ site_content.home_title if positioning_v2 and site_content.home_title else 'Prepare meaningful family and house-church gatherings in minutes.' }}</h1>
 
     <p class="hero-sub">
-      {{ (site_content.home_subtitle or 'Type a verse, click once, and print a
-      beautiful worksheet in seconds.') if site_content else 'Type a verse,
-      click once, and print a beautiful worksheet in seconds.' }}
+      {{ site_content.home_subtitle if positioning_v2 and site_content.home_subtitle else 'Start with a Bible passage. Build a gathering plan, printable activity, worship service, or game without adding another night of prep.' }}
     </p>
 
     <p class="hero-clarifier muted small">
-      Create free sample worksheets instantly, or explore our ready-to-print
-      bundles.
+      {{ faith_sparks_mission }}
     </p>
 
     <div class="cta-row">
       <a class="button primary" href="{{ hero_cta_url }}"
         >{{ hero_cta_text }}</a
       >
-      <a class="button ghost" href="{{ url_for('browse') }}">Browse bundles</a>
+      <a class="button ghost" href="{{ url_for('public.prepare') }}">Explore the tools</a>
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
-        <span class="hero-stat-icon" aria-hidden="true">For families</span>
+        <span class="hero-stat-icon" aria-hidden="true">For real rooms</span>
         <div class="hero-stat-content">
-          <strong>Homeschool friendly</strong>
-          <span>designed for real family rhythms</span>
+          <strong>Mixed-age friendly</strong>
+          <span>for families and small churches</span>
         </div>
       </div>
       <div class="hero-stat">
-        <span class="hero-stat-icon" aria-hidden="true">Ready to print</span>
+        <span class="hero-stat-icon" aria-hidden="true">Start quickly</span>
         <div class="hero-stat-content">
-          <strong>Print & go</strong>
-          <span>simple, clean, and ink‑friendly</span>
+          <strong>Low prep</strong>
+          <span>useful in minutes, not hours</span>
         </div>
       </div>
       <div class="hero-stat">
-        <span class="hero-stat-icon" aria-hidden="true">Calm and simple</span>
+        <span class="hero-stat-icon" aria-hidden="true">Bible first</span>
         <div class="hero-stat-content">
-          <strong>No prep needed</strong>
-          <span>use it right away</span>
+          <strong>Scripture-centered</strong>
+          <span>the passage stays at the center</span>
         </div>
       </div>
     </div>
     <p class="muted small cta-note">
-      Free Starter Bundle included. Instant downloads for homeschool, co-op, or
-      Sunday school.
+      Begin with a gathering, a worksheet, worship, or a game.
       <a href="{{ url_for('public.start_here') }}">Start here</a>.
     </p>
     {% if proverb_of_day %}
@@ -619,23 +602,26 @@ url_for('generate') %} {% block head_extra %}
 </section>
 
 <section class="how-it-works" id="how-it-works">
-  <h2>How it works</h2>
+  <h2>What are you preparing?</h2>
   <div class="how-grid">
     <article class="how-step">
-      <h3>1. Pick a verse</h3>
-      <p>Type a reference or choose a bundle.</p>
+      <h3>Prepare</h3>
+      <p>Build an all-age gathering, worksheet, or printable from Scripture.</p>
+      <a href="{{ url_for('public.prepare') }}">See preparation tools</a>
     </article>
     <article class="how-step">
-      <h3>2. We format it</h3>
-      <p>Clean handwriting lines, ready to print.</p>
+      <h3>Worship</h3>
+      <p>Plan the service and run clear, low-latency lyrics in the room.</p>
+      <a href="{{ url_for('worship') }}">Open Worship</a>
     </article>
     <article class="how-step">
-      <h3>3. Print today</h3>
-      <p>Download the PDF and go.</p>
+      <h3>Play</h3>
+      <p>Start a hosted or printable Bible game that welcomes mixed ages.</p>
+      <a href="{{ url_for('public.play') }}">Choose a game</a>
     </article>
   </div>
   <p class="muted small" style="margin-top: 0.6rem">
-    Simple, Scripture‑honoring worksheets for homeschool mornings.
+    One Faith Sparks account and library, with focused tools for each moment.
   </p>
 </section>
 
@@ -653,11 +639,11 @@ url_for('generate') %} {% block head_extra %}
     .worship-pillar .feat li{font-size:.84rem;font-weight:600;color:var(--text);background:var(--background);border:1px solid #e2e8f0;border-radius:999px;padding:5px 12px}
   </style>
   <div class="worship-pillar-inner">
-    <p class="worship-pillar-kicker">Also for worship teams</p>
-    <h2 id="worship-pillar-h">Build your Sunday set in minutes</h2>
+    <p class="worship-pillar-kicker">Worship for house churches</p>
+    <h2 id="worship-pillar-h">Build and lead the set from the room</h2>
     <p>
-      Turn songs into clean projection slides, a phone‑friendly lyric view for the
-      stage, and printable lyric sheets — with a shared library your whole team can use.
+      Turn songs into clear projection slides, a phone-friendly stage view, and
+      printable lyric sheets—with a shared library that works for a small team.
     </p>
     <ul class="feat">
       <li>PowerPoint export</li>
@@ -668,57 +654,4 @@ url_for('generate') %} {% block head_extra %}
     <a class="button" href="{{ url_for('worship') }}">Open the worship builder</a>
   </div>
 </section>
-{% endblock %} {% block extra_scripts %}
-<script>
-  (function () {
-    const hero = document.querySelector(".hero-rotator");
-    if (!hero) return;
-
-    // Respect reduced motion
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    let images = [];
-    try {
-      images = JSON.parse(hero.dataset.heroImages || "[]");
-    } catch (_) {
-      images = [];
-    }
-    if (!Array.isArray(images) || images.length < 2) return;
-
-    let front = hero.querySelector(".hero-media--visible");
-    let back = hero.querySelector(".hero-media--next");
-    if (!front || !back) return;
-
-    let idx = 0;
-    const intervalMs = 10000;
-
-    const tick = () => {
-      const nextIdx = (idx + 1) % images.length;
-
-      back.style.backgroundImage = `url('${images[nextIdx]}')`;
-
-      // fade in back, fade out front
-      back.classList.remove("hero-media--hidden");
-      back.classList.add("hero-media--visible");
-      front.classList.remove("hero-media--visible");
-      front.classList.add("hero-media--hidden");
-
-      // after transition, swap references & reset the back layer
-      setTimeout(() => {
-        const tmp = front;
-        front = back;
-        back = tmp;
-
-        back.classList.remove("hero-media--visible");
-        back.classList.add("hero-media--hidden");
-        back.style.backgroundImage = "";
-      }, 950);
-
-      idx = nextIdx;
-    };
-
-    setInterval(tick, intervalMs);
-  })();
-</script>
-
 {% endblock %}

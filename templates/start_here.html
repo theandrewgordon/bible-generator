@@ -1,37 +1,37 @@
 {% extends "base.html" %}
-{% block title %}Start Here | Faith Sparks Printables{% endblock %}
+{% block title %}Start Here | Faith Sparks{% endblock %}
 
 {% block content %}
 <section class="start-here">
   <h1 class="page-title">Start Here</h1>
   <p class="muted">
-    Make your first worksheet in minutes. Pick a verse, click once, and print.
+    Start with the moment in front of you. The fastest path for most families and house churches is a Gathering Builder pack.
   </p>
 
   <div class="start-steps">
     <article class="start-card">
       <div class="step-num">1</div>
-      <h2>Pick a verse</h2>
-      <p>Type a reference or choose a bundle you already love.</p>
-      <a class="button ghost" href="{{ url_for('generate') }}">Make a worksheet</a>
+      <h2>Prepare a gathering</h2>
+      <p>Turn one passage into a low-prep, all-age plan and activities.</p>
+      <a class="button ghost" href="{{ url_for('public.lesson_pack') }}">Open Gathering Builder</a>
     </article>
     <article class="start-card">
       <div class="step-num">2</div>
-      <h2>We format it</h2>
-      <p>Clean handwriting lines and a gentle layout, ready to print.</p>
-      <a class="button ghost" href="{{ url_for('browse') }}">See bundles</a>
+      <h2>Make a worksheet</h2>
+      <p>Create clean handwriting lines and an age-aware layout.</p>
+      <a class="button ghost" href="{{ url_for('generate') }}">Open Copywork</a>
     </article>
     <article class="start-card">
       <div class="step-num">3</div>
-      <h2>Print today</h2>
-      <p>Keep your favorites in My Prints so you can reprint anytime.</p>
-      <a class="button ghost" href="{{ url_for('prints') }}">My Prints</a>
+      <h2>Lead worship</h2>
+      <p>Build a simple service and present lyrics from the room.</p>
+      <a class="button ghost" href="{{ url_for('worship') }}">Open Worship</a>
     </article>
     <article class="start-card">
       <div class="step-num">4</div>
-      <h2>Build a lesson pack</h2>
-      <p>One verse becomes a worksheet, coloring page, word search, and parent guide.</p>
-      <a class="button ghost" href="{{ url_for('public.lesson_pack') }}">Try Copilot</a>
+      <h2>Play together</h2>
+      <p>Choose a hosted or printable Bible game for mixed ages.</p>
+      <a class="button ghost" href="{{ url_for('public.play') }}">Choose a game</a>
     </article>
   </div>
 
@@ -71,7 +71,7 @@
 
   <div class="start-visual">
     <img
-      src="{{ url_for('static', filename='CopyworkStock/Copywork3.png') }}"
+      src="{{ url_for('static', filename='faith-sparks-home-hero.jpg') }}"
       alt="Children working on a worksheet together"
       loading="lazy"
       width="840"

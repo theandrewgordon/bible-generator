@@ -18,6 +18,7 @@ from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.firestore import db
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.util.request_utils import get_client_ip
+from faithsparks.products import MATURITY, products_for
 
 
 bp = Blueprint('public', __name__)
@@ -185,6 +186,26 @@ def start_here():
         'start_here.html',
         proverb_of_day=get_proverb_of_day(),
         game_of_week=_get_game_of_week(),
+    )
+
+
+@bp.get('/prepare')
+def prepare():
+    return render_template('prepare.html', products=products_for('prepare'))
+
+
+@bp.get('/play')
+def play():
+    return render_template('play.html', products=products_for('play'))
+
+
+@bp.get('/labs')
+def labs():
+    return render_template(
+        'labs.html',
+        products=products_for('labs'),
+        maturity_labels=MATURITY,
+        noindex=True,
     )
 
 
