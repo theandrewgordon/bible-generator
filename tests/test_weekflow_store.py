@@ -15,10 +15,12 @@ from faithsparks.services.weekflow_store import (
     load_beta_state,
     load_logistics_state,
     load_saved_week,
+    load_today_state,
     normalize_beta_state,
     record_beta_feedback,
     save_beta_state,
     save_logistics_state,
+    save_today_state,
     save_week_template,
 )
 
@@ -94,6 +96,21 @@ def test_default_beta_state_is_valid_and_normalized():
     assert state["approved"] is False
     assert state["family"]["timezone"] == "America/New_York"
     assert state["scenario"]["events"][0]["day_id"] == "thu"
+
+
+def test_personalized_week_can_start_without_demo_assignments():
+    state = default_beta_state()
+    state["scenario"]["tasks"] = []
+    state["scenario"]["completed_task_ids"] = []
+
+    normalized = normalize_beta_state(state)
+    plan = weekflow_store.generate_demo_schedule(scenario=normalized["scenario"])
+
+    assert normalized["scenario"]["tasks"] == []
+    assert plan["total_count"] == 0
+    assert plan["scheduled_count"] == 0
+    assert plan["completed_count"] == 0
+    assert plan["feasibility"]["deadline_feasible"] is True
 
 
 @pytest.mark.parametrize(
@@ -232,6 +249,7 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
     backup = export_weekflow_backup("parent@example.com")
     assert backup["weeks"][0]["scenario"]["week_start"] == "2026-08-31"
     assert backup["templates"][0]["name"] == "Normal week"
+    assert backup["today"]["items"] == []
 
     delete_beta_state("parent@example.com")
     assert database.documents == {}
@@ -265,6 +283,42 @@ def test_logistics_state_round_trip_is_validated_and_revision_protected(monkeypa
 
     delete_logistics_state("parent@example.com")
     assert load_logistics_state("parent@example.com")["scenario"] is None
+
+
+def test_today_state_round_trip_is_lightweight_and_revision_protected(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    family = default_beta_state()["family"]
+    payload = {
+        "revision": 0,
+        "items": [
+            {
+                "id": "library-books",
+                "title": "Return library books",
+                "area": "homeschool",
+                "assigned_person_id": "parent",
+                "due_date": "2026-09-14",
+                "priority": "high",
+                "status": "open",
+                "created_at": "2026-09-14T12:00:00+00:00",
+                "updated_at": "2026-09-14T12:00:00+00:00",
+                "completed_at": None,
+            }
+        ],
+    }
+
+    assert load_today_state("parent@example.com", family=family)["revision"] == 0
+    saved = save_today_state("Parent@Example.com", payload, family=family)
+
+    assert saved["revision"] == 1
+    assert load_today_state("parent@example.com", family=family)["items"][0][
+        "title"
+    ] == "Return library books"
+    with pytest.raises(WeekFlowRevisionConflict):
+        save_today_state("parent@example.com", payload, family=family)
 
 
 @pytest.mark.parametrize(

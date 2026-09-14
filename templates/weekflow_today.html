@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="WeekFlow keeps today’s family responsibilities in one calm place." />
+    <title>Today · WeekFlow · Faith Sparks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_today.css') }}?v=2" />
+  </head>
+  <body>
+    <header class="wft-site-header">
+      <a class="wft-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
+      <nav aria-label="WeekFlow links">
+        <a href="/labs">Labs</a>
+        <a href="{{ url_for('weekflow.index') }}">WeekFlow lab</a>
+      </nav>
+    </header>
+
+    {% if access_denied %}
+      <main class="wft-access-card">
+        <span class="wft-eyebrow">WeekFlow beta</span>
+        <h1>This account isn’t in the WeekFlow beta yet.</h1>
+        <p>Your Faith Sparks account is signed in, but WeekFlow Today has not been enabled for it.</p>
+        <a class="wft-button wft-button-primary" href="/labs">Back to Faith Sparks Labs</a>
+      </main>
+    {% else %}
+      <div class="wft-app" id="todayApp" hidden>
+        <nav class="wft-area-nav" aria-label="WeekFlow areas">
+          <a class="is-active" href="{{ url_for('weekflow.today') }}" aria-current="page">Today</a>
+          <a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a>
+          <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
+          <a href="{{ url_for('weekflow.kids') }}">Kids</a>
+          <span title="Coming in a later WeekFlow step">Household</span>
+          <span title="Coming in a later WeekFlow step">Meals</span>
+          <span title="Coming in a later WeekFlow step">More</span>
+        </nav>
+
+        <main class="wft-shell">
+          <header class="wft-hero">
+            <div>
+              <span class="wft-eyebrow" id="todayLabel">WeekFlow Today</span>
+              <h1>What needs your attention?</h1>
+              <p id="familyGreeting">One calm view of your family’s day.</p>
+            </div>
+            <div class="wft-family" id="familyPeople" aria-label="Family members"></div>
+          </header>
+
+          <section class="wft-summary" aria-label="Today summary">
+            <article><span>Due today</span><strong id="dueTodayCount">0</strong></article>
+            <article><span>Overdue</span><strong id="overdueCount">0</strong></article>
+            <article><span>Waiting</span><strong id="waitingCount">0</strong></article>
+            <article><span>Open</span><strong id="openCount">0</strong></article>
+          </section>
+
+          <section class="wft-capture" aria-label="Quick add">
+            <form id="captureForm">
+              <div class="wft-capture-main">
+                <label class="wft-visually-hidden" for="captureTitle">What do you need to remember?</label>
+                <input id="captureTitle" name="title" maxlength="160" autocomplete="off" placeholder="What needs remembering?" required />
+                <button class="wft-button wft-button-primary" type="submit">Add</button>
+              </div>
+              <details>
+                <summary>Add details</summary>
+                <div class="wft-capture-details">
+                  <label>Area<select id="captureArea" name="area">
+                    {% for value, label in area_labels.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                  </select></label>
+                  <label>For<select id="capturePerson" name="assigned_person_id"><option value="">Anyone</option></select></label>
+                  <label>Due<input id="captureDue" name="due_date" type="date" /></label>
+                  <label>Priority<select id="capturePriority" name="priority"><option value="normal">Normal</option><option value="high">Important</option><option value="low">Low</option></select></label>
+                </div>
+              </details>
+            </form>
+            <p class="wft-capture-hint">Capture it now. Sort it only when that helps.</p>
+          </section>
+
+          <p class="wft-status" id="saveStatus" role="status" aria-live="polite"></p>
+
+          <div class="wft-board" id="todayBoard">
+            <section class="wft-list-section" id="overdueSection" hidden>
+              <div class="wft-section-heading"><div><span class="wft-dot is-overdue"></span><h2>Overdue</h2></div><span id="overdueBadge"></span></div>
+              <div class="wft-item-list" id="overdueList"></div>
+            </section>
+            <section class="wft-list-section" id="dueTodaySection" hidden>
+              <div class="wft-section-heading"><div><span class="wft-dot is-today"></span><h2>Due today</h2></div><span id="dueTodayBadge"></span></div>
+              <div class="wft-item-list" id="dueTodayList"></div>
+            </section>
+            <section class="wft-list-section" id="attentionSection" hidden>
+              <div class="wft-section-heading"><div><span class="wft-dot is-important"></span><h2>Important</h2></div><span id="attentionBadge"></span></div>
+              <div class="wft-item-list" id="attentionList"></div>
+            </section>
+            <section class="wft-list-section" id="waitingSection" hidden>
+              <div class="wft-section-heading"><div><span class="wft-dot is-waiting"></span><h2>Waiting</h2></div><span id="waitingBadge"></span></div>
+              <div class="wft-item-list" id="waitingList"></div>
+            </section>
+            <section class="wft-list-section" id="laterSection" hidden>
+              <div class="wft-section-heading"><div><span class="wft-dot"></span><h2>Later</h2></div><span id="laterBadge"></span></div>
+              <div class="wft-item-list" id="laterList"></div>
+            </section>
+            <section class="wft-list-section wft-completed" id="completedSection" hidden>
+              <div class="wft-section-heading"><div><span class="wft-dot is-complete"></span><h2>Recently completed</h2></div><span id="completedBadge"></span></div>
+              <div class="wft-item-list" id="completedList"></div>
+            </section>
+
+            <section class="wft-empty" id="emptyState">
+              <span aria-hidden="true">✓</span>
+              <h2>Nothing is asking for your attention.</h2>
+              <p>Add the next loose end above. WeekFlow will keep it here so you don’t have to.</p>
+            </section>
+          </div>
+
+          <section class="wft-tools" aria-labelledby="toolsTitle">
+            <div class="wft-tools-heading"><span class="wft-eyebrow">Planning tools</span><h2 id="toolsTitle">Go deeper only when you need to.</h2></div>
+            <div class="wft-tool-grid">
+              <a href="{{ url_for('weekflow.homeschool') }}"><span>Homeschool</span><strong>Plan our homeschool week</strong><p>Coordinate lessons around finite parent attention.</p><b>Open homeschool →</b></a>
+              <a href="{{ url_for('weekflow.schedule_dashboard') }}"><span>Schedule</span><strong>See the whole family day</strong><p>Put school, appointments, rides, and handoff gaps in one calm agenda.</p><b>Open Schedule →</b></a>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <div class="wft-loading" id="todayLoading" role="status">
+        <span></span><p>Opening your family’s day…</p>
+      </div>
+      <div class="wft-load-error" id="todayLoadError" hidden>
+        <h1>We couldn’t open WeekFlow Today.</h1>
+        <p id="todayLoadErrorMessage">Please try again.</p>
+        <button class="wft-button wft-button-primary" id="retryButton" type="button">Try again</button>
+      </div>
+
+      <script>
+        window.WEEKFLOW_TODAY_CONFIG = {
+          stateUrl: {{ url_for('weekflow.today_state')|tojson }},
+          csrfToken: {{ csrf_token()|tojson }},
+          areaLabels: {{ area_labels|tojson }}
+        };
+      </script>
+      <script src="{{ url_for('static', filename='weekflow_today.js') }}?v=1" defer></script>
+    {% endif %}
+  </body>
+</html>

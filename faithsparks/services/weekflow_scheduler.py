@@ -297,8 +297,8 @@ def _normalize_tasks(
 ) -> tuple[Task, ...]:
     valid_students = student_ids or set(STUDENTS)
     valid_adults = adult_ids or set(ADULTS)
-    if not isinstance(raw_tasks, list) or not 1 <= len(raw_tasks) <= MAX_WEEK_TASKS:
-        raise ValueError(f"tasks must contain between 1 and {MAX_WEEK_TASKS} assignments")
+    if not isinstance(raw_tasks, list) or len(raw_tasks) > MAX_WEEK_TASKS:
+        raise ValueError(f"tasks must contain at most {MAX_WEEK_TASKS} assignments")
     task_ids: set[str] = set()
     tasks: list[Task] = []
     for index, raw_task in enumerate(raw_tasks):

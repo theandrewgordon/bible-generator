@@ -6,6 +6,78 @@ supervision, and recovery work those calendars do not express. The interface
 shows one next decision first; explanations, alternate choices, and planning
 diagnostics stay available behind progressive disclosure.
 
+## Command center foundation
+
+Status: **Step 1 implemented**
+
+`/labs/weekflow/today` is the signed-in daily front door for WeekFlow. It adds
+a fast brain-dump flow and one adult-owned responsibility list without running
+the homeschool scheduler or logistics solver on page load.
+
+- Read the established WeekFlow family record as the shared source for names,
+  colors, assignments, and household timezone.
+- Capture an item with an area, family member, due date, priority, and status.
+- Separate overdue, due-today, important, waiting, later, and recently completed
+  items without showing the same responsibility in multiple sections.
+- Complete, restore, pause, resume, and remove items with optimistic UI and
+  revision-protected cloud saving.
+- Keep the Today document independent from the heavier schedule state, include
+  it in household backups, and send it through the private low-latency request
+  lane.
+- Link the homeschool scheduler and family-logistics planner as deeper tools
+  instead of duplicating them inside the overview.
+
+## Homeschool and Kids integration
+
+Status: **Step 2 implemented**
+
+`/labs/weekflow/homeschool` and `/labs/weekflow/kids` now turn the scheduling
+engine into daily family tools instead of exposing it only as a lab demo.
+
+- New families can name the household, teaching adult, and children without
+  inheriting fictional demo assignments or creating child accounts.
+- A homeschool week may be genuinely empty and receives useful empty states.
+- Adults can add assignments for one child or a group, choose a deadline,
+  estimate time, and describe whether the work is independent, checked at the
+  beginning and end, or parent-led throughout.
+- The Homeschool view shows the daily learning plan, explicit parent-help
+  moments, weekly load, feasibility warnings, completed work, and removal or
+  restoration controls.
+- The Kids view projects that same plan by child and combines schoolwork with
+  responsibilities assigned through WeekFlow Today.
+- Completing an assignment from either view updates the shared homeschool plan;
+  completing a family responsibility updates the shared Today document.
+- Both views remain adult-owned, private, non-cacheable, and isolated from the
+  public scheduler experiment.
+
+## Schedule and logistics integration
+
+Status: **Step 3 implemented**
+
+`/labs/weekflow/schedule` is the light daily schedule for an adult, while the
+existing logistics lab remains the deeper place to enter or resolve a family
+plan.
+
+- Combine the current homeschool week, Schedule-tagged Today responsibilities,
+  and the saved family-logistics plan in one seven-day agenda.
+- Put missing owners, overlapping responsibility windows, rides, and handoffs
+  ahead of diagnostic detail; leave a clear day visually calm.
+- Keep travel-expanded ownership visible beside the agenda, including the adult
+  responsible for each commitment and the true responsibility window.
+- Make Google Calendar a separate, optional, read-only preview. Calendar event
+  content is never added to the saved Schedule state.
+- Flag a calendar commitment that overlaps a saved logistics responsibility as
+  a handoff to confirm, without pretending WeekFlow knows which person owns an
+  unclassified external event.
+- Reuse the existing logistics editor for additions and decisions instead of
+  duplicating its complex controls in the daily view.
+- Load the adult-owned WeekFlow sources through one private, non-cacheable,
+  latency-prioritized endpoint with calm states for a new family, an empty day,
+  missing logistics, disconnected Calendar, and provider failure.
+
+The next product step is Household: recurring chores, routines, and delegated
+responsibilities that feed Today, Schedule, and each child’s view.
+
 ## 1. Prove family-logistics orchestration
 
 Status: **implemented as a lab experiment**

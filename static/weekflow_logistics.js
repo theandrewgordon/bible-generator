@@ -1009,6 +1009,10 @@
   renderScenarioSummary(scenario);
   saveCustomLocally();
   renderCustomBuilder();
+  if (new URLSearchParams(window.location.search).get("personal") === "1") {
+    customBuilder.hidden = false;
+    customBuilder.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
   loadCalendarStatus();
   loadIntegrationStatus();
 })();

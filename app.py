@@ -185,6 +185,10 @@ def _should_fetch_usage(path: str) -> bool:
 
 _LATENCY_CRITICAL_PREFIXES = (
     "/worship/live/",
+    "/labs/weekflow/homeschool",
+    "/labs/weekflow/kids",
+    "/labs/weekflow/schedule",
+    "/labs/weekflow/today",
     "/family-bible-bee/",
     "/family-game-night/",
     "/group-games/",
@@ -737,6 +741,10 @@ def add_correlation_headers(resp):
         resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
     elif (request.path or "").startswith((
         "/labs/weekflow/calendar",
+        "/labs/weekflow/homeschool",
+        "/labs/weekflow/kids",
+        "/labs/weekflow/schedule",
+        "/labs/weekflow/today",
         "/connect/weekflow_google_calendar",
         "/lesson-pack/result/",
         "/lesson-pack/download/",

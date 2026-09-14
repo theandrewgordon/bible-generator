@@ -1,5 +1,8 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import (
     Blueprint,
@@ -59,11 +62,13 @@ from faithsparks.services.weekflow_store import (
     load_beta_state,
     load_logistics_state,
     load_saved_week,
+    load_today_state,
     prune_week_history,
     record_beta_feedback,
     record_weekflow_event,
     save_beta_state,
     save_logistics_state,
+    save_today_state,
     save_week_template,
 )
 from faithsparks.services.weekflow_support import (
@@ -73,6 +78,11 @@ from faithsparks.services.weekflow_support import (
     load_owner_support_status,
     load_support_response,
     respond_to_support_request,
+)
+from faithsparks.services.weekflow_today import (
+    AREA_LABELS,
+    family_people,
+    today_attention_counts,
 )
 from faithsparks.util.request_utils import get_client_ip
 
@@ -112,6 +122,194 @@ def index():
         demo=demo_payload(),
         noindex=True,
     )
+
+
+@bp.get("/today")
+def today():
+    email = _signed_in_email()
+    if not email:
+        return redirect("/login/google/start?next=/labs/weekflow/today")
+    if not _has_beta_access(email):
+        return render_template(
+            "weekflow_today.html",
+            access_denied=True,
+            area_labels=AREA_LABELS,
+            noindex=True,
+        ), 403
+    return render_template(
+        "weekflow_today.html",
+        access_denied=False,
+        area_labels=AREA_LABELS,
+        noindex=True,
+    )
+
+
+def _learning_dashboard(mode: str):
+    email = _signed_in_email()
+    if not email:
+        return redirect(f"/login/google/start?next=/labs/weekflow/{mode}")
+    if not _has_beta_access(email):
+        return render_template(
+            "weekflow_learning.html",
+            mode=mode,
+            access_denied=True,
+            noindex=True,
+        ), 403
+    return render_template(
+        "weekflow_learning.html",
+        mode=mode,
+        access_denied=False,
+        noindex=True,
+    )
+
+
+@bp.get("/homeschool")
+def homeschool():
+    return _learning_dashboard("homeschool")
+
+
+@bp.get("/kids")
+def kids():
+    return _learning_dashboard("kids")
+
+
+@bp.get("/schedule")
+def schedule_dashboard():
+    email = _signed_in_email()
+    if not email:
+        return redirect("/login/google/start?next=/labs/weekflow/schedule")
+    if not _has_beta_access(email):
+        return render_template(
+            "weekflow_schedule.html",
+            access_denied=True,
+            noindex=True,
+        ), 403
+    return render_template(
+        "weekflow_schedule.html",
+        access_denied=False,
+        noindex=True,
+    )
+
+
+@bp.get("/schedule/state")
+def schedule_dashboard_state():
+    """Load the adult-owned sources used by the calm schedule overview."""
+
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    try:
+        beta_state = load_beta_state(email)
+        # These documents are independent once the household is known. Reading
+        # them together keeps the daily dashboard at one network round trip
+        # without turning three Firestore reads into a long serial waterfall.
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            today_future = executor.submit(
+                load_today_state, email, family=beta_state["family"]
+            )
+            logistics_future = executor.submit(load_logistics_state, email)
+            today_state = today_future.result()
+            logistics_state = logistics_future.result()
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+
+    timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
+    family_today = datetime.now(timezone).date()
+    logistics_scenario = logistics_state.get("scenario")
+    return jsonify(
+        {
+            "family": {
+                "name": beta_state["family"]["name"],
+                "timezone": beta_state["family"]["timezone"],
+                "people": family_people(beta_state["family"]),
+                "configured": beta_state["revision"] > 0,
+            },
+            "today": family_today.isoformat(),
+            "learning": {
+                "revision": beta_state["revision"],
+                "updated_at": beta_state.get("updated_at"),
+                "scenario": beta_state["scenario"],
+                "plan": generate_demo_schedule(scenario=beta_state["scenario"]),
+            },
+            "responsibilities": today_state,
+            "logistics": {
+                **logistics_state,
+                "has_saved_plan": isinstance(logistics_scenario, dict),
+                "plan": (
+                    analyze_family_logistics(logistics_scenario)
+                    if isinstance(logistics_scenario, dict)
+                    else None
+                ),
+            },
+        }
+    )
+
+
+@bp.get("/today/state")
+def today_state():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    try:
+        beta_state = load_beta_state(email)
+        saved = load_today_state(email, family=beta_state["family"])
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
+    family_today = datetime.now(timezone).date()
+    return jsonify(
+        {
+            **saved,
+            "family": {
+                "name": beta_state["family"]["name"],
+                "timezone": beta_state["family"]["timezone"],
+                "people": family_people(beta_state["family"]),
+                "configured": beta_state["revision"] > 0,
+            },
+            "today": family_today.isoformat(),
+            "attention": today_attention_counts(saved, today=family_today),
+        }
+    )
+
+
+@bp.put("/today/state")
+def save_today():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    limit = check_rate_limit(
+        "weekflow-today-save",
+        email,
+        limit=300,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        response = jsonify({"error": "Too many changes. Try again shortly."})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(limit.retry_after)
+        return response
+    if request.content_length and request.content_length > 160_000:
+        return jsonify({"error": "Your Today list is too large."}), 413
+    try:
+        beta_state = load_beta_state(email)
+        saved = save_today_state(
+            email,
+            request.get_json(silent=True),
+            family=beta_state["family"],
+        )
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except WeekFlowRevisionConflict as exc:
+        return jsonify({"error": str(exc), "conflict": True}), 409
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify(saved)
 
 
 @bp.get("/logistics")

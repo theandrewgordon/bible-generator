@@ -24,6 +24,11 @@ from faithsparks.services.weekflow_scheduler import (
     generate_demo_schedule,
     normalize_scenario,
 )
+from faithsparks.services.weekflow_today import (
+    TODAY_STATE_SCHEMA_VERSION,
+    default_today_state,
+    normalize_today_state,
+)
 
 STATE_SCHEMA_VERSION = 2
 LOGISTICS_STATE_SCHEMA_VERSION = 1
@@ -221,6 +226,10 @@ def _logistics_state_ref(email: str):
     return _weekflow_collection(email).document("logistics-state")
 
 
+def _today_state_ref(email: str):
+    return _weekflow_collection(email).document("today-state")
+
+
 def _weekflow_collection(email: str):
     return (
         db.collection("users")
@@ -272,6 +281,73 @@ def load_logistics_state(email: str) -> dict[str, object]:
         "scenario": scenario,
         "updated_at": updated_at,
     }
+
+
+def load_today_state(email: str, *, family: object) -> dict[str, object]:
+    """Load the small WeekFlow Today document without generating a schedule."""
+
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    try:
+        snapshot = _today_state_ref(email).get()
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+    if not snapshot.exists:
+        return default_today_state()
+    stored = snapshot.to_dict() or {}
+    try:
+        return normalize_today_state(stored.get("state") or {}, family=family)
+    except (TypeError, ValueError) as exc:
+        raise WeekFlowStorageUnavailable(
+            "Your WeekFlow Today list could not be read"
+        ) from exc
+
+
+def save_today_state(
+    email: str, payload: object, *, family: object
+) -> dict[str, object]:
+    """Save Today items atomically with optimistic revision protection."""
+
+    state = normalize_today_state(payload, family=family)
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    ref = _today_state_ref(email)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def save(txn):
+        snapshot = ref.get(transaction=txn)
+        stored = snapshot.to_dict() or {} if snapshot.exists else {}
+        current_revision = int(stored.get("revision") or 0)
+        if state["revision"] != current_revision:
+            raise WeekFlowRevisionConflict(
+                "A newer Today list was saved in another browser"
+            )
+        new_revision = current_revision + 1
+        saved_at = datetime.now(UTC).isoformat()
+        saved_state = {
+            **state,
+            "revision": new_revision,
+            "updated_at": saved_at,
+        }
+        txn.set(
+            ref,
+            {
+                "kind": "today-state",
+                "schemaVersion": TODAY_STATE_SCHEMA_VERSION,
+                "revision": new_revision,
+                "state": saved_state,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+        )
+        return saved_state
+
+    try:
+        return save(transaction)
+    except WeekFlowRevisionConflict:
+        raise
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
 
 
 def save_logistics_state(email: str, payload: object) -> dict[str, object]:
@@ -567,6 +643,7 @@ def delete_week_template(email: str, template_id: str) -> None:
 
 def export_weekflow_backup(email: str) -> dict[str, object]:
     state = load_beta_state(email)
+    today_state = load_today_state(email, family=state["family"])
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
     try:
@@ -587,6 +664,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
         "schema_version": STATE_SCHEMA_VERSION,
         "exported_at": datetime.now(UTC).isoformat(),
         "state": state,
+        "today": today_state,
         "weeks": weeks,
         "templates": list_week_templates(email),
     }

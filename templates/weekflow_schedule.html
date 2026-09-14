@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="WeekFlow puts family commitments, rides, and handoffs on one calm daily agenda." />
+    <title>Schedule · WeekFlow · Faith Sparks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_schedule.css') }}?v=1" />
+  </head>
+  <body>
+    <header class="wfs-site-header">
+      <a class="wfs-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
+      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a></nav>
+    </header>
+
+    {% if access_denied %}
+      <main class="wfs-message-card">
+        <span class="wfs-eyebrow">WeekFlow beta</span>
+        <h1>This account isn’t in the WeekFlow beta yet.</h1>
+        <p>Your Faith Sparks account is signed in, but this WeekFlow area has not been enabled for it.</p>
+        <a class="wfs-button wfs-primary" href="/labs">Back to Faith Sparks Labs</a>
+      </main>
+    {% else %}
+      <nav class="wfs-area-nav" aria-label="WeekFlow areas">
+        <a href="{{ url_for('weekflow.today') }}">Today</a>
+        <a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a>
+        <a class="is-active" href="{{ url_for('weekflow.schedule_dashboard') }}" aria-current="page">Schedule</a>
+        <a href="{{ url_for('weekflow.kids') }}">Kids</a>
+        <span title="Coming in a later WeekFlow step">Household</span>
+        <span title="Coming in a later WeekFlow step">Meals</span>
+        <span title="Coming in a later WeekFlow step">More</span>
+      </nav>
+
+      <div class="wfs-loading" id="scheduleLoading" role="status"><span></span><p>Putting the family day in order…</p></div>
+      <div class="wfs-message-card" id="scheduleError" hidden>
+        <h1>We couldn’t open your schedule.</h1><p id="scheduleErrorMessage">Please try again.</p>
+        <button class="wfs-button wfs-primary" id="retryButton" type="button">Try again</button>
+      </div>
+
+      <main class="wfs-shell" id="scheduleApp" hidden>
+        <header class="wfs-hero">
+          <div><span class="wfs-eyebrow">WeekFlow Schedule</span><h1>The family day,<br />with the handoffs included.</h1><p id="scheduleGreeting">School, appointments, rides, and responsibilities in one place.</p></div>
+          <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.logistics', personal=1) }}">Edit family logistics</a>
+        </header>
+
+        <section class="wfs-setup" id="setupNotice" hidden>
+          <div><span class="wfs-eyebrow">Start with your family</span><h2>Name the people WeekFlow is coordinating.</h2><p>Set up the family once, then Schedule can connect schoolwork, responsibilities, rides, and appointments without child accounts.</p></div>
+          <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
+        </section>
+
+        <section class="wfs-day-picker" aria-labelledby="dayPickerTitle">
+          <div><span class="wfs-eyebrow">Daily agenda</span><h2 id="dayPickerTitle">Choose a day</h2></div>
+          <div id="dayTabs" role="tablist" aria-label="Schedule day"></div>
+        </section>
+
+        <section class="wfs-attention" id="attentionPanel" aria-labelledby="attentionTitle">
+          <div class="wfs-section-heading"><div><span class="wfs-eyebrow">Needs you first</span><h2 id="attentionTitle">The handoffs are covered.</h2></div><strong id="attentionCount">Clear</strong></div>
+          <div id="attentionList"></div>
+        </section>
+
+        <div class="wfs-main-grid">
+          <section class="wfs-agenda" aria-labelledby="agendaTitle">
+            <div class="wfs-section-heading"><div><span class="wfs-eyebrow">In time order</span><h2 id="agendaTitle">Today’s agenda</h2></div><span id="agendaCount"></span></div>
+            <div class="wfs-agenda-list" id="agendaList"></div>
+          </section>
+
+          <aside class="wfs-sidebar">
+            <section class="wfs-coverage" aria-labelledby="coverageTitle">
+              <div class="wfs-section-heading"><div><span class="wfs-eyebrow">Rides + ownership</span><h2 id="coverageTitle">Who is handling what?</h2></div></div>
+              <div id="coverageList"></div>
+              <a class="wfs-text-link" href="{{ url_for('weekflow.logistics', personal=1) }}">Add or change commitments →</a>
+            </section>
+
+            <details class="wfs-calendar" id="calendarCard">
+              <summary><span><b>Google Calendar</b><small id="calendarSummary">Optional · checking connection</small></span><i aria-hidden="true">+</i></summary>
+              <div class="wfs-calendar-body">
+                <div id="calendarStatus"></div>
+                <form id="calendarForm" hidden>
+                  <fieldset><legend>Calendars to preview</legend><div id="calendarList"></div></fieldset>
+                  <fieldset><legend>Privacy</legend>
+                    <label><input type="radio" name="detailMode" value="details" checked /><span><b>Show details</b><small>Titles, times, and locations</small></span></label>
+                    <label><input type="radio" name="detailMode" value="availability" /><span><b>Busy times only</b><small>Keep titles and locations private</small></span></label>
+                  </fieldset>
+                  <button class="wfs-button" type="submit">Add preview to this agenda</button>
+                </form>
+                <p class="wfs-calendar-note">Calendar events are read-only and are not saved by WeekFlow.</p>
+              </div>
+            </details>
+          </aside>
+        </div>
+      </main>
+
+      <script>
+        window.WEEKFLOW_SCHEDULE_CONFIG = {
+          stateUrl: {{ url_for('weekflow.schedule_dashboard_state')|tojson }},
+          calendarStatusUrl: {{ url_for('weekflow.calendar_status')|tojson }},
+          calendarsUrl: {{ url_for('weekflow.calendars')|tojson }},
+          calendarPreviewUrl: {{ url_for('weekflow.calendar_preview')|tojson }},
+          logisticsUrl: {{ url_for('weekflow.logistics', personal=1)|tojson }},
+          homeschoolUrl: {{ url_for('weekflow.homeschool')|tojson }},
+          csrfToken: {{ csrf_token()|tojson }}
+        };
+      </script>
+      <script src="{{ url_for('static', filename='weekflow_schedule.js') }}?v=1" defer></script>
+    {% endif %}
+  </body>
+</html>

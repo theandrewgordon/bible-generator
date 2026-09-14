@@ -104,9 +104,51 @@ def test_production_server_keeps_live_capacity_available():
     assert "node_modules" in dockerignore
 
 
-def test_live_polling_and_room_actions_use_the_latency_critical_lane():
+def test_live_actions_and_weekflow_today_use_the_latency_critical_lane():
     assert _is_latency_critical_path("/worship/live/state/session")
+    assert _is_latency_critical_path("/labs/weekflow/today/state")
+    assert _is_latency_critical_path("/labs/weekflow/homeschool")
+    assert _is_latency_critical_path("/labs/weekflow/kids")
+    assert _is_latency_critical_path("/labs/weekflow/schedule/state")
     assert _is_latency_critical_path("/api/family-bible-bee/rooms/ABCD")
     assert _is_latency_critical_path("/api/family-game-night/rooms/ABCD/heartbeat")
     assert not _is_latency_critical_path("/lesson-pack")
     assert not _is_latency_critical_path("/family-game-night")
+
+
+def test_weekflow_today_is_private_and_not_cacheable():
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        response = client.get("/labs/weekflow/today")
+
+    assert response.status_code == 302
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert "noindex" in response.headers["X-Robots-Tag"]
+
+
+def test_weekflow_learning_dashboards_are_private_and_not_cacheable():
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        responses = [
+            client.get("/labs/weekflow/homeschool"),
+            client.get("/labs/weekflow/kids"),
+        ]
+
+    assert all(response.status_code == 302 for response in responses)
+    assert all(
+        response.headers["Cache-Control"] == "private, no-store"
+        for response in responses
+    )
+    assert all(response.headers["Referrer-Policy"] == "no-referrer" for response in responses)
+
+
+def test_weekflow_schedule_is_private_and_not_cacheable():
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        response = client.get("/labs/weekflow/schedule")
+
+    assert response.status_code == 302
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert "noindex" in response.headers["X-Robots-Tag"]

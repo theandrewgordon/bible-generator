@@ -43,6 +43,262 @@ def test_lab_page_renders_demo_configuration():
     assert "Approve week" not in html
     assert "Export calendar" not in html
     assert "Optimize" not in html
+    assert "Open WeekFlow Today" in html
+
+
+def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
+    client = _client()
+
+    signed_out = client.get("/labs/weekflow/today")
+    assert signed_out.status_code == 302
+    assert signed_out.headers["Location"].endswith(
+        "/login/google/start?next=/labs/weekflow/today"
+    )
+
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+    response = client.get("/labs/weekflow/today")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "What needs your attention?" in html
+    assert "What needs remembering?" in html
+    assert "Due today" in html
+    assert "Overdue" in html
+    assert "Waiting" in html
+    assert "Recently completed" in html
+    assert "Plan our homeschool week" in html
+    assert "See the whole family day" in html
+    assert 'stateUrl: "/labs/weekflow/today/state"' in html
+    assert 'content="noindex,nofollow"' in html
+
+
+def test_learning_dashboards_require_sign_in_and_render_shared_weekflow_tools():
+    client = _client()
+    for path in ("/labs/weekflow/homeschool", "/labs/weekflow/kids"):
+        response = client.get(path)
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith(
+            f"/login/google/start?next={path}"
+        )
+
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    homeschool = client.get("/labs/weekflow/homeschool")
+    kids = client.get("/labs/weekflow/kids")
+    homeschool_html = homeschool.get_data(as_text=True)
+    kids_html = kids.get_data(as_text=True)
+
+    assert homeschool.status_code == 200
+    assert kids.status_code == 200
+    assert "Teach what needs you" in homeschool_html
+    assert "When a child needs you" in homeschool_html
+    assert "Add assignment" in homeschool_html
+    assert "Each child’s day" in kids_html
+    assert "Family responsibilities" in kids_html
+    assert "Who is learning at home?" in homeschool_html
+    assert 'stateUrl: "/labs/weekflow/state"' in homeschool_html
+    assert 'todayStateUrl: "/labs/weekflow/today/state"' in kids_html
+    assert 'content="noindex,nofollow"' in homeschool_html
+
+
+def test_schedule_dashboard_requires_sign_in_and_renders_the_calm_daily_shell():
+    client = _client()
+    signed_out = client.get("/labs/weekflow/schedule")
+    assert signed_out.status_code == 302
+    assert signed_out.headers["Location"].endswith(
+        "/login/google/start?next=/labs/weekflow/schedule"
+    )
+
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+    response = client.get("/labs/weekflow/schedule")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "The family day" in html
+    assert "Needs you first" in html
+    assert "Rides + ownership" in html
+    assert "Google Calendar" in html
+    assert 'stateUrl: "/labs/weekflow/schedule/state"' in html
+    assert 'logisticsUrl: "/labs/weekflow/logistics?personal=1"' in html
+    assert 'content="noindex,nofollow"' in html
+
+
+def test_schedule_state_combines_family_learning_today_and_saved_logistics(monkeypatch):
+    client = _client()
+    beta_state = default_beta_state()
+    beta_state["revision"] = 3
+    beta_state["family"]["name"] = "The Rivers family"
+    logistics = family_four_school_sports_scenario()
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: beta_state)
+    monkeypatch.setattr(
+        weekflow_view,
+        "load_today_state",
+        lambda email, family: {
+            "revision": 4,
+            "items": [
+                {
+                    "id": "permission-slip",
+                    "title": "Pack permission slip",
+                    "area": "schedule",
+                    "assigned_person_id": "parent",
+                    "due_date": "2026-09-14",
+                    "priority": "normal",
+                    "status": "open",
+                }
+            ],
+            "updated_at": "2026-09-14T12:00:00+00:00",
+        },
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "load_logistics_state",
+        lambda email: {
+            "revision": 2,
+            "scenario": logistics,
+            "updated_at": "2026-09-14T12:00:00+00:00",
+        },
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "Parent@Example.com"
+
+    response = client.get("/labs/weekflow/schedule/state")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["family"]["name"] == "The Rivers family"
+    assert payload["family"]["configured"] is True
+    assert payload["learning"]["plan"]["days"]
+    assert payload["responsibilities"]["items"][0]["id"] == "permission-slip"
+    assert payload["logistics"]["has_saved_plan"] is True
+    assert payload["logistics"]["plan"]["assignments"]
+    assert payload["logistics"]["plan"]["issues"]
+
+
+def test_schedule_state_handles_a_family_without_saved_logistics(monkeypatch):
+    client = _client()
+    beta_state = default_beta_state()
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: beta_state)
+    monkeypatch.setattr(
+        weekflow_view,
+        "load_today_state",
+        lambda email, family: {"revision": 0, "items": [], "updated_at": None},
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "load_logistics_state",
+        lambda email: {"revision": 0, "scenario": None, "updated_at": None},
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    response = client.get("/labs/weekflow/schedule/state")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["family"]["configured"] is False
+    assert payload["logistics"]["has_saved_plan"] is False
+    assert payload["logistics"]["plan"] is None
+
+
+def test_today_state_loads_and_saves_for_the_signed_in_household(monkeypatch):
+    client = _client()
+    beta_state = default_beta_state()
+    beta_state["revision"] = 2
+    beta_state["family"]["name"] = "The Rivers family"
+    captured = {}
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: beta_state)
+    monkeypatch.setattr(
+        weekflow_view,
+        "load_today_state",
+        lambda email, family: {
+            "revision": 4,
+            "items": [],
+            "updated_at": "2026-09-14T12:00:00+00:00",
+        },
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_today_state",
+        lambda email, payload, family: captured.update(
+            {"email": email, "payload": payload, "family": family}
+        )
+        or {
+            **payload,
+            "revision": 5,
+            "updated_at": "2026-09-14T12:01:00+00:00",
+        },
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "Parent@Example.com"
+
+    loaded = client.get("/labs/weekflow/today/state")
+    saved = client.put(
+        "/labs/weekflow/today/state", json={"revision": 4, "items": []}
+    )
+
+    assert loaded.status_code == 200
+    assert loaded.get_json()["family"]["name"] == "The Rivers family"
+    assert loaded.get_json()["family"]["configured"] is True
+    assert loaded.get_json()["attention"]["open"] == 0
+    assert saved.status_code == 200
+    assert saved.get_json()["revision"] == 5
+    assert captured["email"] == "parent@example.com"
+    assert captured["family"] is beta_state["family"]
+
+
+def test_today_state_handles_validation_conflicts_limits_and_storage(monkeypatch):
+    client = _client()
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+    monkeypatch.setattr(
+        weekflow_view, "load_beta_state", lambda email: default_beta_state()
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_today_state",
+        lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("bad item")),
+    )
+    assert client.put("/labs/weekflow/today/state", json={}).status_code == 400
+
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_today_state",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            WeekFlowRevisionConflict("newer list")
+        ),
+    )
+    conflict = client.put("/labs/weekflow/today/state", json={})
+    assert conflict.status_code == 409
+    assert conflict.get_json()["conflict"] is True
+
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": False, "retry_after": 17}
+        )(),
+    )
+    limited = client.put("/labs/weekflow/today/state", json={})
+    assert limited.status_code == 429
+    assert limited.headers["Retry-After"] == "17"
 
 
 def test_logistics_lab_renders_the_family_handoff_experiment():
@@ -617,6 +873,7 @@ def test_schedule_endpoint_rejects_malformed_json_shapes_without_500():
 def test_cloud_state_routes_require_an_adult_account():
     client = _client()
 
+    assert client.get("/labs/weekflow/schedule/state").status_code == 401
     for method in (client.get, client.put, client.delete):
         response = method("/labs/weekflow/state", json={} if method == client.put else None)
         assert response.status_code == 401
@@ -782,6 +1039,8 @@ def test_beta_allowlist_and_subscription_limits_are_enforced(monkeypatch):
         flask_session["user_email"] = "waiting@example.com"
 
     assert client.get("/labs/weekflow/state").status_code == 403
+    assert client.get("/labs/weekflow/schedule").status_code == 403
+    assert client.get("/labs/weekflow/schedule/state").status_code == 403
 
     with client.session_transaction() as flask_session:
         flask_session["user_email"] = "invited@example.com"
