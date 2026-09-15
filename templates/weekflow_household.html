@@ -12,7 +12,7 @@
   <body>
     <header class="wfh-site-header">
       <a class="wfh-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
-      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav>
+      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.today') }}">Home</a><a href="{{ url_for('weekflow.settings') }}">Settings</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav>
     </header>
 
     {% if access_denied %}

@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_meals.css') }}?v=2" />
   </head>
   <body>
-    <header class="wfm-site-header"><a class="wfm-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a><nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav></header>
+    <header class="wfm-site-header"><a class="wfm-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a><nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.today') }}">Home</a><a href="{{ url_for('weekflow.settings') }}">Settings</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav></header>
     {% if access_denied %}
       <main class="wfm-message-card"><span class="wfm-eyebrow">WeekFlow beta</span><h1>This account isn’t in the WeekFlow beta yet.</h1><p>Your Faith Sparks account is signed in, but this WeekFlow area has not been enabled for it.</p><a class="wfm-button wfm-primary" href="/labs">Back to Faith Sparks Labs</a></main>
     {% else %}

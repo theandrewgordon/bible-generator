@@ -15,6 +15,7 @@
       <nav aria-label="WeekFlow links">
         <a href="/labs">Labs</a>
         <a href="{{ url_for('weekflow.index') }}">WeekFlow lab</a>
+        <a href="{{ url_for('weekflow.settings') }}">Family settings</a>
         <a href="{{ url_for('weekflow.backup') }}">Backup</a>
       </nav>
     </header>
@@ -29,15 +30,17 @@
     {% else %}
       <div class="wft-app" id="todayApp" hidden>
         <nav class="wft-area-nav" aria-label="WeekFlow areas">
-          <a class="is-active" href="{{ url_for('weekflow.today') }}" aria-current="page">Today</a>
+          <a class="is-active" href="{{ url_for('weekflow.today') }}" aria-current="page">Home</a>
           <a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a>
           <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
-          <a href="{{ url_for('weekflow.kids') }}">Kids</a>
-          <a href="{{ url_for('weekflow.household') }}">Household</a>
-          <a href="{{ url_for('weekflow.meals') }}">Meals</a>
-          <a href="{{ url_for('weekflow.medical') }}">Medical</a>
-          <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
-          <a href="{{ url_for('weekflow.me') }}">Me</a>
+          <details class="wft-more-nav"><summary>More</summary><div>
+            <a href="{{ url_for('weekflow.kids') }}">Kids</a>
+            <a href="{{ url_for('weekflow.household') }}">Household</a>
+            <a href="{{ url_for('weekflow.meals') }}">Meals</a>
+            <a href="{{ url_for('weekflow.medical') }}">Medical</a>
+            <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
+            <a href="{{ url_for('weekflow.me') }}">Me</a>
+          </div></details>
         </nav>
 
         <main class="wft-shell">
@@ -56,7 +59,23 @@
             <article><span>Waiting</span><strong id="waitingCount">0</strong></article>
             <article><span>Open</span><strong id="openCount">0</strong></article>
           </section>
-          <p class="wft-source-warning" id="sourceWarning" role="alert" hidden></p>
+          <div class="wft-source-warning" id="sourceWarning" role="alert" hidden>
+            <span id="sourceWarningText"></span>
+            <button class="wft-inline-button" id="retrySourcesButton" type="button">Refresh unavailable areas</button>
+          </div>
+
+          <section class="wft-command-cards" id="commandCards" aria-label="Plan today" hidden>
+            <article id="parentHelpCard" hidden>
+              <div><span class="wft-eyebrow">Homeschool</span><h2>Parent help today</h2></div>
+              <ul id="parentHelpList"></ul>
+              <a href="{{ url_for('weekflow.homeschool') }}">Open homeschool plan →</a>
+            </article>
+            <article id="logisticsCard" hidden>
+              <div><span class="wft-eyebrow">Family logistics</span><h2>Rides and handoffs</h2></div>
+              <p id="logisticsSummary"></p>
+              <a href="{{ url_for('weekflow.schedule_dashboard') }}">See the family day →</a>
+            </article>
+          </section>
 
           <section class="wft-capture" aria-label="Quick add">
             <form id="captureForm">
@@ -148,6 +167,8 @@
           mealsStateUrl: {{ url_for('weekflow.meals_state')|tojson }},
           medicalStateUrl: {{ url_for('weekflow.medical_state')|tojson }},
           travelStateUrl: {{ url_for('weekflow.travel_state')|tojson }},
+          scheduleUrl: {{ url_for('weekflow.schedule_dashboard')|tojson }},
+          logisticsUrl: {{ url_for('weekflow.logistics')|tojson }},
           csrfToken: {{ csrf_token()|tojson }},
           areaLabels: {{ area_labels|tojson }}
         };

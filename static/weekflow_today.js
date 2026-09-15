@@ -24,6 +24,8 @@
   let meals = null;
   let medical = null;
   let travel = null;
+  let homeschool = null;
+  let logistics = null;
   let sourceErrors = {};
   let householdSaving = false;
   let mealsSaving = false;
@@ -515,7 +517,35 @@
     const warning = byId("sourceWarning");
     const names = Object.keys(sourceErrors);
     warning.hidden = names.length === 0;
-    warning.textContent = names.length ? `Some areas are temporarily unavailable: ${names.join(", ")}. We’re showing the rest of your day; try again later.` : "";
+    byId("sourceWarningText").textContent = names.length ? `Some areas are temporarily unavailable: ${names.join(", ")}. We’re showing the rest of your day.` : "";
+  }
+
+  function renderCommandCards() {
+    const parentHelp = homeschool?.parent_help || [];
+    const parentCard = byId("parentHelpCard");
+    const parentList = byId("parentHelpList");
+    parentCard.hidden = parentHelp.length === 0;
+    parentList.replaceChildren(...parentHelp.map((entry) => {
+      const item = document.createElement("li");
+      const title = document.createElement("strong");
+      title.textContent = entry.title;
+      const detail = document.createElement("span");
+      detail.textContent = `${entry.student_names?.join(" + ") || "Student"} · ${entry.parent_minutes} min with parent`;
+      item.append(title, detail);
+      return item;
+    }));
+    const plan = logistics?.plan;
+    const logisticsCard = byId("logisticsCard");
+    logisticsCard.hidden = !plan && !logistics?.has_saved_plan;
+    if (plan) {
+      const openIssues = (plan.issues || []).length;
+      byId("logisticsSummary").textContent = openIssues
+        ? `${openIssues} handoff${openIssues === 1 ? "" : "s"} need${openIssues === 1 ? "s" : ""} a decision today.`
+        : "Today’s rides and responsibilities are covered.";
+    } else if (logistics?.has_saved_plan) {
+      byId("logisticsSummary").textContent = `A family logistics plan is saved for ${logistics.day_label || "another day"}. Open Schedule to review it.`;
+    }
+    byId("commandCards").hidden = parentHelp.length === 0 && !plan && !logistics?.has_saved_plan;
   }
 
   async function loadState({ quiet = false } = {}) {
@@ -538,8 +568,11 @@
       meals = payload.meals;
       medical = payload.medical;
       travel = payload.travel;
+      homeschool = payload.homeschool || null;
+      logistics = payload.logistics || null;
       sourceErrors = payload.source_errors || {};
       renderFamily();
+      renderCommandCards();
       render();
       app.hidden = false;
       loading.hidden = true;
@@ -583,6 +616,7 @@
   });
   board.addEventListener("click", handleBoardAction);
   retryButton.addEventListener("click", () => loadState());
+  byId("retrySourcesButton").addEventListener("click", () => loadState({ quiet: true }).catch(() => {}));
   cancelCaptureEdit.addEventListener("click", resetCaptureForm);
   window.addEventListener("online", () => {
     if (dirty) flushSave();

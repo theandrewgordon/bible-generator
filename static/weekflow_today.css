@@ -83,7 +83,21 @@ a { color: inherit; }
 .wft-capture-hint { margin: 11px 2px 0; color: var(--muted); font-size: .78rem; }
 .wft-cancel-edit { margin: 8px 2px 0; padding: 3px 0; border: 0; color: var(--muted); background: transparent; font-size: .8rem; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .wft-status { min-height: 22px; margin: 10px 4px; color: var(--muted); font-size: .82rem; }
-.wft-source-warning { margin: 10px 2px; padding: 11px 13px; border: 1px solid #ead49a; border-radius: 11px; color: #6d6248; background: var(--gold-soft); font-size: .82rem; font-weight: 700; }
+.wft-source-warning { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 10px 2px; padding: 11px 13px; border: 1px solid #ead49a; border-radius: 11px; color: #6d6248; background: var(--gold-soft); font-size: .82rem; font-weight: 700; }
+.wft-inline-button { border:0; padding:4px 0; color:var(--ink); background:transparent; font:inherit; font-weight:700; text-decoration:underline; cursor:pointer; }
+.wft-command-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:18px 0; }
+.wft-command-cards article { padding:18px; border:1px solid #d4e6df; border-radius:18px; background:#f5faf8; }
+.wft-command-cards h2 { margin:4px 0 10px; font-size:1.1rem; }
+.wft-command-cards ul { display:grid; gap:8px; margin:0 0 12px; padding:0; list-style:none; }
+.wft-command-cards li { display:grid; gap:2px; }
+.wft-command-cards li span { color:var(--muted); font-size:.9rem; }
+.wft-command-cards a { color:var(--ink); font-weight:700; }
+.wft-more-nav { position:relative; }
+.wft-more-nav summary { list-style:none; cursor:pointer; }
+.wft-more-nav summary::-webkit-details-marker { display:none; }
+.wft-more-nav > div { position:absolute; z-index:5; top:calc(100% + 6px); right:0; display:grid; min-width:170px; padding:8px; border:1px solid #d9e5e1; border-radius:12px; background:white; box-shadow:0 8px 24px rgb(28 58 49 / 12%); }
+.wft-more-nav > div a { padding:8px; border-radius:8px; }
+.wft-more-nav > div a:hover { background:#edf6f2; }
 .wft-status.is-error { color: var(--rose); font-weight: 700; }
 
 .wft-board { display: grid; gap: 14px; margin-top: 18px; }
@@ -157,6 +171,8 @@ a { color: inherit; }
   .wft-item-actions { grid-column: 2; justify-content: flex-start; margin-left: -7px; }
   .wft-tool-grid { grid-template-columns: 1fr; }
   .wft-tools { margin-top: 48px; }
+  .wft-command-cards { grid-template-columns:1fr; }
+  .wft-source-warning { align-items:flex-start; flex-direction:column; }
 }
 
 @media (max-width: 420px) {

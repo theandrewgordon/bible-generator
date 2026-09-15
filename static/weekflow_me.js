@@ -86,6 +86,10 @@
     byId("overdueCount").textContent = String(open.filter((item) => item.due_date && item.due_date < state.today).length);
     byId("upcomingCount").textContent = String(open.filter((item) => item.due_date && item.due_date > state.today).length);
     byId("waitingCount").textContent = String(open.filter((item) => item.status === "waiting").length);
+    const warning = byId("meSourceWarning");
+    const names = Object.keys(state.source_errors || {});
+    warning.hidden = names.length === 0;
+    warning.textContent = names.length ? `Some areas are temporarily unavailable: ${names.join(", ")}. Open those areas or try again.` : "";
   }
 
   function renderAdultPicker() {
@@ -97,7 +101,11 @@
 
   async function changePrimaryAdult() {
     const nextId = adultPicker.value;
-    if (!familyState || !nextId || nextId === primaryAdult?.id || saving) return;
+    if (!nextId || nextId === primaryAdult?.id || saving) return;
+    if (!familyState) {
+      try { familyState = await jsonRequest(config.familyStateUrl); }
+      catch (error) { setStatus(error.message, true); renderAdultPicker(); return; }
+    }
     const previous = clone(familyState);
     familyState.family.primary_adult_id = nextId;
     saving = true;
@@ -171,11 +179,9 @@
   async function load({ quiet = false } = {}) {
     if (!quiet) { byId("meLoading").hidden = false; byId("meError").hidden = true; byId("meApp").hidden = true; }
     try {
-      [state, familyState] = await Promise.all([
-        jsonRequest(config.stateUrl),
-        jsonRequest(config.familyStateUrl),
-      ]);
-      const primaryId = familyState.family.primary_adult_id;
+      state = await jsonRequest(config.stateUrl);
+      familyState = null;
+      const primaryId = state.family.primary_adult_id;
       primaryAdult = state.family.people.find((person) => person.id === primaryId && person.role === "adult")
         || state.family.people.find((person) => person.role === "adult") || null;
       if (!primaryAdult) throw new Error("Set up an adult in your WeekFlow family first.");

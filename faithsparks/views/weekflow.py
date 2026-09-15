@@ -160,6 +160,16 @@ def today():
     )
 
 
+@bp.get("/settings")
+def settings():
+    email = _signed_in_email()
+    if not email:
+        return redirect("/login/google/start?next=/labs/weekflow/settings")
+    if not _has_beta_access(email):
+        return render_template("weekflow_settings.html", access_denied=True, noindex=True), 403
+    return render_template("weekflow_settings.html", access_denied=False, noindex=True)
+
+
 def _learning_dashboard(mode: str):
     email = _signed_in_email()
     if not email:
@@ -676,6 +686,7 @@ def schedule_dashboard_state():
             "family": {
                 "name": beta_state["family"]["name"],
                 "timezone": beta_state["family"]["timezone"],
+                "primary_adult_id": beta_state["family"].get("primary_adult_id"),
                 "people": family_people(beta_state["family"]),
                 "configured": beta_state["revision"] > 0,
             },
@@ -723,7 +734,7 @@ def today_state():
     try:
         beta_state = load_beta_state(email)
         source_errors = {}
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=6) as executor:
             today_future = executor.submit(
                 load_today_state, email, family=beta_state["family"]
             )
@@ -739,6 +750,7 @@ def today_state():
             travel_future = executor.submit(
                 load_travel_state, email, family=beta_state["family"]
             )
+            logistics_future = executor.submit(load_logistics_state, email)
             def read_or_default(future, name, fallback):
                 try:
                     return future.result()
@@ -757,17 +769,37 @@ def today_state():
             travel_state = read_or_default(
                 travel_future, "travel", default_travel_state
             )
+            # Logistics is an optional lab source; its outage should not make
+            # the lightweight family home look unhealthy when no plan exists.
+            try:
+                logistics_state = logistics_future.result()
+            except WeekFlowStorageUnavailable:
+                logistics_state = {"revision": 0, "scenario": None, "updated_at": None}
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
     timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
     family_today = datetime.now(timezone).date()
     week_start = family_today - timedelta(days=family_today.weekday())
+    learning_plan = generate_demo_schedule(scenario=beta_state["scenario"])
+    today_label = family_today.strftime("%A")
+    learning_day = next(
+        (day for day in learning_plan.get("days", []) if day.get("date") == family_today.isoformat()),
+        None,
+    )
+    logistics_scenario = logistics_state.get("scenario")
+    logistics_plan = (
+        analyze_family_logistics(logistics_scenario)
+        if isinstance(logistics_scenario, dict)
+        and logistics_scenario.get("day_label") == today_label
+        else None
+    )
     return jsonify(
         {
             **saved,
             "family": {
                 "name": beta_state["family"]["name"],
                 "timezone": beta_state["family"]["timezone"],
+                "primary_adult_id": beta_state["family"].get("primary_adult_id"),
                 "people": family_people(beta_state["family"]),
                 "configured": beta_state["revision"] > 0,
             },
@@ -785,6 +817,19 @@ def today_state():
             "meals": meals_state,
             "medical": medical_state,
             "travel": travel_state,
+            "homeschool": {
+                "parent_help": [
+                    entry
+                    for entry in (learning_day or {}).get("entries", [])
+                    if int(entry.get("parent_minutes") or 0) > 0
+                ],
+                "day": learning_day,
+            },
+            "logistics": {
+                "has_saved_plan": isinstance(logistics_scenario, dict),
+                "day_label": logistics_scenario.get("day_label") if isinstance(logistics_scenario, dict) else None,
+                "plan": logistics_plan,
+            },
             "source_errors": source_errors,
         }
     )
@@ -1569,6 +1614,58 @@ def backup():
         'attachment; filename="weekflow-backup.json"'
     )
     return response
+
+
+@bp.post("/backup/restore")
+def restore_backup():
+    """Restore an exported WeekFlow backup after an explicit confirmation."""
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    if request.content_length and request.content_length > 600_000:
+        return jsonify({"error": "That backup file is too large."}), 413
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or body.get("confirm") is not True:
+        return jsonify({"error": "Confirm the restore before replacing this family plan."}), 400
+    backup_payload = body.get("backup")
+    if not isinstance(backup_payload, dict) or not isinstance(backup_payload.get("state"), dict):
+        return jsonify({"error": "This is not a valid WeekFlow backup."}), 400
+    try:
+        current = load_beta_state(email)
+        family = current["family"]
+        state_payload = dict(backup_payload["state"])
+        state_payload["revision"] = current["revision"]
+        restored = save_beta_state(email, state_payload)
+        family = restored["family"]
+        for key, saver, current_loader in (
+            ("today", save_today_state, load_today_state),
+            ("household", save_household_state, load_household_state),
+            ("meals", save_meals_state, load_meals_state),
+            ("medical", save_medical_state, load_medical_state),
+            ("travel", save_travel_state, load_travel_state),
+        ):
+            source = backup_payload.get(key)
+            if not isinstance(source, dict):
+                continue
+            source_payload = dict(source)
+            source_payload["revision"] = current_loader(email, family=family)["revision"]
+            saver(email, source_payload, family=family)
+        logistics = backup_payload.get("logistics")
+        if isinstance(logistics, dict) and isinstance(logistics.get("scenario"), dict):
+            logistics_payload = dict(logistics)
+            logistics_payload["revision"] = load_logistics_state(email)["revision"]
+            save_logistics_state(email, logistics_payload)
+        elif logistics is not None:
+            delete_logistics_state(email)
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except WeekFlowRevisionConflict as exc:
+        return jsonify({"error": str(exc), "conflict": True}), 409
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"restored": True, "revision": restored["revision"]})
 
 
 @bp.post("/analytics")

@@ -80,6 +80,36 @@ def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
     assert 'content="noindex,nofollow"' in html
 
 
+def test_family_settings_page_is_a_signed_in_weekflow_surface():
+    client = _client()
+    signed_out = client.get("/labs/weekflow/settings")
+    assert signed_out.status_code == 302
+    assert signed_out.headers["Location"].endswith(
+        "/login/google/start?next=/labs/weekflow/settings"
+    )
+
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+    response = client.get("/labs/weekflow/settings")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Family settings" in html
+    assert "Restore a backup" in html
+    assert 'stateUrl: "/labs/weekflow/state"' in html
+
+
+def test_backup_restore_requires_explicit_confirmation():
+    client = _client()
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    response = client.post("/labs/weekflow/backup/restore", json={"backup": {}})
+
+    assert response.status_code == 400
+    assert "Confirm the restore" in response.get_json()["error"]
+
+
 def test_learning_dashboards_require_sign_in_and_render_shared_weekflow_tools():
     client = _client()
     for path in ("/labs/weekflow/homeschool", "/labs/weekflow/kids"):
