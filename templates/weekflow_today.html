@@ -1,3 +1,4 @@
+{% from "_weekflow_area_nav.html" import weekflow_area_nav %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -8,6 +9,7 @@
     <meta name="description" content="WeekFlow keeps today’s family responsibilities in one calm place." />
     <title>Today · WeekFlow · Faith Sparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_today.css') }}?v=2" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
   </head>
   <body>
     <header class="wft-site-header">
@@ -29,19 +31,7 @@
       </main>
     {% else %}
       <div class="wft-app" id="todayApp" hidden>
-        <nav class="wft-area-nav" aria-label="WeekFlow areas">
-          <a class="is-active" href="{{ url_for('weekflow.today') }}" aria-current="page">Home</a>
-          <a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a>
-          <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
-          <details class="wft-more-nav"><summary>More</summary><div>
-            <a href="{{ url_for('weekflow.kids') }}">Kids</a>
-            <a href="{{ url_for('weekflow.household') }}">Household</a>
-            <a href="{{ url_for('weekflow.meals') }}">Meals</a>
-            <a href="{{ url_for('weekflow.medical') }}">Medical</a>
-            <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
-            <a href="{{ url_for('weekflow.me') }}">Me</a>
-          </div></details>
-        </nav>
+        {{ weekflow_area_nav('home') }}
 
         <main class="wft-shell">
           <header class="wft-hero">

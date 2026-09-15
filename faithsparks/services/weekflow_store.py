@@ -705,6 +705,16 @@ def delete_logistics_state(email: str) -> None:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
 
 
+def _contains_person_id(value: object, person_ids: set[str]) -> bool:
+    if isinstance(value, str):
+        return value in person_ids
+    if isinstance(value, list):
+        return any(_contains_person_id(item, person_ids) for item in value)
+    if isinstance(value, dict):
+        return any(_contains_person_id(item, person_ids) for item in value.values())
+    return False
+
+
 def save_beta_state(email: str, payload: object) -> dict[str, object]:
     state = normalize_beta_state(payload)
     if not db:
@@ -721,6 +731,37 @@ def save_beta_state(email: str, payload: object) -> dict[str, object]:
             raise WeekFlowRevisionConflict(
                 "A newer WeekFlow plan was saved in another browser"
             )
+        current_family = (stored.get("state") or {}).get("family") or {}
+        current_people = set((current_family.get("adults") or {})) | set(
+            current_family.get("students") or {}
+        )
+        next_people = set(state["family"]["adults"]) | set(
+            state["family"]["students"]
+        )
+        removed_people = current_people - next_people
+        if removed_people:
+            collection = _weekflow_collection(email)
+            source_documents = (
+                ("today-state", "state"),
+                ("household-state", "state"),
+                ("meals-state", "state"),
+                ("medical-state", "state"),
+                ("travel-state", "state"),
+                ("logistics-state", "scenario"),
+            )
+            for document_id, field in source_documents:
+                source_snapshot = collection.document(document_id).get(
+                    transaction=txn
+                )
+                source = (
+                    source_snapshot.to_dict() or {}
+                    if source_snapshot.exists
+                    else {}
+                )
+                if _contains_person_id(source.get(field), removed_people):
+                    raise ValueError(
+                        "Reassign this person’s lessons and responsibilities before removing them."
+                    )
         new_revision = current_revision + 1
         saved_at = datetime.now(UTC).isoformat()
         saved_state = {
@@ -754,6 +795,8 @@ def save_beta_state(email: str, payload: object) -> dict[str, object]:
     try:
         saved_state = save(transaction)
     except WeekFlowRevisionConflict:
+        raise
+    except (TypeError, ValueError):
         raise
     except Exception as exc:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
@@ -973,6 +1016,184 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
         "logistics": logistics_state,
         "weeks": weeks,
         "templates": list_week_templates(email),
+    }
+
+
+def restore_weekflow_backup(email: str, payload: object) -> dict[str, object]:
+    """Validate a complete backup, then replace WeekFlow documents atomically."""
+
+    if not isinstance(payload, dict):
+        raise TypeError("backup must be a JSON object")
+    required = {
+        "state",
+        "today",
+        "household",
+        "meals",
+        "medical",
+        "travel",
+        "logistics",
+        "weeks",
+        "templates",
+    }
+    if missing := sorted(required - set(payload)):
+        raise ValueError(f"backup is missing: {', '.join(missing)}")
+
+    state = normalize_beta_state(payload["state"])
+    family = state["family"]
+    today = normalize_today_state(payload["today"], family=family)
+    household = normalize_household_state(payload["household"], family=family)
+    meals = normalize_meals_state(payload["meals"], family=family)
+    medical = normalize_medical_state(payload["medical"], family=family)
+    travel = normalize_travel_state(payload["travel"], family=family)
+
+    raw_logistics = payload["logistics"]
+    if not isinstance(raw_logistics, dict):
+        raise TypeError("backup logistics must be a JSON object")
+    logistics_scenario = (
+        normalize_logistics_scenario(raw_logistics.get("scenario"))
+        if raw_logistics.get("scenario") is not None
+        else None
+    )
+
+    raw_weeks = payload["weeks"]
+    if not isinstance(raw_weeks, list) or len(raw_weeks) > MAX_WEEK_HISTORY:
+        raise ValueError(f"backup weeks must contain at most {MAX_WEEK_HISTORY} entries")
+    weeks = [normalize_beta_state(item) for item in raw_weeks]
+    if any(not item["scenario"].get("week_start") for item in weeks):
+        raise ValueError("every saved week must include a dated Monday")
+
+    raw_templates = payload["templates"]
+    if not isinstance(raw_templates, list) or len(raw_templates) > MAX_TEMPLATES:
+        raise ValueError(f"backup templates must contain at most {MAX_TEMPLATES} entries")
+    templates = []
+    for raw_template in raw_templates:
+        normalized = _normalize_template(raw_template)
+        template_id = raw_template.get("id") if isinstance(raw_template, dict) else None
+        if (
+            not isinstance(template_id, str)
+            or not template_id
+            or len(template_id) > 64
+            or not template_id.isalnum()
+        ):
+            template_id = uuid4().hex
+        templates.append({"id": template_id, **normalized})
+
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    try:
+        collection = _weekflow_collection(email)
+        snapshots = list(collection.stream())
+        stored = {snapshot.id: snapshot.to_dict() or {} for snapshot in snapshots}
+
+        def next_revision(document_id: str) -> int:
+            return int(stored.get(document_id, {}).get("revision") or 0) + 1
+
+        saved_at = datetime.now(UTC).isoformat()
+        state = {**state, "revision": next_revision("state"), "updated_at": saved_at}
+        today = {
+            **today,
+            "revision": next_revision("today-state"),
+            "updated_at": saved_at,
+        }
+        household = {
+            **household,
+            "revision": next_revision("household-state"),
+            "updated_at": saved_at,
+        }
+        meals = {
+            **meals,
+            "revision": next_revision("meals-state"),
+            "updated_at": saved_at,
+        }
+        medical = {
+            **medical,
+            "revision": next_revision("medical-state"),
+            "updated_at": saved_at,
+        }
+        travel = {
+            **travel,
+            "revision": next_revision("travel-state"),
+            "updated_at": saved_at,
+        }
+
+        batch = db.batch()
+        for snapshot in snapshots:
+            if (snapshot.to_dict() or {}).get("kind") in {"week", "template"}:
+                batch.delete(snapshot.reference)
+        batch.set(
+            collection.document("state"),
+            {
+                "kind": "state",
+                "schemaVersion": STATE_SCHEMA_VERSION,
+                "revision": state["revision"],
+                "state": state,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+        )
+        for document_id, kind, schema_version, source in (
+            ("today-state", "today-state", TODAY_STATE_SCHEMA_VERSION, today),
+            ("household-state", "household-state", HOUSEHOLD_STATE_SCHEMA_VERSION, household),
+            ("meals-state", "meals-state", MEALS_STATE_SCHEMA_VERSION, meals),
+            ("medical-state", "medical-state", MEDICAL_STATE_SCHEMA_VERSION, medical),
+            ("travel-state", "travel-state", TRAVEL_STATE_SCHEMA_VERSION, travel),
+        ):
+            batch.set(
+                collection.document(document_id),
+                {
+                    "kind": kind,
+                    "schemaVersion": schema_version,
+                    "revision": source["revision"],
+                    "state": source,
+                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                },
+            )
+        logistics_ref = collection.document("logistics-state")
+        if logistics_scenario is None:
+            batch.delete(logistics_ref)
+        else:
+            logistics_revision = next_revision("logistics-state")
+            batch.set(
+                logistics_ref,
+                {
+                    "kind": "logistics-state",
+                    "schemaVersion": LOGISTICS_STATE_SCHEMA_VERSION,
+                    "revision": logistics_revision,
+                    "scenario": logistics_scenario,
+                    "updatedAtClient": saved_at,
+                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                },
+            )
+        for week in weeks:
+            week_start = week["scenario"]["week_start"]
+            batch.set(
+                collection.document(f"week-{week_start}"),
+                {
+                    "kind": "week",
+                    "weekStart": week_start,
+                    "state": week,
+                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                },
+            )
+        for template in templates:
+            batch.set(
+                collection.document(f"template-{template['id']}"),
+                {
+                    "kind": "template",
+                    "name": template["name"],
+                    "scenario": template["scenario"],
+                    "createdAt": firestore.SERVER_TIMESTAMP,
+                },
+            )
+        batch.commit()
+    except (TypeError, ValueError):
+        raise
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("WeekFlow backup could not be restored") from exc
+    return {
+        "restored": True,
+        "revision": state["revision"],
+        "weeks": len(weeks),
+        "templates": len(templates),
     }
 
 

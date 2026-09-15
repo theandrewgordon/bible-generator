@@ -74,6 +74,7 @@ from faithsparks.services.weekflow_store import (
     prune_week_history,
     record_beta_feedback,
     record_weekflow_event,
+    restore_weekflow_backup,
     save_beta_state,
     save_household_state,
     save_logistics_state,
@@ -167,7 +168,12 @@ def settings():
         return redirect("/login/google/start?next=/labs/weekflow/settings")
     if not _has_beta_access(email):
         return render_template("weekflow_settings.html", access_denied=True, noindex=True), 403
-    return render_template("weekflow_settings.html", access_denied=False, noindex=True)
+    return render_template(
+        "weekflow_settings.html",
+        access_denied=False,
+        limits=_weekflow_limits(email),
+        noindex=True,
+    )
 
 
 def _learning_dashboard(mode: str):
@@ -1633,39 +1639,14 @@ def restore_backup():
     if not isinstance(backup_payload, dict) or not isinstance(backup_payload.get("state"), dict):
         return jsonify({"error": "This is not a valid WeekFlow backup."}), 400
     try:
-        current = load_beta_state(email)
-        family = current["family"]
-        state_payload = dict(backup_payload["state"])
-        state_payload["revision"] = current["revision"]
-        restored = save_beta_state(email, state_payload)
-        family = restored["family"]
-        for key, saver, current_loader in (
-            ("today", save_today_state, load_today_state),
-            ("household", save_household_state, load_household_state),
-            ("meals", save_meals_state, load_meals_state),
-            ("medical", save_medical_state, load_medical_state),
-            ("travel", save_travel_state, load_travel_state),
-        ):
-            source = backup_payload.get(key)
-            if not isinstance(source, dict):
-                continue
-            source_payload = dict(source)
-            source_payload["revision"] = current_loader(email, family=family)["revision"]
-            saver(email, source_payload, family=family)
-        logistics = backup_payload.get("logistics")
-        if isinstance(logistics, dict) and isinstance(logistics.get("scenario"), dict):
-            logistics_payload = dict(logistics)
-            logistics_payload["revision"] = load_logistics_state(email)["revision"]
-            save_logistics_state(email, logistics_payload)
-        elif logistics is not None:
-            delete_logistics_state(email)
+        restored = restore_weekflow_backup(email, backup_payload)
     except (TypeError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
     except WeekFlowRevisionConflict as exc:
         return jsonify({"error": str(exc), "conflict": True}), 409
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
-    return jsonify({"restored": True, "revision": restored["revision"]})
+    return jsonify(restored)
 
 
 @bp.post("/analytics")

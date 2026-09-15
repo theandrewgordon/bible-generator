@@ -5,7 +5,7 @@
   const adultPickerWrap = byId("adultPickerWrap");
   const adultPicker = byId("adultPicker");
   const AREA_LABELS = { inbox: "Today", homeschool: "Homeschool", kids: "Kids", schedule: "Schedule", home: "Household", meals: "Meals", medical: "Medical", travel: "Travel + guests", me: "Me" };
-  const SOURCE_LABELS = { today: "Today", household: "Household", meals: "Meals", medical: "Medical", travel: "Travel + guests" };
+  const SOURCE_LABELS = { today: "Today", homeschool: "Homeschool", household: "Household", meals: "Meals", medical: "Medical", travel: "Travel + guests" };
   let state = null;
   let familyState = null;
   let primaryAdult = null;
@@ -30,7 +30,8 @@
     const mealItems = (state.meals?.handoffs || []).filter((item) => item.assigned_person_id === primaryAdult.id).map((item) => ({ ...item, area: "meals", source: "meals", time_detail: item.time_of_day === "anytime" ? "Any time" : item.time_of_day[0].toUpperCase() + item.time_of_day.slice(1) }));
     const medicalItems = (state.medical?.items || []).filter((item) => item.assigned_person_id === primaryAdult.id).map((item) => ({ ...item, area: "medical", source: "medical", due_date: item.date, time_detail: [item.time, item.provider].filter(Boolean).join(" · ") }));
     const travelItems = (state.travel?.handoffs || []).filter((item) => item.assigned_person_id === primaryAdult.id).map((item) => ({ ...item, area: "travel", source: "travel", time_detail: item.time_of_day === "anytime" ? "Any time" : item.time_of_day[0].toUpperCase() + item.time_of_day.slice(1) }));
-    return [...todayItems, ...householdItems, ...mealItems, ...medicalItems, ...travelItems];
+    const homeschoolItems = (state.homeschool?.parent_help || []).filter((item) => (item.phases || []).some((phase) => phase.resource === primaryAdult.id)).map((item) => ({ id: `homeschool-${item.task_id}-${item.day_id}`, title: item.title, area: "homeschool", source: "homeschool", due_date: state.today, status: "open", readOnly: true, time_detail: [`${item.start}–${item.end}`, (item.student_names || []).join(", ")].filter(Boolean).join(" · ") }));
+    return [...todayItems, ...homeschoolItems, ...householdItems, ...mealItems, ...medicalItems, ...travelItems];
   }
 
   function allItems() { return [...personalItems(), ...familyItems()]; }
@@ -42,9 +43,9 @@
   function itemCard(item) {
     const completed = item.status === "completed";
     const article = element("article", "wft-item");
-    const check = actionButton("✓", completed ? "undo" : "complete", item);
+    const check = item.readOnly ? element("span", "wft-check", "→") : actionButton("✓", completed ? "undo" : "complete", item);
     check.className = "wft-check";
-    check.setAttribute("aria-label", completed ? `Restore ${item.title}` : `Complete ${item.title}`);
+    if (!item.readOnly) check.setAttribute("aria-label", completed ? `Restore ${item.title}` : `Complete ${item.title}`);
     if (completed) { check.style.color = "#fff"; check.style.borderColor = "#2d7561"; check.style.background = "#2d7561"; }
     const copy = element("div", "wft-item-copy");
     copy.append(element("strong", "", item.title));
@@ -57,7 +58,7 @@
     if (item.source === "medical" && item.for_person_id !== primaryAdult.id) { const person = state.family.people.find((candidate) => candidate.id === item.for_person_id); if (person) meta.append(element("span", "", `For ${person.name}`)); }
     copy.append(meta);
     const actions = element("div", "wft-item-actions");
-    actions.append(actionButton(completed ? "Undo" : "Done", completed ? "undo" : "complete", item));
+    if (!item.readOnly) actions.append(actionButton(completed ? "Undo" : "Done", completed ? "undo" : "complete", item));
     if (item.source === "today") {
       if (item.personal && !completed) actions.append(actionButton("Edit", "edit", item));
       if (!completed && item.status === "open") actions.append(actionButton("Wait", "wait", item));

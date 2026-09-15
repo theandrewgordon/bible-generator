@@ -16,21 +16,30 @@
       <main class="wfs-shell" id="settingsApp" hidden>
         <header class="wfs-heading"><span>WeekFlow</span><h1>Family settings</h1><p>Keep the names and preferences that make every WeekFlow area feel like yours.</p></header>
         <form id="settingsForm" class="wfs-card">
+          <p class="wfs-warning" id="settingsSourceWarning" role="alert" hidden></p>
           <label>Family name<input id="familyName" name="familyName" maxlength="80" required /></label>
-          <label>Timezone<input id="familyTimezone" name="familyTimezone" maxlength="80" placeholder="America/New_York" required /></label>
-          <section><div class="wfs-section-heading"><h2>Adults</h2><button type="button" class="wfs-link" id="addAdult">+ Add adult</button></div><div id="adultList"></div></section>
-          <section><div class="wfs-section-heading"><h2>Children</h2><button type="button" class="wfs-link" id="addStudent">+ Add child</button></div><div id="studentList"></div></section>
+          <label>Timezone<select id="familyTimezone" name="familyTimezone" required></select></label>
+          <label>Whose personal view opens by default?<select id="primaryAdult" name="primaryAdult" required></select></label>
+          <section><div class="wfs-section-heading"><div><h2>Adults</h2><small id="adultCount"></small></div><button type="button" class="wfs-link" id="addAdult">+ Add adult</button></div><div id="adultList"></div></section>
+          <section><div class="wfs-section-heading"><div><h2>Children</h2><small id="studentCount"></small></div><button type="button" class="wfs-link" id="addStudent">+ Add child</button></div><div id="studentList"></div></section>
           <div class="wfs-actions"><button class="wfs-primary" type="submit">Save family settings</button><a href="{{ url_for('weekflow.today') }}">Cancel</a></div>
           <p id="settingsStatus" role="status" aria-live="polite"></p>
         </form>
-        <section class="wfs-card wfs-restore"><h2>Restore a backup</h2><p>This replaces the saved WeekFlow plan with an exported backup. Your current plan will be overwritten.</p><label>Backup file<input id="backupFile" type="file" accept="application/json,.json" /></label><button class="wfs-primary" id="restoreBackup" type="button">Restore backup</button><p id="restoreStatus" role="status" aria-live="polite"></p></section>
+        <details class="wfs-card wfs-restore"><summary>Backup and restore</summary><div><p>Download a copy before making a large change. Restore a backup only when you want to replace the complete current plan; WeekFlow validates the whole file first.</p><a class="wfs-download" href="{{ url_for('weekflow.backup') }}">Download current backup</a><label>Backup file<input id="backupFile" type="file" accept="application/json,.json" /></label><button class="wfs-primary" id="restoreBackup" type="button">Preview and restore backup</button><p id="restoreStatus" role="status" aria-live="polite"></p></div></details>
         <div class="wfs-error" id="settingsError" hidden><p id="settingsErrorMessage"></p><button type="button" id="retrySettings">Try again</button></div>
       </main>
       <div class="wfs-loading" id="settingsLoading" role="status">Opening family settings…</div>
       <script>
-        window.WEEKFLOW_SETTINGS_CONFIG = { stateUrl: {{ url_for('weekflow.state')|tojson }}, csrfToken: {{ csrf_token()|tojson }} };
+        window.WEEKFLOW_SETTINGS_CONFIG = {
+          stateUrl: {{ url_for('weekflow.state')|tojson }},
+          aggregateUrl: {{ url_for('weekflow.today_state')|tojson }},
+          restoreUrl: {{ url_for('weekflow.restore_backup')|tojson }},
+          maxAdults: {{ limits.adults }},
+          maxStudents: {{ limits.students }},
+          csrfToken: {{ csrf_token()|tojson }}
+        };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_settings.js') }}?v=1" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_settings.js') }}?v=2" defer></script>
     {% endif %}
   </body>
 </html>

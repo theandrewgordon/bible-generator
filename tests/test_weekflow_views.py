@@ -97,6 +97,35 @@ def test_family_settings_page_is_a_signed_in_weekflow_surface():
     assert "Family settings" in html
     assert "Restore a backup" in html
     assert 'stateUrl: "/labs/weekflow/state"' in html
+    assert 'aggregateUrl: "/labs/weekflow/today/state"' in html
+    assert 'restoreUrl: "/labs/weekflow/backup/restore"' in html
+    assert "Whose personal view opens by default?" in html
+
+
+def test_weekflow_dashboards_share_compact_area_navigation():
+    client = _client()
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    for path in (
+        "/labs/weekflow/today",
+        "/labs/weekflow/homeschool",
+        "/labs/weekflow/kids",
+        "/labs/weekflow/schedule",
+        "/labs/weekflow/household",
+        "/labs/weekflow/meals",
+        "/labs/weekflow/medical",
+        "/labs/weekflow/travel",
+        "/labs/weekflow/me",
+    ):
+        response = client.get(path)
+        html = response.get_data(as_text=True)
+
+        assert response.status_code == 200
+        assert 'class="wf-area-nav"' in html
+        assert "weekflow_area_nav.css" in html
+        assert "<summary" in html and ">More</summary>" in html
+        assert html.count('aria-label="WeekFlow areas"') == 1
 
 
 def test_backup_restore_requires_explicit_confirmation():

@@ -1,3 +1,4 @@
+{% from "_weekflow_area_nav.html" import weekflow_area_nav %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -8,6 +9,7 @@
     <meta name="description" content="WeekFlow turns recurring chores and routines into one shared, child-friendly household plan." />
     <title>Household · WeekFlow · Faith Sparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_household.css') }}?v=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
   </head>
   <body>
     <header class="wfh-site-header">
@@ -22,17 +24,7 @@
         <a class="wfh-button wfh-primary" href="/labs">Back to Faith Sparks Labs</a>
       </main>
     {% else %}
-      <nav class="wfh-area-nav" aria-label="WeekFlow areas">
-        <a href="{{ url_for('weekflow.today') }}">Today</a>
-        <a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a>
-        <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
-        <a href="{{ url_for('weekflow.kids') }}">Kids</a>
-        <a class="is-active" href="{{ url_for('weekflow.household') }}" aria-current="page">Household</a>
-        <a href="{{ url_for('weekflow.meals') }}">Meals</a>
-        <a href="{{ url_for('weekflow.medical') }}">Medical</a>
-        <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
-        <a href="{{ url_for('weekflow.me') }}">Me</a>
-      </nav>
+      {{ weekflow_area_nav('household') }}
 
       <div class="wfh-loading" id="householdLoading" role="status"><span></span><p>Opening the household rhythm…</p></div>
       <div class="wfh-message-card" id="householdError" hidden>
@@ -48,7 +40,7 @@
 
         <section class="wfh-setup" id="setupNotice" hidden>
           <div><span class="wfh-eyebrow">Start with your family</span><h2>Name the people sharing this work.</h2><p>Household uses the same adult-owned family record as Homeschool and Kids.</p></div>
-          <a class="wfh-button wfh-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
+          <a class="wfh-button wfh-primary" href="{{ url_for('weekflow.settings') }}">Set up our family</a>
         </section>
 
         <section class="wfh-summary" aria-label="Household summary">

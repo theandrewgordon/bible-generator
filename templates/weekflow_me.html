@@ -1,3 +1,4 @@
+{% from "_weekflow_area_nav.html" import weekflow_area_nav %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -9,6 +10,7 @@
     <title>Me · WeekFlow · Faith Sparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_today.css') }}?v=3" />
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_me.css') }}?v=3" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
   </head>
   <body>
     <header class="wft-site-header">
@@ -24,17 +26,7 @@
         <a class="wft-button wft-button-primary" href="/labs">Back to Faith Sparks Labs</a>
       </main>
     {% else %}
-      <nav class="wft-area-nav" aria-label="WeekFlow areas">
-        <a href="{{ url_for('weekflow.today') }}">Today</a>
-        <a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a>
-        <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
-        <a href="{{ url_for('weekflow.kids') }}">Kids</a>
-        <a href="{{ url_for('weekflow.household') }}">Household</a>
-        <a href="{{ url_for('weekflow.meals') }}">Meals</a>
-        <a href="{{ url_for('weekflow.medical') }}">Medical</a>
-        <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
-        <a class="is-active" href="{{ url_for('weekflow.me') }}" aria-current="page">Me</a>
-      </nav>
+      {{ weekflow_area_nav('me') }}
 
       <div class="wft-loading" id="meLoading" role="status"><span></span><p>Making room for you in the plan…</p></div>
       <div class="wft-load-error" id="meError" hidden>
@@ -51,7 +43,7 @@
 
         <section class="wfp-setup" id="setupNotice" hidden>
           <div><span class="wft-eyebrow">Start with your family</span><h2>Tell WeekFlow who you are.</h2><p>Set up the family once so this view can gather the responsibilities assigned to you.</p></div>
-          <a class="wft-button wft-button-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
+          <a class="wft-button wft-button-primary" href="{{ url_for('weekflow.settings') }}">Set up our family</a>
         </section>
 
         <section class="wft-summary" aria-label="Your summary">
@@ -125,7 +117,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_me.js') }}?v=2" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_me.js') }}?v=3" defer></script>
     {% endif %}
   </body>
 </html>

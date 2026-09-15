@@ -22,6 +22,7 @@ from faithsparks.services.weekflow_store import (
     load_travel_state,
     normalize_beta_state,
     record_beta_feedback,
+    restore_weekflow_backup,
     save_beta_state,
     save_household_state,
     save_logistics_state,
@@ -83,6 +84,21 @@ class _FakeTransaction:
         reference.set(data)
 
 
+class _FakeBatch:
+    def __init__(self):
+        self.operations = []
+
+    def set(self, reference, data):
+        self.operations.append(("set", reference, data))
+
+    def delete(self, reference):
+        self.operations.append(("delete", reference, None))
+
+    def commit(self):
+        for action, reference, data in self.operations:
+            reference.set(data) if action == "set" else reference.delete()
+
+
 class _FakeDatabase:
     def __init__(self):
         self.documents = {}
@@ -95,6 +111,9 @@ class _FakeDatabase:
 
     def transaction(self):
         return _FakeTransaction()
+
+    def batch(self):
+        return _FakeBatch()
 
 
 def test_default_beta_state_is_valid_and_normalized():
@@ -268,6 +287,88 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
 
     delete_beta_state("parent@example.com")
     assert database.documents == {}
+    restored = restore_weekflow_backup("parent@example.com", backup)
+    assert restored == {"restored": True, "revision": 1, "weeks": 1, "templates": 1}
+    assert load_beta_state("parent@example.com")["family"]["name"] == "Our homeschool"
+    assert list_saved_weeks("parent@example.com")[0]["week_start"] == "2026-08-31"
+    assert list_week_templates("parent@example.com")[0]["name"] == "Normal week"
+    delete_beta_state("parent@example.com")
+    assert database.documents == {}
+
+
+def test_backup_restore_validates_everything_before_changing_cloud_data(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    original = save_beta_state("parent@example.com", default_beta_state())
+    backup = export_weekflow_backup("parent@example.com")
+    backup["medical"]["items"] = "not a list"
+    before = dict(database.documents)
+
+    with pytest.raises(ValueError, match="items must be a list"):
+        restore_weekflow_backup("parent@example.com", backup)
+
+    assert database.documents == before
+    assert load_beta_state("parent@example.com")["revision"] == original["revision"]
+
+
+def test_backup_restore_requires_a_complete_export(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    save_beta_state("parent@example.com", default_beta_state())
+    backup = export_weekflow_backup("parent@example.com")
+    backup.pop("travel")
+
+    with pytest.raises(ValueError, match="backup is missing: travel"):
+        restore_weekflow_backup("parent@example.com", backup)
+
+
+def test_family_member_with_source_responsibilities_cannot_be_removed(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    initial = default_beta_state()
+    initial["family"]["students"]["noah"] = {
+        "name": "Noah",
+        "color": "#2c7a4b",
+    }
+    initial["scenario"]["availability_end"]["noah"] = {
+        day: 12 * 60 + 30 for day in ("mon", "tue", "wed", "thu", "fri")
+    }
+    save_beta_state("parent@example.com", initial)
+    state = load_beta_state("parent@example.com")
+    today = load_today_state("parent@example.com", family=state["family"])
+    today["items"] = [
+        {
+            "id": "library-books",
+            "title": "Return library books",
+            "area": "home",
+            "assigned_person_id": "noah",
+            "due_date": "2026-09-15",
+            "priority": "normal",
+            "status": "open",
+            "created_at": "2026-09-15T12:00:00+00:00",
+            "updated_at": "2026-09-15T12:00:00+00:00",
+            "completed_at": None,
+        }
+    ]
+    save_today_state("parent@example.com", today, family=state["family"])
+    state["family"]["students"].pop("noah")
+    state["scenario"]["availability_end"].pop("noah")
+    for event in state["scenario"]["events"]:
+        event["affected"] = [person_id for person_id in event["affected"] if person_id != "noah"]
+
+    with pytest.raises(ValueError, match="Reassign this person"):
+        save_beta_state("parent@example.com", state)
+
+    assert "noah" in load_beta_state("parent@example.com")["family"]["students"]
 
 
 def test_logistics_state_round_trip_is_validated_and_revision_protected(monkeypatch):

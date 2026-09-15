@@ -1,0 +1,19 @@
+{% macro weekflow_area_nav(active) -%}
+  <nav class="wf-area-nav" aria-label="WeekFlow areas">
+    <a href="{{ url_for('weekflow.today') }}"{% if active == 'home' %} class="is-active" aria-current="page"{% endif %}>Home</a>
+    <a href="{{ url_for('weekflow.homeschool') }}"{% if active == 'homeschool' %} class="is-active" aria-current="page"{% endif %}>Homeschool</a>
+    <a href="{{ url_for('weekflow.schedule_dashboard') }}"{% if active == 'schedule' %} class="is-active" aria-current="page"{% endif %}>Schedule</a>
+    <details class="wf-more-nav">
+      <summary{% if active in ('kids', 'household', 'meals', 'medical', 'travel', 'me') %} class="is-active"{% endif %}>More</summary>
+      <div>
+        <a href="{{ url_for('weekflow.kids') }}"{% if active == 'kids' %} aria-current="page"{% endif %}>Kids</a>
+        <a href="{{ url_for('weekflow.household') }}"{% if active == 'household' %} aria-current="page"{% endif %}>Household</a>
+        <a href="{{ url_for('weekflow.meals') }}"{% if active == 'meals' %} aria-current="page"{% endif %}>Meals</a>
+        <a href="{{ url_for('weekflow.medical') }}"{% if active == 'medical' %} aria-current="page"{% endif %}>Medical</a>
+        <a href="{{ url_for('weekflow.travel') }}"{% if active == 'travel' %} aria-current="page"{% endif %}>Travel + guests</a>
+        <a href="{{ url_for('weekflow.me') }}"{% if active == 'me' %} aria-current="page"{% endif %}>Me</a>
+        <a href="{{ url_for('weekflow.settings') }}">Family settings</a>
+      </div>
+    </details>
+  </nav>
+{%- endmacro %}

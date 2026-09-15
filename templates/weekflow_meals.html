@@ -1,3 +1,4 @@
+{% from "_weekflow_area_nav.html" import weekflow_area_nav %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -8,6 +9,7 @@
     <meta name="description" content="WeekFlow keeps the weekly meal rhythm and its preparation handoffs simple and visible." />
     <title>Meals · WeekFlow · Faith Sparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_meals.css') }}?v=2" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
   </head>
   <body>
     <header class="wfm-site-header">
@@ -18,9 +20,7 @@
     {% if access_denied %}
       <main class="wfm-message-card"><span class="wfm-eyebrow">WeekFlow beta</span><h1>This account isn’t in the WeekFlow beta yet.</h1><p>Your Faith Sparks account is signed in, but this WeekFlow area has not been enabled for it.</p><a class="wfm-button wfm-primary" href="/labs">Back to Faith Sparks Labs</a></main>
     {% else %}
-      <nav class="wfm-area-nav" aria-label="WeekFlow areas">
-        <a href="{{ url_for('weekflow.today') }}">Today</a><a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a><a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a><a href="{{ url_for('weekflow.kids') }}">Kids</a><a href="{{ url_for('weekflow.household') }}">Household</a><a class="is-active" href="{{ url_for('weekflow.meals') }}" aria-current="page">Meals</a><a href="{{ url_for('weekflow.medical') }}">Medical</a><a href="{{ url_for('weekflow.travel') }}">Travel + guests</a><a href="{{ url_for('weekflow.me') }}">Me</a>
-      </nav>
+      {{ weekflow_area_nav('meals') }}
 
       <div class="wfm-loading" id="mealsLoading" role="status"><span></span><p>Opening this week’s meal rhythm…</p></div>
       <div class="wfm-message-card" id="mealsError" hidden><h1>We couldn’t open Meals.</h1><p id="mealsErrorMessage">Please try again.</p><button class="wfm-button wfm-primary" id="retryButton" type="button">Try again</button></div>
@@ -31,7 +31,7 @@
           <div class="wfm-hero-actions"><button class="wfm-button wfm-primary" id="showMealForm" type="button">Plan a meal</button><button class="wfm-button" id="showHandoffForm" type="button">Add a prep step</button></div>
         </header>
 
-        <section class="wfm-setup" id="setupNotice" hidden><div><span class="wfm-eyebrow">Start with your family</span><h2>Name the people sharing the week.</h2><p>Meals uses the same adult-owned family record as the rest of WeekFlow.</p></div><a class="wfm-button wfm-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a></section>
+        <section class="wfm-setup" id="setupNotice" hidden><div><span class="wfm-eyebrow">Start with your family</span><h2>Name the people sharing the week.</h2><p>Meals uses the same adult-owned family record as the rest of WeekFlow.</p></div><a class="wfm-button wfm-primary" href="{{ url_for('weekflow.settings') }}">Set up our family</a></section>
 
         <section class="wfm-summary" aria-label="Meal plan summary">
           <article><span>Meals planned</span><strong id="plannedCount">0</strong><small>this week</small></article><article><span>Today’s steps</span><strong id="todayStepCount">0</strong><small>still open</small></article><article><span>Open handoffs</span><strong id="openHandoffCount">0</strong><small>shopping + prep</small></article><article><span>Finished</span><strong id="completedHandoffCount">0</strong><small>this week</small></article>

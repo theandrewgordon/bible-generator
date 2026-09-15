@@ -1,3 +1,4 @@
+{% from "_weekflow_area_nav.html" import weekflow_area_nav %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -8,6 +9,7 @@
     <meta name="description" content="WeekFlow coordinates homeschool work around each child and the parent attention available." />
     <title>{{ "Homeschool" if mode == "homeschool" else "Kids" }} · WeekFlow · Faith Sparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_learning.css') }}?v=3" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
   </head>
   <body data-mode="{{ mode }}">
     <header class="wfl-site-header">
@@ -23,17 +25,7 @@
         <a class="wfl-button wfl-primary" href="/labs">Back to Faith Sparks Labs</a>
       </main>
     {% else %}
-      <nav class="wfl-area-nav" aria-label="WeekFlow areas">
-        <a href="{{ url_for('weekflow.today') }}">Today</a>
-        <a href="{{ url_for('weekflow.homeschool') }}" {% if mode == "homeschool" %}class="is-active" aria-current="page"{% endif %}>Homeschool</a>
-        <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
-        <a href="{{ url_for('weekflow.kids') }}" {% if mode == "kids" %}class="is-active" aria-current="page"{% endif %}>Kids</a>
-        <a href="{{ url_for('weekflow.household') }}">Household</a>
-        <a href="{{ url_for('weekflow.meals') }}">Meals</a>
-        <a href="{{ url_for('weekflow.medical') }}">Medical</a>
-        <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
-        <a href="{{ url_for('weekflow.me') }}">Me</a>
-      </nav>
+      {{ weekflow_area_nav(mode) }}
 
       <div class="wfl-loading" id="learningLoading" role="status"><span></span><p>Building one clear family view…</p></div>
       <div class="wfl-message-card" id="learningError" hidden>
