@@ -121,6 +121,24 @@ The next product decision is whether families repeatedly use this small rhythm
 before expanding WeekFlow's “More” area. Recipe storage and grocery inventory
 remain intentionally out of scope.
 
+## Family care coordination
+
+Status: **Step 6 implemented**
+
+`/labs/weekflow/medical` coordinates appointments and their practical
+follow-through without attempting to become a medical record or patient portal.
+
+- Record an appointment, form, refill reminder, records request, insurance or
+  billing follow-up, vaccination reminder, or other care coordination item.
+- Name who the item is for, which family member handles it, its date, optional
+  time, provider or office, place, and one short coordination note.
+- Project the same item into Today, Schedule, and the relevant child's Kids
+  view; complete or restore it without copying it into another document.
+- Keep completed history bounded, include care state in family backups, and use
+  revision-protected, private, non-cacheable, latency-prioritized routes.
+- Explicitly discourage diagnoses and clinical notes. WeekFlow does not provide
+  symptom tracking, medication logging, treatment guidance, or medical advice.
+
 ## Travel and guests
 
 Status: **Step 7 implemented**
@@ -142,9 +160,6 @@ home, centered on preparation rather than detailed itinerary management.
 - Keep reservations, route planning, detailed itineraries, and travel content
   intentionally outside WeekFlow.
 
-Step 6 (Medical) remains deliberately unimplemented; this step does not imply
-that WeekFlow should store sensitive medical detail before its privacy boundary
-and real family need are validated.
 
 ## 1. Prove family-logistics orchestration
 

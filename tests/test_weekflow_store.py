@@ -16,6 +16,7 @@ from faithsparks.services.weekflow_store import (
     load_household_state,
     load_logistics_state,
     load_meals_state,
+    load_medical_state,
     load_saved_week,
     load_today_state,
     load_travel_state,
@@ -25,6 +26,7 @@ from faithsparks.services.weekflow_store import (
     save_household_state,
     save_logistics_state,
     save_meals_state,
+    save_medical_state,
     save_today_state,
     save_travel_state,
     save_week_template,
@@ -258,6 +260,7 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
     assert backup["today"]["items"] == []
     assert backup["household"]["routines"] == []
     assert backup["meals"]["meals"] == []
+    assert backup["medical"]["items"] == []
     assert backup["travel"]["plans"] == []
 
     delete_beta_state("parent@example.com")
@@ -416,6 +419,21 @@ def test_travel_state_round_trip_is_validated_and_revision_protected(monkeypatch
     ] == "The Martins visit"
     with pytest.raises(WeekFlowRevisionConflict):
         save_travel_state("parent@example.com", payload, family=family)
+
+
+def test_medical_state_round_trip_is_validated_and_revision_protected(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(weekflow_store.firestore, "transactional", lambda function: function)
+    family = default_beta_state()["family"]
+    timestamp = "2026-09-15T12:00:00+00:00"
+    payload = {"revision": 0, "items": [{"id": "dentist", "title": "Dentist appointment", "kind": "appointment", "for_person_id": "diana", "assigned_person_id": "parent", "date": "2026-10-01", "time": "10:30", "provider": None, "location": None, "note": None, "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}]}
+    assert load_medical_state("parent@example.com", family=family)["revision"] == 0
+    saved = save_medical_state("Parent@Example.com", payload, family=family)
+    assert saved["revision"] == 1
+    assert load_medical_state("parent@example.com", family=family)["items"][0]["title"] == "Dentist appointment"
+    with pytest.raises(WeekFlowRevisionConflict):
+        save_medical_state("parent@example.com", payload, family=family)
 
 
 @pytest.mark.parametrize(

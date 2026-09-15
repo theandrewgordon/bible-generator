@@ -20,9 +20,11 @@
   let today = null;
   let household = null;
   let meals = null;
+  let medical = null;
   let travel = null;
   let householdSaving = false;
   let mealsSaving = false;
+  let medicalSaving = false;
   let travelSaving = false;
   let saveTimer = null;
   let saveInFlight = false;
@@ -125,8 +127,17 @@
     }));
   }
 
+  function medicalItems() {
+    return (medical?.items || []).map((item) => ({
+      id: item.id, title: item.title, area: "medical", assigned_person_id: item.assigned_person_id,
+      due_date: item.date, priority: "normal", status: item.status, created_at: item.created_at,
+      updated_at: item.updated_at, completed_at: item.completed_at, source: "medical",
+      kind: item.kind, time: item.time, for_person_id: item.for_person_id,
+    }));
+  }
+
   function visibleItems() {
-    return [...state.items, ...householdItems(), ...mealHandoffItems(), ...travelHandoffItems()];
+    return [...state.items, ...householdItems(), ...mealHandoffItems(), ...medicalItems(), ...travelHandoffItems()];
   }
 
   function categorizeItems() {
@@ -229,11 +240,16 @@
       const time = item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1);
       meta.appendChild(metaSpan(`${kinds[item.kind] || "Travel preparation"} · ${time}`));
     }
+    if (item.source === "medical") {
+      const kinds = { appointment: "Appointment", refill: "Refill reminder", form: "Form", records: "Records request", billing: "Insurance or billing", vaccine: "Vaccination reminder", other: "Care follow-up" };
+      const forPerson = personById(item.for_person_id);
+      meta.appendChild(metaSpan([kinds[item.kind] || "Care follow-up", forPerson ? `For ${forPerson.name}` : null, item.time || null].filter(Boolean).join(" · ")));
+    }
     copy.appendChild(meta);
 
     const actions = document.createElement("div");
     actions.className = "wft-item-actions";
-    if (item.source === "household" || item.source === "meals" || item.source === "travel") {
+    if (item.source === "household" || item.source === "meals" || item.source === "medical" || item.source === "travel") {
       const sourceAction = actionButton(item.status === "completed" ? "Undo" : "Done", item.status === "completed" ? "undo" : "complete", item.id);
       sourceAction.dataset.source = item.source;
       actions.appendChild(sourceAction);
@@ -341,6 +357,10 @@
       saveTravelHandoff(itemId, action === "complete");
       return;
     }
+    if (button.dataset.source === "medical") {
+      saveMedicalItem(itemId, action === "complete");
+      return;
+    }
     if (action === "remove") {
       const item = state.items.find((candidate) => candidate.id === itemId);
       if (!item || !window.confirm(`Remove “${item.title}”?`)) return;
@@ -437,6 +457,21 @@
     } finally { travelSaving = false; }
   }
 
+  async function saveMedicalItem(itemId, completed) {
+    if (medicalSaving) { setStatus("Finishing the previous care change…"); return; }
+    const item = medical?.items.find((candidate) => candidate.id === itemId); if (!item) return;
+    const previous = JSON.parse(JSON.stringify(medical)); const timestamp = nowIso();
+    item.status = completed ? "completed" : "open"; item.completed_at = completed ? timestamp : null; item.updated_at = timestamp;
+    render(); medicalSaving = true; setStatus("Saving care reminder…");
+    try {
+      medical = await jsonRequest(config.medicalStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: medical.revision, items: medical.items }) });
+      render(); setStatus(completed ? "Care reminder completed" : "Care reminder restored");
+    } catch (error) {
+      medical = previous; if (error.status === 409) { try { medical = await jsonRequest(config.medicalStateUrl); } catch (_refreshError) { /* retain the last known-good copy */ } }
+      render(); setStatus(error.status === 409 ? "Care reminders changed in another browser. We refreshed before overwriting anything." : error.message, true);
+    } finally { medicalSaving = false; }
+  }
+
   function renderFamily() {
     const configuredPeople = family.configured ? family.people : [];
     const peopleContainer = byId("familyPeople");
@@ -476,6 +511,7 @@
       today = payload.today;
       household = payload.household;
       meals = payload.meals;
+      medical = payload.medical;
       travel = payload.travel;
       renderFamily();
       render();

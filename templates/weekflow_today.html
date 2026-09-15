@@ -34,6 +34,7 @@
           <a href="{{ url_for('weekflow.kids') }}">Kids</a>
           <a href="{{ url_for('weekflow.household') }}">Household</a>
           <a href="{{ url_for('weekflow.meals') }}">Meals</a>
+          <a href="{{ url_for('weekflow.medical') }}">Medical</a>
           <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
           <span title="Coming in a later WeekFlow step">More</span>
         </nav>
@@ -119,6 +120,7 @@
               <a href="{{ url_for('weekflow.schedule_dashboard') }}"><span>Schedule</span><strong>See the whole family day</strong><p>Put school, appointments, rides, and handoff gaps in one calm agenda.</p><b>Open Schedule →</b></a>
               <a href="{{ url_for('weekflow.household') }}"><span>Household</span><strong>Share recurring responsibilities</strong><p>Give chores and routines a clear day, time, and owner.</p><b>Open Household →</b></a>
               <a href="{{ url_for('weekflow.meals') }}"><span>Meals</span><strong>Plan meals and their handoffs</strong><p>Name the meal, then give shopping or preparation a clear owner.</p><b>Open Meals →</b></a>
+              <a href="{{ url_for('weekflow.medical') }}"><span>Medical</span><strong>Close the loop on family care</strong><p>Coordinate appointments, forms, refills, and practical follow-ups.</p><b>Open Medical →</b></a>
               <a href="{{ url_for('weekflow.travel') }}"><span>Travel + guests</span><strong>Prepare without carrying it alone</strong><p>Keep upcoming dates visible and assign packing, booking, or hosting.</p><b>Open Travel + Guests →</b></a>
             </div>
           </section>
@@ -139,12 +141,13 @@
           stateUrl: {{ url_for('weekflow.today_state')|tojson }},
           householdStateUrl: {{ url_for('weekflow.household_state')|tojson }},
           mealsStateUrl: {{ url_for('weekflow.meals_state')|tojson }},
+          medicalStateUrl: {{ url_for('weekflow.medical_state')|tojson }},
           travelStateUrl: {{ url_for('weekflow.travel_state')|tojson }},
           csrfToken: {{ csrf_token()|tojson }},
           areaLabels: {{ area_labels|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_today.js') }}?v=3" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_today.js') }}?v=4" defer></script>
     {% endif %}
   </body>
 </html>

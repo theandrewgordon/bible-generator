@@ -11,6 +11,7 @@
   let savingToday = false;
   let savingHousehold = false;
   let savingMeals = false;
+  let savingMedical = false;
   let savingTravel = false;
 
   function setStatus(message, error = false) {
@@ -268,7 +269,7 @@
   function responsibilityCard(item) {
     const article = document.createElement("article");
     article.className = "wfl-assignment";
-    const action = item.source === "household" ? "complete-household" : item.source === "meals" ? "complete-meal" : item.source === "travel" ? "complete-travel" : "complete-responsibility";
+    const action = item.source === "household" ? "complete-household" : item.source === "meals" ? "complete-meal" : item.source === "medical" ? "complete-medical" : item.source === "travel" ? "complete-travel" : "complete-responsibility";
     const check = button("✓", action, item.id, "wfl-check");
     check.setAttribute("aria-label", `Complete ${item.title}`);
     const copy = document.createElement("div");
@@ -277,7 +278,7 @@
     title.textContent = item.title;
     const details = document.createElement("div");
     details.className = "wfl-assignment-meta";
-    details.appendChild(meta(item.source === "household" ? "Household routine" : item.source === "meals" ? (item.kind === "shopping" ? "Meal shopping" : item.kind === "prep" ? "Meal preparation" : "Meal step") : item.source === "travel" ? ({ packing: "Packing", booking: "Booking", hosting: "Hosting", errand: "Travel errand", other: "Travel preparation" }[item.kind] || "Travel preparation") : item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
+    details.appendChild(meta(item.source === "household" ? "Household routine" : item.source === "meals" ? (item.kind === "shopping" ? "Meal shopping" : item.kind === "prep" ? "Meal preparation" : "Meal step") : item.source === "medical" ? ({ appointment: "Appointment", refill: "Refill reminder", form: "Medical form", records: "Records request", billing: "Insurance or billing", vaccine: "Vaccination reminder", other: "Care follow-up" }[item.kind] || "Care follow-up") : item.source === "travel" ? ({ packing: "Packing", booking: "Booking", hosting: "Hosting", errand: "Travel errand", other: "Travel preparation" }[item.kind] || "Travel preparation") : item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
     if (item.time_of_day) details.appendChild(meta(item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1)));
     if (item.due_date) details.appendChild(meta(item.due_date === todayState.today ? "Due today" : `Due ${item.due_date}`));
     if (item.status === "waiting") details.appendChild(meta("Waiting"));
@@ -326,7 +327,10 @@
     const travelResponsibilities = (todayState.travel?.handoffs || [])
       .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate && item.status !== "completed")
       .map((item) => ({ ...item, area: "travel", source: "travel" }));
-    const responsibilities = [...householdResponsibilities, ...mealResponsibilities, ...travelResponsibilities, ...todayResponsibilities];
+    const medicalResponsibilities = (todayState.medical?.items || [])
+      .filter((item) => (item.for_person_id === student.id || item.assigned_person_id === student.id) && item.date === dayDate && item.status !== "completed")
+      .map((item) => ({ ...item, area: "medical", source: "medical", due_date: item.date, time_of_day: item.time ? null : "anytime" }));
+    const responsibilities = [...householdResponsibilities, ...mealResponsibilities, ...medicalResponsibilities, ...travelResponsibilities, ...todayResponsibilities];
     byId("kidResponsibilityList").replaceChildren(...(responsibilities.length
       ? responsibilities.map(responsibilityCard)
       : [createEmpty(`No open family responsibilities are assigned to ${student.name}.`)]
@@ -485,6 +489,17 @@
     } catch (error) { todayState.travel = previous; renderKids(); setStatus(error.message, true); } finally { savingTravel = false; }
   }
 
+  async function saveMedicalResponsibility(itemId) {
+    if (savingMedical) return;
+    const medical = todayState.medical; const item = medical?.items.find((candidate) => candidate.id === itemId); if (!item) return;
+    const previous = JSON.parse(JSON.stringify(medical)); const timestamp = new Date().toISOString(); item.status = "completed"; item.completed_at = timestamp; item.updated_at = timestamp;
+    renderKids(); savingMedical = true; setStatus("Saving care reminder…");
+    try {
+      todayState.medical = await jsonRequest(config.medicalStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: medical.revision, items: medical.items }) });
+      setStatus("Care reminder completed");
+    } catch (error) { todayState.medical = previous; renderKids(); setStatus(error.message, true); } finally { savingMedical = false; }
+  }
+
   function taskAction(event) {
     const target = event.target.closest("button[data-action]");
     if (!target) return;
@@ -504,6 +519,10 @@
     }
     if (action === "complete-travel") {
       saveTravelResponsibility(taskId);
+      return;
+    }
+    if (action === "complete-medical") {
+      saveMedicalResponsibility(taskId);
       return;
     }
     if (savingLearning) {

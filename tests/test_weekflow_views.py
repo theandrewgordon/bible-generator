@@ -3,6 +3,7 @@ from flask import Flask
 import faithsparks.views.weekflow as weekflow_view
 from faithsparks.services.weekflow_household import default_household_state
 from faithsparks.services.weekflow_meals import default_meals_state
+from faithsparks.services.weekflow_medical import default_medical_state
 from faithsparks.services.weekflow_travel import default_travel_state
 from faithsparks.services.weekflow_logistics import family_four_school_sports_scenario
 from faithsparks.services.weekflow_store import (
@@ -74,6 +75,7 @@ def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
     assert "See the whole family day" in html
     assert 'stateUrl: "/labs/weekflow/today/state"' in html
     assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in html
+    assert 'medicalStateUrl: "/labs/weekflow/medical/state"' in html
     assert 'travelStateUrl: "/labs/weekflow/travel/state"' in html
     assert 'content="noindex,nofollow"' in html
 
@@ -106,6 +108,7 @@ def test_learning_dashboards_require_sign_in_and_render_shared_weekflow_tools():
     assert 'stateUrl: "/labs/weekflow/state"' in homeschool_html
     assert 'todayStateUrl: "/labs/weekflow/today/state"' in kids_html
     assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in kids_html
+    assert 'medicalStateUrl: "/labs/weekflow/medical/state"' in kids_html
     assert 'travelStateUrl: "/labs/weekflow/travel/state"' in kids_html
     assert 'content="noindex,nofollow"' in homeschool_html
 
@@ -177,6 +180,9 @@ def test_schedule_state_combines_family_learning_today_and_saved_logistics(monke
         weekflow_view, "load_meals_state", lambda email, family: default_meals_state()
     )
     monkeypatch.setattr(
+        weekflow_view, "load_medical_state", lambda email, family: default_medical_state()
+    )
+    monkeypatch.setattr(
         weekflow_view, "load_travel_state", lambda email, family: default_travel_state()
     )
     with client.session_transaction() as flask_session:
@@ -192,6 +198,7 @@ def test_schedule_state_combines_family_learning_today_and_saved_logistics(monke
     assert payload["responsibilities"]["items"][0]["id"] == "permission-slip"
     assert payload["household"]["occurrences"] == []
     assert payload["meals"]["meals"] == []
+    assert payload["medical"]["items"] == []
     assert payload["travel"]["plans"] == []
     assert payload["logistics"]["has_saved_plan"] is True
     assert payload["logistics"]["plan"]["assignments"]
@@ -219,6 +226,9 @@ def test_schedule_state_handles_a_family_without_saved_logistics(monkeypatch):
     )
     monkeypatch.setattr(
         weekflow_view, "load_meals_state", lambda email, family: default_meals_state()
+    )
+    monkeypatch.setattr(
+        weekflow_view, "load_medical_state", lambda email, family: default_medical_state()
     )
     monkeypatch.setattr(
         weekflow_view, "load_travel_state", lambda email, family: default_travel_state()
@@ -260,6 +270,9 @@ def test_today_state_loads_and_saves_for_the_signed_in_household(monkeypatch):
         weekflow_view, "load_meals_state", lambda email, family: default_meals_state()
     )
     monkeypatch.setattr(
+        weekflow_view, "load_medical_state", lambda email, family: default_medical_state()
+    )
+    monkeypatch.setattr(
         weekflow_view, "load_travel_state", lambda email, family: default_travel_state()
     )
     monkeypatch.setattr(
@@ -295,6 +308,7 @@ def test_today_state_loads_and_saves_for_the_signed_in_household(monkeypatch):
     assert loaded.get_json()["attention"]["open"] == 0
     assert loaded.get_json()["household"]["occurrences"] == []
     assert loaded.get_json()["meals"]["handoffs"] == []
+    assert loaded.get_json()["medical"]["items"] == []
     assert loaded.get_json()["travel"]["handoffs"] == []
     assert saved.status_code == 200
     assert saved.get_json()["revision"] == 5
@@ -545,6 +559,64 @@ def test_travel_dashboard_and_state_share_one_adult_owned_plan(monkeypatch):
     assert 'stateUrl: "/labs/weekflow/travel/state"' in html
     assert loaded.status_code == 200
     assert loaded.get_json()["plans"][0]["title"] == "Visit Grandma"
+    assert saved.status_code == 200
+    assert saved.get_json()["revision"] == 4
+    assert captured["email"] == "parent@example.com"
+
+
+def test_medical_dashboard_and_state_share_one_adult_owned_plan(monkeypatch):
+    client = _client()
+    signed_out = client.get("/labs/weekflow/medical")
+    assert signed_out.status_code == 302
+    assert signed_out.headers["Location"].endswith(
+        "/login/google/start?next=/labs/weekflow/medical"
+    )
+    beta_state = default_beta_state()
+    beta_state["revision"] = 2
+    timestamp = "2026-09-15T12:00:00+00:00"
+    medical_state = {
+        "revision": 3,
+        "items": [{"id": "dentist", "title": "Dentist appointment", "kind": "appointment", "for_person_id": "diana", "assigned_person_id": "parent", "date": "2026-09-18", "time": "10:30", "provider": "Family dentist", "location": None, "note": "Bring completed form", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+        "updated_at": timestamp,
+    }
+    captured = {}
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: beta_state)
+    monkeypatch.setattr(
+        weekflow_view, "load_medical_state", lambda email, family: medical_state
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_medical_state",
+        lambda email, payload, family: captured.update(
+            {"email": email, "payload": payload, "family": family}
+        )
+        or {**medical_state, **payload, "revision": 4},
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "Parent@Example.com"
+
+    page = client.get("/labs/weekflow/medical")
+    loaded = client.get("/labs/weekflow/medical/state")
+    saved = client.put(
+        "/labs/weekflow/medical/state",
+        json={"revision": 3, "items": medical_state["items"]},
+    )
+    html = page.get_data(as_text=True)
+
+    assert page.status_code == 200
+    assert "Remember the care" in html
+    assert "Add care reminder" in html
+    assert "not a medical record" in html
+    assert 'stateUrl: "/labs/weekflow/medical/state"' in html
+    assert loaded.status_code == 200
+    assert loaded.get_json()["items"][0]["title"] == "Dentist appointment"
     assert saved.status_code == 200
     assert saved.get_json()["revision"] == 4
     assert captured["email"] == "parent@example.com"
@@ -1127,6 +1199,8 @@ def test_cloud_state_routes_require_an_adult_account():
     assert client.put("/labs/weekflow/household/state", json={}).status_code == 401
     assert client.get("/labs/weekflow/meals/state").status_code == 401
     assert client.put("/labs/weekflow/meals/state", json={}).status_code == 401
+    assert client.get("/labs/weekflow/medical/state").status_code == 401
+    assert client.put("/labs/weekflow/medical/state", json={}).status_code == 401
     assert client.get("/labs/weekflow/travel/state").status_code == 401
     assert client.put("/labs/weekflow/travel/state", json={}).status_code == 401
     for method in (client.get, client.put, client.delete):
@@ -1300,6 +1374,8 @@ def test_beta_allowlist_and_subscription_limits_are_enforced(monkeypatch):
     assert client.get("/labs/weekflow/household/state").status_code == 403
     assert client.get("/labs/weekflow/meals").status_code == 403
     assert client.get("/labs/weekflow/meals/state").status_code == 403
+    assert client.get("/labs/weekflow/medical").status_code == 403
+    assert client.get("/labs/weekflow/medical/state").status_code == 403
     assert client.get("/labs/weekflow/travel").status_code == 403
     assert client.get("/labs/weekflow/travel/state").status_code == 403
 
