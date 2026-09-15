@@ -18,6 +18,8 @@
   let state = null;
   let family = null;
   let today = null;
+  let household = null;
+  let householdSaving = false;
   let saveTimer = null;
   let saveInFlight = false;
   let dirty = false;
@@ -33,6 +35,16 @@
 
   function nowIso() {
     return new Date().toISOString();
+  }
+
+  async function jsonRequest(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      headers: { Accept: "application/json", ...(options.headers || {}) },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || "Please try again.");
+    return payload;
   }
 
   function newId() {
@@ -60,6 +72,28 @@
     return left.created_at.localeCompare(right.created_at);
   }
 
+  function householdItems() {
+    return (household?.occurrences || []).filter((item) => item.date === today).map((item) => ({
+      id: item.id,
+      title: item.title,
+      area: "home",
+      assigned_person_id: item.assigned_person_id,
+      due_date: item.date,
+      priority: "normal",
+      status: item.completed ? "completed" : "open",
+      created_at: `${item.date}T00:00:00+00:00`,
+      updated_at: item.completed_at || `${item.date}T00:00:00+00:00`,
+      completed_at: item.completed_at,
+      source: "household",
+      time_of_day: item.time_of_day,
+      estimated_minutes: item.estimated_minutes,
+    }));
+  }
+
+  function visibleItems() {
+    return [...state.items, ...householdItems()];
+  }
+
   function categorizeItems() {
     const groups = {
       overdue: [],
@@ -69,7 +103,7 @@
       later: [],
       completed: [],
     };
-    state.items.forEach((item) => {
+    visibleItems().forEach((item) => {
       if (item.status === "completed") {
         groups.completed.push(item);
       } else if (item.status === "waiting") {
@@ -126,6 +160,7 @@
     article.dataset.itemId = item.id;
 
     const check = actionButton(item.status === "completed" ? "✓" : "✓", item.status === "completed" ? "undo" : "complete", item.id, "wft-check");
+    if (item.source) check.dataset.source = item.source;
     check.setAttribute("aria-label", item.status === "completed" ? `Restore ${item.title}` : `Complete ${item.title}`);
 
     const copy = document.createElement("div");
@@ -148,18 +183,23 @@
     if (due) meta.appendChild(metaSpan(`Due ${due}`));
     if (item.priority === "high") meta.appendChild(metaSpan("Important"));
     if (item.status === "waiting") meta.appendChild(metaSpan("Waiting"));
+    if (item.source === "household") meta.appendChild(metaSpan(`${item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1)} · ${item.estimated_minutes} min`));
     copy.appendChild(meta);
 
     const actions = document.createElement("div");
     actions.className = "wft-item-actions";
-    if (item.status === "completed") {
+    if (item.source === "household") {
+      const householdAction = actionButton(item.status === "completed" ? "Undo" : "Done", item.status === "completed" ? "undo" : "complete", item.id);
+      householdAction.dataset.source = "household";
+      actions.appendChild(householdAction);
+    } else if (item.status === "completed") {
       actions.appendChild(actionButton("Undo", "undo", item.id));
     } else if (item.status === "waiting") {
       actions.appendChild(actionButton("Resume", "resume", item.id));
     } else {
       actions.appendChild(actionButton("Wait", "wait", item.id));
     }
-    actions.appendChild(actionButton("Remove", "remove", item.id, "is-remove"));
+    if (item.source !== "household") actions.appendChild(actionButton("Remove", "remove", item.id, "is-remove"));
     article.append(check, copy, actions);
     return article;
   }
@@ -186,7 +226,7 @@
     const groups = categorizeItems();
     Object.entries(groups).forEach(([name, items]) => renderSection(name, items));
     renderSummary(groups);
-    byId("emptyState").hidden = state.items.length > 0;
+    byId("emptyState").hidden = visibleItems().length > 0;
   }
 
   function scheduleSave() {
@@ -244,6 +284,10 @@
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     const { action, itemId } = button.dataset;
+    if (button.dataset.source === "household") {
+      saveHouseholdOccurrence(itemId, action === "complete");
+      return;
+    }
     if (action === "remove") {
       const item = state.items.find((candidate) => candidate.id === itemId);
       if (!item || !window.confirm(`Remove “${item.title}”?`)) return;
@@ -264,6 +308,40 @@
         item.completed_at = null;
       }
     });
+  }
+
+  async function saveHouseholdOccurrence(occurrenceId, completed) {
+    if (householdSaving) {
+      setStatus("Finishing the previous household change…");
+      return;
+    }
+    const previous = JSON.parse(JSON.stringify(household));
+    if (completed) household.completions[occurrenceId] = nowIso();
+    else delete household.completions[occurrenceId];
+    const occurrence = household.occurrences.find((item) => item.id === occurrenceId);
+    if (occurrence) {
+      occurrence.completed = completed;
+      occurrence.completed_at = household.completions[occurrenceId] || null;
+    }
+    render();
+    householdSaving = true;
+    setStatus("Saving responsibility…");
+    try {
+      const payload = await jsonRequest(config.householdStateUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ revision: household.revision, routines: household.routines, completions: household.completions }),
+      });
+      household = payload;
+      render();
+      setStatus(completed ? "Responsibility completed" : "Responsibility restored");
+    } catch (error) {
+      household = previous;
+      render();
+      setStatus(error.message, true);
+    } finally {
+      householdSaving = false;
+    }
   }
 
   function renderFamily() {
@@ -303,6 +381,7 @@
       };
       family = payload.family;
       today = payload.today;
+      household = payload.household;
       renderFamily();
       render();
       app.hidden = false;

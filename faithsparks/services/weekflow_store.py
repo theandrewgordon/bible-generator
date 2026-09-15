@@ -14,6 +14,12 @@ from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
 from faithsparks.services.weekflow_logistics import normalize_logistics_scenario
+from faithsparks.services.weekflow_household import (
+    HOUSEHOLD_STATE_SCHEMA_VERSION,
+    default_household_state,
+    normalize_household_state,
+    prune_household_completions,
+)
 from faithsparks.services.weekflow_scheduler import (
     ADULTS,
     MAX_ADULTS,
@@ -230,6 +236,10 @@ def _today_state_ref(email: str):
     return _weekflow_collection(email).document("today-state")
 
 
+def _household_state_ref(email: str):
+    return _weekflow_collection(email).document("household-state")
+
+
 def _weekflow_collection(email: str):
     return (
         db.collection("users")
@@ -335,6 +345,71 @@ def save_today_state(
             {
                 "kind": "today-state",
                 "schemaVersion": TODAY_STATE_SCHEMA_VERSION,
+                "revision": new_revision,
+                "state": saved_state,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+        )
+        return saved_state
+
+    try:
+        return save(transaction)
+    except WeekFlowRevisionConflict:
+        raise
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+
+
+def load_household_state(email: str, *, family: object) -> dict[str, object]:
+    """Load recurring household work owned by the signed-in adult."""
+
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    try:
+        snapshot = _household_state_ref(email).get()
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+    if not snapshot.exists:
+        return default_household_state()
+    stored = snapshot.to_dict() or {}
+    try:
+        return normalize_household_state(stored.get("state") or {}, family=family)
+    except (TypeError, ValueError) as exc:
+        raise WeekFlowStorageUnavailable(
+            "Your household plan could not be read"
+        ) from exc
+
+
+def save_household_state(
+    email: str, payload: object, *, family: object
+) -> dict[str, object]:
+    """Save recurring work atomically with optimistic revision protection."""
+
+    state = prune_household_completions(
+        normalize_household_state(payload, family=family)
+    )
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    ref = _household_state_ref(email)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def save(txn):
+        snapshot = ref.get(transaction=txn)
+        stored = snapshot.to_dict() or {} if snapshot.exists else {}
+        current_revision = int(stored.get("revision") or 0)
+        if state["revision"] != current_revision:
+            raise WeekFlowRevisionConflict(
+                "A newer household plan was saved in another browser"
+            )
+        new_revision = current_revision + 1
+        saved_at = datetime.now(UTC).isoformat()
+        saved_state = {**state, "revision": new_revision, "updated_at": saved_at}
+        txn.set(
+            ref,
+            {
+                "kind": "household-state",
+                "schemaVersion": HOUSEHOLD_STATE_SCHEMA_VERSION,
                 "revision": new_revision,
                 "state": saved_state,
                 "updatedAt": firestore.SERVER_TIMESTAMP,
@@ -644,6 +719,7 @@ def delete_week_template(email: str, template_id: str) -> None:
 def export_weekflow_backup(email: str) -> dict[str, object]:
     state = load_beta_state(email)
     today_state = load_today_state(email, family=state["family"])
+    household_state = load_household_state(email, family=state["family"])
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
     try:
@@ -665,6 +741,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
         "exported_at": datetime.now(UTC).isoformat(),
         "state": state,
         "today": today_state,
+        "household": household_state,
         "weeks": weeks,
         "templates": list_week_templates(email),
     }

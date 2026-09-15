@@ -13,12 +13,14 @@ from faithsparks.services.weekflow_store import (
     list_saved_weeks,
     list_week_templates,
     load_beta_state,
+    load_household_state,
     load_logistics_state,
     load_saved_week,
     load_today_state,
     normalize_beta_state,
     record_beta_feedback,
     save_beta_state,
+    save_household_state,
     save_logistics_state,
     save_today_state,
     save_week_template,
@@ -250,6 +252,7 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
     assert backup["weeks"][0]["scenario"]["week_start"] == "2026-08-31"
     assert backup["templates"][0]["name"] == "Normal week"
     assert backup["today"]["items"] == []
+    assert backup["household"]["routines"] == []
 
     delete_beta_state("parent@example.com")
     assert database.documents == {}
@@ -319,6 +322,44 @@ def test_today_state_round_trip_is_lightweight_and_revision_protected(monkeypatc
     ] == "Return library books"
     with pytest.raises(WeekFlowRevisionConflict):
         save_today_state("parent@example.com", payload, family=family)
+
+
+def test_household_state_round_trip_is_validated_and_revision_protected(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    family = default_beta_state()["family"]
+    timestamp = "2026-09-14T12:00:00+00:00"
+    payload = {
+        "revision": 0,
+        "routines": [
+            {
+                "id": "feed-dog",
+                "title": "Feed the dog",
+                "assigned_person_id": "diana",
+                "days": ["mon", "wed", "fri"],
+                "time_of_day": "morning",
+                "category": "pets",
+                "estimated_minutes": 10,
+                "active": True,
+                "created_at": timestamp,
+                "updated_at": timestamp,
+            }
+        ],
+        "completions": {"feed-dog:2026-09-14": timestamp},
+    }
+
+    assert load_household_state("parent@example.com", family=family)["revision"] == 0
+    saved = save_household_state("Parent@Example.com", payload, family=family)
+
+    assert saved["revision"] == 1
+    loaded = load_household_state("parent@example.com", family=family)
+    assert loaded["routines"][0]["title"] == "Feed the dog"
+    assert loaded["completions"]["feed-dog:2026-09-14"] == timestamp
+    with pytest.raises(WeekFlowRevisionConflict):
+        save_household_state("parent@example.com", payload, family=family)
 
 
 @pytest.mark.parametrize(

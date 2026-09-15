@@ -186,6 +186,7 @@ def _should_fetch_usage(path: str) -> bool:
 _LATENCY_CRITICAL_PREFIXES = (
     "/worship/live/",
     "/labs/weekflow/homeschool",
+    "/labs/weekflow/household",
     "/labs/weekflow/kids",
     "/labs/weekflow/schedule",
     "/labs/weekflow/today",
@@ -742,6 +743,7 @@ def add_correlation_headers(resp):
     elif (request.path or "").startswith((
         "/labs/weekflow/calendar",
         "/labs/weekflow/homeschool",
+        "/labs/weekflow/household",
         "/labs/weekflow/kids",
         "/labs/weekflow/schedule",
         "/labs/weekflow/today",

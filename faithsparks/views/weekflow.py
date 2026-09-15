@@ -1,7 +1,7 @@
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from flask import (
@@ -36,6 +36,7 @@ from faithsparks.services.weekflow_integrations import (
     integration_status,
     refresh_live_routes,
 )
+from faithsparks.services.weekflow_household import household_occurrences
 from faithsparks.services.weekflow_logistics import (
     analyze_family_logistics,
     apply_responsibility_change,
@@ -60,6 +61,7 @@ from faithsparks.services.weekflow_store import (
     list_saved_weeks,
     list_week_templates,
     load_beta_state,
+    load_household_state,
     load_logistics_state,
     load_saved_week,
     load_today_state,
@@ -67,6 +69,7 @@ from faithsparks.services.weekflow_store import (
     record_beta_feedback,
     record_weekflow_event,
     save_beta_state,
+    save_household_state,
     save_logistics_state,
     save_today_state,
     save_week_template,
@@ -173,6 +176,112 @@ def kids():
     return _learning_dashboard("kids")
 
 
+@bp.get("/household")
+def household():
+    email = _signed_in_email()
+    if not email:
+        return redirect("/login/google/start?next=/labs/weekflow/household")
+    if not _has_beta_access(email):
+        return render_template(
+            "weekflow_household.html",
+            access_denied=True,
+            noindex=True,
+        ), 403
+    return render_template(
+        "weekflow_household.html",
+        access_denied=False,
+        noindex=True,
+    )
+
+
+def _household_dashboard_payload(
+    saved: dict[str, object],
+    *,
+    beta_state: dict[str, object],
+    family_today,
+) -> dict[str, object]:
+    week_start = family_today - timedelta(days=family_today.weekday())
+    return {
+        **saved,
+        "family": {
+            "name": beta_state["family"]["name"],
+            "timezone": beta_state["family"]["timezone"],
+            "people": family_people(beta_state["family"]),
+            "configured": beta_state["revision"] > 0,
+        },
+        "today": family_today.isoformat(),
+        "week_start": week_start.isoformat(),
+        "occurrences": household_occurrences(
+            saved,
+            family=beta_state["family"],
+            start_date=week_start,
+            day_count=7,
+        ),
+    }
+
+
+@bp.get("/household/state")
+def household_state():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    try:
+        beta_state = load_beta_state(email)
+        saved = load_household_state(email, family=beta_state["family"])
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
+    return jsonify(
+        _household_dashboard_payload(
+            saved,
+            beta_state=beta_state,
+            family_today=datetime.now(timezone).date(),
+        )
+    )
+
+
+@bp.put("/household/state")
+def household_state_save():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    limit = check_rate_limit(
+        "weekflow-household-save", email, limit=300, window_seconds=60 * 60
+    )
+    if not limit.allowed:
+        response = jsonify({"error": "Too many household changes. Try again shortly."})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(limit.retry_after)
+        return response
+    if request.content_length and request.content_length > 180_000:
+        return jsonify({"error": "Your household plan is too large."}), 413
+    try:
+        beta_state = load_beta_state(email)
+        saved = save_household_state(
+            email,
+            request.get_json(silent=True),
+            family=beta_state["family"],
+        )
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except WeekFlowRevisionConflict as exc:
+        return jsonify({"error": str(exc), "conflict": True}), 409
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
+    return jsonify(
+        _household_dashboard_payload(
+            saved,
+            beta_state=beta_state,
+            family_today=datetime.now(timezone).date(),
+        )
+    )
+
+
 @bp.get("/schedule")
 def schedule_dashboard():
     email = _signed_in_email()
@@ -205,18 +314,23 @@ def schedule_dashboard_state():
         # These documents are independent once the household is known. Reading
         # them together keeps the daily dashboard at one network round trip
         # without turning three Firestore reads into a long serial waterfall.
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=3) as executor:
             today_future = executor.submit(
                 load_today_state, email, family=beta_state["family"]
             )
             logistics_future = executor.submit(load_logistics_state, email)
+            household_future = executor.submit(
+                load_household_state, email, family=beta_state["family"]
+            )
             today_state = today_future.result()
             logistics_state = logistics_future.result()
+            household_state = household_future.result()
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
     timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
     family_today = datetime.now(timezone).date()
+    week_start = family_today - timedelta(days=family_today.weekday())
     logistics_scenario = logistics_state.get("scenario")
     return jsonify(
         {
@@ -234,6 +348,15 @@ def schedule_dashboard_state():
                 "plan": generate_demo_schedule(scenario=beta_state["scenario"]),
             },
             "responsibilities": today_state,
+            "household": {
+                **household_state,
+                "occurrences": household_occurrences(
+                    household_state,
+                    family=beta_state["family"],
+                    start_date=week_start,
+                    day_count=7,
+                ),
+            },
             "logistics": {
                 **logistics_state,
                 "has_saved_plan": isinstance(logistics_scenario, dict),
@@ -256,11 +379,20 @@ def today_state():
         return _beta_access_required()
     try:
         beta_state = load_beta_state(email)
-        saved = load_today_state(email, family=beta_state["family"])
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            today_future = executor.submit(
+                load_today_state, email, family=beta_state["family"]
+            )
+            household_future = executor.submit(
+                load_household_state, email, family=beta_state["family"]
+            )
+            saved = today_future.result()
+            household_state = household_future.result()
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
     timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
     family_today = datetime.now(timezone).date()
+    week_start = family_today - timedelta(days=family_today.weekday())
     return jsonify(
         {
             **saved,
@@ -272,6 +404,15 @@ def today_state():
             },
             "today": family_today.isoformat(),
             "attention": today_attention_counts(saved, today=family_today),
+            "household": {
+                **household_state,
+                "occurrences": household_occurrences(
+                    household_state,
+                    family=beta_state["family"],
+                    start_date=week_start,
+                    day_count=7,
+                ),
+            },
         }
     )
 

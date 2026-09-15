@@ -2,7 +2,7 @@
   const config = window.WEEKFLOW_SCHEDULE_CONFIG;
   const byId = (id) => document.getElementById(id);
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const COLORS = { school: "#6657d9", logistics: "#1f7a68", responsibility: "#d28a32", calendar: "#3f77ad" };
+  const COLORS = { school: "#6657d9", logistics: "#1f7a68", responsibility: "#d28a32", household: "#b36d3b", calendar: "#3f77ad" };
   let state = null;
   let selectedDate = null;
   let days = [];
@@ -135,6 +135,16 @@
       source: "Today",
       kind: "responsibility",
     }));
+    const householdOrder = { morning: 8 * 60, afternoon: 13 * 60, evening: 18 * 60, anytime: 10500 };
+    const household = (state.household?.occurrences || []).filter((item) => item.date === selectedDate && !item.completed).map((item) => ({
+      id: `household-${item.id}`,
+      title: item.title,
+      time: item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1),
+      sort: householdOrder[item.time_of_day] ?? 10500,
+      detail: `${item.assigned_person_name} · ${item.estimated_minutes} min`,
+      source: "Household",
+      kind: "household",
+    }));
     const calendar = calendarEvents.filter((event) => calendarDate(event) === selectedDate).map((event) => ({
       id: `calendar-${event.source_calendar_id}-${event.provider_event_id}`,
       title: event.title,
@@ -144,7 +154,7 @@
       source: "Google Calendar · preview",
       kind: "calendar",
     }));
-    return [...calendar, ...school, ...logistics, ...responsibilities].sort((left, right) => left.sort - right.sort || left.title.localeCompare(right.title));
+    return [...calendar, ...school, ...logistics, ...household, ...responsibilities].sort((left, right) => left.sort - right.sort || left.title.localeCompare(right.title));
   }
 
   function element(tag, className, text) {

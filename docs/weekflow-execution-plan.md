@@ -75,8 +75,30 @@ plan.
   latency-prioritized endpoint with calm states for a new family, an empty day,
   missing logistics, disconnected Calendar, and provider failure.
 
-The next product step is Household: recurring chores, routines, and delegated
-responsibilities that feed Today, Schedule, and each child’s view.
+## Household responsibilities
+
+Status: **Step 4 implemented**
+
+`/labs/weekflow/household` gives recurring chores and routines one shared,
+adult-owned home without creating child accounts or copying the same task into
+several disconnected lists.
+
+- Create or edit a recurring responsibility with an owner, weekdays,
+  time-of-day, category, and modest duration estimate.
+- Complete or restore the dated occurrence without completing every future
+  occurrence; pause, resume, or remove the repeating rule separately.
+- Project active routines into the current week instead of materializing a
+  second task document for every day.
+- Show today's household work inside Today, the selected day's work in
+  Schedule, and each child's work in Kids from the same source of truth.
+- Keep completion history bounded, include household state in the family
+  backup, and protect saves with the same optimistic revision checks as Today.
+- Load household projections alongside other dashboard data in parallel and
+  keep every household route private, non-cacheable, and latency-prioritized.
+
+The next product step is Meals: a deliberately small meal rhythm that can add
+shopping and preparation handoffs to Today without turning WeekFlow into a
+recipe database.
 
 ## 1. Prove family-logistics orchestration
 

@@ -9,6 +9,7 @@
   let selectedKid = null;
   let savingLearning = false;
   let savingToday = false;
+  let savingHousehold = false;
 
   function setStatus(message, error = false) {
     const element = byId("learningSaveStatus");
@@ -257,7 +258,8 @@
   function responsibilityCard(item) {
     const article = document.createElement("article");
     article.className = "wfl-assignment";
-    const check = button("✓", "complete-responsibility", item.id, "wfl-check");
+    const action = item.source === "household" ? "complete-household" : "complete-responsibility";
+    const check = button("✓", action, item.id, "wfl-check");
     check.setAttribute("aria-label", `Complete ${item.title}`);
     const copy = document.createElement("div");
     copy.className = "wfl-assignment-copy";
@@ -265,13 +267,14 @@
     title.textContent = item.title;
     const details = document.createElement("div");
     details.className = "wfl-assignment-meta";
-    details.appendChild(meta(item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
+    details.appendChild(meta(item.source === "household" ? "Household routine" : item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
+    if (item.time_of_day) details.appendChild(meta(item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1)));
     if (item.due_date) details.appendChild(meta(item.due_date === todayState.today ? "Due today" : `Due ${item.due_date}`));
     if (item.status === "waiting") details.appendChild(meta("Waiting"));
     copy.append(title, details);
     const actions = document.createElement("div");
     actions.className = "wfl-assignment-actions";
-    actions.appendChild(button("Done", "complete-responsibility", item.id));
+    actions.appendChild(button("Done", action, item.id));
     article.append(check, copy, actions);
     return article;
   }
@@ -302,7 +305,11 @@
       ? lessons.map((entry) => assignmentCard(entry, { childView: true }))
       : [createEmpty(`${student.name} has no scheduled lessons on ${day.label}.`)]
     ));
-    const responsibilities = todayState.items.filter((item) => item.assigned_person_id === student.id && item.status !== "completed");
+    const todayResponsibilities = todayState.items.filter((item) => item.assigned_person_id === student.id && item.status !== "completed");
+    const householdResponsibilities = (todayState.household?.occurrences || [])
+      .filter((item) => item.assigned_person_id === student.id && item.date === day.date && !item.completed)
+      .map((item) => ({ ...item, area: "home", status: "open", source: "household", due_date: item.date }));
+    const responsibilities = [...householdResponsibilities, ...todayResponsibilities];
     byId("kidResponsibilityList").replaceChildren(...(responsibilities.length
       ? responsibilities.map(responsibilityCard)
       : [createEmpty(`No open family responsibilities are assigned to ${student.name}.`)]
@@ -400,6 +407,35 @@
     }
   }
 
+  async function saveHouseholdResponsibility(itemId) {
+    if (savingHousehold) return;
+    const household = todayState.household;
+    const item = household?.occurrences.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    const previous = JSON.parse(JSON.stringify(household));
+    household.completions[itemId] = new Date().toISOString();
+    item.completed = true;
+    item.completed_at = household.completions[itemId];
+    renderKids();
+    savingHousehold = true;
+    setStatus("Saving household responsibility…");
+    try {
+      const saved = await jsonRequest(config.householdStateUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ revision: household.revision, routines: household.routines, completions: household.completions }),
+      });
+      todayState.household = saved;
+      setStatus("Household responsibility completed");
+    } catch (error) {
+      todayState.household = previous;
+      renderKids();
+      setStatus(error.message, true);
+    } finally {
+      savingHousehold = false;
+    }
+  }
+
   function taskAction(event) {
     const target = event.target.closest("button[data-action]");
     if (!target) return;
@@ -407,6 +443,10 @@
     const taskId = target.dataset.itemId;
     if (action === "complete-responsibility") {
       saveTodayResponsibility(taskId);
+      return;
+    }
+    if (action === "complete-household") {
+      saveHouseholdResponsibility(taskId);
       return;
     }
     if (savingLearning) {
