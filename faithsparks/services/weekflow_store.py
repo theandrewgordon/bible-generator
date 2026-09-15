@@ -14,6 +14,12 @@ from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
 from faithsparks.services.weekflow_logistics import normalize_logistics_scenario
+from faithsparks.services.weekflow_meals import (
+    MEALS_STATE_SCHEMA_VERSION,
+    default_meals_state,
+    normalize_meals_state,
+    prune_meals_state,
+)
 from faithsparks.services.weekflow_household import (
     HOUSEHOLD_STATE_SCHEMA_VERSION,
     default_household_state,
@@ -240,6 +246,10 @@ def _household_state_ref(email: str):
     return _weekflow_collection(email).document("household-state")
 
 
+def _meals_state_ref(email: str):
+    return _weekflow_collection(email).document("meals-state")
+
+
 def _weekflow_collection(email: str):
     return (
         db.collection("users")
@@ -410,6 +420,67 @@ def save_household_state(
             {
                 "kind": "household-state",
                 "schemaVersion": HOUSEHOLD_STATE_SCHEMA_VERSION,
+                "revision": new_revision,
+                "state": saved_state,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+        )
+        return saved_state
+
+    try:
+        return save(transaction)
+    except WeekFlowRevisionConflict:
+        raise
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+
+
+def load_meals_state(email: str, *, family: object) -> dict[str, object]:
+    """Load the household's small meal plan without any recipe content."""
+
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    try:
+        snapshot = _meals_state_ref(email).get()
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+    if not snapshot.exists:
+        return default_meals_state()
+    stored = snapshot.to_dict() or {}
+    try:
+        return normalize_meals_state(stored.get("state") or {}, family=family)
+    except (TypeError, ValueError) as exc:
+        raise WeekFlowStorageUnavailable("Your meal plan could not be read") from exc
+
+
+def save_meals_state(
+    email: str, payload: object, *, family: object
+) -> dict[str, object]:
+    """Save meals and explicit handoffs with optimistic revision protection."""
+
+    state = prune_meals_state(normalize_meals_state(payload, family=family))
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    ref = _meals_state_ref(email)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def save(txn):
+        snapshot = ref.get(transaction=txn)
+        stored = snapshot.to_dict() or {} if snapshot.exists else {}
+        current_revision = int(stored.get("revision") or 0)
+        if state["revision"] != current_revision:
+            raise WeekFlowRevisionConflict(
+                "A newer meal plan was saved in another browser"
+            )
+        new_revision = current_revision + 1
+        saved_at = datetime.now(UTC).isoformat()
+        saved_state = {**state, "revision": new_revision, "updated_at": saved_at}
+        txn.set(
+            ref,
+            {
+                "kind": "meals-state",
+                "schemaVersion": MEALS_STATE_SCHEMA_VERSION,
                 "revision": new_revision,
                 "state": saved_state,
                 "updatedAt": firestore.SERVER_TIMESTAMP,
@@ -720,6 +791,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
     state = load_beta_state(email)
     today_state = load_today_state(email, family=state["family"])
     household_state = load_household_state(email, family=state["family"])
+    meals_state = load_meals_state(email, family=state["family"])
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
     try:
@@ -742,6 +814,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
         "state": state,
         "today": today_state,
         "household": household_state,
+        "meals": meals_state,
         "weeks": weeks,
         "templates": list_week_templates(email),
     }

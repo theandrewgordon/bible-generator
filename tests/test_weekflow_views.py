@@ -2,6 +2,7 @@ from flask import Flask
 
 import faithsparks.views.weekflow as weekflow_view
 from faithsparks.services.weekflow_household import default_household_state
+from faithsparks.services.weekflow_meals import default_meals_state
 from faithsparks.services.weekflow_logistics import family_four_school_sports_scenario
 from faithsparks.services.weekflow_store import (
     WeekFlowRevisionConflict,
@@ -71,6 +72,7 @@ def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
     assert "Plan our homeschool week" in html
     assert "See the whole family day" in html
     assert 'stateUrl: "/labs/weekflow/today/state"' in html
+    assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in html
     assert 'content="noindex,nofollow"' in html
 
 
@@ -101,6 +103,7 @@ def test_learning_dashboards_require_sign_in_and_render_shared_weekflow_tools():
     assert "Who is learning at home?" in homeschool_html
     assert 'stateUrl: "/labs/weekflow/state"' in homeschool_html
     assert 'todayStateUrl: "/labs/weekflow/today/state"' in kids_html
+    assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in kids_html
     assert 'content="noindex,nofollow"' in homeschool_html
 
 
@@ -167,6 +170,9 @@ def test_schedule_state_combines_family_learning_today_and_saved_logistics(monke
         "load_household_state",
         lambda email, family: default_household_state(),
     )
+    monkeypatch.setattr(
+        weekflow_view, "load_meals_state", lambda email, family: default_meals_state()
+    )
     with client.session_transaction() as flask_session:
         flask_session["user_email"] = "Parent@Example.com"
 
@@ -179,6 +185,7 @@ def test_schedule_state_combines_family_learning_today_and_saved_logistics(monke
     assert payload["learning"]["plan"]["days"]
     assert payload["responsibilities"]["items"][0]["id"] == "permission-slip"
     assert payload["household"]["occurrences"] == []
+    assert payload["meals"]["meals"] == []
     assert payload["logistics"]["has_saved_plan"] is True
     assert payload["logistics"]["plan"]["assignments"]
     assert payload["logistics"]["plan"]["issues"]
@@ -202,6 +209,9 @@ def test_schedule_state_handles_a_family_without_saved_logistics(monkeypatch):
         weekflow_view,
         "load_household_state",
         lambda email, family: default_household_state(),
+    )
+    monkeypatch.setattr(
+        weekflow_view, "load_meals_state", lambda email, family: default_meals_state()
     )
     with client.session_transaction() as flask_session:
         flask_session["user_email"] = "parent@example.com"
@@ -237,6 +247,9 @@ def test_today_state_loads_and_saves_for_the_signed_in_household(monkeypatch):
         lambda email, family: default_household_state(),
     )
     monkeypatch.setattr(
+        weekflow_view, "load_meals_state", lambda email, family: default_meals_state()
+    )
+    monkeypatch.setattr(
         weekflow_view,
         "save_today_state",
         lambda email, payload, family: captured.update(
@@ -268,6 +281,7 @@ def test_today_state_loads_and_saves_for_the_signed_in_household(monkeypatch):
     assert loaded.get_json()["family"]["configured"] is True
     assert loaded.get_json()["attention"]["open"] == 0
     assert loaded.get_json()["household"]["occurrences"] == []
+    assert loaded.get_json()["meals"]["handoffs"] == []
     assert saved.status_code == 200
     assert saved.get_json()["revision"] == 5
     assert captured["email"] == "parent@example.com"
@@ -396,6 +410,68 @@ def test_today_state_handles_validation_conflicts_limits_and_storage(monkeypatch
     limited = client.put("/labs/weekflow/today/state", json={})
     assert limited.status_code == 429
     assert limited.headers["Retry-After"] == "17"
+
+
+def test_meals_dashboard_and_state_share_one_adult_owned_plan(monkeypatch):
+    client = _client()
+    signed_out = client.get("/labs/weekflow/meals")
+    assert signed_out.status_code == 302
+    assert signed_out.headers["Location"].endswith(
+        "/login/google/start?next=/labs/weekflow/meals"
+    )
+
+    beta_state = default_beta_state()
+    beta_state["revision"] = 2
+    beta_state["family"]["name"] = "The Rivers family"
+    timestamp = "2026-09-14T12:00:00+00:00"
+    meals_state = {
+        "revision": 3,
+        "meals": [{"id": "tacos", "date": "2026-09-15", "slot": "dinner", "title": "Tacos", "lead_person_id": "parent", "note": None, "created_at": timestamp, "updated_at": timestamp}],
+        "handoffs": [{"id": "thaw", "title": "Thaw chicken", "kind": "prep", "due_date": "2026-09-14", "time_of_day": "morning", "assigned_person_id": "diana", "meal_id": "tacos", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+        "updated_at": timestamp,
+    }
+    captured = {}
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: beta_state)
+    monkeypatch.setattr(
+        weekflow_view, "load_meals_state", lambda email, family: meals_state
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "save_meals_state",
+        lambda email, payload, family: captured.update(
+            {"email": email, "payload": payload, "family": family}
+        )
+        or {**meals_state, **payload, "revision": 4},
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type(
+            "Limit", (), {"allowed": True, "retry_after": 0}
+        )(),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "Parent@Example.com"
+
+    page = client.get("/labs/weekflow/meals")
+    loaded = client.get("/labs/weekflow/meals/state")
+    saved = client.put(
+        "/labs/weekflow/meals/state",
+        json={"revision": 3, "meals": meals_state["meals"], "handoffs": meals_state["handoffs"]},
+    )
+    html = page.get_data(as_text=True)
+
+    assert page.status_code == 200
+    assert "Know the meal" in html
+    assert "Plan a meal" in html
+    assert 'stateUrl: "/labs/weekflow/meals/state"' in html
+    assert loaded.status_code == 200
+    assert loaded.get_json()["meals"][0]["title"] == "Tacos"
+    assert loaded.get_json()["family"]["name"] == "The Rivers family"
+    assert saved.status_code == 200
+    assert saved.get_json()["revision"] == 4
+    assert captured["email"] == "parent@example.com"
+    assert captured["family"] is beta_state["family"]
 
 
 def test_logistics_lab_renders_the_family_handoff_experiment():
@@ -973,6 +1049,8 @@ def test_cloud_state_routes_require_an_adult_account():
     assert client.get("/labs/weekflow/schedule/state").status_code == 401
     assert client.get("/labs/weekflow/household/state").status_code == 401
     assert client.put("/labs/weekflow/household/state", json={}).status_code == 401
+    assert client.get("/labs/weekflow/meals/state").status_code == 401
+    assert client.put("/labs/weekflow/meals/state", json={}).status_code == 401
     for method in (client.get, client.put, client.delete):
         response = method("/labs/weekflow/state", json={} if method == client.put else None)
         assert response.status_code == 401
@@ -1142,6 +1220,8 @@ def test_beta_allowlist_and_subscription_limits_are_enforced(monkeypatch):
     assert client.get("/labs/weekflow/schedule/state").status_code == 403
     assert client.get("/labs/weekflow/household").status_code == 403
     assert client.get("/labs/weekflow/household/state").status_code == 403
+    assert client.get("/labs/weekflow/meals").status_code == 403
+    assert client.get("/labs/weekflow/meals/state").status_code == 403
 
     with client.session_transaction() as flask_session:
         flask_session["user_email"] = "invited@example.com"

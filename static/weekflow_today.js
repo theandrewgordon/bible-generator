@@ -19,7 +19,9 @@
   let family = null;
   let today = null;
   let household = null;
+  let meals = null;
   let householdSaving = false;
+  let mealsSaving = false;
   let saveTimer = null;
   let saveInFlight = false;
   let dirty = false;
@@ -43,7 +45,11 @@
       headers: { Accept: "application/json", ...(options.headers || {}) },
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "Please try again.");
+    if (!response.ok) {
+      const error = new Error(payload.error || "Please try again.");
+      error.status = response.status;
+      throw error;
+    }
     return payload;
   }
 
@@ -90,8 +96,26 @@
     }));
   }
 
+  function mealHandoffItems() {
+    return (meals?.handoffs || []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      area: "meals",
+      assigned_person_id: item.assigned_person_id,
+      due_date: item.due_date,
+      priority: "normal",
+      status: item.status,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      completed_at: item.completed_at,
+      source: "meals",
+      kind: item.kind,
+      time_of_day: item.time_of_day,
+    }));
+  }
+
   function visibleItems() {
-    return [...state.items, ...householdItems()];
+    return [...state.items, ...householdItems(), ...mealHandoffItems()];
   }
 
   function categorizeItems() {
@@ -184,14 +208,19 @@
     if (item.priority === "high") meta.appendChild(metaSpan("Important"));
     if (item.status === "waiting") meta.appendChild(metaSpan("Waiting"));
     if (item.source === "household") meta.appendChild(metaSpan(`${item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1)} · ${item.estimated_minutes} min`));
+    if (item.source === "meals") {
+      const kind = item.kind === "shopping" ? "Shopping" : item.kind === "prep" ? "Meal preparation" : "Meal step";
+      const time = item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1);
+      meta.appendChild(metaSpan(`${kind} · ${time}`));
+    }
     copy.appendChild(meta);
 
     const actions = document.createElement("div");
     actions.className = "wft-item-actions";
-    if (item.source === "household") {
-      const householdAction = actionButton(item.status === "completed" ? "Undo" : "Done", item.status === "completed" ? "undo" : "complete", item.id);
-      householdAction.dataset.source = "household";
-      actions.appendChild(householdAction);
+    if (item.source === "household" || item.source === "meals") {
+      const sourceAction = actionButton(item.status === "completed" ? "Undo" : "Done", item.status === "completed" ? "undo" : "complete", item.id);
+      sourceAction.dataset.source = item.source;
+      actions.appendChild(sourceAction);
     } else if (item.status === "completed") {
       actions.appendChild(actionButton("Undo", "undo", item.id));
     } else if (item.status === "waiting") {
@@ -199,7 +228,7 @@
     } else {
       actions.appendChild(actionButton("Wait", "wait", item.id));
     }
-    if (item.source !== "household") actions.appendChild(actionButton("Remove", "remove", item.id, "is-remove"));
+    if (!item.source) actions.appendChild(actionButton("Remove", "remove", item.id, "is-remove"));
     article.append(check, copy, actions);
     return article;
   }
@@ -288,6 +317,10 @@
       saveHouseholdOccurrence(itemId, action === "complete");
       return;
     }
+    if (button.dataset.source === "meals") {
+      saveMealHandoff(itemId, action === "complete");
+      return;
+    }
     if (action === "remove") {
       const item = state.items.find((candidate) => candidate.id === itemId);
       if (!item || !window.confirm(`Remove “${item.title}”?`)) return;
@@ -344,6 +377,30 @@
     }
   }
 
+  async function saveMealHandoff(handoffId, completed) {
+    if (mealsSaving) { setStatus("Finishing the previous meal change…"); return; }
+    const item = meals?.handoffs.find((candidate) => candidate.id === handoffId);
+    if (!item) return;
+    const previous = JSON.parse(JSON.stringify(meals));
+    const timestamp = nowIso();
+    item.status = completed ? "completed" : "open";
+    item.completed_at = completed ? timestamp : null;
+    item.updated_at = timestamp;
+    render(); mealsSaving = true; setStatus("Saving meal handoff…");
+    try {
+      meals = await jsonRequest(config.mealsStateUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ revision: meals.revision, meals: meals.meals, handoffs: meals.handoffs }),
+      });
+      render(); setStatus(completed ? "Meal handoff completed" : "Meal handoff restored");
+    } catch (error) {
+      meals = previous;
+      if (error.status === 409) { try { meals = await jsonRequest(config.mealsStateUrl); } catch (_refreshError) { /* retain the last known-good copy */ } }
+      render(); setStatus(error.status === 409 ? "Meals changed in another browser. We refreshed before overwriting anything." : error.message, true);
+    } finally { mealsSaving = false; }
+  }
+
   function renderFamily() {
     const configuredPeople = family.configured ? family.people : [];
     const peopleContainer = byId("familyPeople");
@@ -382,6 +439,7 @@
       family = payload.family;
       today = payload.today;
       household = payload.household;
+      meals = payload.meals;
       renderFamily();
       render();
       app.hidden = false;

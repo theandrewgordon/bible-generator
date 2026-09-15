@@ -10,6 +10,7 @@
   let savingLearning = false;
   let savingToday = false;
   let savingHousehold = false;
+  let savingMeals = false;
 
   function setStatus(message, error = false) {
     const element = byId("learningSaveStatus");
@@ -141,6 +142,14 @@
     return learning.plan.days.find((day) => day.id === selectedDay) || learning.plan.days[0];
   }
 
+  function selectedCalendarDate() {
+    const row = selectedDayRow();
+    if (row.date) return row.date;
+    const monday = new Date(`${currentWeekMonday(todayState.today)}T12:00:00Z`);
+    monday.setUTCDate(monday.getUTCDate() + Math.max(0, DAYS.indexOf(row.id)));
+    return monday.toISOString().slice(0, 10);
+  }
+
   function renderDayTabs() {
     const tabs = byId("dayTabs");
     tabs.replaceChildren(...learning.plan.days.map((day) => {
@@ -258,7 +267,7 @@
   function responsibilityCard(item) {
     const article = document.createElement("article");
     article.className = "wfl-assignment";
-    const action = item.source === "household" ? "complete-household" : "complete-responsibility";
+    const action = item.source === "household" ? "complete-household" : item.source === "meals" ? "complete-meal" : "complete-responsibility";
     const check = button("✓", action, item.id, "wfl-check");
     check.setAttribute("aria-label", `Complete ${item.title}`);
     const copy = document.createElement("div");
@@ -267,7 +276,7 @@
     title.textContent = item.title;
     const details = document.createElement("div");
     details.className = "wfl-assignment-meta";
-    details.appendChild(meta(item.source === "household" ? "Household routine" : item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
+    details.appendChild(meta(item.source === "household" ? "Household routine" : item.source === "meals" ? (item.kind === "shopping" ? "Meal shopping" : item.kind === "prep" ? "Meal preparation" : "Meal step") : item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
     if (item.time_of_day) details.appendChild(meta(item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1)));
     if (item.due_date) details.appendChild(meta(item.due_date === todayState.today ? "Due today" : `Due ${item.due_date}`));
     if (item.status === "waiting") details.appendChild(meta("Waiting"));
@@ -299,6 +308,7 @@
     byId("kidParentMinutes").textContent = `${totals.parent}m`;
     byId("kidIndependentMinutes").textContent = `${totals.independent}m`;
     const day = selectedDayRow();
+    const dayDate = selectedCalendarDate();
     byId("kidLessonsTitle").textContent = `${student.name} on ${day.label}`;
     const lessons = day.entries.filter((entry) => entry.student_ids.includes(student.id));
     byId("kidLessonList").replaceChildren(...(lessons.length
@@ -307,9 +317,12 @@
     ));
     const todayResponsibilities = todayState.items.filter((item) => item.assigned_person_id === student.id && item.status !== "completed");
     const householdResponsibilities = (todayState.household?.occurrences || [])
-      .filter((item) => item.assigned_person_id === student.id && item.date === day.date && !item.completed)
+      .filter((item) => item.assigned_person_id === student.id && item.date === dayDate && !item.completed)
       .map((item) => ({ ...item, area: "home", status: "open", source: "household", due_date: item.date }));
-    const responsibilities = [...householdResponsibilities, ...todayResponsibilities];
+    const mealResponsibilities = (todayState.meals?.handoffs || [])
+      .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate && item.status !== "completed")
+      .map((item) => ({ ...item, area: "meals", source: "meals" }));
+    const responsibilities = [...householdResponsibilities, ...mealResponsibilities, ...todayResponsibilities];
     byId("kidResponsibilityList").replaceChildren(...(responsibilities.length
       ? responsibilities.map(responsibilityCard)
       : [createEmpty(`No open family responsibilities are assigned to ${student.name}.`)]
@@ -436,6 +449,27 @@
     }
   }
 
+  async function saveMealResponsibility(itemId) {
+    if (savingMeals) return;
+    const meals = todayState.meals;
+    const item = meals?.handoffs.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    const previous = JSON.parse(JSON.stringify(meals));
+    const timestamp = new Date().toISOString();
+    item.status = "completed"; item.completed_at = timestamp; item.updated_at = timestamp;
+    renderKids(); savingMeals = true; setStatus("Saving meal handoff…");
+    try {
+      todayState.meals = await jsonRequest(config.mealsStateUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ revision: meals.revision, meals: meals.meals, handoffs: meals.handoffs }),
+      });
+      setStatus("Meal handoff completed");
+    } catch (error) {
+      todayState.meals = previous; renderKids(); setStatus(error.message, true);
+    } finally { savingMeals = false; }
+  }
+
   function taskAction(event) {
     const target = event.target.closest("button[data-action]");
     if (!target) return;
@@ -447,6 +481,10 @@
     }
     if (action === "complete-household") {
       saveHouseholdResponsibility(taskId);
+      return;
+    }
+    if (action === "complete-meal") {
+      saveMealResponsibility(taskId);
       return;
     }
     if (savingLearning) {

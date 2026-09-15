@@ -15,6 +15,7 @@ from faithsparks.services.weekflow_store import (
     load_beta_state,
     load_household_state,
     load_logistics_state,
+    load_meals_state,
     load_saved_week,
     load_today_state,
     normalize_beta_state,
@@ -22,6 +23,7 @@ from faithsparks.services.weekflow_store import (
     save_beta_state,
     save_household_state,
     save_logistics_state,
+    save_meals_state,
     save_today_state,
     save_week_template,
 )
@@ -253,6 +255,7 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
     assert backup["templates"][0]["name"] == "Normal week"
     assert backup["today"]["items"] == []
     assert backup["household"]["routines"] == []
+    assert backup["meals"]["meals"] == []
 
     delete_beta_state("parent@example.com")
     assert database.documents == {}
@@ -360,6 +363,31 @@ def test_household_state_round_trip_is_validated_and_revision_protected(monkeypa
     assert loaded["completions"]["feed-dog:2026-09-14"] == timestamp
     with pytest.raises(WeekFlowRevisionConflict):
         save_household_state("parent@example.com", payload, family=family)
+
+
+def test_meals_state_round_trip_is_validated_and_revision_protected(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    family = default_beta_state()["family"]
+    timestamp = "2026-09-14T12:00:00+00:00"
+    payload = {
+        "revision": 0,
+        "meals": [{"id": "tacos", "date": "2026-09-15", "slot": "dinner", "title": "Tacos", "lead_person_id": "parent", "note": None, "created_at": timestamp, "updated_at": timestamp}],
+        "handoffs": [{"id": "shop-tacos", "title": "Buy taco ingredients", "kind": "shopping", "due_date": "2026-09-14", "time_of_day": "afternoon", "assigned_person_id": "diana", "meal_id": "tacos", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+    }
+
+    assert load_meals_state("parent@example.com", family=family)["revision"] == 0
+    saved = save_meals_state("Parent@Example.com", payload, family=family)
+
+    assert saved["revision"] == 1
+    loaded = load_meals_state("parent@example.com", family=family)
+    assert loaded["meals"][0]["title"] == "Tacos"
+    assert loaded["handoffs"][0]["meal_id"] == "tacos"
+    with pytest.raises(WeekFlowRevisionConflict):
+        save_meals_state("parent@example.com", payload, family=family)
 
 
 @pytest.mark.parametrize(

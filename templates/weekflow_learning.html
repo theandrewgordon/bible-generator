@@ -29,7 +29,7 @@
         <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
         <a href="{{ url_for('weekflow.kids') }}" {% if mode == "kids" %}class="is-active" aria-current="page"{% endif %}>Kids</a>
         <a href="{{ url_for('weekflow.household') }}">Household</a>
-        <span title="Coming in a later WeekFlow step">Meals</span>
+        <a href="{{ url_for('weekflow.meals') }}">Meals</a>
         <span title="Coming in a later WeekFlow step">More</span>
       </nav>
 
@@ -139,10 +139,11 @@
           stateUrl: {{ url_for('weekflow.state')|tojson }},
           todayStateUrl: {{ url_for('weekflow.today_state')|tojson }},
           householdStateUrl: {{ url_for('weekflow.household_state')|tojson }},
+          mealsStateUrl: {{ url_for('weekflow.meals_state')|tojson }},
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_learning.js') }}?v=2" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_learning.js') }}?v=3" defer></script>
     {% endif %}
   </body>
 </html>

@@ -2,7 +2,7 @@
   const config = window.WEEKFLOW_SCHEDULE_CONFIG;
   const byId = (id) => document.getElementById(id);
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const COLORS = { school: "#6657d9", logistics: "#1f7a68", responsibility: "#d28a32", household: "#b36d3b", calendar: "#3f77ad" };
+  const COLORS = { school: "#6657d9", logistics: "#1f7a68", responsibility: "#d28a32", household: "#b36d3b", meal: "#b07524", meal_handoff: "#cf7d55", calendar: "#3f77ad" };
   let state = null;
   let selectedDate = null;
   let days = [];
@@ -145,6 +145,27 @@
       source: "Household",
       kind: "household",
     }));
+    const mealOrder = { breakfast: 7 * 60, lunch: 12 * 60, dinner: 18 * 60 };
+    const mealLabels = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
+    const meals = (state.meals?.meals || []).filter((item) => item.date === selectedDate).map((item) => ({
+      id: `meal-${item.id}`,
+      title: item.title,
+      time: mealLabels[item.slot],
+      sort: mealOrder[item.slot] ?? 17 * 60,
+      detail: [personName(item.lead_person_id), item.note].filter(Boolean).join(" · "),
+      source: "Meals",
+      kind: "meal",
+    }));
+    const handoffOrder = { morning: 8 * 60, afternoon: 13 * 60, evening: 17 * 60, anytime: 10400 };
+    const mealHandoffs = (state.meals?.handoffs || []).filter((item) => item.due_date === selectedDate && item.status !== "completed").map((item) => ({
+      id: `meal-handoff-${item.id}`,
+      title: item.title,
+      time: item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1),
+      sort: handoffOrder[item.time_of_day] ?? 10400,
+      detail: personName(item.assigned_person_id) || "Family",
+      source: item.kind === "shopping" ? "Meal shopping" : item.kind === "prep" ? "Meal preparation" : "Meal step",
+      kind: "meal_handoff",
+    }));
     const calendar = calendarEvents.filter((event) => calendarDate(event) === selectedDate).map((event) => ({
       id: `calendar-${event.source_calendar_id}-${event.provider_event_id}`,
       title: event.title,
@@ -154,7 +175,7 @@
       source: "Google Calendar · preview",
       kind: "calendar",
     }));
-    return [...calendar, ...school, ...logistics, ...household, ...responsibilities].sort((left, right) => left.sort - right.sort || left.title.localeCompare(right.title));
+    return [...calendar, ...school, ...logistics, ...household, ...meals, ...mealHandoffs, ...responsibilities].sort((left, right) => left.sort - right.sort || left.title.localeCompare(right.title));
   }
 
   function element(tag, className, text) {

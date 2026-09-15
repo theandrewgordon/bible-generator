@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="WeekFlow keeps the weekly meal rhythm and its preparation handoffs simple and visible." />
+    <title>Meals · WeekFlow · Faith Sparks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_meals.css') }}?v=1" />
+  </head>
+  <body>
+    <header class="wfm-site-header">
+      <a class="wfm-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
+      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a></nav>
+    </header>
+
+    {% if access_denied %}
+      <main class="wfm-message-card"><span class="wfm-eyebrow">WeekFlow beta</span><h1>This account isn’t in the WeekFlow beta yet.</h1><p>Your Faith Sparks account is signed in, but this WeekFlow area has not been enabled for it.</p><a class="wfm-button wfm-primary" href="/labs">Back to Faith Sparks Labs</a></main>
+    {% else %}
+      <nav class="wfm-area-nav" aria-label="WeekFlow areas">
+        <a href="{{ url_for('weekflow.today') }}">Today</a><a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a><a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a><a href="{{ url_for('weekflow.kids') }}">Kids</a><a href="{{ url_for('weekflow.household') }}">Household</a><a class="is-active" href="{{ url_for('weekflow.meals') }}" aria-current="page">Meals</a><span title="Coming in a later WeekFlow step">More</span>
+      </nav>
+
+      <div class="wfm-loading" id="mealsLoading" role="status"><span></span><p>Opening this week’s meal rhythm…</p></div>
+      <div class="wfm-message-card" id="mealsError" hidden><h1>We couldn’t open Meals.</h1><p id="mealsErrorMessage">Please try again.</p><button class="wfm-button wfm-primary" id="retryButton" type="button">Try again</button></div>
+
+      <main class="wfm-shell" id="mealsApp" hidden>
+        <header class="wfm-hero">
+          <div><span class="wfm-eyebrow">WeekFlow Meals</span><h1>Know the meal.<br />Share the next step.</h1><p id="mealsGreeting">A light weekly rhythm for meals, shopping, and preparation.</p></div>
+          <div class="wfm-hero-actions"><button class="wfm-button wfm-primary" id="showMealForm" type="button">Plan a meal</button><button class="wfm-button" id="showHandoffForm" type="button">Add a prep step</button></div>
+        </header>
+
+        <section class="wfm-setup" id="setupNotice" hidden><div><span class="wfm-eyebrow">Start with your family</span><h2>Name the people sharing the week.</h2><p>Meals uses the same adult-owned family record as the rest of WeekFlow.</p></div><a class="wfm-button wfm-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a></section>
+
+        <section class="wfm-summary" aria-label="Meal plan summary">
+          <article><span>Meals planned</span><strong id="plannedCount">0</strong><small>this week</small></article><article><span>Today’s steps</span><strong id="todayStepCount">0</strong><small>still open</small></article><article><span>Open handoffs</span><strong id="openHandoffCount">0</strong><small>shopping + prep</small></article><article><span>Finished</span><strong id="completedHandoffCount">0</strong><small>this week</small></article>
+        </section>
+
+        <section class="wfm-editor" id="mealEditor" hidden aria-labelledby="mealEditorTitle">
+          <div class="wfm-section-heading"><div><span class="wfm-eyebrow" id="mealEditorEyebrow">Plan one meal</span><h2 id="mealEditorTitle">What will make this day easier?</h2></div><button class="wfm-close" data-close-editor type="button" aria-label="Close">×</button></div>
+          <form id="mealForm"><input name="meal_id" type="hidden" /><div class="wfm-form-grid"><label class="wfm-wide">Meal<input name="title" maxlength="120" placeholder="Tacos and fruit" required /></label><label>Day<select name="date" required></select></label><label>Which meal?<select name="slot"><option value="dinner">Dinner</option><option value="lunch">Lunch</option><option value="breakfast">Breakfast</option></select></label><label>Lead<select name="lead_person_id"><option value="">Not decided</option></select></label><label class="wfm-wide">Small note <small>optional—not a recipe</small><input name="note" maxlength="240" placeholder="Use the slow cooker; fruit is already washed" /></label></div><div class="wfm-form-actions"><button class="wfm-button wfm-primary" id="saveMealButton" type="submit">Plan meal</button><button class="wfm-button" data-close-editor type="button">Cancel</button></div><p class="wfm-form-status" id="mealFormStatus" role="status" aria-live="polite"></p></form>
+        </section>
+
+        <section class="wfm-editor" id="handoffEditor" hidden aria-labelledby="handoffEditorTitle">
+          <div class="wfm-section-heading"><div><span class="wfm-eyebrow">Shopping or preparation</span><h2 id="handoffEditorTitle">Make the hidden step visible.</h2></div><button class="wfm-close" data-close-editor type="button" aria-label="Close">×</button></div>
+          <form id="handoffForm"><div class="wfm-form-grid"><label class="wfm-wide">What needs doing?<input name="title" maxlength="140" placeholder="Thaw the chicken" required /></label><label>Kind<select name="kind"><option value="prep">Preparation</option><option value="shopping">Shopping</option><option value="other">Other</option></select></label><label>Who owns it?<select name="assigned_person_id" required></select></label><label>Due<select name="due_date" required></select></label><label>When?<select name="time_of_day"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="anytime">Any time</option></select></label><label class="wfm-wide">Related meal <small>optional</small><select name="meal_id"><option value="">General meal task</option></select></label></div><div class="wfm-form-actions"><button class="wfm-button wfm-primary" type="submit">Add handoff</button><button class="wfm-button" data-close-editor type="button">Cancel</button></div><p class="wfm-form-status" id="handoffFormStatus" role="status" aria-live="polite"></p></form>
+        </section>
+
+        <section class="wfm-day-picker" aria-labelledby="dayPickerTitle"><div><span class="wfm-eyebrow">This week</span><h2 id="dayPickerTitle">Choose a day</h2></div><div id="dayTabs" role="tablist" aria-label="Meal day"></div></section>
+
+        <div class="wfm-grid">
+          <section class="wfm-day" aria-labelledby="dayTitle"><div class="wfm-section-heading"><div><span class="wfm-eyebrow">The day’s rhythm</span><h2 id="dayTitle">Today’s meals</h2></div><button class="wfm-text-button" id="addForDay" type="button">+ Meal</button></div><div class="wfm-meal-list" id="dayMeals"></div><div class="wfm-divider"></div><div class="wfm-section-heading"><div><span class="wfm-eyebrow">Before we eat</span><h2>Shopping + prep</h2></div><button class="wfm-text-button" id="addStepForDay" type="button">+ Step</button></div><div id="dayHandoffs"></div></section>
+          <aside class="wfm-week" aria-labelledby="weekTitle"><div class="wfm-section-heading"><div><span class="wfm-eyebrow">At a glance</span><h2 id="weekTitle">Seven uncomplicated days</h2></div></div><div id="weekMeals"></div><p class="wfm-boundary">WeekFlow remembers the plan and the handoffs. Recipes and grocery inventory stay wherever your family already keeps them.</p></aside>
+        </div>
+        <p class="wfm-save-status" id="mealsSaveStatus" role="status" aria-live="polite"></p>
+      </main>
+
+      <script>window.WEEKFLOW_MEALS_CONFIG = { stateUrl: {{ url_for('weekflow.meals_state')|tojson }}, csrfToken: {{ csrf_token()|tojson }} };</script>
+      <script src="{{ url_for('static', filename='weekflow_meals.js') }}?v=1" defer></script>
+    {% endif %}
+  </body>
+</html>

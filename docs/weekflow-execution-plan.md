@@ -96,9 +96,30 @@ several disconnected lists.
 - Load household projections alongside other dashboard data in parallel and
   keep every household route private, non-cacheable, and latency-prioritized.
 
-The next product step is Meals: a deliberately small meal rhythm that can add
-shopping and preparation handoffs to Today without turning WeekFlow into a
-recipe database.
+## Meals and preparation handoffs
+
+Status: **Step 5 implemented**
+
+`/labs/weekflow/meals` provides a deliberately small weekly meal rhythm without
+turning WeekFlow into a recipe, nutrition, pantry, or grocery-store app.
+
+- Name breakfast, lunch, or dinner for a day, with an optional lead and short
+  note; keep one clear plan per meal slot.
+- Add dated shopping or preparation handoffs with an explicit family owner,
+  time of day, and optional related meal.
+- Complete or restore the same handoff from Meals, Today, or a child's Kids
+  view without copying it into separate task documents.
+- Show meals and open meal handoffs inside the selected day's Schedule from the
+  same source of truth.
+- Keep Meals state independent from heavier planning data, revision-protected,
+  included in family backups, bounded over time, private, non-cacheable, and on
+  the low-latency request path.
+- Preserve honest empty space: an unplanned meal is shown as open, not treated
+  as a failure or filled with generated advice.
+
+The next product decision is whether families repeatedly use this small rhythm
+before expanding WeekFlow's “More” area. Recipe storage and grocery inventory
+remain intentionally out of scope.
 
 ## 1. Prove family-logistics orchestration
 
