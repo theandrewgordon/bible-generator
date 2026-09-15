@@ -8,12 +8,12 @@
     <meta name="description" content="WeekFlow gives the adult carrying the family plan an intentional place in it too." />
     <title>Me · WeekFlow · Faith Sparks</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_today.css') }}?v=3" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_me.css') }}?v=2" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_me.css') }}?v=3" />
   </head>
   <body>
     <header class="wft-site-header">
       <a class="wft-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
-      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a></nav>
+      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav>
     </header>
 
     {% if access_denied %}
@@ -45,6 +45,7 @@
       <main class="wft-shell wfp-shell" id="meApp" hidden>
         <header class="wft-hero">
           <div><span class="wft-eyebrow">WeekFlow Me</span><h1>A place in the plan<br />for you, too.</h1><p id="meGreeting">Personal reminders and the family handoffs carrying your name.</p></div>
+          <label class="wfp-adult-picker" id="adultPickerWrap" hidden>Your view<select id="adultPicker" aria-label="Choose the adult whose personal view is shown"></select></label>
           <button class="wft-button wft-button-primary" id="focusQuickAdd" type="button">Add something for me</button>
         </header>
 
@@ -105,6 +106,7 @@
       <script>
         window.WEEKFLOW_ME_CONFIG = {
           stateUrl: {{ url_for('weekflow.today_state')|tojson }},
+          familyStateUrl: {{ url_for('weekflow.state')|tojson }},
           householdStateUrl: {{ url_for('weekflow.household_state')|tojson }},
           mealsStateUrl: {{ url_for('weekflow.meals_state')|tojson }},
           medicalStateUrl: {{ url_for('weekflow.medical_state')|tojson }},
@@ -122,7 +124,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_me.js') }}?v=1" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_me.js') }}?v=2" defer></script>
     {% endif %}
   </body>
 </html>

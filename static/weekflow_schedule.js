@@ -325,6 +325,10 @@
     renderAttention();
     renderAgenda();
     renderCoverage();
+    const warning = byId("sourceWarning");
+    const names = Object.keys(state.source_errors || {});
+    warning.hidden = names.length === 0;
+    warning.textContent = names.length ? `Some areas are temporarily unavailable: ${names.join(", ")}. The rest of your schedule is still available.` : "";
   }
 
   function setCalendarStatus(title, body, action) {

@@ -153,11 +153,14 @@ def test_me_dashboard_requires_sign_in_and_uses_shared_weekflow_sources():
     assert "A place in the plan" in html
     assert "Things for Me" in html
     assert "The family needs from me" in html
+    assert "Choose the adult whose personal view is shown" in html
     assert 'stateUrl: "/labs/weekflow/today/state"' in html
+    assert 'familyStateUrl: "/labs/weekflow/state"' in html
     assert 'householdStateUrl: "/labs/weekflow/household/state"' in html
     assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in html
     assert 'medicalStateUrl: "/labs/weekflow/medical/state"' in html
     assert 'travelStateUrl: "/labs/weekflow/travel/state"' in html
+    assert 'href="/labs/weekflow/backup"' in html
     assert 'content="noindex,nofollow"' in html
 
 
@@ -339,6 +342,27 @@ def test_today_state_loads_and_saves_for_the_signed_in_household(monkeypatch):
     assert saved.get_json()["revision"] == 5
     assert captured["email"] == "parent@example.com"
     assert captured["family"] is beta_state["family"]
+
+
+def test_today_state_keeps_other_sources_visible_when_one_source_is_unavailable(monkeypatch):
+    client = _client()
+    beta_state = default_beta_state()
+    beta_state["revision"] = 1
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: beta_state)
+    monkeypatch.setattr(weekflow_view, "load_today_state", lambda email, family: {"revision": 1, "items": [], "updated_at": None})
+    monkeypatch.setattr(weekflow_view, "load_household_state", lambda email, family: default_household_state())
+    monkeypatch.setattr(weekflow_view, "load_meals_state", lambda email, family: default_meals_state())
+    monkeypatch.setattr(weekflow_view, "load_medical_state", lambda email, family: (_ for _ in ()).throw(WeekFlowStorageUnavailable("medical offline")))
+    monkeypatch.setattr(weekflow_view, "load_travel_state", lambda email, family: default_travel_state())
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    response = client.get("/labs/weekflow/today/state")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["medical"]["items"] == []
+    assert payload["source_errors"] == {"medical": "medical offline"}
 
 
 def test_household_dashboard_and_state_are_adult_owned_and_shared(monkeypatch):

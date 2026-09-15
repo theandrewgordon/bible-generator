@@ -81,7 +81,9 @@ a { color: inherit; }
 .wft-capture-details { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
 .wft-capture-details label { display: grid; gap: 6px; color: var(--muted); font-size: .76rem; font-weight: 800; }
 .wft-capture-hint { margin: 11px 2px 0; color: var(--muted); font-size: .78rem; }
+.wft-cancel-edit { margin: 8px 2px 0; padding: 3px 0; border: 0; color: var(--muted); background: transparent; font-size: .8rem; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .wft-status { min-height: 22px; margin: 10px 4px; color: var(--muted); font-size: .82rem; }
+.wft-source-warning { margin: 10px 2px; padding: 11px 13px; border: 1px solid #ead49a; border-radius: 11px; color: #6d6248; background: var(--gold-soft); font-size: .82rem; font-weight: 700; }
 .wft-status.is-error { color: var(--rose); font-weight: 700; }
 
 .wft-board { display: grid; gap: 14px; margin-top: 18px; }

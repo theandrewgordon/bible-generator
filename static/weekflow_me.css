@@ -1,5 +1,7 @@
 .wfp-shell { max-width: 1180px; }
 .wfp-setup[hidden] { display:none; }
+.wfp-adult-picker { display:grid; gap:6px; min-width:180px; color:var(--muted); font-size:.76rem; font-weight:800; }
+.wfp-adult-picker select { min-height:42px; padding:8px 10px; color:var(--ink); border:1px solid var(--line); border-radius:10px; background:#fff; font:inherit; }
 .wfp-setup { display:flex; align-items:center; justify-content:space-between; gap:22px; margin-bottom:18px; padding:22px 24px; border:1px solid #cdded7; border-radius:18px; background:var(--green-soft); }
 .wfp-setup h2 { margin:0 0 5px; font:600 1.45rem Georgia,serif; }
 .wfp-setup p { margin:0; color:var(--muted); }
@@ -20,6 +22,7 @@
 }
 
 @media (max-width: 760px) {
+  .wfp-adult-picker { margin-top:18px; }
   .wfp-setup { align-items:stretch; flex-direction:column; }
   .wfp-capture-details { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .wfp-panel { padding:17px 14px; border-radius:16px; }

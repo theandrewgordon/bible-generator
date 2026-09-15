@@ -36,7 +36,10 @@ from faithsparks.services.weekflow_integrations import (
     integration_status,
     refresh_live_routes,
 )
-from faithsparks.services.weekflow_household import household_occurrences
+from faithsparks.services.weekflow_household import (
+    default_household_state,
+    household_occurrences,
+)
 from faithsparks.services.weekflow_logistics import (
     analyze_family_logistics,
     apply_responsibility_change,
@@ -90,9 +93,13 @@ from faithsparks.services.weekflow_support import (
 )
 from faithsparks.services.weekflow_today import (
     AREA_LABELS,
+    default_today_state,
     family_people,
     today_attention_counts,
 )
+from faithsparks.services.weekflow_meals import default_meals_state
+from faithsparks.services.weekflow_medical import default_medical_state
+from faithsparks.services.weekflow_travel import default_travel_state
 from faithsparks.util.request_utils import get_client_ip
 
 bp = Blueprint("weekflow", __name__, url_prefix="/labs/weekflow")
@@ -613,6 +620,7 @@ def schedule_dashboard_state():
         return _beta_access_required()
     try:
         beta_state = load_beta_state(email)
+        source_errors = {}
         # These documents are independent once the household is known. Reading
         # them together keeps the daily dashboard at one network round trip
         # without turning several Firestore reads into a long serial waterfall.
@@ -633,12 +641,29 @@ def schedule_dashboard_state():
             travel_future = executor.submit(
                 load_travel_state, email, family=beta_state["family"]
             )
-            today_state = today_future.result()
-            logistics_state = logistics_future.result()
-            household_state = household_future.result()
-            meals_state = meals_future.result()
-            medical_state = medical_future.result()
-            travel_state = travel_future.result()
+            def read_or_default(future, name, fallback):
+                try:
+                    return future.result()
+                except WeekFlowStorageUnavailable as exc:
+                    source_errors[name] = str(exc)
+                    return fallback()
+
+            today_state = read_or_default(today_future, "today", default_today_state)
+            logistics_state = read_or_default(
+                logistics_future,
+                "logistics",
+                lambda: {"revision": 0, "scenario": None, "updated_at": None},
+            )
+            household_state = read_or_default(
+                household_future, "household", default_household_state
+            )
+            meals_state = read_or_default(meals_future, "meals", default_meals_state)
+            medical_state = read_or_default(
+                medical_future, "medical", default_medical_state
+            )
+            travel_state = read_or_default(
+                travel_future, "travel", default_travel_state
+            )
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
@@ -683,6 +708,7 @@ def schedule_dashboard_state():
                     else None
                 ),
             },
+            "source_errors": source_errors,
         }
     )
 
@@ -696,6 +722,7 @@ def today_state():
         return _beta_access_required()
     try:
         beta_state = load_beta_state(email)
+        source_errors = {}
         with ThreadPoolExecutor(max_workers=5) as executor:
             today_future = executor.submit(
                 load_today_state, email, family=beta_state["family"]
@@ -712,11 +739,24 @@ def today_state():
             travel_future = executor.submit(
                 load_travel_state, email, family=beta_state["family"]
             )
-            saved = today_future.result()
-            household_state = household_future.result()
-            meals_state = meals_future.result()
-            medical_state = medical_future.result()
-            travel_state = travel_future.result()
+            def read_or_default(future, name, fallback):
+                try:
+                    return future.result()
+                except WeekFlowStorageUnavailable as exc:
+                    source_errors[name] = str(exc)
+                    return fallback()
+
+            saved = read_or_default(today_future, "today", default_today_state)
+            household_state = read_or_default(
+                household_future, "household", default_household_state
+            )
+            meals_state = read_or_default(meals_future, "meals", default_meals_state)
+            medical_state = read_or_default(
+                medical_future, "medical", default_medical_state
+            )
+            travel_state = read_or_default(
+                travel_future, "travel", default_travel_state
+            )
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
     timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
@@ -745,6 +785,7 @@ def today_state():
             "meals": meals_state,
             "medical": medical_state,
             "travel": travel_state,
+            "source_errors": source_errors,
         }
     )
 

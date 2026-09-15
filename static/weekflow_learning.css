@@ -87,6 +87,8 @@ a { color: inherit; }
 .wfl-assignment-actions button { padding: 7px 9px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: .74rem; font-weight: 800; cursor: pointer; }
 .wfl-assignment-actions button:hover { color: var(--forest); background: var(--green-soft); }
 .wfl-assignment-actions .is-remove:hover { color: var(--rose); background: var(--rose-soft); }
+.wfl-assignment.is-completed { background: #f5f8f6; }
+.wfl-assignment.is-completed .wfl-assignment-copy strong { color: var(--muted); text-decoration: line-through; }
 .wfl-completed .wfl-assignment-copy strong { color: var(--muted); text-decoration: line-through; }
 .wfl-kid-tabs { display: flex; gap: 9px; margin: 0 0 22px; overflow-x: auto; }
 .wfl-kid-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); background: #fff; font-weight: 800; cursor: pointer; }

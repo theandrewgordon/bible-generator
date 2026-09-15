@@ -2,9 +2,12 @@
   const config = window.WEEKFLOW_ME_CONFIG;
   const byId = (id) => document.getElementById(id);
   const form = byId("personalForm");
+  const adultPickerWrap = byId("adultPickerWrap");
+  const adultPicker = byId("adultPicker");
   const AREA_LABELS = { inbox: "Today", homeschool: "Homeschool", kids: "Kids", schedule: "Schedule", home: "Household", meals: "Meals", medical: "Medical", travel: "Travel + guests", me: "Me" };
   const SOURCE_LABELS = { today: "Today", household: "Household", meals: "Meals", medical: "Medical", travel: "Travel + guests" };
   let state = null;
+  let familyState = null;
   let primaryAdult = null;
   let saving = false;
 
@@ -85,6 +88,37 @@
     byId("waitingCount").textContent = String(open.filter((item) => item.status === "waiting").length);
   }
 
+  function renderAdultPicker() {
+    const adults = state.family.people.filter((person) => person.role === "adult");
+    adultPicker.replaceChildren(...adults.map((person) => new Option(person.name, person.id)));
+    adultPicker.value = primaryAdult?.id || "";
+    adultPickerWrap.hidden = adults.length < 2;
+  }
+
+  async function changePrimaryAdult() {
+    const nextId = adultPicker.value;
+    if (!familyState || !nextId || nextId === primaryAdult?.id || saving) return;
+    const previous = clone(familyState);
+    familyState.family.primary_adult_id = nextId;
+    saving = true;
+    setStatus("Saving your view…");
+    try {
+      familyState = await jsonRequest(config.familyStateUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify(familyState),
+      });
+      primaryAdult = state.family.people.find((person) => person.id === nextId) || null;
+      renderAdultPicker();
+      render();
+      setStatus("Your personal view is saved");
+    } catch (error) {
+      familyState = previous;
+      renderAdultPicker();
+      setStatus(error.message, true);
+    } finally { saving = false; }
+  }
+
   function resetForm() { form.reset(); form.elements.item_id.value = ""; byId("personalSubmit").textContent = "Add for me"; byId("cancelPersonalEdit").hidden = true; }
   function editItem(item) { form.elements.item_id.value = item.id; form.elements.title.value = item.title; form.elements.due_date.value = item.due_date || ""; form.elements.priority.value = item.priority; form.elements.status.value = item.status === "waiting" ? "waiting" : "open"; byId("personalDetails").open = true; byId("personalSubmit").textContent = "Save for me"; byId("cancelPersonalEdit").hidden = false; form.elements.title.focus(); form.scrollIntoView({ behavior: "smooth", block: "center" }); }
 
@@ -137,13 +171,19 @@
   async function load({ quiet = false } = {}) {
     if (!quiet) { byId("meLoading").hidden = false; byId("meError").hidden = true; byId("meApp").hidden = true; }
     try {
-      state = await jsonRequest(config.stateUrl); primaryAdult = state.family.people.find((person) => person.role === "adult") || null;
+      [state, familyState] = await Promise.all([
+        jsonRequest(config.stateUrl),
+        jsonRequest(config.familyStateUrl),
+      ]);
+      const primaryId = familyState.family.primary_adult_id;
+      primaryAdult = state.family.people.find((person) => person.id === primaryId && person.role === "adult")
+        || state.family.people.find((person) => person.role === "adult") || null;
       if (!primaryAdult) throw new Error("Set up an adult in your WeekFlow family first.");
       byId("meGreeting").textContent = state.family.configured ? `${primaryAdult.name}, the plan should care for your attention too.` : "Set up the family first, then WeekFlow can gather what belongs to you.";
       byId("setupNotice").hidden = state.family.configured;
       form.querySelectorAll("input, select, button").forEach((control) => { control.disabled = !state.family.configured; });
       byId("focusQuickAdd").disabled = !state.family.configured;
-      resetForm(); render();
+      resetForm(); renderAdultPicker(); render();
       if (!quiet) { byId("meLoading").hidden = true; byId("meApp").hidden = false; }
     } catch (error) { if (!quiet) { byId("meLoading").hidden = true; byId("meErrorMessage").textContent = error.message; byId("meError").hidden = false; } throw error; }
   }
@@ -151,6 +191,7 @@
   form.addEventListener("submit", submitPersonal);
   byId("cancelPersonalEdit").addEventListener("click", resetForm);
   byId("focusQuickAdd").addEventListener("click", () => { form.elements.title.focus(); form.scrollIntoView({ behavior: "smooth", block: "center" }); });
+  adultPicker.addEventListener("change", changePrimaryAdult);
   byId("meApp").addEventListener("click", handleAction);
   byId("retryButton").addEventListener("click", () => load().catch(() => {}));
   load().catch(() => {});

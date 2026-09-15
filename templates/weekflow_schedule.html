@@ -7,12 +7,12 @@
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow puts family commitments, rides, and handoffs on one calm daily agenda." />
     <title>Schedule · WeekFlow · Faith Sparks</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_schedule.css') }}?v=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_schedule.css') }}?v=2" />
   </head>
   <body>
     <header class="wfs-site-header">
       <a class="wfs-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
-      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a></nav>
+      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav>
     </header>
 
     {% if access_denied %}
@@ -47,7 +47,7 @@
           <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.logistics', personal=1) }}">Edit family logistics</a>
         </header>
 
-        <section class="wfs-setup" id="setupNotice" hidden>
+          <section class="wfs-setup" id="setupNotice" hidden>
           <div><span class="wfs-eyebrow">Start with your family</span><h2>Name the people WeekFlow is coordinating.</h2><p>Set up the family once, then Schedule can connect schoolwork, responsibilities, rides, and appointments without child accounts.</p></div>
           <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
         </section>
@@ -67,6 +67,7 @@
             <div class="wfs-section-heading"><div><span class="wfs-eyebrow">In time order</span><h2 id="agendaTitle">Today’s agenda</h2></div><span id="agendaCount"></span></div>
             <div class="wfs-agenda-list" id="agendaList"></div>
           </section>
+          <p class="wfs-source-warning" id="sourceWarning" role="alert" hidden></p>
 
           <aside class="wfs-sidebar">
             <section class="wfs-coverage" aria-labelledby="coverageTitle">
@@ -105,7 +106,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_schedule.js') }}?v=4" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_schedule.js') }}?v=5" defer></script>
     {% endif %}
   </body>
 </html>

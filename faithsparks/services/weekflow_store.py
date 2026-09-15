@@ -102,6 +102,7 @@ def default_beta_state() -> dict[str, object]:
         "family": {
             "name": "Our homeschool",
             "parent_label": "Parent",
+            "primary_adult_id": PARENT,
             "timezone": "America/New_York",
             "adults": {
                 adult_id: {"name": adult["name"], "color": adult["color"]}
@@ -212,6 +213,14 @@ def normalize_beta_state(payload: object) -> dict[str, object]:
     )
     if set(adults) & set(students):
         raise ValueError("family adult and student ids must not overlap")
+    primary_adult_id = family.get("primary_adult_id")
+    if primary_adult_id is None:
+        # Older WeekFlow records predate an explicit account-to-adult mapping.
+        # Preserve their existing behavior while making the choice durable for
+        # records created or edited after this schema update.
+        primary_adult_id = next(iter(adults))
+    if not isinstance(primary_adult_id, str) or primary_adult_id not in adults:
+        raise ValueError("family.primary_adult_id must identify a family adult")
 
     scenario_payload = deepcopy(payload.get("scenario"))
     if not isinstance(scenario_payload, dict):
@@ -232,6 +241,7 @@ def normalize_beta_state(payload: object) -> dict[str, object]:
         "family": {
             "name": _clean_text(family.get("name"), "family.name", maximum=80),
             "parent_label": first_adult["name"],
+            "primary_adult_id": primary_adult_id,
             "timezone": timezone_name,
             "adults": adults,
             "students": students,
@@ -934,6 +944,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
     meals_state = load_meals_state(email, family=state["family"])
     medical_state = load_medical_state(email, family=state["family"])
     travel_state = load_travel_state(email, family=state["family"])
+    logistics_state = load_logistics_state(email)
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
     try:
@@ -959,6 +970,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
         "meals": meals_state,
         "medical": medical_state,
         "travel": travel_state,
+        "logistics": logistics_state,
         "weeks": weeks,
         "templates": list_week_templates(email),
     }

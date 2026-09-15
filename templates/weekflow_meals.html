@@ -12,7 +12,7 @@
   <body>
     <header class="wfm-site-header">
       <a class="wfm-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
-      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a></nav>
+      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav>
     </header>
 
     {% if access_denied %}

@@ -129,6 +129,7 @@ def test_personalized_week_can_start_without_demo_assignments():
         (("family.timezone", "Mars/Olympus"), "timezone"),
         (("family.name", ""), "family.name"),
         (("family.parent_label", ""), "parent_label"),
+        (("family.primary_adult_id", "missing-adult"), "primary_adult_id"),
         (("family.students.tessa.color", "red"), "colors"),
     ],
 )
@@ -177,6 +178,7 @@ def test_beta_state_accepts_additional_students_and_teaching_adults():
         "elsie",
         "noah",
     }
+    assert normalized["family"]["primary_adult_id"] == "parent"
     assert {person["id"] for person in normalized["scenario"]["household"]["adults"]} == {
         "parent",
         "jordan",
@@ -262,6 +264,7 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
     assert backup["meals"]["meals"] == []
     assert backup["medical"]["items"] == []
     assert backup["travel"]["plans"] == []
+    assert backup["logistics"]["scenario"] is None
 
     delete_beta_state("parent@example.com")
     assert database.documents == {}

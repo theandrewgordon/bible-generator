@@ -12,6 +12,8 @@
   const personInput = byId("capturePerson");
   const dueInput = byId("captureDue");
   const priorityInput = byId("capturePriority");
+  const captureSubmit = byId("captureSubmit");
+  const cancelCaptureEdit = byId("cancelCaptureEdit");
   const statusLine = byId("saveStatus");
   const board = byId("todayBoard");
 
@@ -22,6 +24,7 @@
   let meals = null;
   let medical = null;
   let travel = null;
+  let sourceErrors = {};
   let householdSaving = false;
   let mealsSaving = false;
   let medicalSaving = false;
@@ -260,7 +263,10 @@
     } else {
       actions.appendChild(actionButton("Wait", "wait", item.id));
     }
-    if (!item.source) actions.appendChild(actionButton("Remove", "remove", item.id, "is-remove"));
+    if (!item.source) {
+      if (item.status !== "completed") actions.appendChild(actionButton("Edit", "edit", item.id));
+      actions.appendChild(actionButton("Remove", "remove", item.id, "is-remove"));
+    }
     article.append(check, copy, actions);
     return article;
   }
@@ -367,6 +373,21 @@
       state.items = state.items.filter((candidate) => candidate.id !== itemId);
       render();
       scheduleSave();
+      return;
+    }
+    if (action === "edit") {
+      const item = state.items.find((candidate) => candidate.id === itemId);
+      if (!item) return;
+      form.elements.item_id.value = item.id;
+      titleInput.value = item.title;
+      areaInput.value = item.area;
+      personInput.value = item.assigned_person_id || "";
+      dueInput.value = item.due_date || "";
+      priorityInput.value = item.priority;
+      captureSubmit.textContent = "Save";
+      cancelCaptureEdit.hidden = false;
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+      titleInput.focus();
       return;
     }
     mutateItem(itemId, (item) => {
@@ -491,6 +512,10 @@
     byId("todayLabel").textContent = new Intl.DateTimeFormat(undefined, {
       weekday: "long", month: "long", day: "numeric",
     }).format(new Date(parts[0], parts[1] - 1, parts[2]));
+    const warning = byId("sourceWarning");
+    const names = Object.keys(sourceErrors);
+    warning.hidden = names.length === 0;
+    warning.textContent = names.length ? `Some areas are temporarily unavailable: ${names.join(", ")}. We’re showing the rest of your day; try again later.` : "";
   }
 
   async function loadState({ quiet = false } = {}) {
@@ -513,6 +538,7 @@
       meals = payload.meals;
       medical = payload.medical;
       travel = payload.travel;
+      sourceErrors = payload.source_errors || {};
       renderFamily();
       render();
       app.hidden = false;
@@ -527,31 +553,37 @@
     }
   }
 
+  function resetCaptureForm() {
+    form.reset();
+    form.elements.item_id.value = "";
+    captureSubmit.textContent = "Add";
+    cancelCaptureEdit.hidden = true;
+  }
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const title = titleInput.value.trim().replace(/\s+/g, " ");
     if (!title) return;
     const timestamp = nowIso();
-    state.items.push({
-      id: newId(),
-      title,
-      area: areaInput.value,
-      assigned_person_id: personInput.value || null,
-      due_date: dueInput.value || null,
-      priority: priorityInput.value,
-      status: "open",
-      created_at: timestamp,
-      updated_at: timestamp,
-      completed_at: null,
-    });
-    titleInput.value = "";
-    dueInput.value = "";
+    const itemId = form.elements.item_id.value;
+    const existing = state.items.find((candidate) => candidate.id === itemId);
+    const next = {
+      id: itemId || newId(), title, area: areaInput.value,
+      assigned_person_id: personInput.value || null, due_date: dueInput.value || null,
+      priority: priorityInput.value, status: existing?.status || "open",
+      created_at: existing?.created_at || timestamp, updated_at: timestamp,
+      completed_at: existing?.completed_at || null,
+    };
+    if (existing) state.items = state.items.map((candidate) => candidate.id === itemId ? next : candidate);
+    else state.items.push(next);
+    resetCaptureForm();
     render();
     scheduleSave();
     titleInput.focus();
   });
   board.addEventListener("click", handleBoardAction);
   retryButton.addEventListener("click", () => loadState());
+  cancelCaptureEdit.addEventListener("click", resetCaptureForm);
   window.addEventListener("online", () => {
     if (dirty) flushSave();
   });

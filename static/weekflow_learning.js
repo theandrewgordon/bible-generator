@@ -268,10 +268,13 @@
 
   function responsibilityCard(item) {
     const article = document.createElement("article");
-    article.className = "wfl-assignment";
+    const completed = item.status === "completed";
+    article.className = `wfl-assignment${completed ? " is-completed" : ""}`;
     const action = item.source === "household" ? "complete-household" : item.source === "meals" ? "complete-meal" : item.source === "medical" ? "complete-medical" : item.source === "travel" ? "complete-travel" : "complete-responsibility";
-    const check = button("✓", action, item.id, "wfl-check");
-    check.setAttribute("aria-label", `Complete ${item.title}`);
+    const effectiveAction = completed ? `restore-${action.slice("complete-".length)}` : action;
+    const check = button("✓", effectiveAction, item.id, "wfl-check");
+    check.setAttribute("aria-label", completed ? `Restore ${item.title}` : `Complete ${item.title}`);
+    if (completed) { check.style.color = "#fff"; check.style.borderColor = "#2d7561"; check.style.background = "#2d7561"; }
     const copy = document.createElement("div");
     copy.className = "wfl-assignment-copy";
     const title = document.createElement("strong");
@@ -285,7 +288,7 @@
     copy.append(title, details);
     const actions = document.createElement("div");
     actions.className = "wfl-assignment-actions";
-    actions.appendChild(button("Done", action, item.id));
+    actions.appendChild(button(completed ? "Undo" : "Done", effectiveAction, item.id));
     article.append(check, copy, actions);
     return article;
   }
@@ -317,18 +320,20 @@
       ? lessons.map((entry) => assignmentCard(entry, { childView: true }))
       : [createEmpty(`${student.name} has no scheduled lessons on ${day.label}.`)]
     ));
-    const todayResponsibilities = todayState.items.filter((item) => item.assigned_person_id === student.id && item.status !== "completed");
+    const todayResponsibilities = todayState.items
+      .filter((item) => item.assigned_person_id === student.id && (item.due_date === dayDate || (!item.due_date && dayDate === todayState.today)))
+      .map((item) => ({ ...item, source: "today" }));
     const householdResponsibilities = (todayState.household?.occurrences || [])
-      .filter((item) => item.assigned_person_id === student.id && item.date === dayDate && !item.completed)
-      .map((item) => ({ ...item, area: "home", status: "open", source: "household", due_date: item.date }));
+      .filter((item) => item.assigned_person_id === student.id && item.date === dayDate)
+      .map((item) => ({ ...item, area: "home", status: item.completed ? "completed" : "open", source: "household", due_date: item.date }));
     const mealResponsibilities = (todayState.meals?.handoffs || [])
-      .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate && item.status !== "completed")
+      .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate)
       .map((item) => ({ ...item, area: "meals", source: "meals" }));
     const travelResponsibilities = (todayState.travel?.handoffs || [])
-      .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate && item.status !== "completed")
+      .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate)
       .map((item) => ({ ...item, area: "travel", source: "travel" }));
     const medicalResponsibilities = (todayState.medical?.items || [])
-      .filter((item) => (item.for_person_id === student.id || item.assigned_person_id === student.id) && item.date === dayDate && item.status !== "completed")
+      .filter((item) => (item.for_person_id === student.id || item.assigned_person_id === student.id) && item.date === dayDate)
       .map((item) => ({ ...item, area: "medical", source: "medical", due_date: item.date, time_of_day: item.time ? null : "anytime" }));
     const responsibilities = [...householdResponsibilities, ...mealResponsibilities, ...medicalResponsibilities, ...travelResponsibilities, ...todayResponsibilities];
     byId("kidResponsibilityList").replaceChildren(...(responsibilities.length
@@ -399,14 +404,14 @@
     }
   }
 
-  async function saveTodayResponsibility(itemId) {
+  async function saveTodayResponsibility(itemId, completed = true) {
     if (savingToday) return;
     const item = todayState.items.find((candidate) => candidate.id === itemId);
     if (!item) return;
     const previous = JSON.parse(JSON.stringify(todayState));
     const timestamp = new Date().toISOString();
-    item.status = "completed";
-    item.completed_at = timestamp;
+    item.status = completed ? "completed" : "open";
+    item.completed_at = completed ? timestamp : null;
     item.updated_at = timestamp;
     renderKids();
     savingToday = true;
@@ -418,7 +423,7 @@
         body: JSON.stringify({ revision: todayState.revision, items: todayState.items }),
       });
       todayState = { ...todayState, ...saved };
-      setStatus("Responsibility completed");
+      setStatus(completed ? "Responsibility completed" : "Responsibility restored");
     } catch (error) {
       todayState = previous;
       renderKids();
@@ -428,15 +433,16 @@
     }
   }
 
-  async function saveHouseholdResponsibility(itemId) {
+  async function saveHouseholdResponsibility(itemId, completed = true) {
     if (savingHousehold) return;
     const household = todayState.household;
     const item = household?.occurrences.find((candidate) => candidate.id === itemId);
     if (!item) return;
     const previous = JSON.parse(JSON.stringify(household));
-    household.completions[itemId] = new Date().toISOString();
-    item.completed = true;
-    item.completed_at = household.completions[itemId];
+    if (completed) household.completions[itemId] = new Date().toISOString();
+    else delete household.completions[itemId];
+    item.completed = completed;
+    item.completed_at = household.completions[itemId] || null;
     renderKids();
     savingHousehold = true;
     setStatus("Saving household responsibility…");
@@ -447,7 +453,7 @@
         body: JSON.stringify({ revision: household.revision, routines: household.routines, completions: household.completions }),
       });
       todayState.household = saved;
-      setStatus("Household responsibility completed");
+      setStatus(completed ? "Household responsibility completed" : "Household responsibility restored");
     } catch (error) {
       todayState.household = previous;
       renderKids();
@@ -457,14 +463,14 @@
     }
   }
 
-  async function saveMealResponsibility(itemId) {
+  async function saveMealResponsibility(itemId, completed = true) {
     if (savingMeals) return;
     const meals = todayState.meals;
     const item = meals?.handoffs.find((candidate) => candidate.id === itemId);
     if (!item) return;
     const previous = JSON.parse(JSON.stringify(meals));
     const timestamp = new Date().toISOString();
-    item.status = "completed"; item.completed_at = timestamp; item.updated_at = timestamp;
+    item.status = completed ? "completed" : "open"; item.completed_at = completed ? timestamp : null; item.updated_at = timestamp;
     renderKids(); savingMeals = true; setStatus("Saving meal handoff…");
     try {
       todayState.meals = await jsonRequest(config.mealsStateUrl, {
@@ -472,31 +478,31 @@
         headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
         body: JSON.stringify({ revision: meals.revision, meals: meals.meals, handoffs: meals.handoffs }),
       });
-      setStatus("Meal handoff completed");
+      setStatus(completed ? "Meal handoff completed" : "Meal handoff restored");
     } catch (error) {
       todayState.meals = previous; renderKids(); setStatus(error.message, true);
     } finally { savingMeals = false; }
   }
 
-  async function saveTravelResponsibility(itemId) {
+  async function saveTravelResponsibility(itemId, completed = true) {
     if (savingTravel) return;
     const travel = todayState.travel; const item = travel?.handoffs.find((candidate) => candidate.id === itemId); if (!item) return;
-    const previous = JSON.parse(JSON.stringify(travel)); const timestamp = new Date().toISOString(); item.status = "completed"; item.completed_at = timestamp; item.updated_at = timestamp;
+    const previous = JSON.parse(JSON.stringify(travel)); const timestamp = new Date().toISOString(); item.status = completed ? "completed" : "open"; item.completed_at = completed ? timestamp : null; item.updated_at = timestamp;
     renderKids(); savingTravel = true; setStatus("Saving travel handoff…");
     try {
       todayState.travel = await jsonRequest(config.travelStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: travel.revision, plans: travel.plans, handoffs: travel.handoffs }) });
-      setStatus("Travel handoff completed");
+      setStatus(completed ? "Travel handoff completed" : "Travel handoff restored");
     } catch (error) { todayState.travel = previous; renderKids(); setStatus(error.message, true); } finally { savingTravel = false; }
   }
 
-  async function saveMedicalResponsibility(itemId) {
+  async function saveMedicalResponsibility(itemId, completed = true) {
     if (savingMedical) return;
     const medical = todayState.medical; const item = medical?.items.find((candidate) => candidate.id === itemId); if (!item) return;
-    const previous = JSON.parse(JSON.stringify(medical)); const timestamp = new Date().toISOString(); item.status = "completed"; item.completed_at = timestamp; item.updated_at = timestamp;
+    const previous = JSON.parse(JSON.stringify(medical)); const timestamp = new Date().toISOString(); item.status = completed ? "completed" : "open"; item.completed_at = completed ? timestamp : null; item.updated_at = timestamp;
     renderKids(); savingMedical = true; setStatus("Saving care reminder…");
     try {
       todayState.medical = await jsonRequest(config.medicalStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: medical.revision, items: medical.items }) });
-      setStatus("Care reminder completed");
+      setStatus(completed ? "Care reminder completed" : "Care reminder restored");
     } catch (error) { todayState.medical = previous; renderKids(); setStatus(error.message, true); } finally { savingMedical = false; }
   }
 
@@ -505,24 +511,24 @@
     if (!target) return;
     const action = target.dataset.action;
     const taskId = target.dataset.itemId;
-    if (action === "complete-responsibility") {
-      saveTodayResponsibility(taskId);
+    if (action === "complete-responsibility" || action === "restore-responsibility") {
+      saveTodayResponsibility(taskId, action === "complete-responsibility");
       return;
     }
-    if (action === "complete-household") {
-      saveHouseholdResponsibility(taskId);
+    if (action === "complete-household" || action === "restore-household") {
+      saveHouseholdResponsibility(taskId, action === "complete-household");
       return;
     }
-    if (action === "complete-meal") {
-      saveMealResponsibility(taskId);
+    if (action === "complete-meal" || action === "restore-meal") {
+      saveMealResponsibility(taskId, action === "complete-meal");
       return;
     }
-    if (action === "complete-travel") {
-      saveTravelResponsibility(taskId);
+    if (action === "complete-travel" || action === "restore-travel") {
+      saveTravelResponsibility(taskId, action === "complete-travel");
       return;
     }
-    if (action === "complete-medical") {
-      saveMedicalResponsibility(taskId);
+    if (action === "complete-medical" || action === "restore-medical") {
+      saveMedicalResponsibility(taskId, action === "complete-medical");
       return;
     }
     if (savingLearning) {

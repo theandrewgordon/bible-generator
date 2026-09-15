@@ -15,6 +15,7 @@
       <nav aria-label="WeekFlow links">
         <a href="/labs">Labs</a>
         <a href="{{ url_for('weekflow.index') }}">WeekFlow lab</a>
+        <a href="{{ url_for('weekflow.backup') }}">Backup</a>
       </nav>
     </header>
 
@@ -55,13 +56,15 @@
             <article><span>Waiting</span><strong id="waitingCount">0</strong></article>
             <article><span>Open</span><strong id="openCount">0</strong></article>
           </section>
+          <p class="wft-source-warning" id="sourceWarning" role="alert" hidden></p>
 
           <section class="wft-capture" aria-label="Quick add">
             <form id="captureForm">
+              <input name="item_id" type="hidden" />
               <div class="wft-capture-main">
                 <label class="wft-visually-hidden" for="captureTitle">What do you need to remember?</label>
                 <input id="captureTitle" name="title" maxlength="160" autocomplete="off" placeholder="What needs remembering?" required />
-                <button class="wft-button wft-button-primary" type="submit">Add</button>
+                <button class="wft-button wft-button-primary" id="captureSubmit" type="submit">Add</button>
               </div>
               <details>
                 <summary>Add details</summary>
@@ -74,6 +77,7 @@
                   <label>Priority<select id="capturePriority" name="priority"><option value="normal">Normal</option><option value="high">Important</option><option value="low">Low</option></select></label>
                 </div>
               </details>
+              <button class="wft-cancel-edit" id="cancelCaptureEdit" type="button" hidden>Cancel editing</button>
             </form>
             <p class="wft-capture-hint">Capture it now. Sort it only when that helps.</p>
           </section>
@@ -148,7 +152,7 @@
           areaLabels: {{ area_labels|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_today.js') }}?v=4" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_today.js') }}?v=6" defer></script>
     {% endif %}
   </body>
 </html>
