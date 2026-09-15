@@ -493,6 +493,20 @@ def travel():
     )
 
 
+@bp.get("/me")
+def me():
+    """Render the primary adult's view of existing WeekFlow responsibilities."""
+
+    email = _signed_in_email()
+    if not email:
+        return redirect("/login/google/start?next=/labs/weekflow/me")
+    if not _has_beta_access(email):
+        return render_template(
+            "weekflow_me.html", access_denied=True, noindex=True
+        ), 403
+    return render_template("weekflow_me.html", access_denied=False, noindex=True)
+
+
 def _travel_dashboard_payload(
     saved: dict[str, object], *, beta_state: dict[str, object], family_today
 ) -> dict[str, object]:

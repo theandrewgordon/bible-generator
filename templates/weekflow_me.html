@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="WeekFlow gives the adult carrying the family plan an intentional place in it too." />
+    <title>Me · WeekFlow · Faith Sparks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_today.css') }}?v=3" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_me.css') }}?v=2" />
+  </head>
+  <body>
+    <header class="wft-site-header">
+      <a class="wft-brand" href="/"><span aria-hidden="true">✦</span> Faith Sparks</a>
+      <nav aria-label="WeekFlow links"><a href="/labs">Labs</a><a href="{{ url_for('weekflow.index') }}">Scheduler lab</a></nav>
+    </header>
+
+    {% if access_denied %}
+      <main class="wft-access-card">
+        <span class="wft-eyebrow">WeekFlow beta</span>
+        <h1>This account isn’t in the WeekFlow beta yet.</h1>
+        <p>Your Faith Sparks account is signed in, but this WeekFlow area has not been enabled for it.</p>
+        <a class="wft-button wft-button-primary" href="/labs">Back to Faith Sparks Labs</a>
+      </main>
+    {% else %}
+      <nav class="wft-area-nav" aria-label="WeekFlow areas">
+        <a href="{{ url_for('weekflow.today') }}">Today</a>
+        <a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a>
+        <a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a>
+        <a href="{{ url_for('weekflow.kids') }}">Kids</a>
+        <a href="{{ url_for('weekflow.household') }}">Household</a>
+        <a href="{{ url_for('weekflow.meals') }}">Meals</a>
+        <a href="{{ url_for('weekflow.medical') }}">Medical</a>
+        <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
+        <a class="is-active" href="{{ url_for('weekflow.me') }}" aria-current="page">Me</a>
+      </nav>
+
+      <div class="wft-loading" id="meLoading" role="status"><span></span><p>Making room for you in the plan…</p></div>
+      <div class="wft-load-error" id="meError" hidden>
+        <h1>We couldn’t open your view.</h1><p id="meErrorMessage">Please try again.</p>
+        <button class="wft-button wft-button-primary" id="retryButton" type="button">Try again</button>
+      </div>
+
+      <main class="wft-shell wfp-shell" id="meApp" hidden>
+        <header class="wft-hero">
+          <div><span class="wft-eyebrow">WeekFlow Me</span><h1>A place in the plan<br />for you, too.</h1><p id="meGreeting">Personal reminders and the family handoffs carrying your name.</p></div>
+          <button class="wft-button wft-button-primary" id="focusQuickAdd" type="button">Add something for me</button>
+        </header>
+
+        <section class="wfp-setup" id="setupNotice" hidden>
+          <div><span class="wft-eyebrow">Start with your family</span><h2>Tell WeekFlow who you are.</h2><p>Set up the family once so this view can gather the responsibilities assigned to you.</p></div>
+          <a class="wft-button wft-button-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
+        </section>
+
+        <section class="wft-summary" aria-label="Your summary">
+          <article><span>Due today</span><strong id="dueTodayCount">0</strong></article>
+          <article><span>Overdue</span><strong id="overdueCount">0</strong></article>
+          <article><span>Coming up</span><strong id="upcomingCount">0</strong></article>
+          <article><span>Waiting</span><strong id="waitingCount">0</strong></article>
+        </section>
+
+        <section class="wft-capture" aria-label="Add something for me">
+          <form id="personalForm">
+            <input name="item_id" type="hidden" />
+            <div class="wft-capture-main">
+              <label class="wft-visually-hidden" for="personalTitle">What do you want to remember?</label>
+              <input id="personalTitle" name="title" maxlength="160" autocomplete="off" placeholder="Something I need, want, or should remember…" required />
+              <button class="wft-button wft-button-primary" id="personalSubmit" type="submit">Add for me</button>
+            </div>
+            <details id="personalDetails">
+              <summary>Add details</summary>
+              <div class="wft-capture-details wfp-capture-details">
+                <label>Due<input name="due_date" type="date" /></label>
+                <label>Priority<select name="priority"><option value="normal">Normal</option><option value="high">Important</option><option value="low">Flexible</option></select></label>
+                <label>Status<select name="status"><option value="open">Ready</option><option value="waiting">Waiting on someone</option></select></label>
+              </div>
+            </details>
+            <p class="wft-capture-hint">A book to find, an errand, an appointment to make, or something you don’t want to lose in the family shuffle.</p>
+            <button class="wfp-cancel-edit" id="cancelPersonalEdit" type="button" hidden>Cancel editing</button>
+          </form>
+        </section>
+        <p class="wft-status" id="meSaveStatus" role="status" aria-live="polite"></p>
+
+        <div class="wfp-grid">
+          <section class="wfp-panel" aria-labelledby="thingsForMeTitle">
+            <div class="wft-section-heading"><div><span class="wft-dot is-today"></span><h2 id="thingsForMeTitle">Things for Me</h2></div><span id="personalBadge">0</span></div>
+            <p class="wfp-intro">Your own needs are part of the family plan—not an afterthought.</p>
+            <div class="wft-item-list" id="personalList"></div>
+          </section>
+
+          <section class="wfp-panel" aria-labelledby="familyNeedsTitle">
+            <div class="wft-section-heading"><div><span class="wft-dot is-important"></span><h2 id="familyNeedsTitle">The family needs from me</h2></div><span id="familyBadge">0</span></div>
+            <p class="wfp-intro">One view of household, meal, care, travel, and other responsibilities already assigned to you.</p>
+            <div class="wft-item-list" id="familyList"></div>
+          </section>
+        </div>
+
+        <section class="wfp-panel wfp-completed" id="completedSection" aria-labelledby="completedTitle">
+          <div class="wft-section-heading"><div><span class="wft-dot is-complete"></span><h2 id="completedTitle">Recently finished</h2></div><span id="completedBadge">0</span></div>
+          <div class="wft-item-list wft-completed" id="completedList"></div>
+        </section>
+      </main>
+
+      <script>
+        window.WEEKFLOW_ME_CONFIG = {
+          stateUrl: {{ url_for('weekflow.today_state')|tojson }},
+          householdStateUrl: {{ url_for('weekflow.household_state')|tojson }},
+          mealsStateUrl: {{ url_for('weekflow.meals_state')|tojson }},
+          medicalStateUrl: {{ url_for('weekflow.medical_state')|tojson }},
+          travelStateUrl: {{ url_for('weekflow.travel_state')|tojson }},
+          sourceUrls: {
+            inbox: {{ url_for('weekflow.today')|tojson }},
+            homeschool: {{ url_for('weekflow.homeschool')|tojson }},
+            kids: {{ url_for('weekflow.kids')|tojson }},
+            schedule: {{ url_for('weekflow.schedule_dashboard')|tojson }},
+            home: {{ url_for('weekflow.household')|tojson }},
+            meals: {{ url_for('weekflow.meals')|tojson }},
+            medical: {{ url_for('weekflow.medical')|tojson }},
+            travel: {{ url_for('weekflow.travel')|tojson }}
+          },
+          csrfToken: {{ csrf_token()|tojson }}
+        };
+      </script>
+      <script src="{{ url_for('static', filename='weekflow_me.js') }}?v=1" defer></script>
+    {% endif %}
+  </body>
+</html>

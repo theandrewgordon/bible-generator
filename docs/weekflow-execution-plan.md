@@ -160,6 +160,29 @@ home, centered on preparation rather than detailed itinerary management.
 - Keep reservations, route planning, detailed itineraries, and travel content
   intentionally outside WeekFlow.
 
+## The parent in the plan
+
+Status: **Step 8 implemented**
+
+`/labs/weekflow/me` gives the primary adult an intentional personal view without
+creating an eighth disconnected task store.
+
+- Save personal reminders, needs, errands, commitments, and goals as Me items
+  in the existing Today document, with an optional due date, priority, or
+  waiting status.
+- Gather household responsibilities, meal preparation, care coordination,
+  travel preparation, and other Today items already assigned to the primary
+  adult from their existing sources of truth.
+- Complete or restore those shared handoffs from Me while saving them back to
+  the source dashboard, so the family never sees conflicting copies.
+- Keep calm empty states and overdue, due-today, upcoming, waiting, and recent
+  completion context without introducing wellness scoring or productivity
+  pressure.
+- Reuse Today's single low-latency, private, non-cacheable aggregate request;
+  personal items inherit its revision protection and family backup coverage.
+- Make Me a first-class destination in every WeekFlow area instead of hiding it
+  under a generic More label.
+
 
 ## 1. Prove family-logistics orchestration
 

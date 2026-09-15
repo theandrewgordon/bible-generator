@@ -136,6 +136,31 @@ def test_schedule_dashboard_requires_sign_in_and_renders_the_calm_daily_shell():
     assert 'content="noindex,nofollow"' in html
 
 
+def test_me_dashboard_requires_sign_in_and_uses_shared_weekflow_sources():
+    client = _client()
+    signed_out = client.get("/labs/weekflow/me")
+    assert signed_out.status_code == 302
+    assert signed_out.headers["Location"].endswith(
+        "/login/google/start?next=/labs/weekflow/me"
+    )
+
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+    response = client.get("/labs/weekflow/me")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "A place in the plan" in html
+    assert "Things for Me" in html
+    assert "The family needs from me" in html
+    assert 'stateUrl: "/labs/weekflow/today/state"' in html
+    assert 'householdStateUrl: "/labs/weekflow/household/state"' in html
+    assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in html
+    assert 'medicalStateUrl: "/labs/weekflow/medical/state"' in html
+    assert 'travelStateUrl: "/labs/weekflow/travel/state"' in html
+    assert 'content="noindex,nofollow"' in html
+
+
 def test_schedule_state_combines_family_learning_today_and_saved_logistics(monkeypatch):
     client = _client()
     beta_state = default_beta_state()

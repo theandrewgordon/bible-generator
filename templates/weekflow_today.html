@@ -36,7 +36,7 @@
           <a href="{{ url_for('weekflow.meals') }}">Meals</a>
           <a href="{{ url_for('weekflow.medical') }}">Medical</a>
           <a href="{{ url_for('weekflow.travel') }}">Travel + guests</a>
-          <span title="Coming in a later WeekFlow step">More</span>
+          <a href="{{ url_for('weekflow.me') }}">Me</a>
         </nav>
 
         <main class="wft-shell">
@@ -122,6 +122,7 @@
               <a href="{{ url_for('weekflow.meals') }}"><span>Meals</span><strong>Plan meals and their handoffs</strong><p>Name the meal, then give shopping or preparation a clear owner.</p><b>Open Meals →</b></a>
               <a href="{{ url_for('weekflow.medical') }}"><span>Medical</span><strong>Close the loop on family care</strong><p>Coordinate appointments, forms, refills, and practical follow-ups.</p><b>Open Medical →</b></a>
               <a href="{{ url_for('weekflow.travel') }}"><span>Travel + guests</span><strong>Prepare without carrying it alone</strong><p>Keep upcoming dates visible and assign packing, booking, or hosting.</p><b>Open Travel + Guests →</b></a>
+              <a href="{{ url_for('weekflow.me') }}"><span>Me</span><strong>Keep a place for yourself</strong><p>Gather personal reminders and the family handoffs carrying your name.</p><b>Open Things for Me →</b></a>
             </div>
           </section>
         </main>

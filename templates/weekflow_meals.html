@@ -19,7 +19,7 @@
       <main class="wfm-message-card"><span class="wfm-eyebrow">WeekFlow beta</span><h1>This account isn’t in the WeekFlow beta yet.</h1><p>Your Faith Sparks account is signed in, but this WeekFlow area has not been enabled for it.</p><a class="wfm-button wfm-primary" href="/labs">Back to Faith Sparks Labs</a></main>
     {% else %}
       <nav class="wfm-area-nav" aria-label="WeekFlow areas">
-        <a href="{{ url_for('weekflow.today') }}">Today</a><a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a><a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a><a href="{{ url_for('weekflow.kids') }}">Kids</a><a href="{{ url_for('weekflow.household') }}">Household</a><a class="is-active" href="{{ url_for('weekflow.meals') }}" aria-current="page">Meals</a><a href="{{ url_for('weekflow.medical') }}">Medical</a><a href="{{ url_for('weekflow.travel') }}">Travel + guests</a><span title="Coming in a later WeekFlow step">More</span>
+        <a href="{{ url_for('weekflow.today') }}">Today</a><a href="{{ url_for('weekflow.homeschool') }}">Homeschool</a><a href="{{ url_for('weekflow.schedule_dashboard') }}">Schedule</a><a href="{{ url_for('weekflow.kids') }}">Kids</a><a href="{{ url_for('weekflow.household') }}">Household</a><a class="is-active" href="{{ url_for('weekflow.meals') }}" aria-current="page">Meals</a><a href="{{ url_for('weekflow.medical') }}">Medical</a><a href="{{ url_for('weekflow.travel') }}">Travel + guests</a><a href="{{ url_for('weekflow.me') }}">Me</a>
       </nav>
 
       <div class="wfm-loading" id="mealsLoading" role="status"><span></span><p>Opening this week’s meal rhythm…</p></div>
