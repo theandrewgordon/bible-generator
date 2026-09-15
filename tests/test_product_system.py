@@ -110,6 +110,7 @@ def test_live_actions_and_weekflow_today_use_the_latency_critical_lane():
     assert _is_latency_critical_path("/labs/weekflow/homeschool")
     assert _is_latency_critical_path("/labs/weekflow/household/state")
     assert _is_latency_critical_path("/labs/weekflow/meals/state")
+    assert _is_latency_critical_path("/labs/weekflow/travel/state")
     assert _is_latency_critical_path("/labs/weekflow/kids")
     assert _is_latency_critical_path("/labs/weekflow/schedule/state")
     assert _is_latency_critical_path("/api/family-bible-bee/rooms/ABCD")
@@ -171,6 +172,17 @@ def test_weekflow_meals_is_private_and_not_cacheable():
     app.config.update(TESTING=True)
     with app.test_client() as client:
         response = client.get("/labs/weekflow/meals")
+
+    assert response.status_code == 302
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert "noindex" in response.headers["X-Robots-Tag"]
+
+
+def test_weekflow_travel_is_private_and_not_cacheable():
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        response = client.get("/labs/weekflow/travel")
 
     assert response.status_code == 302
     assert response.headers["Cache-Control"] == "private, no-store"

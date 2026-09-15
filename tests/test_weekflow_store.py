@@ -18,6 +18,7 @@ from faithsparks.services.weekflow_store import (
     load_meals_state,
     load_saved_week,
     load_today_state,
+    load_travel_state,
     normalize_beta_state,
     record_beta_feedback,
     save_beta_state,
@@ -25,6 +26,7 @@ from faithsparks.services.weekflow_store import (
     save_logistics_state,
     save_meals_state,
     save_today_state,
+    save_travel_state,
     save_week_template,
 )
 
@@ -256,6 +258,7 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
     assert backup["today"]["items"] == []
     assert backup["household"]["routines"] == []
     assert backup["meals"]["meals"] == []
+    assert backup["travel"]["plans"] == []
 
     delete_beta_state("parent@example.com")
     assert database.documents == {}
@@ -388,6 +391,31 @@ def test_meals_state_round_trip_is_validated_and_revision_protected(monkeypatch)
     assert loaded["handoffs"][0]["meal_id"] == "tacos"
     with pytest.raises(WeekFlowRevisionConflict):
         save_meals_state("parent@example.com", payload, family=family)
+
+
+def test_travel_state_round_trip_is_validated_and_revision_protected(monkeypatch):
+    database = _FakeDatabase()
+    monkeypatch.setattr(weekflow_store, "db", database)
+    monkeypatch.setattr(
+        weekflow_store.firestore, "transactional", lambda function: function
+    )
+    family = default_beta_state()["family"]
+    timestamp = "2026-09-15T12:00:00+00:00"
+    payload = {
+        "revision": 0,
+        "plans": [{"id": "visit", "kind": "guests", "title": "The Martins visit", "start_date": "2026-10-01", "end_date": "2026-10-03", "location": None, "lead_person_id": "parent", "note": None, "created_at": timestamp, "updated_at": timestamp}],
+        "handoffs": [{"id": "guest-room", "title": "Prepare guest room", "kind": "hosting", "due_date": "2026-09-30", "time_of_day": "afternoon", "assigned_person_id": "diana", "plan_id": "visit", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+    }
+
+    assert load_travel_state("parent@example.com", family=family)["revision"] == 0
+    saved = save_travel_state("Parent@Example.com", payload, family=family)
+
+    assert saved["revision"] == 1
+    assert load_travel_state("parent@example.com", family=family)["plans"][0][
+        "title"
+    ] == "The Martins visit"
+    with pytest.raises(WeekFlowRevisionConflict):
+        save_travel_state("parent@example.com", payload, family=family)
 
 
 @pytest.mark.parametrize(

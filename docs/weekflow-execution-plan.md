@@ -121,6 +121,31 @@ The next product decision is whether families repeatedly use this small rhythm
 before expanding WeekFlow's “More” area. Recipe storage and grocery inventory
 remain intentionally out of scope.
 
+## Travel and guests
+
+Status: **Step 7 implemented**
+
+`/labs/weekflow/travel` gives upcoming trips and guest visits a small shared
+home, centered on preparation rather than detailed itinerary management.
+
+- Record an away-from-home or guest plan with its date range, optional place,
+  adult lead, and one short note.
+- Assign packing, booking, hosting, errand, or other preparation handoffs to a
+  family member with a due date and time of day.
+- Project the same open handoff into Today, Schedule, and the assigned child's
+  Kids view; complete it from any of those adult-owned views.
+- Show an active trip or visit as an all-day Schedule item across its date
+  range, without copying it into the calendar or task documents.
+- Keep old history bounded while retaining unfinished handoffs, include the
+  state in family backups, and use revision-protected, private, non-cacheable,
+  latency-prioritized routes.
+- Keep reservations, route planning, detailed itineraries, and travel content
+  intentionally outside WeekFlow.
+
+Step 6 (Medical) remains deliberately unimplemented; this step does not imply
+that WeekFlow should store sensitive medical detail before its privacy boundary
+and real family need are validated.
+
 ## 1. Prove family-logistics orchestration
 
 Status: **implemented as a lab experiment**

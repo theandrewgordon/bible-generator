@@ -20,8 +20,10 @@
   let today = null;
   let household = null;
   let meals = null;
+  let travel = null;
   let householdSaving = false;
   let mealsSaving = false;
+  let travelSaving = false;
   let saveTimer = null;
   let saveInFlight = false;
   let dirty = false;
@@ -114,8 +116,17 @@
     }));
   }
 
+  function travelHandoffItems() {
+    return (travel?.handoffs || []).map((item) => ({
+      id: item.id, title: item.title, area: "travel", assigned_person_id: item.assigned_person_id,
+      due_date: item.due_date, priority: "normal", status: item.status, created_at: item.created_at,
+      updated_at: item.updated_at, completed_at: item.completed_at, source: "travel",
+      kind: item.kind, time_of_day: item.time_of_day,
+    }));
+  }
+
   function visibleItems() {
-    return [...state.items, ...householdItems(), ...mealHandoffItems()];
+    return [...state.items, ...householdItems(), ...mealHandoffItems(), ...travelHandoffItems()];
   }
 
   function categorizeItems() {
@@ -213,11 +224,16 @@
       const time = item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1);
       meta.appendChild(metaSpan(`${kind} · ${time}`));
     }
+    if (item.source === "travel") {
+      const kinds = { packing: "Packing", booking: "Booking", hosting: "Hosting", errand: "Travel errand", other: "Travel preparation" };
+      const time = item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1);
+      meta.appendChild(metaSpan(`${kinds[item.kind] || "Travel preparation"} · ${time}`));
+    }
     copy.appendChild(meta);
 
     const actions = document.createElement("div");
     actions.className = "wft-item-actions";
-    if (item.source === "household" || item.source === "meals") {
+    if (item.source === "household" || item.source === "meals" || item.source === "travel") {
       const sourceAction = actionButton(item.status === "completed" ? "Undo" : "Done", item.status === "completed" ? "undo" : "complete", item.id);
       sourceAction.dataset.source = item.source;
       actions.appendChild(sourceAction);
@@ -321,6 +337,10 @@
       saveMealHandoff(itemId, action === "complete");
       return;
     }
+    if (button.dataset.source === "travel") {
+      saveTravelHandoff(itemId, action === "complete");
+      return;
+    }
     if (action === "remove") {
       const item = state.items.find((candidate) => candidate.id === itemId);
       if (!item || !window.confirm(`Remove “${item.title}”?`)) return;
@@ -401,6 +421,22 @@
     } finally { mealsSaving = false; }
   }
 
+  async function saveTravelHandoff(handoffId, completed) {
+    if (travelSaving) { setStatus("Finishing the previous travel change…"); return; }
+    const item = travel?.handoffs.find((candidate) => candidate.id === handoffId);
+    if (!item) return;
+    const previous = JSON.parse(JSON.stringify(travel)); const timestamp = nowIso();
+    item.status = completed ? "completed" : "open"; item.completed_at = completed ? timestamp : null; item.updated_at = timestamp;
+    render(); travelSaving = true; setStatus("Saving travel handoff…");
+    try {
+      travel = await jsonRequest(config.travelStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: travel.revision, plans: travel.plans, handoffs: travel.handoffs }) });
+      render(); setStatus(completed ? "Travel handoff completed" : "Travel handoff restored");
+    } catch (error) {
+      travel = previous; if (error.status === 409) { try { travel = await jsonRequest(config.travelStateUrl); } catch (_refreshError) { /* retain the last known-good copy */ } }
+      render(); setStatus(error.status === 409 ? "Travel plans changed in another browser. We refreshed before overwriting anything." : error.message, true);
+    } finally { travelSaving = false; }
+  }
+
   function renderFamily() {
     const configuredPeople = family.configured ? family.people : [];
     const peopleContainer = byId("familyPeople");
@@ -440,6 +476,7 @@
       today = payload.today;
       household = payload.household;
       meals = payload.meals;
+      travel = payload.travel;
       renderFamily();
       render();
       app.hidden = false;

@@ -20,6 +20,12 @@ from faithsparks.services.weekflow_meals import (
     normalize_meals_state,
     prune_meals_state,
 )
+from faithsparks.services.weekflow_travel import (
+    TRAVEL_STATE_SCHEMA_VERSION,
+    default_travel_state,
+    normalize_travel_state,
+    prune_travel_state,
+)
 from faithsparks.services.weekflow_household import (
     HOUSEHOLD_STATE_SCHEMA_VERSION,
     default_household_state,
@@ -248,6 +254,10 @@ def _household_state_ref(email: str):
 
 def _meals_state_ref(email: str):
     return _weekflow_collection(email).document("meals-state")
+
+
+def _travel_state_ref(email: str):
+    return _weekflow_collection(email).document("travel-state")
 
 
 def _weekflow_collection(email: str):
@@ -481,6 +491,66 @@ def save_meals_state(
             {
                 "kind": "meals-state",
                 "schemaVersion": MEALS_STATE_SCHEMA_VERSION,
+                "revision": new_revision,
+                "state": saved_state,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+        )
+        return saved_state
+
+    try:
+        return save(transaction)
+    except WeekFlowRevisionConflict:
+        raise
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+
+
+def load_travel_state(email: str, *, family: object) -> dict[str, object]:
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    try:
+        snapshot = _travel_state_ref(email).get()
+    except Exception as exc:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
+    if not snapshot.exists:
+        return default_travel_state()
+    try:
+        return normalize_travel_state(
+            (snapshot.to_dict() or {}).get("state") or {}, family=family
+        )
+    except (TypeError, ValueError) as exc:
+        raise WeekFlowStorageUnavailable(
+            "Your travel and guest plans could not be read"
+        ) from exc
+
+
+def save_travel_state(
+    email: str, payload: object, *, family: object
+) -> dict[str, object]:
+    state = prune_travel_state(normalize_travel_state(payload, family=family))
+    if not db:
+        raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    ref = _travel_state_ref(email)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def save(txn):
+        snapshot = ref.get(transaction=txn)
+        stored = snapshot.to_dict() or {} if snapshot.exists else {}
+        current_revision = int(stored.get("revision") or 0)
+        if state["revision"] != current_revision:
+            raise WeekFlowRevisionConflict(
+                "Newer travel or guest plans were saved in another browser"
+            )
+        new_revision = current_revision + 1
+        saved_at = datetime.now(UTC).isoformat()
+        saved_state = {**state, "revision": new_revision, "updated_at": saved_at}
+        txn.set(
+            ref,
+            {
+                "kind": "travel-state",
+                "schemaVersion": TRAVEL_STATE_SCHEMA_VERSION,
                 "revision": new_revision,
                 "state": saved_state,
                 "updatedAt": firestore.SERVER_TIMESTAMP,
@@ -792,6 +862,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
     today_state = load_today_state(email, family=state["family"])
     household_state = load_household_state(email, family=state["family"])
     meals_state = load_meals_state(email, family=state["family"])
+    travel_state = load_travel_state(email, family=state["family"])
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
     try:
@@ -815,6 +886,7 @@ def export_weekflow_backup(email: str) -> dict[str, object]:
         "today": today_state,
         "household": household_state,
         "meals": meals_state,
+        "travel": travel_state,
         "weeks": weeks,
         "templates": list_week_templates(email),
     }

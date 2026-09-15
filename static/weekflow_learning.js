@@ -11,6 +11,7 @@
   let savingToday = false;
   let savingHousehold = false;
   let savingMeals = false;
+  let savingTravel = false;
 
   function setStatus(message, error = false) {
     const element = byId("learningSaveStatus");
@@ -267,7 +268,7 @@
   function responsibilityCard(item) {
     const article = document.createElement("article");
     article.className = "wfl-assignment";
-    const action = item.source === "household" ? "complete-household" : item.source === "meals" ? "complete-meal" : "complete-responsibility";
+    const action = item.source === "household" ? "complete-household" : item.source === "meals" ? "complete-meal" : item.source === "travel" ? "complete-travel" : "complete-responsibility";
     const check = button("✓", action, item.id, "wfl-check");
     check.setAttribute("aria-label", `Complete ${item.title}`);
     const copy = document.createElement("div");
@@ -276,7 +277,7 @@
     title.textContent = item.title;
     const details = document.createElement("div");
     details.className = "wfl-assignment-meta";
-    details.appendChild(meta(item.source === "household" ? "Household routine" : item.source === "meals" ? (item.kind === "shopping" ? "Meal shopping" : item.kind === "prep" ? "Meal preparation" : "Meal step") : item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
+    details.appendChild(meta(item.source === "household" ? "Household routine" : item.source === "meals" ? (item.kind === "shopping" ? "Meal shopping" : item.kind === "prep" ? "Meal preparation" : "Meal step") : item.source === "travel" ? ({ packing: "Packing", booking: "Booking", hosting: "Hosting", errand: "Travel errand", other: "Travel preparation" }[item.kind] || "Travel preparation") : item.area === "kids" ? "Kids" : item.area.charAt(0).toUpperCase() + item.area.slice(1)));
     if (item.time_of_day) details.appendChild(meta(item.time_of_day === "anytime" ? "Any time" : item.time_of_day.charAt(0).toUpperCase() + item.time_of_day.slice(1)));
     if (item.due_date) details.appendChild(meta(item.due_date === todayState.today ? "Due today" : `Due ${item.due_date}`));
     if (item.status === "waiting") details.appendChild(meta("Waiting"));
@@ -322,7 +323,10 @@
     const mealResponsibilities = (todayState.meals?.handoffs || [])
       .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate && item.status !== "completed")
       .map((item) => ({ ...item, area: "meals", source: "meals" }));
-    const responsibilities = [...householdResponsibilities, ...mealResponsibilities, ...todayResponsibilities];
+    const travelResponsibilities = (todayState.travel?.handoffs || [])
+      .filter((item) => item.assigned_person_id === student.id && item.due_date === dayDate && item.status !== "completed")
+      .map((item) => ({ ...item, area: "travel", source: "travel" }));
+    const responsibilities = [...householdResponsibilities, ...mealResponsibilities, ...travelResponsibilities, ...todayResponsibilities];
     byId("kidResponsibilityList").replaceChildren(...(responsibilities.length
       ? responsibilities.map(responsibilityCard)
       : [createEmpty(`No open family responsibilities are assigned to ${student.name}.`)]
@@ -470,6 +474,17 @@
     } finally { savingMeals = false; }
   }
 
+  async function saveTravelResponsibility(itemId) {
+    if (savingTravel) return;
+    const travel = todayState.travel; const item = travel?.handoffs.find((candidate) => candidate.id === itemId); if (!item) return;
+    const previous = JSON.parse(JSON.stringify(travel)); const timestamp = new Date().toISOString(); item.status = "completed"; item.completed_at = timestamp; item.updated_at = timestamp;
+    renderKids(); savingTravel = true; setStatus("Saving travel handoff…");
+    try {
+      todayState.travel = await jsonRequest(config.travelStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: travel.revision, plans: travel.plans, handoffs: travel.handoffs }) });
+      setStatus("Travel handoff completed");
+    } catch (error) { todayState.travel = previous; renderKids(); setStatus(error.message, true); } finally { savingTravel = false; }
+  }
+
   function taskAction(event) {
     const target = event.target.closest("button[data-action]");
     if (!target) return;
@@ -485,6 +500,10 @@
     }
     if (action === "complete-meal") {
       saveMealResponsibility(taskId);
+      return;
+    }
+    if (action === "complete-travel") {
+      saveTravelResponsibility(taskId);
       return;
     }
     if (savingLearning) {

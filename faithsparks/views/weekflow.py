@@ -66,6 +66,7 @@ from faithsparks.services.weekflow_store import (
     load_meals_state,
     load_saved_week,
     load_today_state,
+    load_travel_state,
     prune_week_history,
     record_beta_feedback,
     record_weekflow_event,
@@ -74,6 +75,7 @@ from faithsparks.services.weekflow_store import (
     save_logistics_state,
     save_meals_state,
     save_today_state,
+    save_travel_state,
     save_week_template,
 )
 from faithsparks.services.weekflow_support import (
@@ -384,6 +386,97 @@ def meals_state_save():
     )
 
 
+@bp.get("/travel")
+def travel():
+    email = _signed_in_email()
+    if not email:
+        return redirect("/login/google/start?next=/labs/weekflow/travel")
+    if not _has_beta_access(email):
+        return render_template(
+            "weekflow_travel.html", access_denied=True, noindex=True
+        ), 403
+    return render_template(
+        "weekflow_travel.html", access_denied=False, noindex=True
+    )
+
+
+def _travel_dashboard_payload(
+    saved: dict[str, object], *, beta_state: dict[str, object], family_today
+) -> dict[str, object]:
+    return {
+        **saved,
+        "family": {
+            "name": beta_state["family"]["name"],
+            "timezone": beta_state["family"]["timezone"],
+            "people": family_people(beta_state["family"]),
+            "configured": beta_state["revision"] > 0,
+        },
+        "today": family_today.isoformat(),
+    }
+
+
+@bp.get("/travel/state")
+def travel_state():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    try:
+        beta_state = load_beta_state(email)
+        saved = load_travel_state(email, family=beta_state["family"])
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
+    return jsonify(
+        _travel_dashboard_payload(
+            saved,
+            beta_state=beta_state,
+            family_today=datetime.now(timezone).date(),
+        )
+    )
+
+
+@bp.put("/travel/state")
+def travel_state_save():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    limit = check_rate_limit(
+        "weekflow-travel-save", email, limit=300, window_seconds=60 * 60
+    )
+    if not limit.allowed:
+        response = jsonify({"error": "Too many travel changes. Try again shortly."})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(limit.retry_after)
+        return response
+    if request.content_length and request.content_length > 180_000:
+        return jsonify({"error": "Your travel and guest plans are too large."}), 413
+    try:
+        beta_state = load_beta_state(email)
+        saved = save_travel_state(
+            email,
+            request.get_json(silent=True),
+            family=beta_state["family"],
+        )
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    except WeekFlowRevisionConflict as exc:
+        return jsonify({"error": str(exc), "conflict": True}), 409
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
+    timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
+    return jsonify(
+        _travel_dashboard_payload(
+            saved,
+            beta_state=beta_state,
+            family_today=datetime.now(timezone).date(),
+        )
+    )
+
+
 @bp.get("/schedule")
 def schedule_dashboard():
     email = _signed_in_email()
@@ -416,7 +509,7 @@ def schedule_dashboard_state():
         # These documents are independent once the household is known. Reading
         # them together keeps the daily dashboard at one network round trip
         # without turning several Firestore reads into a long serial waterfall.
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             today_future = executor.submit(
                 load_today_state, email, family=beta_state["family"]
             )
@@ -427,10 +520,14 @@ def schedule_dashboard_state():
             meals_future = executor.submit(
                 load_meals_state, email, family=beta_state["family"]
             )
+            travel_future = executor.submit(
+                load_travel_state, email, family=beta_state["family"]
+            )
             today_state = today_future.result()
             logistics_state = logistics_future.result()
             household_state = household_future.result()
             meals_state = meals_future.result()
+            travel_state = travel_future.result()
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
@@ -464,6 +561,7 @@ def schedule_dashboard_state():
                 ),
             },
             "meals": meals_state,
+            "travel": travel_state,
             "logistics": {
                 **logistics_state,
                 "has_saved_plan": isinstance(logistics_scenario, dict),
@@ -486,7 +584,7 @@ def today_state():
         return _beta_access_required()
     try:
         beta_state = load_beta_state(email)
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             today_future = executor.submit(
                 load_today_state, email, family=beta_state["family"]
             )
@@ -496,9 +594,13 @@ def today_state():
             meals_future = executor.submit(
                 load_meals_state, email, family=beta_state["family"]
             )
+            travel_future = executor.submit(
+                load_travel_state, email, family=beta_state["family"]
+            )
             saved = today_future.result()
             household_state = household_future.result()
             meals_state = meals_future.result()
+            travel_state = travel_future.result()
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
     timezone = ZoneInfo(str(beta_state["family"]["timezone"]))
@@ -525,6 +627,7 @@ def today_state():
                 ),
             },
             "meals": meals_state,
+            "travel": travel_state,
         }
     )
 
