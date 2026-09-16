@@ -8,7 +8,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow coordinates homeschool work around each child and the parent attention available." />
     <title>{{ "Homeschool" if mode == "homeschool" else "Kids" }} · WeekFlow · Faith Sparks</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_learning.css') }}?v=3" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_learning.css') }}?v=4" />
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
   </head>
   <body data-mode="{{ mode }}">
@@ -61,6 +61,15 @@
             <button class="wfl-button wfl-primary" id="showAddAssignment" type="button">Add assignment</button>
           </header>
 
+          <section class="wfl-week-transition" id="weekTransition" hidden aria-labelledby="weekTransitionTitle">
+            <div><span class="wfl-eyebrow">A new week is ready</span><h2 id="weekTransitionTitle">Start this week with the right work.</h2><p id="weekTransitionCopy"></p></div>
+            <div class="wfl-week-actions">
+              <button class="wfl-button wfl-primary" type="button" data-week-mode="unfinished">Carry unfinished work</button>
+              <button class="wfl-button" type="button" data-week-mode="reuse">Reuse last week</button>
+              <button class="wfl-button" type="button" data-week-mode="empty">Start empty</button>
+            </div>
+          </section>
+
           <section class="wfl-summary" aria-label="Week summary">
             <article><span>Assignments</span><strong id="assignmentCount">0</strong><small>this plan</small></article>
             <article><span>Finished</span><strong id="completedCount">0</strong><small>this week</small></article>
@@ -69,8 +78,9 @@
           </section>
 
           <section class="wfl-add-panel" id="addAssignmentPanel" hidden>
-            <div class="wfl-section-heading"><div><span class="wfl-eyebrow">New assignment</span><h2>Add work to the family plan</h2></div><button type="button" id="closeAddAssignment" aria-label="Close assignment form">×</button></div>
+            <div class="wfl-section-heading"><div><span class="wfl-eyebrow" id="assignmentEyebrow">New assignment</span><h2 id="assignmentFormTitle">Add work to the family plan</h2></div><button type="button" id="closeAddAssignment" aria-label="Close assignment form">×</button></div>
             <form id="assignmentForm">
+              <input name="assignment_id" type="hidden" />
               <div class="wfl-form-grid">
                 <label>Assignment<input name="title" maxlength="120" placeholder="Fractions practice" required /></label>
                 <label>Subject<input name="subject" maxlength="60" placeholder="Math" required /></label>
@@ -80,10 +90,36 @@
                 <label>Parent help<select name="help"><option value="independent">Independent</option><option value="checkin">Start + check together</option><option value="together">Together the whole time</option></select></label>
                 <label>Priority<select name="priority"><option value="3">Normal</option><option value="5">Important</option><option value="1">Flexible</option></select></label>
               </div>
-              <button class="wfl-button wfl-primary" type="submit">Add and rebuild week</button>
+              <button class="wfl-button wfl-primary" id="assignmentSubmit" type="submit">Add and rebuild week</button>
               <p class="wfl-form-status" id="assignmentStatus" role="status" aria-live="polite"></p>
             </form>
           </section>
+
+          <details class="wfl-rhythm" id="weeklyRhythm">
+            <summary><span><b>Our weekly rhythm</b><small>School-day limits and fixed commitments</small></span></summary>
+            <div class="wfl-rhythm-body">
+              <form id="availabilityForm">
+                <div class="wfl-section-heading"><div><span class="wfl-eyebrow">Normal weekdays</span><h2>Protect everyone’s capacity</h2></div></div>
+                <div class="wfl-form-grid">
+                  <label>Parent available until<input name="adult_end" type="time" min="09:00" max="16:00" required /></label>
+                  <label>Children work until<input name="student_end" type="time" min="09:00" max="16:00" required /></label>
+                </div>
+                <button class="wfl-button" type="submit">Save weekday limits</button>
+              </form>
+              <form id="commitmentForm">
+                <div class="wfl-section-heading"><div><span class="wfl-eyebrow">Co-op, appointments, and time away</span><h2>Add a fixed commitment</h2></div></div>
+                <div class="wfl-form-grid">
+                  <label class="wfl-wide">Commitment<input name="title" maxlength="120" placeholder="Co-op day" required /></label>
+                  <label>Day<select name="day_id"><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option><option value="thu">Thursday</option><option value="fri">Friday</option></select></label>
+                  <label>Starts<input name="start" type="time" min="09:00" max="16:00" value="09:00" required /></label>
+                  <label>Ends<input name="end" type="time" min="09:00" max="16:00" value="12:00" required /></label>
+                  <label class="wfl-check-label"><input name="recurring" type="checkbox" checked /> Repeats most weeks</label>
+                </div>
+                <button class="wfl-button" type="submit">Add commitment</button>
+              </form>
+              <div><div class="wfl-section-heading"><div><span class="wfl-eyebrow">Already protected</span><h2>Fixed commitments</h2></div></div><div class="wfl-commitment-list" id="commitmentList"></div></div>
+            </div>
+          </details>
 
           <section class="wfl-day-picker" aria-labelledby="dayPickerTitle"><div><span class="wfl-eyebrow">Family learning day</span><h2 id="dayPickerTitle">Choose a day</h2></div><div id="dayTabs" role="tablist" aria-label="School day"></div></section>
           <section class="wfl-warning" id="planWarning" hidden></section>
@@ -99,6 +135,7 @@
             <div class="wfl-section-heading"><div><span class="wfl-eyebrow">Done</span><h2>Finished this week</h2></div></div>
             <div class="wfl-assignment-list" id="completedAssignments"></div>
           </section>
+          <details class="wfl-history" id="weekHistorySection" hidden><summary>Previous weeks</summary><div id="weekHistoryList"></div></details>
         {% else %}
           <header class="wfl-hero">
             <div><span class="wfl-eyebrow">WeekFlow Kids</span><h1>Each child’s day.<br />Still one family plan.</h1><p id="kidsGreeting">See learning and family responsibilities together.</p></div>
@@ -131,6 +168,8 @@
         window.WEEKFLOW_LEARNING_CONFIG = {
           mode: {{ mode|tojson }},
           stateUrl: {{ url_for('weekflow.state')|tojson }},
+          weeksUrl: {{ url_for('weekflow.weeks')|tojson }},
+          rolloverUrl: {{ url_for('weekflow.rollover')|tojson }},
           todayStateUrl: {{ url_for('weekflow.today_state')|tojson }},
           householdStateUrl: {{ url_for('weekflow.household_state')|tojson }},
           mealsStateUrl: {{ url_for('weekflow.meals_state')|tojson }},
@@ -139,7 +178,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_learning.js') }}?v=5" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_learning.js') }}?v=6" defer></script>
     {% endif %}
   </body>
 </html>

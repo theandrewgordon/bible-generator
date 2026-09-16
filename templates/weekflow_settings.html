@@ -6,13 +6,21 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="robots" content="noindex,nofollow" />
     <title>Family settings · WeekFlow</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_settings.css') }}?v=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_settings.css') }}?v=2" />
   </head>
   <body>
     <header class="wfs-site-header"><a class="wfs-brand" href="/">✦ Faith Sparks</a><nav><a href="{{ url_for('weekflow.today') }}">Home</a><a href="{{ url_for('weekflow.backup') }}">Backup</a></nav></header>
     {% if access_denied %}
       <main class="wfs-card"><h1>WeekFlow is not enabled for this account yet.</h1><a href="/labs">Back to Faith Sparks Labs</a></main>
     {% else %}
+      <main class="wfs-shell" id="settingsOnboarding" hidden>
+        <header class="wfs-heading"><span>WeekFlow</span><h1>Set up your family once.</h1><p>Start in Homeschool so WeekFlow creates a clean family plan with your real names—not sample data.</p></header>
+        <section class="wfs-card wfs-first-run">
+          <div><h2>Who is learning at home?</h2><p>Add the adult coordinating the week and the children learning at home. You can return here to add or rename people afterward.</p></div>
+          <a class="wfs-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
+          <a href="{{ url_for('weekflow.today') }}">Back to Home</a>
+        </section>
+      </main>
       <main class="wfs-shell" id="settingsApp" hidden>
         <header class="wfs-heading"><span>WeekFlow</span><h1>Family settings</h1><p>Keep the names and preferences that make every WeekFlow area feel like yours.</p></header>
         <form id="settingsForm" class="wfs-card">
@@ -39,7 +47,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_settings.js') }}?v=2" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_settings.js') }}?v=3" defer></script>
     {% endif %}
   </body>
 </html>

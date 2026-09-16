@@ -36,12 +36,12 @@
       <main class="wfs-shell" id="scheduleApp" hidden>
         <header class="wfs-hero">
           <div><span class="wfs-eyebrow">WeekFlow Schedule</span><h1>The family day,<br />with the handoffs included.</h1><p id="scheduleGreeting">School, appointments, rides, and responsibilities in one place.</p></div>
-          <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.logistics', personal=1) }}">Edit family logistics</a>
+          <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.homeschool') }}#weeklyRhythm">Edit weekly rhythm</a>
         </header>
 
           <section class="wfs-setup" id="setupNotice" hidden>
           <div><span class="wfs-eyebrow">Start with your family</span><h2>Name the people WeekFlow is coordinating.</h2><p>Set up the family once, then Schedule can connect schoolwork, responsibilities, rides, and appointments without child accounts.</p></div>
-          <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.settings') }}">Set up our family</a>
+          <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
         </section>
 
         <section class="wfs-day-picker" aria-labelledby="dayPickerTitle">
@@ -63,9 +63,9 @@
 
           <aside class="wfs-sidebar">
             <section class="wfs-coverage" aria-labelledby="coverageTitle">
-              <div class="wfs-section-heading"><div><span class="wfs-eyebrow">Rides + ownership</span><h2 id="coverageTitle">Who is handling what?</h2></div></div>
+              <div class="wfs-section-heading"><div><span class="wfs-eyebrow">Protected time</span><h2 id="coverageTitle">Fixed family commitments</h2></div></div>
               <div id="coverageList"></div>
-              <a class="wfs-text-link" href="{{ url_for('weekflow.logistics', personal=1) }}">Add or change commitments →</a>
+              <a class="wfs-text-link" href="{{ url_for('weekflow.homeschool') }}#weeklyRhythm">Add or change commitments →</a>
             </section>
 
             <details class="wfs-calendar" id="calendarCard">
@@ -94,11 +94,12 @@
           calendarsUrl: {{ url_for('weekflow.calendars')|tojson }},
           calendarPreviewUrl: {{ url_for('weekflow.calendar_preview')|tojson }},
           logisticsUrl: {{ url_for('weekflow.logistics', personal=1)|tojson }},
+          rhythmUrl: {{ (url_for('weekflow.homeschool') ~ '#weeklyRhythm')|tojson }},
           homeschoolUrl: {{ url_for('weekflow.homeschool')|tojson }},
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_schedule.js') }}?v=5" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_schedule.js') }}?v=6" defer></script>
     {% endif %}
   </body>
 </html>

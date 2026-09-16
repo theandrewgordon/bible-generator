@@ -36,6 +36,7 @@
   function renderTabs() {
     byId("dayTabs").replaceChildren(...dates().map((day) => {
       const button = element("button"); button.type = "button"; button.role = "tab"; button.dataset.date = day.date;
+      button.tabIndex = day.date === selectedDate ? 0 : -1;
       button.classList.toggle("is-active", day.date === selectedDate); button.setAttribute("aria-selected", String(day.date === selectedDate));
       button.append(element("b", "", day.label.slice(0, 3)), element("span", "", formatDate(day.date))); return button;
     }));
@@ -164,4 +165,5 @@
   byId("showMealForm").addEventListener("click", () => openMeal()); byId("showHandoffForm").addEventListener("click", () => openHandoff()); byId("addForDay").addEventListener("click", () => openMeal()); byId("addStepForDay").addEventListener("click", () => openHandoff());
   document.querySelectorAll("[data-close-editor]").forEach((button) => button.addEventListener("click", closeEditors)); byId("mealForm").addEventListener("submit", submitMeal); byId("handoffForm").addEventListener("submit", submitHandoff); byId("mealsApp").addEventListener("click", handleAction);
   byId("dayTabs").addEventListener("click", (event) => { const button = event.target.closest("button[data-date]"); if (!button) return; selectedDate = button.dataset.date; renderTabs(); renderDay(); }); byId("retryButton").addEventListener("click", load); load();
+  byId("dayTabs").addEventListener("keydown", (event) => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; const tabs = [...byId("dayTabs").querySelectorAll("[role='tab']")]; const index = tabs.indexOf(event.target); if (index < 0) return; event.preventDefault(); const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length; tabs[next].click(); tabs[next].focus(); });
 })();

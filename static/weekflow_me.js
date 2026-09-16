@@ -188,8 +188,10 @@
       if (!primaryAdult) throw new Error("Set up an adult in your WeekFlow family first.");
       byId("meGreeting").textContent = state.family.configured ? `${primaryAdult.name}, the plan should care for your attention too.` : "Set up the family first, then WeekFlow can gather what belongs to you.";
       byId("setupNotice").hidden = state.family.configured;
+      byId("meWorkspace").hidden = !state.family.configured;
       form.querySelectorAll("input, select, button").forEach((control) => { control.disabled = !state.family.configured; });
       byId("focusQuickAdd").disabled = !state.family.configured;
+      byId("focusQuickAdd").hidden = !state.family.configured;
       resetForm(); renderAdultPicker(); render();
       if (!quiet) { byId("meLoading").hidden = true; byId("meApp").hidden = false; }
     } catch (error) { if (!quiet) { byId("meLoading").hidden = true; byId("meErrorMessage").textContent = error.message; byId("meError").hidden = false; } throw error; }

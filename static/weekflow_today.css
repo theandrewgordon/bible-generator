@@ -66,6 +66,9 @@ a { color: inherit; }
 .wft-summary article { min-width: 0; display: flex; align-items: center; justify-content: space-between; min-height: 72px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.72); }
 .wft-summary span { color: var(--muted); font-size: .84rem; font-weight: 700; }
 .wft-summary strong { font-family: Georgia, serif; font-size: 1.75rem; font-weight: 500; }
+.wft-setup { display:flex; align-items:center; justify-content:space-between; gap:24px; margin:0 0 22px; padding:20px 22px; border:1px solid #e4ca80; border-radius:18px; background:var(--gold-soft); }
+.wft-setup h2 { margin:0; font:600 1.45rem Georgia,serif; }
+.wft-setup p { margin:6px 0 0; color:#695f46; }
 
 .wft-capture { position: relative; z-index: 2; padding: 18px; border: 1px solid #cdded7; border-radius: 20px; background: var(--paper); box-shadow: var(--shadow); }
 .wft-capture-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
@@ -106,6 +109,8 @@ a { color: inherit; }
 .wft-section-heading > div { display: flex; align-items: center; gap: 9px; }
 .wft-section-heading h2 { margin: 0; font-family: Georgia, serif; font-size: 1.25rem; font-weight: 600; }
 .wft-section-heading > span { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; color: var(--muted); background: #e9eeeb; font-size: .75rem; font-weight: 800; }
+.wft-later-actions { display:flex; align-items:center; gap:10px; }
+.wft-later-actions > span { display:grid; place-items:center; min-width:24px; height:24px; padding:0 7px; border-radius:999px; color:var(--muted); background:#e9eeeb; font-size:.75rem; font-weight:800; }
 .wft-dot { width: 9px; height: 9px; border-radius: 50%; background: #879b94; }
 .wft-dot.is-overdue { background: var(--rose); }
 .wft-dot.is-today { background: var(--gold); }
@@ -142,6 +147,9 @@ a { color: inherit; }
 .wft-tool-grid strong { display: block; font-family: Georgia, serif; font-size: 1.3rem; }
 .wft-tool-grid p { margin: 8px 0 18px; color: var(--muted); font-size: .88rem; line-height: 1.5; }
 .wft-tool-grid b { color: var(--green); font-size: .83rem; }
+.wft-more-tools { margin-top:18px; }
+.wft-more-tools > summary { width:fit-content; color:var(--green); font-weight:800; cursor:pointer; }
+.wft-more-tools .wft-tool-grid { margin-top:14px; }
 
 .wft-loading, .wft-load-error, .wft-access-card { width: min(680px, calc(100% - 40px)); margin: 12vh auto; padding: 42px; border: 1px solid var(--line); border-radius: 22px; background: #fff; box-shadow: var(--shadow); text-align: center; }
 .wft-loading span { display: block; width: 30px; height: 30px; margin: 0 auto; border: 3px solid var(--green-soft); border-top-color: var(--green); border-radius: 50%; animation: wft-spin .8s linear infinite; }
@@ -158,6 +166,7 @@ a { color: inherit; }
   .wft-area-nav { padding: 9px 14px; }
   .wft-shell { width: calc(100% - 28px); max-width: 680px; padding: 32px 0 120px; }
   .wft-hero { display: block; margin-bottom: 21px; }
+  .wft-setup { align-items:stretch; flex-direction:column; }
   .wft-hero h1 { font-size: clamp(2.35rem, 12vw, 3.5rem); }
   .wft-family { justify-content: flex-start; max-width: none; margin-top: 18px; }
   .wft-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

@@ -1,10 +1,12 @@
 (() => {
   const config = window.WEEKFLOW_SETTINGS_CONFIG;
   const app = document.getElementById("settingsApp");
+  const onboarding = document.getElementById("settingsOnboarding");
   const loading = document.getElementById("settingsLoading");
   const errorBox = document.getElementById("settingsError");
   const errorMessage = document.getElementById("settingsErrorMessage");
   const form = document.getElementById("settingsForm");
+  const settingsHeading = app.querySelector(".wfs-heading");
   const status = document.getElementById("settingsStatus");
   const colors = ["#6657d9", "#d45e86", "#168a80", "#3d7fba", "#d87843"];
   const commonTimezones = [
@@ -20,26 +22,32 @@
   async function jsonRequest(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "Please try again.");
+    if (!response.ok) {
+      const error = new Error(payload.error || "Please try again.");
+      error.status = response.status;
+      throw error;
+    }
     return payload;
   }
   const people = (role) => state.family[role];
   const allPeople = () => ({ ...state.family.adults, ...state.family.students });
 
-  function referencedPersonIds() {
+  function personReferences() {
     const ids = new Set(Object.keys(allPeople()));
-    const used = new Set();
+    const used = new Map([...ids].map((id) => [id, new Set()]));
     const sources = [
-      state.scenario?.tasks, aggregate?.items, aggregate?.household?.routines,
-      aggregate?.meals?.meals, aggregate?.meals?.handoffs, aggregate?.medical?.items,
-      aggregate?.travel?.plans, aggregate?.travel?.handoffs, aggregate?.logistics?.plan,
+      ["homeschool lessons", state.scenario?.tasks], ["Today", aggregate?.items],
+      ["household responsibilities", aggregate?.household?.routines],
+      ["meal plans", aggregate?.meals?.meals], ["meal handoffs", aggregate?.meals?.handoffs],
+      ["care reminders", aggregate?.medical?.items], ["travel plans", aggregate?.travel?.plans],
+      ["travel handoffs", aggregate?.travel?.handoffs], ["family logistics", aggregate?.logistics?.plan],
     ];
-    const scan = (value) => {
-      if (typeof value === "string") { if (ids.has(value)) used.add(value); return; }
-      if (Array.isArray(value)) { value.forEach(scan); return; }
-      if (value && typeof value === "object") Object.values(value).forEach(scan);
+    const scan = (value, label) => {
+      if (typeof value === "string") { if (ids.has(value)) used.get(value).add(label); return; }
+      if (Array.isArray(value)) { value.forEach((item) => scan(item, label)); return; }
+      if (value && typeof value === "object") Object.values(value).forEach((item) => scan(item, label));
     };
-    sources.forEach(scan);
+    sources.forEach(([label, value]) => scan(value, label));
     return used;
   }
 
@@ -61,13 +69,14 @@
 
   function renderPeople(role, targetId, label) {
     const target = document.getElementById(targetId);
-    const used = referencedPersonIds();
+    const references = personReferences();
     const sourcesIncomplete = Object.keys(aggregate?.source_errors || {}).length > 0;
     const entries = Object.entries(people(role));
     target.replaceChildren(...entries.map(([id, person]) => {
       const row = document.createElement("div"); row.className = "wfs-person-row";
       const input = document.createElement("input"); input.value = person.name; input.maxLength = 60; input.required = true; input.dataset.role = role; input.dataset.id = id; input.setAttribute("aria-label", `${label} name`);
-      const remove = document.createElement("button"); remove.type = "button"; remove.className = "wfs-remove"; remove.textContent = sourcesIncomplete ? "Unavailable" : used.has(id) ? "Assigned" : "Remove"; remove.dataset.removeRole = role; remove.dataset.removeId = id; remove.disabled = entries.length <= 1 || used.has(id) || sourcesIncomplete; remove.title = sourcesIncomplete ? "WeekFlow could not safely check every area. Try again after all areas are available." : used.has(id) ? "Reassign this person’s lessons and responsibilities before removing them." : "Remove this person";
+      const usedBy = references.get(id) || new Set();
+      const remove = document.createElement("button"); remove.type = "button"; remove.className = "wfs-remove"; remove.textContent = sourcesIncomplete ? "Unavailable" : usedBy.size ? `Assigned (${usedBy.size})` : "Remove"; remove.dataset.removeRole = role; remove.dataset.removeId = id; remove.disabled = entries.length <= 1 || usedBy.size > 0 || sourcesIncomplete; remove.title = sourcesIncomplete ? "WeekFlow could not safely check every area. Try again after all areas are available." : usedBy.size ? `Used in ${[...usedBy].join(", ")}. Reassign those items before removing this person.` : "Remove this person";
       row.append(input, remove); return row;
     }));
   }
@@ -104,9 +113,20 @@
 
   function setStatus(message, isError = false) { status.textContent = message; status.classList.toggle("is-error", isError); }
   async function load() {
-    loading.hidden = false; app.hidden = true; errorBox.hidden = true;
+    loading.hidden = false; app.hidden = true; onboarding.hidden = true; errorBox.hidden = true;
     try {
-      [state, aggregate] = await Promise.all([jsonRequest(config.stateUrl), jsonRequest(config.aggregateUrl)]);
+      state = await jsonRequest(config.stateUrl);
+      if (state.revision === 0) {
+        loading.hidden = true;
+        onboarding.hidden = false;
+        form.hidden = true;
+        settingsHeading.hidden = true;
+        app.hidden = false;
+        return;
+      }
+      aggregate = await jsonRequest(config.aggregateUrl);
+      form.hidden = false;
+      settingsHeading.hidden = false;
       render(); loading.hidden = true; app.hidden = false;
     } catch (error) { loading.hidden = true; errorMessage.textContent = error.message; errorBox.hidden = false; }
   }
@@ -142,7 +162,12 @@
     state.family.timezone = document.getElementById("familyTimezone").value;
     state.family.primary_adult_id = document.getElementById("primaryAdult").value;
     try { state = await jsonRequest(config.stateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify(state) }); render(); setStatus("Family settings saved"); }
-    catch (error) { setStatus(error.message, true); }
+    catch (error) {
+      if (error.status === 409) {
+        await load().catch(() => {});
+        setStatus("Family settings changed in another browser. We refreshed before overwriting anything.", true);
+      } else setStatus(error.message, true);
+    }
   });
   document.getElementById("retrySettings").addEventListener("click", load);
   document.getElementById("restoreBackup").addEventListener("click", async () => {

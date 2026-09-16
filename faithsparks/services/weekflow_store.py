@@ -884,21 +884,47 @@ def prune_week_history(email: str, *, keep: int) -> None:
 
 
 def create_rollover_state(email: str, payload: object) -> dict[str, object]:
-    state = normalize_beta_state(payload)
+    options = payload if isinstance(payload, dict) else {}
+    wrapped = isinstance(options.get("state"), dict)
+    state = normalize_beta_state(options["state"] if wrapped else payload)
     week_start = state["scenario"].get("week_start")
-    if not week_start:
+    if not week_start and not wrapped:
         raise ValueError("Choose a dated week before creating rollover")
-    plan = generate_demo_schedule(scenario=state["scenario"])
-    rollover_ids = {item["task_id"] for item in plan["rollover"]}
-    if not rollover_ids:
-        raise ValueError("This plan has no rollover work")
+    current_start = date_type.fromisoformat(week_start) if week_start else None
+    mode = options.get("mode", "rollover") if wrapped else "rollover"
+    if mode not in {"rollover", "unfinished", "reuse", "empty"}:
+        raise ValueError("rollover mode is invalid")
+    target_value = options.get("week_start") if wrapped else None
+    if target_value is None:
+        if current_start is None:
+            raise ValueError("Choose a dated week before creating rollover")
+        target_start = current_start + timedelta(days=7)
+    else:
+        try:
+            target_start = date_type.fromisoformat(target_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("week_start must be an ISO date") from exc
+        if target_start.weekday() != 0:
+            raise ValueError("week_start must be a Monday")
+        if current_start is not None and target_start <= current_start:
+            raise ValueError("The new week must come after the current plan")
+
+    tasks = state["scenario"]["tasks"]
+    if mode == "rollover":
+        plan = generate_demo_schedule(scenario=state["scenario"])
+        rollover_ids = {item["task_id"] for item in plan["rollover"]}
+        if not rollover_ids:
+            raise ValueError("This plan has no rollover work")
+        tasks = [task for task in tasks if task["id"] in rollover_ids]
+    elif mode == "unfinished":
+        completed = set(state["scenario"]["completed_task_ids"])
+        tasks = [task for task in tasks if task["id"] not in completed]
+    elif mode == "empty":
+        tasks = []
+
     next_scenario = deepcopy(state["scenario"])
-    next_scenario["week_start"] = (
-        date_type.fromisoformat(week_start) + timedelta(days=7)
-    ).isoformat()
-    next_scenario["tasks"] = [
-        task for task in next_scenario["tasks"] if task["id"] in rollover_ids
-    ]
+    next_scenario["week_start"] = target_start.isoformat()
+    next_scenario["tasks"] = tasks
     next_scenario["completed_task_ids"] = []
     next_scenario["events"] = [
         event for event in next_scenario["events"] if event["recurring"]

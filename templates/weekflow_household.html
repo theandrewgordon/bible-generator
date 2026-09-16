@@ -40,7 +40,7 @@
 
         <section class="wfh-setup" id="setupNotice" hidden>
           <div><span class="wfh-eyebrow">Start with your family</span><h2>Name the people sharing this work.</h2><p>Household uses the same adult-owned family record as Homeschool and Kids.</p></div>
-          <a class="wfh-button wfh-primary" href="{{ url_for('weekflow.settings') }}">Set up our family</a>
+          <a class="wfh-button wfh-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
         </section>
 
         <section class="wfh-summary" aria-label="Household summary">
@@ -92,7 +92,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_household.js') }}?v=1" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_household.js') }}?v=2" defer></script>
     {% endif %}
   </body>
 </html>

@@ -1398,6 +1398,8 @@ def _beta_access_required():
 def _limit_error(email: str, payload: object) -> str | None:
     if not isinstance(payload, dict):
         return None
+    if isinstance(payload.get("state"), dict):
+        payload = payload["state"]
     limits = _weekflow_limits(email)
     family = payload.get("family")
     scenario = payload.get("scenario")
@@ -1430,8 +1432,13 @@ def state():
         saved = load_beta_state(email)
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
+    timezone = ZoneInfo(str(saved["family"]["timezone"]))
     return jsonify(
-        {**saved, "plan": generate_demo_schedule(scenario=saved["scenario"])}
+        {
+            **saved,
+            "today": datetime.now(timezone).date().isoformat(),
+            "plan": generate_demo_schedule(scenario=saved["scenario"]),
+        }
     )
 
 

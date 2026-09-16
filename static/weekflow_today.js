@@ -34,6 +34,7 @@
   let saveTimer = null;
   let saveInFlight = false;
   let dirty = false;
+  let showAllLater = false;
 
   const sectionConfig = {
     overdue: ["overdueSection", "overdueList", "overdueBadge"],
@@ -277,9 +278,11 @@
     const [sectionId, listId, badgeId] = sectionConfig[name];
     const section = byId(sectionId);
     const list = byId(listId);
+    const visible = name === "later" && !showAllLater ? items.slice(0, 8) : items;
     section.hidden = items.length === 0;
-    byId(badgeId).textContent = String(items.length);
-    list.replaceChildren(...items.map(itemCard));
+    byId(badgeId).textContent = name === "later" && visible.length < items.length ? `${visible.length} of ${items.length}` : String(items.length);
+    if (name === "later") byId("showAllLater").hidden = showAllLater || items.length <= 8;
+    list.replaceChildren(...visible.map(itemCard));
   }
 
   function renderSummary(groups) {
@@ -433,8 +436,9 @@
       setStatus(completed ? "Responsibility completed" : "Responsibility restored");
     } catch (error) {
       household = previous;
+      if (error.status === 409) { try { household = await jsonRequest(config.householdStateUrl); } catch (_refreshError) { /* retain the last known-good copy */ } }
       render();
-      setStatus(error.message, true);
+      setStatus(error.status === 409 ? "Household work changed in another browser. We refreshed before overwriting anything." : error.message, true);
     } finally {
       householdSaving = false;
     }
@@ -509,7 +513,9 @@
     personInput.replaceChildren(new Option("Anyone", ""), ...configuredPeople.map((person) => new Option(person.name, person.id)));
     byId("familyGreeting").textContent = family.configured
       ? `${family.name} in one calm view.`
-      : "Start with one loose end. Family setup comes next.";
+      : "Set up your family, then keep the next loose end here.";
+    byId("todaySetupNotice").hidden = family.configured;
+    byId("planningTools").hidden = !family.configured;
     const parts = today.split("-").map(Number);
     byId("todayLabel").textContent = new Intl.DateTimeFormat(undefined, {
       weekday: "long", month: "long", day: "numeric",
@@ -617,6 +623,7 @@
   board.addEventListener("click", handleBoardAction);
   retryButton.addEventListener("click", () => loadState());
   byId("retrySourcesButton").addEventListener("click", () => loadState({ quiet: true }).catch(() => {}));
+  byId("showAllLater").addEventListener("click", () => { showAllLater = true; render(); });
   cancelCaptureEdit.addEventListener("click", resetCaptureForm);
   window.addEventListener("online", () => {
     if (dirty) flushSave();

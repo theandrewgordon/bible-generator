@@ -41,6 +41,7 @@
     byId("dayTabs").replaceChildren(...dates().map((row) => {
       const button = element("button");
       button.type = "button"; button.role = "tab"; button.dataset.date = row.date;
+      button.tabIndex = row.date === selectedDate ? 0 : -1;
       button.classList.toggle("is-active", row.date === selectedDate);
       button.setAttribute("aria-selected", String(row.date === selectedDate));
       const parsed = new Date(`${row.date}T12:00:00Z`);
@@ -226,6 +227,7 @@
   byId("routineForm").addEventListener("submit", submitRoutine);
   byId("householdApp").addEventListener("click", handleAction);
   byId("dayTabs").addEventListener("click", (event) => { const button = event.target.closest("button[data-date]"); if (!button) return; selectedDate = button.dataset.date; renderTabs(); renderDay(); });
+  byId("dayTabs").addEventListener("keydown", (event) => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; const tabs = [...byId("dayTabs").querySelectorAll("[role='tab']")]; const index = tabs.indexOf(event.target); if (index < 0) return; event.preventDefault(); const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length; tabs[next].click(); tabs[next].focus(); });
   byId("retryButton").addEventListener("click", load);
   load();
 })();

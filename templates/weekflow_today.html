@@ -8,7 +8,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow keeps today’s family responsibilities in one calm place." />
     <title>Today · WeekFlow · Faith Sparks</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_today.css') }}?v=2" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_today.css') }}?v=3" />
     <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
   </head>
   <body>
@@ -42,6 +42,11 @@
             </div>
             <div class="wft-family" id="familyPeople" aria-label="Family members"></div>
           </header>
+
+          <section class="wft-setup" id="todaySetupNotice" hidden>
+            <div><span class="wft-eyebrow">Begin here</span><h2>Set up the people learning and working together.</h2><p>One short setup gives Homeschool, Today, Schedule, and family handoffs the same real names.</p></div>
+            <a class="wft-button wft-button-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
+          </section>
 
           <section class="wft-summary" aria-label="Today summary">
             <article><span>Due today</span><strong id="dueTodayCount">0</strong></article>
@@ -111,7 +116,7 @@
               <div class="wft-item-list" id="waitingList"></div>
             </section>
             <section class="wft-list-section" id="laterSection" hidden>
-              <div class="wft-section-heading"><div><span class="wft-dot"></span><h2>Later</h2></div><span id="laterBadge"></span></div>
+              <div class="wft-section-heading"><div><span class="wft-dot"></span><h2>Later</h2></div><div class="wft-later-actions"><span id="laterBadge"></span><button class="wft-inline-button" id="showAllLater" type="button" hidden>Show all</button></div></div>
               <div class="wft-item-list" id="laterList"></div>
             </section>
             <section class="wft-list-section wft-completed" id="completedSection" hidden>
@@ -126,17 +131,19 @@
             </section>
           </div>
 
-          <section class="wft-tools" aria-labelledby="toolsTitle">
+          <section class="wft-tools" id="planningTools" aria-labelledby="toolsTitle">
             <div class="wft-tools-heading"><span class="wft-eyebrow">Planning tools</span><h2 id="toolsTitle">Go deeper only when you need to.</h2></div>
             <div class="wft-tool-grid">
               <a href="{{ url_for('weekflow.homeschool') }}"><span>Homeschool</span><strong>Plan our homeschool week</strong><p>Coordinate lessons around finite parent attention.</p><b>Open homeschool →</b></a>
               <a href="{{ url_for('weekflow.schedule_dashboard') }}"><span>Schedule</span><strong>See the whole family day</strong><p>Put school, appointments, rides, and handoff gaps in one calm agenda.</p><b>Open Schedule →</b></a>
               <a href="{{ url_for('weekflow.household') }}"><span>Household</span><strong>Share recurring responsibilities</strong><p>Give chores and routines a clear day, time, and owner.</p><b>Open Household →</b></a>
+            </div>
+            <details class="wft-more-tools"><summary>More family planning tools</summary><div class="wft-tool-grid">
               <a href="{{ url_for('weekflow.meals') }}"><span>Meals</span><strong>Plan meals and their handoffs</strong><p>Name the meal, then give shopping or preparation a clear owner.</p><b>Open Meals →</b></a>
               <a href="{{ url_for('weekflow.medical') }}"><span>Medical</span><strong>Close the loop on family care</strong><p>Coordinate appointments, forms, refills, and practical follow-ups.</p><b>Open Medical →</b></a>
               <a href="{{ url_for('weekflow.travel') }}"><span>Travel + guests</span><strong>Prepare without carrying it alone</strong><p>Keep upcoming dates visible and assign packing, booking, or hosting.</p><b>Open Travel + Guests →</b></a>
               <a href="{{ url_for('weekflow.me') }}"><span>Me</span><strong>Keep a place for yourself</strong><p>Gather personal reminders and the family handoffs carrying your name.</p><b>Open Things for Me →</b></a>
-            </div>
+            </div></details>
           </section>
         </main>
       </div>
@@ -163,7 +170,7 @@
           areaLabels: {{ area_labels|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_today.js') }}?v=6" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_today.js') }}?v=7" defer></script>
     {% endif %}
   </body>
 </html>

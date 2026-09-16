@@ -253,6 +253,73 @@ def test_rollover_creates_next_dated_week_with_only_unfinished_work(monkeypatch)
     assert captured["email"] == "parent@example.com"
 
 
+@pytest.mark.parametrize(
+    ("mode", "expected_ids"),
+    [
+        ("unfinished", ["still-open"]),
+        ("reuse", ["finished", "still-open"]),
+        ("empty", []),
+    ],
+)
+def test_start_week_modes_prepare_the_requested_current_week(monkeypatch, mode, expected_ids):
+    state = default_beta_state()
+    state["scenario"]["week_start"] = "2026-08-31"
+    state["scenario"]["tasks"] = [
+        {**state["scenario"]["tasks"][0], "id": "finished"},
+        {**state["scenario"]["tasks"][1], "id": "still-open"},
+    ]
+    state["scenario"]["completed_task_ids"] = ["finished"]
+    state["scenario"]["events"].append(
+        {**state["scenario"]["events"][0], "id": "one-time", "recurring": False}
+    )
+    monkeypatch.setattr(weekflow_store, "save_beta_state", lambda email, payload: payload)
+
+    result = create_rollover_state(
+        "parent@example.com",
+        {
+            "state": state,
+            "mode": mode,
+            "week_start": "2026-09-14",
+        },
+    )
+
+    assert result["scenario"]["week_start"] == "2026-09-14"
+    assert [task["id"] for task in result["scenario"]["tasks"]] == expected_ids
+    assert result["scenario"]["completed_task_ids"] == []
+    assert all(event["recurring"] for event in result["scenario"]["events"])
+
+
+def test_start_week_rejects_a_non_monday_or_older_week(monkeypatch):
+    state = default_beta_state()
+    state["scenario"]["week_start"] = "2026-08-31"
+    monkeypatch.setattr(weekflow_store, "save_beta_state", lambda email, payload: payload)
+
+    with pytest.raises(ValueError, match="Monday"):
+        create_rollover_state(
+            "parent@example.com",
+            {"state": state, "mode": "empty", "week_start": "2026-09-15"},
+        )
+    with pytest.raises(ValueError, match="after"):
+        create_rollover_state(
+            "parent@example.com",
+            {"state": state, "mode": "empty", "week_start": "2026-08-24"},
+        )
+
+
+def test_start_week_can_date_an_older_configured_plan(monkeypatch):
+    state = default_beta_state()
+    assert state["scenario"]["week_start"] is None
+    monkeypatch.setattr(weekflow_store, "save_beta_state", lambda email, payload: payload)
+
+    result = create_rollover_state(
+        "parent@example.com",
+        {"state": state, "mode": "reuse", "week_start": "2026-09-14"},
+    )
+
+    assert result["scenario"]["week_start"] == "2026-09-14"
+    assert result["scenario"]["completed_task_ids"] == []
+
+
 def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeypatch):
     database = _FakeDatabase()
     monkeypatch.setattr(weekflow_store, "db", database)

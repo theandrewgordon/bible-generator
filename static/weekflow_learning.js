@@ -13,6 +13,7 @@
   let savingMeals = false;
   let savingMedical = false;
   let savingTravel = false;
+  let weekHistory = [];
 
   function setStatus(message, error = false) {
     const element = byId("learningSaveStatus");
@@ -39,6 +40,21 @@
   function initialDay(isoDate) {
     const weekday = new Date(`${isoDate}T12:00:00Z`).getUTCDay();
     return DAYS[weekday >= 1 && weekday <= 5 ? weekday - 1 : 0];
+  }
+
+  function minuteFromTime(value) {
+    const [hour, minute] = String(value).split(":").map(Number);
+    return hour * 60 + minute;
+  }
+
+  function timeFromMinute(value) {
+    return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+  }
+
+  function readableDate(value) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" })
+      .format(new Date(year, month - 1, day));
   }
 
   async function jsonRequest(url, options = {}) {
@@ -134,6 +150,7 @@
     actions.className = "wfl-assignment-actions";
     actions.appendChild(button(completed ? "Undo" : "Done", completed ? "restore-task" : "complete-task", entry.task_id));
     if (!childView && config.mode === "homeschool") {
+      actions.appendChild(button("Edit", "edit-task", entry.task_id));
       actions.appendChild(button("Remove", "remove-task", entry.task_id, "is-remove"));
     }
     article.append(check, copy, actions);
@@ -159,6 +176,7 @@
       tab.type = "button";
       tab.role = "tab";
       tab.dataset.day = day.id;
+      tab.tabIndex = day.id === selectedDay ? 0 : -1;
       tab.classList.toggle("is-active", day.id === selectedDay);
       tab.setAttribute("aria-selected", String(day.id === selectedDay));
       const label = document.createTextNode(day.label.slice(0, 3));
@@ -166,6 +184,58 @@
       count.textContent = `${day.entries.length} item${day.entries.length === 1 ? "" : "s"}`;
       tab.append(label, count);
       return tab;
+    }));
+  }
+
+  function renderWeekTransition() {
+    const panel = byId("weekTransition");
+    const savedMonday = learning.scenario.week_start;
+    const thisMonday = currentWeekMonday(learning.today);
+    panel.hidden = Boolean(savedMonday && savedMonday >= thisMonday);
+    if (panel.hidden) return;
+    const unfinished = learning.scenario.tasks.length - learning.scenario.completed_task_ids.length;
+    byId("weekTransitionCopy").textContent = savedMonday
+      ? `${readableDate(savedMonday)} has ended. Start ${readableDate(thisMonday)} with ${unfinished} unfinished assignment${unfinished === 1 ? "" : "s"}, the same rhythm, or a blank plan.`
+      : `Date this plan for ${readableDate(thisMonday)} with ${unfinished} assignment${unfinished === 1 ? "" : "s"}, the same rhythm, or a blank week.`;
+  }
+
+  function renderRhythm() {
+    const availabilityForm = byId("availabilityForm");
+    const firstAdult = adults()[0]?.id;
+    const firstStudent = students()[0]?.id;
+    availabilityForm.elements.adult_end.value = timeFromMinute(learning.scenario.availability_end[firstAdult]?.mon || 12 * 60 + 30);
+    availabilityForm.elements.student_end.value = timeFromMinute(learning.scenario.availability_end[firstStudent]?.mon || 12 * 60 + 30);
+    const labels = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday" };
+    const list = byId("commitmentList");
+    const events = learning.scenario.events || [];
+    list.replaceChildren(...(events.length ? events.map((event) => {
+      const row = document.createElement("article");
+      row.className = "wfl-commitment";
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = event.title;
+      const detail = document.createElement("span");
+      detail.textContent = `${labels[event.day_id]} · ${timeFromMinute(event.start_minute)}–${timeFromMinute(event.end_minute)}${event.recurring ? " · repeats" : ""}`;
+      copy.append(title, detail);
+      row.append(copy, button("Remove", "remove-event", event.id, "is-remove"));
+      return row;
+    }) : [createEmpty("No fixed commitments yet.")]));
+  }
+
+  function renderWeekHistory() {
+    const section = byId("weekHistorySection");
+    if (!section) return;
+    const currentWeek = learning.scenario.week_start;
+    const previous = weekHistory.filter((week) => week.week_start !== currentWeek).slice(0, 6);
+    section.hidden = previous.length === 0;
+    byId("weekHistoryList").replaceChildren(...previous.map((week) => {
+      const row = document.createElement("article");
+      const title = document.createElement("strong");
+      title.textContent = `Week of ${readableDate(week.week_start)}`;
+      const summary = document.createElement("span");
+      summary.textContent = `${week.completed_count} finished · ${week.scheduled_count} scheduled${week.rollover_count ? ` · ${week.rollover_count} did not fit` : ""}`;
+      row.append(title, summary);
+      return row;
     }));
   }
 
@@ -222,6 +292,9 @@
     byId("planStatus").textContent = clear ? "Clear" : "Needs a choice";
     byId("planStatus").classList.toggle("is-error", !clear);
     byId("planStatusDetail").textContent = clear ? "everything fits" : "review the warning";
+    renderWeekTransition();
+    renderRhythm();
+    renderWeekHistory();
     renderDayTabs();
     renderWarning();
     renderParentHelp();
@@ -257,6 +330,7 @@
       tab.type = "button";
       tab.role = "tab";
       tab.dataset.kidId = student.id;
+      tab.tabIndex = student.id === selectedKid ? 0 : -1;
       tab.style.setProperty("--person", student.color);
       tab.classList.toggle("is-active", student.id === selectedKid);
       tab.setAttribute("aria-selected", String(student.id === selectedKid));
@@ -362,13 +436,24 @@
     else renderKids();
   }
 
+  async function refreshKidsStateAfterConflict(error, fallbackMessage) {
+    if (error.status !== 409) {
+      setStatus(error.message, true);
+      return;
+    }
+    try { todayState = await jsonRequest(config.todayStateUrl); } catch (_refreshError) { /* keep the restored local copy */ }
+    renderKids();
+    setStatus(fallbackMessage, true);
+  }
+
   async function saveLearning(message, fallback = null) {
     if (savingLearning) return false;
     savingLearning = true;
     const previous = fallback || JSON.parse(JSON.stringify(learning));
     setStatus("Rebuilding the family plan…");
     try {
-      learning = await jsonRequest(config.stateUrl, {
+      const today = learning.today || todayState?.today;
+      const saved = await jsonRequest(config.stateUrl, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
         body: JSON.stringify({
@@ -379,6 +464,7 @@
           updated_at: learning.updated_at,
         }),
       });
+      learning = { ...saved, today };
       render();
       setStatus(message);
       return true;
@@ -427,7 +513,7 @@
     } catch (error) {
       todayState = previous;
       renderKids();
-      setStatus(error.message, true);
+      await refreshKidsStateAfterConflict(error, "Responsibilities changed in another browser. We refreshed before overwriting anything.");
     } finally {
       savingToday = false;
     }
@@ -457,7 +543,7 @@
     } catch (error) {
       todayState.household = previous;
       renderKids();
-      setStatus(error.message, true);
+      await refreshKidsStateAfterConflict(error, "Household work changed in another browser. We refreshed before overwriting anything.");
     } finally {
       savingHousehold = false;
     }
@@ -480,7 +566,7 @@
       });
       setStatus(completed ? "Meal handoff completed" : "Meal handoff restored");
     } catch (error) {
-      todayState.meals = previous; renderKids(); setStatus(error.message, true);
+      todayState.meals = previous; renderKids(); await refreshKidsStateAfterConflict(error, "Meal handoffs changed in another browser. We refreshed before overwriting anything.");
     } finally { savingMeals = false; }
   }
 
@@ -492,7 +578,7 @@
     try {
       todayState.travel = await jsonRequest(config.travelStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: travel.revision, plans: travel.plans, handoffs: travel.handoffs }) });
       setStatus(completed ? "Travel handoff completed" : "Travel handoff restored");
-    } catch (error) { todayState.travel = previous; renderKids(); setStatus(error.message, true); } finally { savingTravel = false; }
+    } catch (error) { todayState.travel = previous; renderKids(); await refreshKidsStateAfterConflict(error, "Travel handoffs changed in another browser. We refreshed before overwriting anything."); } finally { savingTravel = false; }
   }
 
   async function saveMedicalResponsibility(itemId, completed = true) {
@@ -503,7 +589,7 @@
     try {
       todayState.medical = await jsonRequest(config.medicalStateUrl, { method: "PUT", headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken }, body: JSON.stringify({ revision: medical.revision, items: medical.items }) });
       setStatus(completed ? "Care reminder completed" : "Care reminder restored");
-    } catch (error) { todayState.medical = previous; renderKids(); setStatus(error.message, true); } finally { savingMedical = false; }
+    } catch (error) { todayState.medical = previous; renderKids(); await refreshKidsStateAfterConflict(error, "Care reminders changed in another browser. We refreshed before overwriting anything."); } finally { savingMedical = false; }
   }
 
   function taskAction(event) {
@@ -536,6 +622,18 @@
       return;
     }
     const previous = JSON.parse(JSON.stringify(learning));
+    if (action === "edit-task") {
+      const task = learning.scenario.tasks.find((candidate) => candidate.id === taskId);
+      if (task) openAssignmentEditor(task);
+      return;
+    }
+    if (action === "remove-event") {
+      const commitment = learning.scenario.events.find((candidate) => candidate.id === taskId);
+      if (!commitment || !window.confirm(`Remove “${commitment.title}” from the weekly rhythm?`)) return;
+      learning.scenario.events = learning.scenario.events.filter((candidate) => candidate.id !== taskId);
+      saveLearning("Commitment removed", previous);
+      return;
+    }
     if (action === "remove-task") {
       const task = learning.scenario.tasks.find((candidate) => candidate.id === taskId);
       if (!task || !window.confirm(`Remove “${task.title}” from this week?`)) return;
@@ -554,6 +652,44 @@
     );
   }
 
+  function assignmentHelp(task) {
+    const parentPhases = task.phases.filter((phase) => phase.resource !== "student");
+    if (!parentPhases.length) return "independent";
+    if (task.phases.length === 1) return "together";
+    return "checkin";
+  }
+
+  function resetAssignmentForm() {
+    const form = byId("assignmentForm");
+    form.reset();
+    form.elements.assignment_id.value = "";
+    byId("assignmentEyebrow").textContent = "New assignment";
+    byId("assignmentFormTitle").textContent = "Add work to the family plan";
+    byId("assignmentSubmit").textContent = "Add and rebuild week";
+    renderStudentPicker();
+  }
+
+  function openAssignmentEditor(task = null) {
+    resetAssignmentForm();
+    const form = byId("assignmentForm");
+    if (task) {
+      form.elements.assignment_id.value = task.id;
+      form.elements.title.value = task.title;
+      form.elements.subject.value = task.subject;
+      form.elements.due_day.value = String(task.due_day);
+      form.elements.minutes.value = String(task.phases.reduce((sum, phase) => sum + phase.minutes, 0));
+      form.elements.help.value = assignmentHelp(task);
+      form.elements.priority.value = String(task.priority);
+      form.querySelectorAll("input[name='student_id']").forEach((input) => { input.checked = task.student_ids.includes(input.value); });
+      byId("assignmentEyebrow").textContent = "Edit assignment";
+      byId("assignmentFormTitle").textContent = task.title;
+      byId("assignmentSubmit").textContent = "Save and rebuild week";
+    }
+    byId("assignmentStatus").textContent = "";
+    byId("addAssignmentPanel").hidden = false;
+    byId("addAssignmentPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function setupFamily(event) {
     event.preventDefault();
     if (savingLearning) return;
@@ -565,9 +701,10 @@
     const familyName = String(form.get("family_name")).trim();
     const adultId = "adult-1";
     const studentRows = childNames.map((name, index) => ({ id: `student-${index + 1}`, name, color: COLORS[index] }));
-    const weekdays = Object.fromEntries(DAYS.map((day) => [day, 12 * 60 + 30]));
-    const availability = { [adultId]: { ...weekdays } };
-    studentRows.forEach((student) => { availability[student.id] = { ...weekdays }; });
+    const studentWeekdays = Object.fromEntries(DAYS.map((day) => [day, 12 * 60 + 30]));
+    const adultWeekdays = Object.fromEntries(DAYS.map((day) => [day, 16 * 60]));
+    const availability = { [adultId]: adultWeekdays };
+    studentRows.forEach((student) => { availability[student.id] = { ...studentWeekdays }; });
     learning.family = {
       name: familyName,
       parent_label: adultName,
@@ -578,7 +715,7 @@
     learning.scenario = {
       schema_version: 2,
       household: { adults: [{ id: adultId, name: adultName, color: "#d49a3a" }], students: studentRows },
-      week_start: currentWeekMonday(todayState.today),
+      week_start: currentWeekMonday(learning.today),
       events: [],
       tasks: [],
       coop_monday: false,
@@ -636,8 +773,10 @@
     } else {
       phases = [{ label: "Work independently", minutes, resource: "student" }];
     }
-    learning.scenario.tasks.push({
-      id: safeId("task"),
+    const assignmentId = String(form.get("assignment_id") || "");
+    const existing = learning.scenario.tasks.find((task) => task.id === assignmentId);
+    const nextTask = {
+      id: existing?.id || safeId("task"),
       title: String(form.get("title")).trim(),
       subject: String(form.get("subject")).trim(),
       student_ids: studentIds,
@@ -645,26 +784,100 @@
       due_day: Number(form.get("due_day")),
       priority: Number(form.get("priority")),
       preferred_start: null,
-    });
-    status.textContent = "Adding assignment…";
+    };
+    learning.scenario.tasks = existing
+      ? learning.scenario.tasks.map((task) => task.id === existing.id ? nextTask : task)
+      : [...learning.scenario.tasks, nextTask];
+    status.textContent = existing ? "Updating assignment…" : "Adding assignment…";
     status.classList.remove("is-error");
-    saveLearning("Assignment added", previous).then((saved) => {
+    saveLearning(existing ? "Assignment updated" : "Assignment added", previous).then((saved) => {
       if (!saved) return;
-      assignmentForm.reset();
+      resetAssignmentForm();
       byId("addAssignmentPanel").hidden = true;
-      renderStudentPicker();
     });
+  }
+
+  async function startWeek(mode) {
+    if (savingLearning) return;
+    const target = currentWeekMonday(learning.today);
+    savingLearning = true;
+    setStatus("Starting the new week…");
+    byId("weekTransition").querySelectorAll("button").forEach((button) => { button.disabled = true; });
+    try {
+      const saved = await jsonRequest(config.rolloverUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
+        body: JSON.stringify({ state: learning, mode, week_start: target }),
+      });
+      learning = { ...saved, today: learning.today };
+      selectedDay = initialDay(learning.today);
+      await loadWeekHistory();
+      render();
+      setStatus(`Week of ${readableDate(target)} is ready`);
+    } catch (error) {
+      if (error.status === 409) await load();
+      setStatus(error.status === 409 ? "This plan changed in another browser. We refreshed it first." : error.message, true);
+    } finally {
+      savingLearning = false;
+      byId("weekTransition").querySelectorAll("button").forEach((button) => { button.disabled = false; });
+    }
+  }
+
+  function saveAvailability(event) {
+    event.preventDefault();
+    const previous = JSON.parse(JSON.stringify(learning));
+    const data = new FormData(event.currentTarget);
+    const adultEnd = minuteFromTime(data.get("adult_end"));
+    const studentEnd = minuteFromTime(data.get("student_end"));
+    adults().forEach((adult) => { learning.scenario.availability_end[adult.id] = Object.fromEntries(DAYS.map((day) => [day, adultEnd])); });
+    students().forEach((student) => { learning.scenario.availability_end[student.id] = Object.fromEntries(DAYS.map((day) => [day, studentEnd])); });
+    saveLearning("Weekday limits saved", previous);
+  }
+
+  function addCommitment(event) {
+    event.preventDefault();
+    const previous = JSON.parse(JSON.stringify(learning));
+    const data = new FormData(event.currentTarget);
+    const start = minuteFromTime(data.get("start"));
+    const end = minuteFromTime(data.get("end"));
+    if (end <= start) {
+      setStatus("The commitment must end after it starts.", true);
+      return;
+    }
+    learning.scenario.events.push({
+      id: safeId("event"), title: String(data.get("title")).trim(), detail: "",
+      day_id: String(data.get("day_id")), start_minute: start, end_minute: end,
+      affected: familyPeople().map((person) => person.id), kind: "commitment",
+      recurring: data.get("recurring") === "on", credit_subjects: [],
+    });
+    saveLearning("Commitment added", previous).then((saved) => { if (saved) event.currentTarget.reset(); });
+  }
+
+  async function loadWeekHistory() {
+    if (config.mode !== "homeschool") return;
+    try {
+      const payload = await jsonRequest(config.weeksUrl);
+      weekHistory = payload.weeks || [];
+      if (learning?.revision > 0) renderWeekHistory();
+    } catch (_error) {
+      weekHistory = [];
+    }
   }
 
   async function load() {
     byId("learningLoading").hidden = false;
     byId("learningError").hidden = true;
     try {
-      [learning, todayState] = await Promise.all([
-        jsonRequest(config.stateUrl),
-        jsonRequest(config.todayStateUrl),
-      ]);
-      selectedDay = initialDay(todayState.today);
+      if (config.mode === "homeschool") {
+        learning = await jsonRequest(config.stateUrl);
+        todayState = { today: learning.today, family: { people: [] } };
+      } else {
+        [learning, todayState] = await Promise.all([
+          jsonRequest(config.stateUrl),
+          jsonRequest(config.todayStateUrl),
+        ]);
+      }
+      selectedDay = initialDay(learning.today);
       selectedKid = students()[0]?.id;
       byId("learningLoading").hidden = true;
       if (learning.revision === 0) {
@@ -674,12 +887,31 @@
         byId("familyOnboarding").hidden = true;
         byId("learningApp").hidden = false;
         render();
+        if (config.mode === "homeschool" && window.location.hash === "#weeklyRhythm") {
+          byId("weeklyRhythm").open = true;
+          byId("weeklyRhythm").scrollIntoView({ block: "start" });
+        }
+        loadWeekHistory();
       }
     } catch (error) {
       byId("learningLoading").hidden = true;
       byId("learningErrorMessage").textContent = error.message;
       byId("learningError").hidden = false;
     }
+  }
+
+  function moveTabFocus(event) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const current = event.target.closest("[role='tab']");
+    if (!current) return;
+    const list = current.closest("[role='tablist']");
+    const tabs = [...list.querySelectorAll("[role='tab']")];
+    const index = tabs.indexOf(current);
+    if (index < 0) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[nextIndex].click();
+    tabs[nextIndex].focus();
   }
 
   byId("retryButton").addEventListener("click", load);
@@ -699,14 +931,17 @@
     }
     taskAction(event);
   });
+  byId("learningApp").addEventListener("keydown", moveTabFocus);
   if (config.mode === "homeschool") {
-    byId("showAddAssignment").addEventListener("click", () => {
-      byId("assignmentStatus").textContent = "";
-      byId("addAssignmentPanel").hidden = false;
-      byId("addAssignmentPanel").scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    byId("closeAddAssignment").addEventListener("click", () => { byId("addAssignmentPanel").hidden = true; });
+    byId("showAddAssignment").addEventListener("click", () => openAssignmentEditor());
+    byId("closeAddAssignment").addEventListener("click", () => { resetAssignmentForm(); byId("addAssignmentPanel").hidden = true; });
     byId("assignmentForm").addEventListener("submit", addAssignment);
+    byId("availabilityForm").addEventListener("submit", saveAvailability);
+    byId("commitmentForm").addEventListener("submit", addCommitment);
+    byId("weekTransition").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-week-mode]");
+      if (button) startWeek(button.dataset.weekMode);
+    });
   }
   load();
 })();

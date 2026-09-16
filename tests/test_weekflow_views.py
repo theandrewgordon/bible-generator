@@ -73,6 +73,8 @@ def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
     assert "Recently completed" in html
     assert "Plan our homeschool week" in html
     assert "See the whole family day" in html
+    assert "Set up our family" in html
+    assert "More family planning tools" in html
     assert 'stateUrl: "/labs/weekflow/today/state"' in html
     assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in html
     assert 'medicalStateUrl: "/labs/weekflow/medical/state"' in html
@@ -95,6 +97,7 @@ def test_family_settings_page_is_a_signed_in_weekflow_surface():
 
     assert response.status_code == 200
     assert "Family settings" in html
+    assert "Set up your family once" in html
     assert "Restore a backup" in html
     assert 'stateUrl: "/labs/weekflow/state"' in html
     assert 'aggregateUrl: "/labs/weekflow/today/state"' in html
@@ -161,6 +164,9 @@ def test_learning_dashboards_require_sign_in_and_render_shared_weekflow_tools():
     assert "Teach what needs you" in homeschool_html
     assert "When a child needs you" in homeschool_html
     assert "Add assignment" in homeschool_html
+    assert "Carry unfinished work" in homeschool_html
+    assert "Our weekly rhythm" in homeschool_html
+    assert 'rolloverUrl: "/labs/weekflow/rollover"' in homeschool_html
     assert "Each child’s day" in kids_html
     assert "Family responsibilities" in kids_html
     assert "Who is learning at home?" in homeschool_html
@@ -188,7 +194,8 @@ def test_schedule_dashboard_requires_sign_in_and_renders_the_calm_daily_shell():
     assert response.status_code == 200
     assert "The family day" in html
     assert "Needs you first" in html
-    assert "Rides + ownership" in html
+    assert "Protected time" in html
+    assert "Edit weekly rhythm" in html
     assert "Google Calendar" in html
     assert 'stateUrl: "/labs/weekflow/schedule/state"' in html
     assert 'logisticsUrl: "/labs/weekflow/logistics?personal=1"' in html
@@ -1356,6 +1363,7 @@ def test_signed_in_adult_can_load_save_and_delete_state(monkeypatch):
 
     assert loaded.status_code == 200
     assert loaded.get_json()["family"]["name"] == "Our homeschool"
+    assert len(loaded.get_json()["today"].split("-")) == 3
     assert stored.status_code == 200
     assert stored.get_json()["revision"] == 1
     assert removed.get_json() == {"deleted": True}
@@ -1503,3 +1511,6 @@ def test_beta_allowlist_and_subscription_limits_are_enforced(monkeypatch):
 
     assert response.status_code == 403
     assert "up to 4 students" in response.get_json()["error"]
+    assert "up to 4 students" in weekflow_view._limit_error(
+        "invited@example.com", {"state": state, "mode": "unfinished"}
+    )

@@ -31,7 +31,7 @@
           <div class="wfm-hero-actions"><button class="wfm-button wfm-primary" id="showMealForm" type="button">Plan a meal</button><button class="wfm-button" id="showHandoffForm" type="button">Add a prep step</button></div>
         </header>
 
-        <section class="wfm-setup" id="setupNotice" hidden><div><span class="wfm-eyebrow">Start with your family</span><h2>Name the people sharing the week.</h2><p>Meals uses the same adult-owned family record as the rest of WeekFlow.</p></div><a class="wfm-button wfm-primary" href="{{ url_for('weekflow.settings') }}">Set up our family</a></section>
+        <section class="wfm-setup" id="setupNotice" hidden><div><span class="wfm-eyebrow">Start with your family</span><h2>Name the people sharing the week.</h2><p>Meals uses the same adult-owned family record as the rest of WeekFlow.</p></div><a class="wfm-button wfm-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a></section>
 
         <section class="wfm-summary" aria-label="Meal plan summary">
           <article><span>Meals planned</span><strong id="plannedCount">0</strong><small>this week</small></article><article><span>Today’s steps</span><strong id="todayStepCount">0</strong><small>still open</small></article><article><span>Open handoffs</span><strong id="openHandoffCount">0</strong><small>shopping + prep</small></article><article><span>Finished</span><strong id="completedHandoffCount">0</strong><small>this week</small></article>
@@ -57,7 +57,7 @@
       </main>
 
       <script>window.WEEKFLOW_MEALS_CONFIG = { stateUrl: {{ url_for('weekflow.meals_state')|tojson }}, csrfToken: {{ csrf_token()|tojson }} };</script>
-      <script src="{{ url_for('static', filename='weekflow_meals.js') }}?v=1" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_meals.js') }}?v=2" defer></script>
     {% endif %}
   </body>
 </html>

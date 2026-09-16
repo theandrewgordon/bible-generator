@@ -99,6 +99,11 @@
     return plan.scenario.day_label === selectedDay().label ? plan.assignments : [];
   }
 
+  function weeklyCommitmentsForSelectedDay() {
+    const dayId = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][localDate(selectedDate).getUTCDay()];
+    return (state.learning.scenario.events || []).filter((event) => event.day_id === dayId);
+  }
+
   function responsibilitiesForSelectedDay() {
     return (state.responsibilities.items || []).filter((item) => {
       if (item.status === "completed" || item.area !== "schedule") return false;
@@ -124,6 +129,15 @@
       sort: Number(entry.start_minute),
       detail: [entry.participant_names?.join(" + "), entry.adult_name ? `${entry.adult_name} responsible` : entry.requires_adult ? "Needs an adult" : null].filter(Boolean).join(" · "),
       source: "Family logistics",
+      kind: "logistics",
+    }));
+    const commitments = weeklyCommitmentsForSelectedDay().map((event) => ({
+      id: `commitment-${event.id}`,
+      title: event.title,
+      time: `${minutesLabel(event.start_minute)}–${minutesLabel(event.end_minute)}`,
+      sort: event.start_minute,
+      detail: event.recurring ? "Repeats most weeks" : "This week only",
+      source: "Weekly rhythm",
       kind: "logistics",
     }));
     const responsibilities = responsibilitiesForSelectedDay().map((item) => ({
@@ -207,7 +221,7 @@
       source: "Google Calendar · preview",
       kind: "calendar",
     }));
-    return [...calendar, ...travelPlans, ...medical, ...school, ...logistics, ...household, ...meals, ...mealHandoffs, ...travelHandoffs, ...responsibilities].sort((left, right) => left.sort - right.sort || left.title.localeCompare(right.title));
+    return [...calendar, ...travelPlans, ...medical, ...school, ...commitments, ...logistics, ...household, ...meals, ...mealHandoffs, ...travelHandoffs, ...responsibilities].sort((left, right) => left.sort - right.sort || left.title.localeCompare(right.title));
   }
 
   function element(tag, className, text) {
@@ -228,6 +242,7 @@
       button.type = "button";
       button.role = "tab";
       button.dataset.date = day.date;
+      button.tabIndex = day.date === selectedDate ? 0 : -1;
       button.classList.toggle("is-active", day.date === selectedDate);
       button.setAttribute("aria-selected", String(day.date === selectedDate));
       const label = element("b", "", day.label.slice(0, 3));
@@ -289,7 +304,7 @@
     byId("attentionCount").textContent = issues.length ? String(issues.length) : "Clear";
     const list = byId("attentionList");
     if (!issues.length) {
-      list.replaceChildren(element("p", "wfs-clear-copy", state.logistics.has_saved_plan ? "No missing owner, ride, or overlapping responsibility is showing for this day." : "No saved family-logistics plan is attached to this day yet."));
+      list.replaceChildren(element("p", "wfs-clear-copy", "No unresolved handoff or calendar conflict is showing for this day."));
       return;
     }
     list.replaceChildren(...issues.map((issue) => {
@@ -305,12 +320,20 @@
 
   function renderCoverage() {
     const assignments = logisticsForSelectedDay();
+    const commitments = weeklyCommitmentsForSelectedDay();
     const list = byId("coverageList");
-    if (!assignments.length) {
-      list.replaceChildren(empty(state.logistics.has_saved_plan ? "No logistics commitments are saved for this day." : "Add the family’s appointments, activities, and rides when you are ready."));
+    if (!assignments.length && !commitments.length) {
+      list.replaceChildren(empty("Add co-op, appointments, and time away when you are ready."));
       return;
     }
-    list.replaceChildren(...assignments.map((item) => {
+    const commitmentRows = commitments.map((event) => {
+      const article = element("article", "wfs-coverage-item");
+      const copy = element("div");
+      copy.append(element("strong", "", event.title), element("span", "", `${minutesLabel(event.start_minute)}–${minutesLabel(event.end_minute)}`));
+      article.append(copy, element("b", "", "Family rhythm"));
+      return article;
+    });
+    list.replaceChildren(...commitmentRows, ...assignments.map((item) => {
       const article = element("article", `wfs-coverage-item${item.requires_adult && !item.adult_name ? " is-open" : ""}`);
       const copy = element("div");
       copy.append(element("strong", "", item.title), element("span", "", item.responsibility_mode === "transport" ? item.responsibility_window : `${minutesLabel(item.start_minute)}–${minutesLabel(item.end_minute)}`));
@@ -439,6 +462,12 @@
     if (!button) return;
     selectedDate = button.dataset.date;
     renderDay();
+  });
+  byId("dayTabs").addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = [...byId("dayTabs").querySelectorAll("[role='tab']")]; const index = tabs.indexOf(event.target); if (index < 0) return;
+    event.preventDefault(); const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[next].click(); tabs[next].focus();
   });
   byId("calendarForm").addEventListener("submit", previewCalendar);
   byId("retryButton").addEventListener("click", load);
