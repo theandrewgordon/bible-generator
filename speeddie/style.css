@@ -221,7 +221,7 @@ input:focus, select:focus, button:focus-visible, summary:focus-visible {
 .player-list { display: grid; gap: 8px; }
 .player-row {
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 48px;
@@ -483,3 +483,39 @@ dialog h2 { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Companion tools keep the current turn prominent, even at an eight-player table. */
+.token-image { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.player-token { overflow: hidden; flex-shrink: 0; }
+.small-token, .tiny-token, .token-preview { display: inline-flex; align-items: center; justify-content: center; border: 2px solid var(--line); border-radius: 12px; background: white; overflow: hidden; flex-shrink: 0; }
+.small-token { width: 38px; height: 38px; font-size: 24px; }
+.tiny-token { width: 25px; height: 25px; font-size: 17px; border-radius: 7px; }
+.token-preview { width: 88px; height: 88px; font-size: 48px; margin-bottom: 16px; }
+.edit-player { padding: 7px; background: transparent; color: var(--navy); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: .75rem; cursor: pointer; }
+.companion-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.companion-actions .button { flex: 1 1 140px; }
+.companion-toolbar .players-heading { gap: 14px; align-items: start; }
+.companion-toolbar p { margin: 5px 0 14px; }
+.companion-toolbar .players-heading > .button { width: auto; min-width: 100px; font-size: .8rem; }
+.debt-panel { border: 2px solid #b06037; background: #fff6e9; }
+.winner-panel { background: #eaf3df; }
+.property-grid { display: grid; gap: 12px; margin-top: 14px; }
+.property-card { padding: 15px; border: 1px solid var(--line); border-top: 6px solid; border-radius: 12px; background: #fffdf8; min-width: 0; }
+.property-card h3 { margin: 0; font-size: 1rem; }
+.property-card p { font-size: .85rem; }
+.property-card .button { font-size: .82rem; padding: 10px; }
+.edition-details { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); }
+.edition-details summary { margin-bottom: 15px; cursor: pointer; }
+.dialog-footer { margin-top: 20px; }
+.ledger { padding-left: 22px; }
+.ledger li { margin-bottom: 15px; }
+.ledger p { margin-bottom: 3px; }
+.ledger time { font-size: .75rem; color: var(--ink-muted); }
+.landing-card .field { max-width: 350px; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+@media (min-width: 620px) { .property-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 400px) { .player-row { gap: 7px; grid-template-columns: 30px minmax(0, 1fr) auto; } .small-token { width: 30px; height: 30px; } .edit-player { max-width: 65px; } }
+
+.setup-photo { margin: -6px 0 18px; font-size: .85rem; }
+.setup-photo summary { cursor: pointer; margin-bottom: 10px; }
+.player-summary strong { overflow-wrap: anywhere; }

@@ -6,8 +6,10 @@
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#f8f1e3">
     <title>Speed Die Helper</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="app.js" defer></script>
+    <link rel="stylesheet" href="/speeddie/style.css">
+    <script src="/speeddie/rules.js" defer></script>
+    <script src="/speeddie/companion.js" defer></script>
+    <script src="/speeddie/app.js" defer></script>
   </head>
   <body>
     <header class="site-header">
@@ -18,20 +20,10 @@
       <button id="game-menu-button" class="icon-button hidden" type="button" aria-label="Open game options">⚙</button>
     </header>
 
+    <p id="save-status" class="panel" role="status">Opening saved game…</p>
     <main id="app" class="app-shell" aria-live="polite"></main>
 
     <footer>Local family game helper.</footer>
-
-    <dialog id="owner-dialog">
-      <form method="dialog">
-        <h2 id="owner-dialog-title">Property settings</h2>
-        <p id="owner-dialog-property" class="muted"></p>
-        <button id="mortgage-toggle" class="button gold hidden" type="button"></button>
-        <p class="fieldset-label">Change owner</p>
-        <div id="owner-options" class="button-stack"></div>
-        <button class="button secondary" value="cancel">Cancel</button>
-      </form>
-    </dialog>
 
     <dialog id="position-dialog">
       <form id="position-form">
@@ -45,6 +37,8 @@
           <input id="position-in-jail" type="checkbox">
           <span>Player is in Jail—not just visiting</span>
         </label>
+        <label class="check-card"><input id="position-collect-go" type="checkbox"><span>Collect GO salary for this move (banker mode)</span></label>
+        <p class="muted small">For a card move, record any GO salary here. Leave unchecked for corrections or moving backward. Never collect when sent to Jail.</p>
         <div class="button-stack">
           <button class="button" type="submit">Save position</button>
           <button id="cancel-position" class="button quiet" type="button">Cancel</button>
@@ -76,6 +70,11 @@
             <div id="trade-properties-b" class="trade-properties"></div>
           </fieldset>
         </div>
+        <div class="trade-grid">
+          <label class="field"><span>First player offers cash</span><input id="trade-cash-a" type="number" min="0" max="100000000" step="1" value="0" required></label>
+          <label class="field"><span>Second player offers cash</span><input id="trade-cash-b" type="number" min="0" max="100000000" step="1" value="0" required></label>
+        </div>
+        <label class="check-card"><input id="trade-lift" type="checkbox"><span>Immediately unmortgage transferred properties (principal + 10%). Otherwise pay 10% now and principal + 10% later.</span></label>
         <div id="trade-summary" class="trade-summary">Select properties to preview the trade.</div>
         <div class="button-stack">
           <button id="complete-trade" class="button" type="submit">Complete trade</button>
@@ -84,10 +83,13 @@
       </form>
     </dialog>
 
+    <dialog id="companion-dialog" class="wide-dialog"></dialog>
+
     <dialog id="menu-dialog">
       <form method="dialog">
         <h2>Game options</h2>
         <div class="button-stack">
+          <button id="bank-settings" class="button secondary" type="button">Money mode &amp; edition settings</button>
           <button id="export-button" class="button secondary" type="button">Export game JSON</button>
           <label class="button secondary file-button">
             Import game JSON

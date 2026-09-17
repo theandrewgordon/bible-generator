@@ -1,0 +1,786 @@
+{
+  "scenarios": [
+    {
+      "name": "last survivor fee deadlock",
+      "result": {
+        "alive": 1,
+        "debt": {
+          "from": "062eb8e7-cedf-40fa-895f-866a1c3a9e70",
+          "to": "bank",
+          "amount": 10,
+          "reason": "Inherited mortgage: Reading Railroad",
+          "resume": null
+        },
+        "winner": false,
+        "payDisabled": true
+      },
+      "alert": "The last player has won; the game is complete."
+    },
+    {
+      "name": "rent changes after landing",
+      "before": "4",
+      "after": "10"
+    },
+    {
+      "name": "rent disappears after mortgage at landing",
+      "before": "2",
+      "after": "YOUR MOVE\n\nMortgaged: no rent due.\n\nFinish this stop"
+    },
+    {
+      "name": "second tab overwrites purchase",
+      "ownerBefore": "4107bcb9-fbde-4586-bcf5-e6a5a6254bfe",
+      "after": {
+        "owner": null,
+        "cash": 2500,
+        "name": "Robert"
+      }
+    },
+    {
+      "name": "incoming payment stuck behind outgoing debt",
+      "result": {
+        "cash": 0,
+        "debts": [
+          {
+            "from": "a77bd455-00b8-4eae-8e27-ddd743263cc4",
+            "to": "bank",
+            "amount": 50,
+            "reason": "Existing bill",
+            "resume": null
+          },
+          {
+            "from": "d48df095-38fa-49cc-b6e2-7d035b419f69",
+            "to": "a77bd455-00b8-4eae-8e27-ddd743263cc4",
+            "amount": 50,
+            "reason": "Card payment",
+            "resume": null
+          }
+        ],
+        "payDisabled": true
+      }
+    },
+    {
+      "name": "cannot correct debt after another action",
+      "result": {
+        "debt": 1000,
+        "undoDisabled": true,
+        "buttons": [
+          "Pay $1,000",
+          "Sell / mortgage properties",
+          "Trade",
+          "Review bankruptcy"
+        ]
+      }
+    }
+  ],
+  "game": [
+    {
+      "event": "round-check",
+      "rolls": 20,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 1990,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 1530,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 1570,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 40,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 1063,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 799,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 1518,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "St. Charles Place",
+      "rolls": 41
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "States Avenue",
+      "rolls": 44
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "St. James Place",
+      "rolls": 46
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "Virginia Avenue",
+      "rolls": 47
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "Tennessee Avenue",
+      "rolls": 49
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "New York Avenue",
+      "rolls": 50
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "St. James Place",
+      "rolls": 51
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "St. Charles Place",
+      "rolls": 52
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "States Avenue",
+      "rolls": 53
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "Virginia Avenue",
+      "rolls": 54
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "Tennessee Avenue",
+      "rolls": 56
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "St. Charles Place",
+      "rolls": 57
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "New York Avenue",
+      "rolls": 59
+    },
+    {
+      "event": "round-check",
+      "rolls": 60,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 685,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 109,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 1316,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "St. James Place",
+      "rolls": 62
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "Tennessee Avenue",
+      "rolls": 65
+    },
+    {
+      "event": "build",
+      "player": "Alice",
+      "property": "New York Avenue",
+      "rolls": 69
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "St. Charles Place",
+      "rolls": 70
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "States Avenue",
+      "rolls": 74
+    },
+    {
+      "event": "build",
+      "player": "Bob",
+      "property": "Virginia Avenue",
+      "rolls": 75
+    },
+    {
+      "event": "round-check",
+      "rolls": 80,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 2012,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 78,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 1275,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 100,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 2534,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 347,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 1284,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 120,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 3728,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 58,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 684,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 140,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 4264,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 205,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 901,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 160,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 5092,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 445,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 383,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 180,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 6299,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 359,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 52,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 200,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 7015,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 471,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 204,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 220,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 7380,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 536,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 224,
+          "name": "Cara",
+          "bankrupt": false
+        }
+      ]
+    },
+    {
+      "event": "bankruptcy",
+      "rolls": 227,
+      "player": "Cara",
+      "debt": 550
+    },
+    {
+      "event": "round-check",
+      "rolls": 240,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 7908,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 719,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 260,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 8507,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 1220,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 280,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 9086,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 1441,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 300,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 9982,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 1645,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 320,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 10633,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 1594,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 340,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 12323,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 654,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 360,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 12806,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 1071,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 380,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 14042,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 985,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 400,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 15014,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 1163,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "round-check",
+      "rolls": 420,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 16890,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 87,
+          "name": "Bob",
+          "bankrupt": false
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "bankruptcy",
+      "rolls": 434,
+      "player": "Bob",
+      "debt": 100
+    },
+    {
+      "event": "winner",
+      "rolls": 434,
+      "actions": 1785,
+      "players": [
+        {
+          "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+          "cash": 17820,
+          "name": "Alice",
+          "bankrupt": false
+        },
+        {
+          "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+          "cash": 0,
+          "name": "Bob",
+          "bankrupt": true
+        },
+        {
+          "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+          "cash": 0,
+          "name": "Cara",
+          "bankrupt": true
+        }
+      ]
+    },
+    {
+      "event": "finished-run",
+      "rolls": 434,
+      "actions": 1785,
+      "state": {
+        "alive": 1,
+        "players": [
+          {
+            "id": "15904428-13dc-48a8-8fcd-d4fb08db2b0d",
+            "name": "Alice",
+            "cash": 17820,
+            "bankrupt": false,
+            "token": "🐕",
+            "position": 25,
+            "passedGo": true,
+            "color": "#397bb5",
+            "inJail": false,
+            "jailAttempts": 0,
+            "consecutiveDoubles": 0
+          },
+          {
+            "id": "0ddbb42d-2598-41ed-8748-b2398e87e6ff",
+            "name": "Bob",
+            "cash": 0,
+            "bankrupt": true,
+            "token": "🐎",
+            "position": 25,
+            "passedGo": true,
+            "color": "#d69b29",
+            "inJail": false,
+            "jailAttempts": 0,
+            "consecutiveDoubles": 0
+          },
+          {
+            "id": "e6748242-cf79-4e4b-ae88-0f4ff5552f75",
+            "name": "Cara",
+            "cash": 0,
+            "bankrupt": true,
+            "token": "🚗",
+            "position": 18,
+            "passedGo": true,
+            "color": "#4f9169",
+            "inJail": false,
+            "jailAttempts": 0,
+            "consecutiveDoubles": 0
+          }
+        ],
+        "debts": [],
+        "auctions": []
+      }
+    }
+  ],
+  "errors": [
+    "The last player has won; the game is complete."
+  ]
+}

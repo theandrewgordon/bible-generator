@@ -1,0 +1,31 @@
+{
+  "scenarios": [
+    {
+      "name": "correcting other player jail erases doubles",
+      "before": "Roll again — doubles!",
+      "after": "End turn",
+      "current": "Bob"
+    },
+    {
+      "name": "mistyped rent unrecoverable in normal controls after mortgage then undo",
+      "result": {
+        "bill": 1000,
+        "undo": false,
+        "mode": "banker"
+      }
+    },
+    {
+      "name": "empty rent treated as paid zero",
+      "result": {
+        "cash": 2500,
+        "resolved": true,
+        "ledger": {
+          "message": "Rent: Mediterranean Avenue: Alice → Bob, $0.",
+          "time": "2026-09-17T13:57:36.685Z"
+        }
+      }
+    }
+  ],
+  "game": [],
+  "errors": []
+}

@@ -2,7 +2,7 @@
 
 // Everything is stored in this browser only. No account or server is involved.
 const STORAGE_KEY = "faithsparks-speed-die-v1";
-const PLAYER_COLORS = ["#397bb5", "#d69b29", "#4f9169", "#b95e78", "#785daa", "#cf6d3b"];
+const PLAYER_COLORS = ["#397bb5", "#d69b29", "#4f9169", "#b95e78", "#785daa", "#cf6d3b", "#267d80", "#855d42"];
 const SPEED_FACES = [1, 2, 3, "Bus", "Property Finder", "Property Finder"];
 
 // Standard U.S. board order. Names remain editable for other editions.
@@ -38,18 +38,22 @@ const GROUP_COLORS = {
 const app = document.querySelector("#app");
 const menuButton = document.querySelector("#game-menu-button");
 const menuDialog = document.querySelector("#menu-dialog");
-const ownerDialog = document.querySelector("#owner-dialog");
 const positionDialog = document.querySelector("#position-dialog");
 const positionForm = document.querySelector("#position-form");
 const tradeDialog = document.querySelector("#trade-dialog");
 const tradeForm = document.querySelector("#trade-form");
-let ownerDialogCallback = null;
 let correctingPlayerId = null;
 let positionCorrectionReason = "manual";
 let state = loadState();
+let lastSavedState = snapshotState(state);
+let undoStack = Array.isArray(state.undoStack) ? state.undoStack.slice(0, 10) : state.undo ? [state.undo] : [];
+let undoState = undoStack[0] || null;
+let storedSnapshot = localStorage.getItem(STORAGE_KEY);
+let saveWriterReady = false;
+delete state.undo; delete state.undoStack;
 
 function freshState() {
-  return {
+  return SpeedDieRules.upgrade({
     version: 5,
     started: false,
     players: [],
@@ -66,7 +70,7 @@ function freshState() {
     freeParkingRule: "official",
     extraTurn: false,
     history: []
-  };
+  });
 }
 
 function loadState() {
@@ -81,7 +85,7 @@ function loadState() {
 
 function isValidState(value) {
   return Boolean(
-    value && [1, 2, 3, 4, 5].includes(value.version) && Array.isArray(value.players) &&
+    value && [1, 2, 3, 4, 5, 6].includes(value.version) && Array.isArray(value.players) &&
     Array.isArray(value.spaces) && value.spaces.length === 40
   );
 }
@@ -121,12 +125,65 @@ function migrateState(saved) {
   saved.freeParkingRule = ["official", "500", "100", "50", "pot"].includes(saved.freeParkingRule)
     ? saved.freeParkingRule
     : "official";
-  saved.version = 5;
+  if (previousVersion < 6) saved.moneyMode = "helper";
+  SpeedDieRules.upgrade(saved);
+  SpeedDieRules.validate(saved);
   return saved;
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function snapshotState(value) {
+  const copy = structuredClone(value);
+  delete copy.undo; delete copy.undoStack;
+  return copy;
+}
+function adoptStoredGame() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const saved = raw ? JSON.parse(raw) : null;
+  state = saved && isValidState(saved) ? migrateState(saved) : freshState();
+  undoStack = Array.isArray(state.undoStack) ? state.undoStack.slice(0, 10) : state.undo ? [state.undo] : [];
+  undoState = undoStack[0] || null;
+  delete state.undo; delete state.undoStack;
+  lastSavedState = snapshotState(state); storedSnapshot = raw;
+}
+function saveState(skipUndo = false) {
+  if (!saveWriterReady || localStorage.getItem(STORAGE_KEY) !== storedSnapshot) {
+    adoptStoredGame();
+    alert("This game changed in another tab. The latest save has been loaded; please repeat your action.");
+    return false;
+  }
+  SpeedDieRules.captureLanding(state);
+  const next = snapshotState(state), previousStack = undoStack.slice();
+  if (!skipUndo && JSON.stringify(next) !== JSON.stringify(lastSavedState)) undoStack = [lastSavedState, ...undoStack].slice(0, 10);
+  try {
+    const raw = JSON.stringify({ ...next, undoStack });
+    localStorage.setItem(STORAGE_KEY, raw);
+    storedSnapshot = raw; lastSavedState = next; undoState = undoStack[0] || null;
+    return true;
+  } catch (error) {
+    state = structuredClone(lastSavedState); undoStack = previousStack; undoState = undoStack[0] || null;
+    alert("Could not save this change. It was rolled back. Export your game or free browser storage, then try again.");
+    return false;
+  }
+}
+function renderSaveAccess() {
+  app.inert = !saveWriterReady; menuButton.disabled = !saveWriterReady;
+  const status = document.querySelector("#save-status");
+  status.hidden = saveWriterReady;
+  status.textContent = navigator.locks ? "Read-only: another tab may be editing this game. Close that tab to continue here. Changes appear automatically." : "This browser cannot protect shared saves. Open this game in a current browser over HTTPS or localhost.";
+}
+function initializeSaveAccess() {
+  if (!navigator.locks) return;
+  navigator.locks.request(STORAGE_KEY + "-writer", async () => {
+    adoptStoredGame(); saveWriterReady = true; render();
+    await new Promise(resolve => {
+      window.addEventListener("pagehide", () => { saveWriterReady = false; resolve(); }, { once: true });
+    });
+  }).catch(error => { console.error("Game lock failed", error); saveWriterReady = false; renderSaveAccess(); });
+  window.addEventListener("storage", event => {
+    if (event.key !== STORAGE_KEY || saveWriterReady) return;
+    try { adoptStoredGame(); render(); } catch (error) { console.warn("Could not reload shared save", error); }
+  });
+  window.addEventListener("pageshow", event => { if (event.persisted) location.reload(); });
 }
 
 function escapeHTML(value) {
@@ -192,6 +249,7 @@ function render() {
   menuButton.classList.toggle("hidden", !state.started);
   if (!state.started) renderSetup();
   else renderGame();
+  renderSaveAccess();
 }
 
 function renderSetup() {
@@ -207,12 +265,15 @@ function renderSetup() {
             <label class="field">
               <span>Number of players</span>
               <select id="player-count">
-                ${[2, 3, 4, 5, 6].map(n => `<option value="${n}">${n} players</option>`).join("")}
+                ${[2, 3, 4, 5, 6, 7, 8].map(n => `<option value="${n}">${n} players</option>`).join("")}
               </select>
             </label>
             <div id="player-inputs" class="player-inputs"></div>
           </div>
           <div>
+            <label class="field"><span>Money handling</span><select name="money-mode"><option value="helper">Helper · use physical money</option><option value="banker">Banker · track money in the app</option></select></label>
+            <label class="field"><span>Starting cash per player</span><input name="starting-cash" type="number" min="0" max="100000000" step="1" value="2500" required></label>
+            <p class="muted small">US board values are included. Adjust your edition’s prices and payments in Game options.</p>
             <p class="fieldset-label">Rule mode</p>
             <div class="radio-group">
               <label class="radio-card">
@@ -262,34 +323,51 @@ function renderSetup() {
   const count = document.querySelector("#player-count");
   const names = document.querySelector("#player-inputs");
   function drawNameInputs() {
-    const old = [...names.querySelectorAll("input")].map(input => input.value);
+    const old = [...names.querySelectorAll(".setup-name")].map(input => input.value);
+    const tokens = [...names.querySelectorAll(".setup-token")].map(input => input.value);
+    const photos = [...names.querySelectorAll(".setup-image")].map(input => input.files);
     names.innerHTML = Array.from({ length: Number(count.value) }, (_, index) => `
       <label class="field">
         <span>Player ${index + 1}</span>
-        <input type="text" maxlength="24" required value="${escapeHTML(old[index] || "")}" placeholder="Enter a name">
-      </label>`).join("");
+        <input class="setup-name" type="text" maxlength="24" required value="${escapeHTML(old[index] || "")}" placeholder="Enter a name">
+      </label><label class="field"><span>Player ${index + 1} token</span><select class="setup-token">${TOKEN_CHOICES.map((t, i) => `<option ${t === (tokens[index] || TOKEN_CHOICES[index]) ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <details class="setup-photo"><summary>Use your own token picture</summary><label class="field"><span>Player ${index + 1} picture</span><input class="setup-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label></details>`).join("");
+    names.querySelectorAll(".setup-image").forEach((input, i) => { if (photos[i]?.length) input.files = photos[i]; });
   }
   count.addEventListener("change", drawNameInputs);
   drawNameInputs();
   document.querySelector("#setup-form").addEventListener("submit", startGame);
 }
 
-function startGame(event) {
+async function startGame(event) {
   event.preventDefault();
-  const nameInputs = [...document.querySelectorAll("#player-inputs input")];
+  const nameInputs = [...document.querySelectorAll("#player-inputs .setup-name")];
   const names = nameInputs.map(input => input.value.trim());
   if (new Set(names.map(name => name.toLowerCase())).size !== names.length) {
     alert("Please give each player a different name.");
     return;
   }
+  const setupForm = event.currentTarget;
+  const startButton = setupForm.querySelector('button[type="submit"]');
+  const formData = new FormData(setupForm);
+  const startingCash = Number(formData.get("starting-cash"));
+  if (!SpeedDieRules.isMoney(startingCash)) { alert("Enter a valid starting cash amount."); return; }
+  startButton.disabled = true;
+  let tokens;
+  try {
+    tokens = await Promise.all([...document.querySelectorAll(".setup-image")].map(async (input, i) => await imageToken(input.files[0]) || document.querySelectorAll(".setup-token")[i].value));
+  } catch (error) { alert(error.message); startButton.disabled = false; return; }
   state = freshState();
   state.started = true;
-  state.mode = new FormData(event.currentTarget).get("mode");
-  state.activation = new FormData(event.currentTarget).get("activation");
-  state.freeParkingRule = new FormData(event.currentTarget).get("free-parking");
+  state.moneyMode = formData.get("money-mode");
+  state.rules.startingCash = Number(formData.get("starting-cash"));
+  state.mode = formData.get("mode");
+  state.activation = formData.get("activation");
+  state.freeParkingRule = formData.get("free-parking");
   state.players = names.map((name, index) => ({
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${index}`,
     name,
+    cash: state.rules.startingCash, bankrupt: false, token: tokens[index],
     position: 0,
     passedGo: state.activation === "immediate",
     color: PLAYER_COLORS[index],
@@ -297,7 +375,8 @@ function startGame(event) {
     jailAttempts: 0,
     consecutiveDoubles: 0
   }));
-  saveState();
+  undoState = null; undoStack = [];
+  saveState(true);
   render();
 }
 
@@ -307,7 +386,7 @@ function renderGame() {
   const speedActive = state.activation === "immediate" || player.passedGo;
   app.innerHTML = `
     <section class="panel turn-heading">
-      <span class="player-token" style="background:${player.color}">${escapeHTML(initials(player.name))}</span>
+      <span class="player-token" style="background:${player.color}">${tokenMarkup(player)}</span>
       <div>
         <p class="eyebrow">Current player</p>
         <h2>${escapeHTML(player.name)}</h2>
@@ -315,12 +394,14 @@ function renderGame() {
       </div>
     </section>
 
-    ${renderPlayers()}
     ${state.roll ? renderDice() : ""}
-    ${renderActionArea(speedActive)}
+    ${renderPendingActions() || renderActionArea(speedActive)}
+    ${renderPlayers()}
+    ${renderCompanion()}
     ${renderBoard()}
   `;
   bindGameEvents();
+  bindCompanionEvents();
 }
 
 function renderPlayers() {
@@ -332,12 +413,12 @@ function renderPlayers() {
     <div class="player-list">
       ${state.players.map((player, index) => `
         <div class="player-row ${index === state.currentPlayer ? "active-player" : ""}">
-          <i class="player-color" style="background:${player.color}" aria-hidden="true"></i>
+          <span class="small-token" style="border-color:${player.color}" aria-hidden="true">${tokenMarkup(player)}</span>
           <div class="player-summary">
-            <strong>${escapeHTML(player.name)}${index === state.currentPlayer ? " · Taking turn" : ""}</strong>
-            <span>${player.inJail ? "In Jail" : escapeHTML(state.spaces[player.position].name)}${state.activation === "after-go" && !player.passedGo ? " · Speed Die locked" : ""}</span>
+            <strong>${escapeHTML(player.name)}${player.bankrupt ? " · Out" : state.winnerId === player.id ? " · Winner" : index === state.currentPlayer ? " · Taking turn" : ""}</strong>
+            <span>${player.bankrupt ? "Bankrupt" : player.inJail ? "In Jail" : escapeHTML(state.spaces[player.position].name)}${state.moneyMode === "banker" ? ` · $${player.cash.toLocaleString()}` : ""}${state.activation === "after-go" && !player.passedGo ? " · Speed Die locked" : ""}</span>
           </div>
-          <button class="correct-position" data-player="${player.id}" type="button">Correct</button>
+          <button class="edit-player" data-player="${player.id}" type="button">Token / details</button>
         </div>`).join("")}
     </div>
   </section>`;
@@ -365,14 +446,15 @@ function dieCard(label, face, result, speed = false) {
 function renderActionArea(speedActive) {
   if (state.phase === "ready" && currentPlayer().inJail) {
     const thirdAttempt = !canPayBeforeJailRoll(currentPlayer().jailAttempts);
+    const jailFee = state.moneyMode === "banker" ? state.rules.jail : 50;
     return `<section class="panel instruction jail-panel">
       <p class="eyebrow">In Jail · attempt ${currentPlayer().jailAttempts + 1} of 3</p>
       <h2>${thirdAttempt ? "Final doubles attempt" : "How do you want to get out?"}</h2>
       <p>${thirdAttempt
-        ? "Use a physical Get Out of Jail Free card, or roll for doubles. If you miss, pay $50 and move using that roll."
+        ? `Use a physical Get Out of Jail Free card, or roll for doubles. If you miss, pay $${jailFee} and move using that roll.`
         : "Pay the bank, use a physical Get Out of Jail Free card, or try to roll doubles."}</p>
       <div class="button-stack">
-        ${thirdAttempt ? "" : `<button id="pay-jail" class="button primary gold" type="button">Pay $50 &amp; roll normally</button>`}
+        ${thirdAttempt ? "" : `<button id="pay-jail" class="button primary gold" type="button">Pay $${jailFee} &amp; roll normally</button>`}
         <button id="use-jail-card" class="button secondary" type="button">Use Get Out of Jail Free card</button>
         <button id="try-jail-doubles" class="button secondary" type="button">Try to roll doubles</button>
       </div>
@@ -440,6 +522,7 @@ function renderActionArea(speedActive) {
 }
 
 function renderLandingResolution(includeOwnedMessage) {
+  if (state.moneyMode === "banker") return renderBankLanding();
   const space = currentSpace();
   if (!isProperty(space)) {
     return `<p class="status-note">${escapeHTML(spaceInstruction(space))}</p>`;
@@ -469,7 +552,7 @@ function renderLandingResolution(includeOwnedMessage) {
     ? ""
     : ` Utility dice total: ${utilityRoll}; Bus and Property Finder count as zero.`;
   return includeOwnedMessage
-    ? `<p class="status-note">Owned by ${escapeHTML(owner.name)}. Pay rent using your physical board/card.${utilityNote}</p>`
+    ? `<p class="status-note">Owned by ${escapeHTML(owner.name)}. Pay $${SpeedDieRules.rent(state, space, utilityRoll || 0)} using physical money.${utilityNote}</p>`
     : `<p class="status-note">This property is owned by ${escapeHTML(owner.name)}. Resolve any rent before continuing.${utilityNote}</p>`;
 }
 
@@ -480,7 +563,7 @@ function renderBoard() {
       <p class="muted small">Tap a name to edit it. Tap an ownership label to make a correction.</p>
       <div class="board-list">
         ${state.spaces.map(space => {
-          const playersHere = state.players.filter(player => player.position === space.index);
+          const playersHere = state.players.filter(player => !player.bankrupt && player.position === space.index);
           const owner = state.players.find(player => player.id === space.owner);
           return `<div class="space-row ${playersHere.length ? "current-space" : ""}">
             <span class="space-marker">
@@ -490,8 +573,8 @@ function renderBoard() {
             <div>
               <input class="space-name" data-space="${space.index}" value="${escapeHTML(space.name)}" aria-label="Name for space ${space.index}">
               <span class="space-kind">${escapeHTML(spaceGroupLabel(space) || space.type)}</span>
-              ${space.mortgaged ? `<span class="mortgage-badge">Mortgaged</span>` : ""}
-              ${playersHere.length ? `<div class="token-dots" title="${escapeHTML(playersHere.map(p => p.name).join(", "))}">${playersHere.map(p => `<i class="mini-token" style="background:${p.color}"></i>`).join("")}</div>` : ""}
+              ${space.mortgaged ? `<span class="mortgage-badge">Mortgaged</span>` : ""}${space.buildings ? `<span class="mortgage-badge">${buildingLabel(space)}</span>` : ""}
+              ${playersHere.length ? `<div class="token-dots" title="${escapeHTML(playersHere.map(p => p.name).join(", "))}">${playersHere.map(p => `<span class="tiny-token" style="border-color:${p.color}">${tokenMarkup(p)}</span>`).join("")}</div>` : ""}
             </div>
             ${isProperty(space) ? `<button class="owner-button choose-owner" data-space="${space.index}" type="button">${owner ? escapeHTML(owner.name) : "Unowned"}</button>` : ""}
           </div>`;
@@ -546,6 +629,8 @@ function bindGameEvents() {
 function randomDie() { return Math.floor(Math.random() * 6) + 1; }
 
 function rollDice() {
+  if (gameBlocked()) return;
+  state.bankLandingResolved = false; state.landingBill = null;
   const player = currentPlayer();
   const speedActive = state.activation === "immediate" || player.passedGo;
   const d1 = randomDie();
@@ -598,6 +683,7 @@ function rollDice() {
 }
 
 function completeMove(amount, message) {
+  state.bankLandingResolved = false; state.landingBill = null;
   movePlayer(amount);
   state.phase = "landed";
   state.message = message;
@@ -610,7 +696,7 @@ function completeMove(amount, message) {
 function movePlayer(amount) {
   const player = currentPlayer();
   const destination = player.position + amount;
-  if (destination >= 40) player.passedGo = true;
+  if (destination >= 40) { player.passedGo = true; creditGo(player, Math.floor(destination / 40)); }
   player.position = destination % 40;
 }
 
@@ -618,7 +704,8 @@ function moveAfterTriples() {
   const target = Number(document.querySelector("#triples-space").value);
   if (!Number.isInteger(target) || target < 0 || target >= state.spaces.length) return;
   const player = currentPlayer();
-  if (target === 0 || target < player.position) player.passedGo = true;
+  if (target !== 30 && (target === 0 || target < player.position)) { player.passedGo = true; creditGo(player); }
+  state.bankLandingResolved = false; state.landingBill = null;
   player.position = target;
   state.phase = "landed";
   state.extraTurn = false;
@@ -669,7 +756,8 @@ function moveToPropertyFinderTarget(target = findPropertyTarget()) {
   }
   const player = currentPlayer();
   const distance = (target - player.position + 40) % 40 || 40;
-  if (player.position + distance >= 40) player.passedGo = true;
+  if (player.position + distance >= 40) { player.passedGo = true; creditGo(player); }
+  state.bankLandingResolved = false; state.landingBill = null;
   player.position = target;
   const targetSpace = state.spaces[target];
   state.phase = "landed";
@@ -683,6 +771,10 @@ function moveToPropertyFinderTarget(target = findPropertyTarget()) {
 }
 
 function payToLeaveJail() {
+  if (gameBlocked()) return;
+  if (state.moneyMode === "banker") {
+    return commitGame(s => SpeedDieRules.owe(s, currentPlayer().id, s.freeParkingRule === "pot" ? "pot" : "bank", s.rules.jail, "Leave Jail", { kind: "jail-roll" }));
+  }
   const player = currentPlayer();
   player.inJail = false;
   player.jailAttempts = 0;
@@ -701,6 +793,8 @@ function useJailCard() {
 }
 
 function tryJailDoubles() {
+  if (gameBlocked()) return;
+  state.bankLandingResolved = false; state.landingBill = null;
   const player = currentPlayer();
   const d1 = randomDie();
   const d2 = randomDie();
@@ -719,6 +813,10 @@ function tryJailDoubles() {
   } else {
     player.jailAttempts += 1;
     if (player.jailAttempts >= 3) {
+      if (state.moneyMode === "banker") {
+        SpeedDieRules.owe(state, player.id, state.freeParkingRule === "pot" ? "pot" : "bank", state.rules.jail, "Third Jail attempt", { kind: "jail-move", amount: d1 + d2 });
+        recordRoll(); saveState(); render(); return;
+      }
       player.inJail = false;
       player.jailAttempts = 0;
       movePlayer(d1 + d2);
@@ -737,6 +835,7 @@ function tryJailDoubles() {
 }
 
 function continuePropertyFinder() {
+  if (gameBlocked() || bankLandingPending()) return;
   if (isProperty(currentSpace()) && currentSpace().owner === null && !state.firstStopResolved) return;
   const target = findPropertyTarget();
   if (target === null) {
@@ -767,12 +866,7 @@ function recordRoll() {
 }
 
 function buyCurrent() {
-  currentSpace().owner = currentPlayer().id;
-  currentSpace().mortgaged = false;
-  if (state.phase === "classic-first-stop") state.firstStopResolved = true;
-  state.landingResolved = true;
-  state.message += ` Marked as bought by ${currentPlayer().name}.`;
-  saveState(); render();
+  return commitGame(s => SpeedDieRules.buy(s, currentSpace().index, currentPlayer().id));
 }
 
 function renameSpace(index, name) {
@@ -804,15 +898,17 @@ function spaceInstruction(space) {
 }
 
 function openTradeDialog() {
-  const options = state.players
+  const options = SpeedDieRules.active(state)
     .map(player => `<option value="${player.id}">${escapeHTML(player.name)}</option>`)
     .join("");
   const playerA = document.querySelector("#trade-player-a");
   const playerB = document.querySelector("#trade-player-b");
   playerA.innerHTML = options;
   playerB.innerHTML = options;
-  playerA.value = state.players[0].id;
-  playerB.value = state.players[1].id;
+  playerA.value = SpeedDieRules.active(state)[0].id;
+  playerB.value = SpeedDieRules.active(state)[1].id;
+  document.querySelector("#trade-cash-a").value = 0;
+  document.querySelector("#trade-cash-b").value = 0;
   updateTradeProperties();
   tradeDialog.showModal();
 }
@@ -827,9 +923,9 @@ function tradePropertyList(player, side) {
   if (!properties.length) return `<p class="trade-empty">${escapeHTML(player.name)} has no properties.</p>`;
   return properties.map(space => `
     <label class="trade-property">
-      <input type="checkbox" value="${space.index}" data-side="${side}">
+      <input type="checkbox" value="${space.index}" data-side="${side}" ${SpeedDieRules.group(state, space).some(p => p.buildings) ? "disabled" : ""}>
       <span>
-        ${escapeHTML(space.name)} <small class="muted">· ${escapeHTML(spaceGroupLabel(space))}</small>
+        ${escapeHTML(space.name)} ${SpeedDieRules.group(state, space).some(p => p.buildings) ? "(sell group buildings first)" : ""}<small class="muted">· ${escapeHTML(spaceGroupLabel(space))}</small>
         ${space.mortgaged ? `<small class="mortgage-badge">Mortgaged</small>` : ""}
       </span>
     </label>`).join("");
@@ -877,7 +973,7 @@ function updateTradeSummary() {
     : "";
   document.querySelector("#trade-summary").innerHTML =
     `<p>${escapeHTML(summary.join(" ") || "Select properties to preview the trade.")}</p>${warning}`;
-  document.querySelector("#complete-trade").disabled = summary.length === 0;
+  document.querySelector("#complete-trade").disabled = summary.length === 0 && !Number(document.querySelector("#trade-cash-a").value) && !Number(document.querySelector("#trade-cash-b").value);
 }
 
 document.querySelector("#trade-player-a").addEventListener("change", updateTradeProperties);
@@ -888,57 +984,21 @@ tradeForm.addEventListener("submit", event => {
   const playerAId = document.querySelector("#trade-player-a").value;
   const playerBId = document.querySelector("#trade-player-b").value;
   if (!playerAId || !playerBId || playerAId === playerBId) return;
-  selectedTradeProperties("trade-properties-a").forEach(index => {
-    state.spaces[index].owner = playerBId;
-  });
-  selectedTradeProperties("trade-properties-b").forEach(index => {
-    state.spaces[index].owner = playerAId;
-  });
-  saveState();
-  tradeDialog.close();
-  render();
+  const ok = commitGame(s => SpeedDieRules.trade(s, playerAId, playerBId,
+    selectedTradeProperties("trade-properties-a"), selectedTradeProperties("trade-properties-b"),
+    Number(document.querySelector("#trade-cash-a").value), Number(document.querySelector("#trade-cash-b").value),
+    document.querySelector("#trade-lift").checked ? [...selectedTradeProperties("trade-properties-a"), ...selectedTradeProperties("trade-properties-b")] : []));
+  if (ok) tradeDialog.close();
 });
 
 function openOwnerDialog(spaceIndex, action = "settings") {
-  const space = state.spaces[spaceIndex];
-  document.querySelector("#owner-dialog-title").textContent =
-    action === "auction" ? "Record auction winner" : "Property settings";
-  document.querySelector("#owner-dialog-property").textContent = space.name;
-  const mortgageToggle = document.querySelector("#mortgage-toggle");
-  mortgageToggle.classList.toggle("hidden", space.owner === null);
-  mortgageToggle.textContent = space.mortgaged ? "Unmortgage property" : "Mark as mortgaged";
-  mortgageToggle.onclick = () => {
-    if (space.owner === null) return;
-    space.mortgaged = !space.mortgaged;
-    saveState();
-    ownerDialog.close();
-    render();
-  };
-  document.querySelector("#owner-options").innerHTML = `
-    <button class="button quiet owner-option" data-owner="" type="button">${action === "auction" ? "House rule: leave unowned" : "Leave unowned"}</button>
-    ${state.players.map(player => `<button class="button secondary owner-option" data-owner="${player.id}" type="button">${escapeHTML(player.name)}</button>`).join("")}`;
-  ownerDialogCallback = ownerId => {
-    space.owner = ownerId || null;
-    if (!space.owner) space.mortgaged = false;
-    if (state.phase === "classic-first-stop" && space.index === currentSpace().index && space.owner) {
-      state.firstStopResolved = true;
-    }
-    if (space.index === currentSpace().index && (space.owner || action === "auction")) {
-      state.landingResolved = true;
-      if (action === "auction" && !space.owner) state.firstStopResolved = true;
-    }
-    saveState(); render();
-  };
-  document.querySelectorAll(".owner-option").forEach(button => button.addEventListener("click", () => {
-    ownerDialogCallback(button.dataset.owner);
-    ownerDialog.close();
-  }));
-  ownerDialog.showModal();
+  if (action === "auction") openAuction(spaceIndex);
+  else openProperty(spaceIndex);
 }
 
 function openPositionDialog(playerId, reason = "manual") {
   const player = state.players.find(person => person.id === playerId);
-  if (!player) return;
+  if (!player || player.bankrupt || gameBlocked()) return;
   correctingPlayerId = playerId;
   positionCorrectionReason = reason;
   document.querySelector("#position-dialog-player").textContent = `Move ${player.name} to the correct space.`;
@@ -946,6 +1006,7 @@ function openPositionDialog(playerId, reason = "manual") {
     .map(space => `<option value="${space.index}" ${space.index === player.position ? "selected" : ""}>${space.index} · ${escapeHTML(space.name)}</option>`)
     .join("");
   document.querySelector("#position-in-jail").checked = player.inJail;
+  document.querySelector("#position-collect-go").checked = false;
   positionDialog.showModal();
 }
 
@@ -954,14 +1015,17 @@ positionForm.addEventListener("submit", event => {
   const player = state.players.find(person => person.id === correctingPlayerId);
   if (!player) return;
   const previousPosition = player.position;
+  const collectGo = document.querySelector("#position-collect-go").checked;
+  if (player.id === currentPlayer().id) { state.bankLandingResolved = false; state.landingBill = null; }
   player.position = Number(document.querySelector("#position-space").value);
   const markInJail = document.querySelector("#position-in-jail").checked;
+  if (collectGo && !markInJail && player.position !== 30) { player.passedGo = true; creditGo(player); }
   if (markInJail) {
     player.position = 10;
     player.inJail = true;
     player.jailAttempts = 0;
     player.consecutiveDoubles = 0;
-    state.extraTurn = false;
+    if (player.id === currentPlayer().id) state.extraTurn = false;
   } else if (player.inJail) {
     player.inJail = false;
     player.jailAttempts = 0;
@@ -994,10 +1058,10 @@ document.querySelector("#cancel-position").addEventListener("click", () => {
 });
 
 function endTurn() {
-  if (needsLandingResolution()) return;
+  if (needsLandingResolution() || gameBlocked() || bankLandingPending()) return;
   if (!state.extraTurn) {
     currentPlayer().consecutiveDoubles = 0;
-    state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+    SpeedDieRules.advance(state);
   }
   state.roll = null;
   state.phase = "ready";
@@ -1025,11 +1089,15 @@ document.querySelector("#export-button").addEventListener("click", () => {
 document.querySelector("#import-input").addEventListener("change", async event => {
   const file = event.target.files[0];
   if (!file) return;
+  if (file.size > 2000000) { alert("Game file is too large (maximum 2 MB)."); event.target.value = ""; return; }
   try {
     const imported = JSON.parse(await file.text());
     if (!isValidState(imported)) throw new Error("This is not a valid Speed Die game file.");
-    state = migrateState(imported);
-    saveState();
+    const next = migrateState(imported);
+    delete next.undo; delete next.undoStack;
+    state = next;
+    undoState = null; undoStack = [];
+    saveState(true);
     menuDialog.close();
     render();
   } catch (error) {
@@ -1040,8 +1108,9 @@ document.querySelector("#import-input").addEventListener("change", async event =
 
 document.querySelector("#reset-button").addEventListener("click", () => {
   if (!confirm("Reset this game and erase its saved progress?")) return;
-  localStorage.removeItem(STORAGE_KEY);
   state = freshState();
+  undoState = null; undoStack = [];
+  saveState(true);
   menuDialog.close();
   render();
 });
@@ -1071,6 +1140,9 @@ function runRuleSelfChecks() {
   if (failed.length) throw new Error(`Rule self-checks failed: ${failed.map(result => result.description).join(", ")}`);
   console.info(`Speed Die rule self-checks passed (${checks.length}).`);
 }
+
+initializeCompanion();
+initializeSaveAccess();
 
 if (new URLSearchParams(window.location.search).has("selftest")) runRuleSelfChecks();
 render();
