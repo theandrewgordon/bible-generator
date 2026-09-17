@@ -207,3 +207,42 @@ test('blank, zero, decimal, and negative rent cannot silently resolve a bill; ex
 test('waiving a pending Jail fine preserves its continuation',async()=>{
   const p=await page();await p.evaluate(()=>{state.players[0].cash=0;state.players[0].position=10;state.players[0].inJail=true;saveState();render();});await p.locator('#pay-jail').click();await click(p,'correct-debt');await p.locator('#corrected-amount').fill('0');await p.locator('#correction-reason').fill('Correction: paid physically');await submit(p);await click(p,'settle');assert.equal(await p.evaluate(()=>state.players[0].inJail),false);assert.equal(await p.locator('#roll-button').count(),1);await p.close();
 });
+
+test('saving an unchanged position does not reopen paid rent or consume undo history',async()=>{
+  const p=await page();await p.evaluate(()=>{state.players[0].position=1;state.spaces[1].owner=state.players[1].id;state.phase='landed';saveState();render();});await click(p,'landing-pay');
+  const before=await p.evaluate(()=>({cash:state.players[0].cash,undo:undoStack.length}));
+  await p.locator('.edit-player').first().click();await p.locator('#companion-dialog [data-action="position"]').click();await p.locator('#position-form button[type="submit"]').click();
+  assert.deepEqual(await p.evaluate(()=>({cash:state.players[0].cash,undo:undoStack.length})),before);assert.equal(await p.locator('#landing-payment').count(),0);assert.equal(await p.locator('#end-turn-button').isEnabled(),true);await p.reload();assert.equal(await p.locator('#landing-payment').count(),0);await p.close();
+});
+
+test('unchanged Jail correction preserves attempts; real movement still creates a new landing',async()=>{
+  const p=await page();await p.evaluate(()=>{state.players[0].position=10;state.players[0].inJail=true;state.players[0].jailAttempts=2;saveState();render();});
+  await p.locator('.edit-player').first().click();await p.locator('#companion-dialog [data-action="position"]').click();await p.locator('#position-form button[type="submit"]').click();assert.equal(await p.evaluate(()=>state.players[0].jailAttempts),2);
+  await p.evaluate(()=>{state.players[0].inJail=false;state.players[0].position=1;state.spaces[1].owner=state.players[1].id;state.spaces[3].owner=state.players[1].id;state.phase='landed';saveState();render();});await click(p,'landing-pay');
+  await p.locator('.edit-player').first().click();await p.locator('#companion-dialog [data-action="position"]').click();await p.locator('#position-space').selectOption('3');await p.locator('#position-form button[type="submit"]').click();assert.equal(await p.locator('#landing-payment').inputValue(),'8');await p.close();
+});
+
+test('failed undo preserves both game state and the complete undo stack, allowing retry',async()=>{
+  const p=await page();const alerts=[];p.removeAllListeners('dialog');p.on('dialog',async d=>{alerts.push(d.message());await d.accept()});
+  await p.evaluate(()=>{state.players[0].position=1;state.phase='landed';state.landingResolved=false;saveState();render();});await click(p,'buy');
+  const before=await p.evaluate(()=>JSON.stringify({state:snapshotState(state),stack:undoStack,raw:localStorage.getItem(STORAGE_KEY)}));
+  await p.evaluate(()=>{window.realSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Quota exceeded','QuotaExceededError')}});await click(p,'undo');
+  assert.equal(await p.evaluate(()=>JSON.stringify({state:snapshotState(state),stack:undoStack,raw:localStorage.getItem(STORAGE_KEY)})),before);assert.match(alerts[0],/rolled back/);
+  await p.evaluate(()=>{Storage.prototype.setItem=window.realSetItem});await click(p,'undo');assert.deepEqual(await p.evaluate(()=>[state.spaces[1].owner,state.players[0].cash]),[null,2500]);await p.close();
+});
+
+test('malformed save can be downloaded intact and replaced with a valid backup',async()=>{
+  const p=await page();const backup=await p.evaluate(()=>JSON.stringify(state));await p.evaluate(()=>localStorage.setItem(STORAGE_KEY,'{broken save'));await p.reload();await p.waitForFunction(()=>saveWriterReady);await p.waitForSelector('#recovery-export');
+  assert.equal(await p.evaluate(()=>app.inert),false);assert.equal(await p.evaluate(()=>localStorage.getItem(STORAGE_KEY)),'{broken save');
+  const download=p.waitForEvent('download');await p.locator('#recovery-export').click();const file=await download;assert.equal(fs.readFileSync(await file.path(),'utf8'),'{broken save');
+  const chooser=p.waitForEvent('filechooser');await p.locator('#recovery-import').click();await (await chooser).setFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(backup)});await p.waitForSelector('#roll-button');assert.equal(await p.evaluate(()=>recoveryRaw),null);await p.reload();await p.waitForSelector('#roll-button');await p.close();
+});
+
+test('invalid saved schema has an explicit recovery reset rather than a read-only lockout',async()=>{
+  const p=await page();await p.evaluate(()=>localStorage.setItem(STORAGE_KEY,JSON.stringify({version:6,players:[],spaces:[]})));await p.reload();await p.waitForFunction(()=>saveWriterReady);await p.locator('#recovery-reset').click();await p.waitForSelector('#setup-form');assert.equal(await p.evaluate(()=>recoveryRaw),null);await p.reload();await p.waitForSelector('#setup-form');await p.close();
+});
+
+test('failed recovery reset preserves the damaged original and recovery actions',async()=>{
+  const p=await page();const alerts=[];p.removeAllListeners('dialog');p.on('dialog',async d=>{alerts.push(d.message());await d.accept()});await p.evaluate(()=>localStorage.setItem(STORAGE_KEY,'{original'));await p.reload();await p.waitForFunction(()=>saveWriterReady);
+  await p.evaluate(()=>{Storage.prototype.setItem=function(){throw new DOMException('Quota exceeded','QuotaExceededError')}});await p.locator('#recovery-reset').click();assert.equal(await p.evaluate(()=>localStorage.getItem(STORAGE_KEY)),'{original');assert.equal(await p.locator('#recovery-export').count(),1);assert.ok(alerts.some(s=>s.includes('rolled back')));await p.close();
+});

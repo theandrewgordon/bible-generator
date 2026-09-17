@@ -22,6 +22,9 @@ tokens or local pictures, and physical-money helper or digital banker mode.
   For a different edition, confirm values against the physical board.
 - Switch money modes between turns; enter actual cash when enabling banker mode
   for an existing game. Existing version 1–5 saves migrate to helper mode.
+- Damaged saves open a recovery screen with an unchanged-data download, backup
+  import, and reset. A failed save preserves both game state and undo history.
+- Saving an unchanged position preserves paid rent and Jail attempt counts.
 - Export/import includes token pictures. Undo restores the last saved action,
   including cash, deeds, buildings, pending bills, and turn state. Up to ten undo steps
   survive reload; the ledger keeps the latest 150 financial/management entries.

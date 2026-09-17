@@ -44,10 +44,12 @@ const tradeDialog = document.querySelector("#trade-dialog");
 const tradeForm = document.querySelector("#trade-form");
 let correctingPlayerId = null;
 let positionCorrectionReason = "manual";
+let recoveryRaw = null;
 let state = loadState();
 let lastSavedState = snapshotState(state);
 let undoStack = Array.isArray(state.undoStack) ? state.undoStack.slice(0, 10) : state.undo ? [state.undo] : [];
 let undoState = undoStack[0] || null;
+let lastSavedUndoStack = undoStack.slice();
 let storedSnapshot = localStorage.getItem(STORAGE_KEY);
 let saveWriterReady = false;
 delete state.undo; delete state.undoStack;
@@ -74,13 +76,30 @@ function freshState() {
 }
 
 function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  recoveryRaw = null;
+  if (raw === null) return freshState();
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (isValidState(saved)) return migrateState(saved);
+    const saved = JSON.parse(raw);
+    if (!isValidState(saved)) throw new Error("Invalid saved game format.");
+    return migrateState(saved);
   } catch (error) {
-    console.warn("Saved game could not be read.", error);
+    recoveryRaw = raw;
+    console.warn("Saved game needs recovery.", error);
+    return freshState();
   }
-  return freshState();
+}
+function renderRecovery() {
+  app.innerHTML = `<section class="panel"><h2>Recover your saved game</h2>
+    <p>The saved game could not be read. Its original data has been kept. Download it before importing a backup or resetting.</p>
+    <div class="button-stack">
+      <button id="recovery-export" class="button secondary" type="button">Download damaged save</button>
+      <button id="recovery-import" class="button secondary" type="button">Import a game backup</button>
+      <button id="recovery-reset" class="button danger" type="button">Reset damaged save</button>
+    </div></section>`;
+  document.querySelector("#recovery-export").onclick = () => document.querySelector("#export-button").click();
+  document.querySelector("#recovery-import").onclick = () => document.querySelector("#import-input").click();
+  document.querySelector("#recovery-reset").onclick = () => document.querySelector("#reset-button").click();
 }
 
 function isValidState(value) {
@@ -138,12 +157,11 @@ function snapshotState(value) {
 }
 function adoptStoredGame() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  const saved = raw ? JSON.parse(raw) : null;
-  state = saved && isValidState(saved) ? migrateState(saved) : freshState();
+  state = loadState();
   undoStack = Array.isArray(state.undoStack) ? state.undoStack.slice(0, 10) : state.undo ? [state.undo] : [];
   undoState = undoStack[0] || null;
   delete state.undo; delete state.undoStack;
-  lastSavedState = snapshotState(state); storedSnapshot = raw;
+  lastSavedState = snapshotState(state); storedSnapshot = raw; lastSavedUndoStack = undoStack.slice();
 }
 function saveState(skipUndo = false) {
   if (!saveWriterReady || localStorage.getItem(STORAGE_KEY) !== storedSnapshot) {
@@ -152,12 +170,13 @@ function saveState(skipUndo = false) {
     return false;
   }
   SpeedDieRules.captureLanding(state);
-  const next = snapshotState(state), previousStack = undoStack.slice();
+  const next = snapshotState(state), previousStack = lastSavedUndoStack.slice();
   if (!skipUndo && JSON.stringify(next) !== JSON.stringify(lastSavedState)) undoStack = [lastSavedState, ...undoStack].slice(0, 10);
   try {
     const raw = JSON.stringify({ ...next, undoStack });
     localStorage.setItem(STORAGE_KEY, raw);
     storedSnapshot = raw; lastSavedState = next; undoState = undoStack[0] || null;
+    lastSavedUndoStack = undoStack.slice(); recoveryRaw = null;
     return true;
   } catch (error) {
     state = structuredClone(lastSavedState); undoStack = previousStack; undoState = undoStack[0] || null;
@@ -247,7 +266,8 @@ function initials(name) {
 
 function render() {
   menuButton.classList.toggle("hidden", !state.started);
-  if (!state.started) renderSetup();
+  if (recoveryRaw !== null) renderRecovery();
+  else if (!state.started) renderSetup();
   else renderGame();
   renderSaveAccess();
 }
@@ -1016,17 +1036,21 @@ positionForm.addEventListener("submit", event => {
   if (!player) return;
   const previousPosition = player.position;
   const collectGo = document.querySelector("#position-collect-go").checked;
-  if (player.id === currentPlayer().id) { state.bankLandingResolved = false; state.landingBill = null; }
-  player.position = Number(document.querySelector("#position-space").value);
   const markInJail = document.querySelector("#position-in-jail").checked;
+  const target = markInJail ? 10 : Number(document.querySelector("#position-space").value);
+  const changed = target !== previousPosition || player.inJail !== markInJail;
+  const cardMove = positionCorrectionReason !== "manual";
+  if (!changed && !cardMove && !collectGo) { positionDialog.close(); return; }
+  if (player.id === currentPlayer().id && (changed || cardMove)) { state.bankLandingResolved = false; state.landingBill = null; }
+  player.position = target;
   if (collectGo && !markInJail && player.position !== 30) { player.passedGo = true; creditGo(player); }
-  if (markInJail) {
+  if (markInJail && (changed || cardMove)) {
     player.position = 10;
     player.inJail = true;
     player.jailAttempts = 0;
     player.consecutiveDoubles = 0;
     if (player.id === currentPlayer().id) state.extraTurn = false;
-  } else if (player.inJail) {
+  } else if (!markInJail && player.inJail) {
     player.inJail = false;
     player.jailAttempts = 0;
   }
@@ -1078,10 +1102,10 @@ function endTurn() {
 menuButton.addEventListener("click", () => menuDialog.showModal());
 
 document.querySelector("#export-button").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const blob = new Blob([recoveryRaw !== null ? recoveryRaw : JSON.stringify(state, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `faithsparks-speed-die-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `${recoveryRaw !== null ? "damaged-save" : "faithsparks-speed-die"}-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
 });
