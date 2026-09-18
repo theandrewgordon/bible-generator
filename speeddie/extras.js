@@ -58,7 +58,7 @@ function bedtimeLobby(){
 }
 function onlineCelebration(){
   const winners=onlineRoom.result?.winners||[state.winnerId];
-  return `<div class="winner-panel"><h2>${winners.map(id=>escapeHTML(state.players.find(p=>p.id===id).name)).join(' & ')} ${winners.length>1?'share the win!':'wins!'}</h2>${winnerSpotlight(winners.map(id=>state.players.find(p=>p.id===id)))}${onlineRoom.result?onlineRoom.result.scores.map(r=>`<p>${escapeHTML(state.players.find(p=>p.id===r.player).name)}: ${money(r.score)}${r.bankrupt?' · bankrupt':''}</p>`).join(''):''}${familyAwards(state)}${onlineButton('Back to saved games','exit')}</div>`;
+  return `<div class="winner-panel"><h2>${winners.map(id=>escapeHTML(state.players.find(p=>p.id===id).name)).join(' & ')} ${winners.length>1?'share the win!':'wins!'}</h2>${winnerSpotlight(winners.map(id=>state.players.find(p=>p.id===id)))}${onlineRoom.result?onlineRoom.result.scores.map(r=>`<p>${escapeHTML(state.players.find(p=>p.id===r.player).name)}: ${money(r.score)}${r.bankrupt?' · bankrupt':''}</p>`).join(''):''}${familyAwards(state)}${onlineButton('Download game-night keepsake','keepsake')}${onlineButton('Back to saved games','exit')}</div>`;
 }
 
 function propertyActionLabel(q,action){
@@ -71,4 +71,72 @@ function propertyActionLabel(q,action){
 function winnerSpotlight(players){
   const colors=['#ef476f','#ffd166','#06b6a0','#4d96ff','#a66cff'];
   return `<div class="winner-spotlight"><div class="confetti" aria-hidden="true">${Array.from({length:32},(_,i)=>`<i style="--x:${(i*37)%100}%;--y:${(i*53)%90}%;--delay:${(i%8)*.17}s;--confetti-color:${colors[i%colors.length]};--tilt:${i%2?150:-150}deg"></i>`).join('')}</div><div class="winner-tokens">${players.map(p=>`<div class="winner-person"><div class="winner-token" role="img" aria-label="${escapeHTML(p.name)}’s winning token">${tokenMarkup(p)}</div><strong>${escapeHTML(p.name)}</strong></div>`).join('')}</div></div>`;
+}
+function collectionTracker(s,p){
+  const groups=[...new Set(s.spaces.filter(q=>q.type==='property'&&q.owner===p.id).map(q=>q.group))];
+  return `<details class="collection-tracker"><summary>My color collections</summary>${groups.map(color=>{const group=s.spaces.filter(q=>q.type==='property'&&q.group===color),owned=group.filter(q=>q.owner===p.id);return `<article style="border-left:6px solid ${GROUP_COLORS[color]||'#777'};padding-left:.7rem"><strong>${escapeHTML(color)} · ${owned.length} of ${group.length}</strong><p>${owned.length===group.length?'Complete set!':group.filter(q=>q.owner!==p.id).map(q=>`${escapeHTML(q.name)}: ${escapeHTML(s.players.find(p=>p.id===q.owner)?.name||'available from the bank')}`).join('<br>')}</p></article>`;}).join('')||'<p>Your color collections appear here after you get a street.</p>'}</details>`;
+}
+function destinationPreview(s,index){
+  const q=s.spaces[index],p=s.players[s.currentPlayer];
+  if(!q)return '';
+  if(index===30)return 'Go directly to Jail';
+  if(index===4)return 'Tax: '+money(s.rules.incomeTax);
+  if(index===38)return 'Tax: '+money(s.rules.luxuryTax);
+  if([2,7,17,22,33,36].includes(index))return 'Draw a card; its effect is unknown';
+  if(['property','railroad','utility'].includes(q.type)){
+    if(!q.owner)return `Buy for ${money(q.price)} or auction`;
+    if(q.owner===p.id)return 'Your property · no rent';
+    if(q.mortgaged)return 'Mortgaged · no rent';
+    const owner=s.players.find(p=>p.id===q.owner).name;
+    const dice=(s.roll?.d1||0)+(s.roll?.d2||0)+(typeof s.roll?.speed==='number'?s.roll.speed:0);
+    return `Pay ${owner} ${money(G.rent(s,q,dice))}${q.type==='utility'?' using this roll':''}`;
+  }
+  if(index===20&&s.freeParkingRule!=='official')return `Collect ${money(s.freeParkingRule==='pot'?s.freeParkingPot:Number(s.freeParkingRule))}`;
+  return index===0?'Collect GO salary':index===10?'Just visiting Jail':'No payment';
+}
+function destinationCandidate(index){
+  if(state.phase==='triples')return true;
+  if(state.phase!=='bus'||!state.roll)return false;
+  const p=currentPlayer(),r=state.roll;
+  return [r.d1,r.d2,r.d1+r.d2].some(n=>(p.position+n)%40===index);
+}
+function bigSaleConfirmation(s,index){
+  const q=s.spaces[index],group=G.group(s,q),houses=group.reduce((n,q)=>n+(q.buildings<5?q.buildings:0),0),hotels=group.filter(q=>q.buildings===5).length;
+  const proceeds=group.reduce((n,q)=>n+q.buildingCosts.reduce((n,c)=>n+Math.floor(c/2),0),0);
+  return `Sell every building in ${q.group}: ${houses} house(s) and ${hotels} hotel(s), and receive ${money(proceeds)}? The properties stay yours, but their rent will drop.`;
+}
+function whatHappened(){
+  const entry=state.ledger?.[0];
+  return entry?`<details class="panel what-happened"><summary>What just happened?</summary><p>${escapeHTML(entry.message)}</p>${entry.explanation?`<p>${escapeHTML(entry.explanation)}</p>`:''}</details>`:'';
+}
+let reconnectWelcome='';
+function welcomeBack(saved,room){
+  if(!room.state)return 'Welcome back. Waiting for host approval.';
+  const names=room.me.seats.map(id=>room.state.players.find(p=>p.id===id)?.name).filter(Boolean).join(' & ')||room.me.name;
+  const updates=room.state.ledger||[],last=saved.lastEvent;
+  const marker=last?updates.findIndex(e=>e.time+'|'+e.message===last):-1;
+  const newer=last&&marker!==0?updates.slice(0,marker<0?3:Math.min(marker,3)):[];
+  const s=room.state,next=s.tradeOffer?.b||s.auction?.turn||s.debts[0]?.from||s.players[s.currentPlayer].id;
+  return `Welcome back, ${names}! ${newer.length?newer.map(e=>e.message).join(' '):'Your game is saved.'} ${room.lobby?'The lobby is waiting.':room.pausedAt?'The game is paused.':room.result||s.winnerId?'The game is complete.':room.me.seats.includes(next)?'You are next to act.':s.players.find(p=>p.id===next).name+' is next to act.'}`;
+}
+async function downloadKeepsake(){
+  const s=structuredClone(state),result=typeof onlineRoom!=='undefined'?onlineRoom?.result:null;
+  const ids=result?.winners||[s.winnerId];if(!ids[0])return;
+  const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=520+s.players.length*100;
+  const c=canvas.getContext('2d');c.fillStyle='#fff8df';c.fillRect(0,0,canvas.width,canvas.height);
+  c.textAlign='center';c.fillStyle='#173858';c.font='bold 42px sans-serif';c.fillText('Our family game night',500,70);
+  c.font='24px sans-serif';c.fillText((s.gameName||'Speed Die').slice(0,50),500,112);c.fillText(new Date().toLocaleDateString(),500,150);
+  c.font='bold 32px sans-serif';c.fillText(ids.map(id=>s.players.find(p=>p.id===id).name).join(' & ')+' won!',500,208,920);
+  for(let i=0;i<s.players.length;i++){
+    const p=s.players[i],y=290+i*100;c.fillStyle=p.color;c.fillRect(55,y-45,8,82);
+    if(p.token.startsWith('data:image/')){try{const img=new Image();img.src=p.token;await img.decode();const scale=Math.min(75/img.width,75/img.height);c.drawImage(img,90+(75-img.width*scale)/2,y-40+(75-img.height*scale)/2,img.width*scale,img.height*scale);}catch(_){c.font='40px sans-serif';c.fillText('★',127,y+15);}}
+    else {c.font='48px sans-serif';c.fillText(p.token||p.name.slice(0,2),127,y+15);}
+    c.fillStyle='#173858';c.textAlign='left';c.font='bold 27px sans-serif';c.fillText(p.name+(ids.includes(p.id)?' · Winner':''),200,y,720);
+    c.font='20px sans-serif';c.fillText(`${p.familyStats?.rolls||0} recorded rolls · peak deeds ${p.familyStats?.peakDeeds||0}${p.bankrupt?' · Thanks for playing!':''}`,200,y+32,740);c.textAlign='center';
+  }
+  const awards=document.createElement('div');awards.innerHTML=familyAwards(s);
+  const lines=[...awards.querySelectorAll('p')].map(p=>p.textContent).filter(t=>t.startsWith('🏅'));
+  c.font='22px sans-serif';lines.forEach((line,i)=>c.fillText(line,500,canvas.height-160+i*36,920));
+  c.font='17px sans-serif';c.fillText('Made with Speed Die · memories worth keeping',500,canvas.height-35);
+  const a=document.createElement('a');a.download='family-game-night.png';a.href=canvas.toDataURL('image/png');a.click();
 }

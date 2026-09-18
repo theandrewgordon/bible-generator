@@ -4,7 +4,7 @@ let onlineSession=null, onlineRoom=null, onlineConnected=false, onlineBusy=false
 const ONLINE_KEY='speeddie-online-devices-v1';
 function onlineSaved(){try{return JSON.parse(localStorage.getItem(ONLINE_KEY)||'{}');}catch{return {};}}
 function rememberOnline(){
-  try {const saved=onlineSaved();saved[onlineSession.code]={...onlineSession,pending:onlinePending};localStorage.setItem(ONLINE_KEY,JSON.stringify(saved));}
+  try {const saved=onlineSaved();saved[onlineSession.code]={...onlineSession,pending:onlinePending,lastEvent:onlineRoom?.state?.ledger?.[0]?onlineRoom.state.ledger[0].time+'|'+onlineRoom.state.ledger[0].message:saved[onlineSession.code]?.lastEvent};localStorage.setItem(ONLINE_KEY,JSON.stringify(saved));}
   catch(_){alert('Room access could not be saved on this browser. Keep this tab open to retain your player access.');}
 }
 async function onlineConfig(){
@@ -37,7 +37,7 @@ async function hostOnline(){
 async function reconnectOnline(code){
   if(!archiveCurrent())return;
   const saved=onlineSaved()[code];if(!saved)return;
-  try {await onlineConfig();const result=await roomRequest(`/rooms/${code}`,null,saved.token);enterOnline(saved,result.room);}
+  try {await onlineConfig();const result=await roomRequest(`/rooms/${code}`,null,saved.token);reconnectWelcome=welcomeBack(saved,result.room);enterOnline(saved,result.room);}
   catch(e){alert(e.message);}
 }
 function enterOnline(credentials,room){
@@ -56,8 +56,10 @@ async function refreshOnline(){
   try {
     const result=await roomRequest(`/rooms/${onlineSession.code}`);
     if(onlineSession!==sessionAtStart)return;
+    if(!onlineConnected)reconnectWelcome=welcomeBack({lastEvent:onlineRoom?.state?.ledger?.[0]?onlineRoom.state.ledger[0].time+'|'+onlineRoom.state.ledger[0].message:null},result.room);
     const changed=!onlineConnected||result.room.revision>(onlineRoom?.revision||0);onlineConnected=true;
     if(result.room.revision>=(onlineRoom?.revision||0))onlineRoom=result.room;
+    rememberOnline();
     if(changed||(onlineRoom.deadline&&!onlineRoom.result&&!onlineRoom.state?.winnerId)||(onlineRoom.reaction&&Date.now()/1000-onlineRoom.reaction.time<10))render();
   }catch(e){if(onlineSession!==sessionAtStart)return;onlineConnected=false;render();}
   finally{scheduleOnline();}
@@ -91,8 +93,8 @@ function onlineNext(){
   const p=currentPlayer(),q=currentSpace();
   if(state.pendingCard)return `<h3>Card</h3><p>${escapeHTML(cardDescription(state.pendingCard.effect))}</p>${onlineButton('Apply card','apply-card')}`;
   if(state.phase==='ready')return p.inJail?`<h3>In Jail · attempt ${p.jailAttempts+1}</h3>${p.jailAttempts<2?onlineButton('Pay '+money(state.rules.jail),'jail-pay'):''}${(state.heldCards||[]).some(c=>c.owner===p.id)?onlineButton('Use Jail card','jail-card'):''}${onlineButton('Try doubles','jail-roll')}`:`<h3>${escapeHTML(p.name)} · ready?</h3>${onlineButton('Roll dice','roll')}`;
-  if(state.phase==='bus')return `<h3>Choose a Bus move</h3>${[...new Set([state.roll.d1,state.roll.d2,state.roll.d1+state.roll.d2])].map(n=>onlineButton(`${n} → ${escapeHTML(state.spaces[(p.position+n)%40].name)}`,'bus',n)).join('')}`;
-  if(state.phase==='triples')return `<h3>Triples · choose any space</h3><select id="online-destination">${state.spaces.map(q=>`<option value="${q.index}">${escapeHTML(q.name)}</option>`).join('')}</select>${onlineButton('Move','triples')}`;
+  if(state.phase==='bus')return `<h3>Choose a Bus move</h3>${[...new Set([state.roll.d1,state.roll.d2,state.roll.d1+state.roll.d2])].map(n=>onlineButton(`${n} → ${escapeHTML(state.spaces[(p.position+n)%40].name)} · ${escapeHTML(destinationPreview(state,(p.position+n)%40))}`,'bus',n)).join('')}`;
+  if(state.phase==='triples')return `<h3>Triples · choose any space</h3><select id="online-destination">${state.spaces.map(q=>`<option value="${q.index}">${escapeHTML(q.name)} · ${escapeHTML(destinationPreview(state,q.index))}</option>`).join('')}</select>${onlineButton('Move','triples')}`;
   if(!state.bankLandingResolved&&!p.inJail){
     if(isProperty(q)&&!q.owner)return `<h3>${escapeHTML(q.name)} · ${money(q.price)}</h3><p>Buying leaves ${money(p.cash-q.price)}${q.type==='property'?' · base rent '+money(q.rents[0]):''}.</p>${p.cash>=q.price?onlineButton('Buy','buy'):''}${onlineButton('Auction','auction-start',q.index)}${state.allowLeaveUnowned?onlineButton('Leave unowned','leave'):''}`;
     if(isCardSpace(q))return onlineButton('Draw card','draw-card');
@@ -104,7 +106,7 @@ function onlineNext(){
 }
 function onlineAssets(){
   if(onlineRoom.pausedAt||onlineRoom.result||onlineRoom.lobby||state.winnerId||state.auction||state.pendingCard||state.tradeOffer)return '';
-  return `<details class="panel"><summary>Your properties &amp; trades</summary><p>Add houses evenly. Selling returns half the amount paid. Mortgaging keeps the deed yours, but stops its rent until you pay off the mortgage.</p>${G.active(state).filter(p=>onlineOwn(p.id)).map(p=>`<h3>${escapeHTML(p.name)} · ${money(p.cash)}</h3>${state.spaces.filter(q=>q.owner===p.id).map(q=>`<article class="online-property"><h4>${escapeHTML(q.name)}</h4><p>${q.mortgaged?'Mortgaged':buildingLabel(q)}</p>${q.type==='property'?`<p>${escapeHTML(previewBuild(state,q))}</p>`:''}<div class="button-row">${q.type==='property'?(q.buildings<5?onlineButton(propertyActionLabel(q,'build'),'build',q.index):'')+(q.buildings?onlineButton(propertyActionLabel(q,'sell'),'sell',q.index)+onlineButton(propertyActionLabel(q,'sell-group'),'sell-group',q.index):''):''}${onlineButton(propertyActionLabel(q,'mortgage'),'mortgage',q.index)}</div></article>`).join('')||'<p>No deeds yet.</p>'}${onlineButton('Propose a trade','trade-open',p.id)}`).join('')}</details>`;
+  return `<details class="panel"><summary>Your properties &amp; trades</summary><p>Add houses evenly. Selling returns half the amount paid. Mortgaging keeps the deed yours, but stops its rent until you pay off the mortgage.</p>${G.active(state).filter(p=>onlineOwn(p.id)).map(p=>`<h3>${escapeHTML(p.name)} · ${money(p.cash)}</h3>${collectionTracker(state,p)}${state.spaces.filter(q=>q.owner===p.id).map(q=>`<article class="online-property"><h4>${escapeHTML(q.name)}</h4><p>${q.mortgaged?'Mortgaged':buildingLabel(q)}</p>${q.type==='property'?`<p>${escapeHTML(previewBuild(state,q))}</p>`:''}<div class="button-row">${q.type==='property'?(q.buildings<5?onlineButton(propertyActionLabel(q,'build'),'build',q.index):'')+(q.buildings?onlineButton(propertyActionLabel(q,'sell'),'sell',q.index)+onlineButton(propertyActionLabel(q,'sell-group'),'sell-group',q.index):''):''}${onlineButton(propertyActionLabel(q,'mortgage'),'mortgage',q.index)}</div></article>`).join('')||'<p>No deeds yet.</p>'}${onlineButton('Propose a trade','trade-open',p.id)}`).join('')}</details>`;
 }
 function renderOnline(){
   const oldFlow=app.dataset.onlineFlow,focused=document.activeElement?.id;
@@ -116,7 +118,7 @@ function renderOnline(){
   if(onlineRoom.state)state=onlineRoom.state;
   const r=onlineRoom;
   app.innerHTML=`<section class="panel online-status"><strong>Room ${escapeHTML(r.code)}</strong><p>${r.closed?'Room closed · read-only':!onlineConnected?'Disconnected. Reconnect before making a move.':onlineBusy?'Saving your action…':r.me.status==='pending'?'Waiting for host approval.':r.me.status==='rejected'?'The host declined this device.':'Connected · '+escapeHTML(r.me.seats.map(id=>state.players.find(p=>p.id===id)?.name||'').join(' / ')||'watching')}</p><div class="button-row">${onlineButton('Back to local games','exit')}${onlineButton('Reconnect','refresh')}${r.me.host?onlineButton('Players & room','room-settings'):''}</div>${onlinePending?`<p>An action needs confirmation. Retry safely using the same request.</p>${onlineButton('Retry pending action','retry')}`:''}</section>
-  ${r.state?`${familyRoomBar()}${state.roll?renderDice():''}<section class="panel instruction online-actions"><div class="button-stack">${onlineNext()}</div></section>${onlineAssets()}${renderBoardOverview()}`:''}`;
+  ${r.state?`${reconnectWelcome?`<section class="panel" role="status">${escapeHTML(reconnectWelcome)}${onlineButton('Got it','dismiss-welcome')}</section>`:''}${whatHappened()}${familyRoomBar()}${state.roll?renderDice():''}<section class="panel instruction online-actions"><div class="button-stack">${onlineNext()}</div></section>${onlineAssets()}${renderBoardOverview()}`:''}`;
   app.querySelector('#close-board')?.remove();
   app.querySelectorAll('[data-board-space]').forEach(el=>el.onclick=()=>{boardSelection=Number(el.dataset.boardSpace);app.querySelectorAll('[data-board-space]').forEach(b=>{b.classList.toggle('selected',b===el);b.setAttribute('aria-pressed',String(b===el));});document.querySelector('#board-space-details').innerHTML=renderBoardSpaceDetails(state.spaces[boardSelection]);});
   if(r.state)familyAttention();
@@ -132,6 +134,9 @@ function renderOnline(){
 }
 function bindOnline(root){root.querySelectorAll('[data-online]').forEach(b=>b.onclick=async()=>{
   const action=b.dataset.online,value=b.dataset.value;
+  if(action==='keepsake'){await downloadKeepsake();return;}
+  if(action==='dismiss-welcome'){reconnectWelcome='';render();return;}
+  if(action==='sell-group'&&!confirm(bigSaleConfirmation(state,Number(value))))return;
   if(action==='chime'){familyPreferences.chime=!familyPreferences.chime;saveFamilyPreferences();if(familyPreferences.chime){try{tone(660,.2,.25);}catch(_){}}render();return;}
   if(action==='mute-reactions'){familyPreferences.muteReactions=!familyPreferences.muteReactions;saveFamilyPreferences();render();return;}
   if(action==='reaction'){await familyRoomCommand('reaction',{emoji:value});return;}

@@ -45,7 +45,7 @@ function renderCompanion() {
 function renderPendingActions() {
   if (state.winnerId) {
     const winner = state.players.find(p => p.id === state.winnerId);
-    return `<section class="panel instruction winner-panel"><p class="eyebrow">Game complete</p><h2>${escapeHTML(winner.name)} wins!</h2><p>The last player standing. Well played!</p>${winnerSpotlight([winner])}${familyAwards(state)}<div class="button-stack">${button("Home", "home")}${button("Play again", "new-game")}${button("View game history", "history")}</div></section>`;
+    return `<section class="panel instruction winner-panel"><p class="eyebrow">Game complete</p><h2>${escapeHTML(winner.name)} wins!</h2><p>The last player standing. Well played!</p>${winnerSpotlight([winner])}${familyAwards(state)}<div class="button-stack">${button("Download game-night keepsake", "keepsake")}${button("Home", "home")}${button("Play again", "new-game")}${button("View game history", "history")}</div></section>`;
   }
   if (state.auction) return renderAuctionFlow();
   if (state.debts.length) {
@@ -123,7 +123,7 @@ function showDialog(title, contents, onSubmit) {
 }
 function openProperties(selected = currentPlayer().id) {
   const p = G.active(state).find(p => p.id === selected) || G.active(state)[0];
-  showDialog("Manage properties", `<label class="field"><span>Player</span><select id="manage-player">${playerOptions(p.id)}</select></label><p class="muted small">Build or sell evenly. One hotel replaces four houses. Selling returns half the amount paid. A mortgaged property stays yours but earns no rent until you pay off its mortgage. You may manage properties between turns and while in Jail.</p><div class="property-grid">${state.spaces.filter(q => q.owner === p.id).map(q => `<article class="property-card" style="border-top-color:${GROUP_COLORS[q.group]}"><h3>${escapeHTML(q.name)}</h3><p>${q.mortgaged ? "Mortgaged" : q.type === "property" ? `${buildingLabel(q)} · Rent ${money(G.rent(state, q))}` : q.type === "railroad" ? `Rent ${money(G.rent(state, q))}` : `Rent ${q.rents.join("× / ")}× dice`}</p>${q.type==="property"?`<p>${escapeHTML(previewBuild(state,q))}</p>`:""}<div class="button-stack">${q.type === "property" ? button(propertyActionLabel(q,"build"), "build", q.index, gameBlocked() || q.buildings>=5 ? "disabled" : "") + button(propertyActionLabel(q,"sell"), "sell", q.index, !q.buildings ? "disabled" : "") : ""}${button(propertyActionLabel(q,"mortgage"), "mortgage", q.index)}${button("Details / settings", "property", q.index)}</div></article>`).join("") || '<p class="muted">No properties owned yet.</p>'}</div>`);
+  showDialog("Manage properties", `<label class="field"><span>Player</span><select id="manage-player">${playerOptions(p.id)}</select></label><p class="muted small">Build or sell evenly. One hotel replaces four houses. Selling returns half the amount paid. A mortgaged property stays yours but earns no rent until you pay off its mortgage. You may manage properties between turns and while in Jail.</p>${collectionTracker(state,p)}<div class="property-grid">${state.spaces.filter(q => q.owner === p.id).map(q => `<article class="property-card" style="border-top-color:${GROUP_COLORS[q.group]}"><h3>${escapeHTML(q.name)}</h3><p>${q.mortgaged ? "Mortgaged" : q.type === "property" ? `${buildingLabel(q)} · Rent ${money(G.rent(state, q))}` : q.type === "railroad" ? `Rent ${money(G.rent(state, q))}` : `Rent ${q.rents.join("× / ")}× dice`}</p>${q.type==="property"?`<p>${escapeHTML(previewBuild(state,q))}</p>`:""}<div class="button-stack">${q.type === "property" ? button(propertyActionLabel(q,"build"), "build", q.index, gameBlocked() || q.buildings>=5 ? "disabled" : "") + button(propertyActionLabel(q,"sell"), "sell", q.index, !q.buildings ? "disabled" : "") : ""}${button(propertyActionLabel(q,"mortgage"), "mortgage", q.index)}${button("Details / settings", "property", q.index)}</div></article>`).join("") || '<p class="muted">No properties owned yet.</p>'}</div>`);
   document.querySelector("#manage-player").onchange = e => openProperties(e.target.value);
 }
 function openProperty(index) {
@@ -243,7 +243,9 @@ function bindActions(root) {
       try { const restored = migrateState(snapshotState(undoState)); state = restored; undoStack.shift(); undoState = undoStack[0] || null; saveState(true); render(); } catch (error) { alert(error.message); }
       return;
     }
+    if(action==="keepsake"){downloadKeepsake().catch(e=>alert(e.message));return;}
     if (["build", "sell", "mortgage", "sell-group"].includes(action)) {
+      if(action==="sell-group"&&!confirm(bigSaleConfirmation(state,index)))return;
       const owner = state.spaces[index].owner;
       if (commitGame(s => action === "mortgage" ? G.mortgage(s, index) : action === "sell-group" ? G.sellGroup(s, index) : G.build(s, index, action === "build" ? 1 : -1))) { playEffect("payment"); openProperties(owner); }
       return;
@@ -281,7 +283,7 @@ function bindCompanionEvents() {
     app.querySelectorAll('.space-name').forEach(el=>el.disabled=true);
   }
   if (state.winnerId) {
-    app.querySelectorAll("button").forEach(b => { if (!["undo", "history", "home", "new-game"].includes(b.dataset.action)) b.disabled = b.id !== "view-board"; });
+    app.querySelectorAll("button").forEach(b => { if (!["undo", "history", "home", "new-game", "keepsake"].includes(b.dataset.action)) b.disabled = b.id !== "view-board"; });
     app.querySelectorAll("input, select").forEach(input => input.disabled = true);
   }
 }

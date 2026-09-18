@@ -54,7 +54,8 @@
     const amount = owned ? (space.owner === p.id ? 0 : rent(s, space, dice)) : space.index === 4 ? s.rules.incomeTax : space.index === 38 ? s.rules.luxuryTax : 0;
     if (owned || space.index === 4 || space.index === 38) s.landingBill = {
       from: p.id, to: owned ? space.owner : s.freeParkingRule === "pot" ? "pot" : "bank",
-      amount, reason: `${owned ? "Rent" : "Tax"}: ${space.name}`, index: space.index
+      amount, reason: `${owned ? "Rent" : "Tax"}: ${space.name}`, index: space.index,
+      explanation: owned ? `${player(s,space.owner).name} owns ${space.name}. ${space.type==='property' ? space.buildings ? `Rent is based on ${space.buildings===5?'a hotel':space.buildings+' house(s)'}.` : group(s,space).every(q=>q.owner===space.owner) ? `They own all ${group(s,space).length} ${space.group} properties, so unimproved rent is doubled.` : 'This is the deed’s base rent.' : space.type==='railroad' ? 'Rent depends on how many railroads they own.' : `Utility rent uses this roll’s total of ${dice}.`}` : `This is the configured tax for ${space.name}.`
     };
   }
   function correctDebt(s, index, amount, reason) {
@@ -88,6 +89,7 @@
     }
     if(recipient&&['GO salary','Card passes GO'].includes(reason)){recipient.familyStats ||= {};recipient.familyStats.go=(recipient.familyStats.go||0)+1;}
     log(s, `${reason}: ${payer ? payer.name : "Bank"} → ${recipient ? recipient.name : to === "pot" ? "Free Parking pot" : "Bank"}, $${amount}${s.moneyMode === "helper" ? " (physical money)" : ""}.`);
+    const bill=s.landingBill;if(bill&&bill.from===from&&bill.to===to&&bill.amount===amount&&bill.reason===reason&&bill.explanation)s.ledger[0].explanation=bill.explanation;
   }
   function owe(s, from, to, amount, reason, resume = null) {
     ensurePlaying(s);

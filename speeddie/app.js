@@ -446,6 +446,7 @@ function renderGame() {
     <button id="view-board" class="button secondary" type="button">View game board</button>
     ${state.roll ? renderDice() : ""}
     ${renderPendingActions() || renderActionArea(speedActive)}
+    ${whatHappened()}
     ${renderPlayers()}
     ${renderCompanion()}
     ${renderBoard()}
@@ -526,7 +527,7 @@ function renderActionArea(speedActive) {
       <div class="button-row">
         ${busMoves.map(move => {
           const destination = destinationForMove(move);
-          return `<button class="button bus-choice" data-move="${move}">Move ${move} → ${escapeHTML(destination.name)}</button>`;
+          return `<button class="button bus-choice" data-move="${move}">Move ${move} → ${escapeHTML(destination.name)} · ${escapeHTML(destinationPreview(state,destination.index))}</button>`;
         }).join("")}
       </div>
     </section>`;
@@ -539,7 +540,7 @@ function renderActionArea(speedActive) {
       <label class="field">
         <span>Destination</span>
         <select id="triples-space">
-          ${state.spaces.map(space => `<option value="${space.index}">${space.index} · ${escapeHTML(space.name)}</option>`).join("")}
+          ${state.spaces.map(space => `<option value="${space.index}">${space.index} · ${escapeHTML(space.name)} · ${escapeHTML(destinationPreview(state,space.index))}</option>`).join("")}
         </select>
       </label>
       <button id="move-triples" class="button primary gold" type="button">Move to selected space</button>
@@ -951,7 +952,7 @@ function openPositionDialog(playerId, reason = "manual") {
   positionCorrectionReason = reason;
   document.querySelector("#position-dialog-player").textContent = `Move ${player.name} to the correct space.`;
   document.querySelector("#position-space").innerHTML = state.spaces
-    .map(space => `<option value="${space.index}" ${space.index === player.position ? "selected" : ""}>${space.index} · ${escapeHTML(space.name)}</option>`)
+    .map(space => `<option value="${space.index}" ${space.index === player.position ? "selected" : ""}>${space.index} · ${escapeHTML(space.name)} · ${escapeHTML(destinationPreview(state,space.index))}</option>`)
     .join("");
   document.querySelector("#position-in-jail").checked = player.inJail;
   document.querySelector("#position-collect-go").checked = false;

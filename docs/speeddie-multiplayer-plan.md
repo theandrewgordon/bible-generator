@@ -90,3 +90,17 @@ old saves are not assigned guessed historical totals. Local games also receive
 building previews, debt suggestions and end-game awards. Room timers, reactions,
 pause and turn alerts are online features. These additions use the existing room
 storage and browser audio, with no new paid service or third-party SDK.
+
+## Clarity and keepsakes
+
+Local and shared play now include a latest-action explanation, street collection
+tracker naming missing deed owners, Bus/triples destination estimates and outlined
+board choices, and confirmation before selling an entire color group's buildings.
+Rent explanations are captured with the original bill, so a subsequent building
+or ownership change cannot rewrite why the recorded rent was charged. Utility
+previews use the current roll; unknown card effects are explicitly left unknown.
+
+Shared reconnects summarize up to three new ledger events and identify the next
+actor (including auctions, bills and trades). Completed games can download a PNG
+keepsake with each player's emoji/photo, winner and recorded awards. The image is
+created in the browser; no upload or external image service is involved.

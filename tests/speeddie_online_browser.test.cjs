@@ -32,7 +32,7 @@ test('two devices: approval, mixed seats, trade consent, turns, disconnect and r
  await host.evaluate(()=>lobbyCommand({action:'ready',players:['p0','p2']}));
  await mom.evaluate(()=>lobbyCommand({action:'ready',players:['p1']}));
  await host.evaluate(()=>refreshOnline());await host.locator('[data-online="start-game"]').click();await host.waitForFunction(()=>!onlineBusy&&!onlineRoom.lobby);
- await host.locator('details.panel summary').click();await host.locator('[data-online="trade-open"][data-value="p0"]').click();
+ await host.getByText('Your properties & trades',{exact:true}).click();await host.locator('[data-online="trade-open"][data-value="p0"]').click();
  await host.locator('#online-cash-a').fill('100');await host.getByRole('button',{name:'Send proposal'}).click();
  await mom.evaluate(()=>refreshOnline());await mom.locator('[data-online="trade-accept"]').click();await mom.waitForFunction(()=>!onlineBusy&&!state.tradeOffer);
  await host.evaluate(()=>refreshOnline());assert.equal(await host.evaluate(()=>state.players[0].cash),2400);

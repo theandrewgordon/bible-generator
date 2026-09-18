@@ -378,3 +378,10 @@ test('failed New game retains Home controls and pending auction so resume remain
 test('restoring from board view returns to play and Home hides active-game correction menu',async()=>{
   const p=await page();const backup=await p.evaluate(()=>JSON.stringify(state));await p.locator('#view-board').click();await p.locator('#game-menu-button').click();await p.locator('#import-input').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(backup)});await p.waitForSelector('#roll-button');assert.equal(await p.evaluate(()=>boardView),false);await p.evaluate(()=>goHome());assert.equal(await p.locator('#game-menu-button').isVisible(),false);await p.close();
 });
+test('completed game can download its keepsake without re-enabling game actions',async()=>{
+ const p=await page();await p.evaluate(()=>{state.moneyMode='helper';state.players=state.players.slice(0,2);G.bankrupt(state,state.players[0].id,'bank');saveState();render();});
+ const event=p.waitForEvent('download');await p.locator('[data-action="keepsake"]').click();
+ const download=await event;assert.equal(download.suggestedFilename(),'family-game-night.png');
+ const stream=await download.createReadStream();const chunks=[];for await(const part of stream)chunks.push(part);
+ assert.equal(Buffer.concat(chunks).subarray(1,4).toString(),'PNG');await p.close();
+});
