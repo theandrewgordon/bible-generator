@@ -80,6 +80,7 @@ async function onlineCommand(action,args={}){
 const onlineButton=(label,action,value='')=>`<button type="button" class="button secondary" data-online="${action}" data-value="${escapeHTML(value)}">${label}</button>`;
 function onlineOwn(id){return onlineRoom.me.seats.includes(id);}
 function onlineNext(){
+  if(onlineRoom.lobby)return onlineLobby();
   if(state.winnerId)return `<h2>${escapeHTML(G.player(state,state.winnerId).name)} wins!</h2><p>The completed game is saved in this room.</p>`;
   if(state.tradeOffer){const o=state.tradeOffer;return `<h3>Trade proposal</h3><p>${escapeHTML(G.player(state,o.a).name)} offers ${money(o.cashA)} and ${escapeHTML(o.fromA.map(i=>state.spaces[i].name).join(', ')||'no properties')}${o.cardsA.length?' plus Jail card(s)':''}.</p><p>For ${money(o.cashB)} and ${escapeHTML(o.fromB.map(i=>state.spaces[i].name).join(', ')||'no properties')} from ${escapeHTML(G.player(state,o.b).name)}${o.cardsB.length?' plus Jail card(s)':''}.</p><p>Mortgaged deeds carry a 10% transfer fee.</p>${onlineOwn(o.b)?onlineButton('Accept trade','trade-accept'):''}${onlineOwn(o.a)||onlineOwn(o.b)?onlineButton('Decline / withdraw','trade-reject'):'Waiting for the trading players.'}`;}
   if(state.auction){const a=state.auction;return `<h3>Auction: ${escapeHTML(state.spaces[a.index].name)}</h3><p>${a.leader?escapeHTML(G.player(state,a.leader).name)+' leads at '+money(a.bid):'No bids yet.'}</p><p>${escapeHTML(G.player(state,a.turn).name)} is bidding.</p>${onlineOwn(a.turn)?`${amountField('Total bid','online-bid',a.bid+1,'min="1"')}${onlineButton('Place bid','auction-bid')}${onlineButton('Pass · withdraw','auction-pass')}`:''}`;}
@@ -101,7 +102,7 @@ function onlineNext(){
   return onlineButton(state.phase==='classic-first-stop'?'Continue Property Finder':state.extraTurn?'Finish stop · roll again':'End turn',state.phase==='classic-first-stop'?'finder':'end');
 }
 function onlineAssets(){
-  if(state.winnerId||state.auction||state.pendingCard||state.tradeOffer)return '';
+  if(onlineRoom.lobby||state.winnerId||state.auction||state.pendingCard||state.tradeOffer)return '';
   return `<details class="panel"><summary>Your properties &amp; trades</summary>${G.active(state).filter(p=>onlineOwn(p.id)).map(p=>`<h3>${escapeHTML(p.name)} · ${money(p.cash)}</h3>${state.spaces.filter(q=>q.owner===p.id).map(q=>`<article class="online-property"><h4>${escapeHTML(q.name)}</h4><p>${q.mortgaged?'Mortgaged':buildingLabel(q)}</p><div class="button-row">${q.type==='property'?onlineButton('Build '+money(q.buildCost),'build',q.index)+(q.buildings?onlineButton('Sell one','sell',q.index)+onlineButton('Sell group buildings','sell-group',q.index):''):''}${onlineButton(q.mortgaged?'Unmortgage':'Mortgage','mortgage',q.index)}</div></article>`).join('')||'<p>No deeds yet.</p>'}${onlineButton('Propose a trade','trade-open',p.id)}`).join('')}</details>`;
 }
 function renderOnline(){
@@ -118,6 +119,10 @@ function renderOnline(){
 }
 function bindOnline(root){root.querySelectorAll('[data-online]').forEach(b=>b.onclick=async()=>{
   const action=b.dataset.online,value=b.dataset.value;
+  if(action==='profile'){openOnlineProfile(value);return;}
+  if(action==='add-player'){openOnlineProfile();return;}
+  if(action==='ready'){await lobbyCommand({action:'ready',players:[value]});return;}
+  if(action==='start-game'){await lobbyCommand({action:'start'});return;}
   if(action==='exit'){leaveOnline();return;}
   if(action==='refresh'){onlineCSRF=null;await refreshOnline();return;}
   if(action==='retry'){if(onlinePending)await onlineCommand(onlinePending.action,onlinePending.args);return;}
@@ -146,4 +151,25 @@ function openOnlineTrade(a){
   });
   const draw=()=>{const b=document.querySelector('#online-trade-to').value;document.querySelector('#online-trade-items').innerHTML=[[a,'a'],[b,'b']].map(([id,side])=>`<h3>${escapeHTML(G.player(state,id).name)} offers</h3>${amountField('Cash','online-cash-'+side,0)}${state.spaces.filter(p=>p.owner===id).map(p=>`<label class="check-card"><input data-trade-side="${side}" type="checkbox" value="${p.index}" ${G.group(state,p).some(q=>q.buildings)?'disabled':''}><span>${escapeHTML(p.name)}${p.mortgaged?' (mortgaged)':''}</span></label>`).join('')}${(state.heldCards||[]).filter(c=>c.owner===id).map(c=>`<label class="check-card"><input type="checkbox" data-trade-side="${side}" data-card="true" value="${c.deck}"><span>${c.deck} Jail card</span></label>`).join('')}`).join('');};
   document.querySelector('#online-trade-to').onchange=draw;draw();
+}
+
+function onlineLobby(){
+  const ready=onlineRoom.ready||[];
+  return `<h2>Get ready to play</h2><p>Choose your player details, then tap Ready. The host starts when everyone is ready.</p>${state.players.map(p=>`<article class="online-property"><h3><span class="small-token">${tokenMarkup(p)}</span> ${escapeHTML(p.name)}</h3><p>${ready.includes(p.id)?'Ready ✓':'Choosing player details'}</p>${onlineOwn(p.id)?onlineButton('Name, color & token','profile',p.id)+(!ready.includes(p.id)?onlineButton('Ready','ready',p.id):''):''}</article>`).join('')}${state.players.length<8?onlineButton('Add another player on this device','add-player'):''}${onlineRoom.me.host?onlineButton('Start game','start-game'):'<p>Waiting for the host to start.</p>'}`;
+}
+async function lobbyCommand(data){
+  if(onlineBusy||!onlineConnected||onlineRoom.closed)return false;
+  onlineBusy=true;render();
+  try{const result=await roomRequest(`/rooms/${onlineSession.code}/lobby`,data);onlineRoom=result.room;return true;}
+  catch(e){alert(e.message);return false;}
+  finally{onlineBusy=false;render();scheduleOnline();}
+}
+function openOnlineProfile(id){
+  const p=state.players.find(p=>p.id===id);
+  showDialog(p?'Your player':'Add a player',`<label class="field"><span>Name</span><input id="lobby-name" maxlength="24" required value="${escapeHTML(p?.name||'')}"></label><label class="field"><span>Color</span><input id="lobby-color" type="color" value="${p?.color||'#397bb5'}"></label><label class="field"><span>Token</span><select id="lobby-token">${p?'<option value="keep">Keep current token</option>':''}${TOKEN_CHOICES.map(t=>`<option>${t}</option>`).join('')}</select></label><label class="field"><span>Or use a picture</span><input id="lobby-photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p>You can use a dog, horse, LEGO creation, or your own picture.</p><button class="button" type="submit">Save player</button>`,async()=>{
+    const name=document.querySelector('#lobby-name').value,color=document.querySelector('#lobby-color').value;
+    const selected=document.querySelector('#lobby-token').value;
+    const token=await imageToken(document.querySelector('#lobby-photo').files[0])||(selected==='keep'?p.token:selected);
+    return await lobbyCommand({action:p?'profile':'add',player:id,name,color,token});
+  });
 }

@@ -98,6 +98,7 @@ def member(room, token):
 def public_room(room, token):
     who = member(room, token)
     result = dict(code=room["code"], revision=room["revision"], expires=room["expires"], closed=room.get("closed",False),
+                  lobby=room.get('lobby',False),ready=room.get('ready',[]),
                   me={k:who[k] for k in ("id","name","seats","status","host")})
     if who["status"] != "approved":
         return result

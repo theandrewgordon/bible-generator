@@ -20,6 +20,18 @@ test('two devices: approval, mixed seats, trade consent, turns, disconnect and r
  await member.locator('input[value="p1"]').check();await member.getByRole('button').click();await host.waitForFunction(()=>onlineRoom.me.seats.length===2);
  await mom.evaluate(()=>refreshOnline());assert.deepEqual(await mom.evaluate(()=>onlineRoom.me.seats),['p1']);
  assert.deepEqual(await host.evaluate(()=>onlineRoom.me.seats),['p0','p2']);
+ await mom.locator('[data-online="profile"]').click();
+ await mom.locator('#lobby-name').fill('Mama');await mom.locator('#lobby-color').fill('#123abc');await mom.locator('#lobby-token').selectOption({label:'🐎'});
+ await mom.getByRole('button',{name:'Save player',exact:true}).click();await mom.waitForFunction(()=>!onlineBusy&&state.players[1].name==='Mama');
+ await host.evaluate(()=>refreshOnline());assert.equal(await host.evaluate(()=>state.players[1].token),'🐎');
+ await mom.locator('[data-online="profile"]').click();
+ await mom.locator('#lobby-photo').setInputFiles({name:'token.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')});
+ await mom.getByRole('button',{name:'Save player',exact:true}).click();await mom.waitForFunction(()=>!onlineBusy&&state.players[1].token.startsWith('data:image/'));
+ await mom.reload();await mom.locator('.online-launch summary').click();await mom.locator('[data-action="online-reconnect"]').click();await mom.locator('[data-online="profile"]').waitFor();
+ assert.equal(await mom.evaluate(()=>state.players[1].name),'Mama');assert.match(await mom.evaluate(()=>state.players[1].token),/^data:image\//);
+ await host.evaluate(()=>lobbyCommand({action:'ready',players:['p0','p2']}));
+ await mom.evaluate(()=>lobbyCommand({action:'ready',players:['p1']}));
+ await host.evaluate(()=>refreshOnline());await host.locator('[data-online="start-game"]').click();await host.waitForFunction(()=>!onlineBusy&&!onlineRoom.lobby);
  await host.locator('details.panel summary').click();await host.locator('[data-online="trade-open"][data-value="p0"]').click();
  await host.locator('#online-cash-a').fill('100');await host.getByRole('button',{name:'Send proposal'}).click();
  await mom.evaluate(()=>refreshOnline());await mom.locator('[data-online="trade-accept"]').click();await mom.waitForFunction(()=>!onlineBusy&&!state.tradeOffer);

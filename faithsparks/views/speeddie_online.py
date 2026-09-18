@@ -86,7 +86,8 @@ def create_blueprint(csrf_token=None):
         credential=secrets.token_urlsafe(32)
         code=''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(8))
         host=dict(id=secrets.token_hex(8),name='Host device',host=True,status='approved',seats=[p['id'] for p in state['players'] if not p['bankrupt']])
-        room=dict(code=code,revision=1,state=state,members={token_hash(credential):host},receipts=[],expires=time.time()+7*86400,closed=False)
+        room=dict(code=code,revision=1,state=state,members={token_hash(credential):host},receipts=[],expires=time.time()+7*86400,closed=False,
+                  lobby=state.get('phase')=='ready' and all(p['position']==0 for p in state['players']) and not (state.get('history') or state.get('ledger') or state.get('roll')),ready=[])
         def insert(existing):
             if existing:
                 raise RoomError('Please try creating the room again.',409)
@@ -133,6 +134,55 @@ def create_blueprint(csrf_token=None):
                 m['seats']=[i for i in m['seats'] if i not in ids]
             target['seats']=ids;target['status']='approved' if ids or target['host'] else 'rejected'
             host['seats']=[i for i in valid if not any(i in m['seats'] for m in room['members'].values() if not m['host'] and m['status']=='approved')]
+            room['ready']=[]
+            room['revision']+=1
+            return room
+        room=store().change(code,update)
+        return jsonify(room=public_room(room,auth))
+    @bp.post('/rooms/<code>/lobby')
+    def lobby(code):
+        code_ok(code);auth=token();data=body()
+        def update(room):
+            who=member(room,auth)
+            if who['status']!='approved' or room.get('closed') or not room.get('lobby'):
+                raise RoomError('The lobby is not available to this device.',403)
+            action=data.get('action');players=room['state']['players']
+            if action=='start':
+                if not who['host']:
+                    raise RoomError('Only the host can start the game.',403)
+                if not all(p['id'] in room.get('ready',[]) for p in players):
+                    raise RoomError('Every player needs to be ready first.')
+                room['lobby']=False
+            elif action=='ready':
+                ids=data.get('players',[])
+                if not isinstance(ids,list) or not ids or any(i not in who['seats'] for i in ids):
+                    raise RoomError('Choose your own players.')
+                room['ready']=list(set(room.get('ready',[])+ids))
+            elif action in ('profile','add'):
+                if action=='add':
+                    if len(players)>=8:
+                        raise RoomError('A game supports up to eight players.')
+                    player=dict(id=secrets.token_hex(16),name='',token='',color='#397bb5',
+                        cash=room['state']['rules']['startingCash'],bankrupt=False,position=0,
+                        passedGo=room['state']['activation']=='immediate',inJail=False,
+                        jailAttempts=0,consecutiveDoubles=0)
+                else:
+                    player=next((p for p in players if p['id']==data.get('player')),None)
+                    if not player or player['id'] not in who['seats']:
+                        raise RoomError('You can edit only your own players.',403)
+                name=data.get('name');color=data.get('color');picture=data.get('token')
+                if not isinstance(name,str) or not 1<=len(name.strip())<=24:
+                    raise RoomError('Enter a player name (up to 24 characters).')
+                if not isinstance(color,str) or not re.fullmatch(r'#[0-9a-fA-F]{6}',color):
+                    raise RoomError('Choose a player color.')
+                if not isinstance(picture,str) or not (len(picture)<20 or len(picture)<60000 and re.fullmatch(r'data:image/(jpeg|png|webp);base64,[a-zA-Z0-9+/=]+',picture)):
+                    raise RoomError('Choose a token or a smaller token picture.')
+                player.update(name=name.strip(),color=color,token=picture)
+                if action=='add':
+                    players.append(player);who['seats'].append(player['id'])
+                room['ready']=[i for i in room.get('ready',[]) if i!=player['id']]
+            else:
+                raise RoomError('Unknown lobby action.')
             room['revision']+=1
             return room
         room=store().change(code,update)
@@ -146,7 +196,7 @@ def create_blueprint(csrf_token=None):
         receipt=who['id']+':'+key
         if receipt in room['receipts']:
             return jsonify(room=public_room(room,auth))
-        if who['status']!='approved' or room.get('closed'):
+        if who['status']!='approved' or room.get('closed') or room.get('lobby'):
             raise RoomError('This device cannot act in this room.',403)
         if type(data.get('revision')) is not int or data['revision']!=room['revision']:
             raise RoomError('The game changed. Refresh and choose your action again.',409)

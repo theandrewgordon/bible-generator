@@ -5,6 +5,15 @@ Implemented modes:
 - Own devices: host creates a private room; guests enter its eight-character code.
 - Mixed: the host assigns Mom to her phone and keeps Tessa and Dad on the tablet.
 
+Fresh online games open a pre-game lobby. After host approval and seat assignment,
+each device can edit its own players' names, colors, emoji tokens or uploaded
+pictures. A shared device can add more players, up to eight total. Profile edits
+clear that player's readiness; seat reassignment clears readiness for everyone.
+All players must be ready before the host starts. Game commands are blocked until
+then, and lobby edits are blocked after start. Reconnecting keeps players and
+readiness. Hosting a game already underway preserves its current turn and skips
+the lobby.
+
 Online games require digital banking and in-app cards. The host approves each
 joining device and assigns seats. Released seats return to the host. Players can
 roll, buy, bid, manage buildings/mortgages, settle debts and accept trades only for
@@ -52,7 +61,8 @@ The standalone preview requires Flask and uses SQLite, binds only localhost, and
 must not be deployed. Browser tests require Playwright and installed Chrome.
 The online browser test uses isolated host/phone contexts, approval and mixed
 seats, a consenting trade, real turns, a lost committed-roll response, safe retry,
-and browser reload/reconnect. API tests cover concurrent writes, privacy, seat
+and browser reload/reconnect, including lobby names and uploaded token pictures.
+API tests cover lobby readiness, player limits, profile permissions, concurrent writes, privacy, seat
 revocation, auctions, durable reload, expiry, closure, backups and CSRF.
 
 Production rollout still requires checking `/speeddie/api/config` and a real

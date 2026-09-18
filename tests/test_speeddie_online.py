@@ -18,6 +18,8 @@ def env(tmp_path):
         return client.post('/speeddie/api'+path,json=data,headers={'X-CSRF-Token':csrf,**({'Authorization':'Bearer '+token} if token else {})})
     created=post('/rooms',{'state':state});assert created.status_code==201,created.json
     code=created.json['room']['code'];host=created.json['token']
+    post('/rooms/'+code+'/lobby',{'action':'ready','players':[p['id'] for p in state['players']]},host)
+    post('/rooms/'+code+'/lobby',{'action':'start'},host)
     return app,client,post,code,host,state
 
 def get(client,code,token):return client.get('/speeddie/api/rooms/'+code,headers={'Authorization':'Bearer '+token})
@@ -118,3 +120,39 @@ def test_engine_never_accepts_client_state_or_randomness(env):
     assert result.status_code==200
     assert 1<=result.json['room']['state']['roll']['d1']<=6
     assert len(result.json['room']['state']['players'])==3
+
+def test_lobby_profiles_readiness_permissions_and_start(env):
+    app,client,post,old,host,state=env
+    created=post('/rooms',{'state':state}).json;code=created['room']['code'];host=created['token']
+    assert created['room']['lobby']
+    assert cmd(post,code,host,created['room'],'roll').status_code==403
+    guest=post('/rooms/'+code+'/join',{'name':'Mom phone'}).json;token=guest['token']
+    path='/rooms/'+code+'/lobby'
+    profile={'action':'profile','player':'p1','name':'Mama','color':'#123abc','token':'🐎'}
+    assert post(path,profile,token).status_code==403
+    post('/rooms/'+code+'/members',{'member':guest['room']['me']['id'],'seats':['p1']},host)
+    assert post(path,dict(profile,player='p0'),token).status_code==403
+    assert post(path,dict(profile,token='data:image/svg+xml;base64,'+'A'*40),token).status_code==400
+    assert post(path,profile,token).json['room']['state']['players'][1]['name']=='Mama'
+    post(path,{'action':'ready','players':['p1']},token)
+    assert 'p1' not in post(path,profile,token).json['room']['ready']
+    assert post(path,{'action':'start'},host).status_code==400
+    added=post(path,dict(profile,action='add',name='Tessa Junior'),token).json['room']
+    new_id=added['state']['players'][-1]['id'];assert new_id in added['me']['seats']
+    post(path,{'action':'ready','players':['p1',new_id]},token)
+    post(path,{'action':'ready','players':['p0','p2']},host)
+    assert post(path,{'action':'start'},token).status_code==403
+    assert not post(path,{'action':'start'},host).json['room']['lobby']
+    assert post(path,profile,token).status_code==403
+    assert get(client,code,token).json['room']['state']['players'][1]['token']=='🐎'
+
+def test_lobby_eight_player_limit_and_seat_transfer_resets_ready(env):
+    _,client,post,_,_,state=env
+    result=post('/rooms',{'state':state}).json;code=result['room']['code'];host=result['token'];path='/rooms/'+code+'/lobby'
+    for n in range(5):
+        assert post(path,{'action':'add','name':f'Extra {n}','color':'#123456','token':'🐕'},host).status_code==200
+    assert post(path,{'action':'add','name':'Ninth','color':'#123456','token':'🐕'},host).status_code==400
+    post(path,{'action':'ready','players':['p0']},host)
+    guest=post('/rooms/'+code+'/join',{'name':'Mom'}).json
+    room=post('/rooms/'+code+'/members',{'member':guest['room']['me']['id'],'seats':['p0']},host).json['room']
+    assert room['ready']==[]
