@@ -699,6 +699,10 @@ def csrf_protect():
     if not _constant_time_eq(sent, expected):
         abort(403)
 
+from faithsparks.views.speeddie_online import create_blueprint as create_speeddie_blueprint
+app.register_blueprint(create_speeddie_blueprint(_get_csrf_token))
+
+
 @app.context_processor
 def inject_csrf():
     """Expose csrf_token() helper to all templates."""

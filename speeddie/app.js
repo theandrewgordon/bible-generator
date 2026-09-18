@@ -265,6 +265,7 @@ function initials(name) {
 }
 
 function render() {
+  if (onlineSession) { renderOnline(); return; }
   menuButton.classList.toggle("hidden", !state.started || homeView);
   if (recoveryRaw !== null) renderRecovery();
   else if (homeView) renderHome();
@@ -277,10 +278,11 @@ function renderSetup() {
   app.innerHTML = `
     <section class="panel">
       <div class="setup-intro">
-        <h2>Start a family game</h2><p class="muted small">Pass &amp; play on this device. Own-device online rooms are not available yet.</p><button class="button quiet" id="setup-home" type="button">Saved games</button>
+        <h2>Start a family game</h2>${onlineLaunchButtons()}<button class="button quiet" id="setup-home" type="button">Saved games</button>
         <p class="muted">Add your players and choose how the Speed Die should work. You can edit every property name once the game begins.</p>
       </div>
       <form id="setup-form">
+        <label class="field"><span>How will you play?</span><select name="play-mode" id="play-mode"><option value="local">Pass &amp; play · one shared device</option><option value="online">Own devices · host a shared room</option></select></label>
         <div class="setup-grid">
           <div>
             <label class="field">
@@ -350,6 +352,8 @@ function renderSetup() {
     </section>`;
 
   document.querySelector("#setup-home").onclick = goHome;
+  bindActions(app);
+  document.querySelector('#play-mode').onchange=e=>{const shared=e.target.value==='online';for(const [name,value] of [['money-mode','banker'],['card-mode','digital']]){const el=document.querySelector(`[name="${name}"]`);if(shared)el.value=value;el.disabled=shared;}};
   const count = document.querySelector("#player-count");
   const names = document.querySelector("#player-inputs");
   function drawNameInputs() {
@@ -397,11 +401,11 @@ async function startGame(event) {
   } catch (error) { alert(error.message); startButton.disabled = false; return; }
   state = freshState();
   state.started = true;
-  state.moneyMode = formData.get("money-mode");
+  state.moneyMode = formData.get("money-mode") || "banker";
   state.rules.startingCash = startingCash;
   state.gameName = String(formData.get('game-name') || 'Family game').trim().slice(0,50);
   state.gameId = crypto.randomUUID();
-  state.cardMode = formData.get('card-mode'); state.boardEdition = 'classic-us';
+  state.cardMode = formData.get('card-mode') || 'digital'; state.boardEdition = 'classic-us';
   state.allowLeaveUnowned = formData.has('leave-unowned');
   G.initDecks(state);
   state.mode = formData.get("mode") || "classic";
@@ -419,8 +423,9 @@ async function startGame(event) {
     consecutiveDoubles: 0
   }));
   undoState = null; undoStack = [];
-  saveState(true);
+  if (!saveState(true)) { render(); return; }
   render();
+  if (formData.get("play-mode") === "online") await hostOnline();
 }
 
 function renderGame() {
@@ -677,57 +682,8 @@ function randomDie() { return Math.floor(Math.random() * 6) + 1; }
 
 function rollDice() {
   if (gameBlocked()) return;
-  playEffect("roll");
-  state.bankLandingResolved = false; state.landingBill = null;
-  const player = currentPlayer();
-  const speedActive = state.activation === "immediate" || player.passedGo;
-  const d1 = randomDie();
-  const d2 = randomDie();
-  const speed = speedActive ? SPEED_FACES[Math.floor(Math.random() * SPEED_FACES.length)] : null;
-  state.roll = { d1, d2, speed, speedActive };
-  if (isTriplesRoll(d1, d2, speed)) {
-    player.consecutiveDoubles = 0;
-    state.extraTurn = false;
-    state.phase = "triples";
-    state.message = "Triples: choose any board space.";
-    saveState(); render();
-    return;
-  }
-  const doublesResult = registerDoubles(d1, d2);
-  if (doublesResult === "third") {
-    sendToJail("Three doubles in a row. Go directly to Jail.");
-    recordRoll();
-    saveState(); render();
-    return;
-  }
-
-  if (!speedActive || typeof speed === "number") {
-    const move = d1 + d2 + (typeof speed === "number" ? speed : 0);
-    completeMove(move, `Move ${move} spaces. Resolve the space you land on.`);
-    return;
-  }
-  if (speed === "Bus") {
-    state.phase = "bus";
-    state.message = "Choose a Bus move.";
-    saveState(); render();
-    return;
-  }
-
-  if (state.mode === "classic") {
-    const whiteTotal = d1 + d2;
-    movePlayer(whiteTotal);
-    if (resolveGoToJail()) {
-      recordRoll();
-      saveState(); render();
-      return;
-    }
-    state.firstStopResolved = false;
-    state.phase = "classic-first-stop";
-    state.message = `Move ${whiteTotal} spaces and resolve this space first.`;
-    saveState(); render();
-  } else {
-    moveToPropertyFinderTarget();
-  }
+  const ok = commitGame(s => Object.assign(s, SpeedDieEngine.command(s, "roll", {}, G.active(s).map(p=>p.id), {die:randomDie})));
+  if (ok && ["roll", "jail-roll"].includes("roll")) playEffect("roll");
 }
 
 function completeMove(amount, message) {
@@ -749,20 +705,9 @@ function movePlayer(amount) {
 }
 
 function moveAfterTriples() {
-  const target = Number(document.querySelector("#triples-space").value);
-  if (!Number.isInteger(target) || target < 0 || target >= state.spaces.length) return;
-  const player = currentPlayer();
-  if (target !== 30 && (target === 0 || target < player.position)) { player.passedGo = true; creditGo(player); }
-  state.bankLandingResolved = false; state.landingBill = null;
-  player.position = target;
-  state.phase = "landed";
-  state.extraTurn = false;
-  state.message = `Triples: move directly to ${state.spaces[target].name}.`;
-  resolveGoToJail();
-  setLandingResolutionState();
-  recordRoll();
-  saveState();
-  render();
+  if (gameBlocked()) return;
+  const ok = commitGame(s => Object.assign(s, SpeedDieEngine.command(s, "triples", {index:Number(document.querySelector("#triples-space").value)}, G.active(s).map(p=>p.id), {die:randomDie})));
+  if (ok && ["roll", "jail-roll"].includes("triples")) playEffect("roll");
 }
 
 function registerDoubles(d1, d2) {
@@ -845,62 +790,14 @@ function useJailCard() {
 
 function tryJailDoubles() {
   if (gameBlocked()) return;
-  state.bankLandingResolved = false; state.landingBill = null;
-  const player = currentPlayer();
-  const d1 = randomDie();
-  const d2 = randomDie();
-  state.roll = { d1, d2, speed: null, speedActive: false, jailAttempt: true };
-  state.extraTurn = false;
-  player.consecutiveDoubles = 0;
-
-  if (d1 === d2) {
-    player.inJail = false;
-    player.jailAttempts = 0;
-    movePlayer(d1 + d2);
-    state.phase = "landed";
-    state.message = `You rolled doubles and left Jail. Move ${d1 + d2} spaces.`;
-    resolveGoToJail();
-    setLandingResolutionState();
-  } else {
-    player.jailAttempts += 1;
-    if (player.jailAttempts >= 3) {
-      if (state.moneyMode === "banker") {
-        SpeedDieRules.owe(state, player.id, state.freeParkingRule === "pot" ? "pot" : "bank", state.rules.jail, "Third Jail attempt", { kind: "jail-move", amount: d1 + d2 });
-        recordRoll(); saveState(); render(); return;
-      }
-      player.inJail = false;
-      player.jailAttempts = 0;
-      movePlayer(d1 + d2);
-      state.phase = "landed";
-      state.message = `No doubles on the third attempt. Pay $50, then move ${d1 + d2} spaces.`;
-      resolveGoToJail();
-      setLandingResolutionState();
-    } else {
-      state.phase = "landed";
-      state.message = `No doubles. Stay in Jail. This was attempt ${player.jailAttempts} of 3.`;
-    }
-  }
-  recordRoll();
-  saveState();
-  render();
+  const ok = commitGame(s => Object.assign(s, SpeedDieEngine.command(s, "jail-roll", {}, G.active(s).map(p=>p.id), {die:randomDie})));
+  if (ok && ["roll", "jail-roll"].includes("jail-roll")) playEffect("roll");
 }
 
 function continuePropertyFinder() {
-  if (gameBlocked() || bankLandingPending() || cardPending()) return;
-  if (isProperty(currentSpace()) && currentSpace().owner === null && !state.firstStopResolved) return;
-  const target = findPropertyTarget();
-  if (target === null) {
-    state.phase = "landed";
-    state.pendingFinderTarget = null;
-    state.firstStopResolved = false;
-    state.message = `Property Finder found no eligible property. Stay on ${currentSpace().name}; the white-dice move was already completed.`;
-    recordRoll();
-    saveState();
-    render();
-    return;
-  }
-  state.firstStopResolved = false;
-  moveToPropertyFinderTarget(target);
+  if (gameBlocked()) return;
+  const ok = commitGame(s => Object.assign(s, SpeedDieEngine.command(s, "finder", {}, G.active(s).map(p=>p.id), {die:randomDie})));
+  if (ok && ["roll", "jail-roll"].includes("finder")) playEffect("roll");
 }
 
 function recordRoll() {
@@ -1197,6 +1094,7 @@ function runRuleSelfChecks() {
   console.info(`Speed Die rule self-checks passed (${checks.length}).`);
 }
 
+document.querySelector("#host-online-button").onclick = () => { menuDialog.close(); hostOnline(); };
 document.querySelector("#home-button").onclick = goHome;
 document.querySelector("#presentation-button").onclick = openPresentation;
 initializeCompanion();

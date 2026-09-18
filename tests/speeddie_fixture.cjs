@@ -1,0 +1,5 @@
+const fs=require('node:fs'),vm=require('node:vm'),G=require('../speeddie/rules.js');
+const source=fs.readFileSync(require.resolve('../speeddie/app.js'),'utf8');
+const board=JSON.parse(vm.runInNewContext(source.slice(source.indexOf('const DEFAULT_SPACES'),source.indexOf('const GROUP_COLORS'))+'\nJSON.stringify(DEFAULT_SPACES)'));
+function game(count=3){const s=G.upgrade({version:6,started:true,moneyMode:'banker',cardMode:'digital',mode:'classic',activation:'after-go',gameName:'Online test',currentPlayer:0,phase:'ready',spaces:structuredClone(board),players:Array.from({length:count},(_,i)=>({id:'p'+i,name:['Tessa','Mom','Dad'][i]||'Player '+i,color:['#397bb5','#d69b29','#4f9169'][i%3],position:0,cash:2500,inJail:false,jailAttempts:0,consecutiveDoubles:0,passedGo:false,token:'🐕'})),rules:{startingCash:2500},freeParkingRule:'official',history:[],extraTurn:false,roll:null});G.initDecks(s,()=>.5);return s;}
+module.exports=game;if(require.main===module)process.stdout.write(JSON.stringify(game()));

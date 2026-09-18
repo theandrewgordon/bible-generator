@@ -9,6 +9,7 @@ function library() {
   return result;
 }
 function archiveCurrent() {
+  if (onlineSession) return false;
   if (!saveWriterReady) return false;
   try {
     if (state.started) {
@@ -73,7 +74,7 @@ function renderHome() {
     }).sort((a,b) => String(b.game?.savedAt || '').localeCompare(String(a.game?.savedAt || '')));
   }
   catch (e) { app.innerHTML = `<section class="panel"><h2>Saved games need attention</h2><p>${escapeHTML(e.message)}</p>${button('Download saved-game library','export-library')}${button('Back to current game','home-back')}</section>`; bindActions(app); return; }
-  app.innerHTML = `<section class="panel"><h2>Family games</h2><p>Saved on this browser. Export a backup to keep a copy elsewhere.</p><div class="button-stack">${button('New game','new-game')}${button('Restore JSON backup','import-game')}</div><div class="saved-games">${entries.map(({id,game:s}) => s ? `<article class="panel"><h3>${escapeHTML(s.gameName || 'Family game')}</h3><p>${escapeHTML(s.players.map(p=>p.name).join(', '))}</p><p>${s.winnerId ? 'Completed' : 'In progress'} · ${escapeHTML(new Date(s.savedAt).toLocaleString())}</p><div class="button-stack">${button(s.winnerId ? 'View result' : 'Resume','resume-game',id)}${button('Delete saved game','delete-game',id)}</div></article>` : `<article class="panel"><h3>Unreadable saved game</h3><p>This entry was preserved. Your other games are still available.</p><div class="button-stack">${button('Download saved-game library','export-library')}${button('Delete this entry','delete-game',id)}</div></article>`).join('') || '<p>No saved games yet.</p>'}</div></section>`;
+  app.innerHTML = `<section class="panel"><h2>Family games</h2>${onlineLaunchButtons()}<p>Saved on this browser. Export a backup to keep a copy elsewhere.</p><div class="button-stack">${button('New game','new-game')}${button('Restore JSON backup','import-game')}</div><div class="saved-games">${entries.map(({id,game:s}) => s ? `<article class="panel"><h3>${escapeHTML(s.gameName || 'Family game')}</h3><p>${escapeHTML(s.players.map(p=>p.name).join(', '))}</p><p>${s.winnerId ? 'Completed' : 'In progress'} · ${escapeHTML(new Date(s.savedAt).toLocaleString())}</p><div class="button-stack">${button(s.winnerId ? 'View result' : 'Resume','resume-game',id)}${button('Delete saved game','delete-game',id)}</div></article>` : `<article class="panel"><h3>Unreadable saved game</h3><p>This entry was preserved. Your other games are still available.</p><div class="button-stack">${button('Download saved-game library','export-library')}${button('Delete this entry','delete-game',id)}</div></article>`).join('') || '<p>No saved games yet.</p>'}</div></section>`;
   bindActions(app);
 }
 function cardPending(s = state) {
@@ -136,6 +137,8 @@ function openPresentation() {
   });
 }
 function familyAction(action,value) {
+  if (action === 'online-join') {openOnlineJoin();return true;}
+  if (action === 'online-reconnect') {reconnectOnline(value);return true;}
   if (action === 'home') {goHome(); return true;}
   if (action === 'home-back') {homeView=false;render();return true;}
   if (action === 'new-game') {newFamilyGame();return true;}
