@@ -89,7 +89,7 @@ footer {
 .field { display: grid; gap: 7px; margin: 16px 0; }
 .field > span, .fieldset-label { font-weight: 750; }
 
-input[type="text"], select {
+input[type="text"], input[type="number"], input:not([type]), select {
   width: 100%;
   min-height: 48px;
   padding: 10px 12px;
@@ -519,3 +519,19 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .setup-photo { margin: -6px 0 18px; font-size: .85rem; }
 .setup-photo summary { cursor: pointer; margin-bottom: 10px; }
 .player-summary strong { overflow-wrap: anywhere; }
+/* Family controls remain large enough for passing a phone around the table. */
+.pip-face { display:grid; grid-template-columns:repeat(3,12px); grid-template-rows:repeat(3,12px); gap:5px; padding:12px; background:#fff; color:#202a30; border-radius:12px; border:2px solid currentColor; box-shadow:0 3px 0 #0002; }
+.pip-face i { display:block; border-radius:50%; }
+.pip-face .dot { background:currentColor; }
+.speed .pip-face { background:#f4ce64; }
+.card-preview { background:#fff8e8; border:2px solid #c69636; padding:1rem; border-radius:14px; }
+.saved-games { display:grid; gap:1rem; margin-top:1rem; }
+.winner-panel { background:linear-gradient(125deg,#fff8d8,#ecd077); border:2px solid #b98820; text-align:center; }
+.confetti { color:#92571d; font-size:2rem; letter-spacing:.6rem; animation:celebrate 1.2s ease-out 2; }
+@keyframes celebrate { from {transform:translateY(-15px);opacity:.2} to {transform:translateY(0);opacity:1} }
+@media(prefers-reduced-motion:reduce){.confetti{animation:none}}
+#companion-form > .button { margin:.35rem; }
+.instruction details, #setup-form details { margin:.8rem 0; }
+
+.auction-bids { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.player-summary span { white-space:normal; overflow-wrap:anywhere; }

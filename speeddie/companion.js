@@ -2,11 +2,11 @@
 const G = SpeedDieRules;
 const TOKEN_CHOICES = ["🐕", "🐎", "🚗", "🚢", "🎩", "🐈", "🦖", "🧱"];
 const money = n => `$${Number(n).toLocaleString()}`;
-const buildingLabel = p => p.buildings === 5 ? "Hotel" : `${p.buildings} house${p.buildings === 1 ? "" : "s"}`;
+const buildingLabel = p => p.buildings === 5 ? "🏨 Hotel" : `${"🏠".repeat(p.buildings)} ${p.buildings} house${p.buildings === 1 ? "" : "s"}`;
 function tokenMarkup(p) {
   return p.token?.startsWith("data:image/") ? `<img src="${escapeHTML(p.token)}" alt="" class="token-image">` : escapeHTML(p.token || initials(p.name));
 }
-function gameBlocked() { return Boolean(state.debts.length || state.auctions.length || G.active(state).length < 2); }
+function gameBlocked() { return Boolean(state.auction || state.pendingCard || state.debts.length || state.auctions.length || G.active(state).length < 2); }
 function creditGo(p, times = 1) {
   if (state.moneyMode === "banker") G.transfer(state, "bank", p.id, state.rules.go * times, "GO salary");
 }
@@ -17,9 +17,11 @@ function commitGame(action) {
     const next = G.run(state, action);
     G.finish(next.state);
     G.validate(next.state);
+    const newlyWon = !state.winnerId && next.state.winnerId;
     state = next.state;
     if (!saveState()) { render(); return false; }
     render();
+    if (newlyWon) playEffect("victory");
     return true;
   } catch (error) { alert(error.message); return false; }
 }
@@ -37,14 +39,15 @@ function amountField(label, id, value, extra = "") {
 }
 function renderCompanion() {
   const supply = G.stock(state);
-  return `<section class="panel companion-toolbar"><div class="players-heading"><div><strong>${state.moneyMode === "banker" ? "Banker mode" : "Physical money"}</strong><p class="muted small">Bank: ${supply.houses} houses · ${supply.hotels} hotels${state.freeParkingRule === "pot" && state.moneyMode === "banker" ? ` · Pot ${money(state.freeParkingPot)}` : ""}</p></div>${button("Undo last action", "undo", "", !undoState ? "disabled" : "")}</div>
-    <div class="companion-actions">${button("Manage properties", "properties")}${button("Payment / card", "payment")}${button("History", "history")}</div></section>`;
+  return `<section class="panel companion-toolbar"><div class="players-heading"><div><strong>Game tools</strong><p class="muted small">Bank: ${supply.houses} houses · ${supply.hotels} hotels${state.freeParkingRule === "pot" && state.moneyMode === "banker" ? ` · Pot ${money(state.freeParkingPot)}` : ""}</p></div>${button("Undo last action", "undo", "", !undoState ? "disabled" : "")}</div>
+    <div class="companion-actions">${button("My properties", "properties")}${button("Bank", "bank-menu")}</div></section>`;
 }
 function renderPendingActions() {
   if (state.winnerId) {
     const winner = state.players.find(p => p.id === state.winnerId);
-    return `<section class="panel instruction winner-panel"><p class="eyebrow">Game complete</p><h2>${escapeHTML(winner.name)} wins!</h2><p>No more payments or auctions are required. Use Undo to correct the result.</p>${button("View game history", "history")}</section>`;
+    return `<section class="panel instruction winner-panel"><p class="eyebrow">Game complete</p><h2>${escapeHTML(winner.name)} wins!</h2><p>The last player standing. Well played!</p><div class="confetti" aria-hidden="true">✦ · ✧ · ✦ · ✧ · ✦</div><div class="button-stack">${button("Home", "home")}${button("Play again", "new-game")}${button("View game history", "history")}</div></section>`;
   }
+  if (state.auction) return renderAuctionFlow();
   if (state.debts.length) {
     const d = state.debts[0], p = G.player(state, d.from);
     const short = Math.max(0, d.amount - p.cash);
@@ -54,7 +57,7 @@ function renderPendingActions() {
   }
   if (state.auctions.length) {
     const p = state.spaces[state.auctions[0]];
-    return `<section class="panel instruction"><p class="eyebrow">Bankruptcy auction · ${state.auctions.length} remaining</p><h2>${escapeHTML(p.name)}</h2><p>Auction this property with the players at the table, then record the winner and bid.</p>${button("Record winning bid", "auction", p.index)}</section>`;
+    return `<section class="panel instruction"><p class="eyebrow">Bankruptcy auction · ${state.auctions.length} remaining</p><h2>${escapeHTML(p.name)}</h2><p>Start bidding. The winner pays the bank and receives the property.</p>${button("Start auction", "auction", p.index)}</section>`;
   }
   const alive = G.active(state);
   if (alive.length === 1) return `<section class="panel instruction winner-panel"><p class="eyebrow">Game complete</p><h2>${escapeHTML(alive[0].name)} wins!</h2><p>The last player remaining.</p>${button("View game history", "history")}</section>`;
@@ -82,7 +85,7 @@ function openLandingWaiver() {
 function renderBankLanding() {
   const p = currentSpace();
   if (state.bankLandingResolved || currentPlayer().inJail) return `<p class="status-note">This stop is resolved.</p>`;
-  if (isProperty(p) && !p.owner && !state.landingBill) return `<div class="landing-card"><h3>${escapeHTML(p.name)} · ${money(p.price)}</h3><div class="button-stack">${button(`Buy for ${money(p.price)}`, "buy", "", currentPlayer().cash < p.price ? "disabled" : "")}${button("Auction property", "auction", p.index)}${button("House rule: leave unowned", "leave")}</div>${currentPlayer().cash < p.price ? '<p class="muted">Raise cash using Manage properties or Trade, or auction this property.</p>' : ""}</div>`;
+  if (isProperty(p) && !p.owner && !state.landingBill) return `<div class="landing-card"><h3>${escapeHTML(p.name)} · ${money(p.price)}</h3><div class="button-stack">${button(`Buy for ${money(p.price)}`, "buy", "", currentPlayer().cash < p.price ? "disabled" : "")}${button("Auction property", "auction", p.index)}${state.allowLeaveUnowned ? button("Leave unowned", "leave") : ""}</div>${currentPlayer().cash < p.price ? '<p class="muted">Raise cash using Manage properties or Trade, or auction this property.</p>' : ""}</div>`;
   const amount = landingAmount();
   if (amount) return `<div class="landing-card"><p>${escapeHTML(state.landingBill.reason)} · owed to ${["bank", "pot"].includes(state.landingBill.to) ? "the bank" : escapeHTML(G.player(state, state.landingBill.to).name)}. Amount recorded on arrival.</p>${amountField(isProperty(p) ? "Rent due (adjust for a card’s special rent)" : "Tax due", "landing-payment", amount, 'min="1"')}${button("Pay / resolve bill", "landing-pay")}${button("Waive payment / correction", "waive-landing")}</div>`;
   if (state.landingBill) return `<p class="status-note">No payment was due when you arrived.</p>${button("Finish this stop", "resolve")}`;
@@ -144,14 +147,7 @@ function openProperty(index) {
       G.log(s, `Updated deed values / ownership for ${q.name}.`);
     }));
 }
-function openAuction(index) {
-  const p = state.spaces[index];
-  if (p.owner) return;
-  showDialog(`Auction · ${p.name}`, `<p>Hold the auction at the table. Any active player may bid, including the player who declined the purchase.</p><label class="field"><span>Winning player</span><select id="auction-player">${playerOptions(currentPlayer().id)}</select></label>${amountField("Winning bid", "auction-price", p.price, 'min="1"')}<button class="button" type="submit">Record purchase</button>${button("House rule: no bids, leave unowned", "auction-skip", index)}`, () => commitGame(s => {
-    const amount = Number(document.querySelector("#auction-price").value); G.assert(amount > 0, "The winning bid must be at least $1.");
-    G.buy(s, index, document.querySelector("#auction-player").value, amount);
-  }));
-}
+function openAuction(index) { return openFamilyAuction(index); }
 function openPayment() {
   showDialog("Payment / physical card", `<p class="muted">Record card effects, fees, bonuses, or a payment between players. Bank payments are unlimited. For “pay each player,” choose everyone else. Multiple bills are resolved in table order.</p>
     <label class="field"><span>Payer</span><select id="payment-from">${playerOptions(currentPlayer().id, true).replace('<option value="pot">Free Parking pot</option>', "")}<option value="everyone">Everyone else</option></select></label>
@@ -228,6 +224,8 @@ function openSettings() {
 function bindActions(root) {
   root.querySelectorAll("[data-action]").forEach(el => el.onclick = () => {
     const action = el.dataset.action, value = el.dataset.value, index = Number(value), dialog = document.querySelector("#companion-dialog");
+    if (!homeView && (state.auction || state.pendingCard) && !['auction-bid','auction-custom','auction-pass','apply-card','home','undo','history'].includes(action)) { alert('Finish the card or auction first.'); return; }
+    if (familyAction(action,value)) return;
     if (action === "properties") return openProperties(value || currentPlayer().id);
     if (action === "property") return openProperty(index);
     if (action === "payment") return openPayment();
@@ -247,7 +245,7 @@ function bindActions(root) {
     }
     if (["build", "sell", "mortgage", "sell-group"].includes(action)) {
       const owner = state.spaces[index].owner;
-      if (commitGame(s => action === "mortgage" ? G.mortgage(s, index) : action === "sell-group" ? G.sellGroup(s, index) : G.build(s, index, action === "build" ? 1 : -1))) openProperties(owner);
+      if (commitGame(s => action === "mortgage" ? G.mortgage(s, index) : action === "sell-group" ? G.sellGroup(s, index) : G.build(s, index, action === "build" ? 1 : -1))) { playEffect("payment"); openProperties(owner); }
       return;
     }
     if (action === "building-auction") return showDialog("Building auction", `<p>Use this when players compete for the bank’s remaining houses or hotels. Record the winning bid for one building on ${escapeHTML(state.spaces[index].name)}. Normal building and stock rules still apply.</p>${amountField("Winning bid", "building-bid", state.spaces[index].buildCost)}<button class="button" type="submit">Record building purchase</button>`, () => commitGame(s => G.build(s, index, 1, Number(document.querySelector("#building-bid").value))));
@@ -263,7 +261,7 @@ function bindActions(root) {
       const amount = readAmount("landing-payment"), bill = s.landingBill;
       G.assert(bill, "No landing payment is pending.");
       if (amount !== bill.amount) G.log(s, `Landing amount adjusted: ${bill.reason}, $${bill.amount} → $${amount}.`);
-      if (s.players[s.currentPlayer].cash >= amount) { G.transfer(s, bill.from, bill.to, amount, bill.reason); markResolved(s); }
+      if (s.moneyMode === "helper" || s.players[s.currentPlayer].cash >= amount) { G.transfer(s, bill.from, bill.to, amount, bill.reason); markResolved(s); }
       else G.owe(s, bill.from, bill.to, amount, bill.reason, { kind: "landing" });
     });
     if (action === "parking") return commitGame(s => { if (s.bankLandingResolved) return; const amount = s.freeParkingRule === "pot" ? s.freeParkingPot : Number(s.freeParkingRule); G.transfer(s, "bank", currentPlayer().id, amount, "Free Parking house rule"); if (s.freeParkingRule === "pot") s.freeParkingPot = 0; markResolved(s); });
@@ -272,14 +270,18 @@ function bindActions(root) {
 function bindCompanionEvents() {
   bindActions(app);
   app.querySelectorAll(".edit-player").forEach(b => b.onclick = () => openPlayer(b.dataset.player));
-  if (bankLandingPending()) {
+  if (bankLandingPending() || cardPending()) {
     const end = document.querySelector("#end-turn-button"), finder = document.querySelector("#continue-finder");
     if (end) { end.disabled = true; end.textContent = "Resolve this stop to continue"; }
     if (finder) finder.disabled = true;
   }
-  document.querySelector("#bank-settings").disabled = Boolean(state.winnerId);
+  document.querySelector("#bank-settings").disabled = Boolean(state.winnerId || state.auction || state.pendingCard);
+  if (state.auction || state.pendingCard) {
+    app.querySelectorAll('button').forEach(b=>{ if (!['auction-bid','auction-custom','auction-pass','apply-card','undo','history','home'].includes(b.dataset.action)) b.disabled=true; });
+    app.querySelectorAll('.space-name').forEach(el=>el.disabled=true);
+  }
   if (state.winnerId) {
-    app.querySelectorAll("button").forEach(b => { if (!["undo", "history"].includes(b.dataset.action)) b.disabled = true; });
+    app.querySelectorAll("button").forEach(b => { if (!["undo", "history", "home", "new-game"].includes(b.dataset.action)) b.disabled = true; });
     app.querySelectorAll("input, select").forEach(input => input.disabled = true);
   }
 }

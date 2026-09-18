@@ -215,7 +215,7 @@ function escapeHTML(value) {
 function currentPlayer() { return state.players[state.currentPlayer]; }
 function currentSpace() { return state.spaces[currentPlayer().position]; }
 function isProperty(space) { return ["property", "railroad", "utility"].includes(space.type); }
-function isCardSpace(space) { return ["Chance", "Community Chest"].includes(space.name); }
+function isCardSpace(space) { return [2,7,17,22,33,36].includes(space.index); }
 function isTriplesRoll(d1, d2, speed) {
   return typeof speed === "number" && d1 === d2 && d2 === speed;
 }
@@ -267,6 +267,7 @@ function initials(name) {
 function render() {
   menuButton.classList.toggle("hidden", !state.started);
   if (recoveryRaw !== null) renderRecovery();
+  else if (homeView) renderHome();
   else if (!state.started) renderSetup();
   else renderGame();
   renderSaveAccess();
@@ -276,7 +277,7 @@ function renderSetup() {
   app.innerHTML = `
     <section class="panel">
       <div class="setup-intro">
-        <h2>Start a family game</h2>
+        <h2>Start a family game</h2><button class="button quiet" id="setup-home" type="button">Saved games</button>
         <p class="muted">Add your players and choose how the Speed Die should work. You can edit every property name once the game begins.</p>
       </div>
       <form id="setup-form">
@@ -292,17 +293,24 @@ function renderSetup() {
           </div>
           <div>
             <label class="field"><span>Money handling</span><select name="money-mode"><option value="helper">Helper · use physical money</option><option value="banker">Banker · track money in the app</option></select></label>
-            <label class="field"><span>Starting cash per player</span><input name="starting-cash" type="number" min="0" max="100000000" step="1" value="2500" required></label>
+            <label class="field"><span>Game name</span><input name="game-name" maxlength="50" value="Family game" required></label>
+            <label class="field"><span>Board</span><select name="board-edition"><option value="classic-us">Classic US / Deluxe layout</option></select></label>
+            <label class="field"><span>Cards</span><select name="card-mode"><option value="physical">Draw physical cards · enter consequences</option><option value="digital">Draw in the app · Classic US 2008–2020 effects</option></select></label>
+            <details><summary>About this board and deck</summary><p>Standard US spaces and deed values. The app uses a traditional Classic US 2008–2020 effects with short instructions; it is not an exact reproduction of your 1990s Deluxe printing. Use physical cards for your box’s exact cards. Taxes default to $200 / $100; older boards can be adjusted in Game options.</p></details>
+            <p><strong>Each player starts with $2,500.</strong><br>4 × $500, 2 × $100, 2 × $50, 6 × $20, 5 × $10, 5 × $5, 5 × $1.</p>
+            <label class="field"><span>Rules preset</span><select id="rules-preset"><option value="official">Classic Speed Die rules</option><option value="house">Choose house rules</option></select></label>
+            <details id="house-rules-details"><summary>Rule details &amp; house rules</summary>
+            <label class="check-card"><input name="leave-unowned" type="checkbox" disabled><span>House rule: allow leaving a property unowned without auction</span></label>
             <p class="muted small">US board values are included. Adjust your edition’s prices and payments in Game options.</p>
             <p class="fieldset-label">Rule mode</p>
             <div class="radio-group">
               <label class="radio-card">
-                <input type="radio" name="mode" value="streets" checked>
+                <input type="radio" name="mode" value="streets">
                 <strong>Streets-style Speed Die</strong>
                 <small>Property Finder skips the white-dice move.</small>
               </label>
               <label class="radio-card">
-                <input type="radio" name="mode" value="classic">
+                <input type="radio" name="mode" value="classic" checked>
                 <strong>Classic Speed Die Mode</strong>
                 <small>Move the white dice first, then use Property Finder.</small>
               </label>
@@ -310,12 +318,12 @@ function renderSetup() {
             <p class="fieldset-label">When is the Speed Die active?</p>
             <div class="radio-group">
               <label class="radio-card">
-                <input type="radio" name="activation" value="immediate" checked>
+                <input type="radio" name="activation" value="immediate">
                 <strong>Immediately</strong>
                 <small>Roll all three dice from the first turn.</small>
               </label>
               <label class="radio-card">
-                <input type="radio" name="activation" value="after-go">
+                <input type="radio" name="activation" value="after-go" checked>
                 <strong>After each player lands on or passes GO</strong>
                 <small>Each player unlocks it after completing their first trip around.</small>
               </label>
@@ -334,12 +342,14 @@ function renderSetup() {
                 <option value="pot">House rule: collect the center pot</option>
               </select>
             </label>
+            </details>
           </div>
         </div>
         <button class="button primary" type="submit">Start game</button>
       </form>
     </section>`;
 
+  document.querySelector("#setup-home").onclick = goHome;
   const count = document.querySelector("#player-count");
   const names = document.querySelector("#player-inputs");
   function drawNameInputs() {
@@ -356,6 +366,14 @@ function renderSetup() {
   }
   count.addEventListener("change", drawNameInputs);
   drawNameInputs();
+  const preset = document.querySelector('#rules-preset');
+  const applyPreset = () => {
+    const official = preset.value === 'official';
+    document.querySelector('#house-rules-details').open = !official;
+    if (official) { document.querySelector('[name="mode"][value="classic"]').checked=true; document.querySelector('[name="activation"][value="after-go"]').checked=true; document.querySelector('[name="free-parking"]').value='official'; document.querySelector('[name="leave-unowned"]').checked=false; }
+    document.querySelectorAll('[name="mode"], [name="activation"], [name="free-parking"], [name="leave-unowned"]').forEach(el=>el.disabled=official);
+  };
+  preset.onchange=applyPreset; applyPreset();
   document.querySelector("#setup-form").addEventListener("submit", startGame);
 }
 
@@ -370,7 +388,7 @@ async function startGame(event) {
   const setupForm = event.currentTarget;
   const startButton = setupForm.querySelector('button[type="submit"]');
   const formData = new FormData(setupForm);
-  const startingCash = Number(formData.get("starting-cash"));
+  const startingCash = 2500;
   if (!SpeedDieRules.isMoney(startingCash)) { alert("Enter a valid starting cash amount."); return; }
   startButton.disabled = true;
   let tokens;
@@ -380,10 +398,15 @@ async function startGame(event) {
   state = freshState();
   state.started = true;
   state.moneyMode = formData.get("money-mode");
-  state.rules.startingCash = Number(formData.get("starting-cash"));
-  state.mode = formData.get("mode");
-  state.activation = formData.get("activation");
-  state.freeParkingRule = formData.get("free-parking");
+  state.rules.startingCash = startingCash;
+  state.gameName = String(formData.get('game-name') || 'Family game').trim().slice(0,50);
+  state.gameId = crypto.randomUUID();
+  state.cardMode = formData.get('card-mode'); state.boardEdition = 'classic-us';
+  state.allowLeaveUnowned = formData.has('leave-unowned');
+  G.initDecks(state);
+  state.mode = formData.get("mode") || "classic";
+  state.activation = formData.get("activation") || "after-go";
+  state.freeParkingRule = formData.get("free-parking") || "official";
   state.players = names.map((name, index) => ({
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${index}`,
     name,
@@ -436,7 +459,7 @@ function renderPlayers() {
           <span class="small-token" style="border-color:${player.color}" aria-hidden="true">${tokenMarkup(player)}</span>
           <div class="player-summary">
             <strong>${escapeHTML(player.name)}${player.bankrupt ? " · Out" : state.winnerId === player.id ? " · Winner" : index === state.currentPlayer ? " · Taking turn" : ""}</strong>
-            <span>${player.bankrupt ? "Bankrupt" : player.inJail ? "In Jail" : escapeHTML(state.spaces[player.position].name)}${state.moneyMode === "banker" ? ` · $${player.cash.toLocaleString()}` : ""}${state.activation === "after-go" && !player.passedGo ? " · Speed Die locked" : ""}</span>
+            <span>${player.bankrupt ? "Bankrupt" : player.inJail ? "In Jail" : escapeHTML(state.spaces[player.position].name)}${state.moneyMode === "banker" ? ` · $${player.cash.toLocaleString()}` : ""}${(state.heldCards || []).filter(c=>c.owner===player.id).length ? ` · ${(state.heldCards || []).filter(c=>c.owner===player.id).length} Jail card(s)` : ""}${state.activation === "after-go" && !player.passedGo ? " · Speed Die locked" : ""}</span>
           </div>
           <button class="edit-player" data-player="${player.id}" type="button">Token / details</button>
         </div>`).join("")}
@@ -457,7 +480,7 @@ function renderDice() {
 
 function dieCard(label, face, result, speed = false) {
   return `<div class="die-card ${speed ? "speed" : ""}">
-    <span class="die-face" aria-hidden="true">${escapeHTML(face)}</span>
+    <span class="die-face" aria-hidden="true">${state.dicePips !== false && Number.isInteger(face) ? `<span class="pip-face pip-${face}">${Array.from({length:9},(_,i)=>`<i class="${({1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]})[face].includes(i)?"dot":""}"></i>`).join("")}</span>` : escapeHTML(face)}</span>
     <span class="die-label">${escapeHTML(label)}</span>
     <span class="die-result">${escapeHTML(result)}</span>
   </div>`;
@@ -475,7 +498,7 @@ function renderActionArea(speedActive) {
         : "Pay the bank, use a physical Get Out of Jail Free card, or try to roll doubles."}</p>
       <div class="button-stack">
         ${thirdAttempt ? "" : `<button id="pay-jail" class="button primary gold" type="button">Pay $${jailFee} &amp; roll normally</button>`}
-        <button id="use-jail-card" class="button secondary" type="button">Use Get Out of Jail Free card</button>
+        <button id="use-jail-card" class="button secondary" type="button" ${state.cardMode === "digital" && !(state.heldCards || []).some(c=>c.owner===currentPlayer().id) ? "disabled" : ""}>Use Get Out of Jail Free card</button>
         <button id="try-jail-doubles" class="button secondary" type="button">Try to roll doubles</button>
       </div>
     </section>`;
@@ -521,10 +544,10 @@ function renderActionArea(speedActive) {
       !state.firstStopResolved;
     return `<section class="panel instruction">
       <h2>First stop: ${escapeHTML(currentSpace().name)}</h2>
-      <p>Resolve this space using your physical board. Then continue to the Property Finder move.</p>
+      <p>Finish this stop, then make the Property Finder move.</p>
       ${renderLandingResolution(false)}
-      ${isCardSpace(currentSpace()) ? `<button id="card-moved-token" class="button secondary" type="button">The card moved my token</button>` : ""}
-      ${needsAuction ? `<p class="resolution-warning">Buy this property, record the auction winner, or explicitly use the leave-unowned house rule before continuing.</p>` : ""}
+
+      ${needsAuction ? `<p class="resolution-warning">Buy or auction this property before continuing.</p>` : ""}
       <button id="continue-finder" class="button primary" type="button" ${needsAuction ? "disabled" : ""}>Continue Property Finder</button>
     </section>`;
   }
@@ -534,15 +557,16 @@ function renderActionArea(speedActive) {
       <p class="eyebrow">Your move</p>
       <h2>${escapeHTML(state.message)}</h2>
       ${renderLandingResolution(true)}
-      ${isCardSpace(currentSpace()) ? `<button id="card-moved-token" class="button secondary" type="button">The card moved my token</button>` : ""}
+
       ${state.extraTurn ? `<p class="status-note doubles-note">You rolled doubles. Finish resolving this space, then roll again.</p>` : ""}
-      ${unresolvedProperty ? `<p class="resolution-warning">Resolve this property before continuing: buy it, record the auction winner, or explicitly use the leave-unowned house rule.</p>` : ""}
+      ${unresolvedProperty ? `<p class="resolution-warning">Buy or auction this property to continue.</p>` : ""}
     </section>
     <button id="end-turn-button" class="button primary" type="button" ${unresolvedProperty ? "disabled" : ""}>${state.extraTurn ? "Roll again — doubles!" : "End turn"}</button>`;
 }
 
 function renderLandingResolution(includeOwnedMessage) {
-  if (state.moneyMode === "banker") return renderBankLanding();
+  if (cardPending()) return renderCardLanding();
+  if (state.moneyMode === "banker" || state.landingBill) return renderBankLanding();
   const space = currentSpace();
   if (!isProperty(space)) {
     return `<p class="status-note">${escapeHTML(spaceInstruction(space))}</p>`;
@@ -553,7 +577,7 @@ function renderLandingResolution(includeOwnedMessage) {
       <div class="button-stack">
         <button class="button buy-current" type="button">Mark bought by ${escapeHTML(currentPlayer().name)}</button>
         <button class="button secondary choose-owner" data-space="${space.index}" data-owner-action="auction" type="button">Record auction winner</button>
-        <button class="button quiet leave-unowned" type="button">House rule: leave unowned</button>
+        ${state.allowLeaveUnowned ? '<button class="button quiet leave-unowned" type="button">Leave unowned</button>' : ""}
       </div>
     </div>`;
   }
@@ -650,6 +674,7 @@ function randomDie() { return Math.floor(Math.random() * 6) + 1; }
 
 function rollDice() {
   if (gameBlocked()) return;
+  playEffect("roll");
   state.bankLandingResolved = false; state.landingBill = null;
   const player = currentPlayer();
   const speedActive = state.activation === "immediate" || player.passedGo;
@@ -804,12 +829,15 @@ function payToLeaveJail() {
 }
 
 function useJailCard() {
-  const player = currentPlayer();
-  player.inJail = false;
-  player.jailAttempts = 0;
-  player.consecutiveDoubles = 0;
-  state.message = "Return your physical Get Out of Jail Free card, then roll normally.";
-  rollDice();
+  if (gameBlocked()) return;
+  const recorded = (state.heldCards || []).some(c=>c.owner===currentPlayer().id);
+  if (state.cardMode !== 'digital' && !recorded && !confirm('Return your physical Get Out of Jail Free card to its deck?')) return;
+  commitGame(s => {
+    const player = s.players[s.currentPlayer];
+    if (s.cardMode === 'digital' || recorded) G.useHeldCard(s,player.id);
+    player.inJail = false; player.jailAttempts = 0; player.consecutiveDoubles = 0;
+    s.phase = 'ready'; s.roll = null; s.message = 'Jail card returned. Roll normally.';
+  });
 }
 
 function tryJailDoubles() {
@@ -855,7 +883,7 @@ function tryJailDoubles() {
 }
 
 function continuePropertyFinder() {
-  if (gameBlocked() || bankLandingPending()) return;
+  if (gameBlocked() || bankLandingPending() || cardPending()) return;
   if (isProperty(currentSpace()) && currentSpace().owner === null && !state.firstStopResolved) return;
   const target = findPropertyTarget();
   if (target === null) {
@@ -1082,7 +1110,7 @@ document.querySelector("#cancel-position").addEventListener("click", () => {
 });
 
 function endTurn() {
-  if (needsLandingResolution() || gameBlocked() || bankLandingPending()) return;
+  if (needsLandingResolution() || gameBlocked() || bankLandingPending() || cardPending()) return;
   if (!state.extraTurn) {
     currentPlayer().consecutiveDoubles = 0;
     SpeedDieRules.advance(state);
@@ -1113,13 +1141,14 @@ document.querySelector("#export-button").addEventListener("click", () => {
 document.querySelector("#import-input").addEventListener("change", async event => {
   const file = event.target.files[0];
   if (!file) return;
+  if (!archiveCurrent()) return;
   if (file.size > 2000000) { alert("Game file is too large (maximum 2 MB)."); event.target.value = ""; return; }
   try {
     const imported = JSON.parse(await file.text());
     if (!isValidState(imported)) throw new Error("This is not a valid Speed Die game file.");
     const next = migrateState(imported);
     delete next.undo; delete next.undoStack;
-    state = next;
+    state = next; state.gameId = crypto.randomUUID(); homeView = false;
     undoState = null; undoStack = [];
     saveState(true);
     menuDialog.close();
@@ -1165,6 +1194,8 @@ function runRuleSelfChecks() {
   console.info(`Speed Die rule self-checks passed (${checks.length}).`);
 }
 
+document.querySelector("#home-button").onclick = goHome;
+document.querySelector("#presentation-button").onclick = openPresentation;
 initializeCompanion();
 initializeSaveAccess();
 

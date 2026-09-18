@@ -40,7 +40,7 @@
     if (!s.started || active(s).length !== 1) { s.winnerId = null; return; }
     const winner = active(s)[0];
     if (!s.winnerId) log(s, `${winner.name} wins. No further payments or auctions are required.`);
-    s.winnerId = winner.id; s.debts = []; s.auctions = []; s.landingBill = null;
+    s.winnerId = winner.id; s.auction = null; s.pendingCard = null; s.debts = []; s.auctions = []; s.landingBill = null;
     s.currentPlayer = s.players.indexOf(winner); s.phase = "ready"; s.roll = null; s.extraTurn = false;
   }
   function ensurePlaying(s) { assert(!s.winnerId, "The game is complete. Undo an action to resume play."); }
@@ -249,3 +249,125 @@
   root.SpeedDieRules = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);
+
+/* Card effects are concise gameplay summaries, not reproductions of card artwork. */
+(function(G) {
+  const c = (type, values={}) => ({type,...values});
+  const decks = {
+    chance: [c('move',{target:0}),c('move',{target:24}),c('move',{target:11}),c('utility'),c('railroad'),c('railroad'),c('collect',{amount:50}),c('keep'),c('back',{amount:3}),c('jail'),c('repairs',{house:25,hotel:100}),c('pay',{amount:15}),c('move',{target:5}),c('move',{target:39}),c('pay-each',{amount:50}),c('collect',{amount:150})],
+    chest: [c('move',{target:0}),c('collect',{amount:200}),c('pay',{amount:50}),c('collect',{amount:50}),c('keep'),c('jail'),c('collect',{amount:100}),c('collect',{amount:100}),c('collect',{amount:20}),c('collect-each',{amount:10}),c('collect',{amount:100}),c('pay',{amount:100}),c('pay',{amount:50}),c('collect',{amount:25}),c('repairs',{house:40,hotel:115}),c('collect',{amount:10})]
+  };
+  function cardText(e) {
+    return ({collect:`Collect $${e.amount} from the bank.`,pay:`Pay the bank $${e.amount}.`,'collect-each':`Collect $${e.amount} from each other player.`,'pay-each':`Pay each other player $${e.amount}.`,move:`Advance to ${({0:'GO',5:'Reading Railroad',11:'St. Charles Place',24:'Illinois Avenue',39:'Boardwalk'})[e.target] || `space ${e.target}`}. Collect GO salary if you pass GO.`,back:`Move backward ${e.amount} spaces. Do not collect GO.`,railroad:'Advance to the nearest railroad. If owned by another player, pay double its normal rent.',utility:'Advance to the nearest utility. If owned by another player, roll two fresh dice and pay ten times their total.',jail:'Go directly to Jail. Do not collect GO. Your turn ends.',keep:'Keep a Get Out of Jail Free card until used or traded.',repairs:`Pay $${e.house} per house and $${e.hotel} per hotel. Hotels count only as hotels.`})[e.type];
+  }
+  function initDecks(s, random=Math.random) {
+    s.decks = Object.fromEntries(Object.entries(decks).map(([name,list])=>{
+      const ids=list.map((_,i)=>i);for(let i=ids.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}return [name,ids];
+    }));
+    s.heldCards=[];s.pendingCard=null;
+  }
+  function drawCard(s, deck) {
+    G.assert(!s.pendingCard && decks[deck], 'A card is already drawn or this deck is unavailable.');
+    if (!s.decks) initDecks(s);
+    const id=s.decks[deck].shift();G.assert(id !== undefined,'No card available.');
+    s.pendingCard={deck,id,effect:structuredClone(decks[deck][id])};
+    G.log(s,`Drew ${deck === 'chance' ? 'Chance' : 'Community Chest'}: ${cardText(s.pendingCard.effect)}`);
+  }
+  function resolved(s) {s.bankLandingResolved=true;s.landingResolved=true;s.firstStopResolved=true;s.landingBill=null;}
+  function applyCard(s, die=()=>Math.floor(Math.random()*6)+1) {
+    G.ensurePlaying(s);
+    const card=s.pendingCard;G.assert(card,'Draw or enter a card first.');
+    const e=card.effect,p=s.players[s.currentPlayer], reason=cardText(e);
+    G.assert(reason,'Unknown card consequence.');
+    if (['collect','pay','collect-each','pay-each'].includes(e.type)) G.assert(G.isMoney(e.amount),'Invalid card amount.');
+    s.pendingCard=null; resolved(s);
+    if (!card.physical && e.type !== 'keep') s.decks[card.deck].push(card.id);
+    const pay=(from,to,amount)=>G.owe(s,from,to,amount,reason);
+    if (e.type==='collect') G.transfer(s,'bank',p.id,e.amount,reason);
+    if (e.type==='pay') pay(p.id,'bank',e.amount);
+    if (e.type==='pay-each') G.active(s).filter(q=>q.id!==p.id).forEach(q=>pay(p.id,q.id,e.amount));
+    if (e.type==='collect-each') G.active(s).filter(q=>q.id!==p.id).forEach(q=>pay(q.id,p.id,e.amount));
+    if (e.type==='repairs') {
+      G.assert(G.isMoney(e.house)&&G.isMoney(e.hotel),'Invalid repair rates.');
+      const amount=s.spaces.filter(q=>q.owner===p.id).reduce((n,q)=>n+(q.buildings===5?e.hotel:q.buildings*e.house),0);
+      if(amount) pay(p.id,'bank',amount);
+    }
+    if (e.type==='keep') {s.heldCards ||= []; G.assert(!s.heldCards.some(c=>c.deck===card.deck), 'This deck’s Jail card is already held. Check the physical card or undo the earlier entry.'); s.heldCards.push({deck:card.deck,id:card.physical?null:card.id,physical:!!card.physical,owner:p.id});}
+    if (e.type==='jail') {p.position=10;p.inJail=true;p.jailAttempts=0;p.consecutiveDoubles=0;s.extraTurn=false;s.phase='landed';s.pendingFinderTarget=null;}
+    if (['move','back','railroad','utility'].includes(e.type)) {
+      const old=p.position;
+      if(e.type==='move') {G.assert(Number.isInteger(e.target)&&e.target>=0&&e.target<40,'Invalid destination.');p.position=e.target;}
+      if(e.type==='back') {G.assert(Number.isInteger(e.amount)&&e.amount>0&&e.amount<40,'Choose 1–39 spaces.');p.position=(old-e.amount+40)%40;}
+      if(e.type==='railroad'||e.type==='utility') {const targets=e.type==='railroad'?[5,15,25,35]:[12,28];p.position=targets.find(i=>i>old)??targets[0];}
+      if(e.type!=='back' && p.position<=old) {p.passedGo=true;G.transfer(s,'bank',p.id,s.rules.go,'Card passes GO');}
+      s.bankLandingResolved=false;s.landingResolved=false;s.firstStopResolved=false;s.landingBill=null;
+      if(p.position===30){p.position=10;p.inJail=true;p.jailAttempts=0;p.consecutiveDoubles=0;s.extraTurn=false;s.phase='landed';resolved(s);}
+      else {
+        G.captureLanding(s);
+        const q=s.spaces[p.position];
+        if(q.owner && q.owner!==p.id && !q.mortgaged && ['railroad','utility'].includes(e.type)) {
+          let amount;
+          if(e.type==='railroad') amount=G.rent(s,q)*2;
+          else {const a=die(),b=die();G.assert([a,b].every(n=>Number.isInteger(n)&&n>=1&&n<=6),'Invalid utility dice.');amount=(a+b)*10;G.log(s,`Utility card dice: ${a} + ${b}; pay $${amount}.`);}
+          s.landingBill={from:p.id,to:q.owner,amount,index:q.index,reason:`Card rent: ${q.name}`};
+        }
+      }
+    }
+    s.message=reason;G.log(s,`Applied card: ${reason}`);
+  }
+  function useHeldCard(s,id) {
+    const i=(s.heldCards||[]).findIndex(c=>c.owner===id);G.assert(i>=0,'This player has no recorded Get Out of Jail Free card.');
+    const [card]=s.heldCards.splice(i,1);if(!card.physical)s.decks[card.deck].push(card.id);
+    G.log(s,`${G.player(s,id).name} used a Get Out of Jail Free card.`);
+  }
+  function startAuction(s,index) {
+    G.assert(!s.auction&&!s.debts.length&&!s.pendingCard,'Finish the pending action first.');
+    G.assert(['property','railroad','utility'].includes(s.spaces[index]?.type)&&!s.spaces[index].owner,'Property unavailable.');
+    s.auction={index,bid:0,leader:null,turn:s.players[s.currentPlayer].id,remaining:G.active(s).map(p=>p.id)};
+  }
+  function auctionTurn(s,amount) {
+    const a=s.auction;G.assert(a,'No auction in progress.');
+    const bidder=G.player(s,a.turn),order=G.active(s).map(p=>p.id), old=order.indexOf(a.turn);
+    if(amount===null) a.remaining=a.remaining.filter(id=>id!==a.turn);
+    else {G.assert(G.isMoney(amount)&&amount>a.bid,'Bid must exceed the current bid.');G.assert(s.moneyMode!=='banker'||bidder.cash>=amount,'Bid exceeds available cash.');a.bid=amount;a.leader=bidder.id;}
+    G.log(s,`${bidder.name} ${amount===null?'passed':`bid $${amount}`} on ${s.spaces[a.index].name}.`);
+    const challengers=a.remaining.filter(id=>id!==a.leader);
+    if(!challengers.length){
+      if(a.leader) G.buy(s,a.index,a.leader,a.bid);
+      else {s.auctions=s.auctions.filter(i=>i!==a.index);if(s.players[s.currentPlayer].position===a.index)resolved(s);G.log(s,'No bids: property remains in the bank.');}
+      s.auction=null;return;
+    }
+    for(let n=1;n<=order.length;n++){const id=order[(old+n)%order.length];if(challengers.includes(id)){a.turn=id;break;}}
+  }
+  const bankrupt=G.bankrupt;
+  G.bankrupt=function(s,id,creditor,lift){
+    bankrupt(s,id,creditor,lift);
+    (s.heldCards||[]).filter(c=>c.owner===id).forEach(c=>{if(creditor==='bank'){if(!c.physical)s.decks[c.deck].push(c.id);}else c.owner=creditor;});
+    s.heldCards=(s.heldCards||[]).filter(c=>c.owner!==id);
+  };
+  const validate=G.validate;
+  G.validate=function(s){
+    validate(s);
+    if(s.cardMode!==undefined)G.assert(['physical','digital'].includes(s.cardMode),'Invalid card mode.');
+    if(s.gameName!==undefined)G.assert(typeof s.gameName==='string'&&s.gameName.length<=50,'Invalid game name.');
+    if(s.pendingCard){
+      const {effect:e,deck,id,physical}=s.pendingCard;
+      G.assert(e&&cardText(e)&&decks[deck],'Invalid saved card.');
+      G.assert(['landed','classic-first-stop'].includes(s.phase)&&[2,7,17,22,33,36].includes(s.players[s.currentPlayer].position)&&!s.bankLandingResolved,'Invalid pending card location.');
+      if(!physical)G.assert(s.decks&&decks[deck][id]&&Object.entries(decks[deck][id]).every(([k,v])=>e[k]===v),'Card effect does not match the deck.');
+      if(['collect','pay','collect-each','pay-each'].includes(e.type))G.assert(G.isMoney(e.amount),'Invalid card amount.');
+      if(e.type==='move')G.assert(Number.isInteger(e.target)&&e.target>=0&&e.target<40,'Invalid card destination.');
+      if(e.type==='back')G.assert(Number.isInteger(e.amount)&&e.amount>0&&e.amount<40,'Invalid backward movement.');
+      if(e.type==='repairs')G.assert(G.isMoney(e.house)&&G.isMoney(e.hotel),'Invalid repair prices.');
+    }
+    if(s.decks){for(const name of ['chance','chest']){
+      G.assert(Array.isArray(s.decks[name]),'Invalid card deck.');
+      const ids=[...s.decks[name],...(s.heldCards||[]).filter(c=>!c.physical&&c.deck===name).map(c=>c.id),...(s.pendingCard&&!s.pendingCard.physical&&s.pendingCard.deck===name?[s.pendingCard.id]:[])];
+      G.assert(ids.length===16&&new Set(ids).size===16&&ids.every(i=>Number.isInteger(i)&&i>=0&&i<16),'Cards are duplicated or missing.');
+    }}
+    (s.heldCards||[]).forEach(c=>{G.player(s,c.owner);G.assert(decks[c.deck]&&(c.physical||decks[c.deck][c.id]?.type==='keep'),'Invalid held card.');});
+    if(s.auction){const a=s.auction;G.assert(!s.spaces[a.index]?.owner&&['property','railroad','utility'].includes(s.spaces[a.index]?.type)&&G.isMoney(a.bid)&&Array.isArray(a.remaining)&&a.remaining.includes(a.turn)&&a.turn!==a.leader,'Invalid auction.');G.assert(new Set(a.remaining).size===a.remaining.length && a.remaining.length>0,'Invalid auction participants.');a.remaining.forEach(id=>G.player(s,id));if(a.leader){G.player(s,a.leader);G.assert(a.remaining.includes(a.leader)&&a.bid>0,'Invalid auction leader.');}}
+    return true;
+  };
+  Object.assign(G,{cardText,initDecks,drawCard,applyCard,useHeldCard,startAuction,auctionTurn,cardDecks:decks});
+})(globalThis.SpeedDieRules);

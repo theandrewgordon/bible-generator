@@ -107,3 +107,51 @@ test('invalid imports reject bad tokens, money, owners and resumed actions', () 
     const s = game(); corrupt(s); assert.throws(() => G.validate(s));
   }
 });
+
+test('both decks preserve all 16 cards across draws, holds, use and reload',()=>{
+  const s=game();G.initDecks(s,()=>.5);s.phase='landed';s.players[0].position=7;
+  for(const deck of ['chance','chest']){
+    const keep=G.cardDecks[deck].findIndex(c=>c.type==='keep');s.decks[deck]=[keep,...s.decks[deck].filter(i=>i!==keep)];G.drawCard(s,deck);G.applyCard(s);G.validate(s);
+    assert.equal(s.decks[deck].length,15);G.useHeldCard(s,'p0');assert.equal(s.decks[deck].at(-1),keep);G.validate(s);
+  }
+});
+test('backward card chains into chest without GO; forward GO card preserves Classic continuation',()=>{
+  const s=game();s.phase='classic-first-stop';s.roll={d1:3,d2:4,speed:'Property Finder'};s.players[0].position=36;
+  s.pendingCard={physical:true,deck:'chance',effect:{type:'back',amount:3}};G.applyCard(s);assert.equal(s.players[0].position,33);assert.equal(s.bankLandingResolved,false);assert.equal(s.players[0].cash,2500);
+  s.pendingCard={physical:true,deck:'chest',effect:{type:'move',target:0}};G.applyCard(s);assert.equal(s.players[0].cash,2700);assert.equal(s.phase,'classic-first-stop');G.validate(s);
+});
+test('nearest railroad doubles rent; utility uses a fresh white-dice roll; mortgages waive rent',()=>{
+  for(const type of ['railroad','utility']){
+    const s=game();s.phase='landed';s.players[0].position=7;s.roll={d1:1,d2:1,speed:3};const dest=type==='railroad'?15:12;own(s,[dest],'p1');
+    s.pendingCard={physical:true,deck:'chance',effect:{type}};G.applyCard(s,()=>4);assert.equal(s.landingBill.amount,type==='railroad'?50:80);G.validate(s);
+    s.players[0].position=7;s.landingBill=null;s.spaces[dest].mortgaged=true;s.pendingCard={physical:true,deck:'chance',effect:{type}};G.applyCard(s,()=>{throw Error('Should not roll');});assert.equal(s.landingBill.amount,0);
+  }
+});
+test('repairs count hotels once and payments to each player queue in order',()=>{
+  const s=game();own(s,[1,3],'p0',5);s.pendingCard={physical:true,deck:'chest',effect:{type:'repairs',house:40,hotel:115}};G.applyCard(s);assert.equal(s.debts[0].amount,230);G.settle(s);
+  s.pendingCard={physical:true,deck:'chance',effect:{type:'pay-each',amount:50}};G.applyCard(s);assert.deepEqual(s.debts.map(d=>d.to),['p1','p2']);G.validate(s);
+});
+test('auction permits original player, skips leader, rejects excess cash and awards atomically',()=>{
+  const s=game();G.startAuction(s,1);assert.equal(s.auction.turn,'p0');G.auctionTurn(s,100);assert.equal(s.auction.turn,'p1');
+  assert.throws(()=>G.run(s,s=>G.auctionTurn(s,3000)),/cash/);G.auctionTurn(s,110);G.auctionTurn(s,null);assert.equal(s.auction.turn,'p0');G.auctionTurn(s,null);
+  assert.equal(s.auction,null);assert.equal(s.spaces[1].owner,'p1');assert.equal(s.players[1].cash,2390);G.validate(s);
+});
+test('everyone passing clears bankruptcy auction and resolves landed property with no purchase',()=>{
+  const s=game();s.players[0].position=1;s.auctions=[1];G.startAuction(s,1);for(let i=0;i<3;i++)G.auctionTurn(s,null);
+  assert.equal(s.auction,null);assert.deepEqual(s.auctions,[]);assert.equal(s.spaces[1].owner,null);assert.equal(s.bankLandingResolved,true);G.validate(s);
+});
+test('held digital cards transfer to a creditor or return to bank deck on bankruptcy',()=>{
+  for(const creditor of ['bank','p1']){const s=game();G.initDecks(s);const id=7;s.decks.chance=s.decks.chance.filter(i=>i!==id);s.heldCards=[{owner:'p0',deck:'chance',id,physical:false}];s.players[0].cash=0;G.owe(s,'p0',creditor,500,'Bill');G.bankrupt(s,'p0',creditor);assert.equal(s.heldCards.length,creditor==='bank'?0:1);if(creditor==='bank')assert.equal(s.decks.chance.at(-1),id);else assert.equal(s.heldCards[0].owner,'p1');G.validate(s);}
+});
+test('every supplied card effect produces a valid game state',()=>{
+  for(const [deck,cards] of Object.entries(G.cardDecks)) for(const [id] of cards.entries()) {
+    const s=game(8);G.initDecks(s);s.phase='landed';s.players[0].position=deck==='chance'?36:33;s.roll={d1:1,d2:2,speed:1};s.decks[deck]=[id,...s.decks[deck].filter(i=>i!==id)];G.drawCard(s,deck);G.applyCard(s,()=>3);G.validate(s);while(s.debts.length)G.settle(s);G.validate(s);
+  }
+});
+
+test('save validation rejects duplicate decks, altered digital effects and malformed auctions',()=>{
+  const s=game();G.initDecks(s);s.phase='landed';s.players[0].position=7;G.drawCard(s,'chance');G.validate(s);
+  let bad=structuredClone(s);bad.pendingCard.effect.type='collect';bad.pendingCard.effect.amount=100000;assert.throws(()=>G.validate(bad),/match/);
+  bad=structuredClone(s);bad.decks.chance.push(bad.decks.chance[0]);assert.throws(()=>G.validate(bad),/duplicated/);
+  bad=game();G.startAuction(bad,1);bad.auction.remaining.push('p0');assert.throws(()=>G.validate(bad),/participants/);
+});

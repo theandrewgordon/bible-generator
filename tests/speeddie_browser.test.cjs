@@ -10,7 +10,7 @@ const errors = [];
 before(async () => {
   server = http.createServer((req, res) => {
     const name = new URL(req.url, 'http://local').pathname.split('/').pop() || 'index.html';
-    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
+    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'family.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
     res.end(fs.readFileSync(path.join(__dirname, '../speeddie', name)));
   });
@@ -29,7 +29,10 @@ async function page() {
   if (baseline) await p.evaluate(data => { state = structuredClone(data); undoState = null; saveState(true); render(); }, baseline);
   return p;
 }
-const click = (p, action) => p.locator(`#app [data-action="${action}"]`).first().click();
+const click = async (p, action) => {
+  if (['payment','history'].includes(action) && !await p.locator(`#app [data-action="${action}"]`).count()) { await p.locator('#app [data-action="bank-menu"]').click(); return p.locator(`#companion-dialog [data-action="${action}"]`).click(); }
+  return p.locator(`#app [data-action="${action}"]`).first().click();
+};
 const submit = p => p.locator('#companion-form button[type="submit"]').click();
 
 test('eight-player setup, local image, export, reload, and narrow-screen layout', async () => {
@@ -80,7 +83,7 @@ test('bankruptcy at Classic first stop cancels finder move and transfers estate'
 
 test('bank bankruptcy queues an auction, auction debits winner and clears queue',async()=>{
   const p=await page(); await p.evaluate(()=>{state.players[0].cash=0;state.spaces[1].owner=state.players[0].id;state.spaces[1].mortgaged=true;G.owe(state,state.players[0].id,'bank',500,'Tax');saveState();render();});
-  await p.locator('.debt-panel [data-action="bankruptcy"]').click();await submit(p);await click(p,'auction');await p.locator('#auction-price').fill('25');await submit(p);
+  await p.locator('.debt-panel [data-action="bankruptcy"]').click();await submit(p);await click(p,'auction');await p.locator('#companion-dialog summary').click();await p.locator('#auction-price').fill('25');await submit(p);
   assert.deepEqual(await p.evaluate(()=>[state.auctions.length,state.spaces[1].mortgaged,state.players[1].cash]),[0,false,2475]);await p.close();
 });
 
@@ -126,7 +129,7 @@ test('triples and card moves to Jail do not collect GO salary',async()=>{
   const p=await page();await p.evaluate(()=>{state.players[0].position=35;state.phase='triples';state.roll={d1:3,d2:3,speed:3,speedActive:true};saveState();render();});
   await p.locator('#triples-space').selectOption('30');await p.locator('#move-triples').click();assert.equal(await p.evaluate(()=>state.players[0].cash),2500);
   await p.evaluate(()=>{state.players[0].inJail=false;state.players[0].position=36;state.phase='landed';state.bankLandingResolved=false;saveState();render();});
-  await click(p,'card-move');await p.locator('#position-space').selectOption('10');await p.locator('#position-in-jail').check();await p.locator('#position-collect-go').check();await p.locator('#position-form button[type="submit"]').click();assert.equal(await p.evaluate(()=>state.players[0].cash),2500);assert.equal(await p.evaluate(()=>state.players[0].inJail),true);await p.close();
+  await click(p,'physical-card');await p.locator('#card-effect').selectOption('jail');await submit(p);await click(p,'apply-card');assert.equal(await p.evaluate(()=>state.players[0].cash),2500);assert.equal(await p.evaluate(()=>state.players[0].inJail),true);await p.close();
 });
 
 test('voluntary Jail payment uses configured fee and pot, then allows a normal roll',async()=>{
@@ -158,7 +161,7 @@ test('second tab is read-only, receives updates, then safely takes over the save
 
 test('final survivor inherits a mortgage without an impossible payment; undo resumes game',async()=>{
   const p=await page();await p.evaluate(()=>{state.players=state.players.slice(0,2);state.players.forEach(p=>p.cash=0);state.spaces[5].owner=state.players[0].id;state.spaces[5].mortgaged=true;G.owe(state,state.players[0].id,state.players[1].id,50,'Chairman card');saveState();render();});
-  await click(p,'bankruptcy');await submit(p);assert.equal(await p.locator('.winner-panel').count(),1);assert.equal(await p.evaluate(()=>state.debts.length),0);assert.equal(await p.locator('#app [data-action="payment"]').isDisabled(),true);
+  await click(p,'bankruptcy');await submit(p);assert.equal(await p.locator('.winner-panel').count(),1);assert.equal(await p.evaluate(()=>state.debts.length),0);assert.equal(await p.locator('#app [data-action="bank-menu"]').isDisabled(),true);
   await p.reload();assert.equal(await p.locator('.winner-panel').count(),1);await click(p,'undo');assert.equal(await p.evaluate(()=>G.active(state).length),2);assert.equal(await p.locator('.debt-panel').count(),1);await p.close();
 });
 
@@ -245,4 +248,88 @@ test('invalid saved schema has an explicit recovery reset rather than a read-onl
 test('failed recovery reset preserves the damaged original and recovery actions',async()=>{
   const p=await page();const alerts=[];p.removeAllListeners('dialog');p.on('dialog',async d=>{alerts.push(d.message());await d.accept()});await p.evaluate(()=>localStorage.setItem(STORAGE_KEY,'{original'));await p.reload();await p.waitForFunction(()=>saveWriterReady);
   await p.evaluate(()=>{Storage.prototype.setItem=function(){throw new DOMException('Quota exceeded','QuotaExceededError')}});await p.locator('#recovery-reset').click();assert.equal(await p.evaluate(()=>localStorage.getItem(STORAGE_KEY)),'{original');assert.equal(await p.locator('#recovery-export').count(),1);assert.ok(alerts.some(s=>s.includes('rolled back')));await p.close();
+});
+
+test('guided auction survives reload, awards once, and undo restores bidding',async()=>{
+  const p=await page();await p.evaluate(()=>{state.players=state.players.slice(0,3);state.players[0].position=1;state.phase='landed';state.bankLandingResolved=false;saveState();render();});
+  await click(p,'auction');await p.locator('[data-action="auction-start"]').click();await p.locator('[data-action="auction-bid"][data-value="50"]').click();await p.reload();await click(p,'auction-pass');await click(p,'auction-pass');
+  assert.deepEqual(await p.evaluate(()=>[state.auction,state.spaces[1].owner===state.players[0].id,state.players[0].cash]),[null,true,2450]);await click(p,'undo');assert.equal(await p.locator('[data-action="auction-pass"]').count(),1);await p.close();
+});
+test('physical card preview blocks ending, then chained card landing requires its own consequence',async()=>{
+  const p=await page();await p.evaluate(()=>{state.moneyMode='helper';state.players[0].position=36;state.phase='landed';state.bankLandingResolved=false;saveState();render();});
+  assert.equal(await p.locator('#end-turn-button').isDisabled(),true);await click(p,'physical-card');await p.selectOption('#card-effect','back');await p.fill('#card-amount','3');await submit(p);await p.reload();await click(p,'apply-card');assert.equal(await p.evaluate(()=>state.players[0].position),33);assert.equal(await p.locator('#end-turn-button').isDisabled(),true);
+  await click(p,'physical-card');await p.selectOption('#card-effect','collect');await p.fill('#card-amount','100');await submit(p);await click(p,'apply-card');assert.equal(await p.locator('#end-turn-button').isEnabled(),true);await p.close();
+});
+test('digital draw and apply persist separately, held Jail card returns once',async()=>{
+  const p=await page();await p.evaluate(()=>{state.cardMode='digital';state.players[0].position=7;state.phase='landed';state.bankLandingResolved=false;state.decks.chance=[7,...state.decks.chance.filter(i=>i!==7)];saveState();render();});
+  await click(p,'draw-card');await p.reload();await click(p,'apply-card');assert.equal(await p.evaluate(()=>state.heldCards.length),1);await p.evaluate(()=>{state.players[0].position=10;state.players[0].inJail=true;state.phase='ready';saveState();render();});await p.locator('#use-jail-card').click();assert.equal(await p.evaluate(()=>state.heldCards.length),0);assert.equal(await p.evaluate(()=>state.decks.chance.at(-1)),7);await p.close();
+});
+test('Home preserves two named games and a pending auction across new game and reload',async()=>{
+  const p=await page();await p.evaluate(()=>{state.gameName='Tessa game';G.startAuction(state,1);saveState();render();});await p.locator('#game-menu-button').click();await p.locator('#home-button').click();await click(p,'new-game');
+  await p.locator('.setup-name').nth(0).fill('Tessa');await p.locator('.setup-name').nth(1).fill('Dad');await p.fill('[name="game-name"]','Second game');await p.locator('#setup-form button[type="submit"]').click();await p.locator('#game-menu-button').click();await p.locator('#home-button').click();assert.equal(await p.locator('[data-action="resume-game"]').count(),2);
+  await p.locator('.saved-games article').filter({hasText:'Tessa game'}).locator('button').click();await p.reload();assert.equal(await p.evaluate(()=>state.gameName),'Tessa game');assert.equal(await p.locator('[data-action="auction-pass"]').count(),1);await p.close();
+});
+test('new setup has fixed cash, official defaults and optional leave-unowned house rule',async()=>{
+  const p=await page();await p.evaluate(()=>newFamilyGame());assert.equal(await p.locator('[name="starting-cash"]').count(),0);assert.equal(await p.locator('[name="leave-unowned"]').isDisabled(),true);
+  await p.selectOption('#rules-preset','house');await p.locator('[name="leave-unowned"]').check();await p.locator('.setup-name').nth(0).fill('Tessa');await p.locator('.setup-name').nth(1).fill('Dad');await p.locator('#setup-form button[type="submit"]').click();await p.evaluate(()=>{state.players[0].position=1;state.phase='landed';state.landingResolved=false;saveState();render();});assert.equal(await p.locator('.leave-unowned').count(),1);await p.close();
+});
+test('winner can go Home and play again while completed game remains available',async()=>{
+  const p=await page();await p.evaluate(()=>{state.moneyMode='helper';state.players=state.players.slice(0,2);G.bankrupt(state,state.players[0].id,'bank');saveState();render();});assert.equal(await p.locator('.confetti').count(),1);await click(p,'home');assert.equal(await p.locator('.saved-games').getByText(/Completed/).count(),1);await click(p,'resume-game');await click(p,'new-game');assert.equal(await p.locator('#setup-form').count(),1);await p.close();
+});
+test('dice dots and independent audio preferences persist, reduced motion disables confetti',async()=>{
+  const p=await page();await p.emulateMedia({reducedMotion:'reduce'});await p.locator('#game-menu-button').click();await p.locator('#presentation-button').click();await p.locator('#effects-setting').check();await p.locator('#music-setting').check();await submit(p);await p.locator('#roll-button').click();assert.equal(await p.locator('.pip-face').count(),2);await p.reload();assert.deepEqual(await p.evaluate(()=>[state.soundEffects,state.music]),[true,true]);await p.close();
+});
+
+test('library storage failure keeps the active game and prevents starting another',async()=>{
+  const p=await page();p.removeAllListeners('dialog');const alerts=[];p.on('dialog',async d=>{alerts.push(d.message());await d.accept();});
+  await p.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===LIBRARY_KEY)throw Error('Quota');return original.call(this,k,v);};newFamilyGame();});
+  assert.equal(await p.evaluate(()=>state.started),true);assert.equal(await p.locator('#roll-button').count(),1);assert.match(alerts[0],/Could not preserve/);await p.close();
+});
+
+test('complete three-player digital game follows visible actions through a winner', {timeout:240000},async()=>{
+  const p=await page();await p.evaluate(()=>{state.players=state.players.slice(0,3);state.cardMode='digital';state.mode='classic';state.activation='after-go';let seed=72631;Math.random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};G.initDecks(state);saveState();render();});
+  let steps=0,rolls=0;
+  // Dispatch the visible buttons directly to avoid animation waits in this long replay.
+  const tap=async selector=>p.evaluate(sel=>{const el=document.querySelector(sel);if(!el||el.disabled)throw Error(`Unavailable action ${sel}`);el.click();},selector);
+  for(;steps<6500;steps++){
+    const s=await p.evaluate(()=>snapshotState(state));if(s.winnerId)break;
+    const cp=s.players[s.currentPlayer];
+    if(s.auction){await tap('[data-action="auction-pass"]');continue;}
+    if(s.debts.length){
+      const d=s.debts[0],debtor=s.players.find(p=>p.id===d.from);
+      if(debtor.cash>=d.amount){await tap('[data-action="settle"]');continue;}
+      const buildings=s.spaces.find(q=>q.owner===d.from&&q.buildings);
+      const mortgage=s.spaces.find(q=>q.owner===d.from&&!q.mortgaged);
+      if(buildings){await p.evaluate(i=>openProperty(i),buildings.index);await tap('#companion-dialog [data-action="sell-group"]');await tap('#close-companion');continue;}
+      if(mortgage){await p.evaluate(id=>openProperties(id),d.from);await tap(`#companion-dialog [data-action="mortgage"][data-value="${mortgage.index}"]`);await tap('#close-companion');continue;}
+      await tap('[data-action="bankruptcy"]');await tap('#companion-form button[type="submit"]');continue;
+    }
+    if(s.auctions.length){await tap('[data-action="auction"]');await tap('[data-action="auction-start"]');continue;}
+    if(s.pendingCard){await tap('[data-action="apply-card"]');continue;}
+    if(s.phase==='ready'){
+      if(cp.inJail){await tap('#try-jail-doubles');rolls++;continue;}
+      // Build affordable complete groups through the same property controls used by a player.
+      const build=await p.evaluate(()=>state.spaces.find(q=>{if(q.owner!==currentPlayer().id||q.type!=='property'||currentPlayer().cash<q.buildCost+100)return false;try{G.run(state,s=>G.build(s,q.index,1));return true;}catch{return false;}})?.index);
+      if(build!==undefined){await p.evaluate(()=>openProperties());await tap(`#companion-dialog [data-action="build"][data-value="${build}"]`);await tap('#close-companion');continue;}
+      await tap('#roll-button');rolls++;continue;
+    }
+    if(s.phase==='bus'){await tap('.bus-choice');continue;}
+    if(s.phase==='triples'){await p.selectOption('#triples-space',String(s.spaces.find(q=>['property','railroad','utility'].includes(q.type)&&!q.owner)?.index??0));await tap('#move-triples');continue;}
+    const action=await p.evaluate(()=>['draw-card','buy','landing-pay','resolve','parking'].find(a=>document.querySelector(`#app [data-action="${a}"]:not(:disabled)`)));
+    if(action){await tap(`#app [data-action="${action}"]`);continue;}
+    if(await p.locator('#app [data-action="auction"]').count()){await tap('#app [data-action="auction"]');await tap('[data-action="auction-start"]');continue;}
+    if(s.phase==='classic-first-stop'){await tap('#continue-finder');continue;}
+    await tap('#end-turn-button');
+  }
+  assert.ok(await p.evaluate(()=>state.winnerId),`No winner after ${steps} decisions / ${rolls} rolls`);
+  assert.equal(await p.locator('.winner-panel').count(),1);await p.evaluate(()=>G.validate(state));
+  console.log(`Full game: ${rolls} rolls, ${steps} decisions, winner ${await p.evaluate(()=>currentPlayer().name)}.`);
+  await p.screenshot({path:'/tmp/speeddie-family-winner.png',fullPage:true});await click(p,'home');assert.equal(await p.locator('[data-action="resume-game"]').count(),1);await p.close();
+});
+
+test('using a Jail card is one undoable action, restoring both imprisonment and the card',async()=>{
+  const p=await page();await p.evaluate(()=>{state.cardMode='digital';state.players[0].position=10;state.players[0].inJail=true;state.decks.chance=state.decks.chance.filter(i=>i!==7);state.heldCards=[{deck:'chance',id:7,physical:false,owner:state.players[0].id}];saveState();render();});await p.locator('#use-jail-card').click();assert.equal(await p.locator('#roll-button').count(),1);await click(p,'undo');assert.equal(await p.evaluate(()=>state.players[0].inJail),true);assert.equal(await p.evaluate(()=>state.heldCards.length),1);await p.close();
+});
+test('recorded Jail card can be sold through Bank and its ownership survives reload',async()=>{
+  const p=await page();await p.evaluate(()=>{state.heldCards=[{deck:'chance',id:null,physical:true,owner:state.players[0].id}];saveState();render();});await click(p,'bank-menu');await p.locator('[data-action="card-trade"]').click();await p.selectOption('#card-buyer',await p.evaluate(()=>state.players[1].id));await p.fill('#card-price','20');await submit(p);await p.reload();assert.deepEqual(await p.evaluate(()=>[state.heldCards[0].owner===state.players[1].id,state.players[0].cash,state.players[1].cash]),[true,2520,2480]);await p.close();
 });
