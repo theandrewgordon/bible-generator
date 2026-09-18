@@ -137,6 +137,7 @@ function openPresentation() {
   });
 }
 function familyAction(action,value) {
+  if (action === 'retry-host') {hostOnline();return true;}
   if (action === 'online-join') {openOnlineJoin();return true;}
   if (action === 'online-reconnect') {reconnectOnline(value);return true;}
   if (action === 'home') {goHome(); return true;}

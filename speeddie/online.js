@@ -1,6 +1,7 @@
 /* Online rooms use commands and authoritative snapshots; never local game writes. */
 'use strict';
 let onlineSession=null, onlineRoom=null, onlineConnected=false, onlineBusy=false, onlinePending=null, onlinePoll=null, onlineCSRF=null;
+let onlineHostError='';
 const ONLINE_KEY='speeddie-online-devices-v1';
 function onlineSaved(){try{return JSON.parse(localStorage.getItem(ONLINE_KEY)||'{}');}catch{return {};}}
 function rememberOnline(){
@@ -31,8 +32,8 @@ async function openOnlineJoin(){
 async function hostOnline(){
   if(!state.started||state.moneyMode!=='banker'||state.cardMode!=='digital'){alert('Start a game with digital banking and in-app cards to host it online.');return;}
   if(!archiveCurrent())return;
-  try {await onlineConfig();const result=await roomRequest('/rooms',{state:snapshotState(state)},null);enterOnline({code:result.room.code,token:result.token},result.room);}
-  catch(e){alert(e.message);}
+  try {onlineHostError='';await onlineConfig();const result=await roomRequest('/rooms',{state:snapshotState(state)},null);enterOnline({code:result.room.code,token:result.token},result.room);}
+  catch(e){onlineHostError=e.message;render();alert(e.message);}
 }
 async function reconnectOnline(code){
   if(!archiveCurrent())return;
@@ -117,7 +118,7 @@ function renderOnline(){
   if(!onlineRoom){app.innerHTML='<p>Connecting…</p>';return;}
   if(onlineRoom.state)state=onlineRoom.state;
   const r=onlineRoom;
-  app.innerHTML=`<section class="panel online-status"><strong>Room ${escapeHTML(r.code)}</strong><p>${r.closed?'Room closed · read-only':!onlineConnected?'Disconnected. Reconnect before making a move.':onlineBusy?'Saving your action…':r.me.status==='pending'?'Waiting for host approval.':r.me.status==='rejected'?'The host declined this device.':'Connected · '+escapeHTML(r.me.seats.map(id=>state.players.find(p=>p.id===id)?.name||'').join(' / ')||'watching')}</p><div class="button-row">${onlineButton('Back to local games','exit')}${onlineButton('Reconnect','refresh')}${r.me.host?onlineButton('Players & room','room-settings'):''}</div>${onlinePending?`<p>An action needs confirmation. Retry safely using the same request.</p>${onlineButton('Retry pending action','retry')}`:''}</section>
+  app.innerHTML=`<section class="panel online-status"><div class="room-code-banner"><span>Share this room code</span><strong class="room-code">${escapeHTML(r.code)}</strong><small>Others choose “Join a room” and enter this code.</small></div><p>${r.closed?'Room closed · read-only':!onlineConnected?'Disconnected. Reconnect before making a move.':onlineBusy?'Saving your action…':r.me.status==='pending'?'Waiting for host approval.':r.me.status==='rejected'?'The host declined this device.':'Connected · '+escapeHTML(r.me.seats.map(id=>state.players.find(p=>p.id===id)?.name||'').join(' / ')||'watching')}</p><div class="button-row">${onlineButton('Back to local games','exit')}${onlineButton('Reconnect','refresh')}${r.me.host?onlineButton('Players & room','room-settings'):''}</div>${onlinePending?`<p>An action needs confirmation. Retry safely using the same request.</p>${onlineButton('Retry pending action','retry')}`:''}</section>
   ${r.state?`${reconnectWelcome?`<section class="panel" role="status">${escapeHTML(reconnectWelcome)}${onlineButton('Got it','dismiss-welcome')}</section>`:''}${whatHappened()}${familyRoomBar()}${state.roll?renderDice():''}<section class="panel instruction online-actions"><div class="button-stack">${onlineNext()}</div></section>${onlineAssets()}${renderBoardOverview()}`:''}`;
   app.querySelector('#close-board')?.remove();
   app.querySelectorAll('[data-board-space]').forEach(el=>el.onclick=()=>{boardSelection=Number(el.dataset.boardSpace);app.querySelectorAll('[data-board-space]').forEach(b=>{b.classList.toggle('selected',b===el);b.setAttribute('aria-pressed',String(b===el));});document.querySelector('#board-space-details').innerHTML=renderBoardSpaceDetails(state.spaces[boardSelection]);});

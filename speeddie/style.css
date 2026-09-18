@@ -588,3 +588,4 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 @media(prefers-reduced-motion:reduce){.winner-token,.winner-spotlight .confetti i{animation:none}.winner-spotlight .confetti i{top:var(--y);opacity:.5}}
 
 .board-square.move-candidate{outline:3px dashed #126857;outline-offset:-4px}.collection-tracker article{margin:.75rem 0}.collection-tracker p{margin:.3rem 0}.what-happened{margin-block:1rem}
+.room-code-banner{display:grid;gap:.35rem;padding:1rem;text-align:center;background:#fff4c9;border:2px solid #d6aa2d;border-radius:12px}.room-code{font-size:clamp(1.6rem,6vw,2.5rem);letter-spacing:.16em;overflow-wrap:anywhere}.room-code-banner small{font-size:.9rem}

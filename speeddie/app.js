@@ -282,7 +282,7 @@ function renderSetup() {
         <p class="muted">Add your players and choose how the Speed Die should work. You can edit every property name once the game begins.</p>
       </div>
       <form id="setup-form">
-        <label class="field"><span>How will you play?</span><select name="play-mode" id="play-mode"><option value="local">Pass &amp; play · one shared device</option><option value="online">Own devices · host a shared room</option></select></label>
+        <label class="field"><span>How will you play?</span><select name="play-mode" id="play-mode"><option value="local">Pass &amp; play · one shared device</option><option value="online">Own devices · host a shared room</option></select></label><p id="hosting-setup-help" class="muted" hidden>Finish choosing your players, then press <strong>Create room &amp; get code</strong> below. Your room code appears in the lobby; the game starts only when everyone is ready.</p>
         <div class="setup-grid">
           <div>
             <label class="field">
@@ -353,7 +353,7 @@ function renderSetup() {
 
   document.querySelector("#setup-home").onclick = goHome;
   bindActions(app);
-  document.querySelector('#play-mode').onchange=e=>{const shared=e.target.value==='online';for(const [name,value] of [['money-mode','banker'],['card-mode','digital']]){const el=document.querySelector(`[name="${name}"]`);if(shared)el.value=value;el.disabled=shared;}};
+  document.querySelector('#play-mode').onchange=e=>{const shared=e.target.value==='online';document.querySelector('#hosting-setup-help').hidden=!shared;document.querySelector('#setup-form button[type="submit"]').textContent=shared?'Create room & get code':'Start game';for(const [name,value] of [['money-mode','banker'],['card-mode','digital']]){const el=document.querySelector(`[name="${name}"]`);if(shared)el.value=value;el.disabled=shared;}};
   const count = document.querySelector("#player-count");
   const names = document.querySelector("#player-inputs");
   function drawNameInputs() {
@@ -399,6 +399,7 @@ async function startGame(event) {
   try {
     tokens = await Promise.all([...document.querySelectorAll(".setup-image")].map(async (input, i) => await imageToken(input.files[0]) || document.querySelectorAll(".setup-token")[i].value));
   } catch (error) { alert(error.message); startButton.disabled = false; return; }
+  onlineHostError='';
   state = freshState();
   state.started = true;
   state.moneyMode = formData.get("money-mode") || "banker";
@@ -443,6 +444,7 @@ function renderGame() {
       </div>
     </section>
 
+    ${onlineHostError?`<section class="panel" role="alert"><h2>Your online room was not created</h2><p>${escapeHTML(onlineHostError)}</p><p>This is still a local game, so there is no room code yet.</p>${button("Try creating the room again","retry-host")}</section>`:""}
     <button id="view-board" class="button secondary" type="button">View game board</button>
     ${state.roll ? renderDice() : ""}
     ${renderPendingActions() || renderActionArea(speedActive)}
