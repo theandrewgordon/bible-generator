@@ -83,12 +83,13 @@ def create_blueprint(csrf_token=None):
         data=body()
         if not isinstance(data.get('state'),dict):
             raise RoomError('Choose a game to host.')
-        state=run_engine(data['state'],operation='create')
+        draft=data.get('draft') is True
+        state=run_engine(data['state'],operation='draft' if draft else 'create')
         credential=secrets.token_urlsafe(32)
         code=''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(8))
         host=dict(id=secrets.token_hex(8),name='Host device',host=True,status='approved',seats=[p['id'] for p in state['players'] if not p['bankrupt']])
         room=dict(code=code,revision=1,state=state,members={token_hash(credential):host},receipts=[],expires=time.time()+7*86400,closed=False,
-                  lobby=state.get('phase')=='ready' and all(p['position']==0 for p in state['players']) and not (state.get('history') or state.get('ledger') or state.get('roll')),ready=[])
+                  selfSetup=draft,lobby=state.get('phase')=='ready' and all(p['position']==0 for p in state['players']) and not (state.get('history') or state.get('ledger') or state.get('roll')),ready=[])
         def insert(existing):
             if existing:
                 raise RoomError('Please try creating the room again.',409)
@@ -109,6 +110,7 @@ def create_blueprint(csrf_token=None):
                 raise RoomError('The host closed this room.',410)
             if len(room['members'])>=24:
                 raise RoomError('This room has reached its device limit.')
+            if room.get('selfSetup') and room.get('lobby'):person['status']='approved'
             room['members'][token_hash(credential)]=person;room['revision']+=1
             return room
         room=store().change(code,request_join)
@@ -154,10 +156,22 @@ def create_blueprint(csrf_token=None):
             if action=='start':
                 if not who['host']:
                     raise RoomError('Only the host can start the game.',403)
+                if len(players)<2:raise RoomError('At least two players must join before starting.')
                 if not all(p['id'] in room.get('ready',[]) for p in players):
                     raise RoomError('Every player needs to be ready first.')
+                if not room['state']['started']:
+                    room['state']['started']=True
+                    room['state']=run_engine(room['state'],operation='create')
                 room['lobby']=False
                 if room.get('bedtimeMinutes'):room['deadline']=time.time()+room['bedtimeMinutes']*60
+            elif action=='settings':
+                if not who['host']:raise RoomError('Only the host can choose game settings.',403)
+                name=data.get('name','Family game');mode=data.get('mode');activation=data.get('activation');parking=data.get('parking')
+                if not isinstance(name,str) or not 1<=len(name.strip())<=50 or mode not in ('classic','streets') or activation not in ('immediate','after-go') or parking not in ('official','pot','50','100','500') or type(data.get('leaveUnowned')) is not bool:
+                    raise RoomError('Choose valid game settings.')
+                room['state'].update(gameName=name.strip(),mode=mode,activation=activation,freeParkingRule=parking,allowLeaveUnowned=data['leaveUnowned'])
+                for p in players:p['passedGo']=activation=='immediate'
+                room['ready']=[]
             elif action=='bedtime':
                 if not who['host']:raise RoomError('Only the host can choose the finish rule.',403)
                 minutes=data.get('minutes')

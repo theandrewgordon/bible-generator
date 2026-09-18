@@ -5,8 +5,11 @@ Implemented modes:
 - Own devices: host creates a private room; guests enter its eight-character code.
 - Mixed: the host assigns Mom to her phone and keeps Tessa and Dad on the tablet.
 
-Fresh online games open a pre-game lobby. After host approval and seat assignment,
-each device can edit its own players' names, colors, emoji tokens or uploaded
+Selecting Own devices immediately creates an empty pre-game setup room and displays
+its code, without requiring player names or pressing Start. People with that code
+join the setup room and add their own players. The host can change game settings
+while sharing the same code. At least two ready players are required to start.
+Each device can edit its own players' names, colors, emoji tokens or uploaded
 pictures. A shared device can add more players, up to eight total. Profile edits
 clear that player's readiness; seat reassignment clears readiness for everyone.
 All players must be ready before the host starts. Game commands are blocked until
@@ -14,8 +17,8 @@ then, and lobby edits are blocked after start. Reconnecting keeps players and
 readiness. Hosting a game already underway preserves its current turn and skips
 the lobby.
 
-Online games require digital banking and in-app cards. The host approves each
-joining device and assigns seats. Released seats return to the host. Players can
+Online games require digital banking and in-app cards. For games already underway, the host approves joining devices and assigns seats.
+New empty setup rooms treat the shared code as an invitation until the host starts. Released seats return to the host. Players can
 roll, buy, bid, manage buildings/mortgages, settle debts and accept trades only for
 their assigned seats. There are no online value/cash correction controls.
 

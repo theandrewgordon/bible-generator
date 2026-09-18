@@ -282,7 +282,7 @@ function renderSetup() {
         <p class="muted">Add your players and choose how the Speed Die should work. You can edit every property name once the game begins.</p>
       </div>
       <form id="setup-form">
-        <label class="field"><span>How will you play?</span><select name="play-mode" id="play-mode"><option value="local">Pass &amp; play · one shared device</option><option value="online">Own devices · host a shared room</option></select></label><p id="hosting-setup-help" class="muted" hidden>Finish choosing your players, then press <strong>Create room &amp; get code</strong> below. Your room code appears in the lobby; the game starts only when everyone is ready.</p>
+        <label class="field"><span>How will you play?</span><select name="play-mode" id="play-mode"><option value="local">Pass &amp; play · one shared device</option><option value="online">Own devices · host a shared room</option></select></label><p id="hosting-setup-help" class="muted" hidden>Creating your room code… No player names are needed yet.</p>
         <div class="setup-grid">
           <div>
             <label class="field">
@@ -353,7 +353,7 @@ function renderSetup() {
 
   document.querySelector("#setup-home").onclick = goHome;
   bindActions(app);
-  document.querySelector('#play-mode').onchange=e=>{const shared=e.target.value==='online';document.querySelector('#hosting-setup-help').hidden=!shared;document.querySelector('#setup-form button[type="submit"]').textContent=shared?'Create room & get code':'Start game';for(const [name,value] of [['money-mode','banker'],['card-mode','digital']]){const el=document.querySelector(`[name="${name}"]`);if(shared)el.value=value;el.disabled=shared;}};
+  document.querySelector('#play-mode').onchange=async e=>{if(e.target.value==='online')await openSetupRoom();};
   const count = document.querySelector("#player-count");
   const names = document.querySelector("#player-inputs");
   function drawNameInputs() {

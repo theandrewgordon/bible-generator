@@ -23,7 +23,7 @@ async function roomRequest(path,body,credential=onlineSession?.token){
 }
 function onlineLaunchButtons(){return `<details class="online-launch"><summary>Play on your own devices</summary><p>Host a digital game, then share its room code. The host can keep several players on one tablet while others use their phones.</p>${button('Join a room','online-join')}${Object.keys(onlineSaved()).map(code=>button(`Reconnect · ${escapeHTML(code)}`,'online-reconnect',code)).join('')}</details>`;}
 async function openOnlineJoin(){
-  showDialog('Join a game',`<label class="field"><span>Room code</span><input id="online-code" maxlength="8" autocomplete="off" required></label><label class="field"><span>Your name</span><input id="online-name" maxlength="24" required></label><p>The host will choose which players this phone controls.</p><button class="button" type="submit">Ask to join</button>`,async()=>{
+  showDialog('Join a game',`<label class="field"><span>Room code</span><input id="online-code" maxlength="8" autocomplete="off" required></label><label class="field"><span>Your name</span><input id="online-name" maxlength="24" required></label><p>In a setup room, you can add your own name and picture. Games already underway need host approval.</p><button class="button" type="submit">Ask to join</button>`,async()=>{
     if(!archiveCurrent())return false;
     const code=document.querySelector('#online-code').value.trim().toUpperCase(),name=document.querySelector('#online-name').value.trim();
     const result=await roomRequest(`/rooms/${encodeURIComponent(code)}/join`,{name},null);enterOnline({code,token:result.token},result.room);return true;
@@ -119,7 +119,7 @@ function renderOnline(){
   if(onlineRoom.state)state=onlineRoom.state;
   const r=onlineRoom;
   app.innerHTML=`<section class="panel online-status"><div class="room-code-banner"><span>Share this room code</span><strong class="room-code">${escapeHTML(r.code)}</strong><small>Others choose “Join a room” and enter this code.</small></div><p>${r.closed?'Room closed · read-only':!onlineConnected?'Disconnected. Reconnect before making a move.':onlineBusy?'Saving your action…':r.me.status==='pending'?'Waiting for host approval.':r.me.status==='rejected'?'The host declined this device.':'Connected · '+escapeHTML(r.me.seats.map(id=>state.players.find(p=>p.id===id)?.name||'').join(' / ')||'watching')}</p><div class="button-row">${onlineButton('Back to local games','exit')}${onlineButton('Reconnect','refresh')}${r.me.host?onlineButton('Players & room','room-settings'):''}</div>${onlinePending?`<p>An action needs confirmation. Retry safely using the same request.</p>${onlineButton('Retry pending action','retry')}`:''}</section>
-  ${r.state?`${reconnectWelcome?`<section class="panel" role="status">${escapeHTML(reconnectWelcome)}${onlineButton('Got it','dismiss-welcome')}</section>`:''}${whatHappened()}${familyRoomBar()}${state.roll?renderDice():''}<section class="panel instruction online-actions"><div class="button-stack">${onlineNext()}</div></section>${onlineAssets()}${renderBoardOverview()}`:''}`;
+  ${r.state?`${reconnectWelcome?`<section class="panel" role="status">${escapeHTML(reconnectWelcome)}${onlineButton('Got it','dismiss-welcome')}</section>`:''}${whatHappened()}${familyRoomBar()}${state.roll?renderDice():''}<section class="panel instruction online-actions"><div class="button-stack">${onlineNext()}</div></section>${onlineAssets()}${r.lobby?'':renderBoardOverview()}`:''}`;
   app.querySelector('#close-board')?.remove();
   app.querySelectorAll('[data-board-space]').forEach(el=>el.onclick=()=>{boardSelection=Number(el.dataset.boardSpace);app.querySelectorAll('[data-board-space]').forEach(b=>{b.classList.toggle('selected',b===el);b.setAttribute('aria-pressed',String(b===el));});document.querySelector('#board-space-details').innerHTML=renderBoardSpaceDetails(state.spaces[boardSelection]);});
   if(r.state)familyAttention();
@@ -144,6 +144,7 @@ function bindOnline(root){root.querySelectorAll('[data-online]').forEach(b=>b.on
   if(action.startsWith('family-')){await familyRoomCommand(action.slice(7));return;}
   if(action==='bedtime'){await lobbyCommand({action:'bedtime',minutes:Number(document.querySelector('#bedtime-minutes').value)});return;}
   if(action==='quick-bid'){await onlineCommand('auction-bid',{amount:Number(value)});return;}
+  if(action==='setup-settings'){openLobbySettings();return;}
   if(action==='profile'){openOnlineProfile(value);return;}
   if(action==='add-player'){openOnlineProfile();return;}
   if(action==='ready'){await lobbyCommand({action:'ready',players:[value]});return;}
@@ -180,7 +181,7 @@ function openOnlineTrade(a){
 
 function onlineLobby(){
   const ready=onlineRoom.ready||[];
-  return `<h2>Get ready to play</h2>${bedtimeLobby()}<p>Choose your player details, then tap Ready. The host starts when everyone is ready.</p>${state.players.map(p=>`<article class="online-property"><h3 class="token-intro"><span class="small-token">${tokenMarkup(p)}</span> ${escapeHTML(p.name)}</h3><p>${ready.includes(p.id)?'Ready ✓':'Choosing player details'}</p>${onlineOwn(p.id)?onlineButton('Name, color & token','profile',p.id)+(!ready.includes(p.id)?onlineButton('Ready','ready',p.id):''):''}</article>`).join('')}${state.players.length<8?onlineButton('Add another player on this device','add-player'):''}${onlineRoom.me.host?onlineButton('Start game','start-game'):'<p>Waiting for the host to start.</p>'}`;
+  return `<h2>Game setup · share the code above</h2><p>Everyone joins with the code and adds their own name and picture. No placeholder players are needed.</p>${onlineRoom.me.host?onlineButton("Game settings","setup-settings"):''}${bedtimeLobby()}<p>Choose your player details, then tap Ready. The host starts when everyone is ready.</p>${state.players.map(p=>`<article class="online-property"><h3 class="token-intro"><span class="small-token">${tokenMarkup(p)}</span> ${escapeHTML(p.name)}</h3><p>${ready.includes(p.id)?'Ready ✓':'Choosing player details'}</p>${onlineOwn(p.id)?onlineButton('Name, color & token','profile',p.id)+(!ready.includes(p.id)?onlineButton('Ready','ready',p.id):''):''}</article>`).join('')}${state.players.length<8?onlineButton(onlineRoom.me.seats.length?'Add another player on this device':'Add me · choose name & picture','add-player'):''}${onlineRoom.me.host?onlineButton('Start game','start-game'):'<p>Waiting for the host to start.</p>'}`;
 }
 async function lobbyCommand(data){
   if(onlineBusy||!onlineConnected||onlineRoom.closed)return false;
@@ -191,10 +192,29 @@ async function lobbyCommand(data){
 }
 function openOnlineProfile(id){
   const p=state.players.find(p=>p.id===id);
-  showDialog(p?'Your player':'Add a player',`<label class="field"><span>Name</span><input id="lobby-name" maxlength="24" required value="${escapeHTML(p?.name||'')}"></label><label class="field"><span>Color</span><input id="lobby-color" type="color" value="${p?.color||'#397bb5'}"></label><label class="field"><span>Token</span><select id="lobby-token">${p?'<option value="keep">Keep current token</option>':''}${TOKEN_CHOICES.map(t=>`<option>${t}</option>`).join('')}</select></label><label class="field"><span>Or use a picture</span><input id="lobby-photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p>You can use a dog, horse, LEGO creation, or your own picture.</p><button class="button" type="submit">Save player</button>`,async()=>{
+  showDialog(p?'Your player':'Add a player',`<label class="field"><span>Name</span><input id="lobby-name" maxlength="24" required value="${escapeHTML(p?.name||(!onlineRoom.me.host&&!onlineRoom.me.seats.length?onlineRoom.me.name:''))}"></label><label class="field"><span>Color</span><input id="lobby-color" type="color" value="${p?.color||'#397bb5'}"></label><label class="field"><span>Token</span><select id="lobby-token">${p?'<option value="keep">Keep current token</option>':''}${TOKEN_CHOICES.map(t=>`<option>${t}</option>`).join('')}</select></label><label class="field"><span>Or use a picture</span><input id="lobby-photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p>You can use a dog, horse, LEGO creation, or your own picture.</p><button class="button" type="submit">Save player</button>`,async()=>{
     const name=document.querySelector('#lobby-name').value,color=document.querySelector('#lobby-color').value;
     const selected=document.querySelector('#lobby-token').value;
     const token=await imageToken(document.querySelector('#lobby-photo').files[0])||(selected==='keep'?p.token:selected);
     return await lobbyCommand({action:p?'profile':'add',player:id,name,color,token});
   });
+}
+
+let setupRoomCreating=false;
+async function openSetupRoom(){
+  if(setupRoomCreating)return;
+  const form=document.querySelector('#setup-form');if(!form)return;
+  const data=new FormData(form),help=document.querySelector('#hosting-setup-help'),mode=document.querySelector('#play-mode');
+  const submit=form.querySelector('button[type="submit"]');
+  setupRoomCreating=true;mode.disabled=true;submit.disabled=true;help.hidden=false;help.textContent='Creating your room code… No player names are needed yet.';
+  try{
+    if(!archiveCurrent())throw Error('Save your current game before hosting.');
+    const draft=freshState();Object.assign(draft,{moneyMode:'banker',cardMode:'digital',gameName:String(data.get('game-name')||'Family game'),mode:data.get('mode')||'classic',activation:data.get('activation')||'after-go',freeParkingRule:data.get('free-parking')||'official',allowLeaveUnowned:data.has('leave-unowned'),boardEdition:'classic-us'});
+    const result=await roomRequest('/rooms',{state:draft,draft:true},null);enterOnline({code:result.room.code,token:result.token},result.room);
+  }catch(e){help.textContent='Room not created: '+e.message+' Choose Own devices again to retry.';mode.value='local';}
+  finally{setupRoomCreating=false;mode.disabled=false;submit.disabled=false;}
+}
+function openLobbySettings(){
+  const select=(id,choices,value)=>`<select id="${id}">${choices.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${label}</option>`).join('')}</select>`;
+  showDialog('Game settings',`<p>Your room code is <strong>${escapeHTML(onlineRoom.code)}</strong>. These settings can change until the game starts. Changing them clears Ready checks.</p><label class="field"><span>Game name</span><input id="lobby-game-name" maxlength="50" value="${escapeHTML(state.gameName||'Family game')}" required></label><p>Classic US / Deluxe board · digital banking · in-app cards · $2,500 per player</p><label class="field"><span>Speed Die rules</span>${select('lobby-mode',[['classic','Classic'],['streets','Streets-style']],state.mode)}</label><label class="field"><span>Speed Die begins</span>${select('lobby-activation',[['after-go','After passing GO'],['immediate','Immediately']],state.activation)}</label><label class="field"><span>Free Parking</span>${select('lobby-parking',[['official','No money'],['pot','Center pot'],['50','$50'],['100','$100'],['500','$500']],state.freeParkingRule)}</label><label><input id="lobby-leave" type="checkbox" ${state.allowLeaveUnowned?'checked':''}> House rule: allow leaving properties unowned</label><button class="button" type="submit">Save game settings</button>`,async()=>lobbyCommand({action:'settings',name:document.querySelector('#lobby-game-name').value,mode:document.querySelector('#lobby-mode').value,activation:document.querySelector('#lobby-activation').value,parking:document.querySelector('#lobby-parking').value,leaveUnowned:document.querySelector('#lobby-leave').checked}));
 }

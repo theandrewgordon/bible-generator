@@ -91,3 +91,22 @@ test('family pause, reactions, mute and bedtime readiness work across devices',a
  assert.equal(await host.evaluate(()=>onlineRoom.deadline>Date.now()/1000),true);
  }finally{await browser.close();}
 });
+test('own-device setup shows a code before names; guests create their own players',async()=>{
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ try{
+ const host=await (await browser.newContext()).newPage(),guest=await (await browser.newContext({viewport:{width:390,height:844}})).newPage();const errors=[];
+ for(const p of [host,guest]){p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>d.accept());await p.goto(base+'/speeddie/');await p.waitForFunction(()=>saveWriterReady);}
+ await host.selectOption('#play-mode','online');await host.locator('.room-code').waitFor();
+ assert.equal(await host.evaluate(()=>state.players.length),0);assert.equal(await host.evaluate(()=>state.started),false);
+ const code=await host.locator('.room-code').innerText();
+ await host.locator('[data-online="setup-settings"]').click();assert.match(await host.locator('#companion-dialog').innerText(),new RegExp(code));await host.locator('#lobby-game-name').fill('Tessa game');await host.getByRole('button',{name:'Save game settings',exact:true}).click();await host.waitForFunction(()=>!onlineBusy&&state.gameName==='Tessa game');
+ await guest.locator('.online-launch summary').click();await guest.locator('[data-action="online-join"]').click();await guest.locator('#online-code').fill(code);await guest.locator('#online-name').fill('Tessa');await guest.getByRole('button',{name:'Ask to join'}).click();await guest.locator('[data-online="add-player"]').waitFor();
+ for(const [page,name] of [[host,'Dad'],[guest,'Tessa']]){
+  await page.locator('[data-online="add-player"]').click();await page.locator('#lobby-name').fill(name);await page.locator('#lobby-token').selectOption({label:'🐎'});await page.getByRole('button',{name:'Save player',exact:true}).click();await page.waitForFunction(()=>!onlineBusy&&onlineRoom.me.seats.length===1);
+ }
+ await host.evaluate(()=>refreshOnline());assert.equal(await host.evaluate(()=>state.players.length),2);
+ for(const p of [host,guest]){await p.evaluate(()=>refreshOnline());await p.locator('[data-online="ready"]').click();await p.waitForFunction(()=>!onlineBusy&&onlineRoom.ready.includes(onlineRoom.me.seats[0]));}
+ await host.evaluate(()=>refreshOnline());await host.locator('[data-online="start-game"]').click();await host.waitForFunction(()=>!onlineBusy&&!onlineRoom.lobby);await host.locator('[data-online="roll"]').waitFor();
+ assert.equal(await host.evaluate(()=>state.started),true);assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});

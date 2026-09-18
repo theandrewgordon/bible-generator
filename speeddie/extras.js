@@ -116,7 +116,7 @@ function welcomeBack(saved,room){
   const updates=room.state.ledger||[],last=saved.lastEvent;
   const marker=last?updates.findIndex(e=>e.time+'|'+e.message===last):-1;
   const newer=last&&marker!==0?updates.slice(0,marker<0?3:Math.min(marker,3)):[];
-  const s=room.state,next=s.tradeOffer?.b||s.auction?.turn||s.debts[0]?.from||s.players[s.currentPlayer].id;
+  const s=room.state,next=s.tradeOffer?.b||s.auction?.turn||s.debts[0]?.from||s.players[s.currentPlayer]?.id;
   return `Welcome back, ${names}! ${newer.length?newer.map(e=>e.message).join(' '):'Your game is saved.'} ${room.lobby?'The lobby is waiting.':room.pausedAt?'The game is paused.':room.result||s.winnerId?'The game is complete.':room.me.seats.includes(next)?'You are next to act.':s.players.find(p=>p.id===next).name+' is next to act.'}`;
 }
 async function downloadKeepsake(){

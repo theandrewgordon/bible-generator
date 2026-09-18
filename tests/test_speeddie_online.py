@@ -195,3 +195,30 @@ def test_bedtime_scoring_and_safe_boundary():
     state['debts']=[];finish_due(room,2)
     assert room['result']['winners']==['p0','p1']
     assert room['result']['scores'][0]['score']==2580
+
+def test_empty_setup_room_code_before_names_and_self_service_join(env):
+    _,client,post,_,_,state=env
+    created=post('/rooms',{'state':state,'draft':True});assert created.status_code==201,created.json
+    code=created.json['room']['code'];host=created.json['token'];room=created.json['room']
+    assert room['lobby'] and room['state']['players']==[] and not room['state']['started']
+    path='/rooms/'+code+'/lobby'
+    assert post(path,{'action':'start'},host).status_code==400
+    guest=post('/rooms/'+code+'/join',{'name':'Tessa'}).json;token=guest['token']
+    assert guest['room']['me']['status']=='approved' and guest['room']['me']['seats']==[]
+    profile={'action':'add','name':'Tessa','token':'🐎','color':'#123456'}
+    guest_room=post(path,profile,token).json['room'];guest_id=guest_room['me']['seats'][0]
+    assert len(guest_room['state']['players'])==1 and not guest_room['state']['winnerId']
+    assert post(path,{'action':'start'},host).status_code==400
+    host_room=post(path,dict(profile,name='Dad'),host).json['room'];host_id=host_room['me']['seats'][0]
+    settings={'action':'settings','name':'Family night','mode':'classic','activation':'after-go','parking':'official','leaveUnowned':False}
+    assert post(path,settings,token).status_code==403
+    post(path,{'action':'ready','players':[guest_id]},token)
+    assert post(path,settings,host).json['room']['ready']==[]
+    post(path,{'action':'ready','players':[guest_id]},token)
+    post(path,{'action':'ready','players':[host_id]},host)
+    started=post(path,{'action':'start'},host);assert started.status_code==200,started.json
+    room=started.json['room'];assert room['state']['started'] and not room['lobby']
+    assert room['state']['gameName']=='Family night'
+    assert cmd(post,code,token,room,'roll').status_code==200
+    late=post('/rooms/'+code+'/join',{'name':'Late device'}).json
+    assert late['room']['me']['status']=='pending'
