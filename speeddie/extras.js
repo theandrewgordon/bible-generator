@@ -58,5 +58,17 @@ function bedtimeLobby(){
 }
 function onlineCelebration(){
   const winners=onlineRoom.result?.winners||[state.winnerId];
-  return `<div class="winner-panel"><h2>${winners.map(id=>escapeHTML(state.players.find(p=>p.id===id).name)).join(' & ')} ${winners.length>1?'share the win!':'wins!'}</h2><div class="confetti" aria-hidden="true">✦ · ✧ · ✦ · ✧ · ✦</div>${onlineRoom.result?onlineRoom.result.scores.map(r=>`<p>${escapeHTML(state.players.find(p=>p.id===r.player).name)}: ${money(r.score)}${r.bankrupt?' · bankrupt':''}</p>`).join(''):''}${familyAwards(state)}${onlineButton('Back to saved games','exit')}</div>`;
+  return `<div class="winner-panel"><h2>${winners.map(id=>escapeHTML(state.players.find(p=>p.id===id).name)).join(' & ')} ${winners.length>1?'share the win!':'wins!'}</h2>${winnerSpotlight(winners.map(id=>state.players.find(p=>p.id===id)))}${onlineRoom.result?onlineRoom.result.scores.map(r=>`<p>${escapeHTML(state.players.find(p=>p.id===r.player).name)}: ${money(r.score)}${r.bankrupt?' · bankrupt':''}</p>`).join(''):''}${familyAwards(state)}${onlineButton('Back to saved games','exit')}</div>`;
+}
+
+function propertyActionLabel(q,action){
+  if(action==='build'&&q.buildings>=5)return '🏨 Hotel already built';
+  if(action==='build')return `${q.buildings===4?'🏨 Upgrade 4 houses to a hotel':q.buildings>=5?'🏨 Hotel already built':'🏠 Add 1 house'} · pay ${money(q.buildCost)}`;
+  if(action==='sell')return `${q.buildings===5?'🏨 Sell hotel → keep 4 houses':'🏠 Remove & sell 1 house'} · get ${money(Math.floor((q.buildingCosts?.at(-1)||0)/2))}`;
+  if(action==='sell-group')return '🏘️ Sell all buildings in this color group';
+  return q.mortgaged?`🔓 Pay off mortgage · pay ${money(q.mortgage+Math.ceil(q.mortgage/10))}`:`🏦 Mortgage property · get ${money(q.mortgage)}`;
+}
+function winnerSpotlight(players){
+  const colors=['#ef476f','#ffd166','#06b6a0','#4d96ff','#a66cff'];
+  return `<div class="winner-spotlight"><div class="confetti" aria-hidden="true">${Array.from({length:32},(_,i)=>`<i style="--x:${(i*37)%100}%;--y:${(i*53)%90}%;--delay:${(i%8)*.17}s;--confetti-color:${colors[i%colors.length]};--tilt:${i%2?150:-150}deg"></i>`).join('')}</div><div class="winner-tokens">${players.map(p=>`<div class="winner-person"><div class="winner-token" role="img" aria-label="${escapeHTML(p.name)}’s winning token">${tokenMarkup(p)}</div><strong>${escapeHTML(p.name)}</strong></div>`).join('')}</div></div>`;
 }

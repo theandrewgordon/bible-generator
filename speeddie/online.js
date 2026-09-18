@@ -58,7 +58,7 @@ async function refreshOnline(){
     if(onlineSession!==sessionAtStart)return;
     const changed=!onlineConnected||result.room.revision>(onlineRoom?.revision||0);onlineConnected=true;
     if(result.room.revision>=(onlineRoom?.revision||0))onlineRoom=result.room;
-    if(changed||onlineRoom.deadline||onlineRoom.reaction)render();
+    if(changed||(onlineRoom.deadline&&!onlineRoom.result&&!onlineRoom.state?.winnerId)||(onlineRoom.reaction&&Date.now()/1000-onlineRoom.reaction.time<10))render();
   }catch(e){if(onlineSession!==sessionAtStart)return;onlineConnected=false;render();}
   finally{scheduleOnline();}
 }
@@ -104,7 +104,7 @@ function onlineNext(){
 }
 function onlineAssets(){
   if(onlineRoom.pausedAt||onlineRoom.result||onlineRoom.lobby||state.winnerId||state.auction||state.pendingCard||state.tradeOffer)return '';
-  return `<details class="panel"><summary>Your properties &amp; trades</summary>${G.active(state).filter(p=>onlineOwn(p.id)).map(p=>`<h3>${escapeHTML(p.name)} · ${money(p.cash)}</h3>${state.spaces.filter(q=>q.owner===p.id).map(q=>`<article class="online-property"><h4>${escapeHTML(q.name)}</h4><p>${q.mortgaged?'Mortgaged':buildingLabel(q)}</p>${q.type==='property'?`<p>${escapeHTML(previewBuild(state,q))}</p>`:''}<div class="button-row">${q.type==='property'?onlineButton('Build '+money(q.buildCost),'build',q.index)+(q.buildings?onlineButton('Sell one','sell',q.index)+onlineButton('Sell group buildings','sell-group',q.index):''):''}${onlineButton(q.mortgaged?'Unmortgage':'Mortgage','mortgage',q.index)}</div></article>`).join('')||'<p>No deeds yet.</p>'}${onlineButton('Propose a trade','trade-open',p.id)}`).join('')}</details>`;
+  return `<details class="panel"><summary>Your properties &amp; trades</summary><p>Add houses evenly. Selling returns half the amount paid. Mortgaging keeps the deed yours, but stops its rent until you pay off the mortgage.</p>${G.active(state).filter(p=>onlineOwn(p.id)).map(p=>`<h3>${escapeHTML(p.name)} · ${money(p.cash)}</h3>${state.spaces.filter(q=>q.owner===p.id).map(q=>`<article class="online-property"><h4>${escapeHTML(q.name)}</h4><p>${q.mortgaged?'Mortgaged':buildingLabel(q)}</p>${q.type==='property'?`<p>${escapeHTML(previewBuild(state,q))}</p>`:''}<div class="button-row">${q.type==='property'?(q.buildings<5?onlineButton(propertyActionLabel(q,'build'),'build',q.index):'')+(q.buildings?onlineButton(propertyActionLabel(q,'sell'),'sell',q.index)+onlineButton(propertyActionLabel(q,'sell-group'),'sell-group',q.index):''):''}${onlineButton(propertyActionLabel(q,'mortgage'),'mortgage',q.index)}</div></article>`).join('')||'<p>No deeds yet.</p>'}${onlineButton('Propose a trade','trade-open',p.id)}`).join('')}</details>`;
 }
 function renderOnline(){
   const oldFlow=app.dataset.onlineFlow,focused=document.activeElement?.id;
