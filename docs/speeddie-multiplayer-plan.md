@@ -118,3 +118,10 @@ person/animal segmentation; patterned backgrounds and fur may need external edit
 All processing stays in the browser. PNG export preserves transparency and shrinks
 high-detail tokens to respect the existing 60,000-character token limit. Saving or
 sharing a room still sends the finished token to the game's existing storage.
+
+Player cash and net worth are shown separately in the local player list and below
+the board in both modes. Digital-bank net worth is cash plus printed deed values
+and building values (hotel = five building units), minus mortgage principal and
+recorded unpaid bills. A pending mortgage redemption does not subtract its principal
+twice. Bankrupt players show zero; helper mode does not invent untracked cash totals.
+This informational value does not change the agreed bedtime liquidation scoring.

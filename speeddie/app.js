@@ -470,11 +470,12 @@ function renderPlayers() {
           <span class="small-token" style="border-color:${player.color}" aria-hidden="true">${tokenMarkup(player)}</span>
           <div class="player-summary">
             <strong>${escapeHTML(player.name)}${player.bankrupt ? " · Out" : state.winnerId === player.id ? " · Winner" : index === state.currentPlayer ? " · Taking turn" : ""}</strong>
-            <span>${player.bankrupt ? "Bankrupt" : player.inJail ? "In Jail" : escapeHTML(state.spaces[player.position].name)}${state.moneyMode === "banker" ? ` · $${player.cash.toLocaleString()}` : ""}${(state.heldCards || []).filter(c=>c.owner===player.id).length ? ` · ${(state.heldCards || []).filter(c=>c.owner===player.id).length} Jail card(s)` : ""}${state.activation === "after-go" && !player.passedGo ? " · Speed Die locked" : ""}</span>
+            <span>${player.bankrupt ? "Bankrupt" : player.inJail ? "In Jail" : escapeHTML(state.spaces[player.position].name)}${(state.heldCards || []).filter(c=>c.owner===player.id).length ? ` · ${(state.heldCards || []).filter(c=>c.owner===player.id).length} Jail card(s)` : ""}${state.activation === "after-go" && !player.passedGo ? " · Speed Die locked" : ""}</span>${wealthLine(state,player)}
           </div>
           <button class="edit-player" data-player="${player.id}" type="button">Token / details</button>
         </div>`).join("")}
     </div>
+    ${state.moneyMode==="banker"?wealthExplanation():""}
   </section>`;
 }
 

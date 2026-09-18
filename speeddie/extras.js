@@ -140,3 +140,7 @@ async function downloadKeepsake(){
   c.font='17px sans-serif';c.fillText('Made with Speed Die · memories worth keeping',500,canvas.height-35);
   const a=document.createElement('a');a.download='family-game-night.png';a.href=canvas.toDataURL('image/png');a.click();
 }
+
+function wealthLine(s,p){return s.moneyMode==='banker'?`<span class="player-wealth"><b>Cash ${money(p.cash)}</b><b>Net worth ${money(G.netWorth(s,p.id))}</b></span>`:'<span class="muted small">Cash and net worth require digital banking.</span>';}
+function wealthExplanation(){return '<details class="wealth-help"><summary>How is net worth calculated?</summary><p>Cash + printed property values + building values − mortgages − recorded unpaid bills. A hotel counts as five building purchases. Bankrupt players have $0 net worth. This is not spendable cash; bedtime games still use their agreed liquidation-value scoring.</p></details>';}
+function renderWealthPanel(){return `<section class="panel wealth-panel"><h2>Player totals</h2>${state.players.map(p=>`<div class="wealth-row">${ownerBadge(p)}<div><strong>${escapeHTML(p.name)}${p.bankrupt?' · Out':''}</strong>${wealthLine(state,p)}</div></div>`).join('')}${state.moneyMode==='banker'?wealthExplanation():''}</section>`;}

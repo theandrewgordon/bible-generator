@@ -155,3 +155,20 @@ test('save validation rejects duplicate decks, altered digital effects and malfo
   bad=structuredClone(s);bad.decks.chance.push(bad.decks.chance[0]);assert.throws(()=>G.validate(bad),/duplicated/);
   bad=game();G.startAuction(bad,1);bad.auction.remaining.push('p0');assert.throws(()=>G.validate(bad),/participants/);
 });
+test('net worth values deeds buildings and mortgages without changing cash',()=>{
+ const s=game();const id=s.players[0].id,start=s.players[0].cash;
+ assert.equal(G.netWorth(s,id),start);G.buy(s,1,id);assert.equal(G.netWorth(s,id),start);
+ G.buy(s,3,id);G.build(s,1,1);assert.equal(G.netWorth(s,id),start);
+ G.build(s,1,-1);assert.equal(G.netWorth(s,id),start-25);
+ G.mortgage(s,1);assert.equal(G.netWorth(s,id),start-25);
+});
+test('net worth counts a pending landing bill once and becomes zero after bankruptcy',()=>{
+ const s=game();const id=s.players[0].id;s.spaces[1].owner=s.players[1].id;s.players[0].position=1;s.phase='landed';G.captureLanding(s);
+ assert.equal(G.netWorth(s,id),s.players[0].cash-2);G.owe(s,id,s.players[1].id,2,s.landingBill.reason,{kind:'landing'});assert.equal(G.netWorth(s,id),s.players[0].cash-2);
+ s.players[0].cash=0;G.bankrupt(s,id,s.players[1].id);assert.equal(G.netWorth(s,id),0);
+});
+test('net worth does not count a mortgage twice while its redemption is pending',()=>{
+ const s=game();const id=s.players[0].id;s.spaces[1].owner=id;s.spaces[1].mortgaged=true;
+ G.owe(s,id,'bank',33,'Mortgage transfer',{kind:'unmortgage',index:1});
+ const before=G.netWorth(s,id);assert.equal(before,s.players[0].cash+27);G.settle(s);assert.equal(G.netWorth(s,id),before);
+});

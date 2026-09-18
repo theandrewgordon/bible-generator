@@ -250,7 +250,16 @@
     assert(Array.isArray(s.ledger) && s.ledger.length <= 150 && s.ledger.every(e => typeof e.message === "string" && e.message.length < 5000 && typeof e.time === "string"), "Invalid ledger.");
     return true;
   }
-  const api = { finish, ensurePlaying, captureLanding, correctDebt, defaults, upgrade, rent, stock, group, active, player, isMoney, assert, log, transfer, owe, build, sellGroup, mortgage, buy, trade, bankrupt, advance, settle, run, validate };
+  function netWorth(s,id) {
+    const p=s.players.find(p=>p.id===id);assert(p,'Choose a player.');
+    if(p.bankrupt)return 0;
+    const assets=s.spaces.filter(q=>q.owner===id).reduce((n,q)=>n+q.price-(q.mortgaged?q.mortgage:0)+q.buildings*q.buildCost,0);
+    let unpaid=s.debts.filter(d=>d.from===id).reduce((n,d)=>{const deed=d.resume?.kind==='unmortgage'?s.spaces[d.resume.index]:null;return n+d.amount-(deed?.mortgaged?deed.mortgage:0);},0);
+    const bill=s.landingBill;
+    if(!s.bankLandingResolved&&bill?.from===id&&!s.debts.some(d=>d.from===id&&d.to===bill.to&&d.amount===bill.amount&&d.reason===bill.reason))unpaid+=bill.amount;
+    return p.cash+assets-unpaid;
+  }
+  const api = { netWorth, finish, ensurePlaying, captureLanding, correctDebt, defaults, upgrade, rent, stock, group, active, player, isMoney, assert, log, transfer, owe, build, sellGroup, mortgage, buy, trade, bankrupt, advance, settle, run, validate };
   root.SpeedDieRules = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

@@ -38,7 +38,7 @@ function renderBoardOverview() {
       <div class="board-center"><p class="eyebrow">${state.winnerId?'Game complete':'Current turn'}</p><h3>${escapeHTML(currentPlayer().name)}${state.winnerId?' wins!':''}</h3><p>${escapeHTML(state.gameName || 'Family game')}</p><p class="muted small">${unowned} properties available<br>M = mortgaged · 🏠 houses · 🏨 hotel</p><div class="board-player-key">${active.map(p=>`<div><span class="board-key-token" style="border-color:${p.color}">${tokenMarkup(p)}</span><span>${escapeHTML(p.name)}${state.moneyMode==='banker'?` · ${money(p.cash)}`:''}</span></div>`).join('')}</div></div>
     </div>
     <div id="board-space-details" class="board-space-details" aria-live="polite">${renderBoardSpaceDetails(selected)}</div>
-  </section>`;
+  </section>${renderWealthPanel()}`;
 }
 function renderBoardSpaceDetails(space) {
   const owner=state.players.find(p=>p.id===space.owner), here=boardOccupants(space.index);
