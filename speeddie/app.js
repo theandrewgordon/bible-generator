@@ -359,6 +359,7 @@ function renderSetup() {
   function drawNameInputs() {
     const old = [...names.querySelectorAll(".setup-name")].map(input => input.value);
     const tokens = [...names.querySelectorAll(".setup-token")].map(input => input.value);
+    const edits = [...names.querySelectorAll(".setup-image")].map(input=>tokenEditors.get(input));
     const photos = [...names.querySelectorAll(".setup-image")].map(input => input.files);
     names.innerHTML = Array.from({ length: Number(count.value) }, (_, index) => `
       <label class="field">
@@ -366,7 +367,7 @@ function renderSetup() {
         <input class="setup-name" type="text" maxlength="24" required value="${escapeHTML(old[index] || "")}" placeholder="Enter a name">
       </label><label class="field"><span>Player ${index + 1} token</span><select class="setup-token">${TOKEN_CHOICES.map((t, i) => `<option ${t === (tokens[index] || TOKEN_CHOICES[index]) ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       <details class="setup-photo"><summary>Use your own token picture</summary><label class="field"><span>Player ${index + 1} picture</span><input class="setup-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label></details>`).join("");
-    names.querySelectorAll(".setup-image").forEach((input, i) => { if (photos[i]?.length) input.files = photos[i]; });
+    names.querySelectorAll(".setup-image").forEach((input, i) => { if (photos[i]?.length) input.files = photos[i]; mountTokenEditor(input,'',edits[i]); });
   }
   count.addEventListener("change", drawNameInputs);
   drawNameInputs();
@@ -397,7 +398,7 @@ async function startGame(event) {
   startButton.disabled = true;
   let tokens;
   try {
-    tokens = await Promise.all([...document.querySelectorAll(".setup-image")].map(async (input, i) => await imageToken(input.files[0]) || document.querySelectorAll(".setup-token")[i].value));
+    tokens = await Promise.all([...document.querySelectorAll(".setup-image")].map(async (input, i) => await readTokenImage(input) || document.querySelectorAll(".setup-token")[i].value));
   } catch (error) { alert(error.message); startButton.disabled = false; return; }
   onlineHostError='';
   state = freshState();

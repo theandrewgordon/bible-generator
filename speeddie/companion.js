@@ -165,18 +165,9 @@ function openPayment() {
     }));
 }
 async function imageToken(file) {
-  if (!file) return null;
-  G.assert(["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type) && file.size <= 10000000, "Choose a JPG, PNG, WebP, or GIF image under 10 MB.");
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image(); img.src = url; await img.decode();
-    const canvas = document.createElement("canvas"); canvas.width = canvas.height = 128;
-    const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 128, 128);
-    const scale = Math.min(128 / img.width, 128 / img.height);
-    ctx.drawImage(img, (128 - img.width * scale) / 2, (128 - img.height * scale) / 2, img.width * scale, img.height * scale);
-    return canvas.toDataURL("image/jpeg", .8);
-  } finally { URL.revokeObjectURL(url); }
+  return file?encodeTokenCanvas(await tokenCanvas(file)):null;
 }
+
 function openPlayer(id) {
   const p = state.players.find(p => p.id === id);
   showDialog(`${p.name} · token & details`, `<div class="token-preview">${tokenMarkup(p)}</div><label class="field"><span>Name</span><input id="player-name" maxlength="24" value="${escapeHTML(p.name)}" required></label>
@@ -184,13 +175,14 @@ function openPlayer(id) {
     <label class="field"><span>Or upload a picture of your token</span><input id="player-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p class="muted small">A dog, horse, LEGO piece, or anything you use at the table. Pictures stay in this browser and in exported game files.</p><button class="button" type="submit">Save player</button>
     ${!p.bankrupt ? `<div class="button-stack edition-details">${button("Correct position", "position", id)}${button("Review bankruptcy", "bankruptcy", id)}</div>` : '<p>This player is out of the game.</p>'}`, async () => {
       const name = document.querySelector("#player-name").value.trim(), chosen = document.querySelector("#player-token").value;
-      const image = await imageToken(document.querySelector("#player-image").files[0]);
+      const image = await readTokenImage(document.querySelector("#player-image"));
       return commitGame(s => {
         G.assert(name && !s.players.some(q => q.id !== id && q.name.toLowerCase() === name.toLowerCase()), "Give each player a different name.");
         const q = s.players.find(q => q.id === id); q.name = name; q.token = image || (chosen === "keep" ? q.token : chosen);
         G.log(s, `Updated player: ${name}.`);
       });
     });
+  mountTokenEditor(document.querySelector("#player-image"),p.token);
 }
 function openBankruptcy(id) {
   const p = G.player(state, id), debt = state.debts.find(d => d.from === id);

@@ -110,3 +110,14 @@ test('own-device setup shows a code before names; guests create their own player
  assert.equal(await host.evaluate(()=>state.started),true);assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });
+test('token cutout preview can be undone and transparency survives room reload',async()=>{
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ try{
+ const p=await (await browser.newContext()).newPage();p.on('dialog',d=>d.accept());await p.goto(base+'/speeddie/');await p.waitForFunction(()=>saveWriterReady);await p.selectOption('#play-mode','online');await p.locator('.room-code').waitFor();await p.locator('[data-online="add-player"]').click();await p.locator('#lobby-name').fill('Dog');
+ const data=await p.evaluate(()=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,128,128);x.fillStyle='red';x.fillRect(35,25,60,90);return c.toDataURL().split(',')[1];});
+ await p.locator('#lobby-photo').setInputFiles({name:'figure.png',mimeType:'image/png',buffer:Buffer.from(data,'base64')});await p.locator('.cutout-remove').waitFor();await p.locator('.cutout-remove').click();
+ const alpha=()=>p.locator('.token-cutout canvas').evaluate(c=>[c.getContext('2d').getImageData(0,0,1,1).data[3],c.getContext('2d').getImageData(64,64,1,1).data[3]]);
+ assert.deepEqual(await alpha(),[0,255]);await p.locator('.cutout-restore').click();assert.deepEqual(await alpha(),[255,255]);await p.locator('.cutout-remove').click();await p.getByRole('button',{name:'Save player',exact:true}).click();await p.waitForFunction(()=>!onlineBusy&&state.players.length===1);
+ await p.reload();await p.locator('.online-launch summary').click();await p.locator('[data-action="online-reconnect"]').click();await p.locator('[data-online="profile"]').click();await p.locator('.token-cutout canvas').waitFor();assert.deepEqual(await alpha(),[0,255]);
+ }finally{await browser.close();}
+});

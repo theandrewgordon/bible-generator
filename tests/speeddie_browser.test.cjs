@@ -10,7 +10,7 @@ const errors = [];
 before(async () => {
   server = http.createServer((req, res) => {
     const name = new URL(req.url, 'http://local').pathname.split('/').pop() || 'index.html';
-    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'family.js', 'board.js', 'engine.js', 'online.js','extras.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
+    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'family.js', 'board.js', 'engine.js', 'online.js','extras.js','token-editor.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
     res.end(fs.readFileSync(path.join(__dirname, '../speeddie', name)));
   });
@@ -41,7 +41,7 @@ test('eight-player setup, local image, export, reload, and narrow-screen layout'
   await p.selectOption('[name="money-mode"]', 'banker');
   await p.locator('.setup-image').first().setInputFiles({name:'lego.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=', 'base64')});
   await p.locator('#setup-form button[type="submit"]').click(); await p.waitForSelector('#roll-button');
-  baseline = await p.evaluate(() => snapshotState(state)); assert.equal(baseline.players.length, 8); assert.match(baseline.players[0].token, /^data:image\/jpeg/);
+  baseline = await p.evaluate(() => snapshotState(state)); assert.equal(baseline.players.length, 8); assert.match(baseline.players[0].token, /^data:image\/png/);
   assert.equal(await p.locator('.player-row').count(), 8);
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.equal(await p.evaluate(() => {const row=document.querySelector('.player-row'); return row.querySelector('.small-token').getBoundingClientRect().right <= row.querySelector('.player-summary').getBoundingClientRect().left}), true);
@@ -140,7 +140,7 @@ test('voluntary Jail payment uses configured fee and pot, then allows a normal r
 test('edition values update rent and image token can be changed after setup',async()=>{
   const p=await page();await p.evaluate(()=>{state.spaces[1].owner=state.players[0].id;saveState();render();});
   await click(p,'properties');await p.locator('#companion-dialog [data-action="property"]').click();await p.locator('.edition-details summary').click();await p.locator('#rent-0').fill('17');await submit(p);assert.equal(await p.evaluate(()=>G.rent(state,state.spaces[1])),17);
-  await p.locator('.edit-player').nth(1).click();await p.locator('#player-image').setInputFiles({name:'piece.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=','base64')});await submit(p);await p.waitForFunction(()=>state.players[1].token.startsWith('data:'));await p.reload();assert.match(await p.evaluate(()=>state.players[1].token),/^data:image\/jpeg/);await p.close();
+  await p.locator('.edit-player').nth(1).click();await p.locator('#player-image').setInputFiles({name:'piece.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=','base64')});await submit(p);await p.waitForFunction(()=>state.players[1].token.startsWith('data:'));await p.reload();assert.match(await p.evaluate(()=>state.players[1].token),/^data:image\/png/);await p.close();
 });
 
 test('cash-only trade and physical card pay-everyone bill queue',async()=>{

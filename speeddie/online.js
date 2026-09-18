@@ -195,9 +195,10 @@ function openOnlineProfile(id){
   showDialog(p?'Your player':'Add a player',`<label class="field"><span>Name</span><input id="lobby-name" maxlength="24" required value="${escapeHTML(p?.name||(!onlineRoom.me.host&&!onlineRoom.me.seats.length?onlineRoom.me.name:''))}"></label><label class="field"><span>Color</span><input id="lobby-color" type="color" value="${p?.color||'#397bb5'}"></label><label class="field"><span>Token</span><select id="lobby-token">${p?'<option value="keep">Keep current token</option>':''}${TOKEN_CHOICES.map(t=>`<option>${t}</option>`).join('')}</select></label><label class="field"><span>Or use a picture</span><input id="lobby-photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label><p>You can use a dog, horse, LEGO creation, or your own picture.</p><button class="button" type="submit">Save player</button>`,async()=>{
     const name=document.querySelector('#lobby-name').value,color=document.querySelector('#lobby-color').value;
     const selected=document.querySelector('#lobby-token').value;
-    const token=await imageToken(document.querySelector('#lobby-photo').files[0])||(selected==='keep'?p.token:selected);
+    const token=await readTokenImage(document.querySelector('#lobby-photo'))||(selected==='keep'?p.token:selected);
     return await lobbyCommand({action:p?'profile':'add',player:id,name,color,token});
   });
+  mountTokenEditor(document.querySelector('#lobby-photo'),p?.token||'');
 }
 
 let setupRoomCreating=false;

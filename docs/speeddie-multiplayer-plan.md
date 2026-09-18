@@ -107,3 +107,14 @@ Shared reconnects summarize up to three new ledger events and identify the next
 actor (including auctions, bills and trades). Completed games can download a PNG
 keepsake with each player's emoji/photo, winner and recorded awards. The image is
 created in the browser; no upload or external image service is involved.
+
+## Token cutouts
+
+Picture uploads in local setup, player editing and online profiles include a
+plain-background removal preview. Edge-connected pixels similar to the selected
+background color are removed; the user can choose a color by tapping the preview,
+adjust tolerance, or undo. This is a lightweight color-based tool, not semantic
+person/animal segmentation; patterned backgrounds and fur may need external editing.
+All processing stays in the browser. PNG export preserves transparency and shrinks
+high-detail tokens to respect the existing 60,000-character token limit. Saving or
+sharing a room still sends the finished token to the game's existing storage.
