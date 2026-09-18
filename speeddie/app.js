@@ -630,7 +630,7 @@ function renderBoard() {
               ${space.mortgaged ? `<span class="mortgage-badge">Mortgaged</span>` : ""}${space.buildings ? `<span class="mortgage-badge">${buildingLabel(space)}</span>` : ""}
               ${playersHere.length ? `<div class="token-dots" title="${escapeHTML(playersHere.map(p => p.name).join(", "))}">${playersHere.map(p => `<span class="tiny-token" style="border-color:${p.color}">${tokenMarkup(p)}</span>`).join("")}</div>` : ""}
             </div>
-            ${isProperty(space) ? `<button class="owner-button choose-owner" data-space="${space.index}" type="button">${owner ? escapeHTML(owner.name) : "Unowned"}</button>` : ""}
+            ${isProperty(space) ? `<button class="owner-button choose-owner" data-space="${space.index}" type="button">${owner ? ownerBadge(owner)+escapeHTML(owner.name) : "Unowned"}</button>` : ""}
           </div>`;
         }).join("")}
       </div>
