@@ -10,7 +10,7 @@ const errors = [];
 before(async () => {
   server = http.createServer((req, res) => {
     const name = new URL(req.url, 'http://local').pathname.split('/').pop() || 'index.html';
-    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'family.js', 'board.js', 'engine.js', 'online.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
+    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'family.js', 'board.js', 'engine.js', 'online.js','extras.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
     res.end(fs.readFileSync(path.join(__dirname, '../speeddie', name)));
   });

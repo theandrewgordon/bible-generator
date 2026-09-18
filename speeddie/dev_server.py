@@ -16,7 +16,7 @@ def make_app(database):
     @app.get('/speeddie/')
     @app.get('/speeddie/<path:name>')
     def assets(name='index.html'):
-        if name not in {'index.html','app.js','rules.js','engine.js','companion.js','family.js','board.js','online.js','style.css'}:
+        if name not in {'index.html','app.js','rules.js','engine.js','companion.js','family.js','board.js','online.js','extras.js','style.css'}:
             return 'Not found',404
         return send_from_directory(Path(__file__).parent,name)
     return app

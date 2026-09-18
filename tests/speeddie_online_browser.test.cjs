@@ -76,3 +76,18 @@ test('shared auction follows bidder seats across devices',async()=>{
  await mom.evaluate(()=>refreshOnline());assert.equal(await mom.evaluate(()=>state.spaces[1].owner),'p1');assert.equal(await mom.evaluate(()=>state.players[1].cash),2470);
  }finally{await browser.close();}
 });
+test('family pause, reactions, mute and bedtime readiness work across devices',async()=>{
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ try{
+ const host=await (await browser.newContext()).newPage();host.on('dialog',d=>d.accept());await host.goto(base+'/speeddie/');
+ await host.evaluate(async s=>{state=s;saveState();await hostOnline();},game());
+ await host.locator('#bedtime-minutes').selectOption('30');await host.locator('[data-online="bedtime"]').click();await host.waitForFunction(()=>!onlineBusy&&onlineRoom.bedtimeMinutes===30);
+ await host.evaluate(()=>lobbyCommand({action:'ready',players:onlineRoom.me.seats}));await host.locator('[data-online="start-game"]').click();await host.waitForFunction(()=>!onlineBusy&&!onlineRoom.lobby);
+ await host.locator('[data-online="family-pause"]').click();await host.waitForFunction(()=>onlineRoom.pausedAt);assert.equal(await host.locator('[data-online="roll"]').count(),0);
+ await host.locator('[data-online="family-resume"]').click();await host.waitForFunction(()=>!onlineRoom.pausedAt);await host.locator('[data-online="roll"]').waitFor();
+ await host.locator('[data-online="reaction"]').first().click();await host.getByRole('status').waitFor();
+ await host.locator('[data-online="mute-reactions"]').click();assert.equal(await host.getByRole('status').count(),0);
+ await host.locator('[data-online="chime"]').click();assert.equal(await host.evaluate(()=>familyPreferences.chime),true);
+ assert.equal(await host.evaluate(()=>onlineRoom.deadline>Date.now()/1000),true);
+ }finally{await browser.close();}
+});

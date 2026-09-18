@@ -577,3 +577,5 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .online-status { border-left:5px solid var(--blue); }
 .online-property { border:1px solid var(--line); border-radius:12px; padding:12px; margin:12px 0; }
 .online-actions .button-stack { gap:12px; }
+
+.trade-receipt{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.trade-receipt article{padding:1rem;border:1px solid #bed0df;border-radius:12px}.trade-receipt img,.family-awards img{width:36px;height:36px;object-fit:contain}.receipt-deed{border-top:8px solid;margin:.5rem 0;padding:.5rem;background:#fff}.rescue .button{margin:.3rem 0;width:100%}.token-intro{animation:token-welcome .5s ease-out}.family-room .button-row{flex-wrap:wrap}.family-awards{text-align:left}@keyframes token-welcome{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}@media(prefers-reduced-motion:reduce){.token-intro{animation:none}}

@@ -68,3 +68,25 @@ revocation, auctions, durable reload, expiry, closure, backups and CSRF.
 Production rollout still requires checking `/speeddie/api/config` and a real
 two-device game after deployment; local SQLite tests do not verify production
 Firestore permissions or deployment health.
+
+## Family extras
+
+Shared rooms include per-device turn chimes (opt-in), token entrance animation,
+quick auction bids with cash shown, itemized trade receipts, purchase/build previews,
+legal debt-raising suggestions, a shared pause/resume button, and reactions with a
+five-second server cooldown and a per-device mute. Turn chimes require an open page;
+mobile browsers may suspend audio while backgrounded or locked. No push-notification
+service is used. Reduced-motion preferences disable the entrance animation.
+
+Before players are ready, the host can select a 30/60/90/120-minute bedtime game.
+Changing that rule clears readiness. The clock starts with the game, excludes
+pauses, and finishes only at a clean turn boundary, including extra doubles rolls.
+The displayed house rule scores cash plus mortgage values of unmortgaged deeds and
+half the actual building costs. Mortgaged deeds add zero; bankrupt players are
+ineligible and equal scores share the win. This is explicitly a family house rule.
+
+Awards record peak deeds, GO collections, largest auction purchase and rolls;
+old saves are not assigned guessed historical totals. Local games also receive
+building previews, debt suggestions and end-game awards. Room timers, reactions,
+pause and turn alerts are online features. These additions use the existing room
+storage and browser audio, with no new paid service or third-party SDK.

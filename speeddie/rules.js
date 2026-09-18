@@ -37,6 +37,7 @@
     return s;
   }
   function finish(s) {
+    s.players.forEach(p=>{const count=s.spaces.filter(q=>q.owner===p.id).length;if(count||p.familyStats){p.familyStats ||= {};p.familyStats.peakDeeds=Math.max(p.familyStats.peakDeeds||0,count);}});
     if (!s.started || active(s).length !== 1) { s.winnerId = null; return; }
     const winner = active(s)[0];
     if (!s.winnerId) log(s, `${winner.name} wins. No further payments or auctions are required.`);
@@ -85,6 +86,7 @@
       if (recipient) { assert(isMoney(recipient.cash + amount), "Balance is too large."); recipient.cash += amount; }
       if (to === "pot") s.freeParkingPot += amount;
     }
+    if(recipient&&['GO salary','Card passes GO'].includes(reason)){recipient.familyStats ||= {};recipient.familyStats.go=(recipient.familyStats.go||0)+1;}
     log(s, `${reason}: ${payer ? payer.name : "Bank"} → ${recipient ? recipient.name : to === "pot" ? "Free Parking pot" : "Bank"}, $${amount}${s.moneyMode === "helper" ? " (physical money)" : ""}.`);
   }
   function owe(s, from, to, amount, reason, resume = null) {
@@ -212,6 +214,7 @@
     s.players.forEach(p => {
       assert(typeof p.id === "string" && /^[\w-]{1,100}$/.test(p.id) && !["bank", "pot"].includes(p.id), "Invalid player ID.");
       assert(typeof p.name === "string" && p.name.length <= 24 && isMoney(p.cash), "Invalid player details.");
+      if(p.familyStats)assert(typeof p.familyStats==="object"&&!Array.isArray(p.familyStats)&&Object.values(p.familyStats).every(isMoney),"Invalid player statistics.");
       assert(Number.isInteger(p.position) && p.position >= 0 && p.position < 40, "Invalid player position.");
       assert(/^#[0-9a-f]{6}$/i.test(p.color), "Invalid player color.");
       assert(typeof p.token === "string" && (p.token.length < 20 || /^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(p.token) && p.token.length < 60000), "Invalid token image.");
@@ -333,7 +336,7 @@
     G.log(s,`${bidder.name} ${amount===null?'passed':`bid $${amount}`} on ${s.spaces[a.index].name}.`);
     const challengers=a.remaining.filter(id=>id!==a.leader);
     if(!challengers.length){
-      if(a.leader) G.buy(s,a.index,a.leader,a.bid);
+      if(a.leader){G.buy(s,a.index,a.leader,a.bid);const p=G.player(s,a.leader);p.familyStats ||= {};p.familyStats.auction=Math.max(p.familyStats.auction||0,a.bid);}
       else {s.auctions=s.auctions.filter(i=>i!==a.index);if(s.players[s.currentPlayer].position===a.index)resolved(s);G.log(s,'No bids: property remains in the bank.');}
       s.auction=null;return;
     }

@@ -5,6 +5,7 @@ import re
 import secrets
 import shutil
 import time
+from faithsparks.services.speeddie_family import finish_due, safe_finish
 from flask import Blueprint, current_app, jsonify, request, session
 from faithsparks.services.speeddie_rooms import (
     RoomError, SQLiteRooms, FirestoreRooms, live, member, public_room, run_engine, token_hash,
@@ -114,7 +115,10 @@ def create_blueprint(csrf_token=None):
         return jsonify(token=credential,room=public_room(room,credential)),201
     @bp.get('/rooms/<code>')
     def get(code):
-        code_ok(code);return jsonify(room=public_room(store().get(code),token()))
+        code_ok(code);auth=token();room=store().get(code);member(room,auth)
+        if room.get('deadline') and time.time()>=room['deadline'] and not room.get('result') and not room.get('pausedAt') and not room['state'].get('winnerId') and safe_finish(room):
+            room=store().change(code,lambda r: finish_due(live(r)))
+        return jsonify(room=public_room(room,auth))
     @bp.post('/rooms/<code>/members')
     def assign(code):
         code_ok(code);auth=token();data=body()
@@ -153,6 +157,12 @@ def create_blueprint(csrf_token=None):
                 if not all(p['id'] in room.get('ready',[]) for p in players):
                     raise RoomError('Every player needs to be ready first.')
                 room['lobby']=False
+                if room.get('bedtimeMinutes'):room['deadline']=time.time()+room['bedtimeMinutes']*60
+            elif action=='bedtime':
+                if not who['host']:raise RoomError('Only the host can choose the finish rule.',403)
+                minutes=data.get('minutes')
+                if type(minutes) is not int or minutes not in (0,30,60,90,120):raise RoomError('Choose a listed duration.')
+                room['bedtimeMinutes']=minutes;room['ready']=[]
             elif action=='ready':
                 ids=data.get('players',[])
                 if not isinstance(ids,list) or not ids or any(i not in who['seats'] for i in ids):
@@ -187,16 +197,44 @@ def create_blueprint(csrf_token=None):
             return room
         room=store().change(code,update)
         return jsonify(room=public_room(room,auth))
+    @bp.post('/rooms/<code>/family')
+    def family(code):
+        code_ok(code);auth=token();data=body()
+        def update(room):
+            who=member(room,auth)
+            if who['status']!='approved' or room.get('closed'):
+                raise RoomError('This device cannot change this room.',403)
+            action=data.get('action');now=time.time()
+            if action=='reaction':
+                emoji=data.get('emoji')
+                if emoji not in ('👏','😱','🎉','Nice move!'):raise RoomError('Choose a listed reaction.')
+                if now-who.get('lastReaction',0)<5:raise RoomError('Give everyone a moment between reactions.',429)
+                who['lastReaction']=now
+                room['reaction']=dict(name=who['name'],emoji=emoji,time=now)
+            elif action in ('pause','resume'):
+                if room.get('lobby') or room.get('result') or room['state'].get('winnerId'):
+                    raise RoomError('There is no active game to pause.')
+                if action=='pause' and not room.get('pausedAt'):room['pausedAt']=now
+                if action=='resume' and room.get('pausedAt'):
+                    if room.get('deadline'):room['deadline']+=now-room['pausedAt']
+                    room['pausedAt']=None
+            else:raise RoomError('Unknown family action.')
+            room['revision']+=1
+            return room
+        room=store().change(code,update)
+        return jsonify(room=public_room(room,auth))
     @bp.post('/rooms/<code>/actions')
     def action(code):
         code_ok(code);auth=token();data=body();room=live(store().get(code));who=member(room,auth)
+        if room.get('deadline') and time.time()>=room['deadline']:
+            room=store().change(code,lambda r: finish_due(live(r)))
         key=data.get('id','')
         if not isinstance(key,str) or not re.fullmatch(r'[\w-]{8,100}',key):
             raise RoomError('Action ID is missing.')
         receipt=who['id']+':'+key
         if receipt in room['receipts']:
             return jsonify(room=public_room(room,auth))
-        if who['status']!='approved' or room.get('closed') or room.get('lobby'):
+        if who['status']!='approved' or room.get('closed') or room.get('lobby') or room.get('pausedAt') or room.get('result'):
             raise RoomError('This device cannot act in this room.',403)
         if type(data.get('revision')) is not int or data['revision']!=room['revision']:
             raise RoomError('The game changed. Refresh and choose your action again.',409)

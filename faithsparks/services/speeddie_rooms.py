@@ -102,6 +102,7 @@ def public_room(room, token):
                   me={k:who[k] for k in ("id","name","seats","status","host")})
     if who["status"] != "approved":
         return result
+    result.update({k:room.get(k) for k in ("pausedAt","deadline","bedtimeMinutes","result","reaction")})
     state = copy.deepcopy(room["state"])
     for key in ("decks","undo","undoStack"):
         state.pop(key, None)

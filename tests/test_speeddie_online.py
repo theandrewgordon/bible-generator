@@ -156,3 +156,42 @@ def test_lobby_eight_player_limit_and_seat_transfer_resets_ready(env):
     guest=post('/rooms/'+code+'/join',{'name':'Mom'}).json
     room=post('/rooms/'+code+'/members',{'member':guest['room']['me']['id'],'seats':['p0']},host).json['room']
     assert room['ready']==[]
+
+def test_pause_reactions_and_bedtime_finish(env):
+    app,client,post,code,host,state=env
+    room=post('/rooms/'+code+'/family',{'action':'pause'},host).json['room']
+    assert room['pausedAt']
+    assert cmd(post,code,host,room,'roll').status_code==403
+    assert post('/rooms/'+code+'/family',{'action':'resume'},host).json['room']['pausedAt'] is None
+    assert post('/rooms/'+code+'/family',{'action':'reaction','emoji':'👏'},host).status_code==200
+    assert post('/rooms/'+code+'/family',{'action':'reaction','emoji':'👏'},host).status_code==429
+    created=post('/rooms',{'state':state}).json;code=created['room']['code'];host=created['token'];path='/rooms/'+code+'/lobby'
+    assert post(path,{'action':'bedtime','minutes':1},host).status_code==400
+    post(path,{'action':'ready','players':['p0','p1','p2']},host)
+    assert post(path,{'action':'bedtime','minutes':30},host).json['room']['ready']==[]
+    post(path,{'action':'ready','players':['p0','p1','p2']},host)
+    started=post(path,{'action':'start'},host).json['room'];assert started['deadline']>time.time()+1700
+    store=app.config['SPEEDDIE_ROOM_STORE']
+    store.change(code,lambda r:dict(r,deadline=time.time()-10,pausedAt=time.time()-20))
+    assert get(client,code,host).json['room']['result'] is None
+    resumed=post('/rooms/'+code+'/family',{'action':'resume'},host).json['room'];assert resumed['deadline']>time.time()
+    def expired(r):
+        r['deadline']=time.time()-1;r['state']['players'][0]['cash']=3000;return r
+    store.change(code,expired)
+    result=get(client,code,host).json['room'];assert result['result']['winners']==['p0']
+    assert cmd(post,code,host,result,'roll').status_code==403
+
+def test_bedtime_scoring_and_safe_boundary():
+    from faithsparks.services.speeddie_family import finish_due
+    state=json.loads(subprocess.check_output(['node','tests/speeddie_fixture.cjs'],cwd=ROOT))
+    state['spaces'][1].update(owner='p0',mortgaged=False,buildingCosts=[50,50])
+    state['spaces'][3].update(owner='p0',mortgaged=True)
+    state['players'][1]['cash']=2580
+    room=dict(state=state,revision=1,deadline=1)
+    state['players'][0]['consecutiveDoubles']=1
+    assert 'result' not in finish_due(room,2)
+    state['players'][0]['consecutiveDoubles']=0
+    state['debts']=[{'from':'p0'}];assert 'result' not in finish_due(room,2)
+    state['debts']=[];finish_due(room,2)
+    assert room['result']['winners']==['p0','p1']
+    assert room['result']['scores'][0]['score']==2580

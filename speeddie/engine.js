@@ -56,6 +56,7 @@ function command(input,action,args={},seats=[],options={}) {
         phase('ready');G.assert(action==='jail-roll'?p().inJail:!p().inJail,'Use the Jail controls.');clear();
         const d1=die(),d2=die(),speedActive=!p().inJail&&(s.activation==='immediate'||p().passedGo);
         const speed=speedActive?[1,2,3,'Bus','Property Finder','Property Finder'][Math.floor(random()*6)]:null;
+        p().familyStats ||= {};p().familyStats.rolls=(p().familyStats.rolls||0)+1;
         s.roll={d1,d2,speed,speedActive};s.extraTurn=false;
         if(action==='jail-roll') {
           s.roll.jailAttempt=true;p().consecutiveDoubles=0;
