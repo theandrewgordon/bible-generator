@@ -4,6 +4,9 @@ Open `/speeddie` or `/speeddie/`. This is a browser-only companion for a physica
 board: no accounts or server-side game state. Pictures are processed locally. Choose 2–8 players,
 tokens or local pictures, and physical-money helper or digital banker mode.
 
+- View game board: all 40 spaces, player positions, owner colors, mortgages,
+  buildings and read-only deed details; supports phone screens and keyboard use.
+  This remains local to one browser, not synchronized multiplayer.
 - Manage properties: buy/sell houses and hotels, mortgage, and review deed values.
 - Banker mode: purchases, rent, auctions, GO, taxes, jail, card payments, cash trades,
   inherited mortgage fees, and Free Parking options use the same cash ledger.
@@ -23,6 +26,9 @@ tokens or local pictures, and physical-money helper or digital banker mode.
   Special railroad/utility rent and repairs are calculated. Held Jail cards leave
   the deck, can be traded, and return when used or pass to a bankruptcy creditor.
 - Home preserves named games, including unfinished auctions and completed games.
+  Delete on Home removes a chosen game after confirmation, including its active
+  copy when applicable. Downloaded JSON backups remain usable. Restore JSON backup
+  is available on Home even when no games remain.
   Starting or importing another game first preserves the active one. Saves remain
   local; export each game for a portable backup. One browser-wide writer lock
   conservatively protects both the active game and saved-game library.

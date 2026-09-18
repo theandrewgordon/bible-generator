@@ -19,21 +19,61 @@ function archiveCurrent() {
     return true;
   } catch (e) { alert(`Could not preserve this game: ${e.message}`); return false; }
 }
-function goHome() { if (!archiveCurrent()) return; document.querySelectorAll('dialog[open]').forEach(d => d.close()); homeView = true; render(); }
-function newFamilyGame() { if (!archiveCurrent()) return; homeView = false; state = freshState(); syncMusic(); undoStack = []; undoState = null; if (saveState(true)) render(); }
+function goHome() { if (!archiveCurrent()) return; document.querySelectorAll('dialog[open]').forEach(d => d.close()); homeView = true; boardView = false; render(); }
+function newFamilyGame() {
+  if (!archiveCurrent()) return;
+  const previousHome = homeView, previousBoard = boardView;
+  state = freshState(); undoStack = []; undoState = null;
+  if (saveState(true)) { homeView = false; boardView = false; }
+  else { homeView = previousHome; boardView = previousBoard; }
+  syncMusic(); render();
+}
 function resumeFamilyGame(id) {
   try {
-    const next = migrateState(structuredClone(library()[id]));
     if (!archiveCurrent()) return;
+    const next = migrateState(structuredClone(library()[id]));
     state = next; undoStack = next.undoStack || []; undoState = undoStack[0] || null;
-    delete state.undoStack; homeView = false; if (saveState(true)) render();
+    delete state.undoStack;
+    if (saveState(true)) { homeView = false; boardView = false; }
+    syncMusic(); render();
   } catch (e) { alert(`Could not open this game: ${e.message}`); }
 }
-function renderHome() {
+function deleteSavedGame(id) {
+  if (!saveWriterReady) return false;
   let games;
-  try { games = Object.values(library()).sort((a,b) => (b.savedAt || '').localeCompare(a.savedAt || '')); }
-  catch (e) { app.innerHTML = `<section class="panel"><h2>Saved games need attention</h2><p>${escapeHTML(e.message)}</p>${button('Back to current game','home-back')}</section>`; bindActions(app); return; }
-  app.innerHTML = `<section class="panel"><h2>Family games</h2><p>Saved on this browser. Export a backup to keep a copy elsewhere.</p>${button('New game','new-game')}<div class="saved-games">${games.map(s => `<article class="panel"><h3>${escapeHTML(s.gameName || 'Family game')}</h3><p>${escapeHTML(s.players.map(p=>p.name).join(', '))}</p><p>${s.winnerId ? 'Completed' : 'In progress'} · ${escapeHTML(new Date(s.savedAt).toLocaleString())}</p>${button(s.winnerId ? 'View result' : 'Resume','resume-game',s.gameId)}</article>`).join('') || '<p>No saved games yet.</p>'}</div></section>`;
+  try { games = library(); } catch (e) { alert(e.message); return false; }
+  const game = games[id];
+  if (!Object.hasOwn(games, id)) return false;
+  if (!confirm(`Delete “${game?.gameName || 'Unreadable saved game'}” from this browser? This cannot be undone. Any JSON backup you downloaded will still work.`)) return false;
+  const active = state.gameId === id;
+  const oldActive = localStorage.getItem(STORAGE_KEY);
+  if (oldActive !== storedSnapshot) { adoptStoredGame(); render(); alert('The active game changed. Please try again.'); return false; }
+  try {
+    // Clear the active copy first. Until the library write succeeds, its full
+    // archived copy remains available even if storage fails or the tab closes.
+    if (active) localStorage.setItem(STORAGE_KEY, JSON.stringify(freshState()));
+    delete games[id];
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(games));
+  } catch (e) {
+    if (active) {
+      try { if (oldActive === null) localStorage.removeItem(STORAGE_KEY); else localStorage.setItem(STORAGE_KEY, oldActive); } catch (_) { /* The library still holds the game. */ }
+      adoptStoredGame();
+    }
+    alert('Could not delete this game. Its saved copy has been kept.'); render(); return false;
+  }
+  if (active) { adoptStoredGame(); syncMusic(); }
+  homeView = true; render(); return true;
+}
+function renderHome() {
+  let entries;
+  try {
+    entries = Object.entries(library()).map(([id, value]) => {
+      try { const game = migrateState(structuredClone(value)); return { id, game }; }
+      catch (_) { return { id, game: null }; }
+    }).sort((a,b) => String(b.game?.savedAt || '').localeCompare(String(a.game?.savedAt || '')));
+  }
+  catch (e) { app.innerHTML = `<section class="panel"><h2>Saved games need attention</h2><p>${escapeHTML(e.message)}</p>${button('Download saved-game library','export-library')}${button('Back to current game','home-back')}</section>`; bindActions(app); return; }
+  app.innerHTML = `<section class="panel"><h2>Family games</h2><p>Saved on this browser. Export a backup to keep a copy elsewhere.</p><div class="button-stack">${button('New game','new-game')}${button('Restore JSON backup','import-game')}</div><div class="saved-games">${entries.map(({id,game:s}) => s ? `<article class="panel"><h3>${escapeHTML(s.gameName || 'Family game')}</h3><p>${escapeHTML(s.players.map(p=>p.name).join(', '))}</p><p>${s.winnerId ? 'Completed' : 'In progress'} · ${escapeHTML(new Date(s.savedAt).toLocaleString())}</p><div class="button-stack">${button(s.winnerId ? 'View result' : 'Resume','resume-game',id)}${button('Delete saved game','delete-game',id)}</div></article>` : `<article class="panel"><h3>Unreadable saved game</h3><p>This entry was preserved. Your other games are still available.</p><div class="button-stack">${button('Download saved-game library','export-library')}${button('Delete this entry','delete-game',id)}</div></article>`).join('') || '<p>No saved games yet.</p>'}</div></section>`;
   bindActions(app);
 }
 function cardPending(s = state) {
@@ -99,6 +139,12 @@ function familyAction(action,value) {
   if (action === 'home') {goHome(); return true;}
   if (action === 'home-back') {homeView=false;render();return true;}
   if (action === 'new-game') {newFamilyGame();return true;}
+  if (action === 'export-library') {
+    const blob=new Blob([localStorage.getItem(LIBRARY_KEY) || '{}'],{type:'application/json'}), link=document.createElement('a');
+    link.href=URL.createObjectURL(blob);link.download='speeddie-library-recovery.json';link.click();URL.revokeObjectURL(link.href);return true;
+  }
+  if (action === 'import-game') {document.querySelector('#import-input').click();return true;}
+  if (action === 'delete-game') {deleteSavedGame(value);return true;}
   if (action === 'resume-game') {resumeFamilyGame(value);return true;}
   if (action === 'presentation') {openPresentation();return true;}
   if (action === 'card-trade') {openCardTrade();return true;}

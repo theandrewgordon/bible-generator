@@ -277,11 +277,11 @@ function bindCompanionEvents() {
   }
   document.querySelector("#bank-settings").disabled = Boolean(state.winnerId || state.auction || state.pendingCard);
   if (state.auction || state.pendingCard) {
-    app.querySelectorAll('button').forEach(b=>{ if (!['auction-bid','auction-custom','auction-pass','apply-card','undo','history','home'].includes(b.dataset.action)) b.disabled=true; });
+    app.querySelectorAll('button').forEach(b=>{ if (!['auction-bid','auction-custom','auction-pass','apply-card','undo','history','home'].includes(b.dataset.action)) b.disabled = b.id !== "view-board"; });
     app.querySelectorAll('.space-name').forEach(el=>el.disabled=true);
   }
   if (state.winnerId) {
-    app.querySelectorAll("button").forEach(b => { if (!["undo", "history", "home", "new-game"].includes(b.dataset.action)) b.disabled = true; });
+    app.querySelectorAll("button").forEach(b => { if (!["undo", "history", "home", "new-game"].includes(b.dataset.action)) b.disabled = b.id !== "view-board"; });
     app.querySelectorAll("input, select").forEach(input => input.disabled = true);
   }
 }

@@ -10,7 +10,7 @@ const errors = [];
 before(async () => {
   server = http.createServer((req, res) => {
     const name = new URL(req.url, 'http://local').pathname.split('/').pop() || 'index.html';
-    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'family.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
+    if (!['index.html', 'app.js', 'rules.js', 'companion.js', 'family.js', 'board.js', 'style.css'].includes(name)) {res.writeHead(404); return res.end();}
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
     res.end(fs.readFileSync(path.join(__dirname, '../speeddie', name)));
   });
@@ -267,7 +267,7 @@ test('digital draw and apply persist separately, held Jail card returns once',as
 test('Home preserves two named games and a pending auction across new game and reload',async()=>{
   const p=await page();await p.evaluate(()=>{state.gameName='Tessa game';G.startAuction(state,1);saveState();render();});await p.locator('#game-menu-button').click();await p.locator('#home-button').click();await click(p,'new-game');
   await p.locator('.setup-name').nth(0).fill('Tessa');await p.locator('.setup-name').nth(1).fill('Dad');await p.fill('[name="game-name"]','Second game');await p.locator('#setup-form button[type="submit"]').click();await p.locator('#game-menu-button').click();await p.locator('#home-button').click();assert.equal(await p.locator('[data-action="resume-game"]').count(),2);
-  await p.locator('.saved-games article').filter({hasText:'Tessa game'}).locator('button').click();await p.reload();assert.equal(await p.evaluate(()=>state.gameName),'Tessa game');assert.equal(await p.locator('[data-action="auction-pass"]').count(),1);await p.close();
+  await p.locator('.saved-games article').filter({hasText:'Tessa game'}).locator('[data-action="resume-game"]').click();await p.reload();assert.equal(await p.evaluate(()=>state.gameName),'Tessa game');assert.equal(await p.locator('[data-action="auction-pass"]').count(),1);await p.close();
 });
 test('new setup has fixed cash, official defaults and optional leave-unowned house rule',async()=>{
   const p=await page();await p.evaluate(()=>newFamilyGame());assert.equal(await p.locator('[name="starting-cash"]').count(),0);assert.equal(await p.locator('[name="leave-unowned"]').isDisabled(),true);
@@ -332,4 +332,49 @@ test('using a Jail card is one undoable action, restoring both imprisonment and 
 });
 test('recorded Jail card can be sold through Bank and its ownership survives reload',async()=>{
   const p=await page();await p.evaluate(()=>{state.heldCards=[{deck:'chance',id:null,physical:true,owner:state.players[0].id}];saveState();render();});await click(p,'bank-menu');await p.locator('[data-action="card-trade"]').click();await p.selectOption('#card-buyer',await p.evaluate(()=>state.players[1].id));await p.fill('#card-price','20');await submit(p);await p.reload();assert.deepEqual(await p.evaluate(()=>[state.heldCards[0].owner===state.players[1].id,state.players[0].cash,state.players[1].cash]),[true,2520,2480]);await p.close();
+});
+
+test('delete active saved game clears both copies and cannot reappear after reload or New game',async()=>{
+  const p=await page();await p.evaluate(()=>goHome());await click(p,'delete-game');assert.equal(await p.locator('[data-action="resume-game"]').count(),0);assert.equal(await p.evaluate(()=>state.started),false);
+  await p.reload();await p.locator('#setup-home').click();assert.equal(await p.locator('[data-action="resume-game"]').count(),0);await click(p,'new-game');await p.locator('#setup-home').click();assert.equal(await p.locator('[data-action="resume-game"]').count(),0);await p.close();
+});
+test('delete another saved game preserves current progress; cancel does not delete',async()=>{
+  const p=await page();await p.evaluate(()=>{archiveCurrent();const games=library();games.other={...snapshotState(state),gameId:'other',gameName:'Old game'};localStorage.setItem(LIBRARY_KEY,JSON.stringify(games));goHome();});const before=await p.evaluate(()=>snapshotState(state));
+  p.removeAllListeners('dialog');p.on('dialog',d=>d.dismiss());await p.locator('[data-action="delete-game"][data-value="other"]').click();assert.equal(await p.locator('[data-action="resume-game"]').count(),2);
+  p.removeAllListeners('dialog');p.on('dialog',d=>d.accept());await p.locator('[data-action="delete-game"][data-value="other"]').click();assert.equal(await p.locator('[data-action="resume-game"]').count(),1);assert.deepEqual(await p.evaluate(()=>snapshotState(state)),before);await p.close();
+});
+test('failed deletion preserves active state and archived backup',async()=>{
+  const p=await page();await p.evaluate(()=>goHome());const before=await p.evaluate(()=>snapshotState(state));p.removeAllListeners('dialog');p.on('dialog',d=>d.accept());
+  await p.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===LIBRARY_KEY)throw Error('Storage unavailable');return original.call(this,k,v);};});await click(p,'delete-game');assert.deepEqual(await p.evaluate(()=>snapshotState(state)),before);assert.equal(await p.locator('[data-action="resume-game"]').count(),1);await p.close();
+});
+
+test('empty Home can restore a JSON backup without starting a throwaway game',async()=>{
+  const p=await page();const backup=await p.evaluate(()=>JSON.stringify(state));await p.evaluate(()=>goHome());await click(p,'delete-game');const choosing=p.waitForEvent('filechooser');await click(p,'import-game');const chooser=await choosing;await chooser.setFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(backup)});await p.waitForSelector('#roll-button');assert.equal(await p.evaluate(()=>state.players.length),8);await p.close();
+});
+
+test('board overview has 40 unique perimeter spaces and read-only ownership, building and Jail details',async()=>{
+  const p=await page();await p.evaluate(()=>{state.players[0].position=10;state.players[0].inJail=true;state.players[1].position=10;state.players[2].bankrupt=true;[1,3].forEach(i=>state.spaces[i].owner=state.players[1].id);state.spaces[1].buildings=1;state.spaces[1].buildingCosts=[50];state.spaces[5].owner=state.players[1].id;state.spaces[5].mortgaged=true;saveState();render();});const before=await p.evaluate(()=>JSON.stringify(state));
+  await p.locator('#view-board').click();assert.equal(await p.locator('[data-board-space]').count(),40);assert.equal(await p.evaluate(()=>new Set(state.spaces.map(p=>boardCoordinates(p.index).join(','))).size),40);
+  await p.locator('[data-board-space="10"]').click();assert.match(await p.locator('#board-space-details').innerText(),/Player 1 \(in Jail\).*Player 2 \(just visiting\)/);
+  await p.locator('[data-board-space="1"]').click();assert.match(await p.locator('#board-space-details').innerText(),/1 house/);assert.equal(await p.locator('#board-space-details input').count(),0);
+  await p.locator('[data-board-space="5"]').click();assert.match(await p.locator('#board-space-details').innerText(),/Mortgaged: no rent/);assert.equal(await p.locator('.board-player-key > div').count(),7);assert.equal(await p.evaluate(()=>JSON.stringify(state)),before);
+  await p.locator('#close-board').click();assert.equal(await p.locator('#try-jail-doubles').count(),1);await p.close();
+});
+test('board remains accessible during auctions and after victory without changing pending actions',async()=>{
+  const p=await page();await p.evaluate(()=>{G.startAuction(state,1);saveState();render();});await p.locator('#view-board').click();await p.locator('[data-board-space="39"]').click();await p.locator('#close-board').click();assert.equal(await p.locator('[data-action="auction-pass"]').count(),1);
+  await p.evaluate(()=>{state.auction=null;state.players=state.players.slice(0,2);state.moneyMode='helper';G.bankrupt(state,state.players[1].id,'bank');saveState();render();});await p.locator('#view-board').click();assert.match(await p.locator('.board-center').innerText(),/wins!/);await p.locator('#close-board').click();assert.equal(await p.locator('.winner-panel').count(),1);await p.close();
+});
+test('board fits narrow phones with eight players and uploaded tokens, and supports keyboard selection',async()=>{
+  const p=await page();await p.setViewportSize({width:320,height:740});await p.locator('#view-board').click();assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.equal(await p.locator('.board-key-token img').count(),1);await p.locator('[data-board-space="39"]').focus();await p.keyboard.press('Enter');assert.match(await p.locator('#board-space-details h3').innerText(),/Boardwalk/);assert.equal(await p.locator('[data-board-space="39"]').getAttribute('aria-pressed'),'true');await p.close();
+});
+
+test('damaged library entry does not hide good games and can be downloaded or deleted',async()=>{
+  const p=await page();await p.evaluate(()=>{archiveCurrent();const games=library();games.broken=null;localStorage.setItem(LIBRARY_KEY,JSON.stringify(games));goHome();});assert.equal(await p.locator('[data-action="resume-game"]').count(),1);assert.match(await p.locator('.saved-games').innerText(),/Unreadable saved game/);
+  const downloading=p.waitForEvent('download');await click(p,'export-library');const download=await downloading;assert.equal(JSON.parse(fs.readFileSync(await download.path(),'utf8')).broken,null);await p.locator('[data-action="delete-game"][data-value="broken"]').click();assert.equal(await p.locator('[data-action="resume-game"]').count(),1);await p.close();
+});
+test('failed New game retains Home controls and pending auction so resume remains usable',async()=>{
+  const p=await page();p.removeAllListeners('dialog');p.on('dialog',d=>d.accept());await p.evaluate(()=>{G.startAuction(state,1);saveState();goHome();const original=Storage.prototype.setItem;window.restoreWrites=()=>Storage.prototype.setItem=original;Storage.prototype.setItem=function(k,v){if(k===STORAGE_KEY)throw Error('Quota');return original.call(this,k,v);};});await click(p,'new-game');assert.equal(await p.evaluate(()=>homeView),true);assert.equal(await p.locator('[data-action="resume-game"]').count(),1);await p.evaluate(()=>restoreWrites());await click(p,'resume-game');assert.equal(await p.locator('[data-action="auction-pass"]').count(),1);await p.close();
+});
+test('restoring from board view returns to play and Home hides active-game correction menu',async()=>{
+  const p=await page();const backup=await p.evaluate(()=>JSON.stringify(state));await p.locator('#view-board').click();await p.locator('#game-menu-button').click();await p.locator('#import-input').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(backup)});await p.waitForSelector('#roll-button');assert.equal(await p.evaluate(()=>boardView),false);await p.evaluate(()=>goHome());assert.equal(await p.locator('#game-menu-button').isVisible(),false);await p.close();
 });

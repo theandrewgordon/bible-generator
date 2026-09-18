@@ -265,7 +265,7 @@ function initials(name) {
 }
 
 function render() {
-  menuButton.classList.toggle("hidden", !state.started);
+  menuButton.classList.toggle("hidden", !state.started || homeView);
   if (recoveryRaw !== null) renderRecovery();
   else if (homeView) renderHome();
   else if (!state.started) renderSetup();
@@ -277,7 +277,7 @@ function renderSetup() {
   app.innerHTML = `
     <section class="panel">
       <div class="setup-intro">
-        <h2>Start a family game</h2><button class="button quiet" id="setup-home" type="button">Saved games</button>
+        <h2>Start a family game</h2><p class="muted small">Pass &amp; play on this device. Own-device online rooms are not available yet.</p><button class="button quiet" id="setup-home" type="button">Saved games</button>
         <p class="muted">Add your players and choose how the Speed Die should work. You can edit every property name once the game begins.</p>
       </div>
       <form id="setup-form">
@@ -424,6 +424,7 @@ async function startGame(event) {
 }
 
 function renderGame() {
+  if (boardView) { app.innerHTML = renderBoardOverview(); bindBoardEvents(); return; }
   const player = currentPlayer();
   const space = currentSpace();
   const speedActive = state.activation === "immediate" || player.passedGo;
@@ -437,6 +438,7 @@ function renderGame() {
       </div>
     </section>
 
+    <button id="view-board" class="button secondary" type="button">View game board</button>
     ${state.roll ? renderDice() : ""}
     ${renderPendingActions() || renderActionArea(speedActive)}
     ${renderPlayers()}
@@ -629,6 +631,7 @@ function renderBoard() {
 }
 
 function bindGameEvents() {
+  document.querySelector("#view-board").onclick = () => { boardView=true; boardSelection=null; render(); window.scrollTo({top:0,behavior:"instant"}); };
   document.querySelector("#roll-button")?.addEventListener("click", rollDice);
   document.querySelectorAll(".bus-choice").forEach(button =>
     button.addEventListener("click", () => {
@@ -1148,10 +1151,10 @@ document.querySelector("#import-input").addEventListener("change", async event =
     if (!isValidState(imported)) throw new Error("This is not a valid Speed Die game file.");
     const next = migrateState(imported);
     delete next.undo; delete next.undoStack;
-    state = next; state.gameId = crypto.randomUUID(); homeView = false;
+    state = next; state.gameId = crypto.randomUUID();
     undoState = null; undoStack = [];
-    saveState(true);
-    menuDialog.close();
+    if (saveState(true)) { homeView = false; boardView = false; }
+    syncMusic(); menuDialog.close();
     render();
   } catch (error) {
     alert(error.message || "That file could not be imported.");
@@ -1163,8 +1166,8 @@ document.querySelector("#reset-button").addEventListener("click", () => {
   if (!confirm("Reset this game and erase its saved progress?")) return;
   state = freshState();
   undoState = null; undoStack = [];
-  saveState(true);
-  menuDialog.close();
+  if (saveState(true)) { homeView = false; boardView = false; }
+  syncMusic(); menuDialog.close();
   render();
 });
 
