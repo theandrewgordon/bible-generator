@@ -67,6 +67,11 @@ PRODUCTS = (
         "description": "Explore a calmer shared rhythm for family schedules and weekly logistics.",
     },
     {
+        "id": "games-lab", "name": "Games Lab", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/games", "accent": "gold",
+        "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
+    },
+    {
         "id": "coloring-studio", "name": "Coloring Studio", "area": "labs",
         "maturity": "experiment", "path": "/lesson-pack?coloring=1", "accent": "rose",
         "description": "Try optional generated coloring art inside a gathering pack.",
