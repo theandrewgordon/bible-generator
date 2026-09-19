@@ -277,7 +277,7 @@ test('winner can go Home and play again while completed game remains available',
   const p=await page();await p.evaluate(()=>{state.moneyMode='helper';state.players=state.players.slice(0,2);G.bankrupt(state,state.players[0].id,'bank');saveState();render();});assert.equal(await p.locator('.confetti').count(),1);await click(p,'home');assert.equal(await p.locator('.saved-games').getByText(/Completed/).count(),1);await click(p,'resume-game');await click(p,'new-game');assert.equal(await p.locator('#setup-form').count(),1);await p.close();
 });
 test('dice dots and independent audio preferences persist, reduced motion disables confetti',async()=>{
-  const p=await page();await p.emulateMedia({reducedMotion:'reduce'});await p.locator('#game-menu-button').click();await p.locator('#presentation-button').click();await p.locator('#effects-setting').check();await p.locator('#music-setting').check();await submit(p);await p.locator('#roll-button').click();assert.equal(await p.locator('.pip-face').count(),2);await p.reload();assert.deepEqual(await p.evaluate(()=>[state.soundEffects,state.music]),[true,true]);await p.close();
+  const p=await page();await p.emulateMedia({reducedMotion:'reduce'});await p.locator('#game-menu-button').click();await p.locator('#presentation-button').click();await p.locator('#effects-setting').check();await p.locator('#music-setting').check();await submit(p);await p.locator('#roll-button').click();assert.equal(await p.locator('.pip-face').count(),2);await p.reload();assert.deepEqual(await p.evaluate(()=>[audioSetting('soundEffects'),audioSetting('music')]),[true,true]);await p.close();
 });
 
 test('library storage failure keeps the active game and prevents starting another',async()=>{
@@ -404,4 +404,12 @@ test('trade offer values update as deeds and cash are selected',async()=>{
  const preview=p.locator('.trade-worth-preview');assert.match(await preview.innerText(),/Player 2 offers \$140 more/);
  await p.locator('#trade-cash-a').fill('140');assert.match(await preview.innerText(),/Both offers have equal value/);assert.doesNotMatch(await preview.innerText(),/Net worth:/);
  await p.locator('#complete-trade').click();assert.deepEqual(await p.evaluate(()=>[state.spaces[1].owner===state.players[1].id,state.spaces[5].owner===state.players[0].id,state.players[0].cash]),[true,true,2360]);await p.close();
+});
+
+test('audio settings persist per device and movement/reactions play once per update',async()=>{
+ const p=await page();await p.evaluate(()=>openPresentation());await p.locator('#effects-setting').check();await p.locator('#music-setting').check();await p.locator('#audio-volume').fill('0.2');await p.locator('#companion-form button[type="submit"]').click();
+ assert.deepEqual(await p.evaluate(()=>[audioSetting('soundEffects'),audioSetting('music'),audioSetting('audioVolume'),!!musicTimer]),[true,true,.2,true]);
+ await p.reload();await p.waitForFunction(()=>saveWriterReady);assert.equal(await p.evaluate(()=>audioSetting('soundEffects')),true);
+ const sounds=await p.evaluate(()=>{const original=playEffect,heard=[];playEffect=k=>heard.push(k);audioSnapshot=null;observeGameAudio();state.players[0].position=5;observeGameAudio();observeGameAudio();const r={code:'audio-test',reaction:null};observeGameAudio(r);for(const emoji of ['👏','😱','🎉','Nice move!']){r.reaction={emoji,time:Date.now()/1000};observeGameAudio(r);observeGameAudio(r);}familyPreferences.muteReactions=true;r.reaction={emoji:'👏',time:Date.now()/1000};observeGameAudio(r);playEffect=original;return heard;});
+ assert.deepEqual(sounds,['move','applause','surprise','celebrate','nice']);await p.close();
 });

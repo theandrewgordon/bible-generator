@@ -266,6 +266,7 @@ function initials(name) {
 
 function render() {
   if (onlineSession) { renderOnline(); return; }
+  observeGameAudio();
   menuButton.classList.toggle("hidden", !state.started || homeView);
   if (recoveryRaw !== null) renderRecovery();
   else if (homeView) renderHome();

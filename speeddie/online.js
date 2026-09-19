@@ -73,7 +73,7 @@ async function onlineCommand(action,args={}){
     const result=await roomRequest(`/rooms/${onlineSession.code}/actions`,onlinePending);
     if(onlineSession!==sessionAtStart)return;
     onlinePending=null;onlineRoom=result.room;onlineConnected=true;rememberOnline();
-    if(action==='roll'||action==='jail-roll')playEffect('roll');
+
   }catch(e){
     if(onlineSession!==sessionAtStart)return;
     if(e.status&&e.status<500){onlinePending=null;rememberOnline();alert(e.message);if(e.status===403)onlineCSRF=null;}
@@ -119,7 +119,8 @@ function renderOnline(){
   if(!onlineRoom){app.innerHTML='<p>Connecting…</p>';return;}
   if(onlineRoom.state)state=onlineRoom.state;
   const r=onlineRoom;
-  app.innerHTML=`<section class="panel online-status"><div class="room-code-banner"><span>Share this room code</span><strong class="room-code">${escapeHTML(r.code)}</strong><small>Others choose “Join a room” and enter this code.</small></div><p>${r.closed?'Room closed · read-only':!onlineConnected?'Disconnected. Reconnect before making a move.':onlineBusy?'Saving your action…':r.me.status==='pending'?'Waiting for host approval.':r.me.status==='rejected'?'The host declined this device.':'Connected · '+escapeHTML(r.me.seats.map(id=>state.players.find(p=>p.id===id)?.name||'').join(' / ')||'watching')}</p><div class="button-row">${onlineButton('Back to local games','exit')}${onlineButton('Reconnect','refresh')}${r.me.host?onlineButton('Players & room','room-settings'):''}</div>${onlinePending?`<p>An action needs confirmation. Retry safely using the same request.</p>${onlineButton('Retry pending action','retry')}`:''}</section>
+  observeGameAudio(r);
+  app.innerHTML=`<section class="panel online-status"><div class="room-code-banner"><span>Share this room code</span><strong class="room-code">${escapeHTML(r.code)}</strong><small>Others choose “Join a room” and enter this code.</small></div><p>${r.closed?'Room closed · read-only':!onlineConnected?'Disconnected. Reconnect before making a move.':onlineBusy?'Saving your action…':r.me.status==='pending'?'Waiting for host approval.':r.me.status==='rejected'?'The host declined this device.':'Connected · '+escapeHTML(r.me.seats.map(id=>state.players.find(p=>p.id===id)?.name||'').join(' / ')||'watching')}</p><div class="button-row">${onlineButton('Back to local games','exit')}${onlineButton('Reconnect','refresh')}${onlineButton('Dice & sound','audio-settings')}${r.me.host?onlineButton('Players & room','room-settings'):''}</div>${onlinePending?`<p>An action needs confirmation. Retry safely using the same request.</p>${onlineButton('Retry pending action','retry')}`:''}</section>
   ${r.state?`${reconnectWelcome?`<section class="panel" role="status">${escapeHTML(reconnectWelcome)}${onlineButton('Got it','dismiss-welcome')}</section>`:''}${whatHappened()}${familyRoomBar()}${state.roll?renderDice():''}<section class="panel instruction online-actions"><div class="button-stack">${onlineNext()}</div></section>${onlineAssets()}${r.lobby?'':renderBoardOverview()}`:''}`;
   app.querySelector('#close-board')?.remove();
   app.querySelectorAll('[data-board-space]').forEach(el=>el.onclick=()=>{boardSelection=Number(el.dataset.boardSpace);app.querySelectorAll('[data-board-space]').forEach(b=>{b.classList.toggle('selected',b===el);b.setAttribute('aria-pressed',String(b===el));});document.querySelector('#board-space-details').innerHTML=renderBoardSpaceDetails(state.spaces[boardSelection]);});
@@ -141,6 +142,7 @@ function bindOnline(root){root.querySelectorAll('[data-online]').forEach(b=>b.on
   if(action==='dismiss-welcome'){reconnectWelcome='';render();return;}
   if(action==='sell-group'&&!confirm(bigSaleConfirmation(state,Number(value))))return;
   if(action==='chime'){familyPreferences.chime=!familyPreferences.chime;saveFamilyPreferences();if(familyPreferences.chime){try{tone(660,.2,.25);}catch(_){}}render();return;}
+  if(action==='audio-settings'){openPresentation();return;}
   if(action==='mute-reactions'){familyPreferences.muteReactions=!familyPreferences.muteReactions;saveFamilyPreferences();render();return;}
   if(action==='reaction'){await familyRoomCommand('reaction',{emoji:value});return;}
   if(action.startsWith('family-')){await familyRoomCommand(action.slice(7));return;}

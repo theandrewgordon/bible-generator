@@ -111,29 +111,51 @@ function openFamilyAuction(index) {
   if (state.auction) return;
   showDialog(`Auction · ${state.spaces[index].name}`, `<p>Take turns bidding on this screen. Passing withdraws you from this auction.</p>${button('Start turn-by-turn bidding','auction-start',index)}<details><summary>Already held the auction out loud?</summary><label class="field"><span>Winning player</span><select id="auction-player">${playerOptions(currentPlayer().id)}</select></label>${amountField('Winning bid','auction-price',state.spaces[index].price,'min="1"')}<button class="button" type="submit">Record purchase</button></details>`,()=>commitGame(s=>G.buy(s,index,document.querySelector('#auction-player').value,readAmount('auction-price'))));
 }
-let audioContext, musicTimer, musicStep = 0;
-function tone(freq, duration=.12, volume=.1) {
+let audioContext, musicTimer, musicStep = 0, audioPreferences={};
+try{audioPreferences=JSON.parse(localStorage.getItem('speeddie-audio')||'{}')||{};}catch(_){}
+function audioSetting(key){return audioPreferences[key]??state[key]??(key==='audioVolume'?.3:false);}
+function tone(freq, duration=.12, volume=.1, type='sine') {
   if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
   audioContext.resume().catch(()=>{});
-  const osc = audioContext.createOscillator(), gain = audioContext.createGain();
-  osc.type='sine'; osc.frequency.value=freq; gain.gain.setValueAtTime(volume * (state.audioVolume ?? .3),audioContext.currentTime);
+  const osc=audioContext.createOscillator(),gain=audioContext.createGain();
+  osc.type=type;osc.frequency.value=freq;gain.gain.setValueAtTime(volume*audioSetting('audioVolume'),audioContext.currentTime);
   gain.gain.exponentialRampToValueAtTime(.0001,audioContext.currentTime+duration);
   osc.connect(gain);gain.connect(audioContext.destination);osc.start();osc.stop(audioContext.currentTime+duration);
+  osc.onended=()=>{osc.disconnect();gain.disconnect();};
+}
+function diceClack(){
+  if(!audioContext)tone(120,.01,0);
+  const length=Math.floor(audioContext.sampleRate*.045),buffer=audioContext.createBuffer(1,length,audioContext.sampleRate),data=buffer.getChannelData(0);
+  for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*Math.exp(-i/(length/7));
+  const source=audioContext.createBufferSource(),gain=audioContext.createGain();source.buffer=buffer;gain.gain.value=.4*audioSetting('audioVolume');source.connect(gain);gain.connect(audioContext.destination);source.start();source.onended=()=>{source.disconnect();gain.disconnect();};
 }
 function playEffect(kind) {
-  if (!state.soundEffects || document.hidden) return;
-  try { const notes = kind === 'roll' ? [180,125,220,150] : kind === 'victory' ? [392,494,587,784] : [440,660]; notes.forEach((n,i)=>setTimeout(()=>tone(n,.12,.25),i*90)); } catch (_) { /* Audio is optional. */ }
+  if (!audioSetting('soundEffects') || document.hidden) return;
+  const notes={roll:[0,0,0,0,0,0],move:[330,392,440],applause:[0,0,0,0],surprise:[660,440,220],celebrate:[392,494,587,784],nice:[523,659,784],victory:[392,494,587,784]}[kind]||[440,660];
+  notes.forEach((n,i)=>setTimeout(()=>{if(!audioSetting('soundEffects')||document.hidden)return;try{if(!n)diceClack();else tone(n,kind==='move'?.065:.16,.2,kind==='move'?'triangle':'sine');}catch(_){}},i*(kind==='roll'?65:100)));
 }
 function syncMusic() {
-  clearInterval(musicTimer); musicTimer = null;
-  if (state.music && !document.hidden) musicTimer = setInterval(()=>{ try { tone([262,330,392,330,294,349,440,349][musicStep++%8],.55,.06); } catch (_) {} },650);
+  clearInterval(musicTimer);musicTimer=null;
+  if(audioSetting('music')&&!document.hidden)musicTimer=setInterval(()=>{if(!audioSetting('music')||document.hidden)return;try{const melody=[392,494,587,494,440,523,659,523,349,440,523,440,392,494,587,494];tone(melody[musicStep%16],.45,.07);if(musicStep%4===0)tone([196,220,175,196][Math.floor(musicStep/4)%4],1.4,.04,'triangle');musicStep++;}catch(_){}},420);
 }
 document.addEventListener('visibilitychange',syncMusic);
+let audioSnapshot=null;
+function observeGameAudio(room=null){
+  const snapshot={game:room?.code||state.gameId||state.players.map(p=>p.id).join(','),positions:state.players.map(p=>p.position).join(','),roll:JSON.stringify(state.roll),reaction:room?.reaction?JSON.stringify(room.reaction):null};
+  if(audioSnapshot?.game===snapshot.game){
+    if(room&&snapshot.roll!==audioSnapshot.roll&&state.roll)playEffect('roll');
+    if(snapshot.positions!==audioSnapshot.positions)playEffect('move');
+    if(snapshot.reaction&&snapshot.reaction!==audioSnapshot.reaction&&!familyPreferences.muteReactions&&Date.now()/1000-room.reaction.time<8)playEffect({'👏':'applause','😱':'surprise','🎉':'celebrate','Nice move!':'nice'}[room.reaction.emoji]||'nice');
+  }
+  audioSnapshot=snapshot;
+}
 function openPresentation() {
   menuDialog.close();
-  showDialog('Dice & sound', `<label class="check-card"><input id="pip-setting" type="checkbox" ${state.dicePips !== false ? 'checked' : ''}><span>Show dice dots</span></label><label class="check-card"><input id="effects-setting" type="checkbox" ${state.soundEffects ? 'checked' : ''}><span>Sound effects</span></label><label class="check-card"><input id="music-setting" type="checkbox" ${state.music ? 'checked' : ''}><span>Gentle background music</span></label><label class="field"><span>Volume</span><input id="audio-volume" type="range" min="0" max="1" step=".05" value="${state.audioVolume ?? .3}"></label><button class="button" type="submit">Save preferences</button>`,()=>{
-    state.dicePips=document.querySelector('#pip-setting').checked;state.soundEffects=document.querySelector('#effects-setting').checked;state.music=document.querySelector('#music-setting').checked;state.audioVolume=Number(document.querySelector('#audio-volume').value);
-    if (!saveState()) return false;syncMusic();playEffect('payment');render();
+  showDialog('Dice & sound', `<p>Audio settings apply only to this device.</p><label class="check-card"><input id="pip-setting" type="checkbox" ${onlineSession?'disabled':''} ${state.dicePips!==false?'checked':''}><span>Show dice dots${onlineSession?' (set by the game)':''}</span></label><label class="check-card"><input id="effects-setting" type="checkbox" ${audioSetting('soundEffects')?'checked':''}><span>Dice, movement &amp; reaction sounds</span></label><label class="check-card"><input id="music-setting" type="checkbox" ${audioSetting('music')?'checked':''}><span>Gentle background music</span></label><label class="field"><span>Volume</span><input id="audio-volume" type="range" min="0" max="1" step=".05" value="${audioSetting('audioVolume')}"></label><button class="button" type="submit">Save preferences</button>`,()=>{
+    audioPreferences={soundEffects:document.querySelector('#effects-setting').checked,music:document.querySelector('#music-setting').checked,audioVolume:Number(document.querySelector('#audio-volume').value)};
+    localStorage.setItem('speeddie-audio',JSON.stringify(audioPreferences));
+    if(!onlineSession){state.dicePips=document.querySelector('#pip-setting').checked;if(!saveState())return false;}
+    syncMusic();playEffect('payment');render();
   });
 }
 function familyAction(action,value) {
@@ -161,7 +183,7 @@ function familyAction(action,value) {
   return false;
 }
 
-document.addEventListener('pointerdown',()=>{if(state.music&&!musicTimer)syncMusic();});
+document.addEventListener('pointerdown',()=>{if(audioSetting('music')&&!musicTimer)syncMusic();});
 function openCardTrade() {
   const cards = state.heldCards || [];
   if (!cards.length) { showDialog('Trade a Jail card','<p>No recorded Get Out of Jail Free cards are held.</p>'); return; }
