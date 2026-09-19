@@ -9,6 +9,15 @@ _GAME_DIR = Path(__file__).resolve().parents[1] / "content" / "lab_games"
 
 LAB_GAMES = (
     {
+        "slug": "whits-end",
+        "aliases": ("whits-end-ice-cream",),
+        "name": "Whit's End Ice Cream Shop",
+        "description": "Take customer orders at Whit's End, make ice cream, shakes, and sodas, and deliver each order to the right customer.",
+        "maturity": "sandbox",
+        "file": "whits-end-ice-cream.html",
+        "available": True,
+    },
+    {
         "slug": "bernard-window-washing",
         "aliases": (),
         "name": "Bernard's Window Washing",
