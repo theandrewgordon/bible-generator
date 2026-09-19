@@ -29,6 +29,7 @@ def test_games_lab_lists_playable_projects():
     response = client.get("/labs/games")
     html = response.get_data(as_text=True)
     assert response.status_code == 200
+    assert "Whit's End Ice Cream Shop" in html
     assert "Bernard's Window Washing" in html
     assert "Wooten's Mail Route" in html
     assert "Timothy Center Horse Racing" in html
@@ -47,6 +48,7 @@ def test_playable_routes_are_private_and_noindexed():
     client = _client()
     _sign_in(client)
     for path in (
+        "/labs/games/whits-end",
         "/labs/games/bernard-window-washing",
         "/labs/games/wooten-mail-route",
         "/labs/games/timothy-center-horse-racing",
