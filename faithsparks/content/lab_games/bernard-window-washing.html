@@ -16568,6 +16568,7 @@ let tutorialDemoTimer = new Timer();
 let playerName = '';
 let profileReady = false;
 let profileOverlay = null;
+let mainMenuButton = null;
 
 const SAVE_PREFIX = 'windowWashSave_';
 const PROFILE_LIST_KEY = 'windowWashProfiles';
@@ -16582,6 +16583,14 @@ let dragOverlayContext = null;
 let lastDragWorldPos = null;
 let parkedTool = null;
 let levelAdvanceAt = 0;
+let totalStars = 0;
+let levelStartTime = 0;
+let levelSprays = 0;
+let levelCorrectSprays = 0;
+let levelWipes = 0;
+let lastLevelStars = 0;
+let lastLevelBonusText = '';
+
 
 
 const wipeSound = null;
@@ -16673,8 +16682,13 @@ function startWindowWashToolSound(tool)
     const isSqueegee = !tool.cleaner;
     const cleanerId = tool.cleaner ? tool.cleaner.id : '';
 
-    if (!isSqueegee && cleanerId != 'water' && cleanerId != 'soap')
-        return;
+    const profiles = {
+        water:     {freq:2350, q:1.05, volume:.042, click:620},
+        soap:      {freq:1650, q:.80, volume:.048, click:480},
+        degreaser: {freq:1950, q:1.15, volume:.046, click:545}, // visible name: Disinfecter
+        vinegar:   {freq:2750, q:1.30, volume:.039, click:710},
+        bernard:   {freq:1450, q:.95, volume:.050, click:420}
+    };
 
     const t = ctx.currentTime;
 
@@ -16684,11 +16698,22 @@ function startWindowWashToolSound(tool)
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.value = isSqueegee ? 1050 : cleanerId == 'soap' ? 1650 : 2350;
-    filter.Q.value = isSqueegee ? 1.4 : cleanerId == 'soap' ? .8 : 1.05;
+
+    if (isSqueegee)
+    {
+        filter.frequency.value = 1050;
+        filter.Q.value = 1.4;
+    }
+    else
+    {
+        const profile = profiles[cleanerId] || profiles.water;
+        filter.frequency.value = profile.freq;
+        filter.Q.value = profile.q;
+    }
 
     const gain = ctx.createGain();
-    const volume = isSqueegee ? .040 : cleanerId == 'soap' ? .048 : .042;
+    const profile = profiles[cleanerId] || profiles.water;
+    const volume = isSqueegee ? .040 : profile.volume;
     gain.gain.setValueAtTime(.0001, t);
     gain.gain.exponentialRampToValueAtTime(volume, t+.02);
 
@@ -16702,6 +16727,7 @@ function startWindowWashToolSound(tool)
 
     if (isSqueegee)
     {
+        // Soft rubber squeak while the squeegee is moving.
         const osc = ctx.createOscillator();
         const og = ctx.createGain();
         osc.type = 'sine';
@@ -16711,6 +16737,22 @@ function startWindowWashToolSound(tool)
         og.connect(ctx.destination);
         osc.start(t);
         wwActiveLoopOsc = osc;
+    }
+    else
+    {
+        // Each cleaner has its own trigger/nozzle pitch so the tools
+        // sound distinct: water, soap, disinfecter, vinegar, and Bernard's.
+        const osc = ctx.createOscillator();
+        const og = ctx.createGain();
+        osc.type = cleanerId == 'bernard' ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(profile.click, t);
+        osc.frequency.exponentialRampToValueAtTime(max(180, profile.click*.42), t+.045);
+        og.gain.setValueAtTime(cleanerId == 'bernard' ? .028 : .022, t);
+        og.gain.exponentialRampToValueAtTime(.0001, t+.05);
+        osc.connect(og);
+        og.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t+.055);
     }
 }
 
@@ -17022,7 +17064,7 @@ function buildDirt()
                 shade:rand(.42,.26)
             });
 
-            wetness.push({pos, amount:0, cleaner:null});
+            wetness.push({pos, layers:{}});
         }
 
         dirtLeft = dirt.filter(d => !d.clean).length;
@@ -17057,8 +17099,7 @@ function buildDirt()
 
         wetness.push({
             pos,
-            amount:0,
-            cleaner:null
+            layers:{}
         });
     }
 
@@ -17130,6 +17171,10 @@ function sprayAt(pos, cleanerId)
 {
     if (won) return;
 
+    levelSprays++;
+
+    let hitCorrectMess = false;
+
     forEachNearbyGlassCell(pos, 1.35, 1.15, i =>
     {
         const w = wetness[i];
@@ -17137,19 +17182,31 @@ function sprayAt(pos, cleanerId)
 
         if (abs(w.pos.x-pos.x) < 1.35 && abs(w.pos.y-pos.y) < 1.15)
         {
-            w.amount = 1;
-            w.cleaner = cleanerId;
+            if (!w.layers)
+                w.layers = {};
+
+            // Each cleaner has its own independent layer.
+            // Spraying one cleaner no longer removes/replaces another.
+            w.layers[cleanerId] = 1;
 
             const d = dirt[i];
             if (!d.clean && d.mess.cleaner == cleanerId)
+            {
                 d.treated = true;
+                hitCorrectMess = true;
+            }
         }
     });
+
+    if (hitCorrectMess)
+        levelCorrectSprays++;
 }
 
 function cleanAt(pos)
 {
     if (won) return;
+
+    levelWipes++;
 
     forEachNearbyGlassCell(pos, 1.9, .62, i =>
     {
@@ -17159,8 +17216,17 @@ function cleanAt(pos)
 
         if (abs(d.pos.x - pos.x) < 1.9 && abs(d.pos.y - pos.y) < .62)
         {
-            // Wipe away visible cleaner/water.
-            w.amount = max(0, w.amount - .6);
+            // Wipe every cleaner layer from this spot together.
+            if (w.layers)
+            {
+                for (const cleanerId in w.layers)
+                {
+                    w.layers[cleanerId] = max(0, w.layers[cleanerId] - .6);
+
+                    if (w.layers[cleanerId] <= .05)
+                        delete w.layers[cleanerId];
+                }
+            }
 
             // Mess only comes off once the correct cleaner has treated it.
             if (!d.clean && d.treated)
@@ -17177,14 +17243,69 @@ function cleanAt(pos)
         won = true;
         cleanSound && cleanSound.play();
 
-        // Use both the engine timer and a real-time fallback so a finished
-        // level can never get stuck waiting to advance.
+        awardLevelStars();
+
         levelAdvanceTimer.set(1.5);
         levelAdvanceAt = performance.now() + 1500;
     }
 }
 
 
+
+
+function awardLevelStars()
+{
+    if (trialMode)
+        return;
+
+    const elapsedSeconds = max(.1, (performance.now() - levelStartTime) / 1000);
+
+    // Base star for completing the window.
+    let earned = 1;
+    const bonuses = [];
+
+    // Speed targets scale with window area and level difficulty.
+    const area = max(1, windowSize.x * windowSize.y);
+    const fastTarget = 12 + area * .12 + min(20, level*.6);
+    const goodTarget = fastTarget * 1.65;
+
+    if (elapsedSeconds <= fastTarget)
+    {
+        earned += 2;
+        bonuses.push('FAST +2');
+    }
+    else if (elapsedSeconds <= goodTarget)
+    {
+        earned += 1;
+        bonuses.push('SPEED +1');
+    }
+
+    // Accuracy rewards using matching cleaners instead of spraying randomly.
+    const accuracy = levelSprays > 0 ? levelCorrectSprays / levelSprays : 1;
+
+    if (accuracy >= .80)
+    {
+        earned += 1;
+        bonuses.push('ACCURATE +1');
+    }
+
+    // Efficiency rewards finishing without excessive spraying/wiping.
+    const dirtyCells = max(1, dirt.filter(d => d.clean).length);
+    const effort = levelSprays + levelWipes;
+    const efficientLimit = dirtyCells * 1.8 + 24;
+
+    if (effort <= efficientLimit)
+    {
+        earned += 1;
+        bonuses.push('EFFICIENT +1');
+    }
+
+    lastLevelStars = earned;
+    totalStars += earned;
+    lastLevelBonusText = bonuses.length ? bonuses.join('  •  ') : 'COMPLETE';
+
+    saveProgress();
+}
 
 function showCleanerVideoTutorial(cleaner)
 {
@@ -17341,7 +17462,8 @@ function saveProgress()
     const data = {
         playerName,
         level,
-        highestCleanerShown
+        highestCleanerShown,
+        totalStars
     };
 
     try
@@ -17372,11 +17494,13 @@ function loadProgress(name)
     {
         level = max(1, data.level || 1);
         highestCleanerShown = max(0, data.highestCleanerShown || 0);
+        totalStars = max(0, data.totalStars || 0);
     }
     else
     {
         level = 1;
         highestCleanerShown = 0;
+        totalStars = 0;
     }
 
     profileReady = true;
@@ -17386,32 +17510,92 @@ function loadProgress(name)
     return true;
 }
 
+
+function ensureMainMenuButton()
+{
+    if (mainMenuButton)
+        return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Return to main menu');
+    button.title = 'Return to main menu';
+    button.style.cssText =
+        'position:fixed;top:14px;right:14px;z-index:99990;width:54px;height:50px;' +
+        'border:3px solid #5c3d22;border-radius:12px;background:#f6e5c6;cursor:pointer;' +
+        'display:none;align-items:center;justify-content:center;flex-direction:column;gap:5px;' +
+        'box-shadow:0 4px 12px rgba(0,0,0,.25);padding:0;touch-action:manipulation;';
+
+    for (let i=0; i<3; ++i)
+    {
+        const line = document.createElement('span');
+        line.style.cssText =
+            'display:block;width:28px;height:4px;border-radius:4px;background:#3b2a1d;';
+        button.appendChild(line);
+    }
+
+    button.addEventListener('click', () =>
+    {
+        saveProgress();
+        stopWindowWashToolSound();
+        clearDragOverlay();
+
+        trialPointerDown = false;
+        activeTool = null;
+        parkedTool = null;
+        lastDragWorldPos = null;
+        dragging = false;
+        profileReady = false;
+
+        button.style.display = 'none';
+        showProfilePrompt();
+    });
+
+    document.body.appendChild(button);
+    mainMenuButton = button;
+}
+
+function showMainMenuButton()
+{
+    ensureMainMenuButton();
+    if (mainMenuButton)
+        mainMenuButton.style.display = 'flex';
+}
+
+function hideMainMenuButton()
+{
+    if (mainMenuButton)
+        mainMenuButton.style.display = 'none';
+}
+
 function showProfilePrompt()
 {
     if (profileOverlay)
         return;
 
+    hideMainMenuButton();
+
     const overlay = document.createElement('div');
     overlay.style.cssText =
         'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;' +
-        'background:rgba(16,22,28,.82);font-family:system-ui,-apple-system,sans-serif;padding:18px;box-sizing:border-box;';
+        'background:rgba(16,22,28,.82);font-family:system-ui,-apple-system,sans-serif;padding:14px;box-sizing:border-box;';
 
     const card = document.createElement('div');
     card.style.cssText =
-        'width:min(620px,94vw);max-height:90vh;overflow:auto;background:#fff7ea;border:4px solid #8a5a2b;' +
-        'border-radius:20px;padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.38);text-align:center;color:#222;';
+        'width:min(720px,96vw);max-height:94vh;overflow:auto;background:#fff7ea;border:4px solid #8a5a2b;' +
+        'border-radius:20px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.38);text-align:center;color:#222;';
 
     const title = document.createElement('div');
     title.textContent = 'WINDOW WASH';
-    title.style.cssText = 'font-size:34px;font-weight:950;letter-spacing:.5px;margin-bottom:4px;';
+    title.style.cssText = 'font-size:32px;font-weight:950;letter-spacing:.5px;margin-bottom:4px;';
 
     const subtitle = document.createElement('div');
     subtitle.textContent = 'Choose a profile';
-    subtitle.style.cssText = 'font-size:18px;font-weight:750;margin-bottom:18px;color:#5d4634;';
+    subtitle.style.cssText = 'font-size:18px;font-weight:750;margin-bottom:16px;color:#5d4634;';
 
     const profilesWrap = document.createElement('div');
     profilesWrap.style.cssText =
-        'display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;';
+        'display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;';
 
     const closeAndLoad = name =>
     {
@@ -17419,6 +17603,7 @@ function showProfilePrompt()
         {
             overlay.remove();
             profileOverlay = null;
+            showMainMenuButton();
         }
     };
 
@@ -17431,18 +17616,19 @@ function showProfilePrompt()
             const button = document.createElement('button');
             button.type = 'button';
             button.style.cssText =
-                'min-height:96px;border:3px solid #b7895a;border-radius:14px;background:#f3dfbd;' +
-                'padding:12px;cursor:pointer;color:#2c241d;box-shadow:inset 0 2px rgba(255,255,255,.65);';
+                'min-height:90px;border:3px solid #b7895a;border-radius:14px;background:#f3dfbd;' +
+                'padding:10px;cursor:pointer;color:#2c241d;box-shadow:inset 0 2px rgba(255,255,255,.65);' +
+                'touch-action:manipulation;';
 
             const name = document.createElement('div');
             name.textContent = profile.name;
             name.style.cssText =
-                'font-size:21px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px;';
+                'font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:7px;';
 
             const levelLabel = document.createElement('div');
             levelLabel.textContent = `LEVEL ${profile.level}`;
             levelLabel.style.cssText =
-                'font-size:14px;font-weight:800;color:#3f6f48;background:#e9f4df;border-radius:999px;padding:5px 9px;' +
+                'font-size:13px;font-weight:800;color:#3f6f48;background:#e9f4df;border-radius:999px;padding:5px 9px;' +
                 'display:inline-block;';
 
             button.appendChild(name);
@@ -17456,37 +17642,29 @@ function showProfilePrompt()
         const empty = document.createElement('div');
         empty.textContent = 'No saved profiles yet.';
         empty.style.cssText =
-            'grid-column:1/-1;padding:14px;border:2px dashed #c8a47b;border-radius:12px;color:#765c42;';
+            'grid-column:1/-1;padding:12px;border:2px dashed #c8a47b;border-radius:12px;color:#765c42;';
         profilesWrap.appendChild(empty);
     }
 
     const divider = document.createElement('div');
     divider.textContent = 'CREATE NEW PROFILE';
     divider.style.cssText =
-        'font-size:13px;font-weight:900;letter-spacing:1px;color:#765c42;margin:8px 0 10px;';
-
-    const createRow = document.createElement('div');
-    createRow.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;';
+        'font-size:13px;font-weight:900;letter-spacing:1px;color:#765c42;margin:6px 0 9px;';
 
     const input = document.createElement('input');
     input.type = 'text';
     input.maxLength = 24;
     input.placeholder = 'New player name';
     input.autocomplete = 'off';
+    input.autocapitalize = 'words';
+    input.spellcheck = false;
     input.style.cssText =
-        'flex:1 1 220px;min-width:0;box-sizing:border-box;font-size:18px;padding:12px 14px;' +
-        'border:2px solid #b7895a;border-radius:10px;outline:none;';
-
-    const createButton = document.createElement('button');
-    createButton.type = 'button';
-    createButton.textContent = 'CREATE & PLAY';
-    createButton.style.cssText =
-        'flex:0 0 auto;font-size:16px;font-weight:900;padding:12px 16px;border:0;border-radius:10px;' +
-        'background:#3fae5a;color:white;cursor:pointer;';
+        'width:100%;box-sizing:border-box;font-size:20px;padding:11px 14px;border:2px solid #b7895a;' +
+        'border-radius:10px;outline:none;margin-bottom:10px;text-align:center;background:white;';
 
     const error = document.createElement('div');
     error.style.cssText =
-        'min-height:20px;font-size:13px;color:#a13d32;text-align:left;margin-top:6px;';
+        'min-height:18px;font-size:13px;color:#a13d32;text-align:center;margin:4px 0 8px;';
 
     const create = () =>
     {
@@ -17495,7 +17673,6 @@ function showProfilePrompt()
         if (!name)
         {
             error.textContent = 'Type a name first.';
-            input.focus();
             return;
         }
 
@@ -17509,30 +17686,88 @@ function showProfilePrompt()
         closeAndLoad(name);
     };
 
+    // Built-in iPad-friendly keyboard.
+    const keyboard = document.createElement('div');
+    keyboard.style.cssText =
+        'display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin:2px auto 10px;max-width:650px;';
+
+    const addKey = (label, action, span=1) =>
+    {
+        const key = document.createElement('button');
+        key.type = 'button';
+        key.textContent = label;
+        key.style.cssText =
+            `grid-column:span ${span};min-height:44px;border:2px solid #9c744b;border-radius:9px;` +
+            'background:#f2d9ae;color:#2d241d;font-size:17px;font-weight:900;cursor:pointer;' +
+            'touch-action:manipulation;padding:6px 4px;';
+
+        key.addEventListener('click', e =>
+        {
+            e.preventDefault();
+            action();
+            error.textContent = '';
+        });
+
+        keyboard.appendChild(key);
+    };
+
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    for (const letter of letters)
+    {
+        addKey(letter, () =>
+        {
+            if (input.value.length < input.maxLength)
+                input.value += letter;
+        });
+    }
+
+    addKey('SPACE', () =>
+    {
+        if (input.value.length < input.maxLength && input.value.length)
+            input.value += ' ';
+    }, 3);
+
+    addKey('⌫', () =>
+    {
+        input.value = input.value.slice(0,-1);
+    }, 2);
+
+    addKey('CLEAR', () =>
+    {
+        input.value = '';
+    }, 2);
+
+    addKey('DONE', create, 3);
+
+    const createButton = document.createElement('button');
+    createButton.type = 'button';
+    createButton.textContent = 'CREATE & PLAY';
+    createButton.style.cssText =
+        'width:100%;font-size:17px;font-weight:900;padding:12px 16px;border:0;border-radius:10px;' +
+        'background:#3fae5a;color:white;cursor:pointer;touch-action:manipulation;';
+
     createButton.addEventListener('click', create);
+
+    // Physical/system keyboard still works on laptop/iPad if desired.
     input.addEventListener('keydown', e =>
     {
         if (e.key == 'Enter')
             create();
     });
 
-    createRow.appendChild(input);
-    createRow.appendChild(createButton);
-
     card.appendChild(title);
     card.appendChild(subtitle);
     card.appendChild(profilesWrap);
     card.appendChild(divider);
-    card.appendChild(createRow);
+    card.appendChild(input);
     card.appendChild(error);
+    card.appendChild(keyboard);
+    card.appendChild(createButton);
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
     profileOverlay = overlay;
-
-    if (!profiles.length)
-        setTimeout(()=>input.focus(), 50);
 }
 
 function setupRecordingTrial(cleanerId)
@@ -17571,7 +17806,7 @@ function setupRecordingTrial(cleanerId)
             mess,
             shade:rand(.42,.26)
         });
-        wetness.push({pos, amount:0, cleaner:null});
+        wetness.push({pos, layers:{}});
     }
     dirtLeft = dirt.filter(d=>!d.clean).length;
 
@@ -17606,6 +17841,7 @@ function setupLevel()
         windowSize = vec2(16,10);
     else
     {
+        // Unlimited levels: recycle window shapes forever while difficulty scales.
         const index = (level - 1) % LEVELS.length;
         windowSize = LEVELS[index].copy();
 
@@ -17620,6 +17856,13 @@ function setupLevel()
     dragging = false;
     levelAdvanceTimer.unset();
     levelAdvanceAt = 0;
+
+    levelStartTime = performance.now();
+    levelSprays = 0;
+    levelCorrectSprays = 0;
+    levelWipes = 0;
+    lastLevelStars = 0;
+    lastLevelBonusText = '';
 
     if (squeegee)
         squeegee.destroy();
@@ -17642,6 +17885,7 @@ function restartGame()
 {
     level = 1;
     highestCleanerShown = 0;
+    totalStars = 0;
     setupLevel();
     titleIntroTimer.set(4);
     saveProgress();
@@ -18123,6 +18367,7 @@ async function gameInit()
     canvasClearColor = hsl(.58,.22,.08);
 
     ensureDragOverlay();
+    ensureMainMenuButton();
     installDirectPointerControls();
 
     window.addEventListener('resize', syncDragOverlay, {passive:true});
@@ -18592,25 +18837,45 @@ function gameRender()
         }
     }
 
-    // Wet cleaner layer
+    // Wet cleaner layers — multiple cleaners can overlap on one spot.
     for (const w of wetness)
     {
-        if (w.amount <= .05) continue;
+        if (!w.layers)
+            continue;
 
-        let hue = .56;
-        if (w.cleaner == 'soap') hue = .52;
-        else if (w.cleaner == 'degreaser') hue = .12;
-        else if (w.cleaner == 'vinegar') hue = .90;
-        else if (w.cleaner == 'bernard') hue = .78;
+        const cleanerIds = Object.keys(w.layers);
 
-        const a = w.cleaner == 'water'
-            ? (.28 + .32*w.amount)
-            : (.18 + .24*w.amount);
+        for (let layerIndex=0; layerIndex<cleanerIds.length; ++layerIndex)
+        {
+            const cleanerId = cleanerIds[layerIndex];
+            const amount = w.layers[cleanerId];
 
-        drawRect(w.pos, cell.scale(1.18),
-            w.cleaner == 'water'
-                ? hsl(.56,.76,.70,a)
-                : hsl(hue,.64,.70,a));
+            if (amount <= .05)
+                continue;
+
+            let hue = .56;
+            if (cleanerId == 'soap') hue = .52;
+            else if (cleanerId == 'degreaser') hue = .12;
+            else if (cleanerId == 'vinegar') hue = .90;
+            else if (cleanerId == 'bernard') hue = .78;
+
+            // Slight size/rotation variation makes stacked cleaners visible
+            // instead of one completely hiding the others.
+            const scale = 1.10 + min(.18, layerIndex*.035);
+            const angle = (layerIndex%2 ? 1 : -1) * layerIndex * .025;
+            const a = cleanerId == 'water'
+                ? (.20 + .24*amount)
+                : (.15 + .20*amount);
+
+            drawRect(
+                w.pos,
+                cell.scale(scale),
+                cleanerId == 'water'
+                    ? hsl(.56,.76,.70,a)
+                    : hsl(hue,.64,.70,a),
+                angle
+            );
+        }
     }
 
     // ================================================================
@@ -18644,7 +18909,10 @@ function gameRenderPost()
         drawTextScreen('TRIAL', vec2(cx,54), 40, hsl(.13,.92,.62), 4, BLACK);
     else if (titleIntroTimer.active())
         drawTextScreen('WINDOW WASH', vec2(cx,62), 36, WHITE, 4, BLACK);
-    drawTextScreen(trialMode ? `SOAP TRIAL   •   ${cleaned}% CLEAN` : `PLAYER: ${playerName}   •   LEVEL ${level}   •   ${cleaned}% CLEAN`,
+    drawTextScreen(
+        trialMode
+            ? `SOAP TRIAL   •   ${cleaned}% CLEAN`
+            : `PLAYER: ${playerName}   •   LEVEL ${level}   •   ★ ${totalStars}   •   ${cleaned}% CLEAN`,
         vec2(cx,78), 20, hsl(.32,.72,.72), 3, BLACK);
 
     if (!won)
@@ -18670,8 +18938,12 @@ function gameRenderPost()
         }
     }
     else
-        drawTextScreen('SPARKLING CLEAN!  •  NEXT WINDOW...',
-            vec2(cx, mainCanvasSize.y-28), 19, hsl(.14,.88,.72), 3, BLACK);
+    {
+        drawTextScreen(`SPARKLING CLEAN!  •  +${lastLevelStars} ★  •  ${lastLevelBonusText}`,
+            vec2(cx, mainCanvasSize.y-48), 18, hsl(.14,.88,.72), 3, BLACK);
+        drawTextScreen('NEXT WINDOW...',
+            vec2(cx, mainCanvasSize.y-24), 17, WHITE, 3, BLACK);
+    }
 
     // Lightweight non-blocking cleaner tutorial.
     if (tutorialCleaner && tutorialDemoTimer.active())
