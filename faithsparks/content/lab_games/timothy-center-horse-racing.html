@@ -346,6 +346,8 @@ let tcProfileNames = [];
 let tcProfileIndex = 0;
 let tcNewProfileName = '';
 let tcProfileMessage = '';
+let tcAccountSwitchMessage = '';
+let tcAccountSwitchTimer;
 let tcCreatingProfile = false;
 let tcEditingProfile = false;
 let tcEditingOriginalName = '';
@@ -597,6 +599,26 @@ function tcReturnToProfiles()
     tcLoadProfiles();
 }
 
+function tcCreateNewAccountFromGame()
+{
+    tcSaveActiveProfile();
+    tcProfileMode = true;
+    tcActiveProfile = '';
+    tcStarted = false;
+    tcFinished = false;
+    tcInBarn = false;
+    tcChoosingHorse = false;
+    tcChoosingOpponent = false;
+    tcLoadProfiles();
+
+    tcCreatingProfile = true;
+    tcEditingProfile = false;
+    tcEditingOriginalName = '';
+    tcNewProfileName = '';
+    tcProfileMessage = 'Type a new account name, then press Enter.';
+}
+
+
 function tcIsHorseUnlocked(horse)
 {
     return tcUnlockedHorseNames.includes(horse.name);
@@ -625,6 +647,31 @@ function tcAwardMilestoneHorse(completedLevel)
     tcUnlockedHorseNames.push(horse.name);
     tcSaveActiveProfile();
     return horse.name;
+}
+
+
+function tcContrastingHorseColor(playerColor, seed=0)
+{
+    // Use a few strong, clearly different fallback coat colors.
+    const fallbackColors = [
+        hsl(.11,.58,.58), // palomino
+        hsl(.62,.22,.20), // dark blue-black
+        hsl(0,0,.86),     // white/gray
+        hsl(.045,.66,.43),// copper
+        hsl(.60,.10,.42), // gray
+        hsl(.02,.50,.24), // dark bay
+    ];
+
+    return fallbackColors[seed % fallbackColors.length];
+}
+
+function tcHorseColorIsTooSimilar(a, b)
+{
+    // Colors are objects; comparing object identity is not reliable.
+    // Compare RGB channels so the player and rival coats visibly differ.
+    return abs(a.r-b.r) < .12 &&
+           abs(a.g-b.g) < .12 &&
+           abs(a.b-b.b) < .12;
 }
 
 function tcUnlockedHorseIndices()
@@ -980,6 +1027,73 @@ class TCHorse extends EngineObject
 
         drawLeg(-.75, legSwing);
         drawLeg(.65, -legSwing);
+
+        // More realistic tack on the player's horse.
+        if (this.isPlayer)
+        {
+            const leather = hsl(.07,.50,.14);
+            const leatherDark = hsl(.07,.42,.10);
+            const metal = hsl(0,0,.72);
+
+            // Bridle crown piece and cheek strap.
+            drawLine(
+                this.pos.add(vec2(1.37,1.53)),
+                this.pos.add(vec2(1.62,1.33)),
+                .055,
+                leatherDark
+            );
+            drawLine(
+                this.pos.add(vec2(1.60,1.34)),
+                this.pos.add(vec2(1.77,1.15)),
+                .05,
+                leather
+            );
+
+            // Noseband wrapping around the muzzle.
+            drawLine(
+                this.pos.add(vec2(1.57,1.25)),
+                this.pos.add(vec2(1.93,1.15)),
+                .055,
+                leatherDark
+            );
+            drawLine(
+                this.pos.add(vec2(1.73,1.22)),
+                this.pos.add(vec2(1.76,1.06)),
+                .045,
+                leatherDark
+            );
+
+            // Bit ring.
+            drawTile(
+                this.pos.add(vec2(1.74,1.10)),
+                vec2(.16),
+                icons.ring,
+                metal
+            );
+
+            // Reins with a natural sag instead of rigid straight lines.
+            const reinBounce = (this.finished || tcFinished)
+                ? 0
+                : sin(time*(8+runSpeed*70))*.035;
+
+            const handTop = this.pos.add(vec2(.18,1.02+reinBounce));
+            const handBottom = this.pos.add(vec2(.12,.94+reinBounce));
+            const bitTop = this.pos.add(vec2(1.70,1.14));
+            const bitBottom = this.pos.add(vec2(1.72,1.07));
+
+            const topMid1 = this.pos.add(vec2(.62,.93-reinBounce*.4));
+            const topMid2 = this.pos.add(vec2(1.18,.98-reinBounce*.2));
+            const botMid1 = this.pos.add(vec2(.58,.82-reinBounce*.3));
+            const botMid2 = this.pos.add(vec2(1.14,.88-reinBounce*.15));
+
+            drawLine(handTop, topMid1, .045, leather);
+            drawLine(topMid1, topMid2, .045, leather);
+            drawLine(topMid2, bitTop, .045, leather);
+
+            drawLine(handBottom, botMid1, .04, leatherDark);
+            drawLine(botMid1, botMid2, .04, leatherDark);
+            drawLine(botMid2, bitBottom, .04, leatherDark);
+        }
     }
 }
 
@@ -1221,7 +1335,12 @@ function tcResetLevel(resetLevel=false)
         }
 
         const horseDef = tcHorseChoices[horseIndex];
-        const rival = new TCHorse(vec2(-5.0-i*.35,y), horseDef.color, false, i);
+        const playerColor = tcHorseChoices[tcSelectedHorse].color;
+        const rivalColor = tcHorseColorIsTooSimilar(horseDef.color, playerColor)
+            ? tcContrastingHorseColor(playerColor, i+tcLevel)
+            : horseDef.color;
+
+        const rival = new TCHorse(vec2(-5.0-i*.35,y), rivalColor, false, i);
         rival.maneColor = horseDef.mane;
         rival.displayName = horseDef.name;
         rival.targetY = y;
@@ -1356,6 +1475,7 @@ async function gameInit()
     gravity = vec2(0,0);
 
     tcBarnMessageTimer = new Timer();
+    tcAccountSwitchTimer = new Timer();
     tcLoadProfiles();
     tcProfileMode = true;
 }
@@ -1432,9 +1552,11 @@ function gameUpdate()
             return;
         }
 
-        if (keyWasPressed('KeyN'))
+        if (keyWasPressed('KeyN') || keyWasPressed('KeyC'))
         {
             tcCreatingProfile = true;
+            tcEditingProfile = false;
+            tcEditingOriginalName = '';
             tcNewProfileName = '';
             tcProfileMessage = 'Type a name, then press Enter.';
             return;
@@ -1446,12 +1568,30 @@ function gameUpdate()
         return;
     }
 
-    // Switch accounts at any time: save current progress, then return
-    // to the account/profile picker.
-    if (keyWasPressed('KeyP') || keyWasPressed('Tab'))
+    // Account changes happen between rounds, not during an active race.
+    if (keyWasPressed('KeyP') || keyWasPressed('Tab') || keyWasPressed('KeyS'))
     {
-        tcReturnToProfiles();
-        return;
+        if (!tcStarted || tcFinished || tcInBarn)
+        {
+            tcReturnToProfiles();
+            return;
+        }
+
+        tcAccountSwitchMessage = 'Finish this round, then switch accounts.';
+        tcAccountSwitchTimer.set(2.2);
+    }
+
+    // New accounts can also be created between rounds.
+    if (keyWasPressed('KeyC'))
+    {
+        if (!tcStarted || tcFinished || tcInBarn)
+        {
+            tcCreateNewAccountFromGame();
+            return;
+        }
+
+        tcAccountSwitchMessage = 'Create a new account after this round.';
+        tcAccountSwitchTimer.set(2.2);
     }
 
     if (tcInBarn)
@@ -1537,6 +1677,10 @@ function gameUpdate()
             mouseWasPressed(0) || gamepadWasPressed(0))
         {
             // Rebuild rivals using the chosen opponent, then start.
+            if (tcSelectedOpponent == tcSelectedHorse)
+                tcSelectedOpponent = tcMoveHorseSelection(
+                    tcSelectedHorse, 1, tcSelectedHorse);
+
             const chosenHorse = tcSelectedHorse;
             const chosenOpponent = tcSelectedOpponent;
             tcResetLevel(false);
@@ -1567,7 +1711,12 @@ function gameUpdate()
                 }
 
                 const horseDef = tcHorseChoices[horseIndex];
-                const rival = new TCHorse(vec2(-5.0-i*.35,y),horseDef.color,false,i);
+                const playerColor = tcHorseChoices[tcSelectedHorse].color;
+                const rivalColor = tcHorseColorIsTooSimilar(horseDef.color, playerColor)
+                    ? tcContrastingHorseColor(playerColor, i+tcLevel)
+                    : horseDef.color;
+
+                const rival = new TCHorse(vec2(-5.0-i*.35,y),rivalColor,false,i);
                 rival.maneColor = horseDef.mane;
                 rival.displayName = horseDef.name;
                 rival.targetY = y;
@@ -1738,6 +1887,8 @@ function gameRenderPost()
             vec2(cx,60),42,YELLOW,5,BLACK);
         drawTextScreen('ACCOUNTS / PROFILES',
             vec2(cx,110),28,WHITE,4,BLACK);
+        drawTextScreen('CHOOSE WHICH ACCOUNT YOU WANT TO USE',
+            vec2(cx,132),18,YELLOW,3,BLACK);
         drawTextScreen('Each account saves its own levels, horses, barn, and foal progress',
             vec2(cx,140),17,WHITE,2,BLACK);
 
@@ -1758,7 +1909,7 @@ function gameRenderPost()
         {
             drawTextScreen('No profiles yet.',
                 vec2(cx,190),25,WHITE,3,BLACK);
-            drawTextScreen('Press N to create your first account',
+            drawTextScreen('Press N or C to create your first account',
                 vec2(cx,235),23,YELLOW,3,BLACK);
         }
         else
@@ -1780,10 +1931,10 @@ function gameRenderPost()
                     selected ? YELLOW : WHITE,3,BLACK);
             }
 
-            drawTextScreen('↑ / ↓ choose account     ENTER = switch / play',
+            drawTextScreen('↑ / ↓ choose account     ENTER = USE THIS ACCOUNT',
                 vec2(cx,mainCanvasSize.y-105),20,WHITE,3,BLACK);
             drawTextScreen(
-                `N = new account (${tcProfileNames.length}/${tcMaxProfiles})   E = edit name   DELETE = delete`,
+                `N/C = new account (${tcProfileNames.length}/${tcMaxProfiles})   E = edit   DELETE = delete`,
                 vec2(cx,mainCanvasSize.y-70),17,WHITE,3,BLACK);
         }
 
@@ -1825,8 +1976,8 @@ function gameRenderPost()
         if (tcBarnMessageTimer && tcBarnMessageTimer.active())
             drawTextScreen(tcBarnMessage,vec2(cx,mainCanvasSize.y-86),23,WHITE,4,BLACK);
 
-        drawTextScreen('R / ESC = RETURN TO RACE     P / TAB = SWITCH ACCOUNT',
-            vec2(cx,mainCanvasSize.y-42),19,WHITE,3,BLACK);
+        drawTextScreen('R/ESC = RETURN   S/P/TAB = SWITCH ACCOUNT   C = NEW ACCOUNT',
+            vec2(cx,mainCanvasSize.y-42),17,WHITE,3,BLACK);
         return;
     }
 
@@ -1835,8 +1986,8 @@ function gameRenderPost()
     const opponentName = tcHorseChoices[tcSelectedOpponent]?.name || 'Rival';
 
     drawTextScreen('TIMOTHY CENTER HORSE RACE',vec2(cx,38),34,hsl(.08,.55,.22),4,WHITE);
-    drawTextScreen(`Account: ${tcActiveProfile}   P / TAB = SWITCH ACCOUNT`,
-        vec2(180,28),16,WHITE,2,BLACK);
+    drawTextScreen(`Account: ${tcActiveProfile}   SWITCH ACCOUNTS BETWEEN ROUNDS`,
+        vec2(210,28),15,WHITE,2,BLACK);
     drawTextScreen(`Forest Level ${tcLevel}: ${level.name}   Main opponent: ${opponentName}`,
         vec2(cx,72),22,hsl(.08,.45,.28),3,WHITE);
 
@@ -1870,8 +2021,8 @@ function gameRenderPost()
                 drawTextScreen(horse.name,
                     vec2(cx,mainCanvasSize.y-106),27,WHITE,4,BLACK);
                 drawRect(vec2(cx,mainCanvasSize.y-72),vec2(86,26),horse.color,0,true);
-                drawTextScreen('BEAT LEVEL 5 TO EARN YOUR NEXT HORSE',
-                    vec2(cx,mainCanvasSize.y-37),18,WHITE,3,BLACK);
+                drawTextScreen('BEAT LEVEL 5 TO EARN YOUR NEXT HORSE   S/P/TAB = SWITCH ACCOUNT',
+                    vec2(cx,mainCanvasSize.y-37),16,WHITE,3,BLACK);
             }
             else
             {
@@ -1899,6 +2050,9 @@ function gameRenderPost()
 
         if (tcMessageTimer.active() && tcRaceMessage)
             drawTextScreen(tcRaceMessage,vec2(cx,140),24,YELLOW,4,BLACK);
+
+        if (tcAccountSwitchTimer && tcAccountSwitchTimer.active() && tcAccountSwitchMessage)
+            drawTextScreen(tcAccountSwitchMessage,vec2(cx,175),21,YELLOW,3,BLACK);
     }
     else
     {
@@ -1919,6 +2073,9 @@ function gameRenderPost()
         if (tcBarnUnlocked)
             drawTextScreen('B = VISIT THE BARN',
                 vec2(cx,mainCanvasSize.y/2+92),20,YELLOW,3,BLACK);
+
+        drawTextScreen('S / P / TAB = SWITCH ACCOUNT',
+            vec2(cx,mainCanvasSize.y/2+124),19,WHITE,3,BLACK);
     }
 }
 
