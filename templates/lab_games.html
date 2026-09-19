@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Games Lab | Faith Sparks{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow" />{% endblock %}
+
+{% block content %}
+<section class="product-hero product-hero--labs">
+  <p class="product-kicker">Faith Sparks Labs</p>
+  <h1>Games Lab</h1>
+  <p>Small interactive game experiments for families. These are early prototypes, so controls, levels, and availability may change as we refine them.</p>
+</section>
+
+{% if access_denied %}
+<section class="lab-notice" role="status">
+  <strong>This account is not in the Games Lab beta yet.</strong>
+</section>
+{% elif not signed_in %}
+<section class="lab-notice" role="status">
+  <span>You can browse the prototypes here. Sign in when you open a game so progress and beta access stay tied to your account.</span>
+</section>
+{% endif %}
+
+<section class="product-grid" aria-label="Games Lab prototypes">
+  {% for game in games %}
+  <article class="product-card product-card--gold">
+    <span class="status-badge status-badge--{{ game.maturity }}">{{ game.maturity|title }}</span>
+    <h2>{{ game.name }}</h2>
+    <p>{{ game.description }}</p>
+    {% if access_denied %}
+      <span class="button ghost disabled" aria-disabled="true">Beta access required</span>
+    {% elif game.available %}
+      <a class="button ghost" href="{{ url_for('lab_games.play', slug=game.slug) }}">Play {{ game.name }}</a>
+    {% else %}
+      <a class="button ghost" href="{{ url_for('lab_games.play', slug=game.slug) }}">View prototype</a>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+
+<style>
+  .button.disabled {
+    opacity: .55;
+    pointer-events: none;
+  }
+</style>
+{% endblock %}
