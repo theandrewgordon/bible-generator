@@ -397,3 +397,11 @@ test('building menu groups legal deeds and stays open through repeated purchases
  assert.deepEqual(await p.evaluate(()=>[state.spaces[1].buildings,state.spaces[3].buildings,state.players[0].cash,document.querySelector('#companion-dialog').open,window.buildMenuCloses]),[1,1,2400,true,0]);
  await p.locator('#close-companion').click();await p.waitForFunction(()=>window.buildMenuCloses===1);await p.close();
 });
+
+test('trade offer values update as deeds and cash are selected',async()=>{
+ const p=await page();await p.evaluate(()=>{state.spaces[1].owner=state.players[0].id;state.spaces[5].owner=state.players[1].id;saveState();render();});
+ await p.locator('#open-trade').click();await p.locator('#trade-properties-a input[value="1"]').check();await p.locator('#trade-properties-b input[value="5"]').check();
+ const preview=p.locator('.trade-worth-preview');assert.match(await preview.innerText(),/Player 2 offers \$140 more/);
+ await p.locator('#trade-cash-a').fill('140');assert.match(await preview.innerText(),/Both offers have equal value/);assert.doesNotMatch(await preview.innerText(),/Net worth:/);
+ await p.locator('#complete-trade').click();assert.deepEqual(await p.evaluate(()=>[state.spaces[1].owner===state.players[1].id,state.spaces[5].owner===state.players[0].id,state.players[0].cash]),[true,true,2360]);await p.close();
+});

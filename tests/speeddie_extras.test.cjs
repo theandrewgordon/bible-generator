@@ -72,3 +72,14 @@ test('building choices exclude incomplete, mortgaged, uneven and unaffordable pu
  s.players[0].cash=49;assert.deepEqual(choices(),[]);s.players[0].cash=50;assert.deepEqual(choices(),[3]);
  s.pendingCard={};assert.deepEqual(choices(),[]);s.pendingCard=null;s.tradeOffer={};assert.deepEqual(choices(),[]);
 });
+
+test('trade comparison totals offered deeds and cash rather than player wealth',()=>{
+ const s=game();s.spaces[1].owner='p0';s.spaces[5].owner='p1';
+ const offer={a:'p0',b:'p1',fromA:[1],fromB:[5],cashA:50,cashB:0};
+ const before=structuredClone(s),html=context.tradeWorthPreview(s,offer);
+ assert.equal(context.tradeOfferValue(s,[1],50),110);assert.equal(context.tradeOfferValue(s,[5],0),200);
+ assert.match(html,/Mediterranean Avenue: <strong>\$60/);assert.match(html,/Mom offers \$90 more/);assert.doesNotMatch(html,/Net worth:|2500/);assert.deepEqual(s,before);
+ s.spaces[5].mortgaged=true;assert.equal(context.tradeOfferValue(s,[5],0),100);
+ assert.match(context.tradeWorthPreview(s,offer),/Tessa offers \$10 more/);
+ offer.cashA=40;assert.match(context.tradeWorthPreview(s,offer),/Both offers have equal value/);
+});

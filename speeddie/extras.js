@@ -22,10 +22,12 @@ function projectTrade(s,o,lift=[]){
   if(o.fromA.length||o.fromB.length||o.cashA||o.cashB)G.trade(copy,o.a,o.b,o.fromA,o.fromB,o.cashA,o.cashB,lift);
   return copy;
 }
+function tradePropertyWorth(q){return q.price-(q.mortgaged?q.mortgage:0);}
+function tradeOfferValue(s,indices,cash){return indices.reduce((total,i)=>total+tradePropertyWorth(s.spaces[i]),0)+cash;}
 function tradeWorthPreview(s,o,lift=[]){
-  if(s.moneyMode!=='banker')return '';
-  const after=projectTrade(s,o,lift);
-  return `<div class="trade-worth-preview"><h3>After this trade</h3>${[o.a,o.b].map(id=>{const p=G.player(s,id),next=G.player(after,id);return `<p><strong>${escapeHTML(p.name)}</strong><br>Cash: ${money(p.cash)} → ${money(next.cash)}<br>Net worth: ${money(G.netWorth(s,id))} → ${money(G.netWorth(after,id))}</p>`;}).join('')}<p class="muted small">Net worth includes the incoming and outgoing properties, cash, and any new mortgage transfer fees. Cash shown is before paying those fees or redeeming mortgages.</p></div>`;
+  projectTrade(s,o,lift); // Validate the proposed exchange without changing the game.
+  const totalA=tradeOfferValue(s,o.fromA,o.cashA),totalB=tradeOfferValue(s,o.fromB,o.cashB),difference=totalA-totalB;
+  return `<div class="trade-worth-preview"><h3>Compare offer values</h3>${[[o.a,o.fromA,o.cashA,totalA],[o.b,o.fromB,o.cashB,totalB]].map(([id,indices,cash,total])=>`<article><h4>${escapeHTML(G.player(s,id).name)} offers</h4>${indices.map(i=>{const q=s.spaces[i];return `<p>${escapeHTML(q.name)}: <strong>${money(tradePropertyWorth(q))}</strong>${q.mortgaged?' · mortgaged':''}</p>`;}).join('')}<p>Property value: <strong>${money(total-cash)}</strong><br>Cash offered: ${money(cash)}<br><strong>Total offer value: ${money(total)}</strong></p></article>`).join('')}<p class="trade-value-difference"><strong>${difference===0?'Both offers have equal value.':`${escapeHTML(G.player(s,difference>0?o.a:o.b).name)} offers ${money(Math.abs(difference))} more in value.`}</strong></p><p class="muted small">Property value = printed deed price minus any mortgage. Totals include offered cash. Mortgage transfer fees are paid separately to the bank. Jail cards and the benefit of completing a color set have no fixed dollar value here.</p></div>`;
 }
 function tradeReceipt(o){
   return `<div class="trade-receipt">${[['a','fromA','cashA','cardsA'],['b','fromB','cashB','cardsB']].map(([who,props,cash,cards])=>{const p=G.player(state,o[who]);return `<article><h3>${tokenMarkup(p)} ${escapeHTML(p.name)} gives</h3><strong>${money(o[cash])}</strong>${o[props].map(i=>{const q=state.spaces[i];return `<div class="receipt-deed" style="border-color:${GROUP_COLORS[q.group]||'#777'}">${escapeHTML(q.name)}${q.mortgaged?' · mortgaged':''}</div>`;}).join('')}${o[cards].map(c=>`<p>${escapeHTML(c)} Get Out of Jail Free card</p>`).join('')}<p>Cash after trade: ${money(p.cash-o[cash]+o[who==='a'?'cashB':'cashA'])} before mortgage fees.</p></article>`;}).join('')}</div>${tradeWorthPreview(state,o)}<p>Receiving mortgaged deeds also creates a 10% mortgage transfer fee.</p>`;
