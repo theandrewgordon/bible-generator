@@ -176,7 +176,12 @@ function openOnlineTrade(a){
     document.querySelector('#companion-dialog').close();await onlineCommand('trade-propose',data);return true;
   });
   const draw=()=>{const b=document.querySelector('#online-trade-to').value;document.querySelector('#online-trade-items').innerHTML=[[a,'a'],[b,'b']].map(([id,side])=>`<h3>${escapeHTML(G.player(state,id).name)} offers</h3>${amountField('Cash','online-cash-'+side,0)}${state.spaces.filter(p=>p.owner===id).map(p=>`<label class="check-card"><input data-trade-side="${side}" type="checkbox" value="${p.index}" ${G.group(state,p).some(q=>q.buildings)?'disabled':''}><span>${escapeHTML(p.name)}${p.mortgaged?' (mortgaged)':''}</span></label>`).join('')}${(state.heldCards||[]).filter(c=>c.owner===id).map(c=>`<label class="check-card"><input type="checkbox" data-trade-side="${side}" data-card="true" value="${c.deck}"><span>${c.deck} Jail card</span></label>`).join('')}`).join('');};
-  document.querySelector('#online-trade-to').onchange=draw;draw();
+  const originalDraw=draw;
+  const preview=()=>{
+    const root=document.querySelector('#online-trade-items');let box=root.querySelector('.live-trade-worth');if(!box){box=document.createElement('div');box.className='live-trade-worth';root.append(box);}
+    try{const selected=side=>[...root.querySelectorAll(`[data-trade-side="${side}"]:checked`)].filter(e=>!e.dataset.card).map(e=>Number(e.value));box.innerHTML=tradeWorthPreview(state,{a,b:document.querySelector('#online-trade-to').value,fromA:selected('a'),fromB:selected('b'),cashA:Number(document.querySelector('#online-cash-a').value),cashB:Number(document.querySelector('#online-cash-b').value)});}catch(e){box.textContent=e.message;}
+  };
+  document.querySelector('#online-trade-to').onchange=()=>{originalDraw();preview();};originalDraw();document.querySelector('#online-trade-items').oninput=preview;preview();
 }
 
 function onlineLobby(){

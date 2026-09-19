@@ -47,3 +47,18 @@ test('rent explanation is frozen with the bill before buildings change',()=>{
  G.transfer(s,'p0','p1',s.landingBill.amount,s.landingBill.reason);
  assert.match(s.ledger[0].explanation,/unimproved rent is doubled/);
 });
+test('trade preview and accepted property/cash exchange have the same net worth',()=>{
+ const s=game();s.spaces[1].owner='p0';s.spaces[5].owner='p1';const original=structuredClone(s);
+ const offer={a:'p0',b:'p1',fromA:[1],fromB:[5],cashA:50,cashB:0};
+ const preview=context.projectTrade(s,offer);assert.deepEqual(s,original);
+ assert.equal(G.netWorth(preview,'p0'),2650);assert.equal(G.netWorth(preview,'p1'),2610);
+ G.trade(s,'p0','p1',[1],[5],50,0);assert.equal(G.netWorth(s,'p0'),G.netWorth(preview,'p0'));assert.equal(G.netWorth(s,'p1'),G.netWorth(preview,'p1'));
+});
+test('trade net worth preview includes mortgage fees and optional redemption once',()=>{
+ for(const lift of [[],[5]]){
+  const s=game();s.spaces[1].owner='p0';s.spaces[5].owner='p1';s.spaces[5].mortgaged=true;
+  const offer={a:'p0',b:'p1',fromA:[1],fromB:[5],cashA:50,cashB:0};
+  const preview=context.projectTrade(s,offer,lift);assert.equal(G.netWorth(preview,'p0'),2540);
+  G.trade(s,'p0','p1',[1],[5],50,0,lift);G.settle(s);assert.equal(G.netWorth(s,'p0'),2540);assert.equal(G.netWorth(s,'p1'),2610);
+ }
+});

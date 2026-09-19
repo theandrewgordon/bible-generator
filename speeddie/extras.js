@@ -17,8 +17,18 @@ function rescueOptions(s,id,online=false){
   }
   return `<details class="rescue"><summary>Help me pay this bill</summary><p>These are your legal ways to raise cash right now. Selling one building may change the next options.</p>${options.join('')||'<p>No mortgage or building sale is available. You can still propose a trade.</p>'}${!online?'<p>Use My properties to make a sale or mortgage.</p>':''}</details>`;
 }
+function projectTrade(s,o,lift=[]){
+  const copy=structuredClone(s);
+  if(o.fromA.length||o.fromB.length||o.cashA||o.cashB)G.trade(copy,o.a,o.b,o.fromA,o.fromB,o.cashA,o.cashB,lift);
+  return copy;
+}
+function tradeWorthPreview(s,o,lift=[]){
+  if(s.moneyMode!=='banker')return '';
+  const after=projectTrade(s,o,lift);
+  return `<div class="trade-worth-preview"><h3>After this trade</h3>${[o.a,o.b].map(id=>{const p=G.player(s,id),next=G.player(after,id);return `<p><strong>${escapeHTML(p.name)}</strong><br>Cash: ${money(p.cash)} → ${money(next.cash)}<br>Net worth: ${money(G.netWorth(s,id))} → ${money(G.netWorth(after,id))}</p>`;}).join('')}<p class="muted small">Net worth includes the incoming and outgoing properties, cash, and any new mortgage transfer fees. Cash shown is before paying those fees or redeeming mortgages.</p></div>`;
+}
 function tradeReceipt(o){
-  return `<div class="trade-receipt">${[['a','fromA','cashA','cardsA'],['b','fromB','cashB','cardsB']].map(([who,props,cash,cards])=>{const p=G.player(state,o[who]);return `<article><h3>${tokenMarkup(p)} ${escapeHTML(p.name)} gives</h3><strong>${money(o[cash])}</strong>${o[props].map(i=>{const q=state.spaces[i];return `<div class="receipt-deed" style="border-color:${GROUP_COLORS[q.group]||'#777'}">${escapeHTML(q.name)}${q.mortgaged?' · mortgaged':''}</div>`;}).join('')}${o[cards].map(c=>`<p>${escapeHTML(c)} Get Out of Jail Free card</p>`).join('')}<p>Cash after trade: ${money(p.cash-o[cash]+o[who==='a'?'cashB':'cashA'])} before mortgage fees.</p></article>`;}).join('')}</div><p>Receiving mortgaged deeds also creates a 10% mortgage transfer fee.</p>`;
+  return `<div class="trade-receipt">${[['a','fromA','cashA','cardsA'],['b','fromB','cashB','cardsB']].map(([who,props,cash,cards])=>{const p=G.player(state,o[who]);return `<article><h3>${tokenMarkup(p)} ${escapeHTML(p.name)} gives</h3><strong>${money(o[cash])}</strong>${o[props].map(i=>{const q=state.spaces[i];return `<div class="receipt-deed" style="border-color:${GROUP_COLORS[q.group]||'#777'}">${escapeHTML(q.name)}${q.mortgaged?' · mortgaged':''}</div>`;}).join('')}${o[cards].map(c=>`<p>${escapeHTML(c)} Get Out of Jail Free card</p>`).join('')}<p>Cash after trade: ${money(p.cash-o[cash]+o[who==='a'?'cashB':'cashA'])} before mortgage fees.</p></article>`;}).join('')}</div>${tradeWorthPreview(state,o)}<p>Receiving mortgaged deeds also creates a 10% mortgage transfer fee.</p>`;
 }
 function familyAwards(s){
   const stat=(p,key)=>Number.isSafeInteger(p.familyStats?.[key])?p.familyStats[key]:0;

@@ -922,13 +922,18 @@ function updateTradeSummary() {
     .map(index => state.spaces[index])
     .filter(space => space.mortgaged);
   const warning = mortgaged.length
-    ? `<p class="resolution-warning"><strong>Mortgage reminder:</strong> ${escapeHTML(mortgaged.map(space => space.name).join(", "))} ${mortgaged.length === 1 ? "is" : "are"} mortgaged. The new owner must immediately handle the bank’s 10% interest and any unmortgage payment using the physical game.</p>`
+    ? `<p class="resolution-warning"><strong>Mortgage reminder:</strong> ${escapeHTML(mortgaged.map(space => space.name).join(", "))} ${mortgaged.length === 1 ? "is" : "are"} mortgaged. The new owner owes the bank 10% interest, plus mortgage principal if redeeming the deed.</p>`
     : "";
+  const offer={a:playerA.id,b:playerB.id,fromA:fromAIndexes,fromB:fromBIndexes,cashA:Number(document.querySelector('#trade-cash-a').value),cashB:Number(document.querySelector('#trade-cash-b').value)};
+  const lift=document.querySelector('#trade-lift').checked?[...fromAIndexes,...fromBIndexes]:[];
+  let preview='',invalid=false;
+  try{preview=tradeWorthPreview(state,offer,lift);}catch(e){invalid=true;preview=`<p class="resolution-warning">${escapeHTML(e.message)}</p>`;}
   document.querySelector("#trade-summary").innerHTML =
-    `<p>${escapeHTML(summary.join(" ") || "Select properties to preview the trade.")}</p>${warning}`;
-  document.querySelector("#complete-trade").disabled = summary.length === 0 && !Number(document.querySelector("#trade-cash-a").value) && !Number(document.querySelector("#trade-cash-b").value);
+    `<p>${escapeHTML(summary.join(" ") || "Select properties or cash to preview the trade.")}</p>${warning}${preview}`;
+  document.querySelector("#complete-trade").disabled = invalid || (summary.length === 0 && !offer.cashA && !offer.cashB);
 }
 
+document.querySelector("#trade-lift").addEventListener("change",updateTradeSummary);
 document.querySelector("#trade-player-a").addEventListener("change", updateTradeProperties);
 document.querySelector("#trade-player-b").addEventListener("change", updateTradeProperties);
 document.querySelector("#cancel-trade").addEventListener("click", () => tradeDialog.close());

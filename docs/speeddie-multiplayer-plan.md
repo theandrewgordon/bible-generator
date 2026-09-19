@@ -125,3 +125,9 @@ and building values (hotel = five building units), minus mortgage principal and
 recorded unpaid bills. A pending mortgage redemption does not subtract its principal
 twice. Bankrupt players show zero; helper mode does not invent untracked cash totals.
 This informational value does not change the agreed bedtime liquidation scoring.
+
+Trade reviews show cash and net worth before and after the proposed exchange in
+local and online games. The preview runs the existing trade rules on a copy, so
+incoming/outgoing deeds, cash and mortgage-transfer fees use the same calculation
+as acceptance. Choosing immediate mortgage redemption updates the local preview;
+its principal is not deducted twice. Live player totals recalculate after trading.
