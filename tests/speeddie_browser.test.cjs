@@ -413,3 +413,15 @@ test('audio settings persist per device and movement/reactions play once per upd
  const sounds=await p.evaluate(()=>{const original=playEffect,heard=[];playEffect=k=>heard.push(k);audioSnapshot=null;observeGameAudio();state.players[0].position=5;observeGameAudio();observeGameAudio();const r={code:'audio-test',reaction:null};observeGameAudio(r);for(const emoji of ['👏','😱','🎉','Nice move!']){r.reaction={emoji,time:Date.now()/1000};observeGameAudio(r);observeGameAudio(r);}familyPreferences.muteReactions=true;r.reaction={emoji:'👏',time:Date.now()/1000};observeGameAudio(r);playEffect=original;return heard;});
  assert.deepEqual(sounds,['move','applause','surprise','celebrate','nice']);await p.close();
 });
+
+test('exiting cancels playing and queued audio; victory sounds once per result',async()=>{
+ const p=await page();
+ const result=await p.evaluate(async()=>{
+  audioPreferences={soundEffects:true,music:true,audioVolume:.2};syncMusic();playEffect('applause');tone(440,2,.1);
+  const context=audioContext;goHome();await new Promise(r=>setTimeout(r,30));
+  const stopped=[musicTimer===null,effectTimers.size,context.state,audioContext===null];
+  homeView=false;render();const original=playEffect,heard=[];playEffect=k=>heard.push(k);state.winnerId=state.players[0].id;observeGameAudio();observeGameAudio();playEffect=original;
+  return {stopped,heard};
+ });
+ assert.deepEqual(result,{stopped:[true,0,'closed',true],heard:['victory']});await p.close();
+});

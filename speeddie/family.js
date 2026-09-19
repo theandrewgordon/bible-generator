@@ -111,7 +111,16 @@ function openFamilyAuction(index) {
   if (state.auction) return;
   showDialog(`Auction · ${state.spaces[index].name}`, `<p>Take turns bidding on this screen. Passing withdraws you from this auction.</p>${button('Start turn-by-turn bidding','auction-start',index)}<details><summary>Already held the auction out loud?</summary><label class="field"><span>Winning player</span><select id="auction-player">${playerOptions(currentPlayer().id)}</select></label>${amountField('Winning bid','auction-price',state.spaces[index].price,'min="1"')}<button class="button" type="submit">Record purchase</button></details>`,()=>commitGame(s=>G.buy(s,index,document.querySelector('#auction-player').value,readAmount('auction-price'))));
 }
-let audioContext, musicTimer, musicStep = 0, audioPreferences={};
+let audioContext, musicTimer, musicStep = 0, audioPreferences={}, audioEpoch=0;
+const effectTimers=new Set();
+let victorySpeech=null;
+function gameAudioActive(){return !homeView&&state.started&&(!onlineSession||!onlineRoom?.closed);}
+function stopGameAudio(){
+  audioEpoch++;effectTimers.forEach(clearTimeout);effectTimers.clear();clearInterval(musicTimer);musicTimer=null;
+  if(audioContext){const old=audioContext;audioContext=null;old.close().catch(()=>{});}
+  if(victorySpeech){window.speechSynthesis?.cancel();victorySpeech=null;}
+}
+function scheduleEffect(fn,delay){const epoch=audioEpoch,id=setTimeout(()=>{effectTimers.delete(id);if(epoch===audioEpoch&&gameAudioActive()&&audioSetting('soundEffects')&&!document.hidden)try{fn();}catch(_){}},delay);effectTimers.add(id);}
 try{audioPreferences=JSON.parse(localStorage.getItem('speeddie-audio')||'{}')||{};}catch(_){}
 function audioSetting(key){return audioPreferences[key]??state[key]??(key==='audioVolume'?.3:false);}
 function tone(freq, duration=.12, volume=.1, type='sine') {
@@ -129,20 +138,33 @@ function diceClack(){
   for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*Math.exp(-i/(length/7));
   const source=audioContext.createBufferSource(),gain=audioContext.createGain();source.buffer=buffer;gain.gain.value=.4*audioSetting('audioVolume');source.connect(gain);gain.connect(audioContext.destination);source.start();source.onended=()=>{source.disconnect();gain.disconnect();};
 }
+function handClap(){
+  if(!audioContext)tone(120,.01,0);
+  const rate=audioContext.sampleRate,length=Math.floor(rate*.22),buffer=audioContext.createBuffer(1,length,rate),data=buffer.getChannelData(0);
+  // A hand clap has several close impacts, a sharp midrange crack and a short room tail.
+  let previous=0;
+  for(let i=0;i<length;i++){const t=i/rate,noise=Math.random()*2-1,high=noise-previous;previous=noise;const envelope=[0,.012,.026].reduce((v,start)=>v+(t>=start?Math.exp(-(t-start)*140):0),0)+.15*Math.exp(-t*22);data[i]=high*envelope*.24;}
+  const source=audioContext.createBufferSource(),filter=audioContext.createBiquadFilter(),gain=audioContext.createGain();source.buffer=buffer;filter.type='bandpass';filter.frequency.value=1500;filter.Q.value=.6;gain.gain.value=audioSetting('audioVolume');source.connect(filter);filter.connect(gain);gain.connect(audioContext.destination);source.start();source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};
+}
 function playEffect(kind) {
-  if (!audioSetting('soundEffects') || document.hidden) return;
-  const notes={roll:[0,0,0,0,0,0],move:[330,392,440],applause:[0,0,0,0],surprise:[660,440,220],celebrate:[392,494,587,784],nice:[523,659,784],victory:[392,494,587,784]}[kind]||[440,660];
-  notes.forEach((n,i)=>setTimeout(()=>{if(!audioSetting('soundEffects')||document.hidden)return;try{if(!n)diceClack();else tone(n,kind==='move'?.065:.16,.2,kind==='move'?'triangle':'sine');}catch(_){}},i*(kind==='roll'?65:100)));
+  if (!gameAudioActive()||!audioSetting('soundEffects') || document.hidden) return;
+  if(kind==='applause'){[0,130,285,410,560,705,850].forEach(t=>scheduleEffect(handClap,t));return;}
+  if(kind==='victory')scheduleEffect(()=>{if(window.speechSynthesis&&window.SpeechSynthesisUtterance){victorySpeech=new SpeechSynthesisUtterance('Yay!');victorySpeech.pitch=1.35;victorySpeech.rate=1.1;victorySpeech.volume=audioSetting('audioVolume');victorySpeech.onend=()=>{victorySpeech=null;};window.speechSynthesis.speak(victorySpeech);}},450);
+  const notes={roll:[0,0,0,0,0,0],move:[330,392,440],surprise:[660,440,220],celebrate:[392,494,587,784],nice:[523,659,784],victory:[392,494,587,784,988,784]}[kind]||[440,660];
+  notes.forEach((n,i)=>scheduleEffect(()=>{if(!n)diceClack();else tone(n,kind==='move'?.065:.16,.2,kind==='move'?'triangle':'sine');},i*(kind==='roll'?65:100)));
 }
 function syncMusic() {
   clearInterval(musicTimer);musicTimer=null;
-  if(audioSetting('music')&&!document.hidden)musicTimer=setInterval(()=>{if(!audioSetting('music')||document.hidden)return;try{const melody=[392,494,587,494,440,523,659,523,349,440,523,440,392,494,587,494];tone(melody[musicStep%16],.45,.07);if(musicStep%4===0)tone([196,220,175,196][Math.floor(musicStep/4)%4],1.4,.04,'triangle');musicStep++;}catch(_){}},420);
+  if(gameAudioActive()&&audioSetting('music')&&!document.hidden)musicTimer=setInterval(()=>{if(!gameAudioActive()||!audioSetting('music')||document.hidden)return;try{const melody=[392,494,587,494,440,523,659,523,349,440,523,440,392,494,587,494];tone(melody[musicStep%16],.45,.07);if(musicStep%4===0)tone([196,220,175,196][Math.floor(musicStep/4)%4],1.4,.04,'triangle');musicStep++;}catch(_){}},420);
 }
-document.addEventListener('visibilitychange',syncMusic);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopGameAudio();else syncMusic();});
+window.addEventListener('pagehide',stopGameAudio);
 let audioSnapshot=null;
 function observeGameAudio(room=null){
-  const snapshot={game:room?.code||state.gameId||state.players.map(p=>p.id).join(','),positions:state.players.map(p=>p.position).join(','),roll:JSON.stringify(state.roll),reaction:room?.reaction?JSON.stringify(room.reaction):null};
+  if(!gameAudioActive()){stopGameAudio();audioSnapshot=null;return;}
+  const snapshot={winner:JSON.stringify(room?.result?.winners||state.winnerId||null),game:room?.code||state.gameId||state.players.map(p=>p.id).join(','),positions:state.players.map(p=>p.position).join(','),roll:JSON.stringify(state.roll),reaction:room?.reaction?JSON.stringify(room.reaction):null};
   if(audioSnapshot?.game===snapshot.game){
+    if(snapshot.winner!==audioSnapshot.winner&&snapshot.winner!=='null')playEffect('victory');
     if(room&&snapshot.roll!==audioSnapshot.roll&&state.roll)playEffect('roll');
     if(snapshot.positions!==audioSnapshot.positions)playEffect('move');
     if(snapshot.reaction&&snapshot.reaction!==audioSnapshot.reaction&&!familyPreferences.muteReactions&&Date.now()/1000-room.reaction.time<8)playEffect({'👏':'applause','😱':'surprise','🎉':'celebrate','Nice move!':'nice'}[room.reaction.emoji]||'nice');
