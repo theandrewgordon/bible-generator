@@ -1,0 +1,1526 @@
+<!DOCTYPE html><head>
+<title>LittleJS AI Starter Project</title>
+<meta charset="utf-8">
+</head><body style="background:#000">
+<script src="https://cdn.jsdelivr.net/npm/littlejsengine@1.18.19/dist/littlejs.js?1.18.19"></script>
+<script>
+'use strict';
+
+// engine settings, do not remove
+debugWatermark = false; // Hide debug watermark in corner
+showEngineVersion = false; // Hide engine version console display
+paused = false; // Start unpaused
+tilesPixelated = false; // use HD textures
+debugShowErrors(); // Break on errors for quick debugging
+
+// engine settings, customize if necessary (engine globals - assign, do not redeclare)
+gravity = vec2(0, 0); // No gravity by default
+cameraPos = vec2(0, 0); // Camera centered at origin
+cameraScale = 32; // Camera zoom, larger is more zoomed in
+
+// AI can use this class to make sound effects
+class SoundGenerator extends Sound
+{
+    constructor(params = {})
+    {
+        const {
+            volume = 1,        // Volume scale (percent)
+            randomness = .05,  // How much to randomize frequency (percent Hz)
+            frequency = 220,   // Frequency of sound (Hz)
+            attack = 0,        // Attack time, how fast sound starts (seconds)
+            release = .1,      // Release time, how fast sound fades out (seconds)
+            shapeCurve = 1,    // Squarenes of wave (0=square, 1=normal, 2=pointy)
+            slide = 0,         // How much to slide frequency (kHz/s)
+            pitchJump = 0,     // Frequency of pitch jump (Hz)
+            pitchJumpTime = 0, // Time of pitch jump (seconds)
+            repeatTime = 0,    // Resets some parameters periodically (seconds)
+            noise = 0,         // How much random noise to add (percent)
+            bitCrush = 0,      // Resamples at a lower frequency in (samples*100)
+            delay = 0,         // Overlap sound with itself for reverb and flanger effects (seconds)
+        } = params;
+
+        super([volume, randomness, frequency, attack, 0, release, 0, shapeCurve, slide, 0, pitchJump, pitchJumpTime, repeatTime, noise, 0, bitCrush, delay, 1, 0, 0, 0]);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// SPRITE ATLAS (do not remove) - bakes 16 white shape icons into one texture so
+// the AI can draw recolorable sprites with zero external assets. Call
+// initDefaultAtlas() once in gameInit to get a name->TileInfo map, then draw any
+// icon with drawTile(pos, size, icons.NAME, color). Each icon is pure white, so
+// the color argument tints it to any hue. Icon names (tiles 0-15):
+//   circle glow ring roundSquare triangle diamond pentagon hexagon
+//   spark star burst plus heart droplet bolt arrow
+
+const ATLAS_SIZE = 2048; // texture size in pixels
+const DRAW_SIZE = 500;   // fixed logical space every icon is painted in
+let TILE_COLS, TILE_PADDING, TILE_STRIDE, TILE_SIZE, TILE_COUNT;
+let atlasCanvas, atlasCtx, atlasDirty, flushScheduled;
+
+function initDrawToTexture(cols = 4)
+{
+    ASSERT(cols === 4 || cols === 8, 'cols must be 4 or 8');
+
+    TILE_COLS    = cols;
+    TILE_STRIDE  = ATLAS_SIZE / TILE_COLS;          // 512 or 256
+    TILE_PADDING = TILE_COLS === 4 ? 12 : 6;        // transparent moat to stop mip bleed
+    TILE_SIZE    = TILE_STRIDE - TILE_PADDING * 2;  // 488 or 244
+    TILE_COUNT   = TILE_COLS * TILE_COLS;
+
+    atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = atlasCanvas.height = ATLAS_SIZE;
+    atlasCtx = atlasCanvas.getContext('2d');
+
+    textureInfos[0] && textureInfos[0].destroyWebGLTexture();
+    textureInfos[0] = new TextureInfo(atlasCanvas);
+
+    setTileDefaultSize(vec2(TILE_SIZE));
+    setTileDefaultPadding(TILE_PADDING);
+    atlasDirty = flushScheduled = false;
+}
+
+function drawToTexture(tileIndex, drawFn)
+{
+    ASSERT(tileIndex >= 0 && tileIndex < TILE_COUNT, 'tileIndex out of range');
+
+    const cellX = (tileIndex % TILE_COLS) * TILE_STRIDE;
+    const cellY = (tileIndex / TILE_COLS | 0) * TILE_STRIDE;
+    const drawX = cellX + TILE_PADDING;
+    const drawY = cellY + TILE_PADDING;
+
+    atlasCtx.clearRect(cellX, cellY, TILE_STRIDE, TILE_STRIDE);
+    atlasCtx.save();
+    atlasCtx.translate(drawX, drawY);
+    atlasCtx.beginPath();
+    atlasCtx.rect(0, 0, TILE_SIZE, TILE_SIZE);
+    atlasCtx.clip();
+    // paint in a fixed DRAW_SIZE space scaled to fill the tile
+    atlasCtx.scale(TILE_SIZE / DRAW_SIZE, TILE_SIZE / DRAW_SIZE);
+    drawFn(atlasCtx, tileIndex);
+    atlasCtx.restore();
+
+    atlasDirty = true;
+    if (!flushScheduled)
+    {
+        flushScheduled = true;
+        queueMicrotask(flushAtlas);
+    }
+    return new TileInfo(vec2(drawX, drawY), vec2(TILE_SIZE), textureInfos[0], TILE_PADDING);
+}
+
+function flushAtlas()
+{
+    flushScheduled = false;
+    if (!atlasDirty) return;
+    atlasDirty = false;
+    textureInfos[0].createWebGLTexture();
+}
+
+// Force every texel RGB to white (keeping alpha) so bilinear/mipmap filtering
+// can't darken the white icon edges into a halo. Call after painting white tiles.
+function whitenAtlasAlpha()
+{
+    flushAtlas();
+    if (!glContext || !textureInfos[0].glTexture) return; // canvas2D: no GL halo
+
+    const image = atlasCtx.getImageData(0, 0, ATLAS_SIZE, ATLAS_SIZE);
+    const d = image.data;
+    for (let i = 0; i < d.length; i += 4)
+        d[i] = d[i+1] = d[i+2] = 255; // white RGB, leave alpha alone
+
+    glContext.bindTexture(glContext.TEXTURE_2D, textureInfos[0].glTexture);
+    glContext.texImage2D(glContext.TEXTURE_2D, 0, glContext.RGBA,
+        glContext.RGBA, glContext.UNSIGNED_BYTE, image);
+    if (!tilesPixelated && isPowerOfTwo(ATLAS_SIZE))
+        glContext.generateMipmap(glContext.TEXTURE_2D);
+    glContext.bindTexture(glContext.TEXTURE_2D, glActiveTexture); // restore engine binding
+}
+
+// 16 built-in white-on-transparent icons, drawn centred at (x,y) with radius r.
+const DEFAULT_ICON_NAMES = [
+    'circle', 'glow', 'ring', 'roundSquare',
+    'triangle', 'diamond', 'pentagon', 'hexagon',
+    'spark', 'star', 'burst', 'plus',
+    'heart', 'droplet', 'bolt', 'arrow',
+];
+
+const _defaultIconDrawers = (() =>
+{
+    function poly(ctx, x, y, r, sides, rot = 0)
+    {
+        ctx.beginPath();
+        for (let k = sides; k--;)
+        {
+            const a = rot + k * (2*PI / sides);
+            ctx.lineTo(x + Math.sin(a) * r, y - Math.cos(a) * r);
+        }
+        ctx.closePath();
+    }
+    function starPath(ctx, x, y, ro, ri, points, rot = -PI/2)
+    {
+        ctx.beginPath();
+        for (let k = points * 2; k--;)
+        {
+            const rr = k & 1 ? ri : ro;
+            const a = rot + k * (PI / points);
+            ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        }
+        ctx.closePath();
+    }
+    function roundRectPath(ctx, x, y, w, h, r)
+    {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+    function circle(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 9);
+        ctx.fill();
+    }
+    function droplet(ctx, x, y, r)
+    {
+        const by = y + .3 * r, br = .6 * r;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.bezierCurveTo(x + .3 * r, y - .5 * r, x + br, y - .1 * r, x + br, by);
+        ctx.arc(x, by, br, 0, PI);
+        ctx.bezierCurveTo(x - br, y - .1 * r, x - .3 * r, y - .5 * r, x, y - r);
+        ctx.closePath();
+        ctx.fill();
+    }
+    function roundSquare(ctx, x, y, r)
+    {
+        roundRectPath(ctx, x - r, y - r, r*2, r*2, r*.4);
+        ctx.fill();
+    }
+    function triangle(ctx, x, y, r) { poly(ctx, x, y, r, 3);        ctx.fill(); }
+    function diamond(ctx, x, y, r)  { poly(ctx, x, y, r, 4);        ctx.fill(); }
+    function pentagon(ctx, x, y, r) { poly(ctx, x, y, r, 5);        ctx.fill(); }
+    function hexagon(ctx, x, y, r)  { poly(ctx, x, y, r, 6, PI/2);  ctx.fill(); }
+    function ring(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 9);
+        ctx.arc(x, y, r*.7, 9, 0, true);
+        ctx.fill();
+    }
+    function glow(ctx, x, y, r)
+    {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 9);
+        ctx.fill();
+    }
+    function burst(ctx, x, y, r) { starPath(ctx, x, y, r, r*.7, 10); ctx.fill(); }
+    function spark(ctx, x, y, r) { starPath(ctx, x, y, r, r/4, 4);   ctx.fill(); }
+    function star(ctx, x, y, r)  { starPath(ctx, x, y, r, r*.4, 5);  ctx.fill(); }
+    function heart(ctx, x, y, r)
+    {
+        const width = 1, topCtrl = .92, dip = .40, shoulder = .46, tip = .9;
+        const p = (nx, ny) => [x + nx * r, y + ny * r];
+        ctx.beginPath();
+        ctx.moveTo(...p(0, -dip));
+        ctx.bezierCurveTo(...p(0, -topCtrl), ...p(-width, -topCtrl), ...p(-width, -shoulder));
+        ctx.bezierCurveTo(...p(-width, 0), ...p(0, tip * .9), ...p(0, tip));
+        ctx.bezierCurveTo(...p(0, tip * .9), ...p(width, 0), ...p(width, -shoulder));
+        ctx.bezierCurveTo(...p(width, -topCtrl), ...p(0, -topCtrl), ...p(0, -dip));
+        ctx.closePath();
+        ctx.fill();
+    }
+    function plus(ctx, x, y, r)
+    {
+        const a = r * .3, b = r;
+        ctx.beginPath();
+        ctx.moveTo(x - a, y - b); ctx.lineTo(x + a, y - b); ctx.lineTo(x + a, y - a);
+        ctx.lineTo(x + b, y - a); ctx.lineTo(x + b, y + a); ctx.lineTo(x + a, y + a);
+        ctx.lineTo(x + a, y + b); ctx.lineTo(x - a, y + b); ctx.lineTo(x - a, y + a);
+        ctx.lineTo(x - b, y + a); ctx.lineTo(x - b, y - a); ctx.lineTo(x - a, y - a);
+        ctx.closePath();
+        ctx.fill();
+    }
+    function arrow(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + .8 * r, y - .1 * r); ctx.lineTo(x + .3 * r, y - .1 * r);
+        ctx.lineTo(x + .3 * r, y + r);      ctx.lineTo(x - .3 * r, y + r);
+        ctx.lineTo(x - .3 * r, y - .1 * r); ctx.lineTo(x - .8 * r, y - .1 * r);
+        ctx.closePath();
+        ctx.fill();
+    }
+    function bolt(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.moveTo(x + .25 * r, y - r);   ctx.lineTo(x - .5 * r, y + .15 * r);
+        ctx.lineTo(x - .1 * r, y + .15 * r); ctx.lineTo(x - .25 * r, y + r);
+        ctx.lineTo(x + .5 * r, y - .2 * r);  ctx.lineTo(x + .1 * r, y - .2 * r);
+        ctx.closePath();
+        ctx.fill();
+    }
+    return {
+        circle, glow, ring, roundSquare, triangle, diamond, pentagon, hexagon,
+        spark, star, burst, plus, heart, droplet, bolt, arrow,
+    };
+})();
+
+// Paint one named white icon into a tile and return its TileInfo. scale tweaks
+// icon size within the tile (1 = default).
+function drawDefaultIcon(name, tileIndex, scale = 1)
+{
+    const fn = _defaultIconDrawers[name];
+    ASSERT(fn, 'unknown default icon: ' + name);
+    return drawToTexture(tileIndex, ctx =>
+    {
+        const c = DRAW_SIZE / 2, r = c * scale;
+        ctx.fillStyle = ctx.strokeStyle = '#fff';
+        ctx.lineJoin = ctx.lineCap = 'round';
+        fn(ctx, c, c, r);
+    });
+}
+
+// Build the 16 default icons into tiles 0-15 and return a name->TileInfo map.
+function initDefaultAtlas(scale = 1)
+{
+    if (!atlasCtx) initDrawToTexture(4);
+    const icons = {};
+    for (let i = 0; i < DEFAULT_ICON_NAMES.length; ++i)
+        icons[DEFAULT_ICON_NAMES[i]] = drawDefaultIcon(DEFAULT_ICON_NAMES[i], i, scale);
+    whitenAtlasAlpha(); // white RGB everywhere -> no dark halo
+    return icons;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// the default sprite atlas, a name->TileInfo map filled in by gameInit
+let icons, art={};
+
+///////////////////////////////////////////////////////////////////////////////
+let score=0, served=0, level=1, stars=0, order, tray=[], prepared=false, message='', waitingForNext=false,
+scoopFlavor='', scoopLoaded=false, holdingScoop=false, holdingMilk=false, holdingCup=false, cupFilled=false,
+blenderRunning=false, blenderTimer=new Timer(), happyTimer=new Timer(),
+guestPhase='active', guestTimer=new Timer(), guestSlide=0, guestSlideTarget=0, guestName='Customer', guestStyle=0,
+needsReset=false, progressTimer=new Timer(), progressText='',
+heldVisualPos=vec2(), heldVisualReady=false, pickupBounce=new Timer();
+let voiceMode=0;
+const VOICES=['Friendly','Higher','Lower'];
+const CUSTOMERS=['Molly','Ben','Lucy','Sam','Jo'];
+
+
+function recipeHas(name){ return !!order && order.need.includes(name); }
+function alreadyAdded(name){ return tray.includes(name); }
+
+function markAdded(name,pos){
+ progressText=`✓ ${shortName(name)} ADDED!`;
+ progressTimer.set(.8);
+ new ParticleEmitter(pos,0,0,.08,28,PI,icons.spark,
+  hsl(.34,.7,.55),WHITE,rgb(0,.9,.3,0),rgb(1,1,1,0),
+  .45,.08,.32,.08,0,1,1,0,PI,.08,.12,false,true);
+}
+
+function guestPalette(style){
+ const shirts=[hsl(.6,.55,.52),hsl(.02,.65,.55),hsl(.32,.5,.48),hsl(.82,.48,.58),hsl(.12,.65,.52)];
+ const hairs=[hsl(.07,.45,.25),hsl(.1,.55,.35),hsl(.03,.6,.25),hsl(.58,.18,.2),hsl(.09,.35,.18)];
+ const skins=[hsl(.08,.42,.78),hsl(.07,.48,.68),hsl(.1,.35,.82),hsl(.06,.55,.62),hsl(.09,.42,.72)];
+ return [shirts[style%shirts.length],hairs[style%hairs.length],skins[style%skins.length]];
+}
+function drawGuest(pos,style,pose='idle'){
+ const p=guestPalette(style),shirt=p[0],hair=p[1],skin=p[2];
+ const bob=pose=='idle'?.04*sin(time*3+style):pose=='thanks'?.07*sin(time*7):0;
+ const q=pos.add(vec2(0,bob));
+
+ drawLine(q.add(vec2(-.22,-.62)),q.add(vec2(-.28,-1.16)),.16,hsl(.58,.22,.25));
+ drawLine(q.add(vec2(.22,-.62)),q.add(vec2(.28,-1.16)),.16,hsl(.58,.22,.25));
+ drawRect(q.add(vec2(0,-.28)),vec2(1.02,.9),shirt);
+
+ // arms: customer reaches toward the drink after service
+ if(pose=='thanks'||pose=='leaving'){
+  drawLine(q.add(vec2(-.38,-.2)),q.add(vec2(-.78,-.02)),.14,skin);
+  drawLine(q.add(vec2(.38,-.18)),q.add(vec2(.78,-.02)),.14,skin);
+ }else{
+  drawLine(q.add(vec2(-.4,-.22)),q.add(vec2(-.55,-.55)),.14,skin);
+  drawLine(q.add(vec2(.4,-.22)),q.add(vec2(.55,-.55)),.14,skin);
+ }
+
+ drawTile(q.add(vec2(0,.48)),vec2(.98),icons.circle,skin);
+ drawTile(q.add(vec2(0,.78)),vec2(.95,.38),icons.circle,hair);
+ if(style%3==1){
+  drawTile(q.add(vec2(-.2,.5)),vec2(.27),icons.ring,hsl(.55,.08,.28));
+  drawTile(q.add(vec2(.2,.5)),vec2(.27),icons.ring,hsl(.55,.08,.28));
+  drawLine(q.add(vec2(-.05,.5)),q.add(vec2(.05,.5)),.03,hsl(.55,.08,.28));
+ }
+ if(style%4==2){
+  drawTile(q.add(vec2(-.42,.84)),vec2(.45),icons.circle,hair);
+  drawTile(q.add(vec2(.42,.84)),vec2(.45),icons.circle,hair);
+ }
+ drawTile(q.add(vec2(-.18,.5)),vec2(.09),icons.circle,BLACK);
+ drawTile(q.add(vec2(.18,.5)),vec2(.09),icons.circle,BLACK);
+
+ if(pose=='thanks'){
+  drawLine(q.add(vec2(-.18,.24)),q.add(vec2(0,.14)),.045,hsl(.98,.55,.35));
+  drawLine(q.add(vec2(0,.14)),q.add(vec2(.18,.24)),.045,hsl(.98,.55,.35));
+ }else drawLine(q.add(vec2(-.16,.28)),q.add(vec2(.16,.28)),.045,hsl(.98,.55,.35));
+}
+function missingIngredient(){
+ if(!order)return '';
+ return order.need.find(name=>!tray.includes(name) && name!=scoopFlavor && name!=holdingMilk) || '';
+}
+function shortName(name){
+ return name.replace(' Ice Cream','').replace('Chocolate Syrup','Choc. Syrup').replace('Strawberry Syrup','Berry Syrup');
+}
+function kidStep(){
+ if(needsReset)return 'TAP START OVER';
+ if(waitingForNext){
+  if(guestPhase=='thanks')return 'THE CUSTOMER SAYS THANK YOU!';
+  if(guestPhase=='leaving')return 'BYE! NEXT CUSTOMER...';
+  if(guestPhase=='arriving')return 'A NEW CUSTOMER IS COMING!';
+  return 'GREAT JOB!';
+ }
+ if(blenderRunning)return 'WAIT... IT IS BLENDING!';
+ if(cupFilled)return 'TAKE THE CUP TO THE CUSTOMER';
+ if(prepared && !holdingCup)return 'PICK UP A CUP';
+ if(prepared && holdingCup)return order.kind=='BLEND'?'TAP THE BLENDER TO FILL THE CUP':'TAP MIX TO FILL THE CUP';
+
+ const station=order && order.kind=='MIX'?'MIX':'BLENDER';
+ if(scoopLoaded)return `TAP ${station} TO ADD THE SCOOP`;
+ if(holdingMilk)return `TAP ${station} TO POUR ${shortName(holdingMilk).toUpperCase()}`;
+
+ const miss=missingIngredient();
+ if(miss){
+  const item=PANTRY.find(x=>x.name==miss);
+  if(item && isScoopFlavor(item)){
+   if(!holdingScoop)return 'PICK UP THE SCOOPER';
+   return `TAP ${shortName(miss).toUpperCase()}`;
+  }
+  if(holdingScoop)return 'SET THE SCOOPER DOWN';
+  return `PICK UP ${shortName(miss).toUpperCase()}`;
+ }
+ return order && order.kind=='MIX'?'TAP MIX TO MAKE THE DRINK':'PRESS THE BLENDER BUTTON';
+}
+function kidTarget(){
+ if(needsReset)return vec2(0,-5.18);
+ if(waitingForNext)return 0;
+ if(cupFilled)return vec2(7.5,2.15);
+ if(prepared&&!holdingCup)return vec2(6.5,-4.82);
+ if(prepared&&holdingCup)return order.kind=='MIX'?vec2(0,1.15):vec2(-3.8,1.15);
+ if(scoopLoaded||holdingMilk)return order.kind=='MIX'?vec2(0,1.15):vec2(-3.8,1.15);
+
+ const miss=missingIngredient();
+ if(miss){
+  const item=PANTRY.find(x=>x.name==miss);
+  if(item&&isScoopFlavor(item)&&!holdingScoop)return vec2(-6.5,-4.82);
+  if(item&&isScoopFlavor(item))return item.pos;
+  if(holdingScoop)return vec2(-6.5,-4.82);
+  if(item)return item.pos;
+ }
+ return order&&order.kind=='MIX'?vec2(0,1.15):vec2(-3.8,1.15);
+}
+
+let messageTimer=new Timer(), nextTimer=new Timer();
+const PANTRY=[
+{name:'Vanilla Ice Cream',pos:vec2(-7.25,-2.55),color:hsl(.12,.22,.94),icon:'circle'},
+{name:'Chocolate Ice Cream',pos:vec2(-5.25,-2.55),color:hsl(.07,.55,.25),icon:'circle'},
+{name:'Strawberry Ice Cream',pos:vec2(-3.25,-2.55),color:hsl(.97,.7,.65),icon:'circle'},
+{name:'Milk',pos:vec2(1.35,-2.55),color:hsl(.55,.12,.96),icon:'droplet'},
+{name:'Chocolate Syrup',pos:vec2(3.35,-2.55),color:hsl(.05,.65,.22),icon:'droplet'},
+{name:'Strawberry Syrup',pos:vec2(5.35,-2.55),color:hsl(.97,.75,.62),icon:'heart'},
+{name:'Soda Water',pos:vec2(7.35,-2.55),color:hsl(.55,.65,.78),icon:'spark'},
+{name:'Raspberry Ripple',pos:vec2(-1.25,-2.55),color:hsl(.96,.65,.82),icon:'circle'}];
+const RECIPES=[
+{name:'Vanilla Shake',need:['Vanilla Ice Cream','Milk'],kind:'BLEND'},
+{name:'World-Famous Chocolate Shake',need:['Chocolate Ice Cream','Milk','Chocolate Syrup'],kind:'BLEND'},
+{name:'Strawberry Shake',need:['Vanilla Ice Cream','Milk','Strawberry Syrup'],kind:'BLEND'},
+{name:'Chocolate Soda',need:['Chocolate Ice Cream','Chocolate Syrup','Soda Water'],kind:'MIX'},
+{name:'Vanilla Soda',need:['Vanilla Ice Cream','Soda Water'],kind:'MIX'},
+{name:'Strawberry Ice Cream Shake',need:['Strawberry Ice Cream','Milk'],kind:'BLEND'},
+{name:'Chocolate Strawberry Shake',need:['Chocolate Ice Cream','Milk','Strawberry Syrup'],kind:'BLEND'},
+{name:'Strawberry Chocolate Shake',need:['Strawberry Ice Cream','Milk','Chocolate Syrup'],kind:'BLEND'},
+{name:'Raspberry Ripple Shake',need:['Raspberry Ripple','Milk'],kind:'BLEND'},
+{name:'Raspberry Chocolate Shake',need:['Raspberry Ripple','Milk','Chocolate Syrup'],kind:'BLEND'},
+{name:'Berry Blast',need:['Strawberry Ice Cream','Milk','Strawberry Syrup'],kind:'BLEND'},
+{name:'Double Chocolate',need:['Chocolate Ice Cream','Milk','Chocolate Syrup'],kind:'BLEND'}];
+const sndPick=new SoundGenerator({frequency:520,release:.08});
+const sndPrep=new SoundGenerator({frequency:160,slide:1.4,release:.35,noise:.12});
+const sndGood=new SoundGenerator({frequency:720,pitchJump:300,pitchJumpTime:.08,release:.25});
+const sndBad=new SoundGenerator({frequency:180,slide:-.5,release:.25});
+
+
+function drawScoopTool(pos,loaded=false,color=WHITE)
+{
+    // metal bowl + handle
+    drawLine(pos.add(vec2(.1,-.05)),pos.add(vec2(.9,-.75)),.18,hsl(.55,.08,.7));
+    drawLine(pos.add(vec2(.82,-.68)),pos.add(vec2(1.15,-1.02)),.25,hsl(.58,.08,.35));
+    drawTile(pos,vec2(.85),icons.circle,hsl(.55,.1,.82));
+    drawTile(pos.add(vec2(-.08,.08)),vec2(.55),icons.circle,hsl(.55,.08,.55));
+    loaded && drawIceCreamScoop(pos.add(vec2(0,.22)),color);
+}
+function drawBottle(pos,color,label)
+{
+    drawRect(pos,vec2(.65,1.35),color);
+    drawRect(pos.add(vec2(0,.82)),vec2(.28,.35),hsl(.55,.08,.8));
+    drawRect(pos.add(vec2(0,1.05)),vec2(.18,.2),hsl(.55,.08,.35));
+    drawText(label,pos.add(vec2(0,-.92)),.24,BLACK);
+}
+function drawCarton(pos,label)
+{
+    drawRect(pos,vec2(.85,1.35),hsl(.55,.12,.95));
+    drawTile(pos.add(vec2(0,.18)),vec2(.42),icons.droplet,hsl(.55,.55,.55));
+    drawText(label,pos.add(vec2(0,-.92)),.24,BLACK);
+}
+function drawFancyCup(pos,filled=false){
+ let drink=hsl(.12,.25,.9);
+ if(tray.includes('Chocolate Ice Cream')||tray.includes('Chocolate Syrup'))drink=hsl(.07,.5,.3);
+ if(tray.includes('Strawberry Ice Cream')||tray.includes('Strawberry Syrup'))drink=hsl(.97,.65,.7);
+ if(tray.includes('Raspberry Ripple'))drink=hsl(.94,.55,.72);
+ drawRect(pos,vec2(.9,1.25),filled?drink:hsl(.55,.12,.96));
+ drawLine(pos.add(vec2(-.35,.62)),pos.add(vec2(.35,.62)),.08,hsl(.55,.08,.45));
+ drawLine(pos.add(vec2(.2,.7)),pos.add(vec2(.45,1.15)),.07,hsl(.97,.6,.5));
+ if(filled&&level>=2){drawTile(pos.add(vec2(0,.72)),vec2(.7,.35),icons.glow,WHITE);drawTile(pos.add(vec2(.18,.9)),vec2(.18),icons.circle,RED);}
+}
+function drawIceCreamScoop(pos,color,label='')
+{
+    // overlapping atlas circles make a fluffy, scalloped scoop
+    drawTile(pos.add(vec2(0,.12)),vec2(1.15),icons.circle,color);
+    drawTile(pos.add(vec2(-.38,-.18)),vec2(.58),icons.circle,color);
+    drawTile(pos.add(vec2(0,-.27)),vec2(.62),icons.circle,color);
+    drawTile(pos.add(vec2(.38,-.18)),vec2(.58),icons.circle,color);
+    drawTile(pos.add(vec2(-.2,.34)),vec2(.22),icons.glow,WHITE);
+    label && drawText(label,pos.add(vec2(0,-.82)),.25,BLACK);
+}
+function drawTub(pos,color,label){
+ // open stainless ice-cream tub with a mound of ice cream
+ drawRect(pos.add(vec2(0,-.12)),vec2(1.8,.9),hsl(.55,.08,.78));
+ drawRect(pos.add(vec2(0,.18)),vec2(1.58,.55),color);
+ drawTile(pos.add(vec2(-.38,.38)),vec2(.62),icons.circle,color);
+ drawTile(pos.add(vec2(.15,.4)),vec2(.7),icons.circle,color);
+ drawTile(pos.add(vec2(.48,.3)),vec2(.48),icons.circle,color);
+ drawLine(pos.add(vec2(-.72,.55)),pos.add(vec2(.72,.55)),.06,WHITE);
+}
+function drawPrettyBottle(pos,color,label){
+ drawRect(pos,vec2(.62,1.15),color);
+ drawRect(pos.add(vec2(0,.72)),vec2(.3,.3),WHITE);
+ drawRect(pos.add(vec2(0,.92)),vec2(.18,.16),hsl(.55,.08,.3));
+ drawTile(pos.add(vec2(-.13,.2)),vec2(.18),icons.glow,WHITE);
+ drawText(label,pos.add(vec2(0,-.72)),.19,BLACK);
+}
+function drawBlender(pos)
+{
+    // motor base
+    drawRect(pos.add(vec2(0,-.72)),vec2(2.05,.65),hsl(.58,.08,.28));
+    drawRect(pos.add(vec2(0,-.55)),vec2(1.65,.16),hsl(.55,.12,.68));
+    drawTile(pos.add(vec2(.55,-.72)),vec2(.18),icons.circle,RED);
+    // glass pitcher
+    drawRect(pos.add(vec2(0,.18)),vec2(1.45,1.55),hsl(.55,.18,.88,.72));
+    drawLine(pos.add(vec2(-.62,-.25)),pos.add(vec2(-.48,.82)),.08,WHITE);
+    drawLine(pos.add(vec2(.62,-.25)),pos.add(vec2(.48,.82)),.08,WHITE);
+    drawLine(pos.add(vec2(-.52,.78)),pos.add(vec2(.52,.78)),.1,hsl(.55,.08,.35));
+    // handle and blades
+    drawLine(pos.add(vec2(.72,.55)),pos.add(vec2(1.02,.42)),.14,hsl(.55,.08,.35));
+    drawLine(pos.add(vec2(1.02,.42)),pos.add(vec2(.94,-.1)),.14,hsl(.55,.08,.35));
+    if(tray.length){
+      let c=hsl(.12,.3,.88);
+      if(tray.some(x=>x.includes('Chocolate')))c=hsl(.07,.5,.3);
+      if(tray.some(x=>x.includes('Strawberry')||x.includes('Raspberry')))c=hsl(.97,.65,.7);
+      drawRect(pos.add(vec2(0,-.02)),vec2(1.05,.5),c);
+    }
+    drawTile(pos.add(vec2(.52,-.72)),vec2(.3),icons.glow,blenderRunning?YELLOW:RED);
+    drawLine(pos.add(vec2(-.42,-.28)),pos.add(vec2(.42,-.28)),.08,hsl(.55,.08,.3));
+    drawLine(pos.add(vec2(0,-.28)),pos.add(vec2(-.28,-.08)),.07,hsl(.55,.08,.3));
+    drawLine(pos.add(vec2(0,-.28)),pos.add(vec2(.28,-.08)),.07,hsl(.55,.08,.3));
+}
+
+function whitSpeak(text){ /* talking is off */ }
+function sayItem(item){
+ whitSpeak(item.name);
+}
+function sayOrder(){
+ if(!order)return;
+ whitSpeak(`Order up! One ${order.name}, please. Need: ${order.need.join(', ')}.`);
+}
+function newOrder(arriving=false){
+ order=RECIPES[randInt(min(RECIPES.length,5+level*2))];
+ order.customer=CUSTOMERS[randInt(CUSTOMERS.length)];
+ guestName=order.customer;
+ guestStyle=max(0,CUSTOMERS.indexOf(guestName));
+ tray=[];prepared=false;scoopLoaded=false;scoopFlavor='';holdingCup=false;cupFilled=false;holdingScoop=false;holdingMilk=false;
+ blenderRunning=false;needsReset=false;
+ if(arriving){
+  waitingForNext=true;guestPhase='arriving';guestSlide=3.1;guestSlideTarget=0;
+  message=`${guestName} is coming to the counter!`;messageTimer.set(1.5);
+ }else{
+  waitingForNext=false;guestPhase='active';guestSlide=0;
+  message=`New order: ${order.name}`;messageTimer.set(2);
+ }
+}
+function hit(pos,size=vec2(2.5,1.7)){return isOverlapping(mousePos,vec2(.1),pos,size);}
+function isScoopFlavor(item){
+ return item.name.includes('Ice Cream') || item.name=='Raspberry Ripple';
+}
+function addIngredient(item){
+ if(waitingForNext||needsReset)return;
+
+ // Wrong choices are stopped immediately so young players never poison the recipe.
+ if(!recipeHas(item.name)){
+  message=`${shortName(item.name)} is not in this order.`;
+  messageTimer.set(1.7);sndBad.play();return;
+ }
+ if(alreadyAdded(item.name)){
+  message=`${shortName(item.name)} is already added.`;
+  messageTimer.set(1.4);sndBad.play();return;
+ }
+
+ if(isScoopFlavor(item)){
+  if(holdingMilk){
+   message=`Put ${shortName(holdingMilk)} in the machine first.`;
+   messageTimer.set(1.7);sndBad.play();return;
+  }
+  if(!holdingScoop){
+   message='Pick up the scooper first.';
+   messageTimer.set(1.6);sndBad.play();return;
+  }
+  if(scoopLoaded){
+   message='Put the scoop in the machine first.';
+   messageTimer.set(1.6);sndBad.play();return;
+  }
+  scoopFlavor=item.name;scoopLoaded=true;
+  message=`Scoop of ${shortName(item.name)} ready!`;
+  messageTimer.set(1.5);sndPick.play();return;
+ }
+
+ // Pourables are picked up by hand, never with the scooper.
+ if(holdingScoop){
+  message='Set the scooper down first.';
+  messageTimer.set(1.5);sndBad.play();return;
+ }
+ if(holdingMilk){
+  message=`Put ${shortName(holdingMilk)} in the machine first.`;
+  messageTimer.set(1.5);sndBad.play();return;
+ }
+ holdingMilk=item.name;pickupBounce.set(.35);heldVisualReady=false;
+ message=`Picked up ${shortName(item.name)}.`;
+ messageTimer.set(1.3);sndPick.play();
+}
+function serve(){
+ if(waitingForNext)return;
+ if(!holdingCup||!cupFilled){message='Pick up a cup and fill it from the blender first.';messageTimer.set(2);sndBad.play();return;}
+ if(!prepared){message=`Use the ${order.kind==='BLEND'?'blender':'mix station'} first.`;messageTimer.set(2);sndBad.play();return;}
+ const a=[...tray].sort().join('|'),b=[...order.need].sort().join('|');
+ if(a===b){
+  score+=100;served++;stars++;level=1+Math.floor(stars/3);
+  holdingCup=false;cupFilled=false;waitingForNext=true;
+  happyTimer.set(1.5);guestPhase='thanks';guestTimer.set(1.5);
+  message=`${guestName}: Thank you!`;messageTimer.set(1.5);sndGood.play();
+  new ParticleEmitter(vec2(7.5,2.6),0,0,.1,70,PI,icons.spark,YELLOW,WHITE,rgb(1,1,0,0),rgb(1,1,1,0),.6,.15,.7,.12,0,1,1,0,PI,.1,.2,false,true);
+ }else{needsReset=true;message='Oops! Tap START OVER and try again.';messageTimer.set(2);sndBad.play();}
+}
+function initIllustratedAtlas(){
+ const tile=128, cols=4, rows=3;
+ const c=new OffscreenCanvas(tile*cols,tile*rows);
+ const g=c.getContext('2d');
+ g.imageSmoothingEnabled=true;
+
+ const cell=(i)=>[(i%cols)*tile,Math.floor(i/cols)*tile];
+ const rr=(x,y,w,h,r,fill,stroke='#5b4032',lw=4)=>{
+  g.beginPath();g.roundRect(x,y,w,h,r);g.fillStyle=fill;g.fill();
+  if(stroke){g.lineWidth=lw;g.strokeStyle=stroke;g.stroke();}
+ };
+ const scoop=(cx,cy,r,fill,swirl)=>{
+  g.save();g.shadowColor='rgba(0,0,0,.18)';g.shadowBlur=5;g.shadowOffsetY=3;
+  g.fillStyle=fill;
+  for(const p of [[0,0],[-20,12],[20,12],[-9,-8],[10,-10]]){
+   g.beginPath();g.arc(cx+p[0],cy+p[1],r*(p[1]?0.68:0.82),0,Math.PI*2);g.fill();
+  }
+  g.restore();
+  if(swirl){g.strokeStyle=swirl;g.lineWidth=7;g.lineCap='round';g.beginPath();
+   g.moveTo(cx-27,cy-5);g.bezierCurveTo(cx-5,cy-22,cx+11,cy+16,cx+29,cy-2);g.stroke();}
+  g.fillStyle='rgba(255,255,255,.55)';g.beginPath();g.arc(cx-17,cy-19,7,0,Math.PI*2);g.fill();
+ };
+ const tub=(i,ice,swirl)=>{
+  const [x,y]=cell(i);g.save();g.translate(x,y);
+  rr(12,42,104,68,14,'#d9e0e4','#76838a',5);
+  rr(17,38,94,20,10,'#f8fbfc','#95a0a6',4);
+  g.fillStyle='#b7c2c8';g.fillRect(20,58,88,42);
+  scoop(64,48,38,ice,swirl);
+  g.fillStyle='rgba(255,255,255,.65)';g.fillRect(28,69,8,26);
+  g.restore();
+ };
+ tub(0,'#fff4d6');
+ tub(1,'#71401f');
+ tub(2,'#f48ba2');
+ tub(3,'#f6c5d9','#d92f68');
+
+ // milk carton
+ {const [x,y]=cell(4);g.save();g.translate(x,y);
+  rr(31,28,66,84,7,'#f7fbff','#557b98',5);
+  g.fillStyle='#8fd3ee';g.fillRect(37,55,54,45);
+  g.fillStyle='#ffffff';g.beginPath();g.moveTo(31,28);g.lineTo(54,13);g.lineTo(96,28);g.closePath();g.fill();g.strokeStyle='#557b98';g.lineWidth=5;g.stroke();
+  g.fillStyle='#3b7ca4';g.font='bold 18px sans-serif';g.textAlign='center';g.fillText('MILK',64,82);
+  g.fillStyle='#5fb8de';g.beginPath();g.arc(64,48,8,0,Math.PI*2);g.fill();g.restore();}
+
+ // chocolate syrup
+ {const [x,y]=cell(5);g.save();g.translate(x,y);
+  rr(38,31,52,80,16,'#6a2f1b','#3e1d12',5);rr(49,17,30,22,5,'#efefe9','#555',4);
+  g.fillStyle='#fff4dd';g.font='bold 13px sans-serif';g.textAlign='center';g.fillText('CHOCO',64,75);
+  g.fillStyle='rgba(255,255,255,.3)';g.fillRect(48,42,6,44);g.restore();}
+
+ // strawberry syrup
+ {const [x,y]=cell(6);g.save();g.translate(x,y);
+  rr(38,31,52,80,16,'#e63f68','#8f1f3d',5);rr(49,17,30,22,5,'#efefe9','#555',4);
+  g.fillStyle='#fff6f7';g.font='bold 12px sans-serif';g.textAlign='center';g.fillText('BERRY',64,75);
+  g.fillStyle='rgba(255,255,255,.28)';g.fillRect(48,42,6,44);g.restore();}
+
+ // soda bottle
+ {const [x,y]=cell(7);g.save();g.translate(x,y);
+  rr(43,26,42,84,14,'#9ee6f6','#4085a0',5);rr(51,14,26,18,5,'#eafcff','#4085a0',4);
+  g.fillStyle='rgba(255,255,255,.65)';for(let k=0;k<6;k++){g.beginPath();g.arc(54+(k%2)*16,46+k*8,3,0,Math.PI*2);g.fill();}
+  g.restore();}
+
+ // blender
+ {const [x,y]=cell(8);g.save();g.translate(x,y);
+  rr(25,75,78,35,10,'#4a4d50','#2c2e30',5);rr(34,29,58,56,8,'rgba(207,239,248,.72)','#5b7480',5);
+  g.beginPath();g.moveTo(38,29);g.lineTo(46,12);g.lineTo(82,12);g.lineTo(89,29);g.strokeStyle='#5b7480';g.lineWidth=5;g.stroke();
+  g.strokeStyle='#5b7480';g.lineWidth=7;g.beginPath();g.moveTo(92,39);g.lineTo(110,44);g.lineTo(105,70);g.stroke();
+  g.fillStyle='#f23f49';g.beginPath();g.arc(85,92,7,0,Math.PI*2);g.fill();
+  g.strokeStyle='#8a959b';g.lineWidth=4;g.beginPath();g.moveTo(48,73);g.lineTo(64,61);g.lineTo(80,73);g.stroke();g.restore();}
+
+ // shake cup
+ {const [x,y]=cell(9);g.save();g.translate(x,y);
+  g.fillStyle='rgba(230,246,250,.92)';g.strokeStyle='#64818d';g.lineWidth=5;
+  g.beginPath();g.moveTo(37,35);g.lineTo(91,35);g.lineTo(82,108);g.lineTo(46,108);g.closePath();g.fill();g.stroke();
+  g.fillStyle='#e990a8';g.beginPath();g.moveTo(43,52);g.lineTo(85,52);g.lineTo(79,101);g.lineTo(49,101);g.closePath();g.fill();
+  g.strokeStyle='#e34b67';g.lineWidth=6;g.beginPath();g.moveTo(76,39);g.lineTo(94,12);g.stroke();
+  g.fillStyle='#fff';for(const p of [[52,37],[64,31],[76,37]]){g.beginPath();g.arc(p[0],p[1],14,0,Math.PI*2);g.fill();}
+  g.fillStyle='#d5304f';g.beginPath();g.arc(68,18,8,0,Math.PI*2);g.fill();g.restore();}
+
+ // Whit-like original shopkeeper, generic/not imitating a performer
+ {const [x,y]=cell(10);g.save();g.translate(x,y);
+  g.fillStyle='#2e6b7e';rr(34,58,60,50,12,'#2e6b7e','#214450',4);
+  g.fillStyle='#f0c79f';g.beginPath();g.arc(64,42,26,0,Math.PI*2);g.fill();
+  g.fillStyle='#f2f2ea';g.beginPath();g.arc(64,55,19,0,Math.PI);g.fill();
+  g.fillStyle='#bfc5c8';g.beginPath();g.arc(64,30,27,Math.PI,0);g.fill();
+  g.fillStyle='#2f3033';for(const ex of [55,73]){g.beginPath();g.arc(ex,42,3.5,0,Math.PI*2);g.fill();}
+  g.strokeStyle='#70402d';g.lineWidth=3;g.beginPath();g.arc(64,48,10,.2,Math.PI-.2);g.stroke();g.restore();}
+
+ // customer
+ {const [x,y]=cell(11);g.save();g.translate(x,y);
+  rr(34,58,60,50,12,'#5a65c8','#343c87',4);
+  g.fillStyle='#f2bf98';g.beginPath();g.arc(64,42,26,0,Math.PI*2);g.fill();
+  g.fillStyle='#744024';g.beginPath();g.arc(64,29,28,Math.PI,0);g.fill();
+  g.fillStyle='#27282a';for(const ex of [55,73]){g.beginPath();g.arc(ex,43,3.5,0,Math.PI*2);g.fill();}
+  g.strokeStyle='#9d3c3c';g.lineWidth=3;g.beginPath();g.arc(64,49,10,.2,Math.PI-.2);g.stroke();g.restore();}
+
+ const info=new TextureInfo(c);
+ const names=['vanilla','chocolate','strawberry','raspberry','milk','chocSyrup','berrySyrup','soda','blender','cup','whit','customer'];
+ names.forEach((n,i)=>art[n]=new TileInfo(vec2((i%cols)*tile,Math.floor(i/cols)*tile),vec2(tile),info,0,1));
+}
+
+function gameInit(){
+ icons=initDefaultAtlas();initIllustratedAtlas();canvasClearColor=hsl(.08,.18,.12);cameraPos=vec2(0,0);cameraScale=47;newOrder();
+}
+function gameUpdate(){
+ // Finish timed blending.
+ if(blenderRunning&&blenderTimer.elapsed()){
+  blenderRunning=false;prepared=true;
+  message='Ready! Pick up a cup.';
+  messageTimer.set(2);sndGood.play();
+ }
+ if(waitingForNext){
+  if(guestPhase=='thanks'&&guestTimer.elapsed()){
+   guestPhase='leaving';guestTimer.set(.9);message=`Bye, ${guestName}!`;messageTimer.set(.9);
+  }
+  else if(guestPhase=='leaving'){
+   guestSlideTarget=3.2;
+   guestSlide=lerp(guestSlide,guestSlideTarget,.12);
+   if(guestTimer.elapsed())newOrder(true);
+  }
+  else if(guestPhase=='arriving'){
+   guestSlideTarget=0;
+   guestSlide=lerp(guestSlide,guestSlideTarget,.1);
+   if(guestSlide<.05){
+    guestSlide=0;guestPhase='active';waitingForNext=false;
+    message=`${guestName}: I'd like a ${order.name}, please!`;messageTimer.set(2);
+   }
+  }
+ }
+ if(waitingForNext)return;
+ if(!mouseWasPressed(0))return;
+
+ // Scooper dock.
+ if(hit(vec2(-6.5,-4.82),vec2(3.1,1.5))){
+  if(holdingScoop){
+   holdingScoop=false;scoopLoaded=false;scoopFlavor='';
+   message='Scooper set down.';
+  }else{
+   if(holdingMilk){message=`Put ${holdingMilk} in the machine first.`;messageTimer.set(2);sndBad.play();return;}
+   holdingScoop=true;pickupBounce.set(.35);heldVisualReady=false;message='Scooper picked up!';
+  }
+  messageTimer.set(1.5);sndPick.play();return;
+ }
+
+ // Cup dock.
+ if(hit(vec2(6.5,-4.82),vec2(3.1,1.5))){
+  if(prepared){
+   holdingCup=!holdingCup;
+   if(!holdingCup)cupFilled=false;
+   if(holdingCup){pickupBounce.set(.35);heldVisualReady=false;} message=holdingCup?'Cup picked up!':'Cup set down.';
+   messageTimer.set(1.5);sndPick.play();
+  }else{
+   message='Make the drink first.';messageTimer.set(1.5);sndBad.play();
+  }
+  return;
+ }
+
+ // Clear button.
+ if(hit(vec2(0,-5.18),vec2(1.9,.65))){
+  tray=[];scoopLoaded=false;scoopFlavor='';holdingScoop=false;holdingMilk=false;
+  holdingCup=false;cupFilled=false;blenderRunning=false;prepared=false;needsReset=false;
+  message='Fresh start!';messageTimer.set(1.2);return;
+ }
+
+ // Ingredients.
+ for(const item of PANTRY){
+  if(hit(item.pos,vec2(2.0,1.7))){addIngredient(item);return;}
+ }
+
+ // Blender station.
+ if(hit(vec2(-3.8,1.15),vec2(2.8,2.7))){
+  if(order.kind!='BLEND'){message='This drink uses MIX.';messageTimer.set(1.5);sndBad.play();return;}
+  if(holdingMilk){
+   const poured=holdingMilk;holdingMilk=false;tray.push(poured);prepared=false;
+   message=`Added ${shortName(poured)}!`;messageTimer.set(1.2);markAdded(poured,vec2(-3.8,1.5));sndPick.play();return;
+  }
+  if(scoopLoaded){
+   const added=scoopFlavor;tray.push(added);scoopLoaded=false;prepared=false;
+   message='Scoop added!';messageTimer.set(1.2);markAdded(added,vec2(-3.8,1.5));sndPick.play();return;
+  }
+  if(prepared&&holdingCup){
+   cupFilled=true;message='Cup filled! Take it to the customer.';messageTimer.set(2);sndPick.play();return;
+  }
+  if(missingIngredient()){
+   message=`Still need ${missingIngredient()}.`;messageTimer.set(1.8);sndBad.play();return;
+  }
+  if(!prepared&&!blenderRunning){
+   blenderRunning=true;blenderTimer.set(1.4);message='Blending!';messageTimer.set(1.4);sndPrep.play();return;
+  }
+  return;
+ }
+
+ // Mix station.
+ if(hit(vec2(0,1.15),vec2(2.8,2.7))){
+  if(order.kind!='MIX'){message='This drink uses the BLENDER.';messageTimer.set(1.5);sndBad.play();return;}
+  if(holdingMilk){
+   const poured=holdingMilk;holdingMilk=false;tray.push(poured);prepared=false;
+   message=`Added ${shortName(poured)}!`;messageTimer.set(1.2);markAdded(poured,vec2(0,1.5));sndPick.play();return;
+  }
+  if(scoopLoaded){
+   const added=scoopFlavor;tray.push(added);scoopLoaded=false;prepared=false;
+   message='Scoop added!';messageTimer.set(1.2);markAdded(added,vec2(0,1.5));sndPick.play();return;
+  }
+  if(prepared&&holdingCup){
+   cupFilled=true;message='Cup filled! Take it to the customer.';messageTimer.set(2);sndPick.play();return;
+  }
+  if(missingIngredient()){
+   message=`Still need ${missingIngredient()}.`;messageTimer.set(1.8);sndBad.play();return;
+  }
+  if(!prepared){
+   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.7);sndPrep.play();return;
+  }
+  return;
+ }
+
+ // Customer is the only place that serves.
+ if(hit(vec2(7.5,2.45),vec2(2.3,2.8))){
+  if(holdingCup&&cupFilled)serve();
+  else{message='Bring the finished cup here.';messageTimer.set(1.8);sndBad.play();}
+  return;
+ }
+}
+function gameUpdatePost(){}
+
+function panel(pos,size,fill,title=''){
+ drawRect(pos,size,hsl(.1,.18,.98));
+ drawRect(pos.add(vec2(0,size.y/2-.08)),vec2(size.x,.16),fill);
+ if(title)drawText(title,pos.add(vec2(0,size.y/2-.38)),.3,hsl(.06,.45,.22));
+}
+function drawPerson(pos,shirt,customer=false){
+ // legs/body/head/hair/face
+ drawLine(pos.add(vec2(-.22,-.75)),pos.add(vec2(-.3,-1.35)),.18,hsl(.58,.25,.25));
+ drawLine(pos.add(vec2(.22,-.75)),pos.add(vec2(.3,-1.35)),.18,hsl(.58,.25,.25));
+ drawRect(pos.add(vec2(0,-.35)),vec2(1,.95),shirt);
+ drawTile(pos.add(vec2(0,.45)),vec2(.95),icons.circle,hsl(.08,.38,.78));
+ drawTile(pos.add(vec2(0,.72)),vec2(.92,.38),icons.circle,customer?hsl(.08,.55,.3):hsl(.08,.18,.25));
+ drawTile(pos.add(vec2(-.18,.5)),vec2(.09),icons.circle,BLACK);
+ drawTile(pos.add(vec2(.18,.5)),vec2(.09),icons.circle,BLACK);
+ drawLine(pos.add(vec2(-.15,.25)),pos.add(vec2(.15,.25)),.04,hsl(.98,.5,.3));
+}
+function drawFancyCup(pos,filled=false){
+ let c=hsl(.12,.18,.94);
+ if(tray.some(x=>x.includes('Chocolate')))c=hsl(.07,.48,.3);
+ if(tray.some(x=>x.includes('Strawberry')||x.includes('Raspberry')))c=hsl(.97,.62,.72);
+ // tapered-looking glass, shake, cream, straw
+ drawRect(pos,vec2(.92,1.22),hsl(.55,.1,.96,.85));
+ if(filled)drawRect(pos.add(vec2(0,-.08)),vec2(.75,.9),c);
+ drawLine(pos.add(vec2(.22,.55)),pos.add(vec2(.48,1.2)),.08,hsl(.97,.7,.55));
+ if(filled){
+  drawTile(pos.add(vec2(-.22,.62)),vec2(.5),icons.glow,WHITE);
+  drawTile(pos.add(vec2(.18,.67)),vec2(.5),icons.glow,WHITE);
+  drawTile(pos.add(vec2(0,.92)),vec2(.22),icons.circle,RED);
+ }
+}
+function drawCounter(){
+ drawRect(vec2(0,.05),vec2(12.8,.85),hsl(.08,.42,.32));
+ drawRect(vec2(0,-.25),vec2(12.3,.28),hsl(.08,.28,.52));
+ drawLine(vec2(-6.2,.42),vec2(6.2,.42),.1,hsl(.11,.45,.78));
+ for(let x=-5;x<=5;x+=2.5){
+  drawTile(vec2(x,-.72),vec2(1.05,.38),icons.circle,hsl(.98,.62,.58));
+  drawRect(vec2(x,-1.05),vec2(.14,.72),hsl(.55,.08,.32));
+  drawLine(vec2(x-.35,-1.38),vec2(x+.35,-1.38),.1,hsl(.55,.08,.32));
+ }
+}
+
+function drawScooper(pos,loaded=false,color=WHITE){
+ // metal handle
+ drawLine(pos.add(vec2(.1,-.05)),pos.add(vec2(.9,-.82)),.18,hsl(.55,.08,.55));
+ drawLine(pos.add(vec2(.15,0)),pos.add(vec2(.82,-.72)),.07,WHITE);
+ // scoop bowl
+ drawTile(pos,vec2(.82),icons.circle,hsl(.55,.08,.78));
+ drawTile(pos.add(vec2(-.05,.08)),vec2(.58),icons.circle,hsl(.55,.06,.9));
+ if(loaded){
+   drawTile(pos.add(vec2(-.22,.28)),vec2(.58),icons.circle,color);
+   drawTile(pos.add(vec2(.18,.3)),vec2(.62),icons.circle,color);
+ }
+}
+
+function drawShopWindow(pos){
+ drawRect(pos,vec2(4,2.15),hsl(.08,.32,.34));
+ drawRect(pos,vec2(3.65,1.8),hsl(.55,.38,.87));
+ drawLine(pos.add(vec2(0,-.9)),pos.add(vec2(0,.9)),.08,hsl(.08,.28,.34));
+ drawLine(pos.add(vec2(-1.82,0)),pos.add(vec2(1.82,0)),.08,hsl(.08,.28,.34));
+ drawTile(pos.add(vec2(-1,.38)),vec2(.8,.35),icons.glow,WHITE);
+ drawTile(pos.add(vec2(.95,-.28)),vec2(.62,.28),icons.glow,WHITE);
+}
+function drawWallClock(pos){
+ drawTile(pos,vec2(1.05),icons.circle,hsl(.12,.16,.97));
+ drawTile(pos,vec2(.95),icons.ring,hsl(.08,.34,.28));
+ drawLine(pos,pos.add(vec2(.05,.28)),.05,hsl(.08,.3,.2));
+ drawLine(pos,pos.add(vec2(.25,-.08)),.05,hsl(.08,.3,.2));
+}
+function drawSodaFountain(pos){
+ drawRect(pos.add(vec2(0,-.1)),vec2(1.9,1.55),hsl(.55,.12,.72));
+ drawRect(pos.add(vec2(0,.5)),vec2(1.55,.42),hsl(.55,.12,.9));
+ for(const x of [-.48,0,.48]){
+  drawLine(pos.add(vec2(x,.42)),pos.add(vec2(x,.88)),.09,hsl(.55,.08,.32));
+  drawTile(pos.add(vec2(x,.93)),vec2(.22),icons.circle,hsl(x<0?.98:x>0?.55:.12,.55,.58));
+ }
+ drawRect(pos.add(vec2(0,-.82)),vec2(2.1,.22),hsl(.08,.28,.36));
+}
+function drawServeCounter(pos){
+ drawRect(pos.add(vec2(0,-.25)),vec2(2.25,1.2),hsl(.08,.38,.34));
+ drawLine(pos.add(vec2(-1.1,.4)),pos.add(vec2(1.1,.4)),.12,hsl(.11,.5,.78));
+ drawTile(pos.add(vec2(0,.72)),vec2(.5),icons.burst,hsl(.12,.65,.8));
+ drawTile(pos.add(vec2(0,.78)),vec2(.28),icons.circle,hsl(.12,.15,.92));
+}
+function drawShopInterior(){
+ // pink ice-cream themed wallpaper
+ drawRect(vec2(0,2.7),vec2(19.5,5.2),hsl(.97,.34,.78));
+ for(let x=-9;x<=9;x+=1.6)for(let y=1.0;y<=4.8;y+=1.1){
+  drawTile(vec2(x,y),vec2(.28),icons.droplet,hsl(.12,.35,.92));
+  drawTile(vec2(x+.38,y+.2),vec2(.22),icons.circle,hsl(.08,.58,.72));
+ }
+
+ // teal lower wall and trim
+ drawRect(vec2(0,.2),vec2(19.5,2.35),hsl(.5,.22,.76));
+ drawLine(vec2(-9.7,1.38),vec2(9.7,1.38),.13,hsl(.5,.32,.42));
+ for(let x=-9;x<=9;x+=1.2)drawLine(vec2(x,-.92),vec2(x,1.34),.04,hsl(.5,.17,.65));
+
+ // black/white checker floor
+ for(let y=-6.2;y<-3.25;y+=.72)
+  for(let x=-9.5;x<9.6;x+=.72){
+   const even=(Math.round((x+9.5)/.72)+Math.round((y+6.2)/.72))&1;
+   drawRect(vec2(x,y),vec2(.7,.7),even?hsl(0,0,.95):hsl(0,0,.18));
+  }
+
+ // red booth seating in the back corners
+ const booth=(x)=>{
+  drawRect(vec2(x,2.5),vec2(3.1,.72),hsl(.99,.7,.48));
+  drawRect(vec2(x,3.18),vec2(3.1,1.0),hsl(.99,.72,.54));
+  drawRect(vec2(x,3.05),vec2(2.55,.12),hsl(.99,.55,.35));
+  drawRect(vec2(x,1.86),vec2(2.55,.12),hsl(.99,.55,.35));
+  drawRect(vec2(x,2.08),vec2(.12,.55),hsl(.55,.08,.3));
+ };
+ booth(-6.6); booth(6.6);
+
+ // big front windows
+ drawShopWindow(vec2(-7.15,4.1));
+ drawShopWindow(vec2(7.15,4.1));
+
+ // wall décor and clock
+ drawWallClock(vec2(0,4.25));
+ drawRect(vec2(-3.7,4.08),vec2(1.65,1.2),hsl(.08,.36,.3));
+ drawRect(vec2(-3.7,4.08),vec2(1.4,.95),hsl(.13,.32,.88));
+ drawTile(vec2(-3.7,4.1),vec2(.62),icons.heart,hsl(.98,.72,.62));
+ drawRect(vec2(3.7,4.08),vec2(1.65,1.2),hsl(.08,.36,.3));
+ drawRect(vec2(3.7,4.08),vec2(1.4,.95),hsl(.13,.32,.88));
+ drawTile(vec2(3.7,4.1),vec2(.62),icons.star,hsl(.12,.72,.62));
+
+ // hanging globe lamps
+ for(const x of [-5,-2.5,0,2.5,5]){
+  drawLine(vec2(x,6.2),vec2(x,5.35),.05,hsl(.08,.14,.25));
+  drawTile(vec2(x,5.18),vec2(.62),icons.glow,hsl(.12,.28,.96));
+  drawTile(vec2(x,5.18),vec2(.34),icons.circle,hsl(.12,.46,.97));
+ }
+
+ // teal soda counter with curved-ish layered front
+ drawRect(vec2(0,.25),vec2(14.2,1.0),hsl(.5,.26,.66));
+ drawRect(vec2(0,-.08),vec2(13.5,.34),hsl(.5,.3,.48));
+ drawLine(vec2(-7,.72),vec2(7,.72),.13,hsl(.11,.5,.78));
+
+ // red swivel stools
+ for(const x of [-5.2,-2.6,0,2.6,5.2]){
+  drawTile(vec2(x,-.86),vec2(1.0,.38),icons.circle,hsl(.99,.68,.5));
+  drawRect(vec2(x,-1.23),vec2(.14,.72),hsl(.55,.08,.3));
+  drawLine(vec2(x-.32,-1.54),vec2(x+.32,-1.54),.1,hsl(.55,.08,.3));
+ }
+
+ // antique-style cash register
+ drawRect(vec2(-5.4,.95),vec2(1.35,.82),hsl(.1,.08,.68));
+ drawRect(vec2(-5.4,1.32),vec2(1.0,.42),hsl(.1,.1,.78));
+ for(let k=0;k<5;k++)drawTile(vec2(-5.75+k*.18,1.3),vec2(.08),icons.circle,hsl(.08,.35,.3));
+ drawRect(vec2(-5.4,.58),vec2(1.55,.16),hsl(.08,.25,.35));
+
+ // soft-serve machine
+ drawRect(vec2(5.45,1.02),vec2(1.45,1.55),hsl(.55,.12,.82));
+ drawRect(vec2(5.45,1.52),vec2(1.15,.38),hsl(.55,.1,.93));
+ drawTile(vec2(5.15,1.55),vec2(.18),icons.circle,hsl(.98,.65,.55));
+ drawTile(vec2(5.45,1.55),vec2(.18),icons.circle,hsl(.12,.6,.55));
+ drawTile(vec2(5.75,1.55),vec2(.18),icons.circle,hsl(.55,.6,.55));
+ drawLine(vec2(5.15,1.4),vec2(5.15,.95),.08,hsl(.55,.08,.32));
+ drawLine(vec2(5.45,1.4),vec2(5.45,.95),.08,hsl(.55,.08,.32));
+ drawLine(vec2(5.75,1.4),vec2(5.75,.95),.08,hsl(.55,.08,.32));
+ // community bulletin board and chalkboard menu
+ drawBulletinBoard(vec2(-1.95,3.15));
+ drawRect(vec2(1.9,3.15),vec2(2.2,1.45),hsl(.46,.28,.18));
+ drawText('TODAY',vec2(1.9,3.53),.23,WHITE);
+ drawText('Shakes',vec2(1.9,3.18),.18,hsl(.13,.72,.8));
+ drawText('Sodas',vec2(1.9,2.92),.18,WHITE);
+ drawCondimentTray(vec2(-4.8,.7));
+
+}
+
+
+function ingredientArt(name){
+ if(name=='Vanilla Ice Cream')return art.vanilla;
+ if(name=='Chocolate Ice Cream')return art.chocolate;
+ if(name=='Strawberry Ice Cream')return art.strawberry;
+ if(name=='Raspberry Ripple')return art.raspberry;
+ if(name=='Milk')return art.milk;
+ if(name=='Chocolate Syrup')return art.chocSyrup;
+ if(name=='Strawberry Syrup')return art.berrySyrup;
+ if(name=='Soda Water')return art.soda;
+ return 0;
+}
+function ingredientDone(name){
+ return tray.includes(name);
+}
+function isCurrentIngredient(name){
+ const miss=missingIngredient();
+ return !!miss && miss==name;
+}
+
+function shakeColor(){
+ if(tray.includes('Raspberry Ripple'))return hsl(.94,.6,.72);
+ if(tray.includes('Strawberry Ice Cream')||tray.includes('Strawberry Syrup'))return hsl(.97,.68,.72);
+ if(tray.includes('Chocolate Ice Cream')||tray.includes('Chocolate Syrup'))return hsl(.07,.5,.3);
+ return hsl(.12,.32,.9);
+}
+function drawClassicShake(pos,filled=true,scale=1){
+ const c=shakeColor();
+ const w=.72*scale,h=1.15*scale;
+ // footed soda-shop glass
+ drawRect(pos.add(vec2(0,-.08*scale)),vec2(w,h),hsl(.55,.08,.97,.9));
+ if(filled)drawRect(pos.add(vec2(0,-.12*scale)),vec2(w*.78,h*.68),c);
+ drawLine(pos.add(vec2(0,-.65*scale)),pos.add(vec2(0,-.95*scale)),.08*scale,hsl(.55,.08,.55));
+ drawLine(pos.add(vec2(-.35*scale,-.98*scale)),pos.add(vec2(.35*scale,-.98*scale)),.08*scale,hsl(.55,.08,.55));
+ // straw
+ drawLine(pos.add(vec2(.2*scale,.52*scale)),pos.add(vec2(.5*scale,1.05*scale)),.07*scale,hsl(.98,.7,.55));
+ if(filled){
+  // whipped cream and cherry
+  drawTile(pos.add(vec2(-.18*scale,.55*scale)),vec2(.48*scale),icons.glow,WHITE);
+  drawTile(pos.add(vec2(.15*scale,.6*scale)),vec2(.5*scale),icons.glow,WHITE);
+  drawTile(pos.add(vec2(0,.88*scale)),vec2(.2*scale),icons.circle,RED);
+ }
+}
+function drawSundaePoster(pos){
+ drawRect(pos,vec2(2.1,1.65),hsl(.08,.35,.3));
+ drawRect(pos,vec2(1.82,1.38),hsl(.12,.28,.94));
+ drawClassicShake(pos.add(vec2(0,-.1)),true,.48);
+ drawText('SHAKES',pos.add(vec2(0,-.58)),.2,hsl(.07,.5,.2));
+}
+function drawConePoster(pos){
+ drawRect(pos,vec2(2.1,1.65),hsl(.08,.35,.3));
+ drawRect(pos,vec2(1.82,1.38),hsl(.12,.28,.94));
+ drawTile(pos.add(vec2(0,-.12)),vec2(.7),icons.triangle,hsl(.09,.55,.68),PI);
+ drawTile(pos.add(vec2(-.18,.28)),vec2(.65),icons.circle,hsl(.97,.68,.72));
+ drawTile(pos.add(vec2(.18,.35)),vec2(.62),icons.circle,hsl(.12,.25,.92));
+ drawText('ICE CREAM',pos.add(vec2(0,-.58)),.17,hsl(.07,.5,.2));
+}
+function drawToppingRail(pos){
+ drawRect(pos,vec2(2.8,.7),hsl(.55,.08,.72));
+ for(let i=0;i<4;i++){
+  drawRect(pos.add(vec2(-.9+i*.6,.05)),vec2(.46,.38),hsl(.55,.12,.94));
+  const c=[RED,hsl(.07,.5,.3),WHITE,hsl(.34,.6,.5)][i];
+  drawTile(pos.add(vec2(-.9+i*.6,.08)),vec2(.22),icons.circle,c);
+ }
+ drawText('TOPPINGS',pos.add(vec2(0,-.4)),.16,hsl(.07,.4,.2));
+}
+function drawNapkinHolder(pos){
+ drawRect(pos,vec2(.72,.55),hsl(.55,.1,.78));
+ drawRect(pos.add(vec2(0,.15)),vec2(.5,.35),WHITE);
+ drawLine(pos.add(vec2(-.28,-.26)),pos.add(vec2(.28,-.26)),.06,hsl(.55,.08,.45));
+}
+
+function drawBlenderContents(pos){
+ if(!tray.length)return;
+ const c=shakeColor();
+ drawRect(pos.add(vec2(0,-.03)),vec2(.9,.48),c);
+ if(blenderRunning){
+  for(let i=0;i<4;i++){
+   const a=time*8+i*PI/2;
+   drawTile(pos.add(vec2(cos(a)*.28,sin(a)*.16)),vec2(.18),icons.circle,WHITE);
+  }
+  drawTile(pos.add(vec2(0,.05)),vec2(1.15),icons.glow,hsl(.12,.35,.95,.24));
+ }
+}
+function drawMixerFizz(pos){
+ if(!prepared && order && order.kind=='MIX' && tray.length){
+  for(let i=0;i<5;i++){
+   const y=(time*.7+i*.17)%1.0;
+   drawTile(pos.add(vec2(-.32+i*.16,-.35+y*.9)),vec2(.09+.02*(i%2)),icons.circle,WHITE);
+  }
+ }
+ if(order&&order.kind=='MIX'&&prepared){
+  for(let i=0;i<6;i++){
+   const y=(time*.9+i*.13)%1.1;
+   drawTile(pos.add(vec2(-.38+i*.15,-.4+y)),vec2(.1),icons.circle,hsl(.55,.3,.95));
+  }
+ }
+}
+function drawToolShelf(){
+ drawSoftShadow(vec2(0,-4.86),vec2(18.0,1.55));
+ // wood shelf body
+ drawRect(vec2(0,-4.78),vec2(17.8,1.45),hsl(.08,.3,.44));
+ drawLine(vec2(-8.7,-4.05),vec2(8.7,-4.05),.11,hsl(.11,.5,.72));
+ drawLine(vec2(-8.7,-5.47),vec2(8.7,-5.47),.08,hsl(.08,.2,.3));
+ drawText('TOOLS',vec2(0,-4.08),.23,hsl(.12,.46,.9));
+
+ // metal scooper hook section
+ drawTile(vec2(-7.5,-4.42),vec2(.3),icons.ring,hsl(.55,.08,.5));
+ drawLine(vec2(-7.5,-4.55),vec2(-7.5,-5.08),.08,hsl(.55,.08,.5));
+ if(!holdingScoop)drawScooper(vec2(-6.65,-4.77));
+ drawText(holdingScoop?'SET DOWN':'SCOOPER',vec2(-6.55,-5.26),.16,WHITE);
+
+ // center status plaque + physical red reset button
+ drawRect(vec2(0,-4.7),vec2(3.7,.68),hsl(.1,.12,.9));
+ drawText(prepared?'DRINK READY':tray.length?`${tray.length} IN MACHINE`:'MACHINE EMPTY',
+          vec2(0,-4.55),.17,hsl(.07,.5,.2));
+ drawTile(vec2(0,-5.08),vec2(.52),icons.circle,needsReset?RED:hsl(.02,.28,.52));
+ drawText('RESET',vec2(0,-5.38),.14,WHITE);
+
+ // glass rack with stacked clean glasses
+ drawLine(vec2(5.55,-4.3),vec2(7.65,-4.3),.07,hsl(.55,.08,.65));
+ for(let i=0;i<4;i++){
+  const x=5.85+i*.48;
+  drawClassicShake(vec2(x,-4.72),false,.43);
+ }
+ drawText(holdingCup?'CUP IN HAND':'CLEAN GLASSES',vec2(6.7,-5.26),.15,WHITE);
+}
+function drawIceCreamCase(){
+ // stainless/glass dipping case behind the ice cream cards
+ drawRect(vec2(-4.3,-2.54),vec2(8.3,1.85),hsl(.55,.12,.85));
+ drawRect(vec2(-4.3,-2.28),vec2(8.05,1.25),hsl(.55,.18,.93,.62));
+ drawLine(vec2(-8.25,-1.6),vec2(-.35,-1.6),.07,WHITE);
+ drawLine(vec2(-8.25,-3.2),vec2(-.35,-3.2),.08,hsl(.55,.08,.58));
+}
+function drawPrepRack(){
+ // real prep rack for milk/syrup/soda
+ drawRect(vec2(4.45,-2.54),vec2(8.3,1.85),hsl(.08,.3,.36));
+ drawRect(vec2(4.45,-2.22),vec2(8.0,.12),hsl(.11,.45,.68));
+ drawRect(vec2(4.45,-3.12),vec2(8.0,.12),hsl(.11,.45,.68));
+}
+
+function drawSoftShadow(pos,size){
+ drawTile(pos.add(vec2(.08,-.08)),size,icons.glow,hsl(0,0,0,.18));
+}
+function drawFurnitureIngredientCase(){
+ // glass display case with metal frame and slight depth
+ drawSoftShadow(vec2(-4.3,-2.63),vec2(8.5,1.95));
+ drawRect(vec2(-4.3,-2.54),vec2(8.35,1.88),hsl(.55,.12,.84));
+ drawRect(vec2(-4.3,-2.28),vec2(8.05,1.28),hsl(.55,.18,.93,.64));
+ drawLine(vec2(-8.25,-1.62),vec2(-.35,-1.62),.08,WHITE);
+ drawLine(vec2(-8.25,-3.18),vec2(-.35,-3.18),.09,hsl(.55,.08,.55));
+ for(let x=-7.35;x<=-1.25;x+=2)drawLine(vec2(x,-3.12),vec2(x,-1.75),.035,hsl(.55,.08,.68));
+}
+function drawFurniturePrepRack(){
+ drawSoftShadow(vec2(4.45,-2.62),vec2(8.45,1.95));
+ drawRect(vec2(4.45,-2.54),vec2(8.35,1.88),hsl(.08,.28,.34));
+ drawRect(vec2(4.45,-2.22),vec2(8.0,.12),hsl(.11,.5,.68));
+ drawRect(vec2(4.45,-3.12),vec2(8.0,.12),hsl(.11,.5,.68));
+ for(let x=1.25;x<=7.45;x+=2)drawLine(vec2(x,-3.05),vec2(x,-2.28),.035,hsl(.11,.32,.48));
+}
+function drawPouringEffect(target){
+ if(!holdingMilk)return;
+ const from=heldVisualReady?heldVisualPos:mousePos;
+ drawLine(from.add(vec2(.25,-.1)),target.add(vec2(0,.55)),.08,
+          holdingMilk.includes('Chocolate')?hsl(.07,.5,.3):
+          holdingMilk.includes('Strawberry')?hsl(.97,.68,.62):
+          holdingMilk.includes('Soda')?hsl(.55,.55,.88):WHITE);
+ for(let i=0;i<3;i++){
+  const p=.2+i*.23;
+  const a=from.add(vec2(.25,-.1)),b=target.add(vec2(0,.55));
+  drawTile(vec2(lerp(a.x,b.x,p),lerp(a.y,b.y,p)),vec2(.11),icons.droplet,WHITE);
+ }
+}
+
+function drawWhitIllustrated(pos){
+ const bob=.025*sin(time*2.4);
+ const q=pos.add(vec2(0,bob));
+ drawSoftShadow(q.add(vec2(0,-1.05)),vec2(1.45,.34));
+ // legs and shoes
+ drawLine(q.add(vec2(-.22,-.62)),q.add(vec2(-.26,-1.1)),.14,hsl(.58,.18,.22));
+ drawLine(q.add(vec2(.22,-.62)),q.add(vec2(.26,-1.1)),.14,hsl(.58,.18,.22));
+ drawRect(q.add(vec2(-.27,-1.13)),vec2(.34,.12),hsl(.58,.1,.12));
+ drawRect(q.add(vec2(.27,-1.13)),vec2(.34,.12),hsl(.58,.1,.12));
+ // layered shirt + apron
+ drawRect(q.add(vec2(0,-.24)),vec2(1.05,.9),hsl(.52,.38,.42));
+ drawRect(q.add(vec2(0,-.33)),vec2(.7,.72),hsl(.08,.24,.28));
+ drawLine(q.add(vec2(-.52,-.05)),q.add(vec2(-.72,-.42)),.14,hsl(.08,.35,.32));
+ drawLine(q.add(vec2(.52,-.05)),q.add(vec2(.72,-.42)),.14,hsl(.08,.35,.32));
+ // face
+ drawTile(q.add(vec2(0,.5)),vec2(1.0),icons.circle,hsl(.08,.38,.8));
+ // gray hair
+ drawTile(q.add(vec2(-.23,.78)),vec2(.55),icons.circle,hsl(.58,.08,.78));
+ drawTile(q.add(vec2(.2,.8)),vec2(.58),icons.circle,hsl(.58,.08,.82));
+ // glasses
+ drawTile(q.add(vec2(-.2,.52)),vec2(.3),icons.ring,hsl(.55,.08,.28));
+ drawTile(q.add(vec2(.2,.52)),vec2(.3),icons.ring,hsl(.55,.08,.28));
+ drawLine(q.add(vec2(-.05,.52)),q.add(vec2(.05,.52)),.04,hsl(.55,.08,.28));
+ // eyes
+ drawTile(q.add(vec2(-.2,.52)),vec2(.06),icons.circle,BLACK);
+ drawTile(q.add(vec2(.2,.52)),vec2(.06),icons.circle,BLACK);
+ // mustache
+ drawTile(q.add(vec2(-.12,.28)),vec2(.3,.12),icons.glow,WHITE);
+ drawTile(q.add(vec2(.12,.28)),vec2(.3,.12),icons.glow,WHITE);
+ // smile
+ drawLine(q.add(vec2(-.12,.14)),q.add(vec2(.12,.14)),.035,hsl(.98,.5,.3));
+}
+function drawOpenIceTub(pos,color,ripple=false){
+ drawSoftShadow(pos.add(vec2(0,-.1)),vec2(1.55,.45));
+ drawRect(pos.add(vec2(0,-.18)),vec2(1.48,.78),hsl(.55,.08,.76));
+ drawRect(pos.add(vec2(0,.05)),vec2(1.34,.52),hsl(.55,.12,.91));
+ drawTile(pos.add(vec2(-.34,.2)),vec2(.6),icons.circle,color);
+ drawTile(pos.add(vec2(.06,.23)),vec2(.68),icons.circle,color);
+ drawTile(pos.add(vec2(.42,.16)),vec2(.5),icons.circle,color);
+ if(ripple){
+  drawLine(pos.add(vec2(-.48,.2)),pos.add(vec2(.42,.26)),.08,hsl(.95,.75,.52));
+  drawLine(pos.add(vec2(-.25,.34)),pos.add(vec2(.3,.05)),.07,hsl(.95,.75,.52));
+ }
+ drawLine(pos.add(vec2(-.6,.47)),pos.add(vec2(.6,.47)),.045,WHITE);
+}
+function drawPrepBottleStand(pos,pic,name,needed,current){
+ drawSoftShadow(pos.add(vec2(0,-.1)),vec2(1.4,.35));
+ drawRect(pos.add(vec2(0,-.32)),vec2(1.48,.16),hsl(.55,.08,.62));
+ drawTile(pos.add(vec2(0,.12)),vec2(current?1.3:1.12),pic,needed?WHITE:hsl(0,0,.7));
+ drawText(shortName(name),pos.add(vec2(0,-.62)),.17,BLACK);
+}
+function drawProBlender(pos){
+ // chrome base
+ drawSoftShadow(pos.add(vec2(0,-.62)),vec2(1.9,.45));
+ drawRect(pos.add(vec2(0,-.62)),vec2(1.65,.65),hsl(.55,.08,.42));
+ drawRect(pos.add(vec2(0,-.38)),vec2(1.42,.16),hsl(.55,.12,.72));
+ // jar
+ drawRect(pos.add(vec2(0,.12)),vec2(1.2,1.45),hsl(.55,.16,.92,.45));
+ drawLine(pos.add(vec2(-.55,-.52)),pos.add(vec2(-.42,.82)),.06,hsl(.55,.12,.6));
+ drawLine(pos.add(vec2(.55,-.52)),pos.add(vec2(.42,.82)),.06,hsl(.55,.12,.6));
+ drawLine(pos.add(vec2(-.45,.82)),pos.add(vec2(.45,.82)),.07,hsl(.55,.08,.48));
+ // handle
+ drawLine(pos.add(vec2(.58,.45)),pos.add(vec2(.92,.35)),.11,hsl(.55,.08,.5));
+ drawLine(pos.add(vec2(.92,.35)),pos.add(vec2(.86,-.15)),.11,hsl(.55,.08,.5));
+ // measurement marks
+ for(let y=-.25;y<=.55;y+=.2)drawLine(pos.add(vec2(-.46,y)),pos.add(vec2(-.34,y)),.025,hsl(.55,.14,.62));
+ // blades
+ drawLine(pos.add(vec2(-.28,-.42)),pos.add(vec2(.28,-.18)),.06,hsl(.55,.08,.55));
+ drawLine(pos.add(vec2(.28,-.42)),pos.add(vec2(-.28,-.18)),.06,hsl(.55,.08,.55));
+ // power button
+ drawTile(pos.add(vec2(.48,-.64)),vec2(.24),icons.circle,blenderRunning?YELLOW:RED);
+ drawBlenderContents(pos.add(vec2(0,.05)));
+}
+function drawChromeFountain(pos){
+ drawSoftShadow(pos.add(vec2(0,-.72)),vec2(2.0,.45));
+ drawRect(pos.add(vec2(0,-.15)),vec2(1.8,1.45),hsl(.55,.08,.78));
+ drawRect(pos.add(vec2(0,.48)),vec2(1.48,.35),hsl(.55,.12,.92));
+ // three pumps
+ for(let i=0;i<3;i++){
+  const x=-.48+i*.48;
+  drawLine(pos.add(vec2(x,.4)),pos.add(vec2(x,.92)),.09,hsl(.55,.08,.34));
+  drawTile(pos.add(vec2(x,.98)),vec2(.22),icons.circle,[hsl(.98,.62,.56),hsl(.12,.62,.56),hsl(.55,.62,.56)][i]);
+ }
+ // chrome shine
+ drawLine(pos.add(vec2(-.72,.2)),pos.add(vec2(-.72,-.4)),.04,WHITE);
+ // drip tray
+ drawRect(pos.add(vec2(0,-.82)),vec2(1.95,.2),hsl(.55,.08,.5));
+ for(let x=-.7;x<=.7;x+=.23)drawLine(pos.add(vec2(x,-.9)),pos.add(vec2(x,-.75)),.02,hsl(.55,.08,.75));
+ // straw holder + cherries
+ drawRect(pos.add(vec2(1.0,-.45)),vec2(.42,.7),hsl(.55,.12,.9));
+ for(let i=0;i<3;i++)drawLine(pos.add(vec2(.88+i*.12,-.12)),pos.add(vec2(.98+i*.1,.55)),.035,hsl(.98,.7,.55));
+ drawRect(pos.add(vec2(-1.03,-.5)),vec2(.42,.42),hsl(.12,.15,.9));
+ drawTile(pos.add(vec2(-1.1,-.4)),vec2(.13),icons.circle,RED);
+ drawTile(pos.add(vec2(-.97,-.35)),vec2(.13),icons.circle,RED);
+ drawMixerFizz(pos.add(vec2(0,.05)));
+}
+function drawOrderTicket(){
+ // rail and clip
+ drawRect(vec2(0,4.45),vec2(9.4,.14),hsl(.55,.08,.4));
+ drawTile(vec2(0,4.4),vec2(.28),icons.ring,hsl(.55,.08,.52));
+ drawSoftShadow(vec2(0,3.55),vec2(9.1,1.95));
+ drawRect(vec2(0,3.56),vec2(8.95,1.86),hsl(.12,.08,.97));
+ drawLine(vec2(-4.25,4.32),vec2(4.25,4.32),.03,hsl(.08,.25,.78));
+}
+function drawBulletinBoard(pos){
+ drawRect(pos,vec2(2.2,1.45),hsl(.08,.38,.28));
+ drawRect(pos,vec2(1.95,1.2),hsl(.08,.52,.62));
+ drawRect(pos.add(vec2(-.45,.22)),vec2(.58,.5),hsl(.13,.35,.92));
+ drawRect(pos.add(vec2(.36,.12)),vec2(.62,.42),hsl(.55,.35,.92));
+ drawRect(pos.add(vec2(-.1,-.35)),vec2(.72,.32),hsl(.97,.45,.82));
+ drawTile(pos.add(vec2(-.65,.48)),vec2(.08),icons.circle,RED);
+ drawTile(pos.add(vec2(.58,.35)),vec2(.08),icons.circle,RED);
+}
+function drawCondimentTray(pos){
+ drawRect(pos,vec2(1.45,.28),hsl(.08,.35,.3));
+ for(let i=0;i<3;i++){
+  drawRect(pos.add(vec2(-.42+i*.42,.28)),vec2(.28,.42),[hsl(.02,.62,.5),hsl(.12,.62,.58),hsl(.55,.25,.78)][i]);
+ }
+}
+function gameRender(){
+ // Calm illustrated shop scene
+ drawRectGradient(cameraPos,getCameraSize(),hsl(.54,.18,.94),hsl(.11,.18,.91));
+ drawShopInterior();
+ // Entrance door and jingle bell
+ drawRect(vec2(8.75,2.05),vec2(1.15,2.75),hsl(.08,.34,.3));
+ drawRect(vec2(8.75,2.15),vec2(.82,2.28),hsl(.08,.22,.48));
+ drawTile(vec2(8.55,3.55),vec2(.28),icons.burst,hsl(.12,.7,.72),guestPhase=='arriving'?sin(time*18)*.2:0);
+ if(guestPhase=='arriving')drawText('JINGLE!',vec2(8.0,4.1),.2,hsl(.07,.55,.2));
+
+ // One clear instruction
+ drawRect(vec2(0,6.95),vec2(17.6,1.2),hsl(.12,.45,.97));
+ drawText(kidStep(),vec2(0,7.08),.58,hsl(.07,.58,.18),.05,WHITE);
+ drawText('ONE STEP AT A TIME',vec2(0,6.66),.24,hsl(.07,.25,.24));
+
+ // Cleaner marquee
+ drawRect(vec2(0,5.9),vec2(18.5,1.0),hsl(.08,.42,.34));
+ drawText("WHIT'S END",vec2(0,6.03),1.04,hsl(.12,.52,.9),.07,hsl(.08,.62,.22));
+ drawText('ICE CREAM  •  SHAKES  •  SODAS',vec2(0,5.58),.34,WHITE,.03,BLACK);
+
+ // Small status chips only
+ drawText(`LEVEL ${level}`,vec2(-7.8,5.05),.24,hsl(.06,.45,.2));
+ drawText(`⭐ ${stars}`,vec2(7.8,5.05),.26,hsl(.08,.55,.28));
+
+ // Small café tables add depth without competing with gameplay
+ for(const x of [-6.2,6.2]){
+  drawSoftShadow(vec2(x,1.55),vec2(2.0,.5));
+  drawTile(vec2(x,1.72),vec2(1.6,.48),icons.circle,hsl(.08,.18,.86));
+  drawRect(vec2(x,1.15),vec2(.12,.8),hsl(.55,.08,.35));
+ }
+ // Characters
+ drawWhitIllustrated(vec2(-7.7,2.55));
+ const guestPos=vec2(7.7+guestSlide,2.55);
+ drawSoftShadow(guestPos.add(vec2(0,-1.0)),vec2(1.55,.42));
+ drawGuest(guestPos,guestStyle,guestPhase=='thanks'?'thanks':guestPhase=='leaving'?'leaving':'idle');
+ if(guestPhase=='thanks'||guestPhase=='leaving')
+  drawClassicShake(guestPos.add(vec2(.72,-.05+.03*sin(time*5))),true,.55);
+ if(guestPhase=='thanks'){
+  drawRect(guestPos.add(vec2(-1.35,1.05)),vec2(2.5,.72),WHITE);
+  drawText('THANK YOU!',guestPos.add(vec2(-1.35,1.05)),.25,hsl(.07,.55,.22));
+ }
+ // Illustrated wall art and counter details
+ drawSundaePoster(vec2(-4.95,4.15));
+ drawConePoster(vec2(4.95,4.15));
+ // framed town pictures
+ drawRect(vec2(-2.95,4.14),vec2(1.2,.9),hsl(.08,.35,.3));
+ drawRect(vec2(-2.95,4.14),vec2(1.0,.7),hsl(.55,.3,.82));
+ drawTile(vec2(-2.95,4.14),vec2(.38),icons.star,hsl(.12,.7,.58));
+ drawRect(vec2(2.95,4.14),vec2(1.2,.9),hsl(.08,.35,.3));
+ drawRect(vec2(2.95,4.14),vec2(1.0,.7),hsl(.12,.3,.88));
+ drawTile(vec2(2.95,4.14),vec2(.38),icons.heart,hsl(.98,.7,.62));
+ drawToppingRail(vec2(5.15,.95));
+ drawNapkinHolder(vec2(-5.35,.9));
+
+ if(happyTimer.active()){
+  const bob=.12*sin(time*8);
+  drawTile(guestPos.add(vec2(-.55,1.03+bob)),vec2(.42),icons.heart,hsl(.98,.75,.6));
+  drawTile(guestPos.add(vec2(.05,1.23-bob)),vec2(.5),icons.star,YELLOW);
+  drawTile(guestPos.add(vec2(.55,.95+bob)),vec2(.36),icons.heart,hsl(.96,.7,.62));
+  drawText('YUM!',guestPos.add(vec2(0,1.47)),.3,hsl(.07,.6,.22),.04,WHITE);
+ }
+
+ // Physical clipped order ticket
+ drawOrderTicket();
+ if(guestPhase!='active'){
+  const title=guestPhase=='thanks'?'THANK YOU!':guestPhase=='leaving'?'SEE YOU NEXT TIME!':`WELCOME, ${guestName.toUpperCase()}!`;
+  drawText(title,vec2(0,3.7),.42,hsl(.07,.55,.22));
+  if(guestPhase=='arriving')drawText('Walking up to the counter...',vec2(0,3.25),.2,hsl(.05,.35,.25));
+ }else{
+  drawText(`${guestName.toUpperCase()}'S ORDER`,vec2(0,4.18),.22,hsl(.06,.5,.3));
+  drawText(order?order.name:'Waiting...',vec2(0,3.84),.4,BLACK);
+  if(order){
+   const n=order.need.length,gap=1.62,startX=-(n-1)*gap/2;
+   for(let i=0;i<n;i++){
+    const name=order.need[i],x=startX+i*gap,pic=ingredientArt(name);
+    if(pic)drawTile(vec2(x,3.26),vec2(.84),pic,WHITE);
+    else drawTile(vec2(x,3.28),vec2(.55),icons.circle,WHITE);
+    drawText(shortName(name),vec2(x,2.73),.16,BLACK);
+    if(ingredientDone(name)){
+     drawRect(vec2(x,3.28),vec2(1.0,.88),hsl(.34,.22,.94,.42));
+     drawTile(vec2(x+.4,3.6),vec2(.42),icons.circle,hsl(.34,.72,.5));
+     drawTile(vec2(x+.4,3.6),vec2(.23),icons.plus,WHITE,PI/4);
+     drawText('DONE',vec2(x,2.76),.14,hsl(.34,.65,.25));
+    }
+   }
+  }
+ }
+ // Work area: actual machines, fewer boxes
+ drawRect(vec2(0,.55),vec2(13.6,.72),hsl(.08,.38,.34));
+ drawLine(vec2(-6.7,.93),vec2(6.7,.93),.09,hsl(.11,.5,.76));
+
+ // Blender
+ drawSoftShadow(vec2(-3.8,1.15),vec2(2.3,.75));
+ if(order&&order.kind!='BLEND')drawRect(vec2(-3.8,1.5),vec2(2.5,2.1),hsl(0,0,.75,.28));
+ if(order&&order.kind=='BLEND')drawProBlender(vec2(-3.8,1.65));
+ else{
+  drawProBlender(vec2(-3.8,1.65));
+  drawRect(vec2(-3.8,1.55),vec2(2.2,2.0),hsl(0,0,.72,.38));
+ }
+ if(blenderRunning)drawTile(vec2(-3.25,.9),vec2(.45),icons.glow,YELLOW);
+ drawText('BLENDER',vec2(-3.8,.55),.3,hsl(.07,.45,.2));
+
+ // Soda fountain / mixer
+ drawSoftShadow(vec2(0,1.15),vec2(2.25,.7));
+ drawChromeFountain(vec2(0,1.5));
+ if(order&&order.kind!='MIX')drawRect(vec2(0,1.48),vec2(2.25,1.8),hsl(0,0,.7,.45));
+ drawPrettyBottle(vec2(-.65,.78),hsl(.05,.62,.24),'');
+ drawPrettyBottle(vec2(.65,.78),hsl(.97,.72,.6),'');
+
+ drawText('MIX',vec2(0,.55),.3,hsl(.07,.45,.2));
+
+ // Serving ledge with coaster
+ drawSoftShadow(vec2(3.8,1.05),vec2(2.5,.72));
+ drawRect(vec2(3.8,1.2),vec2(2.35,.68),hsl(.08,.36,.36));
+ drawTile(vec2(3.8,1.53),vec2(.8,.22),icons.circle,hsl(.12,.12,.92));
+ if(prepared||cupFilled)drawClassicShake(vec2(3.8,1.72),true,.76);
+ else drawClassicShake(vec2(3.8,1.72),false,.68);
+ drawText('SERVE',vec2(3.8,.55),.3,hsl(.07,.45,.2));
+
+ if(cupFilled&&guestPhase=='active'){
+  drawTile(guestPos.add(vec2(0,1.45)),vec2(.7),icons.arrow,YELLOW,PI);
+  drawText('BRING CUP HERE',guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));
+ }
+
+ // Ingredient shelf
+ drawRect(vec2(0,-1.34),vec2(18.4,.18),hsl(.08,.38,.28));
+ drawText('ICE CREAM',vec2(-4.4,-1.02),.28,hsl(.07,.5,.2));
+ drawText('MILK • SYRUPS • SODA',vec2(4.5,-1.02),.28,hsl(.07,.5,.2));
+
+ drawFurnitureIngredientCase();
+ drawFurniturePrepRack();
+
+ for(const item of PANTRY){
+  const ice=isScoopFlavor(item);
+  const current=isCurrentIngredient(item.name);
+  const done=ingredientDone(item.name);
+  const needed=order&&order.need.includes(item.name);
+
+  if(ice){
+   drawOpenIceTub(item.pos.add(vec2(0,.08)),item.color,item.name=='Raspberry Ripple');
+   if(!needed)drawRect(item.pos.add(vec2(0,.05)),vec2(1.62,1.2),hsl(0,0,1,.3));
+   drawText(shortName(item.name),item.pos.add(vec2(0,-.62)),.17,BLACK);
+  }else{
+   const pic=ingredientArt(item.name);
+   drawPrepBottleStand(item.pos,pic,item.name,needed,current);
+   if(!needed)drawRect(item.pos.add(vec2(0,.06)),vec2(1.48,1.18),hsl(0,0,1,.28));
+  }
+
+  if(current){
+   drawTile(item.pos,vec2(1.72),icons.glow,hsl(.13,.85,.72,.34));
+  }
+  if(done){
+   drawTile(item.pos.add(vec2(.62,.48)),vec2(.38),icons.circle,hsl(.34,.7,.52));
+   drawTile(item.pos.add(vec2(.62,.48)),vec2(.2),icons.plus,WHITE,PI/4);
+  }
+ }
+
+ // Tool shelf
+ drawToolShelf();
+
+ // Strong single-target focus for young players
+ const focusTarget=kidTarget();
+ if(focusTarget){
+  const bob=.1*sin(time*5),pulse=1.85+.12*sin(time*6);
+  drawTile(focusTarget,vec2(pulse),icons.glow,hsl(.13,.85,.72,.32));
+  const hideArrow=(holdingScoop&&focusTarget.x<-6)||(holdingCup&&focusTarget.x>6);
+  if(!hideArrow)drawTile(focusTarget.add(vec2(0,1.0+bob)),vec2(.72),icons.arrow,YELLOW,PI);
+ }
+
+ // Smooth held-object motion
+ const desiredHold=mousePos.add(vec2(.3,.32));
+ if(!heldVisualReady){heldVisualPos=desiredHold.copy();heldVisualReady=true;}
+ heldVisualPos=vec2(lerp(heldVisualPos.x,desiredHold.x,.28),lerp(heldVisualPos.y,desiredHold.y,.28));
+ const pickupLift=pickupBounce.active()?.12*sin(percent(pickupBounce.get(),0,.35)*PI):0;
+
+ // Held items
+ if(holdingMilk){
+  const held=PANTRY.find(x=>x.name==holdingMilk);
+  if(held){
+   let hp=held.name=='Milk'?art.milk:held.name=='Chocolate Syrup'?art.chocSyrup:
+          held.name=='Strawberry Syrup'?art.berrySyrup:art.soda;
+   drawTile(heldVisualPos.add(vec2(-.15,pickupLift)),vec2(1.2),hp,WHITE);
+  }
+ }
+ if(holdingScoop){
+  const it=PANTRY.find(x=>x.name==scoopFlavor);
+  drawScooper(heldVisualPos.add(vec2(-.22,pickupLift)),scoopLoaded,it?it.color:WHITE);
+ }
+ if(holdingMilk){
+  const target=order&&order.kind=='MIX'?vec2(0,1.45):vec2(-3.8,1.45);
+  if(isOverlapping(mousePos,vec2(.2),target,vec2(2.8,2.7)))drawPouringEffect(target);
+ }
+ if(holdingCup){
+  if(cupFilled)drawClassicShake(heldVisualPos.add(vec2(.35,pickupLift)),true,.9);
+  else drawFancyCup(heldVisualPos.add(vec2(.35,pickupLift)),false);
+ }
+
+ if(message&&!messageTimer.elapsed()){
+  drawRect(vec2(0,-6.12),vec2(8.6,.72),hsl(.12,.45,.96));
+  drawText(message,vec2(0,-6.12),.28,hsl(.07,.5,.2),.035,WHITE);
+ }
+ if(progressTimer.active()){
+  const pp=order&&order.kind=='MIX'?vec2(0,2.75):vec2(-3.8,2.75);
+  drawTile(pp,vec2(.85),icons.burst,hsl(.12,.72,.62));
+  drawText('POP!',pp.add(vec2(0,.55)),.22,hsl(.07,.55,.2),.035,WHITE);
+  drawRect(vec2(0,-5.65),vec2(4.5,.5),hsl(.34,.45,.92));
+  drawText(progressText,vec2(0,-5.65),.22,hsl(.34,.65,.25));
+ }
+}
+
+function gameRenderPost(){
+ drawTextScreen(`Score ${score}   •   Served ${served}`,vec2(mainCanvasSize.x/2,22),16,WHITE,2,BLACK);
+ drawTextScreen('MAKE IT  →  CUP IT  →  SERVE IT',vec2(mainCanvasSize.x/2,mainCanvasSize.y-14),13,WHITE,2,BLACK);
+}
+engineInit(gameInit,gameUpdate,gameUpdatePost,gameRender,gameRenderPost);
+
+</script></body>
