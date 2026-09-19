@@ -121,3 +121,23 @@ test('token cutout preview can be undone and transparency survives room reload',
  await p.reload();await p.locator('.online-launch summary').click();await p.locator('[data-action="online-reconnect"]').click();await p.locator('[data-online="profile"]').click();await p.locator('.token-cutout canvas').waitFor();assert.deepEqual(await alpha(),[0,255]);
  }finally{await browser.close();}
 });
+
+test('shared building menu stays expanded during saving and successive purchases',async()=>{
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ try{
+ const p=await (await browser.newContext({viewport:{width:390,height:844}})).newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
+ await p.goto(base+'/speeddie/');await p.waitForFunction(()=>saveWriterReady);
+ const s=game();s.players[0].position=1;s.spaces[1].owner=s.spaces[3].owner='p0';s.spaces[6].owner='p0';
+ await p.evaluate(s=>{state=s;saveState();render();},s);await p.evaluate(()=>hostOnline());await p.locator('#online-assets').waitFor();
+ await p.locator('#online-assets > summary').click();
+ await p.route('**/actions',async route=>{await new Promise(r=>setTimeout(r,200));await route.continue();});
+ for(const index of [1,3]){
+  await p.locator(`.build-choices [data-online="build"][data-value="${index}"]`).click();
+  assert.equal(await p.evaluate(()=>onlineBusy),true);assert.equal(await p.locator('#online-assets').evaluate(el=>el.open),true);
+  await p.waitForFunction(()=>!onlineBusy);assert.equal(await p.locator('#online-assets').evaluate(el=>el.open),true);
+ }
+ assert.deepEqual(await p.evaluate(()=>[state.spaces[1].buildings,state.spaces[3].buildings,state.players[0].cash]),[1,1,2400]);
+ assert.equal(await p.locator('.build-choices [data-value="6"]').count(),0);assert.deepEqual(errors,[]);
+ await p.locator('#online-assets > summary').click();await p.evaluate(()=>refreshOnline());assert.equal(await p.locator('#online-assets').evaluate(el=>el.open),false);
+ }finally{await browser.close();}
+});

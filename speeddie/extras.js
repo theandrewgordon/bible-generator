@@ -154,3 +154,13 @@ async function downloadKeepsake(){
 function wealthLine(s,p){return s.moneyMode==='banker'?`<span class="player-wealth"><b>Cash ${money(p.cash)}</b><b>Net worth ${money(G.netWorth(s,p.id))}</b></span>`:'<span class="muted small">Cash and net worth require digital banking.</span>';}
 function wealthExplanation(){return '<details class="wealth-help"><summary>How is net worth calculated?</summary><p>Cash + printed property values + building values − mortgages − recorded unpaid bills. A hotel counts as five building purchases. Bankrupt players have $0 net worth. This is not spendable cash; bedtime games still use their agreed liquidation-value scoring.</p></details>';}
 function renderWealthPanel(){return `<section class="panel wealth-panel"><h2>Player totals</h2>${state.players.map(p=>`<div class="wealth-row">${ownerBadge(p)}<div><strong>${escapeHTML(p.name)}${p.bankrupt?' · Out':''}</strong>${wealthLine(state,p)}</div></div>`).join('')}${state.moneyMode==='banker'?wealthExplanation():''}</section>`;}
+function buildableProperties(s,id){
+  if(!s.started||s.winnerId||s.auction||s.pendingCard||s.tradeOffer||s.debts.length||s.auctions.length)return [];
+  return s.spaces.filter(q=>q.type==='property'&&q.owner===id).filter(q=>{
+    try{G.build(structuredClone(s),q.index,1);return true;}catch(_){return false;}
+  });
+}
+function renderBuildChoices(s,id,online=false){
+  const choices=buildableProperties(s,id),groups=[...new Set(choices.map(q=>q.group))];
+  return `<section class="build-choices"><h3>Build houses &amp; hotels</h3><p class="muted small">Only legal purchases are shown: complete, unmortgaged color sets, even building, enough cash, and buildings available in the bank. Keep building here until you close this menu.</p>${groups.map(color=>`<section class="build-color-set" style="border-top-color:${GROUP_COLORS[color]||'#777'}"><h4>${escapeHTML(color)} color set · complete</h4>${choices.filter(q=>q.group===color).map(q=>`<article class="build-property"><strong>${escapeHTML(q.name)}</strong><p>${buildingLabel(q)} · ${escapeHTML(previewBuild(s,q))}</p>${online?onlineButton(propertyActionLabel(q,'build'),'build',q.index):button(propertyActionLabel(q,'build'),'build',q.index)}</article>`).join('')}</section>`).join('')||'<p>No houses or hotels can be added right now. Complete a color set, clear its mortgages, or check your cash and the bank’s building supply.</p>'}</section>`;
+}

@@ -112,24 +112,25 @@ function settleBill() {
     }
   });
 }
-function showDialog(title, contents, onSubmit) {
+function showDialog(title, contents, onSubmit, keepOpen=false) {
   const dialog = document.querySelector("#companion-dialog");
-  if (dialog.open) dialog.close();
+  const stayingOpen=keepOpen&&dialog.open,scroll=dialog.scrollTop;
+  if (dialog.open&&!stayingOpen) dialog.close();
   dialog.innerHTML = `<form id="companion-form"><h2>${escapeHTML(title)}</h2>${contents}<div class="dialog-footer"><button type="button" class="button quiet" id="close-companion">Close</button></div></form>`;
   dialog.querySelector("#close-companion").onclick = () => dialog.close();
   dialog.querySelector("form").onsubmit = async e => { e.preventDefault(); if (onSubmit) { try { if (await onSubmit() !== false) dialog.close(); } catch (error) { alert(error.message); } } };
   bindActions(dialog);
-  dialog.showModal();
+  if(!stayingOpen)dialog.showModal();else dialog.scrollTop=scroll;
 }
 function openProperties(selected = currentPlayer().id) {
   const p = G.active(state).find(p => p.id === selected) || G.active(state)[0];
-  showDialog("Manage properties", `<label class="field"><span>Player</span><select id="manage-player">${playerOptions(p.id)}</select></label><p class="muted small">Build or sell evenly. One hotel replaces four houses. Selling returns half the amount paid. A mortgaged property stays yours but earns no rent until you pay off its mortgage. You may manage properties between turns and while in Jail.</p>${collectionTracker(state,p)}<div class="property-grid">${state.spaces.filter(q => q.owner === p.id).map(q => `<article class="property-card" style="border-top-color:${GROUP_COLORS[q.group]}"><h3>${escapeHTML(q.name)}</h3><p>${q.mortgaged ? "Mortgaged" : q.type === "property" ? `${buildingLabel(q)} · Rent ${money(G.rent(state, q))}` : q.type === "railroad" ? `Rent ${money(G.rent(state, q))}` : `Rent ${q.rents.join("× / ")}× dice`}</p>${q.type==="property"?`<p>${escapeHTML(previewBuild(state,q))}</p>`:""}<div class="button-stack">${q.type === "property" ? button(propertyActionLabel(q,"build"), "build", q.index, gameBlocked() || q.buildings>=5 ? "disabled" : "") + button(propertyActionLabel(q,"sell"), "sell", q.index, !q.buildings ? "disabled" : "") : ""}${button(propertyActionLabel(q,"mortgage"), "mortgage", q.index)}${button("Details / settings", "property", q.index)}</div></article>`).join("") || '<p class="muted">No properties owned yet.</p>'}</div>`);
+  showDialog("Manage properties", `<label class="field"><span>Player</span><select id="manage-player">${playerOptions(p.id)}</select></label><p class="muted small">Build or sell evenly. One hotel replaces four houses. Selling returns half the amount paid. A mortgaged property stays yours but earns no rent until you pay off its mortgage. You may manage properties between turns and while in Jail.</p>${renderBuildChoices(state,p.id)}${collectionTracker(state,p)}<h3>Sell buildings &amp; mortgage properties</h3><div class="property-grid">${state.spaces.filter(q => q.owner === p.id).map(q => `<article class="property-card" style="border-top-color:${GROUP_COLORS[q.group]}"><h3>${escapeHTML(q.name)}</h3><p>${q.mortgaged ? "Mortgaged" : q.type === "property" ? `${buildingLabel(q)} · Rent ${money(G.rent(state, q))}` : q.type === "railroad" ? `Rent ${money(G.rent(state, q))}` : `Rent ${q.rents.join("× / ")}× dice`}</p><div class="button-stack">${q.type === "property" ? button(propertyActionLabel(q,"sell"), "sell", q.index, !q.buildings ? "disabled" : "") : ""}${button(propertyActionLabel(q,"mortgage"), "mortgage", q.index)}${button("Details / settings", "property", q.index)}</div></article>`).join("") || '<p class="muted">No properties owned yet.</p>'}</div>`,null,true);
   document.querySelector("#manage-player").onchange = e => openProperties(e.target.value);
 }
 function openProperty(index) {
   const p = state.spaces[index];
   showDialog(p.name, `<p>${escapeHTML(p.group)} · ${p.owner ? escapeHTML(G.player(state, p.owner).name) : "Unowned"} · ${p.mortgaged ? "Mortgaged" : p.type === "property" ? buildingLabel(p) : "Unmortgaged"}</p>
-    ${p.owner ? `<div class="button-stack">${p.type === "property" ? button(propertyActionLabel(p,"build"), "build", index, p.buildings>=5?"disabled":"") + button(propertyActionLabel(p,"sell"), "sell", index, !p.buildings?"disabled":"") + button(propertyActionLabel(p,"sell-group"), "sell-group", index) + button("Record building auction purchase", "building-auction", index) : ""}${button(propertyActionLabel(p,"mortgage"), "mortgage", index)}</div>` : button("Record purchase / auction", "auction", index)}
+    ${p.owner ? `<div class="button-stack">${p.type === "property" ? (buildableProperties(state,p.owner).some(q=>q.index===index)?button(propertyActionLabel(p,"build"), "build", index):"") + button(propertyActionLabel(p,"sell"), "sell", index, !p.buildings?"disabled":"") + button(propertyActionLabel(p,"sell-group"), "sell-group", index) + button("Record building auction purchase", "building-auction", index) : ""}${button(propertyActionLabel(p,"mortgage"), "mortgage", index)}</div>` : button("Record purchase / auction", "auction", index)}
     <details class="edition-details"><summary>Edition values / correction</summary><p class="muted small">Use the amounts on your physical deed. Ownership corrections do not move money; use a purchase or trade for normal play.</p>
     ${amountField("Purchase price", "property-price", p.price)}${amountField("Mortgage value", "property-mortgage", p.mortgage)}${p.type === "property" ? amountField("House / hotel cost", "property-build", p.buildCost) : ""}
     ${p.rents.map((v, i) => amountField(p.type === "property" ? ["Base rent", "1 house", "2 houses", "3 houses", "4 houses", "Hotel rent"][i] : p.type === "railroad" ? `${i + 1} railroad(s)` : `${i + 1} utility multiplier`, `rent-${i}`, v)).join("")}

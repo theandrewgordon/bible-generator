@@ -62,3 +62,13 @@ test('trade net worth preview includes mortgage fees and optional redemption onc
   G.trade(s,'p0','p1',[1],[5],50,0,lift);G.settle(s);assert.equal(G.netWorth(s,'p0'),2540);assert.equal(G.netWorth(s,'p1'),2610);
  }
 });
+
+test('building choices exclude incomplete, mortgaged, uneven and unaffordable purchases without mutating state',()=>{
+ const s=game(),choices=()=>Array.from(context.buildableProperties(s,'p0'),q=>q.index);
+ s.spaces[1].owner='p0';s.spaces[6].owner='p0';assert.deepEqual(choices(),[]);
+ s.spaces[3].owner='p0';const before=structuredClone(s);assert.deepEqual(choices(),[1,3]);assert.deepEqual(s,before);
+ G.build(s,1,1);assert.deepEqual(choices(),[3]);
+ s.spaces[3].mortgaged=true;assert.deepEqual(choices(),[]);s.spaces[3].mortgaged=false;
+ s.players[0].cash=49;assert.deepEqual(choices(),[]);s.players[0].cash=50;assert.deepEqual(choices(),[3]);
+ s.pendingCard={};assert.deepEqual(choices(),[]);s.pendingCard=null;s.tradeOffer={};assert.deepEqual(choices(),[]);
+});

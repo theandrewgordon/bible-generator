@@ -385,3 +385,15 @@ test('completed game can download its keepsake without re-enabling game actions'
  const stream=await download.createReadStream();const chunks=[];for await(const part of stream)chunks.push(part);
  assert.equal(Buffer.concat(chunks).subarray(1,4).toString(),'PNG');await p.close();
 });
+
+test('building menu groups legal deeds and stays open through repeated purchases',async()=>{
+ const p=await page();await p.evaluate(()=>{[1,3,6].forEach(i=>state.spaces[i].owner=state.players[0].id);saveState();render();});
+ await click(p,'properties');
+ await p.evaluate(()=>{window.buildMenuCloses=0;document.querySelector('#companion-dialog').addEventListener('close',()=>window.buildMenuCloses++);});
+ const choices=p.locator('#companion-dialog .build-choices');assert.match(await choices.innerText(),/Brown color set · complete/);
+ assert.equal(await choices.locator('[data-action="build"]').count(),2);assert.doesNotMatch(await choices.innerText(),/Oriental Avenue/);
+ await choices.locator('[data-value="1"]').click();assert.equal(await choices.locator('[data-value="1"]').count(),0);
+ await choices.locator('[data-value="3"]').click();assert.equal(await choices.locator('[data-action="build"]').count(),2);
+ assert.deepEqual(await p.evaluate(()=>[state.spaces[1].buildings,state.spaces[3].buildings,state.players[0].cash,document.querySelector('#companion-dialog').open,window.buildMenuCloses]),[1,1,2400,true,0]);
+ await p.locator('#close-companion').click();await p.waitForFunction(()=>window.buildMenuCloses===1);await p.close();
+});

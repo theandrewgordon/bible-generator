@@ -107,9 +107,10 @@ function onlineNext(){
 }
 function onlineAssets(){
   if(onlineRoom.pausedAt||onlineRoom.result||onlineRoom.lobby||state.winnerId||state.auction||state.pendingCard||state.tradeOffer)return '';
-  return `<details class="panel"><summary>Your properties &amp; trades</summary><p>Add houses evenly. Selling returns half the amount paid. Mortgaging keeps the deed yours, but stops its rent until you pay off the mortgage.</p>${G.active(state).filter(p=>onlineOwn(p.id)).map(p=>`<h3>${escapeHTML(p.name)}</h3>${wealthLine(state,p)}${collectionTracker(state,p)}${state.spaces.filter(q=>q.owner===p.id).map(q=>`<article class="online-property"><h4>${escapeHTML(q.name)}</h4><p>${q.mortgaged?'Mortgaged':buildingLabel(q)}</p>${q.type==='property'?`<p>${escapeHTML(previewBuild(state,q))}</p>`:''}<div class="button-row">${q.type==='property'?(q.buildings<5?onlineButton(propertyActionLabel(q,'build'),'build',q.index):'')+(q.buildings?onlineButton(propertyActionLabel(q,'sell'),'sell',q.index)+onlineButton(propertyActionLabel(q,'sell-group'),'sell-group',q.index):''):''}${onlineButton(propertyActionLabel(q,'mortgage'),'mortgage',q.index)}</div></article>`).join('')||'<p>No deeds yet.</p>'}${onlineButton('Propose a trade','trade-open',p.id)}`).join('')}</details>`;
+  return `<details class="panel" id="online-assets"><summary>Your properties &amp; trades</summary><p>Add houses evenly. Selling returns half the amount paid. Mortgaging keeps the deed yours, but stops its rent until you pay off the mortgage.</p>${G.active(state).filter(p=>onlineOwn(p.id)).map(p=>`<h3>${escapeHTML(p.name)}</h3>${wealthLine(state,p)}${renderBuildChoices(state,p.id,true)}${collectionTracker(state,p)}${state.spaces.filter(q=>q.owner===p.id).map(q=>`<article class="online-property"><h4>${escapeHTML(q.name)}</h4><p>${q.mortgaged?'Mortgaged':buildingLabel(q)}</p><div class="button-row">${q.type==='property'?(q.buildings?onlineButton(propertyActionLabel(q,'sell'),'sell',q.index)+onlineButton(propertyActionLabel(q,'sell-group'),'sell-group',q.index):''):''}${onlineButton(propertyActionLabel(q,'mortgage'),'mortgage',q.index)}</div></article>`).join('')||'<p>No deeds yet.</p>'}${onlineButton('Propose a trade','trade-open',p.id)}`).join('')}</details>`;
 }
 function renderOnline(){
+  const assetsOpen=app.querySelector('#online-assets')?.open;
   const oldFlow=app.dataset.onlineFlow,focused=document.activeElement?.id;
   const values=[...app.querySelectorAll('input[id],select[id]')].map(e=>[e.id,e.value]);
   const opened=[...app.querySelectorAll('details')].map(e=>e.open);
@@ -129,6 +130,7 @@ function renderOnline(){
     app.querySelectorAll('details').forEach((el,i)=>{if(opened[i])el.open=true;});
     if(focused)app.querySelector('#'+focused)?.focus({preventScroll:true});
   }
+  if(assetsOpen&&app.querySelector('#online-assets'))app.querySelector('#online-assets').open=true;
   app.dataset.onlineFlow=flow;
   bindOnline(app);
   if(!onlineConnected||onlineBusy||onlinePending||r.closed)app.querySelectorAll('[data-online]').forEach(b=>{if(!['exit','refresh','room-settings','retry'].includes(b.dataset.online))b.disabled=true;});
