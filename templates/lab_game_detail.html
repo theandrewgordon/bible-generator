@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ game.name }} | Games Lab{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow" />{% endblock %}
+
+{% block content %}
+<section class="product-hero product-hero--labs">
+  <p class="product-kicker">Faith Sparks Games Lab</p>
+  <h1>{{ game.name }}</h1>
+  <p>{{ game.description }}</p>
+</section>
+
+<section class="lab-notice" role="status">
+  {% if game.available %}
+    <strong>Prototype ready.</strong>
+  {% else %}
+    <strong>The Games Lab shell is live.</strong>
+    <span>The playable build for this prototype has not been added to this repository yet.</span>
+  {% endif %}
+</section>
+
+<section class="product-card product-card--gold" style="margin-top:1rem;">
+  <h2>Prototype status</h2>
+  <p>
+    {% if game.available %}
+      This game is available in the Lab.
+    {% else %}
+      The route, authentication, Labs navigation, and game catalog are in place. Add the game's browser files to the repository and mark it available to publish it here.
+    {% endif %}
+  </p>
+  <a class="button ghost" href="{{ url_for('lab_games.index') }}">← Back to Games Lab</a>
+</section>
+{% endblock %}
