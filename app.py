@@ -3351,6 +3351,13 @@ try:
 except Exception:
     app.logger.exception("WeekFlow Labs routes could not be registered")
 
+# Interactive browser-game prototypes live under the Labs namespace.
+try:
+    from faithsparks.views.lab_games import bp as lab_games_bp
+    app.register_blueprint(lab_games_bp)
+except Exception:
+    app.logger.exception("Games Lab routes could not be registered")
+
 @app.route("/logout")
 def logout():
     session.clear()
