@@ -100,7 +100,6 @@ def index():
 
 
 @bp.get("/<slug>")
-@bp.get("/<slug>/play")
 def play(slug: str):
     access_response = _require_access()
     if access_response is not None:
