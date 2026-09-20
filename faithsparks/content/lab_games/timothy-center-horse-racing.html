@@ -1,10 +1,114 @@
 <!DOCTYPE html><head>
-<title>Timothy Center Horse Racing</title>
+<title>LittleJS AI Starter Project</title>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
-<script src="/labs/games/assets/odyssey-core.js"></script>
-</head><body style="background:#000">
+</head><body style="background:#000; margin:0; overflow:hidden; touch-action:none; overscroll-behavior:none;">
+<style>
+  #tc-native-ui { position:fixed; inset:0; z-index:50; pointer-events:none; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#fff; }
+  #tc-native-ui button, #tc-native-ui input { font:inherit; }
+  #tc-menu-button {
+    position:absolute; top:max(12px, env(safe-area-inset-top)); right:max(12px, env(safe-area-inset-right));
+    width:56px; height:56px; border-radius:14px; border:2px solid rgba(255,255,255,.72);
+    background:rgba(20,20,20,.88); color:#fff; font-size:30px; line-height:1; pointer-events:auto;
+    display:none; align-items:center; justify-content:center; touch-action:manipulation;
+  }
+  .tc-overlay {
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.68); padding:22px; box-sizing:border-box; pointer-events:auto;
+    touch-action:manipulation;
+  }
+  .tc-panel {
+    width:min(520px, calc(100vw - 32px)); max-height:calc(100vh - 40px); overflow:auto;
+    background:rgba(34,27,20,.97); border:2px solid rgba(255,255,255,.7); border-radius:20px;
+    padding:22px; box-sizing:border-box; box-shadow:0 14px 40px rgba(0,0,0,.35);
+  }
+  .tc-panel h2 { margin:0 0 10px; font-size:28px; text-align:center; }
+  .tc-panel p { margin:8px 0 16px; line-height:1.4; text-align:center; }
+  .tc-menu-grid { display:grid; gap:12px; }
+  .tc-btn {
+    min-height:48px; width:100%; border-radius:12px; border:1px solid rgba(255,255,255,.65);
+    background:#355b35; color:white; font-weight:700; padding:11px 14px; cursor:pointer;
+    touch-action:manipulation;
+  }
+  .tc-btn.secondary { background:#3c3c3c; }
+  .tc-btn.danger { background:#6a3434; }
+  .tc-btn:focus-visible, #tc-menu-button:focus-visible, #tc-player-name-input:focus-visible {
+    outline:4px solid #ffd95a; outline-offset:2px;
+  }
+  #tc-player-name-form { display:grid; gap:14px; }
+  #tc-player-name-input {
+    width:100%; box-sizing:border-box; min-height:52px; border-radius:12px; border:2px solid #fff;
+    padding:10px 12px; font-size:20px; color:#111; background:#fff; touch-action:auto;
+  }
+  .tc-form-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tc-settings { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; margin-top:8px; }
+  .tc-switch { width:28px; height:28px; }
+  #tc-result-stats { margin:14px 0; padding:12px; border-radius:12px; background:rgba(255,255,255,.08); line-height:1.5; }
+  @media (max-width: 640px) {
+    .tc-panel { padding:18px; }
+    .tc-panel h2 { font-size:24px; }
+    .tc-btn { min-height:52px; font-size:17px; }
+  }
+</style>
+
+<div id="tc-native-ui" aria-live="polite">
+  <button id="tc-menu-button" type="button" aria-label="Open game menu">☰</button>
+
+  <div id="tc-name-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-name-title">
+    <div class="tc-panel">
+      <h2 id="tc-name-title">Add New Player</h2>
+      <form id="tc-player-name-form">
+        <label for="tc-player-name-input">Player name</label>
+        <input id="tc-player-name-input" name="playerName" type="text" maxlength="20"
+               autocomplete="off" autocapitalize="words" enterkeyhint="done" />
+        <div class="tc-form-actions">
+          <button id="tc-name-cancel" class="tc-btn secondary" type="button">Cancel</button>
+          <button class="tc-btn" type="submit">Save Player</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="tc-menu-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-menu-title">
+    <div class="tc-panel">
+      <h2 id="tc-menu-title">Game Menu</h2>
+      <div class="tc-menu-grid">
+        <button id="tc-menu-resume" class="tc-btn" type="button">Resume / Continue</button>
+        <button id="tc-menu-restart" class="tc-btn secondary" type="button">Restart Current Round</button>
+        <button id="tc-menu-change-player" class="tc-btn secondary" type="button">Change Player</button>
+        <button id="tc-menu-library" class="tc-btn secondary" type="button">Return to Game Library</button>
+      </div>
+      <div class="tc-settings">
+        <label for="tc-sfx-toggle">Sound effects</label>
+        <input id="tc-sfx-toggle" class="tc-switch" type="checkbox" />
+        <label for="tc-music-toggle">Music</label>
+        <input id="tc-music-toggle" class="tc-switch" type="checkbox" />
+      </div>
+    </div>
+  </div>
+
+  <div id="tc-intro-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-intro-title">
+    <div class="tc-panel">
+      <h2 id="tc-intro-title">Timothy Center Horse Race</h2>
+      <p>Race through the forest, steer around obstacles, and jump only when you choose. Win rounds to advance levels and earn new horses for your stable.</p>
+      <p><strong>Desktop:</strong> arrows/WASD to steer, Space to gallop, Up/W/Shift/J to jump.<br><strong>iPad:</strong> tap to gallop and use the touch controls already built into the game.</p>
+      <button id="tc-intro-start" class="tc-btn" type="button">Continue</button>
+    </div>
+  </div>
+
+  <div id="tc-results-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-results-title">
+    <div class="tc-panel">
+      <h2 id="tc-results-title">Round Complete</h2>
+      <div id="tc-result-stats"></div>
+      <div class="tc-menu-grid">
+        <button id="tc-results-continue" class="tc-btn" type="button">Continue</button>
+        <button id="tc-results-replay" class="tc-btn secondary" type="button">Replay This Round</button>
+        <button id="tc-results-change-player" class="tc-btn secondary" type="button">Change Player</button>
+        <button id="tc-results-library" class="tc-btn secondary" type="button">Return to Game Library</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/littlejsengine@1.18.19/dist/littlejs.js?1.18.19"></script>
 <script>
 'use strict';
@@ -357,10 +461,21 @@ let tcSaveNotice = '';
 let tcCreatingProfile = false;
 let tcEditingProfile = false;
 let tcEditingOriginalName = '';
-const GAME_ID = 'timothy-center-horse-racing';
-const tcProfileStorageKey = 'timothyCenterHorseRaceProfilesV1';
-const tcMaxProfiles = window.Odyssey ? Odyssey.MAX_PLAYERS : 8;
-let tcNativeNameDialog = null;
+const TC_GAME_ID = 'timothy-center-horse-racing';
+const TC_GAME_LIBRARY_URL = '/labs/games';
+const tcProfileStorageKey = 'timothyCenterHorseRaceProfilesV1'; // legacy/current progress store
+const tcPlayerRegistryKey = 'tessasOdysseyPlayersV1';
+const tcGameStatsStorageKey = `tessasOdysseyGameStats:${TC_GAME_ID}:v1`;
+const tcSettingsStorageKey = 'tessasOdysseySettingsV1';
+const tcMaxProfiles = 8;
+
+let tcPlayerRegistry = {players:{}};
+let tcGameStats = {};
+let tcActivePlayerId = '';
+let tcSettings = {sfx:true, music:true};
+let tcIntroMode = false;
+let tcMenuOpen = false;
+let tcDomReady = false;
 
 const tcTrackMinY = -3.15;
 const tcTrackMaxY = 2.85;
@@ -403,44 +518,6 @@ const tcHorseChoices = [
 
 
 
-
-
-function tcOpenNativeNameDialog()
-{
-    if (!window.Odyssey || tcNativeNameDialog || !(tcCreatingProfile || tcEditingProfile))
-        return;
-
-    const editing = tcEditingProfile;
-    tcNativeNameDialog = Odyssey.openNameDialog({
-        title: editing ? 'Rename Player' : 'New Player',
-        help: 'Type the player name using your computer or iPad keyboard.',
-        value: editing ? tcEditingOriginalName : '',
-        saveLabel: editing ? 'Save Name' : 'Create Player',
-        validate: name => {
-            const existing = tcProfileNames.find(n => n.toLowerCase() == name.toLowerCase());
-            if (existing && (!editing || existing != tcEditingOriginalName))
-                return 'That player name is already in use.';
-            return '';
-        },
-        onSave: name => {
-            tcNativeNameDialog = null;
-            if (editing) tcRenameProfile(tcEditingOriginalName,name);
-            else tcCreateProfile(name);
-            tcCreatingProfile = false;
-            tcEditingProfile = false;
-            tcEditingOriginalName = '';
-            tcNewProfileName = '';
-        },
-        onCancel: () => {
-            tcNativeNameDialog = null;
-            tcCreatingProfile = false;
-            tcEditingProfile = false;
-            tcEditingOriginalName = '';
-            tcNewProfileName = '';
-            tcProfileMessage = '';
-        }
-    });
-}
 
 
 function tcScreenHit(center, size)
@@ -487,11 +564,8 @@ function tcHandlePlayerMenuTouch()
             return true;
         }
 
-        tcCreatingProfile = true;
-        tcEditingProfile = false;
-        tcEditingOriginalName = '';
-        tcNewProfileName = '';
-        tcProfileMessage = 'Type a player name, then save.';
+        tcProfileMessage = '';
+        tcShowNameEditor(false);
         return true;
     }
 
@@ -513,6 +587,8 @@ function tcDrawPlayerMenu()
             const unlocked = Array.isArray(data.unlockedHorseNames)
                 ? data.unlockedHorseNames.length
                 : 1;
+            const playerId = tcFindPlayerIdByName(name);
+            const stats = tcGetStats(playerId);
             const selected = i == tcProfileIndex;
 
             drawRect(
@@ -523,7 +599,7 @@ function tcDrawPlayerMenu()
             );
 
             drawTextScreen(
-                `${name}   •   Level ${data.level || 1}   •   ${unlocked} horse${unlocked==1?'':'s'}`,
+                `${name}   •   Level ${data.level || 1}   •   ${unlocked} horse${unlocked==1?'':'s'}   •   ${stats.wins || 0} wins`,
                 vec2(cx,startY+i*rowH),
                 20,
                 selected ? YELLOW : WHITE,
@@ -556,126 +632,256 @@ function tcDrawPlayerMenu()
     );
 }
 
+
+function tcShowNameEditor(editing=false)
+{
+    tcCreatingProfile = !editing;
+    tcEditingProfile = editing;
+
+    if (editing)
+    {
+        tcEditingOriginalName = tcProfileNames[tcProfileIndex] || '';
+        tcNewProfileName = tcEditingOriginalName;
+    }
+    else
+    {
+        tcEditingOriginalName = '';
+        tcNewProfileName = '';
+    }
+
+    const overlay = document.getElementById('tc-name-overlay');
+    const title = document.getElementById('tc-name-title');
+    const input = document.getElementById('tc-player-name-input');
+
+    if (!overlay || !input) return;
+
+    title.textContent = editing ? 'Edit Player' : 'Add New Player';
+    input.value = tcNewProfileName;
+    overlay.style.display = 'flex';
+
+    requestAnimationFrame(() =>
+    {
+        input.focus();
+        input.select();
+    });
+}
+
+function tcHideNameEditor()
+{
+    const overlay = document.getElementById('tc-name-overlay');
+    const input = document.getElementById('tc-player-name-input');
+
+    if (overlay) overlay.style.display = 'none';
+    if (input) input.blur();
+
+    tcCreatingProfile = false;
+    tcEditingProfile = false;
+    tcEditingOriginalName = '';
+    tcNewProfileName = '';
+}
+
+function tcSubmitNativePlayerName()
+{
+    const input = document.getElementById('tc-player-name-input');
+    if (!input) return;
+
+    const clean = input.value.trim().slice(0,20);
+
+    if (!clean)
+    {
+        tcProfileMessage = 'Enter a player name first.';
+        input.focus();
+        return;
+    }
+
+    if (tcEditingProfile)
+        tcRenameProfile(tcEditingOriginalName, clean);
+    else
+        tcCreateProfile(clean);
+
+    tcHideNameEditor();
+}
+
 function tcHandleNameEntryTouch()
 {
-    if (!(tcCreatingProfile || tcEditingProfile) || !mouseWasPressed(0))
-        return false;
-
-    const cx = mainCanvasSize.x/2;
-    const bottom = mainCanvasSize.y;
-    const keyW = 48;
-    const keyH = 44;
-    const gap = 6;
-
-    const rows = [
-        {letters:'QWERTYUIOP', y:bottom-245},
-        {letters:'ASDFGHJKL',  y:bottom-195},
-        {letters:'ZXCVBNM',    y:bottom-145},
-    ];
-
-    for (const row of rows)
-    {
-        const total = row.letters.length*keyW + (row.letters.length-1)*gap;
-        let x = cx-total/2+keyW/2;
-
-        for (const letter of row.letters)
-        {
-            if (tcScreenHit(vec2(x,row.y),vec2(keyW,keyH)))
-            {
-                if (tcNewProfileName.length < 16)
-                    tcNewProfileName += letter;
-                return true;
-            }
-            x += keyW+gap;
-        }
-    }
-
-    const y = bottom-88;
-
-    if (tcScreenHit(vec2(cx-215,y),vec2(100,keyH)))
-    {
-        tcCreatingProfile = false;
-        tcEditingProfile = false;
-        tcEditingOriginalName = '';
-        tcNewProfileName = '';
-        tcProfileMessage = '';
-        return true;
-    }
-
-    if (tcScreenHit(vec2(cx-70,y),vec2(160,keyH)))
-    {
-        if (tcNewProfileName.length < 16)
-            tcNewProfileName += ' ';
-        return true;
-    }
-
-    if (tcScreenHit(vec2(cx+90,y),vec2(130,keyH)))
-    {
-        if (tcNewProfileName.length)
-            tcNewProfileName = tcNewProfileName.slice(0,-1);
-        return true;
-    }
-
-    if (tcScreenHit(vec2(cx+220,y),vec2(100,keyH)))
-    {
-        const newName = tcNewProfileName.trim();
-
-        if (tcEditingProfile)
-            tcRenameProfile(tcEditingOriginalName,newName);
-        else
-            tcCreateProfile(newName);
-
-        tcCreatingProfile = false;
-        tcEditingProfile = false;
-        tcEditingOriginalName = '';
-        tcNewProfileName = '';
-        return true;
-    }
-
     return false;
 }
 
 function tcDrawNameEntryKeyboard()
 {
-    const cx = mainCanvasSize.x/2;
-    const bottom = mainCanvasSize.y;
-    const keyW = 48;
-    const keyH = 44;
-    const gap = 6;
-
-    const rows = [
-        {letters:'QWERTYUIOP', y:bottom-245},
-        {letters:'ASDFGHJKL',  y:bottom-195},
-        {letters:'ZXCVBNM',    y:bottom-145},
-    ];
-
-    for (const row of rows)
-    {
-        const total = row.letters.length*keyW + (row.letters.length-1)*gap;
-        let x = cx-total/2+keyW/2;
-
-        for (const letter of row.letters)
-        {
-            drawRect(vec2(x,row.y),vec2(keyW,keyH),hsl(0,0,.20),0,true);
-            drawTextScreen(letter,vec2(x,row.y+1),20,WHITE,2,BLACK);
-            x += keyW+gap;
-        }
-    }
-
-    const y = bottom-88;
-    drawRect(vec2(cx-215,y),vec2(100,keyH),hsl(.0,.45,.34),0,true);
-    drawTextScreen('CANCEL',vec2(cx-215,y),15,WHITE,2,BLACK);
-
-    drawRect(vec2(cx-70,y),vec2(160,keyH),hsl(0,0,.20),0,true);
-    drawTextScreen('SPACE',vec2(cx-70,y),17,WHITE,2,BLACK);
-
-    drawRect(vec2(cx+90,y),vec2(130,keyH),hsl(.08,.42,.30),0,true);
-    drawTextScreen('DELETE',vec2(cx+90,y),16,WHITE,2,BLACK);
-
-    drawRect(vec2(cx+220,y),vec2(100,keyH),hsl(.31,.48,.34),0,true);
-    drawTextScreen('SAVE',vec2(cx+220,y),17,WHITE,2,BLACK);
+    // Native HTML text input is used so Mac/PC/iPad keyboards open automatically.
 }
 
+
+function tcOpenMenu()
+{
+    if (tcProfileMode) return;
+    tcMenuOpen = true;
+    const overlay = document.getElementById('tc-menu-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    paused = true;
+}
+
+function tcCloseMenu()
+{
+    tcMenuOpen = false;
+    const overlay = document.getElementById('tc-menu-overlay');
+    if (overlay) overlay.style.display = 'none';
+    paused = false;
+}
+
+function tcRestartCurrentRound()
+{
+    tcCloseMenu();
+    const level = tcLevel;
+    tcResetLevel(false);
+    tcLevel = level;
+    tcIntroMode = false;
+    tcManualSave(false);
+}
+
+function tcGoToGameLibrary()
+{
+    tcManualSave(false);
+    tcCloseMenu();
+
+    if (location.protocol === 'http:' || location.protocol === 'https:')
+        location.assign(TC_GAME_LIBRARY_URL);
+    else
+        tcReturnToProfiles();
+}
+
+function tcSyncDomUi()
+{
+    if (!tcDomReady) return;
+
+    const menuButton = document.getElementById('tc-menu-button');
+    if (menuButton)
+        menuButton.style.display = tcProfileMode ? 'none' : 'flex';
+
+    const intro = document.getElementById('tc-intro-overlay');
+    if (intro)
+        intro.style.display = (!tcProfileMode && tcIntroMode && !tcMenuOpen) ? 'flex' : 'none';
+
+    const results = document.getElementById('tc-results-overlay');
+    if (results)
+        results.style.display = (!tcProfileMode && tcFinished && !tcMenuOpen && !tcIntroMode) ? 'flex' : 'none';
+
+    if (!tcProfileMode && tcFinished)
+    {
+        const stats = tcGetStats();
+        const allHorses = [tcPlayer,...tcRivals].filter(Boolean).sort((a,b)=>b.distance-a.distance);
+        const place = max(1, allHorses.indexOf(tcPlayer)+1);
+        const resultTitle = document.getElementById('tc-results-title');
+        const resultStats = document.getElementById('tc-result-stats');
+        const continueButton = document.getElementById('tc-results-continue');
+
+        if (resultTitle)
+            resultTitle.textContent = place === 1 ? 'You Won!' : 'Round Complete';
+
+        if (resultStats)
+            resultStats.innerHTML =
+                `<strong>Level:</strong> ${tcLevel}<br>` +
+                `<strong>Place:</strong> ${place}<br>` +
+                `<strong>Best level:</strong> ${stats.bestLevel || 1}<br>` +
+                `<strong>Races played:</strong> ${stats.gamesPlayed || 0}<br>` +
+                `<strong>Wins:</strong> ${stats.wins || 0}`;
+
+        if (continueButton)
+            continueButton.textContent = place === 1 && tcLevel < tcLevels.length
+                ? 'Next Level'
+                : 'Retry This Level';
+    }
+
+    const sfx = document.getElementById('tc-sfx-toggle');
+    const music = document.getElementById('tc-music-toggle');
+    if (sfx && sfx.checked !== tcSettings.sfx) sfx.checked = tcSettings.sfx;
+    if (music && music.checked !== tcSettings.music) music.checked = tcSettings.music;
+}
+
+function tcInitNativeUi()
+{
+    if (tcDomReady) return;
+    tcDomReady = true;
+
+    const nameForm = document.getElementById('tc-player-name-form');
+    const nameCancel = document.getElementById('tc-name-cancel');
+    const menuButton = document.getElementById('tc-menu-button');
+    const menuResume = document.getElementById('tc-menu-resume');
+    const menuRestart = document.getElementById('tc-menu-restart');
+    const menuChangePlayer = document.getElementById('tc-menu-change-player');
+    const menuLibrary = document.getElementById('tc-menu-library');
+    const introStart = document.getElementById('tc-intro-start');
+    const resultsContinue = document.getElementById('tc-results-continue');
+    const resultsReplay = document.getElementById('tc-results-replay');
+    const resultsChangePlayer = document.getElementById('tc-results-change-player');
+    const resultsLibrary = document.getElementById('tc-results-library');
+    const sfx = document.getElementById('tc-sfx-toggle');
+    const music = document.getElementById('tc-music-toggle');
+
+    nameForm?.addEventListener('submit', e =>
+    {
+        e.preventDefault();
+        tcSubmitNativePlayerName();
+    });
+
+    nameCancel?.addEventListener('click', () => tcHideNameEditor());
+    menuButton?.addEventListener('click', () => tcOpenMenu());
+    menuResume?.addEventListener('click', () => tcCloseMenu());
+    menuRestart?.addEventListener('click', () => tcRestartCurrentRound());
+    menuChangePlayer?.addEventListener('click', () =>
+    {
+        tcManualSave(false);
+        tcCloseMenu();
+        tcReturnToProfiles();
+        tcSyncDomUi();
+    });
+    menuLibrary?.addEventListener('click', () => tcGoToGameLibrary());
+
+    introStart?.addEventListener('click', () =>
+    {
+        tcIntroMode = false;
+        tcManualSave(false);
+        tcSyncDomUi();
+    });
+
+    resultsContinue?.addEventListener('click', () =>
+    {
+        tcAdvanceOrRestart();
+        tcSyncDomUi();
+    });
+    resultsReplay?.addEventListener('click', () =>
+    {
+        tcRestartCurrentRound();
+        tcSyncDomUi();
+    });
+    resultsChangePlayer?.addEventListener('click', () =>
+    {
+        tcManualSave(false);
+        tcReturnToProfiles();
+        tcSyncDomUi();
+    });
+    resultsLibrary?.addEventListener('click', () => tcGoToGameLibrary());
+
+    sfx?.addEventListener('change', () =>
+    {
+        tcSettings.sfx = !!sfx.checked;
+        tcSaveSettings();
+    });
+    music?.addEventListener('change', () =>
+    {
+        tcSettings.music = !!music.checked;
+        tcSaveSettings();
+    });
+
+    for (const canvas of document.querySelectorAll('canvas'))
+    {
+        canvas.style.touchAction = 'none';
+        canvas.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+    }
+
+    tcSyncDomUi();
+}
 
 function tcHandleSaveButton()
 {
@@ -704,30 +910,213 @@ function tcDrawSaveButton()
 
 function tcHandleMainMenuButton()
 {
-    if (tcProfileMode || !mouseWasPressed(0))
-        return false;
-
-    const center = vec2(mainCanvasSize.x-42,38);
-    if (!tcScreenHit(center,vec2(64,58)))
-        return false;
-
-    tcReturnToProfiles();
-    return true;
+    return false;
 }
 
 function tcDrawMainMenuButton()
 {
-    if (tcProfileMode)
-        return;
+    // Native HTML hamburger button is used for consistent touch/accessibility.
+}
 
-    const x = mainCanvasSize.x-42;
-    const y = 38;
 
-    drawRect(vec2(x,y),vec2(64,58),hsl(0,0,.10,.82),0,true);
+function tcMakePlayerId()
+{
+    if (globalThis.crypto && crypto.randomUUID)
+        return crypto.randomUUID();
 
-    // Hamburger / "line line line" main-menu icon.
-    for (let i=-1;i<=1;++i)
-        drawRect(vec2(x,y+i*12),vec2(32,4),WHITE,0,true);
+    return 'player-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,10);
+}
+
+function tcLoadSharedPlayerRegistry()
+{
+    try
+    {
+        const raw = localStorage.getItem(tcPlayerRegistryKey);
+        const parsed = raw ? JSON.parse(raw) : null;
+        tcPlayerRegistry = parsed && parsed.players ? parsed : {players:{}};
+    }
+    catch (e)
+    {
+        tcPlayerRegistry = {players:{}};
+    }
+}
+
+function tcSaveSharedPlayerRegistry()
+{
+    try
+    {
+        localStorage.setItem(tcPlayerRegistryKey, JSON.stringify(tcPlayerRegistry));
+    }
+    catch (e) {}
+}
+
+function tcFindPlayerIdByName(name)
+{
+    for (const [id, player] of Object.entries(tcPlayerRegistry.players || {}))
+        if (player && player.name === name)
+            return id;
+    return '';
+}
+
+function tcRegisterPlayer(name)
+{
+    let id = tcFindPlayerIdByName(name);
+    if (id) return id;
+
+    id = tcMakePlayerId();
+    tcPlayerRegistry.players[id] = {
+        id,
+        name,
+        createdAt:Date.now(),
+        updatedAt:Date.now(),
+    };
+    tcSaveSharedPlayerRegistry();
+    return id;
+}
+
+function tcRenameSharedPlayer(id, newName)
+{
+    if (!id || !tcPlayerRegistry.players[id]) return;
+    tcPlayerRegistry.players[id].name = newName;
+    tcPlayerRegistry.players[id].updatedAt = Date.now();
+    tcSaveSharedPlayerRegistry();
+}
+
+function tcDeleteSharedPlayer(id)
+{
+    if (!id) return;
+    delete tcPlayerRegistry.players[id];
+    tcSaveSharedPlayerRegistry();
+
+    if (tcGameStats[id])
+    {
+        delete tcGameStats[id];
+        tcSaveGameStats();
+    }
+}
+
+function tcLoadGameStats()
+{
+    try
+    {
+        const raw = localStorage.getItem(tcGameStatsStorageKey);
+        tcGameStats = raw ? JSON.parse(raw) : {};
+    }
+    catch (e)
+    {
+        tcGameStats = {};
+    }
+}
+
+function tcSaveGameStats()
+{
+    try
+    {
+        localStorage.setItem(tcGameStatsStorageKey, JSON.stringify(tcGameStats));
+    }
+    catch (e) {}
+}
+
+function tcGetStats(id=tcActivePlayerId)
+{
+    if (!id)
+        return {gamesPlayed:0,wins:0,completions:0,bestLevel:1,lastPlayed:0};
+
+    if (!tcGameStats[id])
+        tcGameStats[id] = {gamesPlayed:0,wins:0,completions:0,bestLevel:1,lastPlayed:0};
+
+    return tcGameStats[id];
+}
+
+function tcTouchLastPlayed()
+{
+    if (!tcActivePlayerId) return;
+    const stats = tcGetStats();
+    stats.lastPlayed = Date.now();
+    stats.bestLevel = max(stats.bestLevel || 1, tcLevel || 1);
+    tcSaveGameStats();
+}
+
+function tcRecordGameStart()
+{
+    if (!tcActivePlayerId) return;
+    const stats = tcGetStats();
+    stats.gamesPlayed = (stats.gamesPlayed || 0) + 1;
+    stats.lastPlayed = Date.now();
+    stats.bestLevel = max(stats.bestLevel || 1, tcLevel || 1);
+    tcSaveGameStats();
+}
+
+function tcRecordWin()
+{
+    if (!tcActivePlayerId) return;
+    const stats = tcGetStats();
+    stats.wins = (stats.wins || 0) + 1;
+    stats.completions = (stats.completions || 0) + 1;
+    stats.bestLevel = max(stats.bestLevel || 1, tcLevel || 1);
+    stats.lastPlayed = Date.now();
+    tcSaveGameStats();
+}
+
+function tcLoadSettings()
+{
+    try
+    {
+        const raw = localStorage.getItem(tcSettingsStorageKey);
+        const all = raw ? JSON.parse(raw) : {};
+        const saved = all[TC_GAME_ID] || {};
+        tcSettings = {
+            sfx:saved.sfx !== false,
+            music:saved.music !== false,
+        };
+    }
+    catch (e)
+    {
+        tcSettings = {sfx:true,music:true};
+    }
+}
+
+function tcSaveSettings()
+{
+    try
+    {
+        const raw = localStorage.getItem(tcSettingsStorageKey);
+        const all = raw ? JSON.parse(raw) : {};
+        all[TC_GAME_ID] = {...tcSettings};
+        localStorage.setItem(tcSettingsStorageKey, JSON.stringify(all));
+    }
+    catch (e) {}
+}
+
+function tcPlaySound(sound, ...args)
+{
+    if (tcSettings.sfx)
+        sound.play(...args);
+}
+
+function tcAdoptLegacyProfiles()
+{
+    tcLoadSharedPlayerRegistry();
+
+    let changed = false;
+    for (const name of Object.keys(tcProfiles))
+    {
+        if (!tcFindPlayerIdByName(name))
+        {
+            const id = tcMakePlayerId();
+            tcPlayerRegistry.players[id] = {
+                id,
+                name,
+                createdAt:Date.now(),
+                updatedAt:Date.now(),
+                adoptedFromLegacy:true,
+            };
+            changed = true;
+        }
+    }
+
+    if (changed)
+        tcSaveSharedPlayerRegistry();
 }
 
 function tcLoadProfiles()
@@ -742,36 +1131,9 @@ function tcLoadProfiles()
         tcProfiles = {};
     }
 
-    if (window.Odyssey)
-    {
-        Odyssey.adoptLegacyProfiles(
-            GAME_ID,
-            Object.entries(tcProfiles).map(([name,data])=>({name,...data})),
-            x=>({level:x.level || 1, meta:{unlockedHorses:Array.isArray(x.unlockedHorseNames)?x.unlockedHorseNames.length:1,barnUnlocked:!!x.barnUnlocked}})
-        );
-
-        let changed = false;
-        for (const player of Odyssey.getPlayers())
-        {
-            const platformStats = Odyssey.getGameStats(player.name,GAME_ID);
-            if (platformStats && platformStats.hidden) continue;
-            if (!tcProfiles[player.name] && Object.keys(tcProfiles).length < tcMaxProfiles)
-            {
-                tcProfiles[player.name] = {
-                    level:1, unlockedHorseNames:['Chestnut'], barnUnlocked:false,
-                    selectedHorse:0, selectedOpponent:0, foal:0, raceState:0, savedAt:Date.now()
-                };
-                changed = true;
-            }
-        }
-        if (changed)
-        {
-            try { localStorage.setItem(tcProfileStorageKey, JSON.stringify(tcProfiles)); } catch(e) {}
-        }
-    }
-
-    tcProfileNames = Object.keys(tcProfiles).slice(0,tcMaxProfiles);
+    tcProfileNames = Object.keys(tcProfiles);
     tcProfileIndex = clamp(tcProfileIndex, 0, max(0, tcProfileNames.length-1));
+    tcAdoptLegacyProfiles();
 }
 
 function tcSaveProfiles()
@@ -830,6 +1192,8 @@ function tcProfileSnapshot()
     } : 0;
 
     return {
+        gameId:TC_GAME_ID,
+        saveVersion:2,
         level:tcLevel,
         unlockedHorseNames:[...tcUnlockedHorseNames],
         barnUnlocked:tcBarnUnlocked,
@@ -852,13 +1216,17 @@ function tcProfileSnapshot()
 function tcSaveActiveProfile()
 {
     if (!tcActiveProfile) return;
+
     tcProfiles[tcActiveProfile] = tcProfileSnapshot();
     tcSaveProfiles();
-    if (window.Odyssey)
+
+    if (tcActivePlayerId && tcPlayerRegistry.players[tcActivePlayerId])
     {
-        Odyssey.selectPlayer(tcActiveProfile, GAME_ID);
-        Odyssey.syncProgress(GAME_ID,{level:tcLevel,meta:{unlockedHorses:tcUnlockedHorseNames.length,barnUnlocked:tcBarnUnlocked,foalGrown:!!(tcFoal&&tcFoal.grown)}},tcActiveProfile);
+        tcPlayerRegistry.players[tcActivePlayerId].updatedAt = Date.now();
+        tcSaveSharedPlayerRegistry();
     }
+
+    tcTouchLastPlayed();
     tcLoadProfiles();
 }
 
@@ -945,7 +1313,7 @@ function tcRestoreProfile(name)
     if (!data) return;
 
     tcActiveProfile = name;
-    if (window.Odyssey){Odyssey.selectPlayer(name,GAME_ID);Odyssey.startSession(GAME_ID,name);}
+    tcActivePlayerId = tcFindPlayerIdByName(name) || tcRegisterPlayer(name);
     tcLevel = data.level || 1;
     tcUnlockedHorseNames = Array.isArray(data.unlockedHorseNames)
         ? [...data.unlockedHorseNames]
@@ -989,7 +1357,10 @@ function tcRestoreProfile(name)
     if (data.raceState)
         tcRestoreRaceState(data.raceState);
 
+    tcIntroMode = !(data.raceState && data.raceState.started && !data.raceState.finished);
+    tcTouchLastPlayed();
     tcAutoSaveTimer.set(5);
+    tcSyncDomUi();
 }
 
 function tcCreateProfile(name)
@@ -1000,7 +1371,7 @@ function tcCreateProfile(name)
         return;
     }
 
-    const clean = window.Odyssey ? Odyssey.cleanPlayerName(name) : name.trim().slice(0,20);
+    const clean = name.trim().slice(0,20);
     if (!clean)
     {
         tcProfileMessage = 'Enter a profile name first.';
@@ -1014,8 +1385,6 @@ function tcCreateProfile(name)
     }
 
     // New profiles always begin from the true starting state.
-    if (window.Odyssey) Odyssey.ensurePlayer(clean);
-
     tcProfiles[clean] = {
         level:1,
         unlockedHorseNames:['Chestnut'],
@@ -1027,6 +1396,7 @@ function tcCreateProfile(name)
         savedAt:Date.now(),
     };
 
+    tcRegisterPlayer(clean);
     tcSaveProfiles();
     tcLoadProfiles();
     tcRestoreProfile(clean);
@@ -1035,7 +1405,7 @@ function tcCreateProfile(name)
 
 function tcRenameProfile(oldName, newName)
 {
-    const clean = window.Odyssey ? Odyssey.cleanPlayerName(newName) : newName.trim().slice(0,20);
+    const clean = newName.trim().slice(0,20);
 
     if (!oldName || !tcProfiles[oldName])
     {
@@ -1055,6 +1425,8 @@ function tcRenameProfile(oldName, newName)
         return;
     }
 
+    const playerId = tcFindPlayerIdByName(oldName);
+
     if (clean != oldName)
     {
         tcProfiles[clean] = tcProfiles[oldName];
@@ -1062,6 +1434,9 @@ function tcRenameProfile(oldName, newName)
 
         if (tcActiveProfile == oldName)
             tcActiveProfile = clean;
+
+        if (playerId)
+            tcRenameSharedPlayer(playerId, clean);
     }
 
     tcSaveProfiles();
@@ -1078,8 +1453,9 @@ function tcDeleteSelectedProfile()
 {
     if (!tcProfileNames.length) return;
     const name = tcProfileNames[tcProfileIndex];
-    if (window.Odyssey) Odyssey.hidePlayerForGame(name,GAME_ID);
+    const playerId = tcFindPlayerIdByName(name);
     delete tcProfiles[name];
+    tcDeleteSharedPlayer(playerId);
     tcSaveProfiles();
     tcLoadProfiles();
     tcProfileMessage = `Deleted ${name}.`;
@@ -1090,6 +1466,7 @@ function tcReturnToProfiles()
     tcSaveActiveProfile();
     tcProfileMode = true;
     tcActiveProfile = '';
+    tcActivePlayerId = '';
     tcStarted = false;
     tcFinished = false;
     tcInBarn = false;
@@ -1103,6 +1480,7 @@ function tcCreateNewAccountFromGame()
     tcSaveActiveProfile();
     tcProfileMode = true;
     tcActiveProfile = '';
+    tcActivePlayerId = '';
     tcStarted = false;
     tcFinished = false;
     tcInBarn = false;
@@ -1110,11 +1488,8 @@ function tcCreateNewAccountFromGame()
     tcChoosingOpponent = false;
     tcLoadProfiles();
 
-    tcCreatingProfile = true;
-    tcEditingProfile = false;
-    tcEditingOriginalName = '';
-    tcNewProfileName = '';
-    tcProfileMessage = 'Type a new player name, then save.';
+    tcProfileMessage = '';
+    tcShowNameEditor(false);
 }
 
 
@@ -1349,7 +1724,7 @@ class TCHorse extends EngineObject
         this.jumpVelocity = .42;
         this.onGround = false;
         if (this.isPlayer)
-            if (randBool(.35)) tcNeighSound.play(this.pos, .22);
+            if (randBool(.35)) tcPlaySound(tcNeighSound,this.pos, .22);
     }
 
     update()
@@ -1374,7 +1749,7 @@ class TCHorse extends EngineObject
             if (keyWasPressed('Space') || mouseWasPressed(0) || gamepadWasPressed(0))
             {
                 tcPlayerSpeed = min(level.speedMax, tcPlayerSpeed + .023);
-                if (randBool(.16)) tcNickerSound.play(this.pos, .18);
+                if (randBool(.16)) tcPlaySound(tcNickerSound,this.pos, .18);
             }
 
             // Player jump is manual only. Obstacles never trigger tryJump().
@@ -1489,7 +1864,7 @@ class TCHorse extends EngineObject
             {
                 tcPlayerCrossed = true;
                 tcFinishDelay.set(1);
-                tcNeighSound.play(tcPlayer.pos, .34);
+                tcPlaySound(tcNeighSound,tcPlayer.pos, .34);
             }
             else if (!tcPlayerCrossed)
             {
@@ -1658,7 +2033,7 @@ class TCObstacle extends EngineObject
 
                 tcRaceMessage = 'Hit! Slowed for a second — keep running!';
                 tcMessageTimer.set(1.1);
-                tcNeighSound.play(this.pos, .24);
+                tcPlaySound(tcNeighSound,this.pos, .24);
             }
         }
 
@@ -1850,9 +2225,14 @@ function tcResetLevel(resetLevel=false)
 
 function tcStartRace()
 {
+    const wasStarted = tcStarted;
     tcChoosingHorse = false;
     tcChoosingOpponent = false;
     tcStarted = true;
+
+    if (!wasStarted)
+        tcRecordGameStart();
+
     tcManualSave(false);
 }
 
@@ -1879,6 +2259,7 @@ function tcEndLevel()
 
     if (allHorses[0] === tcPlayer)
     {
+        tcRecordWin();
         const rewardHorse = tcAwardMilestoneHorse(tcLevel);
 
         tcWinner = tcLevel == tcLevels.length
@@ -1887,9 +2268,6 @@ function tcEndLevel()
 
         if (rewardHorse)
             tcWinner = `LEVEL COMPLETE!  ${rewardHorse.toUpperCase()} UNLOCKED!`;
-
-        if (window.Odyssey && tcActiveProfile)
-            Odyssey.recordResult(GAME_ID,{completed:true,level:tcLevel,meta:{winner:true}},tcActiveProfile);
 
         if (tcLevel >= 10 && !tcBarnUnlocked)
         {
@@ -1983,8 +2361,12 @@ async function gameInit()
     tcAccountSwitchTimer = new Timer();
     tcAutoSaveTimer = new Timer(5);
     tcSaveNoticeTimer = new Timer();
+    tcLoadSettings();
+    tcLoadGameStats();
+    tcLoadSharedPlayerRegistry();
     tcLoadProfiles();
     tcProfileMode = true;
+    tcInitNativeUi();
 
     // Save when the browser/app is backgrounded or closed.
     document.addEventListener('visibilitychange', () =>
@@ -2011,30 +2393,24 @@ function gameUpdate()
         // open another profile while a name is being typed.
         if (tcCreatingProfile || tcEditingProfile)
         {
-            if (window.Odyssey)
-            {
-                tcOpenNativeNameDialog();
-                return;
-            }
-
             if (tcHandleNameEntryTouch())
                 return;
 
-            // Physical keyboard support remains available as a fallback.
+            // Physical keyboard support remains available.
             for (let code=65; code<=90; ++code)
             {
                 const key = 'Key' + String.fromCharCode(code);
-                if (keyWasPressed(key) && tcNewProfileName.length < 16)
+                if (keyWasPressed(key) && tcNewProfileName.length < 20)
                     tcNewProfileName += String.fromCharCode(code);
             }
 
             for (let d=0; d<=9; ++d)
             {
-                if (keyWasPressed('Digit'+d) && tcNewProfileName.length < 16)
+                if (keyWasPressed('Digit'+d) && tcNewProfileName.length < 20)
                     tcNewProfileName += d;
             }
 
-            if (keyWasPressed('Space') && tcNewProfileName.length < 16)
+            if (keyWasPressed('Space') && tcNewProfileName.length < 20)
                 tcNewProfileName += ' ';
 
             if (keyWasPressed('Backspace') && tcNewProfileName.length)
@@ -2078,20 +2454,13 @@ function gameUpdate()
 
         if (keyWasPressed('KeyE') && tcProfileNames.length)
         {
-            tcEditingProfile = true;
-            tcEditingOriginalName = tcProfileNames[tcProfileIndex];
-            tcNewProfileName = tcEditingOriginalName;
-            tcProfileMessage = 'Edit the account name, then press Save.';
+            tcShowNameEditor(true);
             return;
         }
 
         if (keyWasPressed('KeyN') || keyWasPressed('KeyC'))
         {
-            tcCreatingProfile = true;
-            tcEditingProfile = false;
-            tcEditingOriginalName = '';
-            tcNewProfileName = '';
-            tcProfileMessage = 'Type a player name, then save.';
+            tcShowNameEditor(false);
             return;
         }
 
@@ -2100,6 +2469,11 @@ function gameUpdate()
 
         return;
     }
+
+    tcSyncDomUi();
+
+    if (tcMenuOpen || tcIntroMode || tcFinished)
+        return;
 
     // Touch-friendly SAVE button.
     if (tcHandleSaveButton())
@@ -2309,6 +2683,7 @@ function gameUpdate()
 ///////////////////////////////////////////////////////////////////////////////
 function gameUpdatePost()
 {
+    tcSyncDomUi();
     cameraPos = vec2(0,0);
 
     // Prevent exact sprite stacking while still allowing passing.
@@ -2443,22 +2818,15 @@ function gameRenderPost()
         if (tcCreatingProfile || tcEditingProfile)
         {
             drawTextScreen(tcEditingProfile ? 'EDIT PLAYER' : 'ADD NEW PLAYER',
-                vec2(cx,115),28,YELLOW,4,BLACK);
-
-            const shownName = tcNewProfileName.length ? tcNewProfileName : '_';
-            drawRect(vec2(cx,160),vec2(420,50),hsl(0,0,.12,.9),0,true);
-            drawTextScreen(shownName,vec2(cx,160),27,WHITE,3,BLACK);
-
-            drawTextScreen('Tap the keyboard below, then tap Save',
-                vec2(cx,200),18,WHITE,3,BLACK);
-
-            tcDrawNameEntryKeyboard();
+                vec2(cx,145),28,YELLOW,4,BLACK);
+            drawTextScreen('Use the name field to continue.',
+                vec2(cx,190),18,WHITE,3,BLACK);
         }
         else
         {
             drawTextScreen('CHOOSE A PLAYER',
                 vec2(cx,105),27,WHITE,4,BLACK);
-            drawTextScreen('Tap a player to continue their saved game',
+            drawTextScreen('Choose a returning player or tap Add New Player',
                 vec2(cx,138),17,WHITE,2,BLACK);
 
             tcDrawPlayerMenu();

@@ -1,9 +1,7 @@
 <!DOCTYPE html><head>
-<title>Bernard's Window Washing</title>
+<title>LittleJS AI Starter Project</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
-<script src="/labs/games/assets/odyssey-core.js"></script>
 </head><body style="background:#000">
 <script>
 // LittleJS Engine - MIT License - Copyright 2021 Frank Force
@@ -2999,7 +2997,6 @@ let gamepadDirectionEmulateStick = true;
  *  @default
  *  @memberof Settings */
 let inputWASDEmulateDirection = true;
-
 /** True if touch input is enabled for mobile devices
  *  - Touch events will be routed to mouse events
  *  @type {boolean}
@@ -5999,7 +5996,6 @@ function inputInit()
         function handleTouch(e)
         {
             if (!touchInputEnable) return;
-
             // fix stalled audio requiring user interaction
             if (soundEnable && !headlessMode && audioContext && !audioIsRunning())
                 audioContext.resume();
@@ -12000,7 +11996,6 @@ class UIText extends UIObject
         uiSystem.drawText(this.text, this.nativePos, textSize, this.textColor, this.textLineWidth, this.textLineColor, this.align, this.font, this.fontStyle, true, this.textShadow, this.shadowColor, this.shadowBlur, this.shadowOffset);
     }
 }
-
 ///////////////////////////////////////////////////////////////////////////////
 /** 
  * UITextInput - An editable text input field
@@ -16568,13 +16563,27 @@ let titleIntroTimer = new Timer();
 let tutorialDemoTimer = new Timer();
 
 let playerName = '';
+let playerId = '';
 let profileReady = false;
 let profileOverlay = null;
 let mainMenuButton = null;
+let gameMenuOverlay = null;
+let introOverlay = null;
+let resultsOverlay = null;
+let bestRoundStars = 0;
+let gamesPlayed = 0;
+let completions = 0;
+let lastPlayedAt = 0;
+let soundEffectsEnabled = true;
+let musicEnabled = true;
 
-const SAVE_PREFIX = 'windowWashSave_';
 const GAME_ID = 'bernard-window-washing';
-const PROFILE_LIST_KEY = 'windowWashProfiles';
+const SAVE_PREFIX = 'windowWashSave_'; // legacy compatibility
+const PROFILE_LIST_KEY = 'windowWashProfiles'; // legacy compatibility
+const TESSA_PLAYERS_KEY = 'tessasOdysseyPlayersV1';
+const GAME_PROGRESS_PREFIX = `tessasOdyssey:${GAME_ID}:progress:`;
+const GAME_RESUME_PREFIX = `tessasOdyssey:${GAME_ID}:resume:`;
+const GAME_SETTINGS_KEY = `tessasOdyssey:${GAME_ID}:settings`;
 let trialMode = false;
 let recordingCleanerId = null;
 let trialPointerInstalled = false;
@@ -16610,6 +16619,9 @@ let wwActiveLoopOsc = null;
 
 function ensureWindowWashAudio()
 {
+    if (!soundEffectsEnabled)
+        return null;
+
     if (wwAudioContext)
     {
         if (wwAudioContext.state == 'suspended')
@@ -17305,12 +17317,84 @@ function awardLevelStars()
 
     lastLevelStars = earned;
     totalStars += earned;
+    bestRoundStars = max(bestRoundStars, earned);
+    completions++;
     lastLevelBonusText = bonuses.length ? bonuses.join('  •  ') : 'COMPLETE';
 
-    if (window.Odyssey && playerName)
-        Odyssey.recordResult(GAME_ID,{completed:true,level,stars:earned,accuracy,meta:{elapsedSeconds,effort}},playerName);
-
+    clearResumeState();
     saveProgress();
+    showResultsScreen();
+}
+
+
+function showResultsScreen()
+{
+    if (trialMode || resultsOverlay)
+        return;
+
+    hideMainMenuButton();
+    resetTransientInput();
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText =
+        'position:fixed;inset:0;z-index:99996;background:rgba(16,22,28,.72);display:flex;' +
+        'align-items:center;justify-content:center;padding:18px;box-sizing:border-box;' +
+        'font-family:system-ui,-apple-system,sans-serif;';
+
+    const card = document.createElement('div');
+    card.style.cssText =
+        'width:min(470px,92vw);background:#fff7ea;border:4px solid #8a5a2b;border-radius:18px;' +
+        'padding:22px;text-align:center;color:#2c241d;box-shadow:0 18px 55px rgba(0,0,0,.35);';
+
+    const title = document.createElement('div');
+    title.textContent = 'SPARKLING CLEAN!';
+    title.style.cssText = 'font-size:27px;font-weight:950;margin-bottom:8px;';
+
+    const stars = document.createElement('div');
+    stars.textContent = `+${lastLevelStars} ★`;
+    stars.style.cssText = 'font-size:34px;font-weight:950;color:#b47914;margin:6px 0;';
+
+    const detail = document.createElement('div');
+    detail.innerHTML =
+        `<div style="font-weight:850;margin-bottom:5px">${lastLevelBonusText}</div>` +
+        `<div style="font-size:14px;color:#6b5037">Best round: ${bestRoundStars} ★ • Total: ${totalStars} ★</div>` +
+        `<div style="font-size:14px;color:#6b5037;margin-top:3px">Completed windows: ${completions}</div>`;
+
+    const makeButton = (label, action, secondary=false) =>
+    {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.style.cssText =
+            'width:100%;min-height:48px;margin-top:9px;border:0;border-radius:11px;padding:10px 14px;' +
+            `background:${secondary ? '#e8d5b4' : '#3f7f50'};color:${secondary ? '#2c241d' : 'white'};` +
+            'font-size:17px;font-weight:900;cursor:pointer;touch-action:manipulation;';
+        b.addEventListener('click', action);
+        card.appendChild(b);
+    };
+
+    card.appendChild(title);
+    card.appendChild(stars);
+    card.appendChild(detail);
+
+    makeButton('Continue to Next Window', () =>
+    {
+        closeOverlay(overlay);
+        resultsOverlay = null;
+        levelAdvanceTimer.unset();
+        levelAdvanceAt = 0;
+        nextLevel();
+        gamesPlayed++;
+        saveProgress();
+        showMainMenuButton();
+    });
+
+    makeButton('Replay This Window', restartCurrentRound, true);
+    makeButton('Return to Menu / Game Library', requestGameLibrary, true);
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    resultsOverlay = overlay;
 }
 
 function showCleanerVideoTutorial(cleaner)
@@ -17375,21 +17459,80 @@ function getSaveKey(name)
 }
 
 
-function getProfileList()
+
+function makeStablePlayerId()
+{
+    if (window.crypto && crypto.randomUUID)
+        return crypto.randomUUID();
+
+    return `player-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+}
+
+function getSharedPlayers()
+{
+    let players = [];
+    try
+    {
+        const raw = localStorage.getItem(TESSA_PLAYERS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed))
+            players = parsed.filter(p => p && typeof p.id == 'string' && typeof p.name == 'string');
+    }
+    catch(e) {}
+
+    return players.slice(0,8);
+}
+
+function saveSharedPlayers(players)
+{
+    try
+    {
+        localStorage.setItem(TESSA_PLAYERS_KEY, JSON.stringify(players.slice(0,8)));
+    }
+    catch(e) {}
+}
+
+function findOrAdoptPlayer(name)
+{
+    const clean = name.trim().slice(0,20);
+    if (!clean)
+        return null;
+
+    let players = getSharedPlayers();
+    let player = players.find(p => p.name.toLowerCase() == clean.toLowerCase());
+
+    if (!player)
+    {
+        if (players.length >= 8)
+            return null;
+
+        player = {
+            id: makeStablePlayerId(),
+            name: clean,
+            createdAt: Date.now()
+        };
+        players.push(player);
+        saveSharedPlayers(players);
+    }
+
+    return player;
+}
+
+function migrateLegacyProfiles()
 {
     let names = [];
+
     try
     {
         const raw = localStorage.getItem(PROFILE_LIST_KEY);
-        if (raw)
-        {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed))
-                names = parsed.filter(n => typeof n == 'string' && n.trim());
-        }
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed))
+            names.push(...parsed.filter(n => typeof n == 'string'));
+    }
+    catch(e) {}
 
-        // Backward compatibility: include any existing saves created before
-        // the profile picker existed.
+    try
+    {
         for (let i=0; i<localStorage.length; ++i)
         {
             const key = localStorage.key(i);
@@ -17411,101 +17554,242 @@ function getProfileList()
     }
     catch(e) {}
 
-    const unique = [];
-    const seen = new Set();
-
     for (const name of names)
     {
-        const clean = name.trim();
-        const key = clean.toLowerCase();
-        if (!clean || seen.has(key))
-            continue;
-        seen.add(key);
-        unique.push(clean);
+        if (getSharedPlayers().length >= 8)
+            break;
+        findOrAdoptPlayer(name);
     }
+}
 
-    let merged = unique;
-    if (window.Odyssey)
+function getProgressKey(id)
+{
+    return GAME_PROGRESS_PREFIX + id;
+}
+
+function getResumeKey(id)
+{
+    return GAME_RESUME_PREFIX + id;
+}
+
+function loadGameSettings()
+{
+    try
     {
-        Odyssey.adoptLegacyProfiles(GAME_ID, unique.map(name => getProfileSummary(name)), x => ({level:x.level || 1}));
-        merged = Odyssey.mergeGlobalNames(unique, name => name, GAME_ID);
+        const raw = localStorage.getItem(GAME_SETTINGS_KEY);
+        const data = raw ? JSON.parse(raw) : null;
+        if (data)
+        {
+            soundEffectsEnabled = data.soundEffects !== false;
+            musicEnabled = data.music !== false;
+        }
     }
+    catch(e) {}
+}
 
-    return merged.slice(0, window.Odyssey ? Odyssey.MAX_PLAYERS : 8);
+function saveGameSettings()
+{
+    try
+    {
+        localStorage.setItem(GAME_SETTINGS_KEY, JSON.stringify({
+            soundEffects: soundEffectsEnabled,
+            music: musicEnabled
+        }));
+    }
+    catch(e) {}
+}
+
+function getProfileList()
+{
+    migrateLegacyProfiles();
+    return getSharedPlayers();
 }
 
 function rememberProfile(name)
 {
-    const clean = window.Odyssey ? Odyssey.cleanPlayerName(name) : name.trim();
-    if (!clean) return;
-
-    let names = getProfileList().filter(n => n.toLowerCase() != clean.toLowerCase());
-    names.unshift(clean);
-    names = names.slice(0, 8);
-
-    try
-    {
-        localStorage.setItem(PROFILE_LIST_KEY, JSON.stringify(names));
-    }
-    catch(e) {}
+    return findOrAdoptPlayer(name);
 }
 
-function getProfileSummary(name)
+function getProfileSummary(profile)
 {
+    const name = typeof profile == 'string' ? profile : profile.name;
+    const id = typeof profile == 'string'
+        ? (findOrAdoptPlayer(profile) || {}).id
+        : profile.id;
+
     let data = null;
+
     try
     {
-        const raw = localStorage.getItem(getSaveKey(name));
-        if (raw)
-            data = JSON.parse(raw);
+        if (id)
+        {
+            const raw = localStorage.getItem(getProgressKey(id));
+            if (raw)
+                data = JSON.parse(raw);
+        }
+
+        // Adopt old name-keyed progress if the new progress store is empty.
+        if (!data)
+        {
+            const legacy = localStorage.getItem(getSaveKey(name));
+            if (legacy)
+                data = JSON.parse(legacy);
+        }
     }
     catch(e) {}
 
     return {
+        id: id || '',
         name,
-        level: data ? max(1, data.level || 1) : 1
+        level: data ? max(1, data.level || 1) : 1,
+        totalStars: data ? max(0, data.totalStars || 0) : 0,
+        bestRoundStars: data ? max(0, data.bestRoundStars || 0) : 0,
+        gamesPlayed: data ? max(0, data.gamesPlayed || 0) : 0,
+        completions: data ? max(0, data.completions || 0) : 0,
+        lastPlayedAt: data ? (data.lastPlayedAt || 0) : 0
     };
 }
 
 function saveProgress()
 {
-    if (!profileReady || !playerName)
+    if (!profileReady || !playerName || !playerId)
         return;
 
+    lastPlayedAt = Date.now();
+
     const data = {
+        gameId: GAME_ID,
+        playerId,
         playerName,
         level,
         highestCleanerShown,
-        totalStars
+        totalStars,
+        bestRoundStars,
+        gamesPlayed,
+        completions,
+        lastPlayedAt
     };
 
     try
     {
+        // New stable-ID game progress.
+        localStorage.setItem(getProgressKey(playerId), JSON.stringify(data));
+
+        // Legacy save remains updated so existing builds do not lose progress.
         localStorage.setItem(getSaveKey(playerName), JSON.stringify(data));
         localStorage.setItem('windowWashLastPlayer', playerName);
+
         rememberProfile(playerName);
     }
     catch(e) {}
-
-    if (window.Odyssey)
-    {
-        Odyssey.selectPlayer(playerName, GAME_ID);
-        Odyssey.syncProgress(GAME_ID, {level, stars:totalStars, meta:{highestCleanerShown}}, playerName);
-    }
 }
 
-function loadProgress(name)
+function saveResumeState()
 {
-    playerName = name.trim();
-    if (!playerName)
-        return false;
+    if (!profileReady || !playerId || won || !dirt.length)
+        return;
 
-    let data = null;
+    const resume = {
+        gameId: GAME_ID,
+        level,
+        gridX,
+        gridY,
+        dirt: dirt.map(d => ({
+            clean: !!d.clean,
+            treated: !!d.treated,
+            messId: d.mess ? d.mess.id : 'dust',
+            shade: d.shade
+        })),
+        wetness: wetness.map(w => ({
+            layers: w.layers ? {...w.layers} : {}
+        })),
+        savedAt: Date.now()
+    };
+
     try
     {
-        const raw = localStorage.getItem(getSaveKey(playerName));
+        localStorage.setItem(getResumeKey(playerId), JSON.stringify(resume));
+    }
+    catch(e) {}
+}
+
+function clearResumeState()
+{
+    if (!playerId)
+        return;
+
+    try { localStorage.removeItem(getResumeKey(playerId)); }
+    catch(e) {}
+}
+
+function restoreResumeState()
+{
+    if (!playerId)
+        return false;
+
+    let resume = null;
+    try
+    {
+        const raw = localStorage.getItem(getResumeKey(playerId));
+        if (raw)
+            resume = JSON.parse(raw);
+    }
+    catch(e) {}
+
+    if (!resume || resume.level != level || resume.gridX != gridX || resume.gridY != gridY)
+        return false;
+
+    if (!Array.isArray(resume.dirt) || resume.dirt.length != dirt.length)
+        return false;
+
+    for (let i=0; i<dirt.length; ++i)
+    {
+        const saved = resume.dirt[i];
+        const mess = MESS_TYPES.find(m => m.id == saved.messId) || dirt[i].mess;
+
+        dirt[i].clean = !!saved.clean;
+        dirt[i].treated = !!saved.treated;
+        dirt[i].mess = mess;
+        dirt[i].shade = saved.shade == null ? dirt[i].shade : saved.shade;
+
+        if (wetness[i])
+        {
+            const savedWet = resume.wetness && resume.wetness[i];
+            wetness[i].layers = savedWet && savedWet.layers ? {...savedWet.layers} : {};
+        }
+    }
+
+    dirtLeft = dirt.filter(d => !d.clean).length;
+    return true;
+}
+
+function loadProgress(profileOrName)
+{
+    const requestedName = typeof profileOrName == 'string' ? profileOrName : profileOrName.name;
+    const adopted = typeof profileOrName == 'object' && profileOrName.id
+        ? profileOrName
+        : findOrAdoptPlayer(requestedName);
+
+    if (!adopted)
+        return false;
+
+    playerId = adopted.id;
+    playerName = adopted.name.trim().slice(0,20);
+
+    let data = null;
+
+    try
+    {
+        const raw = localStorage.getItem(getProgressKey(playerId));
         if (raw)
             data = JSON.parse(raw);
+
+        if (!data)
+        {
+            const legacy = localStorage.getItem(getSaveKey(playerName));
+            if (legacy)
+                data = JSON.parse(legacy);
+        }
     }
     catch(e) {}
 
@@ -17514,26 +17798,177 @@ function loadProgress(name)
         level = max(1, data.level || 1);
         highestCleanerShown = max(0, data.highestCleanerShown || 0);
         totalStars = max(0, data.totalStars || 0);
+        bestRoundStars = max(0, data.bestRoundStars || 0);
+        gamesPlayed = max(0, data.gamesPlayed || 0);
+        completions = max(0, data.completions || 0);
+        lastPlayedAt = data.lastPlayedAt || 0;
     }
     else
     {
         level = 1;
         highestCleanerShown = 0;
         totalStars = 0;
+        bestRoundStars = 0;
+        gamesPlayed = 0;
+        completions = 0;
+        lastPlayedAt = 0;
     }
 
     profileReady = true;
-    if (window.Odyssey)
-    {
-        Odyssey.selectPlayer(playerName, GAME_ID);
-        Odyssey.startSession(GAME_ID, playerName);
-    }
-    saveProgress();
+    gamesPlayed++;
     setupLevel();
+    restoreResumeState();
+    saveProgress();
     titleIntroTimer.set(4);
+    showGameIntro();
     return true;
 }
 
+
+function closeOverlay(overlay)
+{
+    if (overlay && overlay.parentNode)
+        overlay.remove();
+}
+
+function resetTransientInput()
+{
+    stopWindowWashToolSound();
+    clearDragOverlay();
+    trialPointerDown = false;
+    activeTool = null;
+    parkedTool = null;
+    lastDragWorldPos = null;
+    dragging = false;
+}
+
+function returnToPlayerSelect()
+{
+    saveResumeState();
+    saveProgress();
+    resetTransientInput();
+
+    profileReady = false;
+    playerName = '';
+    playerId = '';
+
+    hideMainMenuButton();
+    closeOverlay(gameMenuOverlay);
+    gameMenuOverlay = null;
+    closeOverlay(resultsOverlay);
+    resultsOverlay = null;
+    showProfilePrompt();
+}
+
+function requestGameLibrary()
+{
+    saveResumeState();
+    saveProgress();
+    resetTransientInput();
+
+    // Future standalone/app hook. A Tessa's Odyssey host can listen for this.
+    try
+    {
+        window.parent.postMessage({
+            type: 'tessas-odyssey:return-library',
+            gameId: GAME_ID
+        }, '*');
+    }
+    catch(e) {}
+
+    // Standalone fallback: return to this game's player menu.
+    returnToPlayerSelect();
+}
+
+function restartCurrentRound()
+{
+    clearResumeState();
+    resetTransientInput();
+    closeOverlay(gameMenuOverlay);
+    gameMenuOverlay = null;
+    closeOverlay(resultsOverlay);
+    resultsOverlay = null;
+
+    gamesPlayed++;
+    setupLevel();
+    saveProgress();
+    showMainMenuButton();
+}
+
+function showGameMenu()
+{
+    if (gameMenuOverlay || !profileReady)
+        return;
+
+    saveResumeState();
+    saveProgress();
+    resetTransientInput();
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText =
+        'position:fixed;inset:0;z-index:99998;background:rgba(16,22,28,.78);' +
+        'display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;' +
+        'font-family:system-ui,-apple-system,sans-serif;';
+
+    const card = document.createElement('div');
+    card.style.cssText =
+        'width:min(430px,92vw);background:#fff7ea;border:4px solid #8a5a2b;border-radius:18px;' +
+        'padding:20px;color:#2c241d;text-align:center;box-shadow:0 18px 55px rgba(0,0,0,.35);';
+
+    const title = document.createElement('div');
+    title.textContent = 'WINDOW WASH';
+    title.style.cssText = 'font-size:27px;font-weight:950;margin-bottom:4px;';
+
+    const stats = document.createElement('div');
+    stats.textContent = `${playerName} • Level ${level} • ★ ${totalStars}`;
+    stats.style.cssText = 'font-size:14px;font-weight:800;color:#6b5037;margin-bottom:14px;';
+
+    const makeButton = (label, action, secondary=false) =>
+    {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.style.cssText =
+            'width:100%;min-height:48px;margin:5px 0;border:0;border-radius:11px;padding:10px 14px;' +
+            `background:${secondary ? '#e8d5b4' : '#3f7f50'};color:${secondary ? '#2c241d' : 'white'};` +
+            'font-size:17px;font-weight:900;cursor:pointer;touch-action:manipulation;';
+        b.addEventListener('click', action);
+        card.appendChild(b);
+        return b;
+    };
+
+    card.appendChild(title);
+    card.appendChild(stats);
+
+    makeButton('Resume / Continue', () =>
+    {
+        closeOverlay(overlay);
+        gameMenuOverlay = null;
+        showMainMenuButton();
+    });
+
+    makeButton('Restart Current Round', restartCurrentRound, true);
+    makeButton('Change Player', returnToPlayerSelect, true);
+    makeButton('Return to Main Menu / Game Library', requestGameLibrary, true);
+
+    const soundButton = makeButton(
+        `Sound Effects: ${soundEffectsEnabled ? 'ON' : 'OFF'}`,
+        () =>
+        {
+            soundEffectsEnabled = !soundEffectsEnabled;
+            soundButton.textContent = `Sound Effects: ${soundEffectsEnabled ? 'ON' : 'OFF'}`;
+            saveGameSettings();
+            if (!soundEffectsEnabled)
+                stopWindowWashToolSound();
+        },
+        true
+    );
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    gameMenuOverlay = overlay;
+    hideMainMenuButton();
+}
 
 function ensureMainMenuButton()
 {
@@ -17542,8 +17977,8 @@ function ensureMainMenuButton()
 
     const button = document.createElement('button');
     button.type = 'button';
-    button.setAttribute('aria-label', 'Return to main menu');
-    button.title = 'Return to main menu';
+    button.setAttribute('aria-label', 'Open game menu');
+    button.title = 'Menu';
     button.style.cssText =
         'position:fixed;top:14px;right:14px;z-index:99990;width:54px;height:50px;' +
         'border:3px solid #5c3d22;border-radius:12px;background:#f6e5c6;cursor:pointer;' +
@@ -17558,23 +17993,7 @@ function ensureMainMenuButton()
         button.appendChild(line);
     }
 
-    button.addEventListener('click', () =>
-    {
-        saveProgress();
-        stopWindowWashToolSound();
-        clearDragOverlay();
-
-        trialPointerDown = false;
-        activeTool = null;
-        parkedTool = null;
-        lastDragWorldPos = null;
-        dragging = false;
-        profileReady = false;
-
-        button.style.display = 'none';
-        showProfilePrompt();
-    });
-
+    button.addEventListener('click', showGameMenu);
     document.body.appendChild(button);
     mainMenuButton = button;
 }
@@ -17582,7 +18001,7 @@ function ensureMainMenuButton()
 function showMainMenuButton()
 {
     ensureMainMenuButton();
-    if (mainMenuButton)
+    if (mainMenuButton && profileReady && !gameMenuOverlay && !profileOverlay)
         mainMenuButton.style.display = 'flex';
 }
 
@@ -17592,46 +18011,90 @@ function hideMainMenuButton()
         mainMenuButton.style.display = 'none';
 }
 
-function showProfilePrompt()
+function showGameIntro()
 {
-    if (profileOverlay)
+    if (introOverlay || !profileReady)
         return;
 
     hideMainMenuButton();
 
     const overlay = document.createElement('div');
     overlay.style.cssText =
-        'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;' +
-        'background:rgba(16,22,28,.82);font-family:system-ui,-apple-system,sans-serif;padding:14px;box-sizing:border-box;';
+        'position:fixed;inset:0;z-index:99997;background:rgba(16,22,28,.76);display:flex;' +
+        'align-items:center;justify-content:center;padding:18px;box-sizing:border-box;' +
+        'font-family:system-ui,-apple-system,sans-serif;';
 
     const card = document.createElement('div');
     card.style.cssText =
-        'width:min(720px,96vw);max-height:94vh;overflow:auto;background:#fff7ea;border:4px solid #8a5a2b;' +
-        'border-radius:20px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.38);text-align:center;color:#222;';
+        'width:min(500px,92vw);background:#fff7ea;border:4px solid #8a5a2b;border-radius:18px;' +
+        'padding:22px;text-align:center;color:#2c241d;box-shadow:0 18px 55px rgba(0,0,0,.35);';
+
+    card.innerHTML =
+        '<div style="font-size:28px;font-weight:950;margin-bottom:8px">WINDOW WASH</div>' +
+        '<div style="font-size:17px;font-weight:800;margin-bottom:10px">Help Bernard clean every window.</div>' +
+        '<div style="font-size:15px;line-height:1.45;margin-bottom:16px">' +
+        'Spray each mess with its matching cleaner, then wipe it away with the squeegee. ' +
+        'Work quickly and accurately to earn bonus stars.</div>';
+
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'START / CONTINUE';
+    b.style.cssText =
+        'width:100%;min-height:50px;border:0;border-radius:11px;background:#3f7f50;color:white;' +
+        'font-size:18px;font-weight:900;cursor:pointer;touch-action:manipulation;';
+    b.addEventListener('click', () =>
+    {
+        closeOverlay(overlay);
+        introOverlay = null;
+        showMainMenuButton();
+    });
+
+    card.appendChild(b);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    introOverlay = overlay;
+}
+
+function showProfilePrompt()
+{
+    if (profileOverlay)
+        return;
+
+    hideMainMenuButton();
+    migrateLegacyProfiles();
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText =
+        'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;' +
+        'background:rgba(16,22,28,.82);font-family:system-ui,-apple-system,sans-serif;padding:16px;box-sizing:border-box;';
+
+    const card = document.createElement('div');
+    card.style.cssText =
+        'width:min(650px,94vw);max-height:92vh;overflow:auto;background:#fff7ea;border:4px solid #8a5a2b;' +
+        'border-radius:20px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.38);text-align:center;color:#222;';
 
     const title = document.createElement('div');
     title.textContent = 'WINDOW WASH';
-    title.style.cssText = 'font-size:32px;font-weight:950;letter-spacing:.5px;margin-bottom:4px;';
+    title.style.cssText = 'font-size:32px;font-weight:950;margin-bottom:4px;';
 
     const subtitle = document.createElement('div');
-    subtitle.textContent = 'Choose a profile';
+    subtitle.textContent = 'Choose a player';
     subtitle.style.cssText = 'font-size:18px;font-weight:750;margin-bottom:16px;color:#5d4634;';
 
     const profilesWrap = document.createElement('div');
     profilesWrap.style.cssText =
-        'display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;';
+        'display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px;';
 
-    const closeAndLoad = name =>
+    const profiles = getProfileList().map(getProfileSummary);
+
+    const closeAndLoad = profile =>
     {
-        if (loadProgress(name))
+        if (loadProgress(profile))
         {
             overlay.remove();
             profileOverlay = null;
-            showMainMenuButton();
         }
     };
-
-    const profiles = getProfileList().map(getProfileSummary);
 
     if (profiles.length)
     {
@@ -17640,91 +18103,103 @@ function showProfilePrompt()
             const button = document.createElement('button');
             button.type = 'button';
             button.style.cssText =
-                'min-height:90px;border:3px solid #b7895a;border-radius:14px;background:#f3dfbd;' +
-                'padding:10px;cursor:pointer;color:#2c241d;box-shadow:inset 0 2px rgba(255,255,255,.65);' +
-                'touch-action:manipulation;';
+                'min-height:94px;border:3px solid #b7895a;border-radius:14px;background:#f3dfbd;' +
+                'padding:10px;cursor:pointer;color:#2c241d;touch-action:manipulation;';
 
             const name = document.createElement('div');
             name.textContent = profile.name;
             name.style.cssText =
                 'font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:7px;';
 
-            const levelLabel = document.createElement('div');
-            levelLabel.textContent = `LEVEL ${profile.level}`;
-            levelLabel.style.cssText =
-                'font-size:13px;font-weight:800;color:#3f6f48;background:#e9f4df;border-radius:999px;padding:5px 9px;' +
+            const progress = document.createElement('div');
+            progress.textContent = `LEVEL ${profile.level}  •  ★ ${profile.totalStars}`;
+            progress.style.cssText =
+                'font-size:13px;font-weight:800;color:#3f6f48;background:#e9f4df;border-radius:999px;padding:5px 8px;' +
                 'display:inline-block;';
 
             button.appendChild(name);
-            button.appendChild(levelLabel);
-            button.addEventListener('click', ()=>closeAndLoad(profile.name));
+            button.appendChild(progress);
+            button.addEventListener('click', ()=>closeAndLoad(profile));
             profilesWrap.appendChild(button);
         }
     }
     else
     {
         const empty = document.createElement('div');
-        empty.textContent = 'No saved profiles yet.';
+        empty.textContent = 'No saved players yet.';
         empty.style.cssText =
             'grid-column:1/-1;padding:12px;border:2px dashed #c8a47b;border-radius:12px;color:#765c42;';
         profilesWrap.appendChild(empty);
     }
 
     const divider = document.createElement('div');
-    divider.textContent = 'CREATE NEW PROFILE';
+    divider.textContent = profiles.length >= 8 ? '8 PLAYER SLOTS FILLED' : 'CREATE NEW PLAYER';
     divider.style.cssText =
         'font-size:13px;font-weight:900;letter-spacing:1px;color:#765c42;margin:6px 0 9px;';
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.maxLength = 24;
+    input.maxLength = 20;
     input.placeholder = 'New player name';
     input.autocomplete = 'off';
     input.autocapitalize = 'words';
+    input.enterKeyHint = 'done';
     input.spellcheck = false;
+    input.disabled = profiles.length >= 8;
     input.style.cssText =
-        'width:100%;box-sizing:border-box;font-size:20px;padding:11px 14px;border:2px solid #b7895a;' +
-        'border-radius:10px;outline:none;margin-bottom:10px;text-align:center;background:white;';
+        'width:100%;box-sizing:border-box;font-size:20px;padding:12px 14px;border:2px solid #b7895a;' +
+        'border-radius:10px;outline:none;margin-bottom:10px;background:white;color:#222;';
 
     const error = document.createElement('div');
-    error.style.cssText =
-        'min-height:18px;font-size:13px;color:#a13d32;text-align:center;margin:4px 0 8px;';
+    error.style.cssText = 'min-height:19px;font-size:13px;color:#a13d32;margin-bottom:8px;';
+
+    const createButton = document.createElement('button');
+    createButton.type = 'button';
+    createButton.textContent = 'CREATE & PLAY';
+    createButton.disabled = profiles.length >= 8;
+    createButton.style.cssText =
+        'width:100%;min-height:48px;font-size:17px;font-weight:900;padding:11px 16px;border:0;border-radius:10px;' +
+        'background:#3fae5a;color:white;cursor:pointer;touch-action:manipulation;';
+
+    if (profiles.length >= 8)
+        createButton.style.opacity = '.45';
 
     const create = () =>
     {
-        const name = input.value.trim();
+        const name = input.value.trim().slice(0,20);
 
         if (!name)
         {
             error.textContent = 'Type a name first.';
+            input.focus();
             return;
         }
 
-        if (getProfileList().some(n => n.toLowerCase() == name.toLowerCase()))
+        const existing = getProfileList().find(p => p.name.toLowerCase() == name.toLowerCase());
+        if (existing)
         {
-            error.textContent = 'That profile already exists. Choose it above.';
+            closeAndLoad(existing);
             return;
         }
 
-        rememberProfile(name);
-        closeAndLoad(name);
+        const created = findOrAdoptPlayer(name);
+        if (!created)
+        {
+            error.textContent = 'All 8 player slots are already in use.';
+            return;
+        }
+
+        closeAndLoad(created);
     };
 
-    // Use the device's native computer/iPad keyboard through the real text input.
-    const createButton = document.createElement('button');
-    createButton.type = 'button';
-    createButton.textContent = 'CREATE & PLAY';
-    createButton.style.cssText =
-        'width:100%;font-size:17px;font-weight:900;padding:12px 16px;border:0;border-radius:10px;' +
-        'background:#3fae5a;color:white;cursor:pointer;touch-action:manipulation;';
-
     createButton.addEventListener('click', create);
-
-    // Physical/system keyboard still works on laptop/iPad if desired.
     input.addEventListener('keydown', e =>
     {
         if (e.key == 'Enter')
+        {
+            e.preventDefault();
             create();
+        }
     });
 
     card.appendChild(title);
@@ -17737,9 +18212,10 @@ function showProfilePrompt()
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-
     profileOverlay = overlay;
-    setTimeout(()=>input.focus(), 0);
+
+    if (!profiles.length)
+        setTimeout(()=>input.focus(), 50);
 }
 
 function setupRecordingTrial(cleanerId)
@@ -17855,13 +18331,9 @@ function setupLevel()
 
 function restartGame()
 {
-    level = 1;
-    highestCleanerShown = 0;
-    totalStars = 0;
-    setupLevel();
-    titleIntroTimer.set(4);
-    saveProgress();
+    restartCurrentRound();
 }
+
 
 function nextLevel()
 {
@@ -17876,6 +18348,22 @@ function nextLevel()
 
 
 // If a mobile browser hits a runtime error, show it visibly instead of a black page.
+
+window.addEventListener('pagehide', () =>
+{
+    saveResumeState();
+    saveProgress();
+});
+
+document.addEventListener('visibilitychange', () =>
+{
+    if (document.visibilityState == 'hidden')
+    {
+        saveResumeState();
+        saveProgress();
+    }
+});
+
 window.addEventListener('error', event =>
 {
     const box = document.createElement('div');
@@ -18322,6 +18810,9 @@ function installDirectPointerControls()
             }
         }
 
+        saveResumeState();
+        saveProgress();
+
         try { mainCanvas.releasePointerCapture(e.pointerId); } catch(err) {}
     };
 
@@ -18332,6 +18823,8 @@ function installDirectPointerControls()
 async function gameInit()
 {
     icons = initDefaultAtlas();
+    loadGameSettings();
+    migrateLegacyProfiles();
 
     gravity = vec2(0,0);
     cameraPos = vec2(0,0);
@@ -18373,6 +18866,7 @@ function gameUpdate()
 
     const advanceReady =
         won &&
+        !resultsOverlay &&
         (
             levelAdvanceTimer.elapsed() ||
             (levelAdvanceAt > 0 && performance.now() >= levelAdvanceAt)

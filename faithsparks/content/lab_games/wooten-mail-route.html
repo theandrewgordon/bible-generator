@@ -1,9 +1,6 @@
 <!DOCTYPE html><head>
-<title>Wooten's Mail Route</title>
+<title>LittleJS AI Starter Project</title>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
-<script src="/labs/games/assets/odyssey-core.js"></script>
 
 <style>
 #profileUI{position:fixed;inset:0;z-index:9999;background:linear-gradient(#18252c,#0b1115);font-family:Arial,sans-serif;color:white;display:flex;align-items:center;justify-content:center}
@@ -15,74 +12,119 @@
 #profiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0}
 .profile{background:#344950;border:2px solid #6f858c;border-radius:12px;padding:15px}
 .profile strong{display:block;font-size:21px;margin-bottom:6px}.small{font-size:14px;color:#cbd5d8}
-#mainMenuBtn{position:fixed;z-index:9997;right:14px;top:14px;width:54px;height:50px;background:#152127e8;color:white;border:3px solid #ffffff80;border-radius:12px;padding:0;font:700 30px/1 Arial;cursor:pointer;touch-action:manipulation;display:none}
+#mainMenuBtn{position:fixed;z-index:9997;right:14px;top:58px;background:#e4bd66;color:#172126;border:0;border-radius:10px;padding:8px 13px;font:700 28px/1 Arial;cursor:pointer;touch-action:manipulation;display:none}
 #nameInput{font-size:24px;min-height:48px;touch-action:manipulation;-webkit-user-select:text;user-select:text}
-#saveBadge{position:fixed;z-index:9998;right:14px;top:74px;background:#152127dd;color:#fff;padding:8px 12px;border-radius:9px;font:14px Arial;display:none}
+#gameMenuPanel{position:fixed;z-index:10000;right:14px;top:112px;width:min(330px,82vw);background:#24343bf5;border:3px solid #d7b56d;border-radius:14px;padding:14px;display:none;color:white;font-family:Arial;text-align:center;box-shadow:0 12px 32px #0008}
+#gameMenuPanel .uiBtn{display:block;width:calc(100% - 16px);min-height:50px}
+button:focus-visible,input:focus-visible{outline:4px solid #fff;outline-offset:3px}
+canvas{touch-action:none}body{overscroll-behavior:none;touch-action:manipulation}button,input{touch-action:manipulation}
+#saveBadge{position:fixed;z-index:9998;right:14px;top:14px;background:#152127dd;color:#fff;padding:8px 12px;border-radius:9px;font:14px Arial;display:none}
 </style>
 <div id="profileUI"><div id="profileCard"></div></div>
 <div id="saveBadge">Saved</div>
-<button id="mainMenuBtn" type="button" onclick="returnToMainMenu()" aria-label="Main Menu" title="Main Menu">☰</button>
+<div id="gameMenuPanel"></div>
+<button id="mainMenuBtn" type="button" onclick="toggleGameMenu()" aria-label="Open game menu" title="Main Menu">☰</button>
 <script>
-const GAME_ID='wooten-mail-route';
-const PROFILE_KEY='wootenMailProfilesV1';
+const TESSAS_ODYSSEY_GAME_ID='wooten-mail-sorting';
+const PROFILE_KEY='wootenMailProfilesV1'; // preserve existing saves
+const SETTINGS_KEY='tessasOdysseySettingsV1';
+const MAX_PLAYERS=8;
 let activeProfile=null;
+
+function makePlayerId(name,i=0){return 'wooten-'+Date.now().toString(36)+'-'+i+'-'+String(name||'player').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,12)}
 function getProfiles(){
- let list=[];
- try{list=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(e){list=[]}
- if(!Array.isArray(list))list=[];
- if(window.Odyssey){
-  Odyssey.adoptLegacyProfiles(GAME_ID,list,x=>({score:x.score||0,level:(x.level||0)+1,meta:{mistakes:x.mistakes||0}}));
-  list=Odyssey.mergeGlobalNames(list,name=>({name,level:0,score:0,mistakes:0}),GAME_ID);
- }
- return list.slice(0,window.Odyssey?Odyssey.MAX_PLAYERS:8);
+ try{
+  const p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]');
+  let changed=false;
+  p.forEach((x,i)=>{
+   if(!x.id){x.id='legacy-'+i+'-'+String(x.name||'player').toLowerCase().replace(/[^a-z0-9]+/g,'-');changed=true}
+   if(x.bestScore==null){x.bestScore=x.score||0;changed=true}
+   if(x.gamesPlayed==null){x.gamesPlayed=0;changed=true}
+   if(x.completions==null){x.completions=0;changed=true}
+   if(x.lastPlayed==null){x.lastPlayed=Date.now();changed=true}
+   if(x.resume===undefined){x.resume=null;changed=true}
+  });
+  if(changed)putProfiles(p);
+  return p;
+ }catch(e){return[]}
 }
-function putProfiles(p){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(p))}catch(e){}}
+function putProfiles(p){localStorage.setItem(PROFILE_KEY,JSON.stringify(p))}
+function getSettings(){try{return Object.assign({sound:true,music:true},JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'))}catch(e){return {sound:true,music:true}}}
+function putSettings(x){localStorage.setItem(SETTINGS_KEY,JSON.stringify(x))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function returnToMainMenu(){
- saveActive();
- activeProfile=null;
- document.getElementById('mainMenuBtn').style.display='none';
- document.getElementById('profileUI').style.display='flex';
- showProfiles();
-}
+function fmtLast(t){if(!t)return 'Never';try{return new Date(t).toLocaleDateString()}catch(e){return ''}}
+
 function showProfiles(){
  document.getElementById('mainMenuBtn').style.display='none';
+ document.getElementById('gameMenuPanel').style.display='none';
  const p=getProfiles(),c=document.getElementById('profileCard');
- c.innerHTML='<h1>Wooten’s Mail Route</h1><div class="sub">Choose your saved player, or make a new one.</div>'+
- (p.length?'<div id="profiles">'+p.map((x,i)=>`<div class="profile"><strong>${esc(x.name)}</strong><div class="small">Level ${x.level+1} · Score ${x.score||0}</div><button class="uiBtn" onclick="joinProfile(${i})">Rejoin</button><button class="uiBtn danger" onclick="deleteProfile(${i})">Delete</button></div>`).join('')+'</div>':'<div class="sub">No saved players yet.</div>')+
- '<button class="uiBtn secondary" onclick="newProfileScreen()">+ New Save File</button>';
+ c.innerHTML='<h1>Wooten’s Mail Route</h1><div class="sub">Choose an existing player or create a new one.</div>'+
+ (p.length?'<div id="profiles">'+p.map((x,i)=>`<div class="profile"><strong>${esc(x.name)}</strong><div class="small">Level ${Number(x.level||0)+1} · Best ${x.bestScore||0}<br>Routes played ${x.gamesPlayed||0} · Last played ${fmtLast(x.lastPlayed)}</div><button class="uiBtn" onclick="joinProfile(${i})">Continue</button><button class="uiBtn danger" onclick="deleteProfile(${i})">Delete</button></div>`).join('')+'</div>':'<div class="sub">No saved players yet.</div>')+
+ (p.length<MAX_PLAYERS?'<button class="uiBtn secondary" onclick="newProfileScreen()">+ New Player</button>':'<div class="sub">Maximum of 8 saved players reached.</div>');
 }
 function newProfileScreen(){
- if(window.Odyssey){
-  Odyssey.openNameDialog({title:'New Player',help:'Type your name using your computer or iPad keyboard.',saveLabel:'Start Route',
-   validate:name=>getProfiles().some(x=>x.name.toLowerCase()===name.toLowerCase())?'That player already exists.':'',
-   onSave:name=>{const p=getProfiles();if(p.length>=Odyssey.MAX_PLAYERS)return;Odyssey.ensurePlayer(name);p.push({name,level:0,score:0,mistakes:0});putProfiles(p);joinProfile(p.length-1);},
-   onCancel:showProfiles});
-  return;
- }
- document.getElementById('profileCard').innerHTML='<h1>New Player</h1><div class="sub">Type your name once. This device will remember your save file.</div><input id="nameInput" type="text" inputmode="text" enterkeyhint="done" autocomplete="name" autocapitalize="words" maxlength="20" placeholder="Your name"><br><button class="uiBtn" onclick="createProfile()">Start Route</button><button class="uiBtn secondary" onclick="showProfiles()">Back</button>';
- document.getElementById('nameInput')?.focus();
+ document.getElementById('profileCard').innerHTML='<h1>New Player</h1><div class="sub">Type your name using your device keyboard.</div><form id="newPlayerForm"><input id="nameInput" type="text" inputmode="text" enterkeyhint="done" autocomplete="name" autocapitalize="words" maxlength="20" placeholder="Your name" aria-label="Player name"><br><button class="uiBtn" type="submit">Start Route</button><button class="uiBtn secondary" type="button" onclick="showProfiles()">Back</button></form>';
+ const input=document.getElementById('nameInput');
+ document.getElementById('newPlayerForm').addEventListener('submit',e=>{e.preventDefault();createProfile()});
+ input.focus();
 }
 function createProfile(){
- const n=(window.Odyssey?Odyssey.cleanPlayerName(document.getElementById('nameInput').value):document.getElementById('nameInput').value.trim()); if(!n)return;
- const p=getProfiles();p.push({name:n,level:0,score:0,mistakes:0});putProfiles(p);joinProfile(p.length-1);
+ const input=document.getElementById('nameInput'),n=(input?.value||'').trim(); if(!n)return;
+ const p=getProfiles(); if(p.length>=MAX_PLAYERS){showProfiles();return}
+ p.push({id:makePlayerId(n,p.length),name:n,level:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:Date.now(),resume:null});
+ putProfiles(p);joinProfile(p.length-1,true);
 }
-function joinProfile(i){
- const p=getProfiles();activeProfile=i;
- if(window.Odyssey&&p[i]){Odyssey.selectPlayer(p[i].name,GAME_ID);Odyssey.startSession(GAME_ID,p[i].name);}
+function showIntro(){
+ const c=document.getElementById('profileCard');
+ c.innerHTML='<h1>Wooten’s Mail Route</h1><div class="sub">Sort mail into the matching Odyssey family buckets. Starting at Level 6, delivery routes unlock and then rotate with sorting levels.</div><button class="uiBtn" onclick="beginPlay()">Play</button><button class="uiBtn secondary" onclick="showProfiles()">Change Player</button>';
+ document.getElementById('profileUI').style.display='flex';
+}
+function beginPlay(){
  document.getElementById('profileUI').style.display='none';
  document.getElementById('mainMenuBtn').style.display='block';
- setTimeout(()=>{ if(typeof level!=='undefined'){level=p[i].level||0;score=p[i].score||0;mistakes=p[i].mistakes||0;isDelivery()?setupDelivery():setupSorting();}},100);
 }
-function deleteProfile(i){const p=getProfiles();if(p[i]&&window.Odyssey)Odyssey.hidePlayerForGame(p[i].name,GAME_ID);p.splice(i,1);putProfiles(p);showProfiles()}
+function joinProfile(i,isNew=false){
+ const p=getProfiles(); if(!p[i])return; activeProfile=i;
+ const x=p[i]; x.gamesPlayed=(x.gamesPlayed||0)+1;x.lastPlayed=Date.now();putProfiles(p);
+ if(typeof level!=='undefined'){
+  level=x.level||0;score=x.score||0;mistakes=x.mistakes||0;
+  isDelivery()?setupDelivery():setupSorting();
+ }
+ showIntro();
+}
+function deleteProfile(i){const p=getProfiles();p.splice(i,1);putProfiles(p);showProfiles()}
 function saveActive(){
  if(activeProfile===null||typeof level==='undefined')return;
  const p=getProfiles();if(!p[activeProfile])return;
- p[activeProfile].level=level;p[activeProfile].score=score;p[activeProfile].mistakes=mistakes;putProfiles(p);
- if(window.Odyssey){Odyssey.syncProgress(GAME_ID,{score,level:level+1,meta:{mistakes}},p[activeProfile].name);Odyssey.showSaved();}
+ const x=p[activeProfile];
+ x.level=level;x.score=score;x.bestScore=Math.max(x.bestScore||0,score||0);x.mistakes=mistakes;x.lastPlayed=Date.now();
+ x.resume={level,score,mistakes,mode:isDelivery()?'delivery':'sorting'};
+ putProfiles(p);
  const b=document.getElementById('saveBadge');b.style.display='block';clearTimeout(window._saveT);window._saveT=setTimeout(()=>b.style.display='none',700);
 }
+function toggleGameMenu(){
+ const panel=document.getElementById('gameMenuPanel');
+ if(panel.style.display==='block'){panel.style.display='none';return}
+ const st=getSettings();
+ panel.innerHTML='<strong style="font-size:22px">Game Menu</strong>'+
+ '<button class="uiBtn" onclick="toggleGameMenu()">Resume / Continue</button>'+
+ '<button class="uiBtn secondary" onclick="restartCurrentRound()">Restart Current Round</button>'+
+ '<button class="uiBtn secondary" onclick="changePlayer()">Change Player</button>'+
+ '<button class="uiBtn secondary" onclick="returnToMainMenu()">Return to Main Menu</button>'+
+ `<button class="uiBtn secondary" onclick="toggleSetting('sound')">Sound Effects: ${st.sound?'On':'Off'}</button>`+
+ `<button class="uiBtn secondary" onclick="toggleSetting('music')">Music: ${st.music?'On':'Off'}</button>`;
+ panel.style.display='block';
+}
+function toggleSetting(k){const st=getSettings();st[k]=!st[k];putSettings(st);toggleGameMenu();toggleGameMenu()}
+function restartCurrentRound(){
+ document.getElementById('gameMenuPanel').style.display='none';heldItem=0;levelComplete=false;window._wootenAdvanceAt=0;
+ isDelivery()?setupDelivery():setupSorting();saveActive();
+}
+function changePlayer(){saveActive();activeProfile=null;document.getElementById('profileUI').style.display='flex';showProfiles()}
+function returnToMainMenu(){changePlayer()}
+function soundOn(){return getSettings().sound}
 window.addEventListener('beforeunload',saveActive);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)saveActive()});
 document.addEventListener('DOMContentLoaded',showProfiles);
 </script>
 <script>
@@ -489,8 +531,16 @@ function setupDelivery()
     deliveryPackages=routeFamilies.map((house,i)=>({house,delivered:false,pos:vec2(-7.4+i*2.45,-5.5)}));
     message=`Delivery Level ${level+1}: deliver the matching packages along Wooten’s route.`;
 }
+function recordCompletion(){
+ if(activeProfile===null)return;
+ const p=getProfiles();if(!p[activeProfile])return;
+ p[activeProfile].completions=(p[activeProfile].completions||0)+1;
+ p[activeProfile].bestScore=Math.max(p[activeProfile].bestScore||0,score||0);
+ p[activeProfile].lastPlayed=Date.now();putProfiles(p);
+}
 function advanceLevel()
 {
+    recordCompletion();
     window._wootenAdvanceAt=0;
     saveActive();
     ++level;
@@ -531,15 +581,15 @@ function gameUpdate()
                 for(const bin of bins) if(isOverlapping(heldItem.pos,heldItem.size,bin.pos,bin.size))
                 {
                     sorted=true;
-                    if(bin.house===heldItem.house){score+=100;message='Correct!';saveActive();new SoundGenerator({frequency:650,release:.12,pitchJump:180,pitchJumpTime:.05}).play();}
-                    else{++mistakes;message='Wrong family bucket.';new SoundGenerator({frequency:180,release:.18,slide:-.4}).play();}
+                    if(bin.house===heldItem.house){score+=100;message='Correct!';saveActive();if(soundOn())new SoundGenerator({frequency:650,release:.12,pitchJump:180,pitchJumpTime:.05}).play();}
+                    else{++mistakes;message='Wrong family bucket.';if(soundOn())new SoundGenerator({frequency:180,release:.18,slide:-.4}).play();}
                     const done=heldItem;heldItem=0;mailItems=mailItems.filter(x=>x!==done);done.destroy();break;
                 }
                 if(!sorted){heldItem.pos=heldItem.startPos.copy();heldItem=0;}
             }
         }
         if(mailLeft>0)spawnSortingMail();
-        if(!mailLeft&&!mailItems.length&&!levelComplete){levelComplete=true;saveActive();if(window.Odyssey&&activeProfile!==null){const p=getProfiles();if(p[activeProfile])Odyssey.recordResult(GAME_ID,{completed:true,score,level:level+1,meta:{mistakes,mode:'sorting'}},p[activeProfile].name);}message=level===4?'Sorting finished! Getting Wooten ready to deliver mail.':'Sorting complete! Loading the next sorting level.';}
+        if(!mailLeft&&!mailItems.length&&!levelComplete){levelComplete=true;saveActive();message=level===4?'Sorting finished! Getting Wooten ready to deliver mail.':'Sorting complete! Loading the next sorting level.';}
     }
     else
     {
@@ -576,7 +626,6 @@ function gameUpdate()
                         if(currentStop>=routeFamilies.length)
                         {
                             levelComplete=true; saveActive();
-                            if(window.Odyssey&&activeProfile!==null){const p=getProfiles();if(p[activeProfile])Odyssey.recordResult(GAME_ID,{completed:true,score,level:level+1,meta:{mistakes,mode:'delivery'}},p[activeProfile].name);}
                             message='Delivery route complete! Loading another route.';
                         }
                     }
@@ -698,8 +747,13 @@ function gameRenderPost()
     drawTextScreen(`${isDelivery()?'Delivery':'Sorting'} Level ${level+1}    Score: ${score}    Mistakes: ${mistakes}`,
         vec2(mainCanvasSize.x/2,40),28,WHITE,4,hsl(0,0,.1));
     drawTextScreen(message,vec2(mainCanvasSize.x/2,mainCanvasSize.y-34),23,hsl(.13,.7,.75),4,hsl(0,0,.1));
-    if(levelComplete)drawTextScreen(level===4?'SORTING COMPLETE — STARTING DELIVERY':'LEVEL COMPLETE — LOADING NEXT ROUTE',
-        vec2(mainCanvasSize.x/2,mainCanvasSize.y/2),38,WHITE,6,hsl(0,0,.1));
+    if(levelComplete){
+        const p=getProfiles(), best=activeProfile!==null&&p[activeProfile]?Math.max(p[activeProfile].bestScore||0,score):score;
+        drawTextScreen(level===4?'SORTING COMPLETE — STARTING DELIVERY':'LEVEL COMPLETE — LOADING NEXT ROUTE',
+            vec2(mainCanvasSize.x/2,mainCanvasSize.y/2-22),38,WHITE,6,hsl(0,0,.1));
+        drawTextScreen(`Score ${score}   Best ${best}   ★ Level ${level+1}`,
+            vec2(mainCanvasSize.x/2,mainCanvasSize.y/2+30),24,YELLOW,4,hsl(0,0,.1));
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
