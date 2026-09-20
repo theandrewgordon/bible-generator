@@ -40,11 +40,11 @@ h1 { margin-bottom: 12px; font: 700 clamp(36px, 5.2vw, 65px)/.99 Georgia, serif;
 h2 { margin-bottom: 5px; font: 700 24px/1.12 Georgia, serif; }
 .wfs-hero p { max-width: 620px; margin-bottom: 0; color: var(--muted); font-size: 17px; }
 
-.wfs-button { min-height: 43px; padding: 10px 17px; display: inline-flex; justify-content: center; align-items: center; color: var(--green-dark); background: #fff; border: 1px solid #bdd0ca; border-radius: 11px; font-weight: 800; text-decoration: none; cursor: pointer; }
+.wfs-button { min-height: 44px; padding: 10px 17px; display: inline-flex; justify-content: center; align-items: center; color: var(--green-dark); background: #fff; border: 1px solid #bdd0ca; border-radius: 11px; font-weight: 800; text-decoration: none; cursor: pointer; }
 .wfs-button:hover { border-color: var(--green); }
 .wfs-button:disabled { opacity: .55; cursor: wait; }
 .wfs-primary { color: #fff; background: var(--green); border-color: var(--green); box-shadow: 0 7px 18px rgba(31, 104, 88, .16); }
-.wfs-text-link { display: inline-block; margin-top: 15px; color: var(--green); font-weight: 800; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.wfs-text-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; color: var(--green); font-weight: 800; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
 .wfs-setup, .wfs-attention, .wfs-agenda, .wfs-coverage, .wfs-calendar { background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 9px 30px rgba(31, 66, 57, .055); }
 .wfs-setup { margin-bottom: 20px; padding: 22px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #edf6f2; }
@@ -141,3 +141,7 @@ h2 { margin-bottom: 5px; font: 700 24px/1.12 Georgia, serif; }
   .wfs-agenda-item { grid-template-columns: 65px 4px minmax(0, 1fr); gap: 9px; }
   .wfs-alert { flex-direction: column; }
 }
+.wfs-site-header { padding-left:max(24px,env(safe-area-inset-left)); padding-right:max(24px,env(safe-area-inset-right)); }
+.wfs-brand { min-height:44px; }
+.wfs-shell { padding-bottom:max(70px,env(safe-area-inset-bottom)); }
+@media (max-width:620px) { .wfs-site-header { padding-left:max(15px,env(safe-area-inset-left)); padding-right:max(15px,env(safe-area-inset-right)); } }

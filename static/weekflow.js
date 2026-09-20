@@ -22,6 +22,20 @@
   const feedbackPanel = byId("feedbackPanel");
   const feedbackForm = byId("feedbackForm");
   const feedbackStatus = byId("feedbackStatus");
+  const demoPlayButton = byId("demoPlayButton");
+  const demoNextButton = byId("demoNextButton");
+  const demoResetButton = byId("demoResetButton");
+  const demoProgress = byId("demoProgress");
+  const demoStageTitle = byId("demoStageTitle");
+  const demoStageCopy = byId("demoStageCopy");
+  const demoPeople = byId("demoPeople");
+  const demoEvents = byId("demoEvents");
+  const demoTasks = byId("demoTasks");
+  const demoLiveStatus = byId("demoLiveStatus");
+  const demoCleanup = byId("demoCleanup");
+  const demoCleanupCopy = byId("demoCleanupCopy");
+  const demoFinishButton = byId("demoFinishButton");
+  const demoRemoveButton = byId("demoRemoveButton");
 
   const START_MINUTE = 9 * 60;
   const LATEST_MINUTE = 16 * 60;
@@ -30,6 +44,10 @@
   let current = null;
   let baseline = null;
   let selectedDay = "mon";
+  let demoScenario = JSON.parse(JSON.stringify(config.defaultScenario));
+  let demoStep = -1;
+  let demoTimer = null;
+  let demoPlaying = false;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -38,6 +56,120 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function demoChips(element, rows, kind = "") {
+    element.replaceChildren(...rows.map((label) => {
+      const chip = document.createElement("span");
+      chip.className = `wf-demo-chip ${kind}`.trim();
+      chip.textContent = label;
+      return chip;
+    }));
+  }
+
+  function updateDemoProgress() {
+    demoProgress.querySelectorAll("li").forEach((item, index) => {
+      item.classList.toggle("is-active", index === demoStep);
+      item.classList.toggle("is-done", index < demoStep || demoStep >= 5);
+      if (index === demoStep) item.setAttribute("aria-current", "step");
+      else item.removeAttribute("aria-current");
+    });
+  }
+
+  function stopDemoPlayback() {
+    if (demoTimer) window.clearTimeout(demoTimer);
+    demoTimer = null;
+    demoPlaying = false;
+    demoPlayButton.textContent = demoStep >= 4 ? "Replay walkthrough" : "Continue walkthrough";
+  }
+
+  function resetDemo() {
+    stopDemoPlayback();
+    demoScenario = JSON.parse(JSON.stringify(config.defaultScenario));
+    demoStep = -1;
+    demoStageTitle.textContent = "Ready when you are";
+    demoStageCopy.textContent = "Press play for the automatic tour, or use Next step at your own pace.";
+    demoLiveStatus.textContent = "";
+    [demoPeople, demoEvents, demoTasks].forEach((element) => {
+      const empty = document.createElement("span");
+      empty.className = "wf-demo-empty";
+      empty.textContent = "Not entered yet";
+      element.replaceChildren(empty);
+    });
+    demoCleanup.hidden = true;
+    demoFinishButton.disabled = false;
+    demoRemoveButton.disabled = false;
+    demoPlayButton.textContent = "Play walkthrough";
+    demoNextButton.disabled = false;
+    results.hidden = true;
+    feedbackPanel.hidden = true;
+    changePanel.hidden = true;
+    current = null;
+    baseline = null;
+    updateDemoProgress();
+  }
+
+  async function runDemoStep() {
+    if (demoStep >= 4) {
+      stopDemoPlayback();
+      return;
+    }
+    demoStep += 1;
+    updateDemoProgress();
+    if (demoStep === 0) {
+      demoStageTitle.textContent = "First, name the people sharing the day.";
+      demoStageCopy.textContent = "WeekFlow needs names only so it can protect each person from being double-booked.";
+      demoChips(demoPeople, [
+        ...demoScenario.household.adults.map((person) => person.name),
+        ...demoScenario.household.students.map((person) => person.name),
+      ]);
+      demoLiveStatus.textContent = "Family added.";
+    } else if (demoStep === 1) {
+      demoStageTitle.textContent = "Next, protect the immovable parts of the week.";
+      demoStageCopy.textContent = "Co-op, appointments, travel, and other commitments become unavailable time before lessons are placed.";
+      demoChips(demoEvents, demoScenario.events.map((event) => `${event.title} · ${event.day_id.toUpperCase()}`), "event");
+      demoLiveStatus.textContent = `${demoScenario.events.length} fixed commitments added.`;
+    } else if (demoStep === 2) {
+      demoStageTitle.textContent = "Add the work and say how much parent help it needs.";
+      demoStageCopy.textContent = "A lesson may be independent, parent-led, or split into kickoff, solo work, and a final check.";
+      const preview = demoScenario.tasks.slice(0, 5).map((task) => task.title);
+      if (demoScenario.tasks.length > preview.length) preview.push(`+ ${demoScenario.tasks.length - preview.length} more`);
+      demoChips(demoTasks, preview, "task");
+      demoLiveStatus.textContent = `${demoScenario.tasks.length} assignments ready to schedule.`;
+    } else if (demoStep === 3) {
+      demoStageTitle.textContent = "Now the real scheduler coordinates the family.";
+      demoStageCopy.textContent = "It checks every student, every adult-help phase, every commitment, and every deadline.";
+      demoLiveStatus.textContent = "Running the actual WeekFlow scheduler…";
+      const plan = await build("baseline", demoScenario);
+      demoLiveStatus.textContent = plan
+        ? `${plan.scheduled_count} assignments placed with ${plan.unscheduled_count} left out.`
+        : "The example could not be scheduled. Try again.";
+      if (plan) results.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      demoStageTitle.textContent = "Finally, clean up the week as real life happens.";
+      demoStageCopy.textContent = "Finishing or removing work rebuilds only what remains; the original family data is never copied or overwritten by this demo.";
+      demoCleanup.hidden = false;
+      demoLiveStatus.textContent = "Try either cleanup option below.";
+      demoCleanup.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    if (demoPlaying && demoStep < 4) {
+      demoTimer = window.setTimeout(runDemoStep, demoStep === 3 ? 2100 : 1150);
+    } else if (demoStep >= 4) {
+      stopDemoPlayback();
+      demoNextButton.disabled = true;
+    }
+  }
+
+  function playDemo() {
+    if (demoPlaying) {
+      stopDemoPlayback();
+      demoPlayButton.textContent = "Continue walkthrough";
+      return;
+    }
+    if (demoStep >= 4) resetDemo();
+    demoPlaying = true;
+    demoPlayButton.textContent = "Pause walkthrough";
+    runDemoStep();
   }
 
   function formatTime(minutes) {
@@ -67,7 +199,7 @@
       .filter((phase) => phase.resource === "student")
       .reduce((total, phase) => total + phase.minutes, 0);
     const cards = [
-      ["Assignments placed", `${plan.scheduled_count} / ${plan.total_count}`, plan.unscheduled_count ? "needs-attention" : "good"],
+      ["Weekly work accounted for", `${plan.scheduled_count + plan.completed_count} / ${plan.total_count}`, plan.unscheduled_count ? "needs-attention" : "good"],
       ["Parent time scheduled", `${parent.parent_demand} of ${parent.parent_capacity} min`, parent.parent_shortfall ? "needs-attention" : "good"],
       ["Deadline status", plan.feasibility.deadline_feasible ? "All deadlines met" : "Tradeoff needed", plan.feasibility.deadline_feasible ? "good" : "needs-attention"],
       ["Independent work created", `${independentMinutes} minutes`, "neutral"],
@@ -79,7 +211,10 @@
 
   function renderStatus(plan) {
     const activeDays = plan.days.filter((day) => day.entries.length).map((day) => day.label);
-    if (plan.mode === "disrupted") {
+    if (plan.completed_count) {
+      statusBanner.className = "wf-status is-good";
+      statusBanner.innerHTML = `<strong>${plan.completed_count} finished; ${plan.scheduled_count} remaining assignments placed.</strong><span>The completed work stays out of the rebuilt schedule, and nobody is double-booked.</span>`;
+    } else if (plan.mode === "disrupted") {
       const changed = changedAssignments(plan);
       const shortfall = plan.metrics.parent_shortfall;
       statusBanner.className = "wf-status is-warning";
@@ -264,7 +399,7 @@
     results.focus({ preventScroll: true });
   }
 
-  async function build(mode) {
+  async function build(mode, scenario = config.defaultScenario) {
     const button = mode === "disrupted" ? rebuildButton : generateButton;
     const original = button.textContent;
     button.disabled = true;
@@ -275,7 +410,7 @@
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
-        body: JSON.stringify({ mode, scenario: config.defaultScenario }),
+        body: JSON.stringify({ mode, scenario }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "The schedule could not be built.");
@@ -283,8 +418,10 @@
       renderPlan(payload);
       actionStatus.textContent = "";
       generateButton.textContent = "Rebuild Baseline Schedule";
+      return payload;
     } catch (error) {
       actionStatus.textContent = error.message;
+      return null;
     } finally {
       button.disabled = false;
       if (mode === "disrupted") button.textContent = original;
@@ -340,4 +477,37 @@
       button.disabled = false;
     }
   });
+
+  demoPlayButton.addEventListener("click", playDemo);
+  demoNextButton.addEventListener("click", () => {
+    if (demoPlaying) stopDemoPlayback();
+    runDemoStep();
+  });
+  demoResetButton.addEventListener("click", resetDemo);
+  demoFinishButton.addEventListener("click", async () => {
+    const task = demoScenario.tasks.find((candidate) => !demoScenario.completed_task_ids.includes(candidate.id));
+    if (!task) return;
+    demoFinishButton.disabled = true;
+    demoCleanupCopy.textContent = `Marking “${task.title}” finished and rebuilding the remaining week…`;
+    demoScenario.completed_task_ids.push(task.id);
+    const plan = await build("baseline", demoScenario);
+    demoCleanupCopy.textContent = plan
+      ? `Done. “${task.title}” is complete; ${plan.scheduled_count} remaining assignments were checked again.`
+      : "That cleanup could not be applied. Please try again.";
+  });
+  demoRemoveButton.addEventListener("click", async () => {
+    const task = demoScenario.tasks.find((candidate) => candidate.priority <= 2)
+      || demoScenario.tasks.at(-1);
+    if (!task) return;
+    demoRemoveButton.disabled = true;
+    demoCleanupCopy.textContent = `Removing flexible work “${task.title}” and rebuilding…`;
+    demoScenario.tasks = demoScenario.tasks.filter((candidate) => candidate.id !== task.id);
+    demoScenario.completed_task_ids = demoScenario.completed_task_ids.filter((taskId) => taskId !== task.id);
+    const plan = await build("baseline", demoScenario);
+    demoCleanupCopy.textContent = plan
+      ? `Removed. The ${plan.total_count}-assignment week was rebuilt without losing the other work.`
+      : "That cleanup could not be applied. Please try again.";
+  });
+
+  resetDemo();
 })();

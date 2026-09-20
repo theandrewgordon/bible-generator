@@ -34,12 +34,26 @@
   function handoffsFor(date) { return state.handoffs.filter((item) => item.due_date === date).sort((a, b) => Number(a.status === "completed") - Number(b.status === "completed") || a.title.localeCompare(b.title)); }
 
   function renderTabs() {
-    byId("dayTabs").replaceChildren(...dates().map((day) => {
+    const tabs = byId("dayTabs");
+    tabs.replaceChildren(...dates().map((day) => {
       const button = element("button"); button.type = "button"; button.role = "tab"; button.dataset.date = day.date;
       button.tabIndex = day.date === selectedDate ? 0 : -1;
       button.classList.toggle("is-active", day.date === selectedDate); button.setAttribute("aria-selected", String(day.date === selectedDate));
       button.append(element("b", "", day.label.slice(0, 3)), element("span", "", formatDate(day.date))); return button;
     }));
+    keepSelectedTabVisible(tabs);
+  }
+
+  function keepSelectedTabVisible(tabs) {
+    requestAnimationFrame(() => {
+      const selected = tabs.querySelector('[role="tab"][aria-selected="true"]');
+      if (!selected || tabs.scrollWidth <= tabs.clientWidth) return;
+      tabs.scrollLeft = Math.max(0, selected.offsetLeft + (selected.offsetWidth - tabs.clientWidth) / 2);
+    });
+  }
+
+  function setConfiguredVisibility(configured) {
+    document.querySelectorAll("[data-configured-only]").forEach((node) => { node.hidden = !configured; });
   }
 
   function mealCard(meal) {
@@ -158,7 +172,7 @@
   async function load() {
     byId("mealsLoading").hidden = false; byId("mealsError").hidden = true; byId("mealsApp").hidden = true;
     try {
-      state = await jsonRequest(config.stateUrl); selectedDate = dates().some((day) => day.date === state.today) ? state.today : state.week_start; populateForms(); byId("mealsGreeting").textContent = state.family.configured ? `${state.family.name} · name the meal, then share only the preparation that matters.` : "Set up the family first, then give meals and their preparation a clear owner."; byId("setupNotice").hidden = state.family.configured; byId("showMealForm").disabled = !state.family.configured; byId("showHandoffForm").disabled = !state.family.configured; render(); byId("mealsLoading").hidden = true; byId("mealsApp").hidden = false;
+      state = await jsonRequest(config.stateUrl); selectedDate = dates().some((day) => day.date === state.today) ? state.today : state.week_start; populateForms(); byId("mealsGreeting").textContent = state.family.configured ? `${state.family.name} · name the meal, then share only the preparation that matters.` : "Set up the family first, then give meals and their preparation a clear owner."; byId("setupNotice").hidden = state.family.configured; byId("showMealForm").disabled = !state.family.configured; byId("showHandoffForm").disabled = !state.family.configured; setConfiguredVisibility(state.family.configured); render(); byId("mealsLoading").hidden = true; byId("mealsApp").hidden = false;
     } catch (error) { byId("mealsLoading").hidden = true; byId("mealsErrorMessage").textContent = error.message; byId("mealsError").hidden = false; }
   }
 

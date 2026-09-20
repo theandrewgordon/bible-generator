@@ -33,6 +33,7 @@ class Task:
     due_day: int = 2
     priority: int = 0
     preferred_start: tuple[int, int] | None = None
+    routine_id: str | None = None
 
     @property
     def total_minutes(self) -> int:
@@ -286,6 +287,7 @@ def _task_payload(task: Task) -> dict[str, object]:
         "due_day": task.due_day,
         "priority": task.priority,
         "preferred_start": list(task.preferred_start) if task.preferred_start else None,
+        "routine_id": task.routine_id,
     }
 
 
@@ -312,6 +314,7 @@ def _normalize_tasks(
         due_day = raw_task.get("due_day", 2)
         priority = raw_task.get("priority", 3)
         preferred_start = raw_task.get("preferred_start")
+        routine_id = raw_task.get("routine_id")
         if (
             not task_id
             or len(task_id) > 80
@@ -372,6 +375,20 @@ def _normalize_tasks(
             ):
                 raise ValueError("task preferred_start must be an increasing time window")
             preferred_start = tuple(preferred_start)
+        if routine_id is not None:
+            if (
+                not isinstance(routine_id, str)
+                or not routine_id.strip()
+                or len(routine_id.strip()) > 80
+                or not all(
+                    character.isalnum() or character in "-_"
+                    for character in routine_id.strip()
+                )
+            ):
+                raise ValueError(
+                    "task routine_id must contain only letters, numbers, dashes, or underscores"
+                )
+            routine_id = routine_id.strip()
         task_ids.add(task_id)
         tasks.append(
             Task(
@@ -383,6 +400,7 @@ def _normalize_tasks(
                 due_day,
                 priority,
                 preferred_start,
+                routine_id,
             )
         )
     return tuple(tasks)
@@ -980,13 +998,17 @@ def _mark(bits: list[bool], start: int, end: int) -> None:
     bits[start:end] = [True] * (end - start)
 
 
-def _task_order(task: Task) -> tuple[int, int, int, int, int, str]:
+def _task_order(task: Task) -> tuple[int, int, int, int, int, int, str]:
     return (
         task.due_day,
         -len(task.student_ids),
+        # Keep essentials ahead of optional work; among equally important work,
+        # place the longest blocks first so shorter work cannot fragment every
+        # usable window.
+        -task.priority,
+        -task.total_minutes,
         -len(task.phases),
         -task.parent_minutes,
-        -task.priority,
         task.id,
     )
 
@@ -999,6 +1021,7 @@ def _candidate_cost(
     student_scheduled: dict[str, list[bool]],
     adult_load: dict[str, int],
     student_load: dict[str, int],
+    student_subject_counts: dict[tuple[str, str], int] | None = None,
 ) -> int:
     lateness = max(0, day_index - task.due_day)
     cost = lateness * 1_000_000 + day_index * 60
@@ -1024,6 +1047,15 @@ def _candidate_cost(
         for student_id in task.student_ids
     )
     cost += balance_delta // 8
+
+    # A week can fit mathematically and still feel absurd if two copies of the
+    # same lesson land on one day. Prefer one subject session per child per day,
+    # but keep this soft so a disrupted week can still double up when needed.
+    subject_counts = student_subject_counts or {}
+    cost += sum(
+        subject_counts.get((student_id, task.subject.casefold()), 0) * 20_000
+        for student_id in task.student_ids
+    )
 
     if task.preferred_start:
         preferred_left, preferred_right = task.preferred_start
@@ -1376,6 +1408,7 @@ def generate_demo_schedule(
                 },
                 "adult_load": {adult_id: 0 for adult_id in adult_ids},
                 "student_load": {student_id: 0 for student_id in student_ids},
+                "student_subject_counts": {},
             }
         )
 
@@ -1427,6 +1460,7 @@ def generate_demo_schedule(
                                 state["student_scheduled"],
                                 state["adult_load"],
                                 state["student_load"],
+                                state["student_subject_counts"],
                             ),
                             day_index,
                             start_minute,
@@ -1466,6 +1500,10 @@ def generate_demo_schedule(
 
         for student_id in task.student_ids:
             state["student_load"][student_id] += task.total_minutes
+            subject_key = (student_id, task.subject.casefold())
+            state["student_subject_counts"][subject_key] = (
+                state["student_subject_counts"].get(subject_key, 0) + 1
+            )
         for phase in task.phases:
             if phase.resource != STUDENT:
                 state["adult_load"][phase.resource] += phase.minutes
@@ -1487,6 +1525,7 @@ def generate_demo_schedule(
                 "day_label": day.label,
                 "day_index": day_index,
                 "late": day_index > task.due_day,
+                "routine_id": task.routine_id,
                 "phases": phase_rows,
             }
         )

@@ -185,6 +185,85 @@ def test_candidate_starts_use_human_friendly_five_minute_grid():
         assert all(entry["start_minute"] % 5 == 0 for entry in _all_entries(result))
 
 
+def test_long_work_is_packed_before_short_work_can_fragment_the_week():
+    scenario = default_scenario()
+    scenario["household"] = {
+        "adults": [{"id": "mom", "name": "Mom", "color": "#d49a3a"}],
+        "students": [{"id": "learner", "name": "Learner", "color": "#6657d9"}],
+    }
+    scenario["events"] = []
+    scenario["availability_end"] = {
+        resource: {
+            "mon": 10 * 60 + 30,
+            "tue": 10 * 60 + 30,
+            "wed": 0,
+            "thu": 0,
+            "fri": 0,
+        }
+        for resource in ("mom", "learner")
+    }
+    scenario["tasks"] = [
+        {
+            "id": f"short-{number}",
+            "title": f"Short work {number}",
+            "subject": "Practice",
+            "student_ids": ["learner"],
+            "phases": [
+                {"label": "Work", "minutes": 30, "resource": STUDENT}
+            ],
+            "due_day": 4,
+            "priority": 3,
+            "preferred_start": None,
+        }
+        for number in range(1, 5)
+    ] + [
+        {
+            "id": "long",
+            "title": "Long lesson",
+            "subject": "Core",
+            "student_ids": ["learner"],
+            "phases": [
+                {"label": "Work", "minutes": 60, "resource": STUDENT}
+            ],
+            "due_day": 4,
+            "priority": 3,
+            "preferred_start": None,
+        }
+    ]
+
+    result = generate_demo_schedule(scenario=scenario)
+
+    assert result["scheduled_count"] == 5
+    assert result["unscheduled_count"] == 0
+    assert result["feasibility"]["deadline_feasible"] is True
+
+
+def test_repeated_subject_work_spreads_across_available_days():
+    scenario = default_scenario()
+    scenario["events"] = []
+    scenario["tasks"] = [
+        {
+            "id": f"math-{number}",
+            "title": "Math lesson",
+            "subject": "Math",
+            "student_ids": ["diana"],
+            "phases": [
+                {"label": "Practice", "minutes": 30, "resource": STUDENT}
+            ],
+            "due_day": 4,
+            "priority": 5,
+            "preferred_start": None,
+        }
+        for number in range(1, 5)
+    ]
+
+    result = generate_demo_schedule(scenario=scenario)
+    math_days = [entry["day_id"] for entry in _all_entries(result)]
+
+    assert len(math_days) == 4
+    assert len(set(math_days)) == 4
+
+
 def test_tuesday_rebuild_preserves_independent_afternoon_and_all_work():
     result = generate_demo_schedule(missed_tuesday=True)
     tuesday = result["days"][1]
@@ -569,6 +648,30 @@ def test_scenario_validation_rejects_unknown_values():
             pass
         else:
             raise AssertionError(f"Scenario should have failed validation: {scenario}")
+
+
+def test_routine_ids_survive_normalization_and_schedule_output():
+    scenario = default_scenario()
+    scenario["tasks"][0]["routine_id"] = "math-routine-1"
+
+    result = generate_demo_schedule(scenario=scenario)
+    entry = next(
+        row
+        for day in result["days"]
+        for row in day["entries"]
+        if row["task_id"] == scenario["tasks"][0]["id"]
+    )
+
+    assert result["scenario"]["tasks"][0]["routine_id"] == "math-routine-1"
+    assert entry["routine_id"] == "math-routine-1"
+
+
+def test_routine_ids_reject_unsafe_values():
+    scenario = default_scenario()
+    scenario["tasks"][0]["routine_id"] = "not a safe id"
+
+    with pytest.raises(ValueError, match="routine_id"):
+        normalize_scenario(scenario)
 
 
 def test_schedule_is_deterministic():

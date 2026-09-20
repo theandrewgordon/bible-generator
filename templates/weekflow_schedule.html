@@ -3,13 +3,13 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow puts family commitments, rides, and handoffs on one calm daily agenda." />
     <title>Schedule · WeekFlow · Faith Sparks</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_schedule.css') }}?v=2" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_schedule.css') }}?v=4" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=2" />
   </head>
   <body>
     <header class="wfs-site-header">
@@ -36,7 +36,7 @@
       <main class="wfs-shell" id="scheduleApp" hidden>
         <header class="wfs-hero">
           <div><span class="wfs-eyebrow">WeekFlow Schedule</span><h1>The family day,<br />with the handoffs included.</h1><p id="scheduleGreeting">School, appointments, rides, and responsibilities in one place.</p></div>
-          <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.homeschool') }}#weeklyRhythm">Edit weekly rhythm</a>
+          <a class="wfs-button wfs-primary" data-configured-only href="{{ url_for('weekflow.homeschool') }}#weeklyRhythm">Edit weekly rhythm</a>
         </header>
 
           <section class="wfs-setup" id="setupNotice" hidden>
@@ -44,17 +44,17 @@
           <a class="wfs-button wfs-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
         </section>
 
-        <section class="wfs-day-picker" aria-labelledby="dayPickerTitle">
+        <section class="wfs-day-picker" data-configured-only aria-labelledby="dayPickerTitle">
           <div><span class="wfs-eyebrow">Daily agenda</span><h2 id="dayPickerTitle">Choose a day</h2></div>
           <div id="dayTabs" role="tablist" aria-label="Schedule day"></div>
         </section>
 
-        <section class="wfs-attention" id="attentionPanel" aria-labelledby="attentionTitle">
+        <section class="wfs-attention" id="attentionPanel" data-configured-only aria-labelledby="attentionTitle">
           <div class="wfs-section-heading"><div><span class="wfs-eyebrow">Needs you first</span><h2 id="attentionTitle">The handoffs are covered.</h2></div><strong id="attentionCount">Clear</strong></div>
           <div id="attentionList"></div>
         </section>
 
-        <div class="wfs-main-grid">
+        <div class="wfs-main-grid" data-configured-only>
           <section class="wfs-agenda" aria-labelledby="agendaTitle">
             <div class="wfs-section-heading"><div><span class="wfs-eyebrow">In time order</span><h2 id="agendaTitle">Today’s agenda</h2></div><span id="agendaCount"></span></div>
             <div class="wfs-agenda-list" id="agendaList"></div>
@@ -99,7 +99,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_schedule.js') }}?v=6" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_schedule.js') }}?v=7" defer></script>
     {% endif %}
   </body>
 </html>

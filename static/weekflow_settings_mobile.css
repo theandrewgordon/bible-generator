@@ -1,0 +1,28 @@
+[hidden] { display: none !important; }
+
+.wfs-site-header {
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+}
+.wfs-site-header a,
+.wfs-actions a,
+.wfs-restore summary,
+.wfs-download {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.wfs-site-header nav a { min-width: 44px; justify-content: center; }
+.wfs-first-run > a:last-child { display: flex; align-items: center; justify-content: center; min-height: 44px; }
+.wfs-shell { padding-bottom: env(safe-area-inset-bottom); }
+.wfs-link, .wfs-remove { min-height: 44px; padding: 8px; }
+.wfs-actions a { justify-content: center; }
+.wfs-error button { min-height: 44px; }
+
+@media (max-width: 520px) {
+  .wfs-site-header {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .wfs-remove { min-height: 44px; }
+}

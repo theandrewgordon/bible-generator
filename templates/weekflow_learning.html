@@ -3,13 +3,13 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow coordinates homeschool work around each child and the parent attention available." />
     <title>{{ "Homeschool" if mode == "homeschool" else "Kids" }} · WeekFlow · Faith Sparks</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_learning.css') }}?v=4" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_learning.css') }}?v=9" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=2" />
   </head>
   <body data-mode="{{ mode }}">
     <header class="wfl-site-header">
@@ -57,9 +57,30 @@
       <main class="wfl-shell" id="learningApp" hidden>
         {% if mode == "homeschool" %}
           <header class="wfl-hero">
-            <div><span class="wfl-eyebrow">WeekFlow Homeschool</span><h1>Teach what needs you.<br />Release what doesn’t.</h1><p id="homeschoolGreeting">One family plan around finite parent attention.</p></div>
-            <button class="wfl-button wfl-primary" id="showAddAssignment" type="button">Add assignment</button>
+            <div><span class="wfl-eyebrow">WeekFlow Homeschool</span><h1>Teach what needs you.<br />Release what doesn’t.</h1><p id="homeschoolGreeting">One family plan around finite parent attention.</p><p class="wfl-hero-help">Put lessons here. Use Home for errands, forms, chores, and everything else on your mind.</p></div>
+            <div class="wfl-hero-actions"><a class="wfl-button" href="{{ url_for('weekflow.index') }}#guided-demo">Show me how</a><button class="wfl-button" id="showWeekIntake" type="button">Dump my week</button><button class="wfl-button wfl-primary" id="showAddAssignment" type="button">Add one lesson</button></div>
           </header>
+
+          <section class="wfl-intake" id="weekIntake" aria-labelledby="weekIntakeTitle">
+            <div class="wfl-section-heading"><div><span class="wfl-eyebrow">Fastest setup</span><h2 id="weekIntakeTitle">Tell WeekFlow what is going on.</h2><p>Type it, say it, or photograph an appointment note. Nothing is added until you review it.</p></div></div>
+            <form id="intakeForm">
+              <label class="wfl-intake-text">Your messy family note<textarea name="text" rows="4" maxlength="6000" placeholder="Grace, Ellie, and Clara do math four days. CC Thursday 9–3. Piano Wednesday 1–2; Mom drives Grace and Ellie. We stop school by 3."></textarea></label>
+              <div class="wfl-intake-actions">
+                <button class="wfl-button wfl-primary" id="interpretIntake" type="submit">Turn this into a plan</button>
+                <button class="wfl-button" id="voiceNoteButton" type="button">🎙 Start voice note</button>
+                <label class="wfl-button wfl-file-button">Use saved voice note<input id="intakeAudio" name="audio" type="file" accept="audio/*" capture /></label>
+                <label class="wfl-button wfl-file-button">📷 Photograph a note<input id="intakePhoto" name="image" type="file" accept="image/*" capture="environment" /></label>
+              </div>
+              <p class="wfl-intake-privacy">AI reads only what you submit here. Photos and voice notes are interpreted into a temporary proposal, then discarded. Please review every date, person, and time.</p>
+              <p class="wfl-form-status" id="intakeStatus" role="status" aria-live="polite"></p>
+            </form>
+            <section class="wfl-intake-review" id="intakeReview" hidden aria-labelledby="intakeReviewTitle">
+              <div class="wfl-section-heading"><div><span class="wfl-eyebrow">Review before saving</span><h2 id="intakeReviewTitle">Does WeekFlow understand you?</h2><p id="intakeSummary"></p></div></div>
+              <div class="wfl-intake-alerts" id="intakeAlerts"></div>
+              <div class="wfl-intake-proposals" id="intakeProposals"></div>
+              <div class="wfl-intake-review-actions"><button class="wfl-button wfl-primary" id="applyIntake" type="button">Add checked items and rebuild</button><button class="wfl-button" id="cancelIntake" type="button">Discard proposal</button></div>
+            </section>
+          </section>
 
           <section class="wfl-week-transition" id="weekTransition" hidden aria-labelledby="weekTransitionTitle">
             <div><span class="wfl-eyebrow">A new week is ready</span><h2 id="weekTransitionTitle">Start this week with the right work.</h2><p id="weekTransitionCopy"></p></div>
@@ -82,15 +103,17 @@
             <form id="assignmentForm">
               <input name="assignment_id" type="hidden" />
               <div class="wfl-form-grid">
-                <label>Assignment<input name="title" maxlength="120" placeholder="Fractions practice" required /></label>
+                <label>What are they doing?<input name="title" maxlength="120" placeholder="Fractions practice" required /></label>
                 <label>Subject<input name="subject" maxlength="60" placeholder="Math" required /></label>
                 <fieldset class="wfl-student-picker"><legend>For</legend><div id="assignmentStudents"></div></fieldset>
-                <label>Due by<select name="due_day"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2" selected>Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option></select></label>
-                <label>Estimated time<input name="minutes" type="number" min="15" max="240" step="5" value="30" required /></label>
-                <label>Parent help<select name="help"><option value="independent">Independent</option><option value="checkin">Start + check together</option><option value="together">Together the whole time</option></select></label>
-                <label>Priority<select name="priority"><option value="3">Normal</option><option value="5">Important</option><option value="1">Flexible</option></select></label>
+                <label>Usually finished by<select name="due_day"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2" selected>Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option></select></label>
+                <label id="repeatCountField">How often this week?<select name="repeat_count"><option value="1">Once</option><option value="2">Twice</option><option value="3">3 times</option><option value="4">4 times</option><option value="5">5 times</option></select><small>Add the whole weekly rhythm in one step.</small></label>
+                <label>About how long?<input name="minutes" type="number" min="15" max="240" step="5" value="30" required /></label>
+                <label>How much do they need you?<select name="help"><option value="independent">They can do it alone</option><option value="checkin">Start and check with me</option><option value="together">They need me throughout</option></select></label>
+                <label>When life happens<select name="priority"><option value="3">Try to finish it</option><option value="5">Protect this work</option><option value="1">This can slide</option></select></label>
+                <label id="editScopeField" hidden>Apply this change to<select name="edit_scope"><option value="routine">Every lesson in this routine</option><option value="one">Only this lesson</option></select></label>
               </div>
-              <button class="wfl-button wfl-primary" id="assignmentSubmit" type="submit">Add and rebuild week</button>
+              <div class="wfl-intake-actions"><button class="wfl-button wfl-primary" id="assignmentSubmit" type="submit">Add and rebuild week</button><button class="wfl-button" id="removeRoutineButton" type="button" hidden>Stop this routine</button></div>
               <p class="wfl-form-status" id="assignmentStatus" role="status" aria-live="polite"></p>
             </form>
           </section>
@@ -100,11 +123,9 @@
             <div class="wfl-rhythm-body">
               <form id="availabilityForm">
                 <div class="wfl-section-heading"><div><span class="wfl-eyebrow">Normal weekdays</span><h2>Protect everyone’s capacity</h2></div></div>
-                <div class="wfl-form-grid">
-                  <label>Parent available until<input name="adult_end" type="time" min="09:00" max="16:00" required /></label>
-                  <label>Children work until<input name="student_end" type="time" min="09:00" max="16:00" required /></label>
-                </div>
-                <button class="wfl-button" type="submit">Save weekday limits</button>
+                <p class="wfl-form-help">Set each person’s real stopping time. Choose Off for a day they cannot do school at all. On a phone, swipe the weekdays sideways.</p>
+                <div class="wfl-availability-grid" id="availabilityGrid"></div>
+                <button class="wfl-button" type="submit">Save everyone’s weekday limits</button>
               </form>
               <form id="commitmentForm">
                 <div class="wfl-section-heading"><div><span class="wfl-eyebrow">Co-op, appointments, and time away</span><h2>Add a fixed commitment</h2></div></div>
@@ -113,12 +134,25 @@
                   <label>Day<select name="day_id"><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option><option value="thu">Thursday</option><option value="fri">Friday</option></select></label>
                   <label>Starts<input name="start" type="time" min="09:00" max="16:00" value="09:00" required /></label>
                   <label>Ends<input name="end" type="time" min="09:00" max="16:00" value="12:00" required /></label>
+                  <label>Travel before<input name="travel_before" type="number" min="0" max="120" step="5" value="0" inputmode="numeric" /></label>
+                  <label>Travel after<input name="travel_after" type="number" min="0" max="120" step="5" value="0" inputmode="numeric" /></label>
+                  <fieldset class="wfl-student-picker wfl-wide"><legend>Who is occupied? Include the driver.</legend><div id="commitmentPeople"></div></fieldset>
                   <label class="wfl-check-label"><input name="recurring" type="checkbox" checked /> Repeats most weeks</label>
                 </div>
                 <button class="wfl-button" type="submit">Add commitment</button>
               </form>
               <div><div class="wfl-section-heading"><div><span class="wfl-eyebrow">Already protected</span><h2>Fixed commitments</h2></div></div><div class="wfl-commitment-list" id="commitmentList"></div></div>
             </div>
+          </details>
+
+          <details class="wfl-rhythm wfl-quick-actions" id="weekCleanup">
+            <summary><span><b>Life happened</b><small>Fix the week without editing every lesson</small></span></summary>
+            <div class="wfl-rhythm-body"><div class="wfl-batch-actions">
+              <button class="wfl-button" type="button" data-batch-action="day-fell-apart">This day fell apart</button>
+              <button class="wfl-button" type="button" data-batch-action="finish-day">Finish this day</button>
+              <button class="wfl-button" type="button" data-batch-action="skip-flexible">Skip flexible work</button>
+              <button class="wfl-button" type="button" data-batch-action="clear-completed">Clear completed lessons</button>
+            </div><p class="wfl-form-help" id="batchActionHelp">Choose a day below first. WeekFlow will confirm before changing several items.</p></div>
           </details>
 
           <section class="wfl-day-picker" aria-labelledby="dayPickerTitle"><div><span class="wfl-eyebrow">Family learning day</span><h2 id="dayPickerTitle">Choose a day</h2></div><div id="dayTabs" role="tablist" aria-label="School day"></div></section>
@@ -168,6 +202,7 @@
         window.WEEKFLOW_LEARNING_CONFIG = {
           mode: {{ mode|tojson }},
           stateUrl: {{ url_for('weekflow.state')|tojson }},
+          intakeUrl: {{ url_for('weekflow.interpret_intake')|tojson }},
           weeksUrl: {{ url_for('weekflow.weeks')|tojson }},
           rolloverUrl: {{ url_for('weekflow.rollover')|tojson }},
           todayStateUrl: {{ url_for('weekflow.today_state')|tojson }},
@@ -178,7 +213,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_learning.js') }}?v=6" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_learning.js') }}?v=9" defer></script>
     {% endif %}
   </body>
 </html>

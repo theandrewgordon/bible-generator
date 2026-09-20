@@ -38,7 +38,8 @@
   function dayOccurrences(date = selectedDate) { return state.occurrences.filter((item) => item.date === date); }
 
   function renderTabs() {
-    byId("dayTabs").replaceChildren(...dates().map((row) => {
+    const tabs = byId("dayTabs");
+    tabs.replaceChildren(...dates().map((row) => {
       const button = element("button");
       button.type = "button"; button.role = "tab"; button.dataset.date = row.date;
       button.tabIndex = row.date === selectedDate ? 0 : -1;
@@ -48,6 +49,19 @@
       button.append(element("b", "", DAY_LABELS[row.day].slice(0, 3)), element("span", "", new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(parsed)));
       return button;
     }));
+    keepSelectedTabVisible(tabs);
+  }
+
+  function keepSelectedTabVisible(tabs) {
+    requestAnimationFrame(() => {
+      const selected = tabs.querySelector('[role="tab"][aria-selected="true"]');
+      if (!selected || tabs.scrollWidth <= tabs.clientWidth) return;
+      tabs.scrollLeft = Math.max(0, selected.offsetLeft + (selected.offsetWidth - tabs.clientWidth) / 2);
+    });
+  }
+
+  function setConfiguredVisibility(configured) {
+    document.querySelectorAll("[data-configured-only]").forEach((node) => { node.hidden = !configured; });
   }
 
   function occurrenceCard(item) {
@@ -215,6 +229,7 @@
       byId("householdGreeting").textContent = state.family.configured ? `${state.family.name} · give recurring work a clear home, time, and owner.` : "Set up the family first, then share recurring work without child accounts.";
       byId("setupNotice").hidden = state.family.configured;
       byId("showRoutineForm").disabled = !state.family.configured;
+      setConfiguredVisibility(state.family.configured);
       render(); byId("householdLoading").hidden = true; byId("householdApp").hidden = false;
     } catch (error) {
       byId("householdLoading").hidden = true; byId("householdErrorMessage").textContent = error.message; byId("householdError").hidden = false;

@@ -16,6 +16,7 @@
   const cancelCaptureEdit = byId("cancelCaptureEdit");
   const statusLine = byId("saveStatus");
   const board = byId("todayBoard");
+  const DRAFT_KEY = "weekflow-today-unsaved-v1";
 
   let state = null;
   let family = null;
@@ -49,8 +50,21 @@
     return new Date().toISOString();
   }
 
+  async function timedFetch(url, options = {}, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } catch (error) {
+      if (error.name === "AbortError") throw new Error("This is taking longer than expected. Please try again.");
+      throw error;
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
   async function jsonRequest(url, options = {}) {
-    const response = await fetch(url, {
+    const response = await timedFetch(url, {
       ...options,
       headers: { Accept: "application/json", ...(options.headers || {}) },
     });
@@ -71,6 +85,52 @@
   function setStatus(message, error = false) {
     statusLine.textContent = message;
     statusLine.classList.toggle("is-error", error);
+  }
+
+  function storeDraft() {
+    if (!state) return;
+    try {
+      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+        revision: state.revision,
+        items: state.items,
+        saved_at: nowIso(),
+      }));
+    } catch (_error) { /* The network save remains the source of truth. */ }
+  }
+
+  function readDraft() {
+    try {
+      const draft = JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || "null");
+      return draft && Number.isInteger(draft.revision) && Array.isArray(draft.items) ? draft : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function clearDraft() {
+    try { window.sessionStorage.removeItem(DRAFT_KEY); } catch (_error) { /* no-op */ }
+  }
+
+  function mergeNewerDraftItems(remoteItems, draftItems) {
+    const merged = remoteItems.map((item) => ({ ...item }));
+    const positions = new Map(merged.map((item, index) => [item.id, index]));
+    let changed = false;
+    draftItems.forEach((item) => {
+      if (!item || typeof item.id !== "string") return;
+      const position = positions.get(item.id);
+      if (position === undefined) {
+        positions.set(item.id, merged.length);
+        merged.push(item);
+        changed = true;
+        return;
+      }
+      const remote = merged[position];
+      if (String(item.updated_at || "") > String(remote.updated_at || "")) {
+        merged[position] = item;
+        changed = true;
+      }
+    });
+    return { items: merged, changed };
   }
 
   function personById(personId) {
@@ -301,38 +361,45 @@
     byId("emptyState").hidden = visibleItems().length > 0;
   }
 
-  function scheduleSave() {
+  function scheduleSave(message = "Saving…") {
     dirty = true;
-    setStatus("Saving…");
+    storeDraft();
+    setStatus(message);
     window.clearTimeout(saveTimer);
     saveTimer = window.setTimeout(flushSave, 180);
   }
 
-  async function flushSave() {
+  async function flushSave({ keepalive = false } = {}) {
     saveTimer = null;
     if (saveInFlight || !dirty) return;
     saveInFlight = true;
     dirty = false;
     const itemsSnapshot = JSON.parse(JSON.stringify(state.items));
     try {
-      const response = await fetch(config.stateUrl, {
+      const requestOptions = {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "X-CSRF-Token": config.csrfToken,
         },
         body: JSON.stringify({ revision: state.revision, items: itemsSnapshot }),
-      });
+        keepalive,
+      };
+      const response = keepalive
+        ? await fetch(config.stateUrl, requestOptions)
+        : await timedFetch(config.stateUrl, requestOptions);
       const payload = await response.json().catch(() => ({}));
       if (response.status === 409) {
-        await loadState({ quiet: true });
+        clearDraft();
+        await loadState({ quiet: true, recoverDraft: false });
         setStatus("This list changed in another browser. We refreshed it so nothing gets overwritten.", true);
         return;
       }
       if (!response.ok) throw new Error(payload.error || "Your change could not be saved.");
       state.revision = payload.revision;
       state.updated_at = payload.updated_at;
-      setStatus("Saved");
+      if (!dirty) clearDraft();
+      setStatus("Remembered");
     } catch (error) {
       dirty = true;
       setStatus(`${error.message} We’ll retry automatically.`, true);
@@ -542,25 +609,23 @@
     }));
     const plan = logistics?.plan;
     const logisticsCard = byId("logisticsCard");
-    logisticsCard.hidden = !plan && !logistics?.has_saved_plan;
+    logisticsCard.hidden = !plan;
     if (plan) {
       const openIssues = (plan.issues || []).length;
       byId("logisticsSummary").textContent = openIssues
         ? `${openIssues} handoff${openIssues === 1 ? "" : "s"} need${openIssues === 1 ? "s" : ""} a decision today.`
         : "Today’s rides and responsibilities are covered.";
-    } else if (logistics?.has_saved_plan) {
-      byId("logisticsSummary").textContent = `A family logistics plan is saved for ${logistics.day_label || "another day"}. Open Schedule to review it.`;
     }
-    byId("commandCards").hidden = parentHelp.length === 0 && !plan && !logistics?.has_saved_plan;
+    byId("commandCards").hidden = parentHelp.length === 0 && !plan;
   }
 
-  async function loadState({ quiet = false } = {}) {
+  async function loadState({ quiet = false, recoverDraft = true } = {}) {
     if (!quiet) {
       loading.hidden = false;
       loadError.hidden = true;
     }
     try {
-      const response = await fetch(config.stateUrl, { headers: { Accept: "application/json" } });
+      const response = await timedFetch(config.stateUrl, { headers: { Accept: "application/json" } });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Please try again.");
       state = {
@@ -568,6 +633,16 @@
         items: payload.items,
         updated_at: payload.updated_at,
       };
+      const draft = recoverDraft ? readDraft() : null;
+      if (draft?.revision === state.revision) {
+        state.items = draft.items;
+        dirty = true;
+      } else if (draft) {
+        const recovered = mergeNewerDraftItems(state.items, draft.items);
+        state.items = recovered.items;
+        dirty = recovered.changed;
+        if (!recovered.changed) clearDraft();
+      }
       family = payload.family;
       today = payload.today;
       household = payload.household;
@@ -583,6 +658,7 @@
       app.hidden = false;
       loading.hidden = true;
       loadError.hidden = true;
+      if (dirty) scheduleSave("Recovered your last thought — saving…");
     } catch (error) {
       if (quiet) throw error;
       loading.hidden = true;
@@ -595,7 +671,7 @@
   function resetCaptureForm() {
     form.reset();
     form.elements.item_id.value = "";
-    captureSubmit.textContent = "Add";
+    captureSubmit.textContent = "Remember it";
     cancelCaptureEdit.hidden = true;
   }
 
@@ -617,7 +693,7 @@
     else state.items.push(next);
     resetCaptureForm();
     render();
-    scheduleSave();
+    scheduleSave("Remembered — saving…");
     titleInput.focus();
   });
   board.addEventListener("click", handleBoardAction);
@@ -627,6 +703,11 @@
   cancelCaptureEdit.addEventListener("click", resetCaptureForm);
   window.addEventListener("online", () => {
     if (dirty) flushSave();
+  });
+  window.addEventListener("pagehide", () => {
+    if (!dirty || !state) return;
+    window.clearTimeout(saveTimer);
+    flushSave({ keepalive: true });
   });
   loadState();
 })();

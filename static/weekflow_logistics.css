@@ -242,3 +242,9 @@ h2 { margin: 5px 0 0; font-size: clamp(1.65rem, 3vw, 2.25rem); line-height: 1.08
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: .01ms !important; }
 }
+
+nav a, .wfl-compact-details > summary, .wfl-example-picker > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

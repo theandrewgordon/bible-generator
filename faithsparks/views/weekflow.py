@@ -1,5 +1,6 @@
 import json
 import os
+import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -35,6 +36,12 @@ from faithsparks.services.weekflow_integrations import (
     WeekFlowProviderError,
     integration_status,
     refresh_live_routes,
+)
+from faithsparks.services.weekflow_intake import (
+    MAX_IMAGE_BYTES,
+    WeekFlowIntakeError,
+    interpret_weekflow_intake,
+    transcribe_weekflow_audio,
 )
 from faithsparks.services.weekflow_household import (
     default_household_state,
@@ -1478,6 +1485,66 @@ def save_state():
     except WeekFlowStorageUnavailable as exc:
         current_app.logger.warning("WeekFlow retention pruning failed: %s", exc)
     return jsonify(saved)
+
+
+@bp.post("/intake/interpret")
+def interpret_intake():
+    email = _signed_in_email()
+    if not email:
+        return _sign_in_required()
+    if not _has_beta_access(email):
+        return _beta_access_required()
+    limit = check_rate_limit(
+        "weekflow-ai-intake",
+        email,
+        limit=20,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        response = jsonify({"error": "AI intake limit reached. Try again later."})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(limit.retry_after)
+        return response
+    if request.content_length and request.content_length > 13 * 1024 * 1024:
+        return jsonify({"error": "That note or photo is too large."}), 413
+    try:
+        saved = load_beta_state(email)
+        text = ""
+        image_data_url = None
+        transcript = None
+        if request.mimetype == "application/json":
+            payload = request.get_json(silent=True) or {}
+            text = str(payload.get("text", ""))
+        else:
+            text = str(request.form.get("text", ""))
+            image = request.files.get("image")
+            audio = request.files.get("audio")
+            if image and image.filename:
+                image_bytes = image.read(MAX_IMAGE_BYTES + 1)
+                if len(image_bytes) > MAX_IMAGE_BYTES:
+                    raise WeekFlowIntakeError("Photos must be smaller than 8 MB.")
+                image_type = (image.mimetype or "").casefold()
+                if image_type not in {"image/jpeg", "image/png", "image/webp"}:
+                    raise WeekFlowIntakeError("Use a JPEG, PNG, or WebP photo.")
+                image_data_url = f"data:{image_type};base64,{base64.b64encode(image_bytes).decode('ascii')}"
+            if audio and audio.filename:
+                transcript = transcribe_weekflow_audio(
+                    audio.read(),
+                    audio.filename,
+                    (audio.mimetype or "application/octet-stream").casefold(),
+                )
+                text = " ".join(part for part in (text, transcript) if part)
+        proposal = interpret_weekflow_intake(
+            household=saved["scenario"]["household"],
+            text=text,
+            image_data_url=image_data_url,
+            safety_identifier=email,
+        )
+        return jsonify({**proposal, "transcript": transcript})
+    except WeekFlowIntakeError as exc:
+        return jsonify({"error": str(exc)}), 422
+    except WeekFlowStorageUnavailable as exc:
+        return jsonify({"error": str(exc)}), 503
 
 
 @bp.delete("/state")

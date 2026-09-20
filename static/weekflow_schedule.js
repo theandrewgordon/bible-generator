@@ -251,6 +251,19 @@
       button.append(label, element("span", "", shortDate));
       return button;
     }));
+    keepSelectedTabVisible(tabs);
+  }
+
+  function keepSelectedTabVisible(tabs) {
+    requestAnimationFrame(() => {
+      const selected = tabs.querySelector('[role="tab"][aria-selected="true"]');
+      if (!selected || tabs.scrollWidth <= tabs.clientWidth) return;
+      tabs.scrollLeft = Math.max(0, selected.offsetLeft + (selected.offsetWidth - tabs.clientWidth) / 2);
+    });
+  }
+
+  function setConfiguredVisibility(configured) {
+    document.querySelectorAll("[data-configured-only]").forEach((node) => { node.hidden = !configured; });
   }
 
   function renderAgenda() {
@@ -446,10 +459,11 @@
       buildDays();
       byId("scheduleGreeting").textContent = `${state.family.name} · school, appointments, rides, and responsibilities in one place.`;
       byId("setupNotice").hidden = state.family.configured;
+      setConfiguredVisibility(state.family.configured);
       renderDay();
       byId("scheduleLoading").hidden = true;
       byId("scheduleApp").hidden = false;
-      loadCalendar();
+      if (state.family.configured) loadCalendar();
     } catch (error) {
       byId("scheduleLoading").hidden = true;
       byId("scheduleErrorMessage").textContent = error.message;

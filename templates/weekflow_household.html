@@ -3,13 +3,13 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="description" content="WeekFlow turns recurring chores and routines into one shared, child-friendly household plan." />
     <title>Household · WeekFlow · Faith Sparks</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_household.css') }}?v=1" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=1" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_household.css') }}?v=3" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='weekflow_area_nav.css') }}?v=2" />
   </head>
   <body>
     <header class="wfh-site-header">
@@ -35,7 +35,7 @@
       <main class="wfh-shell" id="householdApp" hidden>
         <header class="wfh-hero">
           <div><span class="wfh-eyebrow">WeekFlow Household</span><h1>The house runs<br />on small things.</h1><p id="householdGreeting">Give recurring work a clear home, time, and owner.</p></div>
-          <button class="wfh-button wfh-primary" id="showRoutineForm" type="button">Add responsibility</button>
+          <button class="wfh-button wfh-primary" id="showRoutineForm" data-configured-only type="button">Add responsibility</button>
         </header>
 
         <section class="wfh-setup" id="setupNotice" hidden>
@@ -43,7 +43,7 @@
           <a class="wfh-button wfh-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a>
         </section>
 
-        <section class="wfh-summary" aria-label="Household summary">
+        <section class="wfh-summary" data-configured-only aria-label="Household summary">
           <article><span>Today</span><strong id="todayOpenCount">0</strong><small>still open</small></article>
           <article><span>Finished</span><strong id="todayDoneCount">0</strong><small>today</small></article>
           <article><span>This week</span><strong id="weekCount">0</strong><small>responsibilities</small></article>
@@ -69,9 +69,9 @@
           </form>
         </section>
 
-        <section class="wfh-day-picker" aria-labelledby="dayPickerTitle"><div><span class="wfh-eyebrow">Shared rhythm</span><h2 id="dayPickerTitle">Choose a day</h2></div><div id="dayTabs" role="tablist" aria-label="Household day"></div></section>
+        <section class="wfh-day-picker" data-configured-only aria-labelledby="dayPickerTitle"><div><span class="wfh-eyebrow">Shared rhythm</span><h2 id="dayPickerTitle">Choose a day</h2></div><div id="dayTabs" role="tablist" aria-label="Household day"></div></section>
 
-        <div class="wfh-grid">
+        <div class="wfh-grid" data-configured-only>
           <section class="wfh-day" aria-labelledby="dayTitle">
             <div class="wfh-section-heading"><div><span class="wfh-eyebrow">One clear list</span><h2 id="dayTitle">Today at home</h2></div><span id="dayProgress">0 of 0 done</span></div>
             <div class="wfh-progress" aria-hidden="true"><i id="dayProgressBar"></i></div>
@@ -92,7 +92,7 @@
           csrfToken: {{ csrf_token()|tojson }}
         };
       </script>
-      <script src="{{ url_for('static', filename='weekflow_household.js') }}?v=2" defer></script>
+      <script src="{{ url_for('static', filename='weekflow_household.js') }}?v=3" defer></script>
     {% endif %}
   </body>
 </html>

@@ -1,3 +1,6 @@
+from pathlib import Path
+from io import BytesIO
+
 from flask import Flask
 
 import faithsparks.views.weekflow as weekflow_view
@@ -33,6 +36,11 @@ def test_lab_page_renders_demo_configuration():
     assert 'scheduleUrl: "/labs/weekflow/schedule"' in html
     assert 'feedbackUrl: "/labs/weekflow/feedback"' in html
     assert "Build Family Schedule" in html
+    assert "Watch a real week come together." in html
+    assert "Play walkthrough" in html
+    assert "Nothing here touches your account." in html
+    assert "Finish one lesson" in html
+    assert "Remove flexible work" in html
     assert "How WeekFlow works" in html
     assert "One plan around shared attention" in html
     assert "Add the real constraints" in html
@@ -48,6 +56,17 @@ def test_lab_page_renders_demo_configuration():
     assert "Export calendar" not in html
     assert "Optimize" not in html
     assert "Open WeekFlow Today" in html
+
+
+def test_guided_demo_uses_the_real_scheduler_without_saving_family_state():
+    source = (Path(__file__).parents[1] / "static" / "weekflow.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'build("baseline", demoScenario)' in source
+    assert "demoScenario.completed_task_ids.push(task.id)" in source
+    assert "demoScenario.tasks = demoScenario.tasks.filter" in source
+    assert "window.setTimeout(runDemoStep" in source
 
 
 def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
@@ -66,7 +85,7 @@ def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
 
     assert response.status_code == 200
     assert "What needs your attention?" in html
-    assert "What needs remembering?" in html
+    assert "Dump anything you need to remember" in html
     assert "Due today" in html
     assert "Overdue" in html
     assert "Waiting" in html
@@ -75,11 +94,29 @@ def test_today_page_requires_sign_in_and_renders_the_complete_workspace():
     assert "See the whole family day" in html
     assert "Set up our family" in html
     assert "More family planning tools" in html
+    assert "Dump anything you need to remember" in html
+    assert "Remember it" in html
+    assert "Add details (optional)" in html
+    assert "Saved for later" in html
+    assert html.index('id="captureForm"') < html.index('class="wft-summary"')
     assert 'stateUrl: "/labs/weekflow/today/state"' in html
     assert 'mealsStateUrl: "/labs/weekflow/meals/state"' in html
     assert 'medicalStateUrl: "/labs/weekflow/medical/state"' in html
     assert 'travelStateUrl: "/labs/weekflow/travel/state"' in html
     assert 'content="noindex,nofollow"' in html
+
+
+def test_today_brain_dump_recovers_unsaved_work_and_flushes_on_navigation():
+    source = (
+        Path(__file__).parents[1] / "static" / "weekflow_today.js"
+    ).read_text(encoding="utf-8")
+
+    assert "weekflow-today-unsaved-v1" in source
+    assert "window.sessionStorage.setItem" in source
+    assert "mergeNewerDraftItems" in source
+    assert 'window.addEventListener("pagehide"' in source
+    assert "flushSave({ keepalive: true })" in source
+    assert 'logisticsCard.hidden = !plan' in source
 
 
 def test_family_settings_page_is_a_signed_in_weekflow_surface():
@@ -127,8 +164,29 @@ def test_weekflow_dashboards_share_compact_area_navigation():
         assert response.status_code == 200
         assert 'class="wf-area-nav"' in html
         assert "weekflow_area_nav.css" in html
+        assert "weekflow_area_nav.js" in html
+        assert 'viewport-fit=cover' in html
         assert "<summary" in html and ">More</summary>" in html
         assert html.count('aria-label="WeekFlow areas"') == 1
+
+
+def test_mobile_first_run_surfaces_mark_configured_only_workspaces():
+    client = _client()
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    for path in (
+        "/labs/weekflow/schedule",
+        "/labs/weekflow/household",
+        "/labs/weekflow/meals",
+        "/labs/weekflow/medical",
+        "/labs/weekflow/travel",
+    ):
+        html = client.get(path).get_data(as_text=True)
+        assert "data-configured-only" in html
+
+    settings_html = client.get("/labs/weekflow/settings").get_data(as_text=True)
+    assert "weekflow_settings_mobile.css" in settings_html
 
 
 def test_backup_restore_requires_explicit_confirmation():
@@ -163,9 +221,17 @@ def test_learning_dashboards_require_sign_in_and_render_shared_weekflow_tools():
     assert kids.status_code == 200
     assert "Teach what needs you" in homeschool_html
     assert "When a child needs you" in homeschool_html
-    assert "Add assignment" in homeschool_html
+    assert "Add one lesson" in homeschool_html
+    assert "Show me how" in homeschool_html
+    assert "Dump my week" in homeschool_html
+    assert "Type it, say it, or photograph an appointment note" in homeschool_html
+    assert "How often this week?" in homeschool_html
+    assert "Add the whole weekly rhythm in one step." in homeschool_html
     assert "Carry unfinished work" in homeschool_html
     assert "Our weekly rhythm" in homeschool_html
+    assert "Who is occupied? Include the driver." in homeschool_html
+    assert "This day fell apart" in homeschool_html
+    assert 'intakeUrl: "/labs/weekflow/intake/interpret"' in homeschool_html
     assert 'rolloverUrl: "/labs/weekflow/rollover"' in homeschool_html
     assert "Each child’s day" in kids_html
     assert "Family responsibilities" in kids_html
@@ -176,6 +242,129 @@ def test_learning_dashboards_require_sign_in_and_render_shared_weekflow_tools():
     assert 'medicalStateUrl: "/labs/weekflow/medical/state"' in kids_html
     assert 'travelStateUrl: "/labs/weekflow/travel/state"' in kids_html
     assert 'content="noindex,nofollow"' in homeschool_html
+
+
+def test_learning_client_wires_mobile_intake_routines_and_batch_recovery():
+    source = (
+        Path(__file__).parents[1] / "static" / "weekflow_learning.js"
+    ).read_text(encoding="utf-8")
+
+    assert "normalizeIntakeImage" in source
+    assert "navigator.mediaDevices?.getUserMedia" in source
+    assert 'byId("intakeAudio").addEventListener("change"' in source
+    assert 'byId("intakePhoto").addEventListener("change"' in source
+    assert 'byId("applyIntake").addEventListener("click", applyIntake)' in source
+    assert "removeRoutine" in source
+    assert 'action === "day-fell-apart"' in source
+    assert 'action === "finish-day"' in source
+    assert 'action === "skip-flexible"' in source
+    assert 'action === "clear-completed"' in source
+    assert "Possible duplicate—already in this plan." in source
+    assert "weekflow-assignment-draft-v1" in source
+    assert "weekflow-intake-draft-v1" in source
+
+
+def test_ai_intake_requires_sign_in_and_returns_review_only_proposal(monkeypatch):
+    client = _client()
+    assert client.post("/labs/weekflow/intake/interpret", json={"text": "Math"}).status_code == 401
+
+    state = default_beta_state()
+    captured = {}
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: state)
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type("Limit", (), {"allowed": True, "retry_after": 0})(),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "interpret_weekflow_intake",
+        lambda **kwargs: captured.update(kwargs) or {
+            "summary": "Review this",
+            "assignments": [],
+            "commitments": [],
+            "availability": [],
+            "questions": [],
+            "warnings": [],
+            "requires_review": True,
+        },
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "Parent@Example.com"
+
+    response = client.post(
+        "/labs/weekflow/intake/interpret",
+        json={"text": "Grace has piano Wednesday at one."},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["requires_review"] is True
+    assert captured["text"] == "Grace has piano Wednesday at one."
+    assert captured["household"] is state["scenario"]["household"]
+    assert captured["safety_identifier"] == "parent@example.com"
+
+
+def test_ai_intake_exposes_friendly_validation_failures(monkeypatch):
+    client = _client()
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: default_beta_state())
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type("Limit", (), {"allowed": True, "retry_after": 0})(),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "interpret_weekflow_intake",
+        lambda **kwargs: (_ for _ in ()).throw(
+            weekflow_view.WeekFlowIntakeError("Please check the appointment time.")
+        ),
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    response = client.post("/labs/weekflow/intake/interpret", json={"text": "Appointment"})
+
+    assert response.status_code == 422
+    assert response.get_json()["error"] == "Please check the appointment time."
+
+
+def test_ai_intake_accepts_a_safe_photo_and_rejects_an_unsupported_file(monkeypatch):
+    client = _client()
+    state = default_beta_state()
+    captured = {}
+    monkeypatch.setattr(weekflow_view, "load_beta_state", lambda email: state)
+    monkeypatch.setattr(
+        weekflow_view,
+        "check_rate_limit",
+        lambda *args, **kwargs: type("Limit", (), {"allowed": True, "retry_after": 0})(),
+    )
+    monkeypatch.setattr(
+        weekflow_view,
+        "interpret_weekflow_intake",
+        lambda **kwargs: captured.update(kwargs) or {
+            "summary": "Review", "assignments": [], "commitments": [],
+            "availability": [], "questions": [], "warnings": [],
+            "requires_review": True,
+        },
+    )
+    with client.session_transaction() as flask_session:
+        flask_session["user_email"] = "parent@example.com"
+
+    accepted = client.post(
+        "/labs/weekflow/intake/interpret",
+        data={"image": (BytesIO(b"jpeg-data"), "note.jpg", "image/jpeg")},
+        content_type="multipart/form-data",
+    )
+    rejected = client.post(
+        "/labs/weekflow/intake/interpret",
+        data={"image": (BytesIO(b"gif-data"), "note.gif", "image/gif")},
+        content_type="multipart/form-data",
+    )
+
+    assert accepted.status_code == 200
+    assert captured["image_data_url"].startswith("data:image/jpeg;base64,")
+    assert rejected.status_code == 422
+    assert "JPEG, PNG, or WebP" in rejected.get_json()["error"]
 
 
 def test_schedule_dashboard_requires_sign_in_and_renders_the_calm_daily_shell():

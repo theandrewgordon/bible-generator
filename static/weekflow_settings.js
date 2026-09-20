@@ -7,6 +7,7 @@
   const errorMessage = document.getElementById("settingsErrorMessage");
   const form = document.getElementById("settingsForm");
   const settingsHeading = app.querySelector(".wfs-heading");
+  const restoreCard = app.querySelector(".wfs-restore");
   const status = document.getElementById("settingsStatus");
   const colors = ["#6657d9", "#d45e86", "#168a80", "#3d7fba", "#d87843"];
   const commonTimezones = [
@@ -118,13 +119,15 @@
       state = await jsonRequest(config.stateUrl);
       if (state.revision === 0) {
         loading.hidden = true;
+        onboarding.append(restoreCard);
         onboarding.hidden = false;
         form.hidden = true;
         settingsHeading.hidden = true;
-        app.hidden = false;
+        app.hidden = true;
         return;
       }
       aggregate = await jsonRequest(config.aggregateUrl);
+      app.insertBefore(restoreCard, errorBox);
       form.hidden = false;
       settingsHeading.hidden = false;
       render(); loading.hidden = true; app.hidden = false;
