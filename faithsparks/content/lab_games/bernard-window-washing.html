@@ -3,6 +3,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 </head><body style="background:#000">
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+#game-root{position:fixed;inset:0;overflow:hidden}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+    outline:3px solid #2d78d4 !important;
+    outline-offset:3px;
+}
+</style>
+<div id="game-root" aria-hidden="true"></div>
+
+<script src="/labs/games/assets/odyssey-core.js"></script>
 <script>
 // LittleJS Engine - MIT License - Copyright 2021 Frank Force
 // https://github.com/KilledByAPixel/LittleJS
@@ -401,6 +412,7 @@ async function engineInit(gameInit, gameUpdate, gameUpdatePost, gameRender, game
 
     // setup html
     const styleRoot =
+        'position:fixed;inset:0;' +   // isolate game input from HTML overlays
         'margin:0;' +                 // fill the window
         'overflow:hidden;' +          // no scroll bars
         'background:#000;' +          // set background color
@@ -5860,6 +5872,18 @@ function inputInit()
 {
     if (headlessMode) return;
 
+    function isTextInput(element)
+    {
+        if (!element) return false;
+        const tag = element.tagName;
+        return !!element.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(tag);
+    }
+
+    function isNativeUIEvent(e)
+    {
+        return isTextInput(e && e.target) || isTextInput(document.activeElement);
+    }
+
     // add event listeners
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
@@ -5877,6 +5901,10 @@ function inputInit()
 
     function onKeyDown(e)
     {
+        // Native HTML controls own their keyboard events completely.
+        if (isNativeUIEvent(e))
+            return;
+
         if (!e.repeat)
         {
             inputData[0][e.code] = 3;
@@ -5884,56 +5912,47 @@ function inputInit()
                 inputData[0][remapKey(e.code)] = 3;
         }
 
-        // try to prevent default browser handling of input
         if (!inputPreventDefault || !e.cancelable || !document.hasFocus()) return;
-
-        // don't break browser shortcuts
         if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-        // don't interfere with user typing into UI fields
-        if (isTextInput(e.target) || isTextInput(document.activeElement)) return;
-
-        // fix browser setting "Search for text when you start typing"
         const printable = typeof e.key === 'string' && e.key.length === 1;
-
-        // prevent arrow key and other default keys from messing with stuff
-        const preventDefaultKeys = 
+        const preventDefaultKeys =
         [
-            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', // scrolling
-            'Space',        // page down scroll
-            'Tab',          // focus navigation
-            'Backspace',    // browser back
+            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+            'Space',
+            'Tab',
+            'Backspace',
         ];
+
         if (preventDefaultKeys.includes(e.code) || printable)
             e.preventDefault();
-                    
-        function isTextInput(element)
-        {
-            const tag = element?.tagName;
-            const editable = element?.isContentEditable;
-            return editable || ['INPUT','TEXTAREA','SELECT'].includes(tag);
-        }
     }
+
     function onKeyUp(e)
     {
+        if (isNativeUIEvent(e))
+            return;
+
         inputData[0][e.code] = (inputData[0][e.code]&2) | 4;
         if (inputWASDEmulateDirection)
             inputData[0][remapKey(e.code)] = 4;
     }
+
     function remapKey(k)
     {
-        // handle remapping wasd keys to directions
         return inputWASDEmulateDirection ?
             k === 'KeyW' ? 'ArrowUp' :
             k === 'KeyS' ? 'ArrowDown' :
             k === 'KeyA' ? 'ArrowLeft' :
             k === 'KeyD' ? 'ArrowRight' : k : k;
     }
+
     function onMouseDown(e)
     {
+        if (isNativeUIEvent(e))
+            return;
         if (isTouchDevice && touchInputEnable) return;
 
-        // fix stalled audio requiring user interaction
         if (soundEnable && !headlessMode && audioContext && !audioIsRunning())
             audioContext.resume();
 
@@ -5946,81 +5965,92 @@ function inputInit()
         if (inputPreventDefault && e.cancelable && document.hasFocus())
             e.preventDefault();
     }
+
     function onMouseUp(e)
     {
+        if (isNativeUIEvent(e))
+            return;
         if (isTouchDevice && touchInputEnable) return;
 
         inputData[0][e.button] = (inputData[0][e.button]&2) | 4;
     }
+
     function onMouseMove(e)
     {
+        if (isNativeUIEvent(e))
+            return;
+
         mouseInWindow = true;
         const mousePosScreenLast = mousePosScreen;
         mousePosScreen = mouseEventToScreen(vec2(e.x,e.y));
 
-        // when pointer is locked use movementX/Y for delta
         const movement = pointerLockIsActive() ?
             vec2(e.movementX, e.movementY) :
             mousePosScreen.subtract(mousePosScreenLast);
         mouseDeltaScreen = mouseDeltaScreen.add(movement);
     }
-    function onMouseLeave() { mouseInWindow = false; } // mouse moved off window
+
+    function onMouseLeave() { mouseInWindow = false; }
+
     function onMouseWheel(e)
     {
-        // accumulate so multiple wheel events in one frame are not lost
+        if (isNativeUIEvent(e))
+            return;
+
         if (!e.ctrlKey)
             mouseWheel += sign(e.deltaY);
         if (inputPreventDefault && e.cancelable && document.hasFocus())
-            e.preventDefault(); // prevent page scrolling
+            e.preventDefault();
     }
-    function onContextMenu(e) { e.preventDefault(); } // prevent right click menu
+
+    function onContextMenu(e)
+    {
+        if (isNativeUIEvent(e))
+            return;
+        e.preventDefault();
+    }
+
     function onBlur()
     {
         inputClear();
-        // release any held virtual gamepad controls so they don't stick
         touchGamepadPointerRole.clear();
         touchGamepadButtons.length = 0;
         touchGamepadSticks.length = 0;
         touchGamepadStickPointerId.length = 0;
     }
 
-    // enable touch input mouse passthrough
     function touchInputInit()
     {
-        // add non passive touch event listeners
         document.addEventListener('touchstart', (e)=> handleTouch(e), { passive: false });
         document.addEventListener('touchmove',  (e)=> handleTouch(e), { passive: false });
         document.addEventListener('touchend',   (e)=> handleTouch(e), { passive: false });
 
-        // handle all touch events the same way
         let wasTouching;
         function handleTouch(e)
         {
-            if (!touchInputEnable) return;
+            if (!touchInputEnable)
+                return;
 
-            // fix stalled audio requiring user interaction
+            // Absolutely do not preventDefault or convert to game input when
+            // a native form/contenteditable interaction is in progress.
+            if (isNativeUIEvent(e))
+                return true;
+
             if (soundEnable && !headlessMode && audioContext && !audioIsRunning())
                 audioContext.resume();
 
-            // when the touch gamepad is enabled it owns touch input: suppress the
-            // touch->mouse passthrough entirely unless touchGamepadPassthrough is set
-            // (its own zones drive gameplay via pointer events)
             if (!touchGamepadEnable || touchGamepadPassthrough)
             {
-                // touches that landed on a virtual gamepad zone are owned by the gamepad
-                // (handled by its own pointer listeners) and must not drive the game mouse
                 const isGamepadTouch = (t)=>
                     touchGamepadSideZones.includes(t.target) || t.target === touchGamepadZoneC;
                 const gameTouches = [];
                 for (const t of e.touches)
                     if (!isGamepadTouch(t)) gameTouches.push(t);
 
-                // check if touching and pass to mouse events
                 const touching = gameTouches.length;
-                const button = 0; // all touches are left mouse button
+                const button = 0;
                 if (touching)
                 {
-                    // set event pos and pass it along
                     const pos = vec2(gameTouches[0].clientX, gameTouches[0].clientY);
                     const mousePosScreenLast = mousePosScreen;
                     mousePosScreen = mouseEventToScreen(pos);
@@ -6032,21 +6062,16 @@ function inputInit()
                 else if (wasTouching)
                     inputData[0][button] = inputData[0][button] & 2 | 4;
 
-                // set was touching
                 wasTouching = touching;
             }
 
-            // prevent default handling like copy, magnifier lens, and scrolling
             if (inputPreventDefault && e.cancelable && document.hasFocus())
                 e.preventDefault();
 
-            // must return true so the document will get focus
             return true;
         }
-
     }
 
-    // convert a mouse or touch event position to screen space
     function mouseEventToScreen(mousePos)
     {
         const rect = mainCanvas.getBoundingClientRect();
@@ -16577,6 +16602,8 @@ let bestRoundStars = 0;
 let gamesPlayed = 0;
 let completions = 0;
 let lastPlayedAt = 0;
+let highestLevel = 1;
+let currentRoundIsResume = false;
 let soundEffectsEnabled = true;
 let musicEnabled = true;
 
@@ -17325,7 +17352,7 @@ function awardLevelStars()
     lastLevelBonusText = bonuses.length ? bonuses.join('  •  ') : 'COMPLETE';
 
     clearResumeState();
-    saveProgress();
+    saveProgress(true);
     showResultsScreen();
 }
 
@@ -17343,6 +17370,8 @@ function showResultsScreen()
         'position:fixed;inset:0;z-index:99996;background:rgba(16,22,28,.72);display:flex;' +
         'align-items:center;justify-content:center;padding:18px;box-sizing:border-box;' +
         'font-family:system-ui,-apple-system,sans-serif;';
+
+        stopGameInputBehindOverlay(overlay);
 
     const card = document.createElement('div');
     card.style.cssText =
@@ -17463,6 +17492,71 @@ function getSaveKey(name)
 
 
 
+
+function getOdysseyApi()
+{
+    return window.Odyssey || null;
+}
+
+function getOdysseyPlayers()
+{
+    const api = getOdysseyApi();
+    if (!api)
+        return null;
+
+    try
+    {
+        if (typeof api.getPlayers == 'function')
+        {
+            const result = api.getPlayers();
+            if (Array.isArray(result))
+                return result;
+        }
+
+        if (Array.isArray(api.players))
+            return api.players;
+    }
+    catch(e) {}
+
+    return null;
+}
+
+function saveProgressToOdyssey(data)
+{
+    const api = getOdysseyApi();
+    if (!api)
+        return;
+
+    try
+    {
+        if (typeof api.saveGameProgress == 'function')
+            api.saveGameProgress(GAME_ID, playerId, data);
+        else if (typeof api.setGameProgress == 'function')
+            api.setGameProgress(GAME_ID, playerId, data);
+    }
+    catch(e) {}
+}
+
+function loadProgressFromOdyssey(id)
+{
+    const api = getOdysseyApi();
+    if (!api)
+        return null;
+
+    try
+    {
+        if (typeof api.getGameProgress == 'function')
+        {
+            const result = api.getGameProgress(GAME_ID, id);
+            if (result && typeof result == 'object' && typeof result.then != 'function')
+                return result;
+        }
+    }
+    catch(e) {}
+
+    return null;
+}
+
 function makeStablePlayerId()
 {
     if (window.crypto && crypto.randomUUID)
@@ -17473,6 +17567,19 @@ function makeStablePlayerId()
 
 function getSharedPlayers()
 {
+    const odysseyPlayers = getOdysseyPlayers();
+    if (Array.isArray(odysseyPlayers) && odysseyPlayers.length)
+    {
+        return odysseyPlayers
+            .map(p => ({
+                id: String(p.id || p.playerId || ''),
+                name: String(p.name || p.displayName || '').trim(),
+                createdAt: p.createdAt || 0
+            }))
+            .filter(p => p.id && p.name)
+            .slice(0,8);
+    }
+
     let players = [];
     try
     {
@@ -17577,10 +17684,28 @@ function getResumeKey(id)
 
 function loadGameSettings()
 {
+    let data = null;
+    const api = getOdysseyApi();
+
     try
     {
-        const raw = localStorage.getItem(GAME_SETTINGS_KEY);
-        const data = raw ? JSON.parse(raw) : null;
+        if (api && typeof api.getSettings == 'function')
+        {
+            const shared = api.getSettings();
+            if (shared && typeof shared == 'object' && typeof shared.then != 'function')
+                data = shared;
+        }
+    }
+    catch(e) {}
+
+    try
+    {
+        if (!data)
+        {
+            const raw = localStorage.getItem(GAME_SETTINGS_KEY);
+            data = raw ? JSON.parse(raw) : null;
+        }
+
         if (data)
         {
             soundEffectsEnabled = data.soundEffects !== false;
@@ -17592,12 +17717,24 @@ function loadGameSettings()
 
 function saveGameSettings()
 {
+    const data = {
+        soundEffects: soundEffectsEnabled,
+        music: musicEnabled
+    };
+
     try
     {
-        localStorage.setItem(GAME_SETTINGS_KEY, JSON.stringify({
-            soundEffects: soundEffectsEnabled,
-            music: musicEnabled
-        }));
+        localStorage.setItem(GAME_SETTINGS_KEY, JSON.stringify(data));
+    }
+    catch(e) {}
+
+    const api = getOdysseyApi();
+    try
+    {
+        if (api && typeof api.setSettings == 'function')
+            api.setSettings(data);
+        else if (api && typeof api.saveSettings == 'function')
+            api.saveSettings(data);
     }
     catch(e) {}
 }
@@ -17620,18 +17757,17 @@ function getProfileSummary(profile)
         ? (findOrAdoptPlayer(profile) || {}).id
         : profile.id;
 
-    let data = null;
+    let data = id ? loadProgressFromOdyssey(id) : null;
 
     try
     {
-        if (id)
+        if (!data && id)
         {
             const raw = localStorage.getItem(getProgressKey(id));
             if (raw)
                 data = JSON.parse(raw);
         }
 
-        // Adopt old name-keyed progress if the new progress store is empty.
         if (!data)
         {
             const legacy = localStorage.getItem(getSaveKey(name));
@@ -17644,47 +17780,86 @@ function getProfileSummary(profile)
     return {
         id: id || '',
         name,
-        level: data ? max(1, data.level || 1) : 1,
-        totalStars: data ? max(0, data.totalStars || 0) : 0,
-        bestRoundStars: data ? max(0, data.bestRoundStars || 0) : 0,
+        level: data ? max(1, data.highestLevel || data.level || 1) : 1,
+        totalStars: data ? max(0, data.stars || data.totalStars || 0) : 0,
+        bestRoundStars: data ? max(0, data.bestScore || data.bestRoundStars || 0) : 0,
         gamesPlayed: data ? max(0, data.gamesPlayed || 0) : 0,
         completions: data ? max(0, data.completions || 0) : 0,
-        lastPlayedAt: data ? (data.lastPlayedAt || 0) : 0
+        lastPlayedAt: data ? (data.lastPlayed || data.lastPlayedAt || 0) : 0
     };
 }
 
-function saveProgress()
+function showSavedToast()
+{
+    let toast = document.getElementById('odyssey-saved-toast');
+    if (!toast)
+    {
+        toast = document.createElement('div');
+        toast.id = 'odyssey-saved-toast';
+        toast.setAttribute('role','status');
+        toast.setAttribute('aria-live','polite');
+        toast.style.cssText =
+            'position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);' +
+            'z-index:100005;background:rgba(30,40,34,.92);color:white;padding:8px 14px;border-radius:999px;' +
+            'font:800 14px/1 system-ui,-apple-system,sans-serif;pointer-events:none;opacity:0;transition:opacity .18s;';
+        document.body.appendChild(toast);
+    }
+
+    toast.textContent = 'Saved';
+    toast.style.opacity = '1';
+
+    clearTimeout(showSavedToast.timer);
+    showSavedToast.timer = setTimeout(()=>{ toast.style.opacity = '0'; }, 1100);
+}
+
+function saveProgress(showToast=false)
 {
     if (!profileReady || !playerName || !playerId)
         return;
 
     lastPlayedAt = Date.now();
+    highestLevel = max(highestLevel || 1, level);
 
     const data = {
         gameId: GAME_ID,
         playerId,
         playerName,
-        level,
+
+        // Common Odyssey progress/scoring contract
+        score: max(0, lastLevelStars || 0),
+        bestScore: max(0, bestRoundStars || 0),
+        level: max(1, level),
+        highestLevel: max(1, highestLevel),
+        stars: max(0, totalStars),
+        gamesPlayed: max(0, gamesPlayed),
+        completions: max(0, completions),
+        lastPlayed: lastPlayedAt,
+
+        // Backward-compatible fields
         highestCleanerShown,
         totalStars,
         bestRoundStars,
-        gamesPlayed,
-        completions,
-        lastPlayedAt
+        lastPlayedAt,
+
+        meta: {
+            highestCleanerShown,
+            cleanersUnlocked: clamp(1 + Math.floor((highestLevel-1)/2), 1, CLEANERS.length)
+        }
     };
 
     try
     {
-        // New stable-ID game progress.
         localStorage.setItem(getProgressKey(playerId), JSON.stringify(data));
-
-        // Legacy save remains updated so existing builds do not lose progress.
         localStorage.setItem(getSaveKey(playerName), JSON.stringify(data));
         localStorage.setItem('windowWashLastPlayer', playerName);
-
         rememberProfile(playerName);
     }
     catch(e) {}
+
+    saveProgressToOdyssey(data);
+
+    if (showToast)
+        showSavedToast();
 }
 
 function saveResumeState()
@@ -17779,14 +17954,18 @@ function loadProgress(profileOrName)
     playerId = adopted.id;
     playerName = adopted.name.trim().slice(0,20);
 
-    let data = null;
+    let data = loadProgressFromOdyssey(playerId);
 
     try
     {
-        const raw = localStorage.getItem(getProgressKey(playerId));
-        if (raw)
-            data = JSON.parse(raw);
+        if (!data)
+        {
+            const raw = localStorage.getItem(getProgressKey(playerId));
+            if (raw)
+                data = JSON.parse(raw);
+        }
 
+        // Adopt old name-keyed saves instead of replacing them.
         if (!data)
         {
             const legacy = localStorage.getItem(getSaveKey(playerName));
@@ -17799,16 +17978,18 @@ function loadProgress(profileOrName)
     if (data)
     {
         level = max(1, data.level || 1);
-        highestCleanerShown = max(0, data.highestCleanerShown || 0);
-        totalStars = max(0, data.totalStars || 0);
-        bestRoundStars = max(0, data.bestRoundStars || 0);
+        highestLevel = max(level, data.highestLevel || data.level || 1);
+        highestCleanerShown = max(0, data.highestCleanerShown || (data.meta && data.meta.highestCleanerShown) || 0);
+        totalStars = max(0, data.totalStars || data.stars || 0);
+        bestRoundStars = max(0, data.bestRoundStars || data.bestScore || 0);
         gamesPlayed = max(0, data.gamesPlayed || 0);
         completions = max(0, data.completions || 0);
-        lastPlayedAt = data.lastPlayedAt || 0;
+        lastPlayedAt = data.lastPlayedAt || data.lastPlayed || 0;
     }
     else
     {
         level = 1;
+        highestLevel = 1;
         highestCleanerShown = 0;
         totalStars = 0;
         bestRoundStars = 0;
@@ -17818,12 +17999,14 @@ function loadProgress(profileOrName)
     }
 
     profileReady = true;
-    gamesPlayed++;
     setupLevel();
-    restoreResumeState();
+
+    currentRoundIsResume = restoreResumeState();
+
+    // Loading/resuming a save does NOT itself count as another game played.
     saveProgress();
     titleIntroTimer.set(4);
-    showGameIntro();
+    showGameIntro(currentRoundIsResume);
     return true;
 }
 
@@ -17848,7 +18031,7 @@ function resetTransientInput()
 function returnToPlayerSelect()
 {
     saveResumeState();
-    saveProgress();
+    saveProgress(true);
     resetTransientInput();
 
     profileReady = false;
@@ -17866,10 +18049,9 @@ function returnToPlayerSelect()
 function requestGameLibrary()
 {
     saveResumeState();
-    saveProgress();
+    saveProgress(true);
     resetTransientInput();
 
-    // Future standalone/app hook. A Tessa's Odyssey host can listen for this.
     try
     {
         window.parent.postMessage({
@@ -17879,9 +18061,17 @@ function requestGameLibrary()
     }
     catch(e) {}
 
-    // Standalone fallback: return to this game's player menu.
+    // Hosted FaithSparks Labs / future web build.
+    if (location.protocol == 'http:' || location.protocol == 'https:')
+    {
+        location.assign('/labs/games');
+        return;
+    }
+
+    // Standalone file preview fallback.
     returnToPlayerSelect();
 }
+
 
 function restartCurrentRound()
 {
@@ -17912,6 +18102,8 @@ function showGameMenu()
         'position:fixed;inset:0;z-index:99998;background:rgba(16,22,28,.78);' +
         'display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;' +
         'font-family:system-ui,-apple-system,sans-serif;';
+
+        stopGameInputBehindOverlay(overlay);
 
     const card = document.createElement('div');
     card.style.cssText =
@@ -17983,7 +18175,7 @@ function ensureMainMenuButton()
     button.setAttribute('aria-label', 'Open game menu');
     button.title = 'Menu';
     button.style.cssText =
-        'position:fixed;top:14px;right:14px;z-index:99990;width:54px;height:50px;' +
+        'position:fixed;top:calc(14px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));z-index:99990;width:54px;height:50px;' +
         'border:3px solid #5c3d22;border-radius:12px;background:#f6e5c6;cursor:pointer;' +
         'display:none;align-items:center;justify-content:center;flex-direction:column;gap:5px;' +
         'box-shadow:0 4px 12px rgba(0,0,0,.25);padding:0;touch-action:manipulation;';
@@ -18014,7 +18206,7 @@ function hideMainMenuButton()
         mainMenuButton.style.display = 'none';
 }
 
-function showGameIntro()
+function showGameIntro(resuming=false)
 {
     if (introOverlay || !profileReady)
         return;
@@ -18025,7 +18217,9 @@ function showGameIntro()
     overlay.style.cssText =
         'position:fixed;inset:0;z-index:99997;background:rgba(16,22,28,.76);display:flex;' +
         'align-items:center;justify-content:center;padding:18px;box-sizing:border-box;' +
-        'font-family:system-ui,-apple-system,sans-serif;';
+        'font-family:system-ui,-apple-system,sans-serif;touch-action:auto;';
+
+        stopGameInputBehindOverlay(overlay);
 
     const card = document.createElement('div');
     card.style.cssText =
@@ -18034,19 +18228,26 @@ function showGameIntro()
 
     card.innerHTML =
         '<div style="font-size:28px;font-weight:950;margin-bottom:8px">WINDOW WASH</div>' +
-        '<div style="font-size:17px;font-weight:800;margin-bottom:10px">Help Bernard clean every window.</div>' +
+        `<div style="font-size:17px;font-weight:800;margin-bottom:10px">${resuming ? 'Your unfinished window is ready.' : 'Help Bernard clean every window.'}</div>` +
         '<div style="font-size:15px;line-height:1.45;margin-bottom:16px">' +
         'Spray each mess with its matching cleaner, then wipe it away with the squeegee. ' +
         'Work quickly and accurately to earn bonus stars.</div>';
 
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = 'START / CONTINUE';
+    b.textContent = resuming ? 'CONTINUE' : 'START';
     b.style.cssText =
         'width:100%;min-height:50px;border:0;border-radius:11px;background:#3f7f50;color:white;' +
         'font-size:18px;font-weight:900;cursor:pointer;touch-action:manipulation;';
     b.addEventListener('click', () =>
     {
+        if (!resuming)
+        {
+            gamesPlayed++;
+            saveProgress(true);
+        }
+
+        currentRoundIsResume = false;
         closeOverlay(overlay);
         introOverlay = null;
         showMainMenuButton();
@@ -18056,6 +18257,55 @@ function showGameIntro()
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     introOverlay = overlay;
+}
+
+
+function deletePlayerProfile(profile)
+{
+    if (!profile || !profile.id)
+        return;
+
+    const api = getOdysseyApi();
+    try
+    {
+        if (api && typeof api.deletePlayer == 'function')
+            api.deletePlayer(profile.id);
+    }
+    catch(e) {}
+
+    const remaining = getSharedPlayers().filter(p => p.id != profile.id);
+    saveSharedPlayers(remaining);
+
+    try
+    {
+        localStorage.removeItem(getProgressKey(profile.id));
+        localStorage.removeItem(getResumeKey(profile.id));
+        localStorage.removeItem(getSaveKey(profile.name));
+    }
+    catch(e) {}
+}
+
+function protectNativeTextEntry(element)
+{
+    // Stop events from bubbling to document-level LittleJS handlers.
+    // Never preventDefault: the browser must retain normal caret/keyboard behavior.
+    const events = [
+        'keydown','keyup',
+        'pointerdown','pointerup',
+        'mousedown','mouseup',
+        'touchstart','touchend',
+        'click'
+    ];
+
+    for (const type of events)
+        element.addEventListener(type, e => e.stopPropagation());
+}
+
+function stopGameInputBehindOverlay(overlay)
+{
+    const pointerEvents = ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click'];
+    for (const type of pointerEvents)
+        overlay.addEventListener(type, e => e.stopPropagation());
 }
 
 function showProfilePrompt()
@@ -18068,12 +18318,15 @@ function showProfilePrompt()
 
     const overlay = document.createElement('div');
     overlay.style.cssText =
-        'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;' +
-        'background:rgba(16,22,28,.82);font-family:system-ui,-apple-system,sans-serif;padding:16px;box-sizing:border-box;';
+        'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;' +
+        'background:rgba(16,22,28,.84);font-family:system-ui,-apple-system,sans-serif;padding:16px;' +
+        'box-sizing:border-box;touch-action:auto;-webkit-user-select:text;user-select:text;';
+
+    stopGameInputBehindOverlay(overlay);
 
     const card = document.createElement('div');
     card.style.cssText =
-        'width:min(650px,94vw);max-height:92vh;overflow:auto;background:#fff7ea;border:4px solid #8a5a2b;' +
+        'width:min(680px,94vw);max-height:92vh;overflow:auto;background:#fff7ea;border:4px solid #8a5a2b;' +
         'border-radius:20px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.38);text-align:center;color:#222;';
 
     const title = document.createElement('div');
@@ -18081,14 +18334,19 @@ function showProfilePrompt()
     title.style.cssText = 'font-size:32px;font-weight:950;margin-bottom:4px;';
 
     const subtitle = document.createElement('div');
-    subtitle.textContent = 'Choose a player';
-    subtitle.style.cssText = 'font-size:18px;font-weight:750;margin-bottom:16px;color:#5d4634;';
+    subtitle.textContent = 'Choose a Player';
+    subtitle.style.cssText = 'font-size:19px;font-weight:800;margin-bottom:16px;color:#5d4634;';
 
     const profilesWrap = document.createElement('div');
     profilesWrap.style.cssText =
-        'display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px;';
+        'display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin-bottom:16px;';
 
-    const profiles = getProfileList().map(getProfileSummary);
+    const refreshPrompt = () =>
+    {
+        overlay.remove();
+        profileOverlay = null;
+        showProfilePrompt();
+    };
 
     const closeAndLoad = profile =>
     {
@@ -18099,31 +18357,57 @@ function showProfilePrompt()
         }
     };
 
+    const profiles = getProfileList().map(getProfileSummary);
+
     if (profiles.length)
     {
         for (const profile of profiles)
         {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.style.cssText =
-                'min-height:94px;border:3px solid #b7895a;border-radius:14px;background:#f3dfbd;' +
-                'padding:10px;cursor:pointer;color:#2c241d;touch-action:manipulation;';
+            const cardButton = document.createElement('div');
+            cardButton.style.cssText =
+                'border:3px solid #b7895a;border-radius:14px;background:#f3dfbd;padding:10px;color:#2c241d;' +
+                'box-shadow:inset 0 2px rgba(255,255,255,.65);';
 
             const name = document.createElement('div');
             name.textContent = profile.name;
             name.style.cssText =
-                'font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:7px;';
+                'font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;';
 
             const progress = document.createElement('div');
             progress.textContent = `LEVEL ${profile.level}  •  ★ ${profile.totalStars}`;
             progress.style.cssText =
                 'font-size:13px;font-weight:800;color:#3f6f48;background:#e9f4df;border-radius:999px;padding:5px 8px;' +
-                'display:inline-block;';
+                'display:inline-block;margin-bottom:9px;';
 
-            button.appendChild(name);
-            button.appendChild(progress);
-            button.addEventListener('click', ()=>closeAndLoad(profile));
-            profilesWrap.appendChild(button);
+            const continueButton = document.createElement('button');
+            continueButton.type = 'button';
+            continueButton.textContent = 'Continue';
+            continueButton.style.cssText =
+                'width:100%;min-height:46px;border:0;border-radius:10px;background:#3f7f50;color:white;' +
+                'font-size:16px;font-weight:900;cursor:pointer;touch-action:manipulation;margin-bottom:6px;';
+            continueButton.addEventListener('click', ()=>closeAndLoad(profile));
+
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.textContent = 'Delete';
+            deleteButton.setAttribute('aria-label', `Delete ${profile.name}`);
+            deleteButton.style.cssText =
+                'width:100%;min-height:44px;border:2px solid #a76b5e;border-radius:10px;background:#f8e7df;' +
+                'color:#7f3027;font-size:14px;font-weight:850;cursor:pointer;touch-action:manipulation;';
+            deleteButton.addEventListener('click', () =>
+            {
+                if (confirm(`Delete ${profile.name}? Their Window Wash progress will be removed.`))
+                {
+                    deletePlayerProfile(profile);
+                    refreshPrompt();
+                }
+            });
+
+            cardButton.appendChild(name);
+            cardButton.appendChild(progress);
+            cardButton.appendChild(continueButton);
+            cardButton.appendChild(deleteButton);
+            profilesWrap.appendChild(cardButton);
         }
     }
     else
@@ -18131,61 +18415,78 @@ function showProfilePrompt()
         const empty = document.createElement('div');
         empty.textContent = 'No saved players yet.';
         empty.style.cssText =
-            'grid-column:1/-1;padding:12px;border:2px dashed #c8a47b;border-radius:12px;color:#765c42;';
+            'grid-column:1/-1;padding:13px;border:2px dashed #c8a47b;border-radius:12px;color:#765c42;';
         profilesWrap.appendChild(empty);
     }
 
-    const divider = document.createElement('div');
-    divider.textContent = profiles.length >= 8 ? '8 PLAYER SLOTS FILLED' : 'CREATE NEW PLAYER';
-    divider.style.cssText =
-        'font-size:13px;font-weight:900;letter-spacing:1px;color:#765c42;margin:6px 0 9px;';
+    const newPlayerButton = document.createElement('button');
+    newPlayerButton.type = 'button';
+    newPlayerButton.textContent = profiles.length >= 8 ? '8 PLAYER SLOTS FILLED' : '+ New Player';
+    newPlayerButton.disabled = profiles.length >= 8;
+    newPlayerButton.style.cssText =
+        'width:100%;min-height:48px;border:0;border-radius:11px;background:#3f7f50;color:white;' +
+        'font-size:17px;font-weight:900;cursor:pointer;touch-action:manipulation;margin-bottom:10px;';
+
+    if (profiles.length >= 8)
+        newPlayerButton.style.opacity = '.48';
+
+    const createArea = document.createElement('div');
+    createArea.style.cssText = 'display:none;padding-top:4px;';
+
+    const label = document.createElement('label');
+    label.textContent = 'Player name';
+    label.style.cssText =
+        'display:block;text-align:left;font-size:14px;font-weight:850;color:#5d4634;margin:0 0 5px 2px;';
 
     const input = document.createElement('input');
     input.type = 'text';
     input.maxLength = 20;
-    input.placeholder = 'New player name';
+    input.inputMode = 'text';
+    input.setAttribute('inputmode','text');
+    input.enterKeyHint = 'done';
+    input.setAttribute('enterkeyhint','done');
     input.autocomplete = 'off';
     input.autocapitalize = 'words';
-    input.enterKeyHint = 'done';
     input.spellcheck = false;
-    input.disabled = profiles.length >= 8;
+    input.placeholder = 'New player name';
     input.style.cssText =
-        'width:100%;box-sizing:border-box;font-size:20px;padding:12px 14px;border:2px solid #b7895a;' +
-        'border-radius:10px;outline:none;margin-bottom:10px;background:white;color:#222;';
+        'width:100%;box-sizing:border-box;font-size:20px;line-height:1.25;padding:13px 14px;border:2px solid #b7895a;' +
+        'border-radius:10px;outline:none;margin-bottom:8px;background:white;color:#222;touch-action:auto;' +
+        '-webkit-user-select:text;user-select:text;';
+
+    label.htmlFor = 'window-wash-player-name';
+    input.id = 'window-wash-player-name';
+    protectNativeTextEntry(input);
 
     const error = document.createElement('div');
+    error.setAttribute('role','alert');
     error.style.cssText = 'min-height:19px;font-size:13px;color:#a13d32;margin-bottom:8px;';
 
     const createButton = document.createElement('button');
     createButton.type = 'button';
-    createButton.textContent = 'CREATE & PLAY';
-    createButton.disabled = profiles.length >= 8;
+    createButton.textContent = 'Continue';
     createButton.style.cssText =
         'width:100%;min-height:48px;font-size:17px;font-weight:900;padding:11px 16px;border:0;border-radius:10px;' +
         'background:#3fae5a;color:white;cursor:pointer;touch-action:manipulation;';
 
-    if (profiles.length >= 8)
-        createButton.style.opacity = '.45';
-
     const create = () =>
     {
-        const name = input.value.trim().slice(0,20);
+        const typed = input.value.trim().slice(0,20);
 
-        if (!name)
+        if (!typed)
         {
             error.textContent = 'Type a name first.';
-            input.focus();
             return;
         }
 
-        const existing = getProfileList().find(p => p.name.toLowerCase() == name.toLowerCase());
+        const existing = getProfileList().find(p => p.name.toLowerCase() == typed.toLowerCase());
         if (existing)
         {
             closeAndLoad(existing);
             return;
         }
 
-        const created = findOrAdoptPlayer(name);
+        const created = findOrAdoptPlayer(typed);
         if (!created)
         {
             error.textContent = 'All 8 player slots are already in use.';
@@ -18195,7 +18496,16 @@ function showProfilePrompt()
         closeAndLoad(created);
     };
 
+    newPlayerButton.addEventListener('click', () =>
+    {
+        createArea.style.display = 'block';
+        newPlayerButton.style.display = 'none';
+        // Do not depend on programmatic focus to open iPad keyboard.
+        // The user taps the real input to focus it.
+    });
+
     createButton.addEventListener('click', create);
+
     input.addEventListener('keydown', e =>
     {
         if (e.key == 'Enter')
@@ -18203,23 +18513,30 @@ function showProfilePrompt()
             e.preventDefault();
             create();
         }
+        else if (e.key == 'Escape')
+        {
+            createArea.style.display = 'none';
+            newPlayerButton.style.display = '';
+            input.blur();
+        }
     });
+
+    createArea.appendChild(label);
+    createArea.appendChild(input);
+    createArea.appendChild(error);
+    createArea.appendChild(createButton);
 
     card.appendChild(title);
     card.appendChild(subtitle);
     card.appendChild(profilesWrap);
-    card.appendChild(divider);
-    card.appendChild(input);
-    card.appendChild(error);
-    card.appendChild(createButton);
+    card.appendChild(newPlayerButton);
+    card.appendChild(createArea);
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     profileOverlay = overlay;
-
-    if (!profiles.length)
-        setTimeout(()=>input.focus(), 50);
 }
+
 
 function setupRecordingTrial(cleanerId)
 {
@@ -19432,6 +19749,6 @@ function gameRenderPost()
 
 ///////////////////////////////////////////////////////////////////////////////
 // Startup LittleJS Engine
-engineInit(gameInit, gameUpdate, gameUpdatePost, gameRender, gameRenderPost);
+engineInit(gameInit, gameUpdate, gameUpdatePost, gameRender, gameRenderPost, [], document.getElementById('game-root'));
 
 </script></body>
