@@ -2997,6 +2997,7 @@ let gamepadDirectionEmulateStick = true;
  *  @default
  *  @memberof Settings */
 let inputWASDEmulateDirection = true;
+
 /** True if touch input is enabled for mobile devices
  *  - Touch events will be routed to mouse events
  *  @type {boolean}
@@ -5996,6 +5997,7 @@ function inputInit()
         function handleTouch(e)
         {
             if (!touchInputEnable) return;
+
             // fix stalled audio requiring user interaction
             if (soundEnable && !headlessMode && audioContext && !audioIsRunning())
                 audioContext.resume();
@@ -11996,6 +11998,7 @@ class UIText extends UIObject
         uiSystem.drawText(this.text, this.nativePos, textSize, this.textColor, this.textLineWidth, this.textLineColor, this.align, this.font, this.fontStyle, true, this.textShadow, this.shadowColor, this.shadowBlur, this.shadowOffset);
     }
 }
+
 ///////////////////////////////////////////////////////////////////////////////
 /** 
  * UITextInput - An editable text input field
