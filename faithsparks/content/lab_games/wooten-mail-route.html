@@ -1,6 +1,9 @@
 <!DOCTYPE html><head>
-<title>LittleJS AI Starter Project</title>
+<title>Wooten's Mail Route</title>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
+<script src="/labs/games/assets/odyssey-core.js"></script>
 
 <style>
 #profileUI{position:fixed;inset:0;z-index:9999;background:linear-gradient(#18252c,#0b1115);font-family:Arial,sans-serif;color:white;display:flex;align-items:center;justify-content:center}
@@ -12,18 +15,28 @@
 #profiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0}
 .profile{background:#344950;border:2px solid #6f858c;border-radius:12px;padding:15px}
 .profile strong{display:block;font-size:21px;margin-bottom:6px}.small{font-size:14px;color:#cbd5d8}
-#mainMenuBtn{position:fixed;z-index:9997;right:14px;top:58px;background:#e4bd66;color:#172126;border:0;border-radius:10px;padding:8px 13px;font:700 28px/1 Arial;cursor:pointer;touch-action:manipulation;display:none}
+#mainMenuBtn{position:fixed;z-index:9997;right:14px;top:14px;width:54px;height:50px;background:#152127e8;color:white;border:3px solid #ffffff80;border-radius:12px;padding:0;font:700 30px/1 Arial;cursor:pointer;touch-action:manipulation;display:none}
 #nameInput{font-size:24px;min-height:48px;touch-action:manipulation;-webkit-user-select:text;user-select:text}
-#saveBadge{position:fixed;z-index:9998;right:14px;top:14px;background:#152127dd;color:#fff;padding:8px 12px;border-radius:9px;font:14px Arial;display:none}
+#saveBadge{position:fixed;z-index:9998;right:14px;top:74px;background:#152127dd;color:#fff;padding:8px 12px;border-radius:9px;font:14px Arial;display:none}
 </style>
 <div id="profileUI"><div id="profileCard"></div></div>
 <div id="saveBadge">Saved</div>
 <button id="mainMenuBtn" type="button" onclick="returnToMainMenu()" aria-label="Main Menu" title="Main Menu">☰</button>
 <script>
+const GAME_ID='wooten-mail-route';
 const PROFILE_KEY='wootenMailProfilesV1';
 let activeProfile=null;
-function getProfiles(){try{return JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(e){return[]}}
-function putProfiles(p){localStorage.setItem(PROFILE_KEY,JSON.stringify(p))}
+function getProfiles(){
+ let list=[];
+ try{list=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]')}catch(e){list=[]}
+ if(!Array.isArray(list))list=[];
+ if(window.Odyssey){
+  Odyssey.adoptLegacyProfiles(GAME_ID,list,x=>({score:x.score||0,level:(x.level||0)+1,meta:{mistakes:x.mistakes||0}}));
+  list=Odyssey.mergeGlobalNames(list,name=>({name,level:0,score:0,mistakes:0}),GAME_ID);
+ }
+ return list.slice(0,window.Odyssey?Odyssey.MAX_PLAYERS:8);
+}
+function putProfiles(p){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(p))}catch(e){}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function returnToMainMenu(){
  saveActive();
@@ -40,24 +53,33 @@ function showProfiles(){
  '<button class="uiBtn secondary" onclick="newProfileScreen()">+ New Save File</button>';
 }
 function newProfileScreen(){
- document.getElementById('profileCard').innerHTML='<h1>New Player</h1><div class="sub">Type your name once. This device will remember your save file.</div><input id="nameInput" type="text" inputmode="text" enterkeyhint="done" autocomplete="name" autocapitalize="words" maxlength="24" placeholder="Your name"><br><button class="uiBtn" onclick="createProfile()">Start Route</button><button class="uiBtn secondary" onclick="showProfiles()">Back</button>';
+ if(window.Odyssey){
+  Odyssey.openNameDialog({title:'New Player',help:'Type your name using your computer or iPad keyboard.',saveLabel:'Start Route',
+   validate:name=>getProfiles().some(x=>x.name.toLowerCase()===name.toLowerCase())?'That player already exists.':'',
+   onSave:name=>{const p=getProfiles();if(p.length>=Odyssey.MAX_PLAYERS)return;Odyssey.ensurePlayer(name);p.push({name,level:0,score:0,mistakes:0});putProfiles(p);joinProfile(p.length-1);},
+   onCancel:showProfiles});
+  return;
+ }
+ document.getElementById('profileCard').innerHTML='<h1>New Player</h1><div class="sub">Type your name once. This device will remember your save file.</div><input id="nameInput" type="text" inputmode="text" enterkeyhint="done" autocomplete="name" autocapitalize="words" maxlength="20" placeholder="Your name"><br><button class="uiBtn" onclick="createProfile()">Start Route</button><button class="uiBtn secondary" onclick="showProfiles()">Back</button>';
  document.getElementById('nameInput')?.focus();
 }
 function createProfile(){
- const n=document.getElementById('nameInput').value.trim(); if(!n)return;
+ const n=(window.Odyssey?Odyssey.cleanPlayerName(document.getElementById('nameInput').value):document.getElementById('nameInput').value.trim()); if(!n)return;
  const p=getProfiles();p.push({name:n,level:0,score:0,mistakes:0});putProfiles(p);joinProfile(p.length-1);
 }
 function joinProfile(i){
  const p=getProfiles();activeProfile=i;
+ if(window.Odyssey&&p[i]){Odyssey.selectPlayer(p[i].name,GAME_ID);Odyssey.startSession(GAME_ID,p[i].name);}
  document.getElementById('profileUI').style.display='none';
  document.getElementById('mainMenuBtn').style.display='block';
  setTimeout(()=>{ if(typeof level!=='undefined'){level=p[i].level||0;score=p[i].score||0;mistakes=p[i].mistakes||0;isDelivery()?setupDelivery():setupSorting();}},100);
 }
-function deleteProfile(i){const p=getProfiles();p.splice(i,1);putProfiles(p);showProfiles()}
+function deleteProfile(i){const p=getProfiles();if(p[i]&&window.Odyssey)Odyssey.hidePlayerForGame(p[i].name,GAME_ID);p.splice(i,1);putProfiles(p);showProfiles()}
 function saveActive(){
  if(activeProfile===null||typeof level==='undefined')return;
  const p=getProfiles();if(!p[activeProfile])return;
  p[activeProfile].level=level;p[activeProfile].score=score;p[activeProfile].mistakes=mistakes;putProfiles(p);
+ if(window.Odyssey){Odyssey.syncProgress(GAME_ID,{score,level:level+1,meta:{mistakes}},p[activeProfile].name);Odyssey.showSaved();}
  const b=document.getElementById('saveBadge');b.style.display='block';clearTimeout(window._saveT);window._saveT=setTimeout(()=>b.style.display='none',700);
 }
 window.addEventListener('beforeunload',saveActive);
@@ -517,7 +539,7 @@ function gameUpdate()
             }
         }
         if(mailLeft>0)spawnSortingMail();
-        if(!mailLeft&&!mailItems.length&&!levelComplete){levelComplete=true;saveActive();message=level===4?'Sorting finished! Getting Wooten ready to deliver mail.':'Sorting complete! Loading the next sorting level.';}
+        if(!mailLeft&&!mailItems.length&&!levelComplete){levelComplete=true;saveActive();if(window.Odyssey&&activeProfile!==null){const p=getProfiles();if(p[activeProfile])Odyssey.recordResult(GAME_ID,{completed:true,score,level:level+1,meta:{mistakes,mode:'sorting'}},p[activeProfile].name);}message=level===4?'Sorting finished! Getting Wooten ready to deliver mail.':'Sorting complete! Loading the next sorting level.';}
     }
     else
     {
@@ -554,6 +576,7 @@ function gameUpdate()
                         if(currentStop>=routeFamilies.length)
                         {
                             levelComplete=true; saveActive();
+                            if(window.Odyssey&&activeProfile!==null){const p=getProfiles();if(p[activeProfile])Odyssey.recordResult(GAME_ID,{completed:true,score,level:level+1,meta:{mistakes,mode:'delivery'}},p[activeProfile].name);}
                             message='Delivery route complete! Loading another route.';
                         }
                     }

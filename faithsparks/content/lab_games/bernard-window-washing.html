@@ -1,7 +1,9 @@
 <!DOCTYPE html><head>
-<title>LittleJS AI Starter Project</title>
+<title>Bernard's Window Washing</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
+<script src="/labs/games/assets/odyssey-core.js"></script>
 </head><body style="background:#000">
 <script>
 // LittleJS Engine - MIT License - Copyright 2021 Frank Force
@@ -16571,6 +16573,7 @@ let profileOverlay = null;
 let mainMenuButton = null;
 
 const SAVE_PREFIX = 'windowWashSave_';
+const GAME_ID = 'bernard-window-washing';
 const PROFILE_LIST_KEY = 'windowWashProfiles';
 let trialMode = false;
 let recordingCleanerId = null;
@@ -17304,6 +17307,9 @@ function awardLevelStars()
     totalStars += earned;
     lastLevelBonusText = bonuses.length ? bonuses.join('  •  ') : 'COMPLETE';
 
+    if (window.Odyssey && playerName)
+        Odyssey.recordResult(GAME_ID,{completed:true,level,stars:earned,accuracy,meta:{elapsedSeconds,effort}},playerName);
+
     saveProgress();
 }
 
@@ -17418,12 +17424,19 @@ function getProfileList()
         unique.push(clean);
     }
 
-    return unique.slice(0, 8);
+    let merged = unique;
+    if (window.Odyssey)
+    {
+        Odyssey.adoptLegacyProfiles(GAME_ID, unique.map(name => getProfileSummary(name)), x => ({level:x.level || 1}));
+        merged = Odyssey.mergeGlobalNames(unique, name => name, GAME_ID);
+    }
+
+    return merged.slice(0, window.Odyssey ? Odyssey.MAX_PLAYERS : 8);
 }
 
 function rememberProfile(name)
 {
-    const clean = name.trim();
+    const clean = window.Odyssey ? Odyssey.cleanPlayerName(name) : name.trim();
     if (!clean) return;
 
     let names = getProfileList().filter(n => n.toLowerCase() != clean.toLowerCase());
@@ -17473,6 +17486,12 @@ function saveProgress()
         rememberProfile(playerName);
     }
     catch(e) {}
+
+    if (window.Odyssey)
+    {
+        Odyssey.selectPlayer(playerName, GAME_ID);
+        Odyssey.syncProgress(GAME_ID, {level, stars:totalStars, meta:{highestCleanerShown}}, playerName);
+    }
 }
 
 function loadProgress(name)
@@ -17504,6 +17523,11 @@ function loadProgress(name)
     }
 
     profileReady = true;
+    if (window.Odyssey)
+    {
+        Odyssey.selectPlayer(playerName, GAME_ID);
+        Odyssey.startSession(GAME_ID, playerName);
+    }
     saveProgress();
     setupLevel();
     titleIntroTimer.set(4);
@@ -17686,59 +17710,7 @@ function showProfilePrompt()
         closeAndLoad(name);
     };
 
-    // Built-in iPad-friendly keyboard.
-    const keyboard = document.createElement('div');
-    keyboard.style.cssText =
-        'display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin:2px auto 10px;max-width:650px;';
-
-    const addKey = (label, action, span=1) =>
-    {
-        const key = document.createElement('button');
-        key.type = 'button';
-        key.textContent = label;
-        key.style.cssText =
-            `grid-column:span ${span};min-height:44px;border:2px solid #9c744b;border-radius:9px;` +
-            'background:#f2d9ae;color:#2d241d;font-size:17px;font-weight:900;cursor:pointer;' +
-            'touch-action:manipulation;padding:6px 4px;';
-
-        key.addEventListener('click', e =>
-        {
-            e.preventDefault();
-            action();
-            error.textContent = '';
-        });
-
-        keyboard.appendChild(key);
-    };
-
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    for (const letter of letters)
-    {
-        addKey(letter, () =>
-        {
-            if (input.value.length < input.maxLength)
-                input.value += letter;
-        });
-    }
-
-    addKey('SPACE', () =>
-    {
-        if (input.value.length < input.maxLength && input.value.length)
-            input.value += ' ';
-    }, 3);
-
-    addKey('⌫', () =>
-    {
-        input.value = input.value.slice(0,-1);
-    }, 2);
-
-    addKey('CLEAR', () =>
-    {
-        input.value = '';
-    }, 2);
-
-    addKey('DONE', create, 3);
-
+    // Use the device's native computer/iPad keyboard through the real text input.
     const createButton = document.createElement('button');
     createButton.type = 'button';
     createButton.textContent = 'CREATE & PLAY';
@@ -17761,13 +17733,13 @@ function showProfilePrompt()
     card.appendChild(divider);
     card.appendChild(input);
     card.appendChild(error);
-    card.appendChild(keyboard);
     card.appendChild(createButton);
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
     profileOverlay = overlay;
+    setTimeout(()=>input.focus(), 0);
 }
 
 function setupRecordingTrial(cleanerId)

@@ -1,6 +1,9 @@
 <!DOCTYPE html><head>
-<title>LittleJS AI Starter Project</title>
+<title>Timothy Center Horse Racing</title>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
+<script src="/labs/games/assets/odyssey-core.js"></script>
 </head><body style="background:#000">
 <script src="https://cdn.jsdelivr.net/npm/littlejsengine@1.18.19/dist/littlejs.js?1.18.19"></script>
 <script>
@@ -354,8 +357,10 @@ let tcSaveNotice = '';
 let tcCreatingProfile = false;
 let tcEditingProfile = false;
 let tcEditingOriginalName = '';
+const GAME_ID = 'timothy-center-horse-racing';
 const tcProfileStorageKey = 'timothyCenterHorseRaceProfilesV1';
-const tcMaxProfiles = 8;
+const tcMaxProfiles = window.Odyssey ? Odyssey.MAX_PLAYERS : 8;
+let tcNativeNameDialog = null;
 
 const tcTrackMinY = -3.15;
 const tcTrackMaxY = 2.85;
@@ -398,6 +403,44 @@ const tcHorseChoices = [
 
 
 
+
+
+function tcOpenNativeNameDialog()
+{
+    if (!window.Odyssey || tcNativeNameDialog || !(tcCreatingProfile || tcEditingProfile))
+        return;
+
+    const editing = tcEditingProfile;
+    tcNativeNameDialog = Odyssey.openNameDialog({
+        title: editing ? 'Rename Player' : 'New Player',
+        help: 'Type the player name using your computer or iPad keyboard.',
+        value: editing ? tcEditingOriginalName : '',
+        saveLabel: editing ? 'Save Name' : 'Create Player',
+        validate: name => {
+            const existing = tcProfileNames.find(n => n.toLowerCase() == name.toLowerCase());
+            if (existing && (!editing || existing != tcEditingOriginalName))
+                return 'That player name is already in use.';
+            return '';
+        },
+        onSave: name => {
+            tcNativeNameDialog = null;
+            if (editing) tcRenameProfile(tcEditingOriginalName,name);
+            else tcCreateProfile(name);
+            tcCreatingProfile = false;
+            tcEditingProfile = false;
+            tcEditingOriginalName = '';
+            tcNewProfileName = '';
+        },
+        onCancel: () => {
+            tcNativeNameDialog = null;
+            tcCreatingProfile = false;
+            tcEditingProfile = false;
+            tcEditingOriginalName = '';
+            tcNewProfileName = '';
+            tcProfileMessage = '';
+        }
+    });
+}
 
 
 function tcScreenHit(center, size)
@@ -448,7 +491,7 @@ function tcHandlePlayerMenuTouch()
         tcEditingProfile = false;
         tcEditingOriginalName = '';
         tcNewProfileName = '';
-        tcProfileMessage = 'Use the keyboard below, then press Save.';
+        tcProfileMessage = 'Type a player name, then save.';
         return true;
     }
 
@@ -699,7 +742,35 @@ function tcLoadProfiles()
         tcProfiles = {};
     }
 
-    tcProfileNames = Object.keys(tcProfiles);
+    if (window.Odyssey)
+    {
+        Odyssey.adoptLegacyProfiles(
+            GAME_ID,
+            Object.entries(tcProfiles).map(([name,data])=>({name,...data})),
+            x=>({level:x.level || 1, meta:{unlockedHorses:Array.isArray(x.unlockedHorseNames)?x.unlockedHorseNames.length:1,barnUnlocked:!!x.barnUnlocked}})
+        );
+
+        let changed = false;
+        for (const player of Odyssey.getPlayers())
+        {
+            const platformStats = Odyssey.getGameStats(player.name,GAME_ID);
+            if (platformStats && platformStats.hidden) continue;
+            if (!tcProfiles[player.name] && Object.keys(tcProfiles).length < tcMaxProfiles)
+            {
+                tcProfiles[player.name] = {
+                    level:1, unlockedHorseNames:['Chestnut'], barnUnlocked:false,
+                    selectedHorse:0, selectedOpponent:0, foal:0, raceState:0, savedAt:Date.now()
+                };
+                changed = true;
+            }
+        }
+        if (changed)
+        {
+            try { localStorage.setItem(tcProfileStorageKey, JSON.stringify(tcProfiles)); } catch(e) {}
+        }
+    }
+
+    tcProfileNames = Object.keys(tcProfiles).slice(0,tcMaxProfiles);
     tcProfileIndex = clamp(tcProfileIndex, 0, max(0, tcProfileNames.length-1));
 }
 
@@ -783,6 +854,11 @@ function tcSaveActiveProfile()
     if (!tcActiveProfile) return;
     tcProfiles[tcActiveProfile] = tcProfileSnapshot();
     tcSaveProfiles();
+    if (window.Odyssey)
+    {
+        Odyssey.selectPlayer(tcActiveProfile, GAME_ID);
+        Odyssey.syncProgress(GAME_ID,{level:tcLevel,meta:{unlockedHorses:tcUnlockedHorseNames.length,barnUnlocked:tcBarnUnlocked,foalGrown:!!(tcFoal&&tcFoal.grown)}},tcActiveProfile);
+    }
     tcLoadProfiles();
 }
 
@@ -869,6 +945,7 @@ function tcRestoreProfile(name)
     if (!data) return;
 
     tcActiveProfile = name;
+    if (window.Odyssey){Odyssey.selectPlayer(name,GAME_ID);Odyssey.startSession(GAME_ID,name);}
     tcLevel = data.level || 1;
     tcUnlockedHorseNames = Array.isArray(data.unlockedHorseNames)
         ? [...data.unlockedHorseNames]
@@ -923,7 +1000,7 @@ function tcCreateProfile(name)
         return;
     }
 
-    const clean = name.trim().slice(0,16);
+    const clean = window.Odyssey ? Odyssey.cleanPlayerName(name) : name.trim().slice(0,20);
     if (!clean)
     {
         tcProfileMessage = 'Enter a profile name first.';
@@ -937,6 +1014,8 @@ function tcCreateProfile(name)
     }
 
     // New profiles always begin from the true starting state.
+    if (window.Odyssey) Odyssey.ensurePlayer(clean);
+
     tcProfiles[clean] = {
         level:1,
         unlockedHorseNames:['Chestnut'],
@@ -956,7 +1035,7 @@ function tcCreateProfile(name)
 
 function tcRenameProfile(oldName, newName)
 {
-    const clean = newName.trim().slice(0,16);
+    const clean = window.Odyssey ? Odyssey.cleanPlayerName(newName) : newName.trim().slice(0,20);
 
     if (!oldName || !tcProfiles[oldName])
     {
@@ -999,6 +1078,7 @@ function tcDeleteSelectedProfile()
 {
     if (!tcProfileNames.length) return;
     const name = tcProfileNames[tcProfileIndex];
+    if (window.Odyssey) Odyssey.hidePlayerForGame(name,GAME_ID);
     delete tcProfiles[name];
     tcSaveProfiles();
     tcLoadProfiles();
@@ -1034,7 +1114,7 @@ function tcCreateNewAccountFromGame()
     tcEditingProfile = false;
     tcEditingOriginalName = '';
     tcNewProfileName = '';
-    tcProfileMessage = 'Type a new player name, then press Enter.';
+    tcProfileMessage = 'Type a new player name, then save.';
 }
 
 
@@ -1808,6 +1888,9 @@ function tcEndLevel()
         if (rewardHorse)
             tcWinner = `LEVEL COMPLETE!  ${rewardHorse.toUpperCase()} UNLOCKED!`;
 
+        if (window.Odyssey && tcActiveProfile)
+            Odyssey.recordResult(GAME_ID,{completed:true,level:tcLevel,meta:{winner:true}},tcActiveProfile);
+
         if (tcLevel >= 10 && !tcBarnUnlocked)
         {
             tcBarnUnlocked = true;
@@ -1928,10 +2011,16 @@ function gameUpdate()
         // open another profile while a name is being typed.
         if (tcCreatingProfile || tcEditingProfile)
         {
+            if (window.Odyssey)
+            {
+                tcOpenNativeNameDialog();
+                return;
+            }
+
             if (tcHandleNameEntryTouch())
                 return;
 
-            // Physical keyboard support remains available.
+            // Physical keyboard support remains available as a fallback.
             for (let code=65; code<=90; ++code)
             {
                 const key = 'Key' + String.fromCharCode(code);
@@ -2002,7 +2091,7 @@ function gameUpdate()
             tcEditingProfile = false;
             tcEditingOriginalName = '';
             tcNewProfileName = '';
-            tcProfileMessage = 'Use the keyboard below, then press Save.';
+            tcProfileMessage = 'Type a player name, then save.';
             return;
         }
 

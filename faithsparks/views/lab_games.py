@@ -7,6 +7,8 @@ bp = Blueprint("lab_games", __name__, url_prefix="/labs/games")
 
 _GAME_DIR = Path(__file__).resolve().parents[1] / "content" / "lab_games"
 
+_SHARED_ASSETS = {"odyssey-core.js", "odyssey-ui.css"}
+
 LAB_GAMES = (
     {
         "slug": "whits-end",
@@ -106,6 +108,29 @@ def index():
         access_denied=False,
         noindex=True,
     )
+
+
+@bp.get("/assets/<filename>")
+def asset(filename: str):
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+
+    if filename not in _SHARED_ASSETS:
+        return render_template("404.html"), 404
+
+    asset_path = _GAME_DIR / filename
+    if not asset_path.is_file():
+        return render_template("404.html"), 404
+
+    mimetype = "text/javascript" if filename.endswith(".js") else "text/css"
+    response = send_file(asset_path, mimetype=mimetype)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+    return response
 
 
 @bp.get("/<slug>")
