@@ -1,0 +1,5000 @@
+<!DOCTYPE html><head>
+<title>LittleJS AI Starter Project</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+</head><body style="background:#000">
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+#game-root{position:fixed;inset:0;overflow:hidden}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+    outline:3px solid #2d78d4 !important;
+    outline-offset:3px;
+}
+</style>
+<div id="game-root" aria-hidden="true"></div>
+
+<script src="/labs/games/assets/odyssey-core.js"></script>
+<script>
+// LittleJS Engine - MIT License - Copyright 2021 Frank Force
+// https://github.com/KilledByAPixel/LittleJS
+
+'use strict';
+
+/**
+ * LittleJS - The Tiny Fast JavaScript Game Engine
+ * MIT License - Copyright 2021 Frank Force
+ *
+ * Engine Features
+ * - Object oriented system with EngineObject base class
+ * - Automatic object lifecycle (update, physics, collision, rendering)
+ * - Engine helper classes: Vector2, Color, Timer, RandomGenerator
+ * - Hybrid rendering with WebGL batching and Canvas2D fallback
+ * - Audio system with wave, mp3, or ZzFX sound effects
+ * - Input system with keyboard, mouse, gamepad, and touch support
+ * - Tile layer rendering and collision detection
+ * - Particle effect system with emitters
+ * - Medal/achievement system with local storage
+ * - Comprehensive debug tools and visualizations
+ * - Fixed 60 FPS timestep with configurable time scale
+ * - Raycast and spatial query utilities
+ * - Plugin system for extending engine functionality
+ * - Start with engineInit() and provide your game callbacks
+ * @namespace Engine
+ */
+
+/** Name of engine
+ *  @type {string}
+ *  @default
+ *  @memberof Engine */
+const engineName = 'LittleJS';
+
+/** Version of engine
+ *  @type {string}
+ *  @default
+ *  @memberof Engine */
+const engineVersion = '1.18.19';
+
+/** Frames per second to update
+ *  @type {number}
+ *  @default
+ *  @memberof Engine */
+const frameRate = 60;
+
+/** How many seconds each frame lasts, engine uses a fixed time step
+ *  @type {number}
+ *  @default 1/60
+ *  @memberof Engine */
+const timeDelta = 1/frameRate;
+
+/** Array containing all engine objects
+ *  @type {Array<EngineObject>}
+ *  @memberof Engine */
+let engineObjects = [];
+
+/** Array with only objects set to collide with other objects this frame (for optimization)
+ *  @type {Array<EngineObject>}
+ *  @memberof Engine */
+let engineObjectsCollide = [];
+
+/** Current update frame, used to calculate time
+ *  @type {number}
+ *  @memberof Engine */
+let frame = 0;
+
+/** Current engine time since start in seconds
+ *  @type {number}
+ *  @memberof Engine */
+let time = 0;
+
+/** Actual clock time since start in seconds (not affected by pause, timescale, or frame rate clamping)
+ *  @type {number}
+ *  @memberof Engine */
+let timeReal = 0;
+
+/** Is the game paused? Causes time and objects to not be updated
+ *  @type {boolean}
+ *  @default false
+ *  @memberof Engine */
+let paused = false;
+
+/** Get if game is paused
+ *  @return {boolean}
+ *  @memberof Engine */
+function getPaused() { return paused; }
+
+/** Set if game is paused
+ *  @param {boolean} [isPaused]
+ *  @memberof Engine */
+function setPaused(isPaused=true) { paused = isPaused; }
+
+// Engine internal variables
+let frameTimeLastMS = 0, frameTimeBufferMS = 0, averageFPS = 0;
+let showEngineVersion = true;
+
+///////////////////////////////////////////////////////////////////////////////
+// plugin hooks
+
+const pluginList = [];
+class EnginePlugin
+{
+    constructor(update, render, glContextLost, glContextRestored)
+    {
+        this.update = update;
+        this.render = render;
+        this.glContextLost = glContextLost;
+        this.glContextRestored = glContextRestored;
+    }
+}
+
+/**
+ * @callback PluginCallback - Update or render function for a plugin
+ * @memberof Engine
+ */
+
+/** Add a new update function for a plugin
+ *  @param {PluginCallback} [update]
+ *  @param {PluginCallback} [render]
+ *  @param {PluginCallback} [glContextLost]
+ *  @param {PluginCallback} [glContextRestored]
+ *  @memberof Engine */
+function engineAddPlugin(update, render, glContextLost, glContextRestored)
+{
+    // make sure plugin functions are unique
+    ASSERT(!pluginList.find(p=>
+        p.update === update && p.render === render &&
+        p.glContextLost === glContextLost &&
+        p.glContextRestored === glContextRestored));
+
+    const plugin = new EnginePlugin(update, render, glContextLost, glContextRestored);
+    pluginList.push(plugin);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Main Engine Functions
+
+/**
+ * @callback GameInitCallback - Called after the engine starts, can be async
+ * @return {void|Promise<void>}
+ * @memberof Engine
+ */
+/**
+ * @callback GameCallback - Update or render function for the game
+ * @memberof Engine
+ */
+
+/** Startup LittleJS engine with your callback functions
+ *  @param {GameInitCallback} gameInit - Called once after the engine starts up, can be async for loading
+ *  @param {GameCallback} gameUpdate - Called every frame before objects are updated (60fps), use for game logic
+ *  @param {GameCallback} gameUpdatePost - Called after physics and objects are updated, even when paused, use for UI updates
+ *  @param {GameCallback} gameRender - Called before objects are rendered, use for drawing backgrounds/world elements
+ *  @param {GameCallback} gameRenderPost - Called after objects are rendered, use for drawing UI/overlays
+ *  @param {Array<string>} [imageSources=[]] - List of image file paths to preload (e.g., ['player.png', 'tiles.png'])
+ *  @param {HTMLElement} [rootElement] - Root DOM element to attach canvas to, defaults to document.body
+ *  @example
+ *  // Basic engine startup
+ *  engineInit(
+ *    ()=> { LOG('Game initialized!'); },  // gameInit
+ *    ()=> { updateGameLogic(); },         // gameUpdate
+ *    ()=> { updateUI(); },                // gameUpdatePost
+ *    ()=> { drawBackground(); },          // gameRender
+ *    ()=> { drawHUD(); },                 // gameRenderPost
+ *    ['tiles.png', 'tilesLevel.png']       // images to load
+ *  );
+ *  @memberof Engine */
+async function engineInit(gameInit, gameUpdate, gameUpdatePost, gameRender, gameRenderPost, imageSources=[], rootElement)
+{
+    showEngineVersion && console.log(`${engineName} Engine v${engineVersion}`);
+    ASSERT(!mainContext, 'engine already initialized');
+    // runtime guard so release builds (where the assert is stripped) don't
+    // double-register listeners / double-add canvases on a second call
+    if (mainContext) return;
+    ASSERT(isArray(imageSources), 'pass in images as array');
+
+    // ensure body exists for minimal HTML where the script runs before <body> is parsed
+    if (!document.body)
+        document.documentElement.appendChild(document.createElement('body'));
+    rootElement ||= document.body;
+
+    // allow passing in empty functions
+    gameInit       ||= ()=>{};
+    gameUpdate     ||= ()=>{};
+    gameUpdatePost ||= ()=>{};
+    gameRender     ||= ()=>{};
+    gameRenderPost ||= ()=>{};
+
+    // Called automatically by engine to setup render system
+    function enginePreRender()
+    {
+        // save canvas size
+        mainCanvasSize = vec2(mainCanvas.width, mainCanvas.height);
+
+        // disable smoothing for pixel art
+        mainContext.imageSmoothingEnabled = !tilesPixelated;
+
+        // setup gl rendering if enabled
+        glPreRender();
+    }
+
+    // internal update loop for engine
+    function engineUpdate(frameTimeMS=0)
+    {
+        // update time keeping
+        let frameTimeDeltaMS = frameTimeMS - frameTimeLastMS;
+        // skip delta on the very first frame so timeReal doesn't jump
+        // by ~page-load-time when RAF starts handing real timestamps
+        if (!frameTimeLastMS) frameTimeDeltaMS = 0;
+        frameTimeLastMS = frameTimeMS;
+        if (debug || debugWatermark)
+            averageFPS = lerp(averageFPS, 1e3/(frameTimeDeltaMS||1), .05);
+        const debugSpeedUp   = debug && keyIsDown('Equal'); // +
+        const debugSpeedDown = debug && keyIsDown('Minus'); // -
+        const debugScale = debugSpeedUp ? 10 : debugSpeedDown ? .1 : 1;
+
+        // apply time deltas
+        timeReal += frameTimeDeltaMS * debugScale / 1e3;
+        const combinedScale = timeScale * debugScale;
+        frameTimeDeltaMS *= combinedScale;
+        frameTimeBufferMS += paused ? 0 : frameTimeDeltaMS;
+        if (combinedScale <= 1)
+            frameTimeBufferMS = min(frameTimeBufferMS, 50); // clamp min framerate
+
+        let wasUpdated = false;
+        if (paused)
+        {
+            // update everything except the game and objects
+            wasUpdated = true;
+            updateCanvas();
+            inputUpdate();
+            pluginList.forEach(plugin=>plugin.update?.());
+
+            // update object transforms even when paused
+            for (const o of engineObjects)
+                o.parent || o.updateTransforms();
+
+            // do post update
+            debugUpdate();
+            gameUpdatePost();
+            inputUpdatePost();
+            if (debugVideoCaptureIsActive())
+                renderFrame();
+        }
+        else
+        {
+            // apply time delta smoothing, improves smoothness of framerate in some browsers
+            let deltaSmooth = 0;
+            if (frameTimeBufferMS < 0 && frameTimeBufferMS > -9)
+            {
+                // force at least one update each frame since it is waiting for refresh
+                deltaSmooth = frameTimeBufferMS;
+                frameTimeBufferMS = 0;
+            }
+
+            // update multiple frames if necessary in case of slow framerate
+            for (; frameTimeBufferMS >= 0; frameTimeBufferMS -= 1e3 / frameRate)
+            {
+                // increment frame and update time
+                time = frame++ / frameRate;
+
+                // update game and objects
+                wasUpdated = true;
+                updateCanvas();
+                inputUpdate();
+                gameUpdate();
+                pluginList.forEach(plugin=>plugin.update?.());
+                engineObjectsUpdate();
+
+                // do post update
+                debugUpdate();
+                gameUpdatePost();
+                inputUpdatePost();
+                if (debugVideoCaptureIsActive())
+                    renderFrame();
+            }
+
+            // add the time smoothing back in
+            frameTimeBufferMS += deltaSmooth;
+        }
+
+        if (!debugVideoCaptureIsActive())
+            renderFrame();
+        requestAnimationFrame(engineUpdate);
+
+        function renderFrame()
+        {
+            if (headlessMode) return;
+
+            // canvas must be updated before rendering
+            if (!wasUpdated)
+                updateCanvas();
+
+            // render the game and objects
+            enginePreRender();
+            gameRender();
+            engineObjects.sort((a,b)=> a.renderOrder - b.renderOrder);
+            for (const o of engineObjects)
+                o.destroyed || o.render();
+
+            // post rendering
+            gameRenderPost();
+            pluginList.forEach(plugin=>plugin.render?.());
+            inputRender();
+            debugRender();
+            glFlush();
+            debugRenderPost();
+            drawCount = 0;
+            primitiveCount = 0;
+        }
+    }
+
+    function updateCanvas()
+    {
+        if (headlessMode) return;
+
+        if (canvasFixedSize.x)
+        {
+            // set canvas fixed size
+            mainCanvasSize = canvasFixedSize.copy();
+
+            // fit to window using css width and height
+            const innerAspect = innerWidth / innerHeight;
+            const fixedAspect = canvasFixedSize.x / canvasFixedSize.y;
+            const w = innerAspect < fixedAspect ? '100%' : '';
+            const h = innerAspect < fixedAspect ? '' : '100%';
+            mainCanvas.style.width  = w;
+            mainCanvas.style.height = h;
+            if (glCanvas)
+            {
+                glCanvas.style.width  = w;
+                glCanvas.style.height = h;
+            }
+        }
+        else
+        {
+            // apply device pixel ratio for crisp rendering
+            const dpr = canvasPixelRatio ?? (devicePixelRatio || 1);
+            const viewWidth = innerWidth * dpr | 0;
+            const viewHeight = innerHeight * dpr | 0;
+            
+            // get main canvas size based on window size
+            mainCanvasSize.x = min(viewWidth,  canvasMaxSize.x);
+            mainCanvasSize.y = min(viewHeight, canvasMaxSize.y);
+            
+            // responsive aspect ratio with native resolution
+            const innerAspect = viewWidth / viewHeight;
+            ASSERT(canvasMinAspect <= canvasMaxAspect);
+            if (canvasMaxAspect && innerAspect > canvasMaxAspect)
+            {
+                // full height
+                const w = mainCanvasSize.y * canvasMaxAspect | 0;
+                mainCanvasSize.x = min(w,  canvasMaxSize.x);
+            }
+            else if (innerAspect < canvasMinAspect)
+            {
+                // full width
+                const h = mainCanvasSize.x / canvasMinAspect | 0;
+                mainCanvasSize.y = min(h, canvasMaxSize.y);
+            }
+
+            // set CSS display size so backing store renders at viewport size
+            const cssW = (mainCanvasSize.x / dpr | 0) + 'px';
+            const cssH = (mainCanvasSize.y / dpr | 0) + 'px';
+            mainCanvas.style.width  = cssW;
+            mainCanvas.style.height = cssH;
+            if (glCanvas)
+            {
+                glCanvas.style.width  = cssW;
+                glCanvas.style.height = cssH;
+            }
+        }
+
+        // clear main canvas and set size
+        mainCanvas.width  = mainCanvasSize.x;
+        mainCanvas.height = mainCanvasSize.y;
+
+        // apply the clear color to main canvas
+        if (canvasClearColor.a > 0 && !glEnable)
+        {
+            mainContext.fillStyle = canvasClearColor.toString();
+            mainContext.fillRect(0, 0, mainCanvasSize.x, mainCanvasSize.y);
+            mainContext.fillStyle = BLACK.toString();
+        }
+
+        // set default line join and cap
+        mainContext.lineJoin = 'round';
+        mainContext.lineCap  = 'round';
+    }
+    
+    // skip setup if headless
+    if (headlessMode) return startEngine();
+
+    // setup webgl
+    glInit(rootElement);
+
+    // setup html
+    const styleRoot =
+        'position:fixed;inset:0;' +   // isolate game input from HTML overlays
+        'margin:0;' +                 // fill the window
+        'overflow:hidden;' +          // no scroll bars
+        'background:#000;' +          // set background color
+        'user-select:none;' +         // prevent hold to select
+        '-webkit-user-select:none;' + // compatibility for ios
+        'touch-action:none;' +        // prevent mobile pinch to resize
+        '-webkit-touch-callout:none'; // compatibility for ios
+    rootElement.style.cssText = styleRoot;
+    mainCanvas = rootElement.appendChild(document.createElement('canvas'));
+    drawContext = mainContext = mainCanvas.getContext('2d');
+
+    // init stuff and start engine
+    inputInit();
+    audioInit();
+    debugInit();
+
+    // setup canvases
+    // transform way is still more reliable than flexbox or grid
+    const styleCanvas = 'position:absolute;'+ // allow canvases to overlap
+        'top:50%;left:50%;transform:translate(-50%,-50%)'; // center on screen
+    mainCanvas.style.cssText = styleCanvas;
+    if (glCanvas)
+        glCanvas.style.cssText = styleCanvas;
+    setCanvasPixelated(canvasPixelated);
+    updateCanvas();
+    glPreRender();
+
+    // create offscreen canvases for image processing
+    workCanvas = new OffscreenCanvas(64, 64);
+    workContext = workCanvas.getContext('2d');
+    workReadCanvas = new OffscreenCanvas(64, 64);
+    workReadContext = workReadCanvas.getContext('2d', { willReadFrequently: true });
+
+    // create promises for loading images
+    const promises = imageSources.map((src, i)=> loadTexture(i, src));
+
+    // no images to load
+    if (!imageSources.length)
+        promises.push(loadTexture(0));
+
+    // load engine font image
+    promises.push(imageFontInit());
+
+    if (showSplashScreen)
+    {
+        // draw splash screen
+        promises.push(new Promise(resolve =>
+        {
+            let t = 0;
+            updateSplash();
+            function updateSplash()
+            {
+                inputClear();
+                drawEngineLogo(t+=.01);
+                t>1 ? resolve() : setTimeout(updateSplash, 16);
+            }
+        }));
+    }
+
+    // wait for all the promises to finish
+    await Promise.all(promises);
+    return startEngine();
+
+    async function startEngine()
+    {
+        // wait for gameInit to load
+        await gameInit();
+        engineUpdate();
+    }
+}
+
+/** Update each engine object, remove destroyed objects, and update time
+ * can be called manually if objects need to be updated outside of main loop
+ *  @memberof Engine */
+function engineObjectsUpdate()
+{
+    // get list of solid objects for physics optimization
+    engineObjectsCollide = engineObjects.filter(o=>o.collideSolidObjects);
+
+    // recursive object update
+    function updateChildObject(o)
+    {
+        if (o.destroyed) return;
+
+        o.update();
+        for (const child of o.children)
+            updateChildObject(child);
+    }
+    for (const o of engineObjects)
+    {
+        if (o.parent || o.destroyed) continue;
+
+        // update top level objects
+        o.update();
+        o.updatePhysics();
+        for (const child of o.children)
+            updateChildObject(child);
+        o.updateTransforms();
+    }
+
+    // remove destroyed objects
+    engineObjects = engineObjects.filter(o=>!o.destroyed);
+}
+
+/** Destroy and remove all objects
+ *  - This can be used to clear out all objects when restarting a level
+ *  - Objects can override their destroy function to do cleanup or stick around
+ *  @param {boolean} [immediate] - should attached effects be allowed to die off?
+ *  @memberof Engine */
+function engineObjectsDestroy(immediate=true)
+{
+    for (const o of engineObjects)
+        o.parent || o.destroy(immediate);
+    engineObjects = engineObjects.filter(o=>!o.destroyed);
+}
+
+/** Collects all object within a given area
+ *  @param {Vector2} [pos] - Center of test area, or undefined for all objects
+ *  @param {Vector2|number} [size] - Radius of circle if float, rectangle size if Vector2
+ *  @param {Array<EngineObject>} [objects=engineObjects] - List of objects to check
+ *  @return {Array<EngineObject>} - List of collected objects
+ *  @memberof Engine */
+function engineObjectsCollect(pos, size, objects=engineObjects)
+{
+    const collectedObjects = [];
+    if (!pos)
+    {
+        // all objects
+        for (const o of objects)
+            collectedObjects.push(o);
+    }
+    else if (size instanceof Vector2)
+    {
+        // bounding box test
+        for (const o of objects)
+            o.isOverlapping(pos, size) && collectedObjects.push(o);
+    }
+    else
+    {
+        // circle test
+        const sizeSquared = size*size;
+        for (const o of objects)
+            pos.distanceSquared(o.pos) < sizeSquared && collectedObjects.push(o);
+    }
+    return collectedObjects;
+}
+
+/**
+ * @callback ObjectCallbackFunction - Function that processes an object
+ * @param {EngineObject} object
+ *  @memberof Engine
+ */
+
+/** Triggers a callback for each object within a given area
+ *  @param {Vector2} [pos] - Center of test area, or undefined for all objects
+ *  @param {Vector2|number} [size] - Radius of circle if float, rectangle size if Vector2
+ *  @param {ObjectCallbackFunction} [callbackFunction] - Calls this function on every object that passes the test
+ *  @param {Array<EngineObject>} [objects=engineObjects] - List of objects to check
+ *  @memberof Engine */
+function engineObjectsCallback(pos, size, callbackFunction, objects=engineObjects)
+{ engineObjectsCollect(pos, size, objects).forEach(o => callbackFunction(o)); }
+
+/** Return a list of objects intersecting a ray
+ *  @param {Vector2} start
+ *  @param {Vector2} end
+ *  @param {Array<EngineObject>} [objects=engineObjects] - List of objects to check
+ *  @return {Array<EngineObject>} - List of objects hit
+ *  @memberof Engine */
+function engineObjectsRaycast(start, end, objects=engineObjects)
+{
+    const hitObjects = [];
+    for (const o of objects)
+    {
+        if (o.collideRaycast && isIntersecting(start, end, o.pos, o.size))
+        {
+            debugRaycast && debugRect(o.pos, o.size, '#f00');
+            hitObjects.push(o);
+        }
+    }
+
+    debugRaycast && debugLine(start, end, hitObjects.length ? '#f00' : '#00f', .02);
+    return hitObjects;
+}
+/**
+ * LittleJS Debug System
+ * - Press Esc to toggle debug overlay with object picking
+ * - Number keys toggle debug visualizations (physics, particles, etc.)
+ * - +/- keys control time scale for slow motion/fast forward
+ * - ASSERT and LOG macros for development (removed in release builds)
+ * - Debug primitive rendering (rectangles, circles, lines, points, text)
+ * - Screenshot and video capture support
+ * - FPS counter and performance watermark
+ * - Debug overlay shows mouse position and picked objects
+ * @namespace Debug
+ */
+
+/** True if debug is enabled
+ *  @type {boolean}
+ *  @default
+ *  @memberof Debug */
+const debug = true;
+
+/** Size to render debug points by default
+ *  @type {number}
+ *  @default
+ *  @memberof Debug */
+const debugPointSize = .5;
+
+/** True if watermark with FPS should be shown, false in release builds
+ *  @type {boolean}
+ *  @default
+ *  @memberof Debug */
+let debugWatermark = true;
+
+/** Key code used to toggle debug mode, Esc by default
+ *  @type {string}
+ *  @default
+ *  @memberof Debug */
+let debugKey = 'Escape';
+
+/** True if the debug overlay is active, always false in release builds
+ *  @type {boolean}
+ *  @default
+ *  @memberof Debug */
+let debugOverlay = false;
+
+// Engine internal variables not exposed to documentation
+let debugPrimitives = [], debugPhysics = false, debugRaycast = false, debugParticles = false, debugGamepads = false, debugSound = false, debugTakeScreenshot;
+
+///////////////////////////////////////////////////////////////////////////////
+// Debug helper functions
+
+/** Asserts if the expression is false, does nothing in release builds
+ *  Halts execution if the assert fails and throws an error
+ *  @param {boolean} assert
+ *  @param {...Object} output - error message output
+ *  @memberof Debug */
+function ASSERT(assert, ...output)
+{
+    if (assert) return;
+    console.assert(assert, ...output)
+    throw new Error('Assert failed!'); // halt execution
+}
+
+/** Log to console if debug is enabled, does nothing in release builds
+ *  @param {...Object} output - message output
+ *  @memberof Debug */
+function LOG(...output) { console.log(...output); }
+
+/** Draw a debug rectangle in world space
+ *  @param {Vector2} pos
+ *  @param {Vector2} [size=vec2(0)]
+ *  @param {Color|string} [color]
+ *  @param {number} [time]
+ *  @param {number} [angle]
+ *  @param {boolean} [fill]
+ *  @param {boolean} [screenSpace]
+ *  @memberof Debug */
+function debugRect(pos, size=vec2(), color=WHITE, time=0, angle=0, fill=false, screenSpace=false)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isStringLike(color) || isColor(color), 'color is invalid');
+    ASSERT(isNumber(time), 'time must be a number');
+    ASSERT(isNumber(angle), 'angle must be a number');
+
+    if (isColor(color))
+        color = color.toString();
+    const timer = new Timer(time);
+    debugPrimitives.push({pos:pos.copy(), size:size.copy(), color, timer, angle, fill, screenSpace});
+}
+
+/** Draw a debug poly in world space
+ *  @param {Vector2} pos
+ *  @param {Array<Vector2>} points
+ *  @param {Color|string} [color]
+ *  @param {number} [time]
+ *  @param {number} [angle]
+ *  @param {boolean} [fill]
+ *  @param {boolean} [screenSpace]
+ *  @memberof Debug */
+function debugPoly(pos, points, color=WHITE, time=0, angle=0, fill=false, screenSpace=false)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isArray(points), 'points must be an array');
+    ASSERT(isStringLike(color) || isColor(color), 'color is invalid');
+    ASSERT(isNumber(time), 'time must be a number');
+    ASSERT(isNumber(angle), 'angle must be a number');
+
+    if (isColor(color))
+        color = color.toString();
+    pos = pos.copy();
+    points = points.map(p=>p.copy());
+    const timer = new Timer(time);
+    debugPrimitives.push({pos, points, color, timer, angle, fill, screenSpace});
+}
+
+/** Draw a debug circle in world space
+ *  @param {Vector2} pos
+ *  @param {number} [size] - diameter
+ *  @param {Color|string} [color]
+ *  @param {number} [time]
+ *  @param {boolean} [fill]
+ *  @param {boolean} [screenSpace]
+ *  @memberof Debug */
+function debugCircle(pos, size=0, color=WHITE, time=0, fill=false, screenSpace=false)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isNumber(size), 'size must be a number');
+    ASSERT(isStringLike(color) || isColor(color), 'color is invalid');
+    ASSERT(isNumber(time), 'time must be a number');
+
+    if (isColor(color))
+        color = color.toString();
+    pos = pos.copy();
+    const timer = new Timer(time);
+    debugPrimitives.push({pos, size, color, timer, angle:0, fill, screenSpace});
+}
+
+/** Draw a debug point in world space
+ *  @param {Vector2} pos
+ *  @param {Color|string} [color]
+ *  @param {number} [time]
+ *  @param {number} [angle]
+ *  @param {boolean} [screenSpace]
+ *  @memberof Debug */
+function debugPoint(pos, color, time, angle, screenSpace=false)
+{ debugRect(pos, undefined, color, time, angle, false, screenSpace); }
+
+/** Draw a debug line in world space
+ *  @param {Vector2} posA
+ *  @param {Vector2} posB
+ *  @param {Color|string} [color]
+ *  @param {number} [width]
+ *  @param {number} [time]
+ *  @param {boolean} [screenSpace]
+ *  @memberof Debug */
+function debugLine(posA, posB, color, width=.1, time=0, screenSpace=false)
+{
+    ASSERT(isVector2(posA), 'posA must be a vec2');
+    ASSERT(isVector2(posB), 'posB must be a vec2');
+    ASSERT(isNumber(width), 'width must be a number');
+
+    const halfDelta = vec2((posB.x - posA.x)/2, (posB.y - posA.y)/2);
+    const size = vec2(width, halfDelta.length()*2);
+    debugRect(posA.add(halfDelta), size, color, time, halfDelta.angle(), true, screenSpace);
+}
+
+/** Draw a debug combined axis aligned bounding box in world space
+ *  @param {Vector2} posA
+ *  @param {Vector2} sizeA
+ *  @param {Vector2} posB
+ *  @param {Vector2} sizeB
+ *  @param {Color|string} [color]
+ *  @param {number} [time]
+ *  @param {boolean} [screenSpace]
+ *  @memberof Debug */
+function debugOverlap(posA, sizeA, posB, sizeB, color, time, screenSpace=false)
+{
+    ASSERT(isVector2(posA), 'posA must be a vec2');
+    ASSERT(isVector2(posB), 'posB must be a vec2');
+    ASSERT(isVector2(sizeA), 'sizeA must be a vec2');
+    ASSERT(isVector2(sizeB), 'sizeB must be a vec2');
+
+    const minPos = vec2(
+        min(posA.x - sizeA.x/2, posB.x - sizeB.x/2),
+        min(posA.y - sizeA.y/2, posB.y - sizeB.y/2)
+    );
+    const maxPos = vec2(
+        max(posA.x + sizeA.x/2, posB.x + sizeB.x/2),
+        max(posA.y + sizeA.y/2, posB.y + sizeB.y/2)
+    );
+    debugRect(minPos.lerp(maxPos,.5), maxPos.subtract(minPos), color, time, 0, false, screenSpace);
+}
+
+/** Draw debug text in world space
+ *  @param {string|number} text
+ *  @param {Vector2} pos
+ *  @param {number} [size]
+ *  @param {Color|string} [color]
+ *  @param {number} [time]
+ *  @param {number} [angle]
+ *  @param {string} [font]
+ *  @param {boolean} [screenSpace]
+ *  @memberof Debug */
+function debugText(text, pos, size=1, color=WHITE, time=0, angle=0, font='monospace', screenSpace=false)
+{
+    ASSERT(isStringLike(text), 'text must be a string');
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isNumber(size), 'size must be a number');
+    ASSERT(isStringLike(color) || isColor(color), 'color is invalid');
+    ASSERT(isNumber(time), 'time must be a number');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(isStringLike(font), 'font must be a string');
+
+    if (isColor(color))
+        color = color.toString();
+    pos = pos.copy();
+    const timer = new Timer(time);
+    debugPrimitives.push({text, pos, size, color, timer, angle, font, screenSpace});
+}
+
+/** Clear all debug primitives in the list
+ *  @memberof Debug */
+function debugClear() { debugPrimitives = []; }
+
+/** Trigger debug system to take a screenshot
+ *  @memberof Debug */
+function debugScreenshot() { debugTakeScreenshot = 1; }
+
+/** Breaks on all asserts/errors, hides the canvas, and shows message in plain text
+ *  This is a good function to call at the start of your game to catch all errors
+ *  In release builds this function has no effect
+ *  @memberof Debug */
+function debugShowErrors()
+{
+    const showError = (message)=>
+    {
+        // replace entire page with error message
+        document.body.style = 'background-color:#111;margin:8px';
+        document.body.innerHTML = `<pre style=color:#f00;font-size:28px;white-space:pre-wrap>` + message;
+    }
+    
+    const originalAssert = console.assert;
+    console.assert = (assertion, ...output)=>
+    {
+        originalAssert(assertion, ...output);
+        if (!assertion)
+        {
+            const message = output.join(' ');
+            const stack = new Error().stack;
+            throw 'Assertion failed!\n' + message + '\n' + stack;
+        }
+    };
+    onunhandledrejection = (event)=>
+        showError(event.reason.stack || event.reason);
+    onerror = (message, source, lineno, colno)=>
+        showError(`${message}\n${source}\nLn ${lineno}, Col ${colno}`);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Engine debug functions (called automatically)
+
+function debugInit()
+{
+    if (showEngineVersion)
+        console.warn("LittleJS DEBUG build loaded. Use the release build for production.");
+}
+
+function debugUpdate()
+{
+    if (!debug) return;
+
+    if (keyWasPressed(debugKey)) // Esc
+        debugOverlay = !debugOverlay;
+    if (debugOverlay)
+    {
+        if (keyWasPressed('Digit1'))
+            debugPhysics = !debugPhysics, debugParticles = false;
+        if (keyWasPressed('Digit2'))
+            debugParticles = !debugParticles, debugPhysics = false;
+        if (keyWasPressed('Digit3'))
+            debugGamepads = !debugGamepads;
+        if (keyWasPressed('Digit4'))
+            debugRaycast = !debugRaycast;
+        if (keyWasPressed('Digit5'))
+            debugScreenshot();
+        if (keyWasPressed('Digit7'))
+            debugSound = !debugSound;
+    }
+    if (debugVideoCaptureIsActive())
+    {
+        // control to stop video capture
+        if (!debugOverlay || keyWasPressed('Digit6'))
+            debugVideoCaptureStop();
+    }
+    else if (debugOverlay && keyWasPressed('Digit6'))
+        debugVideoCaptureStart();
+}
+
+function debugRender()
+{
+    if (debugVideoCaptureIsActive())
+        return; // don't show debug info when capturing video
+
+    // flush any gl sprites before drawing debug info
+    glFlush();
+
+    const savedDrawCount = drawCount;
+    const savedPrimitiveCount = primitiveCount;
+
+    if (debugTakeScreenshot)
+    {
+        // combine canvases, remove alpha and save
+        combineCanvases();
+        saveCanvas(mainCanvas);
+        debugTakeScreenshot = 0;
+    }
+
+    const debugContext = mainContext;
+    if (debugGamepads && gamepadsEnable)
+    {
+        // draw gamepads
+        const maxGamepads = 8;
+        let gamepadConnectedCount = 0;
+        for (let i = 0; i < maxGamepads; i++)
+            gamepadConnected(i) && gamepadConnectedCount++;
+
+        for (let i = 0; i < maxGamepads; i++)
+        {
+            if (!gamepadConnected(i))
+                continue;
+
+            const stickScale = 1;
+            const buttonScale = .2;
+            const cornerPos = cameraPos.add(vec2(-stickScale*2, ((gamepadConnectedCount-1)/2-i)*stickScale*3));
+            debugText(i, cornerPos.add(vec2(-stickScale, stickScale)), 1);
+            if (i === gamepadPrimary)
+                debugText('Main', cornerPos.add(vec2(-stickScale*2, 0)),1, '#0f0');
+
+            // read analog sticks
+            const stickCount = gamepadStickData[i].length;
+            for (let j = 0; j < stickCount; j++)
+            {
+                if (!(j in gamepadStickData[i]))
+                    continue; // skip sticks that are not present (eg a disabled touch left stick)
+                const stick = gamepadStick(j, i);
+                const drawPos = cornerPos.add(vec2(j*stickScale*2, 0));
+                const stickPos = drawPos.add(stick.scale(stickScale));
+                debugCircle(drawPos, stickScale*2, '#fff7',0,true);
+                debugLine(drawPos, stickPos, '#f00');
+                debugText(j, drawPos, .3);
+                debugPoint(stickPos, '#f00');
+            }
+
+            const buttonCount = inputData[i+1].length;
+            for (let j = 0; j < buttonCount; j++)
+            {
+                const drawPos = cornerPos.add(vec2(j*buttonScale*2, -stickScale-buttonScale*2));
+                const pressed = gamepadIsDown(j, i);
+                debugCircle(drawPos, buttonScale*2, pressed ? '#f00' : '#fff7', 0, true);
+                debugText(j, drawPos, .3);
+            }
+        }
+    }
+
+    let debugObject;
+    if (debugOverlay)
+    {
+        // draw red rectangle around screen
+        const cameraSize = getCameraSize();
+        debugRect(cameraPos, cameraSize.subtract(vec2(.1)), '#f008');
+
+        // mouse pick
+        let bestDistance = Infinity;
+        for (const o of engineObjects)
+        {
+            if (o.destroyed)
+                continue;
+
+            if (o instanceof TileLayer)
+                continue; // prevent tile layers from being picked
+
+            o.renderDebugInfo();
+            if (!o.size.x || !o.size.y)
+                continue;
+
+            const distance = mousePos.distanceSquared(o.pos);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                debugObject = o;
+            }
+        }
+
+        if (tileCollisionTest(mousePos))
+        {
+            // show floored tile pick for tile collision
+            drawRect(mousePos.floor().add(vec2(.5)), vec2(1), rgb(1,1,0,.5), 0, false);
+        }
+    }
+
+    {
+        // draw debug primitives
+        debugContext.lineWidth = 2;
+        debugPrimitives.forEach(p=>
+        {
+            debugContext.save();
+
+            // create canvas transform from world space to screen space
+            // without scaling because we want consistent pixel sizes
+            let pos = p.pos, scale = 1, angle = p.angle;
+            if (!p.screenSpace)
+            {
+                pos = worldToScreen(p.pos);
+                scale = cameraScale;
+                angle -= cameraAngle;
+            }
+            debugContext.translate(pos.x|0, pos.y|0);
+            debugContext.rotate(angle);
+            debugContext.scale(1, p.text ? 1 : -1);
+            debugContext.fillStyle = p.color;
+            debugContext.strokeStyle = p.color;
+            if (p.text !== undefined)
+            {
+                debugContext.font = p.size*scale + 'px '+ p.font;
+                debugContext.textAlign = 'center';
+                debugContext.textBaseline = 'middle';
+                debugContext.fillText(p.text, 0, 0);
+            }
+            else if (p.points !== undefined)
+            {
+                // poly
+                debugContext.beginPath();
+                for (const point of p.points)
+                {
+                    const p2 = point.scale(scale).floor();
+                    debugContext.lineTo(p2.x, p2.y);
+                }
+                debugContext.closePath();
+                p.fill && debugContext.fill();
+                debugContext.stroke();
+            }
+            else if (p.size === 0 || (p.size.x === 0 && p.size.y === 0))
+            {
+                // point
+                const pointSize = debugPointSize * scale;
+                debugContext.fillRect(-pointSize/2, -1, pointSize, 3);
+                debugContext.fillRect(-1, -pointSize/2, 3, pointSize);
+            }
+            else if (p.size.x !== undefined)
+            {
+                // rect
+                const s = p.size.scale(scale).floor();
+                const w = s.x, h = s.y;
+                p.fill && debugContext.fillRect(-w/2|0, -h/2|0, w, h);
+                debugContext.strokeRect(-w/2|0, -h/2|0, w, h);
+            }
+            else
+            {
+                // circle
+                debugContext.beginPath();
+                debugContext.arc(0, 0, p.size*scale/2, 0, 9);
+                p.fill && debugContext.fill();
+                debugContext.stroke();
+            }
+
+            debugContext.restore();
+        });
+
+        // remove expired primitives
+        debugPrimitives = debugPrimitives.filter(r=>r.timer<0);
+    }
+
+    if (debugObject)
+    {
+        const raycastHitPos = tileCollisionRaycast(debugObject.pos, mousePos);
+        raycastHitPos && drawRect(raycastHitPos.floor().add(vec2(.5)), vec2(1), rgb(0,1,1,.3), 0, false);
+        drawLine(mousePos, debugObject.pos, .1, raycastHitPos ? rgb(1,0,0,.5) : rgb(0,1,0,.5), undefined, undefined, false);
+
+        let debugText = 'mouse pos = ' + mousePos;
+        if (tileCollisionLayers.length)
+            debugText += '\nmouse collision = ' + tileCollisionGetData(mousePos);
+        debugText += '\n\n--- object info ---\n';
+        debugText += debugObject.toString();
+        drawTextScreen(debugText, mousePosScreen, 24, rgb(), .05, undefined, 'center', 'monospace');
+    }
+
+    {
+        // draw debug overlay
+        const fontSize = 20;
+        const lineHeight = fontSize * 1.2 | 0;
+        debugContext.save();
+        debugContext.fillStyle = '#fff';
+        debugContext.textAlign = 'left';
+        debugContext.textBaseline = 'top';
+        debugContext.font = fontSize + 'px monospace';
+        debugContext.shadowColor = '#000';
+        debugContext.shadowBlur = 9;
+
+        let x = 9, y = 0, h = lineHeight;
+        if (debugOverlay)
+        {
+            debugContext.fillText(`${engineName} v${engineVersion}`, x, y += h/2 );
+            debugContext.fillText('Time: ' + formatTime(time), x, y += h);
+            debugContext.fillText('FPS: ' + averageFPS.toFixed(1) + (glEnable?' WebGL':' Canvas2D'), 
+                x, y += h);
+            debugContext.fillText('Objects: ' + engineObjects.length, x, y += h);
+            debugContext.fillText('Draw Calls: ' + drawCount, x, y += h);
+            debugContext.fillText('Primitives: ' + primitiveCount, x, y += h);
+            debugContext.fillText('---------', x, y += h);
+            debugContext.fillStyle = '#f00';
+            debugContext.fillText('ESC: Debug Overlay', x, y += h);
+            debugContext.fillStyle = debugPhysics ? '#f00' : '#fff';
+            debugContext.fillText('1: Debug Physics', x, y += h);
+            debugContext.fillStyle = debugParticles ? '#f00' : '#fff';
+            debugContext.fillText('2: Debug Particles', x, y += h);
+            debugContext.fillStyle = debugGamepads ? '#f00' : '#fff';
+            debugContext.fillText('3: Debug Gamepads', x, y += h);
+            debugContext.fillStyle = debugRaycast ? '#f00' : '#fff';
+            debugContext.fillText('4: Debug Raycasts', x, y += h);
+            debugContext.fillStyle = '#fff';
+            debugContext.fillText('5: Save Screenshot', x, y += h);
+            debugContext.fillText('6: Toggle Video Capture', x, y += h);
+            debugContext.fillStyle = debugSound ? '#f00' : '#fff';
+            debugContext.fillText('7: Debug Sound', x, y += h);
+
+            let keysPressed = '';
+            let mousePressed = '';
+            for (const i in inputData[0])
+            {
+                if (!keyIsDown(i, 0))
+                    continue;
+                if (parseInt(i) < 3)
+                    mousePressed += i + ' ' ;
+                else
+                    keysPressed += i + ' ' ;
+            }
+            mousePressed && debugContext.fillText('Mouse: ' + mousePressed, x, y += h);
+            keysPressed && debugContext.fillText('Keys: ' + keysPressed, x, y += h);
+
+            // show gamepad buttons
+            for (let i = 1; i < inputData.length; i++)
+            {
+                let buttonsPressed = '';
+                if (inputData[i])
+                for (const j in inputData[i])
+                {
+                    if (keyIsDown(j, i))
+                        buttonsPressed += j + ' ' ;
+                }
+                buttonsPressed && debugContext.fillText(`Gamepad ${i-1}: ` + buttonsPressed, x, y += h);
+            }
+        }
+        else
+        {
+            debugContext.fillText(debugPhysics ? 'Debug Physics' : '', x, y += h);
+            debugContext.fillText(debugParticles ? 'Debug Particles' : '', x, y += h);
+            debugContext.fillText(debugRaycast ? 'Debug Raycasts' : '', x, y += h);
+            debugContext.fillText(debugGamepads ? 'Debug Gamepads' : '', x, y += h);
+            debugContext.fillText(debugSound ? 'Debug Sound' : '', x, y += h);
+        }
+
+        debugContext.restore();
+    }
+    
+    if (debugWatermark || debugOverlay)
+    {
+        // show fps stats display
+        mainContext.textAlign = 'right';
+        mainContext.textBaseline = 'top';
+        mainContext.font = '1em monospace';
+        mainContext.fillStyle = '#000';
+        const text = engineName + ' v' + engineVersion + ' / '
+            + savedDrawCount + ' / ' + savedPrimitiveCount + ' / '
+            + engineObjects.length + ' / ' + averageFPS.toFixed(1)
+            + (glEnable ? ' GL' : ' 2D') ;
+        mainContext.fillText(text, mainCanvas.width-3, 3);
+        mainContext.fillStyle = '#fff';
+        mainContext.fillText(text, mainCanvas.width-2, 2);
+    }
+}
+
+function debugRenderPost()
+{
+    if (debugVideoCaptureIsActive())
+    {
+        debugVideoCaptureUpdate();
+        return;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// video capture - records video and audio at 60 fps using MediaRecorder API
+
+// internal variables used to capture video
+let debugVideoCapture, debugVideoCaptureIcon;
+
+/** Check if video capture is active
+ *  @memberof Debug */
+function debugVideoCaptureIsActive() { return !!debugVideoCapture; }
+
+/** Start capturing video
+ *  @memberof Debug */
+function debugVideoCaptureStart()
+{
+    ASSERT(!debugVideoCaptureIsActive(), 'Already capturing video!');
+
+    if (!debugVideoCaptureIcon)
+    {
+        // create recording icon to show it is capturing video
+        debugVideoCaptureIcon = document.createElement('div');
+        debugVideoCaptureIcon.style.position = 'absolute';
+        debugVideoCaptureIcon.style.padding = '9px';
+        debugVideoCaptureIcon.style.color = '#f00';
+        debugVideoCaptureIcon.style.font = '50px monospace';
+        document.body.appendChild(debugVideoCaptureIcon);
+    }
+    // show recording icon
+    debugVideoCaptureIcon.textContent = '';
+    debugVideoCaptureIcon.style.display = '';
+
+    // setup captureStream to capture manually by passing 0
+    const stream = mainCanvas.captureStream(0);
+    const videoTrack = stream.getVideoTracks()[0];
+    const captureTimer = new Timer(0, true);
+    const chunks = [];
+    videoTrack.applyConstraints({frameRate:frameRate});
+
+    // set up the media recorder
+    const mediaRecorder = new MediaRecorder(stream, 
+        {mimeType:'video/webm;codecs=vp8'});
+    mediaRecorder.ondataavailable = (e)=> chunks.push(e.data);
+    mediaRecorder.onstop = ()=>
+    {
+        const blob = new Blob(chunks, {type: 'video/webm'});
+        const url = URL.createObjectURL(blob);
+        saveDataURL(url, 'capture.webm', 1e3);
+    };
+
+    let audioStreamDestination, silentAudioSource;
+    if (soundEnable)
+    {
+        // create silent audio source
+        // fixes issue where video can not start recording without audio
+        silentAudioSource = new ConstantSourceNode(audioContext, { offset: 0 });
+        silentAudioSource.connect(audioMasterGain);
+        silentAudioSource.start();
+
+        // connect to audio master gain node
+        audioStreamDestination = audioContext.createMediaStreamDestination();
+        audioMasterGain.connect(audioStreamDestination);
+        for (const track of audioStreamDestination.stream.getAudioTracks())
+            stream.addTrack(track); // add audio tracks to capture stream
+    }
+
+    // start recording
+    try { mediaRecorder.start(); }
+    catch(e)
+    {
+        LOG('Video capture not supported in this browser!');
+        silentAudioSource?.stop();
+        return;
+    }
+
+    LOG('Video capture started.');
+
+    // save debug video info
+    debugVideoCapture =
+    {
+        mediaRecorder,
+        captureTimer,
+        videoTrack,
+        silentAudioSource,
+        audioStreamDestination
+    };
+}
+
+/** Stop capturing video and save to disk
+ *  @memberof Debug */
+function debugVideoCaptureStop()
+{
+    ASSERT(debugVideoCaptureIsActive(), 'Not capturing video!');
+
+    // stop recording
+    LOG(`Video capture ended. ${debugVideoCapture.captureTimer.get().toFixed(2)} seconds recorded.`);
+    debugVideoCaptureIcon.style.display = 'none';
+    debugVideoCapture.silentAudioSource?.stop();
+    debugVideoCapture.mediaRecorder?.stop();
+    debugVideoCapture.videoTrack?.stop();
+    debugVideoCapture = undefined;
+}
+
+// update video capture, called automatically by engine
+function debugVideoCaptureUpdate()
+{
+    ASSERT(debugVideoCaptureIsActive(), 'Not capturing video!');
+
+    // save the video frame
+    combineCanvases();
+    debugVideoCapture.videoTrack.requestFrame();
+    debugVideoCaptureIcon.textContent = '● REC ' 
+        + formatTime(debugVideoCapture.captureTimer);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// debug utility functions
+
+// make color constants immutable with debug assertions
+function debugProtectConstant(obj)
+{
+    if (debug)
+    {
+        // get properties and store original values
+        const props = Object.keys(obj), values = {};
+        props.forEach(prop => values[prop] = obj[prop]);
+        
+        // replace with getters/setters that assert
+        props.forEach(prop =>
+        {
+            Object.defineProperty(obj, prop, {
+                get: ()=> values[prop],
+                set: (value)=> 
+                {
+                    ASSERT(false, `Cannot modify engine constant. Attempted to set constant (${obj}) property '${prop}' to '${value}'.`);
+                },
+                enumerable: true
+            });
+        });
+    }
+    
+    // freeze the object to prevent adding new properties
+    return Object.freeze(obj);
+}
+/**
+ * LittleJS Math Classes and Functions
+ * - Comprehensive math utilities for game development
+ * - Vector2 class for 2D positions, directions, and math operations
+ * - Color class for RGBA colors with interpolation and manipulation
+ * - RandomGenerator for seeded pseudo-random number generation
+ * - Math shortcuts (PI, abs, floor, ceil, min, max, sin, cos, etc.)
+ * - Interpolation functions (lerp, smoothStep, percent)
+ * - Clamping, wrapping, and modulo operations
+ * - Angle utilities with wrap-around support
+ * - Collision detection (overlapping, intersection, line tests)
+ * - Random number generation and seeding
+ * - Type checking utilities
+ * @namespace Math
+ */
+
+/** The value of PI
+ *  @type {number}
+ *  @default Math.PI
+ *  @memberof Math */
+const PI = Math.PI;
+
+/** Returns absolute value of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const abs = Math.abs;
+
+/** Returns floored value of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const floor = Math.floor;
+
+/** Returns ceiled value of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const ceil = Math.ceil;
+
+/** Returns rounded value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const round = Math.round;
+
+/** Returns lowest value passed in
+ *  @param {...number} values
+ *  @return {number}
+ *  @memberof Math */
+const min = Math.min;
+
+/** Returns highest value passed in
+ *  @param {...number} values
+ *  @return {number}
+ *  @memberof Math */
+const max = Math.max;
+
+/** Returns the sign of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const sign = (x) => Math.sign(x);
+
+/** Returns hypotenuse of values passed in
+ *  @param {...number} values
+ *  @return {number}
+ *  @memberof Math */
+const hypot = (...values) => Math.hypot(...values);
+
+/** Returns log2 of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const log2 = (x) => Math.log2(x);
+
+/** Returns sin of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const sin = Math.sin;
+
+/** Returns cos of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const cos = Math.cos;
+
+/** Returns tan of value passed in
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const tan = Math.tan;
+
+/** Returns atan2 of values passed in
+ *  @param {number} y
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Math */
+const atan2 = Math.atan2;
+
+/** Returns first parm modulo the second param, but adjusted so negative numbers work as expected
+ *  @param {number} dividend
+ *  @param {number} [divisor]
+ *  @return {number}
+ *  @memberof Math */
+function mod(dividend, divisor=1) { return ((dividend % divisor) + divisor) % divisor; }
+
+/** Clamps the value between max and min
+ *  @param {number} value
+ *  @param {number} [min]
+ *  @param {number} [max]
+ *  @return {number}
+ *  @memberof Math */
+function clamp(value, min=0, max=1) { return value < min ? min : value > max ? max : value; }
+
+/** Returns what percentage the value is between valueA and valueB
+ *  @param {number} value
+ *  @param {number} valueA
+ *  @param {number} valueB
+ *  @return {number}
+ *  @memberof Math */
+function percent(value, valueA, valueB)
+{ return (valueB-=valueA) ? clamp((value-valueA)/valueB) : 0; }
+
+/** Linearly interpolates between values passed in using percent
+ *  @param {number} valueA
+ *  @param {number} valueB
+ *  @param {number} percent
+ *  @return {number}
+ *  @memberof Math */
+function lerp(valueA, valueB, percent)
+{ return valueA + clamp(percent) * (valueB-valueA); }
+
+/** Gets percent between percentA and percentB and linearly interpolates between lerpA and lerpB
+ *  A shortcut for lerp(lerpA, lerpB, percent(value, percentA, percentB))
+ *  @param {number} value
+ *  @param {number} percentA
+ *  @param {number} percentB
+ *  @param {number} lerpA
+ *  @param {number} lerpB
+ *  @return {number}
+ *  @memberof Math */
+function percentLerp(value, percentA, percentB, lerpA, lerpB)
+{ return lerp(lerpA, lerpB, percent(value, percentA, percentB)); }
+
+/** Returns signed wrapped distance between the two values passed in
+ *  @param {number} valueA
+ *  @param {number} valueB
+ *  @param {number} [wrapSize]
+ *  @return {number}
+ *  @memberof Math */
+function distanceWrap(valueA, valueB, wrapSize=1)
+{
+    ASSERT(wrapSize > 0, 'distanceWrap wrapSize must be > 0');
+    const d = (valueA - valueB) % wrapSize;
+    return d*2 % wrapSize - d;
+}
+
+/** Linearly interpolates between values passed in with wrapping
+ *  @param {number} valueA
+ *  @param {number} valueB
+ *  @param {number} percent
+ *  @param {number} [wrapSize]
+ *  @return {number}
+ *  @memberof Math */
+function lerpWrap(valueA, valueB, percent, wrapSize=1)
+{ return valueA + clamp(percent) * distanceWrap(valueB, valueA, wrapSize); }
+
+/** Returns signed wrapped distance between the two angles passed in
+ *  @param {number} angleA
+ *  @param {number} angleB
+ *  @return {number}
+ *  @memberof Math */
+function distanceAngle(angleA, angleB) { return distanceWrap(angleA, angleB, 2*PI); }
+
+/** Linearly interpolates between the angles passed in with wrapping
+ *  @param {number} angleA
+ *  @param {number} angleB
+ *  @param {number} percent
+ *  @return {number}
+ *  @memberof Math */
+function lerpAngle(angleA, angleB, percent) { return lerpWrap(angleA, angleB, percent, 2*PI); }
+
+/** Applies smoothstep function to the percentage value
+ *  @param {number} percent
+ *  @return {number}
+ *  @memberof Math */
+function smoothStep(percent) { return percent * percent * (3 - 2 * percent); }
+
+/** Checks if the value passed in is a power of two
+ *  @param {number} value
+ *  @return {boolean}
+ *  @memberof Math */
+function isPowerOfTwo(value) { return !(value & (value - 1)); }
+
+/** Returns the nearest power of two not less than the value
+ *  @param {number} value
+ *  @return {number}
+ *  @memberof Math */
+function nearestPowerOfTwo(value) { return 2**ceil(log2(value)); }
+
+/** Returns true if two axis aligned bounding boxes are overlapping
+ *  this can be used for simple collision detection between objects
+ *  @param {Vector2} posA - Center of box A
+ *  @param {Vector2} sizeA - Size of box A
+ *  @param {Vector2} posB - Center of box B
+ *  @param {Vector2} [sizeB=vec2()] - Size of box B, uses a point if undefined
+ *  @return {boolean} - True if overlapping
+ *  @memberof Math */
+function isOverlapping(posA, sizeA, posB, sizeB=vec2())
+{
+    const dx = (posA.x - posB.x)*2;
+    const dy = (posA.y - posB.y)*2;
+    const sx = sizeA.x + sizeB.x;
+    const sy = sizeA.y + sizeB.y;
+    // symmetric so isOverlapping(A,B) === isOverlapping(B,A) at touching edges
+    return abs(dx) < sx && abs(dy) < sy;
+}
+
+/** Returns true if a line segment is intersecting an axis aligned box
+ *  @param {Vector2} start - Start of raycast
+ *  @param {Vector2} end   - End of raycast
+ *  @param {Vector2} pos   - Center of box
+ *  @param {Vector2} size  - Size of box
+ *  @return {boolean}      - True if intersecting
+ *  @memberof Math */
+function isIntersecting(start, end, pos, size)
+{
+    // Liang-Barsky algorithm
+    const boxMin = pos.subtract(size.scale(.5));
+    const boxMax = boxMin.add(size);
+    const delta = end.subtract(start);
+    const a = start.subtract(boxMin);
+    const b = start.subtract(boxMax);
+    const p = [-delta.x, delta.x, -delta.y, delta.y];
+    const q = [a.x, -b.x, a.y, -b.y];
+    let tMin = 0, tMax = 1;
+    for (let i = 4; i--;)
+    {
+        if (p[i])
+        {
+            const t = q[i] / p[i];
+            if (p[i] < 0)
+            {
+                if (t > tMax) return false;
+                tMin = max(t, tMin);
+            }
+            else
+            {
+                if (t < tMin) return false;
+                tMax = min(t, tMax);
+            }
+        }
+        else if (q[i] < 0)
+            return false;
+    }
+
+    return true;
+}
+
+/** Returns an oscillating wave between 0 and amplitude with frequency of 1 Hz by default
+ *  @param {number} [frequency] - Frequency of the wave in Hz
+ *  @param {number} [amplitude] - Amplitude (max height) of the wave
+ *  @param {number} [t=time]    - Value to use for time of the wave
+ *  @param {number} [offset]    - Value to use for time offset of the wave
+ *  @param {number} [type]      - Wave type: 0=sine, 1=triangle, 2=square, 3=sawtooth
+ *  @return {number}            - Value waving between 0 and amplitude
+ *  @memberof Math */
+function oscillate(frequency=1, amplitude=1, t=time, offset=0, type=0)
+{
+    const phase = (offset + t*frequency) % 1;
+    let value;
+    
+    if (type === 1) // triangle
+        value = 2 * abs(2 * phase - 1) - 1;
+    else if (type === 2) // square
+        value = phase < .5 ? -1 : 1;
+    else if (type === 3) // sawtooth
+        value = 2 * phase - 1;
+    else // sine
+        value = -cos(phase * 2*PI);
+    return amplitude/2 * (value + 1);
+}
+
+/**
+ * Check if object is a valid number, not NaN or undefined, but it may be infinite
+ * @param {any} n
+ * @return {boolean}
+ * @memberof Math */
+function isNumber(n) { return typeof n === 'number' && !isNaN(n); }
+
+/**
+ * Check if a value is stringifiable — i.e. it has a toString that returns
+ * a string. Use this for ASSERTs and inputs that will be coerced to text;
+ * use `typeof x === 'string'` inline if you need strict-string semantics.
+ * - Returns true for strings, numbers, and most objects
+ * - Returns false for null and undefined
+ * @param {any} s
+ * @return {boolean}
+ * @memberof Math */
+function isStringLike(s) { return s != null && typeof s?.toString() === 'string'; }
+
+/**
+ * Check if object is an array
+ * @param {any} a
+ * @return {a is Array<any>}
+ * @memberof Math */
+function isArray(a) { return Array.isArray(a); }
+
+/**
+ * @callback LineTestFunction - Checks if a position is colliding
+ * @param {Vector2} pos
+ * @memberof Draw
+ */
+
+/**
+ * Casts a ray and returns position of the first collision found, or undefined if none are found
+ * @param {Vector2} posStart
+ * @param {Vector2} posEnd
+ * @param {LineTestFunction} testFunction - Check if colliding
+ * @param {Vector2} [normal] - Optional vector to store the normal
+ * @return {Vector2|undefined} - Position of the collision or undefined if none found
+ * @memberof Math */
+function lineTest(posStart, posEnd, testFunction, normal)
+{
+    ASSERT(isVector2(posStart), 'posStart must be a vec2');
+    ASSERT(isVector2(posEnd), 'posEnd must be a vec2');
+    ASSERT(typeof testFunction === 'function', 'testFunction must be a function');
+    ASSERT(!normal || isVector2(normal), 'normal must be a vec2');
+
+    // get ray direction and length
+    const dx = posEnd.x - posStart.x;
+    const dy = posEnd.y - posStart.y;
+    const totalLength = (dx*dx + dy*dy)**.5;
+    if (!totalLength) return;
+
+    // current integer cell we are in
+    const pos = posStart.floor();
+
+    // normalize ray direction
+    const dirX = dx / totalLength;
+    const dirY = dy / totalLength;
+
+    // step direction in grid
+    const stepX = sign(dirX);
+    const stepY = sign(dirY);
+
+    // distance along the ray to cross one full cell in X or Y
+    const tDeltaX = dirX ? abs(1 / dirX) : Infinity;
+    const tDeltaY = dirY ? abs(1 / dirY) : Infinity;
+
+    // distance along the ray from start to the first grid boundary
+    const nextGridX = stepX > 0 ? pos.x + 1 : pos.x;
+    const nextGridY = stepY > 0 ? pos.y + 1 : pos.y;
+    const tMaxX = dirX ? (nextGridX - posStart.x) / dirX : Infinity;
+    const tMaxY = dirY ? (nextGridY - posStart.y) / dirY : Infinity;
+
+    // use line drawing algorithm to test for collisions
+    let t = 0, tX = tMaxX, tY = tMaxY, wasX = tDeltaX < tDeltaY;
+    while (t < totalLength)
+    {
+        if (testFunction(pos))
+        {
+            // set hit point
+            const hitPos = vec2(posStart.x + dirX*t, posStart.y + dirY*t);
+
+            // ensure result is inside the tile
+            const e = 1e-9;
+            const hitPosFloor = hitPos.floor();
+            if (hitPosFloor.x < pos.x)
+                hitPos.x = pos.x;
+            else if (hitPosFloor.x > pos.x)
+                hitPos.x = pos.x + 1 - e;
+            if (hitPosFloor.y < pos.y)
+                hitPos.y = pos.y;
+            else if (hitPosFloor.y > pos.y) 
+                hitPos.y = pos.y + 1 - e;
+
+            // set normal
+            if (normal)
+                wasX ? normal.set(-stepX,0) : normal.set(0,-stepY);
+            return hitPos;
+        }
+
+        // advance to the next grid boundary
+        if (wasX = tX < tY)
+        {
+            pos.x += stepX;
+            t = tX;
+            tX += tDeltaX;
+        }
+        else
+        {
+            pos.y += stepY;
+            t = tY;
+            tY += tDeltaY;
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/** Random global functions
+ *  @namespace Random */
+
+/** Returns a random value between the two values passed in
+ *  @param {number} [valueA]
+ *  @param {number} [valueB]
+ *  @return {number}
+ *  @memberof Random */
+function rand(valueA=1, valueB=0) { return valueB + Math.random() * (valueA-valueB); }
+
+/** Returns a floored random value between the two values passed in
+ *  The upper bound is exclusive. (If 2 is passed in, result will be 0 or 1)
+ *  @param {number} valueA
+ *  @param {number} [valueB]
+ *  @return {number}
+ *  @memberof Random */
+function randInt(valueA, valueB=0) { return floor(rand(valueA,valueB)); }
+
+/** Randomly returns true or false given the chance of true passed in
+ *  @param {number} [chance]
+ *  @return {boolean}
+ *  @memberof Random */
+function randBool(chance=.5) { return rand() < chance; }
+
+/** Randomly returns either -1 or 1
+ *  @return {number}
+ *  @memberof Random */
+function randSign() { return randInt(2) * 2 - 1; }
+
+/** Returns a random Vector2 with the passed in length
+ *  @param {number} [length]
+ *  @return {Vector2}
+ *  @memberof Random */
+function randVec2(length=1) { return new Vector2().setAngle(rand(2*PI), length); }
+
+/** Returns a random Vector2 within a circular shape
+ *  @param {number} [radius]
+ *  @param {number} [minRadius]
+ *  @return {Vector2}
+ *  @memberof Random */
+function randInCircle(radius=1, minRadius=0)
+{
+    // r is uniform in area ⇒ r² uniform in [minRadius², radius²]
+    // (the squared inner bound is what makes minRadius the actual exclusion edge)
+    if (radius <= 0) return new Vector2;
+    const ratio = clamp(minRadius / radius);
+    return randVec2(radius * rand(ratio*ratio, 1)**.5);
+}
+
+/** Returns a random color between the two passed in colors, combine components if linear
+ *  @param {Color}   [colorA=WHITE]
+ *  @param {Color}   [colorB=BLACK]
+ *  @param {boolean} [linear]
+ *  @return {Color}
+ *  @memberof Random */
+function randColor(colorA=new Color, colorB=new Color(0,0,0,1), linear=false)
+{
+    return linear ? colorA.lerp(colorB, rand()) :
+        new Color(rand(colorA.r,colorB.r), rand(colorA.g,colorB.g), rand(colorA.b,colorB.b), rand(colorA.a,colorB.a));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Seeded random number generator
+ * - Can be used to create a deterministic random number sequence
+ * @memberof Engine
+ * @example
+ * let r = new RandomGenerator(123); // random number generator with seed 123
+ * let a = r.float();                // random value between 0 and 1
+ * let b = r.int(10);                // random integer between 0 and 9
+ * r.seed = 123;                     // reset the seed
+ * let c = r.float();                // the same value as a
+ */
+class RandomGenerator
+{
+    /** Create a random number generator with the seed passed in
+     *  @param {number} [seed] - Starting seed or engine default seed */
+    constructor(seed = 123456789)
+    {
+        ASSERT(seed !== 0, 'RandomGenerator seed must be non-zero (xorshift is fixed at 0)');
+        /** @property {number} - random seed */
+        this.seed = seed;
+    }
+
+    /** Returns a seeded random value between the two values passed in
+    *  @param {number} [valueA]
+    *  @param {number} [valueB]
+    *  @return {number} */
+    float(valueA=1, valueB=0)
+    {
+        // xorshift algorithm
+        this.seed ^= this.seed << 13;
+        this.seed ^= this.seed >>> 17;
+        this.seed ^= this.seed << 5;
+        return valueB + (valueA - valueB) * ((this.seed >>> 0) / 2**32);
+    }
+
+    /** Returns a floored seeded random value the two values passed in
+    *  @param {number} valueA
+    *  @param {number} [valueB]
+    *  @return {number} */
+    int(valueA, valueB=0) { return floor(this.float(valueA, valueB)); }
+
+    /** Randomly returns true or false given the chance of true passed in
+    *  @param {number} [chance]
+    *  @return {boolean} */
+    bool(chance=.5) { return this.float() < chance; }
+
+    /** Randomly returns either -1 or 1 deterministically
+    *  @return {number} */
+    sign() { return this.float() > .5 ? 1 : -1; }
+
+    /** Returns a seeded random value between the two values passed in with a random sign
+    *  @param {number} [valueA]
+    *  @param {number} [valueB]
+    *  @return {number} */
+    floatSign(valueA=1, valueB=0)
+    {
+        const lo = min(valueA, valueB);
+        const hi = max(valueA, valueB);
+        const d = hi - lo;
+        const e = this.float(d*2);
+        return e < d ? lo + e : d - lo - e;
+    }
+
+    /** Returns a random angle between -PI and PI
+    *  @return {number} */
+    angle() { return this.float(-PI, PI); }
+
+    /** Returns a seeded vec2 with size between the two values passed in
+    *  @param {number} valueA
+    *  @param {number} [valueB]
+    *  @return {Vector2} */
+    vec2(valueA=1, valueB=0)
+    { return vec2(this.float(valueA, valueB), this.float(valueA, valueB)); }
+
+    /** Returns a random color between the two passed in colors, combine components if linear
+    *  @param {Color}   [colorA=WHITE]
+    *  @param {Color}   [colorB=BLACK]
+    *  @param {boolean} [linear]
+    *  @return {Color} */
+    randColor(colorA=new Color, colorB=new Color(0,0,0,1), linear=false)
+    {
+        return linear ? colorA.lerp(colorB, this.float()) :
+            new Color(
+                this.float(colorA.r,colorB.r), 
+                this.float(colorA.g,colorB.g), 
+                this.float(colorA.b,colorB.b), 
+                this.float(colorA.a,colorB.a));
+    }
+
+    /** Returns a new color that has each component randomly adjusted
+     * @param {Color} color
+     * @param {number} [amount]
+     * @param {number} [alphaAmount]
+     * @return {Color} */
+    mutateColor(color, amount=.05, alphaAmount=0)
+    {
+        ASSERT_NUMBER_VALID(amount);
+        ASSERT_NUMBER_VALID(alphaAmount);
+        return new Color
+        (
+            color.r + this.float(amount, -amount),
+            color.g + this.float(amount, -amount),
+            color.b + this.float(amount, -amount),
+            color.a + this.float(alphaAmount, -alphaAmount)
+        ).clamp();
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Create a 2d vector, can take 1 or 2 scalar values
+ * @param {number} [x]
+ * @param {number} [y] - if y is undefined, x is used for both
+ * @return {Vector2}
+ * @example
+ * let a = vec2(0, 1); // vector with coordinates (0, 1)
+ * a = vec2(5);        // set a to (5, 5)
+ * b = vec2();         // set b to (0, 0)
+ * @memberof Math */
+function vec2(x=0, y) { return new Vector2(x, y ?? x); }
+
+/**
+ * Check if object is a valid Vector2
+ * @param {any} v
+ * @return {boolean}
+ * @memberof Math */
+function isVector2(v) { return v instanceof Vector2 && v.isValid(); }
+
+// vector2 asserts
+function ASSERT_VECTOR2_VALID(v) { ASSERT(isVector2(v), 'Vector2 is invalid.', v); }
+function ASSERT_NUMBER_VALID(n) { ASSERT(isNumber(n), 'Number is invalid.', n); }
+function ASSERT_VECTOR2_NORMAL(v)
+{
+    ASSERT_VECTOR2_VALID(v);
+    ASSERT(abs(v.lengthSquared()-1) < .01, 'Vector2 is not normal.', v);
+}
+
+/**
+ * 2D Vector object with vector math library
+ * - Functions do not change this so they can be chained together
+ * @memberof Engine
+ * @example
+ * let a = new Vector2(2, 3); // vector with coordinates (2, 3)
+ * let b = new Vector2;       // vector with coordinates (0, 0)
+ * let c = vec2(4, 2);        // use the vec2 function to make a Vector2
+ * let d = a.add(b).scale(5); // operators can be chained
+ */
+class Vector2
+{
+    /** Create a 2D vector with the x and y passed in, can also be created with vec2()
+     *  @param {number} [x] - X axis location
+     *  @param {number} [y] - Y axis location */
+    constructor(x=0, y=0)
+    {
+        /** @property {number} - X axis location */
+        this.x = x;
+        /** @property {number} - Y axis location */
+        this.y = y;
+        ASSERT(this.isValid(), 'Constructed Vector2 is invalid.', this);
+    }
+
+    /** Sets values of this vector and returns self
+     *  @param {number} [x] - X axis location
+     *  @param {number} [y] - Y axis location
+     *  @return {Vector2} */
+    set(x=0, y=0)
+    {
+        this.x = x;
+        this.y = y;
+        ASSERT_VECTOR2_VALID(this);
+        return this;
+    }
+
+    /** Sets this vector from another vector and returns self
+     *  @param {Vector2} v - other vector
+     *  @return {Vector2} */
+    setFrom(v) { return this.set(v.x, v.y); }
+
+    /** Returns a new vector that is a copy of this
+     *  @return {Vector2} */
+    copy() { return new Vector2(this.x, this.y); }
+
+    /** Returns a copy of this vector plus the vector passed in
+     *  @param {Vector2} v - other vector
+     *  @return {Vector2} */
+    add(v) { return new Vector2(this.x + v.x, this.y + v.y);}
+
+    /** Returns a copy of this vector minus the vector passed in
+     *  @param {Vector2} v - other vector
+     *  @return {Vector2} */
+    subtract(v) { return new Vector2(this.x - v.x, this.y - v.y); }
+
+    /** Returns a copy of this vector times the vector passed in
+     *  @param {Vector2} v - other vector
+     *  @return {Vector2} */
+    multiply(v) { return new Vector2(this.x * v.x, this.y * v.y); }
+
+    /** Returns a copy of this vector divided by the vector passed in
+     *  @param {Vector2} v - other vector
+     *  @return {Vector2} */
+    divide(v) { return new Vector2(this.x / v.x, this.y / v.y); }
+
+    /** Returns a copy of this vector scaled by the vector passed in
+     *  @param {number} s - scale
+     *  @return {Vector2} */
+    scale(s) { return new Vector2(this.x * s, this.y * s); }
+
+    /** Returns the length of this vector
+     * @return {number} */
+    length() { return this.lengthSquared()**.5; }
+
+    /** Returns the length of this vector squared
+     * @return {number} */
+    lengthSquared() { return this.x**2 + this.y**2; }
+
+    /** Returns the distance from this vector to vector passed in
+     * @param {Vector2} v - other vector
+     * @return {number} */
+    distance(v) { return this.distanceSquared(v)**.5; }
+
+    /** Returns the distance squared from this vector to vector passed in
+     * @param {Vector2} v - other vector
+     * @return {number} */
+    distanceSquared(v) { return (this.x - v.x)**2 + (this.y - v.y)**2; }
+
+    /** Returns a new vector in same direction as this one with the length passed in
+     * @param {number} [length]
+     * @return {Vector2} */
+    normalize(length=1)
+    {
+        const l = this.length();
+        return l ? this.scale(length/l) : new Vector2(0, length);
+    }
+
+    /** Returns a new vector clamped to length passed in
+     * @param {number} [length]
+     * @return {Vector2} */
+    clampLength(length=1)
+    {
+        const l = this.length();
+        return l > length ? this.scale(length/l) : this.copy();
+    }
+
+    /** Returns the dot product of this and the vector passed in
+     * @param {Vector2} v - other vector
+     * @return {number} */
+    dot(v) { return this.x*v.x + this.y*v.y; }
+
+    /** Returns the cross product of this and the vector passed in
+     * @param {Vector2} v - other vector
+     * @return {number} */
+    cross(v) { return this.x*v.y - this.y*v.x; }
+
+    /** Returns a copy this vector reflected by the surface normal
+     * @param {Vector2} normal - surface normal (should be normalized)
+     * @param {number} restitution - how much to bounce, 1 is perfect bounce, 0 is no bounce
+     * @return {Vector2} */
+    reflect(normal, restitution=1)
+    { return this.subtract(normal.scale((1+restitution)*this.dot(normal))); }
+
+    /** Returns the clockwise angle of this vector, up is angle 0
+     * @return {number} */
+    angle() { return atan2(this.x, this.y); }
+
+    /** Sets this vector with clockwise angle and length passed in
+     * @param {number} [angle]
+     * @param {number} [length]
+     * @return {Vector2} */
+    setAngle(angle=0, length=1)
+    {
+        ASSERT_NUMBER_VALID(angle);
+        ASSERT_NUMBER_VALID(length);
+        this.x = length*sin(angle);
+        this.y = length*cos(angle);
+        return this;
+    }
+
+    /** Returns copy of this vector rotated by the clockwise angle passed in
+     * @param {number} angle
+     * @return {Vector2} */
+    rotate(angle)
+    {
+        ASSERT_NUMBER_VALID(angle);
+        const c = cos(-angle), s = sin(-angle);
+        return new Vector2(this.x*c - this.y*s, this.x*s + this.y*c);
+    }
+
+    /** Sets this this vector to point in the specified integer direction (0-3), corresponding to multiples of 90 degree rotation
+     * @param {number} [direction]
+     * @param {number} [length]
+     * @return {Vector2} */
+    setDirection(direction, length=1)
+    {
+        ASSERT_NUMBER_VALID(direction);
+        ASSERT_NUMBER_VALID(length);
+        direction = mod(direction, 4);
+        ASSERT(direction===0 || direction===1 || direction===2 || direction===3,
+            'Vector2.setDirection() direction must be an integer between 0 and 3.');
+        
+        this.x = direction%2 ? direction-1 ? -length : length : 0;
+        this.y = direction%2 ? 0 : direction ? -length : length;
+        return this;
+    }
+
+    /** Returns the integer direction of this vector, corresponding to multiples of 90 degree rotation (0-3)
+     * @return {number} */
+    direction()
+    { return abs(this.x) > abs(this.y) ? this.x < 0 ? 3 : 1 : this.y < 0 ? 2 : 0; }
+
+    /** Returns a copy of this vector with absolute values
+     * @return {Vector2} */
+    abs() { return new Vector2(abs(this.x), abs(this.y)); }
+
+    /** Returns a copy of this vector with each axis floored
+     * @return {Vector2} */
+    floor() { return new Vector2(floor(this.x), floor(this.y)); }
+
+    /** Returns a copy of this vector snapped to a grid. Note that `grid` is
+     *  the number of snap steps per unit (so `grid=2` snaps to halves and
+     *  `grid=0.5` snaps to twos), not the cell size.
+     *  @param {number} grid - snap steps per unit
+     *  @return {Vector2} */
+    snap(grid)
+    {
+        ASSERT_NUMBER_VALID(grid);
+        return new Vector2(floor(this.x*grid)/grid, floor(this.y*grid)/grid);
+    }
+
+    /** Returns new vec2 with modded values
+    *  @param {number} [divisor]
+    *  @return {Vector2} */
+    mod(divisor=1)
+    { return new Vector2(mod(this.x, divisor), mod(this.y, divisor)); }
+
+    /** Returns the area this vector covers as a rectangle
+     * @return {number} */
+    area() { return abs(this.x * this.y); }
+
+    /** Returns a new vector that is p percent between this and the vector passed in
+     * @param {Vector2} v - other vector
+     * @param {number}  percent
+     * @return {Vector2} */
+    lerp(v, percent)
+    {
+        ASSERT_VECTOR2_VALID(v);
+        ASSERT_NUMBER_VALID(percent);
+        const p = clamp(percent);
+        return new Vector2(v.x*p + this.x*(1-p), v.y*p + this.y*(1-p));
+    }
+
+    /** Returns true if this vector is within the bounds of an array size passed in
+     * @param {Vector2} arraySize
+     * @return {boolean} */
+    arrayCheck(arraySize)
+    { return this.x >= 0 && this.y >= 0 && this.x < arraySize.x && this.y < arraySize.y; }
+
+    /** Returns this vector expressed as a string
+     * @param {number} digits - precision to display
+     * @return {string} */
+    toString(digits=3)
+    {
+        ASSERT_NUMBER_VALID(digits);
+        if (this.isValid())
+            return `(${(this.x<0?'':' ') + this.x.toFixed(digits)},${(this.y<0?'':' ') + this.y.toFixed(digits)} )`;
+        else
+            return `(${this.x}, ${this.y})`;
+    }
+
+    /** Checks if this is a valid vector
+     * @return {boolean} */
+    isValid() { return isNumber(this.x) && isNumber(this.y); }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Create a color object with RGBA values, white by default
+ * @param {number} [r=1] - red
+ * @param {number} [g=1] - green
+ * @param {number} [b=1] - blue
+ * @param {number} [a=1] - alpha
+ * @return {Color}
+ * @memberof Math
+ */
+function rgb(r, g, b, a) { return new Color(r, g, b, a); }
+
+/**
+ * Create a color object with HSLA values, white by default
+ * @param {number} [h=0] - hue
+ * @param {number} [s=0] - saturation
+ * @param {number} [l=1] - lightness
+ * @param {number} [a=1] - alpha
+ * @return {Color}
+ * @memberof Math */
+function hsl(h, s, l, a) { return new Color().setHSLA(h, s, l, a); }
+
+/**
+ * Check if object is a valid Color
+ * @param {any} c
+ * @return {boolean}
+ * @memberof Math */
+function isColor(c) { return c instanceof Color && c.isValid(); }
+
+// color asserts
+function ASSERT_COLOR_VALID(c) { ASSERT(isColor(c), 'Color is invalid.', c); }
+
+/**
+ * Color object (red, green, blue, alpha) with some helpful functions
+ * @memberof Engine
+ * @example
+ * let a = new Color;              // white
+ * let b = new Color(1, 0, 0);     // red
+ * let c = new Color(0, 0, 0, 0);  // transparent black
+ * let d = rgb(0, 0, 1);         // blue using rgb color
+ * let e = hsl(.3, 1, .5);         // green using hsl color
+ */
+class Color
+{
+    /** Create a color with the rgba components passed in, white by default
+     *  @param {number} [r] - red
+     *  @param {number} [g] - green
+     *  @param {number} [b] - blue
+     *  @param {number} [a] - alpha*/
+    constructor(r=1, g=1, b=1, a=1)
+    {
+        /** @property {number} - Red */
+        this.r = r;
+        /** @property {number} - Green */
+        this.g = g;
+        /** @property {number} - Blue */
+        this.b = b;
+        /** @property {number} - Alpha */
+        this.a = a;
+        ASSERT(this.isValid(), 'Constructed Color is invalid.', this);
+    }
+
+    /** Sets values of this color and returns self
+     *  @param {number} [r] - red
+     *  @param {number} [g] - green
+     *  @param {number} [b] - blue
+     *  @param {number} [a] - alpha
+     *  @return {Color} */
+    set(r=1, g=1, b=1, a=1)
+    {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+        ASSERT_COLOR_VALID(this);
+        return this;
+    }
+
+    /** Sets this color from another color and returns self
+     * @param {Color} c - other color
+     * @return {Color} */
+    setFrom(c) { return this.set(c.r, c.g, c.b, c.a); }
+
+    /** Sets the alpha of this color and returns self
+     *  @param {number} [a] - alpha
+     *  @return {Color} */
+    setAlpha(a=1)
+    {
+        this.a = a;
+        ASSERT_COLOR_VALID(this);
+        return this;
+    }
+
+    /** Returns a new color that is a copy of this
+     * @return {Color} */
+    copy() { return new Color(this.r, this.g, this.b, this.a); }
+
+    /** Returns a copy of this color with the alpha set
+     *  @param {number} [a] - alpha
+     *  @return {Color} */
+    withAlpha(a=1) { return new Color(this.r, this.g, this.b, a); }
+
+    /** Returns a copy of this color plus the color passed in
+     * @param {Color} c - other color
+     * @return {Color} */
+    add(c) { return new Color(this.r+c.r, this.g+c.g, this.b+c.b, this.a+c.a); }
+
+    /** Returns a copy of this color minus the color passed in
+     * @param {Color} c - other color
+     * @return {Color} */
+    subtract(c) { return new Color(this.r-c.r, this.g-c.g, this.b-c.b, this.a-c.a); }
+
+    /** Returns a copy of this color times the color passed in
+     * @param {Color} c - other color
+     * @return {Color} */
+    multiply(c) { return new Color(this.r*c.r, this.g*c.g, this.b*c.b, this.a*c.a); }
+
+    /** Returns a copy of this color divided by the color passed in
+     * @param {Color} c - other color
+     * @return {Color} */
+    divide(c) { return new Color(this.r/c.r, this.g/c.g, this.b/c.b, this.a/c.a); }
+
+    /** Returns a copy of this color scaled by the value passed in, alpha can be scaled separately
+     * @param {number} scale
+     * @param {number} [alphaScale=scale]
+     * @return {Color} */
+    scale(scale, alphaScale=scale)
+    { return new Color(this.r*scale, this.g*scale, this.b*scale, this.a*alphaScale); }
+
+    /** Returns a copy of this color clamped to the valid range between 0 and 1
+     * @return {Color} */
+    clamp() { return new Color(clamp(this.r), clamp(this.g), clamp(this.b), clamp(this.a)); }
+
+    /** Returns a new color that is p percent between this and the color passed in
+     * @param {Color}  c - other color
+     * @param {number} percent
+     * @return {Color} */
+    lerp(c, percent)
+    {
+        ASSERT_COLOR_VALID(c);
+        ASSERT_NUMBER_VALID(percent);
+        const p = clamp(percent);
+        return new Color(
+            c.r*p + this.r*(1-p),
+            c.g*p + this.g*(1-p),
+            c.b*p + this.b*(1-p),
+            c.a*p + this.a*(1-p));
+    }
+
+    /** Sets this color given a hue, saturation, lightness, and alpha
+     * @param {number} [h] - hue
+     * @param {number} [s] - saturation
+     * @param {number} [l] - lightness
+     * @param {number} [a] - alpha
+     * @return {Color} */
+    setHSLA(h=0, s=0, l=1, a=1)
+    {
+        h = mod(h,1);
+        s = clamp(s);
+        l = clamp(l);
+        const q = l < .5 ? l*(1+s) : l+s-l*s, p = 2*l-q,
+            f = (p, q, t)=>
+                (t = mod(t,1))*6 < 1 ? p+(q-p)*6*t :
+                t*2 < 1 ? q :
+                t*3 < 2 ? p+(q-p)*(4-t*6) : p;
+        this.r = f(p, q, h + 1/3);
+        this.g = f(p, q, h);
+        this.b = f(p, q, h - 1/3);
+        this.a = a;
+        ASSERT_COLOR_VALID(this);
+        return this;
+    }
+
+    /** Returns this color expressed in hsla format
+     * @return {Array<number>} */
+    HSLA()
+    {
+        const r = clamp(this.r);
+        const g = clamp(this.g);
+        const b = clamp(this.b);
+        const a = clamp(this.a);
+        const maxC = max(r, g, b);
+        const minC = min(r, g, b);
+        const l = (maxC + minC) / 2;
+        let h = 0, s = 0;
+        if (maxC !== minC)
+        {
+            let d = maxC - minC;
+            s = l > .5 ? d / (2 - maxC - minC) : d / (maxC + minC);
+            if (r === maxC)
+                h = (g - b) / d + (g < b ? 6 : 0);
+            else if (g === maxC)
+                h = (b - r) / d + 2;
+            else if (b === maxC)
+                h =  (r - g) / d + 4;
+        }
+        return [h / 6, s, l, a];
+    }
+
+    /** Returns a new color that has each component randomly adjusted
+     * @param {number} [amount]
+     * @param {number} [alphaAmount]
+     * @return {Color} */
+    mutate(amount=.05, alphaAmount=0)
+    {
+        ASSERT_NUMBER_VALID(amount);
+        ASSERT_NUMBER_VALID(alphaAmount);
+        return new Color
+        (
+            this.r + rand(amount, -amount),
+            this.g + rand(amount, -amount),
+            this.b + rand(amount, -amount),
+            this.a + rand(alphaAmount, -alphaAmount)
+        ).clamp();
+    }
+
+    /** Returns this color expressed as a hex color code
+     * @param {boolean} [useAlpha] - if alpha should be included in result
+     * @return {string} */
+    toString(useAlpha = true)
+    {
+        if (debug && !this.isValid())
+            return '#000';
+        const toHex = (c)=> ((c=clamp(c)*255|0)<16 ? '0' : '') + c.toString(16);
+        return '#' + toHex(this.r) + toHex(this.g) + toHex(this.b) + (useAlpha ? toHex(this.a) : '');
+    }
+
+    /** Set this color from a hex code
+     * @param {string} hex - html hex code
+     * @return {Color} */
+    setHex(hex)
+    {
+        ASSERT(isStringLike(hex), 'Color hex code must be a string');
+        ASSERT(hex[0] === '#', 'Color hex code must start with #');
+        ASSERT([4,5,7,9].includes(hex.length), 'Invalid hex');
+
+        if (hex.length < 6)
+        {
+            const fromHex = (c)=> clamp(parseInt(hex[c],16)/15);
+            this.r = fromHex(1);
+            this.g = fromHex(2);
+            this.b = fromHex(3);
+            this.a = hex.length === 5 ? fromHex(4) : 1;
+        }
+        else
+        {
+            const fromHex = (c)=> clamp(parseInt(hex.slice(c,c+2),16)/255);
+            this.r = fromHex(1);
+            this.g = fromHex(3);
+            this.b = fromHex(5);
+            this.a = hex.length === 9 ? fromHex(7) : 1;
+        }
+
+        ASSERT_COLOR_VALID(this);
+        return this;
+    }
+
+    /** Returns this color expressed as 32 bit RGBA value
+     * @return {number} */
+    rgbaInt()
+    {
+        const r = clamp(this.r)*255|0;
+        const g = clamp(this.g)*255<<8;
+        const b = clamp(this.b)*255<<16;
+        const a = clamp(this.a)*255<<24;
+        return r + g + b + a;
+    }
+
+    /** Checks if this is a valid color
+     * @return {boolean} */
+    isValid()
+    { return isNumber(this.r) && isNumber(this.g) && isNumber(this.b) && isNumber(this.a); }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Default Colors
+
+/** Color - White #ffffff
+ *  @type {Color}
+ *  @memberof Math */
+const WHITE = debugProtectConstant(rgb());
+
+/** Color - Clear White #ffffff00 with 0 alpha
+ *  @type {Color}
+ *  @memberof Math */
+const CLEAR_WHITE = debugProtectConstant(rgb(1,1,1,0));
+
+/** Color - Black #000000
+ *  @type {Color}
+ *  @memberof Math */
+const BLACK = debugProtectConstant(rgb(0,0,0));
+
+/** Color - Clear Black #00000000 with 0 alpha
+ *  @type {Color}
+ *  @memberof Math */
+const CLEAR_BLACK = debugProtectConstant(rgb(0,0,0,0));
+
+/** Color - Gray #808080
+ *  @type {Color}
+ *  @memberof Math */
+const GRAY = debugProtectConstant(rgb(.5,.5,.5));
+
+/** Color - Red #ff0000
+ *  @type {Color}
+ *  @memberof Math */
+const RED = debugProtectConstant(rgb(1,0,0));
+
+/** Color - Orange #ff8000
+ *  @type {Color}
+ *  @memberof Math */
+const ORANGE = debugProtectConstant(rgb(1,.5,0));
+
+/** Color - Yellow #ffff00
+ *  @type {Color}
+ *  @memberof Math */
+const YELLOW = debugProtectConstant(rgb(1,1,0));
+
+/** Color - Green #00ff00
+ *  @type {Color}
+ *  @memberof Math */
+const GREEN = debugProtectConstant(rgb(0,1,0));
+
+/** Color - Cyan #00ffff
+ *  @type {Color}
+ *  @memberof Math */
+const CYAN = debugProtectConstant(rgb(0,1,1));
+
+/** Color - Blue #0000ff
+ *  @type {Color}
+ *  @memberof Math */
+const BLUE = debugProtectConstant(rgb(0,0,1));
+
+/** Color - Purple #8000ff
+ *  @type {Color}
+ *  @memberof Math */
+const PURPLE = debugProtectConstant(rgb(.5,0,1));
+
+/** Color - Magenta #ff00ff
+ *  @type {Color}
+ *  @memberof Math */
+const MAGENTA = debugProtectConstant(rgb(1,0,1));
+/**
+ * LittleJS Utility Classes and Functions
+ * - Timer - tracks time automatically with support for pause and real-time modes
+ * - Time formatting helper
+ * - JSON file fetching
+ * - File saving (text, canvas, data URLs)
+ * - Native share dialog support
+ * - Local storage save data management
+ * - Gradient noise (1D and 2D)
+ * @namespace Utilities
+ */
+
+/**
+ * Timer object tracks how long has passed since it was set
+ * @memberof Engine
+ * @example
+ * let a = new Timer;    // creates a timer that is not set
+ * a.set(3);             // sets the timer to 3 seconds
+ *
+ * let b = new Timer(1); // creates a timer with 1 second left
+ * b.unset();            // unset the timer
+ */
+class Timer
+{
+    /** Create a timer object set time passed in
+     *  @param {number} [timeLeft] - How much time left before the timer 
+     *  @param {boolean} [useRealTime] - Should the timer keep running even when the game is paused? (useful for UI) */
+    constructor(timeLeft, useRealTime=false)
+    {
+        ASSERT(timeLeft === undefined || isNumber(timeLeft), 'Constructed Timer is invalid.', timeLeft);
+        this.useRealTime = useRealTime;
+        const globalTime = this.getGlobalTime();
+        this.time = timeLeft === undefined ? undefined : globalTime + timeLeft;
+        this.setTime = timeLeft;
+    }
+
+    /** Set the timer with seconds passed in
+     *  @param {number} [timeLeft] - How much time left before the timer is elapsed in seconds */
+    set(timeLeft=0)
+    {
+        ASSERT(isNumber(timeLeft), 'Timer is invalid.', timeLeft);
+        const globalTime = this.getGlobalTime();
+        this.time = globalTime + timeLeft;
+        this.setTime = timeLeft;
+    }
+
+    /** Set if the timer should keep running even when the game is paused
+     *  @param {boolean} [useRealTime] */
+    setUseRealTime(useRealTime=true)
+    {
+        ASSERT(!this.isSet(), 'Cannot change global time setting while timer is set.');
+        this.useRealTime = useRealTime;
+    }
+
+    /** Unset the timer */
+    unset() { this.time = undefined; }
+
+    /** Returns true if set
+     * @return {boolean} */
+    isSet() { return this.time !== undefined; }
+
+    /** Returns true if set and has not elapsed
+     * @return {boolean} */
+    active() { return this.getGlobalTime() < this.time; }
+
+    /** Returns true if set and elapsed
+     * @return {boolean} */
+    elapsed() { return this.getGlobalTime() >= this.time; }
+
+    /** Get how long since elapsed, returns 0 if not set (returns negative if currently active)
+     * @return {number} */
+    get() { return this.isSet()? this.getGlobalTime() - this.time : 0; }
+
+    /** Get percentage elapsed based on time it was set to, returns 0 if not set.
+     *  Zero-duration timers report 1 (already elapsed).
+     * @return {number} */
+    getPercent()
+    {
+        if (!this.isSet()) return 0;
+        if (!this.setTime) return 1;
+        return 1 - percent(this.time - this.getGlobalTime(), 0, this.setTime);
+    }
+
+    /** Get the time this timer was set to, returns 0 if not set
+     * @return {number} */
+    getSetTime() { return this.isSet() ? this.setTime : 0; }
+
+    /** Get the current global time this timer is based on
+     * @return {number} */
+    getGlobalTime() { return this.useRealTime ? timeReal : time; }
+
+    /** Returns this timer expressed as a string
+     * @return {string} */
+    toString() { return this.isSet() ? abs(this.get()) + ' seconds ' + (this.get()<0 ? 'before' : 'after' ) : 'unset'; }
+
+    /** Get how long since elapsed, returns 0 if not set (returns negative if currently active)
+     * @return {number} */
+    valueOf() { return this.get(); }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/** Formats seconds to mm:ss style for display purposes
+ *  @param {number} t - time in seconds
+ *  @return {string}
+ *  @memberof Utilities */
+function formatTime(t)
+{
+    const signStr = t < 0 ? '-' : '';
+    t = abs(t)|0;
+    return signStr + (t/60|0) + ':' + (t%60<10?'0':'') + t%60;
+}
+
+/** Fetches a JSON file from a URL and returns the parsed JSON object. Must be used with await!
+ *  @param {string} url - URL of JSON file
+ *  @return {Promise<object>}
+ *  @memberof Utilities */
+async function fetchJSON(url)
+{
+    const response = await fetch(url);
+    if (!response.ok)
+        throw new Error(`Failed to fetch JSON from ${url}: ${response.status} ${response.statusText}`);
+    return response.json();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/** Save a text file to disk
+ *  @param {string} text
+ *  @param {string} [filename]
+ *  @param {string} [type]
+ *  @memberof Utilities */
+function saveText(text, filename='text', type='text/plain')
+{ saveDataURL(URL.createObjectURL(new Blob([text], {'type':type})), filename); }
+
+/** Save a canvas to disk
+ *  @param {HTMLCanvasElement|OffscreenCanvas} canvas
+ *  @param {string} [filename]
+ *  @param {string} [type]
+ *  @memberof Utilities */
+function saveCanvas(canvas, filename='screenshot', type='image/png')
+{
+    if (canvas instanceof OffscreenCanvas)
+    {
+        // copy to temporary canvas and save
+        const saveCanvas = document.createElement('canvas');
+        saveCanvas.width = canvas.width;
+        saveCanvas.height = canvas.height;
+        saveCanvas.getContext('2d').drawImage(canvas, 0, 0);
+        saveDataURL(saveCanvas.toDataURL(type), filename);
+    }
+    else
+        saveDataURL(canvas.toDataURL(type), filename);
+}
+
+/** Save a data url to disk
+ *  @param {string} url
+ *  @param {string} [filename]
+ *  @param {number} [revokeTime] - how long before revoking the url
+ *  @memberof Utilities */
+function saveDataURL(url, filename='download', revokeTime)
+{
+    ASSERT(isStringLike(url), 'saveDataURL requires url string');
+    ASSERT(isStringLike(filename), 'saveDataURL requires filename string');
+
+    // create link for saving screenshots
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = url;
+    link.click();
+    if (revokeTime !== undefined)
+        setTimeout(()=> URL.revokeObjectURL(url), revokeTime);
+}
+
+/** Share content using the native share dialog if available
+ *  @param {string} title - title of the share
+ *  @param {string} url - url to share
+ *  @param {Function} [callback] - Called when share is complete
+ *  @memberof Utilities */
+function shareURL(title, url, callback)
+{
+    ASSERT(isStringLike(title), 'shareURL requires title string');
+    ASSERT(isStringLike(url), 'shareURL requires url string');
+    navigator.share?.({title, url}).then(()=>callback?.());
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/** Read save data from local storage
+ *  @param {string} saveName - unique name for the game/save
+ *  @param {Object} [defaultSaveData] - default values for save
+ *  @return {Object}
+ *  @memberof Utilities */
+function readSaveData(saveName, defaultSaveData)
+{
+    ASSERT(isStringLike(saveName), 'loadData requires saveName string');
+
+    // tolerate localStorage being unavailable (iOS private mode, sandboxed
+    // iframes) and corrupt JSON in stored data
+    let loadedData = {};
+    try
+    {
+        const data = localStorage[saveName];
+        if (data)
+        {
+            try { loadedData = JSON.parse(data); }
+            catch { LOG('readSaveData: corrupt JSON for', saveName, '— using defaults'); }
+        }
+    }
+    catch { LOG('readSaveData: localStorage unavailable — using defaults'); }
+    return { ...defaultSaveData, ...loadedData };
+}
+
+/** Write save data to local storage
+ *  @param {string} saveName - unique name for the game/save
+ *  @param {Object} saveData - object containing data to be saved
+ *  @memberof Utilities */
+function writeSaveData(saveName, saveData)
+{
+    ASSERT(isStringLike(saveName), 'saveData requires saveName string');
+    // tolerate localStorage being unavailable or quota exceeded
+    try { localStorage[saveName] = JSON.stringify(saveData); }
+    catch { LOG('writeSaveData: failed to write', saveName); }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// Deterministic well-distributed hash of an integer lattice index to [0, 1).
+// Murmur3 finalizer — adjacent integers produce uncorrelated outputs.
+function noiseHash(i)
+{
+    let h = (i | 0) ^ 0x9e3779b9;
+    h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    h ^= h >>> 16;
+    return (h >>> 0) / 2**32;
+}
+
+/** 1D gradient noise — returns a smooth value in [0, 1] for any real x.
+ *  Integer inputs land on deterministic lattice values; non-integer inputs
+ *  are interpolated with smoothStep for C1 continuity.
+ *  @param {number} x
+ *  @return {number}
+ *  @memberof Utilities */
+function noise1D(x)
+{
+    const i = floor(x);
+    return lerp(noiseHash(i), noiseHash(i + 1), smoothStep(x - i));
+}
+
+/** 2D gradient noise — returns a smooth value in [0, 1] for any real (x, y).
+ *  @param {number} x
+ *  @param {number} y
+ *  @return {number}
+ *  @memberof Utilities */
+function noise2D(x, y)
+{
+    const ix = floor(x), iy = floor(y);
+    const fx = smoothStep(x - ix), fy = smoothStep(y - iy);
+    // large prime decorrelates neighboring rows
+    const h = (a, b) => noiseHash(a + b * 374761393);
+    return lerp(
+        lerp(h(ix,     iy    ), h(ix + 1, iy    ), fx),
+        lerp(h(ix,     iy + 1), h(ix + 1, iy + 1), fx),
+        fy);
+}
+/**
+ * LittleJS Engine Settings
+ * - All settings for the engine are here
+ * @namespace Settings
+ */
+
+///////////////////////////////////////////////////////////////////////////////
+// Camera settings
+
+/** Position of camera in world space
+ *  @type {Vector2}
+ *  @default Vector2()
+ *  @memberof Settings */
+let cameraPos = vec2();
+
+/** Rotation angle of camera in world space
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let cameraAngle = 0;
+
+/** Scale of camera in world space
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let cameraScale = 32;
+
+///////////////////////////////////////////////////////////////////////////////
+// Time settings
+
+/** Scale applied to engine time, can be used for slow motion or fast forward
+ *  - 1 is normal speed, 2 is double speed, 0.5 is half speed
+ *  - 0 freezes the simulation without setting the paused flag
+ *  - Should be >= 0; stacks multiplicatively with the debug +/- shortcut
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let timeScale = 1;
+
+///////////////////////////////////////////////////////////////////////////////
+// Display settings
+
+/** Enable applying color to tiles when using canvas2d
+ *  - This is slower but should be the same as WebGL rendering
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let canvasColorTiles = true;
+
+/** Color to clear the canvas to before render, does not clear if alpha is 0
+ *  @type {Color}
+ *  @memberof Settings */
+let canvasClearColor = CLEAR_BLACK;
+
+/** The max size of the canvas, centered if window is larger
+ *  @type {Vector2}
+ *  @default Vector2(1920,1080)
+ *  @memberof Settings */
+let canvasMaxSize = vec2(1920, 1080);
+
+/** Minimum aspect ratio of the canvas (width/height), unused if 0
+ *  Can be used with canvasMaxAspect to limit aspect ratio
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let canvasMinAspect = 0;
+
+/** Maximum aspect ratio of the canvas (width/height), unused if 0
+ *  Can be used with canvasMinAspect to limit aspect ratio
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let canvasMaxAspect = 0;
+
+/** Fixed size of the canvas, if enabled canvas size never changes
+ * - you may also need to set mainCanvasSize if using screen space coords in startup
+ *  @type {Vector2}
+ *  @default Vector2()
+ *  @memberof Settings */
+let canvasFixedSize = vec2();
+
+/** Use nearest canvas scaling for more pixelated look
+ *  - If enabled sets css image-rendering:pixelated
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let canvasPixelated = false;
+
+/** Disables texture filtering for crisper pixel art
+ *  - Leave true for pixel art so sprites stay sharp when scaled (uses NEAREST filtering)
+ *  - Set false for smooth/high-resolution art to enable bilinear filtering and mipmaps
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let tilesPixelated = true;
+
+/** Scale factor applied to the canvas backing store for native-resolution rendering.
+ *  Pass 1 for no scaling, a number for an explicit ratio, or undefined to track devicePixelRatio each frame.
+ *  @type {number|undefined}
+ *  @default
+ *  @memberof Settings */
+let canvasPixelRatio = 1;
+
+/** Default font used for text rendering
+ *  @type {string}
+ *  @default
+ *  @memberof Settings */
+let fontDefault = 'arial';
+
+/** Enable to show the LittleJS splash screen on startup
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let showSplashScreen = false;
+
+/** Disables all rendering, audio, and input for servers
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let headlessMode = false;
+
+///////////////////////////////////////////////////////////////////////////////
+// WebGL settings
+
+/** Enable WebGL accelerated rendering
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let glEnable = true;
+
+/** How many sided poly to use when drawing circles and ellipses with WebGL
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let glCircleSides = 32;
+
+///////////////////////////////////////////////////////////////////////////////
+// Tile sheet settings
+
+/** Default size of tiles in pixels
+ *  @type {Vector2}
+ *  @default Vector2(16,16)
+ *  @memberof Settings */
+let tileDefaultSize = vec2(16);
+
+/** Default padding pixels around tiles
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let tileDefaultPadding = 0;
+
+/** Default amount of pixels smaller to draw tiles to prevent neighbor bleeding
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let tileDefaultBleed = 0;
+
+///////////////////////////////////////////////////////////////////////////////
+// Object settings
+
+/** Enable physics solver for collisions between objects
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let enablePhysicsSolver = true;
+
+/** Default object mass for collision calculations (how heavy objects are)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let objectDefaultMass = 1;
+
+/** How much to slow velocity by each frame (0-1)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let objectDefaultDamping = 1;
+
+/** How much to slow angular velocity each frame (0-1)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let objectDefaultAngleDamping = 1;
+
+/** How much to bounce when a collision occurs (0-1)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let objectDefaultRestitution = 0;
+
+/** How much to slow when touching (0-1)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let objectDefaultFriction = .8;
+
+/** Clamp max speed to avoid fast objects missing collisions
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let objectMaxSpeed = 1;
+
+/** How much gravity to apply to objects, negative Y is down
+ *  @type {Vector2}
+ *  @default
+ *  @memberof Settings */
+let gravity = vec2();
+
+/** Scales emit rate of particles, useful for low graphics mode (0 disables particle emitters)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let particleEmitRateScale = 1;
+
+///////////////////////////////////////////////////////////////////////////////
+// Input settings
+
+/** Should gamepads be allowed
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let gamepadsEnable = true;
+
+/** If true, the dpad input is also routed to the left analog stick (for better accessibility)
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let gamepadDirectionEmulateStick = true;
+
+/** If true the WASD keys are also routed to the direction keys (for better accessibility)
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let inputWASDEmulateDirection = true;
+
+/** True if touch input is enabled for mobile devices
+ *  - Touch events will be routed to mouse events
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let touchInputEnable = true;
+
+/** True if touch gamepad should appear on mobile devices
+ *  - Supports left analog stick, 4 face buttons and start button (button 9)
+ *  - setTouchGamepadButtonCount(1) to use face buttons as right analog stick
+ *  - Analog stick buttons 10 and 11 are also activated when virtual sticks are touched
+ *  - Rendered as a full-viewport HTML/SVG overlay, so controls may sit outside the game canvas
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadEnable = false;
+
+/** True if touches outside the gamepad controls should still drive mouse/touch input
+ *  - When false (the default), enabling the touch gamepad suppresses touch-to-mouse input entirely
+ *  - Set true to also pass touches outside the controls through to the game as mouse/touch input
+ *  - Touches on the gamepad controls never drive the mouse regardless of this setting
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadPassthrough = false;
+
+/** Size of center button if touch gamepad should have start button in the center
+ *  - Prevents activating when pressed near virtual stick or face buttons
+ *  - When the game is paused, any touch will press the button
+ *  - Measured in viewport CSS pixels
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadCenterButtonSize = 0;
+
+/** Number of buttons on the right side of the touch gamepad (0-4), using gamepad buttons 0-3
+ *  - A count of 1 is a single large button (the size of a stick)
+ *  - Ignored when touchGamepadRightStick is set (the right side is a stick instead)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadButtonCount = 4;
+
+/** True if the touch gamepad should have a left analog stick (or dpad)
+ *  - When false, the left side is face buttons (touchGamepadLeftButtonCount) or nothing
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadLeftStick = true;
+
+/** Number of buttons on the left side of the touch gamepad (0-4), using gamepad buttons 4-7
+ *  - Only used when touchGamepadLeftStick is false (otherwise the left side is a stick)
+ *  - A count of 1 is a single large button (the size of a stick)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadLeftButtonCount = 0;
+
+/** True if the touch gamepad right side should be an analog stick (or dpad) instead of face buttons
+ *  - When set, touchGamepadButtonCount is ignored and the right side is a stick
+ *  - Uses an analog stick when touchGamepadAnalog is true, otherwise an 8 way dpad
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadRightStick = false;
+
+/** True if touch gamepad should be analog stick or false to use if 8 way dpad
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadAnalog = true;
+
+/** True if touch gamepad directional controls should float to where you press
+ *  - Only affects analog sticks and dpads, not face buttons
+ *  - Directional controls re-anchor to where you press within the bottom ~60% of their screen half; the top ~40% passes through to the game
+ *  - The right side floats only when it acts as the right analog stick (touchGamepadRightStick is set)
+ *  - A center button (touchGamepadCenterButtonSize) still works since it ignores touches near the sticks
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadFloating = false;
+
+/** Size of virtual gamepad for touch devices in viewport CSS pixels
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadSize = 100;
+
+/** Transparency of touch gamepad overlay
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadAlpha = .3;
+
+/** How long to display the touch gamepad on screen in seconds, set to 0 to always display
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadDisplayTime = 3;
+
+/** Duration in ms to vibrate when a touch gamepad face button or start button is pressed
+ *  - Set to 0 to disable, also requires vibrateEnable and hardware support (ignored on iOS)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let touchGamepadVibration = 0;
+
+/** Allow vibration hardware if it exists
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let vibrateEnable = true;
+
+///////////////////////////////////////////////////////////////////////////////
+// Audio settings
+
+/** All audio code can be disabled and removed from build
+ *  @type {boolean}
+ *  @default
+ *  @memberof Settings */
+let soundEnable = true;
+
+/** Volume scale to apply to all sound, music and speech
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let soundVolume = .3;
+
+/** Default range where sound no longer plays
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let soundDefaultRange = 40;
+
+/** Default range percent to start tapering off sound (0-1)
+ *  @type {number}
+ *  @default
+ *  @memberof Settings */
+let soundDefaultTaper = .7;
+
+///////////////////////////////////////////////////////////////////////////////
+// Setters for global variables
+
+/** Set position of camera in world space
+ *  @param {Vector2} pos
+ *  @memberof Settings */
+function setCameraPos(pos) { cameraPos = pos.copy(); }
+
+/** Set angle of camera in world space
+ *  @param {number} angle
+ *  @memberof Settings */
+function setCameraAngle(angle) { cameraAngle = angle; }
+
+/** Set scale of camera in world space
+ *  @param {number} scale
+ *  @memberof Settings */
+function setCameraScale(scale) { cameraScale = scale; }
+
+/** Set scale applied to engine time
+ *  @param {number} scale
+ *  @memberof Settings */
+function setTimeScale(scale) { timeScale = scale; }
+
+/** Set if tiles should be colorized when using canvas2d
+ *  This can be slower but results should look nearly identical to WebGL rendering
+ *  It can be enabled/disabled at any time
+ *  Optimized for performance, and will use faster method if color is white or untextured
+ *  @param {boolean} colorTiles
+ *  @memberof Settings */
+function setCanvasColorTiles(colorTiles) { canvasColorTiles = colorTiles; }
+
+/** Set color to clear the canvas to before render, does not clear if alpha is 0
+ *  @param {Color} color
+ *  @memberof Settings */
+function setCanvasClearColor(color) { canvasClearColor = color.copy(); }
+
+/** Set max size of the canvas
+ *  @param {Vector2} size
+ *  @memberof Settings */
+function setCanvasMaxSize(size) { canvasMaxSize = size.copy(); }
+
+/** Set minimum aspect ratio of the canvas (width/height), unused if 0
+ *  @param {number} aspect
+ *  @memberof Settings */
+function setCanvasMinAspect(aspect) { canvasMinAspect = aspect; }
+
+/** Set maximum aspect ratio of the canvas (width/height), unused if 0
+ *  @param {number} aspect
+ *  @memberof Settings */
+function setCanvasMaxAspect(aspect) { canvasMaxAspect = aspect; }
+
+/** Set fixed size of the canvas
+ *  @param {Vector2} size
+ *  @memberof Settings */
+function setCanvasFixedSize(size) { canvasFixedSize = size.copy(); }
+
+/** Use nearest scaling algorithm for canvas for more pixelated look
+ *  @param {boolean} pixelated
+ *  @memberof Settings */
+function setCanvasPixelated(pixelated)
+{
+    canvasPixelated = pixelated;
+    if (mainCanvas)
+        mainCanvas.style.imageRendering = pixelated ? 'pixelated' : '';
+    if (glCanvas)
+        glCanvas.style.imageRendering = pixelated ? 'pixelated' : '';
+}
+
+/** Disables texture filtering for crisper pixel art
+ *  - Leave true for pixel art; set false for smooth/high-resolution art
+ *  @param {boolean} pixelated
+ *  @memberof Settings */
+function setTilesPixelated(pixelated) { tilesPixelated = pixelated; }
+
+/** Set the canvas pixel ratio.
+ *  Pass a number for an explicit ratio, or call with no argument to track devicePixelRatio each frame.
+ *  @param {number} [pixelRatio]
+ *  @memberof Settings */
+function setCanvasPixelRatio(pixelRatio) { canvasPixelRatio = pixelRatio; }
+
+/** Set default font used for text rendering
+ *  @param {string} font
+ *  @memberof Settings */
+function setFontDefault(font) { fontDefault = font; }
+
+/** Set if the LittleJS splash screen should be shown on startup
+ *  @param {boolean} show
+ *  @memberof Settings */
+function setShowSplashScreen(show) { showSplashScreen = show; }
+
+/** Set to disable rendering, audio, and input for servers
+ *  @param {boolean} headless
+ *  @memberof Settings */
+function setHeadlessMode(headless) { headlessMode = headless; }
+
+/** Set if WebGL rendering is enabled
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setGLEnable(enable)
+{
+    if (enable && !glCanBeEnabled)
+    {
+        console.warn('Can not enable WebGL if it was disabled on start.');
+        return;
+    }
+    glEnable = enable;
+    if (glCanvas) // hide glCanvas if WebGL is disabled
+        glCanvas.style.display = enable ? '' : 'none';
+}
+
+/** Set how many sided polygons to use when drawing circles and ellipses with WebGL
+ *  @param {number} sides
+ *  @memberof Settings */
+function setGLCircleSides(sides) { glCircleSides = sides; }
+
+/** Set default size of tiles in pixels
+ *  @param {Vector2} size
+ *  @memberof Settings */
+function setTileDefaultSize(size) { tileDefaultSize = size.copy(); }
+
+/** Default padding pixels around tiles
+ *  @param {number} padding
+ *  @memberof Settings */
+function setTileDefaultPadding(padding) { tileDefaultPadding = padding; }
+
+/** Default amount of pixels smaller to draw tiles to prevent neighbor bleeding
+ *  @param {number} bleed
+ *  @memberof Settings */
+function setTileDefaultBleed(bleed) { tileDefaultBleed = bleed; }
+
+/** Set if collisions between objects are enabled
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setEnablePhysicsSolver(enable) { enablePhysicsSolver = enable; }
+
+/** Set default object mass for collision calculations
+ *  @param {number} mass
+ *  @memberof Settings */
+function setObjectDefaultMass(mass) { objectDefaultMass = mass; }
+
+/** Set how much to slow velocity by each frame
+ *  @param {number} damp
+ *  @memberof Settings */
+function setObjectDefaultDamping(damp) { objectDefaultDamping = damp; }
+
+/** Set how much to slow angular velocity each frame
+ *  @param {number} damp
+ *  @memberof Settings */
+function setObjectDefaultAngleDamping(damp) { objectDefaultAngleDamping = damp; }
+
+/** Set how much to bounce when a collision occurs
+ *  @param {number} restitution
+ *  @memberof Settings */
+function setObjectDefaultRestitution(restitution) { objectDefaultRestitution = restitution; }
+
+/** Set how much to slow when touching
+ *  @param {number} friction
+ *  @memberof Settings */
+function setObjectDefaultFriction(friction) { objectDefaultFriction = friction; }
+
+/** Set max speed to avoid fast objects missing collisions
+ *  @param {number} speed
+ *  @memberof Settings */
+function setObjectMaxSpeed(speed) { objectMaxSpeed = speed; }
+
+/** Set how much gravity to apply to objects
+ *  @param {Vector2} newGravity
+ *  @memberof Settings */
+function setGravity(newGravity) { gravity = newGravity.copy(); }
+
+/** Set to scales emit rate of particles
+ *  @param {number} scale
+ *  @memberof Settings */
+function setParticleEmitRateScale(scale) { particleEmitRateScale = scale; }
+
+/** Set if gamepads are enabled
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setGamepadsEnable(enable) { gamepadsEnable = enable; }
+
+/** Set if the dpad input is also routed to the left analog stick
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setGamepadDirectionEmulateStick(enable) { gamepadDirectionEmulateStick = enable; }
+
+/** Set if true the WASD keys are also routed to the direction keys
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setInputWASDEmulateDirection(enable) { inputWASDEmulateDirection = enable; }
+
+/** Set if touch input is allowed
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setTouchInputEnable(enable) { touchInputEnable = enable; }
+
+/** Set if touch gamepad should appear on mobile devices
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setTouchGamepadEnable(enable) { touchGamepadEnable = enable; }
+
+/** Set if touches outside the gamepad controls should still drive mouse/touch input
+ *  @param {boolean} passthrough
+ *  @memberof Settings */
+function setTouchGamepadPassthrough(passthrough) { touchGamepadPassthrough = passthrough; }
+
+/** Set if touch gamepad should have start button in the center
+ *  - Set size to enable the center button
+ *  - When the game is paused, any touch will press the button
+ *  @param {number} size
+ *  @memberof Settings */
+function setTouchGamepadCenterButtonSize(size) { touchGamepadCenterButtonSize = size; }
+
+/** Set number of buttons on the right side of the touch gamepad (0-4, gamepad buttons 0-3)
+ *  @param {number} count
+ *  @memberof Settings */
+function setTouchGamepadButtonCount(count)
+{
+    touchGamepadButtonCount = count;
+    if (count > 0)
+        touchGamepadRightStick = false;
+}
+
+/** Set if the touch gamepad should have a left analog stick (or dpad)
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setTouchGamepadLeftStick(enable)
+{
+    touchGamepadLeftStick = enable;
+    if (enable)
+        touchGamepadLeftButtonCount = 0;
+}
+
+/** Set number of buttons on the left side of the touch gamepad (0-4, gamepad buttons 4-7)
+ *  - Only used when touchGamepadLeftStick is false
+ *  @param {number} count
+ *  @memberof Settings */
+function setTouchGamepadLeftButtonCount(count)
+{
+    touchGamepadLeftButtonCount = count;
+    if (count > 0)
+        touchGamepadLeftStick = false;
+}
+
+/** Set if the touch gamepad right side is an analog stick (or dpad) instead of face buttons
+ *  @param {boolean} rightStick
+ *  @memberof Settings */
+function setTouchGamepadRightStick(rightStick)
+{
+    touchGamepadRightStick = rightStick;
+    if (rightStick)
+        touchGamepadButtonCount = 0;
+}
+
+/** Set if touch gamepad should be analog stick or 8 way dpad
+ *  @param {boolean} analog
+ *  @memberof Settings */
+function setTouchGamepadAnalog(analog) { touchGamepadAnalog = analog; }
+
+/** Set if touch gamepad directional controls should float to where you press
+ *  @param {boolean} floating
+ *  @memberof Settings */
+function setTouchGamepadFloating(floating) { touchGamepadFloating = floating; }
+
+/** Set size of virtual gamepad for touch devices in pixels
+ *  @param {number} size
+ *  @memberof Settings */
+function setTouchGamepadSize(size) { touchGamepadSize = size; }
+
+/** Set transparency of touch gamepad overlay
+ *  @param {number} alpha
+ *  @memberof Settings */
+function setTouchGamepadAlpha(alpha) { touchGamepadAlpha = alpha; }
+
+/** Set how long to display the touch gamepad on screen in seconds, set to 0 to always display
+ *  @param {number} time
+ *  @memberof Settings */
+function setTouchGamepadDisplayTime(time) { touchGamepadDisplayTime = time; }
+
+/** Set duration in ms to vibrate when a touch gamepad face or start button is pressed (0 disables)
+ *  @param {number} ms
+ *  @memberof Settings */
+function setTouchGamepadVibration(ms) { touchGamepadVibration = ms; }
+
+/** Set to allow vibration hardware if it exists
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setVibrateEnable(enable) { vibrateEnable = enable; }
+
+/** Set to disable all audio code
+ *  @param {boolean} enable
+ *  @memberof Settings */
+function setSoundEnable(enable) { soundEnable = enable; }
+
+/** Set volume scale to apply to all sound, music and speech
+ *  @param {number} volume
+ *  @memberof Settings */
+function setSoundVolume(volume)
+{
+    soundVolume = volume;
+    if (soundEnable && !headlessMode && audioMasterGain)
+        audioMasterGain.gain.value = volume; // update gain immediately
+}
+
+/** Set default range where sound no longer plays
+ *  @param {number} range
+ *  @memberof Settings */
+function setSoundDefaultRange(range) { soundDefaultRange = range; }
+
+/** Set default range percent to start tapering off sound
+ *  @param {number} taper
+ *  @memberof Settings */
+function setSoundDefaultTaper(taper) { soundDefaultTaper = taper; }
+
+/** Set if watermark with FPS should be shown
+ *  @param {boolean} show
+ *  @memberof Debug */
+function setDebugWatermark(show) { debugWatermark = show; }
+
+/** Set key code used to toggle debug mode, Esc by default
+ *  @param {string} key
+ *  @memberof Debug */
+function setDebugKey(key) { debugKey = key; }
+/**
+ * LittleJS Object System
+ * - EngineObject is the base class for all game objects
+ * - Handles automatic updating, rendering, physics, and collision
+ * - Supports parent-child hierarchies with transform inheritance
+ * - 2D physics with velocity, acceleration, damping, and gravity
+ * - Collision system with tiles and other objects
+ * - Renders sprites from tile sheets with color and rotation
+ * - Objects sorted by renderOrder for layered rendering
+ */
+
+/**
+ * LittleJS Object Base Object Class
+ * - Top level object class used by the engine
+ * - Automatically adds self to object list
+ * - Will be updated and rendered each frame
+ * - Renders as a sprite from a tilesheet by default
+ * - Can have color and additive color applied
+ * - 2D Physics and collision system
+ * - Sorted by renderOrder
+ * - Objects can have children attached
+ * - Parents are updated before children, and set child transform
+ * - Call destroy() to get rid of objects
+ *
+ * The physics system used by objects is simple and fast with some caveats...
+ * - Collision uses the axis aligned size, the object's rotation angle is only for rendering
+ * - Objects are guaranteed to not intersect tile collision from physics
+ * - If an object starts or is moved inside tile collision, it will not collide with that tile
+ * - Collision for objects can be set to be solid to block other objects
+ * - Objects may get pushed into overlapping other solid objects, if so they will push away
+ * - Solid objects are more performance intensive and should be used sparingly
+ * @memberof Engine
+ * @example
+ * // create an engine object, normally you would first extend the class with your own
+ * const pos = vec2(2,3);
+ * const object = new EngineObject(pos);
+ */
+class EngineObject
+{
+    /** Create an engine object and adds it to the list of objects
+     *  @param {Vector2}  [pos=vec2()] - World space position of the object
+     *  @param {Vector2}  [size=vec2(1)] - World space size of the object
+     *  @param {TileInfo} [tileInfo] - Tile info to render object (undefined is untextured)
+     *  @param {number}   [angle] - Angle the object is rotated by
+     *  @param {Color}    [color=WHITE] - Color to apply to tile when rendered
+     *  @param {number}   [renderOrder] - Objects sorted by renderOrder before being rendered
+     */
+    constructor(pos=vec2(), size=vec2(1), tileInfo, angle=0, color=WHITE, renderOrder=0)
+    {
+        // check passed in params
+        ASSERT(isVector2(pos), 'object pos must be a vec2');
+        ASSERT(isVector2(size), 'object size must be a vec2');
+        ASSERT(!tileInfo || tileInfo instanceof TileInfo, 'object tileInfo should be a TileInfo or undefined');
+        ASSERT(typeof angle === 'number' && isFinite(angle), 'object angle should be a number');
+        ASSERT(isColor(color), 'object color should be a valid rgba color');
+        ASSERT(typeof renderOrder === 'number', 'object renderOrder should be a number');
+
+        /** @property {Vector2} - World space position of the object */
+        this.pos = pos.copy();
+        /** @property {Vector2} - World space width and height of the object */
+        this.size = size.copy();
+        /** @property {Vector2} - Size of object used for drawing, uses size if not set */
+        this.drawSize = undefined;
+        /** @property {TileInfo} - Tile info to render object (undefined is untextured) */
+        this.tileInfo = tileInfo;
+        /** @property {number} - Angle to rotate the object */
+        this.angle = angle;
+        /** @property {Color} - Color to apply when rendered */
+        this.color = color.copy();
+        /** @property {Color} - Additive color to apply when rendered */
+        this.additiveColor = undefined;
+        /** @property {boolean} - Should the rendered tile flip along the y axis. Affects rendering and the local→world transform of attached children (a mirrored parent flips its children's localPos.x and localAngle). Does not affect this object's own physics, collision, or localToWorld/worldToLocal. */
+        this.mirror = false;
+        /** @property {boolean} - Has object been destroyed? */
+        this.destroyed = false;
+
+        // physical properties
+        /** @property {number} - How heavy the object is, static if 0 */
+        this.mass = objectDefaultMass;
+        /** @property {number} - How much to slow down velocity each frame (0-1) */
+        this.damping = objectDefaultDamping;
+        /** @property {number} - How much to slow down rotation each frame (0-1) */
+        this.angleDamping = objectDefaultAngleDamping;
+        /** @property {number} - How bouncy the object is when colliding (0-1) */
+        this.restitution = objectDefaultRestitution;
+        /** @property {number} - How much friction to apply when sliding (0-1) */
+        this.friction  = objectDefaultFriction;
+        /** @property {number} - How much to scale gravity by for this object */
+        this.gravityScale = 1;
+        /** @property {number} - Objects are sorted by render order */
+        this.renderOrder = renderOrder;
+        /** @property {Vector2} - Velocity of the object */
+        this.velocity = vec2();
+        /** @property {number} - Angular velocity of the object */
+        this.angleVelocity = 0;
+        /** @property {number} - Track when object was created  */
+        this.spawnTime = time;
+        /** @property {Array<EngineObject>} - List of children of this object */
+        this.children = [];
+        /** @property {boolean} - Limit object speed along x and y axis */
+        this.clampSpeed = true;
+        /** @property {EngineObject} - Object we are standing on, if any  */
+        this.groundObject = undefined;
+
+        // parent child system
+        /** @property {EngineObject} - Parent of object if in local space  */
+        this.parent = undefined;
+        /** @property {Vector2} - Local position if child */
+        this.localPos = vec2();
+        /** @property {number} - Local angle if child  */
+        this.localAngle = 0;
+
+        // collision flags
+        /** @property {boolean} - Object collides with the tile collision */
+        this.collideTiles = false;
+        /** @property {boolean} - Object collides with solid objects */
+        this.collideSolidObjects = false;
+        /** @property {boolean} - Object collides with and blocks other objects */
+        this.isSolid = false;
+        /** @property {boolean} - Object collides with raycasts */
+        this.collideRaycast = false;
+
+        // add to list of objects
+        engineObjects.push(this);
+    }
+
+    /** Update the object transform, called automatically by engine even when paused */
+    updateTransforms()
+    {
+        const parent = this.parent;
+        if (parent)
+        {
+            // compose with parent transform inline to avoid intermediate vector allocs
+            const mirror = parent.getMirrorSign();
+            const lp = this.localPos, pp = parent.pos;
+            const lx = lp.x*mirror, ly = lp.y, pa = parent.angle;
+            if (pa)
+            {
+                const c = cos(-pa), s = sin(-pa);
+                this.pos.set(lx*c - ly*s + pp.x, lx*s + ly*c + pp.y);
+            }
+            else
+                this.pos.set(lx + pp.x, ly + pp.y);
+            this.angle = mirror*this.localAngle + pa;
+        }
+
+        // update children
+        for (const child of this.children)
+            child.updateTransforms();
+    }
+
+    /** Update the object physics, called automatically by engine once each frame. Can be overridden to stop or change how physics works for an object. */
+    updatePhysics()
+    {
+        // child objects do not have physics
+        ASSERT(!this.parent);
+
+        // bail if a collision callback destroyed us mid-frame
+        if (this.destroyed) return;
+
+        if (this.clampSpeed)
+        {
+            // limit max speed to prevent missing collisions
+            this.velocity.x = clamp(this.velocity.x, -objectMaxSpeed, objectMaxSpeed);
+            this.velocity.y = clamp(this.velocity.y, -objectMaxSpeed, objectMaxSpeed);
+        }
+
+        // apply physics
+        const oldPos = this.pos.copy();
+        this.velocity.x *= this.damping;
+        this.velocity.y *= this.damping;
+        if (this.mass)
+        {
+            // apply gravity only if it has mass
+            this.velocity.x += gravity.x * this.gravityScale;
+            this.velocity.y += gravity.y * this.gravityScale;
+        }
+        this.pos.x += this.velocity.x;
+        this.pos.y += this.velocity.y;
+        this.angle += this.angleVelocity *= this.angleDamping;
+
+        // physics sanity checks
+        ASSERT(this.angleDamping >= 0 && this.angleDamping <= 1);
+        ASSERT(this.damping >= 0 && this.damping <= 1);
+
+        // don't do collision for static objects or if solver disabled
+        if (!enablePhysicsSolver || !this.mass) return;
+
+        const wasFalling = this.velocity.y < 0 && gravity.y < 0 || this.velocity.y > 0 && gravity.y > 0;
+        if (this.groundObject)
+        {
+            // apply friction in local space of ground object
+            const friction = max(this.friction, this.groundObject.friction);
+            const groundSpeed = this.groundObject.velocity.x;
+            this.velocity.x = groundSpeed + (this.velocity.x - groundSpeed) * friction;
+            this.groundObject = undefined;
+        }
+
+        if (this.collideSolidObjects)
+        {
+            // check collisions against solid objects
+            const epsilon = .001; // necessary to push slightly outside of the collision
+            for (const o of engineObjectsCollide)
+            {
+                // skip destroyed, child objects, or self collision
+                if (o.destroyed || o.parent || o === this) continue;
+
+                // non solid objects don't collide with each other
+                if (!this.isSolid && !o.isSolid) continue;
+
+                // check collision
+                if (!this.isOverlappingObject(o)) continue;
+
+                // notify objects of collision and check if should be resolved
+                const collide1 = this.collideWithObject(o);
+                const collide2 = o.collideWithObject(this);
+                if (!collide1 || !collide2) continue;
+
+                if (isOverlapping(oldPos, this.size, o.pos, o.size))
+                {
+                    // if already was touching, try to push away
+                    const deltaPos = oldPos.subtract(o.pos);
+                    const length = deltaPos.length();
+                    const pushAwayAccel = .001;
+                    const velocity = length < .001 ? vec2(0,1) : deltaPos.scale(pushAwayAccel/length);
+                    this.velocity = this.velocity.add(velocity);
+                    if (o.mass) // push away other object if not fixed
+                        o.velocity = o.velocity.subtract(velocity);
+
+                    debugPhysics && debugOverlap(this.pos, this.size, o.pos, o.size, '#f00');
+                    continue;
+                }
+
+                // check for collision
+                const sizeBoth = this.size.add(o.size);
+                const smallStepUp = (oldPos.y - o.pos.y)*2 > sizeBoth.y + gravity.y; // prefer to push up if small delta
+                const isBlockedX = abs(oldPos.y - o.pos.y)*2 < sizeBoth.y;
+                const isBlockedY = abs(oldPos.x - o.pos.x)*2 < sizeBoth.x;
+                const restitution = max(this.restitution, o.restitution);
+
+                if (smallStepUp || isBlockedY || !isBlockedX) // resolve y collision
+                {
+                    // push outside object collision
+                    this.pos.y = o.pos.y + (sizeBoth.y/2 + epsilon) * sign(oldPos.y - o.pos.y);
+                    if ((o.groundObject && wasFalling) || !o.mass)
+                    {
+                        // set ground object if landed on something
+                        if (wasFalling)
+                            this.groundObject = o;
+
+                        // bounce if other object is fixed or grounded
+                        this.velocity.y *= -restitution;
+                    }
+                    else if (o.mass)
+                    {
+                        // inelastic collision
+                        const inelastic = (this.mass * this.velocity.y + o.mass * o.velocity.y) / (this.mass + o.mass);
+
+                        // elastic collision
+                        const elastic0 = this.velocity.y * (this.mass - o.mass) / (this.mass + o.mass)
+                            + o.velocity.y * 2 * o.mass / (this.mass + o.mass);
+                        const elastic1 = o.velocity.y * (o.mass - this.mass) / (this.mass + o.mass)
+                            + this.velocity.y * 2 * this.mass / (this.mass + o.mass);
+
+                        // lerp between elastic or inelastic based on restitution
+                        this.velocity.y = lerp(inelastic, elastic0, restitution);
+                        o.velocity.y = lerp(inelastic, elastic1, restitution);
+                    }
+                }
+                if (!smallStepUp && isBlockedX) // resolve x collision
+                {
+                    // push outside collision
+                    this.pos.x = o.pos.x + (sizeBoth.x/2 + epsilon) * sign(oldPos.x - o.pos.x);
+                    if (o.mass)
+                    {
+                        // inelastic collision
+                        const inelastic = (this.mass * this.velocity.x + o.mass * o.velocity.x) / (this.mass + o.mass);
+
+                        // elastic collision
+                        const elastic0 = this.velocity.x * (this.mass - o.mass) / (this.mass + o.mass)
+                            + o.velocity.x * 2 * o.mass / (this.mass + o.mass);
+                        const elastic1 = o.velocity.x * (o.mass - this.mass) / (this.mass + o.mass)
+                            + this.velocity.x * 2 * this.mass / (this.mass + o.mass);
+
+                        // lerp between elastic or inelastic based on restitution
+                        this.velocity.x = lerp(inelastic, elastic0, restitution);
+                        o.velocity.x = lerp(inelastic, elastic1, restitution);
+                    }
+                    else // bounce if other object is fixed
+                        this.velocity.x *= -restitution;
+                }
+                debugPhysics && debugOverlap(this.pos, this.size, o.pos, o.size, '#f0f');
+            }
+        }
+        if (this.collideTiles)
+        {
+            // check collision against tiles
+            const hitLayer = tileCollisionTest(this.pos, this.size, this);
+            if (hitLayer)
+            {
+                // if already was stuck in collision, don't do anything
+                // this should not happen unless something starts in collision
+                if (!tileCollisionTest(oldPos, this.size, this))
+                {
+                    // test which side we bounced off (or both if a corner)
+                    const isBlockedX = tileCollisionTest(vec2(this.pos.x, oldPos.y), this.size, this);
+                    const isBlockedY = tileCollisionTest(vec2(oldPos.x, this.pos.y), this.size, this);
+                    const restitution = max(this.restitution, hitLayer.restitution);
+                    if (isBlockedX)
+                    {
+                        // try to step over a 1-tile bump (direction follows gravity sign
+                        // so inverted gravity steps down off a ceiling bump instead of up;
+                        // zero gravity defaults to the normal-gravity step-up direction)
+                        const epsilon = 1e-3;
+                        const maxMove = .1;
+                        const gravitySign = gravity.y > 0 ? -1 : 1;
+                        const y = gravitySign > 0 ?
+                            floor(oldPos.y-this.size.y/2+1) + this.size.y/2 + epsilon :
+                            ceil( oldPos.y+this.size.y/2-1) - this.size.y/2 - epsilon;
+                        const delta = abs(y - this.pos.y);
+                        if (delta < maxMove)
+                        if (!tileCollisionTest(vec2(this.pos.x, y), this.size, this))
+                        {
+                            this.pos.y = y;
+                            debugPhysics && debugRect(this.pos, this.size, '#ff0');
+                            return;
+                        }
+
+                        // move to previous X position and bounce
+                        this.pos.x = oldPos.x;
+                        this.velocity.x *= -restitution;
+                    }
+                    if (isBlockedY || !isBlockedX)
+                    {
+                        if (wasFalling)
+                        {
+                            // adjust position to slightly away from nearest tile
+                            // this prevents gap between object and ground
+                            const epsilon = .0001;
+                            const offset = this.size.y/2 + epsilon;
+                            this.pos.y = gravity.y < 0 ?
+                                floor(oldPos.y-this.size.y/2) + offset :
+                                ceil( oldPos.y+this.size.y/2) - offset;
+
+                            // set ground object for tile collision
+                            this.groundObject = hitLayer;
+                        }
+                        else
+                        {
+                            // move to previous Y position
+                            this.pos.y = oldPos.y;
+                            this.groundObject = undefined;
+                        }
+                        // bounce velocity
+                        this.velocity.y *= -restitution;
+                    }
+                    debugPhysics && debugRect(this.pos, this.size, '#f00');
+                }
+            }
+        }
+    }
+
+    /** Update the object, called automatically by engine once each frame. Does nothing by default. */
+    update() {}
+
+    /** Render the object, draws a tile by default, automatically called each frame, sorted by renderOrder */
+    render()
+    {
+        // default object render
+        drawTile(this.pos, this.drawSize || this.size, this.tileInfo, this.color, this.angle, this.mirror, this.additiveColor);
+    }
+
+    /** Optional hook called during the light system plugin's lightmap pass to draw this object's lightmap contribution. Does nothing by default. */
+    renderLight() {}
+
+    /** Destroy this object, destroy its children, detach its parent, and mark it for removal
+     *  @param {boolean} [immediate] - should attached effects be allowed to die off? */
+    destroy(immediate=false)
+    {
+        if (this.destroyed) return;
+
+        // disconnect from parent and destroy children
+        this.destroyed = true;
+        this.parent?.removeChild(this);
+        for (const child of this.children)
+        {
+            child.parent = undefined;
+            child.destroy(immediate);
+        }
+    }
+
+    /** Convert from local space to world space
+     *  @param {Vector2} pos - local space point */
+    localToWorld(pos) { return this.pos.add(pos.rotate(this.angle)); }
+
+    /** Convert from world space to local space
+     *  @param {Vector2} pos - world space point */
+    worldToLocal(pos) { return pos.subtract(this.pos).rotate(-this.angle); }
+
+    /** Convert from local space to world space for a vector (rotation only)
+     *  @param {Vector2} vec - local space vector */
+    localToWorldVector(vec) { return vec.rotate(this.angle); }
+
+    /** Convert from world space to local space for a vector (rotation only)
+     *  @param {Vector2} vec - world space vector */
+    worldToLocalVector(vec) { return vec.rotate(-this.angle); }
+
+    /** Called to check if a tile collision should be resolved. Return true for physics to resolve the collision or false to ignore and resolve it manually.
+     *  @param {number}  tileData - the value of the tile at the position
+     *  @param {Vector2} pos - tile where the collision occurred
+     *  @return {boolean} - true if the collision should be resolved by modifying it's position and velocity */
+    collideWithTile(tileData, pos) { return tileData > 0; }
+
+    /** Called by the engine to check if an object collision should be resolved. Return true for physics to resolve the collision or false to ignore and resolve it manually.
+     *  @param {EngineObject} object - the object to test against
+     *  @return {boolean} - true if the collision should be resolved by modifying it's position and velocity
+     */
+    collideWithObject(object) { return true; }
+
+    /** Get this object's up vector
+     *  @param {number} [scale] - length of the vector
+     *  @return {Vector2} */
+    getUp(scale=1) { return vec2().setAngle(this.angle, scale); }
+
+    /** Get this object's right vector
+     *  @param {number} [scale] - length of the vector
+     *  @return {Vector2} */
+    getRight(scale=1) { return vec2().setAngle(this.angle+PI/2, scale); }
+
+    /** How long since the object was created
+     *  @return {number} */
+    getAliveTime() { return time - this.spawnTime; }
+
+    /** Get the speed of this object
+     *  @return {number} */
+    getSpeed() { return this.velocity.length(); }
+
+    /** Apply acceleration to this object (adjust velocity, not affected by mass)
+     *  @param {Vector2} acceleration */
+    applyAcceleration(acceleration)
+    { if (this.mass) this.velocity = this.velocity.add(acceleration); }
+
+    /** Apply angular acceleration to this object
+     *  @param {number} acceleration */
+    applyAngularAcceleration(acceleration)
+    { if (this.mass) this.angleVelocity += acceleration; }
+
+    /** Apply force to this object (adjust velocity, affected by mass)
+     *  @param {Vector2} force */
+    applyForce(force)
+    { if (this.mass) this.applyAcceleration(force.scale(1/this.mass)); }
+
+    /** Get the direction of the mirror
+     *  @return {number} -1 if this.mirror is true, or 1 if not mirrored */
+    getMirrorSign() { return this.mirror ? -1 : 1; }
+
+    /** Attaches a child to this with a local transform, returns child for chaining
+     *  @param {EngineObject} child
+     *  @param {Vector2}      [localPos=vec2()]
+     *  @param {number}       [localAngle]
+     *  @return {EngineObject} The child object added */
+    addChild(child, localPos=vec2(), localAngle=0)
+    {
+        ASSERT(!this.destroyed, 'cannot add child to destroyed object');
+        if (this.destroyed) return child;
+        ASSERT(!child.parent && !this.children.includes(child));
+        ASSERT(child instanceof EngineObject, 'child must be an EngineObject');
+        ASSERT(child !== this, 'cannot add self as child');
+        this.children.push(child);
+        child.parent = this;
+        child.localPos = localPos.copy();
+        child.localAngle = localAngle;
+        child.updateTransforms();
+        return child;
+    }
+
+    /** Removes a child from this one
+     *  @param {EngineObject} child */
+    removeChild(child)
+    {
+        ASSERT(child.parent === this && this.children.includes(child));
+        this.children.splice(this.children.indexOf(child), 1);
+        child.parent = undefined;
+    }
+
+    /** Check if overlapping another engine object
+     *  Collisions are resolved to prevent overlaps
+     *  @param {EngineObject} object
+     *  @return {boolean} */
+    isOverlappingObject(object)
+    { return this.isOverlapping(object.pos, object.size); }
+
+    /** Check if overlapping a point or aligned bounding box
+     *  @param {Vector2} pos          - Center of box
+     *  @param {Vector2} [size=vec2()] - Size of box, uses a point if undefined
+     *  @return {boolean} */
+    isOverlapping(pos, size=vec2())
+    { return isOverlapping(this.pos, this.size, pos, size); }
+
+    /** Set how this object collides
+     *  @param {boolean} [collideSolidObjects] - Does it collide with solid objects?
+     *  @param {boolean} [isSolid]             - Does it collide with and block other objects? (expensive in large numbers)
+     *  @param {boolean} [collideTiles]        - Does it collide with the tile collision?
+     *  @param {boolean} [collideRaycast]      - Does it collide with raycasts? */
+    setCollision(collideSolidObjects=true, isSolid=true, collideTiles=true, collideRaycast=true)
+    {
+        ASSERT(collideSolidObjects || !isSolid, 'solid objects must be set to collide');
+
+        this.collideSolidObjects = collideSolidObjects;
+        this.isSolid = isSolid;
+        this.collideTiles = collideTiles;
+        this.collideRaycast = collideRaycast;
+    }
+
+    /** Returns string containing info about this object for debugging
+     *  @return {string} */
+    toString()
+    {
+        let text = 'type = ' + this.constructor.name;
+        if (this.pos.x || this.pos.y)
+            text += '\npos = ' + this.pos;
+        if (this.velocity.x || this.velocity.y)
+            text += '\nvelocity = ' + this.velocity;
+        if (this.size.x || this.size.y)
+            text += '\nsize = ' + this.size;
+        if (this.angle)
+            text += '\nangle = ' + this.angle.toFixed(3);
+        if (this.color)
+            text += '\ncolor = ' + this.color;
+        return text;
+    }
+
+    /** Render debug info for this object  */
+    renderDebugInfo()
+    {
+        if (!debug) return;
+
+        // check if there is anything to show
+        const hasPhysics = this.collideTiles || this.collideSolidObjects || this.isSolid;
+        if (!hasPhysics && !this.parent) return;
+
+        // show object info for debugging
+        const size = vec2(max(this.size.x, .2), max(this.size.y, .2));
+        const color = rgb(this.collideTiles?1:0, this.collideSolidObjects?1:0, this.isSolid?1:0, .5);
+        debugRect(this.pos, size, color, 0, this.angle, hasPhysics);
+        if (this.parent)
+            debugRect(this.pos, size.scale(.8), rgb(1,1,1,.5), 0, this.angle);
+        this.parent && debugLine(this.pos, this.parent.pos, rgb(1,1,1,.5), .5);
+    }
+}
+/**
+ * LittleJS Drawing System
+ * - Hybrid rendering with both Canvas2D and WebGL support
+ * - Optimized tile sheet sprite rendering using WebGL batching
+ * - Primitive drawing for polygons, ellipses, and lines
+ * - Tile-based rendering with TileInfo and TextureInfo classes
+ * - Text rendering with custom fonts and ImageFont support
+ * - Color and additive color blending for effects
+ * - Rotation, mirroring, and scaling transformations
+ * - Camera system with position, scale, and rotation
+ * - Multiple canvas support (main, WebGL, work canvases)
+ * - Gradient fills and outlined shapes
+ * - Image manipulation and color tinting
+ *
+ * Rendering Architecture:
+ * - glCanvas: WebGL canvas for accelerated sprite batch rendering
+ * - mainCanvas: Canvas2D overlay for text, UI, and custom drawing
+ * - All draw functions default to WebGL when enabled, can force Canvas2D with useWebGL parameter
+ *
+ * @namespace Draw
+ */
+
+/** The primary 2D canvas visible to the user
+ *  @type {HTMLCanvasElement}
+ *  @memberof Draw */
+let mainCanvas;
+
+/** 2d context for mainCanvas
+ *  @type {CanvasRenderingContext2D}
+ *  @memberof Draw */
+let mainContext;
+
+/** The default 2d context to use for drawing, usually mainContext
+ *  @type {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D}
+ *  @memberof Draw */
+let drawContext;
+
+/** Offscreen canvas that can be used for image processing
+ *  @type {OffscreenCanvas}
+ *  @memberof Draw */
+let workCanvas;
+
+/** Offscreen canvas that can be used for image processing
+ *  @type {OffscreenCanvasRenderingContext2D}
+ *  @memberof Draw */
+let workContext;
+
+/** Offscreen canvas with willReadFrequently that can be used for image processing
+ *  @type {OffscreenCanvas}
+ *  @memberof Draw */
+let workReadCanvas;
+
+/** Offscreen canvas with willReadFrequently that can be used for image processing
+ *  @type {OffscreenCanvasRenderingContext2D}
+ *  @memberof Draw */
+let workReadContext;
+
+/** The size of the main canvas (and other secondary canvases)
+ *  @type {Vector2}
+ *  @memberof Draw */
+let mainCanvasSize = vec2();
+
+/** Array containing texture info for batch rendering system
+ *  @type {Array<TextureInfo>}
+ *  @memberof Draw */
+let textureInfos = [];
+
+/** Keeps track of how many draw calls there were each frame for debugging
+ *  @type {number}
+ *  @memberof Draw */
+let drawCount;
+
+/** Keeps track of how many primitives were drawn each frame for debugging
+ *  A single draw call can render many primitives (e.g. a WebGL sprite batch).
+ *  @type {number}
+ *  @memberof Draw */
+let primitiveCount;
+
+// internal predicates for tint short-circuiting in canvas2D draw paths
+// isWhite ignores alpha because alpha is applied via globalAlpha, not multiply
+// isBlack includes alpha so additive colors that only contribute alpha are not skipped
+/** @param {Color} c */ function isWhite(c) { return c.r >= 1 && c.g >= 1 && c.b >= 1; }
+/** @param {Color} c */ function isBlack(c) { return c.r <= 0 && c.g <= 0 && c.b <= 0 && c.a <= 0; }
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Create a tile info object using a grid based system
+ * - This can take vecs or floats for easier use and conversion
+ * - If an index is passed in, the tile size and index will determine the position
+ * @param {Vector2|number} [index=0] - Index of the tile in 1d or 2d form
+ * @param {Vector2|number} [size] - Size of tile in pixels
+ * @param {TextureInfo|number} [texture] - Texture index or info to use
+ * @param {number} [padding] - How many pixels padding around tiles
+ * @param {number} [bleed] - How many pixels smaller to draw tiles
+ * @return {TileInfo}
+ * @example
+ * tile(2)                       // a tile at index 2 using the default tile size of 16
+ * tile(5, 8)                    // a tile at index 5 using a tile size of 8
+ * tile(1, 16, 3)                // a tile at index 1 of size 16 on texture 3
+ * tile(vec2(4,8), vec2(30,10))  // a tile at index (4,8) with a size of (30,10)
+ * @memberof Draw */
+function tile(index=0, size=tileDefaultSize, texture=0, padding=tileDefaultPadding, bleed=tileDefaultBleed)
+{
+    ASSERT(isVector2(index) || typeof index === 'number', 'index must be a vec2 or number');
+    ASSERT(isVector2(size) || typeof size === 'number', 'size must be a vec2 or number');
+    ASSERT(isNumber(texture) || texture instanceof TextureInfo, 'texture must be a number or TextureInfo');
+    ASSERT(isNumber(padding), 'padding must be a number');
+
+    if (headlessMode) return new TileInfo;
+
+    if (typeof size === 'number')
+    {
+        // if size is a number, make it a vector
+        ASSERT(size > 0);
+        size = new Vector2(size, size);
+    }
+
+    // create tile info object
+    const textureInfo = typeof texture === 'number' ?
+        textureInfos[texture] : texture;
+    ASSERT(textureInfo instanceof TextureInfo, 'tile texture is not loaded');
+    ASSERT(textureInfo.size.x > 0, 'tile texture is not loaded');
+
+    // get the position of the tile
+    const sizePaddedX = size.x + padding*2;
+    const sizePaddedY = size.y + padding*2;
+    let x, y;
+    if (typeof index === 'number')
+    {
+        const cols = textureInfo.size.x / sizePaddedX |0;
+        x = index % cols;
+        y = index / cols |0;
+    }
+    else
+    {
+        x = index.x;
+        y = index.y;
+    }
+    const pos = new Vector2(x*sizePaddedX + padding, y*sizePaddedY + padding);
+    return new TileInfo(pos, size, textureInfo, padding, bleed);
+}
+
+/**
+ * Tile Info - Stores info about how to draw a tile
+ * @memberof Draw
+ */
+class TileInfo
+{
+    /** Create a tile info object
+     *  @param {Vector2} [pos=vec2()] - Top left corner of tile in pixels
+     *  @param {Vector2} [size] - Size of tile in pixels
+     *  @param {TextureInfo} [textureInfo] - Texture info to use
+     *  @param {number} [padding] - How many pixels padding around all sides of each tile (increases grid size, does not affect tile size)
+     *  @param {number} [bleed] - How many pixels smaller to shrink UVS of tiles (does not affect grid size, only UVs)
+     */
+    constructor(pos=vec2(), size=tileDefaultSize, textureInfo=textureInfos[0], padding=tileDefaultPadding, bleed=tileDefaultBleed)
+    {
+        /** @property {Vector2} - Top left corner of tile in pixels */
+        this.pos = pos.copy();
+        /** @property {Vector2} - Size of tile in pixels */
+        this.size = size.copy();
+        /** @property {number} - How many pixels padding around tiles */
+        this.padding = padding;
+        /** @property {TextureInfo} - The texture info for this tile */
+        this.textureInfo = textureInfo;
+        /** @property {number} - Shrinks tile by this many pixels to prevent neighbors bleeding */
+        this.bleed = bleed;
+    }
+
+    /** Returns a copy of this tile offset by a vector
+    *  @param {Vector2} offset - Offset to apply in pixels
+    *  @return {TileInfo}
+    */
+    offset(offset)
+    { return new TileInfo(this.pos.add(offset), this.size, this.textureInfo, this.padding, this.bleed); }
+
+    /** Returns a copy of this tile offset by a number of animation frames
+    *  @param {number} frame - Offset to apply in animation frames
+    *  @return {TileInfo}
+    */
+    frame(frame)
+    {
+        ASSERT(typeof frame === 'number');
+        const w = this.size.x + this.padding*2;
+        const x = frame*w;
+        ASSERT(x + this.size.x <= this.textureInfo.size.x, 'frame extends beyond texture width!');
+        return this.offset(new Vector2(x));
+    }
+
+    /**
+     * Set this tile to use a full image in a texture info
+     * @param {TextureInfo} [textureInfo]
+     * @return {TileInfo}
+     */
+    setFullImage(textureInfo=this.textureInfo)
+    {
+        this.textureInfo = textureInfo;
+        this.pos = new Vector2;
+        this.size = textureInfo.size.copy();
+        this.bleed = this.padding = 0;
+        return this;
+    }
+
+    /**
+     * Returns a tile info for an index using this tile as reference
+     * @param {Vector2|number} [index=0]
+     * @return {TileInfo}
+     */
+    tile(index)
+    { return tile(index, this.size, this.textureInfo, this.padding, this.bleed); }
+}
+
+/**
+ * Tile Info - Stores info about each texture
+ * @memberof Draw
+ */
+class TextureInfo
+{
+    /**
+     * Create a TextureInfo, called automatically by the engine
+     * @param {HTMLImageElement|OffscreenCanvas} image
+     * @param {boolean} [useWebGL] - Should use WebGL if available?
+     * @param {boolean} [wrap] - Should the texture wrap (REPEAT) or clamp (CLAMP_TO_EDGE)?
+     */
+    constructor(image, useWebGL=true, wrap=false)
+    {
+        /** @property {HTMLImageElement|OffscreenCanvas} - image source */
+        this.image = image;
+        /** @property {Vector2} - size of the image */
+        this.size = image ? vec2(image.width, image.height) : vec2();
+        /** @property {Vector2} - inverse of the size, cached for rendering */
+        this.sizeInverse = image ? vec2(1/image.width, 1/image.height) : vec2();
+        /** @property {WebGLTexture} - WebGL texture */
+        this.glTexture = undefined;
+        /** @property {boolean} - true for REPEAT wrap mode, false for CLAMP_TO_EDGE */
+        this.wrap = wrap;
+        useWebGL && this.createWebGLTexture();
+    }
+
+    /** Creates the WebGL texture, updates if already created */
+    createWebGLTexture() { glRegisterTextureInfo(this); }
+
+    /** Destroys the WebGL texture */
+    destroyWebGLTexture() { glUnregisterTextureInfo(this); }
+
+    /** Check if the texture is webgl enabled
+     * @return {boolean} */
+    hasWebGL() { return !!this.glTexture; }
+
+    /** Set the wrap mode for this texture
+     *  @param {boolean} [wrap] - true for REPEAT, false for CLAMP_TO_EDGE */
+    setWrap(wrap=true)
+    {
+        this.wrap = wrap;
+        glSetTextureWrap(this.glTexture, wrap);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Drawing functions
+
+/** Draw textured tile centered in world space
+ *  @param {Vector2}  pos - Center of the tile in world space
+ *  @param {Vector2}  [size=vec2(1)] - Size of the tile in world space
+ *  @param {TileInfo} [tileInfo] - Tile info to use, untextured if undefined
+ *  @param {Color}    [color=WHITE] - Color to modulate with
+ *  @param {number}   [angle] - Angle to rotate by
+ *  @param {boolean}  [mirror] - Is image flipped along the Y axis?
+ *  @param {Color}    [additiveColor] - Additive color to be applied if any
+ *  @param {boolean}  [useWebGL=glEnable] - Use accelerated WebGL rendering?
+ *  @param {boolean}  [screenSpace=false] - Are the pos and size are in screen space?
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context] - Canvas 2D context to draw to
+ *  @memberof Draw */
+function drawTile(pos, size=vec2(1), tileInfo, color=WHITE,
+    angle=0, mirror, additiveColor, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isColor(color), 'color is invalid');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(!additiveColor || isColor(additiveColor), 'additiveColor must be a color');
+    ASSERT(!context || !useWebGL, 'context only supported in canvas 2D mode');
+
+    const textureInfo = tileInfo?.textureInfo;
+    const bleed = tileInfo?.bleed ?? 0;
+    if (useWebGL && glEnable)
+    {
+        ASSERT(!!glContext, 'WebGL is not enabled!');
+        if (screenSpace)
+            [pos, size, angle] = screenToWorldTransform(pos, size, angle);
+        if (textureInfo)
+        {
+            // calculate uvs and render
+            const sizeInverse = textureInfo.sizeInverse;
+            const x = tileInfo.pos.x * sizeInverse.x;
+            const y = tileInfo.pos.y * sizeInverse.y;
+            const w = tileInfo.size.x * sizeInverse.x;
+            const h = tileInfo.size.y * sizeInverse.y;
+            glSetTexture(textureInfo.glTexture);
+            if (bleed)
+            {
+                const bleedX = sizeInverse.x*bleed;
+                const bleedY = sizeInverse.y*bleed;
+                glDraw(pos.x, pos.y, mirror ? -size.x : size.x, size.y, angle,
+                    x + bleedX,     y + bleedY,
+                    x - bleedX + w, y - bleedY + h,
+                    color.rgbaInt(), additiveColor && additiveColor.rgbaInt());
+            }
+            else
+            {
+                glDraw(pos.x, pos.y, mirror ? -size.x : size.x, size.y, angle,
+                    x, y, x + w, y + h,
+                    color.rgbaInt(), additiveColor && additiveColor.rgbaInt());
+            }
+        }
+        else
+        {
+            // untextured: fold color+additive to match the Canvas2D path's
+            // color.add(additiveColor) on line ~337.
+            const combined = additiveColor ? color.add(additiveColor) : color;
+            glDrawUntextured(pos.x, pos.y, size.x, size.y, angle, combined.rgbaInt());
+        }
+    }
+    else
+    {
+        // normal canvas 2D rendering method (slower)
+        ++drawCount;
+        ++primitiveCount;
+        drawCanvas2D(pos, size, angle, mirror, (context)=>
+        {
+            if (textureInfo)
+            {
+                // un-flip Y so the image renders right-side up under drawCanvas2D's Y flip
+                context.scale(1, -1);
+                // calculate uvs and render
+                const x = tileInfo.pos.x,  y = tileInfo.pos.y;
+                const w = tileInfo.size.x, h = tileInfo.size.y;
+                drawImageColor(context, textureInfo.image, x, y, w, h, -.5, -.5, 1, 1, color, additiveColor, bleed);
+            }
+            else
+            {
+                // if no tile info, use untextured rect (Y-symmetric, no compensation needed)
+                const c = additiveColor ? color.add(additiveColor) : color;
+                context.fillStyle = c.toString();
+                context.fillRect(-.5, -.5, 1, 1);
+            }
+        }, screenSpace, context);
+    }
+}
+
+/** Draw colored rect centered on pos
+ *  @param {Vector2} pos
+ *  @param {Vector2} [size=vec2(1)]
+ *  @param {Color}   [color=WHITE]
+ *  @param {number}  [angle]
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawRect(pos, size, color, angle, useWebGL, screenSpace, context)
+{
+    drawTile(pos, size, undefined, color, angle, false, undefined, useWebGL, screenSpace, context);
+}
+
+/** Draw a rect centered on pos with a gradient from top to bottom
+ *  @param {Vector2} pos
+ *  @param {Vector2} [size=vec2(1)]
+ *  @param {Color}   [colorTop=WHITE]
+ *  @param {Color}   [colorBottom=CLEAR_WHITE]
+ *  @param {number}  [angle]
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawRectGradient(pos, size, colorTop=WHITE, colorBottom=CLEAR_WHITE, angle=0, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isColor(colorTop) && isColor(colorBottom), 'color is invalid');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(!context || !useWebGL, 'context only supported in canvas 2D mode');
+
+    if (useWebGL && glEnable)
+    {
+        ASSERT(!!glContext, 'WebGL is not enabled!');
+        if (screenSpace)
+        {
+            // convert to world space
+            pos = screenToWorld(pos);
+            size = size.scale(1/cameraScale);
+            angle += cameraAngle;
+        }
+        // build 4 corner points for the rectangle
+        const points = [], colors = [];
+        const halfSizeX = size.x/2, halfSizeY = size.y/2;
+        const colorTopInt = colorTop.rgbaInt();
+        const colorBottomInt = colorBottom.rgbaInt();
+        const c = cos(-angle), s = sin(-angle);
+        for (let i=4; i--;)
+        {
+            const x = i & 1 ? halfSizeX : -halfSizeX;
+            const y = i & 2 ? halfSizeY : -halfSizeY;
+            const rx = x * c - y * s;
+            const ry = x * s + y * c;
+            const color = i & 2 ? colorTopInt : colorBottomInt;
+            points.push(vec2(pos.x + rx, pos.y + ry));
+            colors.push(color);
+        }
+        glDrawColoredPoints(points, colors);
+    }
+    else
+    {
+        // normal canvas 2D rendering method (slower)
+        ++drawCount;
+        ++primitiveCount;
+        drawCanvas2D(pos, size, angle, false, (context)=>
+        {
+            // gradient endpoints are flipped to match the Y flip inside drawCanvas2D
+            const gradient = context.createLinearGradient(0, .5, 0, -.5);
+            gradient.addColorStop(0, colorTop.toString());
+            gradient.addColorStop(1, colorBottom.toString());
+            context.fillStyle = gradient;
+            context.fillRect(-.5, -.5, 1, 1);
+        }, screenSpace, context);
+    }
+}
+
+/** Draw a texture tiled (wrapped) across a rectangle in world space.
+ *  Useful for backgrounds, repeating patterns, and seamless fills.
+ *  The whole texture is tiled — sub-region (TileInfo) wrapping is not supported.
+ *  @param {Vector2}  pos          - Center of the rect in world space
+ *  @param {Vector2}  size         - Size of the rect in world space
+ *  @param {Vector2}  wrapCount    - How many times the texture repeats (x, y)
+ *  @param {TextureInfo|number} [texture=0] - TextureInfo or texture index into textureInfos
+ *  @param {Color}    [color=WHITE] - Color to modulate with
+ *  @param {number}   [angle=0] - Angle to rotate by
+ *  @param {Color}    [additiveColor] - Additive color to be applied if any
+ *  @param {boolean}  [useWebGL=glEnable] - Use accelerated WebGL rendering?
+ *  @param {boolean}  [screenSpace=false] - Are pos and size in screen space?
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context] - Canvas 2D context to draw to
+ *  @memberof Draw */
+function drawTextureWrapped(pos, size, wrapCount, texture=0, color=WHITE,
+    angle=0, additiveColor, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isVector2(wrapCount), 'wrapCount must be a vec2');
+    ASSERT(isColor(color), 'color is invalid');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(!additiveColor || isColor(additiveColor), 'additiveColor must be a color');
+    ASSERT(!context || !useWebGL, 'context only supported in canvas 2D mode');
+    ASSERT(!(texture instanceof TileInfo),
+        'pass a TextureInfo or texture index, not a TileInfo — use tileInfo.textureInfo');
+
+    // short-circuit before texture lookup — textureInfos[0] is undefined in headless mode
+    if (headlessMode) return;
+
+    // resolve texture argument: TextureInfo or index
+    const textureInfo = typeof texture === 'number' ? textureInfos[texture] : texture;
+    ASSERT(textureInfo instanceof TextureInfo, 'texture not loaded');
+    ASSERT(textureInfo.size.x > 0, 'texture not loaded');
+    ASSERT(textureInfo.wrap,
+        'drawTextureWrapped requires a wrap-enabled texture; call textureInfo.setWrap(true) first');
+
+    if (useWebGL && glEnable)
+    {
+        ASSERT(!!glContext, 'WebGL is not enabled!');
+        if (screenSpace)
+            [pos, size, angle] = screenToWorldTransform(pos, size, angle);
+        glSetTexture(textureInfo.glTexture);
+        glDraw(pos.x, pos.y, size.x, size.y, angle,
+            0, 0, wrapCount.x, wrapCount.y,
+            color.rgbaInt(), additiveColor && additiveColor.rgbaInt());
+        return;
+    }
+
+    // Canvas2D path — increment counts here (WebGL counts via glFlush)
+    ++drawCount;
+    ++primitiveCount;
+
+    if (!screenSpace)
+    {
+        pos = worldToScreen(pos);
+        size = size.scale(cameraScale);
+        angle -= cameraAngle;
+    }
+
+    // pick image source: raw, or tinted bake. Match drawImageColor's
+    // "no tint needed" predicate so behavior stays consistent.
+    const noTint = !canvasColorTiles ||
+        (additiveColor
+            ? isWhite(color.add(additiveColor)) && additiveColor.a <= 0
+            : isWhite(color));
+    // alpha is baked into pixels by bakeTintedImage's additive branch;
+    // in that case globalAlpha must NOT also apply color.a
+    const alphaBaked = !noTint && additiveColor && !isBlack(additiveColor);
+    const source = noTint
+        ? textureInfo.image
+        : bakeTintedImage(textureInfo.image, color, additiveColor);
+
+    context = context || drawContext;
+    context.save();
+    context.translate(pos.x + .5, pos.y + .5);
+    context.rotate(angle);
+    context.globalAlpha = alphaBaked ? 1 : color.a;
+
+    const pattern = context.createPattern(source, 'repeat');
+    // map pattern-source pixels into user space so the rect contains
+    // wrapCount.x × wrapCount.y repeats
+    const m = new DOMMatrix()
+        .translate(-size.x/2, -size.y/2)
+        .scale(size.x / (wrapCount.x * source.width),
+               size.y / (wrapCount.y * source.height));
+    pattern.setTransform(m);
+    context.fillStyle = pattern;
+    context.fillRect(-size.x/2, -size.y/2, size.x, size.y);
+    context.globalAlpha = 1;
+    context.restore();
+}
+
+/** Draw connected lines between a series of points
+ *  @param {Array<Vector2>} points
+ *  @param {number}  [width]
+ *  @param {Color}   [color=WHITE]
+ *  @param {boolean} [wrap] - Should the last point connect to the first?
+ *  @param {Vector2} [pos=vec2()] - Offset to apply
+ *  @param {number}  [angle] - Angle to rotate by
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawLineList(points, width=.1, color=WHITE, wrap=false, pos=vec2(), angle=0, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isArray(points), 'points must be an array');
+    ASSERT(isNumber(width), 'width must be a number');
+    ASSERT(isColor(color), 'color is invalid');
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(!context || !useWebGL, 'context only supported in canvas 2D mode');
+
+    if (useWebGL && glEnable)
+    {
+        ASSERT(!!glContext, 'WebGL is not enabled!');
+        let size = vec2(1);
+        if (screenSpace)
+            [pos, size, angle] = screenToWorldTransform(pos, size, angle);
+        glDrawOutlineTransform(points, color.rgbaInt(), width, pos.x, pos.y, size.x, size.y, angle, wrap);
+    }
+    else
+    {
+        // normal canvas 2D rendering method (slower)
+        ++drawCount;
+        ++primitiveCount;
+        drawCanvas2D(pos, vec2(1), angle, false, (context)=>
+        {
+            context.strokeStyle = color.toString();
+            context.lineWidth = width;
+            context.beginPath();
+            for (let i=0; i<points.length; ++i)
+            {
+                const point = points[i];
+                context.lineTo(point.x, point.y);
+            }
+            wrap && context.closePath();
+            context.stroke();
+        }, screenSpace, context);
+    }
+}
+
+/** Draw colored line between two points
+ *  @param {Vector2} posA
+ *  @param {Vector2} posB
+ *  @param {number}  [width]
+ *  @param {Color}   [color=WHITE]
+ *  @param {Vector2} [pos=vec2()] - Offset to apply
+ *  @param {number}  [angle] - Angle to rotate by
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawLine(posA, posB, width=.1, color=WHITE, pos=vec2(), angle=0, useWebGL=glEnable, screenSpace=false, context)
+{
+    const halfDelta = vec2((posB.x - posA.x)/2, (posB.y - posA.y)/2);
+    const size = vec2(width, halfDelta.length()*2);
+    pos = pos.add(posA.add(halfDelta));
+    if (screenSpace)
+        halfDelta.y *= -1;  // flip angle Y if screen space
+    angle += halfDelta.angle();
+    drawRect(pos, size, color, angle, useWebGL, screenSpace, context);
+}
+
+/** Draw colored regular polygon using passed in number of sides
+ *  @param {Vector2} pos
+ *  @param {Vector2} [size=vec2(1)]
+ *  @param {number}  [sides]
+ *  @param {Color}   [color=WHITE]
+ *  @param {number}  [lineWidth]
+ *  @param {Color}   [lineColor=BLACK]
+ *  @param {number}  [angle]
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawRegularPoly(pos, size=vec2(1), sides=3, color=WHITE, lineWidth=0, lineColor=BLACK, angle=0, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isNumber(sides), 'sides must be a number');
+
+    // build regular polygon points
+    const points = [];
+    const sizeX = size.x/2, sizeY = size.y/2;
+    for (let i=sides; i--;)
+    {
+        const a = (i/sides)*PI*2;
+        points.push(vec2(sin(a)*sizeX, cos(a)*sizeY));
+    }
+    drawPoly(points, color, lineWidth, lineColor, pos, angle, useWebGL, screenSpace, context);
+}
+
+/** Draw colored polygon using passed in points
+ *  @param {Array<Vector2>} points - Array of Vector2 points
+ *  @param {Color}   [color=WHITE]
+ *  @param {number}  [lineWidth]
+ *  @param {Color}   [lineColor=BLACK]
+ *  @param {Vector2} [pos=vec2()] - Offset to apply
+ *  @param {number}  [angle] - Angle to rotate by
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawPoly(points, color=WHITE, lineWidth=0, lineColor=BLACK, pos=vec2(), angle=0, useWebGL=glEnable, screenSpace=false, context=undefined)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isArray(points), 'points must be an array');
+    ASSERT(isColor(color) && isColor(lineColor), 'color is invalid');
+    ASSERT(isNumber(lineWidth), 'lineWidth must be a number');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(!context || !useWebGL, 'context only supported in canvas 2D mode');
+
+    if (useWebGL && glEnable)
+    {
+        ASSERT(!!glContext, 'WebGL is not enabled!');
+        let size = vec2(1);
+        if (screenSpace)
+            [pos, size, angle] = screenToWorldTransform(pos, size, angle);
+        glDrawPointsTransform(points, color.rgbaInt(), pos.x, pos.y, size.x, size.y, angle);
+        if (lineWidth > 0)
+            glDrawOutlineTransform(points, lineColor.rgbaInt(), lineWidth, pos.x, pos.y, size.x, size.y, angle);
+    }
+    else
+    {
+        drawCanvas2D(pos, vec2(1), angle, false, context=>
+        {
+            context.fillStyle = color.toString();
+            context.beginPath();
+            for (const point of points)
+                context.lineTo(point.x, point.y);
+            context.closePath();
+            context.fill();
+            if (lineWidth)
+            {
+                context.strokeStyle = lineColor.toString();
+                context.lineWidth = lineWidth;
+                context.stroke();
+            }
+        }, screenSpace, context);
+    }
+}
+
+/** Draw colored ellipse using passed in point
+ *  @param {Vector2} pos
+ *  @param {Vector2} [size=vec2(1)] - Width and height diameter
+ *  @param {Color}   [color=WHITE]
+ *  @param {number}  [angle]
+ *  @param {number}  [lineWidth]
+ *  @param {Color}   [lineColor=BLACK]
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawEllipse(pos, size=vec2(1), color=WHITE, angle=0, lineWidth=0, lineColor=BLACK, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isColor(color) && isColor(lineColor), 'color is invalid');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(isNumber(lineWidth), 'lineWidth must be a number');
+    ASSERT(lineWidth >= 0, 'lineWidth must be a positive value or 0');
+    ASSERT(!context || !useWebGL, 'context only supported in canvas 2D mode');
+
+    // clamp line width to prevent artifacts
+    lineWidth = clamp(lineWidth, 0, min(size.x, size.y));
+
+    if (useWebGL && glEnable)
+    {
+        // draw as a regular polygon
+        const sides = glCircleSides;
+        drawRegularPoly(pos, size, sides, color, lineWidth, lineColor, angle, useWebGL, screenSpace, context);
+    }
+    else
+    {
+        drawCanvas2D(pos, vec2(1), angle, false, context=>
+        {
+            context.fillStyle = color.toString();
+            context.beginPath();
+            context.ellipse(0, 0, size.x/2, size.y/2, 0, 0, 9);
+            context.fill();
+            if (lineWidth)
+            {
+                context.strokeStyle = lineColor.toString();
+                context.lineWidth = lineWidth;
+                context.stroke();
+            }
+        }, screenSpace, context);
+    }
+}
+
+/** Draw colored circle using passed in point
+ *  @param {Vector2} pos
+ *  @param {number}  [size=1] - Diameter
+ *  @param {Color}   [color=WHITE]
+ *  @param {number}  [lineWidth=0]
+ *  @param {Color}   [lineColor=BLACK]
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawCircle(pos, size=1, color=WHITE, lineWidth=0, lineColor=BLACK, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isNumber(size), 'size must be a number');
+    drawEllipse(pos, vec2(size), color, 0, lineWidth, lineColor, useWebGL, screenSpace, context);
+}
+
+/** Draw an ellipse filled with a radial gradient from the center to the rim
+ *  - Best when batched with other untextured polys
+ *  - If drawing mostly textured sprites, bake the gradient into a texture and use drawTile instead
+ *  - Stacking gradients at the exact same position may show a faint vertical artifact
+ *  @param {Vector2} pos
+ *  @param {Vector2} [size=vec2(1)] - Width and height diameter
+ *  @param {Color}   [colorInner=WHITE]
+ *  @param {Color}   [colorOuter=CLEAR_WHITE]
+ *  @param {number}  [angle]
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+let drawEllipseGradientOffset = 0;
+function drawEllipseGradient(pos, size=vec2(1), colorInner=WHITE, colorOuter=CLEAR_WHITE, angle=0, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isColor(colorInner) && isColor(colorOuter), 'color is invalid');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(!context || !useWebGL, 'context only supported in canvas 2D mode');
+
+    if (headlessMode) return;
+
+    if (useWebGL && glEnable)
+    {
+        ASSERT(!!glContext, 'WebGL is not enabled!');
+        if (screenSpace)
+        {
+            // convert to world space
+            pos = screenToWorld(pos);
+            size = size.scale(1/cameraScale);
+            angle += cameraAngle;
+        }
+        // fan as tristrip; rotate the boundary vertex by one slice per call
+        // so back-to-back gradients at the same position have their hole
+        // (from gpu edge-rule on the boundary line-degen) at different rim
+        // verts and don't visibly stack
+        const sides = glCircleSides;
+        const radiusX = size.x/2, radiusY = size.y/2;
+        const innerInt = colorInner.rgbaInt();
+        const outerInt = colorOuter.rgbaInt();
+        const offset = drawEllipseGradientOffset++;
+        const c = cos(-angle), s = sin(-angle);
+        const rim = (a) =>
+        {
+            const lx = sin(a)*radiusX, ly = cos(a)*radiusY;
+            return vec2(pos.x + lx*c - ly*s, pos.y + lx*s + ly*c);
+        };
+        const startA = (offset%sides)/sides*PI*2;
+        const points = [rim(startA)];
+        const colors = [outerInt];
+        for (let i=sides; i--;)
+        {
+            const a = ((i+offset)%sides)/sides*PI*2;
+            points.push(pos);
+            colors.push(innerInt);
+            points.push(rim(a));
+            colors.push(outerInt);
+        }
+        glDrawColoredPoints(points, colors);
+    }
+    else
+    {
+        // normal canvas 2D rendering method (slower)
+        ++drawCount;
+        ++primitiveCount;
+        drawCanvas2D(pos, size, angle, false, (context)=>
+        {
+            const gradient = context.createRadialGradient(0, 0, 0, 0, 0, .5);
+            gradient.addColorStop(0, colorInner.toString());
+            gradient.addColorStop(1, colorOuter.toString());
+            context.fillStyle = gradient;
+            context.beginPath();
+            context.ellipse(0, 0, .5, .5, 0, 0, 9);
+            context.fill();
+        }, screenSpace, context);
+    }
+}
+
+/** Draw a circle filled with a radial gradient from the center to the rim
+ *  - Best when batched with other untextured polys
+ *  - If drawing mostly textured sprites, bake the gradient into a texture and use drawTile instead
+ *  - Stacking gradients at the exact same position may show a faint vertical artifact
+ *  @param {Vector2} pos
+ *  @param {number}  [size=1] - Diameter
+ *  @param {Color}   [colorInner=WHITE]
+ *  @param {Color}   [colorOuter=CLEAR_WHITE]
+ *  @param {boolean} [useWebGL=glEnable]
+ *  @param {boolean} [screenSpace]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context]
+ *  @memberof Draw */
+function drawCircleGradient(pos, size=1, colorInner=WHITE, colorOuter=CLEAR_WHITE, useWebGL=glEnable, screenSpace=false, context)
+{
+    ASSERT(isNumber(size), 'size must be a number');
+    drawEllipseGradient(pos, vec2(size), colorInner, colorOuter, 0, useWebGL, screenSpace, context);
+}
+
+/**
+ * @callback Canvas2DDrawFunction - A function that draws to a 2D canvas context
+ * @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} context
+ * @memberof Draw
+ */
+
+/** Draw directly to a 2d canvas context in world space.
+ *  The Y axis is flipped so world-Y-up coordinates render right-side up
+ *  (matches the WebGL path). Callers whose drawing depends on Y direction
+ *  (e.g. linear gradients) should flip their own Y endpoints accordingly.
+ *  @param {Vector2}  pos
+ *  @param {Vector2}  size
+ *  @param {number}   angle
+ *  @param {boolean}  [mirror]
+ *  @param {Canvas2DDrawFunction} [drawFunction]
+ *  @param {boolean}  [screenSpace=false]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context=drawContext]
+ *  @memberof Draw */
+function drawCanvas2D(pos, size, angle=0, mirror=false, drawFunction, screenSpace=false, context=drawContext)
+{
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isVector2(size), 'size must be a vec2');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    ASSERT(typeof drawFunction === 'function', 'drawFunction must be a function');
+
+    if (!screenSpace)
+    {
+        pos = worldToScreen(pos);
+        size = size.scale(cameraScale);
+        angle -= cameraAngle;
+    }
+    context.save();
+    context.translate(pos.x+.5, pos.y+.5);
+    context.rotate(angle);
+    context.scale(mirror ? -size.x : size.x, -size.y);
+    drawFunction(context);
+    context.restore();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Text Drawing Functions
+
+/** Draw text on main canvas in world space
+ *  Automatically splits new lines into rows
+ *  @param {string|number}  text
+ *  @param {Vector2} pos
+ *  @param {number}  [size]
+ *  @param {Color}   [color=WHITE]
+ *  @param {number}  [lineWidth]
+ *  @param {Color}   [lineColor=BLACK]
+ *  @param {CanvasTextAlign}  [textAlign='center']
+ *  @param {string}  [font=fontDefault]
+ *  @param {string}  [fontStyle]
+ *  @param {number}  [maxWidth]
+ *  @param {number}  [angle]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context=drawContext]
+ *  @memberof Draw */
+function drawText(text, pos, size=1, color=WHITE, lineWidth=0, lineColor=BLACK, textAlign='center', font=fontDefault, fontStyle='', maxWidth, angle=0, context=drawContext)
+{
+    // convert to screen space
+    pos = worldToScreen(pos);
+    size *= cameraScale;
+    lineWidth *= cameraScale;
+    angle -= cameraAngle;
+    angle *= -1;
+
+    drawTextScreen(text, pos, size, color, lineWidth, lineColor, textAlign, font, fontStyle, maxWidth, angle, context);
+}
+
+/** Draw text in screen space
+ *  Automatically splits new lines into rows
+ *  @param {string|number}  text
+ *  @param {Vector2} pos
+ *  @param {number}  size
+ *  @param {Color}   [color=WHITE]
+ *  @param {number}  [lineWidth]
+ *  @param {Color}   [lineColor=BLACK]
+ *  @param {CanvasTextAlign}  [textAlign]
+ *  @param {string}  [font=fontDefault]
+ *  @param {string}  [fontStyle]
+ *  @param {number}  [maxWidth]
+ *  @param {number}  [angle]
+ *  @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} [context=drawContext]
+ *  @memberof Draw */
+function drawTextScreen(text, pos, size, color=WHITE, lineWidth=0, lineColor=BLACK, textAlign='center', font=fontDefault, fontStyle='', maxWidth, angle=0, context=drawContext)
+{
+    ASSERT(isStringLike(text), 'text must be a string');
+    ASSERT(isVector2(pos), 'pos must be a vec2');
+    ASSERT(isNumber(size), 'size must be a number');
+    ASSERT(isColor(color), 'color must be a color');
+    ASSERT(isNumber(lineWidth), 'lineWidth must be a number');
+    ASSERT(isColor(lineColor), 'lineColor must be a color');
+    ASSERT(['left','center','right'].includes(textAlign), 'align must be left, center, or right');
+    ASSERT(isStringLike(font), 'font must be a string');
+    ASSERT(isStringLike(fontStyle), 'fontStyle must be a string');
+    ASSERT(isNumber(angle), 'angle must be a number');
+    
+    const lines = (text+'').split('\n');
+    const posY = pos.y - (lines.length-1) * size/2; // center vertically
+    // save before style mutations so caller's context state is preserved
+    context.save();
+    context.fillStyle = color.toString();
+    context.strokeStyle = lineColor.toString();
+    context.lineWidth = lineWidth;
+    context.textAlign = textAlign;
+    context.font = fontStyle + ' ' + size + 'px '+ font;
+    context.textBaseline = 'middle';
+    context.translate(pos.x, posY);
+    context.rotate(-angle);
+    let yOffset = 0;
+    lines.forEach(line=>
+    {
+        lineWidth && context.strokeText(line, 0, yOffset, maxWidth);
+        context.fillText(line, 0, yOffset, maxWidth);
+        yOffset += size;
+    });
+    context.restore();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Drawing utilities
+
+/** Load a texture at a specific index
+ *  @param {number} textureIndex - Index to store the texture at
+ *  @param {string} [src] - Image source path
+ *  @return {Promise} Promise that resolves when texture is loaded
+ *  @memberof Draw */
+async function loadTexture(textureIndex, src)
+{
+    ASSERT(isNumber(textureIndex), 'textureIndex must be a number');
+    ASSERT(!textureInfos[textureIndex], 'textureIndex is already loaded!');
+    ASSERT(!src || isStringLike(src), 'image src must be a string');
+    
+    const image = new Image;
+    if (src)
+    {
+        await new Promise(resolve =>
+        {
+            image.onerror = image.onload = resolve;
+            image.crossOrigin = 'anonymous';
+            image.src = src;
+        });
+    }
+    
