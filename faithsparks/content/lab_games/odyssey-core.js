@@ -34,7 +34,9 @@ function playerByName(name){
 function playerById(id){ return state.players.find(p => p.id === id) || null; }
 function resolvePlayer(ref){
   if (!ref) return playerById(state.activePlayerId);
-  return playerById(ref) || playerByName(ref);
+  return playerById(ref) ||
+    state.players.find(p => Array.isArray(p.aliases) && p.aliases.includes(ref)) ||
+    playerByName(ref);
 }
 function newPlayer(name){
   const clean = cleanPlayerName(name);
@@ -62,6 +64,10 @@ function setPlayers(list){
       totals:{xp:0,gamesPlayed:0,completions:0}, games:{}
     };
     p.name=name;
+    if (raw && raw.id && raw.id !== p.id) {
+      p.aliases=Array.isArray(p.aliases)?p.aliases:[];
+      if(!p.aliases.includes(raw.id)) p.aliases.push(raw.id);
+    }
     if (raw && raw.createdAt) p.createdAt=raw.createdAt;
     if (!next.some(x=>x.id===p.id || x.name.toLocaleLowerCase()===name.toLocaleLowerCase()))
       next.push(p);
@@ -143,6 +149,10 @@ function adoptLegacyProfiles(gameId, profiles, mapper){
     const name = cleanPlayerName(typeof item === 'string' ? item : item && item.name);
     if (!name) return;
     const p = ensurePlayer(name); if (!p) return;
+    if (item && typeof item==='object' && item.id && item.id!==p.id) {
+      p.aliases=Array.isArray(p.aliases)?p.aliases:[];
+      if(!p.aliases.includes(item.id)) p.aliases.push(item.id);
+    }
     const mapped = mapper ? mapper(item) : {};
     if (mapped) syncProgress(gameId, mapped, name);
   });
