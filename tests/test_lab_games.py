@@ -571,6 +571,18 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "Finished window: short glassy sparkle" in html
 
 
+def test_timothy_has_dedicated_touch_jump_control():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+
+    assert 'id="tc-jump-button"' in html
+    assert "tcPlayer.tryJump()" in html
+    assert "jumpButton?.addEventListener('pointerdown'" in html
+    assert "tap the course to gallop, then use the green JUMP button" in html
+    assert "TOUCH BUTTON" in html
+
+
 def test_level_games_auto_advance_without_round_result_menu():
     client = _client()
     _sign_in(client)
