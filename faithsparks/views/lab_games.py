@@ -136,7 +136,7 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     )
     html = html.replace(
         "const count = min(10, max(1, Math.ceil(dist / step)));",
-        "const count = min(6, max(1, Math.ceil(dist / step)));",
+        "const count = 1; // one cleaning sample per animation frame; visual pointer still tracks every event",
         1,
     )
 
@@ -203,6 +203,61 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
 """
         html = html[:wet_start] + wet_render + html[wet_end:]
+
+    # Temporary in-game profiler for the level-3 slowdown. It measures the
+    # expensive cleaning function separately from total frame rate.
+    profiler = r"""
+<script id="bernard-perf-profiler">
+(() => {
+    const state = {frames:0,last:performance.now(),fps:0,cleanMs:0,cleanCalls:0,cleanMax:0};
+    const badge = document.createElement("div");
+    badge.id = "bernardPerfBadge";
+    badge.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:999999;pointer-events:none;padding:5px 7px;border-radius:7px;background:rgba(0,0,0,.72);color:#bfffc7;font:12px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;display:none";
+    document.body.appendChild(badge);
+    try {
+        if (typeof directMoveActiveTool === "function") {
+            const originalDirectMoveActiveTool = directMoveActiveTool;
+            directMoveActiveTool = function(...args) {
+                const start = performance.now();
+                try { return originalDirectMoveActiveTool.apply(this,args); }
+                finally {
+                    const ms = performance.now() - start;
+                    state.cleanMs += ms; state.cleanCalls++; state.cleanMax = Math.max(state.cleanMax, ms);
+                }
+            };
+        }
+    } catch (error) { console.warn("[Bernard perf] cleaner wrap failed", error); }
+    const countOf = value => Array.isArray(value) ? value.length : -1;
+    function sampleCounts() {
+        const counts = {wet:-1,dirt:-1,streak:-1};
+        try { if (typeof wetness !== "undefined") counts.wet=countOf(wetness); } catch (_) {}
+        try { if (typeof dirtSpots !== "undefined") counts.dirt=countOf(dirtSpots); } catch (_) {}
+        try { if (typeof streaks !== "undefined") counts.streak=countOf(streaks); } catch (_) {}
+        return counts;
+    }
+    function tick(now) {
+        state.frames++;
+        const elapsed = now - state.last;
+        if (elapsed >= 1000) {
+            state.fps = Math.round(state.frames * 1000 / elapsed);
+            const avg = state.cleanCalls ? state.cleanMs / state.cleanCalls : 0;
+            const counts = sampleCounts();
+            let currentLevel = 0;
+            try { currentLevel = Number(level || 0); } catch (_) {}
+            if (currentLevel >= 3) {
+                badge.style.display = "block";
+                badge.textContent = "PERF L"+currentLevel+"  FPS "+state.fps+"\nclean "+avg.toFixed(1)+"ms avg / "+state.cleanMax.toFixed(1)+" max  calls "+state.cleanCalls+"\nwet "+counts.wet+"  dirt "+counts.dirt+"  streak "+counts.streak;
+                console.info("[Bernard perf]", {level:currentLevel,fps:state.fps,cleanAvgMs:+avg.toFixed(2),cleanMaxMs:+state.cleanMax.toFixed(2),cleanCalls:state.cleanCalls,wet:counts.wet,dirt:counts.dirt,streak:counts.streak});
+            } else badge.style.display = "none";
+            state.frames=0; state.last=now; state.cleanMs=0; state.cleanCalls=0; state.cleanMax=0;
+        }
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+})();
+</script>
+"""
+    html = html.replace("</body>", profiler + "</body>", 1)
 
     return html
 
