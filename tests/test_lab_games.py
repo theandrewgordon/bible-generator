@@ -489,3 +489,72 @@ def test_shared_odyssey_ui_includes_mobile_and_reward_polish():
         "safe-area-inset-top",
     ):
         assert marker in css
+
+
+
+def test_games_lab_bootstraps_signed_in_account_roster_sync():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games").get_data(as_text=True)
+
+    assert "__ODYSSEY_ACCOUNT_ROSTER__" in html
+    assert "__ODYSSEY_SYNC_CONFIG__" in html
+    assert "/labs/games/roster" in html
+
+
+def test_direct_games_receive_account_roster_bootstrap():
+    client = _client()
+    _sign_in(client)
+
+    for route in (
+        "/labs/games/whits-end",
+        "/labs/games/bernard-window-washing",
+        "/labs/games/wooten-mail-route",
+        "/labs/games/timothy-center-horse-racing",
+    ):
+        html = client.get(route).get_data(as_text=True)
+        assert "__ODYSSEY_ACCOUNT_ROSTER__" in html
+        assert "__ODYSSEY_SYNC_CONFIG__" in html
+        assert "/labs/games/roster" in html
+
+
+def test_odyssey_core_syncs_roster_without_syncing_game_save_blob():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    assert "function mergeAccountRosterBootstrap" in js
+    assert "function accountRosterPayload" in js
+    assert "function queueAccountRosterSync" in js
+    assert "X-CSRF-Token" in js
+    assert "players:state.players.slice(0,MAX_PLAYERS)" in js
+    assert "activePlayerId:state.activePlayerId" in js
+    assert "settings:" in js
+
+
+def test_odyssey_home_has_avatars_challenges_recent_continue_and_family_progress():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games").get_data(as_text=True)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    assert "odyssey-family-progress" in html
+    assert "Challenges" in html
+    assert "odyssey-avatar-button" in html
+    assert "Continue " in html
+    assert "function getChallenges" in js
+    assert "function getRecentGame" in js
+    assert "function openAvatarPicker" in js
+    assert "function showCelebration" in js
+    assert "function showRoundResults" in js
+
+
+def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/bernard-window-washing").get_data(as_text=True)
+
+    assert "function scheduleDragWork" in html
+    assert "requestAnimationFrame(flushPendingDragWork)" in html
+    assert "const count = min(10" in html
+    assert "pendingDragWorldPos" in html
