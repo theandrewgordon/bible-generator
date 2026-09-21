@@ -111,7 +111,17 @@
     const summary = O.getPlayerSummary(preferred.id);
     const achievements = summary.achievements || [];
 
+    const xpPct = Math.max(0, Math.min(100, summary.xpIntoLevel || 0));
     body.innerHTML = `
+      <div class="odyssey-dashboard-player">
+        <div>
+          <strong style="font-size:1.25rem">${preferred.name}</strong>
+          <div class="odyssey-xp-track" aria-label="${xpPct}% to next Odyssey level">
+            <div class="odyssey-xp-fill" style="width:${xpPct}%"></div>
+          </div>
+          <small>${summary.xpToNextLevel || 100} XP to Odyssey Level ${summary.odysseyLevel + 1}</small>
+        </div>
+      </div>
       <div class="odyssey-summary-grid">
         <div class="odyssey-summary-stat"><span>Odyssey Level</span><strong>${summary.odysseyLevel}</strong></div>
         <div class="odyssey-summary-stat"><span>Total XP</span><strong>${summary.xp}</strong></div>
@@ -126,11 +136,13 @@
             Highest level: ${g.highestLevel || 1}<br>
             Best score: ${g.bestScore || 0}<br>
             Completions: ${g.completions || 0}<br>
+            <div class="odyssey-game-xp">${g.xp || 0} Odyssey XP earned here</div>
             <small>${fmtDate(g.lastPlayedAt)}</small>
           </div>`;
         }).join('')}
       </div>
       ${achievements.length ? `
+        <h3 style="margin:18px 0 8px">Achievements</h3>
         <div class="odyssey-badges" aria-label="Achievements">
           ${achievements.map(a => `<span class="odyssey-badge" title="${a.description}">${a.name}</span>`).join('')}
         </div>` : ''}
@@ -140,7 +152,7 @@
       const id = node.dataset.progressFor;
       const g = summary.games[id];
       node.textContent = g
-        ? `Level ${g.highestLevel || 1} · Best ${g.bestScore || 0} · ${g.completions || 0} completions`
+        ? `Level ${g.highestLevel || 1} · Best ${g.bestScore || 0} · ${g.completions || 0} completions · ${g.xp || 0} XP`
         : 'Not played yet';
     });
 
