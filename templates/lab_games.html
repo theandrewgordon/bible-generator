@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Games Lab | Faith Sparks{% endblock %}
-{% block head_extra %}<meta name="robots" content="noindex,nofollow" />{% endblock %}
+{% block head_extra %}
+<meta name="robots" content="noindex,nofollow" />
+<link rel="stylesheet" href="{{ url_for('lab_games.asset', filename='odyssey-ui.css') }}">
+{% endblock %}
 
 {% block content %}
 <section class="product-hero product-hero--labs">
   <p class="product-kicker">Faith Sparks Labs</p>
-  <h1>Games Lab</h1>
-  <p>Interactive game experiments for families. These are playable prototypes, so controls, levels, and availability may still change as we refine them.</p>
+  <h1>Tessa’s Odyssey Games</h1>
+  <p>Choose a player once, see their progress across the whole Odyssey, and jump into any game.</p>
 </section>
 
 {% if access_denied %}
@@ -14,15 +17,177 @@
   <strong>This account is not in the Games Lab beta yet.</strong>
 </section>
 {% else %}
-<section class="product-grid" aria-label="Games Lab prototypes">
+<section id="odyssey-dashboard" class="odyssey-dashboard" aria-labelledby="odyssey-dashboard-title">
+  <div class="odyssey-dashboard-toolbar">
+    <div>
+      <h2 id="odyssey-dashboard-title" style="margin:0">Odyssey Player</h2>
+      <p style="margin:.25rem 0 0">Your player identity and progress are shared across all four games.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label for="odyssey-player-select"><strong>Player</strong></label>
+      <select id="odyssey-player-select" aria-label="Choose Odyssey player"></select>
+      <button id="odyssey-new-player" class="button ghost" type="button">+ New Player</button>
+    </div>
+  </div>
+  <div id="odyssey-dashboard-body" aria-live="polite"></div>
+</section>
+
+<section class="product-grid" aria-label="Tessa's Odyssey games">
   {% for game in games %}
-  <article class="product-card product-card--gold">
+  <article class="product-card product-card--gold odyssey-game-card" data-game-id="{{ game.game_id }}">
     <span class="status-badge status-badge--{{ game.maturity }}">{{ game.maturity|title }}</span>
     <h2>{{ game.name }}</h2>
     <p>{{ game.description }}</p>
-    <a class="button ghost" href="{{ url_for('lab_games.play', slug=game.slug) }}">Play {{ game.name }}</a>
+    <p class="odyssey-game-progress" data-progress-for="{{ game.game_id }}"></p>
+    <a class="button ghost odyssey-play-link"
+       data-game-id="{{ game.game_id }}"
+       href="{{ url_for('lab_games.play', slug=game.slug) }}">Play {{ game.name }}</a>
   </article>
   {% endfor %}
 </section>
+
+<script src="{{ url_for('lab_games.asset', filename='odyssey-core.js') }}"></script>
+<script>
+(() => {
+  const O = window.Odyssey;
+  if (!O) return;
+
+  const select = document.getElementById('odyssey-player-select');
+  const addButton = document.getElementById('odyssey-new-player');
+  const body = document.getElementById('odyssey-dashboard-body');
+  const progressNodes = [...document.querySelectorAll('[data-progress-for]')];
+
+  const gameNames = {
+    'whits-end': "Whit's End",
+    'bernard-window-washing': "Bernard's Window Washing",
+    'wooten-mail-sorting': "Wooten's Mail Route",
+    'timothy-center-horse-racing': "Timothy Center Horse Racing"
+  };
+
+  function fmtDate(ms) {
+    if (!ms) return 'Not played yet';
+    try { return new Date(ms).toLocaleDateString(); }
+    catch (_) { return 'Played'; }
+  }
+
+  function currentPlayer() {
+    const id = select.value;
+    return O.getPlayers().find(p => p.id === id) || null;
+  }
+
+  function renderDashboard() {
+    const players = O.getPlayers();
+    const previous = select.value;
+    select.replaceChildren();
+
+    if (!players.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No players yet';
+      select.appendChild(option);
+      select.disabled = true;
+      addButton.disabled = false;
+      body.innerHTML = '<p style="margin:14px 0 0">Create a player to begin your Odyssey.</p>';
+      progressNodes.forEach(n => n.textContent = 'Create a player to track progress.');
+      return;
+    }
+
+    select.disabled = false;
+    for (const p of players) {
+      const option = document.createElement('option');
+      option.value = p.id;
+      option.textContent = p.name;
+      select.appendChild(option);
+    }
+
+    const active = O.getActivePlayer && O.getActivePlayer();
+    const preferred = players.find(p => p.id === previous) ||
+      players.find(p => active && p.id === active.id) ||
+      players[0];
+
+    select.value = preferred.id;
+    O.selectPlayer(preferred.name);
+
+    const summary = O.getPlayerSummary(preferred.id);
+    const achievements = summary.achievements || [];
+
+    body.innerHTML = `
+      <div class="odyssey-summary-grid">
+        <div class="odyssey-summary-stat"><span>Odyssey Level</span><strong>${summary.odysseyLevel}</strong></div>
+        <div class="odyssey-summary-stat"><span>Total XP</span><strong>${summary.xp}</strong></div>
+        <div class="odyssey-summary-stat"><span>Games Played</span><strong>${summary.gamesPlayed}</strong></div>
+        <div class="odyssey-summary-stat"><span>Completions</span><strong>${summary.completions}</strong></div>
+      </div>
+      <div class="odyssey-progress-grid">
+        ${Object.entries(gameNames).map(([id,name]) => {
+          const g = summary.games[id];
+          if (!g) return `<div class="odyssey-progress-card"><strong>${name}</strong><br><span>Not played yet</span></div>`;
+          return `<div class="odyssey-progress-card"><strong>${name}</strong><br>
+            Highest level: ${g.highestLevel || 1}<br>
+            Best score: ${g.bestScore || 0}<br>
+            Completions: ${g.completions || 0}<br>
+            <small>${fmtDate(g.lastPlayedAt)}</small>
+          </div>`;
+        }).join('')}
+      </div>
+      ${achievements.length ? `
+        <div class="odyssey-badges" aria-label="Achievements">
+          ${achievements.map(a => `<span class="odyssey-badge" title="${a.description}">${a.name}</span>`).join('')}
+        </div>` : ''}
+    `;
+
+    progressNodes.forEach(node => {
+      const id = node.dataset.progressFor;
+      const g = summary.games[id];
+      node.textContent = g
+        ? `Level ${g.highestLevel || 1} · Best ${g.bestScore || 0} · ${g.completions || 0} completions`
+        : 'Not played yet';
+    });
+
+    addButton.disabled = players.length >= O.MAX_PLAYERS;
+    addButton.textContent = addButton.disabled ? '8 Players Maximum' : '+ New Player';
+  }
+
+  select.addEventListener('change', () => {
+    const p = currentPlayer();
+    if (p) O.selectPlayer(p.name);
+    renderDashboard();
+  });
+
+  addButton.addEventListener('click', () => {
+    O.openNameDialog({
+      title: 'New Player',
+      saveLabel: 'Create Player',
+      validate(name) {
+        const key = name.toLocaleLowerCase();
+        if (O.getPlayers().some(p => p.name.toLocaleLowerCase() === key))
+          return 'That player already exists.';
+        if (O.getPlayers().length >= O.MAX_PLAYERS)
+          return 'You can have up to 8 players.';
+        return '';
+      },
+      onSave(name) {
+        const p = O.selectPlayer(name);
+        if (p) {
+          renderDashboard();
+          select.value = p.id;
+          renderDashboard();
+        }
+      }
+    });
+  });
+
+  document.querySelectorAll('.odyssey-play-link').forEach(link => {
+    link.addEventListener('click', () => {
+      const p = currentPlayer();
+      if (p) O.selectPlayer(p.name, link.dataset.gameId);
+    });
+  });
+
+  O.protectNativeControl(select);
+  O.protectNativeControl(addButton);
+  renderDashboard();
+})();
+</script>
 {% endif %}
 {% endblock %}
