@@ -159,67 +159,77 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         wet_start,
     )
     if wet_start >= 0 and wet_end > wet_start:
-        wet_render = """    // Wet cleaner layers — keep full-resolution game state, but merge visible
-    // cells into horizontal bands before drawing. Level 3 can have 400+ wet
-    // cells; drawing every one individually was collapsing the game to ~2 FPS.
-    const wetBands = new Map();
+        wet_render = """    // Wet cleaner layers — gameplay still tracks every cell, but rendering is
+    // intentionally flattened into ONE cached pane overlay. The prior cell/band
+    // approaches were still too expensive on iPad once level 3 unlocked a
+    // second cleaner and wetness grew into the hundreds.
+    let wetVisual = window._bernardWetVisualCache;
+    const wetNow = performance.now();
 
-    for (const w of wetness)
+    if (!wetVisual || wetNow - wetVisual.builtAt > 180)
     {
-        if (!w.layers)
-            continue;
+        let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+        let strongestCleaner = '';
+        let strongestAmount = 0;
+        let visibleCount = 0;
 
-        let cleanerId = '';
-        let amount = 0;
-
-        for (const id in w.layers)
+        for (const w of wetness)
         {
-            const layerAmount = w.layers[id];
-            if (layerAmount > amount)
+            if (!w.layers)
+                continue;
+
+            for (const id in w.layers)
             {
-                amount = layerAmount;
-                cleanerId = id;
+                const amount = w.layers[id];
+                if (amount <= .05)
+                    continue;
+
+                visibleCount++;
+                minX = min(minX, w.pos.x);
+                maxX = max(maxX, w.pos.x);
+                minY = min(minY, w.pos.y);
+                maxY = max(maxY, w.pos.y);
+
+                if (amount > strongestAmount)
+                {
+                    strongestAmount = amount;
+                    strongestCleaner = id;
+                }
             }
         }
 
-        if (!cleanerId || amount <= .05)
-            continue;
-
-        const row = Math.round(w.pos.y / max(.001, cell.y));
-        const key = row + ':' + cleanerId;
-        let band = wetBands.get(key);
-
-        if (!band)
-        {
-            band = {cleanerId,y:w.pos.y,minX:w.pos.x,maxX:w.pos.x,amount};
-            wetBands.set(key, band);
-        }
-        else
-        {
-            band.minX = min(band.minX, w.pos.x);
-            band.maxX = max(band.maxX, w.pos.x);
-            band.amount = max(band.amount, amount);
-        }
+        wetVisual = window._bernardWetVisualCache = {
+            builtAt:wetNow,
+            visibleCount,
+            minX,maxX,minY,maxY,
+            strongestCleaner,
+            strongestAmount,
+        };
     }
 
-    for (const band of wetBands.values())
+    if (wetVisual.visibleCount > 0 && wetVisual.minX < wetVisual.maxX)
     {
         let hue = .56;
-        if (band.cleanerId == 'soap') hue = .52;
-        else if (band.cleanerId == 'degreaser') hue = .12;
-        else if (band.cleanerId == 'vinegar') hue = .90;
-        else if (band.cleanerId == 'bernard') hue = .78;
+        if (wetVisual.strongestCleaner == 'soap') hue = .52;
+        else if (wetVisual.strongestCleaner == 'degreaser') hue = .12;
+        else if (wetVisual.strongestCleaner == 'vinegar') hue = .90;
+        else if (wetVisual.strongestCleaner == 'bernard') hue = .78;
 
-        const a = band.cleanerId == 'water'
-            ? (.18 + .20*band.amount)
-            : (.13 + .17*band.amount);
+        const density = clamp(wetVisual.visibleCount / 220, .18, 1);
+        const alpha = (.06 + .16*density) * clamp(wetVisual.strongestAmount || .5, .35, 1);
 
         drawRect(
-            vec2((band.minX + band.maxX)/2, band.y),
-            vec2((band.maxX - band.minX) + cell.x*1.15, cell.y*1.12),
-            band.cleanerId == 'water'
-                ? hsl(.56,.76,.70,a)
-                : hsl(hue,.64,.70,a)
+            vec2(
+                (wetVisual.minX + wetVisual.maxX)/2,
+                (wetVisual.minY + wetVisual.maxY)/2
+            ),
+            vec2(
+                (wetVisual.maxX - wetVisual.minX) + cell.x*1.15,
+                (wetVisual.maxY - wetVisual.minY) + cell.y*1.15
+            ),
+            wetVisual.strongestCleaner == 'water'
+                ? hsl(.56,.68,.72,alpha)
+                : hsl(hue,.58,.72,alpha)
         );
     }
 
