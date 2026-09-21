@@ -356,67 +356,19 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
             if (tinyWindowTexture)
             {
-                window._bernardRenderFastStats.skippedTile++;
+                // Keep a sparse, stable sample of the real textured detail so
+                // the window still looks like the original game. Everything
+                // else in this size class is skipped; cheap drawRect-origin
+                // cleaner/wetness effects are already allowed through above.
+                const hx = Math.abs(Math.round(pos.x * 24));
+                const hy = Math.abs(Math.round(pos.y * 24));
+                const keepRealTexture = ((hx * 3 + hy * 5) & 15) === 0;
 
-                try
+                if (!keepRealTexture)
                 {
-                    const tileInfo = rest[0];
-                    const color = rest[1];
-                    const angle = Number(rest[2] || 0);
-                    const mirror = !!rest[3];
-                    const textureInfo =
-                        tileInfo?.textureInfo ||
-                        (typeof tileInfo?.getTextureInfo === 'function'
-                            ? tileInfo.getTextureInfo()
-                            : null);
-                    const image = textureInfo?.image;
-
-                    if (image && tileInfo?.pos && tileInfo?.size)
-                    {
-                        const screen = worldToScreen(pos);
-                        const sx = Math.max(1, size.x * cameraScale);
-                        const sy = Math.max(1, size.y * cameraScale);
-
-                        mainContext.save();
-                        mainContext.translate(screen.x, screen.y);
-
-                        if (angle)
-                            mainContext.rotate(-angle);
-
-                        if (mirror)
-                            mainContext.scale(-1,1);
-
-                        // Draw the actual source tile directly. This preserves
-                        // the original soap/water/grime texture and shape while
-                        // bypassing LittleJS's expensive per-tile render path.
-                        mainContext.drawImage(
-                            image,
-                            tileInfo.pos.x,
-                            tileInfo.pos.y,
-                            tileInfo.size.x,
-                            tileInfo.size.y,
-                            -sx/2,
-                            -sy/2,
-                            sx,
-                            sy
-                        );
-
-                        // Apply LittleJS tint/alpha when present. Most grime
-                        // tiles are already colored, while cleaner effects rely
-                        // on alpha/tint for their final appearance.
-                        if (color && Number.isFinite(color.a) && color.a < .999)
-                        {
-                            mainContext.globalCompositeOperation = 'destination-in';
-                            mainContext.globalAlpha = Math.max(0,Math.min(1,color.a));
-                            mainContext.fillStyle = '#fff';
-                            mainContext.fillRect(-sx/2,-sy/2,sx,sy);
-                        }
-
-                        mainContext.restore();
-                        return;
-                    }
+                    window._bernardRenderFastStats.skippedTile++;
+                    return;
                 }
-                catch (_) {}
             }
         }
 
@@ -600,7 +552,7 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
                     "line "+state.drawLine+" calls "+state.lineMs.toFixed(0)+"ms\n"+
                     "Rsz "+topSizes(state.rectSizes)+"\n"+
                     "Tsz "+topSizes(state.tileSizes)+"\n"+
-                    "native detail T "+(window._bernardRenderFastStats?.skippedTile||0)+"\n"+
+                    "detail skip T "+(window._bernardRenderFastStats?.skippedTile||0)+"\n"+
                     "canvas "+canvasInfo;
 
                 console.info("[Bernard perf primitive]",{
