@@ -38,11 +38,21 @@
     </div>
   </div>
   <div id="odyssey-dashboard-body" aria-live="polite"></div>
+  <details id="odyssey-family-progress" class="odyssey-family-progress">
+    <summary>Family Progress</summary>
+    <div id="odyssey-family-progress-body"></div>
+  </details>
 </section>
 
 <section class="product-grid" aria-label="Tessa's Odyssey games">
   {% for game in games %}
-  <article class="product-card product-card--gold odyssey-game-card" data-game-id="{{ game.game_id }}">
+  <article class="product-card product-card--gold odyssey-game-card"
+           data-game-id="{{ game.game_id }}"
+           style="--game-accent: {{ game.accent }}">
+    <div class="odyssey-game-thumbnail" aria-hidden="true">
+      <span class="odyssey-game-thumbnail-icon">{{ game.icon }}</span>
+      <span class="odyssey-game-thumbnail-title">{{ game.name }}</span>
+    </div>
     <span class="status-badge status-badge--{{ game.maturity }}">{{ game.maturity|title }}</span>
     <h2>{{ game.name }}</h2>
     <p>{{ game.description }}</p>
@@ -63,6 +73,7 @@
   const select = document.getElementById('odyssey-player-select');
   const addButton = document.getElementById('odyssey-new-player');
   const body = document.getElementById('odyssey-dashboard-body');
+  const familyBody = document.getElementById('odyssey-family-progress-body');
   const progressNodes = [...document.querySelectorAll('[data-progress-for]')];
   const soundToggle = document.getElementById('odyssey-library-sound');
   const musicToggle = document.getElementById('odyssey-library-music');
@@ -72,6 +83,22 @@
     {{ game.game_id|tojson }}: {{ game.name|tojson }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };
+  const gameUrls = {
+    {% for game in games %}
+    {{ game.game_id|tojson }}: {{ url_for('lab_games.play', slug=game.slug)|tojson }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+  const gameIcons = {
+    {% for game in games %}
+    {{ game.game_id|tojson }}: {{ game.icon|tojson }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, ch => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[ch]));
+  }
 
   function fmtDate(ms) {
     if (!ms) return 'Not played yet';
@@ -82,6 +109,43 @@
   function currentPlayer() {
     const id = select.value;
     return O.getPlayers().find(p => p.id === id) || null;
+  }
+
+  function renderChallenge(challenge) {
+    const pct = Math.max(0, Math.min(100, challenge.target ? challenge.current / challenge.target * 100 : 0));
+    return `
+      <div class="odyssey-challenge ${challenge.complete ? 'complete' : ''}">
+        <div class="odyssey-challenge-top">
+          <strong>${challenge.complete ? '✓ ' : ''}${esc(challenge.title)}</strong>
+          <span>${esc(challenge.period)}</span>
+        </div>
+        <div class="odyssey-challenge-track"><div style="width:${pct}%"></div></div>
+        <small>${challenge.current} / ${challenge.target}</small>
+      </div>`;
+  }
+
+  function renderFamilyProgress() {
+    const summaries = O.getDashboard();
+    if (!summaries.length) {
+      familyBody.innerHTML = '<p>No players yet.</p>';
+      return;
+    }
+    familyBody.innerHTML = '<div class="odyssey-family-grid">' + summaries.map(summary => {
+      const avatar = summary.avatar || {symbol:'★',color:'#7357d9'};
+      return `
+        <article class="odyssey-family-card">
+          <div class="odyssey-family-card-head">
+            <span class="odyssey-avatar-small" style="background:${esc(avatar.color)}">${esc(avatar.symbol)}</span>
+            <div><strong>${esc(summary.name)}</strong><br><small>Odyssey Level ${summary.odysseyLevel}</small></div>
+          </div>
+          <div class="odyssey-family-mini-stats">
+            <span>${summary.xp} XP</span>
+            <span>${summary.gamesPlayed} plays</span>
+            <span>${summary.completions} completions</span>
+            <span>${summary.achievements.length} badges</span>
+          </div>
+        </article>`;
+    }).join('') + '</div>';
   }
 
   function renderDashboard() {
@@ -98,6 +162,7 @@
       addButton.disabled = false;
       body.innerHTML = '<p style="margin:14px 0 0">Create a player to begin your Odyssey.</p>';
       progressNodes.forEach(n => n.textContent = 'Create a player to track progress.');
+      renderFamilyProgress();
       return;
     }
 
@@ -115,47 +180,92 @@
       players[0];
 
     select.value = preferred.id;
-    O.selectPlayer(preferred.name);
+    O.selectPlayer(preferred.id);
 
     const summary = O.getPlayerSummary(preferred.id);
+    const avatar = summary.avatar || {symbol:'★',color:'#7357d9'};
     const achievements = summary.achievements || [];
-
+    const challenges = summary.challenges || [];
+    const recent = summary.recentGame;
     const xpPct = Math.max(0, Math.min(100, summary.xpIntoLevel || 0));
+    const recentName = recent ? gameNames[recent.gameId] : '';
+    const recentUrl = recent ? gameUrls[recent.gameId] : '';
+
     body.innerHTML = `
       <div class="odyssey-dashboard-player">
-        <div>
-          <strong style="font-size:1.25rem">${preferred.name}</strong>
-          <div class="odyssey-xp-track" aria-label="${xpPct}% to next Odyssey level">
-            <div class="odyssey-xp-fill" style="width:${xpPct}%"></div>
+        <div class="odyssey-player-heading">
+          <button id="odyssey-avatar-button" class="odyssey-avatar-button" type="button"
+                  aria-label="Change ${esc(preferred.name)}'s avatar"
+                  style="background:${esc(avatar.color)}">${esc(avatar.symbol)}</button>
+          <div>
+            <strong class="odyssey-dashboard-player-name">${esc(preferred.name)}</strong>
+            <div class="odyssey-xp-track" aria-label="${xpPct}% to next Odyssey level">
+              <div class="odyssey-xp-fill" style="width:${xpPct}%"></div>
+            </div>
+            <small>${summary.xpToNextLevel || 100} XP to Odyssey Level ${summary.odysseyLevel + 1}</small>
           </div>
-          <small>${summary.xpToNextLevel || 100} XP to Odyssey Level ${summary.odysseyLevel + 1}</small>
         </div>
+        ${recent ? `
+          <a class="button odyssey-continue-button" href="${recentUrl}">
+            Continue ${esc(recentName)} ${gameIcons[recent.gameId] || ''}
+          </a>` : ''}
       </div>
+
       <div class="odyssey-summary-grid">
         <div class="odyssey-summary-stat"><span>Odyssey Level</span><strong>${summary.odysseyLevel}</strong></div>
         <div class="odyssey-summary-stat"><span>Total XP</span><strong>${summary.xp}</strong></div>
         <div class="odyssey-summary-stat"><span>Games Played</span><strong>${summary.gamesPlayed}</strong></div>
         <div class="odyssey-summary-stat"><span>Completions</span><strong>${summary.completions}</strong></div>
       </div>
-      <div class="odyssey-progress-grid">
-        ${Object.entries(gameNames).map(([id,name]) => {
-          const g = summary.games[id];
-          if (!g) return `<div class="odyssey-progress-card"><strong>${name}</strong><br><span>Not played yet</span></div>`;
-          return `<div class="odyssey-progress-card"><strong>${name}</strong><br>
-            Highest level: ${g.highestLevel || 1}<br>
-            Best score: ${g.bestScore || 0}<br>
-            Completions: ${g.completions || 0}<br>
-            <div class="odyssey-game-xp">${g.xp || 0} Odyssey XP earned here</div>
-            <small>${fmtDate(g.lastPlayedAt)}</small>
-          </div>`;
-        }).join('')}
-      </div>
-      ${achievements.length ? `
-        <h3 style="margin:18px 0 8px">Achievements</h3>
-        <div class="odyssey-badges" aria-label="Achievements">
-          ${achievements.map(a => `<span class="odyssey-badge" title="${a.description}">${a.name}</span>`).join('')}
-        </div>` : ''}
+
+      <section class="odyssey-home-section">
+        <h3>Challenges</h3>
+        <div class="odyssey-challenge-grid">
+          ${challenges.map(renderChallenge).join('')}
+        </div>
+      </section>
+
+      <section class="odyssey-home-section">
+        <h3>Game Progress</h3>
+        <div class="odyssey-progress-grid">
+          ${Object.entries(gameNames).map(([id,name]) => {
+            const g = summary.games[id];
+            if (!g) return `<div class="odyssey-progress-card"><strong>${gameIcons[id] || ''} ${esc(name)}</strong><br><span>Not played yet</span></div>`;
+            return `<div class="odyssey-progress-card"><strong>${gameIcons[id] || ''} ${esc(name)}</strong><br>
+              Highest level: ${g.highestLevel || 1}<br>
+              Best score: ${g.bestScore || 0}<br>
+              Completions: ${g.completions || 0}<br>
+              <div class="odyssey-game-xp">${g.xp || 0} Odyssey XP earned here</div>
+              <small>${fmtDate(g.lastPlayedAt)}</small>
+            </div>`;
+          }).join('')}
+        </div>
+      </section>
+
+      <section class="odyssey-home-section">
+        <h3>Achievements <span class="odyssey-section-count">${achievements.length}</span></h3>
+        ${achievements.length
+          ? `<div class="odyssey-badges">${achievements.map(a =>
+              `<span class="odyssey-badge" title="${esc(a.description)}">${esc(a.icon || '🏅')} ${esc(a.name)}</span>`
+            ).join('')}</div>`
+          : '<p class="odyssey-muted">Play games and complete challenges to earn badges.</p>'}
+      </section>
     `;
+
+    const avatarButton = document.getElementById('odyssey-avatar-button');
+    if (avatarButton) {
+      O.protectNativeControl(avatarButton);
+      avatarButton.addEventListener('click', () => {
+        O.openAvatarPicker(preferred.id, {onChange: renderDashboard});
+      });
+    }
+
+    const continueButton = body.querySelector('.odyssey-continue-button');
+    if (continueButton) {
+      continueButton.addEventListener('click', () => {
+        O.selectPlayer(preferred.id, recent.gameId);
+      });
+    }
 
     progressNodes.forEach(node => {
       const id = node.dataset.progressFor;
@@ -167,6 +277,7 @@
 
     addButton.disabled = players.length >= O.MAX_PLAYERS;
     addButton.textContent = addButton.disabled ? '8 Players Maximum' : '+ New Player';
+    renderFamilyProgress();
   }
 
   function syncSettingsControls() {
@@ -177,7 +288,7 @@
 
   select.addEventListener('change', () => {
     const p = currentPlayer();
-    if (p) O.selectPlayer(p.name);
+    if (p) O.selectPlayer(p.id);
     renderDashboard();
   });
 
@@ -215,7 +326,7 @@
   document.querySelectorAll('.odyssey-play-link').forEach(link => {
     link.addEventListener('click', () => {
       const p = currentPlayer();
-      if (p) O.selectPlayer(p.name, link.dataset.gameId);
+      if (p) O.selectPlayer(p.id, link.dataset.gameId);
     });
   });
 
