@@ -564,6 +564,10 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "Results are recorded above; gameplay auto-advances" in html
     assert "bernard-perf-profiler" in html
     assert "cleanAvgMs" in html
+    assert "renderAvgMs" in html
+    assert "updateAvgMs" in html
+    assert "drawRect:state.drawRect" in html
+    assert "canvasInfo" in html
     assert "bernardPerfBadge" in html
     assert "bernard-audio-polish" in html
     assert "Cleaner bottle: soft trigger click + airy liquid spray" in html
