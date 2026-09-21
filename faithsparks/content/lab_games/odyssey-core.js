@@ -2,7 +2,7 @@
 'use strict';
 
 const STORAGE_KEY = 'tessas_odyssey_platform_v1';
-const VERSION = 1;
+const VERSION = 2;
 const MAX_PLAYERS = 8;
 const MAX_NAME = 20;
 
@@ -32,6 +32,10 @@ function playerByName(name){
   return state.players.find(p => String(p.name || '').toLocaleLowerCase() === key) || null;
 }
 function playerById(id){ return state.players.find(p => p.id === id) || null; }
+function resolvePlayer(ref){
+  if (!ref) return playerById(state.activePlayerId);
+  return playerById(ref) || playerByName(ref);
+}
 function newPlayer(name){
   const clean = cleanPlayerName(name);
   if (!clean) return null;
@@ -45,6 +49,34 @@ function newPlayer(name){
 }
 function ensurePlayer(name){ return playerByName(name) || newPlayer(name); }
 function getPlayers(){ return state.players.map(clone); }
+function setPlayers(list){
+  if (!Array.isArray(list)) return getPlayers();
+  const next=[];
+  for (const raw of list.slice(0,MAX_PLAYERS)) {
+    const name=cleanPlayerName(raw && raw.name);
+    if (!name) continue;
+    const existing=playerById(raw.id) || playerByName(name);
+    const p=existing || {
+      id:(raw && raw.id) || ('p_' + now().toString(36) + '_' + Math.random().toString(36).slice(2,7)),
+      name, createdAt:(raw && raw.createdAt) || now(), lastPlayedAt:0,
+      totals:{xp:0,gamesPlayed:0,completions:0}, games:{}
+    };
+    p.name=name;
+    if (raw && raw.createdAt) p.createdAt=raw.createdAt;
+    if (!next.some(x=>x.id===p.id || x.name.toLocaleLowerCase()===name.toLocaleLowerCase()))
+      next.push(p);
+  }
+  // Preserve Odyssey-only players not present in the incoming legacy list.
+  for (const p of state.players) {
+    if (next.length>=MAX_PLAYERS) break;
+    if (!next.some(x=>x.id===p.id || x.name.toLocaleLowerCase()===String(p.name||'').toLocaleLowerCase()))
+      next.push(p);
+  }
+  state.players=next;
+  if (state.activePlayerId && !playerById(state.activePlayerId)) state.activePlayerId='';
+  save();
+  return getPlayers();
+}
 function selectPlayer(name, gameId){
   const p = ensurePlayer(name); if (!p) return null;
   state.activePlayerId = p.id; p.lastPlayedAt = now();
@@ -161,18 +193,119 @@ function openNameDialog(opts){
     if (msg) { error.textContent=msg; input.focus(); return; }
     overlay.remove(); if (opts.onSave) opts.onSave(name);
   }
+  protectNativeControl(input); protectNativeControl(cancel); protectNativeControl(saveBtn);
   cancel.onclick=close; saveBtn.onclick=submit; input.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();submit();} if(e.key==='Escape'){e.preventDefault();close();} });
   actions.append(cancel,saveBtn); card.append(title,help,input,error,actions); overlay.append(card); document.body.appendChild(overlay);
   setTimeout(()=>{ input.focus(); input.select(); }, 0);
   return overlay;
 }
-function getGameStats(name, gameId){ const p=playerByName(name); return p && p.games && p.games[gameId] ? clone(p.games[gameId]) : null; }
+function getGameStats(name, gameId){
+  const p=resolvePlayer(name);
+  return p && p.games && p.games[gameId] ? clone(p.games[gameId]) : null;
+}
+function mergeLegacyGameProgress(gameId, playerRef, data){
+  const p=resolvePlayer(playerRef);
+  if (!p || !gameId || !data || typeof data!=='object') return null;
+  const g=ensureGame(p,gameId);
+  const score=Number.isFinite(+data.score) ? Math.max(0,+data.score||0) : (g.currentScore||0);
+  g.currentScore=score;
+  g.bestScore=Math.max(g.bestScore||0, Math.max(0,+data.bestScore||0), score);
+  g.highestLevel=Math.max(g.highestLevel||1, +data.highestLevel||0, +data.level||0, 1);
+  g.bestStars=Math.max(g.bestStars||0, +data.bestStars||0, +data.stars||0);
+  g.sessions=Math.max(g.sessions||0, +data.gamesPlayed||0, +data.sessions||0);
+  g.completions=Math.max(g.completions||0, +data.completions||0);
+  g.lastPlayedAt=Math.max(g.lastPlayedAt||0, +data.lastPlayed||0, +data.lastPlayedAt||0);
+  if (data.meta && typeof data.meta==='object') g.meta=Object.assign({},g.meta||{},data.meta);
+  if (data.resume!==undefined) g.meta=Object.assign({},g.meta||{},{resume:data.resume});
+  p.lastPlayedAt=Math.max(p.lastPlayedAt||0,g.lastPlayedAt||0);
+  p.totals.gamesPlayed=Math.max(p.totals.gamesPlayed||0,g.sessions||0);
+  p.totals.completions=Math.max(p.totals.completions||0,g.completions||0);
+  save();
+  return clone(g);
+}
+function getGameProgress(gameId, playerRef){
+  const p=resolvePlayer(playerRef);
+  if (!p) return null;
+  const g=ensureGame(p,gameId);
+  return {
+    score:g.currentScore||0, bestScore:g.bestScore||0,
+    level:g.highestLevel||1, highestLevel:g.highestLevel||1,
+    stars:g.bestStars||0, gamesPlayed:g.sessions||0,
+    completions:g.completions||0, lastPlayed:g.lastPlayedAt||0,
+    lastPlayedAt:g.lastPlayedAt||0, meta:clone(g.meta||{}),
+    resume:g.meta && Object.prototype.hasOwnProperty.call(g.meta,'resume') ? clone(g.meta.resume) : null
+  };
+}
+function saveGameProgress(gameId, playerRef, data){ return mergeLegacyGameProgress(gameId,playerRef,data); }
+function getSettings(){ return clone(state.settings); }
+function setSettings(next){
+  state.settings=Object.assign({sound:true,music:true},state.settings||{},next||{});
+  state.settings.sound=state.settings.sound!==false;
+  state.settings.music=state.settings.music!==false;
+  save(); return getSettings();
+}
+function odysseyLevelFromXp(xp){ return Math.max(1,Math.floor(Math.max(0,+xp||0)/100)+1); }
+function getAchievements(playerRef){
+  const p=resolvePlayer(playerRef); if(!p) return [];
+  const games=Object.entries(p.games||{}).filter(([,g])=>g && !g.hidden);
+  const played=games.filter(([,g])=>(g.sessions||0)>0).length;
+  const completions=games.reduce((sum,[,g])=>sum+(g.completions||0),0);
+  const out=[];
+  if (played>=1) out.push({id:'first-game',name:'First Adventure',description:'Play a Tessa’s Odyssey game.'});
+  if (played>=4) out.push({id:'all-four',name:'Around Odyssey',description:'Play all four Odyssey games.'});
+  if (completions>=10) out.push({id:'ten-completions',name:'Keep Going!',description:'Complete 10 rounds or levels.'});
+  if ((p.totals&&p.totals.xp||0)>=500) out.push({id:'xp-500',name:'Odyssey Explorer',description:'Earn 500 Odyssey XP.'});
+  return out;
+}
+function getPlayerSummary(playerRef){
+  const p=resolvePlayer(playerRef); if(!p) return null;
+  const games={};
+  for(const [gameId,g] of Object.entries(p.games||{})) if(g && !g.hidden) games[gameId]=clone(g);
+  const xp=p.totals&&p.totals.xp||0;
+  return {
+    id:p.id,name:p.name,xp,odysseyLevel:odysseyLevelFromXp(xp),
+    gamesPlayed:p.totals&&p.totals.gamesPlayed||0,
+    completions:p.totals&&p.totals.completions||0,
+    lastPlayedAt:p.lastPlayedAt||0,games,
+    achievements:getAchievements(p.id)
+  };
+}
+function getDashboard(){ return state.players.map(p=>getPlayerSummary(p.id)); }
+
+function isEditableTarget(target){
+  return !!(target && target.closest && target.closest('input,textarea,select,[contenteditable="true"],[contenteditable=""]'));
+}
+function protectNativeControl(control){
+  if(!control || control.dataset.odysseyProtected==='1') return control;
+  control.dataset.odysseyProtected='1';
+  for(const type of ['keydown','keyup','pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click']){
+    control.addEventListener(type,e=>e.stopPropagation(),type.startsWith('touch')?{passive:true}:false);
+  }
+  return control;
+}
+function installNativeInputGuards(){
+  if(installNativeInputGuards.done) return;
+  installNativeInputGuards.done=true;
+  const nativePrevent=Event.prototype.preventDefault;
+  Event.prototype.preventDefault=function(){
+    if(isEditableTarget(this.target) || isEditableTarget(document.activeElement)) return;
+    return nativePrevent.call(this);
+  };
+}
+function returnToLibrary(){ location.assign('/labs/games'); }
+
+installNativeInputGuards();
 
 const api = {
   VERSION, STORAGE_KEY, MAX_PLAYERS, MAX_NAME,
-  cleanPlayerName, getPlayers, ensurePlayer, selectPlayer, startSession,
+  cleanPlayerName, getPlayers, setPlayers, ensurePlayer, selectPlayer, startSession,
   syncProgress, recordResult, adoptLegacyProfiles, mergeGlobalNames, hidePlayerForGame,
-  showSaved, openNameDialog, getGameStats,
+  showSaved, openNameDialog, getGameStats, getGameProgress, saveGameProgress,
+  getProgress:getGameProgress, loadGameProgress:getGameProgress,
+  setGameProgress:saveGameProgress, saveProgress:saveGameProgress,
+  listPlayers:getPlayers, getProfiles:getPlayers, savePlayers:setPlayers,
+  getSettings, setSettings, getPlayerSummary, getDashboard, getAchievements,
+  odysseyLevelFromXp, protectNativeControl, installNativeInputGuards, returnToLibrary,
   getActivePlayer(){ const p=playerById(state.activePlayerId); return p ? clone(p) : null; },
   settings(){ return clone(state.settings); },
   setSetting(key,value){ state.settings[key]=!!value; save(); }
