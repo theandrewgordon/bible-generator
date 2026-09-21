@@ -292,3 +292,46 @@ def test_completion_result_ids_are_present_for_all_four_games():
     ):
         html = client.get(route).get_data(as_text=True)
         assert "resultId" in html
+
+
+
+def test_games_lab_exposes_shared_odyssey_settings():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games").get_data(as_text=True)
+    assert 'id="odyssey-library-sound"' in html
+    assert 'id="odyssey-library-music"' in html
+    assert "O.setSettings" in html
+    assert "O.protectNativeControl(soundToggle)" in html
+    assert "O.protectNativeControl(musicToggle)" in html
+
+
+def test_shared_game_menu_uses_consistent_order():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    labels = (
+        "Resume / Continue",
+        "Restart Current Round",
+        "Change Player",
+        "Return to Game Library",
+        "Sound Effects: ",
+    )
+    positions = [js.index(label) for label in labels]
+    assert positions == sorted(positions)
+
+
+def test_shared_player_selector_contract_is_consistent():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    assert "Choose a Player" in js
+    assert "Continue" in js
+    assert "+ New Player" in js
+    assert "Delete" in js
+    assert "Delete '+player.name+'?" in js
+    assert "MAX_PLAYERS = 8" in js
+    assert "MAX_NAME = 20" in js
+    assert "toLocaleLowerCase" in js
