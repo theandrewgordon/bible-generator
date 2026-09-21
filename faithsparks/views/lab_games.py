@@ -311,6 +311,8 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         return ((gx & 1)!==0) || ((gy & 1)!==0);
     }
 
+    let insideDrawRect = 0;
+
     window.drawRect = function(pos,size,...rest)
     {
         if (shouldSkip(pos,size))
@@ -318,11 +320,28 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             window._bernardRenderFastStats.skippedRect++;
             return;
         }
-        return originalDrawRect.call(this,pos,size,...rest);
+
+        // LittleJS implements drawRect through drawTile. Mark this path so the
+        // direct-tile culling below does not accidentally hide cheap cleaner,
+        // soap, wetness, and dirt rectangles.
+        insideDrawRect++;
+        try
+        {
+            return originalDrawRect.call(this,pos,size,...rest);
+        }
+        finally
+        {
+            insideDrawRect--;
+        }
     };
 
     window.drawTile = function(pos,size,...rest)
     {
+        // Calls that originate from drawRect are cheap shape rendering, not
+        // the expensive textured-detail path we are suppressing.
+        if (insideDrawRect > 0)
+            return originalDrawTile.call(this,pos,size,...rest);
+
         let currentLevel=0;
         try { currentLevel=Number(level||0); } catch (_) {}
 
