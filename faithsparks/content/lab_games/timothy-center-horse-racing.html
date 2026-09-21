@@ -495,6 +495,9 @@ let tcSettings = {sfx:true, music:true};
 let tcIntroMode = false;
 let tcMenuOpen = false;
 let tcDomReady = false;
+let tcSharedMenu = null;
+let tcRaceResultId = '';
+let tcObstacleHits = 0;
 
 const tcTrackMinY = -3.15;
 const tcTrackMaxY = 2.85;
@@ -828,6 +831,8 @@ function tcSubmitNativePlayerName()
 function tcOpenMenu()
 {
     if (tcProfileMode) return;
+    const shared = tcEnsureSharedMenu();
+    if (shared) { shared.open(); return; }
     tcMenuOpen = true;
     const overlay = document.getElementById('tc-menu-overlay');
     if (overlay) overlay.style.display = 'flex';
@@ -836,6 +841,8 @@ function tcOpenMenu()
 
 function tcCloseMenu()
 {
+    const shared = tcEnsureSharedMenu();
+    if (shared && tcMenuOpen) { shared.close(); return; }
     tcMenuOpen = false;
     const overlay = document.getElementById('tc-menu-overlay');
     if (overlay) overlay.style.display = 'none';
@@ -975,6 +982,121 @@ function tcRenderPlayerSelect()
     message.textContent = tcProfileMessage || '';
 }
 
+
+function tcShowSharedPlayerSelect()
+{
+    const O = tcOdyssey();
+    if (!(O && typeof O.openPlayerSelect == 'function'))
+        return false;
+
+    if (document.getElementById('odysseyPlayerSelect'))
+        return true;
+
+    O.openPlayerSelect({
+        gameId:TC_GAME_ID,
+        gameName:'Timothy Center Horse Racing',
+        getSummary(player)
+        {
+            const localName = tcFindLocalProfileName(player.name);
+            const data = localName ? tcProfiles[localName] : null;
+            const stats = tcOdysseyStats(player.name) || tcGetStats(player.id);
+            const unlocked = Array.isArray(data?.unlockedHorseNames) ? data.unlockedHorseNames.length : 1;
+            return {
+                highestLevel:stats.highestLevel || stats.bestLevel || data?.level || 1,
+                bestScore:0,
+                detail:`${unlocked} horse${unlocked===1?'':'s'} · ${stats.completions || stats.wins || 0} wins`
+            };
+        },
+        onContinue(player)
+        {
+            let localName = tcFindLocalProfileName(player.name);
+            if (!localName)
+            {
+                tcProfiles[player.name] = tcDefaultProfileData();
+                tcSaveProfiles();
+                tcLoadProfiles();
+                localName = player.name;
+            }
+            tcRestoreProfile(localName);
+        },
+        onDelete(player)
+        {
+            const localName = tcFindLocalProfileName(player.name);
+            if (localName && tcProfiles[localName])
+            {
+                delete tcProfiles[localName];
+                tcSaveProfiles();
+                tcLoadProfiles();
+            }
+        }
+    });
+    return true;
+}
+
+function tcEnsureSharedMenu()
+{
+    const O = tcOdyssey();
+    if (!(O && typeof O.mountGameMenu == 'function'))
+        return null;
+
+    if (tcSharedMenu)
+        return tcSharedMenu;
+
+    tcSharedMenu = O.mountGameMenu({
+        gameId:TC_GAME_ID,
+        gameName:'Timothy Center Horse Racing',
+        hasMusic:false,
+        onOpen()
+        {
+            tcManualSave(false);
+            tcMenuOpen = true;
+            paused = true;
+        },
+        onResume()
+        {
+            tcMenuOpen = false;
+            paused = false;
+        },
+        onRestart()
+        {
+            tcMenuOpen = false;
+            paused = false;
+            const keepLevel = tcLevel;
+            tcResetLevel(false);
+            tcLevel = keepLevel;
+            tcIntroMode = false;
+            tcManualSave(false);
+            tcSyncDomUi();
+        },
+        onChangePlayer()
+        {
+            tcMenuOpen = false;
+            paused = false;
+            tcReturnToProfiles();
+            tcSyncDomUi();
+        },
+        onLibrary()
+        {
+            tcManualSave(false);
+            tcMenuOpen = false;
+            paused = false;
+            if (O.returnToLibrary) O.returnToLibrary();
+            else if (location.protocol === 'http:' || location.protocol === 'https:')
+                location.assign(TC_GAME_LIBRARY_URL);
+            else
+                tcReturnToProfiles();
+        },
+        onSave(){ tcManualSave(false); },
+        onSettings(settings)
+        {
+            tcSettings.sfx = settings.sound !== false;
+            tcSettings.music = settings.music !== false;
+        }
+    });
+
+    return tcSharedMenu;
+}
+
 function tcSyncDomUi()
 {
     if (!tcDomReady) return;
@@ -984,16 +1106,32 @@ function tcSyncDomUi()
 
     const needsPlayerSelect = tcProfileMode || !tcActiveProfile;
 
+    const sharedPlayers = tcOdyssey() && typeof tcOdyssey().openPlayerSelect == 'function';
     const playerOverlay = document.getElementById('tc-player-overlay');
     if (playerOverlay)
-        playerOverlay.style.display =
-            (needsPlayerSelect && !tcCreatingProfile && !tcEditingProfile) ? 'flex' : 'none';
+        playerOverlay.style.display = sharedPlayers
+            ? 'none'
+            : ((needsPlayerSelect && !tcCreatingProfile && !tcEditingProfile) ? 'flex' : 'none');
 
     if (needsPlayerSelect)
-        tcRenderPlayerSelect();
+    {
+        if (!tcShowSharedPlayerSelect())
+            tcRenderPlayerSelect();
+    }
 
     const menuButton = document.getElementById('tc-menu-button');
     if (menuButton)
+        menuButton.style.display = 'none';
+
+    const sharedMenu = tcEnsureSharedMenu();
+    if (sharedMenu)
+    {
+        if (!needsPlayerSelect && !!tcActiveProfile && !tcIntroMode && !tcFinished)
+            sharedMenu.showButton();
+        else
+            sharedMenu.hideButton();
+    }
+    else if (menuButton)
         menuButton.style.display =
             (!needsPlayerSelect && !!tcActiveProfile) ? 'flex' : 'none';
 
@@ -1441,10 +1579,13 @@ function tcRecordWin()
             score:0,
             level:tcLevel,
             stars:0,
+            resultId:tcRaceResultId || `timothy-${tcActivePlayerId}-${tcLevel}`,
             meta:{
                 unlockedHorseNames:[...tcUnlockedHorseNames],
                 barnUnlocked:!!tcBarnUnlocked,
                 foalGrown:!!(tcFoal && tcFoal.grown),
+                mistakes:tcObstacleHits,
+                perfect:tcObstacleHits===0,
             }
         }, tcActiveProfile);
         return;
@@ -2536,6 +2677,7 @@ class TCObstacle extends EngineObject
                 // then normal running speed resumes automatically.
                 tcPlayer.slowTimer.set(1.0);
                 tcPlayerSpeed = max(.035, tcPlayerSpeed * .5);
+                tcObstacleHits++;
 
                 tcRaceMessage = 'Hit! Slowed for a second — keep running!';
                 tcMessageTimer.set(1.1);
@@ -2690,6 +2832,7 @@ function tcResetLevel(resetLevel=false)
     tcRaceLeader = '';
     tcPlayerDistance = 0;
     tcPlayerSpeed = .05;
+    tcObstacleHits = 0;
 
     tcObstacleTimer = new Timer(3);
     tcMessageTimer = new Timer();
@@ -2737,7 +2880,10 @@ function tcStartRace()
     tcStarted = true;
 
     if (!wasStarted)
+    {
+        tcRaceResultId = `timothy-${tcActivePlayerId || 'player'}-${tcLevel}-${Date.now()}`;
         tcRecordGameStart();
+    }
 
     tcManualSave(false);
 }
