@@ -573,8 +573,9 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "bernard-render-fast-path" in html
     assert "Stable spatial sampling avoids flicker" in html
     assert "_bernardRenderFastStats" in html
-    assert "smallWindowDetail" in html
-    assert "return originalDrawRect.call(this,pos,size,color)" in html
+    assert "const isHotSize" in html
+    assert "stable 1-in-4 spatial" in html
+    assert "return originalDrawRect.call(this,pos,size,color)" not in html
     assert "bernardPerfBadge" in html
     assert "bernard-audio-polish" in html
     assert "Cleaner bottle: soft trigger click + airy liquid spray" in html
