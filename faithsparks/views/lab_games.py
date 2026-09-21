@@ -159,8 +159,11 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         wet_start,
     )
     if wet_start >= 0 and wet_end > wet_start:
-        wet_render = """    // Wet cleaner layers — retain every logical layer, but composite each
-    // glass cell into one draw call so later levels do not multiply rendering.
+        wet_render = """    // Wet cleaner layers — keep full-resolution game state, but merge visible
+    // cells into horizontal bands before drawing. Level 3 can have 400+ wet
+    // cells; drawing every one individually was collapsing the game to ~2 FPS.
+    const wetBands = new Map();
+
     for (const w of wetness)
     {
         if (!w.layers)
@@ -182,20 +185,39 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         if (!cleanerId || amount <= .05)
             continue;
 
-        let hue = .56;
-        if (cleanerId == 'soap') hue = .52;
-        else if (cleanerId == 'degreaser') hue = .12;
-        else if (cleanerId == 'vinegar') hue = .90;
-        else if (cleanerId == 'bernard') hue = .78;
+        const row = Math.round(w.pos.y / max(.001, cell.y));
+        const key = row + ':' + cleanerId;
+        let band = wetBands.get(key);
 
-        const a = cleanerId == 'water'
-            ? (.20 + .24*amount)
-            : (.15 + .20*amount);
+        if (!band)
+        {
+            band = {cleanerId,y:w.pos.y,minX:w.pos.x,maxX:w.pos.x,amount};
+            wetBands.set(key, band);
+        }
+        else
+        {
+            band.minX = min(band.minX, w.pos.x);
+            band.maxX = max(band.maxX, w.pos.x);
+            band.amount = max(band.amount, amount);
+        }
+    }
+
+    for (const band of wetBands.values())
+    {
+        let hue = .56;
+        if (band.cleanerId == 'soap') hue = .52;
+        else if (band.cleanerId == 'degreaser') hue = .12;
+        else if (band.cleanerId == 'vinegar') hue = .90;
+        else if (band.cleanerId == 'bernard') hue = .78;
+
+        const a = band.cleanerId == 'water'
+            ? (.18 + .20*band.amount)
+            : (.13 + .17*band.amount);
 
         drawRect(
-            w.pos,
-            cell.scale(1.12),
-            cleanerId == 'water'
+            vec2((band.minX + band.maxX)/2, band.y),
+            vec2((band.maxX - band.minX) + cell.x*1.15, cell.y*1.12),
+            band.cleanerId == 'water'
                 ? hsl(.56,.76,.70,a)
                 : hsl(hue,.64,.70,a)
         );
@@ -254,6 +276,156 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
+})();
+</script>
+<script id="bernard-audio-polish">
+(() => {
+    let activeWashLoop = null;
+
+    function audioReady()
+    {
+        try { return soundEffectsEnabled !== false && ensureWindowWashAudio(); }
+        catch (_) { return null; }
+    }
+
+    function makeNoiseSource(ctx)
+    {
+        const src = ctx.createBufferSource();
+        src.buffer = wwNoiseBuffer;
+        return src;
+    }
+
+    function shortNoise(ctx, when, duration, gainValue, lowpassHz, highpassHz=0)
+    {
+        const src = makeNoiseSource(ctx);
+        const gain = ctx.createGain();
+        const low = ctx.createBiquadFilter();
+        low.type = 'lowpass';
+        low.frequency.setValueAtTime(lowpassHz, when);
+        let tail = low;
+
+        if (highpassHz > 0)
+        {
+            const high = ctx.createBiquadFilter();
+            high.type = 'highpass';
+            high.frequency.setValueAtTime(highpassHz, when);
+            low.connect(high);
+            tail = high;
+        }
+
+        gain.gain.setValueAtTime(.0001, when);
+        gain.gain.exponentialRampToValueAtTime(gainValue, when+.008);
+        gain.gain.exponentialRampToValueAtTime(.0001, when+duration);
+        src.connect(low);
+        tail.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(when);
+        src.stop(when+duration+.03);
+    }
+
+    // Cleaner bottle: soft trigger click + airy liquid spray instead of a beep.
+    playSpraySound = function(kind='water')
+    {
+        const ctx = audioReady();
+        if (!ctx) return;
+
+        try
+        {
+            const t = ctx.currentTime;
+            const tone = kind === 'degreaser' ? 760 :
+                         kind === 'vinegar' ? 860 :
+                         kind === 'soap' ? 690 : 810;
+
+            const click = ctx.createOscillator();
+            const clickGain = ctx.createGain();
+            click.type = 'sine';
+            click.frequency.setValueAtTime(tone, t);
+            click.frequency.exponentialRampToValueAtTime(240, t+.045);
+            clickGain.gain.setValueAtTime(.038, t);
+            clickGain.gain.exponentialRampToValueAtTime(.0001, t+.055);
+            click.connect(clickGain);
+            clickGain.connect(ctx.destination);
+            click.start(t);
+            click.stop(t+.06);
+
+            shortNoise(ctx,t+.012,.19,.060,5200,700);
+        }
+        catch (_) {}
+    };
+
+    // Squeegee/cloth drag: soft rubber-on-glass hiss, not a musical tone.
+    startWindowWashToolSound = function()
+    {
+        stopWindowWashToolSound();
+        const ctx = audioReady();
+        if (!ctx) return;
+
+        try
+        {
+            const src = makeNoiseSource(ctx);
+            const band = ctx.createBiquadFilter();
+            const gain = ctx.createGain();
+            band.type = 'bandpass';
+            band.frequency.value = 1050;
+            band.Q.value = .65;
+            gain.gain.value = .022;
+            src.loop = true;
+            src.connect(band);
+            band.connect(gain);
+            gain.connect(ctx.destination);
+            src.start();
+            activeWashLoop = {src,gain,ctx};
+        }
+        catch (_) { activeWashLoop = null; }
+    };
+
+    stopWindowWashToolSound = function()
+    {
+        const loop = activeWashLoop;
+        activeWashLoop = null;
+        if (!loop) return;
+
+        try
+        {
+            const t = loop.ctx.currentTime;
+            loop.gain.gain.cancelScheduledValues(t);
+            loop.gain.gain.setValueAtTime(Math.max(.0001, loop.gain.gain.value || .02), t);
+            loop.gain.gain.exponentialRampToValueAtTime(.0001, t+.05);
+            loop.src.stop(t+.06);
+        }
+        catch (_) {}
+    };
+
+    // Finished window: short glassy sparkle instead of an arcade chirp.
+    playWindowWashSuccessSound = function()
+    {
+        const ctx = audioReady();
+        if (!ctx) return;
+
+        try
+        {
+            const t = ctx.currentTime;
+            const notes = [659.25,987.77,1318.51];
+
+            notes.forEach((frequency,index) =>
+            {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = index === 2 ? 'sine' : 'triangle';
+                osc.frequency.setValueAtTime(frequency,t+index*.085);
+                gain.gain.setValueAtTime(.0001,t+index*.085);
+                gain.gain.exponentialRampToValueAtTime(.032,t+index*.085+.01);
+                gain.gain.exponentialRampToValueAtTime(.0001,t+index*.085+.34);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(t+index*.085);
+                osc.stop(t+index*.085+.36);
+            });
+
+            shortNoise(ctx,t+.20,.09,.012,7600,2600);
+        }
+        catch (_) {}
+    };
 })();
 </script>
 """
