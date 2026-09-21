@@ -740,23 +740,50 @@ function recordCompletion(){
  p[i].bestScore=Math.max(p[i].bestScore||0,Math.max(0,score||0));
  p[i].highestLevel=Math.max(p[i].highestLevel||0,level||0);
  p[i].lastPlayed=Date.now();putProfiles(p);
+ let sharedResult=null;
  try{
-  window.Odyssey?.recordResult?.(TESSAS_ODYSSEY_GAME_ID,{
+  sharedResult=window.Odyssey?.recordResult?.(TESSAS_ODYSSEY_GAME_ID,{
    completed:true,score:Math.max(0,score||0),level:Math.max(1,(level||0)+1),stars:0,
    resultId:wootenRoundResultId||(`wooten-${activeProfileId}-${level}-${Date.now()}`),
    meta:{mistakes,mode:isDelivery()?'delivery':'sorting',perfect:mistakes===0}
   },p[i].name);
  }catch(e){}
+ return sharedResult;
 }
 function advanceLevel()
 {
-    recordCompletion();
+    const completedLevel=level;
+    const sharedResult=recordCompletion();
     window._wootenAdvanceAt=0;
     saveActive();
-    ++level;
-    if(level===5)
-        window.Odyssey?.celebrateUnlock?.('Delivery Routes Unlocked!', 'Wooten can now deliver mail around Odyssey');
-    isDelivery()?setupDelivery():setupSorting();
+    levelComplete=false;
+
+    const goNext=()=>{
+        ++level;
+        if(level===5)
+            window.Odyssey?.celebrateUnlock?.('Delivery Routes Unlocked!', 'Wooten can now deliver mail around Odyssey');
+        isDelivery()?setupDelivery():setupSorting();
+        saveActive(false);
+    };
+
+    if(window.Odyssey?.showRoundResults){
+        const p=getProfiles().find(x=>x.id===activeProfileId);
+        Odyssey.showRoundResults({
+            title:isDelivery()?'Route Complete!':'Mail Sorted!',
+            score:Math.max(0,score||0),
+            bestScore:Math.max(0,p?.bestScore||score||0),
+            level:completedLevel+1,
+            xpEarned:sharedResult?.lastResult?.xpEarned||0,
+            detail:mistakes===0?'Perfect round — no mistakes!':`${mistakes} mistake${mistakes===1?'':'s'}`,
+            primaryLabel:'Next Level',
+            onPrimary:goNext,
+            onReplay:restartCurrentRound,
+            onChangePlayer:changePlayer,
+            onLibrary:returnToGameLibrary
+        });
+        return;
+    }
+    goNext();
 }
 function resetGame(){score=mistakes=0;level=0;setupSorting();saveActive();}
 
