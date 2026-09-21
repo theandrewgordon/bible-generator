@@ -532,12 +532,22 @@ function openPlayerSelect(opts){
         title:'New Player',
         saveLabel:'Create Player',
         validate(name){
-          if(playerByName(name)) return 'That player already exists.';
-          if(state.players.length>=MAX_PLAYERS) return 'You can have up to 8 players.';
+          const existing=playerByName(name);
+          if(existing){
+            const game=gameId && existing.games ? existing.games[gameId] : null;
+            if(!(gameId && game && game.hidden)) return 'That player already exists.';
+          }
+          if(!existing && state.players.length>=MAX_PLAYERS) return 'You can have up to 8 players.';
           return opts.validateName ? (opts.validateName(name)||'') : '';
         },
         onSave(name){
-          const player=newPlayer(name);
+          let player=playerByName(name);
+          if(player && gameId){
+            const game=ensureGame(player,gameId);
+            game.hidden=false;
+          }else if(!player){
+            player=newPlayer(name);
+          }
           if(!player) return;
           if(gameId) ensureGame(playerById(player.id),gameId).hidden=false;
           save();
