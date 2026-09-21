@@ -558,12 +558,17 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "const count = 1; // one cleaning sample per animation frame" in html
     assert "pendingDragWorldPos" in html
     assert "canvasPixelRatio = Math.min(devicePixelRatio || 1, 1.25)" in html
-    assert "composite each" in html
+    assert "const wetBands = new Map()" in html
+    assert "merge visible" in html
     assert "const cleanerIds = Object.keys(w.layers)" not in html
     assert "Results are recorded above; gameplay auto-advances" in html
     assert "bernard-perf-profiler" in html
     assert "cleanAvgMs" in html
     assert "bernardPerfBadge" in html
+    assert "bernard-audio-polish" in html
+    assert "Cleaner bottle: soft trigger click + airy liquid spray" in html
+    assert "Squeegee/cloth drag: soft rubber-on-glass hiss" in html
+    assert "Finished window: short glassy sparkle" in html
 
 
 def test_level_games_auto_advance_without_round_result_menu():
