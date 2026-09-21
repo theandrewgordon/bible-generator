@@ -1766,6 +1766,17 @@ function tcSaveProfiles()
     }
 }
 
+function tcRestoreLittleJsColor(value, fallback)
+{
+    if (value instanceof Color)
+        return value;
+
+    if (value && Number.isFinite(+value.r) && Number.isFinite(+value.g) && Number.isFinite(+value.b))
+        return new Color(+value.r, +value.g, +value.b, Number.isFinite(+value.a) ? +value.a : 1);
+
+    return fallback instanceof Color ? fallback : new Color(1,1,1,1);
+}
+
 function tcProfileSnapshot()
 {
     const raceState = (!tcProfileMode && tcPlayer) ? {
@@ -1903,8 +1914,10 @@ function tcRestoreRaceState(state)
             rival.targetY = clamp(saved.targetY ?? rival.targetY, tcHorseMinY, tcHorseMaxY);
             rival.finished = !!saved.finished;
 
-            if (saved.bodyColor) rival.bodyColor = saved.bodyColor;
-            if (saved.maneColor) rival.maneColor = saved.maneColor;
+            if (saved.bodyColor)
+                rival.bodyColor = tcRestoreLittleJsColor(saved.bodyColor, rival.bodyColor);
+            if (saved.maneColor)
+                rival.maneColor = tcRestoreLittleJsColor(saved.maneColor, rival.maneColor);
             if (saved.displayName) rival.displayName = saved.displayName;
         }
     }
@@ -1967,8 +1980,8 @@ function tcRestoreProfile(name)
         grownName: data.foal.grownName,
         growth: data.foal.growth || 0,
         care: data.foal.care || 0,
-        color: data.foal.color,
-        mane: data.foal.mane,
+        color: tcRestoreLittleJsColor(data.foal.color, hsl(.08,.52,.44)),
+        mane: tcRestoreLittleJsColor(data.foal.mane, hsl(.06,.42,.16)),
         grown: !!data.foal.grown,
     } : 0;
 
