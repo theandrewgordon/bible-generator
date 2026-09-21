@@ -335,3 +335,28 @@ def test_shared_player_selector_contract_is_consistent():
     assert "MAX_PLAYERS = 8" in js
     assert "MAX_NAME = 20" in js
     assert "toLocaleLowerCase" in js
+
+
+
+def test_active_odyssey_player_propagates_into_first_game_launch():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    assert "playerSelectAutoConsumed" in js
+    assert "firstSelectOnPage" in js
+    assert "autoContinueActive" in js
+    assert "selectPlayer(active.id,gameId)" in js
+    assert "opts.onContinue" in js
+    assert "autoContinued:true" in js
+
+
+def test_change_player_still_uses_shared_selector_after_auto_continue():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    # Auto-continue is only allowed on the first selector request per game page.
+    assert "const firstSelectOnPage=!playerSelectAutoConsumed.has(autoKey)" in js
+    assert "playerSelectAutoConsumed.add(autoKey)" in js
+    assert "if(firstSelectOnPage && active && opts.autoContinueActive!==false)" in js
