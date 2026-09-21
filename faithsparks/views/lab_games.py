@@ -159,78 +159,75 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         wet_start,
     )
     if wet_start >= 0 and wet_end > wet_start:
-        wet_render = """    // Wet cleaner layers — gameplay still tracks every cell, but rendering is
-    // intentionally flattened into ONE cached pane overlay. The prior cell/band
-    // approaches were still too expensive on iPad once level 3 unlocked a
-    // second cleaner and wetness grew into the hundreds.
-    let wetVisual = window._bernardWetVisualCache;
-    const wetNow = performance.now();
-
-    if (!wetVisual || wetNow - wetVisual.builtAt > 180)
+        wet_render = """    // Wet cleaner layers — render localized cleaner residue per cell again.
+    // Profiling showed drawRect is cheap, so use detailed rectangles for water
+    // and soap while keeping expensive textured grime aggressively sampled.
+    for (const w of wetness)
     {
-        let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-        let strongestCleaner = '';
-        let strongestAmount = 0;
-        let visibleCount = 0;
+        if (!w.layers)
+            continue;
 
-        for (const w of wetness)
+        let cleanerId = '';
+        let amount = 0;
+
+        for (const id in w.layers)
         {
-            if (!w.layers)
-                continue;
-
-            for (const id in w.layers)
+            const layerAmount = w.layers[id];
+            if (layerAmount > amount)
             {
-                const amount = w.layers[id];
-                if (amount <= .05)
-                    continue;
-
-                visibleCount++;
-                minX = min(minX, w.pos.x);
-                maxX = max(maxX, w.pos.x);
-                minY = min(minY, w.pos.y);
-                maxY = max(maxY, w.pos.y);
-
-                if (amount > strongestAmount)
-                {
-                    strongestAmount = amount;
-                    strongestCleaner = id;
-                }
+                amount = layerAmount;
+                cleanerId = id;
             }
         }
 
-        wetVisual = window._bernardWetVisualCache = {
-            builtAt:wetNow,
-            visibleCount,
-            minX,maxX,minY,maxY,
-            strongestCleaner,
-            strongestAmount,
-        };
-    }
+        if (!cleanerId || amount <= .05)
+            continue;
 
-    if (wetVisual.visibleCount > 0 && wetVisual.minX < wetVisual.maxX)
-    {
         let hue = .56;
-        if (wetVisual.strongestCleaner == 'soap') hue = .52;
-        else if (wetVisual.strongestCleaner == 'degreaser') hue = .12;
-        else if (wetVisual.strongestCleaner == 'vinegar') hue = .90;
-        else if (wetVisual.strongestCleaner == 'bernard') hue = .78;
+        let sat = .70;
+        let light = .74;
 
-        const density = clamp(wetVisual.visibleCount / 220, .18, 1);
-        const alpha = (.06 + .16*density) * clamp(wetVisual.strongestAmount || .5, .35, 1);
+        if (cleanerId == 'soap')
+        {
+            hue = .42;
+            sat = .72;
+            light = .76;
+        }
+        else if (cleanerId == 'degreaser')
+        {
+            hue = .12;
+            sat = .70;
+            light = .72;
+        }
+        else if (cleanerId == 'vinegar')
+        {
+            hue = .90;
+            sat = .55;
+            light = .80;
+        }
+        else if (cleanerId == 'bernard')
+        {
+            hue = .78;
+            sat = .60;
+            light = .74;
+        }
 
-        drawRect(
-            vec2(
-                (wetVisual.minX + wetVisual.maxX)/2,
-                (wetVisual.minY + wetVisual.maxY)/2
-            ),
-            vec2(
-                (wetVisual.maxX - wetVisual.minX) + cell.x*1.15,
-                (wetVisual.maxY - wetVisual.minY) + cell.y*1.15
-            ),
-            wetVisual.strongestCleaner == 'water'
-                ? hsl(.56,.68,.72,alpha)
-                : hsl(hue,.58,.72,alpha)
-        );
+        const alpha = cleanerId == 'water'
+            ? (.08 + .18*amount)
+            : (.10 + .22*amount);
+
+        drawRect(w.pos, cell.scale(1.02), hsl(hue,sat,light,alpha));
+
+        // Soap gets a smaller pale highlight so it reads as sudsy/foamy
+        // instead of looking like a giant translucent blob.
+        if (cleanerId == 'soap' && amount > .22)
+        {
+            drawRect(
+                w.pos.add(vec2(cell.x*.16,cell.y*.10)),
+                cell.scale(.34),
+                hsl(.42,.30,.96,.14 + .18*amount)
+            );
+        }
     }
 
 """
@@ -356,23 +353,13 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
             if (tinyWindowTexture)
             {
-                // Adaptive quality sampling: larger grime/soap marks are much
-                // more visually important than the smallest speckles. Spend
-                // more of the frame budget on them while keeping the tiny
-                // repeated detail aggressively sampled.
+                // Real textured grime is the expensive part. Keep only a
+                // sparse stable sample; water/soap detail is restored with
+                // cheap localized rectangles above.
                 const hx = Math.abs(Math.round(pos.x * 24));
                 const hy = Math.abs(Math.round(pos.y * 24));
                 const hash = hx * 3 + hy * 5;
-
-                const area = size.x * size.y;
-                let keepRealTexture = false;
-
-                if (area >= .55)
-                    keepRealTexture = (hash & 3) === 0;       // ~1 in 4
-                else if (area >= .20)
-                    keepRealTexture = (hash & 7) === 0;       // ~1 in 8
-                else
-                    keepRealTexture = (hash & 15) === 0;      // ~1 in 16
+                const keepRealTexture = (hash & 15) === 0;   // ~1 in 16
 
                 if (!keepRealTexture)
                 {
