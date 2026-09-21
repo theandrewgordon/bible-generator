@@ -112,6 +112,101 @@ def _game_for_slug(slug: str) -> dict | None:
     return None
 
 
+def _apply_runtime_game_patches(html: str, game_id: str) -> str:
+    """Apply small hot-path fixes without rewriting multi-megabyte embedded builds."""
+    if game_id != "bernard-window-washing":
+        return html
+
+    # Bernard already has a 1.5 second completion beat and nextLevel() timer.
+    # The results overlay added later interrupts that flow, so let the existing
+    # timer carry the player straight into the next window.
+    html = html.replace(
+        "    showResultsScreen();\n",
+        "    // Results are recorded above; gameplay auto-advances after the completion beat.\n",
+        1,
+    )
+
+    # Pointer input is already coalesced to one requestAnimationFrame. Tighten
+    # the amount of cleaning work in each frame so rapid iPad/mouse movement
+    # cannot build a long main-thread task on later levels.
+    html = html.replace(
+        "const step = activeTool.cleaner ? .38 : .32;",
+        "const step = activeTool.cleaner ? .52 : .46;",
+        1,
+    )
+    html = html.replace(
+        "const count = min(10, max(1, Math.ceil(dist / step)));",
+        "const count = min(6, max(1, Math.ceil(dist / step)));",
+        1,
+    )
+
+    # Retina-sized backing canvases are unnecessarily expensive for this
+    # hand-drawn game. A modest cap keeps the art crisp while substantially
+    # reducing per-frame pixel work on iPad.
+    html = html.replace(
+        "    cameraScale = 40;\n    canvasClearColor",
+        "    cameraScale = 40;\n    canvasPixelRatio = Math.min(devicePixelRatio || 1, 1.25);\n    canvasClearColor",
+        1,
+    )
+
+    # Level 3 unlocks a second cleaner. Keep all cleaner layers logically so
+    # wiping/accuracy rules remain unchanged, but render only the strongest
+    # visible layer for each glass cell. This bounds wet-layer draw calls to
+    # one per cell instead of multiplying them by every unlocked cleaner.
+    wet_start = html.find("    // Wet cleaner layers — multiple cleaners can overlap on one spot.")
+    wet_end = html.find(
+        "    // ================================================================\n    // SILL",
+        wet_start,
+    )
+    if wet_start >= 0 and wet_end > wet_start:
+        wet_render = """    // Wet cleaner layers — retain every logical layer, but composite each
+    // glass cell into one draw call so later levels do not multiply rendering.
+    for (const w of wetness)
+    {
+        if (!w.layers)
+            continue;
+
+        let cleanerId = '';
+        let amount = 0;
+
+        for (const id in w.layers)
+        {
+            const layerAmount = w.layers[id];
+            if (layerAmount > amount)
+            {
+                amount = layerAmount;
+                cleanerId = id;
+            }
+        }
+
+        if (!cleanerId || amount <= .05)
+            continue;
+
+        let hue = .56;
+        if (cleanerId == 'soap') hue = .52;
+        else if (cleanerId == 'degreaser') hue = .12;
+        else if (cleanerId == 'vinegar') hue = .90;
+        else if (cleanerId == 'bernard') hue = .78;
+
+        const a = cleanerId == 'water'
+            ? (.20 + .24*amount)
+            : (.15 + .20*amount);
+
+        drawRect(
+            w.pos,
+            cell.scale(1.12),
+            cleanerId == 'water'
+                ? hsl(.56,.76,.70,a)
+                : hsl(hue,.64,.70,a)
+        );
+    }
+
+"""
+        html = html[:wet_start] + wet_render + html[wet_end:]
+
+    return html
+
+
 def _csrf_token_value() -> str:
     token = str(session.get("_csrf_token") or "")
     if not token:
@@ -314,6 +409,7 @@ def play(slug: str):
 
     roster, sync_config = _odyssey_bootstrap(_signed_in_email())
     html = game_path.read_text(encoding="utf-8")
+    html = _apply_runtime_game_patches(html, game["game_id"])
     bootstrap = (
         "<script>"
         "window.__ODYSSEY_ACCOUNT_ROSTER__=" + json.dumps(roster).replace("<", "\\u003c") + ";"
