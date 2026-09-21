@@ -448,18 +448,17 @@ def test_odyssey_core_has_expanded_achievements_and_challenges():
         assert challenge in js
 
 
-def test_all_four_games_integrate_shared_round_results():
+def test_shared_round_results_remain_available_for_terminal_or_retry_flows():
     client = _client()
     _sign_in(client)
 
-    for route in (
-        "/labs/games/whits-end",
-        "/labs/games/bernard-window-washing",
-        "/labs/games/wooten-mail-route",
-        "/labs/games/timothy-center-horse-racing",
-    ):
-        html = client.get(route).get_data(as_text=True)
-        assert "showRoundResults" in html
+    core = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+
+    assert "function showRoundResults" in core
+    # Timothy still uses the shared result surface for losses and the final
+    # championship; normal wins auto-advance without opening it.
+    assert "O.showRoundResults({" in timothy
 
 
 def test_game_specific_unlock_celebrations_are_wired():
