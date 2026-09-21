@@ -425,9 +425,29 @@ function confirmDialog(opts){
   return overlay;
 }
 
+const playerSelectAutoConsumed=new Set();
+
 function openPlayerSelect(opts){
   opts=opts||{};
   const gameId=opts.gameId||'';
+  const autoKey=gameId||'__odyssey__';
+  const active=playerById(state.activePlayerId);
+  const firstSelectOnPage=!playerSelectAutoConsumed.has(autoKey);
+  playerSelectAutoConsumed.add(autoKey);
+
+  // When a player was selected on /labs/games, carry that same stable
+  // Odyssey identity straight into the first mini-game opened on this page.
+  // Later calls (notably Change Player) deliberately show the selector.
+  if(firstSelectOnPage && active && opts.autoContinueActive!==false){
+    selectPlayer(active.id,gameId);
+    if(opts.onContinue) opts.onContinue(clone(active));
+    return {
+      close(){},
+      refresh(){},
+      element:null,
+      autoContinued:true
+    };
+  }
   const existing=document.getElementById('odysseyPlayerSelect');
   if(existing) existing.remove();
 
