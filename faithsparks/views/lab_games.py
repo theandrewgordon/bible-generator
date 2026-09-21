@@ -145,7 +145,7 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     # reducing per-frame pixel work on iPad.
     html = html.replace(
         "    cameraScale = 40;\n    canvasClearColor",
-        "    cameraScale = 40;\n    canvasPixelRatio = Math.min(devicePixelRatio || 1, 1.25);\n    canvasClearColor",
+        "    cameraScale = 40;\n    canvasPixelRatio = Math.min(devicePixelRatio || 1, .75);\n    canvasClearColor",
         1,
     )
 
@@ -235,6 +235,105 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
 """
         html = html[:wet_start] + wet_render + html[wet_end:]
+
+    # Level 3+ render fast path. Gameplay still tracks every glass cell, but
+    # visual rendering keeps only one cell out of each stable 2x2 block. This
+    # cuts the hottest tiny-primitive workload by about 75% without changing
+    # scoring, cleaner matching, or squeegee behavior.
+    render_fast_path = r"""
+<script id="bernard-render-fast-path">
+(() => {
+    const originalDrawRect = window.drawRect;
+    const originalDrawTile = window.drawTile;
+    if (typeof originalDrawRect !== "function" || typeof originalDrawTile !== "function")
+        return;
+
+    let bounds = null;
+    let boundsBuiltAt = 0;
+    window._bernardRenderFastStats = {skippedRect:0,skippedTile:0};
+
+    function rebuildBounds()
+    {
+        boundsBuiltAt = performance.now();
+
+        try
+        {
+            if (!Array.isArray(wetness) || !wetness.length || !cell)
+            {
+                bounds = null;
+                return;
+            }
+
+            let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+            for (const w of wetness)
+            {
+                if (!w || !w.pos) continue;
+                minX=Math.min(minX,w.pos.x);
+                maxX=Math.max(maxX,w.pos.x);
+                minY=Math.min(minY,w.pos.y);
+                maxY=Math.max(maxY,w.pos.y);
+            }
+
+            bounds = minX < maxX
+                ? {minX,maxX,minY,maxY,cx:Math.max(.001,cell.x),cy:Math.max(.001,cell.y)}
+                : null;
+        }
+        catch (_) { bounds=null; }
+    }
+
+    function shouldSkip(pos,size)
+    {
+        let currentLevel=0;
+        try { currentLevel=Number(level||0); } catch (_) {}
+        if (currentLevel < 3 || !pos || !size)
+            return false;
+
+        if (!bounds || performance.now()-boundsBuiltAt > 500)
+            rebuildBounds();
+        if (!bounds)
+            return false;
+
+        const marginX=bounds.cx*.9;
+        const marginY=bounds.cy*.9;
+        if (pos.x < bounds.minX-marginX || pos.x > bounds.maxX+marginX ||
+            pos.y < bounds.minY-marginY || pos.y > bounds.maxY+marginY)
+            return false;
+
+        // Only tiny grid-sized primitives are culled. Tools, bottles, Bernard,
+        // window frame, siding, grass, and HUD remain untouched.
+        if (size.x > bounds.cx*1.65 || size.y > bounds.cy*1.65)
+            return false;
+
+        const gx=Math.round((pos.x-bounds.minX)/bounds.cx);
+        const gy=Math.round((pos.y-bounds.minY)/bounds.cy);
+
+        // Stable spatial sampling avoids flicker.
+        return ((gx & 1)!==0) || ((gy & 1)!==0);
+    }
+
+    window.drawRect = function(pos,size,...rest)
+    {
+        if (shouldSkip(pos,size))
+        {
+            window._bernardRenderFastStats.skippedRect++;
+            return;
+        }
+        return originalDrawRect.call(this,pos,size,...rest);
+    };
+
+    window.drawTile = function(pos,size,...rest)
+    {
+        if (shouldSkip(pos,size))
+        {
+            window._bernardRenderFastStats.skippedTile++;
+            return;
+        }
+        return originalDrawTile.call(this,pos,size,...rest);
+    };
+})();
+</script>
+"""
+    html = html.replace("</body>", render_fast_path + "</body>", 1)
 
     # Temporary in-game profiler for the level-3 slowdown. It measures the
     # expensive cleaning function separately from total frame rate.
@@ -360,6 +459,7 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
                     "update "+updateAvg.toFixed(1)+"ms / "+state.updateMax.toFixed(1)+" max\n"+
                     "clean "+cleanAvg.toFixed(1)+"ms / "+state.cleanMax.toFixed(1)+" max\n"+
                     "draw R "+state.drawRect+" T "+state.drawTile+" L "+state.drawLine+" txt "+state.drawText+"\n"+
+                    "skip R "+(window._bernardRenderFastStats?.skippedRect||0)+" T "+(window._bernardRenderFastStats?.skippedTile||0)+"\n"+
                     "canvas "+canvasInfo;
 
                 console.info("[Bernard perf deep]",{
