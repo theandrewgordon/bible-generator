@@ -23,10 +23,18 @@
       <h2 id="odyssey-dashboard-title" style="margin:0">Odyssey Player</h2>
       <p style="margin:.25rem 0 0">Your player identity and progress are shared across all four games.</p>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div class="odyssey-dashboard-controls">
       <label for="odyssey-player-select"><strong>Player</strong></label>
       <select id="odyssey-player-select" aria-label="Choose Odyssey player"></select>
       <button id="odyssey-new-player" class="button ghost" type="button">+ New Player</button>
+      <label class="odyssey-dashboard-setting" for="odyssey-library-sound">
+        <span>Sound Effects</span>
+        <input id="odyssey-library-sound" type="checkbox" />
+      </label>
+      <label class="odyssey-dashboard-setting" for="odyssey-library-music">
+        <span>Music</span>
+        <input id="odyssey-library-music" type="checkbox" />
+      </label>
     </div>
   </div>
   <div id="odyssey-dashboard-body" aria-live="polite"></div>
@@ -56,12 +64,13 @@
   const addButton = document.getElementById('odyssey-new-player');
   const body = document.getElementById('odyssey-dashboard-body');
   const progressNodes = [...document.querySelectorAll('[data-progress-for]')];
+  const soundToggle = document.getElementById('odyssey-library-sound');
+  const musicToggle = document.getElementById('odyssey-library-music');
 
   const gameNames = {
-    'whits-end': "Whit's End",
-    'bernard-window-washing': "Bernard's Window Washing",
-    'wooten-mail-sorting': "Wooten's Mail Route",
-    'timothy-center-horse-racing': "Timothy Center Horse Racing"
+    {% for game in games %}
+    {{ game.game_id|tojson }}: {{ game.name|tojson }}{% if not loop.last %},{% endif %}
+    {% endfor %}
   };
 
   function fmtDate(ms) {
@@ -160,10 +169,24 @@
     addButton.textContent = addButton.disabled ? '8 Players Maximum' : '+ New Player';
   }
 
+  function syncSettingsControls() {
+    const settings = O.getSettings ? O.getSettings() : O.settings();
+    soundToggle.checked = settings.sound !== false;
+    musicToggle.checked = settings.music !== false;
+  }
+
   select.addEventListener('change', () => {
     const p = currentPlayer();
     if (p) O.selectPlayer(p.name);
     renderDashboard();
+  });
+
+  soundToggle.addEventListener('change', () => {
+    O.setSettings({sound: soundToggle.checked, music: musicToggle.checked});
+  });
+
+  musicToggle.addEventListener('change', () => {
+    O.setSettings({sound: soundToggle.checked, music: musicToggle.checked});
   });
 
   addButton.addEventListener('click', () => {
@@ -198,6 +221,9 @@
 
   O.protectNativeControl(select);
   O.protectNativeControl(addButton);
+  O.protectNativeControl(soundToggle);
+  O.protectNativeControl(musicToggle);
+  syncSettingsControls();
   renderDashboard();
 })();
 </script>
