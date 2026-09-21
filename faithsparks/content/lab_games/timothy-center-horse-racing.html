@@ -1948,6 +1948,8 @@ function tcRenameProfile(oldName, newName)
 function tcDeleteProfileByName(name)
 {
     if (!name || !tcProfiles[name]) return;
+    if (!confirm(`Delete ${name}'s Timothy Center progress from this game?`))
+        return;
 
     const playerId = tcFindPlayerIdByName(name);
     delete tcProfiles[name];
