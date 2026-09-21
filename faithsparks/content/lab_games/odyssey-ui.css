@@ -50,3 +50,8 @@
   .odyssey-modal{align-items:flex-start;overflow:auto}
   .odyssey-modal-card{margin-block:8px}
 }
+
+.odyssey-dashboard-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.odyssey-dashboard-setting{display:flex;gap:7px;align-items:center;font-weight:750;padding:6px 9px;border:1px solid #c8d4d8;border-radius:10px;background:#fff}
+.odyssey-dashboard-setting input{width:24px;height:24px;margin:0}
+@media(max-width:700px){.odyssey-dashboard-controls{width:100%}.odyssey-dashboard-controls select{flex:1;min-width:150px}.odyssey-dashboard-setting{min-height:44px}}
