@@ -372,7 +372,8 @@ function openAvatarPicker(playerRef,opts){
 }
 function showRoundResults(opts){
   opts=opts||{};
-  const overlay=document.createElement('div'); overlay.className='odyssey-modal odyssey-results-modal';
+  const prior=document.getElementById('odysseyRoundResults'); if(prior) prior.remove();
+  const overlay=document.createElement('div'); overlay.id='odysseyRoundResults'; overlay.className='odyssey-modal odyssey-results-modal';
   const card=document.createElement('div'); card.className='odyssey-modal-card';
   const title=document.createElement('h2'); title.textContent=opts.title||'Round Complete!';
   const summary=document.createElement('div'); summary.className='odyssey-result-summary';
@@ -383,18 +384,28 @@ function showRoundResults(opts){
   if(opts.stars!==undefined && +opts.stars>0) rows.push(['Stars',opts.stars]);
   if(opts.xpEarned!==undefined) rows.push(['Odyssey XP','+'+Math.max(0,+opts.xpEarned||0)]);
   summary.innerHTML=rows.map(([k,v])=>'<div><span>'+k+'</span><strong>'+v+'</strong></div>').join('');
+  const detail=document.createElement('p');
+  detail.className='odyssey-result-detail';
+  detail.textContent=opts.detail||'';
   const actions=document.createElement('div'); actions.className='odyssey-modal-actions';
   const primary=document.createElement('button'); primary.type='button'; primary.className='odyssey-button'; primary.textContent=opts.primaryLabel||'Continue';
   protectNativeControl(primary); primary.onclick=()=>{overlay.remove(); if(opts.onPrimary) opts.onPrimary();};
   actions.appendChild(primary);
   if(opts.onReplay){
-    const replay=document.createElement('button'); replay.type='button'; replay.className='odyssey-button secondary'; replay.textContent='Play Again';
+    const replay=document.createElement('button'); replay.type='button'; replay.className='odyssey-button secondary'; replay.textContent=opts.replayLabel||'Play Again';
     protectNativeControl(replay); replay.onclick=()=>{overlay.remove();opts.onReplay();}; actions.appendChild(replay);
+  }
+  if(opts.onChangePlayer){
+    const change=document.createElement('button'); change.type='button'; change.className='odyssey-button secondary'; change.textContent='Change Player';
+    protectNativeControl(change); change.onclick=()=>{overlay.remove();opts.onChangePlayer();}; actions.appendChild(change);
   }
   const library=document.createElement('button'); library.type='button'; library.className='odyssey-button secondary'; library.textContent='Game Library';
   protectNativeControl(library); library.onclick=()=>{overlay.remove(); if(opts.onLibrary) opts.onLibrary(); else returnToLibrary();};
   actions.appendChild(library);
-  card.append(title,summary,actions); overlay.append(card); document.body.appendChild(overlay);
+  card.append(title,summary);
+  if(opts.detail) card.appendChild(detail);
+  card.appendChild(actions);
+  overlay.append(card); document.body.appendChild(overlay);
   return overlay;
 }
 function openNameDialog(opts){
