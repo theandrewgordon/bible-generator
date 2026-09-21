@@ -328,20 +328,24 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
         if (currentLevel >= 3 && pos && size)
         {
-            // The profiler showed textured tile drawing consuming ~1063ms/sec
-            // while rectangles consumed only ~9ms/sec. Small window-cell tiles
-            // are therefore flattened to cheap colored rectangles on later
-            // levels. Keep larger artwork (Bernard, bottles, tools, etc.) as
-            // normal textured tiles.
-            const smallWindowDetail =
-                size.x <= 1.05 &&
-                size.y <= 1.05;
+            // The profiler identified three dominant textured tile sizes. Do
+            // not convert them through drawRect (LittleJS drawRect calls
+            // drawTile internally). Instead keep only a stable 1-in-4 spatial
+            // sample so the texture remains visible without recursion.
+            const isHotSize =
+                (Math.abs(size.x-.50)<.06 && Math.abs(size.y-.49)<.06) ||
+                (Math.abs(size.x-.24)<.05 && Math.abs(size.y-.23)<.05) ||
+                (Math.abs(size.x-.81)<.07 && Math.abs(size.y-.81)<.07);
 
-            if (smallWindowDetail)
+            if (isHotSize)
             {
-                window._bernardRenderFastStats.skippedTile++;
-                const color = rest.length > 1 ? rest[1] : undefined;
-                return originalDrawRect.call(this,pos,size,color);
+                const hx=Math.abs(Math.round(pos.x*20));
+                const hy=Math.abs(Math.round(pos.y*20));
+                if (((hx + hy) & 3) !== 0)
+                {
+                    window._bernardRenderFastStats.skippedTile++;
+                    return;
+                }
             }
         }
 
