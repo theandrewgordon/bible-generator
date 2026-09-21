@@ -558,38 +558,35 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "const count = 1; // one cleaning sample per animation frame" in html
     assert "pendingDragWorldPos" in html
     assert "canvasPixelRatio = Math.min(devicePixelRatio || 1, .75)" in html
-    assert "window._bernardWetVisualCache" in html
-    assert "ONE cached pane overlay" in html
-    assert "const cleanerIds = Object.keys(w.layers)" not in html
-    assert "Results are recorded above; gameplay auto-advances" in html
-    assert "bernard-perf-profiler" in html
-    assert "cleanAvgMs" in html
-    assert "drawRect:state.drawRect" in html
-    assert "rectTop:topSizes(state.rectSizes)" in html
-    assert "tileTop:topSizes(state.tileSizes)" in html
-    assert "rectMs" in html
-    assert "tileMs" in html
-    assert "canvasInfo" in html
-    assert "bernard-render-fast-path" in html
-    assert "Stable spatial sampling avoids flicker" in html
-    assert "_bernardRenderFastStats" in html
-    assert "const tinyWindowTexture" in html
-    assert "Level 3+ quality fast path" in html
-    assert "insideDrawRect" in html
-    assert "worldToScreen(pos)" in html
-    assert "const keepRealTexture" in html
+
+    # Cleaner visuals stay detailed through cheap rectangles while expensive
+    # grime textures are heavily sampled.
     assert "render localized cleaner residue per cell again" in html
-    assert "Soap gets a smaller pale highlight" in html
-    assert "keepRealTexture = (hash & 15) === 0" in html
-    assert "sparse, stable sample of the real textured detail" in html
-    assert "native detail T" in html
-    assert "does not accidentally hide cheap cleaner" in html
-    assert "return originalDrawRect.call(this,pos,size,color)" not in html
+    assert "Water is a restrained blue sheen" in html
+    assert "Soap gets staggered foam flecks" in html
+    assert "keepRealTexture = (hash & 31) === 0" in html
+    assert "Rectangles are cheap according to the profiler" in html
+    assert "bernard-render-fast-path" in html
+    assert "_bernardRenderFastStats" in html
+
+    # The profiler remains available for diagnosis but is invisible/off unless
+    # explicitly requested with ?bernardPerf=1.
+    assert "bernard-perf-profiler" in html
+    assert "new URLSearchParams(location.search).get('bernardPerf') === '1'" in html
     assert "bernardPerfBadge" in html
-    assert "bernard-audio-polish" in html
-    assert "Cleaner bottle: soft trigger click + airy liquid spray" in html
-    assert "Squeegee/cloth drag: soft rubber-on-glass hiss" in html
-    assert "Finished window: short glassy sparkle" in html
+
+    # Cleaner feedback and sound design.
+    assert "bernardCleanerHint" in html
+    assert "SOAP FOAM — spray grime, then squeegee" in html
+    assert "WATER — light wet sheen, then squeegee" in html
+    assert "playWindowWashWrongCleanerSound" in html
+    assert "That cleaner is not lifting this grime" in html
+    assert "Distict cleaner bottles" not in html
+    assert "Distinct cleaner bottles: water = crisp mist, soap = softer pump + froth." in html
+    assert "Squeegee: continuous low rubber-on-glass hiss." in html
+    assert "Finished window: short glassy sparkle." in html
+
+    assert "Results are recorded above; gameplay auto-advances" in html
 
 
 def test_timothy_has_dedicated_touch_jump_control():
