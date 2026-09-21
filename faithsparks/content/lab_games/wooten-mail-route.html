@@ -115,6 +115,25 @@ function showProfilesLegacy(){
  (p.length?'<div id="profiles">'+p.map(x=>`<div class="profile"><strong>${esc(x.name)}</strong><div class="small">Highest Level ${Number(x.highestLevel||0)+1} · Best ${x.bestScore||0}<br>Last played ${fmtLast(x.lastPlayed)}</div><button type="button" class="uiBtn" onclick="joinProfileById('${x.id}')">Continue</button><button type="button" class="uiBtn danger" onclick="deleteProfileById('${x.id}')">Delete</button></div>`).join('')+'</div>':'<div class="sub">No saved players yet.</div>')+
  (p.length<MAX_PLAYERS?'<button type="button" class="uiBtn secondary" onclick="newProfileScreen()">+ New Player</button>':'<div class="sub">Maximum of 8 saved players reached.</div>');
 }
+function continueWootenOdysseyPlayer(player){
+ let p=getProfiles();
+ let local=p.find(x=>x.id===player.id||String(x.name).toLowerCase()===String(player.name).toLowerCase());
+ if(!local){
+  local={id:player.id,name:player.name,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:0,meta:{mistakes:0},resume:null};
+  p.push(local);putProfiles(p);
+ }else if(local.id!==player.id){
+  local.id=player.id;putProfiles(p);
+ }
+ joinProfileById(player.id);
+}
+function launchWootenActiveOdysseyPlayer(){
+ const O=window.Odyssey;
+ const active=O&&typeof O.getActivePlayer==='function'?O.getActivePlayer():null;
+ if(!active)return false;
+ continueWootenOdysseyPlayer(active);
+ return true;
+}
+
 function showProfiles(){
  const O=window.Odyssey;
  if(!(O&&typeof O.openPlayerSelect==='function')){showProfilesLegacy();return;}
@@ -134,17 +153,7 @@ function showProfiles(){
     detail:`${Math.max(0,Number(local?.completions||0))} completions`
    };
   },
-  onContinue(player){
-   let p=getProfiles();
-   let local=p.find(x=>x.id===player.id||String(x.name).toLowerCase()===String(player.name).toLowerCase());
-   if(!local){
-    local={id:player.id,name:player.name,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:0,meta:{mistakes:0},resume:null};
-    p.push(local);putProfiles(p);
-   }else if(local.id!==player.id){
-    local.id=player.id;putProfiles(p);
-   }
-   joinProfileById(player.id);
-  },
+  onContinue(player){continueWootenOdysseyPlayer(player)},
   onDelete(player){
    const next=getProfiles().filter(x=>x.id!==player.id&&String(x.name).toLowerCase()!==String(player.name).toLowerCase());
    putProfiles(next);
@@ -314,7 +323,7 @@ function uiBlocking(){
 window.addEventListener('beforeunload',()=>saveActive(false));
 window.addEventListener('pagehide',()=>saveActive(false));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)saveActive(false)});
-document.addEventListener('DOMContentLoaded',showProfiles);
+document.addEventListener('DOMContentLoaded',()=>{if(!launchWootenActiveOdysseyPlayer())showProfiles()});
 </script>
 <script>
 const wootenHeadImage = new Image();
