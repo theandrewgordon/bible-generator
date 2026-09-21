@@ -26,6 +26,7 @@ button,input{font:inherit}
   };
 })();
 </script>
+<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
 <script src="/labs/games/assets/odyssey-core.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/littlejsengine@1.18.19/dist/littlejs.js?1.18.19"></script>
 <script>
@@ -1810,7 +1811,7 @@ function writeSharedOdysseySettings(data){
   else if(typeof o.saveSettings=='function')o.saveSettings(data);
  }catch(e){}
 }
-function showSavedToast(){savedToastUntil=Date.now()+1200;}
+function showSavedToast(){const o=odysseyApi();if(o&&typeof o.showSaved==='function')o.showSaved('Saved');else savedToastUntil=Date.now()+1200;}
 function loadProfiles(){
  const stored=loadJson(PLAYER_KEY,[]);
  profiles=Array.isArray(stored)?stored.map(normalizePlayer).slice(0,MAX_PLAYERS):[];
@@ -1818,7 +1819,8 @@ function loadProfiles(){
  if(Array.isArray(sharedPlayers)){
   for(const raw of sharedPlayers){
    const sp=normalizePlayer(raw);
-   if(!profiles.some(p=>p.id==sp.id||p.name.toLowerCase()==sp.name.toLowerCase())&&profiles.length<MAX_PLAYERS)
+   const hidden=odysseyApi()?.getGameStats?.(sp.name,GAME_ID)?.hidden;
+   if(!hidden && !profiles.some(p=>p.id==sp.id||p.name.toLowerCase()==sp.name.toLowerCase())&&profiles.length<MAX_PLAYERS)
     profiles.push(sp);
   }
  }
@@ -1857,6 +1859,7 @@ function loadProfiles(){
  }
  saveJson(PLAYER_KEY,profiles);
  saveJson(PROGRESS_KEY,progressStore);
+ writeSharedOdysseyPlayers(profiles); // also teaches Odyssey legacy per-game IDs as aliases
  loadSettings();
 }
 function persistProfiles(){saveJson(PLAYER_KEY,profiles);writeSharedOdysseyPlayers(profiles);}
@@ -1894,9 +1897,11 @@ function makeProfile(name){
  profiles.push(p);progressFor(p.id);persistProfiles();persistProgress();return p;
 }
 function deletePlayer(id){
+ const player=profiles.find(p=>p.id==id);
+ if(player)try{odysseyApi()?.hidePlayerForGame?.(player.name,GAME_ID);}catch(e){}
  profiles=profiles.filter(p=>p.id!=id);
  if(progressStore[GAME_ID])delete progressStore[GAME_ID][id];
- persistProfiles();persistProgress();
+ saveJson(PLAYER_KEY,profiles);saveJson(PROGRESS_KEY,progressStore);
 }
 function saveActiveProfile(){
  const p=currentProgress(); if(!p)return;
@@ -2017,6 +2022,7 @@ function hideNameInput(){
 
 function playProfile(player){
  activeProfileId=player.id;
+ try{odysseyApi()?.selectPlayer?.(player.name,GAME_ID);}catch(e){}
  const p=progressFor(player.id);
  score=max(0,p.score||0);served=max(0,p.served||0);stars=max(0,p.stars||0);
  level=max(1,p.level||1);levelServed=max(0,p.levelServed||0);
@@ -2029,6 +2035,7 @@ function beginRound(targetLevel=level,resetScoreToCurrent=false){
  if(resetScoreToCurrent){score=roundStartScore;stars=roundStartStars;served=roundStartServed;}
  roundStartScore=score;roundStartStars=stars;roundStartServed=served;roundStartLevel=level;
  const p=currentProgress();if(p){p.gamesPlayed=(p.gamesPlayed||0)+1;p.lastPlayed=Date.now();}
+ try{odysseyApi()?.startSession?.(GAME_ID,currentProfile()?.name);}catch(e){}
  startParty(false);introScreen=false;resultsScreen=false;menuOpen=false;
  saveActiveProfile();saveSession();
 }
@@ -2039,7 +2046,6 @@ function continueSavedSession(){
 function restartCurrentRound(){
  score=roundStartScore;stars=roundStartStars;served=roundStartServed;
  level=roundStartLevel;levelServed=0;
- const p=currentProgress();if(p)p.gamesPlayed=(p.gamesPlayed||0)+1;
  startParty(false);menuOpen=false;resultsScreen=false;
  saveActiveProfile();saveSession();
 }
@@ -2057,6 +2063,7 @@ function openGameMenu(){saveSession();pausePartyClock();menuOpen=true;}
 function closeGameMenu(){menuOpen=false;resumePartyClock();}
 function returnToGameLibrary(){
  saveSession();showSavedToast();
+ try{if(odysseyApi()?.returnToLibrary){odysseyApi().returnToLibrary();return;}}catch(e){}
  try{
   if(window.TessasOdyssey&&typeof window.TessasOdyssey.returnToLibrary=='function'){
    window.TessasOdyssey.returnToLibrary(GAME_ID);return;
@@ -2069,6 +2076,10 @@ function returnToGameLibrary(){
 function finishRound(completedLevel){
  const p=currentProgress();
  if(p){
+  try{odysseyApi()?.recordResult?.(GAME_ID,{
+   completed:true,score:max(0,score||0),level:max(1,completedLevel+1),stars:max(0,stars||0),
+   meta:{served:max(0,served||0),levelServed:max(0,levelServed||0)}
+  },currentProfile()?.name);}catch(e){}
   p.completions=(p.completions||0)+1;
   p.bestScore=max(p.bestScore||0,score);
   p.score=score;p.stars=stars;p.level=max(level,completedLevel+1);p.highestLevel=max(p.highestLevel||1,p.level);p.levelServed=0;p.lastPlayed=Date.now();
