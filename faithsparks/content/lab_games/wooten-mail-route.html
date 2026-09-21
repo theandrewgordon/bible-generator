@@ -633,6 +633,19 @@ function initDefaultAtlas(scale = 1)
 let icons;
 
 ///////////////////////////////////////////////////////////////////////////////
+const wootenSfxCorrect = new SoundGenerator({frequency:650,release:.12,pitchJump:180,pitchJumpTime:.05,volume:.65});
+const wootenSfxWrong = new SoundGenerator({frequency:180,release:.18,slide:-.4,volume:.58});
+const wootenSfxDeliver = new SoundGenerator({frequency:520,attack:.01,release:.18,pitchJump:260,pitchJumpTime:.06,volume:.66});
+const wootenSfxComplete = new SoundGenerator({frequency:720,attack:.01,release:.32,pitchJump:320,pitchJumpTime:.09,volume:.7});
+const wootenSfxUnlock = new SoundGenerator({frequency:840,attack:.01,release:.4,pitchJump:420,pitchJumpTime:.10,volume:.7});
+
+function playWootenSfx(sound)
+{
+    if (!soundOn() || !sound || typeof sound.play != 'function')
+        return;
+    try { sound.play(); } catch(e) {}
+}
+
 // WOOTEN MAIL GAME: Levels 1-5 sorting, Level 6+ delivery routes
 let mailItems=[], bins=[], heldItem=0, score=0, mistakes=0, mailLeft=0, level=0, levelComplete=false;
 let message='Sort the mail into the right family bucket!', nextMailTimer=new Timer();
@@ -761,7 +774,10 @@ function advanceLevel()
     const goNext=()=>{
         ++level;
         if(level===5)
+        {
+            playWootenSfx(wootenSfxUnlock);
             window.Odyssey?.celebrateUnlock?.('Delivery Routes Unlocked!', 'Wooten can now deliver mail around Odyssey');
+        }
         isDelivery()?setupDelivery():setupSorting();
         saveActive(false);
     };
@@ -822,15 +838,15 @@ function gameUpdate()
                 for(const bin of bins) if(isOverlapping(heldItem.pos,heldItem.size,bin.pos,bin.size))
                 {
                     sorted=true;
-                    if(bin.house===heldItem.house){score+=100;message='Correct!';saveActive();if(soundOn())new SoundGenerator({frequency:650,release:.12,pitchJump:180,pitchJumpTime:.05}).play();}
-                    else{++mistakes;message='Wrong family bucket.';if(soundOn())new SoundGenerator({frequency:180,release:.18,slide:-.4}).play();}
+                    if(bin.house===heldItem.house){score+=100;message='Correct!';saveActive();playWootenSfx(wootenSfxCorrect);}
+                    else{++mistakes;message='Wrong family bucket.';playWootenSfx(wootenSfxWrong);}
                     const done=heldItem;heldItem=0;mailItems=mailItems.filter(x=>x!==done);done.destroy();break;
                 }
                 if(!sorted){heldItem.pos=heldItem.startPos.copy();heldItem=0;}
             }
         }
         if(mailLeft>0)spawnSortingMail();
-        if(!mailLeft&&!mailItems.length&&!levelComplete){levelComplete=true;saveActive();message=level===4?'Sorting finished! Getting Wooten ready to deliver mail.':'Sorting complete! Loading the next sorting level.';}
+        if(!mailLeft&&!mailItems.length&&!levelComplete){levelComplete=true;saveActive();playWootenSfx(wootenSfxComplete);message=level===4?'Sorting finished! Getting Wooten ready to deliver mail.':'Sorting complete! Loading the next sorting level.';}
     }
     else
     {
@@ -862,17 +878,20 @@ function gameUpdate()
                     if(box.house===expected)
                     {
                         box.delivered=true; score+=200; saveActive();
+                        playWootenSfx(wootenSfxDeliver);
                         message=`Delivered to the ${allFamilies[expected]} family!`;
                         ++currentStop; deliveryX=0;
                         if(currentStop>=routeFamilies.length)
                         {
                             levelComplete=true; saveActive();
+                            playWootenSfx(wootenSfxComplete);
                             message='Delivery route complete! Loading another route.';
                         }
                     }
                     else
                     {
                         ++mistakes; box.pos=box.startPos;
+                        playWootenSfx(wootenSfxWrong);
                         message='Wrong package — check the family name.';
                     }
                 }
