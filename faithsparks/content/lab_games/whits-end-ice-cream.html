@@ -2081,7 +2081,11 @@ function ensureWhitsSharedMenu(){
   onRestart(){menuOpen=false;restartCurrentRound();},
   onChangePlayer(){menuOpen=false;changePlayer();},
   onLibrary(){menuOpen=false;returnToGameLibrary();},
-  onSave(){saveSession();}
+  onSave(){saveSession();},
+  onSettings(settings){
+   odysseySettings.sound=settings.sound!==false;
+   odysseySettings.music=settings.music!==false;
+  }
  });
  return whitsSharedMenu;
 }
