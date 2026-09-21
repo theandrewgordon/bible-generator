@@ -134,11 +134,21 @@ function recordResult(gameId, result, name){
   const r = Object.assign({completed:false}, result || {});
   syncProgress(gameId, r, p.name);
   if (r.completed) {
-    g.completions = (g.completions || 0) + 1;
-    p.totals.completions = (p.totals.completions || 0) + 1;
-    const scoreXp = Number.isFinite(+r.score) ? Math.min(40, Math.floor(Math.max(0,+r.score)/500)*5) : 0;
-    const starsXp = Number.isFinite(+r.stars) ? Math.min(30, Math.max(0,+r.stars)*5) : 0;
-    p.totals.xp = (p.totals.xp || 0) + 25 + scoreXp + starsXp;
+    g.resultIds=Array.isArray(g.resultIds)?g.resultIds:[];
+    const resultId=r.resultId ? String(r.resultId) : '';
+    const duplicate=resultId && g.resultIds.includes(resultId);
+    if(!duplicate){
+      g.completions = (g.completions || 0) + 1;
+      p.totals.completions = (p.totals.completions || 0) + 1;
+      const scoreXp = Number.isFinite(+r.score) ? Math.min(40, Math.floor(Math.max(0,+r.score)/500)*5) : 0;
+      const starsXp = Number.isFinite(+r.stars) ? Math.min(30, Math.max(0,+r.stars)*5) : 0;
+      const earned = Number.isFinite(+r.xp) ? Math.max(0,Math.floor(+r.xp||0)) : 25 + scoreXp + starsXp;
+      p.totals.xp = (p.totals.xp || 0) + earned;
+      if(resultId){
+        g.resultIds.push(resultId);
+        if(g.resultIds.length>50) g.resultIds=g.resultIds.slice(-50);
+      }
+    }
   }
   g.lastResult = Object.assign({}, r, {at:now()});
   save(); return clone(g);
@@ -264,6 +274,8 @@ function getAchievements(playerRef){
   if (played>=1) out.push({id:'first-game',name:'First Adventure',description:'Play a Tessa’s Odyssey game.'});
   if (played>=4) out.push({id:'all-four',name:'Around Odyssey',description:'Play all four Odyssey games.'});
   if (completions>=10) out.push({id:'ten-completions',name:'Keep Going!',description:'Complete 10 rounds or levels.'});
+  const perfect=games.some(([,g])=>g && g.completions>0 && g.lastResult && g.lastResult.meta && (g.lastResult.meta.perfect===true || g.lastResult.meta.mistakes===0));
+  if (perfect) out.push({id:'perfect-round',name:'Perfect Round',description:'Finish a round with no mistakes.'});
   if ((p.totals&&p.totals.xp||0)>=500) out.push({id:'xp-500',name:'Odyssey Explorer',description:'Earn 500 Odyssey XP.'});
   return out;
 }
@@ -304,6 +316,303 @@ function installNativeInputGuards(){
 }
 function returnToLibrary(){ location.assign('/labs/games'); }
 
+
+function visiblePlayers(gameId){
+  return state.players
+    .filter(p => {
+      if (!gameId) return true;
+      const g = p.games && p.games[gameId];
+      return !(g && g.hidden);
+    })
+    .map(clone);
+}
+
+function confirmDialog(opts){
+  opts=opts||{};
+  const overlay=document.createElement('div');
+  overlay.className='odyssey-modal';
+  const card=document.createElement('div');
+  card.className='odyssey-modal-card';
+  const title=document.createElement('h2');
+  title.textContent=opts.title||'Are you sure?';
+  const body=document.createElement('p');
+  body.textContent=opts.message||'This action cannot be undone.';
+  const actions=document.createElement('div');
+  actions.className='odyssey-modal-actions';
+  const cancel=document.createElement('button');
+  cancel.type='button'; cancel.className='odyssey-button secondary'; cancel.textContent=opts.cancelLabel||'Cancel';
+  const confirm=document.createElement('button');
+  confirm.type='button'; confirm.className='odyssey-button danger'; confirm.textContent=opts.confirmLabel||'Delete';
+  protectNativeControl(cancel); protectNativeControl(confirm);
+  cancel.onclick=()=>overlay.remove();
+  confirm.onclick=()=>{ overlay.remove(); if(opts.onConfirm) opts.onConfirm(); };
+  actions.append(cancel,confirm);
+  card.append(title,body,actions);
+  overlay.append(card);
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function openPlayerSelect(opts){
+  opts=opts||{};
+  const gameId=opts.gameId||'';
+  const existing=document.getElementById('odysseyPlayerSelect');
+  if(existing) existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.id='odysseyPlayerSelect';
+  overlay.className='odyssey-player-select';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+
+  const panel=document.createElement('div');
+  panel.className='odyssey-player-panel';
+
+  const title=document.createElement('h1');
+  title.textContent='Choose a Player';
+  const help=document.createElement('p');
+  help.className='odyssey-player-help';
+  help.textContent='Continue an existing player or add a new one.';
+
+  const list=document.createElement('div');
+  list.className='odyssey-player-list';
+
+  function summaryFor(player){
+    if(opts.getSummary){
+      try { return opts.getSummary(player) || {}; } catch(_) {}
+    }
+    const g=gameId ? getGameStats(player.id,gameId) : null;
+    return {
+      level:g && g.highestLevel || 1,
+      bestScore:g && g.bestScore || 0,
+      detail:g && g.completions ? `${g.completions} completions` : ''
+    };
+  }
+
+  function choose(player){
+    selectPlayer(player.id,gameId);
+    overlay.remove();
+    if(opts.onContinue) opts.onContinue(clone(player));
+  }
+
+  function render(){
+    list.replaceChildren();
+    const players=visiblePlayers(gameId);
+    if(!players.length){
+      const empty=document.createElement('p');
+      empty.className='odyssey-player-empty';
+      empty.textContent='No players yet. Add a player to begin.';
+      list.appendChild(empty);
+    }
+
+    for(const player of players){
+      const card=document.createElement('div');
+      card.className='odyssey-player-card';
+
+      const name=document.createElement('div');
+      name.className='odyssey-player-name';
+      name.textContent=player.name;
+
+      const meta=document.createElement('div');
+      meta.className='odyssey-player-meta';
+      const s=summaryFor(player);
+      const parts=[];
+      if(s.level || s.highestLevel) parts.push('Highest Level '+(s.highestLevel||s.level));
+      if(Number.isFinite(+s.bestScore) && +s.bestScore>0) parts.push('Best '+Math.max(0,+s.bestScore||0));
+      if(s.detail) parts.push(String(s.detail));
+      meta.textContent=parts.join(' · ') || 'Ready to play';
+
+      const actions=document.createElement('div');
+      actions.className='odyssey-player-actions';
+
+      const cont=document.createElement('button');
+      cont.type='button'; cont.className='odyssey-button'; cont.textContent='Continue';
+      protectNativeControl(cont);
+      cont.onclick=()=>choose(player);
+
+      const del=document.createElement('button');
+      del.type='button'; del.className='odyssey-button danger'; del.textContent='Delete';
+      protectNativeControl(del);
+      del.onclick=()=>confirmDialog({
+        title:'Delete '+player.name+'?',
+        message:opts.deleteMessage || 'This removes this player from this game. Other Odyssey game progress stays intact.',
+        confirmLabel:'Delete',
+        onConfirm:()=>{
+          if(gameId) hidePlayerForGame(player.id,gameId);
+          if(opts.onDelete) opts.onDelete(clone(player));
+          render();
+        }
+      });
+
+      actions.append(cont,del);
+      card.append(name,meta,actions);
+      list.appendChild(card);
+    }
+
+    const add=document.createElement('button');
+    add.type='button';
+    add.className='odyssey-button odyssey-new-player-button';
+    add.textContent=state.players.length>=MAX_PLAYERS ? '8 Players Maximum' : '+ New Player';
+    add.disabled=state.players.length>=MAX_PLAYERS;
+    protectNativeControl(add);
+    add.onclick=()=>{
+      openNameDialog({
+        title:'New Player',
+        saveLabel:'Create Player',
+        validate(name){
+          if(playerByName(name)) return 'That player already exists.';
+          if(state.players.length>=MAX_PLAYERS) return 'You can have up to 8 players.';
+          return opts.validateName ? (opts.validateName(name)||'') : '';
+        },
+        onSave(name){
+          const player=newPlayer(name);
+          if(!player) return;
+          if(gameId) ensureGame(playerById(player.id),gameId).hidden=false;
+          save();
+          if(opts.onCreate) opts.onCreate(clone(player));
+          choose(player);
+        }
+      });
+    };
+
+    panel.replaceChildren(title,help,list,add);
+  }
+
+  render();
+  overlay.append(panel);
+  document.body.appendChild(overlay);
+  return {
+    close(){ overlay.remove(); },
+    refresh:render,
+    element:overlay
+  };
+}
+
+function mountGameMenu(opts){
+  opts=opts||{};
+  const oldButton=document.getElementById('odysseyGameMenuButton');
+  if(oldButton) oldButton.remove();
+  const oldOverlay=document.getElementById('odysseyGameMenuOverlay');
+  if(oldOverlay) oldOverlay.remove();
+
+  const button=document.createElement('button');
+  button.id='odysseyGameMenuButton';
+  button.type='button';
+  button.className='odyssey-hamburger';
+  button.setAttribute('aria-label','Open game menu');
+  button.textContent='☰';
+  protectNativeControl(button);
+
+  let overlay=null;
+
+  function close(){
+    if(overlay){ overlay.remove(); overlay=null; }
+    if(opts.onResume) opts.onResume();
+  }
+
+  function open(){
+    if(overlay) return;
+    if(opts.onOpen) opts.onOpen();
+
+    overlay=document.createElement('div');
+    overlay.id='odysseyGameMenuOverlay';
+    overlay.className='odyssey-modal';
+
+    const card=document.createElement('div');
+    card.className='odyssey-modal-card odyssey-game-menu-card';
+    const title=document.createElement('h2');
+    title.textContent='Game Menu';
+    card.appendChild(title);
+
+    function menuButton(label,action,secondary=true){
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='odyssey-button'+(secondary?' secondary':'');
+      b.textContent=label;
+      protectNativeControl(b);
+      b.onclick=action;
+      card.appendChild(b);
+      return b;
+    }
+
+    menuButton('Resume / Continue',()=>close(),false);
+    menuButton('Restart Current Round',()=>{
+      overlay.remove(); overlay=null;
+      if(opts.onRestart) opts.onRestart();
+    });
+    menuButton('Change Player',()=>{
+      overlay.remove(); overlay=null;
+      if(opts.onSave) opts.onSave();
+      if(opts.onChangePlayer) opts.onChangePlayer();
+    });
+    menuButton('Return to Game Library',()=>{
+      overlay.remove(); overlay=null;
+      if(opts.onSave) opts.onSave();
+      if(opts.onLibrary) opts.onLibrary(); else returnToLibrary();
+    });
+
+    const settings=getSettings();
+    const soundBtn=menuButton('Sound Effects: '+(settings.sound?'On':'Off'),()=>{
+      const next=getSettings();
+      next.sound=!next.sound;
+      setSettings(next);
+      soundBtn.textContent='Sound Effects: '+(next.sound?'On':'Off');
+      if(opts.onSettings) opts.onSettings(getSettings());
+    });
+
+    if(opts.hasMusic){
+      const musicBtn=menuButton('Music: '+(settings.music?'On':'Off'),()=>{
+        const next=getSettings();
+        next.music=!next.music;
+        setSettings(next);
+        musicBtn.textContent='Music: '+(next.music?'On':'Off');
+        if(opts.onSettings) opts.onSettings(getSettings());
+      });
+    }
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
+  button.onclick=open;
+  document.body.appendChild(button);
+
+  return {
+    open, close,
+    showButton(){ button.style.display='flex'; },
+    hideButton(){ button.style.display='none'; if(overlay){overlay.remove();overlay=null;} },
+    destroy(){ button.remove(); if(overlay) overlay.remove(); },
+    button
+  };
+}
+
+function bindAutosave(saveFn){
+  if(typeof saveFn!=='function') return ()=>{};
+  const onVisibility=()=>{ if(document.hidden) saveFn('background'); };
+  const onPageHide=()=>saveFn('pagehide');
+  document.addEventListener('visibilitychange',onVisibility);
+  window.addEventListener('pagehide',onPageHide);
+  return ()=>{
+    document.removeEventListener('visibilitychange',onVisibility);
+    window.removeEventListener('pagehide',onPageHide);
+  };
+}
+
+function awardXp(playerRef,amount,reason){
+  const p=resolvePlayer(playerRef); if(!p) return null;
+  const add=Math.max(0,Math.floor(+amount||0));
+  p.totals=p.totals||{xp:0,gamesPlayed:0,completions:0};
+  p.totals.xp=(p.totals.xp||0)+add;
+  p.lastPlayedAt=now();
+  if(reason){
+    p.xpHistory=Array.isArray(p.xpHistory)?p.xpHistory:[];
+    p.xpHistory.push({amount:add,reason:String(reason),at:now()});
+    if(p.xpHistory.length>50) p.xpHistory=p.xpHistory.slice(-50);
+  }
+  save();
+  return getPlayerSummary(p.id);
+}
+
 installNativeInputGuards();
 
 const api = {
@@ -316,6 +625,7 @@ const api = {
   listPlayers:getPlayers, getProfiles:getPlayers, savePlayers:setPlayers,
   getSettings, setSettings, getPlayerSummary, getDashboard, getAchievements,
   odysseyLevelFromXp, protectNativeControl, installNativeInputGuards, returnToLibrary,
+  visiblePlayers, confirmDialog, openPlayerSelect, mountGameMenu, bindAutosave, awardXp,
   getActivePlayer(){ const p=playerById(state.activePlayerId); return p ? clone(p) : null; },
   settings(){ return clone(state.settings); },
   setSetting(key,value){ state.settings[key]=!!value; save(); }
