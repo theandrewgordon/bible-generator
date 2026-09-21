@@ -16625,6 +16625,10 @@ let trialPointerScreen = vec2();
 let dragOverlayCanvas = null;
 let dragOverlayContext = null;
 let lastDragWorldPos = null;
+let pendingDragWorldPos = null;
+let pendingDragClientX = 0;
+let pendingDragClientY = 0;
+let dragWorkFrame = 0;
 let parkedTool = null;
 let levelAdvanceAt = 0;
 let totalStars = 0;
@@ -18133,6 +18137,12 @@ function resetTransientInput()
     activeTool = null;
     parkedTool = null;
     lastDragWorldPos = null;
+    pendingDragWorldPos = null;
+    if (dragWorkFrame)
+    {
+        cancelAnimationFrame(dragWorkFrame);
+        dragWorkFrame = 0;
+    }
     dragging = false;
 }
 
@@ -19318,8 +19328,10 @@ function applyToolAlongPath(fromPos, toPos)
 
     // Use a small world-space spacing so quick pointer/finger movement
     // paints a continuous path instead of isolated event samples.
-    const step = activeTool.cleaner ? .34 : .28;
-    const count = max(1, Math.ceil(dist / step));
+    const step = activeTool.cleaner ? .38 : .32;
+    // Browser pointer events can arrive in large bursts, especially on iPad.
+    // Keep continuity without allowing one event to monopolize the main thread.
+    const count = min(10, max(1, Math.ceil(dist / step)));
 
     for (let n=1; n<=count; ++n)
     {
@@ -19372,6 +19384,26 @@ function directMoveActiveTool(pos)
     lastDragWorldPos = pos.copy();
 }
 
+function flushPendingDragWork()
+{
+    dragWorkFrame = 0;
+
+    if (!trialPointerDown || !activeTool || !pendingDragWorldPos)
+        return;
+
+    const p = pendingDragWorldPos;
+    pendingDragWorldPos = null;
+    directMoveActiveTool(p);
+}
+
+function scheduleDragWork(pos)
+{
+    pendingDragWorldPos = pos.copy();
+
+    if (!dragWorkFrame)
+        dragWorkFrame = requestAnimationFrame(flushPendingDragWork);
+}
+
 function installDirectPointerControls()
 {
     if (trialPointerInstalled || !mainCanvas)
@@ -19404,6 +19436,12 @@ function installDirectPointerControls()
             trialPointerDown = true;
             activeTool = picked;
             lastDragWorldPos = null;
+            pendingDragWorldPos = null;
+            if (dragWorkFrame)
+            {
+                cancelAnimationFrame(dragWorkFrame);
+                dragWorkFrame = 0;
+            }
             try { mainCanvas.setPointerCapture(e.pointerId); } catch(err) {}
 
             // Start one lightweight continuous sound for this drag.
@@ -19425,17 +19463,16 @@ function installDirectPointerControls()
 
         e.preventDefault();
 
-        // Update pointer/render position immediately before any gameplay work.
-        // The active tool is rendered from trialPointerScreen, so it visually
-        // stays attached 1:1 to the mouse/finger even if cleaning work follows.
+        // Update pointer/render position immediately. The lightweight overlay
+        // follows every pointer event, while cleaning work is coalesced to at
+        // most one batch per animation frame so later levels stay responsive.
         const p = trialClientToWorld(e.clientX, e.clientY);
         trialPointerWorld = p;
+        pendingDragClientX = e.clientX;
+        pendingDragClientY = e.clientY;
 
-        // Move the visible held tool immediately.
         drawFastHeldTool(e.clientX, e.clientY);
-
-        // Fill every point between the previous and current pointer position.
-        directMoveActiveTool(p);
+        scheduleDragWork(p);
     });
 
     const release = e =>
@@ -19447,6 +19484,19 @@ function installDirectPointerControls()
 
         const releasedTool = activeTool;
         const releaseWorld = trialPointerWorld ? trialPointerWorld.copy() : null;
+
+        // Finish the latest coalesced cleaning position before ending the drag.
+        if (dragWorkFrame)
+        {
+            cancelAnimationFrame(dragWorkFrame);
+            dragWorkFrame = 0;
+        }
+        if (pendingDragWorldPos && activeTool)
+        {
+            const pending = pendingDragWorldPos;
+            pendingDragWorldPos = null;
+            directMoveActiveTool(pending);
+        }
 
         trialPointerDown = false;
         dragging = false;
