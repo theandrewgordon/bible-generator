@@ -213,20 +213,34 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         }
 
         const alpha = cleanerId == 'water'
-            ? (.08 + .18*amount)
-            : (.10 + .22*amount);
+            ? (.045 + .12*amount)
+            : (.09 + .20*amount);
 
-        drawRect(w.pos, cell.scale(1.02), hsl(hue,sat,light,alpha));
+        // Water is a restrained blue sheen; soap is a denser green-white film.
+        const mainScale = cleanerId == 'water' ? .82 : .94;
+        drawRect(w.pos, cell.scale(mainScale), hsl(hue,sat,light,alpha));
 
-        // Soap gets a smaller pale highlight so it reads as sudsy/foamy
-        // instead of looking like a giant translucent blob.
-        if (cleanerId == 'soap' && amount > .22)
+        // Soap gets staggered foam flecks. They track individual wet cells and
+        // disappear as the squeegee removes the layer, so wiping is visibly
+        // progressive rather than switching an entire pane at once.
+        if (cleanerId == 'soap' && amount > .18)
         {
-            drawRect(
-                w.pos.add(vec2(cell.x*.16,cell.y*.10)),
-                cell.scale(.34),
-                hsl(.42,.30,.96,.14 + .18*amount)
-            );
+            const gx = Math.round(w.pos.x / max(.001,cell.x));
+            const gy = Math.round(w.pos.y / max(.001,cell.y));
+
+            if (((gx + gy) & 1) == 0)
+                drawRect(
+                    w.pos.add(vec2(cell.x*.14,cell.y*.10)),
+                    cell.scale(.30),
+                    hsl(.42,.22,.97,.16 + .20*amount)
+                );
+
+            if (((gx*3 + gy*5) & 3) == 0)
+                drawRect(
+                    w.pos.add(vec2(-cell.x*.18,-cell.y*.16)),
+                    cell.scale(.16),
+                    hsl(.40,.16,1,.12 + .16*amount)
+                );
         }
     }
 
@@ -312,15 +326,8 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
     window.drawRect = function(pos,size,...rest)
     {
-        if (shouldSkip(pos,size))
-        {
-            window._bernardRenderFastStats.skippedRect++;
-            return;
-        }
-
-        // LittleJS implements drawRect through drawTile. Mark this path so the
-        // direct-tile culling below does not accidentally hide cheap cleaner,
-        // soap, wetness, and dirt rectangles.
+        // Rectangles are cheap according to the profiler and carry the useful
+        // cleaner/wetness feedback, so never cull them.
         insideDrawRect++;
         try
         {
@@ -355,11 +362,12 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             {
                 // Real textured grime is the expensive part. Keep only a
                 // sparse stable sample; water/soap detail is restored with
-                // cheap localized rectangles above.
+                // cheap localized rectangles above. 1-in-32 keeps heavy-dirt
+                // frames responsive while still retaining real texture cues.
                 const hx = Math.abs(Math.round(pos.x * 24));
                 const hy = Math.abs(Math.round(pos.y * 24));
                 const hash = hx * 3 + hy * 5;
-                const keepRealTexture = (hash & 15) === 0;   // ~1 in 16
+                const keepRealTexture = (hash & 31) === 0;   // ~1 in 32
 
                 if (!keepRealTexture)
                 {
@@ -387,6 +395,9 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     profiler = r"""
 <script id="bernard-perf-profiler">
 (() => {
+    const perfEnabled = new URLSearchParams(location.search).get('bernardPerf') === '1';
+    if (!perfEnabled) return;
+
     const state = {
         frames:0,last:performance.now(),
         cleanMs:0,cleanCalls:0,cleanMax:0,
@@ -584,11 +595,49 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 <script id="bernard-audio-polish">
 (() => {
     let activeWashLoop = null;
+    let lastWrongFeedbackAt = 0;
+    let lastCleanerUsed = 'water';
+
+    const hint = document.createElement('div');
+    hint.id = 'bernardCleanerHint';
+    hint.style.cssText =
+        'position:fixed;left:50%;bottom:max(54px,env(safe-area-inset-bottom));' +
+        'transform:translateX(-50%);z-index:999998;pointer-events:none;' +
+        'padding:7px 12px;border-radius:999px;background:rgba(16,22,24,.82);' +
+        'border:1px solid rgba(255,255,255,.5);color:#fff;font:700 13px/1.2 system-ui,sans-serif;' +
+        'opacity:0;transition:opacity .16s ease;white-space:nowrap';
+    document.body.appendChild(hint);
+    let hintTimer = 0;
+
+    function showHint(text, kind='normal')
+    {
+        hint.textContent = text;
+        hint.style.color = kind === 'wrong' ? '#ffd38a' :
+                           kind === 'soap' ? '#dfffe2' :
+                           kind === 'water' ? '#dff5ff' : '#fff';
+        hint.style.opacity = '1';
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => hint.style.opacity='0', 1200);
+    }
 
     function audioReady()
     {
         try { return soundEffectsEnabled !== false && ensureWindowWashAudio(); }
         catch (_) { return null; }
+    }
+
+    function cleanerKind(fallback='water')
+    {
+        try
+        {
+            const value = activeTool?.cleaner;
+            if (typeof value === 'string' && value)
+                return value.toLowerCase();
+
+            const candidate = value?.id || value?.name || activeTool?.id || activeTool?.name || fallback;
+            return String(candidate || fallback).toLowerCase();
+        }
+        catch (_) { return String(fallback || 'water').toLowerCase(); }
     }
 
     function makeNoiseSource(ctx)
@@ -626,37 +675,67 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         src.stop(when+duration+.03);
     }
 
-    // Cleaner bottle: soft trigger click + airy liquid spray instead of a beep.
+    function pumpClick(ctx,t,frequency=.820,volume=.035)
+    {
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+        osc.type='sine';
+        osc.frequency.setValueAtTime(frequency*1000,t);
+        osc.frequency.exponentialRampToValueAtTime(210,t+.045);
+        gain.gain.setValueAtTime(volume,t);
+        gain.gain.exponentialRampToValueAtTime(.0001,t+.055);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t+.06);
+    }
+
+    // Distinct cleaner bottles: water = crisp mist, soap = softer pump + froth.
     playSpraySound = function(kind='water')
     {
+        kind = cleanerKind(kind);
+        lastCleanerUsed = kind;
         const ctx = audioReady();
+
+        if (kind.includes('soap'))
+            showHint('SOAP FOAM — spray grime, then squeegee', 'soap');
+        else if (kind.includes('water'))
+            showHint('WATER — light wet sheen, then squeegee', 'water');
+        else
+            showHint(kind.toUpperCase()+' — spray, then squeegee');
+
         if (!ctx) return;
 
         try
         {
-            const t = ctx.currentTime;
-            const tone = kind === 'degreaser' ? 760 :
-                         kind === 'vinegar' ? 860 :
-                         kind === 'soap' ? 690 : 810;
+            const t=ctx.currentTime;
 
-            const click = ctx.createOscillator();
-            const clickGain = ctx.createGain();
-            click.type = 'sine';
-            click.frequency.setValueAtTime(tone, t);
-            click.frequency.exponentialRampToValueAtTime(240, t+.045);
-            clickGain.gain.setValueAtTime(.038, t);
-            clickGain.gain.exponentialRampToValueAtTime(.0001, t+.055);
-            click.connect(clickGain);
-            clickGain.connect(ctx.destination);
-            click.start(t);
-            click.stop(t+.06);
-
-            shortNoise(ctx,t+.012,.19,.060,5200,700);
+            if (kind.includes('soap'))
+            {
+                pumpClick(ctx,t,.52,.042);
+                shortNoise(ctx,t+.015,.13,.052,2900,260);
+                shortNoise(ctx,t+.095,.17,.038,2100,180);
+            }
+            else if (kind.includes('degreaser'))
+            {
+                pumpClick(ctx,t,.74,.035);
+                shortNoise(ctx,t+.012,.19,.058,4300,620);
+            }
+            else if (kind.includes('vinegar'))
+            {
+                pumpClick(ctx,t,.86,.032);
+                shortNoise(ctx,t+.012,.18,.054,5000,850);
+            }
+            else
+            {
+                pumpClick(ctx,t,.82,.034);
+                shortNoise(ctx,t+.012,.18,.058,5600,1050);
+            }
         }
         catch (_) {}
     };
 
-    // Squeegee/cloth drag: soft rubber-on-glass hiss, not a musical tone.
+    // Squeegee: continuous low rubber-on-glass hiss.
     startWindowWashToolSound = function()
     {
         stopWindowWashToolSound();
@@ -668,53 +747,159 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             const src = makeNoiseSource(ctx);
             const band = ctx.createBiquadFilter();
             const gain = ctx.createGain();
-            band.type = 'bandpass';
-            band.frequency.value = 1050;
-            band.Q.value = .65;
-            gain.gain.value = .022;
-            src.loop = true;
+            band.type='bandpass';
+            band.frequency.value=980;
+            band.Q.value=.72;
+            gain.gain.value=.020;
+            src.loop=true;
             src.connect(band);
             band.connect(gain);
             gain.connect(ctx.destination);
             src.start();
-            activeWashLoop = {src,gain,ctx};
+            activeWashLoop={src,gain,ctx};
         }
-        catch (_) { activeWashLoop = null; }
+        catch (_) { activeWashLoop=null; }
     };
 
     stopWindowWashToolSound = function()
     {
-        const loop = activeWashLoop;
-        activeWashLoop = null;
+        const loop=activeWashLoop;
+        activeWashLoop=null;
         if (!loop) return;
 
         try
         {
-            const t = loop.ctx.currentTime;
+            const t=loop.ctx.currentTime;
             loop.gain.gain.cancelScheduledValues(t);
-            loop.gain.gain.setValueAtTime(Math.max(.0001, loop.gain.gain.value || .02), t);
-            loop.gain.gain.exponentialRampToValueAtTime(.0001, t+.05);
+            loop.gain.gain.setValueAtTime(Math.max(.0001,loop.gain.gain.value||.02),t);
+            loop.gain.gain.exponentialRampToValueAtTime(.0001,t+.05);
             loop.src.stop(t+.06);
         }
         catch (_) {}
     };
 
-    // Finished window: short glassy sparkle instead of an arcade chirp.
-    playWindowWashSuccessSound = function()
+    playWindowWashWrongCleanerSound = function()
     {
-        const ctx = audioReady();
+        const now=performance.now();
+        if (now-lastWrongFeedbackAt < 900) return;
+        lastWrongFeedbackAt=now;
+
+        const suggestion = lastCleanerUsed.includes('soap') ? 'TRY WATER HERE' : 'TRY SOAP HERE';
+        showHint('That cleaner is not lifting this grime — '+suggestion,'wrong');
+
+        const ctx=audioReady();
         if (!ctx) return;
 
         try
         {
-            const t = ctx.currentTime;
-            const notes = [659.25,987.77,1318.51];
+            const t=ctx.currentTime;
+            [190,145].forEach((frequency,index) => {
+                const osc=ctx.createOscillator();
+                const gain=ctx.createGain();
+                osc.type='triangle';
+                osc.frequency.setValueAtTime(frequency,t+index*.085);
+                gain.gain.setValueAtTime(.024,t+index*.085);
+                gain.gain.exponentialRampToValueAtTime(.0001,t+index*.085+.09);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(t+index*.085);
+                osc.stop(t+index*.085+.10);
+            });
+        }
+        catch (_) {}
+    };
+
+    // Best-effort wrong-cleaner detection: if a squeegee stroke removes wetness
+    // but repeatedly fails to improve the game's clean percentage, prompt the
+    // other cleaner. It is intentionally gentle and throttled.
+    function readCleanProgress()
+    {
+        try { if (typeof cleanPercent !== 'undefined') return Number(cleanPercent); } catch (_) {}
+        try { if (typeof percentClean !== 'undefined') return Number(percentClean); } catch (_) {}
+        try { if (typeof cleanPct !== 'undefined') return Number(cleanPct); } catch (_) {}
+        try { if (typeof getCleanPercent === 'function') return Number(getCleanPercent()); } catch (_) {}
+        try { if (typeof getCleanPercentage === 'function') return Number(getCleanPercentage()); } catch (_) {}
+        return NaN;
+    }
+
+    function wetTotal()
+    {
+        try
+        {
+            let total=0;
+            for (const w of wetness || [])
+                if (w?.layers)
+                    for (const id in w.layers)
+                        total += Number(w.layers[id] || 0);
+            return total;
+        }
+        catch (_) { return NaN; }
+    }
+
+    try
+    {
+        if (typeof directMoveActiveTool === 'function')
+        {
+            const originalDirectMoveForFeedback=directMoveActiveTool;
+            let stalledWipes=0;
+
+            directMoveActiveTool=function(...args)
+            {
+                let isCleaner=false;
+                try { isCleaner=!!activeTool?.cleaner; } catch (_) {}
+
+                const beforeClean=readCleanProgress();
+                const beforeWet=wetTotal();
+                const result=originalDirectMoveForFeedback.apply(this,args);
+
+                if (!isCleaner)
+                {
+                    const afterClean=readCleanProgress();
+                    const afterWet=wetTotal();
+
+                    if (
+                        Number.isFinite(beforeWet) && Number.isFinite(afterWet) &&
+                        afterWet < beforeWet-.02 &&
+                        Number.isFinite(beforeClean) && Number.isFinite(afterClean) &&
+                        afterClean <= beforeClean+.001
+                    )
+                    {
+                        stalledWipes++;
+                        if (stalledWipes >= 3)
+                        {
+                            stalledWipes=0;
+                            playWindowWashWrongCleanerSound();
+                        }
+                    }
+                    else if (
+                        Number.isFinite(beforeClean) && Number.isFinite(afterClean) &&
+                        afterClean > beforeClean+.001
+                    )
+                        stalledWipes=0;
+                }
+
+                return result;
+            };
+        }
+    }
+    catch (_) {}
+
+    // Finished window: short glassy sparkle.
+    playWindowWashSuccessSound = function()
+    {
+        const ctx=audioReady();
+        if (!ctx) return;
+
+        try
+        {
+            const t=ctx.currentTime;
+            const notes=[659.25,987.77,1318.51];
 
             notes.forEach((frequency,index) =>
             {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = index === 2 ? 'sine' : 'triangle';
+                const osc=ctx.createOscillator();
+                const gain=ctx.createGain();
+                osc.type=index===2?'sine':'triangle';
                 osc.frequency.setValueAtTime(frequency,t+index*.085);
                 gain.gain.setValueAtTime(.0001,t+index*.085);
                 gain.gain.exponentialRampToValueAtTime(.032,t+index*.085+.01);
