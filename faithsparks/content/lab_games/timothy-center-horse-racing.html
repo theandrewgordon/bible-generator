@@ -667,6 +667,13 @@ function tcIsEditableElement(target)
 
 function tcInstallNativeInputGuards()
 {
+    const O = tcOdyssey();
+    if (O && O.installNativeInputGuards)
+    {
+        O.installNativeInputGuards();
+        return;
+    }
+
     if (tcInstallNativeInputGuards.installed)
         return;
     tcInstallNativeInputGuards.installed = true;
@@ -709,6 +716,13 @@ function tcInstallNativeInputGuards()
 function tcProtectNativeControl(control)
 {
     if (!control) return;
+
+    const O = tcOdyssey();
+    if (O && O.protectNativeControl)
+    {
+        O.protectNativeControl(control);
+        return;
+    }
 
     const stopTypes = [
         'keydown','keyup',
@@ -843,6 +857,13 @@ function tcGoToGameLibrary()
     tcManualSave(false);
     tcCloseMenu();
 
+    const O = tcOdyssey();
+    if (O && O.returnToLibrary)
+    {
+        O.returnToLibrary();
+        return;
+    }
+
     if (location.protocol === 'http:' || location.protocol === 'https:')
         location.assign(TC_GAME_LIBRARY_URL);
     else
@@ -958,17 +979,23 @@ function tcSyncDomUi()
 {
     if (!tcDomReady) return;
 
+    if (!tcActiveProfile)
+        tcProfileMode = true;
+
+    const needsPlayerSelect = tcProfileMode || !tcActiveProfile;
+
     const playerOverlay = document.getElementById('tc-player-overlay');
     if (playerOverlay)
         playerOverlay.style.display =
-            (tcProfileMode && !tcCreatingProfile && !tcEditingProfile) ? 'flex' : 'none';
+            (needsPlayerSelect && !tcCreatingProfile && !tcEditingProfile) ? 'flex' : 'none';
 
-    if (tcProfileMode)
+    if (needsPlayerSelect)
         tcRenderPlayerSelect();
 
     const menuButton = document.getElementById('tc-menu-button');
     if (menuButton)
-        menuButton.style.display = tcProfileMode ? 'none' : 'flex';
+        menuButton.style.display =
+            (!needsPlayerSelect && !!tcActiveProfile) ? 'flex' : 'none';
 
     const intro = document.getElementById('tc-intro-overlay');
     if (intro)
@@ -1006,7 +1033,6 @@ function tcSyncDomUi()
 
     const sfx = document.getElementById('tc-sfx-toggle');
     if (sfx && sfx.checked !== tcSettings.sfx) sfx.checked = tcSettings.sfx;
-    if (music && music.checked !== tcSettings.music) music.checked = tcSettings.music;
 }
 
 function tcInitNativeUi()
@@ -1031,9 +1057,7 @@ function tcInitNativeUi()
     const resultsChangePlayer = document.getElementById('tc-results-change-player');
     const resultsLibrary = document.getElementById('tc-results-library');
     const sfx = document.getElementById('tc-sfx-toggle');
-    const music = document.getElementById('tc-music-toggle');
-
-    addPlayer?.addEventListener('click', () =>
+addPlayer?.addEventListener('click', () =>
     {
         tcProfileMessage = '';
         tcShowNameEditor(false);
@@ -1751,7 +1775,13 @@ function tcRestoreRaceState(state)
 function tcRestoreProfile(name)
 {
     const data = tcProfiles[name];
-    if (!data) return;
+    if (!data)
+    {
+        tcProfileMessage = 'That player save could not be loaded.';
+        tcProfileMode = true;
+        tcSyncDomUi();
+        return;
+    }
 
     tcActiveProfile = name;
 
@@ -1946,6 +1976,7 @@ function tcReturnToProfiles()
     tcChoosingHorse = false;
     tcChoosingOpponent = false;
     tcLoadProfiles();
+    tcSyncDomUi();
 }
 
 function tcCreateNewAccountFromGame()
@@ -2839,8 +2870,18 @@ async function gameInit()
     if (!tcOdyssey())
         tcLoadSharedPlayerRegistry();
     tcLoadProfiles();
+
+    tcActiveProfile = '';
+    tcActivePlayerId = '';
     tcProfileMode = true;
+    tcStarted = false;
+    tcFinished = false;
+    tcInBarn = false;
+    tcIntroMode = false;
+    tcMenuOpen = false;
+
     tcInitNativeUi();
+    tcSyncDomUi();
 
     // Save when the browser/app is backgrounded or closed.
     document.addEventListener('visibilitychange', () =>
@@ -2858,6 +2899,9 @@ async function gameInit()
 ///////////////////////////////////////////////////////////////////////////////
 function gameUpdate()
 {
+    if (!tcActiveProfile)
+        tcProfileMode = true;
+
     if (tcProfileMode)
     {
         tcSyncDomUi();
@@ -2916,7 +2960,7 @@ function gameUpdate()
     }
 
     // Account changes happen between rounds, not during an active race.
-    if (keyWasPressed('KeyP') || keyWasPressed('Tab') || keyWasPressed('KeyS'))
+    if (keyWasPressed('KeyP') || keyWasPressed('Tab'))
     {
         if (!tcStarted || tcFinished || tcInBarn)
         {
@@ -3289,7 +3333,7 @@ function gameRenderPost()
         if (tcBarnMessageTimer && tcBarnMessageTimer.active())
             drawTextScreen(tcBarnMessage,vec2(cx,mainCanvasSize.y-86),23,WHITE,4,BLACK);
 
-        drawTextScreen('R/ESC = RETURN   S/P/TAB = CHANGE PLAYER   C = NEW PLAYER',
+        drawTextScreen('R/ESC = RETURN   P/TAB = CHANGE PLAYER   C = NEW PLAYER',
             vec2(cx,mainCanvasSize.y-42),17,WHITE,3,BLACK);
         return;
     }
