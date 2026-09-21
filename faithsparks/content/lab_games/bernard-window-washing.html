@@ -17438,7 +17438,6 @@ function showResultsScreen()
         levelAdvanceTimer.unset();
         levelAdvanceAt = 0;
         nextLevel();
-        gamesPlayed++;
         saveProgress();
         showMainMenuButton();
     });
@@ -18054,7 +18053,23 @@ function loadProgress(profileOrName)
 
     currentRoundIsResume = restoreResumeState();
 
-    // Loading/resuming a save does NOT itself count as another game played.
+    // Count one Odyssey play session per browser tab/player, not once per
+    // level transition or every time the same save is written.
+    const sessionKey = 'bernard-session-' + playerId;
+    let firstSession = true;
+    try
+    {
+        firstSession = !sessionStorage.getItem(sessionKey);
+        if (firstSession) sessionStorage.setItem(sessionKey, '1');
+    }
+    catch(e) {}
+
+    if (firstSession)
+        gamesPlayed++;
+
+    try { getOdysseyApi()?.startSession?.(GAME_ID, playerName); }
+    catch(e) {}
+
     saveProgress();
     titleIntroTimer.set(4);
     showGameIntro(currentRoundIsResume);
@@ -18382,10 +18397,7 @@ function showGameIntro(resuming=false)
     b.addEventListener('click', () =>
     {
         if (!resuming)
-        {
-            gamesPlayed++;
             saveProgress(true);
-        }
 
         currentRoundIsResume = false;
         closeOverlay(overlay);
