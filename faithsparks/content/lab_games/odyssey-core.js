@@ -180,8 +180,8 @@ function mergeGlobalNames(localProfiles, makeDefault, gameId){
   }
   return list;
 }
-function hidePlayerForGame(name, gameId){
-  const p = playerByName(name); if (!p || !gameId) return;
+function hidePlayerForGame(playerRef, gameId){
+  const p = resolvePlayer(playerRef); if (!p || !gameId) return;
   const g = ensureGame(p, gameId); g.hidden = true; save();
 }
 
