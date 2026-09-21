@@ -119,3 +119,64 @@ def test_playable_games_reference_shared_odyssey_shell():
         assert response.status_code == 200
         assert "/labs/games/assets/odyssey-core.js" in html
         assert game_id in html
+
+
+
+def test_game_shell_contract_markers():
+    """Static smoke test for the cross-game Odyssey shell contract."""
+    client = _client()
+    _sign_in(client)
+
+    paths = (
+        "/labs/games/whits-end",
+        "/labs/games/bernard-window-washing",
+        "/labs/games/wooten-mail-route",
+        "/labs/games/timothy-center-horse-racing",
+    )
+
+    for path in paths:
+        response = client.get(path)
+        html = response.get_data(as_text=True)
+        normalized = html.casefold()
+
+        assert response.status_code == 200
+        assert "/labs/games/assets/odyssey-core.js" in html
+        assert "visibilitychange" in html
+        assert "pagehide" in html
+        assert "change player" in normalized
+        assert "restart current round" in normalized
+        assert "game library" in normalized
+
+        # Native player-name entry must be a real text input, not only a
+        # canvas alphabet keyboard. Games construct it either in HTML or JS.
+        assert (
+            'type="text"' in normalized
+            or "input.type='text'" in normalized
+            or "input.type = 'text'" in normalized
+        )
+        assert "20" in html
+        assert "enterkeyhint" in normalized
+        assert "inputmode" in normalized
+
+
+def test_odyssey_core_exposes_shared_platform_contract():
+    client = _client()
+    _sign_in(client)
+    response = client.get("/labs/games/assets/odyssey-core.js")
+    js = response.get_data(as_text=True)
+
+    for marker in (
+        "getPlayers",
+        "ensurePlayer",
+        "selectPlayer",
+        "startSession",
+        "syncProgress",
+        "recordResult",
+        "getPlayerSummary",
+        "getDashboard",
+        "getAchievements",
+        "protectNativeControl",
+        "installNativeInputGuards",
+        "returnToLibrary",
+    ):
+        assert marker in js
