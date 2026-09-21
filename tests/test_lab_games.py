@@ -574,8 +574,11 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "Stable spatial sampling avoids flicker" in html
     assert "_bernardRenderFastStats" in html
     assert "const tinyWindowTexture" in html
-    assert "Level 3+ flat-window mode" in html
+    assert "Level 3+ quality fast path" in html
     assert "insideDrawRect" in html
+    assert "worldToScreen(pos)" in html
+    assert "mainContext.roundRect" in html
+    assert "native detail T" in html
     assert "does not accidentally hide cheap cleaner" in html
     assert "return originalDrawRect.call(this,pos,size,color)" not in html
     assert "bernardPerfBadge" in html
