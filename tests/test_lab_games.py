@@ -360,3 +360,26 @@ def test_change_player_still_uses_shared_selector_after_auto_continue():
     assert "const firstSelectOnPage=!playerSelectAutoConsumed.has(autoKey)" in js
     assert "playerSelectAutoConsumed.add(autoKey)" in js
     assert "if(firstSelectOnPage && active && opts.autoContinueActive!==false)" in js
+
+
+
+def test_timothy_restores_persisted_colors_as_littlejs_colors():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+
+    assert "function tcRestoreLittleJsColor" in html
+    assert "new Color(+value.r, +value.g, +value.b" in html
+    assert "tcRestoreLittleJsColor(saved.bodyColor" in html
+    assert "tcRestoreLittleJsColor(saved.maneColor" in html
+    assert "tcRestoreLittleJsColor(data.foal.color" in html
+
+
+def test_bernard_drag_stops_if_completion_clears_active_tool():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/bernard-window-washing").get_data(as_text=True)
+
+    assert "if (!activeTool)\n            break;" in html
+    assert "Completing a clean can end the drag" in html
+    assert "lastDragWorldPos = null;" in html
