@@ -180,3 +180,69 @@ def test_odyssey_core_exposes_shared_platform_contract():
         "returnToLibrary",
     ):
         assert marker in js
+
+
+
+def test_shared_odyssey_core_exposes_common_game_shell():
+    client = _client()
+    _sign_in(client)
+    response = client.get("/labs/games/assets/odyssey-core.js")
+    js = response.get_data(as_text=True)
+    assert response.status_code == 200
+    for symbol in (
+        "openPlayerSelect",
+        "mountGameMenu",
+        "bindAutosave",
+        "confirmDialog",
+        "getPlayerSummary",
+        "getDashboard",
+        "getAchievements",
+        "awardXp",
+        "installNativeInputGuards",
+    ):
+        assert symbol in js
+    for event_name in (
+        "keydown",
+        "keyup",
+        "pointerdown",
+        "pointerup",
+        "mousedown",
+        "mouseup",
+        "touchstart",
+        "touchend",
+        "click",
+    ):
+        assert event_name in js
+
+
+def test_all_playable_games_use_shared_player_and_menu_shell():
+    client = _client()
+    _sign_in(client)
+
+    expected = {
+        "/labs/games/whits-end": "whits-end",
+        "/labs/games/bernard-window-washing": "bernard-window-washing",
+        "/labs/games/wooten-mail-route": "wooten-mail-sorting",
+        "/labs/games/timothy-center-horse-racing": "timothy-center-horse-racing",
+    }
+
+    for route, game_id in expected.items():
+        response = client.get(route)
+        html = response.get_data(as_text=True)
+        assert response.status_code == 200
+        assert game_id in html
+        assert "openPlayerSelect" in html
+        assert "mountGameMenu" in html
+        assert "visibilitychange" in html
+        assert "pagehide" in html
+
+
+def test_odyssey_dashboard_includes_xp_and_achievements():
+    client = _client()
+    _sign_in(client)
+    response = client.get("/labs/games")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Odyssey Level" in html
+    assert "Total XP" in html
+    assert "Achievements" in html or "odyssey-badges" in html
