@@ -38,7 +38,7 @@ function makePlayerId(name,i=0){
 }
 function getProfiles(){
  try{
-  const p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]');
+  let p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]');
   let changed=false;
   p.forEach((x,i)=>{
    if(!x.id){x.id='legacy-'+i+'-'+String(x.name||'player').toLowerCase().replace(/[^a-z0-9]+/g,'-');changed=true}
@@ -50,6 +50,38 @@ function getProfiles(){
    if(x.meta==null){x.meta={mistakes:x.mistakes||0};changed=true}
    if(x.resume===undefined){x.resume=null;changed=true}
   });
+
+  if(window.Odyssey){
+   try{
+    if(typeof Odyssey.adoptLegacyProfiles==='function'){
+      Odyssey.adoptLegacyProfiles(TESSAS_ODYSSEY_GAME_ID,p,item=>({
+        score:Math.max(0,item.score||0),
+        level:Math.max(1,(item.highestLevel??item.level??0)+1),
+        stars:0,
+        meta:{mistakes:item.mistakes||0,mode:item.meta?.mode||'sorting'}
+      }));
+    }
+    if(typeof Odyssey.mergeGlobalNames==='function'){
+      p=Odyssey.mergeGlobalNames(
+        p,
+        name=>({id:Odyssey.ensurePlayer(name)?.id||makePlayerId(name),name,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:0,meta:{mistakes:0},resume:null}),
+        TESSAS_ODYSSEY_GAME_ID
+      );
+    }
+    p.forEach(x=>{
+      const shared=Odyssey.ensurePlayer(x.name);
+      if(shared&&x.id!==shared.id){x.id=shared.id;changed=true}
+      const g=Odyssey.getGameStats?.(x.name,TESSAS_ODYSSEY_GAME_ID);
+      if(g){
+        x.bestScore=Math.max(x.bestScore||0,g.bestScore||0);
+        x.highestLevel=Math.max(x.highestLevel||0,Math.max(0,(g.highestLevel||1)-1));
+        x.gamesPlayed=Math.max(x.gamesPlayed||0,g.sessions||0);
+        x.completions=Math.max(x.completions||0,g.completions||0);
+        x.lastPlayed=Math.max(x.lastPlayed||0,g.lastPlayedAt||0);
+      }
+    });
+   }catch(e){}
+  }
   if(changed)putProfiles(p);
   return p;
  }catch(e){return[]}
@@ -60,10 +92,17 @@ function activeIndex(){
  return getProfiles().findIndex(x=>x.id===activeProfileId);
 }
 function getSettings(){
- try{return Object.assign({sound:true,music:true},JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'))}
- catch(e){return {sound:true,music:true}}
+ try{
+  if(window.Odyssey&&typeof Odyssey.getSettings==='function')return Odyssey.getSettings();
+  return Object.assign({sound:true,music:true},JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
+ }catch(e){return {sound:true,music:true}}
 }
-function putSettings(x){localStorage.setItem(SETTINGS_KEY,JSON.stringify(x))}
+function putSettings(x){
+ try{
+  if(window.Odyssey&&typeof Odyssey.setSettings==='function'){Odyssey.setSettings(x);return}
+  localStorage.setItem(SETTINGS_KEY,JSON.stringify(x));
+ }catch(e){}
+}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fmtLast(t){if(!t)return 'Never';try{return new Date(t).toLocaleDateString()}catch(e){return ''}}
 
@@ -76,6 +115,7 @@ function showProfiles(){
  (p.length<MAX_PLAYERS?'<button type="button" class="uiBtn secondary" onclick="newProfileScreen()">+ New Player</button>':'<div class="sub">Maximum of 8 saved players reached.</div>');
 }
 function protectNativeInput(input){
+ if(window.Odyssey?.protectNativeControl){Odyssey.protectNativeControl(input);return}
  // Stop events at the actual HTML control so LittleJS/document handlers never see them.
  // Deliberately DO NOT call preventDefault: caret, typing, Backspace, spaces and iPad keyboard stay native.
  const events=['keydown','keyup','pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click'];
@@ -99,7 +139,7 @@ function createProfile(){
    input.setCustomValidity('That player name already exists.');input.reportValidity();return;
  }
  input.setCustomValidity('');
- const x={id:makePlayerId(n,p.length),name:n,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:Date.now(),meta:{mistakes:0},resume:null};
+ const shared=(window.Odyssey&&Odyssey.ensurePlayer)?Odyssey.ensurePlayer(n):null; const x={id:shared?.id||makePlayerId(n,p.length),name:n,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:Date.now(),meta:{mistakes:0},resume:null};
  p.push(x);putProfiles(p);joinProfileById(x.id,true);
 }
 function showIntro(){
@@ -117,7 +157,11 @@ function joinProfileById(id,isNew=false){
  const x=p[i];
  // Count a play session once per browser tab/session, not every save/load.
  const sessionKey='wooten-session-'+id;
- if(!sessionStorage.getItem(sessionKey)){x.gamesPlayed=(x.gamesPlayed||0)+1;sessionStorage.setItem(sessionKey,'1')}
+ if(!sessionStorage.getItem(sessionKey)){
+  x.gamesPlayed=(x.gamesPlayed||0)+1;
+  sessionStorage.setItem(sessionKey,'1');
+  try{window.Odyssey?.selectPlayer?.(x.name,TESSAS_ODYSSEY_GAME_ID);window.Odyssey?.startSession?.(TESSAS_ODYSSEY_GAME_ID,x.name)}catch(e){}
+ }else try{window.Odyssey?.selectPlayer?.(x.name,TESSAS_ODYSSEY_GAME_ID)}catch(e){}
  x.lastPlayed=Date.now();putProfiles(p);
  if(typeof level!=='undefined'){
   level=x.resume?.level ?? x.level ?? 0;
@@ -129,7 +173,8 @@ function joinProfileById(id,isNew=false){
 }
 function deleteProfileById(id){
  const p=getProfiles(),i=p.findIndex(x=>x.id===id);if(i<0)return;
- p.splice(i,1);putProfiles(p);
+ const removed=p[i];p.splice(i,1);putProfiles(p);
+ try{window.Odyssey?.hidePlayerForGame?.(removed.name,TESSAS_ODYSSEY_GAME_ID)}catch(e){}
  if(activeProfileId===id)activeProfileId=null;
  showProfiles();
 }
@@ -147,8 +192,15 @@ function saveActive(showToast=true){
  x.meta=Object.assign({},x.meta||{},{mistakes,mode:isDelivery()?'delivery':'sorting'});
  x.resume={level,score,mistakes,mode:isDelivery()?'delivery':'sorting'};
  putProfiles(p);
+ try{
+  window.Odyssey?.syncProgress?.(TESSAS_ODYSSEY_GAME_ID,{
+   score:x.score,level:Math.max(1,(x.highestLevel||0)+1),stars:0,
+   meta:{mistakes:x.mistakes,mode:x.meta?.mode||'sorting',resume:x.resume}
+  },x.name);
+ }catch(e){}
  if(showToast){
-  const b=document.getElementById('saveBadge');b.style.display='block';clearTimeout(window._saveT);window._saveT=setTimeout(()=>b.style.display='none',700);
+  if(window.Odyssey?.showSaved)Odyssey.showSaved('Saved');
+  else{const b=document.getElementById('saveBadge');b.style.display='block';clearTimeout(window._saveT);window._saveT=setTimeout(()=>b.style.display='none',700)}
  }
 }
 function toggleGameMenu(){
@@ -177,7 +229,8 @@ function changePlayer(){
 }
 function returnToGameLibrary(){
  saveActive();
- window.location.href='/labs/games';
+ if(window.Odyssey?.returnToLibrary)Odyssey.returnToLibrary();
+ else window.location.href='/labs/games';
 }
 function soundOn(){return getSettings().sound}
 function uiBlocking(){
@@ -601,6 +654,12 @@ function recordCompletion(){
  p[i].bestScore=Math.max(p[i].bestScore||0,Math.max(0,score||0));
  p[i].highestLevel=Math.max(p[i].highestLevel||0,level||0);
  p[i].lastPlayed=Date.now();putProfiles(p);
+ try{
+  window.Odyssey?.recordResult?.(TESSAS_ODYSSEY_GAME_ID,{
+   completed:true,score:Math.max(0,score||0),level:Math.max(1,(level||0)+1),stars:0,
+   meta:{mistakes,mode:isDelivery()?'delivery':'sorting'}
+  },p[i].name);
+ }catch(e){}
 }
 function advanceLevel()
 {
