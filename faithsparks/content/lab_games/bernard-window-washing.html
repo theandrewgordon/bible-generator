@@ -19281,6 +19281,12 @@ function applyToolAlongPath(fromPos, toPos)
 
     for (let n=1; n<=count; ++n)
     {
+        // Finishing a pane/round can clear or destroy the held tool from
+        // inside sprayAt()/cleanAt(). Stop the interpolated drag immediately
+        // instead of dereferencing a tool that no longer exists.
+        if (!activeTool)
+            break;
+
         const t = n / count;
         const p = vec2(
             fromPos.x + dx*t,
@@ -19301,6 +19307,15 @@ function directMoveActiveTool(pos)
 
     // Apply cleaning/spraying over every point between pointer events.
     applyToolAlongPath(lastDragWorldPos, pos);
+
+    // Completing a clean can end the drag and clear activeTool during the
+    // path application above.
+    if (!activeTool)
+    {
+        dragging = false;
+        lastDragWorldPos = null;
+        return;
+    }
 
     if (activeTool.cleaner)
     {
