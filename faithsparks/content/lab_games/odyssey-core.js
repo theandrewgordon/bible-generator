@@ -2,7 +2,7 @@
 'use strict';
 
 const STORAGE_KEY = 'tessas_odyssey_platform_v1';
-const VERSION = 2;
+const VERSION = 3;
 const MAX_PLAYERS = 8;
 const MAX_NAME = 20;
 
@@ -94,19 +94,26 @@ function ensureGame(player, gameId){
   if (!player.games[gameId]) {
     player.games[gameId] = {
       sessions:0, completions:0, currentScore:0, bestScore:0,
-      highestLevel:1, bestStars:0, lastPlayedAt:0, lastResult:null, hidden:false, meta:{}
+      highestLevel:1, bestStars:0, xp:0, lastPlayedAt:0, lastResult:null, hidden:false, meta:{}
     };
   }
   return player.games[gameId];
 }
-function startSession(gameId, name){
+function startSession(gameId, name, options){
   const p = name ? ensurePlayer(name) : playerById(state.activePlayerId);
   if (!p) return null;
   state.activePlayerId = p.id;
   const g = ensureGame(p, gameId);
-  g.sessions = (g.sessions || 0) + 1;
+  const opts = options || {};
+  const sessionKey = 'tessas_odyssey_session_v1:' + p.id + ':' + gameId;
+  let alreadyStarted = false;
+  try { alreadyStarted = !opts.force && sessionStorage.getItem(sessionKey) === '1'; } catch (_) {}
+  if (!alreadyStarted) {
+    g.sessions = (g.sessions || 0) + 1;
+    p.totals.gamesPlayed = (p.totals.gamesPlayed || 0) + 1;
+    try { sessionStorage.setItem(sessionKey, '1'); } catch (_) {}
+  }
   g.lastPlayedAt = p.lastPlayedAt = now();
-  p.totals.gamesPlayed = (p.totals.gamesPlayed || 0) + 1;
   save(); return clone(g);
 }
 function syncProgress(gameId, progress, name){
@@ -144,6 +151,8 @@ function recordResult(gameId, result, name){
       const starsXp = Number.isFinite(+r.stars) ? Math.min(30, Math.max(0,+r.stars)*5) : 0;
       const earned = Number.isFinite(+r.xp) ? Math.max(0,Math.floor(+r.xp||0)) : 25 + scoreXp + starsXp;
       p.totals.xp = (p.totals.xp || 0) + earned;
+      g.xp = (g.xp || 0) + earned;
+      r.xpEarned = earned;
       if(resultId){
         g.resultIds.push(resultId);
         if(g.resultIds.length>50) g.resultIds=g.resultIds.slice(-50);
@@ -216,7 +225,8 @@ function openNameDialog(opts){
   protectNativeControl(input); protectNativeControl(cancel); protectNativeControl(saveBtn);
   cancel.onclick=close; saveBtn.onclick=submit; input.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();submit();} if(e.key==='Escape'){e.preventDefault();close();} });
   actions.append(cancel,saveBtn); card.append(title,help,input,error,actions); overlay.append(card); document.body.appendChild(overlay);
-  setTimeout(()=>{ input.focus(); input.select(); }, 0);
+  const coarse = !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
+  if (!coarse) setTimeout(()=>{ input.focus(); input.select(); }, 0);
   return overlay;
 }
 function getGameStats(name, gameId){
@@ -248,7 +258,7 @@ function getGameProgress(gameId, playerRef){
   if (!p) return null;
   const g=ensureGame(p,gameId);
   return {
-    score:g.currentScore||0, bestScore:g.bestScore||0,
+    score:g.currentScore||0, bestScore:g.bestScore||0, xp:g.xp||0,
     level:g.highestLevel||1, highestLevel:g.highestLevel||1,
     stars:g.bestStars||0, gamesPlayed:g.sessions||0,
     completions:g.completions||0, lastPlayed:g.lastPlayedAt||0,
@@ -282,12 +292,19 @@ function getAchievements(playerRef){
 function getPlayerSummary(playerRef){
   const p=resolvePlayer(playerRef); if(!p) return null;
   const games={};
-  for(const [gameId,g] of Object.entries(p.games||{})) if(g && !g.hidden) games[gameId]=clone(g);
-  const xp=p.totals&&p.totals.xp||0;
+  let gamesPlayed=0, completions=0;
+  for(const [gameId,g] of Object.entries(p.games||{})) {
+    if(!g || g.hidden) continue;
+    games[gameId]=clone(g);
+    gamesPlayed += Math.max(0, g.sessions||0);
+    completions += Math.max(0, g.completions||0);
+  }
+  const xp=Math.max(0,p.totals&&p.totals.xp||0);
+  const odysseyLevel=odysseyLevelFromXp(xp);
+  const xpIntoLevel=xp%100;
   return {
-    id:p.id,name:p.name,xp,odysseyLevel:odysseyLevelFromXp(xp),
-    gamesPlayed:p.totals&&p.totals.gamesPlayed||0,
-    completions:p.totals&&p.totals.completions||0,
+    id:p.id,name:p.name,xp,odysseyLevel,xpIntoLevel,xpToNextLevel:100-xpIntoLevel,
+    gamesPlayed,completions,
     lastPlayedAt:p.lastPlayedAt||0,games,
     achievements:getAchievements(p.id)
   };
@@ -300,7 +317,7 @@ function isEditableTarget(target){
 function protectNativeControl(control){
   if(!control || control.dataset.odysseyProtected==='1') return control;
   control.dataset.odysseyProtected='1';
-  for(const type of ['keydown','keyup','pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click']){
+  for(const type of ['keydown','keyup','beforeinput','input','change','compositionstart','compositionend','pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click']){
     control.addEventListener(type,e=>e.stopPropagation(),type.startsWith('touch')?{passive:true}:false);
   }
   return control;
@@ -598,11 +615,126 @@ function bindAutosave(saveFn){
   };
 }
 
-function awardXp(playerRef,amount,reason){
+function normalizeProgress(data){
+  const d=data||{};
+  return {
+    score:Math.max(0,Number.isFinite(+d.score)?+d.score:0),
+    bestScore:Math.max(0,Number.isFinite(+d.bestScore)?+d.bestScore:0),
+    level:Math.max(1,Number.isFinite(+d.level)?+d.level:1),
+    highestLevel:Math.max(1,Number.isFinite(+d.highestLevel)?+d.highestLevel:(Number.isFinite(+d.level)?+d.level:1)),
+    stars:Math.max(0,Number.isFinite(+d.stars)?+d.stars:0),
+    gamesPlayed:Math.max(0,Number.isFinite(+d.gamesPlayed)?+d.gamesPlayed:0),
+    completions:Math.max(0,Number.isFinite(+d.completions)?+d.completions:0),
+    lastPlayed:Math.max(0,Number.isFinite(+d.lastPlayed)?+d.lastPlayed:0),
+    meta:d.meta && typeof d.meta==='object' ? clone(d.meta) : {},
+    resume:d.resume===undefined ? null : clone(d.resume)
+  };
+}
+function checkpoint(gameId, playerRef, progress, options){
+  const normalized=normalizeProgress(progress);
+  const saved=mergeLegacyGameProgress(gameId,playerRef,normalized);
+  const opts=options||{};
+  if(opts.toast) showSaved(opts.message||'Saved');
+  return saved;
+}
+function createRoundId(gameId,playerRef,label){
+  const p=resolvePlayer(playerRef);
+  const who=p?p.id:'player';
+  return [gameId,who,label||'round',now().toString(36),Math.random().toString(36).slice(2,7)].join(':');
+}
+function createGameShell(opts){
+  opts=opts||{};
+  const gameId=opts.gameId;
+  if(!gameId) throw new Error('Odyssey.createGameShell requires gameId');
+  installNativeInputGuards();
+
+  let menu=null;
+  let unbindAutosave=()=>{};
+
+  function save(reason,toast){
+    let progress={};
+    if(typeof opts.getProgress==='function'){
+      try{ progress=opts.getProgress(reason)||{}; }catch(_){}
+    }
+    if(opts.getActivePlayer){
+      const ref=opts.getActivePlayer();
+      if(ref) checkpoint(gameId,ref,progress,{toast:!!toast});
+    }else{
+      const p=getActivePlayer();
+      if(p) checkpoint(gameId,p.id,progress,{toast:!!toast});
+    }
+    if(typeof opts.onSave==='function') opts.onSave(reason);
+  }
+
+  function showPlayers(){
+    if(menu) menu.hideButton();
+    return openPlayerSelect({
+      gameId,
+      getSummary:opts.getSummary,
+      deleteMessage:opts.deleteMessage,
+      onContinue(player){
+        selectPlayer(player.id,gameId);
+        if(typeof opts.onContinue==='function') opts.onContinue(player);
+        if(menu) menu.showButton();
+      },
+      onCreate:opts.onCreate,
+      onDelete:opts.onDelete
+    });
+  }
+
+  menu=mountGameMenu({
+    gameId,
+    hasMusic:!!opts.hasMusic,
+    onOpen:opts.onMenuOpen,
+    onResume:opts.onResume,
+    onRestart(){
+      if(typeof opts.restartRound==='function') opts.restartRound();
+    },
+    onChangePlayer(){
+      save('change-player',false);
+      if(typeof opts.onChangePlayer==='function') opts.onChangePlayer();
+      showPlayers();
+    },
+    onLibrary(){
+      save('library',false);
+      returnToLibrary();
+    },
+    onSave(){ save('menu',false); },
+    onSettings:opts.onSettings
+  });
+
+  unbindAutosave=bindAutosave(reason=>save(reason,false));
+
+  return {
+    gameId,menu,showPlayers,
+    checkpoint(progress,options){
+      const p=getActivePlayer(); if(!p) return null;
+      return checkpoint(gameId,p.id,progress,options);
+    },
+    startSession(options){
+      const p=getActivePlayer(); if(!p) return null;
+      return startSession(gameId,p.id,options);
+    },
+    complete(result){
+      const p=getActivePlayer(); if(!p) return null;
+      const r=Object.assign({},result||{});
+      if(!r.resultId) r.resultId=createRoundId(gameId,p.id,'complete');
+      return recordResult(gameId,r,p.id);
+    },
+    save,
+    destroy(){
+      unbindAutosave();
+      if(menu) menu.destroy();
+    }
+  };
+}
+
+function awardXp(playerRef,amount,reason,gameId){
   const p=resolvePlayer(playerRef); if(!p) return null;
   const add=Math.max(0,Math.floor(+amount||0));
   p.totals=p.totals||{xp:0,gamesPlayed:0,completions:0};
   p.totals.xp=(p.totals.xp||0)+add;
+  if(gameId){ const g=ensureGame(p,gameId); g.xp=(g.xp||0)+add; g.lastPlayedAt=now(); }
   p.lastPlayedAt=now();
   if(reason){
     p.xpHistory=Array.isArray(p.xpHistory)?p.xpHistory:[];
@@ -625,7 +757,8 @@ const api = {
   listPlayers:getPlayers, getProfiles:getPlayers, savePlayers:setPlayers,
   getSettings, setSettings, getPlayerSummary, getDashboard, getAchievements,
   odysseyLevelFromXp, protectNativeControl, installNativeInputGuards, returnToLibrary,
-  visiblePlayers, confirmDialog, openPlayerSelect, mountGameMenu, bindAutosave, awardXp,
+  visiblePlayers, confirmDialog, openPlayerSelect, mountGameMenu, bindAutosave,
+  normalizeProgress, checkpoint, createRoundId, createGameShell, awardXp,
   getActivePlayer(){ const p=playerById(state.activePlayerId); return p ? clone(p) : null; },
   settings(){ return clone(state.settings); },
   setSetting(key,value){ state.settings[key]=!!value; save(); }
