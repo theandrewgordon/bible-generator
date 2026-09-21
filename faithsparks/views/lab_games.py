@@ -347,16 +347,83 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
         if (currentLevel >= 3 && pos && size)
         {
-            // Level 3+ flat-window mode. Profiling proved that thousands of
-            // tiny textured tiles are the dominant cost. Suppress the entire
-            // tiny-detail layer and keep only larger artwork. Gameplay state,
-            // cleaner logic, scoring, and the cheap wet overlay remain intact.
+            // Level 3+ quality fast path. Profiling proved thousands of tiny
+            // textured tiles are the dominant cost. Instead of hiding them,
+            // redraw them directly on the 2D canvas as cheap tinted marks.
+            // This preserves the grime/soap density without LittleJS texture
+            // overhead. Larger artwork still uses normal drawTile().
             const tinyWindowTexture = size.x <= 1.05 && size.y <= 1.05;
 
             if (tinyWindowTexture)
             {
                 window._bernardRenderFastStats.skippedTile++;
-                return;
+
+                try
+                {
+                    const screen = worldToScreen(pos);
+                    const sx = Math.max(1, size.x * cameraScale);
+                    const sy = Math.max(1, size.y * cameraScale);
+                    const tileInfo = rest[0];
+                    const color = rest[1];
+                    const angle = Number(rest[2] || 0);
+
+                    mainContext.save();
+                    mainContext.translate(screen.x, screen.y);
+
+                    if (angle)
+                        mainContext.rotate(-angle);
+
+                    // Preserve the source tint when possible. LittleJS Color
+                    // objects stringify to a CSS color; fall back to a neutral
+                    // semi-transparent grime tone.
+                    let fill = 'rgba(92,82,72,.42)';
+                    try
+                    {
+                        if (color != null)
+                        {
+                            const css = String(color);
+                            if (css && css !== '[object Object]')
+                                fill = css;
+                            else if (
+                                Number.isFinite(color.r) &&
+                                Number.isFinite(color.g) &&
+                                Number.isFinite(color.b)
+                            )
+                            {
+                                const rr = Math.round(Math.max(0,Math.min(1,color.r))*255);
+                                const gg = Math.round(Math.max(0,Math.min(1,color.g))*255);
+                                const bb = Math.round(Math.max(0,Math.min(1,color.b))*255);
+                                const aa = Number.isFinite(color.a)
+                                    ? Math.max(0,Math.min(1,color.a))
+                                    : .5;
+                                fill = 'rgba('+rr+','+gg+','+bb+','+aa+')';
+                            }
+                        }
+                    }
+                    catch (_) {}
+
+                    mainContext.fillStyle = fill;
+
+                    // Slightly rounded/softened mark shape reads more like
+                    // grime or cleaner residue than a harsh missing-texture
+                    // checkerboard.
+                    const x = -sx/2;
+                    const y = -sy/2;
+                    const radius = Math.max(1, Math.min(sx,sy)*.16);
+
+                    if (typeof mainContext.roundRect === 'function')
+                    {
+                        mainContext.beginPath();
+                        mainContext.roundRect(x,y,sx,sy,radius);
+                        mainContext.fill();
+                    }
+                    else
+                        mainContext.fillRect(x,y,sx,sy);
+
+                    mainContext.restore();
+                    return;
+                }
+                catch (_) {}
             }
         }
 
@@ -540,7 +607,7 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
                     "line "+state.drawLine+" calls "+state.lineMs.toFixed(0)+"ms\n"+
                     "Rsz "+topSizes(state.rectSizes)+"\n"+
                     "Tsz "+topSizes(state.tileSizes)+"\n"+
-                    "flat skip T "+(window._bernardRenderFastStats?.skippedTile||0)+"\n"+
+                    "native detail T "+(window._bernardRenderFastStats?.skippedTile||0)+"\n"+
                     "canvas "+canvasInfo;
 
                 console.info("[Bernard perf primitive]",{
