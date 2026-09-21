@@ -356,13 +356,23 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
 
             if (tinyWindowTexture)
             {
-                // Keep a sparse, stable sample of the real textured detail so
-                // the window still looks like the original game. Everything
-                // else in this size class is skipped; cheap drawRect-origin
-                // cleaner/wetness effects are already allowed through above.
+                // Adaptive quality sampling: larger grime/soap marks are much
+                // more visually important than the smallest speckles. Spend
+                // more of the frame budget on them while keeping the tiny
+                // repeated detail aggressively sampled.
                 const hx = Math.abs(Math.round(pos.x * 24));
                 const hy = Math.abs(Math.round(pos.y * 24));
-                const keepRealTexture = ((hx * 3 + hy * 5) & 15) === 0;
+                const hash = hx * 3 + hy * 5;
+
+                const area = size.x * size.y;
+                let keepRealTexture = false;
+
+                if (area >= .55)
+                    keepRealTexture = (hash & 3) === 0;       // ~1 in 4
+                else if (area >= .20)
+                    keepRealTexture = (hash & 7) === 0;       // ~1 in 8
+                else
+                    keepRealTexture = (hash & 15) === 0;      // ~1 in 16
 
                 if (!keepRealTexture)
                 {
