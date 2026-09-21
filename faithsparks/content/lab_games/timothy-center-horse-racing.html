@@ -2199,6 +2199,7 @@ function tcAwardMilestoneHorse(completedLevel)
 
     tcUnlockedHorseNames.push(horse.name);
     tcSaveActiveProfile();
+    tcOdyssey()?.celebrateUnlock?.('New Horse Unlocked!', horse.name);
     return horse.name;
 }
 
@@ -2364,6 +2365,7 @@ function tcCheckFoalGrown()
 
     tcBarnMessage = `${tcFoal.grownName} is fully grown and unlocked for racing!`;
     tcSaveActiveProfile();
+    tcOdyssey()?.celebrateUnlock?.('Stable Unlock!', `${tcFoal.grownName} can now race`);
     tcBarnMessageTimer.set(4);
 }
 
