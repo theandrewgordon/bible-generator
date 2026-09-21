@@ -106,7 +106,7 @@ function putSettings(x){
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fmtLast(t){if(!t)return 'Never';try{return new Date(t).toLocaleDateString()}catch(e){return ''}}
 
-function showProfiles(){
+function showProfilesLegacy(){
  document.getElementById('mainMenuBtn').style.display='none';
  document.getElementById('gameMenuPanel').style.display='none';
  const p=getProfiles(),c=document.getElementById('profileCard');
@@ -114,6 +114,44 @@ function showProfiles(){
  (p.length?'<div id="profiles">'+p.map(x=>`<div class="profile"><strong>${esc(x.name)}</strong><div class="small">Highest Level ${Number(x.highestLevel||0)+1} · Best ${x.bestScore||0}<br>Last played ${fmtLast(x.lastPlayed)}</div><button type="button" class="uiBtn" onclick="joinProfileById('${x.id}')">Continue</button><button type="button" class="uiBtn danger" onclick="deleteProfileById('${x.id}')">Delete</button></div>`).join('')+'</div>':'<div class="sub">No saved players yet.</div>')+
  (p.length<MAX_PLAYERS?'<button type="button" class="uiBtn secondary" onclick="newProfileScreen()">+ New Player</button>':'<div class="sub">Maximum of 8 saved players reached.</div>');
 }
+function showProfiles(){
+ const O=window.Odyssey;
+ if(!(O&&typeof O.openPlayerSelect==='function')){showProfilesLegacy();return;}
+ document.getElementById('profileUI').style.display='none';
+ document.getElementById('mainMenuBtn').style.display='none';
+ document.getElementById('gameMenuPanel').style.display='none';
+ ensureWootenSharedMenu()?.hideButton();
+ O.openPlayerSelect({
+  gameId:TESSAS_ODYSSEY_GAME_ID,
+  gameName:"Wooten's Mail Route",
+  getSummary(player){
+   const p=getProfiles();
+   const local=p.find(x=>x.id===player.id||String(x.name).toLowerCase()===String(player.name).toLowerCase());
+   return {
+    highestLevel:Math.max(1,Number(local?.highestLevel??local?.level??0)+1),
+    bestScore:Math.max(0,Number(local?.bestScore||0)),
+    detail:`${Math.max(0,Number(local?.completions||0))} completions`
+   };
+  },
+  onContinue(player){
+   let p=getProfiles();
+   let local=p.find(x=>x.id===player.id||String(x.name).toLowerCase()===String(player.name).toLowerCase());
+   if(!local){
+    local={id:player.id,name:player.name,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:0,meta:{mistakes:0},resume:null};
+    p.push(local);putProfiles(p);
+   }else if(local.id!==player.id){
+    local.id=player.id;putProfiles(p);
+   }
+   joinProfileById(player.id);
+  },
+  onDelete(player){
+   const next=getProfiles().filter(x=>x.id!==player.id&&String(x.name).toLowerCase()!==String(player.name).toLowerCase());
+   putProfiles(next);
+   if(activeProfileId===player.id)activeProfileId=null;
+  }
+ });
+}
+
 function protectNativeInput(input){
  if(window.Odyssey?.protectNativeControl){Odyssey.protectNativeControl(input);return}
  // Stop events at the actual HTML control so LittleJS/document handlers never see them.
@@ -149,7 +187,10 @@ function showIntro(){
 }
 function beginPlay(){
  document.getElementById('profileUI').style.display='none';
- document.getElementById('mainMenuBtn').style.display='block';
+ document.getElementById('mainMenuBtn').style.display='none';
+ const shared=ensureWootenSharedMenu();
+ if(shared)shared.showButton();
+ else document.getElementById('mainMenuBtn').style.display='block';
 }
 function joinProfileById(id,isNew=false){
  const p=getProfiles(),i=p.findIndex(x=>x.id===id);if(i<0)return;
@@ -197,7 +238,7 @@ function saveActive(showToast=true){
  try{
   window.Odyssey?.syncProgress?.(TESSAS_ODYSSEY_GAME_ID,{
    score:x.score,level:Math.max(1,(x.highestLevel||0)+1),stars:0,
-   meta:{mistakes:x.mistakes,mode:x.meta?.mode||'sorting',resume:x.resume}
+   meta:{mistakes:x.mistakes,mode:x.meta?.mode||'sorting',perfect:(x.mistakes||0)===0,resume:x.resume}
   },x.name);
  }catch(e){}
  if(showToast){
@@ -205,7 +246,25 @@ function saveActive(showToast=true){
   else{const b=document.getElementById('saveBadge');b.style.display='block';clearTimeout(window._saveT);window._saveT=setTimeout(()=>b.style.display='none',700)}
  }
 }
-function toggleGameMenu(){
+
+let wootenSharedMenu=null;
+function ensureWootenSharedMenu(){
+ const O=window.Odyssey;
+ if(!(O&&typeof O.mountGameMenu==='function'))return null;
+ if(wootenSharedMenu)return wootenSharedMenu;
+ wootenSharedMenu=O.mountGameMenu({
+  gameId:TESSAS_ODYSSEY_GAME_ID,
+  gameName:"Wooten's Mail Route",
+  hasMusic:false,
+  onRestart:restartCurrentRound,
+  onChangePlayer:changePlayer,
+  onLibrary:returnToGameLibrary,
+  onSave:()=>saveActive(false),
+  onSettings:()=>{}
+ });
+ return wootenSharedMenu;
+}
+function toggleGameMenuLegacy(){
  const panel=document.getElementById('gameMenuPanel');
  if(panel.style.display==='block'){panel.style.display='none';return}
  const st=getSettings();
@@ -218,6 +277,12 @@ function toggleGameMenu(){
  '';
  panel.style.display='block';
 }
+function toggleGameMenu(){
+ const shared=ensureWootenSharedMenu();
+ if(shared){shared.open();return;}
+ toggleGameMenuLegacy();
+}
+
 function toggleSetting(k){const st=getSettings();st[k]=!st[k];putSettings(st);document.getElementById('gameMenuPanel').style.display='none';toggleGameMenu()}
 function restartCurrentRound(){
  document.getElementById('gameMenuPanel').style.display='none';
@@ -227,7 +292,10 @@ function restartCurrentRound(){
 }
 function changePlayer(){
  saveActive();activeProfileId=null;
- document.getElementById('profileUI').style.display='flex';showProfiles();
+ ensureWootenSharedMenu()?.hideButton();
+ document.getElementById('mainMenuBtn').style.display='none';
+ document.getElementById('profileUI').style.display='none';
+ showProfiles();
 }
 function returnToGameLibrary(){
  saveActive();
@@ -237,7 +305,10 @@ function returnToGameLibrary(){
 function soundOn(){return getSettings().sound}
 function uiBlocking(){
  return document.getElementById('profileUI')?.style.display!=='none' ||
-        document.getElementById('gameMenuPanel')?.style.display==='block';
+        document.getElementById('gameMenuPanel')?.style.display==='block' ||
+        !!document.getElementById('odysseyPlayerSelect') ||
+        !!document.getElementById('odysseyNameDialog') ||
+        !!document.getElementById('odysseyGameMenuOverlay');
 }
 window.addEventListener('beforeunload',()=>saveActive(false));
 window.addEventListener('pagehide',()=>saveActive(false));
@@ -659,7 +730,7 @@ function recordCompletion(){
  try{
   window.Odyssey?.recordResult?.(TESSAS_ODYSSEY_GAME_ID,{
    completed:true,score:Math.max(0,score||0),level:Math.max(1,(level||0)+1),stars:0,
-   meta:{mistakes,mode:isDelivery()?'delivery':'sorting'}
+   meta:{mistakes,mode:isDelivery()?'delivery':'sorting',perfect:mistakes===0}
   },p[i].name);
  }catch(e){}
 }
