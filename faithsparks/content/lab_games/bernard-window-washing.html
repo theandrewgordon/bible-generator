@@ -16596,6 +16596,7 @@ let playerId = '';
 let profileReady = false;
 let profileOverlay = null;
 let mainMenuButton = null;
+let sharedOdysseyMenu = null;
 let gameMenuOverlay = null;
 let introOverlay = null;
 let resultsOverlay = null;
@@ -18138,7 +18139,16 @@ function restartCurrentRound()
 
 function showGameMenu()
 {
-    if (gameMenuOverlay || !profileReady)
+    if (!profileReady)
+        return;
+
+    if (sharedOdysseyMenu)
+    {
+        sharedOdysseyMenu.open();
+        return;
+    }
+
+    if (gameMenuOverlay)
         return;
 
     saveResumeState();
@@ -18218,6 +18228,38 @@ function ensureMainMenuButton()
     if (mainMenuButton)
         return;
 
+    const sharedApi = getOdysseyApi();
+    if (sharedApi && typeof sharedApi.mountGameMenu == 'function')
+    {
+        sharedOdysseyMenu = sharedApi.mountGameMenu({
+            onOpen()
+            {
+                saveResumeState();
+                saveProgress();
+                resetTransientInput();
+            },
+            onRestart: restartCurrentRound,
+            onChangePlayer: returnToPlayerSelect,
+            onLibrary: requestGameLibrary,
+            onSave()
+            {
+                saveResumeState();
+                saveProgress(true);
+            },
+            onSettings(settings)
+            {
+                soundEffectsEnabled = settings.sound !== false;
+                if (!soundEffectsEnabled)
+                    stopWindowWashToolSound();
+            },
+            sound: true,
+            hasMusic: false
+        });
+        mainMenuButton = sharedOdysseyMenu.button;
+        sharedOdysseyMenu.hideButton();
+        return;
+    }
+
     const button = document.createElement('button');
     button.type = 'button';
     button.setAttribute('aria-label', 'Open game menu');
@@ -18244,12 +18286,25 @@ function ensureMainMenuButton()
 function showMainMenuButton()
 {
     ensureMainMenuButton();
+    if (sharedOdysseyMenu)
+    {
+        if (profileReady && !profileOverlay)
+            sharedOdysseyMenu.showButton();
+        return;
+    }
+
     if (mainMenuButton && profileReady && !gameMenuOverlay && !profileOverlay)
         mainMenuButton.style.display = 'flex';
 }
 
 function hideMainMenuButton()
 {
+    if (sharedOdysseyMenu)
+    {
+        sharedOdysseyMenu.hideButton();
+        return;
+    }
+
     if (mainMenuButton)
         mainMenuButton.style.display = 'none';
 }
@@ -18363,6 +18418,35 @@ function showProfilePrompt()
 
     hideMainMenuButton();
     migrateLegacyProfiles();
+
+    const sharedApi = getOdysseyApi();
+    if (sharedApi && typeof sharedApi.openPlayerSelect == 'function')
+    {
+        const controller = sharedApi.openPlayerSelect({
+            gameId: GAME_ID,
+            getSummary(player)
+            {
+                const s = getProfileSummary(player);
+                return {
+                    highestLevel: s.level,
+                    bestScore: s.bestRoundStars,
+                    detail: `★ ${s.totalStars} · ${s.completions} completions`
+                };
+            },
+            onContinue(player)
+            {
+                profileOverlay = null;
+                loadProgress(player);
+            },
+            onDelete(player)
+            {
+                deletePlayerProfile(player);
+            }
+        });
+
+        profileOverlay = controller.element;
+        return;
+    }
 
     const overlay = document.createElement('div');
     overlay.style.cssText =
