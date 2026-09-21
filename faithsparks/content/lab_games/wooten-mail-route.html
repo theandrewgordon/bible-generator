@@ -215,7 +215,7 @@ function toggleGameMenu(){
  '<button type="button" class="uiBtn secondary" onclick="changePlayer()">Change Player</button>'+
  '<button type="button" class="uiBtn secondary" onclick="returnToGameLibrary()">Return to Game Library</button>'+
  `<button type="button" class="uiBtn secondary" onclick="toggleSetting('sound')">Sound Effects: ${st.sound?'On':'Off'}</button>`+
- '<button type="button" class="uiBtn secondary" disabled aria-disabled="true">Music: Not Used</button>';
+ '';
  panel.style.display='block';
 }
 function toggleSetting(k){const st=getSettings();st[k]=!st[k];putSettings(st);document.getElementById('gameMenuPanel').style.display='none';toggleGameMenu()}
