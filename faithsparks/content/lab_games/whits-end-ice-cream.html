@@ -1511,10 +1511,12 @@ function gameRender(){
  drawRect(vec2(0,5.9),vec2(18.5,1.0),hsl(.08,.42,.34));
  drawText("WHIT'S END",vec2(0,6.03),1.04,hsl(.12,.52,.9),.07,hsl(.08,.62,.22));
  drawText('ICE CREAM  •  SHAKES  •  SODAS',vec2(0,5.58),.34,WHITE,.03,BLACK);
- // Three-line main menu button
- drawRect(vec2(8.4,6.65),vec2(1.2,.72),hsl(.12,.2,.92));
- for(const dy of [-.18,0,.18])
-  drawLine(vec2(8.08,6.65+dy),vec2(8.72,6.65+dy),.06,hsl(.07,.45,.2));
+ // Shared Odyssey hamburger is used when available; canvas icon is fallback only.
+ if(!(odysseyApi()&&typeof odysseyApi().mountGameMenu==='function')){
+  drawRect(vec2(8.4,6.65),vec2(1.2,.72),hsl(.12,.2,.92));
+  for(const dy of [-.18,0,.18])
+   drawLine(vec2(8.08,6.65+dy),vec2(8.72,6.65+dy),.06,hsl(.07,.45,.2));
+ }
 
  // Small status chips only
  drawText(`LEVEL ${level}`,vec2(-7.8,5.05),.24,hsl(.06,.45,.2));
@@ -2020,7 +2022,72 @@ function hideNameInput(){
  const wrap=document.getElementById('odyssey-name-overlay');if(wrap)wrap.style.display='none';
 }
 
+
+let whitsSharedMenu=null;
+
+function showWhitsSharedProfiles(){
+ const O=odysseyApi();
+ if(!(O&&typeof O.openPlayerSelect==='function'))return false;
+ O.openPlayerSelect({
+  gameId:GAME_ID,
+  gameName:"Whit's End Ice Cream Shop",
+  getSummary(player){
+   let local=profiles.find(p=>p.id===player.id||String(p.name).toLowerCase()===String(player.name).toLowerCase());
+   if(!local)return {highestLevel:1,bestScore:0,detail:'Ready to play'};
+   const p=progressFor(local.id);
+   return {
+    highestLevel:max(1,p.highestLevel||p.level||1),
+    bestScore:max(0,p.bestScore||0),
+    detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`
+   };
+  },
+  onContinue(player){
+   let local=profiles.find(p=>p.id===player.id||String(p.name).toLowerCase()===String(player.name).toLowerCase());
+   if(!local){
+    local=normalizePlayer({id:player.id,name:player.name,createdAt:player.createdAt});
+    profiles.push(local);progressFor(local.id);persistProfiles();persistProgress();
+   }else if(local.id!==player.id){
+    const oldId=local.id;local.id=player.id;
+    if(progressStore[GAME_ID]?.[oldId]&&!progressStore[GAME_ID][player.id]){
+      progressStore[GAME_ID][player.id]=progressStore[GAME_ID][oldId];
+      delete progressStore[GAME_ID][oldId];
+    }
+    persistProfiles();persistProgress();
+   }
+   playProfile(local);
+  },
+  onDelete(player){
+   const local=profiles.find(p=>p.id===player.id||String(p.name).toLowerCase()===String(player.name).toLowerCase());
+   if(local){
+    profiles=profiles.filter(p=>p.id!==local.id);
+    if(progressStore[GAME_ID])delete progressStore[GAME_ID][local.id];
+    persistProfiles();persistProgress();
+   }
+  }
+ });
+ return true;
+}
+
+function ensureWhitsSharedMenu(){
+ const O=odysseyApi();
+ if(!(O&&typeof O.mountGameMenu==='function'))return null;
+ if(whitsSharedMenu)return whitsSharedMenu;
+ whitsSharedMenu=O.mountGameMenu({
+  gameId:GAME_ID,
+  gameName:"Whit's End Ice Cream Shop",
+  hasMusic:false,
+  onOpen(){saveSession();pausePartyClock();menuOpen=true;},
+  onResume(){menuOpen=false;resumePartyClock();},
+  onRestart(){menuOpen=false;restartCurrentRound();},
+  onChangePlayer(){menuOpen=false;changePlayer();},
+  onLibrary(){menuOpen=false;returnToGameLibrary();},
+  onSave(){saveSession();}
+ });
+ return whitsSharedMenu;
+}
+
 function playProfile(player){
+ ensureWhitsSharedMenu()?.hideButton();
  activeProfileId=player.id;
  try{odysseyApi()?.selectPlayer?.(player.name,GAME_ID);}catch(e){}
  const p=progressFor(player.id);
@@ -2037,10 +2104,11 @@ function beginRound(targetLevel=level,resetScoreToCurrent=false){
  const p=currentProgress();if(p){p.gamesPlayed=(p.gamesPlayed||0)+1;p.lastPlayed=Date.now();}
  try{odysseyApi()?.startSession?.(GAME_ID,currentProfile()?.name);}catch(e){}
  startParty(false);introScreen=false;resultsScreen=false;menuOpen=false;
+ ensureWhitsSharedMenu()?.showButton();
  saveActiveProfile();saveSession();
 }
 function continueSavedSession(){
- if(restoreSession()){introScreen=false;menuOpen=false;resultsScreen=false;saveActiveProfile();}
+ if(restoreSession()){introScreen=false;menuOpen=false;resultsScreen=false;ensureWhitsSharedMenu()?.showButton();saveActiveProfile();}
  else beginRound(level);
 }
 function restartCurrentRound(){
@@ -2051,7 +2119,8 @@ function restartCurrentRound(){
 }
 function changePlayer(){
  saveSession();showSavedToast();activeProfileId='';profileScreen=true;introScreen=false;menuOpen=false;resultsScreen=false;
- hideNameInput();
+ hideNameInput();ensureWhitsSharedMenu()?.hideButton();
+ if(!showWhitsSharedProfiles()){}
 }
 function pausePartyClock(){
  if(partyDeadline){pausedPartyTime=max(0,partyDeadline-time);partyDeadline=0;}
@@ -2059,8 +2128,16 @@ function pausePartyClock(){
 function resumePartyClock(){
  if(ruleForLevel().time&&pausedPartyTime){partyDeadline=time+pausedPartyTime;pausedPartyTime=0;}
 }
-function openGameMenu(){saveSession();pausePartyClock();menuOpen=true;}
-function closeGameMenu(){menuOpen=false;resumePartyClock();}
+function openGameMenu(){
+ const shared=ensureWhitsSharedMenu();
+ if(shared){shared.open();return;}
+ saveSession();pausePartyClock();menuOpen=true;
+}
+function closeGameMenu(){
+ const shared=ensureWhitsSharedMenu();
+ if(shared){shared.close();return;}
+ menuOpen=false;resumePartyClock();
+}
 function returnToGameLibrary(){
  saveSession();showSavedToast();
  try{if(odysseyApi()?.returnToLibrary){odysseyApi().returnToLibrary();return;}}catch(e){}
@@ -2078,7 +2155,8 @@ function finishRound(completedLevel){
  if(p){
   try{odysseyApi()?.recordResult?.(GAME_ID,{
    completed:true,score:max(0,score||0),level:max(1,completedLevel+1),stars:max(0,stars||0),
-   meta:{served:max(0,served||0),levelServed:max(0,levelServed||0)}
+   resultId:`whits-${completedLevel}-${roundStartScore}-${roundStartServed}-${Date.now()}`,
+   meta:{served:max(0,served||0),levelServed:max(0,levelServed||0),perfect:!needsReset}
   },currentProfile()?.name);}catch(e){}
   p.completions=(p.completions||0)+1;
   p.bestScore=max(p.bestScore||0,score);
@@ -2471,6 +2549,7 @@ function gameInit(){
  ensureNameInputUi();
  loadProfiles();
  profileScreen=true;introScreen=false;menuOpen=false;resultsScreen=false;
+ setTimeout(()=>{if(!showWhitsSharedProfiles())ensureNameInputUi();},0);
  window.addEventListener('beforeunload',()=>{try{saveSession();}catch(e){}});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)try{saveSession();}catch(e){}});
  window.addEventListener('pagehide',()=>{try{saveSession();}catch(e){}});
