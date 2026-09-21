@@ -64,6 +64,10 @@
   {% endfor %}
 </section>
 
+<script>
+window.__ODYSSEY_ACCOUNT_ROSTER__ = {{ odyssey_roster|default({}, true)|tojson }};
+window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson }};
+</script>
 <script src="{{ url_for('lab_games.asset', filename='odyssey-core.js') }}"></script>
 <script>
 (() => {
