@@ -558,3 +558,33 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "requestAnimationFrame(flushPendingDragWork)" in html
     assert "const count = min(10" in html
     assert "pendingDragWorldPos" in html
+
+
+
+def test_all_odyssey_games_gate_and_cache_sound_effects():
+    client = _client()
+    _sign_in(client)
+
+    whits = client.get("/labs/games/whits-end").get_data(as_text=True)
+    assert "function playSfx(sound)" in whits
+    assert "try{sound.play();}catch(e){}" in whits
+    assert "playSfx(sndGood);playSfx(sndServe);" not in whits
+
+    wooten = client.get("/labs/games/wooten-mail-route").get_data(as_text=True)
+    assert "const wootenSfxCorrect = new SoundGenerator" in wooten
+    assert "function playWootenSfx(sound)" in wooten
+    assert "playWootenSfx(wootenSfxDeliver)" in wooten
+    assert "playWootenSfx(wootenSfxComplete)" in wooten
+    assert "if(soundOn())new SoundGenerator" not in wooten
+
+    bernard = client.get("/labs/games/bernard-window-washing").get_data(as_text=True)
+    assert "function playWindowWashSuccessSound()" in bernard
+    assert "if (!soundEffectsEnabled)" in bernard
+    assert "cleanSound && cleanSound.play()" not in bernard
+
+    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    assert "const tcJumpSound = new SoundGenerator" in timothy
+    assert "const tcHitSound = new SoundGenerator" in timothy
+    assert "const tcWinSound = new SoundGenerator" in timothy
+    assert "const tcLoseSound = new SoundGenerator" in timothy
+    assert "tcPlaySound(tcStartSound" in timothy
