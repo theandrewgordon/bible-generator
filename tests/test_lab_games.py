@@ -575,6 +575,8 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "_bernardRenderFastStats" in html
     assert "const tinyWindowTexture" in html
     assert "Level 3+ flat-window mode" in html
+    assert "insideDrawRect" in html
+    assert "does not accidentally hide cheap cleaner" in html
     assert "return originalDrawRect.call(this,pos,size,color)" not in html
     assert "bernardPerfBadge" in html
     assert "bernard-audio-polish" in html
