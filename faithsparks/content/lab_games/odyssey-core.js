@@ -113,7 +113,7 @@ function normalizePlayers(){
     state.activePlayerId=canonical?canonical.id:'';
   }
 }
-function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} }
+function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} queueAccountRosterSync(); }
 function playerByName(name){
   const key = cleanPlayerName(name).toLocaleLowerCase();
   return state.players.find(p => String(p.name || '').toLocaleLowerCase() === key) || null;
@@ -125,6 +125,100 @@ function resolvePlayer(ref){
     state.players.find(p => Array.isArray(p.aliases) && p.aliases.includes(ref)) ||
     playerByName(ref);
 }
+function mergeAccountRosterBootstrap(){
+  const remote=global.__ODYSSEY_ACCOUNT_ROSTER__;
+  if(!remote || !Array.isArray(remote.players)) return;
+
+  for(const raw of remote.players.slice(0,MAX_PLAYERS)){
+    const name=cleanPlayerName(raw&&raw.name);
+    const id=String(raw&&raw.id||'').slice(0,80);
+    if(!name||!id) continue;
+
+    let local=state.players.find(p=>p.id===id) || playerByName(name);
+    if(local){
+      if(local.id!==id){
+        local.aliases=Array.isArray(local.aliases)?local.aliases:[];
+        if(local.id&&!local.aliases.includes(local.id)) local.aliases.push(local.id);
+        local.id=id;
+      }
+      local.name=name;
+      local.avatar=raw.avatar||local.avatar||avatarIdFor(id||name);
+      local.createdAt=Math.min(+local.createdAt||now(),+raw.createdAt||now());
+    }else if(state.players.length<MAX_PLAYERS){
+      state.players.push({
+        id,name,
+        avatar:raw.avatar||avatarIdFor(id||name),
+        createdAt:+raw.createdAt||now(),
+        lastPlayedAt:0,
+        aliases:[],
+        activity:[],
+        totals:{xp:0,gamesPlayed:0,completions:0},
+        games:{}
+      });
+    }
+  }
+
+  if(remote.settings && typeof remote.settings==='object')
+    state.settings=Object.assign({sound:true,music:true},state.settings||{},remote.settings);
+
+  if(!state.activePlayerId && remote.activePlayerId)
+    state.activePlayerId=String(remote.activePlayerId);
+}
+
+let accountRosterSyncTimer=0;
+let lastRosterFingerprint='';
+function accountRosterPayload(){
+  return {
+    version:1,
+    players:state.players.slice(0,MAX_PLAYERS).map(p=>({
+      id:p.id,
+      name:cleanPlayerName(p.name),
+      avatar:p.avatar||avatarIdFor(p.id||p.name),
+      createdAt:+p.createdAt||0
+    })),
+    activePlayerId:state.activePlayerId||'',
+    settings:{
+      sound:state.settings?.sound!==false,
+      music:state.settings?.music!==false
+    }
+  };
+}
+function rosterFingerprint(payload){
+  try{return JSON.stringify(payload);}catch(_){return '';}
+}
+function queueAccountRosterSync(){
+  const config=global.__ODYSSEY_SYNC_CONFIG__;
+  if(!config || !config.url || !global.fetch) return;
+
+  const payload=accountRosterPayload();
+  const fingerprint=rosterFingerprint(payload);
+  if(!fingerprint || fingerprint===lastRosterFingerprint) return;
+
+  clearTimeout(accountRosterSyncTimer);
+  accountRosterSyncTimer=setTimeout(async()=>{
+    try{
+      const response=await fetch(config.url,{
+        method:'PUT',
+        credentials:'same-origin',
+        headers:{
+          'Content-Type':'application/json',
+          'X-CSRF-Token':config.csrfToken||''
+        },
+        body:JSON.stringify(payload)
+      });
+      if(!response.ok) return;
+      const merged=await response.json();
+      if(merged && Array.isArray(merged.players)){
+        global.__ODYSSEY_ACCOUNT_ROSTER__=merged;
+        mergeAccountRosterBootstrap();
+        normalizePlayers();
+        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(_){}
+      }
+      lastRosterFingerprint=rosterFingerprint(accountRosterPayload());
+    }catch(_){}
+  },700);
+}
+mergeAccountRosterBootstrap();
 normalizePlayers(); save();
 function newPlayer(name){
   const clean = cleanPlayerName(name);
@@ -1046,7 +1140,7 @@ installNativeInputGuards();
 const api = {
   VERSION, STORAGE_KEY, MAX_PLAYERS, MAX_NAME, AVATARS,
   cleanPlayerName, getPlayers, setPlayers, ensurePlayer, selectPlayer, startSession,
-  setPlayerAvatar, getPlayerAvatar, openAvatarPicker,
+  setPlayerAvatar, getPlayerAvatar, openAvatarPicker, queueAccountRosterSync,
   syncProgress, recordResult, adoptLegacyProfiles, mergeGlobalNames, hidePlayerForGame,
   showSaved, openNameDialog, getGameStats, getGameProgress, saveGameProgress,
   getProgress:getGameProgress, loadGameProgress:getGameProgress,
