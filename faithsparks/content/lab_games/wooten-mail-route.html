@@ -754,6 +754,8 @@ function advanceLevel()
     window._wootenAdvanceAt=0;
     saveActive();
     ++level;
+    if(level===5)
+        window.Odyssey?.celebrateUnlock?.('Delivery Routes Unlocked!', 'Wooten can now deliver mail around Odyssey');
     isDelivery()?setupDelivery():setupSorting();
 }
 function resetGame(){score=mistakes=0;level=0;setupSorting();saveActive();}
