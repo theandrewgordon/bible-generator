@@ -32,6 +32,7 @@ const PROFILE_KEY='wootenMailProfilesV1'; // legacy game progress; intentionally
 const SETTINGS_KEY='tessasOdysseySettingsV1';
 const MAX_PLAYERS=8;
 let activeProfileId=null;
+let wootenRoundResultId='';
 
 function makePlayerId(name,i=0){
  return 'wooten-'+Date.now().toString(36)+'-'+i+'-'+Math.random().toString(36).slice(2,8);
@@ -707,6 +708,7 @@ function spawnSortingMail()
 function setupSorting()
 {
     mailItems.forEach(x=>x.destroy());mailItems=[];heldItem=0;levelComplete=false;
+    if(activeProfileId) wootenRoundResultId=window.Odyssey?.createRoundId?.(TESSAS_ODYSSEY_GAME_ID,activeProfileId,'sorting')||(`wooten-${activeProfileId}-sorting-${level}-${Date.now()}`);
     buildBins();mailLeft=9+level*3;
     message=`Sorting Level ${level+1}: sort this route’s new group of families.`;
     spawnSortingMail();
@@ -714,6 +716,7 @@ function setupSorting()
 function setupDelivery()
 {
     mailItems.forEach(x=>x.destroy());mailItems=[];heldItem=0;levelComplete=false;
+    if(activeProfileId) wootenRoundResultId=window.Odyssey?.createRoundId?.(TESSAS_ODYSSEY_GAME_ID,activeProfileId,'delivery')||(`wooten-${activeProfileId}-delivery-${level}-${Date.now()}`);
     deliveryX=0;currentStop=0;deliverySpeed=3.1+Math.min(2,(level-5)*.18);
     const count=Math.min(7,4+Math.floor((level-5)/2));
     const start=((level-5)*3)%allFamilies.length;
@@ -731,6 +734,7 @@ function recordCompletion(){
  try{
   window.Odyssey?.recordResult?.(TESSAS_ODYSSEY_GAME_ID,{
    completed:true,score:Math.max(0,score||0),level:Math.max(1,(level||0)+1),stars:0,
+   resultId:wootenRoundResultId||(`wooten-${activeProfileId}-${level}-${Date.now()}`),
    meta:{mistakes,mode:isDelivery()?'delivery':'sorting',perfect:mistakes===0}
   },p[i].name);
  }catch(e){}
