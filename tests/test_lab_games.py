@@ -577,8 +577,8 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "Level 3+ quality fast path" in html
     assert "insideDrawRect" in html
     assert "worldToScreen(pos)" in html
-    assert "mainContext.drawImage(" in html
-    assert "tileInfo?.textureInfo" in html
+    assert "const keepRealTexture" in html
+    assert "sparse, stable sample of the real textured detail" in html
     assert "native detail T" in html
     assert "does not accidentally hide cheap cleaner" in html
     assert "return originalDrawRect.call(this,pos,size,color)" not in html
