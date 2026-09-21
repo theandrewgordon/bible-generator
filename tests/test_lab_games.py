@@ -141,6 +141,9 @@ def test_game_shell_contract_markers():
 
         assert response.status_code == 200
         assert "/labs/games/assets/odyssey-core.js" in html
+        assert "/labs/games/assets/odyssey-ui.css" in html
+        assert "openPlayerSelect" in html
+        assert "mountGameMenu" in html
         assert "visibilitychange" in html
         assert "pagehide" in html
         assert "change player" in normalized
@@ -178,6 +181,10 @@ def test_odyssey_core_exposes_shared_platform_contract():
         "protectNativeControl",
         "installNativeInputGuards",
         "returnToLibrary",
+        "openPlayerSelect",
+        "mountGameMenu",
+        "bindAutosave",
+        "awardXp",
     ):
         assert marker in js
 
