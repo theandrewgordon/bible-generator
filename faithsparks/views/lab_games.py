@@ -344,6 +344,8 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         frames:0,last:performance.now(),
         cleanMs:0,cleanCalls:0,cleanMax:0,
         drawRect:0,drawTile:0,drawLine:0,drawText:0,
+        rectMs:0,tileMs:0,lineMs:0,
+        rectSizes:Object.create(null),tileSizes:Object.create(null),
         renderMs:0,renderCalls:0,renderMax:0,
         updateMs:0,updateCalls:0,updateMax:0
     };
@@ -352,9 +354,51 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     badge.id = "bernardPerfBadge";
     badge.style.cssText =
         "position:fixed;left:8px;bottom:8px;z-index:999999;pointer-events:none;" +
-        "padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.78);color:#bfffc7;" +
-        "font:12px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;display:none";
+        "padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.80);color:#bfffc7;" +
+        "font:11px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;display:none";
     document.body.appendChild(badge);
+
+    function sizeKey(size)
+    {
+        try {
+            return (+size.x).toFixed(2)+"x"+(+size.y).toFixed(2);
+        } catch (_) { return "?"; }
+    }
+
+    function topSizes(map)
+    {
+        return Object.entries(map)
+            .sort((a,b)=>b[1]-a[1])
+            .slice(0,3)
+            .map(([k,v])=>k+":"+v)
+            .join(" ");
+    }
+
+    function wrapDraw(name,key,timeKey,sizeMapKey)
+    {
+        try
+        {
+            const original = window[name];
+            if (typeof original !== "function") return;
+            window[name] = function(...args)
+            {
+                const t=performance.now();
+                state[key]++;
+                if (sizeMapKey && args[1])
+                {
+                    const k=sizeKey(args[1]);
+                    state[sizeMapKey][k]=(state[sizeMapKey][k]||0)+1;
+                }
+                try { return original.apply(this,args); }
+                finally { state[timeKey]+=performance.now()-t; }
+            };
+        }
+        catch (_) {}
+    }
+
+    wrapDraw("drawRect","drawRect","rectMs","rectSizes");
+    wrapDraw("drawTile","drawTile","tileMs","tileSizes");
+    wrapDraw("drawLine","drawLine","lineMs",null);
 
     function wrapCounter(name,key)
     {
@@ -371,9 +415,6 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         catch (_) {}
     }
 
-    wrapCounter("drawRect","drawRect");
-    wrapCounter("drawTile","drawTile");
-    wrapCounter("drawLine","drawLine");
     wrapCounter("drawText","drawText");
     wrapCounter("drawTextScreen","drawText");
 
@@ -455,19 +496,22 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
                 badge.style.display="block";
                 badge.textContent =
                     "PERF L"+currentLevel+" FPS "+fps+"\n"+
-                    "render "+renderAvg.toFixed(1)+"ms / "+state.renderMax.toFixed(1)+" max\n"+
-                    "update "+updateAvg.toFixed(1)+"ms / "+state.updateMax.toFixed(1)+" max\n"+
-                    "clean "+cleanAvg.toFixed(1)+"ms / "+state.cleanMax.toFixed(1)+" max\n"+
-                    "draw R "+state.drawRect+" T "+state.drawTile+" L "+state.drawLine+" txt "+state.drawText+"\n"+
+                    "clean "+cleanAvg.toFixed(1)+" / "+state.cleanMax.toFixed(1)+"ms\n"+
+                    "rect "+state.drawRect+" calls "+state.rectMs.toFixed(0)+"ms\n"+
+                    "tile "+state.drawTile+" calls "+state.tileMs.toFixed(0)+"ms\n"+
+                    "line "+state.drawLine+" calls "+state.lineMs.toFixed(0)+"ms\n"+
+                    "Rsz "+topSizes(state.rectSizes)+"\n"+
+                    "Tsz "+topSizes(state.tileSizes)+"\n"+
                     "skip R "+(window._bernardRenderFastStats?.skippedRect||0)+" T "+(window._bernardRenderFastStats?.skippedTile||0)+"\n"+
                     "canvas "+canvasInfo;
 
-                console.info("[Bernard perf deep]",{
+                console.info("[Bernard perf primitive]",{
                     level:currentLevel,fps,
-                    renderAvgMs:+renderAvg.toFixed(2),renderMaxMs:+state.renderMax.toFixed(2),
-                    updateAvgMs:+updateAvg.toFixed(2),updateMaxMs:+state.updateMax.toFixed(2),
-                    cleanAvgMs:+cleanAvg.toFixed(2),cleanMaxMs:+state.cleanMax.toFixed(2),
-                    drawRect:state.drawRect,drawTile:state.drawTile,drawLine:state.drawLine,drawText:state.drawText,
+                    cleanAvgMs:+cleanAvg.toFixed(2),
+                    drawRect:state.drawRect,rectMs:+state.rectMs.toFixed(1),rectTop:topSizes(state.rectSizes),
+                    drawTile:state.drawTile,tileMs:+state.tileMs.toFixed(1),tileTop:topSizes(state.tileSizes),
+                    drawLine:state.drawLine,lineMs:+state.lineMs.toFixed(1),
+                    skipped:window._bernardRenderFastStats||{},
                     canvas:canvasInfo
                 });
             }
@@ -477,6 +521,8 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
                 frames:0,last:now,
                 cleanMs:0,cleanCalls:0,cleanMax:0,
                 drawRect:0,drawTile:0,drawLine:0,drawText:0,
+                rectMs:0,tileMs:0,lineMs:0,
+                rectSizes:Object.create(null),tileSizes:Object.create(null),
                 renderMs:0,renderCalls:0,renderMax:0,
                 updateMs:0,updateCalls:0,updateMax:0
             });
