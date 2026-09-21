@@ -2176,7 +2176,8 @@ function returnToGameLibrary(){
 function finishRound(completedLevel){
  const p=currentProgress();
  if(p){
-  try{odysseyApi()?.recordResult?.(GAME_ID,{
+  let odysseyResult=null;
+  try{odysseyResult=odysseyApi()?.recordResult?.(GAME_ID,{
    completed:true,score:max(0,score||0),level:max(1,completedLevel+1),stars:max(0,stars||0),
    resultId:roundResultId||`whits-${activeProfileId}-${completedLevel}-${roundStartScore}-${roundStartServed}`,
    meta:{served:max(0,served||0),levelServed:max(0,levelServed||0),perfect:!needsReset}
@@ -2191,6 +2192,28 @@ function finishRound(completedLevel){
   earned:score-roundStartScore
  };
  resultsScreen=true;menuOpen=false;introScreen=false;waitingForNext=true;showSavedToast();
+
+ const O=odysseyApi();
+ if(O&&typeof O.showRoundResults==='function'){
+  O.showRoundResults({
+   title:'Level Complete!',
+   score:resultsData.score,
+   bestScore:resultsData.bestScore,
+   level:resultsData.level,
+   stars:resultsData.stars,
+   xpEarned:odysseyResult?.lastResult?.xpEarned||0,
+   detail:`This level +${resultsData.earned||0}`,
+   primaryLabel:'Next Level',
+   onPrimary:()=>beginRound(level),
+   onReplay:()=>{
+    level=resultsData?.level||max(1,level-1);
+    score=roundStartScore;stars=roundStartStars;served=roundStartServed;
+    beginRound(level);
+   },
+   onChangePlayer:changePlayer,
+   onLibrary:returnToGameLibrary
+  });
+ }
 }
 
 function profileRects(){
