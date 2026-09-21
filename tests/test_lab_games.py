@@ -556,8 +556,26 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
 
     assert "function scheduleDragWork" in html
     assert "requestAnimationFrame(flushPendingDragWork)" in html
-    assert "const count = min(10" in html
+    assert "const count = min(6" in html
     assert "pendingDragWorldPos" in html
+    assert "canvasPixelRatio = Math.min(devicePixelRatio || 1, 1.25)" in html
+    assert "composite each" in html
+    assert "const cleanerIds = Object.keys(w.layers)" not in html
+    assert "Results are recorded above; gameplay auto-advances" in html
+
+
+def test_level_games_auto_advance_without_round_result_menu():
+    client = _client()
+    _sign_in(client)
+
+    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    assert "tcAutoAdvanceAt = performance.now() + 1200" in timothy
+    assert "tcAdvanceOrRestart(true)" in timothy
+    assert "launch the next race immediately instead of returning to selectors" in timothy
+
+    wooten = client.get("/labs/games/wooten-mail-route").get_data(as_text=True)
+    assert "directly into the next sorting/delivery level instead of opening a menu" in wooten
+    assert "Odyssey.showRoundResults({" not in wooten
 
 
 
