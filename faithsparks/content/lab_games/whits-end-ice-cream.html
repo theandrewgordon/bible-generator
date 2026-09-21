@@ -2026,6 +2026,29 @@ function hideNameInput(){
 
 let whitsSharedMenu=null;
 
+function continueWhitsOdysseyPlayer(player){
+ let local=profiles.find(p=>p.id===player.id||String(p.name).toLowerCase()===String(player.name).toLowerCase());
+ if(!local){
+  local=normalizePlayer({id:player.id,name:player.name,createdAt:player.createdAt});
+  profiles.push(local);progressFor(local.id);persistProfiles();persistProgress();
+ }else if(local.id!==player.id){
+  const oldId=local.id;local.id=player.id;
+  if(progressStore[GAME_ID]?.[oldId]&&!progressStore[GAME_ID][player.id]){
+    progressStore[GAME_ID][player.id]=progressStore[GAME_ID][oldId];
+    delete progressStore[GAME_ID][oldId];
+  }
+  persistProfiles();persistProgress();
+ }
+ playProfile(local);
+}
+function launchWhitsActiveOdysseyPlayer(){
+ const O=odysseyApi();
+ const active=O&&typeof O.getActivePlayer==='function'?O.getActivePlayer():null;
+ if(!active)return false;
+ continueWhitsOdysseyPlayer(active);
+ return true;
+}
+
 function showWhitsSharedProfiles(){
  const O=odysseyApi();
  if(!(O&&typeof O.openPlayerSelect==='function'))return false;
@@ -2042,21 +2065,7 @@ function showWhitsSharedProfiles(){
     detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`
    };
   },
-  onContinue(player){
-   let local=profiles.find(p=>p.id===player.id||String(p.name).toLowerCase()===String(player.name).toLowerCase());
-   if(!local){
-    local=normalizePlayer({id:player.id,name:player.name,createdAt:player.createdAt});
-    profiles.push(local);progressFor(local.id);persistProfiles();persistProgress();
-   }else if(local.id!==player.id){
-    const oldId=local.id;local.id=player.id;
-    if(progressStore[GAME_ID]?.[oldId]&&!progressStore[GAME_ID][player.id]){
-      progressStore[GAME_ID][player.id]=progressStore[GAME_ID][oldId];
-      delete progressStore[GAME_ID][oldId];
-    }
-    persistProfiles();persistProgress();
-   }
-   playProfile(local);
-  },
+  onContinue(player){ continueWhitsOdysseyPlayer(player); },
   onDelete(player){
    const local=profiles.find(p=>p.id===player.id||String(p.name).toLowerCase()===String(player.name).toLowerCase());
    if(local){
@@ -2563,7 +2572,7 @@ function gameInit(){
  ensureNameInputUi();
  loadProfiles();
  profileScreen=true;introScreen=false;menuOpen=false;resultsScreen=false;
- setTimeout(()=>{if(!showWhitsSharedProfiles())ensureNameInputUi();},0);
+ setTimeout(()=>{if(!launchWhitsActiveOdysseyPlayer()&&!showWhitsSharedProfiles())ensureNameInputUi();},0);
  window.addEventListener('beforeunload',()=>{try{saveSession();}catch(e){}});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)try{saveSession();}catch(e){}});
  window.addEventListener('pagehide',()=>{try{saveSession();}catch(e){}});
