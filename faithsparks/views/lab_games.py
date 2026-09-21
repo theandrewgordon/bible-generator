@@ -1,7 +1,12 @@
+import hmac
+import json
 import os
+import secrets
 from pathlib import Path
 
-from flask import Blueprint, render_template, redirect, request, session, send_file
+from flask import Blueprint, jsonify, make_response, render_template, redirect, request, session, send_file
+
+from faithsparks.services.firestore import db
 
 bp = Blueprint("lab_games", __name__, url_prefix="/labs/games")
 
@@ -107,18 +112,136 @@ def _game_for_slug(slug: str) -> dict | None:
     return None
 
 
+def _csrf_token_value() -> str:
+    token = str(session.get("_csrf_token") or "")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
+
+
+def _default_odyssey_roster() -> dict:
+    return {
+        "version": 1,
+        "players": [],
+        "activePlayerId": "",
+        "settings": {"sound": True, "music": True},
+    }
+
+
+def _sanitize_odyssey_roster(payload: object) -> dict:
+    source = payload if isinstance(payload, dict) else {}
+    players = []
+    seen_ids: set[str] = set()
+    seen_names: set[str] = set()
+
+    for raw in source.get("players") or []:
+        if not isinstance(raw, dict) or len(players) >= 8:
+            continue
+        name = " ".join(str(raw.get("name") or "").split()).strip()[:20]
+        player_id = str(raw.get("id") or "").strip()[:80]
+        if not name or not player_id:
+            continue
+        name_key = name.casefold()
+        if player_id in seen_ids or name_key in seen_names:
+            continue
+        seen_ids.add(player_id)
+        seen_names.add(name_key)
+        players.append(
+            {
+                "id": player_id,
+                "name": name,
+                "avatar": str(raw.get("avatar") or "star").strip()[:32],
+                "createdAt": max(0, int(raw.get("createdAt") or 0)),
+            }
+        )
+
+    settings_raw = source.get("settings") if isinstance(source.get("settings"), dict) else {}
+    active_id = str(source.get("activePlayerId") or "").strip()[:80]
+    if active_id and active_id not in seen_ids:
+        active_id = ""
+
+    return {
+        "version": 1,
+        "players": players,
+        "activePlayerId": active_id,
+        "settings": {
+            "sound": settings_raw.get("sound") is not False,
+            "music": settings_raw.get("music") is not False,
+        },
+    }
+
+
+def _load_odyssey_roster(email: str | None) -> dict:
+    if not email or not db:
+        return _default_odyssey_roster()
+    try:
+        snap = db.collection("users").document(email).get()
+        if not snap.exists:
+            return _default_odyssey_roster()
+        data = snap.to_dict() or {}
+        return _sanitize_odyssey_roster(data.get("odysseyRoster"))
+    except Exception:
+        return _default_odyssey_roster()
+
+
+def _merge_odyssey_rosters(existing: dict, incoming: dict) -> dict:
+    base = _sanitize_odyssey_roster(existing)
+    new = _sanitize_odyssey_roster(incoming)
+    by_id = {p["id"]: dict(p) for p in base["players"]}
+    name_to_id = {p["name"].casefold(): p["id"] for p in base["players"]}
+
+    for player in new["players"]:
+        match_id = player["id"]
+        if match_id not in by_id:
+            match_id = name_to_id.get(player["name"].casefold(), match_id)
+        if match_id in by_id:
+            merged = dict(by_id[match_id])
+            merged.update(player)
+            merged["id"] = match_id
+            by_id[match_id] = merged
+        elif len(by_id) < 8:
+            by_id[player["id"]] = dict(player)
+            name_to_id[player["name"].casefold()] = player["id"]
+
+    players = list(by_id.values())[:8]
+    ids = {p["id"] for p in players}
+    active_id = new["activePlayerId"] if new["activePlayerId"] in ids else base["activePlayerId"]
+    if active_id not in ids:
+        active_id = ""
+
+    return {
+        "version": 1,
+        "players": players,
+        "activePlayerId": active_id,
+        "settings": {**base["settings"], **new["settings"]},
+    }
+
+
+def _odyssey_bootstrap(email: str | None) -> tuple[dict, dict]:
+    roster = _load_odyssey_roster(email)
+    config = {
+        "url": "/labs/games/roster",
+        "csrfToken": _csrf_token_value(),
+    }
+    return roster, config
+
+
 @bp.get("")
 @bp.get("/")
 def index():
     access_response = _require_access()
     if access_response is not None:
         return access_response
+    roster, sync_config = _odyssey_bootstrap(_signed_in_email())
     return render_template(
         "lab_games.html",
         games=LAB_GAMES,
         signed_in=True,
         access_denied=False,
         noindex=True,
+        odyssey_roster=roster,
+        odyssey_sync_config=sync_config,
     )
 
 
@@ -145,6 +268,36 @@ def asset(filename: str):
     return response
 
 
+@bp.route("/roster", methods=["GET", "PUT"])
+def roster():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+
+    email = _signed_in_email()
+    if request.method == "GET":
+        return jsonify(_load_odyssey_roster(email))
+
+    sent_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken") or ""
+    expected_token = _csrf_token_value()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    incoming = _sanitize_odyssey_roster(request.get_json(silent=True) or {})
+    existing = _load_odyssey_roster(email)
+    merged = _merge_odyssey_rosters(existing, incoming)
+
+    if not db or not email:
+        return jsonify(merged)
+
+    try:
+        db.collection("users").document(email).set({"odysseyRoster": merged}, merge=True)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    return jsonify(merged)
+
+
 @bp.get("/<slug>")
 def play(slug: str):
     access_response = _require_access()
@@ -159,7 +312,21 @@ def play(slug: str):
     if not game_path.is_file():
         return render_template("404.html"), 404
 
-    response = send_file(game_path, mimetype="text/html")
+    roster, sync_config = _odyssey_bootstrap(_signed_in_email())
+    html = game_path.read_text(encoding="utf-8")
+    bootstrap = (
+        "<script>"
+        "window.__ODYSSEY_ACCOUNT_ROSTER__=" + json.dumps(roster).replace("<", "\\u003c") + ";"
+        "window.__ODYSSEY_SYNC_CONFIG__=" + json.dumps(sync_config).replace("<", "\\u003c") + ";"
+        "</script>"
+    )
+    if "</head>" in html:
+        html = html.replace("</head>", bootstrap + "</head>", 1)
+    else:
+        html = bootstrap + html
+
+    response = make_response(html)
+    response.mimetype = "text/html"
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
