@@ -26,6 +26,60 @@ function load(){
   } catch (_) { return defaultState(); }
 }
 let state = load();
+
+function mergeGameRecords(a,b){
+  const out=Object.assign({},a||{});
+  const newer=(b&&(+b.lastPlayedAt||0))>(+out.lastPlayedAt||0);
+  out.sessions=Math.max(+out.sessions||0,+b?.sessions||0);
+  out.completions=Math.max(+out.completions||0,+b?.completions||0);
+  out.bestScore=Math.max(+out.bestScore||0,+b?.bestScore||0);
+  out.currentScore=newer ? Math.max(0,+b?.currentScore||0) : Math.max(0,+out.currentScore||0);
+  out.highestLevel=Math.max(1,+out.highestLevel||1,+b?.highestLevel||1);
+  out.bestStars=Math.max(+out.bestStars||0,+b?.bestStars||0);
+  out.bestAccuracy=Math.max(+out.bestAccuracy||0,+b?.bestAccuracy||0);
+  out.xp=Math.max(+out.xp||0,+b?.xp||0);
+  out.lastPlayedAt=Math.max(+out.lastPlayedAt||0,+b?.lastPlayedAt||0);
+  out.hidden=!!(out.hidden&&b?.hidden);
+  out.meta=Object.assign({},out.meta||{},b?.meta||{});
+  if(newer&&b?.lastResult) out.lastResult=clone(b.lastResult);
+  else if(!out.lastResult&&b?.lastResult) out.lastResult=clone(b.lastResult);
+  const ids=[...(Array.isArray(out.resultIds)?out.resultIds:[]),...(Array.isArray(b?.resultIds)?b.resultIds:[])];
+  out.resultIds=[...new Set(ids)].slice(-50);
+  return out;
+}
+function normalizePlayers(){
+  const merged=[];
+  const canonicalByName=new Map();
+  for(const raw of Array.isArray(state.players)?state.players:[]){
+    const name=cleanPlayerName(raw&&raw.name);
+    if(!name) continue;
+    const key=name.toLocaleLowerCase();
+    let p=canonicalByName.get(key);
+    if(!p){
+      p=raw;
+      p.name=name;
+      p.games=p.games&&typeof p.games==='object'?p.games:{};
+      p.totals=p.totals||{xp:0,gamesPlayed:0,completions:0};
+      p.aliases=Array.isArray(p.aliases)?p.aliases:[];
+      canonicalByName.set(key,p);
+      merged.push(p);
+      continue;
+    }
+    if(raw.id&&raw.id!==p.id&&!p.aliases.includes(raw.id)) p.aliases.push(raw.id);
+    for(const alias of Array.isArray(raw.aliases)?raw.aliases:[])
+      if(alias&&alias!==p.id&&!p.aliases.includes(alias)) p.aliases.push(alias);
+    p.createdAt=Math.min(+p.createdAt||now(),+raw.createdAt||now());
+    p.lastPlayedAt=Math.max(+p.lastPlayedAt||0,+raw.lastPlayedAt||0);
+    p.totals.xp=Math.max(+p.totals.xp||0,+raw.totals?.xp||0);
+    for(const [gameId,g] of Object.entries(raw.games||{}))
+      p.games[gameId]=mergeGameRecords(p.games[gameId],g);
+  }
+  state.players=merged.slice(0,MAX_PLAYERS);
+  if(state.activePlayerId&&!playerById(state.activePlayerId)){
+    const canonical=state.players.find(p=>Array.isArray(p.aliases)&&p.aliases.includes(state.activePlayerId));
+    state.activePlayerId=canonical?canonical.id:'';
+  }
+}
 function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} }
 function playerByName(name){
   const key = cleanPlayerName(name).toLocaleLowerCase();
@@ -38,6 +92,7 @@ function resolvePlayer(ref){
     state.players.find(p => Array.isArray(p.aliases) && p.aliases.includes(ref)) ||
     playerByName(ref);
 }
+normalizePlayers(); save();
 function newPlayer(name){
   const clean = cleanPlayerName(name);
   if (!clean) return null;
@@ -84,7 +139,7 @@ function setPlayers(list){
   return getPlayers();
 }
 function selectPlayer(name, gameId){
-  const p = ensurePlayer(name); if (!p) return null;
+  const p = resolvePlayer(name) || ensurePlayer(name); if (!p) return null;
   state.activePlayerId = p.id; p.lastPlayedAt = now();
   if (gameId) ensureGame(p, gameId).hidden = false;
   save(); return clone(p);
@@ -100,7 +155,7 @@ function ensureGame(player, gameId){
   return player.games[gameId];
 }
 function startSession(gameId, name, options){
-  const p = name ? ensurePlayer(name) : playerById(state.activePlayerId);
+  const p = name ? (resolvePlayer(name) || ensurePlayer(name)) : playerById(state.activePlayerId);
   if (!p) return null;
   state.activePlayerId = p.id;
   const g = ensureGame(p, gameId);
@@ -117,7 +172,7 @@ function startSession(gameId, name, options){
   save(); return clone(g);
 }
 function syncProgress(gameId, progress, name){
-  const p = name ? ensurePlayer(name) : playerById(state.activePlayerId);
+  const p = name ? (resolvePlayer(name) || ensurePlayer(name)) : playerById(state.activePlayerId);
   if (!p) return null;
   state.activePlayerId = p.id;
   const g = ensureGame(p, gameId);
@@ -134,7 +189,7 @@ function syncProgress(gameId, progress, name){
   save(); return clone(g);
 }
 function recordResult(gameId, result, name){
-  const p = name ? ensurePlayer(name) : playerById(state.activePlayerId);
+  const p = name ? (resolvePlayer(name) || ensurePlayer(name)) : playerById(state.activePlayerId);
   if (!p) return null;
   state.activePlayerId = p.id;
   const g = ensureGame(p, gameId);
