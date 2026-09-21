@@ -12,6 +12,7 @@ _SHARED_ASSETS = {"odyssey-core.js", "odyssey-ui.css"}
 LAB_GAMES = (
     {
         "slug": "whits-end",
+        "game_id": "whits-end",
         "aliases": ("whits-end-ice-cream",),
         "name": "Whit's End Ice Cream Shop",
         "description": "Take customer orders at Whit's End, make ice cream, shakes, and sodas, and deliver each order to the right customer.",
@@ -21,6 +22,7 @@ LAB_GAMES = (
     },
     {
         "slug": "bernard-window-washing",
+        "game_id": "bernard-window-washing",
         "aliases": (),
         "name": "Bernard's Window Washing",
         "description": "Wash Whit's End windows with the right cleaner and squeegee as new messes and tools unlock.",
@@ -30,6 +32,7 @@ LAB_GAMES = (
     },
     {
         "slug": "wooten-mail-route",
+        "game_id": "wooten-mail-sorting",
         "aliases": ("mail-sorting",),
         "name": "Wooten's Mail Route",
         "description": "Sort Odyssey mail, then unlock delivery routes that rotate with sorting levels.",
@@ -39,6 +42,7 @@ LAB_GAMES = (
     },
     {
         "slug": "timothy-center-horse-racing",
+        "game_id": "timothy-center-horse-racing",
         "aliases": (),
         "name": "Timothy Center Horse Racing",
         "description": "Choose a horse and race through increasingly challenging Timothy Center courses.",
