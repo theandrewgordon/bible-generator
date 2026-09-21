@@ -513,6 +513,29 @@ const tcNeighSound = new SoundGenerator({
     frequency:300, attack:.03, release:.42, randomness:.10,
     noise:.05, slide:.85, pitchJump:90, pitchJumpTime:.12
 });
+const tcJumpSound = new SoundGenerator({
+    frequency:210, attack:.005, release:.16, randomness:.05,
+    noise:.20, slide:.45, volume:.58
+});
+const tcHitSound = new SoundGenerator({
+    frequency:115, attack:.005, release:.22, randomness:.08,
+    noise:.38, slide:-.36, volume:.68
+});
+const tcStartSound = new SoundGenerator({
+    frequency:520, attack:.005, release:.20, pitchJump:220,
+    pitchJumpTime:.055, volume:.55
+});
+const tcWinSound = new SoundGenerator({
+    frequency:680, attack:.01, release:.38, pitchJump:360,
+    pitchJumpTime:.09, volume:.68
+});
+const tcLoseSound = new SoundGenerator({
+    frequency:190, attack:.01, release:.30, slide:-.48, volume:.58
+});
+const tcUnlockSound = new SoundGenerator({
+    frequency:860, attack:.01, release:.46, pitchJump:440,
+    pitchJumpTime:.10, volume:.66
+});
 
 const tcLevels = [
     {name:'Meadow Dash',        distance:70,  rivals:3, rivalMin:.080, rivalMax:.094, obstacleMin:2.1, obstacleMax:3.0, speedMax:.19},
@@ -2201,6 +2224,7 @@ function tcAwardMilestoneHorse(completedLevel)
 
     tcUnlockedHorseNames.push(horse.name);
     tcSaveActiveProfile();
+    tcPlaySound(tcUnlockSound,tcPlayer?.pos,.32);
     tcOdyssey()?.celebrateUnlock?.('New Horse Unlocked!', horse.name);
     return horse.name;
 }
@@ -2407,7 +2431,10 @@ class TCHorse extends EngineObject
         this.jumpVelocity = .42;
         this.onGround = false;
         if (this.isPlayer)
-            if (randBool(.35)) tcPlaySound(tcNeighSound,this.pos, .22);
+        {
+            tcPlaySound(tcJumpSound,this.pos,.28);
+            if (randBool(.18)) tcPlaySound(tcNeighSound,this.pos,.16);
+        }
     }
 
     update()
@@ -2717,7 +2744,8 @@ class TCObstacle extends EngineObject
 
                 tcRaceMessage = 'Hit! Slowed for a second — keep running!';
                 tcMessageTimer.set(1.1);
-                tcPlaySound(tcNeighSound,this.pos, .24);
+                tcPlaySound(tcHitSound,this.pos,.34);
+                if (randBool(.35)) tcPlaySound(tcNeighSound,this.pos,.16);
             }
         }
 
@@ -2919,6 +2947,7 @@ function tcStartRace()
     {
         tcRaceResultId = `timothy-${tcActivePlayerId || 'player'}-${tcLevel}-${Date.now()}`;
         tcRecordGameStart();
+        tcPlaySound(tcStartSound,tcPlayer?.pos,.28);
     }
 
     tcManualSave(false);
@@ -2970,6 +2999,11 @@ function tcEndLevel()
     }
     else
         tcWinner = 'TRY THIS LEVEL AGAIN!';
+
+    if (allHorses[0] === tcPlayer)
+        tcPlaySound(tcWinSound,tcPlayer.pos,.36);
+    else
+        tcPlaySound(tcLoseSound,tcPlayer.pos,.30);
 
     tcManualSave(false);
 
