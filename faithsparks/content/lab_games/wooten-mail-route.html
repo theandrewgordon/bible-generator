@@ -782,23 +782,8 @@ function advanceLevel()
         saveActive(false);
     };
 
-    if(window.Odyssey?.showRoundResults){
-        const p=getProfiles().find(x=>x.id===activeProfileId);
-        Odyssey.showRoundResults({
-            title:isDelivery()?'Route Complete!':'Mail Sorted!',
-            score:Math.max(0,score||0),
-            bestScore:Math.max(0,p?.bestScore||score||0),
-            level:completedLevel+1,
-            xpEarned:sharedResult?.lastResult?.xpEarned||0,
-            detail:mistakes===0?'Perfect round — no mistakes!':`${mistakes} mistake${mistakes===1?'':'s'}`,
-            primaryLabel:'Next Level',
-            onPrimary:goNext,
-            onReplay:restartCurrentRound,
-            onChangePlayer:changePlayer,
-            onLibrary:returnToGameLibrary
-        });
-        return;
-    }
+    // Keep the player in the flow: after the short completion beat, move
+    // directly into the next sorting/delivery level instead of opening a menu.
     goNext();
 }
 function resetGame(){score=mistakes=0;level=0;setupSorting();saveActive();}
