@@ -241,50 +241,150 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     profiler = r"""
 <script id="bernard-perf-profiler">
 (() => {
-    const state = {frames:0,last:performance.now(),fps:0,cleanMs:0,cleanCalls:0,cleanMax:0};
+    const state = {
+        frames:0,last:performance.now(),
+        cleanMs:0,cleanCalls:0,cleanMax:0,
+        drawRect:0,drawTile:0,drawLine:0,drawText:0,
+        renderMs:0,renderCalls:0,renderMax:0,
+        updateMs:0,updateCalls:0,updateMax:0
+    };
+
     const badge = document.createElement("div");
     badge.id = "bernardPerfBadge";
-    badge.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:999999;pointer-events:none;padding:5px 7px;border-radius:7px;background:rgba(0,0,0,.72);color:#bfffc7;font:12px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;display:none";
+    badge.style.cssText =
+        "position:fixed;left:8px;bottom:8px;z-index:999999;pointer-events:none;" +
+        "padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.78);color:#bfffc7;" +
+        "font:12px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;display:none";
     document.body.appendChild(badge);
-    try {
-        if (typeof directMoveActiveTool === "function") {
+
+    function wrapCounter(name,key)
+    {
+        try
+        {
+            const original = window[name];
+            if (typeof original !== "function") return;
+            window[name] = function(...args)
+            {
+                state[key]++;
+                return original.apply(this,args);
+            };
+        }
+        catch (_) {}
+    }
+
+    wrapCounter("drawRect","drawRect");
+    wrapCounter("drawTile","drawTile");
+    wrapCounter("drawLine","drawLine");
+    wrapCounter("drawText","drawText");
+    wrapCounter("drawTextScreen","drawText");
+
+    try
+    {
+        if (typeof directMoveActiveTool === "function")
+        {
             const originalDirectMoveActiveTool = directMoveActiveTool;
-            directMoveActiveTool = function(...args) {
-                const start = performance.now();
+            directMoveActiveTool = function(...args)
+            {
+                const t = performance.now();
                 try { return originalDirectMoveActiveTool.apply(this,args); }
-                finally {
-                    const ms = performance.now() - start;
-                    state.cleanMs += ms; state.cleanCalls++; state.cleanMax = Math.max(state.cleanMax, ms);
+                finally
+                {
+                    const ms = performance.now()-t;
+                    state.cleanMs += ms;
+                    state.cleanCalls++;
+                    state.cleanMax = Math.max(state.cleanMax,ms);
                 }
             };
         }
-    } catch (error) { console.warn("[Bernard perf] cleaner wrap failed", error); }
-    const countOf = value => Array.isArray(value) ? value.length : -1;
-    function sampleCounts() {
-        const counts = {wet:-1,dirt:-1,streak:-1};
-        try { if (typeof wetness !== "undefined") counts.wet=countOf(wetness); } catch (_) {}
-        try { if (typeof dirtSpots !== "undefined") counts.dirt=countOf(dirtSpots); } catch (_) {}
-        try { if (typeof streaks !== "undefined") counts.streak=countOf(streaks); } catch (_) {}
-        return counts;
     }
-    function tick(now) {
-        state.frames++;
-        const elapsed = now - state.last;
-        if (elapsed >= 1000) {
-            state.fps = Math.round(state.frames * 1000 / elapsed);
-            const avg = state.cleanCalls ? state.cleanMs / state.cleanCalls : 0;
-            const counts = sampleCounts();
-            let currentLevel = 0;
-            try { currentLevel = Number(level || 0); } catch (_) {}
-            if (currentLevel >= 3) {
-                badge.style.display = "block";
-                badge.textContent = "PERF L"+currentLevel+"  FPS "+state.fps+"\nclean "+avg.toFixed(1)+"ms avg / "+state.cleanMax.toFixed(1)+" max  calls "+state.cleanCalls+"\nwet "+counts.wet+"  dirt "+counts.dirt+"  streak "+counts.streak;
-                console.info("[Bernard perf]", {level:currentLevel,fps:state.fps,cleanAvgMs:+avg.toFixed(2),cleanMaxMs:+state.cleanMax.toFixed(2),cleanCalls:state.cleanCalls,wet:counts.wet,dirt:counts.dirt,streak:counts.streak});
-            } else badge.style.display = "none";
-            state.frames=0; state.last=now; state.cleanMs=0; state.cleanCalls=0; state.cleanMax=0;
+    catch (_) {}
+
+    function wrapTimed(name,totalKey,callsKey,maxKey)
+    {
+        try
+        {
+            const original = window[name];
+            if (typeof original !== "function") return;
+            window[name] = function(...args)
+            {
+                const t = performance.now();
+                try { return original.apply(this,args); }
+                finally
+                {
+                    const ms = performance.now()-t;
+                    state[totalKey] += ms;
+                    state[callsKey]++;
+                    state[maxKey] = Math.max(state[maxKey],ms);
+                }
+            };
         }
+        catch (_) {}
+    }
+
+    wrapTimed("gameRender","renderMs","renderCalls","renderMax");
+    wrapTimed("gameRenderPost","renderMs","renderCalls","renderMax");
+    wrapTimed("gameUpdate","updateMs","updateCalls","updateMax");
+    wrapTimed("gameUpdatePost","updateMs","updateCalls","updateMax");
+
+    function tick(now)
+    {
+        state.frames++;
+        const elapsed = now-state.last;
+
+        if (elapsed >= 1000)
+        {
+            const fps = Math.round(state.frames*1000/elapsed);
+            const cleanAvg = state.cleanCalls ? state.cleanMs/state.cleanCalls : 0;
+            const renderAvg = state.renderCalls ? state.renderMs/state.renderCalls : 0;
+            const updateAvg = state.updateCalls ? state.updateMs/state.updateCalls : 0;
+
+            let currentLevel=0;
+            try { currentLevel=Number(level||0); } catch (_) {}
+
+            let canvasInfo="?";
+            try
+            {
+                canvasInfo =
+                    (mainCanvas?.width||0)+"x"+(mainCanvas?.height||0)+
+                    " css "+Math.round(mainCanvas?.clientWidth||0)+"x"+Math.round(mainCanvas?.clientHeight||0)+
+                    " dpr "+(window.devicePixelRatio||1).toFixed(1);
+            }
+            catch (_) {}
+
+            if (currentLevel >= 3)
+            {
+                badge.style.display="block";
+                badge.textContent =
+                    "PERF L"+currentLevel+" FPS "+fps+"\n"+
+                    "render "+renderAvg.toFixed(1)+"ms / "+state.renderMax.toFixed(1)+" max\n"+
+                    "update "+updateAvg.toFixed(1)+"ms / "+state.updateMax.toFixed(1)+" max\n"+
+                    "clean "+cleanAvg.toFixed(1)+"ms / "+state.cleanMax.toFixed(1)+" max\n"+
+                    "draw R "+state.drawRect+" T "+state.drawTile+" L "+state.drawLine+" txt "+state.drawText+"\n"+
+                    "canvas "+canvasInfo;
+
+                console.info("[Bernard perf deep]",{
+                    level:currentLevel,fps,
+                    renderAvgMs:+renderAvg.toFixed(2),renderMaxMs:+state.renderMax.toFixed(2),
+                    updateAvgMs:+updateAvg.toFixed(2),updateMaxMs:+state.updateMax.toFixed(2),
+                    cleanAvgMs:+cleanAvg.toFixed(2),cleanMaxMs:+state.cleanMax.toFixed(2),
+                    drawRect:state.drawRect,drawTile:state.drawTile,drawLine:state.drawLine,drawText:state.drawText,
+                    canvas:canvasInfo
+                });
+            }
+            else badge.style.display="none";
+
+            Object.assign(state,{
+                frames:0,last:now,
+                cleanMs:0,cleanCalls:0,cleanMax:0,
+                drawRect:0,drawTile:0,drawLine:0,drawText:0,
+                renderMs:0,renderCalls:0,renderMax:0,
+                updateMs:0,updateCalls:0,updateMax:0
+            });
+        }
+
         requestAnimationFrame(tick);
     }
+
     requestAnimationFrame(tick);
 })();
 </script>
