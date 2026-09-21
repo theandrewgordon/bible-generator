@@ -17358,11 +17358,13 @@ function awardLevelStars()
             score:max(0, earned),
             level:max(1, level),
             stars:max(0, earned),
+            resultId:`bernard-${playerId}-${level}-${levelStartTime}`,
             meta:{
                 totalStars:max(0,totalStars),
                 cleanerCount:clamp(1 + Math.floor((highestLevel-1)/2), 1, CLEANERS.length),
                 sprays:levelSprays,
-                wipes:levelWipes
+                wipes:levelWipes,
+                perfect:levelSprays>0 && levelSprays===levelCorrectSprays
             }
         }, playerName);
     }
@@ -17890,7 +17892,8 @@ function saveProgress(showToast=false)
 
         meta: {
             highestCleanerShown,
-            cleanersUnlocked: clamp(1 + Math.floor((highestLevel-1)/2), 1, CLEANERS.length)
+            cleanersUnlocked: clamp(1 + Math.floor((highestLevel-1)/2), 1, CLEANERS.length),
+            perfect: levelSprays > 0 && levelSprays === levelCorrectSprays
         }
     };
 
@@ -18087,6 +18090,7 @@ function returnToPlayerSelect()
     playerId = '';
 
     hideMainMenuButton();
+    ensureBernardSharedMenu()?.hideButton();
     closeOverlay(gameMenuOverlay);
     gameMenuOverlay = null;
     closeOverlay(resultsOverlay);
@@ -18137,7 +18141,7 @@ function restartCurrentRound()
     showMainMenuButton();
 }
 
-function showGameMenu()
+function showGameMenuLegacy()
 {
     if (!profileReady)
         return;
@@ -18222,8 +18226,15 @@ function showGameMenu()
     gameMenuOverlay = overlay;
     hideMainMenuButton();
 }
+function showGameMenu()
+{
+    const shared = ensureBernardSharedMenu();
+    if (shared) { shared.open(); return; }
+    showGameMenuLegacy();
+}
 
-function ensureMainMenuButton()
+
+function ensureMainMenuButtonLegacy()
 {
     if (mainMenuButton)
         return;
@@ -18282,8 +18293,15 @@ function ensureMainMenuButton()
     document.body.appendChild(button);
     mainMenuButton = button;
 }
+function ensureMainMenuButton()
+{
+    const shared = ensureBernardSharedMenu();
+    if (shared) return;
+    ensureMainMenuButtonLegacy();
+}
 
-function showMainMenuButton()
+
+function showMainMenuButtonLegacy()
 {
     ensureMainMenuButton();
     if (sharedOdysseyMenu)
@@ -18296,8 +18314,20 @@ function showMainMenuButton()
     if (mainMenuButton && profileReady && !gameMenuOverlay && !profileOverlay)
         mainMenuButton.style.display = 'flex';
 }
+function showMainMenuButton()
+{
+    const shared = ensureBernardSharedMenu();
+    if (shared)
+    {
+        if (profileReady && !profileOverlay && !resultsOverlay)
+            shared.showButton();
+        return;
+    }
+    showMainMenuButtonLegacy();
+}
 
-function hideMainMenuButton()
+
+function hideMainMenuButtonLegacy()
 {
     if (sharedOdysseyMenu)
     {
@@ -18308,6 +18338,13 @@ function hideMainMenuButton()
     if (mainMenuButton)
         mainMenuButton.style.display = 'none';
 }
+function hideMainMenuButton()
+{
+    const shared = ensureBernardSharedMenu();
+    if (shared) { shared.hideButton(); return; }
+    hideMainMenuButtonLegacy();
+}
+
 
 function showGameIntro(resuming=false)
 {
@@ -18411,7 +18448,66 @@ function stopGameInputBehindOverlay(overlay)
         overlay.addEventListener(type, e => e.stopPropagation());
 }
 
-function showProfilePrompt()
+
+let bernardSharedMenu = null;
+
+function ensureBernardSharedMenu()
+{
+    const api = getOdysseyApi();
+    if (!(api && typeof api.mountGameMenu == 'function'))
+        return null;
+
+    if (bernardSharedMenu)
+        return bernardSharedMenu;
+
+    bernardSharedMenu = api.mountGameMenu({
+        gameId: GAME_ID,
+        gameName: "Bernard's Window Washing",
+        hasMusic: false,
+        onOpen()
+        {
+            saveResumeState();
+            saveProgress();
+            resetTransientInput();
+            paused = true;
+        },
+        onResume()
+        {
+            paused = false;
+        },
+        onRestart()
+        {
+            paused = false;
+            restartCurrentRound();
+        },
+        onChangePlayer()
+        {
+            paused = false;
+            returnToPlayerSelect();
+        },
+        onLibrary()
+        {
+            paused = false;
+            requestGameLibrary();
+        },
+        onSave()
+        {
+            saveResumeState();
+            saveProgress();
+        },
+        onSettings(settings)
+        {
+            soundEffectsEnabled = settings.sound !== false;
+            musicEnabled = settings.music !== false;
+            if (!soundEffectsEnabled)
+                stopWindowWashToolSound();
+        }
+    });
+
+    return bernardSharedMenu;
+}
+
+function showProfilePromptLegacy()
 {
     if (profileOverlay)
         return;
@@ -18668,6 +18764,52 @@ function showProfilePrompt()
     document.body.appendChild(overlay);
     profileOverlay = overlay;
 }
+function showProfilePrompt()
+{
+    const api = getOdysseyApi();
+    if (!(api && typeof api.openPlayerSelect == 'function'))
+    {
+        showProfilePromptLegacy();
+        return;
+    }
+
+    hideMainMenuButton();
+    migrateLegacyProfiles();
+
+    if (profileOverlay && profileOverlay.parentNode)
+        return;
+
+    const controller = api.openPlayerSelect({
+        gameId: GAME_ID,
+        gameName: "Bernard's Window Washing",
+        getSummary(player)
+        {
+            const summary = getProfileSummary(player);
+            return {
+                highestLevel: summary.level || 1,
+                bestScore: summary.bestRoundStars || 0,
+                detail: `${summary.completions || 0} completions · ★ ${summary.totalStars || 0}`
+            };
+        },
+        onContinue(player)
+        {
+            profileOverlay = null;
+            loadProgress(player);
+        },
+        onDelete(player)
+        {
+            if (playerId === player.id)
+            {
+                profileReady = false;
+                playerId = '';
+                playerName = '';
+            }
+        }
+    });
+
+    profileOverlay = controller.element;
+}
+
 
 
 function setupRecordingTrial(cleanerId)
