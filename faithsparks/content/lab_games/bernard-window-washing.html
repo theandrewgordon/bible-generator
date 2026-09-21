@@ -18776,6 +18776,21 @@ function showProfilePromptLegacy()
     document.body.appendChild(overlay);
     profileOverlay = overlay;
 }
+function launchBernardActiveOdysseyPlayer()
+{
+    const api = getOdysseyApi();
+    const active = api && typeof api.getActivePlayer == 'function'
+        ? api.getActivePlayer()
+        : null;
+
+    if (!active)
+        return false;
+
+    hideMainMenuButton();
+    migrateLegacyProfiles();
+    return !!loadProgress(active);
+}
+
 function showProfilePrompt()
 {
     const api = getOdysseyApi();
@@ -19444,7 +19459,8 @@ async function gameInit()
     window.addEventListener('resize', syncDragOverlay, {passive:true});
     window.addEventListener('scroll', syncDragOverlay, {passive:true});
 
-    showProfilePrompt();
+    if (!launchBernardActiveOdysseyPlayer())
+        showProfilePrompt();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
