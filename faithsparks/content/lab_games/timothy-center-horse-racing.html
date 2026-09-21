@@ -14,6 +14,24 @@
     background:rgba(20,20,20,.88); color:#fff; font-size:30px; line-height:1; pointer-events:auto;
     display:none; align-items:center; justify-content:center; touch-action:manipulation;
   }
+  #tc-jump-button {
+    position:absolute;
+    right:max(18px, env(safe-area-inset-right));
+    bottom:max(22px, env(safe-area-inset-bottom));
+    width:108px; height:108px; border-radius:999px;
+    border:4px solid rgba(255,255,255,.92);
+    background:rgba(47,105,53,.94); color:#fff;
+    font-size:22px; font-weight:900; letter-spacing:.04em;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    pointer-events:auto; display:none; align-items:center; justify-content:center;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #tc-jump-button:active { transform:scale(.95); }
+  #tc-jump-button:focus-visible { outline:4px solid #ffd95a; outline-offset:3px; }
+  @media (max-width: 700px) {
+    #tc-jump-button { width:96px; height:96px; font-size:20px; }
+  }
   .tc-overlay {
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     background:rgba(0,0,0,.68); padding:22px; box-sizing:border-box; pointer-events:auto;
@@ -63,6 +81,7 @@
 
 <div id="tc-native-ui" aria-live="polite">
   <button id="tc-menu-button" type="button" aria-label="Open game menu">☰</button>
+  <button id="tc-jump-button" type="button" aria-label="Jump over obstacle">JUMP</button>
 
   <div id="tc-player-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-player-title">
     <div class="tc-panel">
@@ -109,7 +128,7 @@
     <div class="tc-panel">
       <h2 id="tc-intro-title">Timothy Center Horse Race</h2>
       <p>Race through the forest, steer around obstacles, and jump only when you choose. Win rounds to advance levels and earn new horses for your stable.</p>
-      <p><strong>Desktop:</strong> arrows/WASD to steer, Space to gallop, Up/W/Shift/J to jump.<br><strong>iPad:</strong> tap to gallop and use the touch controls already built into the game.</p>
+      <p><strong>Desktop:</strong> arrows/WASD to steer, Space to gallop, Up/W/Shift/J to jump.<br><strong>iPad:</strong> tap the course to gallop, then use the green JUMP button to clear obstacles.</p>
       <button id="tc-intro-start" class="tc-btn" type="button">Continue</button>
     </div>
   </div>
@@ -1166,6 +1185,25 @@ function tcSyncDomUi()
     if (menuButton)
         menuButton.style.display = 'none';
 
+    const jumpButton = document.getElementById('tc-jump-button');
+    if (jumpButton)
+    {
+        const touchCapable =
+            ('ontouchstart' in window) ||
+            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        const canJump =
+            touchCapable &&
+            !needsPlayerSelect &&
+            !tcMenuOpen &&
+            !tcIntroMode &&
+            !tcInBarn &&
+            tcStarted &&
+            !tcFinished &&
+            !!tcPlayer;
+        jumpButton.style.display = canJump ? 'flex' : 'none';
+        jumpButton.setAttribute('aria-disabled', canJump ? 'false' : 'true');
+    }
+
     const sharedMenu = tcEnsureSharedMenu();
     if (sharedMenu)
     {
@@ -1229,6 +1267,7 @@ function tcInitNativeUi()
     const nameInput = document.getElementById('tc-player-name-input');
     const nameCancel = document.getElementById('tc-name-cancel');
     const menuButton = document.getElementById('tc-menu-button');
+    const jumpButton = document.getElementById('tc-jump-button');
     const menuResume = document.getElementById('tc-menu-resume');
     const menuRestart = document.getElementById('tc-menu-restart');
     const menuChangePlayer = document.getElementById('tc-menu-change-player');
@@ -1255,7 +1294,7 @@ addPlayer?.addEventListener('click', () =>
     // Stop native UI events from bubbling into LittleJS. Never prevent the
     // browser's native behavior on these controls.
     for (const control of [
-        addPlayer,nameInput,nameCancel,menuButton,menuResume,menuRestart,
+        addPlayer,nameInput,nameCancel,menuButton,jumpButton,menuResume,menuRestart,
         menuChangePlayer,menuLibrary,introStart,resultsContinue,
         resultsReplay,resultsChangePlayer,resultsLibrary,sfx
     ])
@@ -1270,6 +1309,31 @@ addPlayer?.addEventListener('click', () =>
 
     nameCancel?.addEventListener('click', () => tcHideNameEditor());
     menuButton?.addEventListener('click', () => tcOpenMenu());
+
+    // Dedicated iPad/touch jump control. Pointerdown gives immediate response
+    // and is kept out of LittleJS so it never doubles as a gallop tap.
+    jumpButton?.addEventListener('pointerdown', event =>
+    {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (tcPlayer && tcStarted && !tcFinished && !tcMenuOpen && !tcIntroMode && !tcInBarn)
+            tcPlayer.tryJump();
+    });
+
+    // Preserve keyboard/switch accessibility for the native button without
+    // firing a second jump after a normal touch/pointer activation.
+    jumpButton?.addEventListener('click', event =>
+    {
+        if (event.detail !== 0)
+            return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (tcPlayer && tcStarted && !tcFinished && !tcMenuOpen && !tcIntroMode && !tcInBarn)
+            tcPlayer.tryJump();
+    });
     menuResume?.addEventListener('click', () => tcCloseMenu());
     menuRestart?.addEventListener('click', () => tcRestartCurrentRound());
     menuChangePlayer?.addEventListener('click', () =>
@@ -3692,7 +3756,7 @@ function gameRenderPost()
     }
     else if (!tcFinished)
     {
-        drawTextScreen('MOVE: ARROWS / WASD   GALLOP: SPACE / TAP   JUMP: ↑ / W / SHIFT / J',
+        drawTextScreen('MOVE: ARROWS / WASD   GALLOP: SPACE / TAP   JUMP: ↑ / W / SHIFT / J / TOUCH BUTTON',
             vec2(cx,mainCanvasSize.y-38),20,WHITE,3,BLACK);
 
         if (tcMessageTimer.active() && tcRaceMessage)
