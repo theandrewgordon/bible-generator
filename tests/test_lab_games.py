@@ -383,3 +383,109 @@ def test_bernard_drag_stops_if_completion_clears_active_tool():
     assert "if (!activeTool)\n            break;" in html
     assert "Completing a clean can end the drag" in html
     assert "lastDragWorldPos = null;" in html
+
+
+
+def test_odyssey_core_exposes_home_progression_features():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    for marker in (
+        "AVATARS",
+        "setPlayerAvatar",
+        "getPlayerAvatar",
+        "openAvatarPicker",
+        "getRecentGame",
+        "getChallenges",
+        "showCelebration",
+        "celebrateUnlock",
+        "showRoundResults",
+        "odyssey-celebration",
+    ):
+        assert marker in js
+
+
+def test_games_lab_home_has_recent_challenges_family_and_thumbnails():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games").get_data(as_text=True)
+
+    assert 'id="odyssey-family-progress"' in html
+    assert 'id="odyssey-family-progress-body"' in html
+    assert "Challenges" in html
+    assert "Game Progress" in html
+    assert "odyssey-avatar-button" in html
+    assert "odyssey-game-thumbnail" in html
+    assert "Continue " in html
+    for icon in ("🍨", "✨", "✉️", "🐴"):
+        assert icon in html
+
+
+def test_odyssey_core_has_expanded_achievements_and_challenges():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    for badge in (
+        "Around Odyssey",
+        "Odyssey Champion",
+        "Whit's End Regular",
+        "Sparkling Clean",
+        "Mail Route Pro",
+        "Stable Master",
+        "Odyssey Hero",
+    ):
+        assert badge in js
+
+    for challenge in (
+        "Play an Odyssey game today",
+        "Complete a round today",
+        "Complete 5 rounds this week",
+        "Play 3 different games this week",
+        "Earn 100 Odyssey XP this week",
+    ):
+        assert challenge in js
+
+
+def test_all_four_games_integrate_shared_round_results():
+    client = _client()
+    _sign_in(client)
+
+    for route in (
+        "/labs/games/whits-end",
+        "/labs/games/bernard-window-washing",
+        "/labs/games/wooten-mail-route",
+        "/labs/games/timothy-center-horse-racing",
+    ):
+        html = client.get(route).get_data(as_text=True)
+        assert "showRoundResults" in html
+
+
+def test_game_specific_unlock_celebrations_are_wired():
+    client = _client()
+    _sign_in(client)
+
+    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    wooten = client.get("/labs/games/wooten-mail-route").get_data(as_text=True)
+
+    assert "New Horse Unlocked!" in timothy
+    assert "Stable Unlock!" in timothy
+    assert "Delivery Routes Unlocked!" in wooten
+
+
+def test_shared_odyssey_ui_includes_mobile_and_reward_polish():
+    client = _client()
+    _sign_in(client)
+    css = client.get("/labs/games/assets/odyssey-ui.css").get_data(as_text=True)
+
+    for marker in (
+        ".odyssey-celebration",
+        ".odyssey-avatar-grid",
+        ".odyssey-challenge-grid",
+        ".odyssey-family-grid",
+        ".odyssey-game-thumbnail",
+        "@media(pointer:coarse)",
+        "safe-area-inset-top",
+    ):
+        assert marker in css
