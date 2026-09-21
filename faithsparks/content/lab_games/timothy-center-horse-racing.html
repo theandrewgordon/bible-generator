@@ -983,6 +983,33 @@ function tcRenderPlayerSelect()
 }
 
 
+function tcContinueOdysseyPlayer(player)
+{
+    let localName = tcFindLocalProfileName(player.name);
+    if (!localName)
+    {
+        tcProfiles[player.name] = tcDefaultProfileData();
+        tcSaveProfiles();
+        tcLoadProfiles();
+        localName = player.name;
+    }
+    tcRestoreProfile(localName);
+}
+
+function tcLaunchActiveOdysseyPlayer()
+{
+    const O = tcOdyssey();
+    const active = O && typeof O.getActivePlayer == 'function'
+        ? O.getActivePlayer()
+        : null;
+
+    if (!active)
+        return false;
+
+    tcContinueOdysseyPlayer(active);
+    return true;
+}
+
 function tcShowSharedPlayerSelect()
 {
     const O = tcOdyssey();
@@ -1009,15 +1036,7 @@ function tcShowSharedPlayerSelect()
         },
         onContinue(player)
         {
-            let localName = tcFindLocalProfileName(player.name);
-            if (!localName)
-            {
-                tcProfiles[player.name] = tcDefaultProfileData();
-                tcSaveProfiles();
-                tcLoadProfiles();
-                localName = player.name;
-            }
-            tcRestoreProfile(localName);
+            tcContinueOdysseyPlayer(player);
         },
         onDelete(player)
         {
@@ -3029,6 +3048,10 @@ async function gameInit()
     tcMenuOpen = false;
 
     tcInitNativeUi();
+
+    // A player chosen on /labs/games carries directly into the mini-game.
+    // If no Odyssey player is active, fall back to the shared player selector.
+    tcLaunchActiveOdysseyPlayer();
     tcSyncDomUi();
 
     // Save when the browser/app is backgrounded or closed.
