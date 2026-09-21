@@ -578,9 +578,9 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "insideDrawRect" in html
     assert "worldToScreen(pos)" in html
     assert "const keepRealTexture" in html
-    assert "Adaptive quality sampling" in html
-    assert "area >= .55" in html
-    assert "area >= .20" in html
+    assert "render localized cleaner residue per cell again" in html
+    assert "Soap gets a smaller pale highlight" in html
+    assert "keepRealTexture = (hash & 15) === 0" in html
     assert "sparse, stable sample of the real textured detail" in html
     assert "native detail T" in html
     assert "does not accidentally hide cheap cleaner" in html
