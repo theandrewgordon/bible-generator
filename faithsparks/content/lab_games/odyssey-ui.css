@@ -10,3 +10,26 @@
 .odyssey-save-toast{position:fixed;z-index:99999;right:14px;top:14px;background:rgba(21,33,39,.94);color:#fff;padding:9px 13px;border-radius:9px;font:700 14px system-ui,-apple-system,sans-serif;opacity:0;transform:translateY(-8px);pointer-events:none;transition:.16s ease}.odyssey-save-toast.show{opacity:1;transform:translateY(0)}
 .odyssey-hamburger{position:fixed;top:14px;right:14px;z-index:99990;width:54px;height:50px;border:3px solid rgba(255,255,255,.5);border-radius:12px;background:rgba(20,28,32,.88);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font:800 30px/1 system-ui;touch-action:manipulation}
 @media(max-width:700px){.odyssey-modal{padding:10px}.odyssey-modal-card{padding:20px 15px}.odyssey-modal-card h2{font-size:27px}.odyssey-name-input{font-size:22px}}
+
+.odyssey-player-select{position:fixed;inset:0;z-index:99995;display:flex;align-items:center;justify-content:center;background:rgba(8,14,18,.92);padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.odyssey-player-panel{width:min(780px,96vw);max-height:min(820px,92vh);overflow:auto;background:#fff9ef;color:#1d2528;border:4px solid #d7b56d;border-radius:20px;padding:24px;box-sizing:border-box}
+.odyssey-player-panel h1,.odyssey-player-panel h2{margin:0 0 8px;text-align:center}
+.odyssey-player-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:18px 0}
+.odyssey-player-card{border:2px solid #9fb0b6;border-radius:14px;padding:14px;background:#f8f3e8}
+.odyssey-player-name{font-size:21px;font-weight:900;margin-bottom:5px}.odyssey-player-meta{font-size:14px;color:#526066;line-height:1.4;min-height:40px}
+.odyssey-player-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.odyssey-player-actions .odyssey-button{flex:1;min-width:90px}
+.odyssey-button.danger{background:#a84b45;color:#fff}
+.odyssey-game-menu{position:fixed;inset:0;z-index:99996;display:flex;align-items:center;justify-content:center;background:rgba(8,14,18,.82);padding:18px;box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.odyssey-game-menu .odyssey-modal-card{width:min(430px,94vw)}
+.odyssey-menu-list{display:grid;gap:10px}
+.odyssey-setting-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid #d8c9aa;font-weight:750}
+.odyssey-setting-row input{width:28px;height:28px}
+.odyssey-dashboard{margin:24px 0;padding:22px;border:2px solid #d7b56d;border-radius:18px;background:#fff9ef;color:#1d2528}
+.odyssey-dashboard-toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.odyssey-dashboard select{min-height:46px;font-size:17px;padding:8px 12px;border-radius:10px;border:2px solid #9daeb4;background:#fff;color:#172126}
+.odyssey-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.odyssey-summary-stat{padding:12px;border-radius:12px;background:#edf2f3}.odyssey-summary-stat strong{display:block;font-size:22px}
+.odyssey-progress-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:14px}
+.odyssey-progress-card{padding:13px;border:1px solid #b7c4c8;border-radius:12px;background:#fff}
+.odyssey-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.odyssey-badge{padding:8px 10px;border-radius:999px;background:#e7d29f;font-size:13px;font-weight:800}
+@media(max-width:700px){.odyssey-player-panel{padding:18px 14px}.odyssey-player-list{grid-template-columns:1fr}.odyssey-dashboard{padding:16px}.odyssey-hamburger{top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right))}}
