@@ -2175,17 +2175,14 @@ function updateGameMenu(){
  if(hit(vec2(0,1.05),vec2(5.4,.85))){restartCurrentRound();return;}
  if(hit(vec2(0,-.05),vec2(5.4,.85))){changePlayer();return;}
  if(hit(vec2(0,-1.15),vec2(5.4,.85))){returnToGameLibrary();return;}
- if(hit(vec2(-1.55,-2.55),vec2(2.7,.8))){odysseySettings.sound=!odysseySettings.sound;persistSettings();return;}
- if(hit(vec2(1.55,-2.55),vec2(2.7,.8))){odysseySettings.music=!odysseySettings.music;persistSettings();return;}
+ if(hit(vec2(0,-2.55),vec2(5.4,.8))){odysseySettings.sound=!odysseySettings.sound;persistSettings();return;}
 }
 function drawGameMenuOverlay(){
  drawRect(vec2(0,.4),vec2(8.0,7.7),hsl(.12,.08,.97,.98));
  drawText('GAME MENU',vec2(0,3.45),.42,hsl(.07,.5,.22));
- const items=[['CONTINUE',2.15],['RESTART ROUND',1.05],['CHANGE PLAYER',-.05],['GAME LIBRARY',-1.15]];
- for(const [label,y] of items){drawRect(vec2(0,y),vec2(5.4,.85),hsl(.13,.3,.9));drawText(label,vec2(0,y),.22,hsl(.07,.42,.2));}
- drawRect(vec2(-1.55,-2.55),vec2(2.7,.8),hsl(.55,.15,.86));drawText(`SOUND: ${odysseySettings.sound?'ON':'OFF'}`,vec2(-1.55,-2.55),.18,BLACK);
- drawRect(vec2(1.55,-2.55),vec2(2.7,.8),hsl(.55,.15,.86));drawText(`MUSIC: ${odysseySettings.music?'ON':'OFF'}`,vec2(1.55,-2.55),.18,BLACK);
- drawText('Music setting is saved for future music support.',vec2(0,-3.25),.15,hsl(.07,.3,.3));
+ const items=[['RESUME / CONTINUE',2.15],['RESTART CURRENT ROUND',1.05],['CHANGE PLAYER',-.05],['RETURN TO GAME LIBRARY',-1.15]];
+ for(const [label,y] of items){drawRect(vec2(0,y),vec2(5.4,.85),hsl(.13,.3,.9));drawText(label,vec2(0,y),.18,hsl(.07,.42,.2));}
+ drawRect(vec2(0,-2.55),vec2(5.4,.8),hsl(.55,.15,.86));drawText(`SOUND EFFECTS: ${odysseySettings.sound?'ON':'OFF'}`,vec2(0,-2.55),.18,BLACK);
 }
 function updateResultsScreen(){
  if(!mouseWasPressed(0))return;
