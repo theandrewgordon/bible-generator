@@ -1160,7 +1160,8 @@ function tcSyncDomUi()
 
     const results = document.getElementById('tc-results-overlay');
     if (results)
-        results.style.display = (!tcProfileMode && tcFinished && !tcMenuOpen && !tcIntroMode) ? 'flex' : 'none';
+        results.style.display = (!tcProfileMode && tcFinished && !tcMenuOpen && !tcIntroMode &&
+            !document.getElementById('odysseyRoundResults')) ? 'flex' : 'none';
 
     if (!tcProfileMode && tcFinished)
     {
@@ -1593,7 +1594,7 @@ function tcRecordWin()
     const O = tcOdyssey();
     if (O && O.recordResult)
     {
-        O.recordResult(TC_GAME_ID, {
+        const result = O.recordResult(TC_GAME_ID, {
             completed:true,
             score:0,
             level:tcLevel,
@@ -1607,7 +1608,8 @@ function tcRecordWin()
                 perfect:tcObstacleHits===0,
             }
         }, tcActiveProfile);
-        return;
+        window._tcLastRoundXp = result?.lastResult?.xpEarned || 0;
+        return result;
     }
 
     const stats = tcGetStats();
@@ -2970,6 +2972,41 @@ function tcEndLevel()
         tcWinner = 'TRY THIS LEVEL AGAIN!';
 
     tcManualSave(false);
+
+    const O = tcOdyssey();
+    if (O && typeof O.showRoundResults == 'function')
+    {
+        const playerWon = allHorses[0] === tcPlayer;
+        const stats = tcGetStats();
+        O.showRoundResults({
+            title:playerWon ? 'Race Complete!' : 'Race Finished',
+            level:tcLevel,
+            xpEarned:playerWon ? (window._tcLastRoundXp || 0) : 0,
+            detail:tcWinner,
+            primaryLabel:playerWon && tcLevel < tcLevels.length ? 'Next Level' : 'Retry This Level',
+            onPrimary:tcAdvanceOrRestart,
+            onReplay:() =>
+            {
+                const keepLevel = tcLevel;
+                tcResetLevel(false);
+                tcLevel = keepLevel;
+                tcIntroMode = false;
+                tcManualSave(false);
+                tcSyncDomUi();
+            },
+            onChangePlayer:() =>
+            {
+                tcReturnToProfiles();
+                tcSyncDomUi();
+            },
+            onLibrary:() =>
+            {
+                tcManualSave(false);
+                if (O.returnToLibrary) O.returnToLibrary();
+                else location.assign(TC_GAME_LIBRARY_URL);
+            }
+        });
+    }
 }
 
 function tcAdvanceOrRestart()
