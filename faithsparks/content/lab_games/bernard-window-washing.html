@@ -17353,7 +17353,7 @@ function awardLevelStars()
 
     try
     {
-        getOdysseyApi()?.recordResult?.(GAME_ID, {
+        const odysseyResult = getOdysseyApi()?.recordResult?.(GAME_ID, {
             completed:true,
             score:max(0, earned),
             level:max(1, level),
@@ -17367,8 +17367,9 @@ function awardLevelStars()
                 perfect:levelSprays>0 && levelSprays===levelCorrectSprays
             }
         }, playerName);
+        window._bernardLastXp = odysseyResult?.lastResult?.xpEarned || 0;
     }
-    catch(e) {}
+    catch(e) { window._bernardLastXp = 0; }
 
     completions++;
     lastLevelBonusText = bonuses.length ? bonuses.join('  •  ') : 'COMPLETE';
@@ -17386,6 +17387,47 @@ function showResultsScreen()
 
     hideMainMenuButton();
     resetTransientInput();
+
+    const O = getOdysseyApi();
+    if (O && typeof O.showRoundResults == 'function')
+    {
+        const overlay = O.showRoundResults({
+            title:'Sparkling Clean!',
+            score:lastLevelStars,
+            bestScore:bestRoundStars,
+            level,
+            stars:lastLevelStars,
+            xpEarned:window._bernardLastXp || 0,
+            detail:lastLevelBonusText,
+            primaryLabel:'Continue to Next Window',
+            onPrimary:() =>
+            {
+                resultsOverlay = null;
+                levelAdvanceTimer.unset();
+                levelAdvanceAt = 0;
+                nextLevel();
+                saveProgress();
+                showMainMenuButton();
+            },
+            onReplay:() =>
+            {
+                resultsOverlay = null;
+                restartCurrentRound();
+            },
+            onChangePlayer:() =>
+            {
+                resultsOverlay = null;
+                returnToPlayerSelect();
+            },
+            onLibrary:() =>
+            {
+                resultsOverlay = null;
+                requestGameLibrary();
+            }
+        });
+        resultsOverlay = overlay;
+        return;
+    }
 
     const overlay = document.createElement('div');
     overlay.style.cssText =
