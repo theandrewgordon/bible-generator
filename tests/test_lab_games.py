@@ -557,7 +557,7 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "requestAnimationFrame(flushPendingDragWork)" in html
     assert "const count = 1; // one cleaning sample per animation frame" in html
     assert "pendingDragWorldPos" in html
-    assert "canvasPixelRatio = Math.min(devicePixelRatio || 1, 1.25)" in html
+    assert "canvasPixelRatio = Math.min(devicePixelRatio || 1, .75)" in html
     assert "window._bernardWetVisualCache" in html
     assert "ONE cached pane overlay" in html
     assert "const cleanerIds = Object.keys(w.layers)" not in html
@@ -568,6 +568,9 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "updateAvgMs" in html
     assert "drawRect:state.drawRect" in html
     assert "canvasInfo" in html
+    assert "bernard-render-fast-path" in html
+    assert "Stable spatial sampling avoids flicker" in html
+    assert "_bernardRenderFastStats" in html
     assert "bernardPerfBadge" in html
     assert "bernard-audio-polish" in html
     assert "Cleaner bottle: soft trigger click + airy liquid spray" in html
