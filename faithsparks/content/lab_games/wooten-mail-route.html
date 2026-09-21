@@ -173,7 +173,9 @@ function joinProfileById(id,isNew=false){
 }
 function deleteProfileById(id){
  const p=getProfiles(),i=p.findIndex(x=>x.id===id);if(i<0)return;
- const removed=p[i];p.splice(i,1);putProfiles(p);
+ const removed=p[i];
+ if(!confirm(`Delete ${removed.name}'s Wooten progress from this game?`))return;
+ p.splice(i,1);putProfiles(p);
  try{window.Odyssey?.hidePlayerForGame?.(removed.name,TESSAS_ODYSSEY_GAME_ID)}catch(e){}
  if(activeProfileId===id)activeProfileId=null;
  showProfiles();
