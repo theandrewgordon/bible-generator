@@ -58,3 +58,64 @@ def test_playable_routes_are_private_and_noindexed():
         assert response.status_code == 200
         assert response.headers["Cache-Control"] == "private, no-store"
         assert response.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive, nosnippet"
+
+
+
+def test_games_lab_includes_shared_odyssey_dashboard():
+    client = _client()
+    _sign_in(client)
+    response = client.get("/labs/games")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert 'id="odyssey-dashboard"' in html
+    assert 'id="odyssey-player-select"' in html
+    assert "+ New Player" in html
+    assert "Odyssey Level" in html
+    assert "Total XP" in html
+    for game_id in (
+        "whits-end",
+        "bernard-window-washing",
+        "wooten-mail-sorting",
+        "timothy-center-horse-racing",
+    ):
+        assert f'data-game-id="{game_id}"' in html
+
+
+def test_shared_odyssey_assets_are_private():
+    client = _client()
+    for path in (
+        "/labs/games/assets/odyssey-core.js",
+        "/labs/games/assets/odyssey-ui.css",
+    ):
+        response = client.get(path)
+        assert response.status_code == 302
+        assert "/login/google/start?next=" in response.headers["Location"]
+
+    _sign_in(client)
+    for path in (
+        "/labs/games/assets/odyssey-core.js",
+        "/labs/games/assets/odyssey-ui.css",
+    ):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers["Cache-Control"] == "private, no-store"
+        assert response.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive, nosnippet"
+
+
+def test_playable_games_reference_shared_odyssey_shell():
+    client = _client()
+    _sign_in(client)
+
+    expected = {
+        "/labs/games/whits-end": "whits-end",
+        "/labs/games/bernard-window-washing": "bernard-window-washing",
+        "/labs/games/wooten-mail-route": "wooten-mail-sorting",
+        "/labs/games/timothy-center-horse-racing": "timothy-center-horse-racing",
+    }
+
+    for path, game_id in expected.items():
+        response = client.get(path)
+        html = response.get_data(as_text=True)
+        assert response.status_code == 200
+        assert "/labs/games/assets/odyssey-core.js" in html
+        assert game_id in html
