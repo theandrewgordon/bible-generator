@@ -13,6 +13,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 </style>
 <div id="game-root" aria-hidden="true"></div>
 
+<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
 <script src="/labs/games/assets/odyssey-core.js"></script>
 <script>
 // LittleJS Engine - MIT License - Copyright 2021 Frank Force
@@ -17348,6 +17349,24 @@ function awardLevelStars()
     lastLevelStars = earned;
     totalStars += earned;
     bestRoundStars = max(bestRoundStars, earned);
+
+    try
+    {
+        getOdysseyApi()?.recordResult?.(GAME_ID, {
+            completed:true,
+            score:max(0, earned),
+            level:max(1, level),
+            stars:max(0, earned),
+            meta:{
+                totalStars:max(0,totalStars),
+                cleanerCount:clamp(1 + Math.floor((highestLevel-1)/2), 1, CLEANERS.length),
+                sprays:levelSprays,
+                wipes:levelWipes
+            }
+        }, playerName);
+    }
+    catch(e) {}
+
     completions++;
     lastLevelBonusText = bonuses.length ? bonuses.join('  •  ') : 'COMPLETE';
 
@@ -17570,6 +17589,7 @@ function getSharedPlayers()
     const odysseyPlayers = getOdysseyPlayers();
     if (Array.isArray(odysseyPlayers) && odysseyPlayers.length)
     {
+        const api = getOdysseyApi();
         return odysseyPlayers
             .map(p => ({
                 id: String(p.id || p.playerId || ''),
@@ -17577,6 +17597,7 @@ function getSharedPlayers()
                 createdAt: p.createdAt || 0
             }))
             .filter(p => p.id && p.name)
+            .filter(p => !(api && api.getGameStats && api.getGameStats(p.name, GAME_ID)?.hidden))
             .slice(0,8);
     }
 
@@ -17600,13 +17621,35 @@ function saveSharedPlayers(players)
         localStorage.setItem(TESSA_PLAYERS_KEY, JSON.stringify(players.slice(0,8)));
     }
     catch(e) {}
+
+    const api = getOdysseyApi();
+    try
+    {
+        if (api && typeof api.setPlayers == 'function')
+            api.setPlayers(players.slice(0,8));
+        else if (api && typeof api.savePlayers == 'function')
+            api.savePlayers(players.slice(0,8));
+    }
+    catch(e) {}
 }
 
 function findOrAdoptPlayer(name)
 {
-    const clean = name.trim().slice(0,20);
+    const api = getOdysseyApi();
+    const clean = api && api.cleanPlayerName
+        ? api.cleanPlayerName(name)
+        : String(name || '').replace(/\s+/g,' ').trim().slice(0,20);
+
     if (!clean)
         return null;
+
+    if (api && typeof api.ensurePlayer == 'function')
+    {
+        const shared = api.ensurePlayer(clean);
+        if (shared)
+            return {id:String(shared.id), name:String(shared.name), createdAt:shared.createdAt || Date.now()};
+        return null;
+    }
 
     let players = getSharedPlayers();
     let player = players.find(p => p.name.toLowerCase() == clean.toLowerCase());
@@ -17616,11 +17659,7 @@ function findOrAdoptPlayer(name)
         if (players.length >= 8)
             return null;
 
-        player = {
-            id: makeStablePlayerId(),
-            name: clean,
-            createdAt: Date.now()
-        };
+        player = {id:makeStablePlayerId(),name:clean,createdAt:Date.now()};
         players.push(player);
         saveSharedPlayers(players);
     }
@@ -17708,7 +17747,7 @@ function loadGameSettings()
 
         if (data)
         {
-            soundEffectsEnabled = data.soundEffects !== false;
+            soundEffectsEnabled = data.sound !== false && data.soundEffects !== false;
             musicEnabled = data.music !== false;
         }
     }
@@ -17718,6 +17757,7 @@ function loadGameSettings()
 function saveGameSettings()
 {
     const data = {
+        sound: soundEffectsEnabled,
         soundEffects: soundEffectsEnabled,
         music: musicEnabled
     };
@@ -17791,6 +17831,13 @@ function getProfileSummary(profile)
 
 function showSavedToast()
 {
+    const api = getOdysseyApi();
+    if (api && typeof api.showSaved == 'function')
+    {
+        api.showSaved('Saved');
+        return;
+    }
+
     let toast = document.getElementById('odyssey-saved-toast');
     if (!toast)
     {
@@ -17807,7 +17854,6 @@ function showSavedToast()
 
     toast.textContent = 'Saved';
     toast.style.opacity = '1';
-
     clearTimeout(showSavedToast.timer);
     showSavedToast.timer = setTimeout(()=>{ toast.style.opacity = '0'; }, 1100);
 }
@@ -17953,6 +17999,7 @@ function loadProgress(profileOrName)
 
     playerId = adopted.id;
     playerName = adopted.name.trim().slice(0,20);
+    try { getOdysseyApi()?.selectPlayer?.(playerName, GAME_ID); } catch(e) {}
 
     let data = loadProgressFromOdyssey(playerId);
 
@@ -18061,6 +18108,8 @@ function requestGameLibrary()
     }
     catch(e) {}
 
+    try { if (getOdysseyApi()?.returnToLibrary) { getOdysseyApi().returnToLibrary(); return; } } catch(e) {}
+
     // Hosted FaithSparks Labs / future web build.
     if (location.protocol == 'http:' || location.protocol == 'https:')
     {
@@ -18082,7 +18131,6 @@ function restartCurrentRound()
     closeOverlay(resultsOverlay);
     resultsOverlay = null;
 
-    gamesPlayed++;
     setupLevel();
     saveProgress();
     showMainMenuButton();
@@ -18144,7 +18192,7 @@ function showGameMenu()
 
     makeButton('Restart Current Round', restartCurrentRound, true);
     makeButton('Change Player', returnToPlayerSelect, true);
-    makeButton('Return to Main Menu / Game Library', requestGameLibrary, true);
+    makeButton('Return to Game Library', requestGameLibrary, true);
 
     const soundButton = makeButton(
         `Sound Effects: ${soundEffectsEnabled ? 'ON' : 'OFF'}`,
@@ -18266,15 +18314,8 @@ function deletePlayerProfile(profile)
         return;
 
     const api = getOdysseyApi();
-    try
-    {
-        if (api && typeof api.deletePlayer == 'function')
-            api.deletePlayer(profile.id);
-    }
+    try { api?.hidePlayerForGame?.(profile.name, GAME_ID); }
     catch(e) {}
-
-    const remaining = getSharedPlayers().filter(p => p.id != profile.id);
-    saveSharedPlayers(remaining);
 
     try
     {
@@ -18287,6 +18328,13 @@ function deletePlayerProfile(profile)
 
 function protectNativeTextEntry(element)
 {
+    const api = getOdysseyApi();
+    if (api && typeof api.protectNativeControl == 'function')
+    {
+        api.protectNativeControl(element);
+        return;
+    }
+
     // Stop events from bubbling to document-level LittleJS handlers.
     // Never preventDefault: the browser must retain normal caret/keyboard behavior.
     const events = [
