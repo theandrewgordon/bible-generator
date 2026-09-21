@@ -1745,7 +1745,7 @@ const MAX_PLAYERS=8;
 let profileScreen=true, introScreen=false, menuOpen=false, resultsScreen=false;
 let activeProfileId='', profiles=[], progressStore={}, deleteTargetId='';
 let resultsData=null, lastAutoSaveAt=0, pausedPartyTime=0, savedToastUntil=0;
-let roundStartScore=0, roundStartStars=0, roundStartServed=0, roundStartLevel=1;
+let roundStartScore=0, roundStartStars=0, roundStartServed=0, roundStartLevel=1, roundResultId='';
 let odysseySettings={sound:true,music:true};
 
 function defaultProgress(){
@@ -1926,7 +1926,7 @@ function serializeSession(){
   partyServed:[...partyServed],partyIndex,
   tray:[...tray],prepared,holdingContainer,containerFilled,
   addedToppings:[...addedToppings],scoopFlavor,scoopLoaded,holdingScoop,holdingMilk,
-  needsReset,roundStartScore,roundStartStars,roundStartServed,roundStartLevel,
+  needsReset,roundStartScore,roundStartStars,roundStartServed,roundStartLevel,roundResultId,
   timeLeft:partyDeadline?max(0,partyDeadline-time):0,
   savedAt:Date.now()
  };
@@ -1966,6 +1966,7 @@ function restoreSession(){
  roundStartStars=ss.roundStartStars??stars;
  roundStartServed=ss.roundStartServed??served;
  roundStartLevel=ss.roundStartLevel??level;
+ roundResultId=ss.roundResultId||(`whits-${activeProfileId}-${roundStartLevel}-${ss.savedAt||Date.now()}`);
  partyDeadline=ruleForLevel().time?time+max(1,ss.timeLeft||ruleForLevel().time):0;
  return true;
 }
@@ -2105,7 +2106,16 @@ function beginRound(targetLevel=level,resetScoreToCurrent=false){
  level=max(1,targetLevel||1);levelServed=0;
  if(resetScoreToCurrent){score=roundStartScore;stars=roundStartStars;served=roundStartServed;}
  roundStartScore=score;roundStartStars=stars;roundStartServed=served;roundStartLevel=level;
- const p=currentProgress();if(p){p.gamesPlayed=(p.gamesPlayed||0)+1;p.lastPlayed=Date.now();}
+ roundResultId=odysseyApi()?.createRoundId?.(GAME_ID,currentProfile()?.name,'whits')||
+   ('whits-'+activeProfileId+'-'+level+'-'+Date.now());
+ const p=currentProgress();
+ if(p){
+  const sessionKey='whits-session-'+activeProfileId;
+  let first=true;
+  try{first=!sessionStorage.getItem(sessionKey);if(first)sessionStorage.setItem(sessionKey,'1');}catch(e){}
+  if(first)p.gamesPlayed=(p.gamesPlayed||0)+1;
+  p.lastPlayed=Date.now();
+ }
  try{odysseyApi()?.startSession?.(GAME_ID,currentProfile()?.name);}catch(e){}
  startParty(false);introScreen=false;resultsScreen=false;menuOpen=false;
  ensureWhitsSharedMenu()?.showButton();
@@ -2159,7 +2169,7 @@ function finishRound(completedLevel){
  if(p){
   try{odysseyApi()?.recordResult?.(GAME_ID,{
    completed:true,score:max(0,score||0),level:max(1,completedLevel+1),stars:max(0,stars||0),
-   resultId:`whits-${completedLevel}-${roundStartScore}-${roundStartServed}-${Date.now()}`,
+   resultId:roundResultId||`whits-${activeProfileId}-${completedLevel}-${roundStartScore}-${roundStartServed}`,
    meta:{served:max(0,served||0),levelServed:max(0,levelServed||0),perfect:!needsReset}
   },currentProfile()?.name);}catch(e){}
   p.completions=(p.completions||0)+1;
