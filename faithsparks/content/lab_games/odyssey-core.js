@@ -2,15 +2,45 @@
 'use strict';
 
 const STORAGE_KEY = 'tessas_odyssey_platform_v1';
-const VERSION = 3;
+const VERSION = 4;
 const MAX_PLAYERS = 8;
 const MAX_NAME = 20;
+const AVATARS = [
+  {id:'star',symbol:'★',label:'Star',color:'#7357d9'},
+  {id:'horse',symbol:'♞',label:'Horse',color:'#8a5b38'},
+  {id:'mail',symbol:'✉',label:'Mail',color:'#39779b'},
+  {id:'sparkle',symbol:'✦',label:'Sparkle',color:'#d7962d'},
+  {id:'heart',symbol:'♥',label:'Heart',color:'#c6536b'},
+  {id:'book',symbol:'◆',label:'Book',color:'#4d7a55'},
+  {id:'sun',symbol:'☀',label:'Sun',color:'#cc7d25'},
+  {id:'moon',symbol:'☾',label:'Moon',color:'#51638f'}
+];
 
 function now(){ return Date.now(); }
 function clone(v){ return JSON.parse(JSON.stringify(v)); }
 function safeParse(raw, fallback){ try { return raw ? JSON.parse(raw) : fallback; } catch (_) { return fallback; } }
 function cleanPlayerName(name){
   return String(name || '').replace(/\s+/g,' ').trim().slice(0, MAX_NAME);
+}
+
+function nameHash(value){
+  let h=0; for(const ch of String(value||'')) h=((h<<5)-h+ch.charCodeAt(0))|0;
+  return Math.abs(h);
+}
+function avatarIdFor(value){ return AVATARS[nameHash(value)%AVATARS.length].id; }
+function avatarDefinition(id){ return AVATARS.find(a=>a.id===id) || AVATARS[0]; }
+function pushActivity(player,activity){
+  if(!player) return;
+  player.activity=Array.isArray(player.activity)?player.activity:[];
+  player.activity.push(Object.assign({at:now()},activity||{}));
+  if(player.activity.length>200) player.activity=player.activity.slice(-200);
+}
+function localDayStart(ts=now()){
+  const d=new Date(ts); d.setHours(0,0,0,0); return d.getTime();
+}
+function localWeekStart(ts=now()){
+  const d=new Date(ts); d.setHours(0,0,0,0);
+  const day=d.getDay(); d.setDate(d.getDate()-((day+6)%7)); return d.getTime();
 }
 function defaultState(){
   return {version:VERSION, activePlayerId:'', players:[], settings:{sound:true,music:true}};
@@ -61,6 +91,8 @@ function normalizePlayers(){
       p.games=p.games&&typeof p.games==='object'?p.games:{};
       p.totals=p.totals||{xp:0,gamesPlayed:0,completions:0};
       p.aliases=Array.isArray(p.aliases)?p.aliases:[];
+      p.avatar=p.avatar||avatarIdFor(p.id||p.name);
+      p.activity=Array.isArray(p.activity)?p.activity:[];
       canonicalByName.set(key,p);
       merged.push(p);
       continue;
@@ -71,6 +103,7 @@ function normalizePlayers(){
     p.createdAt=Math.min(+p.createdAt||now(),+raw.createdAt||now());
     p.lastPlayedAt=Math.max(+p.lastPlayedAt||0,+raw.lastPlayedAt||0);
     p.totals.xp=Math.max(+p.totals.xp||0,+raw.totals?.xp||0);
+    p.activity=[...(p.activity||[]),...(Array.isArray(raw.activity)?raw.activity:[])].sort((a,b)=>(a.at||0)-(b.at||0)).slice(-200);
     for(const [gameId,g] of Object.entries(raw.games||{}))
       p.games[gameId]=mergeGameRecords(p.games[gameId],g);
   }
@@ -100,12 +133,22 @@ function newPlayer(name){
   const p = {
     id:'p_' + now().toString(36) + '_' + Math.random().toString(36).slice(2,7),
     name:clean, createdAt:now(), lastPlayedAt:0,
+    avatar:avatarIdFor(clean), activity:[],
     totals:{xp:0,gamesPlayed:0,completions:0}, games:{}
   };
   state.players.push(p); save(); return p;
 }
 function ensurePlayer(name){ return playerByName(name) || newPlayer(name); }
 function getPlayers(){ return state.players.map(clone); }
+function setPlayerAvatar(playerRef,avatarId){
+  const p=resolvePlayer(playerRef); if(!p) return null;
+  const def=avatarDefinition(avatarId);
+  p.avatar=def.id; save(); return clone(p);
+}
+function getPlayerAvatar(playerRef){
+  const p=resolvePlayer(playerRef); if(!p) return clone(AVATARS[0]);
+  return clone(avatarDefinition(p.avatar||avatarIdFor(p.id||p.name)));
+}
 function setPlayers(list){
   if (!Array.isArray(list)) return getPlayers();
   const next=[];
@@ -116,9 +159,12 @@ function setPlayers(list){
     const p=existing || {
       id:(raw && raw.id) || ('p_' + now().toString(36) + '_' + Math.random().toString(36).slice(2,7)),
       name, createdAt:(raw && raw.createdAt) || now(), lastPlayedAt:0,
+      avatar:(raw&&raw.avatar)||avatarIdFor(name), activity:[],
       totals:{xp:0,gamesPlayed:0,completions:0}, games:{}
     };
     p.name=name;
+    p.avatar=(raw&&raw.avatar)||p.avatar||avatarIdFor(p.id||name);
+    p.activity=Array.isArray(p.activity)?p.activity:[];
     if (raw && raw.id && raw.id !== p.id) {
       p.aliases=Array.isArray(p.aliases)?p.aliases:[];
       if(!p.aliases.includes(raw.id)) p.aliases.push(raw.id);
@@ -166,6 +212,7 @@ function startSession(gameId, name, options){
   if (!alreadyStarted) {
     g.sessions = (g.sessions || 0) + 1;
     p.totals.gamesPlayed = (p.totals.gamesPlayed || 0) + 1;
+    pushActivity(p,{type:'session',gameId});
     try { sessionStorage.setItem(sessionKey, '1'); } catch (_) {}
   }
   g.lastPlayedAt = p.lastPlayedAt = now();
@@ -194,11 +241,16 @@ function recordResult(gameId, result, name){
   state.activePlayerId = p.id;
   const g = ensureGame(p, gameId);
   const r = Object.assign({completed:false}, result || {});
+  const oldXp=Math.max(0,p.totals&&p.totals.xp||0);
+  const oldLevel=odysseyLevelFromXp(oldXp);
+  const oldAchievements=new Set(getAchievements(p.id).map(a=>a.id));
+
   syncProgress(gameId, r, p.name);
+  let duplicate=false;
   if (r.completed) {
     g.resultIds=Array.isArray(g.resultIds)?g.resultIds:[];
     const resultId=r.resultId ? String(r.resultId) : '';
-    const duplicate=resultId && g.resultIds.includes(resultId);
+    duplicate=!!(resultId && g.resultIds.includes(resultId));
     if(!duplicate){
       g.completions = (g.completions || 0) + 1;
       p.totals.completions = (p.totals.completions || 0) + 1;
@@ -208,6 +260,7 @@ function recordResult(gameId, result, name){
       p.totals.xp = (p.totals.xp || 0) + earned;
       g.xp = (g.xp || 0) + earned;
       r.xpEarned = earned;
+      pushActivity(p,{type:'completion',gameId,xp:earned,perfect:!!(r.meta&&(r.meta.perfect===true||r.meta.mistakes===0))});
       if(resultId){
         g.resultIds.push(resultId);
         if(g.resultIds.length>50) g.resultIds=g.resultIds.slice(-50);
@@ -215,7 +268,20 @@ function recordResult(gameId, result, name){
     }
   }
   g.lastResult = Object.assign({}, r, {at:now()});
-  save(); return clone(g);
+  save();
+
+  if(r.completed && !duplicate){
+    const newLevel=odysseyLevelFromXp(p.totals.xp||0);
+    const newAchievements=getAchievements(p.id).filter(a=>!oldAchievements.has(a.id));
+    showCelebration({
+      title:newLevel>oldLevel ? 'Odyssey Level Up!' : 'Round Complete!',
+      xpEarned:r.xpEarned||0,
+      level:newLevel,
+      levelUp:newLevel>oldLevel,
+      achievements:newAchievements
+    });
+  }
+  return clone(g);
 }
 function adoptLegacyProfiles(gameId, profiles, mapper){
   if (!Array.isArray(profiles)) return;
@@ -256,6 +322,80 @@ function showSaved(message){
   }
   el.textContent = message || 'Saved'; el.classList.add('show');
   clearTimeout(showSaved._t); showSaved._t = setTimeout(()=>el.classList.remove('show'), 900);
+}
+
+function showCelebration(opts){
+  opts=opts||{};
+  let el=document.getElementById('odysseyCelebration');
+  if(el) el.remove();
+  el=document.createElement('div');
+  el.id='odysseyCelebration';
+  el.className='odyssey-celebration';
+  const badges=Array.isArray(opts.achievements)?opts.achievements:[];
+  el.innerHTML=
+    '<div class="odyssey-celebration-title">'+(opts.title||'Nice job!')+'</div>'+
+    (opts.xpEarned?'<div class="odyssey-celebration-xp">+'+Math.max(0,+opts.xpEarned||0)+' Odyssey XP</div>':'')+
+    (opts.levelUp?'<div class="odyssey-celebration-level">Odyssey Level '+Math.max(1,+opts.level||1)+'</div>':'')+
+    (badges.length?'<div class="odyssey-celebration-badges">'+badges.map(a=>'🏅 '+a.name).join('<br>')+'</div>':'');
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  clearTimeout(showCelebration._t);
+  showCelebration._t=setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),250); }, badges.length||opts.levelUp?3600:2200);
+  return el;
+}
+function celebrateUnlock(title,detail){
+  return showCelebration({title:title||'New Unlock!',achievements:detail?[{name:detail}]:[]});
+}
+function openAvatarPicker(playerRef,opts){
+  opts=opts||{};
+  const p=resolvePlayer(playerRef); if(!p) return null;
+  const overlay=document.createElement('div'); overlay.className='odyssey-modal';
+  const card=document.createElement('div'); card.className='odyssey-modal-card';
+  const title=document.createElement('h2'); title.textContent='Choose an Avatar';
+  const grid=document.createElement('div'); grid.className='odyssey-avatar-grid';
+  for(const avatar of AVATARS){
+    const b=document.createElement('button');
+    b.type='button'; b.className='odyssey-avatar-choice'+(p.avatar===avatar.id?' selected':'');
+    b.innerHTML='<span style="background:'+avatar.color+'">'+avatar.symbol+'</span><small>'+avatar.label+'</small>';
+    protectNativeControl(b);
+    b.onclick=()=>{
+      setPlayerAvatar(p.id,avatar.id);
+      overlay.remove();
+      if(opts.onChange) opts.onChange(getPlayerAvatar(p.id));
+    };
+    grid.appendChild(b);
+  }
+  const cancel=document.createElement('button'); cancel.type='button'; cancel.className='odyssey-button secondary'; cancel.textContent='Cancel';
+  protectNativeControl(cancel); cancel.onclick=()=>overlay.remove();
+  card.append(title,grid,cancel); overlay.append(card); document.body.appendChild(overlay);
+  return overlay;
+}
+function showRoundResults(opts){
+  opts=opts||{};
+  const overlay=document.createElement('div'); overlay.className='odyssey-modal odyssey-results-modal';
+  const card=document.createElement('div'); card.className='odyssey-modal-card';
+  const title=document.createElement('h2'); title.textContent=opts.title||'Round Complete!';
+  const summary=document.createElement('div'); summary.className='odyssey-result-summary';
+  const rows=[];
+  if(opts.score!==undefined) rows.push(['Score',opts.score]);
+  if(opts.bestScore!==undefined) rows.push(['Best',opts.bestScore]);
+  if(opts.level!==undefined) rows.push(['Level',opts.level]);
+  if(opts.stars!==undefined && +opts.stars>0) rows.push(['Stars',opts.stars]);
+  if(opts.xpEarned!==undefined) rows.push(['Odyssey XP','+'+Math.max(0,+opts.xpEarned||0)]);
+  summary.innerHTML=rows.map(([k,v])=>'<div><span>'+k+'</span><strong>'+v+'</strong></div>').join('');
+  const actions=document.createElement('div'); actions.className='odyssey-modal-actions';
+  const primary=document.createElement('button'); primary.type='button'; primary.className='odyssey-button'; primary.textContent=opts.primaryLabel||'Continue';
+  protectNativeControl(primary); primary.onclick=()=>{overlay.remove(); if(opts.onPrimary) opts.onPrimary();};
+  actions.appendChild(primary);
+  if(opts.onReplay){
+    const replay=document.createElement('button'); replay.type='button'; replay.className='odyssey-button secondary'; replay.textContent='Play Again';
+    protectNativeControl(replay); replay.onclick=()=>{overlay.remove();opts.onReplay();}; actions.appendChild(replay);
+  }
+  const library=document.createElement('button'); library.type='button'; library.className='odyssey-button secondary'; library.textContent='Game Library';
+  protectNativeControl(library); library.onclick=()=>{overlay.remove(); if(opts.onLibrary) opts.onLibrary(); else returnToLibrary();};
+  actions.appendChild(library);
+  card.append(title,summary,actions); overlay.append(card); document.body.appendChild(overlay);
+  return overlay;
 }
 function openNameDialog(opts){
   opts = opts || {};
@@ -335,14 +475,56 @@ function getAchievements(playerRef){
   const games=Object.entries(p.games||{}).filter(([,g])=>g && !g.hidden);
   const played=games.filter(([,g])=>(g.sessions||0)>0).length;
   const completions=games.reduce((sum,[,g])=>sum+(g.completions||0),0);
+  const byId=Object.fromEntries(games);
+  const xp=Math.max(0,p.totals&&p.totals.xp||0);
   const out=[];
-  if (played>=1) out.push({id:'first-game',name:'First Adventure',description:'Play a Tessa’s Odyssey game.'});
-  if (played>=4) out.push({id:'all-four',name:'Around Odyssey',description:'Play all four Odyssey games.'});
-  if (completions>=10) out.push({id:'ten-completions',name:'Keep Going!',description:'Complete 10 rounds or levels.'});
-  const perfect=games.some(([,g])=>g && g.completions>0 && g.lastResult && g.lastResult.meta && (g.lastResult.meta.perfect===true || g.lastResult.meta.mistakes===0));
-  if (perfect) out.push({id:'perfect-round',name:'Perfect Round',description:'Finish a round with no mistakes.'});
-  if ((p.totals&&p.totals.xp||0)>=500) out.push({id:'xp-500',name:'Odyssey Explorer',description:'Earn 500 Odyssey XP.'});
+  const add=(id,name,description,icon='🏅')=>out.push({id,name,description,icon});
+
+  if (played>=1) add('first-game','First Adventure','Play a Tessa’s Odyssey game.','✨');
+  if (played>=4) add('all-four','Around Odyssey','Play all four Odyssey games.','🧭');
+  if (completions>=10) add('ten-completions','Keep Going!','Complete 10 rounds or levels.','🏆');
+  if (completions>=25) add('twenty-five-completions','Odyssey Regular','Complete 25 rounds or levels.','🌟');
+  if (completions>=50) add('fifty-completions','Odyssey Champion','Complete 50 rounds or levels.','👑');
+  const perfect=games.some(([,g])=>g&&g.completions>0&&g.lastResult&&g.lastResult.meta&&(g.lastResult.meta.perfect===true||g.lastResult.meta.mistakes===0));
+  if (perfect) add('perfect-round','Perfect Round','Finish a round with no mistakes.','💯');
+  if ((byId['whits-end']?.completions||0)>=5) add('whits-regular',"Whit's End Regular",'Complete 5 Whit’s End rounds.','🍨');
+  if ((byId['bernard-window-washing']?.completions||0)>=5) add('sparkling-clean','Sparkling Clean','Complete 5 Bernard window jobs.','✨');
+  if ((byId['wooten-mail-sorting']?.completions||0)>=5) add('mail-pro','Mail Route Pro','Complete 5 Wooten routes or sorting rounds.','✉️');
+  if ((byId['timothy-center-horse-racing']?.highestLevel||1)>=5) add('stable-master','Stable Master','Reach Level 5 at the Timothy Center.','🐴');
+  if (xp>=500) add('xp-500','Odyssey Explorer','Earn 500 Odyssey XP.','🗺️');
+  if (xp>=1000) add('xp-1000','Odyssey Hero','Earn 1,000 Odyssey XP.','⭐');
   return out;
+}
+function getRecentGame(playerRef){
+  const p=resolvePlayer(playerRef); if(!p) return null;
+  let best=null;
+  for(const [gameId,g] of Object.entries(p.games||{})){
+    if(!g||g.hidden||!(g.lastPlayedAt>0)) continue;
+    if(!best||g.lastPlayedAt>best.lastPlayedAt) best={gameId,lastPlayedAt:g.lastPlayedAt,progress:clone(g)};
+  }
+  return best;
+}
+function getChallenges(playerRef){
+  const p=resolvePlayer(playerRef); if(!p) return [];
+  const activity=Array.isArray(p.activity)?p.activity:[];
+  const day=localDayStart(), week=localWeekStart();
+  const today=activity.filter(a=>(a.at||0)>=day);
+  const thisWeek=activity.filter(a=>(a.at||0)>=week);
+  const dailySessions=today.filter(a=>a.type==='session').length;
+  const dailyCompletions=today.filter(a=>a.type==='completion').length;
+  const weeklyCompletions=thisWeek.filter(a=>a.type==='completion').length;
+  const weeklyGames=new Set(thisWeek.filter(a=>a.gameId).map(a=>a.gameId)).size;
+  const weeklyXp=thisWeek.reduce((sum,a)=>sum+Math.max(0,+a.xp||0),0);
+  const item=(id,title,current,target,period)=>({
+    id,title,current:Math.min(target,current),target,period,complete:current>=target
+  });
+  return [
+    item('daily-play','Play an Odyssey game today',dailySessions,1,'Daily'),
+    item('daily-complete','Complete a round today',dailyCompletions,1,'Daily'),
+    item('weekly-complete','Complete 5 rounds this week',weeklyCompletions,5,'Weekly'),
+    item('weekly-variety','Play 3 different games this week',weeklyGames,3,'Weekly'),
+    item('weekly-xp','Earn 100 Odyssey XP this week',weeklyXp,100,'Weekly')
+  ];
 }
 function getPlayerSummary(playerRef){
   const p=resolvePlayer(playerRef); if(!p) return null;
@@ -358,10 +540,12 @@ function getPlayerSummary(playerRef){
   const odysseyLevel=odysseyLevelFromXp(xp);
   const xpIntoLevel=xp%100;
   return {
-    id:p.id,name:p.name,xp,odysseyLevel,xpIntoLevel,xpToNextLevel:100-xpIntoLevel,
+    id:p.id,name:p.name,avatar:getPlayerAvatar(p.id),xp,odysseyLevel,xpIntoLevel,xpToNextLevel:100-xpIntoLevel,
     gamesPlayed,completions,
     lastPlayedAt:p.lastPlayedAt||0,games,
-    achievements:getAchievements(p.id)
+    recentGame:getRecentGame(p.id),
+    achievements:getAchievements(p.id),
+    challenges:getChallenges(p.id)
   };
 }
 function getDashboard(){ return state.players.map(p=>getPlayerSummary(p.id)); }
@@ -501,6 +685,12 @@ function openPlayerSelect(opts){
       const card=document.createElement('div');
       card.className='odyssey-player-card';
 
+      const avatar=getPlayerAvatar(player.id);
+      const avatarEl=document.createElement('div');
+      avatarEl.className='odyssey-player-avatar';
+      avatarEl.textContent=avatar.symbol;
+      avatarEl.style.background=avatar.color;
+
       const name=document.createElement('div');
       name.className='odyssey-player-name';
       name.textContent=player.name;
@@ -537,7 +727,12 @@ function openPlayerSelect(opts){
       });
 
       actions.append(cont,del);
-      card.append(name,meta,actions);
+      const identity=document.createElement('div');
+      identity.className='odyssey-player-identity';
+      const copy=document.createElement('div');
+      copy.append(name,meta);
+      identity.append(avatarEl,copy);
+      card.append(identity,actions);
       list.appendChild(card);
     }
 
@@ -817,33 +1012,40 @@ function createGameShell(opts){
 function awardXp(playerRef,amount,reason,gameId){
   const p=resolvePlayer(playerRef); if(!p) return null;
   const add=Math.max(0,Math.floor(+amount||0));
+  const oldLevel=odysseyLevelFromXp(p.totals&&p.totals.xp||0);
   p.totals=p.totals||{xp:0,gamesPlayed:0,completions:0};
   p.totals.xp=(p.totals.xp||0)+add;
   if(gameId){ const g=ensureGame(p,gameId); g.xp=(g.xp||0)+add; g.lastPlayedAt=now(); }
   p.lastPlayedAt=now();
+  pushActivity(p,{type:'xp',gameId:gameId||'',xp:add,reason:String(reason||'Bonus')});
   if(reason){
     p.xpHistory=Array.isArray(p.xpHistory)?p.xpHistory:[];
     p.xpHistory.push({amount:add,reason:String(reason),at:now()});
     if(p.xpHistory.length>50) p.xpHistory=p.xpHistory.slice(-50);
   }
   save();
+  const newLevel=odysseyLevelFromXp(p.totals.xp||0);
+  if(add) showCelebration({title:newLevel>oldLevel?'Odyssey Level Up!':(reason||'Bonus XP!'),xpEarned:add,level:newLevel,levelUp:newLevel>oldLevel});
   return getPlayerSummary(p.id);
 }
+
 
 installNativeInputGuards();
 
 const api = {
-  VERSION, STORAGE_KEY, MAX_PLAYERS, MAX_NAME,
+  VERSION, STORAGE_KEY, MAX_PLAYERS, MAX_NAME, AVATARS,
   cleanPlayerName, getPlayers, setPlayers, ensurePlayer, selectPlayer, startSession,
+  setPlayerAvatar, getPlayerAvatar, openAvatarPicker,
   syncProgress, recordResult, adoptLegacyProfiles, mergeGlobalNames, hidePlayerForGame,
   showSaved, openNameDialog, getGameStats, getGameProgress, saveGameProgress,
   getProgress:getGameProgress, loadGameProgress:getGameProgress,
   setGameProgress:saveGameProgress, saveProgress:saveGameProgress,
   listPlayers:getPlayers, getProfiles:getPlayers, savePlayers:setPlayers,
-  getSettings, setSettings, getPlayerSummary, getDashboard, getAchievements,
+  getSettings, setSettings, getPlayerSummary, getDashboard, getAchievements, getChallenges, getRecentGame,
   odysseyLevelFromXp, protectNativeControl, installNativeInputGuards, returnToLibrary,
   visiblePlayers, confirmDialog, openPlayerSelect, mountGameMenu, bindAutosave,
   normalizeProgress, checkpoint, createRoundId, createGameShell, awardXp,
+  showCelebration, celebrateUnlock, showRoundResults,
   getActivePlayer(){ const p=playerById(state.activePlayerId); return p ? clone(p) : null; },
   settings(){ return clone(state.settings); },
   setSetting(key,value){ state.settings[key]=!!value; save(); }
