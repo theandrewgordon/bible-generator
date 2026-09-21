@@ -498,6 +498,7 @@ let tcDomReady = false;
 let tcSharedMenu = null;
 let tcRaceResultId = '';
 let tcObstacleHits = 0;
+let tcAutoAdvanceAt = 0;
 
 const tcTrackMinY = -3.15;
 const tcTrackMaxY = 2.85;
@@ -1183,7 +1184,7 @@ function tcSyncDomUi()
 
     const results = document.getElementById('tc-results-overlay');
     if (results)
-        results.style.display = (!tcProfileMode && tcFinished && !tcMenuOpen && !tcIntroMode &&
+        results.style.display = (!tcProfileMode && tcFinished && !tcAutoAdvanceAt && !tcMenuOpen && !tcIntroMode &&
             !document.getElementById('odysseyRoundResults')) ? 'flex' : 'none';
 
     if (!tcProfileMode && tcFinished)
@@ -2897,6 +2898,7 @@ function tcResetLevel(resetLevel=false)
     tcPlayerDistance = 0;
     tcPlayerSpeed = .05;
     tcObstacleHits = 0;
+    tcAutoAdvanceAt = 0;
 
     tcObstacleTimer = new Timer(3);
     tcMessageTimer = new Timer();
@@ -3007,10 +3009,21 @@ function tcEndLevel()
 
     tcManualSave(false);
 
+    const playerWon = allHorses[0] === tcPlayer;
+
+    // Wins auto-advance to the next level without opening a menu. Keep the
+    // championship result and loss/retry result screens because there is no
+    // next level to flow into in those cases.
+    if (playerWon && tcLevel < tcLevels.length)
+    {
+        tcAutoAdvanceAt = performance.now() + 1200;
+        tcSyncDomUi();
+        return;
+    }
+
     const O = tcOdyssey();
     if (O && typeof O.showRoundResults == 'function')
     {
-        const playerWon = allHorses[0] === tcPlayer;
         const stats = tcGetStats();
         O.showRoundResults({
             title:playerWon ? 'Race Complete!' : 'Race Finished',
@@ -3043,7 +3056,7 @@ function tcEndLevel()
     }
 }
 
-function tcAdvanceOrRestart()
+function tcAdvanceOrRestart(autoContinue=false)
 {
     if (!tcFinished) return;
 
@@ -3058,6 +3071,16 @@ function tcAdvanceOrRestart()
         // Winning advances one level (or replays the final level after the championship).
         tcSaveActiveProfile();
         tcResetLevel(false);
+
+        // During normal level progression, keep the chosen horse/opponent and
+        // launch the next race immediately instead of returning to selectors.
+        if (autoContinue)
+        {
+            tcChoosingHorse = false;
+            tcChoosingOpponent = false;
+            tcIntroMode = false;
+            tcStartRace();
+        }
     }
     else
     {
@@ -3191,6 +3214,16 @@ function gameUpdate()
     }
 
     tcSyncDomUi();
+
+    // A completed winning round flows directly into the next level after a
+    // brief celebration. Do not interrupt the player with a results menu.
+    if (tcFinished && tcAutoAdvanceAt && performance.now() >= tcAutoAdvanceAt)
+    {
+        tcAutoAdvanceAt = 0;
+        tcAdvanceOrRestart(true);
+        tcSyncDomUi();
+        return;
+    }
 
     if (tcMenuOpen || tcIntroMode || tcFinished)
         return;
