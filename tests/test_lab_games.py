@@ -184,6 +184,10 @@ def test_odyssey_core_exposes_shared_platform_contract():
         "openPlayerSelect",
         "mountGameMenu",
         "bindAutosave",
+        "normalizeProgress",
+        "checkpoint",
+        "createRoundId",
+        "createGameShell",
         "awardXp",
     ):
         assert marker in js
@@ -200,6 +204,10 @@ def test_shared_odyssey_core_exposes_common_game_shell():
         "openPlayerSelect",
         "mountGameMenu",
         "bindAutosave",
+        "normalizeProgress",
+        "checkpoint",
+        "createRoundId",
+        "createGameShell",
         "confirmDialog",
         "getPlayerSummary",
         "getDashboard",
@@ -211,6 +219,10 @@ def test_shared_odyssey_core_exposes_common_game_shell():
     for event_name in (
         "keydown",
         "keyup",
+        "beforeinput",
+        "input",
+        "compositionstart",
+        "compositionend",
         "pointerdown",
         "pointerup",
         "mousedown",
@@ -252,4 +264,31 @@ def test_odyssey_dashboard_includes_xp_and_achievements():
     assert response.status_code == 200
     assert "Odyssey Level" in html
     assert "Total XP" in html
+    assert "XP to Odyssey Level" in html
+    assert "Odyssey XP earned here" in html
     assert "Achievements" in html or "odyssey-badges" in html
+
+
+def test_odyssey_core_dedupes_sessions_and_tracks_per_game_xp():
+    client = _client()
+    _sign_in(client)
+    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+
+    assert "tessas_odyssey_session_v1:" in js
+    assert "g.xp = (g.xp || 0) + earned" in js
+    assert "xpToNextLevel" in js
+    assert "xpIntoLevel" in js
+
+
+def test_completion_result_ids_are_present_for_all_four_games():
+    client = _client()
+    _sign_in(client)
+
+    for route in (
+        "/labs/games/whits-end",
+        "/labs/games/bernard-window-washing",
+        "/labs/games/wooten-mail-route",
+        "/labs/games/timothy-center-horse-racing",
+    ):
+        html = client.get(route).get_data(as_text=True)
+        assert "resultId" in html
