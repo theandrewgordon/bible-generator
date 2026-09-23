@@ -1181,6 +1181,7 @@ def same_brain_points():
     payload = request.get_json(silent=True) or {}
     event = str(payload.get("event") or "").strip()
     event_id = str(payload.get("eventId") or "").strip()[:96]
+    daily_key = str(payload.get("dateKey") or "").strip()[:10]
     amount = SAME_BRAIN_POINT_EVENTS.get(event)
     email = _signed_in_email()
     if not amount or not event_id or not email or not db:
@@ -1200,20 +1201,25 @@ def same_brain_points():
         awarded = (awarded + [event_id])[-150:]
         update = {**sb, "bits": bits, "awarded": awarded}
         if event == "daily_complete":
-            today = datetime.now(timezone.utc).date()
-            today_key = today.isoformat()
-            yesterday_key = (today - timedelta(days=1)).isoformat()
-            previous = str(sb.get("lastDailyDate") or "")
-            streak = max(0, int(sb.get("dailyStreak") or 0))
-            if previous == today_key:
-                pass
-            elif previous == yesterday_key:
-                streak += 1
-            else:
-                streak = 1
-            update["dailyStreak"] = streak
-            update["dailyBest"] = max(streak, int(sb.get("dailyBest") or 0))
-            update["lastDailyDate"] = today_key
+            try:
+                play_date = datetime.strptime(daily_key, "%Y-%m-%d").date()
+            except (TypeError, ValueError):
+                play_date = None
+            utc_today = datetime.now(timezone.utc).date()
+            if play_date is not None and abs((play_date - utc_today).days) <= 2:
+                today_key = play_date.isoformat()
+                yesterday_key = (play_date - timedelta(days=1)).isoformat()
+                previous = str(sb.get("lastDailyDate") or "")
+                streak = max(0, int(sb.get("dailyStreak") or 0))
+                if previous == today_key:
+                    pass
+                elif previous == yesterday_key:
+                    streak += 1
+                else:
+                    streak = 1
+                update["dailyStreak"] = streak
+                update["dailyBest"] = max(streak, int(sb.get("dailyBest") or 0))
+                update["lastDailyDate"] = today_key
         txn.set(ref, {"sameBrain": update}, merge=True)
         return bits, False
 
