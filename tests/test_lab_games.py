@@ -835,3 +835,82 @@ def test_same_brain_group_mode_is_async_and_capped_at_eight():
     assert "Split vote: " in html
     assert "Lone-wolf picks:" in html
     assert "Most aligned" in html
+
+
+
+def test_same_brain_adds_three_hundred_generated_questions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "QUESTION_EXPANSION_SPECS" in html
+    assert html.count('{tag:"') >= 15
+    assert "for(var i=0;i<20;i++)" in html
+    assert 'id:spec.prefix+"_"+String(i+1).padStart(2,"0")' in html
+    assert "QUESTIONS.push(" in html
+
+
+def test_same_brain_ten_question_plus_mode_and_free_receiver_support():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'id="ten-mode"' in html
+    assert "state.count=10" in html
+    assert "challenge.q.length" in html
+    assert "(ch.q.length===5||ch.q.length===10)" in html
+    assert "state.questionIds.length" in html
+    assert "Math.round(matches/c.q.length*100)" in html
+
+
+def test_same_brain_profile_rewards_selfie_and_premium_narration_ui():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "Brain Bits",
+        'data-buy="avatar_fox"',
+        'data-buy="theme_arcade"',
+        'data-plus-avatar="plus_crown"',
+        'data-plus-theme="plus_galaxy"',
+        'id="selfie-input"',
+        'capture="user"',
+        "same_brain_selfie_avatar",
+        'id="voice-select"',
+        "Premium narrator audio is AI-generated.",
+        "/labs/games/same-brain/tts",
+        "/labs/games/same-brain/points",
+        "/labs/games/same-brain/unlock",
+    ):
+        assert marker in html
+
+
+def test_same_brain_group_validation_supports_ten_unique_questions():
+    qids = [f"q{i}" for i in range(10)]
+    answers = [i % 4 for i in range(10)]
+    assert _same_brain_validate_answers(qids, answers) == (qids, answers)
+
+    duplicate = list(qids)
+    duplicate[-1] = duplicate[0]
+    assert _same_brain_validate_answers(duplicate, answers) is None
+
+
+def test_same_brain_backend_exposes_plus_rewards_and_tts_contract():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+    for marker in (
+        "def same_brain_profile()",
+        "def same_brain_points()",
+        "def same_brain_unlock()",
+        "def same_brain_tts()",
+        'model="gpt-4o-mini-tts"',
+        '"marin"',
+        "has_active_plus",
+        "SAME_BRAIN_POINT_EVENTS",
+        "SAME_BRAIN_COSMETICS",
+        "len(question_ids) not in {5, 10}",
+        "len(set(qids)) != len(qids)",
+    ):
+        assert marker in source
