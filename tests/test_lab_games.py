@@ -1204,3 +1204,42 @@ def test_same_brain_old_daily_replay_does_not_count_as_today_streak():
 
     assert 'state.replayDailyLabel===dailyTitle()' in html
     assert 'c.d===dailyTitle()' in html
+
+
+
+def test_same_brain_choices_have_letters_and_narration_reads_all_options():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'var letters=["A","B","C","D"]',
+        'class="choice-letter"',
+        "function questionSpeech(q)",
+        'return q.q+" "+q.a.map',
+        "new SpeechSynthesisUtterance(questionSpeech(q))",
+        'text:questionSpeech(q)',
+    ):
+        assert marker in html
+
+
+def test_same_brain_avatar_shop_has_no_neon_rainbow_and_more_premium_choices():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "Neon Frame" not in html
+    assert "🌈" not in html
+    for marker in (
+        "Wise Owl",
+        "Clever Fox",
+        "Robot Brain",
+        "Alien Brain",
+        "Octo Brain",
+        "Space Brain",
+        'data-buy="avatar_owl"',
+        'data-buy="avatar_alien"',
+        'data-buy="avatar_octopus"',
+        'data-buy="avatar_astronaut"',
+    ):
+        assert marker in html
