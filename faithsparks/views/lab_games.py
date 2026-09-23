@@ -1304,7 +1304,7 @@ def _same_brain_validate_answers(question_ids: object, answers: object) -> tuple
     if len(question_ids) not in {5, 10} or len(answers) != len(question_ids):
         return None
     qids = [str(item or "").strip()[:40] for item in question_ids]
-    if any(not item for item in qids) or len(set(qids)) != 5:
+    if any(not item for item in qids) or len(set(qids)) != len(qids):
         return None
     normalized = []
     for raw in answers:
@@ -1377,6 +1377,8 @@ def same_brain_group_create():
     if not name or not validated:
         return jsonify({"error": "invalid"}), 400
     question_ids, answers = validated
+    if len(question_ids) == 10 and not has_active_plus(get_user_doc(_signed_in_email())):
+        return jsonify({"error": "plus_required"}), 403
     pack = str(payload.get("pack") or "random").strip().lower()[:24]
 
     ref = None
