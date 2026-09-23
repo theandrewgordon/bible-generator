@@ -127,7 +127,7 @@ function questionSet(pack){
   return shuffled(pool).slice(0,5);
 }
 
-var state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:"random"};
+var state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:"random",score:0,brainType:""};
 var screens=["home","name","question","share","invite","result"];
 function track(event){try{var cfg=window.__ODYSSEY_SYNC_CONFIG__||{};if(!cfg.csrfToken)return;fetch("/labs/games/same-brain/analytics",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":cfg.csrfToken},body:JSON.stringify({event:event,pack:state.pack||"unknown"}),keepalive:true,credentials:"same-origin"}).catch(function(){})}catch(_){}}
 function show(name){screens.forEach(function(s){document.getElementById("screen-"+s).classList.toggle("hidden",s!==name)});window.scrollTo({top:0,behavior:"smooth"})}
@@ -151,7 +151,7 @@ function renderResult(){
     if(same)matches++;
     rows.push({q:q,same:same,a:q.a[c.a[i]][1],b:q.a[state.answers[i]][1]});
   }
-  var score=matches*20,bt=brainType(score);
+  var score=matches*20,bt=brainType(score);state.score=score;state.brainType=bt[0];
   document.getElementById("score-ring").style.setProperty("--score",score);
   document.getElementById("score-text").textContent=score+"%";
   document.getElementById("result-title").textContent=c.n+" + "+state.name;
@@ -164,6 +164,36 @@ function renderResult(){
   track("result_completed");show("result");
 }
 function nameNext(){var name=cleanName(document.getElementById("player-name").value);if(!name){document.getElementById("player-name").focus();return}state.name=name;renderQuestion()}
+async function makeResultImage(){
+  try{
+    var canvas=document.createElement("canvas"),ctx=canvas.getContext("2d");
+    canvas.width=1080;canvas.height=1080;
+    var g=ctx.createLinearGradient(0,0,1080,1080);g.addColorStop(0,"#201a32");g.addColorStop(.62,"#6f4bd8");g.addColorStop(1,"#b161d0");
+    ctx.fillStyle=g;ctx.fillRect(0,0,1080,1080);
+    ctx.globalAlpha=.10;ctx.font="260px system-ui";ctx.fillText("🧠",780,1010);ctx.globalAlpha=1;
+    ctx.textAlign="center";ctx.fillStyle="#ffffff";
+    ctx.font="800 42px system-ui";ctx.fillText("SAME BRAIN?",540,150);
+    ctx.font="700 46px system-ui";ctx.fillText(state.creator.n+" + "+state.name,540,305);
+    ctx.font="950 150px system-ui";ctx.fillText(state.score+"%",540,535);
+    ctx.font="950 54px system-ui";ctx.fillText("SAME BRAIN",540,620);
+    ctx.fillStyle="rgba(255,255,255,.16)";ctx.beginPath();ctx.roundRect(285,685,510,100,50);ctx.fill();
+    ctx.fillStyle="#ffffff";ctx.font="800 40px system-ui";ctx.fillText(state.brainType,540,750);
+    ctx.globalAlpha=.82;ctx.font="600 30px system-ui";ctx.fillText("Think you can match us?",540,905);ctx.globalAlpha=1;
+    return await new Promise(function(resolve){canvas.toBlob(resolve,"image/png",.95)});
+  }catch(_){return null}
+}
+async function shareResult(){
+  var c=state.creator,challengeUrl=location.origin+location.pathname+"?c="+encode(c);
+  var text=c.n+" + "+state.name+" are "+state.score+"% Same Brain 🧠 — think you can match "+c.n+"?";
+  var blob=await makeResultImage();
+  if(blob&&navigator.share&&window.File){
+    try{
+      var file=new File([blob],"same-brain-"+state.score+".png",{type:"image/png"});
+      if(!navigator.canShare||navigator.canShare({files:[file]})){await navigator.share({text:text,url:challengeUrl,files:[file]});return}
+    }catch(_){}
+  }
+  await shareText(text,challengeUrl);
+}
 async function shareText(text,url){if(navigator.share){try{await navigator.share({text:text,url:url});return}catch(e){}}try{await navigator.clipboard.writeText((text?text+" ":"")+url);alert("Copied to clipboard!")}catch(e){prompt("Copy this link:",url)}}
 document.getElementById("start-btn").addEventListener("click",function(){startCreator("random")});
 document.querySelectorAll("[data-pack]").forEach(function(btn){btn.addEventListener("click",function(){startCreator(btn.dataset.pack)})});
@@ -175,7 +205,7 @@ document.getElementById("copy-btn").addEventListener("click",function(){shareTex
 document.getElementById("play-second-btn").addEventListener("click",function(){var payload=decode((state.challengeUrl.split("?c=")[1]||""));if(payload)startResponder(payload)});
 document.getElementById("accept-btn").addEventListener("click",function(){document.getElementById("name-heading").textContent="And what should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)});
 document.getElementById("new-round").addEventListener("click",startCreator);
-document.getElementById("result-share").addEventListener("click",function(){track("result_shared");var c=state.creator,matches=0;for(var i=0;i<5;i++)if(c.a[i]===state.answers[i])matches++;var score=matches*20;var challengeUrl=location.origin+location.pathname+"?c="+encode(c);shareText(c.n+" + "+state.name+" are "+score+"% Same Brain 🧠 — think you can match "+c.n+"?",challengeUrl)});
+document.getElementById("result-share").addEventListener("click",function(){track("result_shared");shareResult()});
 var param=new URLSearchParams(location.search).get("c"),challenge=param&&decode(param);
 if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else show("home");
 })();
