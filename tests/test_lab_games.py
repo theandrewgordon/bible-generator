@@ -682,3 +682,84 @@ def test_same_brain_demo_has_portable_challenge_loop():
     assert 'renderResult()' in html
     assert '% SAME BRAIN' in html
     assert 'brainType(score)' in html
+
+
+
+def test_same_brain_has_replay_packs_daily_mode_and_result_image_sharing():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'data-pack="friends"',
+        'data-pack="family"',
+        'data-pack="chaos"',
+        'data-pack="daily"',
+        "function seededFive(seed)",
+        "function questionSet(pack)",
+        "function makeResultImage()",
+        "canvas.width=1080",
+        "navigator.canShare",
+        "new File([blob]",
+    ):
+        assert marker in html
+
+
+def test_same_brain_funnel_analytics_requires_csrf_and_accepts_known_events():
+    client = _client()
+    _sign_in(client)
+
+    client.get("/labs/games/same-brain")
+    with client.session_transaction() as flask_session:
+        csrf_token = flask_session.get("_csrf_token")
+    assert csrf_token
+
+    missing = client.post(
+        "/labs/games/same-brain/analytics",
+        json={"event": "start", "pack": "daily"},
+    )
+    assert missing.status_code == 400
+
+    accepted = client.post(
+        "/labs/games/same-brain/analytics",
+        json={"event": "start", "pack": "daily"},
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert accepted.status_code == 200
+    assert accepted.get_json()["ok"] is True
+
+    unknown = client.post(
+        "/labs/games/same-brain/analytics",
+        json={"event": "not-real", "pack": "daily"},
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert unknown.status_code == 400
+
+
+def test_same_brain_validates_shared_answer_indexes_and_escapes_results():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "function validChallenge(ch)" in html
+    assert "Number.isInteger(ans)" in html
+    assert "ans>=0&&ans<q.a.length" in html
+    assert "function esc(v)" in html
+    assert "esc(c.n)" in html
+    assert "esc(state.name)" in html
+
+
+def test_same_brain_tracks_core_viral_funnel_events():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for event in (
+        'track("start")',
+        'track("challenge_created")',
+        'track("challenge_shared")',
+        'track("challenge_opened")',
+        'track("result_completed")',
+        'track("result_shared")',
+    ):
+        assert event in html
