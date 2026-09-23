@@ -1,9 +1,11 @@
+import hmac
 import json
 import re
+import secrets
 from pathlib import Path
 
 from firebase_admin import firestore
-from flask import Blueprint, render_template, redirect, url_for, session, Response, request, flash, send_file, abort, current_app, g
+from flask import Blueprint, jsonify, make_response, render_template, redirect, url_for, session, Response, request, flash, send_file, abort, current_app, g
 from flask_dance.contrib.google import google
 from faithsparks.util.proverb import get_proverb_of_day
 from faithsparks.services.collections import get_collections
@@ -240,6 +242,121 @@ def labs():
         maturity_labels=MATURITY,
         noindex=True,
     )
+
+
+_SAME_BRAIN_FILE = Path(__file__).resolve().parents[1] / "content" / "lab_games" / "same-brain.html"
+_SAME_BRAIN_PUBLIC_EVENTS = {
+    "home_view",
+    "return_visit",
+    "start",
+    "challenge_created",
+    "challenge_shared",
+    "beat_chain_shared",
+    "custom_created",
+    "challenge_opened",
+    "result_completed",
+    "result_shared",
+}
+
+
+def _same_brain_public_csrf() -> str:
+    token = str(session.get("_same_brain_csrf") or "")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_same_brain_csrf"] = token
+    return token
+
+
+@bp.get('/same-brain')
+def same_brain_public():
+    # Challenge URLs can contain custom questions, but are intentionally capped
+    # so malformed links cannot turn this lightweight public route into a large
+    # request/parser surface.
+    if len(request.query_string or b"") > 8000:
+        return Response("That Same Brain challenge link is too large.", 414, mimetype="text/plain")
+
+    if not _SAME_BRAIN_FILE.is_file():
+        abort(404)
+
+    html = _SAME_BRAIN_FILE.read_text(encoding="utf-8")
+    bootstrap = (
+        "<script>"
+        "window.__SAME_BRAIN_PUBLIC__=true;"
+        "window.__ODYSSEY_SYNC_CONFIG__="
+        + json.dumps({"csrfToken": _same_brain_public_csrf()}).replace("<", "\\u003c")
+        + ";"
+        "</script>"
+    )
+    if "</head>" in html:
+        html = html.replace("</head>", bootstrap + "</head>", 1)
+    else:
+        html = bootstrap + html
+
+    # Public sharing should feel standalone rather than like a Labs escape
+    # hatch. Keep the development route untouched for signed-in testing.
+    html = html.replace(
+        "<title>Same Brain? | Faith Sparks Labs</title>",
+        "<title>Same Brain? — Play Today’s 5</title>",
+        1,
+    )
+
+    response = make_response(html)
+    response.mimetype = "text/html"
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Challenge query strings contain nicknames/answers and should never land
+    # in search results. The clean landing page may be indexed.
+    if request.args.get("c") or request.args.get("g"):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return response
+
+
+@bp.post('/same-brain/analytics')
+def same_brain_public_analytics():
+    payload = request.get_json(silent=True) or {}
+    event = str(payload.get("event") or "").strip()
+    pack = str(payload.get("pack") or "unknown").strip().lower()[:24]
+    if event not in _SAME_BRAIN_PUBLIC_EVENTS:
+        return jsonify({"error": "unknown_event"}), 400
+
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _same_brain_public_csrf()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    # Public analytics is deliberately aggregate-only. Rate limit per IP so a
+    # shared link cannot be used as a cheap write-amplification endpoint.
+    limit = check_rate_limit(
+        "same_brain_public_analytics",
+        get_client_ip(),
+        limit=120,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"ok": True, "rate_limited": True})
+
+    dedupe_key = f"sb_public_metric:{event}:{pack}"
+    if session.get(dedupe_key):
+        return jsonify({"ok": True, "duplicate": True})
+
+    try:
+        if db:
+            db.collection("analytics").document("same_brain_public_funnel").set(
+                {
+                    "total": firestore.Increment(1),
+                    "events": {event: firestore.Increment(1)},
+                    "packs": {pack: firestore.Increment(1)},
+                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                },
+                merge=True,
+            )
+    except Exception:
+        # Analytics can never be allowed to break the game.
+        pass
+
+    session[dedupe_key] = True
+    return jsonify({"ok": True})
 
 
 @bp.route('/lesson-pack', methods=['GET', 'POST'])
