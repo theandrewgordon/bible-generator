@@ -1557,6 +1557,9 @@ SAME_BRAIN_EVENTS = {
     "challenge_opened",
     "result_completed",
     "result_shared",
+    "response_submitted",
+    "creator_result_opened",
+    "daily_crowd_viewed",
 }
 
 
@@ -1598,6 +1601,61 @@ def same_brain_analytics():
 
     session[dedupe_key] = True
     return jsonify({"ok": True})
+
+
+@bp.get("/same-brain/metrics")
+def same_brain_metrics():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+
+    def _doc_counts(doc_id: str) -> dict:
+        if not db:
+            return {}
+        try:
+            snap = db.collection("analytics").document(doc_id).get()
+            data = snap.to_dict() or {} if snap.exists else {}
+            return data.get("events") if isinstance(data.get("events"), dict) else {}
+        except Exception:
+            return {}
+
+    public_events = _doc_counts("same_brain_public_funnel")
+    labs_events = _doc_counts("same_brain_funnel")
+
+    def _count(name: str) -> int:
+        return max(0, int(public_events.get(name) or 0))
+
+    def _rate(num: str, den: str) -> float | None:
+        denominator = _count(den)
+        if denominator <= 0:
+            return None
+        return round(_count(num) / denominator * 100, 1)
+
+    return jsonify({
+        "ok": True,
+        "public": {
+            "events": {key: max(0, int(value or 0)) for key, value in public_events.items()},
+            "rates": {
+                "completionRate": _rate("result_completed", "start"),
+                "shareRate": _rate("challenge_shared", "result_completed"),
+                "inviteCompletionRate": _rate("response_submitted", "challenge_opened"),
+                "chainRate": _rate("beat_chain_shared", "result_completed"),
+                "returnRate": _rate("return_visit", "home_view"),
+                "creatorPayoffRate": _rate("creator_result_opened", "response_submitted"),
+            },
+        },
+        "labs": {
+            "events": {key: max(0, int(value or 0)) for key, value in labs_events.items()},
+        },
+        "definitions": {
+            "completionRate": "result_completed / start",
+            "shareRate": "challenge_shared / result_completed",
+            "inviteCompletionRate": "response_submitted / challenge_opened",
+            "chainRate": "beat_chain_shared / result_completed",
+            "returnRate": "return_visit / home_view",
+            "creatorPayoffRate": "creator_result_opened / response_submitted",
+        },
+    })
 
 
 @bp.get("/<slug>")
