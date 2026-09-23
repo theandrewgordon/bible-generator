@@ -16,40 +16,95 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
   <div class="topbar"><div><div class="brand">Same Brain? 🧠</div><div class="labs">FAITH SPARKS LABS DEMO</div></div><a href="/labs/games" style="color:#6f4bd8;font-weight:800;text-decoration:none">← Games Lab</a></div>
 
   <section id="screen-home" class="card hero">
-    <div class="account-strip"><span id="bits-chip" class="chip">🧠 <span id="bits-count">0</span> Brain Bits</span><span id="plus-chip" class="chip plus-chip">Free</span></div>
-    <div id="avatar-preview" class="avatar-preview">🧠</div>
     <div class="brain">🧠</div>
     <div class="kicker">Think you know each other?</div>
     <h1>Same Brain?</h1>
-    <p class="sub">Answer five delightfully weird questions. Send your challenge to someone. See how often your brains make the same choice.</p>
-    <div class="mode-row" aria-label="Question length"><button id="five-mode" class="mode-btn active" type="button">5 questions<br><small>Fast & viral</small></button><button id="ten-mode" class="mode-btn" type="button">10 questions ✨<br><small>Plus creation mode</small></button></div>
-    <div class="pack-grid" aria-label="Question packs">
-      <button class="pack" data-pack="friends">👯 Friends<small>Preferences & personality</small></button>
-      <button class="pack" data-pack="family">🏡 Family<small>Home, food & everyday life</small></button>
-      <button class="pack" data-pack="chaos">🦝 Chaos<small>The weirdest choices</small></button>
-      <button class="pack" data-pack="food">🍕 Food<small>Strong opinions only</small></button>
-      <button class="pack" data-pack="travel">✈️ Travel<small>Trips, hotels & adventure</small></button>
-      <button class="pack" data-pack="couples">❤️ Couples<small>Habits, dates & decisions</small></button>
-      <button class="pack" data-pack="work">💼 Work<small>How you operate</small></button>
-      <button class="pack" data-pack="nostalgia">📼 Nostalgia<small>Throwback preferences</small></button>
-      <button class="pack" data-pack="wouldyou">🤔 Would You Rather<small>Impossible choices</small></button>
-      <button class="pack daily" data-pack="daily">☀️ Daily Brain<small>Same five for everyone today</small></button>
-    </div>
-    <label for="deck-select" style="margin:8px 0 8px;text-align:left">More decks</label>
-    <select id="deck-select" class="name-input"><option value="">Choose from 100 extra decks…</option></select>
+    <p class="sub">Answer today’s 5 weird questions. Send them to one friend. See how often your brains match.</p>
+
     <div class="stack">
-      <button id="start-btn" class="button primary wide">Random mix</button>
-      <label for="group-pack" style="margin:4px 0 0;text-align:left">Group Brain pack</label><select id="group-pack" class="name-input" aria-label="Choose Group Brain pack"><option value="random">Random Mix</option><option value="friends">Friends</option><option value="family">Family</option><option value="chaos">Chaos</option><option value="food">Food</option><option value="travel">Travel</option><option value="couples">Couples</option><option value="work">Work</option><option value="nostalgia">Nostalgia</option><option value="wouldyou">Would You Rather</option><option value="daily">Daily Brain</option></select><button id="group-btn" class="button secondary wide">Create Group Brain (4–8 players)</button><button id="demo-btn" class="button ghost wide">Try a two-player demo on this device</button>
+      <button id="start-btn" class="button primary wide">Play today’s 5</button>
     </div>
-    <details class="shop"><summary>🛍️ Brain Shop & Avatar</summary><div class="premium-note">Earn Brain Bits by playing. Cosmetics never affect scores.</div><div class="shop-grid">
-      <button class="shop-item" data-buy="frame_neon">🌈 Neon Frame<br><small>60 Bits</small></button>
-      <button class="shop-item" data-buy="frame_stars">⭐ Star Frame<br><small>80 Bits</small></button>
-      <button class="shop-item" data-buy="avatar_fox">🦊 Fox Avatar<br><small>100 Bits</small></button>
-      <button class="shop-item" data-buy="avatar_robot">🤖 Robot Avatar<br><small>100 Bits</small></button>
-      <button class="shop-item" data-buy="theme_sunset">🌅 Sunset Card<br><small>120 Bits</small></button>
-      <button class="shop-item" data-buy="theme_arcade">🕹️ Arcade Card<br><small>140 Bits</small></button><button class="shop-item" data-plus-avatar="plus_crown">👑 Crown Brain<br><small>Plus exclusive</small></button><button class="shop-item" data-plus-theme="plus_galaxy">🌌 Galaxy Card<br><small>Plus exclusive</small></button>
-    </div><label for="selfie-input">Use a selfie avatar on this device</label><input id="selfie-input" type="file" accept="image/*" capture="user"><div class="premium-note">The selfie stays in this browser only and is not uploaded.</div></details>
-    <label for="voice-select">Narrator</label><select id="voice-select" class="name-input"><option value="browser">Device voice (free)</option><option value="marin">✨ Marin — natural</option><option value="cedar">✨ Cedar — warm</option><option value="coral">✨ Coral — bright</option><option value="sage">✨ Sage — calm</option></select><div class="premium-note">Premium narrator audio is AI-generated.</div><p id="plus-note" class="tiny">Free includes 5-question challenges and browser read-aloud. Plus unlocks 10-question creation, all extra decks, premium narrator voices, and premium cosmetics.</p>
+    <p class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p>
+
+    <details style="margin-top:18px;text-align:left">
+      <summary style="cursor:pointer;font-weight:900">Pick a different set</summary>
+      <div class="pack-grid" aria-label="Question packs">
+        <button class="pack" data-pack="friends">👯 Friends<small>Preferences & personality</small></button>
+        <button class="pack" data-pack="family">🏡 Family<small>Home & everyday life</small></button>
+        <button class="pack" data-pack="chaos">🦝 Chaos<small>The weirdest choices</small></button>
+        <button class="pack" data-pack="food">🍕 Food<small>Strong opinions only</small></button>
+        <button class="pack" data-pack="travel">✈️ Travel<small>Trips & adventure</small></button>
+        <button class="pack" data-pack="couples">❤️ Couples<small>Habits & decisions</small></button>
+        <button class="pack" data-pack="work">💼 Work<small>How you operate</small></button>
+        <button class="pack" data-pack="nostalgia">📼 Nostalgia<small>Throwback preferences</small></button>
+        <button class="pack" data-pack="wouldyou">🤔 Would You Rather<small>Impossible choices</small></button>
+        <button class="pack daily" data-pack="daily">☀️ Today’s Mix<small>Same set all day</small></button>
+      </div>
+      <label for="deck-select" style="margin:8px 0 8px">More decks</label>
+      <select id="deck-select" class="name-input"><option value="">Choose a themed deck…</option></select>
+    </details>
+
+    <details style="margin-top:14px;text-align:left">
+      <summary style="cursor:pointer;font-weight:900">More ways to play</summary>
+      <div class="mode-row" aria-label="Question length">
+        <button id="five-mode" class="mode-btn active" type="button">5 questions<br><small>Default</small></button>
+        <button id="ten-mode" class="mode-btn" type="button">10 questions ✨<br><small>Plus</small></button>
+      </div>
+      <div class="stack">
+        <label for="group-pack" style="margin:4px 0 0">Group Brain pack</label>
+        <select id="group-pack" class="name-input" aria-label="Choose Group Brain pack">
+          <option value="daily">Today’s Mix</option>
+          <option value="random">Random Mix</option>
+          <option value="friends">Friends</option>
+          <option value="family">Family</option>
+          <option value="chaos">Chaos</option>
+          <option value="food">Food</option>
+          <option value="travel">Travel</option>
+          <option value="couples">Couples</option>
+          <option value="work">Work</option>
+          <option value="nostalgia">Nostalgia</option>
+          <option value="wouldyou">Would You Rather</option>
+        </select>
+        <button id="group-btn" class="button secondary wide">Create Group Brain (4–8)</button>
+        <button id="demo-btn" class="button ghost wide">Play together on this device</button>
+      </div>
+    </details>
+
+    <details class="shop">
+      <summary>Customize</summary>
+      <div class="account-strip" style="justify-content:flex-start;margin-top:12px">
+        <span id="bits-chip" class="chip">🧠 <span id="bits-count">0</span> Brain Bits</span>
+        <span id="plus-chip" class="chip plus-chip">Free</span>
+      </div>
+      <div id="avatar-preview" class="avatar-preview">🧠</div>
+
+      <label for="voice-select">Narrator</label>
+      <select id="voice-select" class="name-input">
+        <option value="browser">Device voice (free)</option>
+        <option value="marin">✨ Marin — natural</option>
+        <option value="cedar">✨ Cedar — warm</option>
+        <option value="coral">✨ Coral — bright</option>
+        <option value="sage">✨ Sage — calm</option>
+      </select>
+      <div class="premium-note">Premium narrator audio is AI-generated.</div>
+
+      <div class="premium-note" style="margin-top:14px">Earn Brain Bits by playing. Cosmetics never affect scores.</div>
+      <div class="shop-grid">
+        <button class="shop-item" data-buy="frame_neon">🌈 Neon Frame<br><small>60 Bits</small></button>
+        <button class="shop-item" data-buy="frame_stars">⭐ Star Frame<br><small>80 Bits</small></button>
+        <button class="shop-item" data-buy="avatar_fox">🦊 Fox Avatar<br><small>100 Bits</small></button>
+        <button class="shop-item" data-buy="avatar_robot">🤖 Robot Avatar<br><small>100 Bits</small></button>
+        <button class="shop-item" data-buy="theme_sunset">🌅 Sunset Card<br><small>120 Bits</small></button>
+        <button class="shop-item" data-buy="theme_arcade">🕹️ Arcade Card<br><small>140 Bits</small></button>
+        <button class="shop-item" data-plus-avatar="plus_crown">👑 Crown Brain<br><small>Plus exclusive</small></button>
+        <button class="shop-item" data-plus-theme="plus_galaxy">🌌 Galaxy Card<br><small>Plus exclusive</small></button>
+      </div>
+
+      <label for="selfie-input">Use a selfie avatar on this device</label>
+      <input id="selfie-input" type="file" accept="image/*" capture="user">
+      <div class="premium-note">The selfie stays in this browser only and is not uploaded.</div>
+      <p id="plus-note" class="tiny">Free includes the core game. Plus adds 10-question creation, extra decks, premium narrator voices, and premium cosmetics.</p>
+    </details>
   </section>
 
   <section id="screen-name" class="card hidden">
@@ -345,7 +400,7 @@ function applyTheme(){var card=document.getElementById("share-card"),choice="";t
 function applyAvatar(){var box=document.getElementById("avatar-preview"),saved="",selected="";try{saved=localStorage.getItem("same_brain_selfie_avatar")||"";selected=localStorage.getItem("same_brain_avatar_choice")||""}catch(_){};if(selected==="selfie"&&saved){box.innerHTML='<img alt="Your local selfie avatar" src="'+saved+'">';return}var u=(state.profile&&state.profile.unlocks)||[];if(selected==="avatar_robot"&&u.indexOf("avatar_robot")>=0){box.textContent="🤖";return}if(selected==="avatar_fox"&&u.indexOf("avatar_fox")>=0){box.textContent="🦊";return}if(state.profile&&state.profile.plus&&selected==="plus_crown"){box.textContent="👑";return}box.textContent="🧠"}
 function csrf(){return (window.__ODYSSEY_SYNC_CONFIG__||{}).csrfToken||""}
 async function apiJson(url,options){options=options||{};options.credentials="same-origin";options.headers=Object.assign({"Content-Type":"application/json"},options.headers||{});if(options.method&&options.method!=="GET")options.headers["X-CSRF-Token"]=csrf();var r=await fetch(url,options);var data=await r.json().catch(function(){return {}});if(!r.ok){var e=new Error(data.error||"request_failed");e.code=data.error||"request_failed";throw e}return data}
-function startGroupCreator(){var pack=(document.getElementById("group-pack")||{}).value||"random";startCreator(pack);state.mode="group_creator";document.getElementById("name-heading").textContent="Who is starting the Group Brain?"}
+function startGroupCreator(){var pack=(document.getElementById("group-pack")||{}).value||"daily";startCreator(pack);state.mode="group_creator";document.getElementById("name-heading").textContent="Who is starting the Group Brain?"}
 async function loadGroup(code){
   var storedKey="";try{storedKey=localStorage.getItem("same_brain_group_result_key:"+String(code).toUpperCase())||""}catch(_){}
   if(storedKey){try{return await loadGroupResults(code,storedKey)}catch(_){}}
@@ -481,7 +536,7 @@ document.getElementById("five-mode").addEventListener("click",function(){state.c
 document.getElementById("ten-mode").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating 10-question challenges is a Plus feature. Friends can always play a 10-question challenge you send them.");return}state.count=10;this.classList.add("active");document.getElementById("five-mode").classList.remove("active")});
 document.querySelectorAll("[data-buy]").forEach(function(btn){btn.addEventListener("click",async function(){try{var item=btn.dataset.buy,p=await apiJson("/labs/games/same-brain/unlock",{method:"POST",body:JSON.stringify({item:item})});state.profile.bits=p.bits;state.profile.unlocks=p.unlocks;if(item.indexOf("avatar_")===0){try{localStorage.setItem("same_brain_avatar_choice",item)}catch(_){}}if(item.indexOf("theme_")===0){try{localStorage.setItem("same_brain_theme_choice",item)}catch(_){}}renderProfile()}catch(e){alert(e.code==="not_enough_bits"?"Not enough Brain Bits yet.":"Could not unlock that item.")}})});
 document.querySelectorAll("[data-plus-avatar]").forEach(function(btn){btn.addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("That avatar is included with Plus.");return}try{localStorage.setItem("same_brain_avatar_choice",btn.dataset.plusAvatar)}catch(_){}applyAvatar()})});document.querySelectorAll("[data-plus-theme]").forEach(function(btn){btn.addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("That result-card theme is included with Plus.");return}try{localStorage.setItem("same_brain_theme_choice",btn.dataset.plusTheme)}catch(_){}applyTheme()})});document.getElementById("selfie-input").addEventListener("change",function(){var file=this.files&&this.files[0];if(!file||!file.type.startsWith("image/"))return;var reader=new FileReader();reader.onload=function(){var img=new Image();img.onload=function(){var size=Math.min(img.width,img.height),sx=(img.width-size)/2,sy=(img.height-size)/2,canvas=document.createElement("canvas");canvas.width=256;canvas.height=256;canvas.getContext("2d").drawImage(img,sx,sy,size,size,0,0,256,256);try{localStorage.setItem("same_brain_selfie_avatar",canvas.toDataURL("image/jpeg",.78));localStorage.setItem("same_brain_avatar_choice","selfie")}catch(_){}applyAvatar()};img.src=reader.result};reader.readAsDataURL(file)});
-document.getElementById("start-btn").addEventListener("click",function(){startCreator("random")});
+document.getElementById("start-btn").addEventListener("click",function(){state.count=5;document.getElementById("five-mode").classList.add("active");document.getElementById("ten-mode").classList.remove("active");startCreator("daily")});
 document.querySelectorAll("[data-pack]").forEach(function(btn){btn.addEventListener("click",function(){startCreator(btn.dataset.pack)})});
 document.getElementById("speak-question").addEventListener("click",async function(){
   var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q)return;
@@ -501,7 +556,7 @@ document.getElementById("share-btn").addEventListener("click",function(){track("
 document.getElementById("copy-btn").addEventListener("click",function(){shareText("",state.challengeUrl)});
 document.getElementById("play-second-btn").addEventListener("click",function(){var payload=decode((state.challengeUrl.split("?c=")[1]||""));if(payload)startResponder(payload)});document.getElementById("group-results-btn").addEventListener("click",function(){if(state.groupCode&&state.groupResultKey)loadGroupResults(state.groupCode,state.groupResultKey).catch(function(){alert("Could not load group results yet.")})});
 document.getElementById("accept-btn").addEventListener("click",function(){if(state.mode==="group_invite")state.mode="group_responder";document.getElementById("name-heading").textContent="And what should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)});
-document.getElementById("new-round").addEventListener("click",function(){startCreator("random")});
+document.getElementById("new-round").addEventListener("click",function(){state.count=5;startCreator("daily")});
 document.getElementById("result-share").addEventListener("click",function(){track("result_shared");shareResult()});
 loadProfile();var params=new URLSearchParams(location.search),groupCode=params.get("g"),param=params.get("c"),challenge=param&&decode(param);if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else show("home");
 })();
