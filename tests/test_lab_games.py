@@ -942,7 +942,7 @@ def test_same_brain_home_defaults_to_simple_daily_one_to_one_flow():
     assert "More ways to play" in html
     assert "Customize" in html
     assert "Group Brain" in html
-    assert "4–8 people" in html
+    assert "3–8 people" in html
     assert "10 questions ✨" in html
     assert "Brain Shop" not in html
 
@@ -1794,3 +1794,14 @@ def test_same_brain_final_answer_has_time_for_back_correction():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert "setTimeout(function(){if(state.answers.length>=state.questionIds.length)finishQuestions();else renderQuestion()},420)" in html
+
+
+
+def test_same_brain_group_brain_is_three_to_eight_people():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "3–8 people, answer whenever you want" in html
+    assert 'g.n<3?"Still forming":"Results live"' in html
+    assert SAME_BRAIN_GROUP_MAX_PLAYERS == 8
