@@ -263,6 +263,9 @@ _SAME_BRAIN_PUBLIC_EVENTS = {
     "challenge_opened",
     "result_completed",
     "result_shared",
+    "response_submitted",
+    "creator_result_opened",
+    "daily_crowd_viewed",
 }
 
 
