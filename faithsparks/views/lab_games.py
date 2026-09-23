@@ -113,7 +113,8 @@ def _access_denied():
 def _require_access():
     email = _signed_in_email()
     if not email:
-        return redirect(f"/login/google/start?next={request.path}")
+        next_url = request.full_path.rstrip("?") if request.query_string else request.path
+        return redirect(f"/login/google/start?next={next_url}")
     if not _has_beta_access(email):
         return _access_denied()
     return None
