@@ -1,6 +1,7 @@
 from flask import Flask
 
 from faithsparks.views.lab_games import bp, _same_brain_group_invite, _same_brain_group_result, _same_brain_validate_answers, SAME_BRAIN_GROUP_MAX_PLAYERS
+from faithsparks.views.public import bp as public_bp
 
 
 def _client():
@@ -13,6 +14,13 @@ def _client():
 def _sign_in(client, email="player@example.com"):
     with client.session_transaction() as flask_session:
         flask_session["user_email"] = email
+
+
+def _public_client():
+    app = Flask(__name__, template_folder="../templates", static_folder="../static")
+    app.secret_key = "same-brain-public-test"
+    app.register_blueprint(public_bp)
+    return app.test_client()
 
 
 def test_games_lab_requires_sign_in():
@@ -1016,3 +1024,83 @@ def test_same_brain_tracks_return_and_chain_funnel_events():
         '"custom_created"',
     ):
         assert event in source
+
+
+
+def test_public_same_brain_is_no_login_and_core_first():
+    client = _public_client()
+    response = client.get("/same-brain")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "window.__SAME_BRAIN_PUBLIC__=true" in html
+    assert "Play today’s 5" in html
+    assert "Answer today’s 5 weird questions. Send them to one friend." in html
+    assert 'function shareBase(){return location.origin+"/same-brain"}' in html
+    assert 'if(adv)adv.remove()' in html
+    assert 'if(shop)shop.remove()' in html
+
+
+def test_public_same_brain_challenges_are_private_from_search_but_home_is_indexable():
+    client = _public_client()
+
+    home = client.get("/same-brain")
+    assert home.status_code == 200
+    assert "X-Robots-Tag" not in home.headers
+
+    challenge = client.get("/same-brain?c=abc123")
+    assert challenge.status_code == 200
+    assert challenge.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive"
+    assert challenge.headers["Referrer-Policy"] == "no-referrer"
+
+
+def test_public_same_brain_rejects_oversized_links():
+    client = _public_client()
+    response = client.get("/same-brain?c=" + ("a" * 8100))
+    assert response.status_code == 414
+
+
+def test_public_same_brain_analytics_is_session_csrf_bound():
+    client = _public_client()
+    client.get("/same-brain")
+    with client.session_transaction() as flask_session:
+        token = flask_session.get("_csrf_token")
+    assert token
+
+    missing = client.post(
+        "/same-brain/analytics",
+        json={"event": "home_view", "pack": "daily"},
+    )
+    assert missing.status_code == 400
+
+    accepted = client.post(
+        "/same-brain/analytics",
+        json={"event": "home_view", "pack": "daily"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert accepted.status_code == 200
+    assert accepted.get_json()["ok"] is True
+
+
+def test_labs_same_brain_one_to_one_shares_escape_to_public_route():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'function shareBase(){return location.origin+"/same-brain"}' in html
+    assert 'var base=shareBase();state.challengeUrl=base+"?c="+encode(payload)' in html
+    assert 'var url=shareBase()+"?c="+encode(payload)' in html
+    assert 'challengeUrl=shareBase()+"?c="+encode(c)' in html
+
+
+def test_public_same_brain_is_resilient_without_removed_account_ui():
+    client = _public_client()
+    html = client.get("/same-brain").get_data(as_text=True)
+
+    assert "if(bits)bits.textContent" in html
+    assert "if(plus)plus.textContent" in html
+    assert "if(plusNote)plusNote.innerHTML" in html
+    assert "if(!box)return" in html
+    assert "if(!card)return" in html
+    assert "if(!s||s.length>7000)return null" in html
+    assert "That challenge link is invalid or incomplete." in html
