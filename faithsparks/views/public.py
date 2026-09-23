@@ -479,7 +479,7 @@ def same_brain_public():
     response.headers["X-Content-Type-Options"] = "nosniff"
     # Challenge query strings contain nicknames/answers and should never land
     # in search results. The clean landing page may be indexed.
-    if request.args.get("c") or request.args.get("g"):
+    if request.args.get("c") or request.args.get("s") or request.args.get("g"):
         response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
     return response
 
