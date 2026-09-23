@@ -4,6 +4,7 @@ import os
 import secrets
 from pathlib import Path
 
+from firebase_admin import firestore as google_firestore
 from flask import Blueprint, jsonify, make_response, render_template, redirect, request, session, send_file
 
 from faithsparks.services.firestore import db
@@ -1119,6 +1120,56 @@ def roster():
         return jsonify({"error": "storage_unavailable"}), 503
 
     return jsonify(merged)
+
+
+SAME_BRAIN_EVENTS = {
+    "start",
+    "challenge_created",
+    "challenge_shared",
+    "challenge_opened",
+    "result_completed",
+    "result_shared",
+}
+
+
+@bp.post("/same-brain/analytics")
+def same_brain_analytics():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+
+    payload = request.get_json(silent=True) or {}
+    event = str(payload.get("event") or "").strip()
+    pack = str(payload.get("pack") or "unknown").strip().lower()[:24]
+    if event not in SAME_BRAIN_EVENTS:
+        return jsonify({"error": "unknown_event"}), 400
+
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _csrf_token_value()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    dedupe_key = f"same_brain_metric:{event}:{pack}"
+    if session.get(dedupe_key):
+        return jsonify({"ok": True, "duplicate": True})
+
+    try:
+        if db:
+            db.collection("analytics").document("same_brain_funnel").set(
+                {
+                    "total": google_firestore.Increment(1),
+                    "events": {event: google_firestore.Increment(1)},
+                    "packs": {pack: google_firestore.Increment(1)},
+                    "updatedAt": google_firestore.SERVER_TIMESTAMP,
+                },
+                merge=True,
+            )
+    except Exception:
+        # Analytics must never interrupt gameplay.
+        pass
+
+    session[dedupe_key] = True
+    return jsonify({"ok": True})
 
 
 @bp.get("/<slug>")
