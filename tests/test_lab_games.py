@@ -1413,3 +1413,140 @@ def test_same_brain_short_loaded_friend_keeps_code_for_response_submission():
     assert "challenge._shortCode=shortCode" in html
     assert 'shortCode:challenge._shortCode||""' in html
     assert "responseIdFor(state.shortCode)" in html
+
+
+
+def test_same_brain_friend_result_delivery_retries_until_confirmed():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "same_brain_pending_responses",
+        "function pendingResponses()",
+        "function savePendingResponse(item)",
+        "function removePendingResponse(code,responseId)",
+        "async function flushPendingResponses()",
+        'window.addEventListener("online",flushPendingResponses)',
+        'track("response_submitted")',
+    ):
+        assert marker in html
+
+
+def test_same_brain_shared_result_contains_real_comparison_highlights():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "function resultHighlights()",
+        "✅ Both: ",
+        "⚡ ",
+        "function resultShareText()",
+        "Think you’d match better?",
+        "var highlights=state.groupData?[]:resultHighlights()",
+    ):
+        assert marker in html
+
+
+def test_same_brain_creator_results_are_ranked_and_auto_refresh():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "Who knows ",
+        "Best match so far",
+        'class="response-rank"',
+        "ranked=data.responses.slice().sort",
+        "setInterval(function(){var shareScreen=",
+        "refreshCurrentCreatorResponses()",
+    ):
+        assert marker in html
+
+
+def test_same_brain_daily_crowd_comparison_is_anonymous_and_post_result():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="daily-crowd"',
+        "async function submitDailyStats",
+        "async function renderDailyCrowd",
+        "same_brain_daily_response_id:",
+        "You matched today’s crowd",
+        'track("daily_crowd_viewed")',
+        "payload.dk=",
+    ):
+        assert marker in html
+
+
+def test_public_same_brain_daily_stats_backend_uses_aggregate_counts_only():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        'SAME_BRAIN_DAILY_COLLECTION = "same_brain_daily_stats"',
+        "def same_brain_public_daily_submit",
+        "def same_brain_public_daily_get",
+        '"questions": questions',
+        '"players": int(data.get("players") or 0) + 1',
+    ):
+        assert marker in source
+
+    # Daily aggregate documents should not store player names or answer histories.
+    daily_section = source[source.index("def same_brain_public_daily_submit"):source.index("@bp.get('/same-brain')")]
+    assert '"name"' not in daily_section
+
+
+def test_same_brain_short_link_has_personalized_social_preview_metadata_contract():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        'property="og:title"',
+        'property="og:description"',
+        'name="twitter:title"',
+        ' challenged you — Same Brain?',
+        "Answer 5 quick questions and see how often your brains match.",
+    ):
+        assert marker in source
+
+
+def test_same_brain_expired_link_has_friendly_recovery_copy():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "That challenge expired after 30 days." in html
+    assert "Play today’s Brain and send a fresh one." in html
+
+
+def test_same_brain_private_mvp_metrics_endpoint_contract():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        "def same_brain_metrics()",
+        '"completionRate"',
+        '"shareRate"',
+        '"inviteCompletionRate"',
+        '"chainRate"',
+        '"returnRate"',
+        '"creatorPayoffRate"',
+        'same_brain_public_funnel',
+    ):
+        assert marker in source
+
+
+def test_same_brain_result_cta_stays_personal_and_viral():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "Who knows you better? Challenge them →" in html
+    assert 'track("creator_result_opened")' in html
