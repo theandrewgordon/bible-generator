@@ -187,9 +187,9 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
   </section>
 
   <section id="screen-share" class="card hidden">
-    <div class="kicker">Challenge created</div>
-    <h2 class="question">Now find your brain twin.</h2>
-    <p class="sub" style="margin-left:0;text-align:left">Send this link to someone. They answer the exact same five questions, then you get a side-by-side result.</p>
+    <div class="kicker">Your challenge is ready</div>
+    <h2 class="question">Send it to a friend.</h2>
+    <p class="sub" style="margin-left:0;text-align:left">They’ll answer your same 5 questions. When they finish, you both get the match—and you can come back here to see every response.</p>
     <div class="challenge-box"><div class="challenge-link" id="challenge-link"></div></div>
     <div class="stack">
       <button id="share-btn" class="button primary wide">Share challenge</button>
@@ -205,10 +205,10 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
 
   <section id="screen-invite" class="card hidden">
     <div class="brain" style="font-size:72px;text-align:center">🧠⚡</div>
-    <div class="kicker" style="text-align:center">You've been challenged</div>
-    <h2 id="invite-heading" class="result-title">How same-brained are you?</h2>
+    <div class="kicker" style="text-align:center">Same Brain challenge</div>
+    <h2 id="invite-heading" class="result-title">A friend already answered.</h2>
     <p id="invite-copy" class="sub"></p>
-    <button id="accept-btn" class="button primary wide">Take the 5-question challenge</button>
+    <button id="accept-btn" class="button primary wide">Answer the same 5</button>
   </section>
 
   <section id="screen-result" class="card hidden">
@@ -308,7 +308,7 @@ var QUESTIONS=[
 
 
 var QUESTION_EXPANSION_SPECS=[
-{tag:"food",prefix:"foodx",topics:["pizza","tacos","breakfast","dessert","snacks"],stems:["At a party, which {{t}} move wins?","If {{t}} is on the menu, what matters most?","Pick the best {{t}} vibe.","Your ideal {{t}} situation?","Which {{t}} rule sounds right?"],sets:[
+{tag:"food",prefix:"foodx",topics:["pizza","tacos","breakfast","dessert","snacks"],stems:["For {{t}}, which style sounds best?","If {{t}} is on the menu, what matters most?","How would you rather get your {{t}}?","Pick your ideal {{t}} flavor direction.","Which {{t}} rule sounds right?"],sets:[
 [["🔥","Hot and fresh"],["🧀","Extra cheesy"],["🌶️","A little spicy"],["✨","Simple and classic"]],
 [["💰","Best value"],["⭐","Best quality"],["📦","Big portion"],["⚡","Fastest option"]],
 [["🏠","Homemade"],["🍽️","Restaurant"],["🚗","Takeout"],["🎉","Whatever the group wants"]],
@@ -326,7 +326,7 @@ var QUESTION_EXPANSION_SPECS=[
 [["👋","Talk to everyone"],["🛋️","Find my people"],["🍿","Stay near snacks"],["🐕","Find the pet"]],
 [["🏆","Friendly competition"],["😂","Maximum chaos"],["🤝","Teamwork"],["😴","Low-key vibes"]],
 [["⏰","People are late"],["📱","Nobody picks a plan"],["🍽️","Food debate"],["🚗","Transportation chaos"]]]},
-{tag:"family",prefix:"familyx",topics:["family dinner","Saturday morning","holiday","movie night","house project"],stems:["At a {{t}}, what matters most?","Your {{t}} role?","Best way to improve a {{t}}?","During a {{t}}, you usually...","Which {{t}} outcome feels best?"],sets:[
+{tag:"family",prefix:"familyx",topics:["family dinner","Saturday morning","holiday","movie night","house project"],stems:["For a {{t}}, what matters most?","Your {{t}} role?","Best way to improve a {{t}}?","When something needs doing during a {{t}}, you usually...","Which {{t}} outcome feels best?"],sets:[
 [["🍽️","Food"],["😂","Laughing"],["📸","Memories"],["😌","No drama"]],
 [["📋","Planner"],["🧹","Helper"],["🎉","Fun one"],["🛋️","Observer"]],
 [["⏰","More time"],["👥","More help"],["🎵","Better mood"],["🍕","Better snacks"]],
@@ -356,7 +356,7 @@ var QUESTION_EXPANSION_SPECS=[
 [["🍕","Food"],["👥","Friends"],["🎵","Music"],["🛍️","Shopping"]],
 [["🥣","Cereal"],["📺","Cartoons"],["😴","Sleeping in"],["🚲","Going outside"]],
 [["🎲","Board games"],["🕹️","Video games"],["🃏","Card games"],["🧩","Puzzles"]]]},
-{tag:"wouldyou",prefix:"wyrx",topics:["for a week","for a month","forever","on vacation","every weekend"],stems:["Would you rather {{t}}...","Pick one {{t}}.","Which tradeoff would you accept {{t}}?","You must choose {{t}}.","No loopholes: choose {{t}}."],sets:[
+{tag:"wouldyou",prefix:"wyrx",topics:["for a week","for a month","forever","on vacation","every weekend"],stems:["Which would you give up {{t}}?","Pick the weather you could tolerate {{t}}.","If you had to eat one {{t}}, which wins?","Which free perk would you take {{t}}?","No loopholes: choose {{t}}."],sets:[
 [["📵","No phone"],["🚗","No car"],["📺","No streaming"],["☕","No caffeine"]],
 [["🌧️","Only rain"],["☀️","Only heat"],["❄️","Only cold"],["💨","Only wind"]],
 [["🍕","Only pizza"],["🌮","Only tacos"],["🍝","Only pasta"],["🍔","Only burgers"]],
@@ -401,12 +401,24 @@ var QUESTION_EXPANSION_SPECS=[
 ];
 QUESTION_EXPANSION_SPECS.forEach(function(spec){
   for(var i=0;i<20;i++){
-    var topic=spec.topics[i%spec.topics.length],stem=spec.stems[Math.floor(i/spec.topics.length)%spec.stems.length];
-    var set=spec.sets[i%spec.sets.length];
+    var topic=spec.topics[i%spec.topics.length],stemIndex=Math.floor(i/spec.topics.length)%spec.stems.length,stem=spec.stems[stemIndex];
+    var set=spec.sets[stemIndex%spec.sets.length];
     QUESTIONS.push({id:spec.prefix+"_"+String(i+1).padStart(2,"0"),q:stem.replace("{{t}}",topic),a:set.map(function(x){return x.slice()}),tags:[spec.tag]});
   }
 });
 
+function auditQuestionBank(){
+  var issues=[];
+  QUESTIONS.forEach(function(q){
+    if(!q||!q.id||!q.q||!Array.isArray(q.a)||q.a.length<2){issues.push({id:q&&q.id||"unknown",reason:"shape"});return}
+    var labels=q.a.map(function(x){return String((x&&x[1])||"").trim().toLowerCase()});
+    if(new Set(labels).size!==labels.length)issues.push({id:q.id,reason:"duplicate answers"});
+    if(/annoyance is worst\?/i.test(q.q)&&labels.some(function(v){return /^(simple|customizable|private|pretty)$/.test(v)}))issues.push({id:q.id,reason:"prompt/answer mismatch"});
+    if(/what role/i.test(q.q)&&labels.some(function(v){return /^(food|laughing|memories|no drama)$/.test(v)}))issues.push({id:q.id,reason:"role mismatch"});
+  });
+  return issues
+}
+var QUESTION_BANK_AUDIT=auditQuestionBank();
 var PACKS={
   friends:["power","trip","animal","weather","late","phone","morning","vacation","party","time","car","gift","movie","weekend","talent","message","spontaneous","line","boardgame","texting","planner","menu"],
   family:["food","snack","chores","weather","money","house","morning","vacation","time","gift","weekend","restaurant","dessert","message","supermarket","cleaning","temperature","pet","noise","host","weekend_chore"],
@@ -618,7 +630,7 @@ function renderGroupResult(data){
 }
 function startCreator(pack){pack=pack||"random";var count=state.count||5,profile=state.profile||{plus:false,bits:0,unlocks:[]};state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:pack,score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",runId:newRunId(),count:count,profile:profile};state.questionIds=questionSet(pack).map(function(q){return q.id});track("start");document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value=rememberedName();show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)}
 function startLocalDemo(){state.count=5;startCreator("random");state.localDemo=true}
-function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",shortCode:challenge._shortCode||"",runId:newRunId(),count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened");document.getElementById("invite-heading").textContent=challenge.n+" challenged you.";var invite="Answer the same "+challenge.q.length+" questions "+challenge.n+" answered. Then we’ll reveal where your brains matched — and where they absolutely did not.";if(challenge.d)invite=challenge.d+" · "+invite;if(challenge.h&&Number.isFinite(Number(challenge.h.s)))invite+=" "+(challenge.h.b||challenge.n)+" matched "+(challenge.h.a||"their friend")+" "+challenge.h.s+"%. Can you beat that?";document.getElementById("invite-copy").textContent=invite;show("invite")}
+function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",shortCode:challenge._shortCode||"",runId:newRunId(),count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened");document.getElementById("invite-heading").textContent="How well do you match "+challenge.n+"?";var invite=challenge.n+" already answered these "+challenge.q.length+". Pick yours, then see exactly where you match.";if(challenge.d)invite=challenge.d+" · "+invite;if(challenge.h&&Number.isFinite(Number(challenge.h.s)))invite+=" The last match was "+challenge.h.s+"%. Can you beat it?";document.getElementById("invite-copy").textContent=invite;document.getElementById("accept-btn").textContent="Answer the same "+challenge.q.length;show("invite")}
 function questionSpeech(q){var letters=["A","B","C","D"];return q.q+" "+q.a.map(function(opt,i){return (letters[i]||String(i+1))+". "+opt[1]+"."}).join(" ")}
 function renderQuestion(){var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q){finishQuestions();return}document.getElementById("qnum").textContent="QUESTION "+(idx+1)+" OF "+state.questionIds.length;document.getElementById("progress-bar").style.width=(((idx+1)/state.questionIds.length)*100)+"%";document.getElementById("question-text").textContent=q.q;var back=document.getElementById("question-back");if(back)back.classList.toggle("hidden",idx===0);var box=document.getElementById("choices"),letters=["A","B","C","D"];box.innerHTML="";q.a.forEach(function(opt,i){var b=document.createElement("button");b.className="choice";b.type="button";b.setAttribute("aria-label",(letters[i]||String(i+1))+", "+opt[1]);b.innerHTML='<span class="choice-letter">'+(letters[i]||String(i+1))+'</span><span class="emoji">'+opt[0]+'</span><span>'+opt[1]+"</span>";b.addEventListener("click",function(){if(b.disabled)return;b.disabled=true;b.classList.add("chosen");state.answers.push(i);setTimeout(function(){if(state.answers.length>=state.questionIds.length)finishQuestions();else renderQuestion()},420)});box.appendChild(b)});show("question")}
 async function finishQuestions(){if(state.mode==="group_creator"){try{await createGroup()}catch(e){alert("Could not create the group yet. Please try again.")}return}if(state.mode==="group_responder"){try{await joinGroup()}catch(e){alert(e.code==="full"?"That group already has 8 players.":e.code==="name_taken"?"That name is already in this group.":"Could not join the group yet.")}return}if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers,p:state.pack};var custom=customDefsFor(state.questionIds);if(custom.length)payload.x=custom;if(state.pack==="daily"){payload.d=state.replayDailyLabel||dailyTitle();payload.dk=state.replayDailyKey||dailyKey();}rememberQuestions(state.questionIds);state.lastCreatedPayload=payload;try{state.challengeUrl=await makeShortChallengeUrl(payload,true)}catch(_){alert("We couldn’t create your shareable challenge yet. Your answers are safe—please try again.");return}document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.remove("hidden");document.getElementById("creator-responses").classList.remove("hidden");var currentDaily=state.pack==="daily"&&(!state.replayDailyLabel||state.replayDailyLabel===dailyTitle());if(payload.dk)submitDailyStats(payload.dk,state.questionIds,state.answers);awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+(payload.dk||dailyKey()):"creator-"+encode(payload).slice(0,70),currentDaily?(payload.dk||dailyKey()):"");track("challenge_created");show("share");refreshCurrentCreatorResponses()}else renderResult()}
