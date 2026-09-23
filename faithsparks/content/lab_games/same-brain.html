@@ -52,6 +52,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       <button id="start-btn" class="button primary wide">Play today’s 5</button>
     </div>
     <p id="daily-label" class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p><div id="streak-line" class="tiny" style="margin-top:6px"></div>
+    <button id="creator-results-home" class="button ghost wide hidden" type="button" style="margin-top:10px">🧠 New challenge results</button>
 
     <button id="home-replay-daily" class="home-replay hidden" type="button">Replay today’s Brain</button>
 
@@ -189,6 +190,10 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       <button id="share-btn" class="button primary wide">Share challenge</button>
       <button id="copy-btn" class="button secondary wide">Copy link</button>
       <button id="group-results-btn" class="button ghost wide hidden">View group results</button><button id="play-second-btn" class="button ghost wide">Play as friend on this device</button>
+    </div>
+    <div id="creator-responses" class="inline-panel" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>Your responses</strong><button id="refresh-responses" class="home-replay" type="button">Refresh</button></div>
+      <div id="creator-responses-list" class="premium-note" style="margin-top:8px">No one has answered yet. We’ll show results here when friends play.</div>
     </div>
   </section>
 
@@ -442,12 +447,15 @@ function questionSet(pack){
 function dailyKey(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function dailyNumber(){return Math.floor((new Date(dailyKey()+"T00:00:00")-new Date("2026-01-01T00:00:00"))/86400000)+1}
 function dailyTitle(){return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()]+" Brain #"+dailyNumber()}
-var state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:"random",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:5,profile:{plus:false,bits:0,unlocks:[]}};
+var state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:"random",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",creatorCode:"",creatorKey:"",shortCode:"",count:5,profile:{plus:false,bits:0,unlocks:[]}};
 var COSMETIC_META={
  frame_stars:{name:"Star Frame",cost:80,type:"frame"},
  avatar_owl:{name:"Wise Owl",cost:90,type:"avatar"},avatar_fox:{name:"Clever Fox",cost:100,type:"avatar"},avatar_robot:{name:"Robot Brain",cost:100,type:"avatar"},avatar_alien:{name:"Alien Brain",cost:110,type:"avatar"},avatar_octopus:{name:"Octo Brain",cost:110,type:"avatar"},avatar_astronaut:{name:"Space Brain",cost:130,type:"avatar"},
  theme_sunset:{name:"Sunset Card",cost:120,type:"theme"},theme_arcade:{name:"Arcade Card",cost:140,type:"theme"}
 };
+function creatorChallenges(){try{var rows=JSON.parse(localStorage.getItem("same_brain_creator_challenges")||"[]");return Array.isArray(rows)?rows:[]}catch(_){return []}}
+function saveCreatorChallenge(code,key,payload){if(!code||!key)return;try{var rows=creatorChallenges().filter(function(r){return r&&r.code!==code});rows.unshift({code:code,key:key,name:payload&&payload.n||"You",createdAt:Date.now(),seenCount:0});localStorage.setItem("same_brain_creator_challenges",JSON.stringify(rows.slice(0,20)))}catch(_){}}
+function updateCreatorSeen(code,count){try{var rows=creatorChallenges();rows.forEach(function(r){if(r.code===code)r.seenCount=count});localStorage.setItem("same_brain_creator_challenges",JSON.stringify(rows))}catch(_){}}
 function localChoice(key,fallback){try{return localStorage.getItem(key)||fallback}catch(_){return fallback}}
 function saveChoice(key,value){try{localStorage.setItem(key,value)}catch(_){}}
 
@@ -511,10 +519,14 @@ function renderCosmetics(){
 function isPublic(){return !!window.__SAME_BRAIN_PUBLIC__}
 function serviceBase(){return isPublic()?"/same-brain":"/labs/games/same-brain"}
 function shareBase(){return location.origin+"/same-brain"}
-async function makeShortChallengeUrl(payload){
+async function makeShortChallengeUrl(payload,rememberCreator){
+  if(rememberCreator===undefined)rememberCreator=true;
   try{
     var data=await apiJson("/same-brain/challenge",{method:"POST",body:JSON.stringify(payload)});
-    if(data&&data.code)return shareBase()+"?s="+encodeURIComponent(data.code)
+    if(data&&data.code){
+      if(rememberCreator&&data.creatorKey){state.creatorCode=data.code;state.creatorKey=data.creatorKey;saveCreatorChallenge(data.code,data.creatorKey,payload)}
+      return shareBase()+"?s="+encodeURIComponent(data.code)
+    }
   }catch(_){}
   return shareBase()+"?c="+encode(payload)
 }
@@ -545,9 +557,9 @@ async function createGroup(){
   document.querySelector("#screen-share .kicker").textContent="Group challenge created";
   document.querySelector("#screen-share .question").textContent="Now build your Group Brain.";
   document.querySelector("#screen-share .sub").textContent="Share one link. Up to 7 more people can answer whenever they want—even tomorrow. The group results update as people join.";
-  document.getElementById("group-results-btn").classList.remove("hidden");
+  document.getElementById("group-results-btn").classList.remove("hidden");document.getElementById("creator-responses").classList.add("hidden");
   document.getElementById("play-second-btn").classList.add("hidden");
-  track("challenge_created");show("share");
+  track("challenge_created");show("share");refreshCurrentCreatorResponses();
 }
 async function joinGroup(){
   var data=await apiJson("/labs/games/same-brain/group/"+encodeURIComponent(state.groupCode)+"/join",{method:"POST",body:JSON.stringify({name:state.name,questionIds:state.questionIds,answers:state.answers})});
@@ -589,10 +601,10 @@ function renderGroupResult(data){
 }
 function startCreator(pack){pack=pack||"random";var count=state.count||5,profile=state.profile||{plus:false,bits:0,unlocks:[]};state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:pack,score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:count,profile:profile};state.questionIds=questionSet(pack).map(function(q){return q.id});track("start");document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)}
 function startLocalDemo(){state.count=5;startCreator("random");state.localDemo=true}
-function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened");document.getElementById("invite-heading").textContent=challenge.n+" challenged you.";var invite="Answer the same "+challenge.q.length+" questions "+challenge.n+" answered. Then we’ll reveal where your brains matched — and where they absolutely did not.";if(challenge.d)invite=challenge.d+" · "+invite;if(challenge.h&&Number.isFinite(Number(challenge.h.s)))invite+=" "+(challenge.h.b||challenge.n)+" matched "+(challenge.h.a||"their friend")+" "+challenge.h.s+"%. Can you beat that?";document.getElementById("invite-copy").textContent=invite;show("invite")}
+function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",shortCode:challenge._shortCode||"",count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened");document.getElementById("invite-heading").textContent=challenge.n+" challenged you.";var invite="Answer the same "+challenge.q.length+" questions "+challenge.n+" answered. Then we’ll reveal where your brains matched — and where they absolutely did not.";if(challenge.d)invite=challenge.d+" · "+invite;if(challenge.h&&Number.isFinite(Number(challenge.h.s)))invite+=" "+(challenge.h.b||challenge.n)+" matched "+(challenge.h.a||"their friend")+" "+challenge.h.s+"%. Can you beat that?";document.getElementById("invite-copy").textContent=invite;show("invite")}
 function questionSpeech(q){var letters=["A","B","C","D"];return q.q+" "+q.a.map(function(opt,i){return (letters[i]||String(i+1))+". "+opt[1]+"."}).join(" ")}
 function renderQuestion(){var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q){finishQuestions();return}document.getElementById("qnum").textContent="QUESTION "+(idx+1)+" OF "+state.questionIds.length;document.getElementById("progress-bar").style.width=(((idx+1)/state.questionIds.length)*100)+"%";document.getElementById("question-text").textContent=q.q;var box=document.getElementById("choices"),letters=["A","B","C","D"];box.innerHTML="";q.a.forEach(function(opt,i){var b=document.createElement("button");b.className="choice";b.type="button";b.setAttribute("aria-label",(letters[i]||String(i+1))+", "+opt[1]);b.innerHTML='<span class="choice-letter">'+(letters[i]||String(i+1))+'</span><span class="emoji">'+opt[0]+'</span><span>'+opt[1]+"</span>";b.addEventListener("click",function(){if(b.disabled)return;b.disabled=true;b.classList.add("chosen");state.answers.push(i);setTimeout(function(){if(state.answers.length>=state.questionIds.length)finishQuestions();else renderQuestion()},140)});box.appendChild(b)});show("question")}
-async function finishQuestions(){if(state.mode==="group_creator"){try{await createGroup()}catch(e){alert("Could not create the group yet. Please try again.")}return}if(state.mode==="group_responder"){try{await joinGroup()}catch(e){alert(e.code==="full"?"That group already has 8 players.":e.code==="name_taken"?"That name is already in this group.":"Could not join the group yet.")}return}if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers,p:state.pack};var custom=customDefsFor(state.questionIds);if(custom.length)payload.x=custom;if(state.pack==="daily")payload.d=state.replayDailyLabel||dailyTitle();rememberQuestions(state.questionIds);state.lastCreatedPayload=payload;state.challengeUrl=await makeShortChallengeUrl(payload);document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.remove("hidden");var currentDaily=state.pack==="daily"&&(!state.replayDailyLabel||state.replayDailyLabel===dailyTitle());awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+dailyKey():"creator-"+encode(payload).slice(0,70));track("challenge_created");show("share")}else renderResult()}
+async function finishQuestions(){if(state.mode==="group_creator"){try{await createGroup()}catch(e){alert("Could not create the group yet. Please try again.")}return}if(state.mode==="group_responder"){try{await joinGroup()}catch(e){alert(e.code==="full"?"That group already has 8 players.":e.code==="name_taken"?"That name is already in this group.":"Could not join the group yet.")}return}if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers,p:state.pack};var custom=customDefsFor(state.questionIds);if(custom.length)payload.x=custom;if(state.pack==="daily")payload.d=state.replayDailyLabel||dailyTitle();rememberQuestions(state.questionIds);state.lastCreatedPayload=payload;state.challengeUrl=await makeShortChallengeUrl(payload,true);document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.remove("hidden");document.getElementById("creator-responses").classList.remove("hidden");var currentDaily=state.pack==="daily"&&(!state.replayDailyLabel||state.replayDailyLabel===dailyTitle());awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+dailyKey():"creator-"+encode(payload).slice(0,70));track("challenge_created");show("share")}else renderResult()}
 function brainType(score){if(score===100)return["Brain Twins","A perfect match. That is either beautiful or mildly concerning."];if(score>=80)return["Same Wavelength","You disagree just enough to remain interesting."];if(score>=60)return["Compatible Chaos","A solid amount of shared logic with a few delightful glitches."];if(score>=40)return["Parallel-ish Minds","You occasionally meet at the same conclusion by completely different roads."];if(score>=20)return["Friendly Opposites","Your group chat probably needs both of you."];return["Different Operating Systems","You may be proof that friendship does not require shared decision-making."]}
 function renderResult(){
   document.getElementById("result-next").classList.remove("hidden");var c=state.creator,matches=0,rows=[],replay=document.getElementById("replay-daily");if(replay){replay.classList.toggle("hidden",!c.d);replay.textContent=c.d?("Replay "+c.d):"Replay today’s Brain"};
@@ -611,7 +623,7 @@ function renderResult(){
   document.getElementById("compare").innerHTML=rows.map(function(r){
     return '<div class="compare-row '+(r.same?"match":"diff")+'"><div class="compare-q">'+(r.same?"✅ ":"⚡ ")+esc(r.q.q)+'</div><div class="answers"><span>'+esc(c.n)+": "+esc(r.a)+"</span><span>"+esc(state.name)+": "+esc(r.b)+"</span></div></div>";
   }).join("");
-  rememberQuestions(state.questionIds);track("result_completed");var currentDaily=state.pack==="daily"&&c.d===dailyTitle();awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+dailyKey():"result-"+encode(c).slice(0,60)+"-"+state.name);show("result");
+  rememberQuestions(state.questionIds);submitFriendResponse();track("result_completed");var currentDaily=state.pack==="daily"&&c.d===dailyTitle();awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+dailyKey():"result-"+encode(c).slice(0,60)+"-"+state.name);show("result");
 }
 function nameNext(){var name=cleanName(document.getElementById("player-name").value);if(!name){document.getElementById("player-name").focus();return}state.name=name;renderQuestion()}
 async function makeResultImage(){
@@ -632,11 +644,41 @@ async function makeResultImage(){
     return await new Promise(function(resolve){canvas.toBlob(resolve,"image/png",.95)});
   }catch(_){return null}
 }
+function responseIdFor(code){var key="same_brain_response_id:"+code;try{var id=localStorage.getItem(key)||"";if(!id){id=(crypto&&crypto.randomUUID)?crypto.randomUUID():"r_"+Date.now()+"_"+Math.random().toString(36).slice(2);localStorage.setItem(key,id)}return id}catch(_){return "r_"+Date.now()+"_"+Math.random().toString(36).slice(2)}}
+async function submitFriendResponse(){
+  if(!state.shortCode||!state.name||!state.answers.length)return;
+  try{await apiJson("/same-brain/challenge/"+encodeURIComponent(state.shortCode)+"/response",{method:"POST",body:JSON.stringify({responseId:responseIdFor(state.shortCode),name:state.name,answers:state.answers})})}catch(_){}
+}
+function responseComparison(challenge,response){
+  var rows=[],matches=0;for(var i=0;i<challenge.q.length;i++){var q=qById(challenge.q[i]);if(!q)continue;var same=Number(challenge.a[i])===Number(response.answers[i]);if(same)matches++;rows.push({q:q,same:same,a:q.a[challenge.a[i]][1],b:q.a[response.answers[i]][1]})}
+  return {score:Math.round(matches/challenge.q.length*100),rows:rows}
+}
+function renderCreatorResponseDetail(data,response){
+  hydrateCustomQuestions(data.challenge);var cmp=responseComparison(data.challenge,response),bt=brainType(cmp.score);state.creator=data.challenge;state.name=response.name;state.answers=response.answers.slice();state.score=cmp.score;state.brainType=bt[0];state.pack=data.challenge.p||"shared";
+  document.getElementById("score-ring").style.setProperty("--score",cmp.score);document.getElementById("score-text").textContent=cmp.score+"%";document.getElementById("result-title").textContent=data.challenge.n+" + "+response.name;document.getElementById("brain-type").textContent=bt[0]+" 🧠";document.getElementById("result-copy").textContent=bt[1]+" You matched on "+cmp.rows.filter(function(r){return r.same}).length+" of "+data.challenge.q.length+" questions.";
+  applyTheme();document.getElementById("share-card").innerHTML='<div style="font-weight:800;opacity:.85">'+esc(data.challenge.n)+" + "+esc(response.name)+'</div><div class="big">'+cmp.score+'% SAME BRAIN</div><div class="pill">'+esc(bt[0])+'</div>';document.getElementById("compare").innerHTML=cmp.rows.map(function(r){return '<div class="compare-row"><div class="compare-q">'+(r.same?"✅ ":"⚡ ")+esc(r.q.q)+'</div><div class="answers"><span>'+esc(data.challenge.n)+": "+esc(r.a)+"</span><span>"+esc(response.name)+": "+esc(r.b)+"</span></div></div>"}).join("");
+  document.getElementById("result-next").classList.add("hidden");document.getElementById("new-round").classList.remove("hidden");document.getElementById("replay-daily").classList.add("hidden");show("result")
+}
+async function loadCreatorResults(code,key,renderIntoShare){
+  var data=await apiJson("/same-brain/challenge/"+encodeURIComponent(code)+"/results?key="+encodeURIComponent(key),{method:"GET"}),list=document.getElementById("creator-responses-list");
+  updateCreatorSeen(code,data.responseCount||0);
+  if(renderIntoShare&&list){
+    if(!data.responses.length){list.innerHTML="No one has answered yet. We’ll show results here when friends play."}
+    else{list.innerHTML="";data.responses.forEach(function(r){var b=document.createElement("button");b.className="action-card";b.style.width="100%";b.style.marginTop="7px";b.innerHTML="<strong>"+esc(r.name)+" — "+r.score+"%</strong><small>View full comparison →</small>";b.addEventListener("click",function(){renderCreatorResponseDetail(data,r)});list.appendChild(b)})}
+  }
+  return data
+}
+async function refreshCurrentCreatorResponses(){if(state.creatorCode&&state.creatorKey){try{await loadCreatorResults(state.creatorCode,state.creatorKey,true)}catch(_){var list=document.getElementById("creator-responses-list");if(list)list.textContent="Could not refresh responses right now."}}}
+async function scanCreatorResults(){
+  var rows=creatorChallenges().slice(0,10),newCount=0,latest=null;
+  for(var i=0;i<rows.length;i++){try{var data=await loadCreatorResults(rows[i].code,rows[i].key,false),unseen=Math.max(0,(data.responseCount||0)-(rows[i].seenCount||0));if(unseen){newCount+=unseen;if(!latest)latest={row:rows[i],data:data}}}catch(_){}}
+  var btn=document.getElementById("creator-results-home");if(btn){btn.classList.toggle("hidden",newCount===0);btn.textContent="🧠 "+newCount+" new challenge result"+(newCount===1?"":"s");btn.onclick=function(){if(!latest)return;state.creatorCode=latest.row.code;state.creatorKey=latest.row.key;document.getElementById("challenge-link").textContent=shareBase()+"?s="+latest.row.code;document.getElementById("play-second-btn").classList.add("hidden");show("share");loadCreatorResults(latest.row.code,latest.row.key,true).catch(function(){})}}
+}
 async function challengeNext(){
   if(!state.creator||state.groupData)return;
   var prior=state.creator,payload={v:1,n:state.name,q:prior.q.slice(),a:state.answers.slice(),p:prior.p||state.pack,h:{s:state.score,a:prior.n,b:state.name}};
   if(prior.d)payload.d=prior.d;if(prior.x)payload.x=prior.x;
-  var url=await makeShortChallengeUrl(payload);
+  var url=await makeShortChallengeUrl(payload,true);
   track("challenge_shared");track("beat_chain_shared");
   await shareText("I matched "+prior.n+" "+state.score+"% on Same Brain 🧠. Can you beat that with me?",url);
 }
@@ -646,7 +688,7 @@ async function shareResult(){
     challengeUrl=location.origin+location.pathname+"?g="+encodeURIComponent(state.groupCode);
     text="Our Group Brain is at "+state.score+"% consensus 🧠 — add your answers.";
   }else{
-    var c=state.creator;challengeUrl=await makeShortChallengeUrl(c);
+    var c=state.creator;challengeUrl=await makeShortChallengeUrl(c,false);
     text=c.n+" + "+state.name+" are "+state.score+"% Same Brain 🧠 — think you can match "+c.n+"?";
   }
   var blob=await makeResultImage();
@@ -698,12 +740,12 @@ if(document.getElementById("group-btn"))document.getElementById("group-btn").add
 document.getElementById("name-next").addEventListener("click",nameNext);
 document.getElementById("player-name").addEventListener("keydown",function(e){if(e.key==="Enter")nameNext()});
 document.getElementById("share-btn").addEventListener("click",function(){track("challenge_shared");shareText("Think you know me? Take my Same Brain challenge 🧠",state.challengeUrl)});
-document.getElementById("copy-btn").addEventListener("click",function(){shareText("",state.challengeUrl)});
+document.getElementById("copy-btn").addEventListener("click",function(){shareText("",state.challengeUrl)});document.getElementById("refresh-responses").addEventListener("click",refreshCurrentCreatorResponses);
 document.getElementById("play-second-btn").addEventListener("click",function(){var payload=null;if(state.lastCreatedPayload)payload=state.lastCreatedPayload;else payload=decode((state.challengeUrl.split("?c=")[1]||""));if(payload)startResponder(payload)});document.getElementById("group-results-btn").addEventListener("click",function(){if(state.groupCode&&state.groupResultKey)loadGroupResults(state.groupCode,state.groupResultKey).catch(function(){alert("Could not load group results yet.")})});
 document.getElementById("accept-btn").addEventListener("click",function(){if(state.mode==="group_invite")state.mode="group_responder";document.getElementById("name-heading").textContent="And what should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)});
 document.getElementById("home-replay-daily").addEventListener("click",function(){state.count=5;startCreator("daily")});document.getElementById("new-round").addEventListener("click",function(){state.count=5;startCreator("random")});
 document.getElementById("replay-daily").addEventListener("click",function(){var prior=state.creator;if(!prior||!prior.d)return;var profile=state.profile;state={mode:"creator",name:"",questionIds:prior.q.slice(),answers:[],creator:null,challengeUrl:"",pack:"daily",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:prior.q.length,profile:profile,replayDailyLabel:prior.d};document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value="";show("name")});document.getElementById("result-next").addEventListener("click",challengeNext);document.getElementById("result-share").addEventListener("click",function(){track("result_shared");shareResult()});
-if(isPublic()){var adv=document.querySelector(".advanced-play"),shop=document.querySelector(".shop");if(adv)adv.remove();if(shop)shop.remove();var labs=document.querySelector(".labs");if(labs)labs.remove();var back=document.querySelector('.topbar a[href="/labs/games"]');if(back)back.remove()}loadProfile();track("home_view");try{var seen=localStorage.getItem("same_brain_seen");if(seen)track("return_visit");else localStorage.setItem("same_brain_seen","1")}catch(_){}var params=new URLSearchParams(location.search),groupCode=params.get("g"),shortCode=(params.get("s")||"").toUpperCase(),param=params.get("c"),challenge=param&&decode(param);async function boot(){if(shortCode){try{var data=await apiJson("/same-brain/challenge/"+encodeURIComponent(shortCode),{method:"GET"});challenge=data.challenge}catch(_){show("home");var bad=document.querySelector("#screen-home .sub");if(bad)bad.textContent="That challenge link is invalid or expired. You can still play today’s five and send a fresh challenge.";return}}hydrateCustomQuestions(challenge);if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else{show("home");if(isPublic()&&(param||shortCode)){var sub=document.querySelector("#screen-home .sub");if(sub)sub.textContent="That challenge link is invalid or incomplete. You can still play today’s five and send a fresh challenge."}}}boot()
+if(isPublic()){var adv=document.querySelector(".advanced-play"),shop=document.querySelector(".shop");if(adv)adv.remove();if(shop)shop.remove();var labs=document.querySelector(".labs");if(labs)labs.remove();var back=document.querySelector('.topbar a[href="/labs/games"]');if(back)back.remove()}loadProfile();scanCreatorResults();track("home_view");try{var seen=localStorage.getItem("same_brain_seen");if(seen)track("return_visit");else localStorage.setItem("same_brain_seen","1")}catch(_){}var params=new URLSearchParams(location.search),groupCode=params.get("g"),shortCode=(params.get("s")||"").toUpperCase(),param=params.get("c"),challenge=param&&decode(param);async function boot(){if(shortCode){try{var data=await apiJson("/same-brain/challenge/"+encodeURIComponent(shortCode),{method:"GET"});challenge=data.challenge;challenge._shortCode=shortCode}catch(_){show("home");var bad=document.querySelector("#screen-home .sub");if(bad)bad.textContent="That challenge link is invalid or expired. You can still play today’s five and send a fresh challenge.";return}}hydrateCustomQuestions(challenge);if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else{show("home");if(isPublic()&&(param||shortCode)){var sub=document.querySelector("#screen-home .sub");if(sub)sub.textContent="That challenge link is invalid or incomplete. You can still play today’s five and send a fresh challenge."}}}boot()
 })();
 </script>
 </body>
