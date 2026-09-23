@@ -662,8 +662,10 @@ def test_same_brain_demo_is_listed_and_playable():
     assert game.status_code == 200
     assert game.headers["Cache-Control"] == "private, no-store"
     assert game.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive, nosnippet"
-    assert "Create a challenge" in body
-    assert "Try a two-player demo on this device" in body
+    assert "Play today’s 5" in body
+    assert "Pick a different set" in body
+    assert "More ways to play" in body
+    assert "Customize" in body
 
 
 def test_same_brain_demo_has_portable_challenge_loop():
@@ -782,7 +784,7 @@ def test_same_brain_question_selection_is_duplicate_safe_and_pack_library_is_exp
     assert html.count('{id:"') >= 60
     assert "function uniqueQuestions(items)" in html
     assert "Array.from(new Set(PACKS[pack]||[]))" in html
-    assert "new Set(ch.q).size===5" in html
+    assert "new Set(ch.q).size===ch.q.length" in html
     for pack in (
         "friends", "family", "chaos", "food", "travel",
         "couples", "work", "nostalgia", "wouldyou", "daily",
@@ -914,3 +916,23 @@ def test_same_brain_backend_exposes_plus_rewards_and_tts_contract():
         "len(set(qids)) != len(qids)",
     ):
         assert marker in source
+
+
+
+def test_same_brain_home_defaults_to_simple_daily_one_to_one_flow():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "Play today’s 5" in html
+    assert 'startCreator("daily")' in html
+    assert "Answer today’s 5 weird questions. Send them to one friend." in html
+
+    # Advanced surfaces exist, but are intentionally collapsed behind details.
+    assert "<summary" in html
+    assert "Pick a different set" in html
+    assert "More ways to play" in html
+    assert "Customize" in html
+    assert "Create Group Brain (4–8)" in html
+    assert "10 questions ✨" in html
+    assert "Brain Shop" not in html
