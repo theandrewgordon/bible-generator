@@ -1,6 +1,6 @@
 from flask import Flask
 
-from faithsparks.views.lab_games import bp
+from faithsparks.views.lab_games import bp, _same_brain_group_invite, _same_brain_group_result, _same_brain_validate_answers, SAME_BRAIN_GROUP_MAX_PLAYERS
 
 
 def _client():
@@ -771,3 +771,67 @@ def test_same_brain_challenge_query_survives_sign_in_redirect():
     response = client.get("/labs/games/same-brain?c=abc123")
     assert response.status_code == 302
     assert "next=/labs/games/same-brain?c=abc123" in response.headers["Location"]
+
+
+
+def test_same_brain_question_selection_is_duplicate_safe_and_pack_library_is_expanded():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert html.count('{id:"') >= 60
+    assert "function uniqueQuestions(items)" in html
+    assert "Array.from(new Set(PACKS[pack]||[]))" in html
+    assert "new Set(ch.q).size===5" in html
+    for pack in (
+        "friends", "family", "chaos", "food", "travel",
+        "couples", "work", "nostalgia", "wouldyou", "daily",
+    ):
+        assert f'data-pack="{pack}"' in html or f'<option value="{pack}">' in html
+
+
+def test_same_brain_group_payload_requires_five_unique_questions_and_four_choice_answers():
+    assert _same_brain_validate_answers(
+        ["a", "b", "c", "d", "e"], [0, 1, 2, 3, 0]
+    ) == (["a", "b", "c", "d", "e"], [0, 1, 2, 3, 0])
+
+    assert _same_brain_validate_answers(
+        ["a", "a", "c", "d", "e"], [0, 1, 2, 3, 0]
+    ) is None
+    assert _same_brain_validate_answers(
+        ["a", "b", "c", "d", "e"], [0, 1, 2, 4, 0]
+    ) is None
+
+
+def test_same_brain_group_invite_hides_answers_but_result_contains_them():
+    data = {
+        "code": "ABC2345",
+        "pack": "friends",
+        "questionIds": ["a", "b", "c", "d", "e"],
+        "players": [
+            {"name": "Host", "answers": [0, 1, 2, 3, 0]},
+            {"name": "Friend", "answers": [0, 1, 1, 3, 2]},
+        ],
+    }
+    invite = _same_brain_group_invite(data)
+    assert invite["hostName"] == "Host"
+    assert invite["playerCount"] == 2
+    assert "players" not in invite
+
+    result = _same_brain_group_result(data)
+    assert len(result["players"]) == 2
+    assert result["players"][0]["answers"] == [0, 1, 2, 3, 0]
+
+
+def test_same_brain_group_mode_is_async_and_capped_at_eight():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+    assert SAME_BRAIN_GROUP_MAX_PLAYERS == 8
+    assert "You can play now even if everyone else joins later." in html
+    assert "Up to 7 more people can answer whenever they want" in html
+    assert "function groupMath(data)" in html
+    assert "Majority: " in html
+    assert "Split vote: " in html
+    assert "Lone-wolf picks:" in html
+    assert "Most aligned" in html
