@@ -865,7 +865,7 @@ def test_same_brain_ten_question_plus_mode_and_free_receiver_support():
     _sign_in(client)
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
-    assert 'id="ten-mode"' in html
+    assert 'id="group-ten"' in html
     assert "state.count=10" in html
     assert "challenge.q.length" in html
     assert "(ch.q.length===5||ch.q.length===10)" in html
@@ -889,9 +889,9 @@ def test_same_brain_profile_rewards_selfie_and_premium_narration_ui():
         "same_brain_selfie_avatar",
         'id="voice-select"',
         "Premium narrator audio is AI-generated.",
-        "/labs/games/same-brain/tts",
-        "/labs/games/same-brain/points",
-        "/labs/games/same-brain/unlock",
+        'serviceBase()+"/tts"',
+        'serviceBase()+"/points"',
+        'serviceBase()+"/unlock"',
     ):
         assert marker in html
 
@@ -941,7 +941,8 @@ def test_same_brain_home_defaults_to_simple_daily_one_to_one_flow():
     assert "Pick a different set" in html
     assert "More ways to play" in html
     assert "Customize" in html
-    assert "Create Group Brain (4–8)" in html
+    assert "Group Brain" in html
+    assert "4–8 people" in html
     assert "10 questions ✨" in html
     assert "Brain Shop" not in html
 
@@ -1243,3 +1244,83 @@ def test_same_brain_avatar_shop_has_no_neon_rainbow_and_more_premium_choices():
         'data-buy="avatar_astronaut"',
     ):
         assert marker in html
+
+
+
+def test_same_brain_home_uses_clean_deck_browser_not_huge_native_select():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'id="deck-select"' not in html
+    assert 'id="browse-decks"' in html
+    assert 'id="deck-browser"' in html
+    assert 'id="deck-search"' in html
+    assert 'id="deck-grid"' in html
+    assert "function renderDeckBrowser(filter)" in html
+    assert "EXTRA_DECKS.filter" in html
+
+
+def test_same_brain_more_ways_delays_group_configuration_until_selected():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="group-open"',
+        'id="group-config" class="inline-panel hidden"',
+        'id="group-five"',
+        'id="group-ten"',
+        'id="group-pack"',
+        'id="demo-btn"',
+        'id="custom-toggle"',
+        "4–8 people, answer whenever you want",
+        "Pass the screen to a friend",
+    ):
+        assert marker in html
+
+
+def test_same_brain_customize_is_tabbed_and_cosmetics_have_owned_equipped_states():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'data-custom-tab="avatar"',
+        'data-custom-tab="voice"',
+        'data-custom-tab="style"',
+        'id="custom-pane-avatar"',
+        'id="custom-pane-voice"',
+        'id="custom-pane-style"',
+        "Default Brain",
+        "Default Frame",
+        "Classic Card",
+        "Owned · Equip",
+        "Equipped ✓",
+        "function renderCosmetics()",
+        "function applyFrame()",
+        "function renderBitsProgress()",
+    ):
+        assert marker in html
+
+
+def test_same_brain_daily_completion_hides_daily_pack_and_exposes_small_replay():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'id="daily-pack-btn"' in html
+    assert 'id="home-replay-daily"' in html
+    assert 'dailyBtn.classList.toggle("hidden",done)' in html
+    assert 'homeReplay.classList.toggle("hidden",!done)' in html
+    assert 'startCreator("daily")' in html
+
+
+def test_same_brain_normal_modes_reset_to_five_questions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'function startLocalDemo(){state.count=5;startCreator("random")' in html
+    assert 'document.querySelectorAll("[data-pack]").forEach(function(btn){btn.addEventListener("click",function(){state.count=5;startCreator(btn.dataset.pack)})})' in html
+    assert 'document.getElementById("group-open").addEventListener("click",function(){state.count=5;' in html
