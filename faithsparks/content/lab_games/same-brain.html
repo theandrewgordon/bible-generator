@@ -8,7 +8,34 @@
 <style>
 :root{--bg:#f6f2ff;--card:#fff;--ink:#201a32;--muted:#6d6680;--purple:#6f4bd8;--purple2:#9275ed;--green:#2f9c6a;--line:#e6dff3;--shadow:0 18px 50px rgba(53,35,92,.14)}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%;touch-action:manipulation}body{margin:0;font-family:ui-rounded,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at top,#efe8ff 0,#f9f7ff 45%,#f4f1f8 100%);color:var(--ink);min-height:100vh}
-button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px max(42px,env(safe-area-inset-bottom))}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.brand{font-weight:900;letter-spacing:-.02em}.labs{font-size:.8rem;color:var(--muted);font-weight:700}.card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:28px;padding:clamp(22px,5vw,38px);box-shadow:var(--shadow);animation:screenIn .24s ease-out both}@keyframes screenIn{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}.hero{text-align:center;padding-top:10px}.brain{font-size:clamp(70px,15vw,104px);line-height:1;margin:8px 0 4px}.hero h1{font-size:clamp(2.3rem,8vw,4rem);line-height:.94;margin:0;letter-spacing:-.055em}.sub{font-size:1.08rem;line-height:1.55;color:var(--muted);max-width:520px;margin:18px auto}.button{border:0;border-radius:16px;padding:15px 18px;font-weight:900;cursor:pointer;min-height:54px;transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}.button:active,.choice:active{transform:scale(.98)}.button:focus-visible,.choice:focus-visible,.name-input:focus-visible{outline:3px solid rgba(111,75,216,.25);outline-offset:3px}.primary{background:linear-gradient(135deg,var(--purple),var(--purple2));color:white;box-shadow:0 10px 24px rgba(111,75,216,.24)}.secondary{background:#f0ebfb;color:#4e3797}.ghost{background:white;border:1px solid var(--line);color:var(--ink)}.wide{width:100%}.stack{display:grid;gap:12px}.pack-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.pack{border:1px solid var(--line);background:#fff;border-radius:16px;padding:13px 12px;text-align:left;font-weight:850;cursor:pointer}.pack small{display:block;color:var(--muted);font-weight:650;margin-top:3px}.daily{border-color:#d7c9ff;background:linear-gradient(135deg,#f7f3ff,#fff)}.account-strip{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:0 0 14px}.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;font-size:.86rem;font-weight:850}.plus-chip{background:#fff7dc;border-color:#ead88b}.mode-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.mode-btn{border:2px solid var(--line);background:#fff;border-radius:15px;padding:12px;font-weight:900}.mode-btn.active{border-color:var(--purple);background:#f3efff}.shop{margin-top:14px;text-align:left}.shop summary{cursor:pointer;font-weight:900}.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.shop-item{border:1px solid var(--line);border-radius:14px;padding:11px;background:#fff}.avatar-preview{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;margin:8px auto;border:3px solid #e0d7f6;background:#f5f1ff;font-size:2rem;overflow:hidden}.avatar-preview img{width:100%;height:100%;object-fit:cover}.premium-note{font-size:.82rem;color:var(--muted);margin:6px 0}.hidden{display:none!important}.kicker{text-transform:uppercase;letter-spacing:.14em;font-size:.75rem;font-weight:900;color:var(--purple)}label{display:block;font-weight:800;margin:18px 0 8px}.name-input{width:100%;border:2px solid var(--line);border-radius:16px;padding:15px 16px;font-size:1.05rem;outline:none}.name-input:focus{border-color:var(--purple)}.progress{height:9px;background:#ece7f5;border-radius:999px;overflow:hidden;margin:4px 0 24px}.progress>div{height:100%;background:linear-gradient(90deg,var(--purple),#d26bcf);transition:width .2s}.qnum{color:var(--muted);font-weight:800}.question{font-size:clamp(1.55rem,5vw,2.2rem);line-height:1.1;margin:8px 0 20px;letter-spacing:-.03em}.choices{display:grid;gap:11px}.choice-letter{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;background:#efe9ff;color:#5d3fd3;font-weight:950;font-size:.95rem}.choice{display:flex;align-items:center;gap:12px;text-align:left;background:white;border:2px solid var(--line);border-radius:18px;padding:15px 16px;font-weight:800;cursor:pointer;min-height:58px;transition:transform .12s ease,border-color .12s ease,background .12s ease}.choice.chosen{border-color:var(--purple);background:#f1ecff;transform:scale(.985)}.choice:hover,.choice:focus{border-color:#b7a4ef;background:#faf8ff}.choice .emoji{font-size:1.35rem}.challenge-box{background:#f6f1ff;border:1px solid #dfd3ff;border-radius:20px;padding:16px;margin:18px 0}.challenge-link{word-break:break-all;color:#5134a4;font-weight:700;font-size:.92rem}.score-ring{width:172px;height:172px;border-radius:50%;margin:6px auto 18px;display:grid;place-items:center;background:conic-gradient(var(--purple) calc(var(--score)*1%),#ebe5f5 0);position:relative;transition:background 1s ease;animation:popScore .52s cubic-bezier(.2,.9,.25,1.25) both}@keyframes popScore{0%{opacity:0;transform:scale(.65) rotate(-8deg)}100%{opacity:1;transform:none}}.score-ring:after{content:"";position:absolute;inset:14px;border-radius:50%;background:white}.score-ring strong{position:relative;z-index:1;font-size:2.3rem}.result-title{text-align:center;font-size:clamp(1.8rem,6vw,2.8rem);margin:4px 0}.brain-type{text-align:center;color:var(--purple);font-weight:950;font-size:1.2rem}.result-copy{text-align:center;color:var(--muted);line-height:1.5}.compare{display:grid;gap:10px;margin:22px 0}.compare-row{border:1px solid var(--line);border-radius:16px;padding:13px 14px}.compare-row.match{border-color:#bee5d1;background:#f3fbf7}.compare-row.diff{border-color:#eed2dc;background:#fff7fa}.compare-q{font-weight:900;margin-bottom:6px}.answers{font-size:.93rem;color:var(--muted);display:grid;gap:3px}.tiny{text-align:center;color:var(--muted);font-size:.83rem;margin-top:18px}.share-card{border-radius:24px;padding:28px 22px;text-align:center;background:radial-gradient(circle at 25% 15%,rgba(255,255,255,.18),transparent 26%),linear-gradient(145deg,#201a32,#6f4bd8 70%,#b161d0);color:white;margin:18px 0;box-shadow:0 16px 36px rgba(56,35,103,.22);position:relative;overflow:hidden}.share-card:after{content:"🧠";position:absolute;right:-12px;bottom:-24px;font-size:96px;opacity:.09;transform:rotate(-12deg)}.share-card.theme-sunset{background:linear-gradient(145deg,#4a1f52,#e06c75 55%,#f6bd60)}.share-card.theme-arcade{background:linear-gradient(145deg,#06152e,#5b2cff 55%,#00d4ff)}.share-card.theme-galaxy{background:radial-gradient(circle at 20% 15%,#7658ff,transparent 25%),linear-gradient(145deg,#090625,#281052 60%,#601a75)}.share-card .big{font-size:2.4rem;font-weight:950}.pill{display:inline-block;border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.15);font-weight:800;margin-top:8px}.group-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.group-stat{border:1px solid var(--line);border-radius:16px;padding:14px;background:#faf8ff}.group-stat strong{display:block;font-size:1.45rem;margin-top:3px}.vote-bar{height:9px;background:#ece7f5;border-radius:999px;overflow:hidden;margin-top:6px}.vote-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--purple),#d26bcf)}.group-players{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.group-player{background:#f0ebfb;border-radius:999px;padding:7px 10px;font-weight:800;font-size:.88rem}@media(max-width:520px){.topbar{padding:0 4px}.card{border-radius:22px;padding:22px 17px}.shell{padding:max(12px,env(safe-area-inset-top)) 10px max(30px,env(safe-area-inset-bottom))}.button{min-height:58px}.choice{min-height:64px;font-size:1rem}.question{margin-top:10px}.challenge-link{font-size:.82rem}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px max(42px,env(safe-area-inset-bottom))}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.brand{font-weight:900;letter-spacing:-.02em}.labs{font-size:.8rem;color:var(--muted);font-weight:700}.card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:28px;padding:clamp(22px,5vw,38px);box-shadow:var(--shadow);animation:screenIn .24s ease-out both}@keyframes screenIn{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}.hero{text-align:center;padding-top:10px}.brain{font-size:clamp(70px,15vw,104px);line-height:1;margin:8px 0 4px}.hero h1{font-size:clamp(2.3rem,8vw,4rem);line-height:.94;margin:0;letter-spacing:-.055em}.sub{font-size:1.08rem;line-height:1.55;color:var(--muted);max-width:520px;margin:18px auto}.button{border:0;border-radius:16px;padding:15px 18px;font-weight:900;cursor:pointer;min-height:54px;transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}.button:active,.choice:active{transform:scale(.98)}.button:focus-visible,.choice:focus-visible,.name-input:focus-visible{outline:3px solid rgba(111,75,216,.25);outline-offset:3px}.primary{background:linear-gradient(135deg,var(--purple),var(--purple2));color:white;box-shadow:0 10px 24px rgba(111,75,216,.24)}.secondary{background:#f0ebfb;color:#4e3797}.ghost{background:white;border:1px solid var(--line);color:var(--ink)}.wide{width:100%}.stack{display:grid;gap:12px}.pack-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.pack{border:1px solid var(--line);background:#fff;border-radius:16px;padding:13px 12px;text-align:left;font-weight:850;cursor:pointer}.pack small{display:block;color:var(--muted);font-weight:650;margin-top:3px}.daily{border-color:#d7c9ff;background:linear-gradient(135deg,#f7f3ff,#fff)}.account-strip{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:0 0 14px}.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;font-size:.86rem;font-weight:850}.plus-chip{background:#fff7dc;border-color:#ead88b}.mode-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.mode-btn{border:2px solid var(--line);background:#fff;border-radius:15px;padding:12px;font-weight:900}.mode-btn.active{border-color:var(--purple);background:#f3efff}.shop{margin-top:14px;text-align:left}.shop summary{cursor:pointer;font-weight:900}.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.shop-item{border:1px solid var(--line);border-radius:14px;padding:11px;background:#fff}.avatar-preview{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;margin:8px auto;border:3px solid #e0d7f6;background:#f5f1ff;font-size:2rem;overflow:hidden}.avatar-preview.frame-stars{border-color:#e5b93d;box-shadow:0 0 0 4px #fff8d5,0 0 18px rgba(229,185,61,.35)}.avatar-preview img{width:100%;height:100%;object-fit:cover}.premium-note{font-size:.82rem;color:var(--muted);margin:6px 0}.hidden{display:none!important}.kicker{text-transform:uppercase;letter-spacing:.14em;font-size:.75rem;font-weight:900;color:var(--purple)}label{display:block;font-weight:800;margin:18px 0 8px}.name-input{width:100%;border:2px solid var(--line);border-radius:16px;padding:15px 16px;font-size:1.05rem;outline:none}.name-input:focus{border-color:var(--purple)}.progress{height:9px;background:#ece7f5;border-radius:999px;overflow:hidden;margin:4px 0 24px}.progress>div{height:100%;background:linear-gradient(90deg,var(--purple),#d26bcf);transition:width .2s}.qnum{color:var(--muted);font-weight:800}.question{font-size:clamp(1.55rem,5vw,2.2rem);line-height:1.1;margin:8px 0 20px;letter-spacing:-.03em}.choices{display:grid;gap:11px}.choice-letter{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;background:#efe9ff;color:#5d3fd3;font-weight:950;font-size:.95rem}.choice{display:flex;align-items:center;gap:12px;text-align:left;background:white;border:2px solid var(--line);border-radius:18px;padding:15px 16px;font-weight:800;cursor:pointer;min-height:58px;transition:transform .12s ease,border-color .12s ease,background .12s ease}.choice.chosen{border-color:var(--purple);background:#f1ecff;transform:scale(.985)}.choice:hover,.choice:focus{border-color:#b7a4ef;background:#faf8ff}.choice .emoji{font-size:1.35rem}.challenge-box{background:#f6f1ff;border:1px solid #dfd3ff;border-radius:20px;padding:16px;margin:18px 0}.challenge-link{word-break:break-all;color:#5134a4;font-weight:700;font-size:.92rem}.score-ring{width:172px;height:172px;border-radius:50%;margin:6px auto 18px;display:grid;place-items:center;background:conic-gradient(var(--purple) calc(var(--score)*1%),#ebe5f5 0);position:relative;transition:background 1s ease;animation:popScore .52s cubic-bezier(.2,.9,.25,1.25) both}@keyframes popScore{0%{opacity:0;transform:scale(.65) rotate(-8deg)}100%{opacity:1;transform:none}}.score-ring:after{content:"";position:absolute;inset:14px;border-radius:50%;background:white}.score-ring strong{position:relative;z-index:1;font-size:2.3rem}.result-title{text-align:center;font-size:clamp(1.8rem,6vw,2.8rem);margin:4px 0}.brain-type{text-align:center;color:var(--purple);font-weight:950;font-size:1.2rem}.result-copy{text-align:center;color:var(--muted);line-height:1.5}.compare{display:grid;gap:10px;margin:22px 0}.compare-row{border:1px solid var(--line);border-radius:16px;padding:13px 14px}.compare-row.match{border-color:#bee5d1;background:#f3fbf7}.compare-row.diff{border-color:#eed2dc;background:#fff7fa}.compare-q{font-weight:900;margin-bottom:6px}.answers{font-size:.93rem;color:var(--muted);display:grid;gap:3px}.tiny{text-align:center;color:var(--muted);font-size:.83rem;margin-top:18px}.share-card{border-radius:24px;padding:28px 22px;text-align:center;background:radial-gradient(circle at 25% 15%,rgba(255,255,255,.18),transparent 26%),linear-gradient(145deg,#201a32,#6f4bd8 70%,#b161d0);color:white;margin:18px 0;box-shadow:0 16px 36px rgba(56,35,103,.22);position:relative;overflow:hidden}.share-card:after{content:"🧠";position:absolute;right:-12px;bottom:-24px;font-size:96px;opacity:.09;transform:rotate(-12deg)}.share-card.theme-sunset{background:linear-gradient(145deg,#4a1f52,#e06c75 55%,#f6bd60)}.share-card.theme-arcade{background:linear-gradient(145deg,#06152e,#5b2cff 55%,#00d4ff)}.share-card.theme-galaxy{background:radial-gradient(circle at 20% 15%,#7658ff,transparent 25%),linear-gradient(145deg,#090625,#281052 60%,#601a75)}.share-card .big{font-size:2.4rem;font-weight:950}.pill{display:inline-block;border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.15);font-weight:800;margin-top:8px}.group-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0}.group-stat{border:1px solid var(--line);border-radius:16px;padding:14px;background:#faf8ff}.group-stat strong{display:block;font-size:1.45rem;margin-top:3px}.vote-bar{height:9px;background:#ece7f5;border-radius:999px;overflow:hidden;margin-top:6px}.vote-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--purple),#d26bcf)}.group-players{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.group-player{background:#f0ebfb;border-radius:999px;padding:7px 10px;font-weight:800;font-size:.88rem}
+.disclosure{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden;text-align:left}
+.disclosure>summary{list-style:none;cursor:pointer;font-weight:900;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;outline:none}
+.disclosure>summary::-webkit-details-marker{display:none}
+.disclosure>summary:after{content:"›";font-size:1.35rem;transform:rotate(0deg);transition:transform .16s ease;color:var(--muted)}
+.disclosure[open]>summary:after{transform:rotate(90deg)}
+.disclosure-body{padding:0 14px 14px}
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.action-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;text-align:left;font:inherit;font-weight:850;cursor:pointer}
+.action-card small{display:block;margin-top:4px;color:var(--muted);font-weight:650}
+.action-card:hover,.action-card:focus-visible{border-color:#b8a7ef;background:#faf8ff}
+.inline-panel{margin-top:10px;border:1px solid var(--line);border-radius:14px;background:#faf8ff;padding:12px}
+.deck-toolbar{display:flex;gap:8px;margin:10px 0}
+.deck-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:360px;overflow:auto;padding-right:2px}
+.deck-item{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px;text-align:left;font-weight:800;cursor:pointer}
+.deck-item small{display:block;color:var(--muted);margin-top:3px;font-weight:650}
+.custom-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0}
+.custom-tab{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 6px;font-weight:900;cursor:pointer}
+.custom-tab.active{border-color:var(--purple);background:#f2edff;color:#5336c5}
+.custom-pane{display:none}.custom-pane.active{display:block}
+.shop-item.owned{border-color:#b8a7ef;background:#faf8ff}
+.shop-item.equipped{border-color:var(--purple);background:#eee8ff;box-shadow:inset 0 0 0 1px var(--purple)}
+.shop-item small.status{display:block;margin-top:3px}
+.bits-progress{margin:8px 0 12px;font-size:.86rem;color:var(--muted)}
+.bits-meter{height:8px;background:#ece7f5;border-radius:999px;overflow:hidden;margin-top:5px}
+.bits-meter i{display:block;height:100%;background:linear-gradient(90deg,var(--purple),#ad76ee)}
+.home-replay{border:0;background:none;color:var(--purple);font-weight:850;cursor:pointer;padding:3px 0;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:520px){.topbar{padding:0 4px}.card{border-radius:22px;padding:22px 17px}.shell{padding:max(12px,env(safe-area-inset-top)) 10px max(30px,env(safe-area-inset-bottom))}.button{min-height:58px}.choice{min-height:64px;font-size:1rem}.question{margin-top:10px}.challenge-link{font-size:.82rem}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
@@ -26,93 +53,114 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     </div>
     <p id="daily-label" class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p><div id="streak-line" class="tiny" style="margin-top:6px"></div>
 
-    <details style="margin-top:18px;text-align:left">
-      <summary style="cursor:pointer;font-weight:900">Pick a different set</summary>
-      <div class="pack-grid" aria-label="Question packs">
-        <button class="pack" data-pack="friends">👯 Friends<small>Preferences & personality</small></button>
-        <button class="pack" data-pack="family">🏡 Family<small>Home & everyday life</small></button>
-        <button class="pack" data-pack="chaos">🦝 Chaos<small>The weirdest choices</small></button>
-        <button class="pack" data-pack="food">🍕 Food<small>Strong opinions only</small></button>
-        <button class="pack" data-pack="travel">✈️ Travel<small>Trips & adventure</small></button>
-        <button class="pack" data-pack="couples">❤️ Couples<small>Habits & decisions</small></button>
-        <button class="pack" data-pack="work">💼 Work<small>How you operate</small></button>
-        <button class="pack" data-pack="nostalgia">📼 Nostalgia<small>Throwback preferences</small></button>
-        <button class="pack" data-pack="wouldyou">🤔 Would You Rather<small>Impossible choices</small></button>
-        <button class="pack daily" data-pack="daily">☀️ Today’s Mix<small>Same set all day</small></button>
-      </div>
-      <label for="deck-select" style="margin:8px 0 8px">More decks</label>
-      <select id="deck-select" class="name-input"><option value="">Choose a themed deck…</option></select>
-    </details>
+    <button id="home-replay-daily" class="home-replay hidden" type="button">Replay today’s Brain</button>
 
-    <details class="advanced-play" style="margin-top:14px;text-align:left">
-      <summary style="cursor:pointer;font-weight:900">More ways to play</summary>
-      <div class="mode-row" aria-label="Question length">
-        <button id="five-mode" class="mode-btn active" type="button">5 questions<br><small>Default</small></button>
-        <button id="ten-mode" class="mode-btn" type="button">10 questions ✨<br><small>Plus</small></button>
-      </div>
-      <div class="stack">
-        <label for="group-pack" style="margin:4px 0 0">Group Brain pack</label>
-        <select id="group-pack" class="name-input" aria-label="Choose Group Brain pack">
-          <option value="daily">Today’s Mix</option>
-          <option value="random">Random Mix</option>
-          <option value="friends">Friends</option>
-          <option value="family">Family</option>
-          <option value="chaos">Chaos</option>
-          <option value="food">Food</option>
-          <option value="travel">Travel</option>
-          <option value="couples">Couples</option>
-          <option value="work">Work</option>
-          <option value="nostalgia">Nostalgia</option>
-          <option value="wouldyou">Would You Rather</option>
-        </select>
-        <button id="group-btn" class="button secondary wide">Create Group Brain (4–8)</button>
-        <button id="demo-btn" class="button ghost wide">Play together on this device</button>
-        <button id="custom-toggle" class="button ghost wide">✨ Create a custom 5-question challenge</button>
-        <div id="custom-builder" class="hidden" style="border-top:1px solid var(--line);padding-top:8px">
-          <p class="premium-note">Plus: write five “this or that” questions. They travel inside the challenge link, so your friend can play without Plus.</p>
-          <div id="custom-fields" class="stack"></div>
-          <button id="custom-start" class="button secondary wide" type="button">Use my custom questions</button>
+    <details class="disclosure" id="sets-disclosure">
+      <summary>Pick a different set</summary>
+      <div class="disclosure-body">
+        <div class="pack-grid" aria-label="Question packs">
+          <button class="pack" data-pack="friends">👯 Friends<small>Preferences & personality</small></button>
+          <button class="pack" data-pack="family">🏡 Family<small>Home & everyday life</small></button>
+          <button class="pack" data-pack="chaos">🦝 Chaos<small>The weirdest choices</small></button>
+          <button class="pack" data-pack="food">🍕 Food<small>Strong opinions only</small></button>
+          <button class="pack" data-pack="travel">✈️ Travel<small>Trips & adventure</small></button>
+          <button class="pack" data-pack="couples">❤️ Couples<small>Habits & decisions</small></button>
+          <button class="pack" data-pack="work">💼 Work<small>How you operate</small></button>
+          <button class="pack" data-pack="nostalgia">📼 Nostalgia<small>Throwback preferences</small></button>
+          <button class="pack" data-pack="wouldyou">🤔 Would You Rather<small>Impossible choices</small></button>
+          <button id="daily-pack-btn" class="pack daily" data-pack="daily">☀️ Today’s Mix<small>Same set all day</small></button>
+        </div>
+        <button id="browse-decks" class="button ghost wide" type="button" style="margin-top:10px">Browse themed decks</button>
+        <div id="deck-browser" class="inline-panel hidden">
+          <input id="deck-search" class="name-input" type="search" placeholder="Search decks…" autocomplete="off">
+          <div id="deck-grid" class="deck-grid" aria-label="Themed decks"></div>
         </div>
       </div>
     </details>
 
-    <details class="shop">
+    <details class="disclosure advanced-play" id="ways-disclosure">
+      <summary>More ways to play</summary>
+      <div class="disclosure-body">
+        <div class="stack">
+          <button id="group-open" class="action-card" type="button">👥 Group Brain<small>4–8 people, answer whenever you want</small></button>
+          <div id="group-config" class="inline-panel hidden">
+            <strong>Group Brain setup</strong>
+            <div class="mode-row" aria-label="Group question length">
+              <button id="group-five" class="mode-btn active" type="button">5 questions<br><small>Quick</small></button>
+              <button id="group-ten" class="mode-btn" type="button">10 questions ✨<br><small>Plus</small></button>
+            </div>
+            <label for="group-pack">Question set</label>
+            <select id="group-pack" class="name-input" aria-label="Choose Group Brain pack">
+              <option value="daily">Today’s Mix</option><option value="random">Random Mix</option><option value="friends">Friends</option><option value="family">Family</option><option value="chaos">Chaos</option><option value="food">Food</option><option value="travel">Travel</option><option value="couples">Couples</option><option value="work">Work</option><option value="nostalgia">Nostalgia</option><option value="wouldyou">Would You Rather</option>
+            </select>
+            <button id="group-btn" class="button secondary wide" type="button" style="margin-top:10px">Create Group Brain</button>
+          </div>
+          <button id="demo-btn" class="action-card" type="button">📱 Play together on this device<small>Pass the screen to a friend</small></button>
+          <button id="custom-toggle" class="action-card" type="button">✨ Create your own challenge<small>Plus · write your own five questions</small></button>
+          <div id="custom-builder" class="inline-panel hidden">
+            <p class="premium-note">Write five “this or that” questions. Your friend can play them without Plus.</p>
+            <div id="custom-fields" class="stack"></div>
+            <button id="custom-start" class="button secondary wide" type="button">Use my custom questions</button>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="disclosure shop" id="customize-disclosure">
       <summary>Customize</summary>
-      <div class="account-strip" style="justify-content:flex-start;margin-top:12px">
-        <span id="bits-chip" class="chip">🧠 <span id="bits-count">0</span> Brain Bits</span>
-        <span id="plus-chip" class="chip plus-chip">Free</span>
+      <div class="disclosure-body">
+        <div class="account-strip" style="justify-content:flex-start">
+          <span id="bits-chip" class="chip">🧠 <span id="bits-count">0</span> Brain Bits</span>
+          <span id="plus-chip" class="chip plus-chip">Free</span>
+        </div>
+        <div id="bits-progress" class="bits-progress"></div>
+        <div class="custom-tabs">
+          <button class="custom-tab active" data-custom-tab="avatar" type="button">Avatar</button>
+          <button class="custom-tab" data-custom-tab="voice" type="button">Voice</button>
+          <button class="custom-tab" data-custom-tab="style" type="button">Style</button>
+        </div>
+
+        <div id="custom-pane-avatar" class="custom-pane active">
+          <div id="avatar-preview" class="avatar-preview">🧠</div>
+          <div class="shop-grid">
+            <button class="shop-item" data-equip-avatar="brain">🧠 Default Brain<br><small class="status">Free</small></button>
+            <button class="shop-item" data-buy="avatar_owl">🦉 Wise Owl<br><small class="status">90 Bits</small></button>
+            <button class="shop-item" data-buy="avatar_fox">🦊 Clever Fox<br><small class="status">100 Bits</small></button>
+            <button class="shop-item" data-buy="avatar_robot">🤖 Robot Brain<br><small class="status">100 Bits</small></button>
+            <button class="shop-item" data-buy="avatar_alien">👽 Alien Brain<br><small class="status">110 Bits</small></button>
+            <button class="shop-item" data-buy="avatar_octopus">🐙 Octo Brain<br><small class="status">110 Bits</small></button>
+            <button class="shop-item" data-buy="avatar_astronaut">🧑‍🚀 Space Brain<br><small class="status">130 Bits</small></button>
+            <button class="shop-item" data-plus-avatar="plus_crown">👑 Crown Brain<br><small class="status">Plus exclusive</small></button>
+          </div>
+          <label for="selfie-input">Use a selfie avatar on this device</label>
+          <input id="selfie-input" type="file" accept="image/*" capture="user">
+          <div class="premium-note">The selfie stays in this browser only and is not uploaded.</div>
+        </div>
+
+        <div id="custom-pane-voice" class="custom-pane">
+          <label for="voice-select">Narrator</label>
+          <select id="voice-select" class="name-input">
+            <option value="browser">Device voice (free)</option>
+            <option value="marin">✨ Marin — natural</option>
+            <option value="cedar">✨ Cedar — warm</option>
+            <option value="coral">✨ Coral — bright</option>
+            <option value="sage">✨ Sage — calm</option>
+          </select>
+          <div class="premium-note">Premium narrator audio is AI-generated.</div>
+        </div>
+
+        <div id="custom-pane-style" class="custom-pane">
+          <div class="shop-grid">
+            <button class="shop-item" data-equip-frame="none">⬜ Default Frame<br><small class="status">Free</small></button>
+            <button class="shop-item" data-buy="frame_stars">⭐ Star Frame<br><small class="status">80 Bits</small></button>
+            <button class="shop-item" data-equip-theme="classic">🎨 Classic Card<br><small class="status">Free</small></button>
+            <button class="shop-item" data-buy="theme_sunset">🌅 Sunset Card<br><small class="status">120 Bits</small></button>
+            <button class="shop-item" data-buy="theme_arcade">🕹️ Arcade Card<br><small class="status">140 Bits</small></button>
+            <button class="shop-item" data-plus-theme="plus_galaxy">🌌 Galaxy Card<br><small class="status">Plus exclusive</small></button>
+          </div>
+        </div>
+        <p id="plus-note" class="tiny">Free includes the core game. Plus adds premium decks, custom challenges, longer games, voices, and cosmetics.</p>
       </div>
-      <div id="avatar-preview" class="avatar-preview">🧠</div>
-
-      <label for="voice-select">Narrator</label>
-      <select id="voice-select" class="name-input">
-        <option value="browser">Device voice (free)</option>
-        <option value="marin">✨ Marin — natural</option>
-        <option value="cedar">✨ Cedar — warm</option>
-        <option value="coral">✨ Coral — bright</option>
-        <option value="sage">✨ Sage — calm</option>
-      </select>
-      <div class="premium-note">Premium narrator audio is AI-generated.</div>
-
-      <div class="premium-note" style="margin-top:14px">Earn Brain Bits by playing. Cosmetics never affect scores.</div>
-      <div class="shop-grid">
-        <button class="shop-item" data-buy="frame_stars">⭐ Star Frame<br><small>80 Bits</small></button>
-        <button class="shop-item" data-buy="avatar_owl">🦉 Wise Owl<br><small>90 Bits</small></button>
-        <button class="shop-item" data-buy="avatar_fox">🦊 Clever Fox<br><small>100 Bits</small></button>
-        <button class="shop-item" data-buy="avatar_robot">🤖 Robot Brain<br><small>100 Bits</small></button>
-        <button class="shop-item" data-buy="avatar_alien">👽 Alien Brain<br><small>110 Bits</small></button>
-        <button class="shop-item" data-buy="avatar_octopus">🐙 Octo Brain<br><small>110 Bits</small></button>
-        <button class="shop-item" data-buy="avatar_astronaut">🧑‍🚀 Space Brain<br><small>130 Bits</small></button>
-        <button class="shop-item" data-buy="theme_sunset">🌅 Sunset Card<br><small>120 Bits</small></button>
-        <button class="shop-item" data-buy="theme_arcade">🕹️ Arcade Card<br><small>140 Bits</small></button>
-        <button class="shop-item" data-plus-avatar="plus_crown">👑 Crown Brain<br><small>Plus exclusive</small></button>
-        <button class="shop-item" data-plus-theme="plus_galaxy">🌌 Galaxy Card<br><small>Plus exclusive</small></button>
-      </div>
-
-      <label for="selfie-input">Use a selfie avatar on this device</label>
-      <input id="selfie-input" type="file" accept="image/*" capture="user">
-      <div class="premium-note">The selfie stays in this browser only and is not uploaded.</div>
-      <p id="plus-note" class="tiny">Free includes the core game. Plus adds 10-question creation, extra decks, premium narrator voices, and premium cosmetics.</p>
     </details>
   </section>
 
