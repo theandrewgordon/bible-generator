@@ -1134,10 +1134,13 @@ SAME_BRAIN_POINT_EVENTS = {
     "group_complete": 12,
 }
 SAME_BRAIN_COSMETICS = {
-    "frame_neon": 60,
     "frame_stars": 80,
+    "avatar_owl": 90,
     "avatar_fox": 100,
     "avatar_robot": 100,
+    "avatar_alien": 110,
+    "avatar_octopus": 110,
+    "avatar_astronaut": 130,
     "theme_sunset": 120,
     "theme_arcade": 140,
 }
