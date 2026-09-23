@@ -1629,43 +1629,244 @@ def same_brain_metrics():
         except Exception:
             return {}
 
+    def _run_docs(collection_name: str, limit: int = 500) -> list[dict]:
+        if not db:
+            return []
+        rows = []
+        try:
+            for snap in db.collection(collection_name).limit(limit).stream():
+                data = snap.to_dict() or {}
+                events = data.get("events") if isinstance(data.get("events"), dict) else {}
+                rows.append({
+                    "id": snap.id,
+                    "events": {str(k): bool(v) for k, v in events.items()},
+                    "pack": str(data.get("pack") or "unknown")[:24],
+                })
+        except Exception:
+            return []
+        return rows
+
     public_events = _doc_counts("same_brain_public_funnel")
     labs_events = _doc_counts("same_brain_funnel")
+    public_runs = _run_docs("same_brain_public_runs")
 
-    def _count(name: str) -> int:
-        return max(0, int(public_events.get(name) or 0))
+    def _event_count(events: dict, name: str) -> int:
+        return max(0, int(events.get(name) or 0))
 
-    def _rate(num: str, den: str) -> float | None:
-        denominator = _count(den)
+    def _cohort_rate(den_event: str, num_event: str) -> dict:
+        denominator_runs = [row for row in public_runs if row["events"].get(den_event)]
+        denominator = len(denominator_runs)
+        numerator = sum(1 for row in denominator_runs if row["events"].get(num_event))
         if denominator <= 0:
-            return None
-        return round(_count(num) / denominator * 100, 1)
+            return {"value": None, "numerator": 0, "denominator": 0}
+        return {
+            "value": round(numerator / denominator * 100, 1),
+            "numerator": numerator,
+            "denominator": denominator,
+        }
 
-    return jsonify({
+    metrics = [
+        {
+            "key": "creatorCompletion",
+            "label": "Creator quiz completion",
+            "why": "Of people who start their own quiz, how many finish all 5 and create a challenge?",
+            "rate": _cohort_rate("start", "challenge_created"),
+            "good": 70,
+            "watch": 50,
+            "problem": "People are dropping out before finishing the five questions.",
+            "action": "Test the five-question flow on phones. Shorten/confusing questions or remove any interaction friction.",
+        },
+        {
+            "key": "creatorShare",
+            "label": "Creator share rate",
+            "why": "Of finished challenges, how many actually get shared?",
+            "rate": _cohort_rate("challenge_created", "challenge_shared"),
+            "good": 30,
+            "watch": 15,
+            "problem": "People finish but do not send the challenge.",
+            "action": "Improve the challenge-created payoff, share copy, preview, and primary Share button.",
+        },
+        {
+            "key": "inviteCompletion",
+            "label": "Friend completion rate",
+            "why": "Of friends who open a challenge, how many finish and submit their result?",
+            "rate": _cohort_rate("challenge_opened", "response_submitted"),
+            "good": 65,
+            "watch": 40,
+            "problem": "Invitees open the game but do not finish it.",
+            "action": "Simplify the invite/name step and inspect where mobile players abandon the five questions.",
+        },
+        {
+            "key": "chainRate",
+            "label": "Viral chain rate",
+            "why": "Of friends who see a result, how many challenge the next person?",
+            "rate": _cohort_rate("result_completed", "beat_chain_shared"),
+            "good": 20,
+            "watch": 10,
+            "problem": "People enjoy the result but the chain stops there.",
+            "action": "Strengthen the 'Who knows you better?' CTA and make the next share feel personally interesting.",
+        },
+        {
+            "key": "resultShare",
+            "label": "Result-card share rate",
+            "why": "Of completed results, how many share the result card itself?",
+            "rate": _cohort_rate("result_completed", "result_shared"),
+            "good": 20,
+            "watch": 8,
+            "problem": "The result is not interesting enough to show other people.",
+            "action": "Improve the result card/highlights before adding more gameplay features.",
+        },
+    ]
+
+    for metric in metrics:
+        rate = metric["rate"]
+        value = rate["value"]
+        sample = rate["denominator"]
+        if sample < 10:
+            metric["status"] = "learning"
+            metric["statusLabel"] = "Not enough data"
+            metric["diagnosis"] = f"Only {sample} matched run{'s' if sample != 1 else ''}. Wait for at least 10 before reacting."
+        elif value is None:
+            metric["status"] = "learning"
+            metric["statusLabel"] = "No data"
+            metric["diagnosis"] = "No matched runs yet."
+        elif value >= metric["good"]:
+            metric["status"] = "good"
+            metric["statusLabel"] = "Healthy"
+            metric["diagnosis"] = "This part of the loop looks healthy for now."
+        elif value >= metric["watch"]:
+            metric["status"] = "watch"
+            metric["statusLabel"] = "Watch"
+            metric["diagnosis"] = metric["problem"]
+        else:
+            metric["status"] = "problem"
+            metric["statusLabel"] = "Problem"
+            metric["diagnosis"] = metric["problem"]
+
+    rough_home = _event_count(public_events, "home_view")
+    rough_returns = _event_count(public_events, "return_visit")
+    rough_return_rate = round(min(rough_returns, rough_home) / rough_home * 100, 1) if rough_home else None
+
+    legacy_anomalies = []
+    legacy_starts = _event_count(public_events, "start")
+    legacy_results = _event_count(public_events, "result_completed")
+    if legacy_results > legacy_starts and legacy_starts > 0:
+        legacy_anomalies.append(
+            "Old aggregate counters show more completed results than starts. This is expected from the previous session-level dedupe logic and should not be used as a completion rate."
+        )
+    if not public_runs:
+        legacy_anomalies.append(
+            "Run-based tracking has just started. The dashboard will become trustworthy as new plays arrive."
+        )
+
+    next_problem = next((m for m in metrics if m["status"] == "problem"), None)
+    next_watch = next((m for m in metrics if m["status"] == "watch"), None)
+    priority = next_problem or next_watch
+
+    payload = {
         "ok": True,
-        "public": {
-            "events": {key: max(0, int(value or 0)) for key, value in public_events.items()},
-            "rates": {
-                "completionRate": _rate("result_completed", "start"),
-                "shareRate": _rate("challenge_shared", "result_completed"),
-                "inviteCompletionRate": _rate("response_submitted", "challenge_opened"),
-                "chainRate": _rate("beat_chain_shared", "result_completed"),
-                "returnRate": _rate("return_visit", "home_view"),
-                "creatorPayoffRate": _rate("creator_result_opened", "response_submitted"),
-            },
+        "runBased": True,
+        "trackedRuns": len(public_runs),
+        "metrics": metrics,
+        "roughReturnRate": {
+            "value": rough_return_rate,
+            "returns": rough_returns,
+            "homeViews": rough_home,
+            "note": "Directional only: return/home counters are still session-based, not a clean user cohort.",
         },
-        "labs": {
-            "events": {key: max(0, int(value or 0)) for key, value in labs_events.items()},
+        "priority": {
+            "label": priority["label"],
+            "action": priority["action"],
+        } if priority else None,
+        "warnings": legacy_anomalies,
+        "raw": {
+            "publicEvents": {key: max(0, int(value or 0)) for key, value in public_events.items()},
+            "labsEvents": {key: max(0, int(value or 0)) for key, value in labs_events.items()},
         },
-        "definitions": {
-            "completionRate": "result_completed / start",
-            "shareRate": "challenge_shared / result_completed",
-            "inviteCompletionRate": "response_submitted / challenge_opened",
-            "chainRate": "beat_chain_shared / result_completed",
-            "returnRate": "return_visit / home_view",
-            "creatorPayoffRate": "creator_result_opened / response_submitted",
-        },
-    })
+    }
+
+    if request.args.get("format") == "json":
+        return jsonify(payload)
+
+    def _pct(value):
+        return "—" if value is None else f"{value:.1f}%"
+
+    status_styles = {
+        "good": ("#eaf8ef", "#1d7a3b", "✅"),
+        "watch": ("#fff7df", "#8a6410", "⚠️"),
+        "problem": ("#fff0f0", "#a52a2a", "🚨"),
+        "learning": ("#f2effa", "#655a7b", "🧪"),
+    }
+
+    metric_cards = []
+    for metric in metrics:
+        bg, fg, icon = status_styles[metric["status"]]
+        rate = metric["rate"]
+        metric_cards.append(f"""
+        <section class="metric">
+          <div class="metric-top">
+            <div><div class="eyebrow">{icon} {metric["statusLabel"]}</div><h2>{metric["label"]}</h2></div>
+            <div class="number">{_pct(rate["value"])}</div>
+          </div>
+          <div class="sample">{rate["numerator"]} of {rate["denominator"]} matched runs</div>
+          <p>{metric["why"]}</p>
+          <div class="diagnosis" style="background:{bg};color:{fg}">
+            <strong>{metric["diagnosis"]}</strong>
+            <span>{metric["action"] if metric["status"] in {"problem", "watch"} else ""}</span>
+          </div>
+        </section>
+        """)
+
+    warning_html = "".join(f"<li>{warning}</li>" for warning in legacy_anomalies) or "<li>No tracking anomalies detected.</li>"
+    priority_html = (
+        f"<div class='priority'><strong>Fix this next: {priority['label']}</strong><span>{priority['action']}</span></div>"
+        if priority else
+        "<div class='priority healthy'><strong>No obvious funnel problem yet.</strong><span>Keep collecting real-user runs before changing the game.</span></div>"
+    )
+
+    raw_rows = "".join(
+        f"<tr><td>{key.replace('_', ' ')}</td><td>{max(0, int(value or 0))}</td></tr>"
+        for key, value in sorted(public_events.items())
+    ) or "<tr><td colspan='2'>No public events yet.</td></tr>"
+
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Same Brain MVP Metrics</title>
+<style>
+*{{box-sizing:border-box}}body{{margin:0;background:#f7f4fc;color:#241d36;font:16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}}
+main{{max-width:980px;margin:0 auto;padding:32px 18px 60px}}h1{{font-size:2rem;margin:0}}h2{{font-size:1.05rem;margin:3px 0 0}}p{{color:#675f78;margin:9px 0}}
+.top{{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}}.sub{{color:#756b86;margin-top:5px}}
+.chip{{background:#fff;border:1px solid #ded6ef;border-radius:999px;padding:8px 12px;font-weight:800;white-space:nowrap}}
+.priority{{border:1px solid #d9cff2;background:#fff;border-radius:16px;padding:15px 17px;margin:16px 0;display:flex;flex-direction:column;gap:4px}}
+.priority strong{{color:#5b3fd0}}.priority span{{color:#665e76}}.priority.healthy strong{{color:#24753d}}
+.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}}.metric{{background:#fff;border:1px solid #e0d9ee;border-radius:18px;padding:17px;box-shadow:0 8px 24px rgba(59,37,97,.05)}}
+.metric-top{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}}.eyebrow{{font-size:.75rem;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#756b86}}
+.number{{font-size:2rem;font-weight:950;color:#6f4bd8}}.sample{{font-size:.82rem;color:#847b91;margin-top:7px}}.diagnosis{{border-radius:12px;padding:10px 11px;margin-top:12px;font-size:.86rem;display:flex;flex-direction:column;gap:3px}}
+.section{{background:#fff;border:1px solid #e0d9ee;border-radius:18px;padding:18px;margin-top:14px}}ul{{margin:9px 0;padding-left:20px;color:#665e76}}table{{width:100%;border-collapse:collapse}}td{{padding:7px 4px;border-bottom:1px solid #eee9f5}}td:last-child{{text-align:right;font-weight:800}}
+.note{{font-size:.84rem;color:#7b7288}}a{{color:#5b3fd0;font-weight:800}}@media(max-width:700px){{.grid{{grid-template-columns:1fr}}.top{{flex-direction:column}}}}
+</style>
+</head>
+<body><main>
+<div class="top"><div><h1>🧠 Same Brain MVP Health</h1><div class="sub">Find the first place the viral loop is leaking. Fix that before adding features.</div></div><div class="chip">{len(public_runs)} tracked runs</div></div>
+{priority_html}
+<div class="grid">{''.join(metric_cards)}</div>
+<section class="section">
+<h2>Return behavior</h2>
+<div class="number">{_pct(rough_return_rate)}</div>
+<p>{rough_returns} return events / {rough_home} home views.</p>
+<div class="note">Directional only for now. These counters are session-based, so do not make product decisions from this until there is more traffic.</div>
+</section>
+<section class="section"><h2>Data-quality notes</h2><ul>{warning_html}</ul><div class="note">The old 200% completion rate was not real. The previous counters did not represent matched cohorts. New runs are now matched anonymously by quiz run.</div></section>
+<section class="section"><h2>Raw public events</h2><table>{raw_rows}</table><p class="note">Useful for debugging, not for calculating funnel rates by hand.</p></section>
+<section class="section"><a href="?format=json">View raw dashboard JSON</a></section>
+</main></body></html>"""
+    response = make_response(html)
+    response.mimetype = "text/html"
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @bp.get("/<slug>")
