@@ -370,7 +370,7 @@ def sitemap_xml():
     """Small, explicit sitemap; private workspaces and Labs stay out."""
     paths = (
         "/", "/about", "/start-here", "/families", "/churches", "/prepare", "/lesson-pack",
-        "/generate", "/browse", "/play", "/games", "/family-game-night",
+        "/generate", "/browse", "/play", "/games", "/family-game-night", "/same-brain",
         "/verse-of-the-week", "/plus", "/terms", "/privacy", "/copyright",
     )
     origin = request.url_root.rstrip("/")
