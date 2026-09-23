@@ -1550,3 +1550,36 @@ def test_same_brain_result_cta_stays_personal_and_viral():
 
     assert "Who knows you better? Challenge them →" in html
     assert 'track("creator_result_opened")' in html
+
+
+
+def test_same_brain_mvp_uses_native_share_with_simple_facebook_desktop_fallback():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="share-btn"',
+        'id="facebook-share"',
+        'id="result-share"',
+        'id="result-facebook"',
+        "function shareFacebook(url)",
+        "https://www.facebook.com/sharer/sharer.php?u=",
+        "if(navigator.share)",
+        'fb1.classList.add("hidden")',
+        'fb2.classList.add("hidden")',
+    ):
+        assert marker in html
+
+
+def test_same_brain_custom_questions_are_dormant_not_in_mvp_path():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'id="custom-toggle" class="action-card hidden"' in html
+    assert 'aria-hidden="true"' in html
+    assert 'tabindex="-1"' in html
+    # Keep the implementation available for a later Plus experiment.
+    assert "function hydrateCustomQuestions(ch)" in html
+    assert 'track("custom_created")' in html
