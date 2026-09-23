@@ -2,9 +2,11 @@ import hmac
 import json
 import os
 import secrets
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from firebase_admin import firestore as google_firestore
+from google.cloud import firestore as cloud_firestore
 from flask import Blueprint, jsonify, make_response, render_template, redirect, request, session, send_file
 
 from faithsparks.services.firestore import db
@@ -1121,6 +1123,194 @@ def roster():
         return jsonify({"error": "storage_unavailable"}), 503
 
     return jsonify(merged)
+
+
+SAME_BRAIN_GROUP_COLLECTION = "same_brain_groups"
+SAME_BRAIN_GROUP_TTL_DAYS = 14
+SAME_BRAIN_GROUP_MAX_PLAYERS = 8
+
+
+def _same_brain_group_code() -> str:
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "".join(secrets.choice(alphabet) for _ in range(7))
+
+
+def _same_brain_clean_name(value: object) -> str:
+    return " ".join(str(value or "").split()).strip()[:20]
+
+
+def _same_brain_validate_answers(question_ids: object, answers: object) -> tuple[list[str], list[int]] | None:
+    if not isinstance(question_ids, list) or not isinstance(answers, list):
+        return None
+    if len(question_ids) != 5 or len(answers) != 5:
+        return None
+    qids = [str(item or "").strip()[:40] for item in question_ids]
+    if any(not item for item in qids) or len(set(qids)) != 5:
+        return None
+    normalized = []
+    for raw in answers:
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            return None
+        if value < 0 or value > 3:
+            return None
+        normalized.append(value)
+    return qids, normalized
+
+
+def _same_brain_group_public(data: dict) -> dict:
+    players = []
+    for raw in data.get("players") or []:
+        if not isinstance(raw, dict):
+            continue
+        players.append({
+            "name": _same_brain_clean_name(raw.get("name")),
+            "answers": [int(v) for v in (raw.get("answers") or [])[:5]],
+        })
+    return {
+        "code": str(data.get("code") or ""),
+        "pack": str(data.get("pack") or "random")[:24],
+        "questionIds": list(data.get("questionIds") or [])[:5],
+        "players": players[:SAME_BRAIN_GROUP_MAX_PLAYERS],
+        "maxPlayers": SAME_BRAIN_GROUP_MAX_PLAYERS,
+    }
+
+
+def _same_brain_group_ref(code: str):
+    code = (code or "").strip().upper()
+    if not code or len(code) > 12:
+        return None
+    try:
+        client = db()
+    except Exception:
+        client = None
+    return client.collection(SAME_BRAIN_GROUP_COLLECTION).document(code) if client else None
+
+
+@bp.post("/same-brain/group")
+def same_brain_group_create():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _csrf_token_value()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    payload = request.get_json(silent=True) or {}
+    name = _same_brain_clean_name(payload.get("name"))
+    validated = _same_brain_validate_answers(payload.get("questionIds"), payload.get("answers"))
+    if not name or not validated:
+        return jsonify({"error": "invalid"}), 400
+    question_ids, answers = validated
+    pack = str(payload.get("pack") or "random").strip().lower()[:24]
+
+    ref = None
+    code = ""
+    for _ in range(8):
+        code = _same_brain_group_code()
+        ref = _same_brain_group_ref(code)
+        if ref is not None and not ref.get().exists:
+            break
+    if ref is None:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if ref.get().exists:
+        return jsonify({"error": "try_again"}), 503
+
+    now = datetime.now(timezone.utc)
+    data = {
+        "code": code,
+        "pack": pack,
+        "questionIds": question_ids,
+        "players": [{"name": name, "answers": answers, "joinedAt": now}],
+        "createdAt": now,
+        "updatedAt": now,
+        "expiresAt": now + timedelta(days=SAME_BRAIN_GROUP_TTL_DAYS),
+    }
+    try:
+        ref.set(data)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    return jsonify(_same_brain_group_public(data)), 201
+
+
+@bp.get("/same-brain/group/<code>")
+def same_brain_group_get(code: str):
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+    ref = _same_brain_group_ref(code)
+    if ref is None:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        snap = ref.get()
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if not snap.exists:
+        return jsonify({"error": "not_found"}), 404
+    data = snap.to_dict() or {}
+    expires = data.get("expiresAt")
+    if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+        return jsonify({"error": "expired"}), 410
+    return jsonify(_same_brain_group_public(data))
+
+
+@bp.post("/same-brain/group/<code>/join")
+def same_brain_group_join(code: str):
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _csrf_token_value()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    payload = request.get_json(silent=True) or {}
+    name = _same_brain_clean_name(payload.get("name"))
+    validated = _same_brain_validate_answers(payload.get("questionIds"), payload.get("answers"))
+    if not name or not validated:
+        return jsonify({"error": "invalid"}), 400
+    question_ids, answers = validated
+
+    ref = _same_brain_group_ref(code)
+    if ref is None:
+        return jsonify({"error": "not_found"}), 404
+    client = db()
+    if not client:
+        return jsonify({"error": "storage_unavailable"}), 503
+    transaction = client.transaction()
+
+    @cloud_firestore.transactional
+    def add_player(txn):
+        snap = ref.get(transaction=txn)
+        if not snap.exists:
+            return ("not_found", None)
+        data = snap.to_dict() or {}
+        if list(data.get("questionIds") or []) != question_ids:
+            return ("invalid", None)
+        players = list(data.get("players") or [])
+        if len(players) >= SAME_BRAIN_GROUP_MAX_PLAYERS:
+            return ("full", data)
+        name_key = name.casefold()
+        if any(_same_brain_clean_name(p.get("name")).casefold() == name_key for p in players if isinstance(p, dict)):
+            return ("name_taken", data)
+        players.append({"name": name, "answers": answers, "joinedAt": datetime.now(timezone.utc)})
+        data["players"] = players
+        data["updatedAt"] = datetime.now(timezone.utc)
+        txn.update(ref, {"players": players, "updatedAt": data["updatedAt"]})
+        return ("ok", data)
+
+    try:
+        status, data = add_player(transaction)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if status != "ok":
+        status_code = {"not_found": 404, "invalid": 400, "full": 409, "name_taken": 409}.get(status, 400)
+        return jsonify({"error": status}), status_code
+    return jsonify(_same_brain_group_public(data))
 
 
 SAME_BRAIN_EVENTS = {
