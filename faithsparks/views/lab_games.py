@@ -74,6 +74,7 @@ LAB_GAMES = (
         "maturity": "sandbox",
         "file": "same-brain.html",
         "available": True,
+        "odyssey": False,
     },
 )
 
