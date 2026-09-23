@@ -2,6 +2,7 @@ import hmac
 import json
 import re
 import secrets
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from firebase_admin import firestore
@@ -245,6 +246,10 @@ def labs():
 
 
 _SAME_BRAIN_FILE = Path(__file__).resolve().parents[1] / "content" / "lab_games" / "same-brain.html"
+SAME_BRAIN_SHORT_COLLECTION = "same_brain_challenges"
+SAME_BRAIN_SHORT_TTL_DAYS = 30
+SAME_BRAIN_SHORT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
 _SAME_BRAIN_PUBLIC_EVENTS = {
     "home_view",
     "return_visit",
@@ -265,6 +270,169 @@ def _same_brain_public_csrf() -> str:
         token = secrets.token_urlsafe(32)
         session["_csrf_token"] = token
     return token
+
+
+def _same_brain_public_challenge_payload(raw) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    try:
+        version = int(raw.get("v") or 0)
+    except (TypeError, ValueError):
+        return None
+    name = " ".join(str(raw.get("n") or "").split()).strip()[:20]
+    qids = raw.get("q")
+    answers = raw.get("a")
+    if version != 1 or not name or not isinstance(qids, list) or not isinstance(answers, list):
+        return None
+    if len(qids) not in {5, 10} or len(answers) != len(qids):
+        return None
+    clean_qids = [str(q or "").strip()[:40] for q in qids]
+    if any(not q for q in clean_qids) or len(set(clean_qids)) != len(clean_qids):
+        return None
+    clean_answers = []
+    for value in answers:
+        try:
+            answer = int(value)
+        except (TypeError, ValueError):
+            return None
+        if answer < 0 or answer > 3:
+            return None
+        clean_answers.append(answer)
+
+    clean = {
+        "v": 1,
+        "n": name,
+        "q": clean_qids,
+        "a": clean_answers,
+        "p": str(raw.get("p") or "shared").strip().lower()[:24],
+    }
+    daily_label = " ".join(str(raw.get("d") or "").split()).strip()[:40]
+    if daily_label:
+        clean["d"] = daily_label
+
+    custom = raw.get("x")
+    if custom is not None:
+        if not isinstance(custom, list) or len(custom) > 10:
+            return None
+        clean_custom = []
+        for item in custom:
+            if not isinstance(item, dict):
+                return None
+            item_id = str(item.get("id") or "").strip()[:40]
+            question = " ".join(str(item.get("q") or "").split()).strip()[:140]
+            options = item.get("a")
+            if not item_id or not question or not isinstance(options, list) or not (2 <= len(options) <= 4):
+                return None
+            clean_options = [" ".join(str(v or "").split()).strip()[:60] for v in options]
+            if any(not value for value in clean_options):
+                return None
+            clean_custom.append({"id": item_id, "q": question, "a": clean_options})
+        if clean_custom:
+            clean["x"] = clean_custom
+
+    history = raw.get("h")
+    if history is not None:
+        if not isinstance(history, dict):
+            return None
+        try:
+            score = int(history.get("s"))
+        except (TypeError, ValueError):
+            return None
+        if score < 0 or score > 100:
+            return None
+        clean["h"] = {
+            "s": score,
+            "a": " ".join(str(history.get("a") or "").split()).strip()[:20],
+            "b": " ".join(str(history.get("b") or "").split()).strip()[:20],
+        }
+    return clean
+
+
+def _same_brain_short_code() -> str:
+    return "".join(secrets.choice(SAME_BRAIN_SHORT_CODE_ALPHABET) for _ in range(7))
+
+
+@bp.post('/same-brain/challenge')
+def same_brain_public_challenge_create():
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _same_brain_public_csrf()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    limit = check_rate_limit(
+        "same_brain_public_challenge_create",
+        get_client_ip(),
+        limit=60,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"error": "rate_limited"}), 429
+
+    payload = _same_brain_public_challenge_payload(request.get_json(silent=True) or {})
+    if payload is None:
+        return jsonify({"error": "invalid"}), 400
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    ref = None
+    code = ""
+    for _ in range(10):
+        code = _same_brain_short_code()
+        ref = db.collection(SAME_BRAIN_SHORT_COLLECTION).document(code)
+        try:
+            if not ref.get().exists:
+                break
+        except Exception:
+            return jsonify({"error": "storage_unavailable"}), 503
+    if ref is None:
+        return jsonify({"error": "storage_unavailable"}), 503
+    try:
+        if ref.get().exists:
+            return jsonify({"error": "try_again"}), 503
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    now = datetime.now(timezone.utc)
+    try:
+        ref.set({
+            "payload": payload,
+            "createdAt": now,
+            "expiresAt": now + timedelta(days=SAME_BRAIN_SHORT_TTL_DAYS),
+        })
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    return jsonify({"ok": True, "code": code}), 201
+
+
+@bp.get('/same-brain/challenge/<code>')
+def same_brain_public_challenge_get(code: str):
+    code = str(code or "").strip().upper()
+    if len(code) != 7 or any(ch not in SAME_BRAIN_SHORT_CODE_ALPHABET for ch in code):
+        return jsonify({"error": "not_found"}), 404
+    limit = check_rate_limit(
+        "same_brain_public_challenge_get",
+        get_client_ip(),
+        limit=600,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"error": "rate_limited"}), 429
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+    try:
+        snap = db.collection(SAME_BRAIN_SHORT_COLLECTION).document(code).get()
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if not snap.exists:
+        return jsonify({"error": "not_found"}), 404
+    data = snap.to_dict() or {}
+    expires = data.get("expiresAt")
+    if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+        return jsonify({"error": "expired"}), 410
+    payload = _same_brain_public_challenge_payload(data.get("payload") or {})
+    if payload is None:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True, "challenge": payload})
 
 
 @bp.get('/same-brain')
