@@ -280,6 +280,10 @@ def same_brain_public():
 
     html = _SAME_BRAIN_FILE.read_text(encoding="utf-8")
     bootstrap = (
+        "<style>"
+        ".advanced-play,.shop{display:none!important}"
+        ".labs,.topbar a[href='/labs/games']{display:none!important}"
+        "</style>"
         "<script>"
         "window.__SAME_BRAIN_PUBLIC__=true;"
         "window.__ODYSSEY_SYNC_CONFIG__="
