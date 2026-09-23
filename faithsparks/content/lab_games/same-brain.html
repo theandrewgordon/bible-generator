@@ -24,7 +24,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div class="stack">
       <button id="start-btn" class="button primary wide">Play today’s 5</button>
     </div>
-    <p class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p>
+    <p id="daily-label" class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p><div id="streak-line" class="tiny" style="margin-top:6px"></div>
 
     <details style="margin-top:18px;text-align:left">
       <summary style="cursor:pointer;font-weight:900">Pick a different set</summary>
@@ -67,6 +67,12 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
         </select>
         <button id="group-btn" class="button secondary wide">Create Group Brain (4–8)</button>
         <button id="demo-btn" class="button ghost wide">Play together on this device</button>
+        <button id="custom-toggle" class="button ghost wide">✨ Create a custom 5-question challenge</button>
+        <div id="custom-builder" class="hidden" style="border-top:1px solid var(--line);padding-top:8px">
+          <p class="premium-note">Plus: write five “this or that” questions. They travel inside the challenge link, so your friend can play without Plus.</p>
+          <div id="custom-fields" class="stack"></div>
+          <button id="custom-start" class="button secondary wide" type="button">Use my custom questions</button>
+        </div>
       </div>
     </details>
 
@@ -152,8 +158,9 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div id="share-card" class="share-card"></div>
     <div id="compare" class="compare"></div>
     <div class="stack">
-      <button id="result-share" class="button primary wide">Share result</button>
-      <button id="new-round" class="button secondary wide">Start a new challenge</button>
+      <button id="result-next" class="button primary wide">Challenge someone else</button>
+      <button id="result-share" class="button secondary wide">Share result card</button>
+      <button id="new-round" class="button ghost wide">Play today’s 5 again</button>
     </div>
   </section>
 </main>
@@ -362,7 +369,7 @@ function seededFromPool(seed,pool,count){pool=uniqueQuestions((pool||[]).slice()
 function seededFive(seed){return seededFromPool(seed,QUESTIONS,5)}
 function uniqueQuestions(items){var seen=new Set();return items.filter(function(q){if(!q||seen.has(q.id))return false;seen.add(q.id);return true})}
 function questionSet(pack){
-  if(pack==="daily"){var d=new Date(),key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");return seededFromPool(key,QUESTIONS,state.count||5)}
+  if(pack==="daily"){return seededFromPool(dailyKey(),QUESTIONS,state.count||5)}
   var deck=EXTRA_DECKS.find(function(d){return d.key===pack});
   if(deck){
     var deckIds=[],deckTags=[];deck.sources.forEach(function(src){deckIds=deckIds.concat(PACKS[src]||[]);deckTags=deckTags.concat(PACK_TAGS[src]||[src])});
@@ -376,6 +383,9 @@ function questionSet(pack){
   return shuffled(uniqueQuestions(pool)).slice(0,state.count||5);
 }
 
+function dailyKey(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function dailyNumber(){return Math.floor((new Date(dailyKey()+"T00:00:00")-new Date("2026-01-01T00:00:00"))/86400000)+1}
+function dailyTitle(){return "Daily Brain #"+dailyNumber()}
 var state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:"random",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:5,profile:{plus:false,bits:0,unlocks:[]}};
 var screens=["home","name","question","share","invite","result"];
 function track(event){try{var cfg=window.__ODYSSEY_SYNC_CONFIG__||{};if(!cfg.csrfToken)return;fetch("/labs/games/same-brain/analytics",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":cfg.csrfToken},body:JSON.stringify({event:event,pack:state.pack||"unknown"}),keepalive:true,credentials:"same-origin"}).catch(function(){})}catch(_){}}
@@ -386,16 +396,19 @@ function encode(obj){var bytes=new TextEncoder().encode(JSON.stringify(obj)),s="
 function decode(s){try{var b64=s.replace(/-/g,"+").replace(/_/g,"/");while(b64.length%4)b64+="=";var bin=atob(b64),bytes=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return JSON.parse(new TextDecoder().decode(bytes))}catch(e){return null}}
 function qById(id){return QUESTIONS.find(function(q){return q.id===id})}
 function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(ch){if(ch==="&")return "&amp;";if(ch==="<")return "&lt;";if(ch===">")return "&gt;";if(ch==='"')return "&quot;";return "&#39;"})}
+function hydrateCustomQuestions(ch){if(!ch||!Array.isArray(ch.x))return;ch.x.slice(0,10).forEach(function(raw,i){if(!raw||!raw.id||!raw.q||!Array.isArray(raw.a)||raw.a.length<2||raw.a.length>4)return;if(qById(raw.id))return;var answers=raw.a.map(function(v){return ["✨",String(v||"").trim().slice(0,60)]}).filter(function(v){return v[1]});if(answers.length<2)return;QUESTIONS.push({id:String(raw.id).slice(0,40),q:String(raw.q).trim().slice(0,140),a:answers,tags:["custom"]})})}
+function customDefsFor(ids){return ids.map(function(id){var q=qById(id);if(!q||!(q.tags||[]).includes("custom"))return null;return {id:q.id,q:q.q,a:q.a.map(function(x){return x[1]})}}).filter(Boolean)}
 function validChallenge(ch){return !!(ch&&ch.v===1&&cleanName(ch.n)&&Array.isArray(ch.q)&&(ch.q.length===5||ch.q.length===10)&&new Set(ch.q).size===ch.q.length&&Array.isArray(ch.a)&&ch.a.length===ch.q.length&&ch.q.every(function(id,i){var q=qById(id),ans=Number(ch.a[i]);return !!q&&Number.isInteger(ans)&&ans>=0&&ans<q.a.length}))}
 async function loadProfile(){
   try{var p=await apiJson("/labs/games/same-brain/profile",{method:"GET"});state.profile=p;renderProfile()}catch(_){renderProfile()}
 }
 function renderProfile(){
-  var p=state.profile||{};document.getElementById("bits-count").textContent=p.bits||0;document.getElementById("plus-chip").textContent=p.plus?"✨ Plus":"Free";var vs=document.getElementById("voice-select");if(vs&& !p.plus && vs.value!=="browser")vs.value="browser";
+  var p=state.profile||{},streak=document.getElementById("streak-line"),label=document.getElementById("daily-label");if(label)label.textContent=dailyTitle()+" · Today’s five are the same for everyone. Your friend keeps these exact questions even if they play later.";if(streak)streak.textContent=p.dailyStreak?("🔥 "+p.dailyStreak+" day streak · Best "+Math.max(p.dailyBest||0,p.dailyStreak||0)):"Come back tomorrow to start a Daily Brain streak.";
+  document.getElementById("bits-count").textContent=p.bits||0;document.getElementById("plus-chip").textContent=p.plus?"✨ Plus":"Free";var vs=document.getElementById("voice-select");if(vs&& !p.plus && vs.value!=="browser")vs.value="browser";
   document.getElementById("plus-note").innerHTML=p.plus?"✨ Plus active: 10-question creation, premium decks and narrator are unlocked.":'Free includes the full core game. <a href="/plus?utm=same_brain">Faith Sparks Plus</a> unlocks 10-question creation, all extra decks, premium narrator voices, and premium cosmetics.';
   applyAvatar();applyTheme();
 }
-async function awardBits(event,eventId){try{var p=await apiJson("/labs/games/same-brain/points",{method:"POST",body:JSON.stringify({event:event,eventId:eventId})});state.profile.bits=p.bits;renderProfile()}catch(_){}}
+async function awardBits(event,eventId){try{var p=await apiJson("/labs/games/same-brain/points",{method:"POST",body:JSON.stringify({event:event,eventId:eventId})});state.profile.bits=p.bits;state.profile.dailyStreak=p.dailyStreak||state.profile.dailyStreak||0;state.profile.dailyBest=p.dailyBest||state.profile.dailyBest||0;state.profile.lastDailyDate=p.lastDailyDate||state.profile.lastDailyDate||"";renderProfile()}catch(_){}}
 function applyTheme(){var card=document.getElementById("share-card"),choice="";try{choice=localStorage.getItem("same_brain_theme_choice")||""}catch(_){};card.classList.remove("theme-sunset","theme-arcade","theme-galaxy");if(choice==="theme_sunset"&&(state.profile.unlocks||[]).indexOf("theme_sunset")>=0)card.classList.add("theme-sunset");if(choice==="theme_arcade"&&(state.profile.unlocks||[]).indexOf("theme_arcade")>=0)card.classList.add("theme-arcade");if(choice==="plus_galaxy"&&state.profile.plus)card.classList.add("theme-galaxy")}
 function applyAvatar(){var box=document.getElementById("avatar-preview"),saved="",selected="";try{saved=localStorage.getItem("same_brain_selfie_avatar")||"";selected=localStorage.getItem("same_brain_avatar_choice")||""}catch(_){};if(selected==="selfie"&&saved){box.innerHTML='<img alt="Your local selfie avatar" src="'+saved+'">';return}var u=(state.profile&&state.profile.unlocks)||[];if(selected==="avatar_robot"&&u.indexOf("avatar_robot")>=0){box.textContent="🤖";return}if(selected==="avatar_fox"&&u.indexOf("avatar_fox")>=0){box.textContent="🦊";return}if(state.profile&&state.profile.plus&&selected==="plus_crown"){box.textContent="👑";return}box.textContent="🧠"}
 function csrf(){return (window.__ODYSSEY_SYNC_CONFIG__||{}).csrfToken||""}
@@ -446,7 +459,7 @@ function groupMath(data){
   return {players:players,n:n,questions:questions,overall:overall,aligned:aligned};
 }
 function renderGroupResult(data){
-  var g=groupMath(data),qRows="";
+  document.getElementById("result-next").classList.add("hidden");var g=groupMath(data),qRows="";
   g.questions.forEach(function(stat,i){
     var q=qById(data.questionIds[i]);if(!q)return;
     var leadLabels=stat.leaders.map(function(idx){return q.a[idx][0]+" "+q.a[idx][1]}).join(" / ");
@@ -469,12 +482,12 @@ function renderGroupResult(data){
 }
 function startCreator(pack){pack=pack||"random";var count=state.count||5,profile=state.profile||{plus:false,bits:0,unlocks:[]};state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:pack,score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:count,profile:profile};state.questionIds=questionSet(pack).map(function(q){return q.id});track("start");document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)}
 function startLocalDemo(){startCreator("random");state.localDemo=true}
-function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened");document.getElementById("invite-heading").textContent=challenge.n+" challenged you.";document.getElementById("invite-copy").textContent="Answer the same "+challenge.q.length+" questions "+challenge.n+" answered. Then we’ll reveal where your brains matched — and where they absolutely did not.";show("invite")}
+function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened");document.getElementById("invite-heading").textContent=challenge.n+" challenged you.";var invite="Answer the same "+challenge.q.length+" questions "+challenge.n+" answered. Then we’ll reveal where your brains matched — and where they absolutely did not.";if(challenge.d)invite=challenge.d+" · "+invite;if(challenge.h&&Number.isFinite(Number(challenge.h.s)))invite+=" Beat the previous "+challenge.h.s+"% match if you can.";document.getElementById("invite-copy").textContent=invite;show("invite")}
 function renderQuestion(){var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q){finishQuestions();return}document.getElementById("qnum").textContent="QUESTION "+(idx+1)+" OF "+state.questionIds.length;document.getElementById("progress-bar").style.width=(((idx+1)/state.questionIds.length)*100)+"%";document.getElementById("question-text").textContent=q.q;var box=document.getElementById("choices");box.innerHTML="";q.a.forEach(function(opt,i){var b=document.createElement("button");b.className="choice";b.type="button";b.innerHTML='<span class="emoji">'+opt[0]+'</span><span>'+opt[1]+"</span>";b.addEventListener("click",function(){if(b.disabled)return;b.disabled=true;b.classList.add("chosen");state.answers.push(i);setTimeout(function(){if(state.answers.length>=state.questionIds.length)finishQuestions();else renderQuestion()},140)});box.appendChild(b)});show("question")}
-async function finishQuestions(){if(state.mode==="group_creator"){try{await createGroup()}catch(e){alert("Could not create the group yet. Please try again.")}return}if(state.mode==="group_responder"){try{await joinGroup()}catch(e){alert(e.code==="full"?"That group already has 8 players.":e.code==="name_taken"?"That name is already in this group.":"Could not join the group yet.")}return}if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers,p:state.pack};var base=location.origin+location.pathname;state.challengeUrl=base+"?c="+encode(payload);document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.remove("hidden");track("challenge_created");show("share")}else renderResult()}
+async function finishQuestions(){if(state.mode==="group_creator"){try{await createGroup()}catch(e){alert("Could not create the group yet. Please try again.")}return}if(state.mode==="group_responder"){try{await joinGroup()}catch(e){alert(e.code==="full"?"That group already has 8 players.":e.code==="name_taken"?"That name is already in this group.":"Could not join the group yet.")}return}if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers,p:state.pack};var custom=customDefsFor(state.questionIds);if(custom.length)payload.x=custom;if(state.pack==="daily")payload.d=dailyTitle();var base=location.origin+location.pathname;state.challengeUrl=base+"?c="+encode(payload);document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.remove("hidden");track("challenge_created");show("share")}else renderResult()}
 function brainType(score){if(score===100)return["Brain Twins","A perfect match. That is either beautiful or mildly concerning."];if(score>=80)return["Same Wavelength","You disagree just enough to remain interesting."];if(score>=60)return["Compatible Chaos","A solid amount of shared logic with a few delightful glitches."];if(score>=40)return["Parallel-ish Minds","You occasionally meet at the same conclusion by completely different roads."];if(score>=20)return["Friendly Opposites","Your group chat probably needs both of you."];return["Different Operating Systems","You may be proof that friendship does not require shared decision-making."]}
 function renderResult(){
-  var c=state.creator,matches=0,rows=[];
+  document.getElementById("result-next").classList.remove("hidden");var c=state.creator,matches=0,rows=[];
   for(var i=0;i<c.q.length;i++){
     var q=qById(c.q[i]),same=c.a[i]===state.answers[i];
     if(same)matches++;
@@ -485,8 +498,8 @@ function renderResult(){
   document.getElementById("score-text").textContent=score+"%";
   document.getElementById("result-title").textContent=c.n+" + "+state.name;
   document.getElementById("brain-type").textContent=bt[0]+" 🧠";
-  document.getElementById("result-copy").textContent=bt[1]+" You matched on "+matches+" of "+c.q.length+" questions.";
-  document.getElementById("share-card").innerHTML='<div style="font-weight:800;opacity:.85">'+esc(c.n)+" + "+esc(state.name)+'</div><div class="big">'+score+'% SAME BRAIN</div><div class="pill">'+esc(bt[0])+'</div>';
+  var resultText=bt[1]+" You matched on "+matches+" of "+c.q.length+" questions.";if(c.h&&Number.isFinite(Number(c.h.s))){var old=Number(c.h.s);resultText+=" Previous match: "+old+"%. "+(score>old?"You beat it. 🏆":score===old?"You tied it.":"Can the next person beat both?")}if(c.d)resultText=c.d+" · "+resultText;document.getElementById("result-copy").textContent=resultText;
+  document.getElementById("share-card").innerHTML='<div style="font-weight:800;opacity:.85">'+esc(c.n)+" + "+esc(state.name)+'</div><div class="big">'+score+'% SAME BRAIN</div><div class="pill">'+esc(c.d||bt[0])+'</div>';
   document.getElementById("compare").innerHTML=rows.map(function(r){
     return '<div class="compare-row '+(r.same?"match":"diff")+'"><div class="compare-q">'+(r.same?"✅ ":"⚡ ")+esc(r.q.q)+'</div><div class="answers"><span>'+esc(c.n)+": "+esc(r.a)+"</span><span>"+esc(state.name)+": "+esc(r.b)+"</span></div></div>";
   }).join("");
@@ -511,6 +524,14 @@ async function makeResultImage(){
     return await new Promise(function(resolve){canvas.toBlob(resolve,"image/png",.95)});
   }catch(_){return null}
 }
+async function challengeNext(){
+  if(!state.creator||state.groupData)return;
+  var prior=state.creator,payload={v:1,n:state.name,q:prior.q.slice(),a:state.answers.slice(),p:prior.p||state.pack,h:{s:state.score,a:prior.n,b:state.name}};
+  if(prior.d)payload.d=prior.d;if(prior.x)payload.x=prior.x;
+  var url=location.origin+location.pathname+"?c="+encode(payload);
+  track("challenge_shared");
+  await shareText("I matched "+prior.n+" "+state.score+"% on Same Brain 🧠. Can you beat that with me?",url);
+}
 async function shareResult(){
   var challengeUrl,text;
   if(state.groupData&&state.groupCode){
@@ -530,6 +551,9 @@ async function shareResult(){
   await shareText(text,challengeUrl);
 }
 async function shareText(text,url){if(navigator.share){try{await navigator.share({text:text,url:url});return}catch(e){}}try{await navigator.clipboard.writeText((text?text+" ":"")+url);alert("Copied to clipboard!")}catch(e){prompt("Copy this link:",url)}}
+var customFields=document.getElementById("custom-fields");for(var ci=0;ci<5;ci++){var row=document.createElement("div");row.className="challenge-box";row.innerHTML='<label style="margin-top:0">Question '+(ci+1)+'</label><input class="name-input custom-q" maxlength="140" placeholder="Coffee or tea?"><div style="height:8px"></div><input class="name-input custom-a" maxlength="60" placeholder="Option A"><div style="height:8px"></div><input class="name-input custom-b" maxlength="60" placeholder="Option B">';customFields.appendChild(row)}
+document.getElementById("custom-toggle").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating custom challenges is included with Plus.");return}document.getElementById("custom-builder").classList.toggle("hidden")});
+document.getElementById("custom-start").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating custom challenges is included with Plus.");return}var qs=Array.from(document.querySelectorAll(".custom-q")),as=Array.from(document.querySelectorAll(".custom-a")),bs=Array.from(document.querySelectorAll(".custom-b")),defs=[];for(var i=0;i<5;i++){var q=qs[i].value.trim(),a=as[i].value.trim(),b=bs[i].value.trim();if(!q||!a||!b){alert("Fill in all five questions and both choices.");return}defs.push({id:"custom_"+Date.now()+"_"+i,q:q,a:[["✨",a],["✨",b]],tags:["custom"]})}defs.forEach(function(q){QUESTIONS.push(q)});state.count=5;var profile=state.profile;state={mode:"creator",name:"",questionIds:defs.map(function(q){return q.id}),answers:[],creator:null,challengeUrl:"",pack:"custom",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:5,profile:profile};document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value="";show("name")});
 var deckSelect=document.getElementById("deck-select");EXTRA_DECKS.forEach(function(d,i){var o=document.createElement("option");o.value=d.key;o.textContent=(i>=10?"✨ ":"")+d.name;deckSelect.appendChild(o)});
 deckSelect.addEventListener("change",function(){if(!deckSelect.value)return;var idx=EXTRA_DECKS.findIndex(function(d){return d.key===deckSelect.value});if(idx>=10&&!(state.profile&&state.profile.plus)){alert("That deck is included with Plus. Try one of the first 10 extra decks or upgrade to Plus.");deckSelect.value="";return}startCreator(deckSelect.value)});document.getElementById("voice-select").addEventListener("change",function(){if(this.value!=="browser"&&!(state.profile&&state.profile.plus)){alert("Premium narrator voices are included with Plus.");this.value="browser"}});
 document.getElementById("five-mode").addEventListener("click",function(){state.count=5;this.classList.add("active");document.getElementById("ten-mode").classList.remove("active")});
@@ -557,8 +581,8 @@ document.getElementById("copy-btn").addEventListener("click",function(){shareTex
 document.getElementById("play-second-btn").addEventListener("click",function(){var payload=decode((state.challengeUrl.split("?c=")[1]||""));if(payload)startResponder(payload)});document.getElementById("group-results-btn").addEventListener("click",function(){if(state.groupCode&&state.groupResultKey)loadGroupResults(state.groupCode,state.groupResultKey).catch(function(){alert("Could not load group results yet.")})});
 document.getElementById("accept-btn").addEventListener("click",function(){if(state.mode==="group_invite")state.mode="group_responder";document.getElementById("name-heading").textContent="And what should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)});
 document.getElementById("new-round").addEventListener("click",function(){state.count=5;startCreator("daily")});
-document.getElementById("result-share").addEventListener("click",function(){track("result_shared");shareResult()});
-loadProfile();var params=new URLSearchParams(location.search),groupCode=params.get("g"),param=params.get("c"),challenge=param&&decode(param);if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else show("home");
+document.getElementById("result-next").addEventListener("click",challengeNext);document.getElementById("result-share").addEventListener("click",function(){track("result_shared");shareResult()});
+loadProfile();var params=new URLSearchParams(location.search),groupCode=params.get("g"),param=params.get("c"),challenge=param&&decode(param);hydrateCustomQuestions(challenge);if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else show("home");
 })();
 </script>
 </body>
