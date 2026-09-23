@@ -1785,3 +1785,12 @@ def test_same_brain_creator_inbox_handles_multiple_challenges():
         'btn.textContent=newCount?("🧠 "+newCount+" new challenge result"',
     ):
         assert marker in html
+
+
+
+def test_same_brain_final_answer_has_time_for_back_correction():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "setTimeout(function(){if(state.answers.length>=state.questionIds.length)finishQuestions();else renderQuestion()},420)" in html
