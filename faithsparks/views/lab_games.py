@@ -1572,6 +1572,7 @@ def same_brain_analytics():
     payload = request.get_json(silent=True) or {}
     event = str(payload.get("event") or "").strip()
     pack = str(payload.get("pack") or "unknown").strip().lower()[:24]
+    run_id = "".join(ch for ch in str(payload.get("runId") or "") if ch.isalnum() or ch in {"-", "_"})[:64]
     if event not in SAME_BRAIN_EVENTS:
         return jsonify({"error": "unknown_event"}), 400
 
@@ -1580,7 +1581,7 @@ def same_brain_analytics():
     if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
         return jsonify({"error": "csrf"}), 400
 
-    dedupe_key = f"same_brain_metric:{event}:{pack}"
+    dedupe_key = f"same_brain_metric:{run_id or 'legacy'}:{event}:{pack}"
     if session.get(dedupe_key):
         return jsonify({"ok": True, "duplicate": True})
 
@@ -1595,6 +1596,15 @@ def same_brain_analytics():
                 },
                 merge=True,
             )
+            if run_id:
+                db.collection("same_brain_lab_runs").document(run_id).set(
+                    {
+                        "events": {event: True},
+                        "pack": pack,
+                        "updatedAt": google_firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
     except Exception:
         # Analytics must never interrupt gameplay.
         pass
