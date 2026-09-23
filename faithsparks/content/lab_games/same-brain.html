@@ -24,6 +24,12 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       <button class="pack" data-pack="friends">👯 Friends<small>Preferences & personality</small></button>
       <button class="pack" data-pack="family">🏡 Family<small>Home, food & everyday life</small></button>
       <button class="pack" data-pack="chaos">🦝 Chaos<small>The weirdest choices</small></button>
+      <button class="pack" data-pack="food">🍕 Food<small>Strong opinions only</small></button>
+      <button class="pack" data-pack="travel">✈️ Travel<small>Trips, hotels & adventure</small></button>
+      <button class="pack" data-pack="couples">❤️ Couples<small>Habits, dates & decisions</small></button>
+      <button class="pack" data-pack="work">💼 Work<small>How you operate</small></button>
+      <button class="pack" data-pack="nostalgia">📼 Nostalgia<small>Throwback preferences</small></button>
+      <button class="pack" data-pack="wouldyou">🤔 Would You Rather<small>Impossible choices</small></button>
       <button class="pack daily" data-pack="daily">☀️ Daily Brain<small>Same five for everyone today</small></button>
     </div>
     <div class="stack">
@@ -111,16 +117,67 @@ var QUESTIONS=[
 {id:"restaurant",q:"The restaurant has a 45-minute wait. What do you do?",a:[["⌛","Wait; we came here for a reason"],["🚶","Immediately go somewhere else"],["📱","Check nearby options first"],["🍟","Get an appetizer at the bar"]]},
 {id:"talent",q:"Instantly become elite at one skill.",a:[["🎸","Music"],["🍳","Cooking"],["🗣️","Languages"],["🔧","Fixing anything"]]},
 {id:"dessert",q:"Only one dessert category survives.",a:[["🍰","Cake"],["🍪","Cookies"],["🍨","Ice cream"],["🥧","Pie"]]},
-{id:"message",q:"Which message makes you happiest to receive?",a:[["📦","Your package arrived"],["✅","Plans are canceled"],["💸","You got paid"],["🍕","Food is on the way"]]}
+{id:"message",q:"Which message makes you happiest to receive?",a:[["📦","Your package arrived"],["✅","Plans are canceled"],["💸","You got paid"],["🍕","Food is on the way"]]},
+{id:"breakfast",q:"Best breakfast if calories and cleanup do not matter?",a:[["🥞","Pancakes"],["🍳","Eggs and bacon"],["🥯","Bagel and coffee"],["🌯","Breakfast burrito"]]},
+{id:"pizza_topping",q:"You get one pizza topping forever.",a:[["🍄","Mushrooms"],["🥓","Pepperoni"],["🍍","Pineapple"],["🫑","Peppers"]]},
+{id:"drink",q:"Your forever non-water drink?",a:[["☕","Coffee"],["🥤","Soda"],["🧋","Tea"],["🍋","Lemonade"]]},
+{id:"restaurant_pick",q:"You are choosing dinner for the group. What sounds safest?",a:[["🌮","Mexican"],["🍝","Italian"],["🍣","Sushi"],["🍗","BBQ"]]},
+{id:"sweet_salty",q:"Snack table: which side wins?",a:[["🍫","Chocolate"],["🧂","Salty chips"],["🍓","Fruit"],["🧀","Cheese"]]},
+{id:"hotel",q:"Which hotel feature matters most?",a:[["🛏️","Amazing bed"],["🏊","Great pool"],["🍳","Free breakfast"],["📍","Perfect location"]]},
+{id:"roadtrip",q:"Road trip role?",a:[["🗺️","Navigator"],["🎵","DJ"],["🍿","Snack manager"],["😴","Passenger who naps"]]},
+{id:"airport",q:"At the airport, you are usually...",a:[["⏰","Way too early"],["✅","Comfortably early"],["🏃","Cutting it close"],["☕","Early but immediately wandering off"]]},
+{id:"vacation_plan",q:"How planned should a vacation be?",a:[["📋","Every day scheduled"],["🗓️","A few anchor plans"],["🌊","Mostly spontaneous"],["🎲","Figure it out when we arrive"]]},
+{id:"seat",q:"Best airplane seat?",a:[["🪟","Window"],["🚶","Aisle"],["💺","Middle if I am with family"],["💰","Whatever is cheapest"]]},
+{id:"date",q:"Ideal low-pressure date night?",a:[["🍽️","Dinner out"],["🎬","Movie"],["🚶","Walk and coffee"],["🎮","Stay home and play something"]]},
+{id:"argument",q:"After a disagreement, what helps most?",a:[["🗣️","Talk it out now"],["⏳","Take a little space"],["😂","Break tension with humor"],["🤝","Solve the practical problem"]]},
+{id:"gift_style",q:"Best kind of gift to receive?",a:[["🎁","Something I mentioned once"],["🎟️","An experience"],["💳","Gift card or cash"],["✍️","Something personal or handmade"]]},
+{id:"weeknight",q:"Unexpected free weeknight. What sounds best?",a:[["📺","Watch something"],["🚗","Go out"],["📚","Do my own hobby"],["😴","Go to bed early"]]},
+{id:"planner",q:"When making plans with someone, you prefer...",a:[["📅","Set a date weeks ahead"],["🗓️","Plan a few days ahead"],["📱","Text that day"],["🚪","Just show up somehow"]]},
+{id:"meeting",q:"A meeting could have been an email. Your reaction?",a:[["😐","Expected"],["😤","Instantly annoyed"],["📝","I still take notes"],["🤫","I say nothing and multitask"]]},
+{id:"deadline",q:"Your natural deadline style?",a:[["🐢","Start immediately"],["📈","Steady progress"],["⚡","Big push near the end"],["🔥","Last-minute miracle"]]},
+{id:"desk",q:"Your ideal workspace?",a:[["🧹","Minimal and clean"],["🪴","Cozy and decorated"],["🖥️","Maximum monitors"],["🌀","Organized chaos"]]},
+{id:"work_chat",q:"Best work communication?",a:[["💬","Quick chat message"],["📧","Email"],["📞","Short call"],["📋","Put it in the task tracker"]]},
+{id:"focus",q:"What helps you focus best?",a:[["🎵","Music"],["🤫","Silence"],["☕","Coffee shop noise"],["⏱️","A deadline"]]},
+{id:"cartoon",q:"Saturday morning nostalgia: what mattered most?",a:[["📺","Cartoons"],["🥣","Sugary cereal"],["🎮","Video games"],["🚲","Getting outside"]]},
+{id:"oldtech",q:"Which old tech do you miss most?",a:[["📼","VHS tapes"],["💿","CDs"],["☎️","Landlines"],["📷","Disposable cameras"]]},
+{id:"school",q:"Best part of a school day as a kid?",a:[["🍕","Lunch"],["🏃","Recess"],["🎨","Art/music"],["🔔","The final bell"]]},
+{id:"mall",q:"Peak mall trip destination?",a:[["🎮","Game store"],["🍕","Food court"],["👟","Clothing store"],["📚","Bookstore"]]},
+{id:"musicera",q:"Pick one music era to keep forever.",a:[["🎸","70s"],["📼","80s"],["💿","90s"],["📱","2000s"]]},
+{id:"wyr_size",q:"Would you rather fight...",a:[["🦆","One horse-sized duck"],["🐴","100 duck-sized horses"],["🏃","Neither; I am leaving"],["📹","I am filming this, not fighting"]]},
+{id:"wyr_money",q:"Would you rather get...",a:[["💵","$10,000 today"],["📈","$100 every week for 3 years"],["✈️","Free flights for 2 years"],["🍽️","Free restaurants for 2 years"]]},
+{id:"wyr_time",q:"Would you rather always be...",a:[["⏰","10 minutes early"],["🏃","5 minutes late"],["🕰️","Exactly on time but stressed"],["📅","Able to cancel anything guilt-free"]]},
+{id:"wyr_weather",q:"Would you rather live with...",a:[["☀️","Summer forever"],["❄️","Winter forever"],["🍂","Fall forever"],["🌸","Spring forever"]]},
+{id:"wyr_phone",q:"Would you rather lose for a month...",a:[["📱","Your phone"],["🚗","Your car"],["📺","Streaming"],["☕","Coffee/caffeine"]]},
+{id:"supermarket",q:"Grocery store strategy?",a:[["📝","Strict list"],["🛒","List plus extras"],["👀","Walk every aisle"],["⚡","Get in and out fast"]]},
+{id:"cleaning",q:"When guests are coming, what gets cleaned first?",a:[["🚽","Bathroom"],["🛋️","Living room"],["🍽️","Kitchen"],["🚪","Whatever they can see"]]},
+{id:"temperature",q:"Home thermostat preference?",a:[["🥶","Cold"],["🙂","Cool"],["☀️","Warm"],["🧦","Whatever keeps everyone else quiet"]]},
+{id:"pet",q:"If you had to add a pet tomorrow?",a:[["🐕","Dog"],["🐈","Cat"],["🐠","Fish"],["🐓","Chickens"]]},
+{id:"noise",q:"House background noise?",a:[["🎵","Music"],["📺","TV"],["🤫","Silence"],["🗣️","People talking everywhere"]]},
+{id:"host",q:"At a gathering, what role feels most natural?",a:[["🍽️","Host"],["💬","Conversation starter"],["🧹","Helper"],["🛋️","Happy guest"]]},
+{id:"weekend_chore",q:"Which Saturday task feels most satisfying?",a:[["🌿","Yard work"],["🧹","Deep cleaning"],["🔧","Fixing something"],["🛒","Errands"]]},
+{id:"spontaneous",q:"Friend texts: 'Want to leave in 30 minutes?' You...",a:[["🚗","Absolutely"],["👜","Maybe, let me pack"],["📅","Need more notice"],["🏡","Prefer staying home"]]},
+{id:"line",q:"You pick the wrong checkout line. What do you do?",a:[["😌","Stay committed"],["🔄","Switch immediately"],["👀","Watch both lines obsessively"],["😂","Accept my fate"]]},
+{id:"menu",q:"At a favorite restaurant, do you...",a:[["⭐","Order the usual"],["🆕","Try something new"],["🤔","Debate forever"],["👥","Copy someone else's order"]]},
+{id:"instructions",q:"New gadget arrives. First move?",a:[["📖","Read instructions"],["🔧","Start assembling"],["📹","Find a video"],["👀","Watch someone else do it"]]},
+{id:"lost",q:"You realize you are lost while driving. You...",a:[["🗺️","Pull up maps immediately"],["🧭","Try to orient myself"],["📞","Call someone"],["🚗","Keep driving and hope"]]},
+{id:"queue",q:"A theme park line says 90 minutes. You...",a:[["🎢","Wait anyway"],["📱","Check another ride"],["🍿","Get food instead"],["🏠","Question every life choice"]]},
+{id:"boardgame",q:"In a board game, what are you?",a:[["🏆","Very competitive"],["🧠","Quiet strategist"],["😂","Here for chaos"],["🤝","Mostly social"]]},
+{id:"texting",q:"Your texting style?",a:[["⚡","Fast replies"],["📚","Paragraphs"],["👍","Short responses"],["🕰️","Reply hours later"]]}
 ];
 
 var PACKS={
-  friends:["power","trip","animal","weather","late","phone","morning","vacation","party","time","car","gift","movie","weekend","talent","message"],
-  family:["food","snack","chores","weather","money","house","morning","vacation","time","gift","weekend","restaurant","dessert","message"],
-  chaos:["bear","power","animal","late","house","car","party","message","restaurant","dessert"]
+  friends:["power","trip","animal","weather","late","phone","morning","vacation","party","time","car","gift","movie","weekend","talent","message","spontaneous","line","boardgame","texting","planner","menu"],
+  family:["food","snack","chores","weather","money","house","morning","vacation","time","gift","weekend","restaurant","dessert","message","supermarket","cleaning","temperature","pet","noise","host","weekend_chore"],
+  chaos:["bear","power","animal","late","house","car","party","message","restaurant","dessert","wyr_size","wyr_time","line","instructions","lost","queue","boardgame"],
+  food:["food","snack","restaurant","dessert","breakfast","pizza_topping","drink","restaurant_pick","sweet_salty","menu","supermarket"],
+  travel:["trip","vacation","weather","weekend","hotel","roadtrip","airport","vacation_plan","seat","lost","queue","spontaneous"],
+  couples:["date","argument","gift_style","weeknight","planner","temperature","restaurant_pick","vacation_plan","movie","chores","money","weekend","texting"],
+  work:["meeting","deadline","desk","work_chat","focus","time","planner","instructions","phone","talent","texting"],
+  nostalgia:["cartoon","oldtech","school","mall","musicera","movie","snack","phone","boardgame"],
+  wouldyou:["wyr_size","wyr_money","wyr_time","wyr_weather","wyr_phone","bear","money","power","car","house"]
 };
 function hashText(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
-function seededFive(seed){var pool=QUESTIONS.slice(),out=[],x=hashText(seed);while(out.length<5&&pool.length){x=(Math.imul(x,1664525)+1013904223)>>>0;var idx=x%pool.length;out.push(pool.splice(idx,1)[0])}return out}
+function seededFive(seed){var pool=uniqueQuestions(QUESTIONS.slice()),out=[],x=hashText(seed);while(out.length<5&&pool.length){x=(Math.imul(x,1664525)+1013904223)>>>0;var idx=x%pool.length;out.push(pool.splice(idx,1)[0])}return out}
 function uniqueQuestions(items){var seen=new Set();return items.filter(function(q){if(!q||seen.has(q.id))return false;seen.add(q.id);return true})}
 function questionSet(pack){
   if(pack==="daily"){var d=new Date(),key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");return uniqueQuestions(seededFive(key)).slice(0,5)}
