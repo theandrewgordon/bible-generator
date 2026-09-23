@@ -1163,3 +1163,44 @@ def test_public_short_challenge_backend_validates_payload_shape():
 
     invalid_answer = {**good, "a": [0, 1, 2, 4, 0]}
     assert _same_brain_public_challenge_payload(invalid_answer) is None
+
+
+
+def test_same_brain_switches_to_fresh_five_after_daily_completion():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'start.textContent=done?"Play a fresh 5":"Play today’s 5"',
+        'startCreator(dailyCompleted()?"random":"daily")',
+        'document.getElementById("new-round").addEventListener("click",function(){state.count=5;startCreator("random")})',
+        'id="replay-daily"',
+        'Replay "+c.d',
+    ):
+        assert marker in html
+
+
+def test_same_brain_fresh_random_avoids_recent_questions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'same_brain_recent_questions',
+        "function recentQuestionIds()",
+        "function rememberQuestions(ids)",
+        'if(pack==="random")',
+        'recent.indexOf(q.id)<0',
+        'merged.slice(0,15)',
+    ):
+        assert marker in html
+
+
+def test_same_brain_old_daily_replay_does_not_count_as_today_streak():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'state.replayDailyLabel===dailyTitle()' in html
+    assert 'c.d===dailyTitle()' in html
