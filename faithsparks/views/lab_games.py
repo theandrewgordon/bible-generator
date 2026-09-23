@@ -1,3 +1,4 @@
+import hashlib
 import hmac
 import json
 import os
@@ -1159,7 +1160,7 @@ def _same_brain_validate_answers(question_ids: object, answers: object) -> tuple
     return qids, normalized
 
 
-def _same_brain_group_public(data: dict) -> dict:
+def _same_brain_group_result(data: dict) -> dict:
     players = []
     for raw in data.get("players") or []:
         if not isinstance(raw, dict):
@@ -1173,6 +1174,19 @@ def _same_brain_group_public(data: dict) -> dict:
         "pack": str(data.get("pack") or "random")[:24],
         "questionIds": list(data.get("questionIds") or [])[:5],
         "players": players[:SAME_BRAIN_GROUP_MAX_PLAYERS],
+        "maxPlayers": SAME_BRAIN_GROUP_MAX_PLAYERS,
+    }
+
+
+def _same_brain_group_invite(data: dict) -> dict:
+    players = [p for p in (data.get("players") or []) if isinstance(p, dict)]
+    host_name = _same_brain_clean_name(players[0].get("name")) if players else "A friend"
+    return {
+        "code": str(data.get("code") or ""),
+        "pack": str(data.get("pack") or "random")[:24],
+        "questionIds": list(data.get("questionIds") or [])[:5],
+        "hostName": host_name,
+        "playerCount": min(len(players), SAME_BRAIN_GROUP_MAX_PLAYERS),
         "maxPlayers": SAME_BRAIN_GROUP_MAX_PLAYERS,
     }
 
@@ -1220,6 +1234,7 @@ def same_brain_group_create():
         return jsonify({"error": "try_again"}), 503
 
     now = datetime.now(timezone.utc)
+    result_key = secrets.token_urlsafe(18)
     data = {
         "code": code,
         "pack": pack,
@@ -1228,12 +1243,15 @@ def same_brain_group_create():
         "createdAt": now,
         "updatedAt": now,
         "expiresAt": now + timedelta(days=SAME_BRAIN_GROUP_TTL_DAYS),
+        "resultKeyHash": hashlib.sha256(result_key.encode("utf-8")).hexdigest(),
     }
     try:
         ref.set(data)
     except Exception:
         return jsonify({"error": "storage_unavailable"}), 503
-    return jsonify(_same_brain_group_public(data)), 201
+    response = _same_brain_group_result(data)
+    response["resultKey"] = result_key
+    return jsonify(response), 201
 
 
 @bp.get("/same-brain/group/<code>")
@@ -1254,7 +1272,32 @@ def same_brain_group_get(code: str):
     expires = data.get("expiresAt")
     if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
         return jsonify({"error": "expired"}), 410
-    return jsonify(_same_brain_group_public(data))
+    return jsonify(_same_brain_group_invite(data))
+
+
+@bp.get("/same-brain/group/<code>/results")
+def same_brain_group_results(code: str):
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+    ref = _same_brain_group_ref(code)
+    if ref is None:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        snap = ref.get()
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if not snap.exists:
+        return jsonify({"error": "not_found"}), 404
+    data = snap.to_dict() or {}
+    supplied = str(request.args.get("key") or "")
+    expected = str(data.get("resultKeyHash") or "")
+    if not supplied or not expected or not hmac.compare_digest(
+        hashlib.sha256(supplied.encode("utf-8")).hexdigest(),
+        expected,
+    ):
+        return jsonify({"error": "forbidden"}), 403
+    return jsonify(_same_brain_group_result(data))
 
 
 @bp.post("/same-brain/group/<code>/join")
@@ -1310,7 +1353,7 @@ def same_brain_group_join(code: str):
     if status != "ok":
         status_code = {"not_found": 404, "invalid": 400, "full": 409, "name_taken": 409}.get(status, 400)
         return jsonify({"error": status}), status_code
-    return jsonify(_same_brain_group_public(data))
+    return jsonify(_same_brain_group_result(data))
 
 
 SAME_BRAIN_EVENTS = {
