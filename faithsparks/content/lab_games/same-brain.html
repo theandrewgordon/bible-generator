@@ -167,6 +167,107 @@ var QUESTIONS=[
 {id:"texting",q:"Your texting style?",a:[["⚡","Fast replies"],["📚","Paragraphs"],["👍","Short responses"],["🕰️","Reply hours later"]]}
 ];
 
+
+var QUESTION_EXPANSION_SPECS=[
+{tag:"food",prefix:"foodx",topics:["pizza","tacos","breakfast","dessert","snacks"],stems:["At a party, which {{t}} move wins?","If {{t}} is on the menu, what matters most?","Pick the best {{t}} vibe.","Your ideal {{t}} situation?","Which {{t}} rule sounds right?"],sets:[
+[["🔥","Hot and fresh"],["🧀","Extra cheesy"],["🌶️","A little spicy"],["✨","Simple and classic"]],
+[["💰","Best value"],["⭐","Best quality"],["📦","Big portion"],["⚡","Fastest option"]],
+[["🏠","Homemade"],["🍽️","Restaurant"],["🚗","Takeout"],["🎉","Whatever the group wants"]],
+[["🍫","Sweet"],["🧂","Salty"],["🌶️","Spicy"],["🥗","Fresh"]],
+[["⭐","Stick to the favorite"],["🆕","Try something new"],["👥","Share several things"],["🎲","Let someone else choose"]]]},
+{tag:"travel",prefix:"travelx",topics:["road trip","airport day","hotel stay","weekend trip","vacation"],stems:["For a {{t}}, what matters most?","Your {{t}} personality is closest to...","Best upgrade for a {{t}}?","During a {{t}}, you usually...","Which {{t}} tradeoff would you pick?"],sets:[
+[["📍","Location"],["💰","Price"],["🛏️","Comfort"],["✨","Experience"]],
+[["📋","Plan everything"],["🗓️","Plan the big stuff"],["🌊","Mostly wing it"],["🎲","Total spontaneity"]],
+[["🪟","Better view"],["🍳","Better food"],["🛏️","Better sleep"],["🚗","Easier transportation"]],
+[["📸","Take photos"],["🍴","Find food"],["🗺️","Explore"],["😴","Relax"]],
+[["⏰","More time"],["💵","More budget"],["🧳","Less luggage"],["👥","Better company"]]]},
+{tag:"friends",prefix:"friendx",topics:["group chat","hangout","game night","party","weekend"],stems:["In your {{t}}, what role are you?","What makes a {{t}} actually fun?","Your default move during a {{t}}?","For a perfect {{t}}, pick one.","Which {{t}} problem is most relatable?"],sets:[
+[["😂","Comic relief"],["📋","Organizer"],["🧠","Idea person"],["😌","Easygoing one"]],
+[["🍕","Good food"],["🎵","Good music"],["🎮","Something to do"],["💬","Great conversation"]],
+[["👋","Talk to everyone"],["🛋️","Find my people"],["🍿","Stay near snacks"],["🐕","Find the pet"]],
+[["🏆","Friendly competition"],["😂","Maximum chaos"],["🤝","Teamwork"],["😴","Low-key vibes"]],
+[["⏰","People are late"],["📱","Nobody picks a plan"],["🍽️","Food debate"],["🚗","Transportation chaos"]]]},
+{tag:"family",prefix:"familyx",topics:["family dinner","Saturday morning","holiday","movie night","house project"],stems:["At a {{t}}, what matters most?","Your {{t}} role?","Best way to improve a {{t}}?","During a {{t}}, you usually...","Which {{t}} outcome feels best?"],sets:[
+[["🍽️","Food"],["😂","Laughing"],["📸","Memories"],["😌","No drama"]],
+[["📋","Planner"],["🧹","Helper"],["🎉","Fun one"],["🛋️","Observer"]],
+[["⏰","More time"],["👥","More help"],["🎵","Better mood"],["🍕","Better snacks"]],
+[["🔧","Jump in"],["👀","Supervise"],["📱","Research"],["🚪","Disappear"]],
+[["✅","Everything finished"],["😂","Everyone had fun"],["📸","Great memories"],["😴","Everyone rests"]]]},
+{tag:"chaos",prefix:"chaosx",topics:["zombie day","alien visit","giant duck attack","mystery island","ridiculous emergency"],stems:["During a {{t}}, what is your first move?","Pick your teammate for a {{t}}.","Best tool for surviving a {{t}}?","If a {{t}} happens, what are you doing?","Your {{t}} strategy?"],sets:[
+[["🏃","Run"],["🧠","Make a plan"],["📹","Film it"],["😂","Accept the chaos"]],
+[["🐕","Loyal dog"],["🧑‍🍳","Resourceful cook"],["🔧","Handy neighbor"],["🦝","Suspicious raccoon"]],
+[["🔦","Flashlight"],["🛒","Shopping cart"],["📱","Phone"],["🧻","Somehow toilet paper"]],
+[["🚪","Lock the door"],["🚗","Leave town"],["👥","Find friends"],["🍿","Watch what happens"]],
+[["🗺️","Careful plan"],["⚡","Act fast"],["🤝","Stay together"],["🎲","Improvise"]]]},
+{tag:"couples",prefix:"couplex",topics:["date night","weekend plan","big purchase","vacation choice","home project"],stems:["For a {{t}}, how do you decide?","Best outcome for a {{t}}?","During a {{t}}, what matters most?","Your natural {{t}} role?","Which {{t}} compromise works best?"],sets:[
+[["🗣️","Talk it out"],["📋","Compare options"],["❤️","Let them choose"],["🎲","Flip a coin"]],
+[["😂","We laugh"],["✅","We agree quickly"],["✨","It feels special"],["💰","We stay on budget"]],
+[["❤️","Connection"],["😌","Low stress"],["🍽️","Good food"],["🎉","Something memorable"]],
+[["📋","Planner"],["💡","Idea person"],["💵","Budget watcher"],["😌","Go-with-the-flow"]],
+[["🤝","Meet in middle"],["🔁","Take turns choosing"],["🎯","Pick biggest priority"],["😂","Stop caring so much"]]]},
+{tag:"work",prefix:"workx",topics:["meeting","deadline","project kickoff","email thread","workday"],stems:["For a {{t}}, what helps most?","Your {{t}} style?","Biggest {{t}} annoyance?","During a {{t}}, you prefer...","Best {{t}} upgrade?"],sets:[
+[["📋","Clear agenda"],["⏰","More time"],["🤝","Good teammates"],["☕","Coffee"]],
+[["⚡","Move fast"],["🧠","Think first"],["📈","Steady progress"],["🔥","Deadline sprint"]],
+[["📧","Too many messages"],["🗓️","Too many meetings"],["🤷","Unclear owner"],["🔄","Constant changes"]],
+[["🤫","Quiet focus"],["🎵","Music"],["💬","Team chatter"],["☕","Coffee-shop noise"]],
+[["🖥️","Better gear"],["⏳","Fewer interruptions"],["📋","Better systems"],["🏡","More flexibility"]]]},
+{tag:"nostalgia",prefix:"nostx",topics:["90s afternoon","school day","mall trip","Saturday morning","old-school game night"],stems:["Best part of a {{t}}?","For a {{t}}, what do you miss most?","Pick the strongest {{t}} memory.","Your ideal {{t}} included...","Which {{t}} detail wins?"],sets:[
+[["📺","TV"],["🎮","Games"],["🍬","Snacks"],["🚲","Being outside"]],
+[["💿","Music"],["📼","Movies"],["☎️","Phones"],["📷","Cameras"]],
+[["🍕","Food"],["👥","Friends"],["🎵","Music"],["🛍️","Shopping"]],
+[["🥣","Cereal"],["📺","Cartoons"],["😴","Sleeping in"],["🚲","Going outside"]],
+[["🎲","Board games"],["🕹️","Video games"],["🃏","Card games"],["🧩","Puzzles"]]]},
+{tag:"wouldyou",prefix:"wyrx",topics:["for a week","for a month","forever","on vacation","every weekend"],stems:["Would you rather {{t}}...","Pick one {{t}}.","Which tradeoff would you accept {{t}}?","You must choose {{t}}.","No loopholes: choose {{t}}."],sets:[
+[["📵","No phone"],["🚗","No car"],["📺","No streaming"],["☕","No caffeine"]],
+[["🌧️","Only rain"],["☀️","Only heat"],["❄️","Only cold"],["💨","Only wind"]],
+[["🍕","Only pizza"],["🌮","Only tacos"],["🍝","Only pasta"],["🍔","Only burgers"]],
+[["🛏️","Sleep 10 hours"],["✈️","Travel free"],["🍽️","Eat free"],["🎟️","Events free"]],
+[["⏰","Always early"],["🏃","Always rushed"],["📅","Always booked"],["🏡","Always home"]]]},
+{tag:"home",prefix:"homex",topics:["kitchen","living room","bedroom","backyard","garage"],stems:["If you upgraded your {{t}}, what comes first?","Ideal {{t}} vibe?","What matters most in a {{t}}?","Your {{t}} would definitely have...","Which {{t}} feature wins?"],sets:[
+[["✨","Looks amazing"],["🧹","Easy to clean"],["🛋️","Comfort"],["📦","Storage"]],
+[["🌿","Cozy"],["🧼","Minimal"],["🎨","Colorful"],["🏨","Hotel-like"]],
+[["📦","Storage"],["💡","Lighting"],["🔌","Outlets"],["🪑","Comfort"]],
+[["📺","Big screen"],["🎵","Speakers"],["🪴","Plants"],["🧸","Soft things"]],
+[["💰","Low cost"],["🛠️","Durability"],["✨","Style"],["⚡","Convenience"]]]},
+{tag:"hobbies",prefix:"hobbyx",topics:["free hour","new hobby","creative project","weekend activity","rainy afternoon"],stems:["For a {{t}}, what sounds best?","Pick your {{t}} energy.","Your ideal {{t}} includes...","Which {{t}} would you actually finish?","Best reason to start a {{t}}?"],sets:[
+[["🎸","Music"],["🎨","Art"],["📚","Reading"],["🔧","Building"]],
+[["😌","Relaxing"],["🏆","Challenging"],["👥","Social"],["🧠","Learning"]],
+[["🏡","Stay home"],["🌳","Go outside"],["👥","With people"],["🤫","Alone"]],
+[["📷","Photography"],["🍳","Cooking"],["🪴","Gardening"],["🧩","Puzzles"]],
+[["😂","Fun"],["🧠","Learn"],["🏆","Improve"],["😌","De-stress"]]]},
+{tag:"entertainment",prefix:"entx",topics:["movie night","TV binge","concert","game night","podcast session"],stems:["For a {{t}}, what matters most?","Pick your {{t}} style.","Best {{t}} companion?","Your ideal {{t}} setup?","Which {{t}} rule wins?"],sets:[
+[["😂","Funny"],["💥","Exciting"],["🧠","Smart"],["❤️","Emotional"]],
+[["🏡","At home"],["🎟️","Go out"],["👥","With friends"],["🤫","Solo"]],
+[["🍿","Snacks"],["🥤","Drinks"],["🛋️","Comfort"],["📱","No phones"]],
+[["🔊","Great sound"],["📺","Big screen"],["💡","Good lighting"],["🛋️","Best seat"]],
+[["🆕","Try new things"],["⭐","Replay favorites"],["👥","Take turns choosing"],["🎲","Random pick"]]]},
+{tag:"money",prefix:"moneyx",topics:["$100 bonus","$500 surprise","tax refund","gift card","unexpected savings"],stems:["You get a {{t}}. First instinct?","Best use of a {{t}}?","A {{t}} should go toward...","With a {{t}}, you would rather...","Which {{t}} choice feels best?"],sets:[
+[["💾","Save it"],["🍽️","Enjoy it"],["🛒","Buy something useful"],["🎁","Spend on someone else"]],
+[["🏡","Home"],["✈️","Travel"],["📱","Tech"],["📈","Savings"]],
+[["✅","Pay a bill"],["🎟️","Make a memory"],["🛠️","Upgrade something"],["💰","Do nothing yet"]],
+[["🛍️","One nice thing"],["🍴","Several small treats"],["📈","Invest/save"],["👥","Share it"]],
+[["😌","Reduce stress"],["✨","Increase fun"],["🔧","Fix a problem"],["📚","Learn something"]]]},
+{tag:"tech",prefix:"techx",topics:["new phone","smart home","laptop","streaming setup","car technology"],stems:["For a {{t}}, what matters most?","Your {{t}} priority?","Best {{t}} upgrade?","Which {{t}} annoyance is worst?","You would pay extra for this {{t}} feature:"],sets:[
+[["⚡","Speed"],["🔋","Battery"],["📸","Camera"],["💰","Price"]],
+[["🧼","Simple"],["⚙️","Customizable"],["🔒","Private"],["✨","Pretty"]],
+[["💾","More storage"],["🖥️","Better screen"],["🔊","Better sound"],["📶","Better connection"]],
+[["🐢","Slow"],["🔋","Battery dies"],["🔔","Too many alerts"],["🔄","Forced updates"]],
+[["🤖","Smart features"],["🔒","Security"],["⚡","Performance"],["🛠️","Repairability"]]]},
+{tag:"personality",prefix:"persx",topics:["busy day","free day","new group","big decision","unexpected problem"],stems:["On a {{t}}, what is most like you?","During a {{t}}, your default is...","For a {{t}}, what helps most?","Your {{t}} energy?","Which {{t}} response feels most natural?"],sets:[
+[["📋","Make a plan"],["⚡","Start moving"],["💬","Talk it out"],["😌","Stay flexible"]],
+[["👥","Find people"],["🤫","Get space"],["📱","Research"],["😂","Make a joke"]],
+[["🧠","Think"],["❤️","Go with gut"],["📊","Compare options"],["🎲","Just choose"]],
+[["🔥","High energy"],["😌","Calm"],["🌀","Chaotic"],["🎯","Focused"]],
+[["🔧","Fix it"],["📞","Ask for help"],["⏳","Wait and see"],["🗺️","Make a new plan"]]]}
+];
+QUESTION_EXPANSION_SPECS.forEach(function(spec){
+  for(var i=0;i<20;i++){
+    var topic=spec.topics[i%spec.topics.length],stem=spec.stems[Math.floor(i/spec.topics.length)%spec.stems.length];
+    var set=spec.sets[i%spec.sets.length];
+    QUESTIONS.push({id:spec.prefix+"_"+String(i+1).padStart(2,"0"),q:stem.replace("{{t}}",topic),a:set.map(function(x){return x.slice()}),tags:[spec.tag]});
+  }
+});
+
 var PACKS={
   friends:["power","trip","animal","weather","late","phone","morning","vacation","party","time","car","gift","movie","weekend","talent","message","spontaneous","line","boardgame","texting","planner","menu"],
   family:["food","snack","chores","weather","money","house","morning","vacation","time","gift","weekend","restaurant","dessert","message","supermarket","cleaning","temperature","pet","noise","host","weekend_chore"],
