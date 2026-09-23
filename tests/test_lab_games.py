@@ -1583,3 +1583,74 @@ def test_same_brain_custom_questions_are_dormant_not_in_mvp_path():
     # Keep the implementation available for a later Plus experiment.
     assert "function hydrateCustomQuestions(ch)" in html
     assert 'track("custom_created")' in html
+
+
+
+def test_same_brain_metrics_dashboard_is_human_readable_and_actionable():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        "Same Brain MVP Health",
+        "Fix this next:",
+        "Creator quiz completion",
+        "Creator share rate",
+        "Friend completion rate",
+        "Viral chain rate",
+        "Result-card share rate",
+        "Not enough data",
+        "Data-quality notes",
+        "The old 200% completion rate was not real.",
+        "View raw dashboard JSON",
+    ):
+        assert marker in source
+
+
+def test_same_brain_metrics_uses_matched_run_cohorts_not_legacy_counter_division():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        'db.collection("same_brain_public_runs")',
+        "def _cohort_rate",
+        'row["events"].get(den_event)',
+        'row["events"].get(num_event)',
+        '"challenge_created", "challenge_shared"',
+        '"challenge_opened", "response_submitted"',
+        '"result_completed", "beat_chain_shared"',
+    ):
+        assert marker in source
+
+
+def test_same_brain_metrics_keeps_raw_json_debug_option():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+    assert 'request.args.get("format") == "json"' in source
+    assert '"raw": {' in source
+    assert '"publicEvents"' in source
+    assert '"labsEvents"' in source
+
+
+def test_same_brain_analytics_tracks_anonymous_run_id():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "function newRunId()",
+        "runId:state.runId||",
+        "runId:newRunId()",
+    ):
+        assert marker in html
+
+    labs_source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+    public_source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+    assert 'same_brain_lab_runs' in labs_source
+    assert 'same_brain_public_runs' in public_source
