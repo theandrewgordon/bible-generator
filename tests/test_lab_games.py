@@ -1324,3 +1324,92 @@ def test_same_brain_normal_modes_reset_to_five_questions():
     assert 'function startLocalDemo(){state.count=5;startCreator("random")' in html
     assert 'document.querySelectorAll("[data-pack]").forEach(function(btn){btn.addEventListener("click",function(){state.count=5;startCreator(btn.dataset.pack)})})' in html
     assert 'document.getElementById("group-open").addEventListener("click",function(){state.count=5;' in html
+
+
+
+def test_same_brain_short_challenge_returns_private_creator_key_contract():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        '"creatorKeyHash"',
+        '"responses": []',
+        '"creatorKey": creator_key',
+        "hashlib.sha256",
+        "def same_brain_public_challenge_response",
+        "def same_brain_public_challenge_results",
+    ):
+        assert marker in source
+
+
+def test_same_brain_friend_response_payload_scores_against_creator_answers():
+    from faithsparks.views.public import _same_brain_response_payload
+
+    challenge = {
+        "v": 1,
+        "n": "Andrew",
+        "q": ["q1", "q2", "q3", "q4", "q5"],
+        "a": [0, 1, 2, 3, 0],
+        "p": "daily",
+    }
+    response = _same_brain_response_payload(
+        {
+            "responseId": "friend_response_123",
+            "name": "Andy",
+            "answers": [0, 1, 1, 3, 2],
+        },
+        challenge,
+    )
+    assert response is not None
+    assert response["name"] == "Andy"
+    assert response["score"] == 60
+    assert response["answers"] == [0, 1, 1, 3, 2]
+
+    assert _same_brain_response_payload(
+        {"responseId": "short", "name": "Andy", "answers": [0, 1, 1, 3, 2]},
+        challenge,
+    ) is None
+
+
+def test_same_brain_creator_device_tracks_private_results_and_friend_submits():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="creator-responses"',
+        'id="creator-responses-list"',
+        'id="refresh-responses"',
+        'id="creator-results-home"',
+        "function creatorChallenges()",
+        "function saveCreatorChallenge(code,key,payload)",
+        "same_brain_creator_challenges",
+        "async function submitFriendResponse()",
+        '"/response"',
+        "async function loadCreatorResults(code,key,renderIntoShare)",
+        '"/results?key="',
+        "function renderCreatorResponseDetail(data,response)",
+        "View full comparison →",
+    ):
+        assert marker in html
+
+
+def test_same_brain_creator_results_are_not_marked_seen_until_opened():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "if(renderIntoShare)updateCreatorSeen" in html
+    assert "scanCreatorResults()" in html
+    assert "new challenge result" in html
+
+
+def test_same_brain_short_loaded_friend_keeps_code_for_response_submission():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "challenge._shortCode=shortCode" in html
+    assert 'shortCode:challenge._shortCode||""' in html
+    assert "responseIdFor(state.shortCode)" in html
