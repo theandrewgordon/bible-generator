@@ -977,7 +977,7 @@ def test_same_brain_beat_my_match_chain_is_link_portable():
         'track("beat_chain_shared")',
         "Can you beat that?",
         "Previous: ",
-        "Challenge someone else to beat ",
+        "Who knows you better? Challenge them →",
     ):
         assert marker in html
 
@@ -1532,13 +1532,13 @@ def test_same_brain_private_mvp_metrics_endpoint_contract():
 
     for marker in (
         "def same_brain_metrics()",
-        '"completionRate"',
-        '"shareRate"',
-        '"inviteCompletionRate"',
+        '"creatorCompletion"',
+        '"creatorShare"',
+        '"inviteCompletion"',
         '"chainRate"',
-        '"returnRate"',
-        '"creatorPayoffRate"',
+        '"resultShare"',
         'same_brain_public_funnel',
+        'same_brain_public_runs',
     ):
         assert marker in source
 
@@ -1654,3 +1654,134 @@ def test_same_brain_analytics_tracks_anonymous_run_id():
     ))
     assert 'same_brain_lab_runs' in labs_source
     assert 'same_brain_public_runs' in public_source
+
+
+
+def test_same_brain_remembers_nickname_across_creator_and_invite_flows():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "function rememberedName()",
+        "function rememberName(name)",
+        "same_brain_last_name",
+        'document.getElementById("player-name").value=rememberedName()',
+        "rememberName(name);renderQuestion()",
+    ):
+        assert marker in html
+
+
+def test_same_brain_question_flow_has_simple_back_answer_correction():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'id="question-back"' in html
+    assert 'back.classList.toggle("hidden",idx===0)' in html
+    assert 'state.answers.pop();renderQuestion()' in html
+
+
+def test_same_brain_daily_streak_uses_client_daily_key_not_server_utc_day():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+    html = _client().get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'daily_key = str(payload.get("dateKey")' in source
+    assert 'datetime.strptime(daily_key, "%Y-%m-%d")' in source
+    assert 'yesterday_key = (play_date - timedelta(days=1)).isoformat()' in source
+    assert 'dateKey:dateKey||""' in html
+
+
+def test_same_brain_daily_crowd_waits_for_ten_players():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "if(data.players<10)" in html
+    assert "Crowd results unlock after 10 players." in html
+    assert "of 10 players so far." in html
+
+
+def test_same_brain_creator_challenges_recover_across_signed_in_devices():
+    public_source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        '"ownerId": _same_brain_owner_id()',
+        "def same_brain_public_my_challenges",
+        "owner_ok = bool",
+    ):
+        assert marker in public_source
+    for marker in (
+        'id="creator-inbox"',
+        "async function accountCreatorChallenges()",
+        "function renderCreatorInbox(rows)",
+        "function openCreatorChallenge(row)",
+        '"/same-brain/my-challenges"',
+    ):
+        assert marker in html
+
+
+def test_same_brain_creator_short_link_failure_never_silently_breaks_async_results():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "for(var attempt=0;attempt<(rememberCreator?3:1);attempt++)" in html
+    assert 'if(rememberCreator){var err=new Error("challenge_create_failed")' in html
+    assert "We couldn’t create your shareable challenge yet." in html
+    assert "We couldn’t create the next challenge yet." in html
+    assert 'return shareBase()+"?c="+encode(payload)' in html
+
+
+def test_same_brain_result_screen_hides_duplicate_share_card_until_sharing():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'id="share-card" class="share-card hidden"' in html
+    assert 'card.classList.remove("hidden")' in html
+    assert 'id="result-next-note"' in html
+    assert "Send your answers to someone new." in html
+
+
+def test_same_brain_public_social_preview_has_branded_png_and_clean_indexing():
+    client = _public_client()
+
+    image = client.get("/same-brain/og.png")
+    assert image.status_code == 200
+    assert image.mimetype == "image/png"
+    assert image.data.startswith(b"\x89PNG")
+
+    home = client.get("/same-brain")
+    home_html = home.get_data(as_text=True)
+    assert '<meta name="robots" content="index,follow">' in home_html
+    assert 'property="og:image"' in home_html
+    assert "/same-brain/og.png" in home_html
+    assert 'name="twitter:card" content="summary_large_image"' in home_html
+
+    challenge = client.get("/same-brain?c=abc")
+    challenge_html = challenge.get_data(as_text=True)
+    assert '<meta name="robots" content="noindex,nofollow">' in challenge_html
+    assert challenge.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive"
+
+
+def test_same_brain_creator_inbox_handles_multiple_challenges():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "Your challenges",
+        "var localRows=creatorChallenges().slice(0,20)",
+        "accountRows=await accountCreatorChallenges()",
+        "byCode={}",
+        'btn.textContent=newCount?("🧠 "+newCount+" new challenge result"',
+    ):
+        assert marker in html
