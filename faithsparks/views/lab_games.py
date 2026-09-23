@@ -1544,9 +1544,13 @@ def same_brain_group_join(code: str):
 
 
 SAME_BRAIN_EVENTS = {
+    "home_view",
+    "return_visit",
     "start",
     "challenge_created",
     "challenge_shared",
+    "beat_chain_shared",
+    "custom_created",
     "challenge_opened",
     "result_completed",
     "result_shared",
