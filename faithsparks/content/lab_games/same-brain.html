@@ -87,7 +87,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       <summary>More ways to play</summary>
       <div class="disclosure-body">
         <div class="stack">
-          <button id="group-open" class="action-card" type="button">👥 Group Brain<small>4–8 people, answer whenever you want</small></button>
+          <button id="group-open" class="action-card" type="button">👥 Group Brain<small>3–8 people, answer whenever you want</small></button>
           <div id="group-config" class="inline-panel hidden">
             <strong>Group Brain setup</strong>
             <div class="mode-row" aria-label="Group question length">
@@ -609,7 +609,7 @@ function renderGroupResult(data){
   document.getElementById("score-ring").style.setProperty("--score",g.overall);
   document.getElementById("score-text").textContent=g.overall+"%";
   document.getElementById("result-title").textContent="Group Brain";
-  document.getElementById("brain-type").textContent=g.n+" players · "+(g.n<4?"Still forming":"Results live")+" 🧠";
+  document.getElementById("brain-type").textContent=g.n+" players · "+(g.n<3?"Still forming":"Results live")+" 🧠";
   document.getElementById("result-copy").textContent="Overall consensus averages the most common answer on each question.";
   applyTheme();document.getElementById("share-card").classList.add("hidden");document.getElementById("share-card").innerHTML='<div style="font-weight:800;opacity:.85">GROUP BRAIN</div><div class="big">'+g.overall+'% CONSENSUS</div><div class="pill">'+g.n+' of '+data.maxPlayers+' answered</div>';
   var extra='<div class="group-summary"><div class="group-stat"><span>Players</span><strong>'+g.n+'/'+data.maxPlayers+'</strong></div><div class="group-stat"><span>Most aligned</span><strong>'+esc(topTies.map(function(x){return x.name}).join(" & ")||"—")+'</strong></div></div><div class="group-players">'+g.players.map(function(p){return '<span class="group-player">'+esc(p.name)+'</span>'}).join("")+'</div>';
