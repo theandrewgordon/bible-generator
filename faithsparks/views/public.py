@@ -808,6 +808,7 @@ def same_brain_public_analytics():
     payload = request.get_json(silent=True) or {}
     event = str(payload.get("event") or "").strip()
     pack = str(payload.get("pack") or "unknown").strip().lower()[:24]
+    run_id = re.sub(r"[^A-Za-z0-9_-]", "", str(payload.get("runId") or ""))[:64]
     if event not in _SAME_BRAIN_PUBLIC_EVENTS:
         return jsonify({"error": "unknown_event"}), 400
 
@@ -827,7 +828,7 @@ def same_brain_public_analytics():
     if not limit.allowed:
         return jsonify({"ok": True, "rate_limited": True})
 
-    dedupe_key = f"sb_public_metric:{event}:{pack}"
+    dedupe_key = f"sb_public_metric:{run_id or 'legacy'}:{event}:{pack}"
     if session.get(dedupe_key):
         return jsonify({"ok": True, "duplicate": True})
 
@@ -842,6 +843,15 @@ def same_brain_public_analytics():
                 },
                 merge=True,
             )
+            if run_id:
+                db.collection("same_brain_public_runs").document(run_id).set(
+                    {
+                        "events": {event: True},
+                        "pack": pack,
+                        "updatedAt": firestore.SERVER_TIMESTAMP,
+                    },
+                    merge=True,
+                )
     except Exception:
         # Analytics can never be allowed to break the game.
         pass
