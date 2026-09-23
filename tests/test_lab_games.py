@@ -643,3 +643,42 @@ def test_all_odyssey_games_gate_and_cache_sound_effects():
     assert "const tcWinSound = new SoundGenerator" in timothy
     assert "const tcLoseSound = new SoundGenerator" in timothy
     assert "tcPlaySound(tcStartSound" in timothy
+
+
+
+def test_same_brain_demo_is_listed_and_playable():
+    client = _client()
+    _sign_in(client)
+
+    library = client.get("/labs/games")
+    html = library.get_data(as_text=True)
+    assert library.status_code == 200
+    assert "Same Brain?" in html
+    assert "/labs/games/same-brain" in html
+    assert "Standalone Labs experiment" in html
+
+    game = client.get("/labs/games/same-brain")
+    body = game.get_data(as_text=True)
+    assert game.status_code == 200
+    assert game.headers["Cache-Control"] == "private, no-store"
+    assert game.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive, nosnippet"
+    assert "Create a challenge" in body
+    assert "Try a two-player demo on this device" in body
+
+
+def test_same_brain_demo_has_portable_challenge_loop():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "var QUESTIONS=[" in html
+    assert html.count('{id:"') >= 20
+    assert 'slice(0,5)' in html
+    assert '?c=' in html
+    assert 'TextEncoder' in html
+    assert 'TextDecoder' in html
+    assert 'navigator.share' in html
+    assert 'navigator.clipboard' in html
+    assert 'renderResult()' in html
+    assert '% SAME BRAIN' in html
+    assert 'brainType(score)' in html
