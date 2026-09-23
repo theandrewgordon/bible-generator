@@ -4,9 +4,11 @@ import json
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from pathlib import Path
 
 from firebase_admin import firestore
+from PIL import Image, ImageDraw, ImageFont
 from flask import Blueprint, jsonify, make_response, render_template, redirect, url_for, session, Response, request, flash, send_file, abort, current_app, g
 from flask_dance.contrib.google import google
 from faithsparks.util.proverb import get_proverb_of_day
@@ -776,6 +778,44 @@ def same_brain_public_my_challenges():
     return jsonify({"ok": True, "challenges": rows[:20]})
 
 
+def _same_brain_font(size: int, bold: bool = False):
+    names = ["DejaVuSans-Bold.ttf", "DejaVuSans.ttf"] if bold else ["DejaVuSans.ttf", "DejaVuSans-Bold.ttf"]
+    for name in names:
+        try:
+            return ImageFont.truetype(name, size)
+        except Exception:
+            continue
+    return ImageFont.load_default()
+
+
+@bp.get('/same-brain/og.png')
+def same_brain_og_image():
+    image = Image.new("RGB", (1200, 630), "#211936")
+    draw = ImageDraw.Draw(image)
+    for y in range(630):
+        t = y / 629
+        r = int(33 + (111 - 33) * t)
+        g = int(25 + (75 - 25) * t)
+        b = int(54 + (216 - 54) * t)
+        draw.line((0, y, 1200, y), fill=(r, g, b))
+    draw.ellipse((890, 70, 1130, 310), fill=(255, 255, 255, 28))
+    draw.ellipse((1010, 360, 1180, 530), fill=(255, 255, 255, 20))
+    title_font = _same_brain_font(92, True)
+    sub_font = _same_brain_font(42, False)
+    tiny_font = _same_brain_font(30, True)
+    draw.text((90, 120), "SAME BRAIN?", font=title_font, fill="white")
+    draw.text((90, 255), "Think you know each other?", font=sub_font, fill="#efe9ff")
+    draw.rounded_rectangle((90, 360, 570, 455), radius=44, fill="#ffffff")
+    draw.text((135, 385), "5 questions. 1 friend. Go.", font=tiny_font, fill="#5c3fbc")
+    draw.text((90, 535), "faithsparksprintables.com/same-brain", font=_same_brain_font(25, False), fill="#ded4ff")
+    output = BytesIO()
+    image.save(output, format="PNG", optimize=True)
+    output.seek(0)
+    response = send_file(output, mimetype="image/png", max_age=86400)
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
 @bp.get('/same-brain')
 def same_brain_public():
     # Challenge URLs can contain custom questions, but are intentionally capped
@@ -788,6 +828,9 @@ def same_brain_public():
         abort(404)
 
     html = _SAME_BRAIN_FILE.read_text(encoding="utf-8")
+    is_challenge_page = bool(request.args.get("c") or request.args.get("s") or request.args.get("g"))
+    if not is_challenge_page:
+        html = html.replace('<meta name="robots" content="noindex,nofollow">', '<meta name="robots" content="index,follow">', 1)
     preview_name = ""
     preview_code = _same_brain_valid_code(request.args.get("s") or "")
     if preview_code and db:
@@ -799,15 +842,21 @@ def same_brain_public():
                 preview_name = preview_payload.get("n") or ""
         except Exception:
             preview_name = ""
-    if preview_name and "</head>" in html:
-        safe_name = str(preview_name).replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+    if "</head>" in html:
+        safe_name = str(preview_name).replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;") if preview_name else ""
+        preview_title = (safe_name + " challenged you — Same Brain?") if safe_name else "Same Brain? — Play Today’s 5"
+        image_url = request.url_root.rstrip("/") + "/same-brain/og.png"
         social_meta = (
-            '<meta property="og:title" content="' + safe_name + ' challenged you — Same Brain?">'
+            '<meta property="og:title" content="' + preview_title + '">'
             '<meta property="og:description" content="Answer 5 quick questions and see how often your brains match.">'
             '<meta property="og:type" content="website">'
-            '<meta name="twitter:card" content="summary">'
-            '<meta name="twitter:title" content="' + safe_name + ' challenged you — Same Brain?">'
+            '<meta property="og:image" content="' + image_url + '">'
+            '<meta property="og:image:width" content="1200">'
+            '<meta property="og:image:height" content="630">'
+            '<meta name="twitter:card" content="summary_large_image">'
+            '<meta name="twitter:title" content="' + preview_title + '">'
             '<meta name="twitter:description" content="Answer 5 quick questions and see how often your brains match.">'
+            '<meta name="twitter:image" content="' + image_url + '">'
         )
         html = html.replace("</head>", social_meta + "</head>", 1)
     bootstrap = (
