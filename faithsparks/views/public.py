@@ -1,3 +1,4 @@
+import hashlib
 import hmac
 import json
 import re
@@ -393,15 +394,19 @@ def same_brain_public_challenge_create():
         return jsonify({"error": "storage_unavailable"}), 503
 
     now = datetime.now(timezone.utc)
+    creator_key = secrets.token_urlsafe(18)
+    creator_key_hash = hashlib.sha256(creator_key.encode("utf-8")).hexdigest()
     try:
         ref.set({
             "payload": payload,
+            "creatorKeyHash": creator_key_hash,
+            "responses": [],
             "createdAt": now,
             "expiresAt": now + timedelta(days=SAME_BRAIN_SHORT_TTL_DAYS),
         })
     except Exception:
         return jsonify({"error": "storage_unavailable"}), 503
-    return jsonify({"ok": True, "code": code}), 201
+    return jsonify({"ok": True, "code": code, "creatorKey": creator_key}), 201
 
 
 @bp.get('/same-brain/challenge/<code>')
@@ -433,6 +438,175 @@ def same_brain_public_challenge_get(code: str):
     if payload is None:
         return jsonify({"error": "not_found"}), 404
     return jsonify({"ok": True, "challenge": payload})
+
+
+def _same_brain_valid_code(code: str) -> str | None:
+    code = str(code or "").strip().upper()
+    if len(code) != 7 or any(ch not in SAME_BRAIN_SHORT_CODE_ALPHABET for ch in code):
+        return None
+    return code
+
+
+def _same_brain_response_payload(raw, challenge: dict) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    name = " ".join(str(raw.get("name") or "").split()).strip()[:20]
+    response_id = re.sub(r"[^A-Za-z0-9_-]", "", str(raw.get("responseId") or ""))[:64]
+    answers = raw.get("answers")
+    qids = list(challenge.get("q") or [])
+    if not name or len(response_id) < 8 or not isinstance(answers, list) or len(answers) != len(qids):
+        return None
+    clean_answers = []
+    for value in answers:
+        try:
+            answer = int(value)
+        except (TypeError, ValueError):
+            return None
+        if answer < 0 or answer > 3:
+            return None
+        clean_answers.append(answer)
+    creator_answers = list(challenge.get("a") or [])
+    if len(creator_answers) != len(clean_answers):
+        return None
+    matches = sum(1 for a, b in zip(creator_answers, clean_answers) if int(a) == int(b))
+    score = round(matches / len(clean_answers) * 100) if clean_answers else 0
+    return {
+        "id": response_id,
+        "name": name,
+        "answers": clean_answers,
+        "score": score,
+    }
+
+
+@bp.post('/same-brain/challenge/<code>/response')
+def same_brain_public_challenge_response(code: str):
+    code = _same_brain_valid_code(code)
+    if not code:
+        return jsonify({"error": "not_found"}), 404
+
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _same_brain_public_csrf()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    limit = check_rate_limit(
+        "same_brain_public_challenge_response",
+        get_client_ip(),
+        limit=120,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"error": "rate_limited"}), 429
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    ref = db.collection(SAME_BRAIN_SHORT_COLLECTION).document(code)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def save_response(txn):
+        snap = ref.get(transaction=txn)
+        if not snap.exists:
+            return "not_found", None
+        data = snap.to_dict() or {}
+        expires = data.get("expiresAt")
+        if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+            return "expired", None
+        challenge = _same_brain_public_challenge_payload(data.get("payload") or {})
+        if challenge is None:
+            return "not_found", None
+        response = _same_brain_response_payload(request.get_json(silent=True) or {}, challenge)
+        if response is None:
+            return "invalid", None
+
+        responses = list(data.get("responses") or [])
+        existing_index = next((i for i, item in enumerate(responses) if str(item.get("id") or "") == response["id"]), None)
+        stored = {
+            **response,
+            "completedAt": datetime.now(timezone.utc),
+        }
+        if existing_index is None:
+            if len(responses) >= 100:
+                responses = responses[-99:]
+            responses.append(stored)
+        else:
+            responses[existing_index] = stored
+        txn.update(ref, {"responses": responses})
+        return "ok", response
+
+    try:
+        status, response = save_response(transaction)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if status == "not_found":
+        return jsonify({"error": "not_found"}), 404
+    if status == "expired":
+        return jsonify({"error": "expired"}), 410
+    if status == "invalid":
+        return jsonify({"error": "invalid"}), 400
+    return jsonify({"ok": True, "score": response["score"]})
+
+
+@bp.get('/same-brain/challenge/<code>/results')
+def same_brain_public_challenge_results(code: str):
+    code = _same_brain_valid_code(code)
+    if not code:
+        return jsonify({"error": "not_found"}), 404
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    limit = check_rate_limit(
+        "same_brain_public_challenge_results",
+        get_client_ip(),
+        limit=600,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"error": "rate_limited"}), 429
+
+    try:
+        snap = db.collection(SAME_BRAIN_SHORT_COLLECTION).document(code).get()
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if not snap.exists:
+        return jsonify({"error": "not_found"}), 404
+    data = snap.to_dict() or {}
+    expires = data.get("expiresAt")
+    if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+        return jsonify({"error": "expired"}), 410
+
+    supplied = str(request.args.get("key") or "")
+    stored_hash = str(data.get("creatorKeyHash") or "")
+    supplied_hash = hashlib.sha256(supplied.encode("utf-8")).hexdigest() if supplied else ""
+    if not stored_hash or not supplied_hash or not hmac.compare_digest(stored_hash, supplied_hash):
+        return jsonify({"error": "forbidden"}), 403
+
+    challenge = _same_brain_public_challenge_payload(data.get("payload") or {})
+    if challenge is None:
+        return jsonify({"error": "not_found"}), 404
+
+    responses = []
+    for raw in list(data.get("responses") or []):
+        try:
+            answers = [int(v) for v in list(raw.get("answers") or [])]
+            if len(answers) != len(challenge.get("q") or []):
+                continue
+            responses.append({
+                "id": str(raw.get("id") or "")[:64],
+                "name": " ".join(str(raw.get("name") or "Friend").split()).strip()[:20] or "Friend",
+                "answers": answers,
+                "score": max(0, min(100, int(raw.get("score") or 0))),
+            })
+        except (TypeError, ValueError):
+            continue
+
+    return jsonify({
+        "ok": True,
+        "code": code,
+        "challenge": challenge,
+        "responses": responses,
+        "responseCount": len(responses),
+    })
 
 
 @bp.get('/same-brain')
