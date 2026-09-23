@@ -8,9 +8,11 @@ from pathlib import Path
 
 from firebase_admin import firestore as google_firestore
 from google.cloud import firestore as cloud_firestore
-from flask import Blueprint, jsonify, make_response, render_template, redirect, request, session, send_file
+from openai import OpenAI
+from flask import Blueprint, Response, jsonify, make_response, render_template, redirect, request, session, send_file
 
 from faithsparks.services.firestore import db
+from faithsparks.services.users import get_user_doc, has_active_plus
 
 bp = Blueprint("lab_games", __name__, url_prefix="/labs/games")
 
@@ -1124,6 +1126,162 @@ def roster():
         return jsonify({"error": "storage_unavailable"}), 503
 
     return jsonify(merged)
+
+
+SAME_BRAIN_POINT_EVENTS = {
+    "complete": 10,
+    "daily_complete": 15,
+    "group_complete": 12,
+}
+SAME_BRAIN_COSMETICS = {
+    "frame_neon": 60,
+    "frame_stars": 80,
+    "avatar_fox": 100,
+    "avatar_robot": 100,
+    "theme_sunset": 120,
+    "theme_arcade": 140,
+}
+
+
+def _same_brain_user_state(email: str | None) -> dict:
+    data = get_user_doc(email) if email else {}
+    sb = data.get("sameBrain") if isinstance(data.get("sameBrain"), dict) else {}
+    return {
+        "plus": has_active_plus(data),
+        "bits": max(0, int(sb.get("bits") or 0)),
+        "unlocks": sorted({str(v)[:40] for v in (sb.get("unlocks") or []) if str(v).strip()}),
+        "avatar": str(sb.get("avatar") or "brain")[:40],
+        "theme": str(sb.get("theme") or "classic")[:40],
+    }
+
+
+@bp.get("/same-brain/profile")
+def same_brain_profile():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+    return jsonify(_same_brain_user_state(_signed_in_email()))
+
+
+@bp.post("/same-brain/points")
+def same_brain_points():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _csrf_token_value()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+    payload = request.get_json(silent=True) or {}
+    event = str(payload.get("event") or "").strip()
+    event_id = str(payload.get("eventId") or "").strip()[:96]
+    amount = SAME_BRAIN_POINT_EVENTS.get(event)
+    email = _signed_in_email()
+    if not amount or not event_id or not email or not db:
+        return jsonify({"error": "invalid"}), 400
+    ref = db.collection("users").document(email)
+    transaction = db.transaction()
+
+    @cloud_firestore.transactional
+    def award(txn):
+        snap = ref.get(transaction=txn)
+        data = snap.to_dict() or {}
+        sb = data.get("sameBrain") if isinstance(data.get("sameBrain"), dict) else {}
+        awarded = list(sb.get("awarded") or [])
+        if event_id in awarded:
+            return max(0, int(sb.get("bits") or 0)), True
+        bits = max(0, int(sb.get("bits") or 0)) + int(amount)
+        awarded = (awarded + [event_id])[-150:]
+        txn.set(ref, {"sameBrain": {**sb, "bits": bits, "awarded": awarded}}, merge=True)
+        return bits, False
+
+    try:
+        bits, duplicate = award(transaction)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    return jsonify({"ok": True, "bits": bits, "duplicate": duplicate})
+
+
+@bp.post("/same-brain/unlock")
+def same_brain_unlock():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _csrf_token_value()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+    payload = request.get_json(silent=True) or {}
+    item = str(payload.get("item") or "").strip()
+    cost = SAME_BRAIN_COSMETICS.get(item)
+    email = _signed_in_email()
+    if cost is None or not email or not db:
+        return jsonify({"error": "invalid"}), 400
+    ref = db.collection("users").document(email)
+    transaction = db.transaction()
+
+    @cloud_firestore.transactional
+    def buy(txn):
+        snap = ref.get(transaction=txn)
+        data = snap.to_dict() or {}
+        sb = data.get("sameBrain") if isinstance(data.get("sameBrain"), dict) else {}
+        unlocks = list(sb.get("unlocks") or [])
+        bits = max(0, int(sb.get("bits") or 0))
+        if item in unlocks:
+            return bits, unlocks, True
+        if bits < cost:
+            return bits, unlocks, False
+        bits -= cost
+        unlocks.append(item)
+        txn.set(ref, {"sameBrain": {**sb, "bits": bits, "unlocks": unlocks}}, merge=True)
+        return bits, unlocks, True
+
+    try:
+        bits, unlocks, success = buy(transaction)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if not success:
+        return jsonify({"error": "not_enough_bits", "bits": bits}), 409
+    return jsonify({"ok": True, "bits": bits, "unlocks": unlocks})
+
+
+@bp.post("/same-brain/tts")
+def same_brain_tts():
+    access_response = _require_access()
+    if access_response is not None:
+        return access_response
+    user_state = _same_brain_user_state(_signed_in_email())
+    if not user_state["plus"]:
+        return jsonify({"error": "plus_required"}), 403
+    if not os.getenv("OPENAI_API_KEY"):
+        return jsonify({"error": "tts_unavailable"}), 503
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _csrf_token_value()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+    payload = request.get_json(silent=True) or {}
+    text = " ".join(str(payload.get("text") or "").split()).strip()[:500]
+    voice = str(payload.get("voice") or "marin").strip().lower()
+    if voice not in {"marin", "cedar", "coral", "sage"}:
+        voice = "marin"
+    if not text:
+        return jsonify({"error": "invalid"}), 400
+    try:
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        speech = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice=voice,
+            input=text,
+            instructions="Warm, natural, playful game-host delivery. Clear and friendly. Do not sound exaggerated.",
+            response_format="mp3",
+        )
+        audio = speech.read()
+    except Exception:
+        return jsonify({"error": "tts_failed"}), 503
+    response = Response(audio, mimetype="audio/mpeg")
+    response.headers["Cache-Control"] = "private, max-age=86400"
+    response.headers["X-AI-Voice"] = "OpenAI"
+    return response
 
 
 SAME_BRAIN_GROUP_COLLECTION = "same_brain_groups"
