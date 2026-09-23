@@ -1152,6 +1152,9 @@ def _same_brain_user_state(email: str | None) -> dict:
         "unlocks": sorted({str(v)[:40] for v in (sb.get("unlocks") or []) if str(v).strip()}),
         "avatar": str(sb.get("avatar") or "brain")[:40],
         "theme": str(sb.get("theme") or "classic")[:40],
+        "dailyStreak": max(0, int(sb.get("dailyStreak") or 0)),
+        "dailyBest": max(0, int(sb.get("dailyBest") or 0)),
+        "lastDailyDate": str(sb.get("lastDailyDate") or "")[:10],
     }
 
 
@@ -1192,14 +1195,38 @@ def same_brain_points():
             return max(0, int(sb.get("bits") or 0)), True
         bits = max(0, int(sb.get("bits") or 0)) + int(amount)
         awarded = (awarded + [event_id])[-150:]
-        txn.set(ref, {"sameBrain": {**sb, "bits": bits, "awarded": awarded}}, merge=True)
+        update = {**sb, "bits": bits, "awarded": awarded}
+        if event == "daily_complete":
+            today = datetime.now(timezone.utc).date()
+            today_key = today.isoformat()
+            yesterday_key = (today - timedelta(days=1)).isoformat()
+            previous = str(sb.get("lastDailyDate") or "")
+            streak = max(0, int(sb.get("dailyStreak") or 0))
+            if previous == today_key:
+                pass
+            elif previous == yesterday_key:
+                streak += 1
+            else:
+                streak = 1
+            update["dailyStreak"] = streak
+            update["dailyBest"] = max(streak, int(sb.get("dailyBest") or 0))
+            update["lastDailyDate"] = today_key
+        txn.set(ref, {"sameBrain": update}, merge=True)
         return bits, False
 
     try:
         bits, duplicate = award(transaction)
     except Exception:
         return jsonify({"error": "storage_unavailable"}), 503
-    return jsonify({"ok": True, "bits": bits, "duplicate": duplicate})
+    state = _same_brain_user_state(email)
+    return jsonify({
+        "ok": True,
+        "bits": bits,
+        "duplicate": duplicate,
+        "dailyStreak": state["dailyStreak"],
+        "dailyBest": state["dailyBest"],
+        "lastDailyDate": state["lastDailyDate"],
+    })
 
 
 @bp.post("/same-brain/unlock")
