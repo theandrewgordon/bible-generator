@@ -356,6 +356,13 @@ def _same_brain_public_challenge_payload(raw) -> dict | None:
     return clean
 
 
+def _same_brain_owner_id() -> str:
+    email = str(session.get("user_email") or "").strip().lower()
+    if not email:
+        return ""
+    return hashlib.sha256(email.encode("utf-8")).hexdigest()
+
+
 def _same_brain_short_code() -> str:
     return "".join(secrets.choice(SAME_BRAIN_SHORT_CODE_ALPHABET) for _ in range(7))
 
@@ -407,6 +414,7 @@ def same_brain_public_challenge_create():
         ref.set({
             "payload": payload,
             "creatorKeyHash": creator_key_hash,
+            "ownerId": _same_brain_owner_id(),
             "responses": [],
             "createdAt": now,
             "expiresAt": now + timedelta(days=SAME_BRAIN_SHORT_TTL_DAYS),
@@ -585,7 +593,9 @@ def same_brain_public_challenge_results(code: str):
     supplied = str(request.args.get("key") or "")
     stored_hash = str(data.get("creatorKeyHash") or "")
     supplied_hash = hashlib.sha256(supplied.encode("utf-8")).hexdigest() if supplied else ""
-    if not stored_hash or not supplied_hash or not hmac.compare_digest(stored_hash, supplied_hash):
+    key_ok = bool(stored_hash and supplied_hash and hmac.compare_digest(stored_hash, supplied_hash))
+    owner_ok = bool(data.get("ownerId") and data.get("ownerId") == _same_brain_owner_id())
+    if not key_ok and not owner_ok:
         return jsonify({"error": "forbidden"}), 403
 
     challenge = _same_brain_public_challenge_payload(data.get("payload") or {})
@@ -730,6 +740,40 @@ def same_brain_public_daily_get(date_key: str):
         "players": max(0, int(data.get("players") or 0)),
         "questions": {qid: [max(0, int(v or 0)) for v in list(questions.get(qid) or [0, 0, 0, 0])[:4]] for qid in qids},
     })
+
+
+@bp.get('/same-brain/my-challenges')
+def same_brain_public_my_challenges():
+    owner_id = _same_brain_owner_id()
+    if not owner_id:
+        return jsonify({"error": "signin_required"}), 401
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    rows = []
+    try:
+        query = db.collection(SAME_BRAIN_SHORT_COLLECTION).where("ownerId", "==", owner_id).limit(30)
+        for snap in query.stream():
+            data = snap.to_dict() or {}
+            expires = data.get("expiresAt")
+            if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+                continue
+            payload = _same_brain_public_challenge_payload(data.get("payload") or {})
+            if not payload:
+                continue
+            responses = [r for r in (data.get("responses") or []) if isinstance(r, dict)]
+            rows.append({
+                "code": snap.id,
+                "name": payload.get("n") or "You",
+                "pack": payload.get("p") or "shared",
+                "dailyLabel": payload.get("d") or "",
+                "responseCount": len(responses),
+                "createdAt": getattr(data.get("createdAt"), "timestamp", lambda: 0)(),
+            })
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    rows.sort(key=lambda item: item.get("createdAt") or 0, reverse=True)
+    return jsonify({"ok": True, "challenges": rows[:20]})
 
 
 @bp.get('/same-brain')
