@@ -248,6 +248,7 @@ def labs():
 
 _SAME_BRAIN_FILE = Path(__file__).resolve().parents[1] / "content" / "lab_games" / "same-brain.html"
 SAME_BRAIN_SHORT_COLLECTION = "same_brain_challenges"
+SAME_BRAIN_DAILY_COLLECTION = "same_brain_daily_stats"
 SAME_BRAIN_SHORT_TTL_DAYS = 30
 SAME_BRAIN_SHORT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -310,6 +311,9 @@ def _same_brain_public_challenge_payload(raw) -> dict | None:
     daily_label = " ".join(str(raw.get("d") or "").split()).strip()[:40]
     if daily_label:
         clean["d"] = daily_label
+    daily_key = str(raw.get("dk") or "").strip()[:10]
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", daily_key):
+        clean["dk"] = daily_key
 
     custom = raw.get("x")
     if custom is not None:
@@ -609,6 +613,122 @@ def same_brain_public_challenge_results(code: str):
     })
 
 
+def _same_brain_daily_date(value: str) -> str | None:
+    value = str(value or "").strip()[:10]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+    today = datetime.now(timezone.utc).date()
+    if abs((parsed - today).days) > 2:
+        return None
+    return value
+
+
+@bp.post('/same-brain/daily')
+def same_brain_public_daily_submit():
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _same_brain_public_csrf()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+
+    limit = check_rate_limit(
+        "same_brain_public_daily_submit",
+        get_client_ip(),
+        limit=120,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"error": "rate_limited"}), 429
+
+    payload = request.get_json(silent=True) or {}
+    date_key = _same_brain_daily_date(payload.get("date"))
+    response_id = re.sub(r"[^A-Za-z0-9_-]", "", str(payload.get("responseId") or ""))[:64]
+    qids = [str(v or "").strip()[:40] for v in (payload.get("questionIds") or [])]
+    answers = payload.get("answers") or []
+    if not date_key or len(response_id) < 8 or len(qids) != 5 or len(set(qids)) != 5 or len(answers) != 5:
+        return jsonify({"error": "invalid"}), 400
+    clean_answers = []
+    for value in answers:
+        try:
+            answer = int(value)
+        except (TypeError, ValueError):
+            return jsonify({"error": "invalid"}), 400
+        if answer < 0 or answer > 3:
+            return jsonify({"error": "invalid"}), 400
+        clean_answers.append(answer)
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    stats_ref = db.collection(SAME_BRAIN_DAILY_COLLECTION).document(date_key)
+    response_ref = stats_ref.collection("responses").document(response_id)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def record(txn):
+        if response_ref.get(transaction=txn).exists:
+            return True
+        snap = stats_ref.get(transaction=txn)
+        data = snap.to_dict() or {}
+        questions = dict(data.get("questions") or {})
+        for qid, answer in zip(qids, clean_answers):
+            counts = list(questions.get(qid) or [0, 0, 0, 0])[:4]
+            while len(counts) < 4:
+                counts.append(0)
+            counts[answer] = int(counts[answer] or 0) + 1
+            questions[qid] = counts
+        txn.set(
+            stats_ref,
+            {
+                "players": int(data.get("players") or 0) + 1,
+                "questions": questions,
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            },
+            merge=True,
+        )
+        txn.set(response_ref, {"createdAt": firestore.SERVER_TIMESTAMP})
+        return False
+
+    try:
+        duplicate = record(transaction)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    return jsonify({"ok": True, "duplicate": duplicate})
+
+
+@bp.get('/same-brain/daily/<date_key>')
+def same_brain_public_daily_get(date_key: str):
+    date_key = _same_brain_daily_date(date_key)
+    qids = [str(v or "").strip()[:40] for v in (request.args.get("q") or "").split(",") if str(v or "").strip()]
+    if not date_key or len(qids) != 5 or len(set(qids)) != 5:
+        return jsonify({"error": "invalid"}), 400
+
+    limit = check_rate_limit(
+        "same_brain_public_daily_get",
+        get_client_ip(),
+        limit=600,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"error": "rate_limited"}), 429
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+    try:
+        snap = db.collection(SAME_BRAIN_DAILY_COLLECTION).document(date_key).get()
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    data = snap.to_dict() or {} if snap.exists else {}
+    questions = data.get("questions") if isinstance(data.get("questions"), dict) else {}
+    return jsonify({
+        "ok": True,
+        "date": date_key,
+        "players": max(0, int(data.get("players") or 0)),
+        "questions": {qid: [max(0, int(v or 0)) for v in list(questions.get(qid) or [0, 0, 0, 0])[:4]] for qid in qids},
+    })
+
+
 @bp.get('/same-brain')
 def same_brain_public():
     # Challenge URLs can contain custom questions, but are intentionally capped
@@ -621,6 +741,28 @@ def same_brain_public():
         abort(404)
 
     html = _SAME_BRAIN_FILE.read_text(encoding="utf-8")
+    preview_name = ""
+    preview_code = _same_brain_valid_code(request.args.get("s") or "")
+    if preview_code and db:
+        try:
+            preview_snap = db.collection(SAME_BRAIN_SHORT_COLLECTION).document(preview_code).get()
+            preview_data = preview_snap.to_dict() or {} if preview_snap.exists else {}
+            preview_payload = _same_brain_public_challenge_payload(preview_data.get("payload") or {})
+            if preview_payload:
+                preview_name = preview_payload.get("n") or ""
+        except Exception:
+            preview_name = ""
+    if preview_name and "</head>" in html:
+        safe_name = str(preview_name).replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
+        social_meta = (
+            '<meta property="og:title" content="' + safe_name + ' challenged you — Same Brain?">'
+            '<meta property="og:description" content="Answer 5 quick questions and see how often your brains match.">'
+            '<meta property="og:type" content="website">'
+            '<meta name="twitter:card" content="summary">'
+            '<meta name="twitter:title" content="' + safe_name + ' challenged you — Same Brain?">'
+            '<meta name="twitter:description" content="Answer 5 quick questions and see how often your brains match.">'
+        )
+        html = html.replace("</head>", social_meta + "</head>", 1)
     bootstrap = (
         "<style>"
         ".advanced-play,.shop{display:none!important}"
