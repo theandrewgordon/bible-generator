@@ -260,10 +260,10 @@ _SAME_BRAIN_PUBLIC_EVENTS = {
 
 
 def _same_brain_public_csrf() -> str:
-    token = str(session.get("_same_brain_csrf") or "")
+    token = str(session.get("_csrf_token") or "")
     if not token:
         token = secrets.token_urlsafe(32)
-        session["_same_brain_csrf"] = token
+        session["_csrf_token"] = token
     return token
 
 
