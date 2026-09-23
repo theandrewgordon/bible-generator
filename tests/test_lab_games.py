@@ -936,3 +936,83 @@ def test_same_brain_home_defaults_to_simple_daily_one_to_one_flow():
     assert "Create Group Brain (4–8)" in html
     assert "10 questions ✨" in html
     assert "Brain Shop" not in html
+
+
+
+def test_same_brain_daily_identity_streak_and_creator_reward_loop():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "function dailyNumber()",
+        '+" Brain #"+dailyNumber()',
+        'id="streak-line"',
+        '"daily_complete"',
+        '"daily-"+dailyKey()',
+        "dailyStreak",
+        "dailyBest",
+    ):
+        assert marker in html
+
+
+def test_same_brain_beat_my_match_chain_is_link_portable():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="result-next"',
+        "async function challengeNext()",
+        'h:{s:state.score,a:prior.n,b:state.name}',
+        'track("beat_chain_shared")',
+        "Can you beat that?",
+        "Previous: ",
+        "Challenge someone else to beat ",
+    ):
+        assert marker in html
+
+
+def test_same_brain_plus_custom_challenges_travel_inside_shared_link():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="custom-toggle"',
+        'id="custom-builder"',
+        'id="custom-fields"',
+        'id="custom-start"',
+        "function hydrateCustomQuestions(ch)",
+        "function customDefsFor(ids)",
+        "payload.x=custom",
+        "hydrateCustomQuestions(challenge)",
+        'track("custom_created")',
+    ):
+        assert marker in html
+
+
+def test_same_brain_tracks_return_and_chain_funnel_events():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'track("home_view")',
+        'track("return_visit")',
+        'track("beat_chain_shared")',
+        'track("custom_created")',
+        "same_brain_seen",
+    ):
+        assert marker in html
+
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+    for event in (
+        '"home_view"',
+        '"return_visit"',
+        '"beat_chain_shared"',
+        '"custom_created"',
+    ):
+        assert event in source
