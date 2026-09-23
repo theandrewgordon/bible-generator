@@ -763,3 +763,11 @@ def test_same_brain_tracks_core_viral_funnel_events():
         'track("result_shared")',
     ):
         assert event in html
+
+
+
+def test_same_brain_challenge_query_survives_sign_in_redirect():
+    client = _client()
+    response = client.get("/labs/games/same-brain?c=abc123")
+    assert response.status_code == 302
+    assert "next=/labs/games/same-brain?c=abc123" in response.headers["Location"]
