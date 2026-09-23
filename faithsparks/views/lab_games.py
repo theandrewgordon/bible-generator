@@ -1301,7 +1301,7 @@ def _same_brain_clean_name(value: object) -> str:
 def _same_brain_validate_answers(question_ids: object, answers: object) -> tuple[list[str], list[int]] | None:
     if not isinstance(question_ids, list) or not isinstance(answers, list):
         return None
-    if len(question_ids) != 5 or len(answers) != 5:
+    if len(question_ids) not in {5, 10} or len(answers) != len(question_ids):
         return None
     qids = [str(item or "").strip()[:40] for item in question_ids]
     if any(not item for item in qids) or len(set(qids)) != 5:
@@ -1325,12 +1325,12 @@ def _same_brain_group_result(data: dict) -> dict:
             continue
         players.append({
             "name": _same_brain_clean_name(raw.get("name")),
-            "answers": [int(v) for v in (raw.get("answers") or [])[:5]],
+            "answers": [int(v) for v in (raw.get("answers") or [])[:10]],
         })
     return {
         "code": str(data.get("code") or ""),
         "pack": str(data.get("pack") or "random")[:24],
-        "questionIds": list(data.get("questionIds") or [])[:5],
+        "questionIds": list(data.get("questionIds") or [])[:10],
         "players": players[:SAME_BRAIN_GROUP_MAX_PLAYERS],
         "maxPlayers": SAME_BRAIN_GROUP_MAX_PLAYERS,
     }
@@ -1342,7 +1342,7 @@ def _same_brain_group_invite(data: dict) -> dict:
     return {
         "code": str(data.get("code") or ""),
         "pack": str(data.get("pack") or "random")[:24],
-        "questionIds": list(data.get("questionIds") or [])[:5],
+        "questionIds": list(data.get("questionIds") or [])[:10],
         "hostName": host_name,
         "playerCount": min(len(players), SAME_BRAIN_GROUP_MAX_PLAYERS),
         "maxPlayers": SAME_BRAIN_GROUP_MAX_PLAYERS,
