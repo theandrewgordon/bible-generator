@@ -1088,9 +1088,12 @@ def test_labs_same_brain_one_to_one_shares_escape_to_public_route():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert 'function shareBase(){return location.origin+"/same-brain"}' in html
-    assert 'var base=shareBase();state.challengeUrl=base+"?c="+encode(payload)' in html
-    assert 'var url=shareBase()+"?c="+encode(payload)' in html
-    assert 'challengeUrl=shareBase()+"?c="+encode(c)' in html
+    assert "async function makeShortChallengeUrl(payload)" in html
+    assert 'return shareBase()+"?s="+encodeURIComponent(data.code)' in html
+    assert 'return shareBase()+"?c="+encode(payload)' in html
+    assert "state.challengeUrl=await makeShortChallengeUrl(payload)" in html
+    assert "var url=await makeShortChallengeUrl(payload)" in html
+    assert "challengeUrl=await makeShortChallengeUrl(c)" in html
 
 
 def test_public_same_brain_is_resilient_without_removed_account_ui():
@@ -1104,3 +1107,59 @@ def test_public_same_brain_is_resilient_without_removed_account_ui():
     assert "if(!card)return" in html
     assert "if(!s||s.length>7000)return null" in html
     assert "That challenge link is invalid or incomplete." in html
+
+
+
+def test_same_brain_name_field_is_neutral_and_disables_nickname_autofill():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'placeholder="Your name or nickname"' in html
+    assert 'autocomplete="off"' in html
+    assert 'placeholder="Andrew"' not in html
+
+
+def test_same_brain_short_link_contract_and_long_link_fallback():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "async function makeShortChallengeUrl(payload)",
+        'apiJson("/same-brain/challenge"',
+        'return shareBase()+"?s="+encodeURIComponent(data.code)',
+        'return shareBase()+"?c="+encode(payload)',
+        'shortCode=(params.get("s")||"").toUpperCase()',
+        'apiJson("/same-brain/challenge/"+encodeURIComponent(shortCode)',
+    ):
+        assert marker in html
+
+
+def test_public_short_challenge_links_are_noindex():
+    client = _public_client()
+    response = client.get("/same-brain?s=ABC2345")
+    assert response.status_code == 200
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive"
+
+
+def test_public_short_challenge_backend_validates_payload_shape():
+    from faithsparks.views.public import _same_brain_public_challenge_payload
+
+    good = {
+        "v": 1,
+        "n": "Andrew",
+        "q": ["a", "b", "c", "d", "e"],
+        "a": [0, 1, 2, 3, 0],
+        "p": "daily",
+    }
+    cleaned = _same_brain_public_challenge_payload(good)
+    assert cleaned is not None
+    assert cleaned["n"] == "Andrew"
+    assert cleaned["q"] == ["a", "b", "c", "d", "e"]
+
+    duplicate = {**good, "q": ["a", "a", "c", "d", "e"]}
+    assert _same_brain_public_challenge_payload(duplicate) is None
+
+    invalid_answer = {**good, "a": [0, 1, 2, 4, 0]}
+    assert _same_brain_public_challenge_payload(invalid_answer) is None
