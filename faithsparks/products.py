@@ -72,6 +72,11 @@ PRODUCTS = (
         "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
     },
     {
+        "id": "same-brain", "name": "Same Brain?", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/games/same-brain", "accent": "purple",
+        "description": "Answer five weird questions, challenge a friend, and see how often your brains make the same choice.",
+    },
+    {
         "id": "coloring-studio", "name": "Coloring Studio", "area": "labs",
         "maturity": "experiment", "path": "/lesson-pack?coloring=1", "accent": "rose",
         "description": "Try optional generated coloring art inside a gathering pack.",

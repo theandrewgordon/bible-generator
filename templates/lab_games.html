@@ -47,7 +47,7 @@
 <section class="product-grid" aria-label="Tessa's Odyssey games">
   {% for game in games %}
   <article class="product-card product-card--gold odyssey-game-card"
-           data-game-id="{{ game.game_id }}"
+           {% if game.get('odyssey', True) %}data-game-id="{{ game.game_id }}"{% endif %}
            style="--game-accent: {{ game.accent }}">
     <div class="odyssey-game-thumbnail" aria-hidden="true">
       <span class="odyssey-game-thumbnail-icon">{{ game.icon }}</span>
@@ -56,10 +56,15 @@
     <span class="status-badge status-badge--{{ game.maturity }}">{{ game.maturity|title }}</span>
     <h2>{{ game.name }}</h2>
     <p>{{ game.description }}</p>
+    {% if game.get('odyssey', True) %}
     <p class="odyssey-game-progress" data-progress-for="{{ game.game_id }}"></p>
     <a class="button ghost odyssey-play-link"
        data-game-id="{{ game.game_id }}"
        href="{{ url_for('lab_games.play', slug=game.slug) }}">Play {{ game.name }}</a>
+    {% else %}
+    <p class="odyssey-game-progress">Standalone Labs experiment · no Odyssey progress required.</p>
+    <a class="button ghost" href="{{ url_for('lab_games.play', slug=game.slug) }}">Try {{ game.name }}</a>
+    {% endif %}
   </article>
   {% endfor %}
 </section>
@@ -83,17 +88,17 @@ window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson
   const musicToggle = document.getElementById('odyssey-library-music');
 
   const gameNames = {
-    {% for game in games %}
+    {% for game in games if game.get('odyssey', True) %}
     {{ game.game_id|tojson }}: {{ game.name|tojson }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };
   const gameUrls = {
-    {% for game in games %}
+    {% for game in games if game.get('odyssey', True) %}
     {{ game.game_id|tojson }}: {{ url_for('lab_games.play', slug=game.slug)|tojson }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };
   const gameIcons = {
-    {% for game in games %}
+    {% for game in games if game.get('odyssey', True) %}
     {{ game.game_id|tojson }}: {{ game.icon|tojson }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };

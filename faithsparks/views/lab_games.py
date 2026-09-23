@@ -63,6 +63,19 @@ LAB_GAMES = (
         "file": "timothy-center-horse-racing.html",
         "available": True,
     },
+    {
+        "slug": "same-brain",
+        "game_id": "same-brain",
+        "aliases": (),
+        "name": "Same Brain?",
+        "description": "Answer five weird questions, challenge a friend, and reveal how often your brains make the same choice.",
+        "icon": "🧠",
+        "accent": "#6f4bd8",
+        "maturity": "sandbox",
+        "file": "same-brain.html",
+        "available": True,
+        "odyssey": False,
+    },
 )
 
 

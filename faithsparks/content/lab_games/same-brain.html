@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Same Brain? | Faith Sparks Labs</title>
+<style>
+:root{--bg:#f6f2ff;--card:#fff;--ink:#201a32;--muted:#6d6680;--purple:#6f4bd8;--purple2:#9275ed;--green:#2f9c6a;--line:#e6dff3;--shadow:0 18px 50px rgba(53,35,92,.14)}
+*{box-sizing:border-box}body{margin:0;font-family:ui-rounded,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at top,#efe8ff 0,#f9f7ff 45%,#f4f1f8 100%);color:var(--ink);min-height:100vh}
+button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:20px 16px 42px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.brand{font-weight:900;letter-spacing:-.02em}.labs{font-size:.8rem;color:var(--muted);font-weight:700}.card{background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:28px;padding:clamp(22px,5vw,38px);box-shadow:var(--shadow)}.hero{text-align:center;padding-top:10px}.brain{font-size:clamp(70px,15vw,104px);line-height:1;margin:8px 0 4px}.hero h1{font-size:clamp(2.3rem,8vw,4rem);line-height:.94;margin:0;letter-spacing:-.055em}.sub{font-size:1.08rem;line-height:1.55;color:var(--muted);max-width:520px;margin:18px auto}.button{border:0;border-radius:16px;padding:15px 18px;font-weight:900;cursor:pointer;min-height:54px}.primary{background:linear-gradient(135deg,var(--purple),var(--purple2));color:white;box-shadow:0 10px 24px rgba(111,75,216,.24)}.secondary{background:#f0ebfb;color:#4e3797}.ghost{background:white;border:1px solid var(--line);color:var(--ink)}.wide{width:100%}.stack{display:grid;gap:12px}.hidden{display:none!important}.kicker{text-transform:uppercase;letter-spacing:.14em;font-size:.75rem;font-weight:900;color:var(--purple)}label{display:block;font-weight:800;margin:18px 0 8px}.name-input{width:100%;border:2px solid var(--line);border-radius:16px;padding:15px 16px;font-size:1.05rem;outline:none}.name-input:focus{border-color:var(--purple)}.progress{height:9px;background:#ece7f5;border-radius:999px;overflow:hidden;margin:4px 0 24px}.progress>div{height:100%;background:linear-gradient(90deg,var(--purple),#d26bcf);transition:width .2s}.qnum{color:var(--muted);font-weight:800}.question{font-size:clamp(1.55rem,5vw,2.2rem);line-height:1.1;margin:8px 0 20px;letter-spacing:-.03em}.choices{display:grid;gap:11px}.choice{display:flex;align-items:center;gap:12px;text-align:left;background:white;border:2px solid var(--line);border-radius:18px;padding:15px 16px;font-weight:800;cursor:pointer;min-height:58px}.choice:hover,.choice:focus{border-color:#b7a4ef;background:#faf8ff}.choice .emoji{font-size:1.35rem}.challenge-box{background:#f6f1ff;border:1px solid #dfd3ff;border-radius:20px;padding:16px;margin:18px 0}.challenge-link{word-break:break-all;color:#5134a4;font-weight:700;font-size:.92rem}.score-ring{width:172px;height:172px;border-radius:50%;margin:6px auto 18px;display:grid;place-items:center;background:conic-gradient(var(--purple) calc(var(--score)*1%),#ebe5f5 0);position:relative}.score-ring:after{content:"";position:absolute;inset:14px;border-radius:50%;background:white}.score-ring strong{position:relative;z-index:1;font-size:2.3rem}.result-title{text-align:center;font-size:clamp(1.8rem,6vw,2.8rem);margin:4px 0}.brain-type{text-align:center;color:var(--purple);font-weight:950;font-size:1.2rem}.result-copy{text-align:center;color:var(--muted);line-height:1.5}.compare{display:grid;gap:10px;margin:22px 0}.compare-row{border:1px solid var(--line);border-radius:16px;padding:13px 14px}.compare-row.match{border-color:#bee5d1;background:#f3fbf7}.compare-row.diff{border-color:#eed2dc;background:#fff7fa}.compare-q{font-weight:900;margin-bottom:6px}.answers{font-size:.93rem;color:var(--muted);display:grid;gap:3px}.tiny{text-align:center;color:var(--muted);font-size:.83rem;margin-top:18px}.share-card{border-radius:24px;padding:24px;text-align:center;background:linear-gradient(145deg,#201a32,#6f4bd8);color:white;margin:18px 0}.share-card .big{font-size:2.4rem;font-weight:950}.pill{display:inline-block;border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.15);font-weight:800;margin-top:8px}@media(max-width:520px){.card{border-radius:22px;padding:22px 17px}.shell{padding:12px 10px 30px}.button{min-height:56px}.choice{min-height:62px}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="topbar"><div><div class="brand">Same Brain? 🧠</div><div class="labs">FAITH SPARKS LABS DEMO</div></div><a href="/labs/games" style="color:#6f4bd8;font-weight:800;text-decoration:none">← Games Lab</a></div>
+
+  <section id="screen-home" class="card hero">
+    <div class="brain">🧠</div>
+    <div class="kicker">Think you know each other?</div>
+    <h1>Same Brain?</h1>
+    <p class="sub">Answer five delightfully weird questions. Send your challenge to someone. See how often your brains make the same choice.</p>
+    <div class="stack">
+      <button id="start-btn" class="button primary wide">Create a challenge</button>
+      <button id="demo-btn" class="button secondary wide">Try a two-player demo on this device</button>
+    </div>
+    <p class="tiny">No account inside the game. No AI calls. No challenge database. The demo packs the challenge into the link itself.</p>
+  </section>
+
+  <section id="screen-name" class="card hidden">
+    <div class="kicker">Before we start</div>
+    <h2 id="name-heading" class="question">What should we call you?</h2>
+    <label for="player-name">First name or nickname</label>
+    <input id="player-name" class="name-input" type="text" maxlength="20" autocomplete="nickname" enterkeyhint="go" inputmode="text" placeholder="Andrew">
+    <div style="height:14px"></div>
+    <button id="name-next" class="button primary wide">Let's go</button>
+  </section>
+
+  <section id="screen-question" class="card hidden">
+    <div class="qnum" id="qnum"></div>
+    <div class="progress"><div id="progress-bar"></div></div>
+    <h2 id="question-text" class="question"></h2>
+    <div id="choices" class="choices"></div>
+  </section>
+
+  <section id="screen-share" class="card hidden">
+    <div class="kicker">Challenge created</div>
+    <h2 class="question">Now find your brain twin.</h2>
+    <p class="sub" style="margin-left:0;text-align:left">Send this link to someone. They answer the exact same five questions, then you get a side-by-side result.</p>
+    <div class="challenge-box"><div class="challenge-link" id="challenge-link"></div></div>
+    <div class="stack">
+      <button id="share-btn" class="button primary wide">Share challenge</button>
+      <button id="copy-btn" class="button secondary wide">Copy link</button>
+      <button id="play-second-btn" class="button ghost wide">Play as friend on this device</button>
+    </div>
+  </section>
+
+  <section id="screen-invite" class="card hidden">
+    <div class="brain" style="font-size:72px;text-align:center">🧠⚡</div>
+    <div class="kicker" style="text-align:center">You've been challenged</div>
+    <h2 id="invite-heading" class="result-title">How same-brained are you?</h2>
+    <p id="invite-copy" class="sub"></p>
+    <button id="accept-btn" class="button primary wide">Take the 5-question challenge</button>
+  </section>
+
+  <section id="screen-result" class="card hidden">
+    <div class="kicker" style="text-align:center">Brain scan complete</div>
+    <div id="score-ring" class="score-ring" style="--score:0"><strong id="score-text">0%</strong></div>
+    <h2 id="result-title" class="result-title"></h2>
+    <div id="brain-type" class="brain-type"></div>
+    <p id="result-copy" class="result-copy"></p>
+    <div id="share-card" class="share-card"></div>
+    <div id="compare" class="compare"></div>
+    <div class="stack">
+      <button id="result-share" class="button primary wide">Share result</button>
+      <button id="new-round" class="button secondary wide">Start a new challenge</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+var QUESTIONS=[
+{id:"food",q:"You get one free food forever. Which wins?",a:[["🍕","Pizza"],["🌮","Tacos"],["🍣","Sushi"],["🍔","Burgers"]]},
+{id:"power",q:"Pick a tiny superpower that would improve your life most.",a:[["🔑","Always know where your keys are"],["🚦","Never hit a red light"],["📶","Perfect Wi-Fi everywhere"],["🛒","Always pick the fastest checkout line"]]},
+{id:"bear",q:"A bear is chasing you. You may summon ONE thing.",a:[["🪿","25 angry geese"],["🛺","A golf cart"],["🏋️","Your old gym teacher"],["🦝","Four highly motivated raccoons"]]},
+{id:"trip",q:"You have a surprise three-day trip. Where are you hoping to land?",a:[["🏖️","Beach"],["🏔️","Mountains"],["🌆","Big city"],["🌲","Cabin in the woods"]]},
+{id:"snack",q:"Midnight snack. No consequences. What are you grabbing?",a:[["🍦","Ice cream"],["🍿","Popcorn"],["🍪","Cookies"],["🧀","Cheese and crackers"]]},
+{id:"chores",q:"One chore disappears from your life forever.",a:[["🧺","Laundry"],["🍽️","Dishes"],["🧹","Floors"],["🚽","Bathrooms"]]},
+{id:"animal",q:"Which animal would be the funniest if it could talk?",a:[["🐕","Dog"],["🐈","Cat"],["🦆","Duck"],["🐿️","Squirrel"]]},
+{id:"weather",q:"You must live in one forecast forever.",a:[["☀️","72° and sunny"],["🌧️","Cozy rain"],["❄️","Snowy and cold"],["🍂","Crisp fall weather"]]},
+{id:"late",q:"You are running late. Which excuse are you most likely to actually use?",a:[["🚗","Traffic"],["👟","Couldn't find something"],["👶","Kid chaos"],["🤷","I lost track of time"]]},
+{id:"money",q:"Which surprise would make your day best?",a:[["💵","$500 cash"],["✈️","Free weekend trip"],["🍽️","A year of free dinners"],["🧹","A year of house cleaning"]]},
+{id:"house",q:"Add one ridiculous feature to your house.",a:[["🛝","Indoor slide"],["🎬","Movie theater"],["🧖","Sauna"],["🍕","Pizza oven"]]},
+{id:"phone",q:"Your phone can keep only one non-essential app.",a:[["🎵","Music"],["📺","Video"],["🗺️","Maps"],["💬","Group chat"]]},
+{id:"morning",q:"Which morning person are you really?",a:[["🌅","Up before everyone"],["☕","Functional after coffee"],["⏰","Hit snooze twice"],["🧟","Do not speak to me yet"]]},
+{id:"vacation",q:"A vacation should mostly be...",a:[["😴","Rest"],["🗺️","Exploring"],["🍴","Eating"],["🎢","Doing stuff"]]},
+{id:"party",q:"At a party, where do you end up?",a:[["🎤","Center of the room"],["🍕","Near the food"],["🛋️","Talking to two people"],["🐕","With the dog"]]},
+{id:"time",q:"You get an extra hour every day. Where does it go?",a:[["😴","Sleep"],["📚","A hobby"],["🏃","Exercise"],["📺","Absolutely nothing productive"]]},
+{id:"car",q:"For one year, your car must have one personality.",a:[["🧑‍✈️","Helpful assistant"],["😏","Sarcastic best friend"],["👵","Concerned grandma"],["🤖","Emotionless robot"]]},
+{id:"gift",q:"Someone gives you $200 and says spend it today.",a:[["🍽️","Great meal"],["👟","Something useful"],["🎟️","An experience"],["💾","Save it anyway somehow"]]},
+{id:"movie",q:"Pick the movie-night rule.",a:[["😂","Must be funny"],["💥","Must have action"],["🕵️","Must make me think"],["❤️","Must make me feel something"]]},
+{id:"weekend",q:"An empty Saturday appears. What's the dream?",a:[["🏡","Stay home"],["🚙","Day trip"],["👥","See friends"],["🛠️","Finally tackle a project"]]},
+{id:"restaurant",q:"The restaurant has a 45-minute wait. What do you do?",a:[["⌛","Wait; we came here for a reason"],["🚶","Immediately go somewhere else"],["📱","Check nearby options first"],["🍟","Get an appetizer at the bar"]]},
+{id:"talent",q:"Instantly become elite at one skill.",a:[["🎸","Music"],["🍳","Cooking"],["🗣️","Languages"],["🔧","Fixing anything"]]},
+{id:"dessert",q:"Only one dessert category survives.",a:[["🍰","Cake"],["🍪","Cookies"],["🍨","Ice cream"],["🥧","Pie"]]},
+{id:"message",q:"Which message makes you happiest to receive?",a:[["📦","Your package arrived"],["✅","Plans are canceled"],["💸","You got paid"],["🍕","Food is on the way"]]}
+];
+
+var state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:""};
+var screens=["home","name","question","share","invite","result"];
+function show(name){screens.forEach(function(s){document.getElementById("screen-"+s).classList.toggle("hidden",s!==name)});window.scrollTo({top:0,behavior:"smooth"})}
+function cleanName(v){return String(v||"").replace(/\s+/g," ").trim().slice(0,20)}
+function shuffled(arr){var out=arr.slice();for(var i=out.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=out[i];out[i]=out[j];out[j]=t}return out}
+function encode(obj){var bytes=new TextEncoder().encode(JSON.stringify(obj)),s="";bytes.forEach(function(b){s+=String.fromCharCode(b)});return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+function decode(s){try{var b64=s.replace(/-/g,"+").replace(/_/g,"/");while(b64.length%4)b64+="=";var bin=atob(b64),bytes=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return JSON.parse(new TextDecoder().decode(bytes))}catch(e){return null}}
+function qById(id){return QUESTIONS.find(function(q){return q.id===id})}
+function startCreator(){state={mode:"creator",name:"",questionIds:shuffled(QUESTIONS).slice(0,5).map(function(q){return q.id}),answers:[],creator:null,challengeUrl:""};document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)}
+function startLocalDemo(){startCreator();state.localDemo=true}
+function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href};document.getElementById("invite-heading").textContent=challenge.n+" challenged you.";document.getElementById("invite-copy").textContent="Answer the same five questions "+challenge.n+" answered. Then we’ll reveal where your brains matched — and where they absolutely did not.";show("invite")}
+function renderQuestion(){var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q){finishQuestions();return}document.getElementById("qnum").textContent="QUESTION "+(idx+1)+" OF 5";document.getElementById("progress-bar").style.width=((idx/5)*100)+"%";document.getElementById("question-text").textContent=q.q;var box=document.getElementById("choices");box.innerHTML="";q.a.forEach(function(opt,i){var b=document.createElement("button");b.className="choice";b.type="button";b.innerHTML='<span class="emoji">'+opt[0]+'</span><span>'+opt[1]+"</span>";b.addEventListener("click",function(){state.answers.push(i);if(state.answers.length>=5)finishQuestions();else renderQuestion()});box.appendChild(b)});show("question")}
+function finishQuestions(){if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers};var base=location.origin+location.pathname;state.challengeUrl=base+"?c="+encode(payload);document.getElementById("challenge-link").textContent=state.challengeUrl;show("share")}else renderResult()}
+function brainType(score){if(score===100)return["Brain Twins","Five for five. That is either beautiful or mildly concerning."];if(score>=80)return["Same Wavelength","You disagree just enough to remain interesting."];if(score>=60)return["Compatible Chaos","A solid amount of shared logic with a few delightful glitches."];if(score>=40)return["Parallel-ish Minds","You occasionally meet at the same conclusion by completely different roads."];if(score>=20)return["Friendly Opposites","Your group chat probably needs both of you."];return["Different Operating Systems","You may be proof that friendship does not require shared decision-making."]}
+function renderResult(){var c=state.creator,matches=0,rows=[];for(var i=0;i<5;i++){var q=qById(c.q[i]),same=c.a[i]===state.answers[i];if(same)matches++;rows.push({q:q,same:same,a:q.a[c.a[i]][1],b:q.a[state.answers[i]][1]})}var score=matches*20,bt=brainType(score);document.getElementById("score-ring").style.setProperty("--score",score);document.getElementById("score-text").textContent=score+"%";document.getElementById("result-title").textContent=c.n+" + "+state.name;document.getElementById("brain-type").textContent=bt[0]+" 🧠";document.getElementById("result-copy").textContent=bt[1]+" You matched on "+matches+" of 5 questions.";document.getElementById("share-card").innerHTML='<div style="font-weight:800;opacity:.85">'+c.n+" + "+state.name+'</div><div class="big">'+score+'% SAME BRAIN</div><div class="pill">'+bt[0]+'</div>';document.getElementById("compare").innerHTML=rows.map(function(r){return '<div class="compare-row '+(r.same?"match":"diff")+'"><div class="compare-q">'+(r.same?"✅ ":"⚡ ")+r.q.q+'</div><div class="answers"><span>'+c.n+": "+r.a+"</span><span>"+state.name+": "+r.b+"</span></div></div>"}).join("");show("result")}
+function nameNext(){var name=cleanName(document.getElementById("player-name").value);if(!name){document.getElementById("player-name").focus();return}state.name=name;renderQuestion()}
+async function shareText(text,url){if(navigator.share){try{await navigator.share({text:text,url:url});return}catch(e){}}try{await navigator.clipboard.writeText((text?text+" ":"")+url);alert("Copied to clipboard!")}catch(e){prompt("Copy this link:",url)}}
+document.getElementById("start-btn").addEventListener("click",startCreator);
+document.getElementById("demo-btn").addEventListener("click",startLocalDemo);
+document.getElementById("name-next").addEventListener("click",nameNext);
+document.getElementById("player-name").addEventListener("keydown",function(e){if(e.key==="Enter")nameNext()});
+document.getElementById("share-btn").addEventListener("click",function(){shareText("Think you know me? Take my Same Brain challenge 🧠",state.challengeUrl)});
+document.getElementById("copy-btn").addEventListener("click",function(){shareText("",state.challengeUrl)});
+document.getElementById("play-second-btn").addEventListener("click",function(){var payload=decode((state.challengeUrl.split("?c=")[1]||""));if(payload)startResponder(payload)});
+document.getElementById("accept-btn").addEventListener("click",function(){document.getElementById("name-heading").textContent="And what should we call you?";document.getElementById("player-name").value="";show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)});
+document.getElementById("new-round").addEventListener("click",startCreator);
+document.getElementById("result-share").addEventListener("click",function(){var c=state.creator,matches=0;for(var i=0;i<5;i++)if(c.a[i]===state.answers[i])matches++;var score=matches*20;shareText(c.n+" + "+state.name+" are "+score+"% Same Brain 🧠","")});
+var param=new URLSearchParams(location.search).get("c"),challenge=param&&decode(param);
+if(challenge&&challenge.v===1&&cleanName(challenge.n)&&Array.isArray(challenge.q)&&challenge.q.length===5&&Array.isArray(challenge.a)&&challenge.a.length===5&&challenge.q.every(function(id){return !!qById(id)})){challenge.n=cleanName(challenge.n);startResponder(challenge)}else show("home");
+})();
+</script>
+</body>
+</html>
