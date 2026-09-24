@@ -575,7 +575,8 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "waitingForNext=!!ss.waitingForNext" in html
     assert "guestPhase=ss.guestPhase||'active'" in html
     assert "ss.timeLeft??ruleForLevel().time" in html
-    assert "Date.now()-lastAutoSaveAt>1200" in html
+    assert "Date.now()-lastAutoSaveAt>4000" in html
+    assert "Date.now()-lastAutoSaveAt>1200" not in html
 
     # Profile persistence and result scoring are internally consistent.
     assert "p.served=max(0,served||0)" in html
@@ -598,6 +599,29 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "function ensureCustomerPhoto(name)" in html
     assert "im.decoding='async'" in html
     assert "customerPhotos[name]||ensureCustomerPhoto(name)" in html
+
+    # Audit: party timers scale with group size instead of giving four people
+    # the same deadline as one person.
+    assert "partyDeadline=time+partyTime+max(0,size-1)*18" in html
+
+    # Audit: one autosave performs one progress persistence pass, and paused
+    # menu time survives background/reload.
+    assert "function saveSession()" in html
+    assert "p.session=serializeSession();" in html
+    assert "saveActiveProfile();\n p.session=serializeSession();" not in html
+    assert "max(0,pausedPartyTime||0)" in html
+
+    # Audit: clearly wrong ingredients/toppings/containers/recipients count
+    # against a perfect round, while guidance taps remain forgiving.
+    assert "if(!order.need.includes(item.name)){\n  roundMistakes++;" in html
+    assert "if(!(order.toppings||[]).includes(t.name)){\n  roundMistakes++;" in html
+    assert "if(order.container!=kind){\n  roundMistakes++;" in html
+    assert "if(i!=partyIndex){\n     roundMistakes++;" in html
+
+    # iPad lower-row container targets are enlarged slightly.
+    assert "selectedContainerPos.BOWL,vec2(1.35,1.2)" in html
+    assert "selectedContainerPos.CUP,vec2(1.35,1.2)" in html
+    assert "selectedContainerPos.CONE,vec2(1.35,1.2)" in html
 
 
 def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
