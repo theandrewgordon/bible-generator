@@ -1919,7 +1919,7 @@ function saveActiveProfile(){
  persistProgress();
 }
 function serializeSession(){
- if(!activeProfileId || profileScreen || introScreen || resultsScreen)return null;
+ if(!activeProfileId || profileScreen || introScreen || resultsScreen || guestPhase=='levelComplete')return null;
  return {
   version:1,
   level,score,served,stars,levelServed,
@@ -2186,9 +2186,9 @@ function finishRound(completedLevel){
  const p=currentProgress();
  if(p){
   try{odysseyResult=odysseyApi()?.recordResult?.(GAME_ID,{
-   completed:true,score:max(0,score||0),level:max(1,completedLevel+1),stars:max(0,stars||0),
+   completed:true,score:max(0,score||0),level:max(1,completedLevel),stars:max(0,stars||0),
    resultId:roundResultId||`whits-${activeProfileId}-${completedLevel}-${roundStartScore}-${roundStartServed}`,
-   meta:{served:max(0,served||0),levelServed:max(0,levelServed||0),perfect:roundMistakes===0}
+   meta:{served:max(0,served||0),ordersServed:max(0,served-roundStartServed),perfect:roundMistakes===0}
   },currentProfile()?.name);}catch(e){}
   p.completions=(p.completions||0)+1;
   p.bestScore=max(p.bestScore||0,score);
