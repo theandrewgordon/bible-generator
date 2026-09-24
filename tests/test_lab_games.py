@@ -640,6 +640,44 @@ def test_timothy_has_fair_catchup_and_touch_farm_progression():
     assert "farmScoop?.addEventListener('click'" in html
 
 
+def test_timothy_audit_fixes_unlocks_finish_order_and_ipad_controls():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+
+    # All planned milestone horses are reachable inside the 12-level campaign.
+    assert "rewardLevel:3" in html
+    assert "rewardLevel:5" in html
+    assert "rewardLevel:7" in html
+    assert "rewardLevel:9" in html
+    assert "rewardLevel:12" in html
+    assert "rewardLevel:15" not in html
+    assert "completedLevel % 5" not in html
+    assert "earnedByProgress" in html
+
+    # Finishing first cannot be reversed by rivals moving during the finish delay.
+    assert "let tcFirstFinisher = ''" in html
+    assert "if (!tcFirstFinisher)" in html
+    assert "tcFirstFinisher == 'player'" in html
+    assert "firstFinisher:tcFirstFinisher" in html
+
+    # iPad can steer and select horses/opponents, not merely gallop/jump.
+    assert 'id="tc-steer-controls"' in html
+    assert 'id="tc-steer-up"' in html
+    assert 'id="tc-steer-down"' in html
+    assert "tcTouchSteer = direction" in html
+    assert "const steerY = clamp(move.y + tcTouchSteer" in html
+    assert 'id="tc-choice-controls"' in html
+    assert "tcMoveCurrentChoice" in html
+    assert "tcConfirmCurrentChoice" in html
+
+    # Farm progression survives reload cleanly and cannot be spam-grown in one visit.
+    assert "let tcBarnNurtured = false" in html
+    assert "tcFoal.grown || tcBarnNurtured" in html
+    assert "barnNurtured:tcBarnNurtured" in html
+    assert "tcIntroMode = !tcInBarn" in html
+
+
 def test_level_games_auto_advance_without_round_result_menu():
     client = _client()
     _sign_in(client)
