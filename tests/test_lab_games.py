@@ -563,10 +563,12 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
 
     # Later shake orders can require toppings. Filling the cup must not
     # prematurely serve/reject the drink before those toppings are added.
-    assert "if(order.kind!='SCOOP'&&toppingsComplete()){serve();return;}" in html
-    assert "Add the topping, then serve it!" in html
-    assert "if(order.kind!='SCOOP'&&containerFilled&&toppingsComplete()){serve();return;}" in html
+    assert "Cup filled! Take it to the customer." in html
+    assert "Add the topping, then take it to the customer!" in html
+    assert "Ready! Take it to the customer." in html
     assert "TAP BLENDER TO FILL THE CUP" in html
+    assert "Every finished order is handed to the correct person." in html
+    assert "if(order){" in html
 
     # In-progress orders and post-serve transitions survive background/reload.
     assert "roundMistakes,waitingForNext,guestPhase,guestSlide" in html
@@ -585,6 +587,8 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # results/menu click between every level.
     assert "guestPhase='levelComplete'" in html
     assert "whitsAutoAdvanceTimer=setTimeout" in html
+    assert "const advanceWhitsLevel=()=>{" in html
+    assert "if(menuOpen){" in html
     assert "beginRound(level)" in html
 
     # Customer portraits are decoded lazily instead of all at startup on iPad.
