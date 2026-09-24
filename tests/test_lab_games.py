@@ -556,6 +556,43 @@ def test_odyssey_home_has_avatars_challenges_recent_continue_and_family_progress
     assert "function showRoundResults" in js
 
 
+def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/whits-end").get_data(as_text=True)
+
+    # Later shake orders can require toppings. Filling the cup must not
+    # prematurely serve/reject the drink before those toppings are added.
+    assert "if(order.kind!='SCOOP'&&toppingsComplete()){serve();return;}" in html
+    assert "Add the topping, then serve it!" in html
+    assert "if(order.kind!='SCOOP'&&containerFilled&&toppingsComplete()){serve();return;}" in html
+    assert "TAP BLENDER TO FILL THE CUP" in html
+
+    # In-progress orders and post-serve transitions survive background/reload.
+    assert "roundMistakes,waitingForNext,guestPhase,guestSlide" in html
+    assert "waitingForNext=!!ss.waitingForNext" in html
+    assert "guestPhase=ss.guestPhase||'active'" in html
+    assert "ss.timeLeft??ruleForLevel().time" in html
+    assert "Date.now()-lastAutoSaveAt>1200" in html
+
+    # Profile persistence and result scoring are internally consistent.
+    assert "p.served=max(0,served||0)" in html
+    assert "perfect:roundMistakes===0" in html
+    assert "roundMistakes++;needsReset=true" in html
+    assert "score=max(0,score-25);roundMistakes++" in html
+
+    # Levels auto-advance after a short celebration instead of requiring a
+    # results/menu click between every level.
+    assert "guestPhase='levelComplete'" in html
+    assert "whitsAutoAdvanceTimer=setTimeout" in html
+    assert "beginRound(level)" in html
+
+    # Customer portraits are decoded lazily instead of all at startup on iPad.
+    assert "function ensureCustomerPhoto(name)" in html
+    assert "im.decoding='async'" in html
+    assert "customerPhotos[name]||ensureCustomerPhoto(name)" in html
+
+
 def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     client = _client()
     _sign_in(client)
