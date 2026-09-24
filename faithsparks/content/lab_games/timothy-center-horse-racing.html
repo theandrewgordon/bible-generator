@@ -621,6 +621,18 @@ const tcUnlockSound = new SoundGenerator({
     frequency:860, attack:.01, release:.46, pitchJump:440,
     pitchJumpTime:.10, volume:.66
 });
+const tcFeedSound = new SoundGenerator({
+    frequency:235, attack:.01, release:.26, noise:.24, slide:-.08, volume:.48
+});
+const tcWaterSound = new SoundGenerator({
+    frequency:180, attack:.01, release:.42, noise:.42, slide:-.05, volume:.5
+});
+const tcCleanSound = new SoundGenerator({
+    frequency:125, attack:.005, release:.30, noise:.58, slide:-.18, volume:.46
+});
+const tcFoalCareSound = new SoundGenerator({
+    frequency:430, attack:.01, release:.34, pitchJump:130, pitchJumpTime:.08, volume:.5
+});
 
 const tcLevels = [
     {name:'Meadow Dash',        distance:70,  rivals:3, rivalMin:.080, rivalMax:.094, obstacleMin:2.1, obstacleMax:3.0, speedMax:.19},
@@ -2049,8 +2061,9 @@ function tcSaveSettings()
 
 function tcPlaySound(sound, ...args)
 {
-    if (tcSettings.sfx)
-        sound.play(...args);
+    if (!tcSettings.sfx || !sound || typeof sound.play != 'function')
+        return;
+    try { sound.play(...args); } catch(e) {}
 }
 
 function tcAdoptLegacyProfiles()
@@ -2664,16 +2677,19 @@ function tcDoBarnChore(type)
     {
         tcBarnFed = true;
         tcBarnMessage = 'You filled the hay manger.';
+        tcPlaySound(tcFeedSound,tcPlayer?.pos,.22);
     }
     else if (type == 'water' && !tcBarnWatered)
     {
         tcBarnWatered = true;
         tcBarnMessage = 'You filled the water trough.';
+        tcPlaySound(tcWaterSound,tcPlayer?.pos,.22);
     }
     else if (type == 'scoop' && !tcBarnScooped)
     {
         tcBarnScooped = true;
         tcBarnMessage = 'You mucked out the stall.';
+        tcPlaySound(tcCleanSound,tcPlayer?.pos,.22);
     }
 
     tcBarnMessageTimer.set(1.6);
@@ -2728,6 +2744,7 @@ function tcNurtureFoal()
     tcBarnNurtured = true;
     tcFoal.growth = min(100, tcFoal.growth + 10);
     tcFoal.care++;
+    tcPlaySound(tcFoalCareSound,tcPlayer?.pos,.24);
     tcBarnMessage = `You groomed the foal for this visit. ${tcFoal.growth}% grown.`;
     tcBarnMessageTimer.set(2);
     tcCheckFoalGrown();
@@ -2865,10 +2882,10 @@ class TCHorse extends EngineObject
             );
             const gapBehind = max(0, leaderDistance - this.distance);
             const catchupBonus = this.slowTimer.active()
-                ? clamp((gapBehind-7)*.0007, 0, .007)
-                : clamp((gapBehind-2.5)*.0019, 0, .028);
+                ? clamp((gapBehind-5)*.0012, 0, .012)
+                : clamp((gapBehind-2.5)*.00225, 0, .038);
 
-            tcCatchupActive = gapBehind > 4 && catchupBonus > .002;
+            tcCatchupActive = gapBehind > 3.5 && catchupBonus > .002;
             this.distance += tcPlayerSpeed + catchupBonus;
             tcPlayerDistance = this.distance;
             this.pos.x = -5.2;
@@ -2881,7 +2898,7 @@ class TCHorse extends EngineObject
             // Rivals ease off slightly only when they have opened a large lead.
             // This is capped and does not help a player who is already close/ahead.
             const leadOverPlayer = max(0, this.distance - tcPlayerDistance);
-            const rivalEase = clamp((leadOverPlayer-6)*.00115, 0, .018);
+            const rivalEase = clamp((leadOverPlayer-5.5)*.00135, 0, .024);
             this.distance += max(level.rivalMin*.88, this.speed-rivalEase);
 
             // Shift lanes occasionally so rivals don't sit in one place.
@@ -3120,8 +3137,8 @@ class TCObstacle extends EngineObject
 
                 // A mistake should hurt, but not end the race. The stumble is
                 // shorter and preserves more momentum so recovery is realistic.
-                tcPlayer.slowTimer.set(.65);
-                tcPlayerSpeed = max(.045, tcPlayerSpeed * .72);
+                tcPlayer.slowTimer.set(.50);
+                tcPlayerSpeed = max(.05, tcPlayerSpeed * .82);
                 tcObstacleHits++;
 
                 tcRaceMessage = 'Stumble! Keep galloping — you can catch up!';
