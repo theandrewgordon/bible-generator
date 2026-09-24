@@ -1886,3 +1886,38 @@ def test_same_brain_narration_never_overlaps_and_second_tap_stops():
         'function renderQuestion(){if(typeof stopNarration==="function")stopNarration();',
     ):
         assert marker in html
+
+
+
+def test_same_brain_tts_uses_persistent_cache_for_standard_questions():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+    for marker in (
+        "download_storage_bytes(cache_path)",
+        "upload_storage_bytes(audio, cache_path, content_type=\"audio/mpeg\")",
+        'response.headers["X-TTS-Cache"] = "HIT"',
+        'response.headers["X-TTS-Cache"] = "MISS" if cacheable else "BYPASS"',
+        'cache_path = f"same_brain/tts/{voice}/{digest}.mp3"',
+        'not question_id.startswith("custom_")',
+    ):
+        assert marker in source
+
+
+def test_same_brain_tts_client_marks_standard_questions_cacheable():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "questionId:q.id||\"\"" in html
+    assert 'cacheable:!!(q.id&&String(q.id).indexOf("custom_")!==0)' in html
+
+
+def test_storage_service_supports_private_byte_cache_objects():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.services.storage", fromlist=["dummy"]
+    ))
+    assert "def download_storage_bytes(" in source
+    assert "download_as_bytes()" in source
+    assert "def upload_storage_bytes(" in source
+    assert "upload_from_string(data, content_type=content_type)" in source
