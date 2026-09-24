@@ -1754,7 +1754,7 @@ let odysseySettings={sound:true,music:true};
 
 function defaultProgress(){
  return {
-  score:0,bestScore:0,gamesPlayed:0,completions:0,lastPlayed:0,
+  score:0,bestScore:0,gamesPlayed:0,completions:0,lastPlayed:0,served:0,
   stars:0,level:1,highestLevel:1,levelServed:0,session:null
  };
 }
@@ -2084,7 +2084,7 @@ function showWhitsSharedProfiles(){
    return {
     highestLevel:max(1,p.highestLevel||p.level||1),
     bestScore:max(0,p.bestScore||0),
-    detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`
+    detail:`${max(0,p.served||0)} orders served · Level ${max(1,p.highestLevel||p.level||1)}`
    };
   },
   onContinue(player){ continueWhitsOdysseyPlayer(player); },
@@ -2522,7 +2522,9 @@ function drawWaitingParty(){
 }
 function choosePartySize(){
  const r=ruleForLevel();
- return r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
+ const rolled=r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
+ const remaining=max(1,r.goal-levelServed);
+ return min(rolled,remaining);
 }
 
 function chooseParty(size){
@@ -2570,9 +2572,9 @@ function plainOrder(){
  };
 }
 function drinkOrder(){
- // Introduce the menu gradually so early levels stay readable for younger players.
- const availableCount=level<=2?5:level==3?8:RECIPES.length;
- const base=RECIPES[randInt(min(RECIPES.length,availableCount))];
+ // Introduce the menu gradually so each new level adds only a little complexity.
+ const recipeCount=min(RECIPES.length,5+max(0,level-2)*2);
+ const base=RECIPES[randInt(recipeCount)];
  const tops=base.kind=='BLEND'?randomToppings(ruleForLevel().maxToppings,'CUP'):[];
  return {name:base.name,need:[...base.need],kind:base.kind,container:'CUP',toppings:tops};
 }
@@ -2796,7 +2798,7 @@ function addTopping(t){
  }
  if(addedToppings.includes(t.name)){message='That topping is already on it.';messageTimer.set(1.2);return;}
  addedToppings.push(t.name);playSfx(sndTopping);progressText=`✓ ${t.name}`;progressTimer.set(.7);
- if(order.kind!='SCOOP'&&containerFilled&&toppingsComplete()){
+ if(containerFilled&&toppingsComplete()){
   message='Ready! Take it to the customer.';messageTimer.set(1.5);
  }
 }
@@ -2857,8 +2859,11 @@ function gameUpdate(){
 
  // scoop tool
  if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
+  if(holdingScoop&&scoopLoaded){
+   message='Use the scoop you already have, or tap RESET.';
+   messageTimer.set(1.6);playSfx(sndBad);return;
+  }
   holdingScoop=!holdingScoop;
-  if(!holdingScoop){scoopLoaded=false;scoopFlavor='';}
   playSfx(sndPick);return;
  }
  // reset
@@ -2895,11 +2900,17 @@ function gameUpdate(){
 
  // Blender
  if(hit(vec2(-3.8,1.15),vec2(2.8,2.7))){
-  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);return;}
+  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}
   if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
-  if(!prepared&&!blenderRunning){blenderRunning=true;blenderTimer.set(1.35);playSfx(sndPrep);return;}
+  if(!prepared&&!blenderRunning){
+   blenderRunning=true;blenderTimer.set(1.35);
+   message='Blending...';messageTimer.set(1.35);playSfx(sndPrep);return;
+  }
+  if(prepared&&!holdingContainer){
+   message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
+  }
   if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);
    if(order.kind!='SCOOP'){
@@ -2913,11 +2924,16 @@ function gameUpdate(){
  }
  // Mixer
  if(hit(vec2(0,1.15),vec2(2.8,2.7))){
-  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);return;}
+  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}
   if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
-  if(!prepared){prepared=true;playSfx(sndPrep);return;}
+  if(!prepared){
+   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.5);playSfx(sndPrep);return;
+  }
+  if(prepared&&!holdingContainer){
+   message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
+  }
   if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);
    if(order.kind!='SCOOP'){
