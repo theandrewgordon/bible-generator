@@ -342,6 +342,83 @@ function drawOpenIceTub""",
 
         return html
 
+    if game_id == "whits-end":
+        def replace_last(source: str, old: str, new: str) -> str:
+            index = source.rfind(old)
+            if index < 0:
+                return source
+            return source[:index] + new + source[index + len(old):]
+
+        # Do not spend a timed party's clock on animations the player cannot
+        # control (thank-you, walking away, or the next guest walking in).
+        html = replace_last(
+            html,
+            """ if(waitingForNext){
+  if(guestPhase=='thanks'&&guestTimer.elapsed()){""",
+            """ if(waitingForNext){
+  if(ruleForLevel().time && partyDeadline)
+   partyDeadline += timeDelta; // freeze the clock during non-interactive guest transitions
+  if(guestPhase=='thanks'&&guestTimer.elapsed()){""",
+        )
+
+        # Scoop orders can be bowls or cones, so don't tell a child to bring a
+        # "cup" to the customer when no cup exists.
+        html = replace_last(
+            html,
+            "  drawText('BRING CUP HERE',guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));",
+            "  drawText(\`BRING \${holdingContainer || 'ORDER'} HERE\`,guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));",
+        )
+
+        # The old star chip actually counted lifetime orders served, while
+        # round stars are a separate 1-3 accuracy rating. Label it accurately.
+        html = replace_last(
+            html,
+            " drawText(\`⭐ \${stars}\`,vec2(7.8,5.05),.26,WHITE,.03,BLACK);",
+            " drawText(\`SERVED \${served}\`,vec2(7.8,5.05),.22,WHITE,.03,BLACK);",
+        )
+
+        # Give the major kitchen actions distinct sounds. Scooping, toppings,
+        # plops, errors, and serving already have their own cues.
+        html = replace_last(
+            html,
+            "const sndPrep=new SoundGenerator({frequency:160,slide:1.4,release:.35,noise:.12});",
+            """const sndPrep=new SoundGenerator({frequency:160,slide:1.4,release:.35,noise:.12});
+const sndMix=new SoundGenerator({frequency:330,slide:.35,release:.22,noise:.05,volume:.58});
+const sndPour=new SoundGenerator({frequency:420,slide:-.15,release:.16,noise:.18,volume:.52});
+const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:.035,release:.10,volume:.48});""",
+        )
+
+        html = replace_last(
+            html,
+            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\`\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\`;messageTimer.set(1.2);playSfx(sndPick);",
+            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\`\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\`;messageTimer.set(1.2);playSfx(sndContainer);",
+        )
+
+        html = replace_last(
+            html,
+            "   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.5);playSfx(sndPrep);return;",
+            "   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.5);playSfx(sndMix);return;",
+        )
+
+        # Replace both latest machine pour interactions without touching older
+        # embedded revisions earlier in this large self-contained file.
+        latest_game = html.rfind("function gameUpdate(){")
+        if latest_game >= 0:
+            head, tail = html[:latest_game], html[latest_game:]
+            tail = tail.replace(
+                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}",
+                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPour);return;}",
+                1,
+            )
+            tail = tail.replace(
+                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}",
+                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPour);return;}",
+                1,
+            )
+            html = head + tail
+
+        return html
+
     if game_id != "bernard-window-washing":
         return html
 
