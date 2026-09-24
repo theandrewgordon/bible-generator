@@ -135,6 +135,113 @@ def _game_for_slug(slug: str) -> dict | None:
 
 def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     """Apply small hot-path fixes without rewriting multi-megabyte embedded builds."""
+    if game_id == "whits-end":
+        # Audit: scale timed parties by party size so later 3-4 customer groups
+        # remain demanding without becoming impossible for a young player.
+        html = html.replace(
+            " if(ruleForLevel().time)partyDeadline=time+ruleForLevel().time;\n else partyDeadline=0;",
+            " const partyTime=ruleForLevel().time;\n if(partyTime)partyDeadline=time+partyTime+max(0,size-1)*18;\n else partyDeadline=0;",
+            1,
+        )
+
+        # Audit: autosave was running twice in the effective update loop and
+        # saveSession itself persisted all progress twice. Keep one 4-second
+        # autosave and one persistence pass per save.
+        autosave = "if(Date.now()-lastAutoSaveAt>1200){lastAutoSaveAt=Date.now();saveSession();}"
+        html = html.replace(
+            autosave,
+            "if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}",
+            1,
+        )
+        html = html.replace(autosave, "", 1)
+        html = html.replace(
+            """function saveSession(){
+ const p=currentProgress();if(!p)return;
+ saveActiveProfile();
+ p.session=serializeSession();
+ persistProgress();
+}""",
+            """function saveSession(){
+ const p=currentProgress();if(!p)return;
+ p.score=max(0,score||0);
+ p.bestScore=max(p.bestScore||0,p.score);
+ p.stars=max(0,stars||0);
+ p.served=max(0,served||0);
+ p.level=max(1,level||1);
+ p.highestLevel=max(p.highestLevel||1,p.level);
+ p.levelServed=max(0,levelServed||0);
+ p.lastPlayed=Date.now();
+ p.session=serializeSession();
+ persistProgress();
+}""",
+            1,
+        )
+        html = html.replace(
+            "  saveActiveProfile();saveSession();showSavedToast();",
+            "  saveSession();showSavedToast();",
+            1,
+        )
+
+        # Audit: saving while the shared menu is open used partyDeadline=0,
+        # which could restore a timed party with zero seconds remaining.
+        html = html.replace(
+            "  timeLeft:partyDeadline?max(0,partyDeadline-time):0,",
+            "  timeLeft:partyDeadline?max(0,partyDeadline-time):max(0,pausedPartyTime||0),",
+            1,
+        )
+
+        # Audit: count clearly wrong recipe choices toward the round's
+        # "perfect" flag. Guidance-only taps remain forgiving.
+        html = html.replace(
+            " if(!order.need.includes(item.name)){\n  message=`${shortName(item.name)} isn't in this order.`;",
+            " if(!order.need.includes(item.name)){\n  roundMistakes++;\n  message=`${shortName(item.name)} isn't in this order.`;",
+            1,
+        )
+        html = html.replace(
+            " if(!(order.toppings||[]).includes(t.name)){\n  message=`No ${t.name} on this order.`;",
+            " if(!(order.toppings||[]).includes(t.name)){\n  roundMistakes++;\n  message=`No ${t.name} on this order.`;",
+            1,
+        )
+        html = html.replace(
+            " if(order.kind!='SCOOP'&&kind!='CUP'){\n  message='Shakes and sodas go in a cup.';",
+            " if(order.kind!='SCOOP'&&kind!='CUP'){\n  roundMistakes++;\n  message='Shakes and sodas go in a cup.';",
+            1,
+        )
+        html = html.replace(
+            " if(order.kind=='SCOOP' && kind=='CUP'){\n  message='Plain ice cream goes in a bowl or cone.';",
+            " if(order.kind=='SCOOP' && kind=='CUP'){\n  roundMistakes++;\n  message='Plain ice cream goes in a bowl or cone.';",
+            1,
+        )
+        html = html.replace(
+            " if(order.container!=kind){\n  message=`This order needs a ${order.container}.`;",
+            " if(order.container!=kind){\n  roundMistakes++;\n  message=`This order needs a ${order.container}.`;",
+            1,
+        )
+        html = html.replace(
+            "    if(i!=partyIndex){\n     playSfx(sndWrongPerson);",
+            "    if(i!=partyIndex){\n     roundMistakes++;\n     playSfx(sndWrongPerson);",
+            1,
+        )
+
+        # Slightly larger lower-row touch targets for iPad.
+        html = html.replace(
+            "if(hit(selectedContainerPos.BOWL,vec2(1.15,1.05)))",
+            "if(hit(selectedContainerPos.BOWL,vec2(1.35,1.2)))",
+            1,
+        )
+        html = html.replace(
+            "if(hit(selectedContainerPos.CUP,vec2(1.15,1.05)))",
+            "if(hit(selectedContainerPos.CUP,vec2(1.35,1.2)))",
+            1,
+        )
+        html = html.replace(
+            "if(hit(selectedContainerPos.CONE,vec2(1.15,1.05)))",
+            "if(hit(selectedContainerPos.CONE,vec2(1.35,1.2)))",
+            1,
+        )
+
+        return html
+
     if game_id != "bernard-window-washing":
         return html
 
