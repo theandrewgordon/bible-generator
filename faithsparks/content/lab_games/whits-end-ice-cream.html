@@ -1984,7 +1984,7 @@ function restoreSession(){
  roundStartServed=ss.roundStartServed??served;
  roundStartLevel=ss.roundStartLevel??level;
  roundResultId=ss.roundResultId||(`whits-${activeProfileId}-${roundStartLevel}-${ss.savedAt||Date.now()}`);
- const savedPartyTime=max(0,ss.pausedPartyTime||ss.timeLeft??ruleForLevel().time);
+ const savedPartyTime=max(0,ss.pausedPartyTime||(ss.timeLeft??ruleForLevel().time));
  pausedPartyTime=0;
  partyDeadline=ruleForLevel().time?time+savedPartyTime:0;
  return true;
