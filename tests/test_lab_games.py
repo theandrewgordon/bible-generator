@@ -633,6 +633,11 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # Odyssey receives a per-round rating instead of the lifetime star count.
     assert "stars:roundMistakes===0?3:roundMistakes<=2?2:1" in html
 
+    # Drink complexity ramps up rather than exposing the full recipe bank
+    # immediately on Level 2.
+    assert "const recipeCount=min(RECIPES.length,5+max(0,level-2)*2)" in html
+    assert "RECIPES[randInt(recipeCount)]" in html
+
     # Audit: a level can never finish halfway through a newly-arrived party.
     assert "const remaining=max(1,r.goal-levelServed)" in html
     assert "return min(rolled,remaining)" in html
