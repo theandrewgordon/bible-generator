@@ -1912,7 +1912,8 @@ function loadSettings(){
 }
 function persistSettings(){saveJson(SETTINGS_KEY,odysseySettings);writeSharedOdysseySettings(odysseySettings);}
 function playSfx(sound){
- if(odysseySettings.sound && sound && sound.play)sound.play();
+ if(!(odysseySettings.sound && sound && sound.play))return;
+ try{sound.play();}catch(e){}
 }
 function progressFor(id){
  if(!progressStore[GAME_ID])progressStore[GAME_ID]={};
