@@ -540,6 +540,9 @@ const sndPlop=new SoundGenerator({frequency:210,slide:-.45,release:.18,noise:.12
 const sndServe=new SoundGenerator({frequency:640,pitchJump:260,pitchJumpTime:.07,release:.32,volume:.75});
 const sndWrongPerson=new SoundGenerator({frequency:220,slide:-.65,release:.28,volume:.65});
 const sndTopping=new SoundGenerator({frequency:880,pitchJump:120,pitchJumpTime:.04,release:.12,volume:.5});
+const sndMix=new SoundGenerator({frequency:360,pitchJump:90,pitchJumpTime:.06,release:.22,noise:.08,volume:.58});
+const sndPour=new SoundGenerator({frequency:250,slide:-.18,release:.20,noise:.32,volume:.5});
+const sndContainer=new SoundGenerator({frequency:610,pitchJump:110,pitchJumpTime:.05,release:.14,volume:.46});
 
 
 function drawScoopTool(pos,loaded=false,color=WHITE)
@@ -1637,7 +1640,7 @@ function gameRender(){
 
  if(containerFilled&&order&&order.kind=='SCOOP'&&guestPhase=='active'){
   drawTile(guestPos.add(vec2(0,1.45)),vec2(.7),icons.arrow,YELLOW,PI);
-  drawText('BRING CUP HERE',guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));
+  drawText(`BRING ${holdingContainer || 'ORDER'} HERE`,guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));
  }
 
  // Ingredient shelf
@@ -2814,7 +2817,7 @@ function selectContainer(kind){
   roundMistakes++;
   message=`This order needs a ${order.container}.`;messageTimer.set(1.4);playSfx(sndBad);return;
  }
- holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=`${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!`;messageTimer.set(1.2);playSfx(sndPick);
+ holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=`${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!`;messageTimer.set(1.2);playSfx(sndContainer);
 }
 
 function addTopping(t){
@@ -2852,6 +2855,13 @@ function gameUpdate(){
  if(menuOpen){updateGameMenu();return;}
 
  if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
+
+ // Audit: freeze the clock during non-interactive guest transitions so a
+ // thank-you, exit, or arrival animation never steals playable order time.
+ if(ruleForLevel().time && partyDeadline && waitingForNext &&
+    (guestPhase=='thanks'||guestPhase=='leaving'||guestPhase=='arriving')){
+  partyDeadline += timeDelta;
+ }
 
  if(ruleForLevel().time && !waitingForNext && partyDeadline && time>partyDeadline){
   score=max(0,score-25);roundMistakes++;
@@ -2928,7 +2938,7 @@ function gameUpdate(){
  // Blender
  if(hit(vec2(-3.8,1.15),vec2(2.8,2.7))){
   if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}
-  if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}
+  if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPour);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
   if(!prepared&&!blenderRunning){
@@ -2939,7 +2949,7 @@ function gameUpdate(){
    message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
   }
   if(prepared&&holdingContainer){
-   containerFilled=true;playSfx(sndPick);
+   containerFilled=true;playSfx(sndPour);
    if(order.kind!='SCOOP'){
     message=(order.toppings||[]).length
       ?'Add the topping, then take it to the customer!'
@@ -2952,17 +2962,17 @@ function gameUpdate(){
  // Mixer
  if(hit(vec2(0,1.15),vec2(2.8,2.7))){
   if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}
-  if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}
+  if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPour);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
   if(!prepared){
-   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.5);playSfx(sndPrep);return;
+   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.5);playSfx(sndMix);return;
   }
   if(prepared&&!holdingContainer){
    message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
   }
   if(prepared&&holdingContainer){
-   containerFilled=true;playSfx(sndPick);
+   containerFilled=true;playSfx(sndPour);
    if(order.kind!='SCOOP'){
     message=(order.toppings||[]).length
       ?'Add the topping, then take it to the customer!'
@@ -3132,7 +3142,7 @@ function drawCurrentHeldContainer(){
 function gameRenderPost(){
  if(profileScreen||introScreen||resultsScreen)return;
 
- drawTextScreen(`Level ${level}   •   ${levelServed}/${ruleForLevel().goal} served   •   Score ${score}`,vec2(mainCanvasSize.x/2,20),15,WHITE,2,BLACK);
+ drawTextScreen(`Level ${level}   •   ${levelServed}/${ruleForLevel().goal} this level   •   SERVED ${served}   •   Score ${score}`,vec2(mainCanvasSize.x/2,20),15,WHITE,2,BLACK);
  if(ruleForLevel().time&&partyDeadline&&!waitingForNext){
   const left=max(0,ceil(partyDeadline-time));
   drawTextScreen(`TIME ${left}`,vec2(mainCanvasSize.x-70,20),15,left<15?YELLOW:WHITE,2,BLACK);
