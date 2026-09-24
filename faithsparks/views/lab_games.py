@@ -136,17 +136,15 @@ def _game_for_slug(slug: str) -> dict | None:
 def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     """Apply small hot-path fixes without rewriting multi-megabyte embedded builds."""
     if game_id == "whits-end":
-        # Audit: scale timed parties by party size so later 3-4 customer groups
-        # remain demanding without becoming impossible for a young player.
+        # Scale timed parties by group size so later levels stay challenging
+        # without giving four customers the same deadline as one.
         html = html.replace(
             " if(ruleForLevel().time)partyDeadline=time+ruleForLevel().time;\n else partyDeadline=0;",
             " const partyTime=ruleForLevel().time;\n if(partyTime)partyDeadline=time+partyTime+max(0,size-1)*18;\n else partyDeadline=0;",
             1,
         )
 
-        # Audit: autosave was running twice in the effective update loop and
-        # saveSession itself persisted all progress twice. Keep one 4-second
-        # autosave and one persistence pass per save.
+        # Keep one moderate autosave cadence and one persistence pass per save.
         autosave = "if(Date.now()-lastAutoSaveAt>1200){lastAutoSaveAt=Date.now();saveSession();}"
         html = html.replace(
             autosave,
@@ -182,16 +180,15 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             1,
         )
 
-        # Audit: saving while the shared menu is open used partyDeadline=0,
-        # which could restore a timed party with zero seconds remaining.
+        # Saving while the shared menu is paused must preserve the remaining
+        # party timer rather than restoring with zero seconds.
         html = html.replace(
             "  timeLeft:partyDeadline?max(0,partyDeadline-time):0,",
             "  timeLeft:partyDeadline?max(0,partyDeadline-time):max(0,pausedPartyTime||0),",
             1,
         )
 
-        # Audit: count clearly wrong recipe choices toward the round's
-        # "perfect" flag. Guidance-only taps remain forgiving.
+        # Clearly wrong recipe choices count against a perfect round.
         html = html.replace(
             " if(!order.need.includes(item.name)){\n  message=`${shortName(item.name)} isn't in this order.`;",
             " if(!order.need.includes(item.name)){\n  roundMistakes++;\n  message=`${shortName(item.name)} isn't in this order.`;",
@@ -240,103 +237,96 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             1,
         )
 
-        # Do not start a party larger than the number of orders remaining in
-        # the current level. Otherwise the level can auto-advance after the
-        # first person in a group while another customer is visibly waiting.
+        # Never start a party larger than the number of orders remaining in
+        # the level. This prevents auto-advance from abandoning a waiting
+        # customer halfway through a group.
         html = html.replace(
             """function choosePartySize(){
-     const r=ruleForLevel();
-     return r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
-    }""",
+ const r=ruleForLevel();
+ return r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
+}""",
             """function choosePartySize(){
-     const r=ruleForLevel();
-     const rolled=r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
-     const remaining=max(1,r.goal-levelServed);
-     return min(rolled,remaining);
-    }""",
+ const r=ruleForLevel();
+ const rolled=r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
+ const remaining=max(1,r.goal-levelServed);
+ return min(rolled,remaining);
+}""",
             1,
         )
 
-        # Make machine interactions self-explanatory. Previously tapping a
-        # prepared blender/mixer without a cup silently did nothing, which is
-        # especially confusing on iPad.
+        # Machine taps should always explain what is missing and use the normal
+        # bad-action sound when the wrong station is chosen.
         html = html.replace(
-            """  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);return;}""",
-            """  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}""",
+            "  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);return;}",
+            "  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}",
             1,
         )
         html = html.replace(
             """  if(prepared&&holdingContainer){
-       containerFilled=true;playSfx(sndPick);""",
+   containerFilled=true;playSfx(sndPick);""",
             """  if(prepared&&!holdingContainer){
-       message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
-      }
-      if(prepared&&holdingContainer){
-       containerFilled=true;playSfx(sndPick);""",
+   message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
+  }
+  if(prepared&&holdingContainer){
+   containerFilled=true;playSfx(sndPick);""",
             1,
         )
         html = html.replace(
-            """  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);return;}""",
-            """  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}""",
+            "  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);return;}",
+            "  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}",
             1,
         )
         html = html.replace(
             """  if(!prepared){prepared=true;playSfx(sndPrep);return;}
-      if(prepared&&holdingContainer){""",
+  if(prepared&&holdingContainer){""",
             """  if(!prepared){
-       prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.4);playSfx(sndPrep);return;
-      }
-      if(prepared&&!holdingContainer){
-       message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
-      }
-      if(prepared&&holdingContainer){""",
+   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.4);playSfx(sndPrep);return;
+  }
+  if(prepared&&!holdingContainer){
+   message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
+  }
+  if(prepared&&holdingContainer){""",
             1,
         )
 
-        # A loaded scoop was silently thrown away when the player tapped the
-        # scooper to set it down. Ask the player to use the scoop or RESET
-        # instead, preventing accidental progress loss.
+        # Setting down a loaded scoop used to silently discard it.
         html = html.replace(
             """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
-      holdingScoop=!holdingScoop;
-      if(!holdingScoop){scoopLoaded=false;scoopFlavor='';}
-      playSfx(sndPick);return;
-     }""",
+  holdingScoop=!holdingScoop;
+  if(!holdingScoop){scoopLoaded=false;scoopFlavor='';}
+  playSfx(sndPick);return;
+ }""",
             """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
-      if(holdingScoop&&scoopLoaded){
-       message='Use the scoop you already have, or tap RESET.';messageTimer.set(1.5);playSfx(sndBad);return;
-      }
-      holdingScoop=!holdingScoop;
-      playSfx(sndPick);return;
-     }""",
+  if(holdingScoop&&scoopLoaded){
+   message='Use the scoop you already have, or tap RESET.';messageTimer.set(1.5);playSfx(sndBad);return;
+  }
+  holdingScoop=!holdingScoop;
+  playSfx(sndPick);return;
+ }""",
             1,
         )
 
-        # The persisted "stars" counter is historically one per served order,
-        # not the 1–3 star level rating sent to Odyssey. Label it accurately in
-        # the shared player picker instead of presenting it as rating stars.
+        # Historical p.stars is an order counter, while Odyssey receives the
+        # actual 1-3 star round rating. Do not mislabel the legacy counter.
         html = html.replace(
-            """detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`""",
-            """detail:`${max(0,p.completions||0)} completions · ${max(0,p.served||0)} orders served`""",
+            "detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`",
+            "detail:`${max(0,p.completions||0)} completions · ${max(0,p.served||0)} orders served`",
             1,
         )
 
-        # Remove an unreachable second autosave check at the very bottom of
-        # gameUpdate; the same check already runs before gameplay handling.
+        # Remove the redundant autosave check at the bottom of gameUpdate.
         html = html.replace(
             """ }
-     if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
-    }
+ if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
+}
 
-    function drawOpenIceTub""",
+function drawOpenIceTub""",
             """ }
-    }
+}
 
-    function drawOpenIceTub""",
+function drawOpenIceTub""",
             1,
         )
-
-
 
         return html
 
