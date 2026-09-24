@@ -170,6 +170,136 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         1,
     )
 
+    # Bernard audit fixes: make scoring/progress reflect the actual dirty
+    # cells, keep resume scoring honest, and track wrong-cleaner use explicitly.
+    html = html.replace(
+        "let lastLevelBonusText = '';",
+        "let lastLevelBonusText = '';\nlet levelInitialDirt = 1;\nlet levelWrongSprays = 0;",
+        1,
+    )
+    html = html.replace(
+        "    windowSize = windowSize.scale(.94);\n    buildDirt();\n    won = false;",
+        "    windowSize = windowSize.scale(.94);\n    buildDirt();\n    levelInitialDirt = max(1, dirtLeft);\n    won = false;",
+        1,
+    )
+    html = html.replace(
+        "    levelCorrectSprays = 0;\n    levelWipes = 0;",
+        "    levelCorrectSprays = 0;\n    levelWrongSprays = 0;\n    levelWipes = 0;",
+        1,
+    )
+    html = html.replace(
+        "    let hitCorrectMess = false;\n\n    forEachNearbyGlassCell(pos, 1.35, 1.15, i =>",
+        "    let hitCorrectMess = false;\n    let hitWrongMess = false;\n\n    forEachNearbyGlassCell(pos, 1.35, 1.15, i =>",
+        1,
+    )
+    html = html.replace(
+        """            w.layers[cleanerId] = 1;
+
+            const d = dirt[i];
+            if (!d.clean && d.mess.cleaner == cleanerId)
+            {
+                d.treated = true;
+                hitCorrectMess = true;
+            }""",
+        """            w.layers[cleanerId] = 1;
+            w.lastCleanerId = cleanerId;
+
+            const d = dirt[i];
+            if (!d.clean && d.mess.cleaner == cleanerId)
+            {
+                d.treated = true;
+                hitCorrectMess = true;
+            }
+            else if (!d.clean && d.mess.cleaner != cleanerId)
+            {
+                hitWrongMess = true;
+                window._bernardLastNeededCleaner = d.mess.cleaner;
+            }""",
+        1,
+    )
+    html = html.replace(
+        """    if (hitCorrectMess)
+        levelCorrectSprays++;
+}""",
+        """    if (hitCorrectMess)
+        levelCorrectSprays++;
+
+    if (hitWrongMess)
+        levelWrongSprays++;
+}""",
+        1,
+    )
+    html = html.replace(
+        "    const accuracy = levelSprays > 0 ? levelCorrectSprays / levelSprays : 1;",
+        "    const accuracy = levelSprays > 0\n        ? max(0, levelSprays - levelWrongSprays) / levelSprays\n        : 1;",
+        1,
+    )
+    html = html.replace(
+        "    const dirtyCells = max(1, dirt.filter(d => d.clean).length);",
+        "    const dirtyCells = max(1, levelInitialDirt);",
+        1,
+    )
+    html = html.replace(
+        "                perfect:levelSprays>0 && levelSprays===levelCorrectSprays",
+        "                perfect:levelSprays>0 && levelWrongSprays===0",
+        1,
+    )
+    html = html.replace(
+        "            perfect: levelSprays > 0 && levelSprays === levelCorrectSprays",
+        "            perfect: levelSprays > 0 && levelWrongSprays === 0",
+        1,
+    )
+
+    # Preserve score/effort/time across resume instead of resetting bonuses
+    # whenever the browser backgrounds or reloads.
+    html = html.replace(
+        """        wetness: wetness.map(w => ({
+            layers: w.layers ? {...w.layers} : {}
+        })),
+        savedAt: Date.now()""",
+        """        wetness: wetness.map(w => ({
+            layers: w.layers ? {...w.layers} : {},
+            lastCleanerId: w.lastCleanerId || ''
+        })),
+        levelInitialDirt,
+        levelSprays,
+        levelCorrectSprays,
+        levelWrongSprays,
+        levelWipes,
+        elapsedMs: max(0, performance.now() - levelStartTime),
+        savedAt: Date.now()""",
+        1,
+    )
+    html = html.replace(
+        """            wetness[i].layers = savedWet && savedWet.layers ? {...savedWet.layers} : {};
+        }
+    }
+
+    dirtLeft = dirt.filter(d => !d.clean).length;
+    return true;""",
+        """            wetness[i].layers = savedWet && savedWet.layers ? {...savedWet.layers} : {};
+            wetness[i].lastCleanerId = savedWet && savedWet.lastCleanerId
+                ? savedWet.lastCleanerId
+                : '';
+        }
+    }
+
+    dirtLeft = dirt.filter(d => !d.clean).length;
+    levelInitialDirt = max(dirtLeft, resume.levelInitialDirt || dirtLeft || 1);
+    levelSprays = max(0, resume.levelSprays || 0);
+    levelCorrectSprays = max(0, resume.levelCorrectSprays || 0);
+    levelWrongSprays = max(0, resume.levelWrongSprays || 0);
+    levelWipes = max(0, resume.levelWipes || 0);
+    levelStartTime = performance.now() - max(0, resume.elapsedMs || 0);
+    return true;""",
+        1,
+    )
+    html = html.replace(
+        "    const cleaned = 100 - Math.round(dirtLeft / (gridX*gridY) * 100);",
+        "    const cleaned = clamp(100 - Math.round(dirtLeft / max(1,levelInitialDirt) * 100), 0, 100);",
+        1,
+    )
+
     # Level 3 unlocks a second cleaner. Keep all cleaner layers logically so
     # wiping/accuracy rules remain unchanged, but render only the strongest
     # visible layer for each glass cell. This bounds wet-layer draw calls to
