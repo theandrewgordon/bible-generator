@@ -658,6 +658,7 @@ function addIngredient(item){
 
  // Wrong choices are stopped immediately so young players never poison the recipe.
  if(!recipeHas(item.name)){
+  roundMistakes++;
   message=`${shortName(item.name)} is not in this order.`;
   messageTimer.set(1.7);playSfx(sndBad);return;
  }
@@ -1928,7 +1929,7 @@ function serializeSession(){
   partyServed:[...partyServed],partyIndex,
   tray:[...tray],prepared,holdingContainer,containerFilled,
   addedToppings:[...addedToppings],scoopFlavor,scoopLoaded,holdingScoop,holdingMilk,
-  blenderRunning,blendTimeLeft:blenderRunning?max(0,blenderTimer.get()):0,
+  blenderRunning,blendTimeLeft:blenderRunning?max(0,-blenderTimer.get()):0,
   needsReset,roundMistakes,waitingForNext,guestPhase,guestSlide,
   roundStartScore,roundStartStars,roundStartServed,roundStartLevel,roundResultId,
   timeLeft:partyDeadline?max(0,partyDeadline-time):0,
@@ -2837,7 +2838,7 @@ function gameUpdate(){
   playSfx(sndPick);return;
  }
  // reset
- if(hit(vec2(0,-5.12),vec2(1.4,.7))){
+ if(hit(vec2(0,-5.12),vec2(2.0,1.0))){
   resetCurrentOrderState();message='Fresh start!';messageTimer.set(1.2);return;
  }
  // containers
@@ -2847,7 +2848,7 @@ function gameUpdate(){
 
  // toppings
  for(const t of TOPPINGS){
-  if(hit(t.pos,vec2(1.55,.9))){addTopping(t);return;}
+  if(hit(t.pos,vec2(1.7,1.05))){addTopping(t);return;}
  }
 
  // ingredients
@@ -2913,7 +2914,7 @@ function gameUpdate(){
    const p=partyCustomerPos(i);
    if(hit(p,vec2(1.45,3.1))){
     if(i!=partyIndex){
-     roundMistakes++;
+     if(finishedOrderReady())roundMistakes++;
      playSfx(sndWrongPerson);
      message=finishedOrderReady()
        ?`That's ${guestName}'s order — give it to ${guestName}!`
