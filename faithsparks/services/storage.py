@@ -131,3 +131,34 @@ def delete_storage_path(dst_path: str) -> bool:
     except Exception:
         logger.exception("Storage object delete failed for %s", dst_path)
         return False
+
+
+
+def download_storage_bytes(dst_path: str) -> bytes | None:
+    """Return one private storage object as bytes, or None when unavailable/missing."""
+    bucket = _get_bucket()
+    dst_path = str(dst_path or "").strip().lstrip("/")
+    if not bucket or not dst_path or ".." in dst_path or dst_path.endswith("/"):
+        return None
+    try:
+        blob = bucket.blob(dst_path)
+        if not blob.exists():
+            return None
+        return blob.download_as_bytes()
+    except Exception:
+        return None
+
+
+def upload_storage_bytes(data: bytes, dst_path: str, content_type: str | None = None) -> bool:
+    """Upload bytes to one private storage object and report success."""
+    bucket = _get_bucket()
+    dst_path = str(dst_path or "").strip().lstrip("/")
+    if not bucket or not dst_path or ".." in dst_path or dst_path.endswith("/"):
+        return False
+    try:
+        blob = bucket.blob(dst_path)
+        blob.upload_from_string(data, content_type=content_type)
+        return True
+    except Exception:
+        logger.exception("Storage byte upload failed for %s", dst_path)
+        return False
