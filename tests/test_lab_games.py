@@ -1921,3 +1921,34 @@ def test_storage_service_supports_private_byte_cache_objects():
     assert "download_as_bytes()" in source
     assert "def upload_storage_bytes(" in source
     assert "upload_from_string(data, content_type=content_type)" in source
+
+
+
+def test_same_brain_visible_sets_keep_true_three_x_question_depth():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "var SET_POOL_MINIMUMS={friends:141,family:138,chaos:81,food:48,travel:51,couples:114,work:93,nostalgia:57,wouldyou:60}" in html
+    assert "function auditSetPoolDepth()" in html
+    assert "var SET_POOL_AUDIT=auditSetPoolDepth();" in html
+    assert "var SET_EXPANSION_SPECS={" in html
+    assert "var SET_EXPANSION_ROUND2={" in html
+
+
+def test_same_brain_set_expansion_uses_semantically_aligned_specs():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'tags:[pack,"expanded"]',
+        'q:spec.stem.replace("{{t}}",topic)',
+        'a:spec.a.map(function(x){return x.slice()})',
+        'id:"setx_"+pack+',
+        'id:"sety_"+pack+',
+    ):
+        assert marker in html
+
+    # Known mismatch regression from the old combinatorial generator.
+    assert 'Which smart home annoyance is worst? | Simple' not in html
