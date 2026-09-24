@@ -50,6 +50,23 @@
     pointer-events:auto;
   }
   #tc-farm-controls .tc-btn { min-height:54px; padding:8px 10px; font-size:15px; }
+  #tc-steer-controls {
+    position:absolute; left:max(18px, env(safe-area-inset-left));
+    bottom:max(22px, env(safe-area-inset-bottom));
+    display:none; flex-direction:column; gap:10px; pointer-events:auto;
+  }
+  .tc-steer-btn {
+    width:86px; height:62px; border-radius:16px; border:3px solid rgba(255,255,255,.9);
+    background:rgba(52,72,94,.94); color:#fff; font-size:18px; font-weight:900;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  #tc-choice-controls {
+    position:absolute; left:50%; transform:translateX(-50%);
+    bottom:max(18px, env(safe-area-inset-bottom));
+    width:min(620px, calc(100vw - 150px));
+    display:none; grid-template-columns:1fr 1.25fr 1fr; gap:10px; pointer-events:auto;
+  }
+  #tc-choice-back { display:none; }
   @media (max-width:700px) {
     #tc-farm-controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
     #tc-farm-controls .tc-btn:last-child { grid-column:1 / -1; }
@@ -114,6 +131,16 @@
     <button id="tc-farm-scoop" class="tc-btn" type="button">Muck Stall</button>
     <button id="tc-farm-nurture" class="tc-btn" type="button">Care for Foal</button>
     <button id="tc-farm-leave" class="tc-btn secondary" type="button">Back to Racing</button>
+  </div>
+  <div id="tc-steer-controls" aria-label="Steer horse">
+    <button id="tc-steer-up" class="tc-steer-btn" type="button">▲ UP</button>
+    <button id="tc-steer-down" class="tc-steer-btn" type="button">▼ DOWN</button>
+  </div>
+  <div id="tc-choice-controls" aria-label="Horse race setup">
+    <button id="tc-choice-prev" class="tc-btn secondary" type="button">← Previous</button>
+    <button id="tc-choice-confirm" class="tc-btn" type="button">Continue</button>
+    <button id="tc-choice-next" class="tc-btn secondary" type="button">Next →</button>
+    <button id="tc-choice-back" class="tc-btn secondary" type="button">Back</button>
   </div>
 
   <div id="tc-player-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-player-title">
@@ -512,6 +539,7 @@ let tcBarnFed = false;
 let tcBarnWatered = false;
 let tcBarnScooped = false;
 let tcBarnVisitComplete = false;
+let tcBarnNurtured = false;
 let tcFoal = 0;
 let tcBarnMessage = '';
 let tcBarnMessageTimer;
@@ -553,6 +581,8 @@ let tcObstacleHits = 0;
 let tcAutoAdvanceAt = 0;
 let tcAutoEnterFarm = false;
 let tcCatchupActive = false;
+let tcTouchSteer = 0;
+let tcFirstFinisher = '';
 
 const tcTrackMinY = -3.15;
 const tcTrackMaxY = 2.85;
@@ -609,11 +639,11 @@ const tcLevels = [
 
 const tcHorseChoices = [
     {name:'Chestnut',  color:hsl(.07,.58,.34), mane:hsl(.06,.45,.12), starter:true},
-    {name:'Palomino',  color:hsl(.11,.58,.58), mane:hsl(.10,.42,.24), rewardLevel:5},
-    {name:'Midnight',  color:hsl(.62,.22,.20), mane:hsl(.62,.18,.08), rewardLevel:10},
-    {name:'Snowflake', color:hsl(0,0,.86),      mane:hsl(.08,.12,.30), rewardLevel:15},
-    {name:'Copper',    color:hsl(.045,.66,.43),mane:hsl(.04,.55,.17), rewardLevel:20},
-    {name:'Storm',     color:hsl(.60,.10,.42), mane:hsl(.60,.10,.16), rewardLevel:25},
+    {name:'Palomino',  color:hsl(.11,.58,.58), mane:hsl(.10,.42,.24), rewardLevel:3},
+    {name:'Midnight',  color:hsl(.62,.22,.20), mane:hsl(.62,.18,.08), rewardLevel:5},
+    {name:'Snowflake', color:hsl(0,0,.86),      mane:hsl(.08,.12,.30), rewardLevel:7},
+    {name:'Copper',    color:hsl(.045,.66,.43),mane:hsl(.04,.55,.17), rewardLevel:9},
+    {name:'Storm',     color:hsl(.60,.10,.42), mane:hsl(.60,.10,.16), rewardLevel:12},
 ];
 
 
@@ -2006,6 +2036,8 @@ function tcProfileSnapshot()
         barnWatered:tcBarnWatered,
         barnScooped:tcBarnScooped,
         barnVisitComplete:tcBarnVisitComplete,
+        barnNurtured:tcBarnNurtured,
+        firstFinisher:tcFirstFinisher,
     } : 0;
 
     return {
@@ -2128,6 +2160,8 @@ function tcRestoreRaceState(state)
     tcBarnWatered = !!state.barnWatered;
     tcBarnScooped = !!state.barnScooped;
     tcBarnVisitComplete = !!state.barnVisitComplete;
+    tcBarnNurtured = !!state.barnNurtured;
+    tcFirstFinisher = state.firstFinisher || '';
 
     if (tcFinished)
         tcPlayerSpeed = 0;
@@ -2197,7 +2231,8 @@ function tcRestoreProfile(name)
     if (data.raceState)
         tcRestoreRaceState(data.raceState);
 
-    tcIntroMode = !(data.raceState && data.raceState.started && !data.raceState.finished);
+    tcIntroMode = !tcInBarn &&
+        !(data.raceState && data.raceState.started && !data.raceState.finished);
     tcTouchLastPlayed();
     tcAutoSaveTimer.set(5);
     tcSyncDomUi();
@@ -2367,20 +2402,18 @@ function tcIsHorseUnlocked(horse)
 
 function tcRefreshHorseUnlocks()
 {
-    // Only restore horses that should already have been earned.
-    // Race rewards are actually granted by tcAwardMilestoneHorse().
+    // Restore starter plus milestone horses an existing save has progressed beyond.
     for (const horse of tcHorseChoices)
     {
-        if (horse.starter && !tcUnlockedHorseNames.includes(horse.name))
+        const earnedByProgress = horse.rewardLevel && horse.rewardLevel < tcLevel;
+        if ((horse.starter || earnedByProgress) &&
+            !tcUnlockedHorseNames.includes(horse.name))
             tcUnlockedHorseNames.push(horse.name);
     }
 }
 
 function tcAwardMilestoneHorse(completedLevel)
 {
-    if (completedLevel % 5)
-        return '';
-
     const horse = tcHorseChoices.find(h => h.rewardLevel == completedLevel);
     if (!horse || tcUnlockedHorseNames.includes(horse.name))
         return '';
@@ -2448,6 +2481,7 @@ function tcEnterBarn()
     tcBarnWatered = false;
     tcBarnScooped = false;
     tcBarnVisitComplete = false;
+    tcBarnNurtured = false;
     tcBarnMessage = 'Timothy Center Farm: feed, water, muck the stall, and care for your horses.';
     tcBarnMessageTimer = new Timer(3.5);
     tcSyncDomUi();
@@ -2527,11 +2561,12 @@ function tcDoBarnChore(type)
 
 function tcNurtureFoal()
 {
-    if (!tcInBarn || !tcFoal || tcFoal.grown) return;
+    if (!tcInBarn || !tcFoal || tcFoal.grown || tcBarnNurtured) return;
 
+    tcBarnNurtured = true;
     tcFoal.growth = min(100, tcFoal.growth + 10);
     tcFoal.care++;
-    tcBarnMessage = `You groomed and nurtured the foal. ${tcFoal.growth}% grown.`;
+    tcBarnMessage = `You groomed the foal for this visit. ${tcFoal.growth}% grown.`;
     tcBarnMessageTimer.set(2);
     tcCheckFoalGrown();
     tcSaveActiveProfile();
