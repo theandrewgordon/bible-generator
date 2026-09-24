@@ -511,6 +511,81 @@ Object.keys(SET_EXPANSION_SPECS).forEach(function(pack){
   })
 });
 
+var SET_EXPANSION_ROUND2={
+friends:[
+{stem:"You and a friend disagree about {{t}}. What happens?",topics:["where to eat","what to watch","when to leave","what to do next"],a:[["🤝","Compromise"],["🔁","Take turns"],["🎲","Random choice"],["😂","Argue for fun"]]},
+{stem:"Which friend behavior during {{t}} do you appreciate most?",topics:["a trip","a hard week","a party","a project"],a:[["📋","Being organized"],["😂","Keeping it fun"],["🤝","Helping out"],["😌","Staying calm"]]},
+{stem:"What kind of message during {{t}} gets the fastest reply from you?",topics:["the workday","a weekend","vacation","late at night"],a:[["😂","Something funny"],["❓","A direct question"],["📸","A photo"],["📅","A plan"]]},
+{stem:"You have one hour with a friend before {{t}}. What do you do?",topics:["a flight","an appointment","dinner","a movie"],a:[["☕","Grab a drink"],["🚶","Walk around"],["🍟","Get food"],["💬","Just talk"]]},
+{stem:"Which friend-group habit around {{t}} is most you?",topics:["birthdays","holidays","trips","weekends"],a:[["📸","Take pictures"],["🍽️","Plan food"],["🎁","Bring something"],["😌","Show up and enjoy"]]},
+{stem:"If your friend needs help with {{t}}, what do you offer first?",topics:["moving","a bad day","a deadline","a broken car"],a:[["🛠️","Practical help"],["💬","Advice"],["🤗","Support"],["🍕","Food"]]},
+{stem:"Which thing makes {{t}} awkward fastest?",topics:["small talk","a group dinner","a road trip","game night"],a:[["🤫","Long silence"],["📱","Everyone on phones"],["😬","One person dominates"],["⏰","Someone wants to leave"]]},
+{stem:"What is your default when a friend suggests {{t}}?",topics:["karaoke","a spontaneous trip","trying weird food","meeting new people"],a:[["✅","I’m in"],["🤔","Convince me"],["😅","Maybe once"],["🚫","Absolutely not"]]},
+{stem:"What kind of friend are you during {{t}}?",topics:["a move","a breakup","a celebration","a crisis"],a:[["🔧","The fixer"],["💬","The listener"],["😂","The mood-lifter"],["📋","The organizer"]]},
+{stem:"Which shared thing causes the most debate around {{t}}?",topics:["a vacation","a restaurant","a movie","a game"],a:[["💰","Budget"],["⏰","Timing"],["🎯","What to choose"],["👥","Who joins"]]},
+{stem:"If a friend gives you control of {{t}}, what matters most?",topics:["the playlist","the itinerary","the menu","the game choice"],a:[["👥","Everyone likes it"],["⭐","My favorites"],["🆕","Try something new"],["🎲","Keep it random"]]},
+{stem:"Which friend compliment about {{t}} would mean most?",topics:["your advice","your cooking","your humor","your planning"],a:[["❤️","You get me"],["🏆","You’re really good at this"],["😌","You make things easier"],["😂","You make it fun"]]},
+{stem:"You reconnect with an old friend over {{t}}. What matters most?",topics:["coffee","dinner","a walk","a weekend"],a:[["💬","Catching up"],["😂","Laughing"],["📸","Making a new memory"],["😌","Feeling like no time passed"]]}
+],
+family:[
+{stem:"Which family skill helps most during {{t}}?",topics:["travel","a busy morning","a party","a home repair"],a:[["📋","Planning"],["😂","Humor"],["🤝","Teamwork"],["🔧","Problem solving"]]},
+{stem:"What is the best way to spend a family {{t}}?",topics:["evening","Saturday","holiday morning","rainy afternoon"],a:[["🎲","Play together"],["📺","Watch something"],["🚗","Go somewhere"],["😌","Everyone relaxes"]]},
+{stem:"Which family expense around {{t}} feels most worth it?",topics:["vacation","birthdays","holidays","weekends"],a:[["🍽️","Food"],["🎟️","Experiences"],["🏨","Comfort"],["📸","Memories"]]},
+{stem:"What makes family {{t}} go smoothly?",topics:["dinner","travel","photos","events"],a:[["⏰","Good timing"],["📋","A clear plan"],["🤝","Cooperation"],["😂","Low expectations"]]},
+{stem:"Which thing do you want more of during family {{t}}?",topics:["weekends","holidays","vacations","school breaks"],a:[["😴","Rest"],["👥","Time together"],["🚗","Adventures"],["🏡","Time at home"]]},
+{stem:"Which family debate around {{t}} is most familiar?",topics:["food","TV","temperature","departure time"],a:[["🗳️","Everyone has an opinion"],["👑","One person always wins"],["🔁","It changes daily"],["😂","We joke about it"]]}
+],
+food:[
+{stem:"Which {{t}} upgrade sounds best?",topics:["breakfast","lunch","dinner","dessert"],a:[["⭐","Better ingredients"],["👨‍🍳","Someone else cooks"],["🍽️","More variety"],["🧹","No cleanup"]]},
+{stem:"For {{t}}, what ruins it fastest?",topics:["pizza","fries","coffee","ice cream"],a:[["🥶","Wrong temperature"],["😐","Bland flavor"],["💸","Too expensive"],["⏰","Waiting too long"]]}
+],
+travel:[
+{stem:"Which travel mistake around {{t}} bothers you most?",topics:["packing","booking","driving","airports"],a:[["⏰","Bad timing"],["💸","Overpaying"],["📦","Forgetting something"],["🗺️","Wrong route"]]},
+{stem:"What makes {{t}} feel like a real vacation?",topics:["a beach day","a hotel stay","a road trip","a city visit"],a:[["😴","No schedule"],["🍽️","Special food"],["📸","Seeing something new"],["📵","Ignoring normal life"]]},
+{stem:"If you could remove one travel hassle from {{t}}, pick it.",topics:["flying","road trips","hotel stays","international travel"],a:[["🧳","Packing"],["⏰","Waiting"],["🛂","Lines/checkpoints"],["💰","Extra fees"]]}
+],
+couples:[
+{stem:"Which thing makes {{t}} easier as a couple?",topics:["planning","budgeting","travel","home projects"],a:[["💬","Talk early"],["📋","Write it down"],["🤝","Divide roles"],["😌","Stay flexible"]]},
+{stem:"Your partner cares more about {{t}} than you do. What works best?",topics:["decorating","restaurants","vacations","gifts"],a:[["❤️","Let them lead"],["🤝","Compromise"],["🔁","Take turns"],["🎯","Set a limit"]]},
+{stem:"Which small thing during {{t}} feels most thoughtful?",topics:["a busy day","a trip","a sick day","a celebration"],a:[["☕","Bring a favorite thing"],["💬","Check in"],["🛠️","Handle a task"],["🤗","Make time together"]]},
+{stem:"For {{t}}, which difference between you matters least?",topics:["music","food","hobbies","sleep schedules"],a:[["😂","We can laugh about it"],["🔁","We take turns"],["🎧","We do our own thing"],["🤝","Easy compromise"]]},
+{stem:"Which couple routine around {{t}} would you keep?",topics:["mornings","weekends","meals","bedtime"],a:[["☕","A small ritual"],["💬","Time to talk"],["📵","Phones away"],["😌","No strict routine"]]},
+{stem:"What is your best couple reset after {{t}}?",topics:["a stressful day","travel","company leaves","a disagreement"],a:[["🍽️","Eat something"],["🚶","Take a walk"],["📺","Watch something"],["💬","Talk it out"]]}
+],
+work:[
+{stem:"Which work habit around {{t}} saves you most?",topics:["email","meetings","deadlines","planning"],a:[["📋","Write things down"],["⏰","Block time"],["🔕","Mute distractions"],["✅","Finish small tasks fast"]]},
+{stem:"What kind of manager helps most with {{t}}?",topics:["priorities","feedback","deadlines","team conflict"],a:[["🎯","Clear and direct"],["🤝","Collaborative"],["😌","Calm"],["📋","Highly organized"]]},
+{stem:"Which workday moment around {{t}} feels best?",topics:["finishing a task","solving a bug","sending a deliverable","ending a meeting"],a:[["✅","Done is done"],["🎉","Team celebrates"],["😌","Pressure drops"],["📈","Progress is visible"]]},
+{stem:"What makes {{t}} harder than it should be?",topics:["documentation","handoffs","meetings","approvals"],a:[["🤷","Unclear ownership"],["🔄","Too many changes"],["💬","Too many people"],["📚","Too much information"]]},
+{stem:"For {{t}}, what level of detail do you want?",topics:["requirements","feedback","meeting notes","status updates"],a:[["📝","Very detailed"],["🎯","Only key points"],["📊","Structured summary"],["💬","Just tell me verbally"]]},
+{stem:"Which thing would you remove from {{t}} first?",topics:["your inbox","your calendar","your task list","your workflow"],a:[["🔁","Duplicates"],["⏰","Low-value work"],["❓","Unclear items"],["🔔","Noise/notifications"]]},
+{stem:"When {{t}} goes wrong, what do you do first?",topics:["a deployment","a client call","a deadline","a presentation"],a:[["🔍","Find the cause"],["📞","Tell people"],["🛠️","Fix what I can"],["📋","Make a recovery plan"]]},
+{stem:"What is your favorite kind of {{t}}?",topics:["project","meeting","task","workday"],a:[["🎯","Clear goal"],["🧠","Interesting problem"],["🤝","Good team"],["⚡","Fast-moving"]]},
+{stem:"Which distraction during {{t}} is hardest to ignore?",topics:["deep work","meetings","writing","planning"],a:[["📱","Phone"],["💬","Messages"],["🔔","Notifications"],["👥","People talking"]]},
+{stem:"What do you want after finishing {{t}}?",topics:["a deadline","a presentation","a big project","a long meeting"],a:[["☕","Break"],["✅","Immediate next step"],["🎉","Celebrate"],["😴","Nothing else today"]]}
+],
+nostalgia:[
+{stem:"Which childhood {{t}} do you remember most clearly?",topics:["snack","toy","TV ad","school supply"],a:[["⭐","The favorite"],["😂","The weird one"],["👥","The one everyone had"],["💭","The one I still think about"]]},
+{stem:"Which old-school part of {{t}} felt best?",topics:["summer","weekends","snow days","birthdays"],a:[["😴","No schedule"],["👥","Friends around"],["🎮","Entertainment"],["🍕","Special food"]]},
+{stem:"What do you miss about {{t}} before smartphones?",topics:["road trips","waiting rooms","restaurants","school"],a:[["💬","More talking"],["📚","More boredom"],["🎮","Simple entertainment"],["😌","Less pressure to respond"]]},
+{stem:"Which throwback sound from {{t}} is most nostalgic?",topics:["a computer","a school hallway","a video game","a phone"],a:[["🔊","Startup sound"],["🔔","Bell/ring"],["🎵","Theme music"],["📼","Mechanical noise"]]},
+{stem:"If you could revisit one version of {{t}}, which feeling matters?",topics:["your hometown","your school","the mall","your old bedroom"],a:[["👥","People"],["✨","Atmosphere"],["🎵","Music"],["😌","Being younger"]]}
+]
+};
+Object.keys(SET_EXPANSION_ROUND2).forEach(function(pack){
+  SET_EXPANSION_ROUND2[pack].forEach(function(spec,si){
+    spec.topics.forEach(function(topic,ti){
+      QUESTIONS.push({
+        id:"sety_"+pack+"_"+String(si+1).padStart(2,"0")+"_"+String(ti+1).padStart(2,"0"),
+        q:spec.stem.replace("{{t}}",topic),
+        a:spec.a.map(function(x){return x.slice()}),
+        tags:[pack,"expanded"]
+      })
+    })
+  })
+});
+
+
 
 function auditQuestionBank(){
   var issues=[];
