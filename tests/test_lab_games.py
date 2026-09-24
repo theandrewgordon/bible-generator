@@ -848,14 +848,15 @@ def test_same_brain_group_mode_is_async_and_capped_at_eight():
 
 
 
-def test_same_brain_adds_three_hundred_generated_questions():
+def test_same_brain_generated_questions_use_audited_topic_prompt_answer_triples():
     client = _client()
     _sign_in(client)
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert "QUESTION_EXPANSION_SPECS" in html
     assert html.count('{tag:"') >= 15
-    assert "for(var i=0;i<20;i++)" in html
+    assert "for(var i=0;i<spec.topics.length;i++)" in html
+    assert "var topic=spec.topics[i],stem=spec.stems[i],set=spec.sets[i]" in html
     assert 'id:spec.prefix+"_"+String(i+1).padStart(2,"0")' in html
     assert "QUESTIONS.push(" in html
 
@@ -1805,3 +1806,64 @@ def test_same_brain_group_brain_is_three_to_eight_people():
     assert "3–8 people, answer whenever you want" in html
     assert 'g.n<3?"Still forming":"Results live"' in html
     assert SAME_BRAIN_GROUP_MAX_PLAYERS == 8
+
+
+
+def test_same_brain_challenge_and_invite_copy_are_short_and_clear():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "Your challenge is ready",
+        "Send it to a friend.",
+        "They’ll answer your same 5 questions.",
+        "How well do you match ",
+        " already answered these ",
+        "Pick yours, then see exactly where you match.",
+        "Answer the same ",
+    ):
+        assert marker in html
+
+
+def test_same_brain_saved_challenges_can_be_reshared_and_show_best_match():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "function reshareCreatorChallenge(row)",
+        "I already answered ",
+        "See how well you match me.",
+        ">Reshare</button>",
+        "Best: ",
+        "bestName",
+        "bestScore",
+    ):
+        assert marker in html
+
+
+def test_same_brain_question_bank_audit_blocks_known_mismatch_regressions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "function auditQuestionBank()" in html
+    assert "prompt/answer mismatch" in html
+    assert "article grammar" in html
+    assert "perk mismatch" in html
+
+    # The specific production mismatch that triggered the audit must not return.
+    assert 'Which smart home annoyance is worst? | Simple' not in html
+    assert '[["🐢","Buffering"],["🤦","Bad recommendations"],["📺","Too many ads"],["🔐","Apps logging out"]]' in html
+
+
+def test_same_brain_quality_over_quantity_bank_has_75_generated_questions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "for(var i=0;i<spec.topics.length;i++)" in html
+    assert 'topics:["new phone","smart home","laptop","streaming setup","car tech"]' in html
+    assert 'topics:["$100 bonus","$500 surprise","tax refund","gift card","unexpected windfall"]' in html
+    assert 'topics:["busy day","free day","new group","big decision","surprise problem"]' in html
