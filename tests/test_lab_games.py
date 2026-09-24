@@ -633,6 +633,25 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # Odyssey receives a per-round rating instead of the lifetime star count.
     assert "stars:roundMistakes===0?3:roundMistakes<=2?2:1" in html
 
+    # Audit: a level can never finish halfway through a newly-arrived party.
+    assert "const remaining=max(1,r.goal-levelServed)" in html
+    assert "return min(rolled,remaining)" in html
+
+    # Audit: machine taps always explain what is missing and wrong-machine
+    # taps use the normal error sound.
+    assert "message='Pick up a cup first.'" in html
+    assert "message='Mixed! Pick up a cup.'" in html
+    assert "This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad)" in html
+    assert "This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad)" in html
+
+    # Audit: setting down a loaded scoop no longer silently throws it away.
+    assert "Use the scoop you already have, or tap RESET." in html
+    assert "if(!holdingScoop){scoopLoaded=false;scoopFlavor='';}" not in html
+
+    # The shared player summary no longer labels lifetime orders as rating stars.
+    assert "orders served" in html
+    assert "completions · ★" not in html
+
 
 def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     client = _client()
