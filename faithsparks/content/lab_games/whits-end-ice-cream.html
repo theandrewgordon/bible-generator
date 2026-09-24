@@ -1835,8 +1835,32 @@ function loadProfiles(){
  if(!progressStore[GAME_ID])progressStore[GAME_ID]={};
  for(const player of profiles){
   const remote=readSharedOdysseyProgress(player.id);
-  if(remote&&typeof remote=='object'&&!progressStore[GAME_ID][player.id])
-   progressStore[GAME_ID][player.id]={...defaultProgress(),...remote};
+  if(remote&&typeof remote=='object'){
+   const local=progressStore[GAME_ID][player.id]||defaultProgress();
+   const remotePlayed=max(0,remote.lastPlayedAt||remote.lastPlayed||0);
+   const localPlayed=max(0,local.lastPlayedAt||local.lastPlayed||0);
+   const remoteServed=max(0,remote.meta?.served||0);
+   const remoteLevelServed=max(0,remote.meta?.levelServed||0);
+
+   if(remotePlayed>localPlayed){
+    // Prefer newer account-backed progress, but keep a device-local in-progress
+    // order because Odyssey progress intentionally stores only summary state.
+    progressStore[GAME_ID][player.id]={
+     ...local,...remote,
+     served:max(local.served||0,remoteServed),
+     levelServed:remoteLevelServed,
+     session:local.session||null
+    };
+   }else{
+    local.bestScore=max(local.bestScore||0,remote.bestScore||0);
+    local.highestLevel=max(local.highestLevel||local.level||1,remote.highestLevel||remote.level||1);
+    local.level=max(local.level||1,remote.level||1);
+    local.gamesPlayed=max(local.gamesPlayed||0,remote.gamesPlayed||0);
+    local.completions=max(local.completions||0,remote.completions||0);
+    local.served=max(local.served||0,remoteServed);
+    progressStore[GAME_ID][player.id]=local;
+   }
+  }
  }
 
  // Adopt the pre-standard Whit's End saves without deleting the old key.
@@ -1907,7 +1931,8 @@ function deletePlayer(id){
  if(player)try{odysseyApi()?.hidePlayerForGame?.(player.name,GAME_ID);}catch(e){}
  profiles=profiles.filter(p=>p.id!=id);
  if(progressStore[GAME_ID])delete progressStore[GAME_ID][id];
- saveJson(PLAYER_KEY,profiles);saveJson(PROGRESS_KEY,progressStore);
+ persistProfiles();
+ persistProgress();
 }
 function saveActiveProfile(){
  const p=currentProgress(); if(!p)return;
@@ -1918,6 +1943,7 @@ function saveActiveProfile(){
  p.level=max(1,level||1);
  p.highestLevel=max(p.highestLevel||1,p.level);
  p.levelServed=max(0,levelServed||0);
+ p.meta={...(p.meta||{}),served:p.served,levelServed:p.levelServed};
  p.lastPlayed=Date.now();
  persistProgress();
 }
@@ -1948,6 +1974,7 @@ function saveSession(){
  p.level=max(1,level||1);
  p.highestLevel=max(p.highestLevel||1,p.level);
  p.levelServed=max(0,levelServed||0);
+ p.meta={...(p.meta||{}),served:p.served,levelServed:p.levelServed};
  p.lastPlayed=Date.now();
  p.session=serializeSession();
  persistProgress();
