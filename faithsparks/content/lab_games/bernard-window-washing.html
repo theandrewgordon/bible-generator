@@ -17114,8 +17114,10 @@ function buildDirt()
     dirt = [];
     wetness = [];
 
-    gridX = max(12, Math.round(windowSize.x * 2));
-    gridY = max(10, Math.round(windowSize.y * 2));
+    // Bound the simulation grid so later/larger windows stay responsive on iPad.
+    // Visual window size can keep growing without multiplying cleaning work forever.
+    gridX = clamp(Math.round(windowSize.x * 2), 12, 44);
+    gridY = clamp(Math.round(windowSize.y * 2), 10, 28);
 
     if (trialMode)
     {
@@ -17152,7 +17154,9 @@ function buildDirt()
     }
 
     const unlockedMess = clamp(1 + Math.floor((level-1)/2), 1, MESS_TYPES.length);
-    const density = clamp(.52 + level*.035, .52, .88);
+    // More mess appears over time, but cap it before the window becomes a dense
+    // wall of cells (which was both visually muddy and expensive on touch devices).
+    const density = clamp(.48 + level*.025, .48, .78);
 
     for (let y=0; y<gridY; ++y)
     for (let x=0; x<gridX; ++x)
@@ -20092,14 +20096,15 @@ function gameRender()
                 ? (.20 + .24*amount)
                 : (.15 + .20*amount);
 
-            drawRect(
-                w.pos,
-                cell.scale(scale),
-                cleanerId == 'water'
-                    ? hsl(.56,.76,.70,a)
-                    : hsl(hue,.64,.70,a),
-                angle
-            );
+            // Water should read as a thin wet sheen, not a giant blue blob.
+            // Soap gets a pale ring/foam look so the player can immediately see
+            // that spraying soap did something. Keep this to one draw call/cell.
+            if (cleanerId == 'water')
+                drawTile(w.pos, cell.scale(.72*scale), icons.glow, hsl(.56,.62,.82,.22+.18*amount));
+            else if (cleanerId == 'soap')
+                drawTile(w.pos, cell.scale(.92*scale), icons.ring, hsl(.52,.38,.94,.42+.22*amount));
+            else
+                drawRect(w.pos, cell.scale(.90*scale), hsl(hue,.54,.76,a), angle);
         }
     }
 
