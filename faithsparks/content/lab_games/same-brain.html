@@ -676,7 +676,7 @@ function saveChoice(key,value){try{localStorage.setItem(key,value)}catch(_){}}
 
 var screens=["home","name","question","share","invite","result"];
 function newRunId(){return (window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():"run_"+Date.now()+"_"+Math.random().toString(36).slice(2)}
-function track(event){try{var cfg=window.__ODYSSEY_SYNC_CONFIG__||{};if(!cfg.csrfToken)return;fetch(serviceBase()+"/analytics",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":cfg.csrfToken},body:JSON.stringify({event:event,pack:state.pack||"unknown",runId:state.runId||""}),keepalive:true,credentials:"same-origin"}).catch(function(){})}catch(_){}}
+function track(event){try{var cfg=window.__GAMES_SYNC_CONFIG__||{};if(!cfg.csrfToken)return;fetch(serviceBase()+"/analytics",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":cfg.csrfToken},body:JSON.stringify({event:event,pack:state.pack||"unknown",runId:state.runId||""}),keepalive:true,credentials:"same-origin"}).catch(function(){})}catch(_){}}
 function show(name){screens.forEach(function(s){document.getElementById("screen-"+s).classList.toggle("hidden",s!==name)});window.scrollTo({top:0,behavior:"smooth"})}
 function cleanName(v){return String(v||"").replace(/\s+/g," ").trim().slice(0,20)}
 function rememberedName(){try{return cleanName(localStorage.getItem("same_brain_last_name")||"")}catch(_){return ""}}
@@ -753,7 +753,7 @@ async function makeShortChallengeUrl(payload,rememberCreator){
   if(rememberCreator){var err=new Error("challenge_create_failed");err.code=(lastError&&lastError.code)||"challenge_create_failed";throw err}
   return shareBase()+"?c="+encode(payload)
 }
-function csrf(){return (window.__ODYSSEY_SYNC_CONFIG__||{}).csrfToken||""}
+function csrf(){return (window.__GAMES_SYNC_CONFIG__||{}).csrfToken||""}
 async function apiJson(url,options){options=options||{};options.credentials="same-origin";options.headers=Object.assign({"Content-Type":"application/json"},options.headers||{});if(options.method&&options.method!=="GET")options.headers["X-CSRF-Token"]=csrf();var r=await fetch(url,options);var data=await r.json().catch(function(){return {}});if(!r.ok){var e=new Error(data.error||"request_failed");e.code=data.error||"request_failed";throw e}return data}
 function startGroupCreator(){var pack=(document.getElementById("group-pack")||{}).value||"daily";startCreator(pack);state.mode="group_creator";document.getElementById("name-heading").textContent="Who is starting the Group Brain?"}
 async function loadGroup(code){

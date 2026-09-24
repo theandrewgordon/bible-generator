@@ -1,8 +1,9 @@
 <!DOCTYPE html><head>
-<title>Timothy Center Horse Racing — Tessa's Odyssey</title>
+<script src="/labs/games/assets/games-save-migration.js"></script>
+<title>Gordon Family Stables — Tessa's Games</title>
 <meta charset="utf-8">
-<link rel="stylesheet" href="/labs/games/assets/odyssey-ui.css">
-<script src="/labs/games/assets/odyssey-core.js"></script>
+<link rel="stylesheet" href="/labs/games/assets/games-ui.css">
+<script src="/labs/games/assets/games-core.js"></script>
 </head><body style="background:#000; margin:0; overflow:hidden; overscroll-behavior:none;">
 <style>
   canvas { touch-action:none; }
@@ -124,8 +125,8 @@
 <div id="tc-native-ui" aria-live="polite">
   <button id="tc-menu-button" type="button" aria-label="Open game menu">☰</button>
   <button id="tc-jump-button" type="button" aria-label="Jump over obstacle">JUMP</button>
-  <button id="tc-farm-button" type="button" aria-label="Visit Timothy Center Farm">FARM</button>
-  <div id="tc-farm-controls" aria-label="Timothy Center Farm chores">
+  <button id="tc-farm-button" type="button" aria-label="Visit Gordon Family Stables Farm">FARM</button>
+  <div id="tc-farm-controls" aria-label="Gordon Family Stables Farm chores">
     <button id="tc-farm-feed" class="tc-btn" type="button">Feed Horse</button>
     <button id="tc-farm-water" class="tc-btn" type="button">Fill Water</button>
     <button id="tc-farm-scoop" class="tc-btn" type="button">Muck Stall</button>
@@ -186,8 +187,8 @@
 
   <div id="tc-intro-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-intro-title">
     <div class="tc-panel">
-      <h2 id="tc-intro-title">Timothy Center Horse Race</h2>
-      <p>Race through the forest, steer around obstacles, and jump only when you choose. Win rounds to advance levels and earn new horses. At Level 10, Timothy Center Farm unlocks with barn chores and foal care.</p>
+      <h2 id="tc-intro-title">Gordon Family Stables</h2>
+      <p>Race through the forest, steer around obstacles, and jump only when you choose. Win rounds to advance levels and earn new horses. At Level 10, Gordon Family Stables Farm unlocks with barn chores and foal care.</p>
       <p><strong>Desktop:</strong> arrows/WASD to steer, Space to gallop, Up/W/Shift/J to jump.<br><strong>iPad:</strong> tap the course to gallop, then use the green JUMP button to clear obstacles.</p>
       <button id="tc-intro-start" class="tc-btn" type="button">Continue</button>
     </div>
@@ -508,7 +509,7 @@ function initDefaultAtlas(scale = 1)
 let icons;
 
 ///////////////////////////////////////////////////////////////////////////////
-// TIMOTHY CENTER HORSE RACE - CHALLENGE EDITION
+// GORDON FAMILY STABLES HORSE RACE - CHALLENGE EDITION
 let tcPlayer;
 let tcRivals = [];
 let tcObstacles = [];
@@ -560,12 +561,12 @@ let tcSaveNotice = '';
 let tcCreatingProfile = false;
 let tcEditingProfile = false;
 let tcEditingOriginalName = '';
-const TC_GAME_ID = 'timothy-center-horse-racing';
+const TC_GAME_ID = 'gordon-family-stables';
 const TC_GAME_LIBRARY_URL = '/labs/games';
-const tcProfileStorageKey = 'timothyCenterHorseRaceProfilesV1'; // legacy/current progress store
-const tcPlayerRegistryKey = 'tessasOdysseyPlayersV1';
-const tcGameStatsStorageKey = `tessasOdysseyGameStats:${TC_GAME_ID}:v1`;
-const tcSettingsStorageKey = 'tessasOdysseySettingsV1';
+const tcProfileStorageKey = 'gordonFamilyStablesHorseRaceProfilesV1'; // legacy/current progress store
+const tcPlayerRegistryKey = 'tessasGamesPlayersV1';
+const tcGameStatsStorageKey = `tessasGamesGameStats:${TC_GAME_ID}:v1`;
+const tcSettingsStorageKey = 'tessasGamesSettingsV1';
 const tcMaxProfiles = 8;
 
 let tcPlayerRegistry = {players:{}};
@@ -642,11 +643,11 @@ const tcLevels = [
     {name:'Pine Ridge',         distance:138, rivals:5, rivalMin:.102, rivalMax:.120, obstacleMin:1.45,obstacleMax:2.2, speedMax:.232},
     {name:'Long Barn Road',     distance:156, rivals:5, rivalMin:.106, rivalMax:.124, obstacleMin:1.35,obstacleMax:2.05,speedMax:.238},
     {name:'Sunset Trail',       distance:176, rivals:5, rivalMin:.112, rivalMax:.132, obstacleMin:1.25,obstacleMax:1.95,speedMax:.244},
-    {name:'Timothy Challenge',  distance:205, rivals:5, rivalMin:.118, rivalMax:.140, obstacleMin:1.1, obstacleMax:1.8, speedMax:.25},
+    {name:'Meadow Challenge',  distance:205, rivals:5, rivalMin:.118, rivalMax:.140, obstacleMin:1.1, obstacleMax:1.8, speedMax:.25},
     {name:'Old Mill Run',       distance:220, rivals:5, rivalMin:.122, rivalMax:.144, obstacleMin:1.05,obstacleMax:1.75,speedMax:.252},
     {name:'Deep Forest Trial',  distance:235, rivals:5, rivalMin:.126, rivalMax:.148, obstacleMin:1.0, obstacleMax:1.7, speedMax:.255},
     {name:'Ridgeway Sprint',    distance:250, rivals:5, rivalMin:.130, rivalMax:.152, obstacleMin:.95, obstacleMax:1.65,speedMax:.258},
-    {name:'Timothy Grand Run',  distance:275, rivals:5, rivalMin:.134, rivalMax:.156, obstacleMin:.82, obstacleMax:1.42,speedMax:.262},
+    {name:'Meadow Grand Run',  distance:275, rivals:5, rivalMin:.134, rivalMax:.156, obstacleMin:.82, obstacleMax:1.42,speedMax:.262},
 ];
 
 const tcHorseChoices = [
@@ -790,7 +791,7 @@ function tcIsEditableElement(target)
 
 function tcInstallNativeInputGuards()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.installNativeInputGuards)
     {
         O.installNativeInputGuards();
@@ -840,7 +841,7 @@ function tcProtectNativeControl(control)
 {
     if (!control) return;
 
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.protectNativeControl)
     {
         O.protectNativeControl(control);
@@ -984,7 +985,7 @@ function tcGoToGameLibrary()
     tcManualSave(false);
     tcCloseMenu();
 
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.returnToLibrary)
     {
         O.returnToLibrary();
@@ -1010,7 +1011,7 @@ function tcRenderPlayerSelect()
     const signature = JSON.stringify(tcProfileNames.map(name =>
     {
         const data = tcProfiles[name] || tcDefaultProfileData();
-        const stats = tcOdysseyStats(name) || tcGetStats(tcFindPlayerIdByName(name));
+        const stats = tcGamesStats(name) || tcGetStats(tcFindPlayerIdByName(name));
         return [
             name,
             data.level || 1,
@@ -1043,7 +1044,7 @@ function tcRenderPlayerSelect()
     {
         const data = tcProfiles[name] || tcDefaultProfileData();
         const playerId = tcFindPlayerIdByName(name);
-        const stats = tcOdysseyStats(name) || tcGetStats(playerId);
+        const stats = tcGamesStats(name) || tcGetStats(playerId);
         const unlocked = Array.isArray(data.unlockedHorseNames)
             ? data.unlockedHorseNames.length : 1;
 
@@ -1103,7 +1104,7 @@ function tcRenderPlayerSelect()
 }
 
 
-function tcContinueOdysseyPlayer(player)
+function tcContinueGamesPlayer(player)
 {
     let localName = tcFindLocalProfileName(player.name);
     if (!localName)
@@ -1116,9 +1117,9 @@ function tcContinueOdysseyPlayer(player)
     tcRestoreProfile(localName);
 }
 
-function tcLaunchActiveOdysseyPlayer()
+function tcLaunchActiveGamesPlayer()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     const active = O && typeof O.getActivePlayer == 'function'
         ? O.getActivePlayer()
         : null;
@@ -1126,27 +1127,27 @@ function tcLaunchActiveOdysseyPlayer()
     if (!active)
         return false;
 
-    tcContinueOdysseyPlayer(active);
+    tcContinueGamesPlayer(active);
     return true;
 }
 
 function tcShowSharedPlayerSelect()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (!(O && typeof O.openPlayerSelect == 'function'))
         return false;
 
-    if (document.getElementById('odysseyPlayerSelect'))
+    if (document.getElementById('gamesPlayerSelect'))
         return true;
 
     O.openPlayerSelect({
         gameId:TC_GAME_ID,
-        gameName:'Timothy Center Horse Racing',
+        gameName:'Gordon Family Stables',
         getSummary(player)
         {
             const localName = tcFindLocalProfileName(player.name);
             const data = localName ? tcProfiles[localName] : null;
-            const stats = tcOdysseyStats(player.name) || tcGetStats(player.id);
+            const stats = tcGamesStats(player.name) || tcGetStats(player.id);
             const unlocked = Array.isArray(data?.unlockedHorseNames) ? data.unlockedHorseNames.length : 1;
             return {
                 highestLevel:stats.highestLevel || stats.bestLevel || data?.level || 1,
@@ -1156,7 +1157,7 @@ function tcShowSharedPlayerSelect()
         },
         onContinue(player)
         {
-            tcContinueOdysseyPlayer(player);
+            tcContinueGamesPlayer(player);
         },
         onDelete(player)
         {
@@ -1174,7 +1175,7 @@ function tcShowSharedPlayerSelect()
 
 function tcEnsureSharedMenu()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (!(O && typeof O.mountGameMenu == 'function'))
         return null;
 
@@ -1183,7 +1184,7 @@ function tcEnsureSharedMenu()
 
     tcSharedMenu = O.mountGameMenu({
         gameId:TC_GAME_ID,
-        gameName:'Timothy Center Horse Racing',
+        gameName:'Gordon Family Stables',
         hasMusic:false,
         onOpen()
         {
@@ -1245,7 +1246,7 @@ function tcSyncDomUi()
 
     const needsPlayerSelect = tcProfileMode || !tcActiveProfile;
 
-    const sharedPlayers = tcOdyssey() && typeof tcOdyssey().openPlayerSelect == 'function';
+    const sharedPlayers = tcGames() && typeof tcGames().openPlayerSelect == 'function';
     const playerOverlay = document.getElementById('tc-player-overlay');
     if (playerOverlay)
         playerOverlay.style.display = sharedPlayers
@@ -1357,7 +1358,7 @@ function tcSyncDomUi()
     const results = document.getElementById('tc-results-overlay');
     if (results)
         results.style.display = (!tcProfileMode && tcFinished && !tcAutoAdvanceAt && !tcMenuOpen && !tcIntroMode &&
-            !document.getElementById('odysseyRoundResults')) ? 'flex' : 'none';
+            !document.getElementById('gamesRoundResults')) ? 'flex' : 'none';
 
     if (!tcProfileMode && tcFinished)
     {
@@ -1723,9 +1724,9 @@ function tcDrawMainMenuButton()
 
 
 
-function tcOdyssey()
+function tcGames()
 {
-    return window.Odyssey || null;
+    return window.Games || null;
 }
 
 function tcDefaultProfileData()
@@ -1748,9 +1749,9 @@ function tcFindLocalProfileName(name)
     return Object.keys(tcProfiles).find(n => n.toLocaleLowerCase() === key) || '';
 }
 
-function tcOdysseyStats(name)
+function tcGamesStats(name)
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (!O || !O.getGameStats) return null;
 
     const g = O.getGameStats(name, TC_GAME_ID);
@@ -1770,9 +1771,9 @@ function tcOdysseyStats(name)
     };
 }
 
-function tcSyncOdysseyProgress()
+function tcSyncGamesProgress()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (!O || !tcActiveProfile || !O.syncProgress)
         return;
 
@@ -1822,7 +1823,7 @@ function tcSaveSharedPlayerRegistry()
 
 function tcFindPlayerIdByName(name)
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.getPlayers)
     {
         const key = String(name || '').trim().toLocaleLowerCase();
@@ -1840,7 +1841,7 @@ function tcFindPlayerIdByName(name)
 
 function tcRegisterPlayer(name)
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.ensurePlayer)
     {
         const p = O.ensurePlayer(name);
@@ -1863,7 +1864,7 @@ function tcRegisterPlayer(name)
 
 function tcRenameSharedPlayer(id, newName)
 {
-    if (tcOdyssey())
+    if (tcGames())
         return;
 
     if (!id || !tcPlayerRegistry.players[id]) return;
@@ -1874,7 +1875,7 @@ function tcRenameSharedPlayer(id, newName)
 
 function tcDeleteSharedPlayer(id, name='')
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.hidePlayerForGame && name)
     {
         O.hidePlayerForGame(name, TC_GAME_ID);
@@ -1920,7 +1921,7 @@ function tcGetStats(id=tcActivePlayerId)
         ? tcActiveProfile
         : ((tcPlayerRegistry.players || {})[id]?.name || '');
 
-    const shared = name ? tcOdysseyStats(name) : null;
+    const shared = name ? tcGamesStats(name) : null;
     if (shared)
         return shared;
 
@@ -1943,10 +1944,10 @@ function tcTouchLastPlayed()
 {
     if (!tcActivePlayerId) return;
 
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.syncProgress)
     {
-        tcSyncOdysseyProgress();
+        tcSyncGamesProgress();
         return;
     }
 
@@ -1961,11 +1962,11 @@ function tcRecordGameStart()
 {
     if (!tcActivePlayerId) return;
 
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.startSession)
     {
         O.startSession(TC_GAME_ID, tcActiveProfile);
-        tcSyncOdysseyProgress();
+        tcSyncGamesProgress();
         return;
     }
 
@@ -1981,7 +1982,7 @@ function tcRecordWin()
 {
     if (!tcActivePlayerId) return;
 
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.recordResult)
     {
         const result = O.recordResult(TC_GAME_ID, {
@@ -1989,7 +1990,7 @@ function tcRecordWin()
             score:0,
             level:tcLevel,
             stars:0,
-            resultId:tcRaceResultId || `timothy-${tcActivePlayerId}-${tcLevel}`,
+            resultId:tcRaceResultId || `stables-${tcActivePlayerId}-${tcLevel}`,
             meta:{
                 unlockedHorseNames:[...tcUnlockedHorseNames],
                 barnUnlocked:!!tcBarnUnlocked,
@@ -2013,7 +2014,7 @@ function tcRecordWin()
 
 function tcLoadSettings()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.settings)
     {
         const shared = O.settings();
@@ -2042,7 +2043,7 @@ function tcLoadSettings()
 
 function tcSaveSettings()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.setSetting)
     {
         O.setSetting('sound', tcSettings.sfx);
@@ -2068,7 +2069,7 @@ function tcPlaySound(sound, ...args)
 
 function tcAdoptLegacyProfiles()
 {
-    const O = tcOdyssey();
+    const O = tcGames();
 
     if (O && O.adoptLegacyProfiles)
     {
@@ -2260,11 +2261,11 @@ function tcManualSave(showNotice=true)
     if (!tcActiveProfile) return;
 
     tcSaveActiveProfile();
-    tcSyncOdysseyProgress();
+    tcSyncGamesProgress();
 
     if (showNotice)
     {
-        const O = tcOdyssey();
+        const O = tcGames();
         if (O && O.showSaved)
             O.showSaved('Saved');
         else
@@ -2355,7 +2356,7 @@ function tcRestoreProfile(name)
 
     tcActiveProfile = name;
 
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && O.selectPlayer)
     {
         const sharedPlayer = O.selectPlayer(name, TC_GAME_ID);
@@ -2415,7 +2416,7 @@ function tcRestoreProfile(name)
 
 function tcCreateProfile(name)
 {
-    const O = tcOdyssey();
+    const O = tcGames();
     const clean = O && O.cleanPlayerName
         ? O.cleanPlayerName(name)
         : String(name || '').replace(/\s+/g,' ').trim().slice(0,20);
@@ -2467,9 +2468,9 @@ function tcCreateProfile(name)
 
 function tcRenameProfile(oldName, newName)
 {
-    if (tcOdyssey())
+    if (tcGames())
     {
-        tcProfileMessage = 'Player names are shared across Tessa’s Odyssey and are not renamed here.';
+        tcProfileMessage = 'Player names are shared across Tessa’s Games and are not renamed here.';
         tcSyncDomUi();
         return false;
     }
@@ -2519,7 +2520,7 @@ function tcRenameProfile(oldName, newName)
 function tcDeleteProfileByName(name)
 {
     if (!name || !tcProfiles[name]) return;
-    if (!confirm(`Delete ${name}'s Timothy Center progress from this game?`))
+    if (!confirm(`Delete ${name}'s Gordon Family Stables progress from this game?`))
         return;
 
     const playerId = tcFindPlayerIdByName(name);
@@ -2596,7 +2597,7 @@ function tcAwardMilestoneHorse(completedLevel)
     tcUnlockedHorseNames.push(horse.name);
     tcSaveActiveProfile();
     tcPlaySound(tcUnlockSound,tcPlayer?.pos,.32);
-    tcOdyssey()?.celebrateUnlock?.('New Horse Unlocked!', horse.name);
+    tcGames()?.celebrateUnlock?.('New Horse Unlocked!', horse.name);
     return horse.name;
 }
 
@@ -2657,7 +2658,7 @@ function tcEnterBarn()
     tcBarnScooped = false;
     tcBarnVisitComplete = false;
     tcBarnNurtured = false;
-    tcBarnMessage = 'Timothy Center Farm: feed, water, muck the stall, and care for your horses.';
+    tcBarnMessage = 'Gordon Family Stables Farm: feed, water, muck the stall, and care for your horses.';
     tcBarnMessageTimer = new Timer(3.5);
     tcSyncDomUi();
 }
@@ -2712,7 +2713,7 @@ function tcDoBarnChore(type)
             ];
 
             tcFoal = {
-                name:'Timothy Foal',
+                name:'Meadow Foal',
                 grownName:'Willow',
                 growth:0,
                 care:0,
@@ -2770,7 +2771,7 @@ function tcCheckFoalGrown()
 
     tcBarnMessage = `${tcFoal.grownName} is fully grown and unlocked for racing!`;
     tcSaveActiveProfile();
-    tcOdyssey()?.celebrateUnlock?.('Stable Unlock!', `${tcFoal.grownName} can now race`);
+    tcGames()?.celebrateUnlock?.('Stable Unlock!', `${tcFoal.grownName} can now race`);
     tcBarnMessageTimer.set(4);
 }
 
@@ -3348,7 +3349,7 @@ function tcStartRace()
 
     if (!wasStarted)
     {
-        tcRaceResultId = `timothy-${tcActivePlayerId || 'player'}-${tcLevel}-${Date.now()}`;
+        tcRaceResultId = `stables-${tcActivePlayerId || 'player'}-${tcLevel}-${Date.now()}`;
         tcRecordGameStart();
         tcPlaySound(tcStartSound,tcPlayer?.pos,.28);
     }
@@ -3386,7 +3387,7 @@ function tcEndLevel()
         const rewardHorse = tcAwardMilestoneHorse(tcLevel);
 
         tcWinner = tcLevel == tcLevels.length
-            ? 'TIMOTHY CENTER CHAMPION!'
+            ? 'GORDON FAMILY STABLES CHAMPION!'
             : 'LEVEL COMPLETE!';
 
         if (rewardHorse)
@@ -3398,13 +3399,13 @@ function tcEndLevel()
             tcAutoEnterFarm = true;
             tcSaveActiveProfile();
             tcPlaySound(tcUnlockSound,tcPlayer?.pos,.38);
-            tcOdyssey()?.celebrateUnlock?.(
-                'Timothy Center Farm Unlocked!',
+            tcGames()?.celebrateUnlock?.(
+                'Gordon Family Stables Farm Unlocked!',
                 'Feed, water, muck stalls, and raise a foal.'
             );
 
             if (!rewardHorse)
-                tcWinner = 'LEVEL COMPLETE!  TIMOTHY CENTER FARM UNLOCKED!';
+                tcWinner = 'LEVEL COMPLETE!  GORDON FAMILY STABLES FARM UNLOCKED!';
             else
                 tcWinner = `LEVEL COMPLETE!  ${rewardHorse.toUpperCase()} + FARM UNLOCKED!`;
         }
@@ -3429,7 +3430,7 @@ function tcEndLevel()
         return;
     }
 
-    const O = tcOdyssey();
+    const O = tcGames();
     if (O && typeof O.showRoundResults == 'function')
     {
         const stats = tcGetStats();
@@ -3553,7 +3554,7 @@ async function gameInit()
     tcSaveNoticeTimer = new Timer();
     tcLoadSettings();
     tcLoadGameStats();
-    if (!tcOdyssey())
+    if (!tcGames())
         tcLoadSharedPlayerRegistry();
     tcLoadProfiles();
 
@@ -3569,8 +3570,8 @@ async function gameInit()
     tcInitNativeUi();
 
     // A player chosen on /labs/games carries directly into the mini-game.
-    // If no Odyssey player is active, fall back to the shared player selector.
-    tcLaunchActiveOdysseyPlayer();
+    // If no Games player is active, fall back to the shared player selector.
+    tcLaunchActiveGamesPlayer();
     tcSyncDomUi();
 
     // Save when the browser/app is backgrounded or closed.
@@ -3988,7 +3989,7 @@ function gameRenderPost()
 
     if (tcProfileMode)
     {
-        drawTextScreen('TIMOTHY CENTER HORSE RACE',
+        drawTextScreen('GORDON FAMILY STABLES HORSE RACE',
             vec2(cx,55),40,YELLOW,5,BLACK);
 
         if (tcCreatingProfile || tcEditingProfile)
@@ -4017,7 +4018,7 @@ function gameRenderPost()
 
     if (tcInBarn)
     {
-        drawTextScreen('TIMOTHY CENTER FARM',vec2(cx,45),38,hsl(.11,.55,.72),5,BLACK);
+        drawTextScreen('GORDON FAMILY STABLES FARM',vec2(cx,45),38,hsl(.11,.55,.72),5,BLACK);
 
         drawTextScreen(
             `1/F FEED: ${tcBarnFed?'DONE':'NEEDED'}    2/W WATER: ${tcBarnWatered?'DONE':'NEEDED'}    3/S SCOOP: ${tcBarnScooped?'DONE':'NEEDED'}`,
@@ -4055,7 +4056,7 @@ function gameRenderPost()
     const progress = clamp(tcPlayerDistance/level.distance);
     const opponentName = tcHorseChoices[tcSelectedOpponent]?.name || 'Rival';
 
-    drawTextScreen('TIMOTHY CENTER HORSE RACE',vec2(cx,38),34,hsl(.08,.55,.22),4,WHITE);
+    drawTextScreen('GORDON FAMILY STABLES HORSE RACE',vec2(cx,38),34,hsl(.08,.55,.22),4,WHITE);
     drawTextScreen(`Player: ${tcActiveProfile}   CHANGE PLAYER FROM THE ☰ MENU`,
         vec2(210,28),15,WHITE,2,BLACK);
     drawTextScreen(`Forest Level ${tcLevel}: ${level.name}   Main opponent: ${opponentName}`,
@@ -4089,7 +4090,7 @@ function gameRenderPost()
             const lockedCount = tcHorseChoices.length-unlockedCount;
 
             if (tcBarnUnlocked)
-                drawTextScreen('TIMOTHY CENTER FARM UNLOCKED — TAP FARM TO VISIT',
+                drawTextScreen('GORDON FAMILY STABLES FARM UNLOCKED — TAP FARM TO VISIT',
                     vec2(cx,mainCanvasSize.y-180),18,hsl(.12,.60,.70),3,BLACK);
 
             if (unlockedCount <= 1)

@@ -19,55 +19,55 @@ bp = Blueprint("lab_games", __name__, url_prefix="/labs/games")
 
 _GAME_DIR = Path(__file__).resolve().parents[1] / "content" / "lab_games"
 
-_SHARED_ASSETS = {"odyssey-core.js", "odyssey-ui.css"}
+_SHARED_ASSETS = {"games-core.js", "games-ui.css", "games-save-migration.js"}
 
 LAB_GAMES = (
     {
-        "slug": "whits-end",
-        "game_id": "whits-end",
-        "aliases": ("whits-end-ice-cream",),
-        "name": "Whit's End Ice Cream Shop",
-        "description": "Take customer orders at Whit's End, make ice cream, shakes, and sodas, and deliver each order to the right customer.",
+        "slug": "gordon-ice-cream-town",
+        "game_id": "gordon-ice-cream-town",
+        "aliases": (),
+        "name": "Gordon Ice Cream Town",
+        "description": "Take customer orders at Gordon Ice Cream Town, make ice cream, shakes, and sodas, and deliver each order to the right customer.",
         "icon": "🍨",
         "accent": "#d66b8a",
         "maturity": "sandbox",
-        "file": "whits-end-ice-cream.html",
+        "file": "gordon-ice-cream-town.html",
         "available": True,
     },
     {
-        "slug": "bernard-window-washing",
-        "game_id": "bernard-window-washing",
+        "slug": "gordon-window-washing",
+        "game_id": "gordon-window-washing",
         "aliases": (),
-        "name": "Bernard's Window Washing",
-        "description": "Wash Whit's End windows with the right cleaner and squeegee as new messes and tools unlock.",
+        "name": "Gordon Window Washing",
+        "description": "Wash Gordon Ice Cream Town windows with the right cleaner and squeegee as new messes and tools unlock.",
         "icon": "✨",
         "accent": "#4f9bb5",
         "maturity": "sandbox",
-        "file": "bernard-window-washing.html",
+        "file": "gordon-window-washing.html",
         "available": True,
     },
     {
-        "slug": "wooten-mail-route",
-        "game_id": "wooten-mail-sorting",
+        "slug": "gordon-mail-run",
+        "game_id": "gordon-mail-run",
         "aliases": ("mail-sorting",),
-        "name": "Wooten's Mail Route",
-        "description": "Sort Odyssey mail, then unlock delivery routes that rotate with sorting levels.",
+        "name": "Gordon Mail Run",
+        "description": "Sort Games mail, then unlock delivery routes that rotate with sorting levels.",
         "icon": "✉️",
         "accent": "#d28a35",
         "maturity": "sandbox",
-        "file": "wooten-mail-route.html",
+        "file": "gordon-mail-run.html",
         "available": True,
     },
     {
-        "slug": "timothy-center-horse-racing",
-        "game_id": "timothy-center-horse-racing",
+        "slug": "gordon-family-stables",
+        "game_id": "gordon-family-stables",
         "aliases": (),
-        "name": "Timothy Center Horse Racing",
-        "description": "Choose a horse and race through increasingly challenging Timothy Center courses.",
+        "name": "Gordon Family Stables",
+        "description": "Choose a horse and race through increasingly challenging Gordon Family Stables courses.",
         "icon": "🐴",
         "accent": "#6b8f52",
         "maturity": "sandbox",
-        "file": "timothy-center-horse-racing.html",
+        "file": "gordon-family-stables.html",
         "available": True,
     },
     {
@@ -81,7 +81,7 @@ LAB_GAMES = (
         "maturity": "sandbox",
         "file": "same-brain.html",
         "available": True,
-        "odyssey": False,
+        "games": False,
     },
 )
 
@@ -135,7 +135,7 @@ def _game_for_slug(slug: str) -> dict | None:
 
 def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     """Apply small hot-path fixes without rewriting multi-megabyte embedded builds."""
-    if game_id == "whits-end":
+    if game_id == "gordon-ice-cream-town":
         # Scale timed parties by group size so later levels stay challenging
         # without giving four customers the same deadline as one.
         html = html.replace(
@@ -318,7 +318,7 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             1,
         )
 
-        # Historical p.stars is an order counter, while Odyssey receives the
+        # Historical p.stars is an order counter, while Games receives the
         # actual 1-3 star round rating. Do not mislabel the legacy counter.
         html = html.replace(
             "detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`",
@@ -342,7 +342,7 @@ function drawOpenIceTub""",
 
         return html
 
-    if game_id == "whits-end":
+    if game_id == "gordon-ice-cream-town":
         def replace_last(source: str, old: str, new: str) -> str:
             index = source.rfind(old)
             if index < 0:
@@ -419,10 +419,10 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
 
         return html
 
-    if game_id != "bernard-window-washing":
+    if game_id != "gordon-window-washing":
         return html
 
-    # Bernard already has a 1.5 second completion beat and nextLevel() timer.
+    # Rowan already has a 1.5 second completion beat and nextLevel() timer.
     # The results overlay added later interrupts that flow, so let the existing
     # timer carry the player straight into the next window.
     html = html.replace(
@@ -454,7 +454,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
         1,
     )
 
-    # Bernard audit fixes: make scoring/progress reflect the actual dirty
+    # Rowan audit fixes: make scoring/progress reflect the actual dirty
     # cells, keep resume scoring honest, and track wrong-cleaner use explicitly.
     html = html.replace(
         "let lastLevelBonusText = '';",
@@ -497,7 +497,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
             else if (!d.clean && d.mess.cleaner != cleanerId)
             {
                 hitWrongMess = true;
-                window._bernardLastNeededCleaner = d.mess.cleaner;
+                window._rowanLastNeededCleaner = d.mess.cleaner;
             }""",
         1,
     )
@@ -646,7 +646,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
             sat = .55;
             light = .80;
         }
-        else if (cleanerId == 'bernard')
+        else if (cleanerId == 'rowan')
         {
             hue = .78;
             sat = .60;
@@ -693,7 +693,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
     # cuts the hottest tiny-primitive workload by about 75% without changing
     # scoring, cleaner matching, or squeegee behavior.
     render_fast_path = r"""
-<script id="bernard-render-fast-path">
+<script id="rowan-render-fast-path">
 (() => {
     const originalDrawRect = window.drawRect;
     const originalDrawTile = window.drawTile;
@@ -702,7 +702,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
 
     let bounds = null;
     let boundsBuiltAt = 0;
-    window._bernardRenderFastStats = {skippedRect:0,skippedTile:0};
+    window._rowanRenderFastStats = {skippedRect:0,skippedTile:0};
 
     function rebuildBounds()
     {
@@ -751,7 +751,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
             pos.y < bounds.minY-marginY || pos.y > bounds.maxY+marginY)
             return false;
 
-        // Only tiny grid-sized primitives are culled. Tools, bottles, Bernard,
+        // Only tiny grid-sized primitives are culled. Tools, bottles, Rowan,
         // window frame, siding, grass, and HUD remain untouched.
         if (size.x > bounds.cx*1.65 || size.y > bounds.cy*1.65)
             return false;
@@ -825,7 +825,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
 
                 if (!keepRealTexture)
                 {
-                    window._bernardRenderFastStats.skippedTile++;
+                    window._rowanRenderFastStats.skippedTile++;
                     return;
                 }
             }
@@ -833,7 +833,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
 
         if (shouldSkip(pos,size))
         {
-            window._bernardRenderFastStats.skippedTile++;
+            window._rowanRenderFastStats.skippedTile++;
             return;
         }
 
@@ -847,9 +847,9 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
     # Temporary in-game profiler for the level-3 slowdown. It measures the
     # expensive cleaning function separately from total frame rate.
     profiler = r"""
-<script id="bernard-perf-profiler">
+<script id="rowan-perf-profiler">
 (() => {
-    const perfEnabled = new URLSearchParams(location.search).get('bernardPerf') === '1';
+    const perfEnabled = new URLSearchParams(location.search).get('rowanPerf') === '1';
     if (!perfEnabled) return;
 
     const state = {
@@ -863,7 +863,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
     };
 
     const badge = document.createElement("div");
-    badge.id = "bernardPerfBadge";
+    badge.id = "rowanPerfBadge";
     badge.style.cssText =
         "position:fixed;left:8px;bottom:8px;z-index:999999;pointer-events:none;" +
         "padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.80);color:#bfffc7;" +
@@ -1014,16 +1014,16 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
                     "line "+state.drawLine+" calls "+state.lineMs.toFixed(0)+"ms\n"+
                     "Rsz "+topSizes(state.rectSizes)+"\n"+
                     "Tsz "+topSizes(state.tileSizes)+"\n"+
-                    "detail skip T "+(window._bernardRenderFastStats?.skippedTile||0)+"\n"+
+                    "detail skip T "+(window._rowanRenderFastStats?.skippedTile||0)+"\n"+
                     "canvas "+canvasInfo;
 
-                console.info("[Bernard perf primitive]",{
+                console.info("[Rowan perf primitive]",{
                     level:currentLevel,fps,
                     cleanAvgMs:+cleanAvg.toFixed(2),
                     drawRect:state.drawRect,rectMs:+state.rectMs.toFixed(1),rectTop:topSizes(state.rectSizes),
                     drawTile:state.drawTile,tileMs:+state.tileMs.toFixed(1),tileTop:topSizes(state.tileSizes),
                     drawLine:state.drawLine,lineMs:+state.lineMs.toFixed(1),
-                    skipped:window._bernardRenderFastStats||{},
+                    skipped:window._rowanRenderFastStats||{},
                     canvas:canvasInfo
                 });
             }
@@ -1046,14 +1046,14 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
     requestAnimationFrame(tick);
 })();
 </script>
-<script id="bernard-audio-polish">
+<script id="rowan-audio-polish">
 (() => {
     let activeWashLoop = null;
     let lastWrongFeedbackAt = 0;
     let lastCleanerUsed = 'water';
 
     const hint = document.createElement('div');
-    hint.id = 'bernardCleanerHint';
+    hint.id = 'rowanCleanerHint';
     hint.style.cssText =
         'position:fixed;left:50%;bottom:max(54px,env(safe-area-inset-bottom));' +
         'transform:translateX(-50%);z-index:999998;pointer-events:none;' +
@@ -1238,13 +1238,13 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
         if (now-lastWrongFeedbackAt < 900) return;
         lastWrongFeedbackAt=now;
 
-        const neededId = String(window._bernardLastNeededCleaner || '').toLowerCase();
+        const neededId = String(window._rowanLastNeededCleaner || '').toLowerCase();
         const needed = {
             water:'WATER',
             soap:'SOAP',
             degreaser:'DISINFECTER',
             vinegar:'VINEGAR',
-            bernard:"BERNARD'S SIGNATURE CLEANER"
+            rowan:"ROWAN'S SIGNATURE CLEANER"
         }[neededId] || (lastCleanerUsed.includes('soap') ? 'WATER' : 'SOAP');
         showHint('That cleaner is not lifting this grime — TRY '+needed+' HERE','wrong');
 
@@ -1392,7 +1392,7 @@ def _csrf_token_value() -> str:
     return token
 
 
-def _default_odyssey_roster() -> dict:
+def _default_games_roster() -> dict:
     return {
         "version": 1,
         "players": [],
@@ -1401,7 +1401,7 @@ def _default_odyssey_roster() -> dict:
     }
 
 
-def _sanitize_odyssey_roster(payload: object) -> dict:
+def _sanitize_games_roster(payload: object) -> dict:
     source = payload if isinstance(payload, dict) else {}
     players = []
     seen_ids: set[str] = set()
@@ -1444,22 +1444,22 @@ def _sanitize_odyssey_roster(payload: object) -> dict:
     }
 
 
-def _load_odyssey_roster(email: str | None) -> dict:
+def _load_games_roster(email: str | None) -> dict:
     if not email or not db:
-        return _default_odyssey_roster()
+        return _default_games_roster()
     try:
         snap = db.collection("users").document(email).get()
         if not snap.exists:
-            return _default_odyssey_roster()
+            return _default_games_roster()
         data = snap.to_dict() or {}
-        return _sanitize_odyssey_roster(data.get("odysseyRoster"))
+        return _sanitize_games_roster(data.get("gamesRoster", data.get("odysseyRoster")))
     except Exception:
-        return _default_odyssey_roster()
+        return _default_games_roster()
 
 
-def _merge_odyssey_rosters(existing: dict, incoming: dict) -> dict:
-    base = _sanitize_odyssey_roster(existing)
-    new = _sanitize_odyssey_roster(incoming)
+def _merge_games_rosters(existing: dict, incoming: dict) -> dict:
+    base = _sanitize_games_roster(existing)
+    new = _sanitize_games_roster(incoming)
     by_id = {p["id"]: dict(p) for p in base["players"]}
     name_to_id = {p["name"].casefold(): p["id"] for p in base["players"]}
 
@@ -1490,8 +1490,8 @@ def _merge_odyssey_rosters(existing: dict, incoming: dict) -> dict:
     }
 
 
-def _odyssey_bootstrap(email: str | None) -> tuple[dict, dict]:
-    roster = _load_odyssey_roster(email)
+def _games_bootstrap(email: str | None) -> tuple[dict, dict]:
+    roster = _load_games_roster(email)
     config = {
         "url": "/labs/games/roster",
         "csrfToken": _csrf_token_value(),
@@ -1505,15 +1505,15 @@ def index():
     access_response = _require_access()
     if access_response is not None:
         return access_response
-    roster, sync_config = _odyssey_bootstrap(_signed_in_email())
+    roster, sync_config = _games_bootstrap(_signed_in_email())
     return render_template(
         "lab_games.html",
         games=LAB_GAMES,
         signed_in=True,
         access_denied=False,
         noindex=True,
-        odyssey_roster=roster,
-        odyssey_sync_config=sync_config,
+        games_roster=roster,
+        games_sync_config=sync_config,
     )
 
 
@@ -1548,22 +1548,22 @@ def roster():
 
     email = _signed_in_email()
     if request.method == "GET":
-        return jsonify(_load_odyssey_roster(email))
+        return jsonify(_load_games_roster(email))
 
     sent_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken") or ""
     expected_token = _csrf_token_value()
     if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
         return jsonify({"error": "csrf"}), 400
 
-    incoming = _sanitize_odyssey_roster(request.get_json(silent=True) or {})
-    existing = _load_odyssey_roster(email)
-    merged = _merge_odyssey_rosters(existing, incoming)
+    incoming = _sanitize_games_roster(request.get_json(silent=True) or {})
+    existing = _load_games_roster(email)
+    merged = _merge_games_rosters(existing, incoming)
 
     if not db or not email:
         return jsonify(merged)
 
     try:
-        db.collection("users").document(email).set({"odysseyRoster": merged}, merge=True)
+        db.collection("users").document(email).set({"gamesRoster": merged}, merge=True)
     except Exception:
         return jsonify({"error": "storage_unavailable"}), 503
 
@@ -2355,13 +2355,13 @@ def play(slug: str):
     if not game_path.is_file():
         return render_template("404.html"), 404
 
-    roster, sync_config = _odyssey_bootstrap(_signed_in_email())
+    roster, sync_config = _games_bootstrap(_signed_in_email())
     html = game_path.read_text(encoding="utf-8")
     html = _apply_runtime_game_patches(html, game["game_id"])
     bootstrap = (
         "<script>"
-        "window.__ODYSSEY_ACCOUNT_ROSTER__=" + json.dumps(roster).replace("<", "\\u003c") + ";"
-        "window.__ODYSSEY_SYNC_CONFIG__=" + json.dumps(sync_config).replace("<", "\\u003c") + ";"
+        "window.__GAMES_ACCOUNT_ROSTER__=" + json.dumps(roster).replace("<", "\\u003c") + ";"
+        "window.__GAMES_SYNC_CONFIG__=" + json.dumps(sync_config).replace("<", "\\u003c") + ";"
         "</script>"
     )
     if "</head>" in html:

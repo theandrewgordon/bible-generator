@@ -1,0 +1,1022 @@
+<!DOCTYPE html><head>
+<script src="/labs/games/assets/games-save-migration.js"></script>
+<title>Gordon Mail Run — Tessa’s Games</title>
+<meta charset="utf-8">
+
+<style>
+#profileUI{position:fixed;inset:0;z-index:9999;background:linear-gradient(#18252c,#0b1115);font-family:Arial,sans-serif;color:white;display:flex;align-items:center;justify-content:center}
+#profileCard{width:min(760px,88vw);background:#24343b;border:4px solid #d7b56d;border-radius:20px;padding:30px;box-shadow:0 18px 50px #0009;text-align:center}
+#profileCard h1{margin:0 0 8px;font-size:38px}.sub{color:#d8e1e5;margin-bottom:24px}
+#nameInput{font-size:24px;padding:12px 16px;border-radius:10px;border:2px solid #aab8bd;width:min(420px,80%);text-align:center}
+.uiBtn{font-size:20px;font-weight:bold;padding:12px 20px;margin:8px;border:0;border-radius:10px;background:#e4bd66;color:#172126;cursor:pointer}
+.uiBtn.secondary{background:#b9c8ce}.uiBtn.danger{background:#a84b45;color:white}
+#profiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0}
+.profile{background:#344950;border:2px solid #6f858c;border-radius:12px;padding:15px}
+.profile strong{display:block;font-size:21px;margin-bottom:6px}.small{font-size:14px;color:#cbd5d8}
+#mainMenuBtn{position:fixed;z-index:10001;right:max(14px,env(safe-area-inset-right));top:max(14px,env(safe-area-inset-top));background:#e4bd66;color:#172126;border:0;border-radius:10px;padding:8px 13px;font:700 28px/1 Arial;cursor:pointer;touch-action:manipulation;display:none}
+#nameInput{font-size:24px;min-height:48px;touch-action:manipulation;-webkit-user-select:text;user-select:text}
+#gameMenuPanel{position:fixed;z-index:10002;right:max(14px,env(safe-area-inset-right));top:74px;width:min(330px,82vw);background:#24343bf5;border:3px solid #d7b56d;border-radius:14px;padding:14px;display:none;color:white;font-family:Arial;text-align:center;box-shadow:0 12px 32px #0008}
+#gameMenuPanel .uiBtn{display:block;width:calc(100% - 16px);min-height:50px}
+button:focus-visible,input:focus-visible{outline:4px solid #fff;outline-offset:3px}
+canvas{touch-action:none}body{overscroll-behavior:none}button{touch-action:manipulation}input{touch-action:auto;-webkit-user-select:text;user-select:text}
+#saveBadge{position:fixed;z-index:9998;right:14px;top:14px;background:#152127dd;color:#fff;padding:8px 12px;border-radius:9px;font:14px Arial;display:none}
+</style>
+<div id="profileUI"><div id="profileCard"></div></div>
+<div id="saveBadge">Saved</div>
+<div id="gameMenuPanel"></div>
+<button id="mainMenuBtn" type="button" onclick="toggleGameMenu()" aria-label="Open game menu" title="Main Menu">☰</button>
+<script>
+const TESSAS_GAMES_GAME_ID='gordon-mail-run';
+const PROFILE_KEY='caseyMailProfilesV1'; // legacy game progress; intentionally preserved/migrated
+// When hosted in Labs, games-core.js is loaded above so the platform shell can provide
+// shared Games identity/settings. This standalone build keeps its legacy data as a safe fallback.
+const SETTINGS_KEY='tessasGamesSettingsV1';
+const MAX_PLAYERS=8;
+let activeProfileId=null;
+let caseyRoundResultId='';
+
+function makePlayerId(name,i=0){
+ return 'casey-'+Date.now().toString(36)+'-'+i+'-'+Math.random().toString(36).slice(2,8);
+}
+function getProfiles(){
+ try{
+  let p=JSON.parse(localStorage.getItem(PROFILE_KEY)||'[]');
+  let changed=false;
+  p.forEach((x,i)=>{
+   if(!x.id){x.id='legacy-'+i+'-'+String(x.name||'player').toLowerCase().replace(/[^a-z0-9]+/g,'-');changed=true}
+   if(x.bestScore==null){x.bestScore=Math.max(0,x.score||0);changed=true}
+   if(x.highestLevel==null){x.highestLevel=x.level||0;changed=true}
+   if(x.gamesPlayed==null){x.gamesPlayed=0;changed=true}
+   if(x.completions==null){x.completions=0;changed=true}
+   if(x.lastPlayed==null){x.lastPlayed=Date.now();changed=true}
+   if(x.meta==null){x.meta={mistakes:x.mistakes||0};changed=true}
+   if(x.resume===undefined){x.resume=null;changed=true}
+  });
+
+  if(window.Games){
+   try{
+    if(typeof Games.adoptLegacyProfiles==='function'){
+      Games.adoptLegacyProfiles(TESSAS_GAMES_GAME_ID,p,item=>({
+        score:Math.max(0,item.score||0),
+        level:Math.max(1,(item.highestLevel??item.level??0)+1),
+        stars:0,
+        meta:{mistakes:item.mistakes||0,mode:item.meta?.mode||'sorting'}
+      }));
+    }
+    if(typeof Games.mergeGlobalNames==='function'){
+      p=Games.mergeGlobalNames(
+        p,
+        name=>({id:Games.ensurePlayer(name)?.id||makePlayerId(name),name,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:0,meta:{mistakes:0},resume:null}),
+        TESSAS_GAMES_GAME_ID
+      );
+    }
+    p.forEach(x=>{
+      const shared=Games.ensurePlayer(x.name);
+      if(shared&&x.id!==shared.id){x.id=shared.id;changed=true}
+      const g=Games.getGameStats?.(x.name,TESSAS_GAMES_GAME_ID);
+      if(g){
+        x.bestScore=Math.max(x.bestScore||0,g.bestScore||0);
+        x.highestLevel=Math.max(x.highestLevel||0,Math.max(0,(g.highestLevel||1)-1));
+        x.gamesPlayed=Math.max(x.gamesPlayed||0,g.sessions||0);
+        x.completions=Math.max(x.completions||0,g.completions||0);
+        x.lastPlayed=Math.max(x.lastPlayed||0,g.lastPlayedAt||0);
+      }
+    });
+   }catch(e){}
+  }
+  if(changed)putProfiles(p);
+  return p;
+ }catch(e){return[]}
+}
+function putProfiles(p){localStorage.setItem(PROFILE_KEY,JSON.stringify(p))}
+function activeIndex(){
+ if(!activeProfileId)return -1;
+ return getProfiles().findIndex(x=>x.id===activeProfileId);
+}
+function getSettings(){
+ try{
+  if(window.Games&&typeof Games.getSettings==='function')return Games.getSettings();
+  return Object.assign({sound:true,music:true},JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
+ }catch(e){return {sound:true,music:true}}
+}
+function putSettings(x){
+ try{
+  if(window.Games&&typeof Games.setSettings==='function'){Games.setSettings(x);return}
+  localStorage.setItem(SETTINGS_KEY,JSON.stringify(x));
+ }catch(e){}
+}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmtLast(t){if(!t)return 'Never';try{return new Date(t).toLocaleDateString()}catch(e){return ''}}
+
+function showProfilesLegacy(){
+ document.getElementById('mainMenuBtn').style.display='none';
+ document.getElementById('gameMenuPanel').style.display='none';
+ const p=getProfiles(),c=document.getElementById('profileCard');
+ c.innerHTML='<h1>Choose a Player</h1><div class="sub">Continue an existing player or create a new one.</div>'+
+ (p.length?'<div id="profiles">'+p.map(x=>`<div class="profile"><strong>${esc(x.name)}</strong><div class="small">Highest Level ${Number(x.highestLevel||0)+1} · Best ${x.bestScore||0}<br>Last played ${fmtLast(x.lastPlayed)}</div><button type="button" class="uiBtn" onclick="joinProfileById('${x.id}')">Continue</button><button type="button" class="uiBtn danger" onclick="deleteProfileById('${x.id}')">Delete</button></div>`).join('')+'</div>':'<div class="sub">No saved players yet.</div>')+
+ (p.length<MAX_PLAYERS?'<button type="button" class="uiBtn secondary" onclick="newProfileScreen()">+ New Player</button>':'<div class="sub">Maximum of 8 saved players reached.</div>');
+}
+function continueCaseyGamesPlayer(player){
+ let p=getProfiles();
+ let local=p.find(x=>x.id===player.id||String(x.name).toLowerCase()===String(player.name).toLowerCase());
+ if(!local){
+  local={id:player.id,name:player.name,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:0,meta:{mistakes:0},resume:null};
+  p.push(local);putProfiles(p);
+ }else if(local.id!==player.id){
+  local.id=player.id;putProfiles(p);
+ }
+ joinProfileById(player.id);
+}
+function launchCaseyActiveGamesPlayer(){
+ const O=window.Games;
+ const active=O&&typeof O.getActivePlayer==='function'?O.getActivePlayer():null;
+ if(!active)return false;
+ continueCaseyGamesPlayer(active);
+ return true;
+}
+
+function showProfiles(){
+ const O=window.Games;
+ if(!(O&&typeof O.openPlayerSelect==='function')){showProfilesLegacy();return;}
+ document.getElementById('profileUI').style.display='none';
+ document.getElementById('mainMenuBtn').style.display='none';
+ document.getElementById('gameMenuPanel').style.display='none';
+ ensureCaseySharedMenu()?.hideButton();
+ O.openPlayerSelect({
+  gameId:TESSAS_GAMES_GAME_ID,
+  gameName:"Gordon Mail Run",
+  getSummary(player){
+   const p=getProfiles();
+   const local=p.find(x=>x.id===player.id||String(x.name).toLowerCase()===String(player.name).toLowerCase());
+   return {
+    highestLevel:Math.max(1,Number(local?.highestLevel??local?.level??0)+1),
+    bestScore:Math.max(0,Number(local?.bestScore||0)),
+    detail:`${Math.max(0,Number(local?.completions||0))} completions`
+   };
+  },
+  onContinue(player){continueCaseyGamesPlayer(player)},
+  onDelete(player){
+   const next=getProfiles().filter(x=>x.id!==player.id&&String(x.name).toLowerCase()!==String(player.name).toLowerCase());
+   putProfiles(next);
+   if(activeProfileId===player.id)activeProfileId=null;
+  }
+ });
+}
+
+function protectNativeInput(input){
+ if(window.Games?.protectNativeControl){Games.protectNativeControl(input);return}
+ // Stop events at the actual HTML control so LittleJS/document handlers never see them.
+ // Deliberately DO NOT call preventDefault: caret, typing, Backspace, spaces and iPad keyboard stay native.
+ const events=['keydown','keyup','pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click'];
+ events.forEach(type=>input.addEventListener(type,e=>{
+   e.stopPropagation();
+   if(type==='keydown' && e.key==='Escape'){e.preventDefault();showProfiles();}
+ },{passive:type==='touchstart'||type==='touchend'}));
+}
+function newProfileScreen(){
+ document.getElementById('profileCard').innerHTML='<h1>New Player</h1><div class="sub">Tap the box and type your name with your device keyboard.</div><form id="newPlayerForm"><label for="nameInput" class="sub">Player Name</label><br><input id="nameInput" type="text" inputmode="text" enterkeyhint="done" autocomplete="name" autocapitalize="words" maxlength="20" placeholder="Your name" aria-label="Player name"><br><button class="uiBtn" type="submit">Start</button><button class="uiBtn secondary" type="button" onclick="showProfiles()">Cancel</button></form>';
+ const input=document.getElementById('nameInput');
+ protectNativeInput(input);
+ document.getElementById('newPlayerForm').addEventListener('submit',e=>{e.preventDefault();e.stopPropagation();createProfile()});
+ // Do not depend on programmatic focus for iPad; the user's tap is the primary focus action.
+}
+function createProfile(){
+ const input=document.getElementById('nameInput'),n=(input?.value||'').trim(); if(!n)return;
+ const p=getProfiles();
+ if(p.length>=MAX_PLAYERS){showProfiles();return}
+ if(p.some(x=>String(x.name||'').trim().toLocaleLowerCase()===n.toLocaleLowerCase())){
+   input.setCustomValidity('That player name already exists.');input.reportValidity();return;
+ }
+ input.setCustomValidity('');
+ const shared=(window.Games&&Games.ensurePlayer)?Games.ensurePlayer(n):null; const x={id:shared?.id||makePlayerId(n,p.length),name:n,level:0,highestLevel:0,score:0,bestScore:0,mistakes:0,gamesPlayed:0,completions:0,lastPlayed:Date.now(),meta:{mistakes:0},resume:null};
+ p.push(x);putProfiles(p);joinProfileById(x.id,true);
+}
+function showIntro(){
+ const c=document.getElementById('profileCard');
+ c.innerHTML='<h1>Gordon Mail Run</h1><div class="sub">Sort mail into the matching neighborhood family buckets. Starting at Level 6, delivery routes unlock and then rotate with sorting levels.</div><button type="button" class="uiBtn" onclick="beginPlay()">Continue</button><button type="button" class="uiBtn secondary" onclick="changePlayer()">Change Player</button>';
+ document.getElementById('profileUI').style.display='flex';
+}
+function beginPlay(){
+ document.getElementById('profileUI').style.display='none';
+ document.getElementById('mainMenuBtn').style.display='none';
+ const shared=ensureCaseySharedMenu();
+ if(shared)shared.showButton();
+ else document.getElementById('mainMenuBtn').style.display='block';
+}
+function joinProfileById(id,isNew=false){
+ const p=getProfiles(),i=p.findIndex(x=>x.id===id);if(i<0)return;
+ activeProfileId=id;
+ const x=p[i];
+ // Count a play session once per browser tab/session, not every save/load.
+ const sessionKey='casey-session-'+id;
+ if(!sessionStorage.getItem(sessionKey)){
+  x.gamesPlayed=(x.gamesPlayed||0)+1;
+  sessionStorage.setItem(sessionKey,'1');
+  try{window.Games?.selectPlayer?.(x.name,TESSAS_GAMES_GAME_ID);window.Games?.startSession?.(TESSAS_GAMES_GAME_ID,x.name)}catch(e){}
+ }else try{window.Games?.selectPlayer?.(x.name,TESSAS_GAMES_GAME_ID)}catch(e){}
+ x.lastPlayed=Date.now();putProfiles(p);
+ if(typeof level!=='undefined'){
+  level=x.resume?.level ?? x.level ?? 0;
+  score=Math.max(0,x.resume?.score ?? x.score ?? 0);
+  mistakes=x.resume?.mistakes ?? x.mistakes ?? 0;
+  isDelivery()?setupDelivery():setupSorting();
+ }
+ showIntro();
+}
+function deleteProfileById(id){
+ const p=getProfiles(),i=p.findIndex(x=>x.id===id);if(i<0)return;
+ const removed=p[i];
+ if(!confirm(`Delete ${removed.name}'s Casey progress from this game?`))return;
+ p.splice(i,1);putProfiles(p);
+ try{window.Games?.hidePlayerForGame?.(removed.name,TESSAS_GAMES_GAME_ID)}catch(e){}
+ if(activeProfileId===id)activeProfileId=null;
+ showProfiles();
+}
+function saveActive(showToast=true){
+ if(!activeProfileId||typeof level==='undefined')return;
+ const p=getProfiles(),i=p.findIndex(x=>x.id===activeProfileId);if(i<0)return;
+ const x=p[i];
+ score=Math.max(0,score||0);
+ x.level=level;
+ x.highestLevel=Math.max(x.highestLevel||0,level||0);
+ x.score=score;
+ x.bestScore=Math.max(x.bestScore||0,score);
+ x.mistakes=mistakes;
+ x.lastPlayed=Date.now();
+ x.meta=Object.assign({},x.meta||{},{mistakes,mode:isDelivery()?'delivery':'sorting'});
+ x.resume={level,score,mistakes,mode:isDelivery()?'delivery':'sorting'};
+ putProfiles(p);
+ try{
+  window.Games?.syncProgress?.(TESSAS_GAMES_GAME_ID,{
+   score:x.score,level:Math.max(1,(x.highestLevel||0)+1),stars:0,
+   meta:{mistakes:x.mistakes,mode:x.meta?.mode||'sorting',perfect:(x.mistakes||0)===0,resume:x.resume}
+  },x.name);
+ }catch(e){}
+ if(showToast){
+  if(window.Games?.showSaved)Games.showSaved('Saved');
+  else{const b=document.getElementById('saveBadge');b.style.display='block';clearTimeout(window._saveT);window._saveT=setTimeout(()=>b.style.display='none',700)}
+ }
+}
+
+let caseySharedMenu=null;
+function ensureCaseySharedMenu(){
+ const O=window.Games;
+ if(!(O&&typeof O.mountGameMenu==='function'))return null;
+ if(caseySharedMenu)return caseySharedMenu;
+ caseySharedMenu=O.mountGameMenu({
+  gameId:TESSAS_GAMES_GAME_ID,
+  gameName:"Gordon Mail Run",
+  hasMusic:false,
+  onRestart:restartCurrentRound,
+  onChangePlayer:changePlayer,
+  onLibrary:returnToGameLibrary,
+  onSave:()=>saveActive(false),
+  onSettings:()=>{}
+ });
+ return caseySharedMenu;
+}
+function toggleGameMenuLegacy(){
+ const panel=document.getElementById('gameMenuPanel');
+ if(panel.style.display==='block'){panel.style.display='none';return}
+ const st=getSettings();
+ panel.innerHTML='<strong style="font-size:22px">Game Menu</strong>'+
+ '<button type="button" class="uiBtn" onclick="toggleGameMenu()">Resume / Continue</button>'+
+ '<button type="button" class="uiBtn secondary" onclick="restartCurrentRound()">Restart Current Round</button>'+
+ '<button type="button" class="uiBtn secondary" onclick="changePlayer()">Change Player</button>'+
+ '<button type="button" class="uiBtn secondary" onclick="returnToGameLibrary()">Return to Game Library</button>'+
+ `<button type="button" class="uiBtn secondary" onclick="toggleSetting('sound')">Sound Effects: ${st.sound?'On':'Off'}</button>`+
+ '';
+ panel.style.display='block';
+}
+function toggleGameMenu(){
+ const shared=ensureCaseySharedMenu();
+ if(shared){shared.open();return;}
+ toggleGameMenuLegacy();
+}
+
+function toggleSetting(k){const st=getSettings();st[k]=!st[k];putSettings(st);document.getElementById('gameMenuPanel').style.display='none';toggleGameMenu()}
+function restartCurrentRound(){
+ document.getElementById('gameMenuPanel').style.display='none';
+ heldItem=0;levelComplete=false;window._caseyAdvanceAt=0;
+ isDelivery()?setupDelivery():setupSorting();
+ saveActive();
+}
+function changePlayer(){
+ saveActive();activeProfileId=null;
+ ensureCaseySharedMenu()?.hideButton();
+ document.getElementById('mainMenuBtn').style.display='none';
+ document.getElementById('profileUI').style.display='none';
+ showProfiles();
+}
+function returnToGameLibrary(){
+ saveActive();
+ if(window.Games?.returnToLibrary)Games.returnToLibrary();
+ else window.location.href='/labs/games';
+}
+function soundOn(){return getSettings().sound}
+function uiBlocking(){
+ return document.getElementById('profileUI')?.style.display!=='none' ||
+        document.getElementById('gameMenuPanel')?.style.display==='block' ||
+        !!document.getElementById('gamesPlayerSelect') ||
+        !!document.getElementById('gamesNameDialog') ||
+        !!document.getElementById('gamesGameMenuOverlay');
+}
+window.addEventListener('beforeunload',()=>saveActive(false));
+window.addEventListener('pagehide',()=>saveActive(false));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)saveActive(false)});
+document.addEventListener('DOMContentLoaded',()=>{if(!launchCaseyActiveGamesPlayer())showProfiles()});
+</script>
+<script>
+const caseyHeadImage = new Image();
+caseyHeadImage.src = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22160%22%20height%3D%22160%22%20viewBox%3D%220%200%20160%20160%22%3E%3Cg%20stroke%3D%22%23293441%22%20stroke-width%3D%224%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20fill%3D%22%23364963%22%20d%3D%22M48%20231h64l-4%20102H85l-5-70-5%2070H52z%22%2F%3E%3Cpath%20fill%3D%22%23293441%22%20d%3D%22M51%20327h25v20H43q-5-12%208-20m34%200h24q17%208%2010%2020H85z%22%2F%3E%3Cpath%20fill%3D%22%23e1aa80%22%20d%3D%22M43%20136L24%20225q-2%2017%2012%2016l21-76m60-29%2019%2089q2%2017-12%2016l-21-76%22%2F%3E%3Cpath%20fill%3D%22%23d87936%22%20d%3D%22M49%20119q31-15%2062%200l13%2054-17%204%205%2069H48l5-69-17-4z%22%2F%3E%3Cpath%20fill%3D%22%23e1aa80%22%20d%3D%22M69%2093h22v32H69z%22%2F%3E%3Cellipse%20fill%3D%22%232d252a%22%20cx%3D%2280%22%20cy%3D%2260%22%20rx%3D%2239%22%20ry%3D%2246%22%2F%3E%3Cellipse%20fill%3D%22%23e1aa80%22%20cx%3D%2280%22%20cy%3D%2268%22%20rx%3D%2233%22%20ry%3D%2238%22%2F%3E%3Cpath%20fill%3D%22%232d252a%22%20d%3D%22M47%2059q-6-49%2034-48%2045%203%2032%2047L95%2035Q77%2059%2047%2059z%22%2F%3E%3Cpath%20fill%3D%22none%22%20d%3D%22M64%2070h3m26%200h3M69%2087q11%209%2022%200%22%2F%3E%3Cpath%20fill%3D%22%23f7cc59%22%20stroke%3D%22none%22%20d%3D%22M67%20145h26v13H67z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+</script>
+<link rel="stylesheet" href="/labs/games/assets/games-ui.css">
+<script src="/labs/games/assets/games-core.js"></script>
+</head><body style="background:#000">
+<script src="https://cdn.jsdelivr.net/npm/littlejsengine@1.18.19/dist/littlejs.js?1.18.19"></script>
+<script>
+'use strict';
+
+// engine settings, do not remove
+debugWatermark = false; // Hide debug watermark in corner
+showEngineVersion = false; // Hide engine version console display
+paused = false; // Start unpaused
+tilesPixelated = false; // use HD textures
+debugShowErrors(); // Break on errors for quick debugging
+
+// engine settings, customize if necessary (engine globals - assign, do not redeclare)
+gravity = vec2(0, 0); // No gravity by default
+cameraPos = vec2(0, 0); // Camera centered at origin
+cameraScale = 32; // Camera zoom, larger is more zoomed in
+
+// AI can use this class to make sound effects
+class SoundGenerator extends Sound
+{
+    constructor(params = {})
+    {
+        const {
+            volume = 1,        // Volume scale (percent)
+            randomness = .05,  // How much to randomize frequency (percent Hz)
+            frequency = 220,   // Frequency of sound (Hz)
+            attack = 0,        // Attack time, how fast sound starts (seconds)
+            release = .1,      // Release time, how fast sound fades out (seconds)
+            shapeCurve = 1,    // Squarenes of wave (0=square, 1=normal, 2=pointy)
+            slide = 0,         // How much to slide frequency (kHz/s)
+            pitchJump = 0,     // Frequency of pitch jump (Hz)
+            pitchJumpTime = 0, // Time of pitch jump (seconds)
+            repeatTime = 0,    // Resets some parameters periodically (seconds)
+            noise = 0,         // How much random noise to add (percent)
+            bitCrush = 0,      // Resamples at a lower frequency in (samples*100)
+            delay = 0,         // Overlap sound with itself for reverb and flanger effects (seconds)
+        } = params;
+
+        super([volume, randomness, frequency, attack, 0, release, 0, shapeCurve, slide, 0, pitchJump, pitchJumpTime, repeatTime, noise, 0, bitCrush, delay, 1, 0, 0, 0]);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// SPRITE ATLAS (do not remove) - bakes 16 white shape icons into one texture so
+// the AI can draw recolorable sprites with zero external assets. Call
+// initDefaultAtlas() once in gameInit to get a name->TileInfo map, then draw any
+// icon with drawTile(pos, size, icons.NAME, color). Each icon is pure white, so
+// the color argument tints it to any hue. Icon names (tiles 0-15):
+//   circle glow ring roundSquare triangle diamond pentagon hexagon
+//   spark star burst plus heart droplet bolt arrow
+
+const ATLAS_SIZE = 2048; // texture size in pixels
+const DRAW_SIZE = 500;   // fixed logical space every icon is painted in
+let TILE_COLS, TILE_PADDING, TILE_STRIDE, TILE_SIZE, TILE_COUNT;
+let atlasCanvas, atlasCtx, atlasDirty, flushScheduled;
+
+function initDrawToTexture(cols = 4)
+{
+    ASSERT(cols === 4 || cols === 8, 'cols must be 4 or 8');
+
+    TILE_COLS    = cols;
+    TILE_STRIDE  = ATLAS_SIZE / TILE_COLS;          // 512 or 256
+    TILE_PADDING = TILE_COLS === 4 ? 12 : 6;        // transparent moat to stop mip bleed
+    TILE_SIZE    = TILE_STRIDE - TILE_PADDING * 2;  // 488 or 244
+    TILE_COUNT   = TILE_COLS * TILE_COLS;
+
+    atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = atlasCanvas.height = ATLAS_SIZE;
+    atlasCtx = atlasCanvas.getContext('2d');
+
+    textureInfos[0] && textureInfos[0].destroyWebGLTexture();
+    textureInfos[0] = new TextureInfo(atlasCanvas);
+
+    setTileDefaultSize(vec2(TILE_SIZE));
+    setTileDefaultPadding(TILE_PADDING);
+    atlasDirty = flushScheduled = false;
+}
+
+function drawToTexture(tileIndex, drawFn)
+{
+    ASSERT(tileIndex >= 0 && tileIndex < TILE_COUNT, 'tileIndex out of range');
+
+    const cellX = (tileIndex % TILE_COLS) * TILE_STRIDE;
+    const cellY = (tileIndex / TILE_COLS | 0) * TILE_STRIDE;
+    const drawX = cellX + TILE_PADDING;
+    const drawY = cellY + TILE_PADDING;
+
+    atlasCtx.clearRect(cellX, cellY, TILE_STRIDE, TILE_STRIDE);
+    atlasCtx.save();
+    atlasCtx.translate(drawX, drawY);
+    atlasCtx.beginPath();
+    atlasCtx.rect(0, 0, TILE_SIZE, TILE_SIZE);
+    atlasCtx.clip();
+    // paint in a fixed DRAW_SIZE space scaled to fill the tile
+    atlasCtx.scale(TILE_SIZE / DRAW_SIZE, TILE_SIZE / DRAW_SIZE);
+    drawFn(atlasCtx, tileIndex);
+    atlasCtx.restore();
+
+    atlasDirty = true;
+    if (!flushScheduled)
+    {
+        flushScheduled = true;
+        queueMicrotask(flushAtlas);
+    }
+    return new TileInfo(vec2(drawX, drawY), vec2(TILE_SIZE), textureInfos[0], TILE_PADDING);
+}
+
+function flushAtlas()
+{
+    flushScheduled = false;
+    if (!atlasDirty) return;
+    atlasDirty = false;
+    textureInfos[0].createWebGLTexture();
+}
+
+// Force every texel RGB to white (keeping alpha) so bilinear/mipmap filtering
+// can't darken the white icon edges into a halo. Call after painting white tiles.
+function whitenAtlasAlpha()
+{
+    flushAtlas();
+    if (!glContext || !textureInfos[0].glTexture) return; // canvas2D: no GL halo
+
+    const image = atlasCtx.getImageData(0, 0, ATLAS_SIZE, ATLAS_SIZE);
+    const d = image.data;
+    for (let i = 0; i < d.length; i += 4)
+        d[i] = d[i+1] = d[i+2] = 255; // white RGB, leave alpha alone
+
+    glContext.bindTexture(glContext.TEXTURE_2D, textureInfos[0].glTexture);
+    glContext.texImage2D(glContext.TEXTURE_2D, 0, glContext.RGBA,
+        glContext.RGBA, glContext.UNSIGNED_BYTE, image);
+    if (!tilesPixelated && isPowerOfTwo(ATLAS_SIZE))
+        glContext.generateMipmap(glContext.TEXTURE_2D);
+    glContext.bindTexture(glContext.TEXTURE_2D, glActiveTexture); // restore engine binding
+}
+
+// 16 built-in white-on-transparent icons, drawn centred at (x,y) with radius r.
+const DEFAULT_ICON_NAMES = [
+    'circle', 'glow', 'ring', 'roundSquare',
+    'triangle', 'diamond', 'pentagon', 'hexagon',
+    'spark', 'star', 'burst', 'plus',
+    'heart', 'droplet', 'bolt', 'arrow',
+];
+
+const _defaultIconDrawers = (() =>
+{
+    function poly(ctx, x, y, r, sides, rot = 0)
+    {
+        ctx.beginPath();
+        for (let k = sides; k--;)
+        {
+            const a = rot + k * (2*PI / sides);
+            ctx.lineTo(x + Math.sin(a) * r, y - Math.cos(a) * r);
+        }
+        ctx.closePath();
+    }
+    function starPath(ctx, x, y, ro, ri, points, rot = -PI/2)
+    {
+        ctx.beginPath();
+        for (let k = points * 2; k--;)
+        {
+            const rr = k & 1 ? ri : ro;
+            const a = rot + k * (PI / points);
+            ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        }
+        ctx.closePath();
+    }
+    function roundRectPath(ctx, x, y, w, h, r)
+    {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+    function circle(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 9);
+        ctx.fill();
+    }
+    function droplet(ctx, x, y, r)
+    {
+        const by = y + .3 * r, br = .6 * r;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.bezierCurveTo(x + .3 * r, y - .5 * r, x + br, y - .1 * r, x + br, by);
+        ctx.arc(x, by, br, 0, PI);
+        ctx.bezierCurveTo(x - br, y - .1 * r, x - .3 * r, y - .5 * r, x, y - r);
+        ctx.closePath();
+        ctx.fill();
+    }
+    function roundSquare(ctx, x, y, r)
+    {
+        roundRectPath(ctx, x - r, y - r, r*2, r*2, r*.4);
+        ctx.fill();
+    }
+    function triangle(ctx, x, y, r) { poly(ctx, x, y, r, 3);        ctx.fill(); }
+    function diamond(ctx, x, y, r)  { poly(ctx, x, y, r, 4);        ctx.fill(); }
+    function pentagon(ctx, x, y, r) { poly(ctx, x, y, r, 5);        ctx.fill(); }
+    function hexagon(ctx, x, y, r)  { poly(ctx, x, y, r, 6, PI/2);  ctx.fill(); }
+    function ring(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 9);
+        ctx.arc(x, y, r*.7, 9, 0, true);
+        ctx.fill();
+    }
+    function glow(ctx, x, y, r)
+    {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 9);
+        ctx.fill();
+    }
+    function burst(ctx, x, y, r) { starPath(ctx, x, y, r, r*.7, 10); ctx.fill(); }
+    function spark(ctx, x, y, r) { starPath(ctx, x, y, r, r/4, 4);   ctx.fill(); }
+    function star(ctx, x, y, r)  { starPath(ctx, x, y, r, r*.4, 5);  ctx.fill(); }
+    function heart(ctx, x, y, r)
+    {
+        const width = 1, topCtrl = .92, dip = .40, shoulder = .46, tip = .9;
+        const p = (nx, ny) => [x + nx * r, y + ny * r];
+        ctx.beginPath();
+        ctx.moveTo(...p(0, -dip));
+        ctx.bezierCurveTo(...p(0, -topCtrl), ...p(-width, -topCtrl), ...p(-width, -shoulder));
+        ctx.bezierCurveTo(...p(-width, 0), ...p(0, tip * .9), ...p(0, tip));
+        ctx.bezierCurveTo(...p(0, tip * .9), ...p(width, 0), ...p(width, -shoulder));
+        ctx.bezierCurveTo(...p(width, -topCtrl), ...p(0, -topCtrl), ...p(0, -dip));
+        ctx.closePath();
+        ctx.fill();
+    }
+    function plus(ctx, x, y, r)
+    {
+        const a = r * .3, b = r;
+        ctx.beginPath();
+        ctx.moveTo(x - a, y - b); ctx.lineTo(x + a, y - b); ctx.lineTo(x + a, y - a);
+        ctx.lineTo(x + b, y - a); ctx.lineTo(x + b, y + a); ctx.lineTo(x + a, y + a);
+        ctx.lineTo(x + a, y + b); ctx.lineTo(x - a, y + b); ctx.lineTo(x - a, y + a);
+        ctx.lineTo(x - b, y + a); ctx.lineTo(x - b, y - a); ctx.lineTo(x - a, y - a);
+        ctx.closePath();
+        ctx.fill();
+    }
+    function arrow(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + .8 * r, y - .1 * r); ctx.lineTo(x + .3 * r, y - .1 * r);
+        ctx.lineTo(x + .3 * r, y + r);      ctx.lineTo(x - .3 * r, y + r);
+        ctx.lineTo(x - .3 * r, y - .1 * r); ctx.lineTo(x - .8 * r, y - .1 * r);
+        ctx.closePath();
+        ctx.fill();
+    }
+    function bolt(ctx, x, y, r)
+    {
+        ctx.beginPath();
+        ctx.moveTo(x + .25 * r, y - r);   ctx.lineTo(x - .5 * r, y + .15 * r);
+        ctx.lineTo(x - .1 * r, y + .15 * r); ctx.lineTo(x - .25 * r, y + r);
+        ctx.lineTo(x + .5 * r, y - .2 * r);  ctx.lineTo(x + .1 * r, y - .2 * r);
+        ctx.closePath();
+        ctx.fill();
+    }
+    return {
+        circle, glow, ring, roundSquare, triangle, diamond, pentagon, hexagon,
+        spark, star, burst, plus, heart, droplet, bolt, arrow,
+    };
+})();
+
+// Paint one named white icon into a tile and return its TileInfo. scale tweaks
+// icon size within the tile (1 = default).
+function drawDefaultIcon(name, tileIndex, scale = 1)
+{
+    const fn = _defaultIconDrawers[name];
+    ASSERT(fn, 'unknown default icon: ' + name);
+    return drawToTexture(tileIndex, ctx =>
+    {
+        const c = DRAW_SIZE / 2, r = c * scale;
+        ctx.fillStyle = ctx.strokeStyle = '#fff';
+        ctx.lineJoin = ctx.lineCap = 'round';
+        fn(ctx, c, c, r);
+    });
+}
+
+// Build the 16 default icons into tiles 0-15 and return a name->TileInfo map.
+function initDefaultAtlas(scale = 1)
+{
+    if (!atlasCtx) initDrawToTexture(4);
+    const icons = {};
+    for (let i = 0; i < DEFAULT_ICON_NAMES.length; ++i)
+        icons[DEFAULT_ICON_NAMES[i]] = drawDefaultIcon(DEFAULT_ICON_NAMES[i], i, scale);
+    whitenAtlasAlpha(); // white RGB everywhere -> no dark halo
+    return icons;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// the default sprite atlas, a name->TileInfo map filled in by gameInit
+let icons;
+
+///////////////////////////////////////////////////////////////////////////////
+const caseySfxCorrect = new SoundGenerator({frequency:650,release:.12,pitchJump:180,pitchJumpTime:.05,volume:.65});
+const caseySfxWrong = new SoundGenerator({frequency:180,release:.18,slide:-.4,volume:.58});
+const caseySfxDeliver = new SoundGenerator({frequency:520,attack:.01,release:.18,pitchJump:260,pitchJumpTime:.06,volume:.66});
+const caseySfxComplete = new SoundGenerator({frequency:720,attack:.01,release:.32,pitchJump:320,pitchJumpTime:.09,volume:.7});
+const caseySfxUnlock = new SoundGenerator({frequency:840,attack:.01,release:.4,pitchJump:420,pitchJumpTime:.10,volume:.7});
+
+function playCaseySfx(sound)
+{
+    if (!soundOn() || !sound || typeof sound.play != 'function')
+        return;
+    try { sound.play(); } catch(e) {}
+}
+
+// GORDON MAIL RUN: Levels 1-5 sorting, Level 6+ delivery routes
+let mailItems=[], bins=[], heldItem=0, score=0, mistakes=0, mailLeft=0, level=0, levelComplete=false;
+let message='Sort the mail into the right family bucket!', nextMailTimer=new Timer();
+let deliveryX=0, deliverySpeed=3.2, currentStop=0, routeFamilies=[], deliveryPackages=[];
+const allFamilies=['Brook','Reed','Gordon','Fern','Vale','Lake','Moss','Finch','Stone'];
+const familyColors=[hsl(.08,.65,.58),hsl(.56,.55,.58),hsl(.32,.5,.48),hsl(.82,.5,.58),hsl(.14,.7,.58),
+hsl(.94,.55,.6),hsl(.48,.5,.48),hsl(.03,.55,.5),hsl(.68,.45,.58),hsl(.24,.5,.5)];
+
+function isDelivery()
+{
+    // Levels 1-5 are sorting. Level 6 unlocks delivery.
+    // From then on, rotate: delivery, sorting, delivery, sorting...
+    return level>=5 && (level-5)%2===0;
+}
+function sortingFamilies()
+{
+    // Each sorting level rotates families instead of permanently keeping the same first families.
+    const count=3+Math.min(2,level);
+    const start=(level*2)%allFamilies.length;
+    return Array.from({length:count},(_,i)=>(start+i)%allFamilies.length);
+}
+function buildBins()
+{
+    bins=[];
+    const fams=sortingFamilies(), n=fams.length, cols=Math.min(5,n);
+    for(let i=0;i<n;i++)
+    {
+        const row=(i/cols)|0,col=i%cols,countThis=Math.min(cols,n-row*cols);
+        bins.push({pos:vec2((col-(countThis-1)/2)*4.2,-3.2-row*2.8),size:vec2(3.7,2.2),house:fams[i]});
+    }
+}
+class MailItem extends EngineObject
+{
+    constructor(pos,house,isPackage)
+    {
+        super(pos,isPackage?vec2(3.1,2):vec2(3.1,1.65));
+        this.house=house;this.isPackage=isPackage;this.startPos=pos.copy();this.renderOrder=5;
+    }
+    render()
+    {
+        if(this.isPackage)
+        {
+            // Corrugated cardboard parcel with shaded side, flaps, tape and shipping label.
+            drawRect(this.pos.add(vec2(.10,-.10)),this.size,hsl(.085,.42,.43));
+            drawRect(this.pos.add(vec2(-.10,.10)),this.size.scale(.94),hsl(.09,.48,.58));
+            drawLine(this.pos.add(vec2(-this.size.x*.47,.43)),this.pos.add(vec2(this.size.x*.47,.43)),.055,hsl(.08,.34,.32));
+            drawLine(this.pos.add(vec2(0,.92)),this.pos.add(vec2(0,-.92)),.18,hsl(.12,.32,.76));
+            drawLine(this.pos.add(vec2(-.18,.92)),this.pos.add(vec2(-.18,-.92)),.025,hsl(.1,.25,.58));
+            // white shipping label
+            drawRect(this.pos.add(vec2(.62,.18)),vec2(1.18,.72),hsl(0,0,.96));
+            drawLine(this.pos.add(vec2(.18,.31)),this.pos.add(vec2(.95,.31)),.035,hsl(0,0,.25));
+            drawLine(this.pos.add(vec2(.18,.18)),this.pos.add(vec2(.82,.18)),.025,hsl(0,0,.4));
+            for(let k=0;k<6;k++) drawLine(this.pos.add(vec2(.25+k*.11,-.02)),this.pos.add(vec2(.25+k*.11,-.20)),.018,hsl(0,0,.12));
+            drawText(allFamilies[this.house],this.pos.add(vec2(-.52,-.38)),.34,hsl(0,0,.1));
+        }
+        else
+        {
+            // Paper envelope with flap seams, stamp, postmark and address label.
+            drawRect(this.pos.add(vec2(.06,-.06)),this.size,hsl(.12,.12,.78));
+            drawRect(this.pos,this.size.scale(.96),hsl(.13,.16,.96));
+            drawLine(this.pos.add(vec2(-1.45,.72)),this.pos.add(vec2(0,-.15)),.045,hsl(0,0,.62));
+            drawLine(this.pos.add(vec2(1.45,.72)),this.pos.add(vec2(0,-.15)),.045,hsl(0,0,.62));
+            drawRect(this.pos.add(vec2(1.05,.48)),vec2(.42,.5),hsl(.58,.55,.72));
+            drawCircle(this.pos.add(vec2(.63,.43)),.42,CLEAR_WHITE,.035,hsl(0,0,.45));
+            drawLine(this.pos.add(vec2(.43,.43)),this.pos.add(vec2(1.18,.43)),.025,hsl(0,0,.45));
+            drawText(allFamilies[this.house],this.pos.add(vec2(-.18,-.23)),.37,hsl(0,0,.1));
+            drawLine(this.pos.add(vec2(-.78,-.49)),this.pos.add(vec2(.42,-.49)),.025,hsl(0,0,.45));
+            drawLine(this.pos.add(vec2(-.78,-.61)),this.pos.add(vec2(.2,-.61)),.025,hsl(0,0,.55));
+        }
+    }
+}
+function spawnSortingMail()
+{
+    const fams=sortingFamilies();
+    while(mailLeft>0&&mailItems.length<6)
+    {
+        const h=fams[randInt(fams.length)], slot=mailItems.length;
+        mailItems.push(new MailItem(vec2(-6.5+(slot%4)*4.3,1.35-Math.floor(slot/4)*1.9),h,randBool(.52)));
+        --mailLeft;
+    }
+}
+function setupSorting()
+{
+    mailItems.forEach(x=>x.destroy());mailItems=[];heldItem=0;levelComplete=false;
+    if(activeProfileId) caseyRoundResultId=window.Games?.createRoundId?.(TESSAS_GAMES_GAME_ID,activeProfileId,'sorting')||(`casey-${activeProfileId}-sorting-${level}-${Date.now()}`);
+    // Keep later sorting rounds substantial without letting endless levels turn
+    // into very long chores for younger players.
+    buildBins();mailLeft=Math.min(24,9+level*3);
+    message=`Sorting Level ${level+1}: sort this route’s new group of families.`;
+    spawnSortingMail();
+}
+function setupDelivery()
+{
+    mailItems.forEach(x=>x.destroy());mailItems=[];heldItem=0;levelComplete=false;
+    if(activeProfileId) caseyRoundResultId=window.Games?.createRoundId?.(TESSAS_GAMES_GAME_ID,activeProfileId,'delivery')||(`casey-${activeProfileId}-delivery-${level}-${Date.now()}`);
+    // Delivery gets quicker gradually, but stays controllable on touch screens.
+    deliveryX=0;currentStop=0;deliverySpeed=3.0+Math.min(1.3,(level-5)*.12);
+    const count=Math.min(7,4+Math.floor((level-5)/2));
+    const start=((level-5)*3)%allFamilies.length;
+    routeFamilies=Array.from({length:count},(_,i)=>(start+i)%allFamilies.length);
+    deliveryPackages=routeFamilies.map((house,i)=>({house,delivered:false,pos:vec2(-7.4+i*2.45,-5.5)}));
+    message=`Delivery Level ${level+1}: deliver the matching packages along Casey’s route.`;
+}
+function recordCompletion(){
+ if(!activeProfileId)return;
+ const p=getProfiles(),i=p.findIndex(x=>x.id===activeProfileId);if(i<0)return;
+ p[i].completions=(p[i].completions||0)+1;
+ p[i].bestScore=Math.max(p[i].bestScore||0,Math.max(0,score||0));
+ p[i].highestLevel=Math.max(p[i].highestLevel||0,level||0);
+ p[i].lastPlayed=Date.now();putProfiles(p);
+ let sharedResult=null;
+ try{
+  sharedResult=window.Games?.recordResult?.(TESSAS_GAMES_GAME_ID,{
+   completed:true,score:Math.max(0,score||0),level:Math.max(1,(level||0)+1),stars:0,
+   resultId:caseyRoundResultId||(`casey-${activeProfileId}-${level}-${Date.now()}`),
+   meta:{mistakes,mode:isDelivery()?'delivery':'sorting',perfect:mistakes===0}
+  },p[i].name);
+ }catch(e){}
+ return sharedResult;
+}
+function advanceLevel()
+{
+    const completedLevel=level;
+    const sharedResult=recordCompletion();
+    window._caseyAdvanceAt=0;
+    saveActive();
+    levelComplete=false;
+
+    const goNext=()=>{
+        ++level;
+        if(level===5)
+        {
+            playCaseySfx(caseySfxUnlock);
+            window.Games?.celebrateUnlock?.('Delivery Routes Unlocked!', 'Casey can now deliver mail around Games');
+        }
+        isDelivery()?setupDelivery():setupSorting();
+        saveActive(false);
+    };
+
+    // Keep the player in the flow: after the short completion beat, move
+    // directly into the next sorting/delivery level instead of opening a menu.
+    goNext();
+}
+function resetGame(){score=mistakes=0;level=0;setupSorting();saveActive();}
+
+///////////////////////////////////////////////////////////////////////////////
+async function gameInit()
+{
+    icons=initDefaultAtlas();canvasClearColor=hsl(.58,.2,.12);cameraPos=vec2(0,0);cameraScale=34;
+    setupSorting();
+}
+///////////////////////////////////////////////////////////////////////////////
+function gameUpdate()
+{
+    if(uiBlocking()) return;
+
+    if(keyWasPressed('KeyR'))resetGame();
+    if(levelComplete)
+    {
+        if(!window._caseyAdvanceAt) window._caseyAdvanceAt=performance.now()+1200;
+        if(performance.now()>=window._caseyAdvanceAt)
+        {
+            window._caseyAdvanceAt=0; advanceLevel(); return;
+        }
+    }
+
+    if(!isDelivery())
+    {
+        if(mouseWasPressed(0)&&mailItems.length)
+            for(let i=mailItems.length-1;i>=0;i--)
+                if(isOverlapping(mousePos,vec2(.1),mailItems[i].pos,mailItems[i].size)){heldItem=mailItems[i];break;}
+        if(heldItem)
+        {
+            heldItem.pos=mousePos.copy();
+            if(mouseWasReleased(0))
+            {
+                let sorted=false;
+                for(const bin of bins) if(isOverlapping(heldItem.pos,heldItem.size,bin.pos,bin.size))
+                {
+                    sorted=true;
+                    if(bin.house===heldItem.house)
+                    {
+                        score+=100;message='Correct!';saveActive();playCaseySfx(caseySfxCorrect);
+                        const done=heldItem;heldItem=0;mailItems=mailItems.filter(x=>x!==done);done.destroy();
+                    }
+                    else
+                    {
+                        // A wrong sort should be correctable; don't silently throw
+                        // the letter away and let the level finish anyway.
+                        ++mistakes;message='Wrong family bucket — try that letter again.';playCaseySfx(caseySfxWrong);
+                        heldItem.pos=heldItem.startPos.copy();heldItem=0;
+                    }
+                    break;
+                }
+                if(!sorted){heldItem.pos=heldItem.startPos.copy();heldItem=0;}
+            }
+        }
+        if(mailLeft>0)spawnSortingMail();
+        if(!mailLeft&&!mailItems.length&&!levelComplete){levelComplete=true;saveActive();playCaseySfx(caseySfxComplete);message=level===4?'Sorting finished! Getting Casey ready to deliver mail.':'Sorting complete! Loading the next sorting level.';}
+    }
+    else
+    {
+        // The truck cruises until a delivery stop, then slows so the player can deliver.
+        deliveryX += deliverySpeed*timeDelta;
+        const mailboxX = 7.2 - min(12, deliveryX*.72);
+
+        if(mouseWasPressed(0))
+            for(let i=deliveryPackages.length-1;i>=0;i--)
+            {
+                const pkg=deliveryPackages[i];
+                if(!pkg.delivered && isOverlapping(mousePos,vec2(.1),pkg.pos,vec2(2.35,1.5)))
+                {
+                    heldItem=pkg; pkg.startPos=pkg.pos.copy(); break;
+                }
+            }
+
+        if(heldItem)
+        {
+            heldItem.pos=mousePos.copy();
+            if(mouseWasReleased(0))
+            {
+                const box=heldItem; heldItem=0;
+                // Large, forgiving delivery zone around the porch/mailbox.
+                const target=vec2(mailboxX,0);
+                if(mailboxX<6.8 && isOverlapping(box.pos,vec2(2.35,1.5),target,vec2(4.4,5.2)))
+                {
+                    const expected=routeFamilies[currentStop];
+                    if(box.house===expected)
+                    {
+                        box.delivered=true; score+=200; saveActive();
+                        playCaseySfx(caseySfxDeliver);
+                        message=`Delivered to the ${allFamilies[expected]} family!`;
+                        ++currentStop; deliveryX=0;
+                        if(currentStop>=routeFamilies.length)
+                        {
+                            levelComplete=true; saveActive();
+                            playCaseySfx(caseySfxComplete);
+                            message='Delivery route complete! Loading another route.';
+                        }
+                    }
+                    else
+                    {
+                        ++mistakes; box.pos=box.startPos;
+                        playCaseySfx(caseySfxWrong);
+                        message='Wrong package — check the family name.';
+                    }
+                }
+                else box.pos=box.startPos;
+            }
+        }
+    }
+}
+///////////////////////////////////////////////////////////////////////////////
+function gameUpdatePost(){}
+function drawTruckInterior()
+{
+    drawRectGradient(cameraPos,getCameraSize(),hsl(.58,.12,.18),hsl(.08,.12,.09));
+    for(let x=-9;x<=9;x+=1.5)drawLine(vec2(x,-7),vec2(x,6.7),.045,hsl(0,0,.28));
+    drawRect(vec2(0,-6.7),vec2(20,1.2),hsl(0,0,.09));
+    drawLine(vec2(-9,2.9),vec2(9,2.9),.12,hsl(0,0,.38));
+}
+function drawDelivery()
+{
+    // Neighborhood fills the background; road/grass stay shallow so the truck is large.
+    drawRectGradient(vec2(0,0),getCameraSize(),hsl(.56,.58,.78),hsl(.56,.30,.55));
+    drawRect(vec2(0,-2.45),vec2(24,2.1),hsl(.30,.50,.40));
+    drawRect(vec2(0,-4.05),vec2(24,2.2),hsl(0,0,.25));
+    drawLine(vec2(-12,-4.05),vec2(12,-4.05),.10,YELLOW);
+
+    // Current destination.
+    if(currentStop<routeFamilies.length)
+    {
+        const x=7.4-min(12,deliveryX*.72);
+        drawRect(vec2(x,2.2),vec2(5.4,4.0),hsl(.10,.28,.73));
+        drawRegularPoly(vec2(x,4.55),vec2(6.3,2.7),3,hsl(.03,.48,.36));
+        drawRect(vec2(x,1.55),vec2(1.05,2.2),hsl(.08,.35,.29));
+        drawRect(vec2(x-1.6,2.75),vec2(1.15,1.1),hsl(.55,.55,.78));
+        drawRect(vec2(x,-.15),vec2(3.0,1.65),hsl(0,0,.92));
+        drawRect(vec2(x-.85,-1.25),vec2(.28,2.25),hsl(0,0,.5));
+        drawText(allFamilies[routeFamilies[currentStop]],vec2(x,-.12),.43,hsl(0,0,.06));
+    }
+
+    // Large unbranded white delivery truck, inspired by a postal delivery vehicle.
+    const tx=-3.25;
+    drawRect(vec2(tx,-.15),vec2(10.7,5.45),hsl(0,0,.91));
+    drawRect(vec2(tx,-2.45),vec2(10.9,.55),hsl(0,0,.72));
+    // open cargo side: dark interior with metal shelves
+    drawRect(vec2(tx-1.65,.25),vec2(6.0,4.35),hsl(.58,.08,.16));
+    drawRect(vec2(tx-1.65,1.0),vec2(5.75,.09),hsl(0,0,.56));
+    drawRect(vec2(tx-1.65,-.65),vec2(5.75,.09),hsl(0,0,.56));
+    drawRect(vec2(tx-4.4,.25),vec2(.11,4.2),hsl(0,0,.58));
+    drawRect(vec2(tx+1.1,.25),vec2(.11,4.2),hsl(0,0,.58));
+
+    // Cab and transparent-looking window.
+    drawRect(vec2(tx+3.55,.65),vec2(2.7,3.55),hsl(0,0,.94));
+    drawRect(vec2(tx+3.55,1.35),vec2(2.25,2.05),hsl(.56,.42,.30));
+    drawLine(vec2(tx+2.45,.3),vec2(tx+4.65,.3),.10,hsl(0,0,.62));
+
+    // Original courier portrait in the cab window.
+    if(caseyHeadImage.complete && caseyHeadImage.naturalWidth)
+    {
+        const screen=worldToScreen(vec2(tx+3.52,1.38));
+        const w=92, h=92;
+        mainContext.save();
+        mainContext.beginPath();
+        mainContext.rect(screen.x-w/2,screen.y-h/2,w,h);
+        mainContext.clip();
+        mainContext.drawImage(caseyHeadImage,screen.x-w/2,screen.y-h/2,w,h);
+        mainContext.restore();
+    }
+
+    // Wheels.
+    drawCircle(vec2(tx-3.45,-2.75),1.18,hsl(0,0,.07)); drawCircle(vec2(tx-3.45,-2.75),.52,hsl(0,0,.48));
+    drawCircle(vec2(tx+3.55,-2.75),1.18,hsl(0,0,.07)); drawCircle(vec2(tx+3.55,-2.75),.52,hsl(0,0,.48));
+
+    // Draggable parcels sit visibly on the open shelves with large labels.
+    let slot=0;
+    for(const pkg of deliveryPackages) if(!pkg.delivered)
+    {
+        if(pkg!==heldItem)
+        {
+            const col=slot%3,row=(slot/3)|0;
+            pkg.pos=vec2(tx-3.25+col*1.72,1.48-row*1.62);
+            pkg.startPos=pkg.pos.copy(); ++slot;
+        }
+        drawRect(pkg.pos.add(vec2(.05,-.05)),vec2(1.58,1.18),hsl(.085,.38,.42));
+        drawRect(pkg.pos,vec2(1.5,1.10),hsl(.09,.47,.57));
+        drawRect(pkg.pos,vec2(.13,1.10),hsl(.12,.32,.76));
+        drawRect(pkg.pos.add(vec2(0,.02)),vec2(1.28,.62),hsl(0,0,.97));
+        drawText(allFamilies[pkg.house],pkg.pos.add(vec2(0,.08)),.25,hsl(0,0,.05));
+        // simple barcode
+        for(let k=0;k<5;k++) drawLine(pkg.pos.add(vec2(-.42+k*.18,-.17)),pkg.pos.add(vec2(-.42+k*.18,-.36)),.018,hsl(0,0,.12));
+    }
+
+    drawText(`DELIVERY LEVEL ${level+1}`,vec2(0,7.0),.82,WHITE,.06,hsl(0,0,.1));
+    drawText('Drag the matching labeled package from the open truck to the mailbox.',vec2(0,6.15),.42,WHITE,.04,hsl(0,0,.1));
+}
+///////////////////////////////////////////////////////////////////////////////
+function gameRender()
+{
+    if(isDelivery()){drawDelivery();return;}
+    drawTruckInterior();
+    for(const bin of bins)
+    {
+        drawRect(bin.pos,bin.size,familyColors[bin.house%familyColors.length]);
+        drawRect(bin.pos.add(vec2(0,.78)),vec2(3.35,.48),hsl(.13,.3,.88));
+        drawText(allFamilies[bin.house]+' Family',bin.pos.add(vec2(0,.78)),.4,hsl(0,0,.08));
+        drawText('MAIL BUCKET',bin.pos.add(vec2(0,-.72)),.27,hsl(0,0,.15));
+    }
+    drawText('GORDON MAIL RUN',vec2(0,7.3),1,WHITE,.08,hsl(0,0,.1));
+    drawText(`SORTING LEVEL ${level+1}`,vec2(0,4.05),.62,YELLOW,.05,hsl(0,0,.1));
+    drawText('Sort this route’s letters and packages into the matching family buckets.',vec2(0,3.35),.43,hsl(.13,.25,.92));
+}
+///////////////////////////////////////////////////////////////////////////////
+function gameRenderPost()
+{
+    drawTextScreen(`${isDelivery()?'Delivery':'Sorting'} Level ${level+1}    Score: ${score}    Mistakes: ${mistakes}`,
+        vec2(mainCanvasSize.x/2,40),28,WHITE,4,hsl(0,0,.1));
+    drawTextScreen(message,vec2(mainCanvasSize.x/2,mainCanvasSize.y-34),23,hsl(.13,.7,.75),4,hsl(0,0,.1));
+    if(levelComplete){
+        const p=getProfiles(), pi=p.findIndex(x=>x.id===activeProfileId), best=pi>=0?Math.max(p[pi].bestScore||0,score):score;
+        drawTextScreen(level===4?'SORTING COMPLETE — STARTING DELIVERY':'LEVEL COMPLETE — LOADING NEXT ROUTE',
+            vec2(mainCanvasSize.x/2,mainCanvasSize.y/2-22),38,WHITE,6,hsl(0,0,.1));
+        drawTextScreen(`Score ${score}   Best ${best}   ★ Level ${level+1}`,
+            vec2(mainCanvasSize.x/2,mainCanvasSize.y/2+30),24,YELLOW,4,hsl(0,0,.1));
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Startup LittleJS Engine
+engineInit(gameInit, gameUpdate, gameUpdatePost, gameRender, gameRenderPost);
+
+</script></body>

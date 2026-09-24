@@ -25,7 +25,7 @@ def _public_client():
 
 def test_games_lab_requires_sign_in():
     client = _client()
-    for path in ("/labs/games", "/labs/games/bernard-window-washing"):
+    for path in ("/labs/games", "/labs/games/gordon-window-washing"):
         response = client.get(path)
         assert response.status_code == 302
         assert "/login/google/start?next=" in response.headers["Location"]
@@ -37,10 +37,10 @@ def test_games_lab_lists_playable_projects():
     response = client.get("/labs/games")
     html = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "Whit's End Ice Cream Shop" in html
-    assert "Bernard's Window Washing" in html
-    assert "Wooten's Mail Route" in html
-    assert "Timothy Center Horse Racing" in html
+    assert "Gordon Ice Cream Town" in html
+    assert "Gordon Window Washing" in html
+    assert "Gordon Mail Run" in html
+    assert "Gordon Family Stables" in html
     assert 'content="noindex,nofollow"' in html
 
 
@@ -56,10 +56,10 @@ def test_playable_routes_are_private_and_noindexed():
     client = _client()
     _sign_in(client)
     for path in (
-        "/labs/games/whits-end",
-        "/labs/games/bernard-window-washing",
-        "/labs/games/wooten-mail-route",
-        "/labs/games/timothy-center-horse-racing",
+        "/labs/games/gordon-ice-cream-town",
+        "/labs/games/gordon-window-washing",
+        "/labs/games/gordon-mail-run",
+        "/labs/games/gordon-family-stables",
         "/labs/games/mail-sorting",
     ):
         response = client.get(path)
@@ -69,31 +69,31 @@ def test_playable_routes_are_private_and_noindexed():
 
 
 
-def test_games_lab_includes_shared_odyssey_dashboard():
+def test_games_lab_includes_shared_games_dashboard():
     client = _client()
     _sign_in(client)
     response = client.get("/labs/games")
     html = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert 'id="odyssey-dashboard"' in html
-    assert 'id="odyssey-player-select"' in html
+    assert 'id="games-dashboard"' in html
+    assert 'id="games-player-select"' in html
     assert "+ New Player" in html
-    assert "Odyssey Level" in html
+    assert "Games Level" in html
     assert "Total XP" in html
     for game_id in (
-        "whits-end",
-        "bernard-window-washing",
-        "wooten-mail-sorting",
-        "timothy-center-horse-racing",
+        "gordon-ice-cream-town",
+        "gordon-window-washing",
+        "gordon-mail-run",
+        "gordon-family-stables",
     ):
         assert f'data-game-id="{game_id}"' in html
 
 
-def test_shared_odyssey_assets_are_private():
+def test_shared_games_assets_are_private():
     client = _client()
     for path in (
-        "/labs/games/assets/odyssey-core.js",
-        "/labs/games/assets/odyssey-ui.css",
+        "/labs/games/assets/games-core.js",
+        "/labs/games/assets/games-ui.css",
     ):
         response = client.get(path)
         assert response.status_code == 302
@@ -101,8 +101,8 @@ def test_shared_odyssey_assets_are_private():
 
     _sign_in(client)
     for path in (
-        "/labs/games/assets/odyssey-core.js",
-        "/labs/games/assets/odyssey-ui.css",
+        "/labs/games/assets/games-core.js",
+        "/labs/games/assets/games-ui.css",
     ):
         response = client.get(path)
         assert response.status_code == 200
@@ -110,36 +110,36 @@ def test_shared_odyssey_assets_are_private():
         assert response.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive, nosnippet"
 
 
-def test_playable_games_reference_shared_odyssey_shell():
+def test_playable_games_reference_shared_games_shell():
     client = _client()
     _sign_in(client)
 
     expected = {
-        "/labs/games/whits-end": "whits-end",
-        "/labs/games/bernard-window-washing": "bernard-window-washing",
-        "/labs/games/wooten-mail-route": "wooten-mail-sorting",
-        "/labs/games/timothy-center-horse-racing": "timothy-center-horse-racing",
+        "/labs/games/gordon-ice-cream-town": "gordon-ice-cream-town",
+        "/labs/games/gordon-window-washing": "gordon-window-washing",
+        "/labs/games/gordon-mail-run": "gordon-mail-run",
+        "/labs/games/gordon-family-stables": "gordon-family-stables",
     }
 
     for path, game_id in expected.items():
         response = client.get(path)
         html = response.get_data(as_text=True)
         assert response.status_code == 200
-        assert "/labs/games/assets/odyssey-core.js" in html
+        assert "/labs/games/assets/games-core.js" in html
         assert game_id in html
 
 
 
 def test_game_shell_contract_markers():
-    """Static smoke test for the cross-game Odyssey shell contract."""
+    """Static smoke test for the cross-game Games shell contract."""
     client = _client()
     _sign_in(client)
 
     paths = (
-        "/labs/games/whits-end",
-        "/labs/games/bernard-window-washing",
-        "/labs/games/wooten-mail-route",
-        "/labs/games/timothy-center-horse-racing",
+        "/labs/games/gordon-ice-cream-town",
+        "/labs/games/gordon-window-washing",
+        "/labs/games/gordon-mail-run",
+        "/labs/games/gordon-family-stables",
     )
 
     for path in paths:
@@ -148,8 +148,8 @@ def test_game_shell_contract_markers():
         normalized = html.casefold()
 
         assert response.status_code == 200
-        assert "/labs/games/assets/odyssey-core.js" in html
-        assert "/labs/games/assets/odyssey-ui.css" in html
+        assert "/labs/games/assets/games-core.js" in html
+        assert "/labs/games/assets/games-ui.css" in html
         assert "openPlayerSelect" in html
         assert "mountGameMenu" in html
         assert "visibilitychange" in html
@@ -170,10 +170,10 @@ def test_game_shell_contract_markers():
         assert "inputmode" in normalized
 
 
-def test_odyssey_core_exposes_shared_platform_contract():
+def test_games_core_exposes_shared_platform_contract():
     client = _client()
     _sign_in(client)
-    response = client.get("/labs/games/assets/odyssey-core.js")
+    response = client.get("/labs/games/assets/games-core.js")
     js = response.get_data(as_text=True)
 
     for marker in (
@@ -202,10 +202,10 @@ def test_odyssey_core_exposes_shared_platform_contract():
 
 
 
-def test_shared_odyssey_core_exposes_common_game_shell():
+def test_shared_games_core_exposes_common_game_shell():
     client = _client()
     _sign_in(client)
-    response = client.get("/labs/games/assets/odyssey-core.js")
+    response = client.get("/labs/games/assets/games-core.js")
     js = response.get_data(as_text=True)
     assert response.status_code == 200
     for symbol in (
@@ -247,10 +247,10 @@ def test_all_playable_games_use_shared_player_and_menu_shell():
     _sign_in(client)
 
     expected = {
-        "/labs/games/whits-end": "whits-end",
-        "/labs/games/bernard-window-washing": "bernard-window-washing",
-        "/labs/games/wooten-mail-route": "wooten-mail-sorting",
-        "/labs/games/timothy-center-horse-racing": "timothy-center-horse-racing",
+        "/labs/games/gordon-ice-cream-town": "gordon-ice-cream-town",
+        "/labs/games/gordon-window-washing": "gordon-window-washing",
+        "/labs/games/gordon-mail-run": "gordon-mail-run",
+        "/labs/games/gordon-family-stables": "gordon-family-stables",
     }
 
     for route, game_id in expected.items():
@@ -264,25 +264,25 @@ def test_all_playable_games_use_shared_player_and_menu_shell():
         assert "pagehide" in html
 
 
-def test_odyssey_dashboard_includes_xp_and_achievements():
+def test_games_dashboard_includes_xp_and_achievements():
     client = _client()
     _sign_in(client)
     response = client.get("/labs/games")
     html = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "Odyssey Level" in html
+    assert "Games Level" in html
     assert "Total XP" in html
-    assert "XP to Odyssey Level" in html
-    assert "Odyssey XP earned here" in html
-    assert "Achievements" in html or "odyssey-badges" in html
+    assert "XP to Games Level" in html
+    assert "Games XP earned here" in html
+    assert "Achievements" in html or "games-badges" in html
 
 
-def test_odyssey_core_dedupes_sessions_and_tracks_per_game_xp():
+def test_games_core_dedupes_sessions_and_tracks_per_game_xp():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
-    assert "tessas_odyssey_session_v1:" in js
+    assert "tessas_games_session_v1:" in js
     assert "g.xp = (g.xp || 0) + earned" in js
     assert "xpToNextLevel" in js
     assert "xpIntoLevel" in js
@@ -293,22 +293,22 @@ def test_completion_result_ids_are_present_for_all_four_games():
     _sign_in(client)
 
     for route in (
-        "/labs/games/whits-end",
-        "/labs/games/bernard-window-washing",
-        "/labs/games/wooten-mail-route",
-        "/labs/games/timothy-center-horse-racing",
+        "/labs/games/gordon-ice-cream-town",
+        "/labs/games/gordon-window-washing",
+        "/labs/games/gordon-mail-run",
+        "/labs/games/gordon-family-stables",
     ):
         html = client.get(route).get_data(as_text=True)
         assert "resultId" in html
 
 
 
-def test_games_lab_exposes_shared_odyssey_settings():
+def test_games_lab_exposes_shared_games_settings():
     client = _client()
     _sign_in(client)
     html = client.get("/labs/games").get_data(as_text=True)
-    assert 'id="odyssey-library-sound"' in html
-    assert 'id="odyssey-library-music"' in html
+    assert 'id="games-library-sound"' in html
+    assert 'id="games-library-music"' in html
     assert "O.setSettings" in html
     assert "O.protectNativeControl(soundToggle)" in html
     assert "O.protectNativeControl(musicToggle)" in html
@@ -317,7 +317,7 @@ def test_games_lab_exposes_shared_odyssey_settings():
 def test_shared_game_menu_uses_consistent_order():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
     labels = (
         "Resume / Continue",
@@ -333,7 +333,7 @@ def test_shared_game_menu_uses_consistent_order():
 def test_shared_player_selector_contract_is_consistent():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
     assert "Choose a Player" in js
     assert "Continue" in js
@@ -346,10 +346,10 @@ def test_shared_player_selector_contract_is_consistent():
 
 
 
-def test_active_odyssey_player_propagates_into_first_game_launch():
+def test_active_games_player_propagates_into_first_game_launch():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
     assert "playerSelectAutoConsumed" in js
     assert "firstSelectOnPage" in js
@@ -362,7 +362,7 @@ def test_active_odyssey_player_propagates_into_first_game_launch():
 def test_change_player_still_uses_shared_selector_after_auto_continue():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
     # Auto-continue is only allowed on the first selector request per game page.
     assert "const firstSelectOnPage=!playerSelectAutoConsumed.has(autoKey)" in js
@@ -371,10 +371,10 @@ def test_change_player_still_uses_shared_selector_after_auto_continue():
 
 
 
-def test_timothy_restores_persisted_colors_as_littlejs_colors():
+def test_stables_restores_persisted_colors_as_littlejs_colors():
     client = _client()
     _sign_in(client)
-    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    html = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
 
     assert "function tcRestoreLittleJsColor" in html
     assert "new Color(+value.r, +value.g, +value.b" in html
@@ -383,10 +383,10 @@ def test_timothy_restores_persisted_colors_as_littlejs_colors():
     assert "tcRestoreLittleJsColor(data.foal.color" in html
 
 
-def test_bernard_drag_stops_if_completion_clears_active_tool():
+def test_rowan_drag_stops_if_completion_clears_active_tool():
     client = _client()
     _sign_in(client)
-    html = client.get("/labs/games/bernard-window-washing").get_data(as_text=True)
+    html = client.get("/labs/games/gordon-window-washing").get_data(as_text=True)
 
     assert "if (!activeTool)\n            break;" in html
     assert "Completing a clean can end the drag" in html
@@ -394,10 +394,10 @@ def test_bernard_drag_stops_if_completion_clears_active_tool():
 
 
 
-def test_odyssey_core_exposes_home_progression_features():
+def test_games_core_exposes_home_progression_features():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
     for marker in (
         "AVATARS",
@@ -409,7 +409,7 @@ def test_odyssey_core_exposes_home_progression_features():
         "showCelebration",
         "celebrateUnlock",
         "showRoundResults",
-        "odyssey-celebration",
+        "games-celebration",
     ):
         assert marker in js
 
@@ -419,39 +419,39 @@ def test_games_lab_home_has_recent_challenges_family_and_thumbnails():
     _sign_in(client)
     html = client.get("/labs/games").get_data(as_text=True)
 
-    assert 'id="odyssey-family-progress"' in html
-    assert 'id="odyssey-family-progress-body"' in html
+    assert 'id="games-family-progress"' in html
+    assert 'id="games-family-progress-body"' in html
     assert "Challenges" in html
     assert "Game Progress" in html
-    assert "odyssey-avatar-button" in html
-    assert "odyssey-game-thumbnail" in html
+    assert "games-avatar-button" in html
+    assert "games-game-thumbnail" in html
     assert "Continue " in html
     for icon in ("🍨", "✨", "✉️", "🐴"):
         assert icon in html
 
 
-def test_odyssey_core_has_expanded_achievements_and_challenges():
+def test_games_core_has_expanded_achievements_and_challenges():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
     for badge in (
-        "Around Odyssey",
-        "Odyssey Champion",
-        "Whit's End Regular",
+        "Around Town",
+        "Games Champion",
+        "Gordon Ice Cream Town Regular",
         "Sparkling Clean",
         "Mail Route Pro",
         "Stable Master",
-        "Odyssey Hero",
+        "Games Hero",
     ):
         assert badge in js
 
     for challenge in (
-        "Play an Odyssey game today",
+        "Play a game today",
         "Complete a round today",
         "Complete 5 rounds this week",
         "Play 3 different games this week",
-        "Earn 100 Odyssey XP this week",
+        "Earn 100 Games XP this week",
     ):
         assert challenge in js
 
@@ -460,38 +460,38 @@ def test_shared_round_results_remain_available_for_terminal_or_retry_flows():
     client = _client()
     _sign_in(client)
 
-    core = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
-    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    core = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
+    stables = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
 
     assert "function showRoundResults" in core
-    # Timothy still uses the shared result surface for losses and the final
+    # Meadow still uses the shared result surface for losses and the final
     # championship; normal wins auto-advance without opening it.
-    assert "O.showRoundResults({" in timothy
+    assert "O.showRoundResults({" in stables
 
 
 def test_game_specific_unlock_celebrations_are_wired():
     client = _client()
     _sign_in(client)
 
-    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
-    wooten = client.get("/labs/games/wooten-mail-route").get_data(as_text=True)
+    stables = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
+    casey = client.get("/labs/games/gordon-mail-run").get_data(as_text=True)
 
-    assert "New Horse Unlocked!" in timothy
-    assert "Stable Unlock!" in timothy
-    assert "Delivery Routes Unlocked!" in wooten
+    assert "New Horse Unlocked!" in stables
+    assert "Stable Unlock!" in stables
+    assert "Delivery Routes Unlocked!" in casey
 
 
-def test_shared_odyssey_ui_includes_mobile_and_reward_polish():
+def test_shared_games_ui_includes_mobile_and_reward_polish():
     client = _client()
     _sign_in(client)
-    css = client.get("/labs/games/assets/odyssey-ui.css").get_data(as_text=True)
+    css = client.get("/labs/games/assets/games-ui.css").get_data(as_text=True)
 
     for marker in (
-        ".odyssey-celebration",
-        ".odyssey-avatar-grid",
-        ".odyssey-challenge-grid",
-        ".odyssey-family-grid",
-        ".odyssey-game-thumbnail",
+        ".games-celebration",
+        ".games-avatar-grid",
+        ".games-challenge-grid",
+        ".games-family-grid",
+        ".games-game-thumbnail",
         "@media(pointer:coarse)",
         "safe-area-inset-top",
     ):
@@ -504,8 +504,8 @@ def test_games_lab_bootstraps_signed_in_account_roster_sync():
     _sign_in(client)
     html = client.get("/labs/games").get_data(as_text=True)
 
-    assert "__ODYSSEY_ACCOUNT_ROSTER__" in html
-    assert "__ODYSSEY_SYNC_CONFIG__" in html
+    assert "__GAMES_ACCOUNT_ROSTER__" in html
+    assert "__GAMES_SYNC_CONFIG__" in html
     assert "/labs/games/roster" in html
 
 
@@ -514,21 +514,21 @@ def test_direct_games_receive_account_roster_bootstrap():
     _sign_in(client)
 
     for route in (
-        "/labs/games/whits-end",
-        "/labs/games/bernard-window-washing",
-        "/labs/games/wooten-mail-route",
-        "/labs/games/timothy-center-horse-racing",
+        "/labs/games/gordon-ice-cream-town",
+        "/labs/games/gordon-window-washing",
+        "/labs/games/gordon-mail-run",
+        "/labs/games/gordon-family-stables",
     ):
         html = client.get(route).get_data(as_text=True)
-        assert "__ODYSSEY_ACCOUNT_ROSTER__" in html
-        assert "__ODYSSEY_SYNC_CONFIG__" in html
+        assert "__GAMES_ACCOUNT_ROSTER__" in html
+        assert "__GAMES_SYNC_CONFIG__" in html
         assert "/labs/games/roster" in html
 
 
-def test_odyssey_core_syncs_roster_without_syncing_game_save_blob():
+def test_games_core_syncs_roster_without_syncing_game_save_blob():
     client = _client()
     _sign_in(client)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
     assert "function mergeAccountRosterBootstrap" in js
     assert "function accountRosterPayload" in js
@@ -539,15 +539,15 @@ def test_odyssey_core_syncs_roster_without_syncing_game_save_blob():
     assert "settings:" in js
 
 
-def test_odyssey_home_has_avatars_challenges_recent_continue_and_family_progress():
+def test_games_home_has_avatars_challenges_recent_continue_and_family_progress():
     client = _client()
     _sign_in(client)
     html = client.get("/labs/games").get_data(as_text=True)
-    js = client.get("/labs/games/assets/odyssey-core.js").get_data(as_text=True)
+    js = client.get("/labs/games/assets/games-core.js").get_data(as_text=True)
 
-    assert "odyssey-family-progress" in html
+    assert "games-family-progress" in html
     assert "Challenges" in html
-    assert "odyssey-avatar-button" in html
+    assert "games-avatar-button" in html
     assert "Continue " in html
     assert "function getChallenges" in js
     assert "function getRecentGame" in js
@@ -556,10 +556,10 @@ def test_odyssey_home_has_avatars_challenges_recent_continue_and_family_progress
     assert "function showRoundResults" in js
 
 
-def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
+def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     client = _client()
     _sign_in(client)
-    html = client.get("/labs/games/whits-end").get_data(as_text=True)
+    html = client.get("/labs/games/gordon-ice-cream-town").get_data(as_text=True)
 
     # Later shake orders can require toppings. Filling the cup must not
     # prematurely serve/reject the drink before those toppings are added.
@@ -590,8 +590,8 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # Levels auto-advance after a short celebration instead of requiring a
     # results/menu click between every level.
     assert "guestPhase='levelComplete'" in html
-    assert "whitsAutoAdvanceTimer=setTimeout" in html
-    assert "const advanceWhitsLevel=()=>{" in html
+    assert "icecreamAutoAdvanceTimer=setTimeout" in html
+    assert "const advanceIceCreamLevel=()=>{" in html
     assert "if(menuOpen){" in html
     assert "beginRound(level)" in html
 
@@ -621,7 +621,7 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # Current audit: retries are genuinely fresh, exact timer state survives
     # resume, and early levels introduce recipes gradually.
     assert "level=roundStartLevel;levelServed=0;roundMistakes=0" in html
-    assert "roundResultId=odysseyApi()?.createRoundId" in html
+    assert "roundResultId=gamesApi()?.createRoundId" in html
     assert "ss.pausedPartyTime??ss.timeLeft??ruleForLevel().time" in html
     assert "const availableCount=level<=2?5:level==3?8:RECIPES.length" not in html
 
@@ -647,7 +647,7 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "if(blenderRunning)blenderTimer.set(max(.05,ss.blendTimeLeft||.35))" in html
     assert "message='Ready! Pick up a cup.'" in html
 
-    # Odyssey receives a per-round rating instead of the lifetime star count.
+    # Games receives a per-round rating instead of the lifetime star count.
     assert "stars:roundMistakes===0?3:roundMistakes<=2?2:1" in html
 
     # Drink complexity ramps up rather than exposing the full recipe bank
@@ -706,10 +706,10 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "playSfx(sndContainer)" in html
 
 
-def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
+def test_rowan_coalesces_pointer_work_for_later_level_responsiveness():
     client = _client()
     _sign_in(client)
-    html = client.get("/labs/games/bernard-window-washing").get_data(as_text=True)
+    html = client.get("/labs/games/gordon-window-washing").get_data(as_text=True)
 
     assert "function scheduleDragWork" in html
     assert "requestAnimationFrame(flushPendingDragWork)" in html
@@ -724,17 +724,17 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "Soap gets staggered foam flecks" in html
     assert "keepRealTexture = (hash & 31) === 0" in html
     assert "Rectangles are cheap according to the profiler" in html
-    assert "bernard-render-fast-path" in html
-    assert "_bernardRenderFastStats" in html
+    assert "rowan-render-fast-path" in html
+    assert "_rowanRenderFastStats" in html
 
     # The profiler remains available for diagnosis but is invisible/off unless
-    # explicitly requested with ?bernardPerf=1.
-    assert "bernard-perf-profiler" in html
-    assert "new URLSearchParams(location.search).get('bernardPerf') === '1'" in html
-    assert "bernardPerfBadge" in html
+    # explicitly requested with ?rowanPerf=1.
+    assert "rowan-perf-profiler" in html
+    assert "new URLSearchParams(location.search).get('rowanPerf') === '1'" in html
+    assert "rowanPerfBadge" in html
 
     # Cleaner feedback and sound design.
-    assert "bernardCleanerHint" in html
+    assert "rowanCleanerHint" in html
     assert "SOAP FOAM — spray grime, then squeegee" in html
     assert "WATER — light wet sheen, then squeegee" in html
     assert "playWindowWashWrongCleanerSound" in html
@@ -765,19 +765,19 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "inGlassBounds &&" in html
 
     # Wrong-cleaner help works for all unlocked cleaners and uses actual state.
-    assert "window._bernardLastNeededCleaner = d.mess.cleaner" in html
+    assert "window._rowanLastNeededCleaner = d.mess.cleaner" in html
     assert "degreaser:'DISINFECTER'" in html
     assert "vinegar:'VINEGAR'" in html
-    assert "BERNARD'S SIGNATURE CLEANER" in html
+    assert "ROWAN'S SIGNATURE CLEANER" in html
     assert "typeof dirtLeft !== 'undefined'" in html
 
     assert "Results are recorded above; gameplay auto-advances" in html
 
 
-def test_timothy_has_dedicated_touch_jump_control():
+def test_stables_has_dedicated_touch_jump_control():
     client = _client()
     _sign_in(client)
-    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    html = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
 
     assert 'id="tc-jump-button"' in html
     assert "tcPlayer.tryJump()" in html
@@ -786,10 +786,10 @@ def test_timothy_has_dedicated_touch_jump_control():
     assert "TOUCH BUTTON" in html
 
 
-def test_timothy_has_fair_catchup_and_touch_farm_progression():
+def test_stables_has_fair_catchup_and_touch_farm_progression():
     client = _client()
     _sign_in(client)
-    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    html = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
 
     # Catch-up remains bounded and only activates when the player is behind.
     assert "Gentle \"second wind\" catch-up" in html
@@ -800,27 +800,27 @@ def test_timothy_has_fair_catchup_and_touch_farm_progression():
     assert "tcPlayerSpeed * .72" in html
     assert "SECOND WIND — KEEP GALLOPING!" in html
 
-    # The existing barn progression is now a discoverable Timothy Center Farm.
+    # The existing barn progression is now a discoverable Gordon Family Stables Farm.
     assert 'id="tc-farm-button"' in html
     assert 'id="tc-farm-controls"' in html
     assert 'id="tc-farm-feed"' in html
     assert 'id="tc-farm-water"' in html
     assert 'id="tc-farm-scoop"' in html
     assert 'id="tc-farm-nurture"' in html
-    assert "Timothy Center Farm Unlocked!" in html
+    assert "Gordon Family Stables Farm Unlocked!" in html
     assert "tcAutoEnterFarm = true" in html
     assert "The first completed farm-care visit introduces the foal progression." in html
-    assert "TIMOTHY CENTER FARM" in html
+    assert "GORDON FAMILY STABLES FARM" in html
     assert "farmButton?.addEventListener('click'" in html
     assert "farmFeed?.addEventListener('click'" in html
     assert "farmWater?.addEventListener('click'" in html
     assert "farmScoop?.addEventListener('click'" in html
 
 
-def test_timothy_audit_fixes_unlocks_finish_order_and_ipad_controls():
+def test_stables_audit_fixes_unlocks_finish_order_and_ipad_controls():
     client = _client()
     _sign_in(client)
-    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+    html = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
 
     # All planned milestone horses are reachable inside the 12-level campaign.
     assert "rewardLevel:3" in html
@@ -859,44 +859,44 @@ def test_level_games_auto_advance_without_round_result_menu():
     client = _client()
     _sign_in(client)
 
-    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
-    assert "tcAutoAdvanceAt = performance.now() + 1200" in timothy
-    assert "tcAdvanceOrRestart(true)" in timothy
-    assert "launch the next race immediately instead of returning to selectors" in timothy
+    stables = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
+    assert "tcAutoAdvanceAt = performance.now() + 1200" in stables
+    assert "tcAdvanceOrRestart(true)" in stables
+    assert "launch the next race immediately instead of returning to selectors" in stables
 
-    wooten = client.get("/labs/games/wooten-mail-route").get_data(as_text=True)
-    assert "directly into the next sorting/delivery level instead of opening a menu" in wooten
-    assert "Odyssey.showRoundResults({" not in wooten
+    casey = client.get("/labs/games/gordon-mail-run").get_data(as_text=True)
+    assert "directly into the next sorting/delivery level instead of opening a menu" in casey
+    assert "Games.showRoundResults({" not in casey
 
 
 
-def test_all_odyssey_games_gate_and_cache_sound_effects():
+def test_all_games_games_gate_and_cache_sound_effects():
     client = _client()
     _sign_in(client)
 
-    whits = client.get("/labs/games/whits-end").get_data(as_text=True)
-    assert "function playSfx(sound)" in whits
-    assert "try{sound.play();}catch(e){}" in whits
-    assert "playSfx(sndGood);playSfx(sndServe);" not in whits
+    icecream = client.get("/labs/games/gordon-ice-cream-town").get_data(as_text=True)
+    assert "function playSfx(sound)" in icecream
+    assert "try{sound.play();}catch(e){}" in icecream
+    assert "playSfx(sndGood);playSfx(sndServe);" not in icecream
 
-    wooten = client.get("/labs/games/wooten-mail-route").get_data(as_text=True)
-    assert "const wootenSfxCorrect = new SoundGenerator" in wooten
-    assert "function playWootenSfx(sound)" in wooten
-    assert "playWootenSfx(wootenSfxDeliver)" in wooten
-    assert "playWootenSfx(wootenSfxComplete)" in wooten
-    assert "if(soundOn())new SoundGenerator" not in wooten
+    casey = client.get("/labs/games/gordon-mail-run").get_data(as_text=True)
+    assert "const caseySfxCorrect = new SoundGenerator" in casey
+    assert "function playCaseySfx(sound)" in casey
+    assert "playCaseySfx(caseySfxDeliver)" in casey
+    assert "playCaseySfx(caseySfxComplete)" in casey
+    assert "if(soundOn())new SoundGenerator" not in casey
 
-    bernard = client.get("/labs/games/bernard-window-washing").get_data(as_text=True)
-    assert "function playWindowWashSuccessSound()" in bernard
-    assert "if (!soundEffectsEnabled)" in bernard
-    assert "cleanSound && cleanSound.play()" not in bernard
+    rowan = client.get("/labs/games/gordon-window-washing").get_data(as_text=True)
+    assert "function playWindowWashSuccessSound()" in rowan
+    assert "if (!soundEffectsEnabled)" in rowan
+    assert "cleanSound && cleanSound.play()" not in rowan
 
-    timothy = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
-    assert "const tcJumpSound = new SoundGenerator" in timothy
-    assert "const tcHitSound = new SoundGenerator" in timothy
-    assert "const tcWinSound = new SoundGenerator" in timothy
-    assert "const tcLoseSound = new SoundGenerator" in timothy
-    assert "tcPlaySound(tcStartSound" in timothy
+    stables = client.get("/labs/games/gordon-family-stables").get_data(as_text=True)
+    assert "const tcJumpSound = new SoundGenerator" in stables
+    assert "const tcHitSound = new SoundGenerator" in stables
+    assert "const tcWinSound = new SoundGenerator" in stables
+    assert "const tcLoseSound = new SoundGenerator" in stables
+    assert "tcPlaySound(tcStartSound" in stables
 
 
 
