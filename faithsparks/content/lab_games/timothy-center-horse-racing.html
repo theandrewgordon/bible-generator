@@ -1294,6 +1294,38 @@ function tcSyncDomUi()
         farmNurture.style.display =
             (tcFoal && !tcFoal.grown) ? '' : 'none';
 
+    if (farmNurture)
+    {
+        farmNurture.disabled = !!tcBarnNurtured;
+        farmNurture.textContent = tcBarnNurtured ? 'Foal Cared For ✓' : 'Care for Foal';
+    }
+
+    const steerControls = document.getElementById('tc-steer-controls');
+    if (steerControls)
+    {
+        const touchCapable =
+            ('ontouchstart' in window) ||
+            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        steerControls.style.display =
+            (touchCapable && tcStarted && !tcFinished && !tcInBarn &&
+             !tcMenuOpen && !tcIntroMode && !needsPlayerSelect) ? 'flex' : 'none';
+    }
+
+    const choiceControls = document.getElementById('tc-choice-controls');
+    const choiceConfirm = document.getElementById('tc-choice-confirm');
+    const choiceBack = document.getElementById('tc-choice-back');
+    if (choiceControls)
+    {
+        const choosing = !tcStarted && !tcFinished && !tcInBarn &&
+            !tcMenuOpen && !tcIntroMode && !needsPlayerSelect &&
+            (tcChoosingHorse || tcChoosingOpponent);
+        choiceControls.style.display = choosing ? 'grid' : 'none';
+        if (choiceConfirm)
+            choiceConfirm.textContent = tcChoosingOpponent ? 'Start Race' : 'Choose Horse';
+        if (choiceBack)
+            choiceBack.style.display = tcChoosingOpponent ? '' : 'none';
+    }
+
     const sharedMenu = tcEnsureSharedMenu();
     if (sharedMenu)
     {
@@ -1308,7 +1340,7 @@ function tcSyncDomUi()
 
     const intro = document.getElementById('tc-intro-overlay');
     if (intro)
-        intro.style.display = (!tcProfileMode && tcIntroMode && !tcMenuOpen) ? 'flex' : 'none';
+        intro.style.display = (!tcProfileMode && tcIntroMode && !tcMenuOpen && !tcInBarn) ? 'flex' : 'none';
 
     const results = document.getElementById('tc-results-overlay');
     if (results)
@@ -1345,6 +1377,97 @@ function tcSyncDomUi()
     if (sfx && sfx.checked !== tcSettings.sfx) sfx.checked = tcSettings.sfx;
 }
 
+function tcMoveCurrentChoice(direction)
+{
+    if (tcChoosingHorse && !tcStarted)
+    {
+        if (tcUnlockedHorseIndices().length > 1)
+        {
+            tcSelectedHorse = tcMoveHorseSelection(tcSelectedHorse, direction);
+            tcPlayer.bodyColor = tcHorseChoices[tcSelectedHorse].color;
+            tcPlayer.maneColor = tcHorseChoices[tcSelectedHorse].mane;
+        }
+    }
+    else if (tcChoosingOpponent && !tcStarted)
+        tcSelectedOpponent = tcMoveHorseSelection(
+            tcSelectedOpponent, direction, tcSelectedHorse);
+
+    tcSyncDomUi();
+}
+
+function tcConfirmCurrentChoice()
+{
+    if (tcChoosingHorse && !tcStarted)
+    {
+        tcChoosingHorse = false;
+        tcChoosingOpponent = true;
+
+        if (!tcIsHorseUnlocked(tcHorseChoices[tcSelectedOpponent]) ||
+            tcSelectedOpponent == tcSelectedHorse)
+            tcSelectedOpponent = tcMoveHorseSelection(
+                tcSelectedHorse, 1, tcSelectedHorse);
+
+        tcSyncDomUi();
+        return;
+    }
+
+    if (tcChoosingOpponent && !tcStarted)
+    {
+        if (tcSelectedOpponent == tcSelectedHorse)
+            tcSelectedOpponent = tcMoveHorseSelection(
+                tcSelectedHorse, 1, tcSelectedHorse);
+
+        const chosenHorse = tcSelectedHorse;
+        const chosenOpponent = tcSelectedOpponent;
+        tcResetLevel(false);
+        tcSelectedHorse = chosenHorse;
+        tcSelectedOpponent = chosenOpponent;
+        tcPlayer.bodyColor = tcHorseChoices[tcSelectedHorse].color;
+        tcPlayer.maneColor = tcHorseChoices[tcSelectedHorse].mane;
+
+        tcRivals.forEach(r => r.destroy());
+        tcRivals = [];
+
+        const level = tcLevels[tcLevel-1];
+        const unlocked = tcUnlockedHorseIndices();
+        const pool = unlocked.filter(index => index != tcSelectedHorse);
+
+        for (let i=0; i<level.rivals; ++i)
+        {
+            const y = lerp(tcHorseMinY, tcHorseMaxY, (i+1)/(level.rivals+1));
+            const horseIndex = i == 0
+                ? tcSelectedOpponent
+                : (pool.length ? pool[i % pool.length] : tcSelectedOpponent);
+            const horseDef = tcHorseChoices[horseIndex];
+            const playerColor = tcHorseChoices[tcSelectedHorse].color;
+            const rivalColor = tcHorseColorIsTooSimilar(horseDef.color, playerColor)
+                ? tcContrastingHorseColor(playerColor, i+tcLevel)
+                : horseDef.color;
+
+            const rival = new TCHorse(vec2(-5.0-i*.35,y),rivalColor,false,i);
+            rival.maneColor = horseDef.mane;
+            rival.displayName = horseDef.name;
+            rival.targetY = y;
+            rival.speed = rand(level.rivalMin,level.rivalMax);
+            tcRivals.push(rival);
+        }
+
+        tcSaveActiveProfile();
+        tcStartRace();
+        tcSyncDomUi();
+    }
+}
+
+function tcBackCurrentChoice()
+{
+    if (tcChoosingOpponent && !tcStarted)
+    {
+        tcChoosingOpponent = false;
+        tcChoosingHorse = true;
+        tcSyncDomUi();
+    }
+}
+
 function tcInitNativeUi()
 {
     if (tcDomReady) return;
@@ -1364,6 +1487,12 @@ function tcInitNativeUi()
     const farmScoop = document.getElementById('tc-farm-scoop');
     const farmNurture = document.getElementById('tc-farm-nurture');
     const farmLeave = document.getElementById('tc-farm-leave');
+    const steerUp = document.getElementById('tc-steer-up');
+    const steerDown = document.getElementById('tc-steer-down');
+    const choicePrev = document.getElementById('tc-choice-prev');
+    const choiceNext = document.getElementById('tc-choice-next');
+    const choiceConfirm = document.getElementById('tc-choice-confirm');
+    const choiceBack = document.getElementById('tc-choice-back');
     const menuResume = document.getElementById('tc-menu-resume');
     const menuRestart = document.getElementById('tc-menu-restart');
     const menuChangePlayer = document.getElementById('tc-menu-change-player');
@@ -1391,7 +1520,9 @@ addPlayer?.addEventListener('click', () =>
     // browser's native behavior on these controls.
     for (const control of [
         addPlayer,nameInput,nameCancel,menuButton,jumpButton,farmButton,
-        farmFeed,farmWater,farmScoop,farmNurture,farmLeave,menuResume,menuRestart,
+        farmFeed,farmWater,farmScoop,farmNurture,farmLeave,
+        steerUp,steerDown,choicePrev,choiceNext,choiceConfirm,choiceBack,
+        menuResume,menuRestart,
         menuChangePlayer,menuLibrary,introStart,resultsContinue,
         resultsReplay,resultsChangePlayer,resultsLibrary,sfx
     ])
@@ -1461,6 +1592,35 @@ addPlayer?.addEventListener('click', () =>
         tcLeaveBarn();
         tcSyncDomUi();
     });
+
+    const bindSteer = (button, direction) =>
+    {
+        if (!button) return;
+        const start = event =>
+        {
+            event.preventDefault();
+            event.stopPropagation();
+            tcTouchSteer = direction;
+        };
+        const stop = event =>
+        {
+            event.preventDefault();
+            event.stopPropagation();
+            if (tcTouchSteer == direction)
+                tcTouchSteer = 0;
+        };
+        button.addEventListener('pointerdown', start);
+        button.addEventListener('pointerup', stop);
+        button.addEventListener('pointercancel', stop);
+        button.addEventListener('pointerleave', stop);
+    };
+
+    bindSteer(steerUp, 1);
+    bindSteer(steerDown, -1);
+    choicePrev?.addEventListener('click', () => tcMoveCurrentChoice(-1));
+    choiceNext?.addEventListener('click', () => tcMoveCurrentChoice(1));
+    choiceConfirm?.addEventListener('click', () => tcConfirmCurrentChoice());
+    choiceBack?.addEventListener('click', () => tcBackCurrentChoice());
 
     menuResume?.addEventListener('click', () => tcCloseMenu());
     menuRestart?.addEventListener('click', () => tcRestartCurrentRound());
@@ -2652,7 +2812,8 @@ class TCHorse extends EngineObject
         {
             // Move freely around the track.
             const move = keyDirection();
-            this.targetY = clamp(this.targetY + move.y*.12, tcHorseMinY, tcHorseMaxY);
+            const steerY = clamp(move.y + tcTouchSteer, -1, 1);
+            this.targetY = clamp(this.targetY + steerY*.12, tcHorseMinY, tcHorseMaxY);
             this.pos.y = lerp(this.pos.y, this.targetY, .18);
 
             // Gallop input.
@@ -2697,7 +2858,7 @@ class TCHorse extends EngineObject
             // Gentle "second wind" catch-up: falling a little behind is fine,
             // but one mistake should never make the rest of the race unwinnable.
             const leaderDistance = tcRivals.reduce(
-                (best,rival) => rival && !rival.finished ? max(best,rival.distance) : best,
+                (best,rival) => rival ? max(best,rival.distance) : best,
                 this.distance
             );
             const gapBehind = max(0, leaderDistance - this.distance);
@@ -2783,6 +2944,8 @@ class TCHorse extends EngineObject
         if (this.distance >= level.distance && !this.finished)
         {
             this.finished = true;
+            if (!tcFirstFinisher)
+                tcFirstFinisher = this.isPlayer ? 'player' : 'rival-' + this.rivalIndex;
             this.jumpVelocity = 0;
             this.onGround = true;
             this.pos.y = this.targetY;
@@ -3116,6 +3279,8 @@ function tcResetLevel(resetLevel=false)
     tcObstacleHits = 0;
     tcAutoAdvanceAt = 0;
     tcCatchupActive = false;
+    tcTouchSteer = 0;
+    tcFirstFinisher = '';
 
     tcObstacleTimer = new Timer(3);
     tcMessageTimer = new Timer();
@@ -3192,8 +3357,11 @@ function tcEndLevel()
     }
 
     const allHorses = [tcPlayer, ...tcRivals].sort((a,b)=>b.distance-a.distance);
+    const playerWon = tcFirstFinisher
+        ? tcFirstFinisher == 'player'
+        : allHorses[0] === tcPlayer;
 
-    if (allHorses[0] === tcPlayer)
+    if (playerWon)
     {
         tcRecordWin();
         const rewardHorse = tcAwardMilestoneHorse(tcLevel);
@@ -3225,14 +3393,12 @@ function tcEndLevel()
     else
         tcWinner = 'TRY THIS LEVEL AGAIN!';
 
-    if (allHorses[0] === tcPlayer)
+    if (playerWon)
         tcPlaySound(tcWinSound,tcPlayer.pos,.36);
     else
         tcPlaySound(tcLoseSound,tcPlayer.pos,.30);
 
     tcManualSave(false);
-
-    const playerWon = allHorses[0] === tcPlayer;
 
     // Wins auto-advance to the next level without opening a menu. Keep the
     // championship result and loss/retry result screens because there is no
@@ -3284,7 +3450,9 @@ function tcAdvanceOrRestart(autoContinue=false)
     if (!tcFinished) return;
 
     const allHorses = [tcPlayer, ...tcRivals].sort((a,b)=>b.distance-a.distance);
-    const playerWon = allHorses[0] === tcPlayer;
+    const playerWon = tcFirstFinisher
+        ? tcFirstFinisher == 'player'
+        : allHorses[0] === tcPlayer;
 
     if (playerWon)
     {
@@ -3838,7 +4006,7 @@ function gameRenderPost()
 
         if (tcFoal && !tcFoal.grown)
         {
-            drawTextScreen(`FOAL CARE: ${tcFoal.growth}% GROWN   4/N = NURTURE`,
+            drawTextScreen(`FOAL CARE: ${tcFoal.growth}% GROWN   ${tcBarnNurtured?'CARED FOR THIS VISIT':'4/N = NURTURE'}`,
                 vec2(cx,132),23,YELLOW,4,BLACK);
 
             drawRect(vec2(cx,165),vec2(360,16),hsl(0,0,.15),0,true);
@@ -3852,7 +4020,7 @@ function gameRenderPost()
         }
         else
         {
-            drawTextScreen('Complete barn chores. Sometimes something unexpected happens...',
+            drawTextScreen('Complete all three barn chores to begin your foal-care journey.',
                 vec2(cx,132),21,WHITE,3,BLACK);
         }
 
@@ -3912,7 +4080,7 @@ function gameRenderPost()
                 drawTextScreen(horse.name,
                     vec2(cx,mainCanvasSize.y-106),27,WHITE,4,BLACK);
                 drawRect(vec2(cx,mainCanvasSize.y-72),vec2(86,26),horse.color,0,true);
-                drawTextScreen('BEAT LEVEL 5 TO EARN YOUR NEXT HORSE   S/P/TAB = CHANGE PLAYER',
+                drawTextScreen('BEAT LEVEL 3 TO EARN YOUR NEXT HORSE   S/P/TAB = CHANGE PLAYER',
                     vec2(cx,mainCanvasSize.y-37),16,WHITE,3,BLACK);
             }
             else
@@ -3923,7 +4091,7 @@ function gameRenderPost()
                     vec2(cx,mainCanvasSize.y-106),27,WHITE,4,BLACK);
                 drawRect(vec2(cx,mainCanvasSize.y-72),vec2(86,26),horse.color,0,true);
 
-                const barnHint = tcBarnUnlocked ? '   B = BARN' : '   BARN UNLOCKS AFTER LEVEL 10';
+                const barnHint = tcBarnUnlocked ? '   FARM READY' : '   FARM UNLOCKS AFTER LEVEL 10';
                 const nextReward = tcHorseChoices.find(h =>
                     h.rewardLevel && h.rewardLevel >= tcLevel &&
                     !tcUnlockedHorseNames.includes(h.name));
@@ -3936,7 +4104,7 @@ function gameRenderPost()
     }
     else if (!tcFinished)
     {
-        drawTextScreen('MOVE: ARROWS / WASD   GALLOP: SPACE / TAP   JUMP: ↑ / W / SHIFT / J / TOUCH BUTTON',
+        drawTextScreen('MOVE: ARROWS / WASD / TOUCH STEER   GALLOP: SPACE / TAP   JUMP: ↑ / W / SHIFT / J / TOUCH BUTTON',
             vec2(cx,mainCanvasSize.y-38),20,WHITE,3,BLACK);
 
         if (tcMessageTimer.active() && tcRaceMessage)
