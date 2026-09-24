@@ -1933,12 +1933,20 @@ function serializeSession(){
   needsReset,roundMistakes,waitingForNext,guestPhase,guestSlide,
   roundStartScore,roundStartStars,roundStartServed,roundStartLevel,roundResultId,
   timeLeft:partyDeadline?max(0,partyDeadline-time):0,
+  pausedPartyTime:max(0,pausedPartyTime||0),
   savedAt:Date.now()
  };
 }
 function saveSession(){
  const p=currentProgress();if(!p)return;
- saveActiveProfile();
+ p.score=max(0,score||0);
+ p.bestScore=max(p.bestScore||0,p.score);
+ p.stars=max(0,stars||0);
+ p.served=max(0,served||0);
+ p.level=max(1,level||1);
+ p.highestLevel=max(p.highestLevel||1,p.level);
+ p.levelServed=max(0,levelServed||0);
+ p.lastPlayed=Date.now();
  p.session=serializeSession();
  persistProgress();
 }
@@ -1976,7 +1984,9 @@ function restoreSession(){
  roundStartServed=ss.roundStartServed??served;
  roundStartLevel=ss.roundStartLevel??level;
  roundResultId=ss.roundResultId||(`whits-${activeProfileId}-${roundStartLevel}-${ss.savedAt||Date.now()}`);
- partyDeadline=ruleForLevel().time?time+max(0,ss.timeLeft??ruleForLevel().time):0;
+ const savedPartyTime=max(0,ss.pausedPartyTime||ss.timeLeft??ruleForLevel().time);
+ pausedPartyTime=0;
+ partyDeadline=ruleForLevel().time?time+savedPartyTime:0;
  return true;
 }
 
@@ -2589,7 +2599,8 @@ function startParty(arriving=false){
  partyOrders=party.map(()=>buildOrder());
  partyServed=party.map(()=>false);
  partyIndex=0;
- if(ruleForLevel().time)partyDeadline=time+ruleForLevel().time;
+ const partyTime=ruleForLevel().time;
+ if(partyTime)partyDeadline=time+partyTime+max(0,size-1)*18;
  else partyDeadline=0;
  setActivePartyMember();
  if(arriving){
@@ -2733,6 +2744,7 @@ function kidTarget(){
 function addIngredient(item){
  if(waitingForNext||needsReset)return;
  if(!order.need.includes(item.name)){
+  roundMistakes++;
   message=`${shortName(item.name)} isn't in this order.`;messageTimer.set(1.5);playSfx(sndBad);return;
  }
  if(tray.includes(item.name)||scoopFlavor==item.name){
@@ -2798,7 +2810,7 @@ function gameUpdate(){
  if(resultsScreen){updateResultsScreen();return;}
  if(menuOpen){updateGameMenu();return;}
 
- if(Date.now()-lastAutoSaveAt>1200){lastAutoSaveAt=Date.now();saveSession();}
+ if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
 
  if(ruleForLevel().time && !waitingForNext && partyDeadline && time>partyDeadline){
   score=max(0,score-25);roundMistakes++;
@@ -2842,9 +2854,9 @@ function gameUpdate(){
   resetCurrentOrderState();message='Fresh start!';messageTimer.set(1.2);return;
  }
  // containers
- if(hit(selectedContainerPos.BOWL,vec2(1.15,1.05))){selectContainer('BOWL');return;}
- if(hit(selectedContainerPos.CUP,vec2(1.15,1.05))){selectContainer('CUP');return;}
- if(hit(selectedContainerPos.CONE,vec2(1.15,1.05))){selectContainer('CONE');return;}
+ if(hit(selectedContainerPos.BOWL,vec2(1.35,1.2))){selectContainer('BOWL');return;}
+ if(hit(selectedContainerPos.CUP,vec2(1.35,1.2))){selectContainer('CUP');return;}
+ if(hit(selectedContainerPos.CONE,vec2(1.35,1.2))){selectContainer('CONE');return;}
 
  // toppings
  for(const t of TOPPINGS){
@@ -2926,7 +2938,7 @@ function gameUpdate(){
    }
   }
  }
- if(Date.now()-lastAutoSaveAt>1200){lastAutoSaveAt=Date.now();saveSession();}
+ if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
 }
 
 function drawOpenIceTub(pos,color,ripple=false){
