@@ -532,7 +532,7 @@ const RECIPES=[
 {name:'Berry Blast',need:['Strawberry Ice Cream','Milk','Strawberry Syrup'],kind:'BLEND'},
 {name:'Double Chocolate',need:['Chocolate Ice Cream','Milk','Chocolate Syrup'],kind:'BLEND'}];
 const sndPick=new SoundGenerator({frequency:520,release:.08});
-const sndPrep=new SoundGenerator({frequency:160,slide:1.4,release:.35,noise:.12});
+const sndPrep=new SoundGenerator({frequency:155,slide:.12,release:.8,noise:.16,volume:.6});
 const sndGood=new SoundGenerator({frequency:720,pitchJump:300,pitchJumpTime:.08,release:.25});
 const sndBad=new SoundGenerator({frequency:180,slide:-.5,release:.25});
 const sndScoop=new SoundGenerator({frequency:145,slide:-.18,release:.16,noise:.42,volume:.65});
@@ -2451,12 +2451,13 @@ const TOPPINGS=[
 
 const LEVEL_RULES=[
  null,
+ // Keep the first few levels calm enough for a young player to learn one idea at a time.
  {goal:3, partyMin:1,partyMax:1,time:0,   scoopOnly:true,  maxToppings:0,doubleScoop:false},
  {goal:4, partyMin:1,partyMax:1,time:0,   scoopOnly:false, maxToppings:0,doubleScoop:false},
- {goal:4, partyMin:1,partyMax:2,time:0,   scoopOnly:false, maxToppings:1,doubleScoop:false},
- {goal:5, partyMin:2,partyMax:2,time:85,  scoopOnly:false, maxToppings:1,doubleScoop:true},
- {goal:5, partyMin:2,partyMax:3,time:72,  scoopOnly:false, maxToppings:2,doubleScoop:true},
- {goal:6, partyMin:2,partyMax:3,time:60,  scoopOnly:false, maxToppings:2,doubleScoop:true}
+ {goal:4, partyMin:1,partyMax:1,time:0,   scoopOnly:false, maxToppings:1,doubleScoop:false},
+ {goal:5, partyMin:1,partyMax:2,time:0,   scoopOnly:false, maxToppings:1,doubleScoop:true},
+ {goal:5, partyMin:2,partyMax:2,time:105, scoopOnly:false, maxToppings:1,doubleScoop:true},
+ {goal:6, partyMin:2,partyMax:3,time:90,  scoopOnly:false, maxToppings:2,doubleScoop:true}
 ];
 
 let customerPhotos={};
@@ -2469,14 +2470,15 @@ function ruleForLevel(){
  if(level<LEVEL_RULES.length)return LEVEL_RULES[level];
  const extra=level-(LEVEL_RULES.length-1);
  return {
-  goal:min(12,6+Math.floor(extra/2)),
-  partyMin:min(3,2+Math.floor(extra/4)),
-  partyMax:min(4,3+Math.floor(extra/3)),
-  time:max(42,60-extra*2),
+  goal:min(10,6+Math.floor(extra/3)),
+  partyMin:min(3,2+Math.floor(extra/5)),
+  partyMax:min(4,3+Math.floor(extra/4)),
+  // Difficulty should rise, but never turn the game into a frantic tap race.
+  time:max(58,90-extra*2),
   scoopOnly:false,
-  maxToppings:min(4,2+Math.floor(extra/3)),
+  maxToppings:min(3,2+Math.floor(extra/4)),
   doubleScoop:true,
-  maxScoops:min(3,2+Math.floor(extra/5))
+  maxScoops:min(3,2+Math.floor(extra/6))
  };
 }
 function initCustomerPhotos(){
@@ -2603,8 +2605,13 @@ function plainOrder(){
  };
 }
 function drinkOrder(){
- // Introduce the menu gradually so each new level adds only a little complexity.
- const recipeCount=min(RECIPES.length,5+max(0,level-2)*2);
+ // Introduce only a couple recipes at a time. Level 2 is intentionally very small:
+ // vanilla/chocolate shakes first, then sodas and mixed flavors in later levels.
+ const recipeCount=
+  level<=2?2:
+  level==3?5:
+  level==4?8:
+  min(RECIPES.length,8+max(0,level-4)*2);
  const base=RECIPES[randInt(recipeCount)];
  const tops=base.kind=='BLEND'?randomToppings(ruleForLevel().maxToppings,'CUP'):[];
  return {name:base.name,need:[...base.need],kind:base.kind,container:'CUP',toppings:tops};
@@ -2807,15 +2814,13 @@ function addIngredient(item){
 function selectContainer(kind){
  if(!order)return;
  if(order.kind!='SCOOP'&&kind!='CUP'){
-  roundMistakes++;
+  // Wrong container taps teach the rule without costing a star.
   message='Shakes and sodas go in a cup.';messageTimer.set(1.4);playSfx(sndBad);return;
  }
  if(order.kind=='SCOOP' && kind=='CUP'){
-  roundMistakes++;
   message='Plain ice cream goes in a bowl or cone.';messageTimer.set(1.4);playSfx(sndBad);return;
  }
  if(order.container!=kind){
-  roundMistakes++;
   message=`This order needs a ${order.container}.`;messageTimer.set(1.4);playSfx(sndBad);return;
  }
  holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=`${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!`;messageTimer.set(1.2);playSfx(sndContainer);
@@ -2938,7 +2943,7 @@ function gameUpdate(){
 
  // Blender
  if(hit(vec2(-3.8,1.15),vec2(2.8,2.7))){
-  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}
+  if(order.kind!='BLEND'){message='This order uses MIX instead of the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}
   if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPour);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
@@ -2962,7 +2967,7 @@ function gameUpdate(){
  }
  // Mixer
  if(hit(vec2(0,1.15),vec2(2.8,2.7))){
-  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}
+  if(order.kind!='MIX'){message='This order uses the BLENDER instead of MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}
   if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPour);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
