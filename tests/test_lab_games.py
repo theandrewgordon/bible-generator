@@ -1867,3 +1867,22 @@ def test_same_brain_quality_over_quantity_bank_has_75_generated_questions():
     assert 'topics:["new phone","smart home","laptop","streaming setup","car tech"]' in html
     assert 'topics:["$100 bonus","$500 surprise","tax refund","gift card","unexpected windfall"]' in html
     assert 'topics:["busy day","free day","new group","big decision","surprise problem"]' in html
+
+
+
+def test_same_brain_narration_never_overlaps_and_second_tap_stops():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "var activeNarrationAudio=null",
+        "activeNarrationController=null",
+        "function stopNarration()",
+        'if(narrationPlaying||activeNarrationController){stopNarration();return}',
+        "new AbortController()",
+        "activeNarrationAudio.pause()",
+        'b.textContent=playing?"⏹️":"🔊"',
+        'function renderQuestion(){if(typeof stopNarration==="function")stopNarration();',
+    ):
+        assert marker in html
