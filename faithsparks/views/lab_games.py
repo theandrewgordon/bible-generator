@@ -13,6 +13,7 @@ from flask import Blueprint, Response, jsonify, make_response, render_template, 
 
 from faithsparks.services.firestore import db
 from faithsparks.services.users import get_user_doc, has_active_plus
+from faithsparks.services.storage import download_storage_bytes, upload_storage_bytes
 
 bp = Blueprint("lab_games", __name__, url_prefix="/labs/games")
 
@@ -1298,25 +1299,49 @@ def same_brain_tts():
     payload = request.get_json(silent=True) or {}
     text = " ".join(str(payload.get("text") or "").split()).strip()[:500]
     voice = str(payload.get("voice") or "marin").strip().lower()
+    question_id = str(payload.get("questionId") or "").strip()[:64]
+    cacheable = bool(payload.get("cacheable")) and bool(question_id) and not question_id.startswith("custom_")
     if voice not in {"marin", "cedar", "coral", "sage"}:
         voice = "marin"
     if not text:
         return jsonify({"error": "invalid"}), 400
+
+    model = "gpt-4o-mini-tts"
+    instructions = "Warm, natural, playful game-host delivery. Clear and friendly. Do not sound exaggerated."
+    cache_path = ""
+    if cacheable:
+        digest = hashlib.sha256(
+            ("|".join([model, voice, question_id, instructions, text])).encode("utf-8")
+        ).hexdigest()
+        cache_path = f"same_brain/tts/{voice}/{digest}.mp3"
+        cached_audio = download_storage_bytes(cache_path)
+        if cached_audio:
+            response = Response(cached_audio, mimetype="audio/mpeg")
+            response.headers["Cache-Control"] = "private, max-age=604800"
+            response.headers["X-AI-Voice"] = "OpenAI"
+            response.headers["X-TTS-Cache"] = "HIT"
+            return response
+
     try:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         speech = client.audio.speech.create(
-            model="gpt-4o-mini-tts",
+            model=model,
             voice=voice,
             input=text,
-            instructions="Warm, natural, playful game-host delivery. Clear and friendly. Do not sound exaggerated.",
+            instructions=instructions,
             response_format="mp3",
         )
         audio = speech.read()
     except Exception:
         return jsonify({"error": "tts_failed"}), 503
+
+    if cache_path:
+        upload_storage_bytes(audio, cache_path, content_type="audio/mpeg")
+
     response = Response(audio, mimetype="audio/mpeg")
-    response.headers["Cache-Control"] = "private, max-age=86400"
+    response.headers["Cache-Control"] = "private, max-age=604800" if cacheable else "private, max-age=86400"
     response.headers["X-AI-Voice"] = "OpenAI"
+    response.headers["X-TTS-Cache"] = "MISS" if cacheable else "BYPASS"
     return response
 
 
