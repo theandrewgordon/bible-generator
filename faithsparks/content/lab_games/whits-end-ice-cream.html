@@ -2140,12 +2140,14 @@ function continueSavedSession(){
  else beginRound(level);
 }
 function restartCurrentRound(){
+ clearTimeout(whitsAutoAdvanceTimer);whitsAutoAdvanceTimer=0;
  score=roundStartScore;stars=roundStartStars;served=roundStartServed;
  level=roundStartLevel;levelServed=0;
  startParty(false);menuOpen=false;resultsScreen=false;
  saveActiveProfile();saveSession();
 }
 function changePlayer(){
+ clearTimeout(whitsAutoAdvanceTimer);whitsAutoAdvanceTimer=0;
  saveSession();showSavedToast();activeProfileId='';profileScreen=true;introScreen=false;menuOpen=false;resultsScreen=false;
  hideNameInput();ensureWhitsSharedMenu()?.hideButton();
  if(!showWhitsSharedProfiles()){}
@@ -2167,6 +2169,7 @@ function closeGameMenu(){
  menuOpen=false;resumePartyClock();
 }
 function returnToGameLibrary(){
+ clearTimeout(whitsAutoAdvanceTimer);whitsAutoAdvanceTimer=0;
  saveSession();showSavedToast();
  try{if(odysseyApi()?.returnToLibrary){odysseyApi().returnToLibrary();return;}}catch(e){}
  try{
@@ -2199,12 +2202,16 @@ function finishRound(completedLevel){
  resultsScreen=false;menuOpen=false;introScreen=false;waitingForNext=true;guestPhase='levelComplete';showSavedToast();
  message='Level complete! Next level...';messageTimer.set(1.4);
  clearTimeout(whitsAutoAdvanceTimer);
- whitsAutoAdvanceTimer=setTimeout(()=>{
-  if(activeProfileId&&!profileScreen&&!menuOpen){
-   waitingForNext=false;
-   beginRound(level);
+ const advanceWhitsLevel=()=>{
+  if(!activeProfileId||profileScreen)return;
+  if(menuOpen){
+   whitsAutoAdvanceTimer=setTimeout(advanceWhitsLevel,350);
+   return;
   }
- },1400);
+  waitingForNext=false;
+  beginRound(level);
+ };
+ whitsAutoAdvanceTimer=setTimeout(advanceWhitsLevel,1400);
  return;
 
  const O=odysseyApi();
@@ -2298,7 +2305,7 @@ function drawIntroScreen(){
  drawText('MAKE THE ORDER',vec2(0,2.75),.32,hsl(.07,.48,.2));
  drawText('Follow the order card one step at a time.',vec2(0,2.15),.23,BLACK);
  drawText('Bowls & cones: hand them to the right person.',vec2(0,1.65),.21,BLACK);
- drawText('Shakes & sodas: they serve when the cup is filled.',vec2(0,1.2),.21,BLACK);
+ drawText('Shakes & sodas: fill the cup, then take it to the right person.',vec2(0,1.2),.21,BLACK);
  if(hasResumeSession()){
   drawRect(vec2(0,.1),vec2(5.0,.9),hsl(.34,.5,.58));drawText('CONTINUE SAVED GAME',vec2(0,.1),.23,WHITE);
  }
@@ -2678,7 +2685,7 @@ function kidStep(){
  if(!containerFilled)return order.kind=='MIX'?'TAP MIX TO FILL THE CUP':'TAP BLENDER TO FILL THE CUP';
  const mt=missingToppingV18();
  if(mt)return `ADD ${mt.toUpperCase()}`;
- return order.kind=='SCOOP'?'TAKE IT TO THE CUSTOMER':'SERVED!';
+ return 'TAKE IT TO THE CUSTOMER';
 }
 
 function kidTarget(){
@@ -2754,7 +2761,9 @@ function addTopping(t){
  }
  if(addedToppings.includes(t.name)){message='That topping is already on it.';messageTimer.set(1.2);return;}
  addedToppings.push(t.name);playSfx(sndTopping);progressText=`✓ ${t.name}`;progressTimer.set(.7);
- if(order.kind!='SCOOP'&&containerFilled&&toppingsComplete()){serve();return;}
+ if(order.kind!='SCOOP'&&containerFilled&&toppingsComplete()){
+  message='Ready! Take it to the customer.';messageTimer.set(1.5);
+ }
 }
 
 function serve(){
@@ -2855,10 +2864,11 @@ function gameUpdate(){
   if(!prepared&&!blenderRunning){blenderRunning=true;blenderTimer.set(1.35);playSfx(sndPrep);return;}
   if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);
-   if(order.kind!='SCOOP'&&toppingsComplete()){serve();return;}
    if(order.kind!='SCOOP'){
-    message=(order.toppings||[]).length?'Add the topping, then serve it!':'Drink filled!';
-    messageTimer.set(1.5);
+    message=(order.toppings||[]).length
+      ?'Add the topping, then take it to the customer!'
+      :'Cup filled! Take it to the customer.';
+    messageTimer.set(1.6);
    }
    return;
   }
@@ -2872,18 +2882,19 @@ function gameUpdate(){
   if(!prepared){prepared=true;playSfx(sndPrep);return;}
   if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);
-   if(order.kind!='SCOOP'&&toppingsComplete()){serve();return;}
    if(order.kind!='SCOOP'){
-    message=(order.toppings||[]).length?'Add the topping, then serve it!':'Drink filled!';
-    messageTimer.set(1.5);
+    message=(order.toppings||[]).length
+      ?'Add the topping, then take it to the customer!'
+      :'Cup filled! Take it to the customer.';
+    messageTimer.set(1.6);
    }
    return;
   }
  }
 
- // Bowl/cone orders are handed to the correct person.
- // Drinks auto-serve as soon as the finished cup is filled.
- if(order&&order.kind=='SCOOP'){
+ // Every finished order is handed to the correct person.
+ // This keeps bowls, cones, shakes, and sodas on the same simple loop.
+ if(order){
   for(let i=0;i<party.length;i++){
    if(partyServed[i])continue;
    const p=partyCustomerPos(i);
