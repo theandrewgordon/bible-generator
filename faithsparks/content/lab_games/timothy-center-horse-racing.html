@@ -1351,7 +1351,9 @@ function tcSyncDomUi()
     {
         const stats = tcGetStats();
         const allHorses = [tcPlayer,...tcRivals].filter(Boolean).sort((a,b)=>b.distance-a.distance);
-        const place = max(1, allHorses.indexOf(tcPlayer)+1);
+        const place = tcFirstFinisher == 'player'
+            ? 1
+            : max(1, allHorses.indexOf(tcPlayer)+1);
         const resultTitle = document.getElementById('tc-results-title');
         const resultStats = document.getElementById('tc-result-stats');
         const continueButton = document.getElementById('tc-results-continue');
@@ -4118,7 +4120,9 @@ function gameRenderPost()
         drawTextScreen(tcWinner,vec2(cx,mainCanvasSize.y/2-18),50,YELLOW,6,BLACK);
 
         const allHorses = [tcPlayer,...tcRivals].sort((a,b)=>b.distance-a.distance);
-        const place = allHorses.indexOf(tcPlayer)+1;
+        const place = tcFirstFinisher == 'player'
+            ? 1
+            : allHorses.indexOf(tcPlayer)+1;
 
         drawTextScreen(`You finished ${place}${place==1?'st':place==2?'nd':place==3?'rd':'th'}`,
             vec2(cx,mainCanvasSize.y/2+22),24,WHITE,3,BLACK);
