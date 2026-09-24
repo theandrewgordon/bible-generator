@@ -826,7 +826,7 @@ document.getElementById("speak-question").addEventListener("click",async functio
     try{
       activeNarrationController=new AbortController();
       var controller=activeNarrationController;
-      var r=await fetch(serviceBase()+"/tts",{method:"POST",credentials:"same-origin",signal:controller.signal,headers:{"Content-Type":"application/json","X-CSRF-Token":csrf()},body:JSON.stringify({text:questionSpeech(q),voice:voice})});
+      var r=await fetch(serviceBase()+"/tts",{method:"POST",credentials:"same-origin",signal:controller.signal,headers:{"Content-Type":"application/json","X-CSRF-Token":csrf()},body:JSON.stringify({text:questionSpeech(q),voice:voice,questionId:q.id||"",cacheable:!!(q.id&&String(q.id).indexOf("custom_")!==0)})});
       if(controller!==activeNarrationController)return;
       activeNarrationController=null;
       if(r.ok){
