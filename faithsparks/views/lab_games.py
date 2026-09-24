@@ -318,16 +318,22 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         if (!w.layers)
             continue;
 
-        let cleanerId = '';
-        let amount = 0;
+        let cleanerId =
+            w.lastCleanerId && (w.layers[w.lastCleanerId] || 0) > .05
+                ? w.lastCleanerId
+                : '';
+        let amount = cleanerId ? w.layers[cleanerId] : 0;
 
-        for (const id in w.layers)
+        if (!cleanerId)
         {
-            const layerAmount = w.layers[id];
-            if (layerAmount > amount)
+            for (const id in w.layers)
             {
-                amount = layerAmount;
-                cleanerId = id;
+                const layerAmount = w.layers[id];
+                if (layerAmount > amount)
+                {
+                    amount = layerAmount;
+                    cleanerId = id;
+                }
             }
         }
 
@@ -507,7 +513,20 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             // redraw them directly on the 2D canvas as cheap tinted marks.
             // This preserves the grime/soap density without LittleJS texture
             // overhead. Larger artwork still uses normal drawTile().
-            const tinyWindowTexture = size.x <= 1.05 && size.y <= 1.05;
+            if (!bounds || performance.now()-boundsBuiltAt > 500)
+                rebuildBounds();
+
+            const inGlassBounds =
+                bounds &&
+                pos.x >= bounds.minX-bounds.cx &&
+                pos.x <= bounds.maxX+bounds.cx &&
+                pos.y >= bounds.minY-bounds.cy &&
+                pos.y <= bounds.maxY+bounds.cy;
+
+            const tinyWindowTexture =
+                inGlassBounds &&
+                size.x <= 1.05 &&
+                size.y <= 1.05;
 
             if (tinyWindowTexture)
             {
@@ -935,8 +954,15 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
         if (now-lastWrongFeedbackAt < 900) return;
         lastWrongFeedbackAt=now;
 
-        const suggestion = lastCleanerUsed.includes('soap') ? 'TRY WATER HERE' : 'TRY SOAP HERE';
-        showHint('That cleaner is not lifting this grime — '+suggestion,'wrong');
+        const neededId = String(window._bernardLastNeededCleaner || '').toLowerCase();
+        const needed = {
+            water:'WATER',
+            soap:'SOAP',
+            degreaser:'DISINFECTER',
+            vinegar:'VINEGAR',
+            bernard:"BERNARD'S SIGNATURE CLEANER"
+        }[neededId] || (lastCleanerUsed.includes('soap') ? 'WATER' : 'SOAP');
+        showHint('That cleaner is not lifting this grime — TRY '+needed+' HERE','wrong');
 
         const ctx=audioReady();
         if (!ctx) return;
@@ -965,11 +991,12 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
     // other cleaner. It is intentionally gentle and throttled.
     function readCleanProgress()
     {
-        try { if (typeof cleanPercent !== 'undefined') return Number(cleanPercent); } catch (_) {}
-        try { if (typeof percentClean !== 'undefined') return Number(percentClean); } catch (_) {}
-        try { if (typeof cleanPct !== 'undefined') return Number(cleanPct); } catch (_) {}
-        try { if (typeof getCleanPercent === 'function') return Number(getCleanPercent()); } catch (_) {}
-        try { if (typeof getCleanPercentage === 'function') return Number(getCleanPercentage()); } catch (_) {}
+        try
+        {
+            if (typeof dirtLeft !== 'undefined' && typeof levelInitialDirt !== 'undefined')
+                return clamp(100 - dirtLeft/max(1,levelInitialDirt)*100, 0, 100);
+        }
+        catch (_) {}
         return NaN;
     }
 
