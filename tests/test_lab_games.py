@@ -609,6 +609,37 @@ def test_timothy_has_dedicated_touch_jump_control():
     assert "TOUCH BUTTON" in html
 
 
+def test_timothy_has_fair_catchup_and_touch_farm_progression():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/timothy-center-horse-racing").get_data(as_text=True)
+
+    # Catch-up remains bounded and only activates when the player is behind.
+    assert "Gentle \"second wind\" catch-up" in html
+    assert "const catchupBonus" in html
+    assert "clamp((gapBehind-2.5)*.0019, 0, .028)" in html
+    assert "const rivalEase" in html
+    assert "tcPlayer.slowTimer.set(.65)" in html
+    assert "tcPlayerSpeed * .72" in html
+    assert "SECOND WIND — KEEP GALLOPING!" in html
+
+    # The existing barn progression is now a discoverable Timothy Center Farm.
+    assert 'id="tc-farm-button"' in html
+    assert 'id="tc-farm-controls"' in html
+    assert 'id="tc-farm-feed"' in html
+    assert 'id="tc-farm-water"' in html
+    assert 'id="tc-farm-scoop"' in html
+    assert 'id="tc-farm-nurture"' in html
+    assert "Timothy Center Farm Unlocked!" in html
+    assert "tcAutoEnterFarm = true" in html
+    assert "The first completed farm-care visit introduces the foal progression." in html
+    assert "TIMOTHY CENTER FARM" in html
+    assert "farmButton?.addEventListener('click'" in html
+    assert "farmFeed?.addEventListener('click'" in html
+    assert "farmWater?.addEventListener('click'" in html
+    assert "farmScoop?.addEventListener('click'" in html
+
+
 def test_level_games_auto_advance_without_round_result_menu():
     client = _client()
     _sign_in(client)
