@@ -240,104 +240,103 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             1,
         )
 
-        return html
-
-    if game_id == "whits-end":
-        # Do not start a party larger than the number of orders remaining in
-        # the current level. Otherwise the level can auto-advance after the
-        # first person in a group while another customer is visibly waiting.
-        html = html.replace(
-            """function choosePartySize(){
+    # Do not start a party larger than the number of orders remaining in
+    # the current level. Otherwise the level can auto-advance after the
+    # first person in a group while another customer is visibly waiting.
+    html = html.replace(
+        """function choosePartySize(){
  const r=ruleForLevel();
  return r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
 }""",
-            """function choosePartySize(){
+        """function choosePartySize(){
  const r=ruleForLevel();
  const rolled=r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
  const remaining=max(1,r.goal-levelServed);
  return min(rolled,remaining);
 }""",
-            1,
-        )
+        1,
+    )
 
-        # Make machine interactions self-explanatory. Previously tapping a
-        # prepared blender/mixer without a cup silently did nothing, which is
-        # especially confusing on iPad.
-        html = html.replace(
-            """  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);return;}""",
-            """  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}""",
-            1,
-        )
-        html = html.replace(
-            """  if(prepared&&holdingContainer){
+    # Make machine interactions self-explanatory. Previously tapping a
+    # prepared blender/mixer without a cup silently did nothing, which is
+    # especially confusing on iPad.
+    html = html.replace(
+        """  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);return;}""",
+        """  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}""",
+        1,
+    )
+    html = html.replace(
+        """  if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);""",
-            """  if(prepared&&!holdingContainer){
+        """  if(prepared&&!holdingContainer){
    message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
   }
   if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);""",
-            1,
-        )
-        html = html.replace(
-            """  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);return;}""",
-            """  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}""",
-            1,
-        )
-        html = html.replace(
-            """  if(!prepared){prepared=true;playSfx(sndPrep);return;}
+        1,
+    )
+    html = html.replace(
+        """  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);return;}""",
+        """  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}""",
+        1,
+    )
+    html = html.replace(
+        """  if(!prepared){prepared=true;playSfx(sndPrep);return;}
   if(prepared&&holdingContainer){""",
-            """  if(!prepared){
+        """  if(!prepared){
    prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.4);playSfx(sndPrep);return;
   }
   if(prepared&&!holdingContainer){
    message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
   }
   if(prepared&&holdingContainer){""",
-            1,
-        )
+        1,
+    )
 
-        # A loaded scoop was silently thrown away when the player tapped the
-        # scooper to set it down. Ask the player to use the scoop or RESET
-        # instead, preventing accidental progress loss.
-        html = html.replace(
-            """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
+    # A loaded scoop was silently thrown away when the player tapped the
+    # scooper to set it down. Ask the player to use the scoop or RESET
+    # instead, preventing accidental progress loss.
+    html = html.replace(
+        """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
   holdingScoop=!holdingScoop;
   if(!holdingScoop){scoopLoaded=false;scoopFlavor='';}
   playSfx(sndPick);return;
  }""",
-            """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
+        """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
   if(holdingScoop&&scoopLoaded){
    message='Use the scoop you already have, or tap RESET.';messageTimer.set(1.5);playSfx(sndBad);return;
   }
   holdingScoop=!holdingScoop;
   playSfx(sndPick);return;
  }""",
-            1,
-        )
+        1,
+    )
 
-        # The persisted "stars" counter is historically one per served order,
-        # not the 1–3 star level rating sent to Odyssey. Label it accurately in
-        # the shared player picker instead of presenting it as rating stars.
-        html = html.replace(
-            """detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`""",
-            """detail:`${max(0,p.completions||0)} completions · ${max(0,p.served||0)} orders served`""",
-            1,
-        )
+    # The persisted "stars" counter is historically one per served order,
+    # not the 1–3 star level rating sent to Odyssey. Label it accurately in
+    # the shared player picker instead of presenting it as rating stars.
+    html = html.replace(
+        """detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`""",
+        """detail:`${max(0,p.completions||0)} completions · ${max(0,p.served||0)} orders served`""",
+        1,
+    )
 
-        # Remove an unreachable second autosave check at the very bottom of
-        # gameUpdate; the same check already runs before gameplay handling.
-        html = html.replace(
-            """ }
+    # Remove an unreachable second autosave check at the very bottom of
+    # gameUpdate; the same check already runs before gameplay handling.
+    html = html.replace(
+        """ }
  if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
 }
 
 function drawOpenIceTub""",
-            """ }
+        """ }
 }
 
 function drawOpenIceTub""",
-            1,
-        )
+        1,
+    )
+
+
 
         return html
 
