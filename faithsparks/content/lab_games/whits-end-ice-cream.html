@@ -713,7 +713,9 @@ function serve(){
 }
 function initIllustratedAtlas(){
  const tile=128, cols=4, rows=3;
- const c=new OffscreenCanvas(tile*cols,tile*rows);
+ const c=typeof OffscreenCanvas!='undefined'
+  ? new OffscreenCanvas(tile*cols,tile*rows)
+  : Object.assign(document.createElement('canvas'),{width:tile*cols,height:tile*rows});
  const g=c.getContext('2d');
  g.imageSmoothingEnabled=true;
 
@@ -1984,7 +1986,7 @@ function restoreSession(){
  roundStartServed=ss.roundStartServed??served;
  roundStartLevel=ss.roundStartLevel??level;
  roundResultId=ss.roundResultId||(`whits-${activeProfileId}-${roundStartLevel}-${ss.savedAt||Date.now()}`);
- const savedPartyTime=max(0,ss.pausedPartyTime||(ss.timeLeft??ruleForLevel().time));
+ const savedPartyTime=max(0,ss.pausedPartyTime??ss.timeLeft??ruleForLevel().time);
  pausedPartyTime=0;
  partyDeadline=ruleForLevel().time?time+savedPartyTime:0;
  return true;
@@ -2037,6 +2039,7 @@ function showNameInput(){
  const wrap=document.getElementById('odyssey-name-overlay'),input=document.getElementById('odyssey-player-name');
  document.getElementById('odyssey-name-message').textContent='';
  input.value='';wrap.style.display='block';
+ requestAnimationFrame(()=>{try{input.focus({preventScroll:true});}catch(e){try{input.focus();}catch(_){}}});
 }
 function hideNameInput(){
  const wrap=document.getElementById('odyssey-name-overlay');if(wrap)wrap.style.display='none';
@@ -2157,8 +2160,11 @@ function continueSavedSession(){
 function restartCurrentRound(){
  clearTimeout(whitsAutoAdvanceTimer);whitsAutoAdvanceTimer=0;
  score=roundStartScore;stars=roundStartStars;served=roundStartServed;
- level=roundStartLevel;levelServed=0;
+ level=roundStartLevel;levelServed=0;roundMistakes=0;
+ roundResultId=odysseyApi()?.createRoundId?.(GAME_ID,currentProfile()?.name,'whits')||
+   ('whits-'+activeProfileId+'-'+level+'-'+Date.now());
  startParty(false);menuOpen=false;resultsScreen=false;
+ levelBannerTimer.set(1.2);
  saveActiveProfile();saveSession();
 }
 function changePlayer(){
@@ -2564,7 +2570,9 @@ function plainOrder(){
  };
 }
 function drinkOrder(){
- const base=RECIPES[randInt(RECIPES.length)];
+ // Introduce the menu gradually so early levels stay readable for younger players.
+ const availableCount=level<=2?5:level==3?8:RECIPES.length;
+ const base=RECIPES[randInt(min(RECIPES.length,availableCount))];
  const tops=base.kind=='BLEND'?randomToppings(ruleForLevel().maxToppings,'CUP'):[];
  return {name:base.name,need:[...base.need],kind:base.kind,container:'CUP',toppings:tops};
 }
@@ -2756,6 +2764,10 @@ function addIngredient(item){
   scoopFlavor=item.name;scoopLoaded=true;playSfx(sndScoop);return;
  }
  if(holdingScoop){message='Set the scooper down first.';messageTimer.set(1.4);return;}
+ if(holdingMilk){
+  message=`Put ${shortName(holdingMilk)} in the ${order.kind=='MIX'?'mix station':'blender'} first.`;
+  messageTimer.set(1.5);playSfx(sndBad);return;
+ }
  holdingMilk=item.name;playSfx(sndPick);
 }
 
@@ -2938,7 +2950,6 @@ function gameUpdate(){
    }
   }
  }
- if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
 }
 
 function drawOpenIceTub(pos,color,ripple=false){
