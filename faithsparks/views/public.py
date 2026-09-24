@@ -866,7 +866,7 @@ def same_brain_public():
         "</style>"
         "<script>"
         "window.__SAME_BRAIN_PUBLIC__=true;"
-        "window.__ODYSSEY_SYNC_CONFIG__="
+        "window.__GAMES_SYNC_CONFIG__="
         + json.dumps({"csrfToken": _same_brain_public_csrf()}).replace("<", "\\u003c")
         + ";"
         "</script>"

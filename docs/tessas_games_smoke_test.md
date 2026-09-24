@@ -1,4 +1,4 @@
-# Tessa's Odyssey Manual Smoke Test
+# Tessa's Games Manual Smoke Test
 
 Use this after platform/game-shell changes and before considering a release stable.
 
@@ -15,11 +15,11 @@ Run the matrix on:
 For each device:
 
 1. Open `/labs/games`.
-2. Create a new Odyssey player using the native text input.
+2. Create a new Games player using the native text input.
 3. Verify spaces, Backspace, capitalization, and Enter/Done.
 4. Confirm the player appears in the shared selector.
 5. Select that player and open each of the four games.
-6. Verify the selected Odyssey player propagates automatically into every mini-game.
+6. Verify the selected Games player propagates automatically into every mini-game.
 7. Use **Change Player** inside each game and confirm the same shared selector appears.
 8. Verify 8-player maximum and 20-character name limit.
 9. Verify duplicate names are rejected case-insensitively.
@@ -29,17 +29,17 @@ For each device:
 
 Test all four:
 
-- Whit's End Ice Cream Shop
-- Bernard's Window Washing
-- Wooten's Mail Route
-- Timothy Center Horse Racing
+- Gordon Ice Cream Town
+- Gordon Window Washing
+- Gordon Mail Run
+- Gordon Family Stables
 
 For each game:
 
 1. Start a round.
 2. Complete a round.
 3. Verify the shared results UI appears.
-4. Verify Odyssey XP is awarded once.
+4. Verify Games XP is awarded once.
 5. Verify replay does not double-count the previous completion.
 6. Verify next/continue advances sensibly.
 7. Open the hamburger menu and test:
@@ -63,27 +63,27 @@ For each game:
 - Verify all important tap targets are comfortable to hit.
 - Rotate landscape/portrait and confirm overlays remain usable.
 
-## Odyssey home
+## Games home
 
 On `/labs/games` verify:
 
 - active player persists
 - avatar can be changed
 - Continue Recent Game goes to the correct game
-- XP bar and Odyssey Level update
+- XP bar and Games Level update
 - daily/weekly challenge progress updates
 - achievements appear when earned
 - Sound Effects and Music settings carry into games
 - game progress cards show each game's stats
-- Family Progress summarizes every Odyssey player
+- Family Progress summarizes every Games player
 - visual game thumbnails render correctly
 
 ## Regression paths
 
 Specifically retest:
 
-- Timothy Center saved horse colors after reload
-- Timothy Center foal/stable unlocks
-- Bernard finishing a window while still dragging the tool
-- Wooten Level 6 delivery-route unlock
-- Whit's End replay vs next-level result flow
+- Gordon Family Stables saved horse colors after reload
+- Gordon Family Stables foal/stable unlocks
+- Rowan finishing a window while still dragging the tool
+- Casey Level 6 delivery-route unlock
+- Gordon Ice Cream Town replay vs next-level result flow

@@ -1,7 +1,7 @@
 (function(global){
 'use strict';
 
-const STORAGE_KEY = 'tessas_odyssey_platform_v1';
+const STORAGE_KEY = 'tessas_games_platform_v1';
 const VERSION = 4;
 const MAX_PLAYERS = 8;
 const MAX_NAME = 20;
@@ -126,7 +126,7 @@ function resolvePlayer(ref){
     playerByName(ref);
 }
 function mergeAccountRosterBootstrap(){
-  const remote=global.__ODYSSEY_ACCOUNT_ROSTER__;
+  const remote=global.__GAMES_ACCOUNT_ROSTER__;
   if(!remote || !Array.isArray(remote.players)) return;
 
   for(const raw of remote.players.slice(0,MAX_PLAYERS)){
@@ -187,7 +187,7 @@ function rosterFingerprint(payload){
   try{return JSON.stringify(payload);}catch(_){return '';}
 }
 function queueAccountRosterSync(){
-  const config=global.__ODYSSEY_SYNC_CONFIG__;
+  const config=global.__GAMES_SYNC_CONFIG__;
   if(!config || !config.url || !global.fetch) return;
 
   const payload=accountRosterPayload();
@@ -209,7 +209,7 @@ function queueAccountRosterSync(){
       if(!response.ok) return;
       const merged=await response.json();
       if(merged && Array.isArray(merged.players)){
-        global.__ODYSSEY_ACCOUNT_ROSTER__=merged;
+        global.__GAMES_ACCOUNT_ROSTER__=merged;
         mergeAccountRosterBootstrap();
         normalizePlayers();
         try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(_){}
@@ -267,7 +267,7 @@ function setPlayers(list){
     if (!next.some(x=>x.id===p.id || x.name.toLocaleLowerCase()===name.toLocaleLowerCase()))
       next.push(p);
   }
-  // Preserve Odyssey-only players not present in the incoming legacy list.
+  // Preserve Games-only players not present in the incoming legacy list.
   for (const p of state.players) {
     if (next.length>=MAX_PLAYERS) break;
     if (!next.some(x=>x.id===p.id || x.name.toLocaleLowerCase()===String(p.name||'').toLocaleLowerCase()))
@@ -300,7 +300,7 @@ function startSession(gameId, name, options){
   state.activePlayerId = p.id;
   const g = ensureGame(p, gameId);
   const opts = options || {};
-  const sessionKey = 'tessas_odyssey_session_v1:' + p.id + ':' + gameId;
+  const sessionKey = 'tessas_games_session_v1:' + p.id + ':' + gameId;
   let alreadyStarted = false;
   try { alreadyStarted = !opts.force && sessionStorage.getItem(sessionKey) === '1'; } catch (_) {}
   if (!alreadyStarted) {
@@ -336,7 +336,7 @@ function recordResult(gameId, result, name){
   const g = ensureGame(p, gameId);
   const r = Object.assign({completed:false}, result || {});
   const oldXp=Math.max(0,p.totals&&p.totals.xp||0);
-  const oldLevel=odysseyLevelFromXp(oldXp);
+  const oldLevel=gamesLevelFromXp(oldXp);
   const oldAchievements=new Set(getAchievements(p.id).map(a=>a.id));
 
   syncProgress(gameId, r, p.name);
@@ -365,10 +365,10 @@ function recordResult(gameId, result, name){
   save();
 
   if(r.completed && !duplicate){
-    const newLevel=odysseyLevelFromXp(p.totals.xp||0);
+    const newLevel=gamesLevelFromXp(p.totals.xp||0);
     const newAchievements=getAchievements(p.id).filter(a=>!oldAchievements.has(a.id));
     showCelebration({
-      title:newLevel>oldLevel ? 'Odyssey Level Up!' : 'Round Complete!',
+      title:newLevel>oldLevel ? 'Games Level Up!' : 'Round Complete!',
       xpEarned:r.xpEarned||0,
       level:newLevel,
       levelUp:newLevel>oldLevel,
@@ -410,9 +410,9 @@ function hidePlayerForGame(playerRef, gameId){
 }
 
 function showSaved(message){
-  let el = document.getElementById('odysseySaveToast');
+  let el = document.getElementById('gamesSaveToast');
   if (!el) {
-    el = document.createElement('div'); el.id = 'odysseySaveToast'; el.className = 'odyssey-save-toast'; document.body.appendChild(el);
+    el = document.createElement('div'); el.id = 'gamesSaveToast'; el.className = 'games-save-toast'; document.body.appendChild(el);
   }
   el.textContent = message || 'Saved'; el.classList.add('show');
   clearTimeout(showSaved._t); showSaved._t = setTimeout(()=>el.classList.remove('show'), 900);
@@ -420,17 +420,17 @@ function showSaved(message){
 
 function showCelebration(opts){
   opts=opts||{};
-  let el=document.getElementById('odysseyCelebration');
+  let el=document.getElementById('gamesCelebration');
   if(el) el.remove();
   el=document.createElement('div');
-  el.id='odysseyCelebration';
-  el.className='odyssey-celebration';
+  el.id='gamesCelebration';
+  el.className='games-celebration';
   const badges=Array.isArray(opts.achievements)?opts.achievements:[];
   el.innerHTML=
-    '<div class="odyssey-celebration-title">'+(opts.title||'Nice job!')+'</div>'+
-    (opts.xpEarned?'<div class="odyssey-celebration-xp">+'+Math.max(0,+opts.xpEarned||0)+' Odyssey XP</div>':'')+
-    (opts.levelUp?'<div class="odyssey-celebration-level">Odyssey Level '+Math.max(1,+opts.level||1)+'</div>':'')+
-    (badges.length?'<div class="odyssey-celebration-badges">'+badges.map(a=>'🏅 '+a.name).join('<br>')+'</div>':'');
+    '<div class="games-celebration-title">'+(opts.title||'Nice job!')+'</div>'+
+    (opts.xpEarned?'<div class="games-celebration-xp">+'+Math.max(0,+opts.xpEarned||0)+' Games XP</div>':'')+
+    (opts.levelUp?'<div class="games-celebration-level">Games Level '+Math.max(1,+opts.level||1)+'</div>':'')+
+    (badges.length?'<div class="games-celebration-badges">'+badges.map(a=>'🏅 '+a.name).join('<br>')+'</div>':'');
   document.body.appendChild(el);
   requestAnimationFrame(()=>el.classList.add('show'));
   clearTimeout(showCelebration._t);
@@ -443,13 +443,13 @@ function celebrateUnlock(title,detail){
 function openAvatarPicker(playerRef,opts){
   opts=opts||{};
   const p=resolvePlayer(playerRef); if(!p) return null;
-  const overlay=document.createElement('div'); overlay.className='odyssey-modal';
-  const card=document.createElement('div'); card.className='odyssey-modal-card';
+  const overlay=document.createElement('div'); overlay.className='games-modal';
+  const card=document.createElement('div'); card.className='games-modal-card';
   const title=document.createElement('h2'); title.textContent='Choose an Avatar';
-  const grid=document.createElement('div'); grid.className='odyssey-avatar-grid';
+  const grid=document.createElement('div'); grid.className='games-avatar-grid';
   for(const avatar of AVATARS){
     const b=document.createElement('button');
-    b.type='button'; b.className='odyssey-avatar-choice'+(p.avatar===avatar.id?' selected':'');
+    b.type='button'; b.className='games-avatar-choice'+(p.avatar===avatar.id?' selected':'');
     b.innerHTML='<span style="background:'+avatar.color+'">'+avatar.symbol+'</span><small>'+avatar.label+'</small>';
     protectNativeControl(b);
     b.onclick=()=>{
@@ -459,41 +459,41 @@ function openAvatarPicker(playerRef,opts){
     };
     grid.appendChild(b);
   }
-  const cancel=document.createElement('button'); cancel.type='button'; cancel.className='odyssey-button secondary'; cancel.textContent='Cancel';
+  const cancel=document.createElement('button'); cancel.type='button'; cancel.className='games-button secondary'; cancel.textContent='Cancel';
   protectNativeControl(cancel); cancel.onclick=()=>overlay.remove();
   card.append(title,grid,cancel); overlay.append(card); document.body.appendChild(overlay);
   return overlay;
 }
 function showRoundResults(opts){
   opts=opts||{};
-  const prior=document.getElementById('odysseyRoundResults'); if(prior) prior.remove();
-  const overlay=document.createElement('div'); overlay.id='odysseyRoundResults'; overlay.className='odyssey-modal odyssey-results-modal';
-  const card=document.createElement('div'); card.className='odyssey-modal-card';
+  const prior=document.getElementById('gamesRoundResults'); if(prior) prior.remove();
+  const overlay=document.createElement('div'); overlay.id='gamesRoundResults'; overlay.className='games-modal games-results-modal';
+  const card=document.createElement('div'); card.className='games-modal-card';
   const title=document.createElement('h2'); title.textContent=opts.title||'Round Complete!';
-  const summary=document.createElement('div'); summary.className='odyssey-result-summary';
+  const summary=document.createElement('div'); summary.className='games-result-summary';
   const rows=[];
   if(opts.score!==undefined) rows.push(['Score',opts.score]);
   if(opts.bestScore!==undefined) rows.push(['Best',opts.bestScore]);
   if(opts.level!==undefined) rows.push(['Level',opts.level]);
   if(opts.stars!==undefined && +opts.stars>0) rows.push(['Stars',opts.stars]);
-  if(opts.xpEarned!==undefined) rows.push(['Odyssey XP','+'+Math.max(0,+opts.xpEarned||0)]);
+  if(opts.xpEarned!==undefined) rows.push(['Games XP','+'+Math.max(0,+opts.xpEarned||0)]);
   summary.innerHTML=rows.map(([k,v])=>'<div><span>'+k+'</span><strong>'+v+'</strong></div>').join('');
   const detail=document.createElement('p');
-  detail.className='odyssey-result-detail';
+  detail.className='games-result-detail';
   detail.textContent=opts.detail||'';
-  const actions=document.createElement('div'); actions.className='odyssey-modal-actions';
-  const primary=document.createElement('button'); primary.type='button'; primary.className='odyssey-button'; primary.textContent=opts.primaryLabel||'Continue';
+  const actions=document.createElement('div'); actions.className='games-modal-actions';
+  const primary=document.createElement('button'); primary.type='button'; primary.className='games-button'; primary.textContent=opts.primaryLabel||'Continue';
   protectNativeControl(primary); primary.onclick=()=>{overlay.remove(); if(opts.onPrimary) opts.onPrimary();};
   actions.appendChild(primary);
   if(opts.onReplay){
-    const replay=document.createElement('button'); replay.type='button'; replay.className='odyssey-button secondary'; replay.textContent=opts.replayLabel||'Play Again';
+    const replay=document.createElement('button'); replay.type='button'; replay.className='games-button secondary'; replay.textContent=opts.replayLabel||'Play Again';
     protectNativeControl(replay); replay.onclick=()=>{overlay.remove();opts.onReplay();}; actions.appendChild(replay);
   }
   if(opts.onChangePlayer){
-    const change=document.createElement('button'); change.type='button'; change.className='odyssey-button secondary'; change.textContent='Change Player';
+    const change=document.createElement('button'); change.type='button'; change.className='games-button secondary'; change.textContent='Change Player';
     protectNativeControl(change); change.onclick=()=>{overlay.remove();opts.onChangePlayer();}; actions.appendChild(change);
   }
-  const library=document.createElement('button'); library.type='button'; library.className='odyssey-button secondary'; library.textContent='Game Library';
+  const library=document.createElement('button'); library.type='button'; library.className='games-button secondary'; library.textContent='Game Library';
   protectNativeControl(library); library.onclick=()=>{overlay.remove(); if(opts.onLibrary) opts.onLibrary(); else returnToLibrary();};
   actions.appendChild(library);
   card.append(title,summary);
@@ -504,16 +504,16 @@ function showRoundResults(opts){
 }
 function openNameDialog(opts){
   opts = opts || {};
-  const existing = document.getElementById('odysseyNameDialog'); if (existing) existing.remove();
-  const overlay = document.createElement('div'); overlay.id='odysseyNameDialog'; overlay.className='odyssey-modal';
-  const card = document.createElement('div'); card.className='odyssey-modal-card';
+  const existing = document.getElementById('gamesNameDialog'); if (existing) existing.remove();
+  const overlay = document.createElement('div'); overlay.id='gamesNameDialog'; overlay.className='games-modal';
+  const card = document.createElement('div'); card.className='games-modal-card';
   const title = document.createElement('h2'); title.textContent = opts.title || 'New Player';
   const help = document.createElement('p'); help.textContent = opts.help || 'Type your name. Your device will remember your progress.';
-  const input = document.createElement('input'); input.className='odyssey-name-input'; input.type='text'; input.inputMode='text'; input.enterKeyHint='done'; input.autocomplete='name'; input.autocapitalize='words'; input.maxLength=MAX_NAME; input.value=cleanPlayerName(opts.value || ''); input.placeholder='Player name';
-  const error = document.createElement('div'); error.className='odyssey-error';
-  const actions = document.createElement('div'); actions.className='odyssey-modal-actions';
-  const cancel = document.createElement('button'); cancel.type='button'; cancel.className='odyssey-button secondary'; cancel.textContent='Cancel';
-  const saveBtn = document.createElement('button'); saveBtn.type='button'; saveBtn.className='odyssey-button'; saveBtn.textContent=opts.saveLabel || 'Save';
+  const input = document.createElement('input'); input.className='games-name-input'; input.type='text'; input.inputMode='text'; input.enterKeyHint='done'; input.autocomplete='name'; input.autocapitalize='words'; input.maxLength=MAX_NAME; input.value=cleanPlayerName(opts.value || ''); input.placeholder='Player name';
+  const error = document.createElement('div'); error.className='games-error';
+  const actions = document.createElement('div'); actions.className='games-modal-actions';
+  const cancel = document.createElement('button'); cancel.type='button'; cancel.className='games-button secondary'; cancel.textContent='Cancel';
+  const saveBtn = document.createElement('button'); saveBtn.type='button'; saveBtn.className='games-button'; saveBtn.textContent=opts.saveLabel || 'Save';
   function close(){ overlay.remove(); if (opts.onCancel) opts.onCancel(); }
   function submit(){
     const name = cleanPlayerName(input.value);
@@ -574,7 +574,7 @@ function setSettings(next){
   state.settings.music=state.settings.music!==false;
   save(); return getSettings();
 }
-function odysseyLevelFromXp(xp){ return Math.max(1,Math.floor(Math.max(0,+xp||0)/100)+1); }
+function gamesLevelFromXp(xp){ return Math.max(1,Math.floor(Math.max(0,+xp||0)/100)+1); }
 function getAchievements(playerRef){
   const p=resolvePlayer(playerRef); if(!p) return [];
   const games=Object.entries(p.games||{}).filter(([,g])=>g && !g.hidden);
@@ -585,19 +585,19 @@ function getAchievements(playerRef){
   const out=[];
   const add=(id,name,description,icon='🏅')=>out.push({id,name,description,icon});
 
-  if (played>=1) add('first-game','First Adventure','Play a Tessa’s Odyssey game.','✨');
-  if (played>=4) add('all-four','Around Odyssey','Play all four Odyssey games.','🧭');
+  if (played>=1) add('first-game','First Adventure','Play a Tessa’s Games game.','✨');
+  if (played>=4) add('all-four','Around Town','Play all four games.','🧭');
   if (completions>=10) add('ten-completions','Keep Going!','Complete 10 rounds or levels.','🏆');
-  if (completions>=25) add('twenty-five-completions','Odyssey Regular','Complete 25 rounds or levels.','🌟');
-  if (completions>=50) add('fifty-completions','Odyssey Champion','Complete 50 rounds or levels.','👑');
+  if (completions>=25) add('twenty-five-completions','Games Regular','Complete 25 rounds or levels.','🌟');
+  if (completions>=50) add('fifty-completions','Games Champion','Complete 50 rounds or levels.','👑');
   const perfect=games.some(([,g])=>g&&g.completions>0&&g.lastResult&&g.lastResult.meta&&(g.lastResult.meta.perfect===true||g.lastResult.meta.mistakes===0));
   if (perfect) add('perfect-round','Perfect Round','Finish a round with no mistakes.','💯');
-  if ((byId['whits-end']?.completions||0)>=5) add('whits-regular',"Whit's End Regular",'Complete 5 Whit’s End rounds.','🍨');
-  if ((byId['bernard-window-washing']?.completions||0)>=5) add('sparkling-clean','Sparkling Clean','Complete 5 Bernard window jobs.','✨');
-  if ((byId['wooten-mail-sorting']?.completions||0)>=5) add('mail-pro','Mail Route Pro','Complete 5 Wooten routes or sorting rounds.','✉️');
-  if ((byId['timothy-center-horse-racing']?.highestLevel||1)>=5) add('stable-master','Stable Master','Reach Level 5 at the Timothy Center.','🐴');
-  if (xp>=500) add('xp-500','Odyssey Explorer','Earn 500 Odyssey XP.','🗺️');
-  if (xp>=1000) add('xp-1000','Odyssey Hero','Earn 1,000 Odyssey XP.','⭐');
+  if ((byId['gordon-ice-cream-town']?.completions||0)>=5) add('icecream-regular',"Gordon Ice Cream Town Regular",'Complete 5 Gordon Ice Cream Town rounds.','🍨');
+  if ((byId['gordon-window-washing']?.completions||0)>=5) add('sparkling-clean','Sparkling Clean','Complete 5 Rowan window jobs.','✨');
+  if ((byId['gordon-mail-run']?.completions||0)>=5) add('mail-pro','Mail Route Pro','Complete 5 Casey routes or sorting rounds.','✉️');
+  if ((byId['gordon-family-stables']?.highestLevel||1)>=5) add('stable-master','Stable Master','Reach Level 5 at the Gordon Family Stables.','🐴');
+  if (xp>=500) add('xp-500','Games Explorer','Earn 500 Games XP.','🗺️');
+  if (xp>=1000) add('xp-1000','Games Hero','Earn 1,000 Games XP.','⭐');
   return out;
 }
 function getRecentGame(playerRef){
@@ -624,11 +624,11 @@ function getChallenges(playerRef){
     id,title,current:Math.min(target,current),target,period,complete:current>=target
   });
   return [
-    item('daily-play','Play an Odyssey game today',dailySessions,1,'Daily'),
+    item('daily-play','Play a game today',dailySessions,1,'Daily'),
     item('daily-complete','Complete a round today',dailyCompletions,1,'Daily'),
     item('weekly-complete','Complete 5 rounds this week',weeklyCompletions,5,'Weekly'),
     item('weekly-variety','Play 3 different games this week',weeklyGames,3,'Weekly'),
-    item('weekly-xp','Earn 100 Odyssey XP this week',weeklyXp,100,'Weekly')
+    item('weekly-xp','Earn 100 Games XP this week',weeklyXp,100,'Weekly')
   ];
 }
 function getPlayerSummary(playerRef){
@@ -642,10 +642,10 @@ function getPlayerSummary(playerRef){
     completions += Math.max(0, g.completions||0);
   }
   const xp=Math.max(0,p.totals&&p.totals.xp||0);
-  const odysseyLevel=odysseyLevelFromXp(xp);
+  const gamesLevel=gamesLevelFromXp(xp);
   const xpIntoLevel=xp%100;
   return {
-    id:p.id,name:p.name,avatar:getPlayerAvatar(p.id),xp,odysseyLevel,xpIntoLevel,xpToNextLevel:100-xpIntoLevel,
+    id:p.id,name:p.name,avatar:getPlayerAvatar(p.id),xp,gamesLevel,xpIntoLevel,xpToNextLevel:100-xpIntoLevel,
     gamesPlayed,completions,
     lastPlayedAt:p.lastPlayedAt||0,games,
     recentGame:getRecentGame(p.id),
@@ -659,8 +659,8 @@ function isEditableTarget(target){
   return !!(target && target.closest && target.closest('input,textarea,select,[contenteditable="true"],[contenteditable=""]'));
 }
 function protectNativeControl(control){
-  if(!control || control.dataset.odysseyProtected==='1') return control;
-  control.dataset.odysseyProtected='1';
+  if(!control || control.dataset.gamesProtected==='1') return control;
+  control.dataset.gamesProtected='1';
   for(const type of ['keydown','keyup','beforeinput','input','change','compositionstart','compositionend','pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click']){
     control.addEventListener(type,e=>e.stopPropagation(),type.startsWith('touch')?{passive:true}:false);
   }
@@ -691,19 +691,19 @@ function visiblePlayers(gameId){
 function confirmDialog(opts){
   opts=opts||{};
   const overlay=document.createElement('div');
-  overlay.className='odyssey-modal';
+  overlay.className='games-modal';
   const card=document.createElement('div');
-  card.className='odyssey-modal-card';
+  card.className='games-modal-card';
   const title=document.createElement('h2');
   title.textContent=opts.title||'Are you sure?';
   const body=document.createElement('p');
   body.textContent=opts.message||'This action cannot be undone.';
   const actions=document.createElement('div');
-  actions.className='odyssey-modal-actions';
+  actions.className='games-modal-actions';
   const cancel=document.createElement('button');
-  cancel.type='button'; cancel.className='odyssey-button secondary'; cancel.textContent=opts.cancelLabel||'Cancel';
+  cancel.type='button'; cancel.className='games-button secondary'; cancel.textContent=opts.cancelLabel||'Cancel';
   const confirm=document.createElement('button');
-  confirm.type='button'; confirm.className='odyssey-button danger'; confirm.textContent=opts.confirmLabel||'Delete';
+  confirm.type='button'; confirm.className='games-button danger'; confirm.textContent=opts.confirmLabel||'Delete';
   protectNativeControl(cancel); protectNativeControl(confirm);
   cancel.onclick=()=>overlay.remove();
   confirm.onclick=()=>{ overlay.remove(); if(opts.onConfirm) opts.onConfirm(); };
@@ -719,13 +719,13 @@ const playerSelectAutoConsumed=new Set();
 function openPlayerSelect(opts){
   opts=opts||{};
   const gameId=opts.gameId||'';
-  const autoKey=gameId||'__odyssey__';
+  const autoKey=gameId||'__games__';
   const active=playerById(state.activePlayerId);
   const firstSelectOnPage=!playerSelectAutoConsumed.has(autoKey);
   playerSelectAutoConsumed.add(autoKey);
 
   // When a player was selected on /labs/games, carry that same stable
-  // Odyssey identity straight into the first mini-game opened on this page.
+  // Games identity straight into the first mini-game opened on this page.
   // Later calls (notably Change Player) deliberately show the selector.
   if(firstSelectOnPage && active && opts.autoContinueActive!==false){
     selectPlayer(active.id,gameId);
@@ -737,26 +737,26 @@ function openPlayerSelect(opts){
       autoContinued:true
     };
   }
-  const existing=document.getElementById('odysseyPlayerSelect');
+  const existing=document.getElementById('gamesPlayerSelect');
   if(existing) existing.remove();
 
   const overlay=document.createElement('div');
-  overlay.id='odysseyPlayerSelect';
-  overlay.className='odyssey-player-select';
+  overlay.id='gamesPlayerSelect';
+  overlay.className='games-player-select';
   overlay.setAttribute('role','dialog');
   overlay.setAttribute('aria-modal','true');
 
   const panel=document.createElement('div');
-  panel.className='odyssey-player-panel';
+  panel.className='games-player-panel';
 
   const title=document.createElement('h1');
   title.textContent='Choose a Player';
   const help=document.createElement('p');
-  help.className='odyssey-player-help';
+  help.className='games-player-help';
   help.textContent='Continue an existing player or add a new one.';
 
   const list=document.createElement('div');
-  list.className='odyssey-player-list';
+  list.className='games-player-list';
 
   function summaryFor(player){
     if(opts.getSummary){
@@ -781,27 +781,27 @@ function openPlayerSelect(opts){
     const players=visiblePlayers(gameId);
     if(!players.length){
       const empty=document.createElement('p');
-      empty.className='odyssey-player-empty';
+      empty.className='games-player-empty';
       empty.textContent='No players yet. Add a player to begin.';
       list.appendChild(empty);
     }
 
     for(const player of players){
       const card=document.createElement('div');
-      card.className='odyssey-player-card';
+      card.className='games-player-card';
 
       const avatar=getPlayerAvatar(player.id);
       const avatarEl=document.createElement('div');
-      avatarEl.className='odyssey-player-avatar';
+      avatarEl.className='games-player-avatar';
       avatarEl.textContent=avatar.symbol;
       avatarEl.style.background=avatar.color;
 
       const name=document.createElement('div');
-      name.className='odyssey-player-name';
+      name.className='games-player-name';
       name.textContent=player.name;
 
       const meta=document.createElement('div');
-      meta.className='odyssey-player-meta';
+      meta.className='games-player-meta';
       const s=summaryFor(player);
       const parts=[];
       if(s.level || s.highestLevel) parts.push('Highest Level '+(s.highestLevel||s.level));
@@ -810,19 +810,19 @@ function openPlayerSelect(opts){
       meta.textContent=parts.join(' · ') || 'Ready to play';
 
       const actions=document.createElement('div');
-      actions.className='odyssey-player-actions';
+      actions.className='games-player-actions';
 
       const cont=document.createElement('button');
-      cont.type='button'; cont.className='odyssey-button'; cont.textContent='Continue';
+      cont.type='button'; cont.className='games-button'; cont.textContent='Continue';
       protectNativeControl(cont);
       cont.onclick=()=>choose(player);
 
       const del=document.createElement('button');
-      del.type='button'; del.className='odyssey-button danger'; del.textContent='Delete';
+      del.type='button'; del.className='games-button danger'; del.textContent='Delete';
       protectNativeControl(del);
       del.onclick=()=>confirmDialog({
         title:'Delete '+player.name+'?',
-        message:opts.deleteMessage || 'This removes this player from this game. Other Odyssey game progress stays intact.',
+        message:opts.deleteMessage || 'This removes this player from this game. Other Games game progress stays intact.',
         confirmLabel:'Delete',
         onConfirm:()=>{
           if(gameId) hidePlayerForGame(player.id,gameId);
@@ -833,7 +833,7 @@ function openPlayerSelect(opts){
 
       actions.append(cont,del);
       const identity=document.createElement('div');
-      identity.className='odyssey-player-identity';
+      identity.className='games-player-identity';
       const copy=document.createElement('div');
       copy.append(name,meta);
       identity.append(avatarEl,copy);
@@ -843,7 +843,7 @@ function openPlayerSelect(opts){
 
     const add=document.createElement('button');
     add.type='button';
-    add.className='odyssey-button odyssey-new-player-button';
+    add.className='games-button games-new-player-button';
     add.textContent=state.players.length>=MAX_PLAYERS ? '8 Players Maximum' : '+ New Player';
     add.disabled=state.players.length>=MAX_PLAYERS;
     protectNativeControl(add);
@@ -892,15 +892,15 @@ function openPlayerSelect(opts){
 
 function mountGameMenu(opts){
   opts=opts||{};
-  const oldButton=document.getElementById('odysseyGameMenuButton');
+  const oldButton=document.getElementById('gamesGameMenuButton');
   if(oldButton) oldButton.remove();
-  const oldOverlay=document.getElementById('odysseyGameMenuOverlay');
+  const oldOverlay=document.getElementById('gamesGameMenuOverlay');
   if(oldOverlay) oldOverlay.remove();
 
   const button=document.createElement('button');
-  button.id='odysseyGameMenuButton';
+  button.id='gamesGameMenuButton';
   button.type='button';
-  button.className='odyssey-hamburger';
+  button.className='games-hamburger';
   button.setAttribute('aria-label','Open game menu');
   button.textContent='☰';
   protectNativeControl(button);
@@ -917,11 +917,11 @@ function mountGameMenu(opts){
     if(opts.onOpen) opts.onOpen();
 
     overlay=document.createElement('div');
-    overlay.id='odysseyGameMenuOverlay';
-    overlay.className='odyssey-modal';
+    overlay.id='gamesGameMenuOverlay';
+    overlay.className='games-modal';
 
     const card=document.createElement('div');
-    card.className='odyssey-modal-card odyssey-game-menu-card';
+    card.className='games-modal-card games-game-menu-card';
     const title=document.createElement('h2');
     title.textContent='Game Menu';
     card.appendChild(title);
@@ -929,7 +929,7 @@ function mountGameMenu(opts){
     function menuButton(label,action,secondary=true){
       const b=document.createElement('button');
       b.type='button';
-      b.className='odyssey-button'+(secondary?' secondary':'');
+      b.className='games-button'+(secondary?' secondary':'');
       b.textContent=label;
       protectNativeControl(b);
       b.onclick=action;
@@ -1030,7 +1030,7 @@ function createRoundId(gameId,playerRef,label){
 function createGameShell(opts){
   opts=opts||{};
   const gameId=opts.gameId;
-  if(!gameId) throw new Error('Odyssey.createGameShell requires gameId');
+  if(!gameId) throw new Error('Games.createGameShell requires gameId');
   installNativeInputGuards();
 
   let menu=null;
@@ -1117,7 +1117,7 @@ function createGameShell(opts){
 function awardXp(playerRef,amount,reason,gameId){
   const p=resolvePlayer(playerRef); if(!p) return null;
   const add=Math.max(0,Math.floor(+amount||0));
-  const oldLevel=odysseyLevelFromXp(p.totals&&p.totals.xp||0);
+  const oldLevel=gamesLevelFromXp(p.totals&&p.totals.xp||0);
   p.totals=p.totals||{xp:0,gamesPlayed:0,completions:0};
   p.totals.xp=(p.totals.xp||0)+add;
   if(gameId){ const g=ensureGame(p,gameId); g.xp=(g.xp||0)+add; g.lastPlayedAt=now(); }
@@ -1129,8 +1129,8 @@ function awardXp(playerRef,amount,reason,gameId){
     if(p.xpHistory.length>50) p.xpHistory=p.xpHistory.slice(-50);
   }
   save();
-  const newLevel=odysseyLevelFromXp(p.totals.xp||0);
-  if(add) showCelebration({title:newLevel>oldLevel?'Odyssey Level Up!':(reason||'Bonus XP!'),xpEarned:add,level:newLevel,levelUp:newLevel>oldLevel});
+  const newLevel=gamesLevelFromXp(p.totals.xp||0);
+  if(add) showCelebration({title:newLevel>oldLevel?'Games Level Up!':(reason||'Bonus XP!'),xpEarned:add,level:newLevel,levelUp:newLevel>oldLevel});
   return getPlayerSummary(p.id);
 }
 
@@ -1147,7 +1147,7 @@ const api = {
   setGameProgress:saveGameProgress, saveProgress:saveGameProgress,
   listPlayers:getPlayers, getProfiles:getPlayers, savePlayers:setPlayers,
   getSettings, setSettings, getPlayerSummary, getDashboard, getAchievements, getChallenges, getRecentGame,
-  odysseyLevelFromXp, protectNativeControl, installNativeInputGuards, returnToLibrary,
+  gamesLevelFromXp, protectNativeControl, installNativeInputGuards, returnToLibrary,
   visiblePlayers, confirmDialog, openPlayerSelect, mountGameMenu, bindAutosave,
   normalizeProgress, checkpoint, createRoundId, createGameShell, awardXp,
   showCelebration, celebrateUnlock, showRoundResults,
@@ -1156,5 +1156,5 @@ const api = {
   setSetting(key,value){ state.settings[key]=!!value; save(); }
 };
 
-global.Odyssey = api;
+global.Games = api;
 })(window);

@@ -2,14 +2,14 @@
 {% block title %}Games Lab | Faith Sparks{% endblock %}
 {% block head_extra %}
 <meta name="robots" content="noindex,nofollow" />
-<link rel="stylesheet" href="{{ url_for('lab_games.asset', filename='odyssey-ui.css') }}">
+<link rel="stylesheet" href="{{ url_for('lab_games.asset', filename='games-ui.css') }}">
 {% endblock %}
 
 {% block content %}
 <section class="product-hero product-hero--labs">
   <p class="product-kicker">Faith Sparks Labs</p>
-  <h1>Tessa’s Odyssey Games</h1>
-  <p>Choose a player once, see their progress across the whole Odyssey, and jump into any game.</p>
+  <h1>Tessa’s Games</h1>
+  <p>Choose a player once, see their progress across the collection, and jump into any game.</p>
 </section>
 
 {% if access_denied %}
@@ -17,52 +17,52 @@
   <strong>This account is not in the Games Lab beta yet.</strong>
 </section>
 {% else %}
-<section id="odyssey-dashboard" class="odyssey-dashboard" aria-labelledby="odyssey-dashboard-title">
-  <div class="odyssey-dashboard-toolbar">
+<section id="games-dashboard" class="games-dashboard" aria-labelledby="games-dashboard-title">
+  <div class="games-dashboard-toolbar">
     <div>
-      <h2 id="odyssey-dashboard-title" style="margin:0">Odyssey Player</h2>
+      <h2 id="games-dashboard-title" style="margin:0">Games Player</h2>
       <p style="margin:.25rem 0 0">Your player identity and progress are shared across all four games.</p>
     </div>
-    <div class="odyssey-dashboard-controls">
-      <label for="odyssey-player-select"><strong>Player</strong></label>
-      <select id="odyssey-player-select" aria-label="Choose Odyssey player"></select>
-      <button id="odyssey-new-player" class="button ghost" type="button">+ New Player</button>
-      <label class="odyssey-dashboard-setting" for="odyssey-library-sound">
+    <div class="games-dashboard-controls">
+      <label for="games-player-select"><strong>Player</strong></label>
+      <select id="games-player-select" aria-label="Choose Games player"></select>
+      <button id="games-new-player" class="button ghost" type="button">+ New Player</button>
+      <label class="games-dashboard-setting" for="games-library-sound">
         <span>Sound Effects</span>
-        <input id="odyssey-library-sound" type="checkbox" />
+        <input id="games-library-sound" type="checkbox" />
       </label>
-      <label class="odyssey-dashboard-setting" for="odyssey-library-music">
+      <label class="games-dashboard-setting" for="games-library-music">
         <span>Music</span>
-        <input id="odyssey-library-music" type="checkbox" />
+        <input id="games-library-music" type="checkbox" />
       </label>
     </div>
   </div>
-  <div id="odyssey-dashboard-body" aria-live="polite"></div>
-  <details id="odyssey-family-progress" class="odyssey-family-progress">
+  <div id="games-dashboard-body" aria-live="polite"></div>
+  <details id="games-family-progress" class="games-family-progress">
     <summary>Family Progress</summary>
-    <div id="odyssey-family-progress-body"></div>
+    <div id="games-family-progress-body"></div>
   </details>
 </section>
 
-<section class="product-grid" aria-label="Tessa's Odyssey games">
+<section class="product-grid" aria-label="Tessa's game collection">
   {% for game in games %}
-  <article class="product-card product-card--gold odyssey-game-card"
-           {% if game.get('odyssey', True) %}data-game-id="{{ game.game_id }}"{% endif %}
+  <article class="product-card product-card--gold games-game-card"
+           {% if game.get('games', True) %}data-game-id="{{ game.game_id }}"{% endif %}
            style="--game-accent: {{ game.accent }}">
-    <div class="odyssey-game-thumbnail" aria-hidden="true">
-      <span class="odyssey-game-thumbnail-icon">{{ game.icon }}</span>
-      <span class="odyssey-game-thumbnail-title">{{ game.name }}</span>
+    <div class="games-game-thumbnail" aria-hidden="true">
+      <span class="games-game-thumbnail-icon">{{ game.icon }}</span>
+      <span class="games-game-thumbnail-title">{{ game.name }}</span>
     </div>
     <span class="status-badge status-badge--{{ game.maturity }}">{{ game.maturity|title }}</span>
     <h2>{{ game.name }}</h2>
     <p>{{ game.description }}</p>
-    {% if game.get('odyssey', True) %}
-    <p class="odyssey-game-progress" data-progress-for="{{ game.game_id }}"></p>
-    <a class="button ghost odyssey-play-link"
+    {% if game.get('games', True) %}
+    <p class="games-game-progress" data-progress-for="{{ game.game_id }}"></p>
+    <a class="button ghost games-play-link"
        data-game-id="{{ game.game_id }}"
        href="{{ url_for('lab_games.play', slug=game.slug) }}">Play {{ game.name }}</a>
     {% else %}
-    <p class="odyssey-game-progress">Standalone Labs experiment · no Odyssey progress required.</p>
+    <p class="games-game-progress">Standalone Labs experiment · no Games progress required.</p>
     <a class="button ghost" href="{{ url_for('lab_games.play', slug=game.slug) }}">Try {{ game.name }}</a>
     {% endif %}
   </article>
@@ -70,35 +70,36 @@
 </section>
 
 <script>
-window.__ODYSSEY_ACCOUNT_ROSTER__ = {{ odyssey_roster|default({}, true)|tojson }};
-window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson }};
+window.__GAMES_ACCOUNT_ROSTER__ = {{ games_roster|default({}, true)|tojson }};
+window.__GAMES_SYNC_CONFIG__ = {{ games_sync_config|default({}, true)|tojson }};
 </script>
-<script src="{{ url_for('lab_games.asset', filename='odyssey-core.js') }}"></script>
+<script src="{{ url_for('lab_games.asset', filename='games-save-migration.js') }}"></script>
+<script src="{{ url_for('lab_games.asset', filename='games-core.js') }}"></script>
 <script>
 (() => {
-  const O = window.Odyssey;
+  const O = window.Games;
   if (!O) return;
 
-  const select = document.getElementById('odyssey-player-select');
-  const addButton = document.getElementById('odyssey-new-player');
-  const body = document.getElementById('odyssey-dashboard-body');
-  const familyBody = document.getElementById('odyssey-family-progress-body');
+  const select = document.getElementById('games-player-select');
+  const addButton = document.getElementById('games-new-player');
+  const body = document.getElementById('games-dashboard-body');
+  const familyBody = document.getElementById('games-family-progress-body');
   const progressNodes = [...document.querySelectorAll('[data-progress-for]')];
-  const soundToggle = document.getElementById('odyssey-library-sound');
-  const musicToggle = document.getElementById('odyssey-library-music');
+  const soundToggle = document.getElementById('games-library-sound');
+  const musicToggle = document.getElementById('games-library-music');
 
   const gameNames = {
-    {% for game in games if game.get('odyssey', True) %}
+    {% for game in games if game.get('games', True) %}
     {{ game.game_id|tojson }}: {{ game.name|tojson }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };
   const gameUrls = {
-    {% for game in games if game.get('odyssey', True) %}
+    {% for game in games if game.get('games', True) %}
     {{ game.game_id|tojson }}: {{ url_for('lab_games.play', slug=game.slug)|tojson }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };
   const gameIcons = {
-    {% for game in games if game.get('odyssey', True) %}
+    {% for game in games if game.get('games', True) %}
     {{ game.game_id|tojson }}: {{ game.icon|tojson }}{% if not loop.last %},{% endif %}
     {% endfor %}
   };
@@ -123,12 +124,12 @@ window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson
   function renderChallenge(challenge) {
     const pct = Math.max(0, Math.min(100, challenge.target ? challenge.current / challenge.target * 100 : 0));
     return `
-      <div class="odyssey-challenge ${challenge.complete ? 'complete' : ''}">
-        <div class="odyssey-challenge-top">
+      <div class="games-challenge ${challenge.complete ? 'complete' : ''}">
+        <div class="games-challenge-top">
           <strong>${challenge.complete ? '✓ ' : ''}${esc(challenge.title)}</strong>
           <span>${esc(challenge.period)}</span>
         </div>
-        <div class="odyssey-challenge-track"><div style="width:${pct}%"></div></div>
+        <div class="games-challenge-track"><div style="width:${pct}%"></div></div>
         <small>${challenge.current} / ${challenge.target}</small>
       </div>`;
   }
@@ -139,15 +140,15 @@ window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson
       familyBody.innerHTML = '<p>No players yet.</p>';
       return;
     }
-    familyBody.innerHTML = '<div class="odyssey-family-grid">' + summaries.map(summary => {
+    familyBody.innerHTML = '<div class="games-family-grid">' + summaries.map(summary => {
       const avatar = summary.avatar || {symbol:'★',color:'#7357d9'};
       return `
-        <article class="odyssey-family-card">
-          <div class="odyssey-family-card-head">
-            <span class="odyssey-avatar-small" style="background:${esc(avatar.color)}">${esc(avatar.symbol)}</span>
-            <div><strong>${esc(summary.name)}</strong><br><small>Odyssey Level ${summary.odysseyLevel}</small></div>
+        <article class="games-family-card">
+          <div class="games-family-card-head">
+            <span class="games-avatar-small" style="background:${esc(avatar.color)}">${esc(avatar.symbol)}</span>
+            <div><strong>${esc(summary.name)}</strong><br><small>Games Level ${summary.gamesLevel}</small></div>
           </div>
-          <div class="odyssey-family-mini-stats">
+          <div class="games-family-mini-stats">
             <span>${summary.xp} XP</span>
             <span>${summary.gamesPlayed} plays</span>
             <span>${summary.completions} completions</span>
@@ -169,7 +170,7 @@ window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson
       select.appendChild(option);
       select.disabled = true;
       addButton.disabled = false;
-      body.innerHTML = '<p style="margin:14px 0 0">Create a player to begin your Odyssey.</p>';
+      body.innerHTML = '<p style="margin:14px 0 0">Create a player to start playing.</p>';
       progressNodes.forEach(n => n.textContent = 'Create a player to track progress.');
       renderFamilyProgress();
       return;
@@ -201,67 +202,67 @@ window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson
     const recentUrl = recent ? gameUrls[recent.gameId] : '';
 
     body.innerHTML = `
-      <div class="odyssey-dashboard-player">
-        <div class="odyssey-player-heading">
-          <button id="odyssey-avatar-button" class="odyssey-avatar-button" type="button"
+      <div class="games-dashboard-player">
+        <div class="games-player-heading">
+          <button id="games-avatar-button" class="games-avatar-button" type="button"
                   aria-label="Change ${esc(preferred.name)}'s avatar"
                   style="background:${esc(avatar.color)}">${esc(avatar.symbol)}</button>
           <div>
-            <strong class="odyssey-dashboard-player-name">${esc(preferred.name)}</strong>
-            <div class="odyssey-xp-track" aria-label="${xpPct}% to next Odyssey level">
-              <div class="odyssey-xp-fill" style="width:${xpPct}%"></div>
+            <strong class="games-dashboard-player-name">${esc(preferred.name)}</strong>
+            <div class="games-xp-track" aria-label="${xpPct}% to next Games level">
+              <div class="games-xp-fill" style="width:${xpPct}%"></div>
             </div>
-            <small>${summary.xpToNextLevel || 100} XP to Odyssey Level ${summary.odysseyLevel + 1}</small>
+            <small>${summary.xpToNextLevel || 100} XP to Games Level ${summary.gamesLevel + 1}</small>
           </div>
         </div>
         ${recent ? `
-          <a class="button odyssey-continue-button" href="${recentUrl}">
+          <a class="button games-continue-button" href="${recentUrl}">
             Continue ${esc(recentName)} ${gameIcons[recent.gameId] || ''}
           </a>` : ''}
       </div>
 
-      <div class="odyssey-summary-grid">
-        <div class="odyssey-summary-stat"><span>Odyssey Level</span><strong>${summary.odysseyLevel}</strong></div>
-        <div class="odyssey-summary-stat"><span>Total XP</span><strong>${summary.xp}</strong></div>
-        <div class="odyssey-summary-stat"><span>Games Played</span><strong>${summary.gamesPlayed}</strong></div>
-        <div class="odyssey-summary-stat"><span>Completions</span><strong>${summary.completions}</strong></div>
+      <div class="games-summary-grid">
+        <div class="games-summary-stat"><span>Games Level</span><strong>${summary.gamesLevel}</strong></div>
+        <div class="games-summary-stat"><span>Total XP</span><strong>${summary.xp}</strong></div>
+        <div class="games-summary-stat"><span>Games Played</span><strong>${summary.gamesPlayed}</strong></div>
+        <div class="games-summary-stat"><span>Completions</span><strong>${summary.completions}</strong></div>
       </div>
 
-      <section class="odyssey-home-section">
+      <section class="games-home-section">
         <h3>Challenges</h3>
-        <div class="odyssey-challenge-grid">
+        <div class="games-challenge-grid">
           ${challenges.map(renderChallenge).join('')}
         </div>
       </section>
 
-      <section class="odyssey-home-section">
+      <section class="games-home-section">
         <h3>Game Progress</h3>
-        <div class="odyssey-progress-grid">
+        <div class="games-progress-grid">
           ${Object.entries(gameNames).map(([id,name]) => {
             const g = summary.games[id];
-            if (!g) return `<div class="odyssey-progress-card"><strong>${gameIcons[id] || ''} ${esc(name)}</strong><br><span>Not played yet</span></div>`;
-            return `<div class="odyssey-progress-card"><strong>${gameIcons[id] || ''} ${esc(name)}</strong><br>
+            if (!g) return `<div class="games-progress-card"><strong>${gameIcons[id] || ''} ${esc(name)}</strong><br><span>Not played yet</span></div>`;
+            return `<div class="games-progress-card"><strong>${gameIcons[id] || ''} ${esc(name)}</strong><br>
               Highest level: ${g.highestLevel || 1}<br>
               Best score: ${g.bestScore || 0}<br>
               Completions: ${g.completions || 0}<br>
-              <div class="odyssey-game-xp">${g.xp || 0} Odyssey XP earned here</div>
+              <div class="games-game-xp">${g.xp || 0} Games XP earned here</div>
               <small>${fmtDate(g.lastPlayedAt)}</small>
             </div>`;
           }).join('')}
         </div>
       </section>
 
-      <section class="odyssey-home-section">
-        <h3>Achievements <span class="odyssey-section-count">${achievements.length}</span></h3>
+      <section class="games-home-section">
+        <h3>Achievements <span class="games-section-count">${achievements.length}</span></h3>
         ${achievements.length
-          ? `<div class="odyssey-badges">${achievements.map(a =>
-              `<span class="odyssey-badge" title="${esc(a.description)}">${esc(a.icon || '🏅')} ${esc(a.name)}</span>`
+          ? `<div class="games-badges">${achievements.map(a =>
+              `<span class="games-badge" title="${esc(a.description)}">${esc(a.icon || '🏅')} ${esc(a.name)}</span>`
             ).join('')}</div>`
-          : '<p class="odyssey-muted">Play games and complete challenges to earn badges.</p>'}
+          : '<p class="games-muted">Play games and complete challenges to earn badges.</p>'}
       </section>
     `;
 
-    const avatarButton = document.getElementById('odyssey-avatar-button');
+    const avatarButton = document.getElementById('games-avatar-button');
     if (avatarButton) {
       O.protectNativeControl(avatarButton);
       avatarButton.addEventListener('click', () => {
@@ -269,7 +270,7 @@ window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson
       });
     }
 
-    const continueButton = body.querySelector('.odyssey-continue-button');
+    const continueButton = body.querySelector('.games-continue-button');
     if (continueButton) {
       continueButton.addEventListener('click', () => {
         O.selectPlayer(preferred.id, recent.gameId);
@@ -332,7 +333,7 @@ window.__ODYSSEY_SYNC_CONFIG__ = {{ odyssey_sync_config|default({}, true)|tojson
     });
   });
 
-  document.querySelectorAll('.odyssey-play-link').forEach(link => {
+  document.querySelectorAll('.games-play-link').forEach(link => {
     link.addEventListener('click', () => {
       const p = currentPlayer();
       if (p) O.selectPlayer(p.id, link.dataset.gameId);
