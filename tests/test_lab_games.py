@@ -618,6 +618,23 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "if(order.container!=kind){\n  roundMistakes++;" in html
     assert "if(i!=partyIndex){\n     if(finishedOrderReady())roundMistakes++;" in html
 
+    # Current audit: retries are genuinely fresh, exact timer state survives
+    # resume, and early levels introduce recipes gradually.
+    assert "level=roundStartLevel;levelServed=0;roundMistakes=0" in html
+    assert "roundResultId=odysseyApi()?.createRoundId" in html
+    assert "ss.pausedPartyTime??ss.timeLeft??ruleForLevel().time" in html
+    assert "const availableCount=level<=2?5:level==3?8:RECIPES.length" in html
+
+    # A held pourable cannot be silently replaced by tapping another ingredient.
+    assert "if(holdingMilk){" in html
+    assert "mix station':'blender" in html
+
+    # Native iPad name entry opens ready for typing and the illustrated atlas
+    # has a normal-canvas fallback for browsers without OffscreenCanvas.
+    assert "input.focus({preventScroll:true})" in html
+    assert "typeof OffscreenCanvas!='undefined'" in html
+    assert "document.createElement('canvas')" in html
+
     # iPad lower-row container targets are enlarged slightly.
     assert "selectedContainerPos.BOWL,vec2(1.35,1.2)" in html
     assert "selectedContainerPos.CUP,vec2(1.35,1.2)" in html
