@@ -582,6 +582,9 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "perfect:roundMistakes===0" in html
     assert "roundMistakes++;needsReset=true" in html
     assert "score=max(0,score-25);roundMistakes++" in html
+    assert "level:max(1,completedLevel)" in html
+    assert "ordersServed:max(0,served-roundStartServed)" in html
+    assert "guestPhase=='levelComplete'" in html
 
     # Levels auto-advance after a short celebration instead of requiring a
     # results/menu click between every level.
