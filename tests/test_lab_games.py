@@ -685,6 +685,26 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # Fallback player deletion updates both local and shared roster/progress.
     assert "persistProfiles();\n persistProgress();" in html
 
+    # Current audit: timed levels do not burn clock while customers are in
+    # non-interactive thank-you/arrival animations.
+    assert "partyDeadline += timeDelta" in html
+    assert "freeze the clock during non-interactive guest transitions" in html
+
+    # Scoop-order guidance names the actual container instead of always saying cup.
+    assert "BRING ${holdingContainer || 'ORDER'} HERE" in html
+    assert "BRING CUP HERE" not in html
+
+    # The HUD no longer labels lifetime served orders as rating stars.
+    assert "SERVED ${served}" in html
+
+    # Major kitchen actions now have distinct sound cues.
+    assert "const sndMix=new SoundGenerator" in html
+    assert "const sndPour=new SoundGenerator" in html
+    assert "const sndContainer=new SoundGenerator" in html
+    assert "playSfx(sndMix)" in html
+    assert "playSfx(sndPour)" in html
+    assert "playSfx(sndContainer)" in html
+
 
 def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     client = _client()
