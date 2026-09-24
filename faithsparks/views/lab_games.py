@@ -237,6 +237,18 @@ def _apply_runtime_game_patches(html: str, game_id: str) -> str:
             1,
         )
 
+        # Unlock the drink recipe bank gradually. Level 2 starts with the
+        # simpler first five recipes; later levels introduce two more at a
+        # time until the full menu is available.
+        html = html.replace(
+            """function drinkOrder(){
+ const base=RECIPES[randInt(RECIPES.length)];""",
+            """function drinkOrder(){
+ const recipeCount=min(RECIPES.length,5+max(0,level-2)*2);
+ const base=RECIPES[randInt(recipeCount)];""",
+            1,
+        )
+
         # Never start a party larger than the number of orders remaining in
         # the level. This prevents auto-advance from abandoning a waiting
         # customer halfway through a group.
