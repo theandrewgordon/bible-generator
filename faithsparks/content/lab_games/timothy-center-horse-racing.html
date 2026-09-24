@@ -29,6 +29,31 @@
   }
   #tc-jump-button:active { transform:scale(.95); }
   #tc-jump-button:focus-visible { outline:4px solid #ffd95a; outline-offset:3px; }
+  #tc-farm-button {
+    position:absolute;
+    left:max(18px, env(safe-area-inset-left));
+    bottom:max(22px, env(safe-area-inset-bottom));
+    min-width:118px; height:58px; border-radius:16px;
+    border:3px solid rgba(255,255,255,.9);
+    background:rgba(105,72,35,.95); color:#fff;
+    font-size:18px; font-weight:900; letter-spacing:.03em;
+    box-shadow:0 8px 24px rgba(0,0,0,.32);
+    pointer-events:auto; display:none; align-items:center; justify-content:center;
+    touch-action:manipulation;
+  }
+  #tc-farm-controls {
+    position:absolute;
+    left:50%; transform:translateX(-50%);
+    bottom:max(18px, env(safe-area-inset-bottom));
+    width:min(760px, calc(100vw - 24px));
+    display:none; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px;
+    pointer-events:auto;
+  }
+  #tc-farm-controls .tc-btn { min-height:54px; padding:8px 10px; font-size:15px; }
+  @media (max-width:700px) {
+    #tc-farm-controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    #tc-farm-controls .tc-btn:last-child { grid-column:1 / -1; }
+  }
   @media (max-width: 700px) {
     #tc-jump-button { width:96px; height:96px; font-size:20px; }
   }
@@ -82,6 +107,14 @@
 <div id="tc-native-ui" aria-live="polite">
   <button id="tc-menu-button" type="button" aria-label="Open game menu">☰</button>
   <button id="tc-jump-button" type="button" aria-label="Jump over obstacle">JUMP</button>
+  <button id="tc-farm-button" type="button" aria-label="Visit Timothy Center Farm">FARM</button>
+  <div id="tc-farm-controls" aria-label="Timothy Center Farm chores">
+    <button id="tc-farm-feed" class="tc-btn" type="button">Feed Horse</button>
+    <button id="tc-farm-water" class="tc-btn" type="button">Fill Water</button>
+    <button id="tc-farm-scoop" class="tc-btn" type="button">Muck Stall</button>
+    <button id="tc-farm-nurture" class="tc-btn" type="button">Care for Foal</button>
+    <button id="tc-farm-leave" class="tc-btn secondary" type="button">Back to Racing</button>
+  </div>
 
   <div id="tc-player-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-player-title">
     <div class="tc-panel">
@@ -127,7 +160,7 @@
   <div id="tc-intro-overlay" class="tc-overlay" role="dialog" aria-modal="true" aria-labelledby="tc-intro-title">
     <div class="tc-panel">
       <h2 id="tc-intro-title">Timothy Center Horse Race</h2>
-      <p>Race through the forest, steer around obstacles, and jump only when you choose. Win rounds to advance levels and earn new horses for your stable.</p>
+      <p>Race through the forest, steer around obstacles, and jump only when you choose. Win rounds to advance levels and earn new horses. At Level 10, Timothy Center Farm unlocks with barn chores and foal care.</p>
       <p><strong>Desktop:</strong> arrows/WASD to steer, Space to gallop, Up/W/Shift/J to jump.<br><strong>iPad:</strong> tap the course to gallop, then use the green JUMP button to clear obstacles.</p>
       <button id="tc-intro-start" class="tc-btn" type="button">Continue</button>
     </div>
@@ -518,6 +551,8 @@ let tcSharedMenu = null;
 let tcRaceResultId = '';
 let tcObstacleHits = 0;
 let tcAutoAdvanceAt = 0;
+let tcAutoEnterFarm = false;
+let tcCatchupActive = false;
 
 const tcTrackMinY = -3.15;
 const tcTrackMaxY = 2.85;
@@ -1204,6 +1239,31 @@ function tcSyncDomUi()
         jumpButton.setAttribute('aria-disabled', canJump ? 'false' : 'true');
     }
 
+    const farmButton = document.getElementById('tc-farm-button');
+    const farmControls = document.getElementById('tc-farm-controls');
+    const farmNurture = document.getElementById('tc-farm-nurture');
+
+    if (farmButton)
+    {
+        const canVisitFarm =
+            tcBarnUnlocked &&
+            !needsPlayerSelect &&
+            !tcMenuOpen &&
+            !tcIntroMode &&
+            !tcFinished &&
+            !tcStarted &&
+            !tcInBarn;
+        farmButton.style.display = canVisitFarm ? 'flex' : 'none';
+    }
+
+    if (farmControls)
+        farmControls.style.display =
+            (!needsPlayerSelect && tcInBarn && !tcMenuOpen) ? 'grid' : 'none';
+
+    if (farmNurture)
+        farmNurture.style.display =
+            (tcFoal && !tcFoal.grown) ? '' : 'none';
+
     const sharedMenu = tcEnsureSharedMenu();
     if (sharedMenu)
     {
@@ -1268,6 +1328,12 @@ function tcInitNativeUi()
     const nameCancel = document.getElementById('tc-name-cancel');
     const menuButton = document.getElementById('tc-menu-button');
     const jumpButton = document.getElementById('tc-jump-button');
+    const farmButton = document.getElementById('tc-farm-button');
+    const farmFeed = document.getElementById('tc-farm-feed');
+    const farmWater = document.getElementById('tc-farm-water');
+    const farmScoop = document.getElementById('tc-farm-scoop');
+    const farmNurture = document.getElementById('tc-farm-nurture');
+    const farmLeave = document.getElementById('tc-farm-leave');
     const menuResume = document.getElementById('tc-menu-resume');
     const menuRestart = document.getElementById('tc-menu-restart');
     const menuChangePlayer = document.getElementById('tc-menu-change-player');
@@ -1294,7 +1360,8 @@ addPlayer?.addEventListener('click', () =>
     // Stop native UI events from bubbling into LittleJS. Never prevent the
     // browser's native behavior on these controls.
     for (const control of [
-        addPlayer,nameInput,nameCancel,menuButton,jumpButton,menuResume,menuRestart,
+        addPlayer,nameInput,nameCancel,menuButton,jumpButton,farmButton,
+        farmFeed,farmWater,farmScoop,farmNurture,farmLeave,menuResume,menuRestart,
         menuChangePlayer,menuLibrary,introStart,resultsContinue,
         resultsReplay,resultsChangePlayer,resultsLibrary,sfx
     ])
@@ -1334,6 +1401,37 @@ addPlayer?.addEventListener('click', () =>
         if (tcPlayer && tcStarted && !tcFinished && !tcMenuOpen && !tcIntroMode && !tcInBarn)
             tcPlayer.tryJump();
     });
+    farmButton?.addEventListener('click', () =>
+    {
+        tcEnterBarn();
+        tcSyncDomUi();
+    });
+    farmFeed?.addEventListener('click', () =>
+    {
+        tcDoBarnChore('feed');
+        tcSyncDomUi();
+    });
+    farmWater?.addEventListener('click', () =>
+    {
+        tcDoBarnChore('water');
+        tcSyncDomUi();
+    });
+    farmScoop?.addEventListener('click', () =>
+    {
+        tcDoBarnChore('scoop');
+        tcSyncDomUi();
+    });
+    farmNurture?.addEventListener('click', () =>
+    {
+        tcNurtureFoal();
+        tcSyncDomUi();
+    });
+    farmLeave?.addEventListener('click', () =>
+    {
+        tcLeaveBarn();
+        tcSyncDomUi();
+    });
+
     menuResume?.addEventListener('click', () => tcCloseMenu());
     menuRestart?.addEventListener('click', () => tcRestartCurrentRound());
     menuChangePlayer?.addEventListener('click', () =>
@@ -2350,14 +2448,16 @@ function tcEnterBarn()
     tcBarnWatered = false;
     tcBarnScooped = false;
     tcBarnVisitComplete = false;
-    tcBarnMessage = 'Barn chores: feed, water, and muck the stall.';
-    tcBarnMessageTimer = new Timer(2.5);
+    tcBarnMessage = 'Timothy Center Farm: feed, water, muck the stall, and care for your horses.';
+    tcBarnMessageTimer = new Timer(3.5);
+    tcSyncDomUi();
 }
 
 function tcLeaveBarn()
 {
     tcInBarn = false;
     tcResetLevel(false);
+    tcSyncDomUi();
 }
 
 function tcDoBarnChore(type)
@@ -2386,8 +2486,8 @@ function tcDoBarnChore(type)
     {
         tcBarnVisitComplete = true;
 
-        // A surprise foal can appear after a completed barn-care visit.
-        if (!tcFoal && randBool(.28))
+        // The first completed farm-care visit introduces the foal progression.
+        if (!tcFoal)
         {
             const coat = randInt(4);
             const colors = [
@@ -2559,7 +2659,19 @@ class TCHorse extends EngineObject
                 tcPlayerSpeed = max(.05, tcPlayerSpeed * .994);
             }
 
-            this.distance += tcPlayerSpeed;
+            // Gentle "second wind" catch-up: falling a little behind is fine,
+            // but one mistake should never make the rest of the race unwinnable.
+            const leaderDistance = tcRivals.reduce(
+                (best,rival) => rival && !rival.finished ? max(best,rival.distance) : best,
+                this.distance
+            );
+            const gapBehind = max(0, leaderDistance - this.distance);
+            const catchupBonus = this.slowTimer.active()
+                ? clamp((gapBehind-7)*.0007, 0, .007)
+                : clamp((gapBehind-2.5)*.0019, 0, .028);
+
+            tcCatchupActive = gapBehind > 4 && catchupBonus > .002;
+            this.distance += tcPlayerSpeed + catchupBonus;
             tcPlayerDistance = this.distance;
             this.pos.x = -5.2;
         }
@@ -2567,7 +2679,12 @@ class TCHorse extends EngineObject
         {
             // Rivals get faster and more assertive each level.
             this.speed = clamp(this.speed + rand(-.0025,.0025), level.rivalMin, level.rivalMax);
-            this.distance += this.speed;
+
+            // Rivals ease off slightly only when they have opened a large lead.
+            // This is capped and does not help a player who is already close/ahead.
+            const leadOverPlayer = max(0, this.distance - tcPlayerDistance);
+            const rivalEase = clamp((leadOverPlayer-6)*.00115, 0, .018);
+            this.distance += max(level.rivalMin*.88, this.speed-rivalEase);
 
             // Shift lanes occasionally so rivals don't sit in one place.
             if (randBool(.006 + tcLevel*.0012))
@@ -2801,13 +2918,13 @@ class TCObstacle extends EngineObject
             {
                 this.hitPlayer = true;
 
-                // Hitting an obstacle slows the horse for about one second,
-                // then normal running speed resumes automatically.
-                tcPlayer.slowTimer.set(1.0);
-                tcPlayerSpeed = max(.035, tcPlayerSpeed * .5);
+                // A mistake should hurt, but not end the race. The stumble is
+                // shorter and preserves more momentum so recovery is realistic.
+                tcPlayer.slowTimer.set(.65);
+                tcPlayerSpeed = max(.045, tcPlayerSpeed * .72);
                 tcObstacleHits++;
 
-                tcRaceMessage = 'Hit! Slowed for a second — keep running!';
+                tcRaceMessage = 'Stumble! Keep galloping — you can catch up!';
                 tcMessageTimer.set(1.1);
                 tcPlaySound(tcHitSound,this.pos,.34);
                 if (randBool(.35)) tcPlaySound(tcNeighSound,this.pos,.16);
@@ -2963,6 +3080,7 @@ function tcResetLevel(resetLevel=false)
     tcPlayerSpeed = .05;
     tcObstacleHits = 0;
     tcAutoAdvanceAt = 0;
+    tcCatchupActive = false;
 
     tcObstacleTimer = new Timer(3);
     tcMessageTimer = new Timer();
@@ -3055,12 +3173,18 @@ function tcEndLevel()
         if (tcLevel >= 10 && !tcBarnUnlocked)
         {
             tcBarnUnlocked = true;
+            tcAutoEnterFarm = true;
             tcSaveActiveProfile();
+            tcPlaySound(tcUnlockSound,tcPlayer?.pos,.38);
+            tcOdyssey()?.celebrateUnlock?.(
+                'Timothy Center Farm Unlocked!',
+                'Feed, water, muck stalls, and raise a foal.'
+            );
 
             if (!rewardHorse)
-                tcWinner = 'LEVEL COMPLETE!  BARN UNLOCKED!';
+                tcWinner = 'LEVEL COMPLETE!  TIMOTHY CENTER FARM UNLOCKED!';
             else
-                tcWinner = `LEVEL COMPLETE!  ${rewardHorse.toUpperCase()} + BARN UNLOCKED!`;
+                tcWinner = `LEVEL COMPLETE!  ${rewardHorse.toUpperCase()} + FARM UNLOCKED!`;
         }
     }
     else
@@ -3284,7 +3408,20 @@ function gameUpdate()
     if (tcFinished && tcAutoAdvanceAt && performance.now() >= tcAutoAdvanceAt)
     {
         tcAutoAdvanceAt = 0;
-        tcAdvanceOrRestart(true);
+
+        if (tcAutoEnterFarm)
+        {
+            tcAutoEnterFarm = false;
+            if (tcLevel < tcLevels.length)
+                tcLevel++;
+
+            tcSaveActiveProfile();
+            tcResetLevel(false);
+            tcEnterBarn();
+        }
+        else
+            tcAdvanceOrRestart(true);
+
         tcSyncDomUi();
         return;
     }
@@ -3658,7 +3795,7 @@ function gameRenderPost()
 
     if (tcInBarn)
     {
-        drawTextScreen('TIMOTHY CENTER BARN',vec2(cx,45),38,hsl(.11,.55,.72),5,BLACK);
+        drawTextScreen('TIMOTHY CENTER FARM',vec2(cx,45),38,hsl(.11,.55,.72),5,BLACK);
 
         drawTextScreen(
             `1/F FEED: ${tcBarnFed?'DONE':'NEEDED'}    2/W WATER: ${tcBarnWatered?'DONE':'NEEDED'}    3/S SCOOP: ${tcBarnScooped?'DONE':'NEEDED'}`,
@@ -3687,7 +3824,7 @@ function gameRenderPost()
         if (tcBarnMessageTimer && tcBarnMessageTimer.active())
             drawTextScreen(tcBarnMessage,vec2(cx,mainCanvasSize.y-86),23,WHITE,4,BLACK);
 
-        drawTextScreen('R/ESC = RETURN   P/TAB = CHANGE PLAYER   C = NEW PLAYER',
+        drawTextScreen('Use the farm buttons below, or keyboard 1/2/3/4. R/ESC = RETURN',
             vec2(cx,mainCanvasSize.y-42),17,WHITE,3,BLACK);
         return;
     }
@@ -3701,6 +3838,10 @@ function gameRenderPost()
         vec2(210,28),15,WHITE,2,BLACK);
     drawTextScreen(`Forest Level ${tcLevel}: ${level.name}   Main opponent: ${opponentName}`,
         vec2(cx,72),22,hsl(.08,.45,.28),3,WHITE);
+
+    if (tcCatchupActive && tcStarted && !tcFinished)
+        drawTextScreen('SECOND WIND — KEEP GALLOPING!', vec2(cx,138),18,YELLOW,3,BLACK);
+
 
     drawRect(vec2(cx,105),vec2(400,18),hsl(0,0,.15),0,true);
     drawRect(vec2(cx-200+progress*200,105),vec2(progress*400,12),hsl(.28,.65,.45),0,true);
@@ -3724,6 +3865,10 @@ function gameRenderPost()
             const horse = tcHorseChoices[tcSelectedHorse];
             const unlockedCount = tcUnlockedHorseIndices().length;
             const lockedCount = tcHorseChoices.length-unlockedCount;
+
+            if (tcBarnUnlocked)
+                drawTextScreen('TIMOTHY CENTER FARM UNLOCKED — TAP FARM TO VISIT',
+                    vec2(cx,mainCanvasSize.y-180),18,hsl(.12,.60,.70),3,BLACK);
 
             if (unlockedCount <= 1)
             {
