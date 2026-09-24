@@ -1745,6 +1745,7 @@ const MAX_PLAYERS=8;
 let profileScreen=true, introScreen=false, menuOpen=false, resultsScreen=false;
 let activeProfileId='', profiles=[], progressStore={}, deleteTargetId='';
 let resultsData=null, lastAutoSaveAt=0, pausedPartyTime=0, savedToastUntil=0;
+let roundMistakes=0, whitsAutoAdvanceTimer=0;
 let roundStartScore=0, roundStartStars=0, roundStartServed=0, roundStartLevel=1, roundResultId='';
 let odysseySettings={sound:true,music:true};
 
@@ -1910,6 +1911,7 @@ function saveActiveProfile(){
  p.score=max(0,score||0);
  p.bestScore=max(p.bestScore||0,p.score);
  p.stars=max(0,stars||0);
+ p.served=max(0,served||0);
  p.level=max(1,level||1);
  p.highestLevel=max(p.highestLevel||1,p.level);
  p.levelServed=max(0,levelServed||0);
@@ -1926,7 +1928,8 @@ function serializeSession(){
   partyServed:[...partyServed],partyIndex,
   tray:[...tray],prepared,holdingContainer,containerFilled,
   addedToppings:[...addedToppings],scoopFlavor,scoopLoaded,holdingScoop,holdingMilk,
-  needsReset,roundStartScore,roundStartStars,roundStartServed,roundStartLevel,roundResultId,
+  needsReset,roundMistakes,waitingForNext,guestPhase,guestSlide,
+  roundStartScore,roundStartStars,roundStartServed,roundStartLevel,roundResultId,
   timeLeft:partyDeadline?max(0,partyDeadline-time):0,
   savedAt:Date.now()
  };
@@ -1960,14 +1963,16 @@ function restoreSession(){
  containerFilled=!!ss.containerFilled;cupFilled=containerFilled&&holdingContainer=='CUP';
  addedToppings=[...(ss.addedToppings||[])];
  scoopFlavor=ss.scoopFlavor||'';scoopLoaded=!!ss.scoopLoaded;holdingScoop=!!ss.holdingScoop;
- holdingMilk=ss.holdingMilk||'';needsReset=!!ss.needsReset;
- blenderRunning=false;waitingForNext=false;guestPhase='active';guestSlide=0;guestSlideTarget=0;
+ holdingMilk=ss.holdingMilk||'';needsReset=!!ss.needsReset;roundMistakes=max(0,ss.roundMistakes||0);
+ blenderRunning=false;waitingForNext=!!ss.waitingForNext;guestPhase=ss.guestPhase||'active';
+ guestSlide=Number.isFinite(ss.guestSlide)?ss.guestSlide:0;guestSlideTarget=waitingForNext?3.2:0;
+ if(waitingForNext&&(guestPhase=='thanks'||guestPhase=='leaving'))guestTimer.set(.45);
  roundStartScore=ss.roundStartScore??score;
  roundStartStars=ss.roundStartStars??stars;
  roundStartServed=ss.roundStartServed??served;
  roundStartLevel=ss.roundStartLevel??level;
  roundResultId=ss.roundResultId||(`whits-${activeProfileId}-${roundStartLevel}-${ss.savedAt||Date.now()}`);
- partyDeadline=ruleForLevel().time?time+max(1,ss.timeLeft||ruleForLevel().time):0;
+ partyDeadline=ruleForLevel().time?time+max(0,ss.timeLeft??ruleForLevel().time):0;
  return true;
 }
 
@@ -2114,7 +2119,7 @@ function playProfile(player){
 function beginRound(targetLevel=level,resetScoreToCurrent=false){
  level=max(1,targetLevel||1);levelServed=0;
  if(resetScoreToCurrent){score=roundStartScore;stars=roundStartStars;served=roundStartServed;}
- roundStartScore=score;roundStartStars=stars;roundStartServed=served;roundStartLevel=level;
+ roundStartScore=score;roundStartStars=stars;roundStartServed=served;roundStartLevel=level;roundMistakes=0;
  roundResultId=odysseyApi()?.createRoundId?.(GAME_ID,currentProfile()?.name,'whits')||
    ('whits-'+activeProfileId+'-'+level+'-'+Date.now());
  const p=currentProgress();
@@ -2174,13 +2179,13 @@ function returnToGameLibrary(){
  if(history.length>1)history.back(); else changePlayer();
 }
 function finishRound(completedLevel){
+ let odysseyResult=null;
  const p=currentProgress();
  if(p){
-  let odysseyResult=null;
   try{odysseyResult=odysseyApi()?.recordResult?.(GAME_ID,{
    completed:true,score:max(0,score||0),level:max(1,completedLevel+1),stars:max(0,stars||0),
    resultId:roundResultId||`whits-${activeProfileId}-${completedLevel}-${roundStartScore}-${roundStartServed}`,
-   meta:{served:max(0,served||0),levelServed:max(0,levelServed||0),perfect:!needsReset}
+   meta:{served:max(0,served||0),levelServed:max(0,levelServed||0),perfect:roundMistakes===0}
   },currentProfile()?.name);}catch(e){}
   p.completions=(p.completions||0)+1;
   p.bestScore=max(p.bestScore||0,score);
@@ -2191,7 +2196,16 @@ function finishRound(completedLevel){
   level:completedLevel,score,bestScore:p?p.bestScore:score,stars,
   earned:score-roundStartScore
  };
- resultsScreen=true;menuOpen=false;introScreen=false;waitingForNext=true;showSavedToast();
+ resultsScreen=false;menuOpen=false;introScreen=false;waitingForNext=true;guestPhase='levelComplete';showSavedToast();
+ message='Level complete! Next level...';messageTimer.set(1.4);
+ clearTimeout(whitsAutoAdvanceTimer);
+ whitsAutoAdvanceTimer=setTimeout(()=>{
+  if(activeProfileId&&!profileScreen&&!menuOpen){
+   waitingForNext=false;
+   beginRound(level);
+  }
+ },1400);
+ return;
 
  const O=odysseyApi();
  if(O&&typeof O.showRoundResults==='function'){
@@ -2406,15 +2420,20 @@ function ruleForLevel(){
 }
 function initCustomerPhotos(){
  customerPhotos={};
- for(const name of CUSTOMER_POOL){
-  const im=new Image();
-  im.src=CUSTOMER_PHOTO_DATA[name];
-  customerPhotos[name]=im;
- }
+}
+function ensureCustomerPhoto(name){
+ if(customerPhotos[name])return customerPhotos[name];
+ const src=CUSTOMER_PHOTO_DATA[name];
+ if(!src)return null;
+ const im=new Image();
+ im.decoding='async';
+ im.src=src;
+ customerPhotos[name]=im;
+ return im;
 }
 
 function drawCustomerPhoto(name,pos,height=3.0,alpha=1){
- const im=customerPhotos[name];
+ const im=customerPhotos[name]||ensureCustomerPhoto(name);
  if(!im||!im.complete||!im.naturalWidth)return;
  const ctx=mainContext,p=worldToScreen(pos),sy=height*cameraScale,sx=sy*(im.naturalWidth/im.naturalHeight);
  ctx.save();
@@ -2656,7 +2675,7 @@ function kidStep(){
  }
  if(!prepared)return order.kind=='MIX'?'TAP MIX':'PRESS THE BLENDER BUTTON';
  if(!holdingContainer)return 'PICK UP A CUP';
- if(!containerFilled)return order.kind=='MIX'?'TAP MIX TO FILL AND SERVE':'TAP BLENDER TO FILL AND SERVE';
+ if(!containerFilled)return order.kind=='MIX'?'TAP MIX TO FILL THE CUP':'TAP BLENDER TO FILL THE CUP';
  const mt=missingToppingV18();
  if(mt)return `ADD ${mt.toUpperCase()}`;
  return order.kind=='SCOOP'?'TAKE IT TO THE CUSTOMER':'SERVED!';
@@ -2735,6 +2754,7 @@ function addTopping(t){
  }
  if(addedToppings.includes(t.name)){message='That topping is already on it.';messageTimer.set(1.2);return;}
  addedToppings.push(t.name);playSfx(sndTopping);progressText=`✓ ${t.name}`;progressTimer.set(.7);
+ if(order.kind!='SCOOP'&&containerFilled&&toppingsComplete()){serve();return;}
 }
 
 function serve(){
@@ -2743,10 +2763,11 @@ function serve(){
   message='Finish the order first.';messageTimer.set(1.5);playSfx(sndBad);return;
  }
  if(!ingredientsComplete()||holdingContainer!=order.container||!toppingsComplete()){
-  needsReset=true;message='Almost! Tap RESET and try again.';messageTimer.set(1.8);playSfx(sndBad);return;
+  roundMistakes++;needsReset=true;message='Almost! Tap RESET and try again.';messageTimer.set(1.8);playSfx(sndBad);return;
  }
- score+=100+level*10;served++;stars++;partyServed[partyIndex]=true;saveActiveProfile();saveSession();showSavedToast();
+ score+=100+level*10;served++;stars++;partyServed[partyIndex]=true;
  happyTimer.set(1.3);guestPhase='thanks';guestTimer.set(1.2);waitingForNext=true;
+ saveActiveProfile();saveSession();showSavedToast();
  message=`${guestName}: Thank you!`;messageTimer.set(1.3);playSfx(sndServe);
  new ParticleEmitter(vec2(7.5,2.6),0,0,.1,65,PI,icons.spark,YELLOW,WHITE,rgb(1,1,0,0),rgb(1,1,1,0),.6,.14,.65,.1,0,1,1,0,PI,.08,.15,false,true);
 }
@@ -2757,8 +2778,10 @@ function gameUpdate(){
  if(resultsScreen){updateResultsScreen();return;}
  if(menuOpen){updateGameMenu();return;}
 
+ if(Date.now()-lastAutoSaveAt>1200){lastAutoSaveAt=Date.now();saveSession();}
+
  if(ruleForLevel().time && !waitingForNext && partyDeadline && time>partyDeadline){
-  score=max(0,score-25);
+  score=max(0,score-25);roundMistakes++;
   message='Time is up — a new group is coming!';messageTimer.set(2);
   startParty(true);
   return;
@@ -2832,7 +2855,11 @@ function gameUpdate(){
   if(!prepared&&!blenderRunning){blenderRunning=true;blenderTimer.set(1.35);playSfx(sndPrep);return;}
   if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);
-   if(order.kind!='SCOOP'){serve();return;}
+   if(order.kind!='SCOOP'&&toppingsComplete()){serve();return;}
+   if(order.kind!='SCOOP'){
+    message=(order.toppings||[]).length?'Add the topping, then serve it!':'Drink filled!';
+    messageTimer.set(1.5);
+   }
    return;
   }
  }
@@ -2845,7 +2872,11 @@ function gameUpdate(){
   if(!prepared){prepared=true;playSfx(sndPrep);return;}
   if(prepared&&holdingContainer){
    containerFilled=true;playSfx(sndPick);
-   if(order.kind!='SCOOP'){serve();return;}
+   if(order.kind!='SCOOP'&&toppingsComplete()){serve();return;}
+   if(order.kind!='SCOOP'){
+    message=(order.toppings||[]).length?'Add the topping, then serve it!':'Drink filled!';
+    messageTimer.set(1.5);
+   }
    return;
   }
  }
