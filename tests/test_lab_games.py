@@ -616,12 +616,22 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "if(!order.need.includes(item.name)){\n  roundMistakes++;" in html
     assert "if(!(order.toppings||[]).includes(t.name)){\n  roundMistakes++;" in html
     assert "if(order.container!=kind){\n  roundMistakes++;" in html
-    assert "if(i!=partyIndex){\n     roundMistakes++;" in html
+    assert "if(i!=partyIndex){\n     if(finishedOrderReady())roundMistakes++;" in html
 
     # iPad lower-row container targets are enlarged slightly.
     assert "selectedContainerPos.BOWL,vec2(1.35,1.2)" in html
     assert "selectedContainerPos.CUP,vec2(1.35,1.2)" in html
     assert "selectedContainerPos.CONE,vec2(1.35,1.2)" in html
+
+    # Audit: level transition feedback and mid-blend resume state are real,
+    # not dead UI/state paths.
+    assert "levelBannerTimer.set(1.6)" in html
+    assert "blendTimeLeft:blenderRunning?max(0,-blenderTimer.get()):0" in html
+    assert "if(blenderRunning)blenderTimer.set(max(.05,ss.blendTimeLeft||.35))" in html
+    assert "message='Ready! Pick up a cup.'" in html
+
+    # Odyssey receives a per-round rating instead of the lifetime star count.
+    assert "stars:roundMistakes===0?3:roundMistakes<=2?2:1" in html
 
 
 def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
