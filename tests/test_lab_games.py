@@ -594,6 +594,33 @@ def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
     assert "Squeegee: continuous low rubber-on-glass hiss." in html
     assert "Finished window: short glassy sparkle." in html
 
+    # Audit regression coverage: progress starts at 0% of the originally dirty
+    # cells, resume preserves score/time, and wrong-cleaner use is explicit.
+    assert "let levelInitialDirt = 1" in html
+    assert "let levelWrongSprays = 0" in html
+    assert "levelInitialDirt = max(1, dirtLeft)" in html
+    assert "w.lastCleanerId = cleanerId" in html
+    assert "hitWrongMess = true" in html
+    assert "levelWrongSprays++" in html
+    assert "const dirtyCells = max(1, levelInitialDirt)" in html
+    assert "perfect:levelSprays>0 && levelWrongSprays===0" in html
+    assert "elapsedMs: max(0, performance.now() - levelStartTime)" in html
+    assert "levelStartTime = performance.now() - max(0, resume.elapsedMs || 0)" in html
+    assert "dirtLeft / max(1,levelInitialDirt)" in html
+
+    # Layer/render audit: most-recent cleaner wins visual ties and texture
+    # suppression is scoped to the actual glass rather than every small tile.
+    assert "w.lastCleanerId && (w.layers[w.lastCleanerId] || 0) > .05" in html
+    assert "const inGlassBounds" in html
+    assert "inGlassBounds &&" in html
+
+    # Wrong-cleaner help works for all unlocked cleaners and uses actual state.
+    assert "window._bernardLastNeededCleaner = d.mess.cleaner" in html
+    assert "degreaser:'DISINFECTER'" in html
+    assert "vinegar:'VINEGAR'" in html
+    assert "BERNARD'S SIGNATURE CLEANER" in html
+    assert "typeof dirtLeft !== 'undefined'" in html
+
     assert "Results are recorded above; gameplay auto-advances" in html
 
 
