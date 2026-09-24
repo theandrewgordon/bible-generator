@@ -623,7 +623,7 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "level=roundStartLevel;levelServed=0;roundMistakes=0" in html
     assert "roundResultId=odysseyApi()?.createRoundId" in html
     assert "ss.pausedPartyTime??ss.timeLeft??ruleForLevel().time" in html
-    assert "const availableCount=level<=2?5:level==3?8:RECIPES.length" in html
+    assert "const availableCount=level<=2?5:level==3?8:RECIPES.length" not in html
 
     # A held pourable cannot be silently replaced by tapping another ingredient.
     assert "if(holdingMilk){" in html
@@ -673,6 +673,17 @@ def test_whits_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # The shared player summary no longer labels lifetime orders as rating stars.
     assert "orders served" in html
     assert "completions · ★" not in html
+
+    # Account-backed progress can update an older local summary without
+    # destroying an in-progress device-local order.
+    assert "const remotePlayed=max(0,remote.lastPlayedAt||remote.lastPlayed||0)" in html
+    assert "if(remotePlayed>localPlayed)" in html
+    assert "session:local.session||null" in html
+    assert "remote.meta?.served" in html
+    assert "p.meta={...(p.meta||{}),served:p.served,levelServed:p.levelServed}" in html
+
+    # Fallback player deletion updates both local and shared roster/progress.
+    assert "persistProfiles();\n persistProgress();" in html
 
 
 def test_bernard_coalesces_pointer_work_for_later_level_responsiveness():
