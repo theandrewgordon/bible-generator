@@ -251,7 +251,9 @@ def labs():
 _SAME_BRAIN_FILE = Path(__file__).resolve().parents[1] / "content" / "lab_games" / "same-brain.html"
 SAME_BRAIN_SHORT_COLLECTION = "same_brain_challenges"
 SAME_BRAIN_DAILY_COLLECTION = "same_brain_daily_stats"
+SAME_BRAIN_TOGETHER_COLLECTION = "same_brain_together"
 SAME_BRAIN_SHORT_TTL_DAYS = 30
+SAME_BRAIN_TOGETHER_TTL_DAYS = 2
 SAME_BRAIN_SHORT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 _SAME_BRAIN_PUBLIC_EVENTS = {
@@ -268,6 +270,9 @@ _SAME_BRAIN_PUBLIC_EVENTS = {
     "response_submitted",
     "creator_result_opened",
     "daily_crowd_viewed",
+    "together_created",
+    "together_joined",
+    "together_completed",
 }
 
 
@@ -313,6 +318,10 @@ def _same_brain_public_challenge_payload(raw) -> dict | None:
         "a": clean_answers,
         "p": str(raw.get("p") or "shared").strip().lower()[:24],
     }
+    audience = str(raw.get("u") or "everyone").strip().lower()
+    if audience not in {"kids", "tween", "mixed", "everyone"}:
+        audience = "everyone"
+    clean["u"] = audience
     daily_label = " ".join(str(raw.get("d") or "").split()).strip()[:40]
     if daily_label:
         clean["d"] = daily_label
@@ -640,6 +649,216 @@ def _same_brain_daily_date(value: str) -> str | None:
     if abs((parsed - today).days) > 2:
         return None
     return value
+
+
+
+
+def _same_brain_together_code(code: str) -> str | None:
+    code = str(code or "").strip().upper()
+    if len(code) != 7 or any(ch not in SAME_BRAIN_SHORT_CODE_ALPHABET for ch in code):
+        return None
+    return code
+
+
+def _same_brain_together_result(data: dict) -> dict:
+    players = []
+    for raw in list(data.get("players") or [])[:2]:
+        if not isinstance(raw, dict):
+            continue
+        players.append({
+            "id": str(raw.get("id") or ""),
+            "name": " ".join(str(raw.get("name") or "").split()).strip()[:20],
+            "answers": [int(v) for v in list(raw.get("answers") or [])[:5]],
+        })
+    result = {
+        "ok": True,
+        "code": str(data.get("code") or ""),
+        "questionIds": list(data.get("questionIds") or [])[:5],
+        "pack": str(data.get("pack") or "random")[:24],
+        "audience": str(data.get("audience") or "everyone")[:16],
+        "playerCount": len(players),
+        "ready": len(players) == 2,
+    }
+    if len(players) == 2:
+        matches = sum(1 for a, b in zip(players[0]["answers"], players[1]["answers"]) if a == b)
+        result["score"] = round(matches / 5 * 100)
+        result["players"] = players
+    return result
+
+
+@bp.post('/same-brain/together')
+def same_brain_public_together_create():
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _same_brain_public_csrf()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+    limit = check_rate_limit(
+        "same_brain_public_together_create",
+        get_client_ip(),
+        limit=60,
+        window_seconds=60 * 60,
+    )
+    if not limit.allowed:
+        return jsonify({"error": "rate_limited"}), 429
+    raw = request.get_json(silent=True) or {}
+    qids = raw.get("questionIds")
+    if not isinstance(qids, list) or len(qids) != 5:
+        return jsonify({"error": "invalid"}), 400
+    clean_qids = [str(q or "").strip()[:40] for q in qids]
+    if any(not q for q in clean_qids) or len(set(clean_qids)) != 5:
+        return jsonify({"error": "invalid"}), 400
+    audience = str(raw.get("audience") or "everyone").strip().lower()
+    if audience not in {"kids", "tween", "mixed", "everyone"}:
+        audience = "everyone"
+    pack = str(raw.get("pack") or "random").strip().lower()[:24]
+    if not db:
+        return jsonify({"error": "storage_unavailable"}), 503
+
+    ref = None
+    code = ""
+    for _ in range(10):
+        code = _same_brain_short_code()
+        ref = db.collection(SAME_BRAIN_TOGETHER_COLLECTION).document(code)
+        try:
+            if not ref.get().exists:
+                break
+        except Exception:
+            return jsonify({"error": "storage_unavailable"}), 503
+    if ref is None:
+        return jsonify({"error": "storage_unavailable"}), 503
+    now = datetime.now(timezone.utc)
+    try:
+        ref.set({
+            "code": code,
+            "questionIds": clean_qids,
+            "pack": pack,
+            "audience": audience,
+            "players": [],
+            "createdAt": now,
+            "updatedAt": now,
+            "expiresAt": now + timedelta(days=SAME_BRAIN_TOGETHER_TTL_DAYS),
+        })
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    return jsonify({
+        "ok": True,
+        "code": code,
+        "questionIds": clean_qids,
+        "pack": pack,
+        "audience": audience,
+    }), 201
+
+
+@bp.get('/same-brain/together/<code>')
+def same_brain_public_together_get(code: str):
+    code = _same_brain_together_code(code)
+    if not code or not db:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        snap = db.collection(SAME_BRAIN_TOGETHER_COLLECTION).document(code).get()
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if not snap.exists:
+        return jsonify({"error": "not_found"}), 404
+    data = snap.to_dict() or {}
+    expires = data.get("expiresAt")
+    if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+        return jsonify({"error": "expired"}), 410
+    return jsonify({
+        "ok": True,
+        "code": code,
+        "questionIds": list(data.get("questionIds") or [])[:5],
+        "pack": str(data.get("pack") or "random")[:24],
+        "audience": str(data.get("audience") or "everyone")[:16],
+        "playerCount": min(len(list(data.get("players") or [])), 2),
+    })
+
+
+@bp.post('/same-brain/together/<code>/answer')
+def same_brain_public_together_answer(code: str):
+    code = _same_brain_together_code(code)
+    if not code or not db:
+        return jsonify({"error": "not_found"}), 404
+    sent_token = request.headers.get("X-CSRF-Token") or ""
+    expected_token = _same_brain_public_csrf()
+    if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
+        return jsonify({"error": "csrf"}), 400
+    raw = request.get_json(silent=True) or {}
+    name = " ".join(str(raw.get("name") or "").split()).strip()[:20]
+    player_id = re.sub(r"[^A-Za-z0-9_-]", "", str(raw.get("playerId") or ""))[:64]
+    answers = raw.get("answers")
+    if not name or len(player_id) < 8 or not isinstance(answers, list) or len(answers) != 5:
+        return jsonify({"error": "invalid"}), 400
+    try:
+        clean_answers = [int(v) for v in answers]
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid"}), 400
+    if any(v < 0 or v > 3 for v in clean_answers):
+        return jsonify({"error": "invalid"}), 400
+
+    ref = db.collection(SAME_BRAIN_TOGETHER_COLLECTION).document(code)
+    transaction = db.transaction()
+
+    @firestore.transactional
+    def save_player(txn):
+        snap = ref.get(transaction=txn)
+        if not snap.exists:
+            return "not_found", None
+        data = snap.to_dict() or {}
+        expires = data.get("expiresAt")
+        if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+            return "expired", None
+        players = list(data.get("players") or [])
+        existing = next((i for i, p in enumerate(players) if str(p.get("id") or "") == player_id), None)
+        stored = {
+            "id": player_id,
+            "name": name,
+            "answers": clean_answers,
+            "completedAt": datetime.now(timezone.utc),
+        }
+        if existing is None:
+            if len(players) >= 2:
+                return "full", data
+            players.append(stored)
+        else:
+            players[existing] = stored
+        data["players"] = players
+        data["updatedAt"] = datetime.now(timezone.utc)
+        txn.update(ref, {"players": players, "updatedAt": data["updatedAt"]})
+        return "ok", data
+
+    try:
+        status, data = save_player(transaction)
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if status == "not_found":
+        return jsonify({"error": "not_found"}), 404
+    if status == "expired":
+        return jsonify({"error": "expired"}), 410
+    if status == "full":
+        return jsonify({"error": "full"}), 409
+    return jsonify(_same_brain_together_result(data))
+
+
+@bp.get('/same-brain/together/<code>/result')
+def same_brain_public_together_result(code: str):
+    code = _same_brain_together_code(code)
+    if not code or not db:
+        return jsonify({"error": "not_found"}), 404
+    player_id = re.sub(r"[^A-Za-z0-9_-]", "", str(request.args.get("playerId") or ""))[:64]
+    if len(player_id) < 8:
+        return jsonify({"error": "forbidden"}), 403
+    try:
+        snap = db.collection(SAME_BRAIN_TOGETHER_COLLECTION).document(code).get()
+    except Exception:
+        return jsonify({"error": "storage_unavailable"}), 503
+    if not snap.exists:
+        return jsonify({"error": "not_found"}), 404
+    data = snap.to_dict() or {}
+    players = list(data.get("players") or [])
+    if not any(str(p.get("id") or "") == player_id for p in players if isinstance(p, dict)):
+        return jsonify({"error": "forbidden"}), 403
+    return jsonify(_same_brain_together_result(data))
 
 
 @bp.post('/same-brain/daily')
