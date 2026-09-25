@@ -2254,6 +2254,16 @@ def same_brain_metrics():
             "problem": "The result is not interesting enough to show other people.",
             "action": "Improve the result card/highlights before adding more gameplay features.",
         },
+        {
+            "key": "togetherCompletion",
+            "label": "Start Together completion",
+            "why": "Of people who create a two-phone Together game, how many reach the shared result?",
+            "rate": _cohort_rate("together_created", "together_completed"),
+            "good": 70,
+            "watch": 45,
+            "problem": "Together games are being created but not completed on both phones.",
+            "action": "Test sharing, room re-entry, waiting, and second-player completion on real devices.",
+        },
     ]
 
     for metric in metrics:
@@ -2301,11 +2311,35 @@ def same_brain_metrics():
     next_watch = next((m for m in metrics if m["status"] == "watch"), None)
     priority = next_problem or next_watch
 
+
+    audience_summary = {}
+    for audience in ("kids", "tween", "mixed", "everyone"):
+        rows = [row for row in public_runs if row.get("audience") == audience]
+        audience_summary[audience] = {
+            "runs": len(rows),
+            "creatorCompletion": _cohort_rate_rows(rows, "start", "challenge_created"),
+            "friendCompletion": _cohort_rate_rows(rows, "challenge_opened", "response_submitted"),
+            "chainRate": _cohort_rate_rows(rows, "result_completed", "beat_chain_shared"),
+        }
+
+    top_question_flags = sorted(
+        [row for row in question_rows if row["flagged"] or row["abandoned"]],
+        key=lambda row: (row["flagged"], row["abandonRate"] or 0, row["seen"]),
+        reverse=True,
+    )[:12]
+    referral_runs = sum(1 for row in public_runs if row.get("sourceCode"))
+    plus_trial_starts = _event_count(public_events, "plus_trial_started")
+    plus_upgrade_clicks = _event_count(public_events, "plus_upgrade_clicked")
+
     payload = {
         "ok": True,
         "runBased": True,
         "trackedRuns": len(public_runs),
         "metrics": metrics,
+        "audiences": audience_summary,
+        "questionHealth": top_question_flags,
+        "referralRuns": referral_runs,
+        "plusSignals": {"trialStarts": plus_trial_starts, "upgradeClicks": plus_upgrade_clicks},
         "roughReturnRate": {
             "value": rough_return_rate,
             "returns": rough_returns,
