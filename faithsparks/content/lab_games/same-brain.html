@@ -112,6 +112,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
             <button id="group-btn" class="button secondary wide" type="button" style="margin-top:10px">Create Group Brain</button>
           </div>
           <button id="demo-btn" class="action-card" type="button">📱 Play together on this device<small>Pass the screen to a friend</small></button>
+          <button id="plus-ten-challenge" class="action-card hidden" type="button">✨ 10-question challenge<small>Plus · a longer 1v1 match</small></button>
           <button id="custom-toggle" class="action-card hidden" type="button" aria-hidden="true" tabindex="-1">✨ Create your own challenge<small>Plus · write your own five questions</small></button>
           <div id="custom-builder" class="inline-panel hidden">
             <p class="premium-note">Write five “this or that” questions. Your friend can play them without Plus.</p>
@@ -877,7 +878,10 @@ function renderProfile(){
   if(homeReplay){homeReplay.classList.toggle("hidden",!done);homeReplay.textContent="Replay "+dailyTitle()}
   var bits=document.getElementById("bits-count"),plus=document.getElementById("plus-chip"),vs=document.getElementById("voice-select"),plusNote=document.getElementById("plus-note");
   if(bits)bits.textContent=p.bits||0;if(plus)plus.textContent=p.plus?"✨ Plus":"Free";if(vs&&!p.plus&&vs.value!=="browser")vs.value="browser";
-  if(plusNote)plusNote.innerHTML=p.plus?"✨ Plus active: premium decks, custom challenges, 10-question creation, narrator voices, and Plus cosmetics are unlocked. Anyone you invite can play what you send.":'Free includes Daily, Fresh 5, Kids/Tween/Mixed Ages, Start Together, and receiving any challenge. <a href="/plus?utm=same_brain">Faith Sparks Plus</a> adds premium decks, custom creation, 10-question games, narrator voices, and Plus cosmetics.';
+  var customToggle=document.getElementById("custom-toggle"),plusTen=document.getElementById("plus-ten-challenge");
+  if(customToggle){customToggle.classList.toggle("hidden",!p.plus);customToggle.setAttribute("aria-hidden",p.plus?"false":"true");customToggle.tabIndex=p.plus?0:-1}
+  if(plusTen){plusTen.classList.toggle("hidden",!p.plus)}
+  if(plusNote)plusNote.innerHTML=p.plus?"✨ Plus active: premium decks, custom challenges, 10-question challenges, narrator voices, and Plus cosmetics are unlocked. Anyone you invite can play what you send.":'Free includes Daily, Fresh 5, Kids/Tween/Mixed Ages, Start Together, and receiving any challenge. <a href="/plus?utm=same_brain">Faith Sparks Plus</a> adds premium decks, custom creation, 10-question challenges, narrator voices, and Plus cosmetics.';
   renderBitsProgress();applyAvatar();applyFrame();applyTheme();renderCosmetics();
 }
 async function awardBits(event,eventId,dateKey){
@@ -1256,6 +1260,7 @@ document.getElementById("speak-question").addEventListener("click",async functio
   }
   narrationButtonState(false)
 });
+if(document.getElementById("plus-ten-challenge"))document.getElementById("plus-ten-challenge").addEventListener("click",function(){if(!(state.profile&&state.profile.plus))return;state.count=10;startCreator("random")});
 if(document.getElementById("group-btn"))document.getElementById("group-btn").addEventListener("click",startGroupCreator);if(document.getElementById("demo-btn"))document.getElementById("demo-btn").addEventListener("click",startLocalDemo);
 document.getElementById("name-next").addEventListener("click",nameNext);document.getElementById("question-back").addEventListener("click",function(){if(!state.answers.length)return;state.answers.pop();renderQuestion()});
 document.getElementById("player-name").addEventListener("keydown",function(e){if(e.key==="Enter")nameNext()});
