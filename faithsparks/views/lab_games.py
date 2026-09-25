@@ -2147,6 +2147,34 @@ def same_brain_metrics():
                     "id": snap.id,
                     "events": {str(k): bool(v) for k, v in events.items()},
                     "pack": str(data.get("pack") or "unknown")[:24],
+                    "audience": str(data.get("audience") or "everyone")[:16],
+                    "sourceCode": str(data.get("sourceCode") or "")[:12],
+                })
+        except Exception:
+            return []
+        return rows
+
+    def _question_stats(limit: int = 300) -> list[dict]:
+        if not db:
+            return []
+        rows = []
+        try:
+            for snap in db.collection("same_brain_question_stats").limit(limit).stream():
+                data = snap.to_dict() or {}
+                seen = max(0, int(data.get("question_seen") or 0))
+                answered = max(0, int(data.get("question_answered") or 0))
+                abandoned = max(0, int(data.get("question_abandoned") or 0))
+                flagged = max(0, int(data.get("question_flagged") or 0))
+                samples = max(0, int(data.get("elapsedSamples") or 0))
+                elapsed_total = max(0, int(data.get("elapsedMsTotal") or 0))
+                rows.append({
+                    "id": snap.id,
+                    "seen": seen,
+                    "answered": answered,
+                    "abandoned": abandoned,
+                    "flagged": flagged,
+                    "avgMs": round(elapsed_total / samples) if samples else None,
+                    "abandonRate": round(abandoned / seen * 100, 1) if seen else None,
                 })
         except Exception:
             return []
@@ -2155,12 +2183,13 @@ def same_brain_metrics():
     public_events = _doc_counts("same_brain_public_funnel")
     labs_events = _doc_counts("same_brain_funnel")
     public_runs = _run_docs("same_brain_public_runs")
+    question_rows = _question_stats()
 
     def _event_count(events: dict, name: str) -> int:
         return max(0, int(events.get(name) or 0))
 
-    def _cohort_rate(den_event: str, num_event: str) -> dict:
-        denominator_runs = [row for row in public_runs if row["events"].get(den_event)]
+    def _cohort_rate_rows(rows: list[dict], den_event: str, num_event: str) -> dict:
+        denominator_runs = [row for row in rows if row["events"].get(den_event)]
         denominator = len(denominator_runs)
         numerator = sum(1 for row in denominator_runs if row["events"].get(num_event))
         if denominator <= 0:
@@ -2170,6 +2199,9 @@ def same_brain_metrics():
             "numerator": numerator,
             "denominator": denominator,
         }
+
+    def _cohort_rate(den_event: str, num_event: str) -> dict:
+        return _cohort_rate_rows(public_runs, den_event, num_event)
 
     metrics = [
         {
