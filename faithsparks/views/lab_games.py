@@ -2401,6 +2401,15 @@ def same_brain_metrics():
         for key, value in sorted(public_events.items())
     ) or "<tr><td colspan='2'>No public events yet.</td></tr>"
 
+    audience_rows = "".join(
+        f"<tr><td>{audience}</td><td>{data['runs']}</td><td>{_pct(data['creatorCompletion']['value'])}</td><td>{_pct(data['friendCompletion']['value'])}</td><td>{_pct(data['chainRate']['value'])}</td></tr>"
+        for audience, data in audience_summary.items()
+    )
+    question_health_rows = "".join(
+        f"<tr><td>{row['id']}</td><td>{row['seen']}</td><td>{row['flagged']}</td><td>{_pct(row['abandonRate'])}</td><td>{'—' if row['avgMs'] is None else str(round(row['avgMs']/100)/10)+'s'}</td></tr>"
+        for row in top_question_flags
+    ) or "<tr><td colspan='5'>No question-quality warnings yet.</td></tr>"
+
     html = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -2417,7 +2426,7 @@ main{{max-width:980px;margin:0 auto;padding:32px 18px 60px}}h1{{font-size:2rem;m
 .grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}}.metric{{background:#fff;border:1px solid #e0d9ee;border-radius:18px;padding:17px;box-shadow:0 8px 24px rgba(59,37,97,.05)}}
 .metric-top{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}}.eyebrow{{font-size:.75rem;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#756b86}}
 .number{{font-size:2rem;font-weight:950;color:#6f4bd8}}.sample{{font-size:.82rem;color:#847b91;margin-top:7px}}.diagnosis{{border-radius:12px;padding:10px 11px;margin-top:12px;font-size:.86rem;display:flex;flex-direction:column;gap:3px}}
-.section{{background:#fff;border:1px solid #e0d9ee;border-radius:18px;padding:18px;margin-top:14px}}ul{{margin:9px 0;padding-left:20px;color:#665e76}}table{{width:100%;border-collapse:collapse}}td{{padding:7px 4px;border-bottom:1px solid #eee9f5}}td:last-child{{text-align:right;font-weight:800}}
+.section{{background:#fff;border:1px solid #e0d9ee;border-radius:18px;padding:18px;margin-top:14px}}ul{{margin:9px 0;padding-left:20px;color:#665e76}}table{{width:100%;border-collapse:collapse}}td,th{{padding:7px 4px;border-bottom:1px solid #eee9f5;text-align:left}}th{{font-size:.8rem;color:#756b86}}td:last-child{{font-weight:800}}
 .note{{font-size:.84rem;color:#7b7288}}a{{color:#5b3fd0;font-weight:800}}@media(max-width:700px){{.grid{{grid-template-columns:1fr}}.top{{flex-direction:column}}}}
 </style>
 </head>
@@ -2430,6 +2439,21 @@ main{{max-width:980px;margin:0 auto;padding:32px 18px 60px}}h1{{font-size:2rem;m
 <div class="number">{_pct(rough_return_rate)}</div>
 <p>{rough_returns} return events / {rough_home} home views.</p>
 <div class="note">Directional only for now. These counters are session-based, so do not make product decisions from this until there is more traffic.</div>
+</section>
+<section class="section">
+<h2>Audience breakdown</h2>
+<table><thead><tr><th>Audience</th><th>Runs</th><th>Creator finish</th><th>Friend finish</th><th>Viral chain</th></tr></thead><tbody>{audience_rows}</tbody></table>
+<p class="note">Use this to see whether Kids, Tween/Teen, Mixed Ages, or Everyone is carrying the loop.</p>
+</section>
+<section class="section">
+<h2>Question health</h2>
+<table><thead><tr><th>Question ID</th><th>Seen</th><th>Flagged</th><th>Abandon</th><th>Avg time</th></tr></thead><tbody>{question_health_rows}</tbody></table>
+<p class="note">High flags, abandonment, or answer time are candidates for rewrite/removal. Wait for meaningful sample sizes.</p>
+</section>
+<section class="section">
+<h2>Growth & Plus signals</h2>
+<p><strong>{referral_runs}</strong> attributed viral-chain runs · <strong>{plus_trial_starts}</strong> premium deck trials · <strong>{plus_upgrade_clicks}</strong> Plus clicks.</p>
+<div class="note">These are intent signals, not paid conversions. Keep the recipient side free.</div>
 </section>
 <section class="section"><h2>Data-quality notes</h2><ul>{warning_html}</ul><div class="note">The old 200% completion rate was not real. The previous counters did not represent matched cohorts. New runs are now matched anonymously by quiz run.</div></section>
 <section class="section"><h2>Raw public events</h2><table>{raw_rows}</table><p class="note">Useful for debugging, not for calculating funnel rates by hand.</p></section>
