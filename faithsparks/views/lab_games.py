@@ -2090,16 +2090,15 @@ def same_brain_analytics():
                 merge=True,
             )
             if run_id:
-                db.collection("same_brain_lab_runs").document(run_id).set(
-                    {
-                        "events": {event: True},
-                        "pack": pack,
-                        "audience": audience,
-                        "sourceCode": source_code,
-                        "updatedAt": google_firestore.SERVER_TIMESTAMP,
-                    },
-                    merge=True,
-                )
+                run_update = {
+                    "events": {event: True},
+                    "pack": pack,
+                    "audience": audience,
+                    "updatedAt": google_firestore.SERVER_TIMESTAMP,
+                }
+                if source_code:
+                    run_update["sourceCode"] = source_code
+                db.collection("same_brain_lab_runs").document(run_id).set(run_update, merge=True)
             if question_id and event in {"question_seen", "question_answered", "question_abandoned", "question_flagged"}:
                 update = {
                     event: google_firestore.Increment(1),
