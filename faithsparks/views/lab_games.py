@@ -2032,6 +2032,9 @@ SAME_BRAIN_EVENTS = {
     "response_submitted",
     "creator_result_opened",
     "daily_crowd_viewed",
+    "together_created",
+    "together_joined",
+    "together_completed",
 }
 
 
