@@ -280,6 +280,7 @@ _SAME_BRAIN_PUBLIC_EVENTS = {
     "question_abandoned",
     "question_flagged",
     "plus_trial_started",
+    "plus_upgrade_clicked",
 }
 
 
