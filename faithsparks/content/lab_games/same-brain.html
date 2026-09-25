@@ -63,14 +63,24 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <details class="disclosure" id="sets-disclosure">
       <summary>Pick a different set</summary>
       <div class="disclosure-body">
+        <div class="inline-panel" style="margin-bottom:12px">
+          <strong>Who’s playing?</strong>
+          <div class="mode-row" id="audience-row" style="margin-top:8px" aria-label="Question audience">
+            <button class="mode-btn audience-btn" data-audience="kids" type="button">🧒 Kids<br><small>6–9</small></button>
+            <button class="mode-btn audience-btn" data-audience="tween" type="button">🎒 Tween/Teen<br><small>10–15</small></button>
+            <button class="mode-btn audience-btn" data-audience="mixed" type="button">👨‍👩‍👧 Mixed Ages<br><small>Family-safe</small></button>
+            <button class="mode-btn audience-btn active" data-audience="everyone" type="button">🧠 Everyone<br><small>Full bank</small></button>
+          </div>
+          <div id="audience-note" class="premium-note">Everyone uses the full question bank.</div>
+        </div>
         <div class="pack-grid" aria-label="Question packs">
           <button class="pack" data-pack="friends">👯 Friends<small>Preferences & personality</small></button>
           <button class="pack" data-pack="family">🏡 Family<small>Home & everyday life</small></button>
           <button class="pack" data-pack="chaos">🦝 Chaos<small>The weirdest choices</small></button>
           <button class="pack" data-pack="food">🍕 Food<small>Strong opinions only</small></button>
           <button class="pack" data-pack="travel">✈️ Travel<small>Trips & adventure</small></button>
-          <button class="pack" data-pack="couples">❤️ Couples<small>Habits & decisions</small></button>
-          <button class="pack" data-pack="work">💼 Work<small>How you operate</small></button>
+          <button class="pack adult-pack" data-pack="couples">❤️ Couples<small>Habits & decisions</small></button>
+          <button class="pack adult-pack" data-pack="work">💼 Work<small>How you operate</small></button>
           <button class="pack" data-pack="nostalgia">📼 Nostalgia<small>Throwback preferences</small></button>
           <button class="pack" data-pack="wouldyou">🤔 Would You Rather<small>Impossible choices</small></button>
           <button id="daily-pack-btn" class="pack daily" data-pack="daily">☀️ Today’s Mix<small>Same set all day</small></button>
@@ -87,6 +97,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       <summary>More ways to play</summary>
       <div class="disclosure-body">
         <div class="stack">
+          <button id="together-btn" class="action-card" type="button">🤝 Start together<small>Share first, then answer the same 5 on two phones</small></button>
           <button id="group-open" class="action-card" type="button">👥 Group Brain<small>3–8 people, answer whenever you want</small></button>
           <div id="group-config" class="inline-panel hidden">
             <strong>Group Brain setup</strong>
@@ -209,6 +220,15 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <h2 id="invite-heading" class="result-title">A friend already answered.</h2>
     <p id="invite-copy" class="sub"></p>
     <button id="accept-btn" class="button primary wide">Answer the same 5</button>
+  </section>
+
+  <section id="screen-waiting" class="card hidden">
+    <div class="brain" style="font-size:72px;text-align:center">🧠🤝</div>
+    <div class="kicker" style="text-align:center">You’re done</div>
+    <h2 class="result-title">Waiting for your friend…</h2>
+    <p class="sub">Keep this page open. Your comparison will appear when the other person finishes.</p>
+    <div class="challenge-box"><div class="challenge-link" id="together-link"></div></div>
+    <button id="together-share-again" class="button primary wide" type="button">Share link again</button>
   </section>
 
   <section id="screen-result" class="card hidden">
