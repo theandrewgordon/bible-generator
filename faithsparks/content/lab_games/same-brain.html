@@ -607,6 +607,148 @@ Object.keys(SET_EXPANSION_ROUND2).forEach(function(pack){
 
 
 
+
+var AUDIENCE_QUESTION_SPECS={
+kids:{
+friends:[
+["Your friend lets you pick the game. What do you choose?",[["🎮","Video game"],["🎲","Board game"],["⚽","Outside game"],["🧱","Build something"]]],
+["At a sleepover, what sounds best?",[["🍿","Movie"],["🎮","Games"],["😂","Talking and laughing"],["😴","Actually sleeping"]]],
+["Your friend has a birthday. Best plan?",[["🎂","Cake and games"],["🎳","Go somewhere fun"],["🏡","Hang out at home"],["🎁","Big surprise"]]],
+["You and a friend find $10. What do you get?",[["🍦","Treats"],["🧸","A toy"],["🎮","Game stuff"],["💰","Save it"]]]
+],
+family:[
+["Family movie night: who picks?",[["🔁","Take turns"],["🗳️","Vote"],["👑","One person picks"],["🎲","Random choice"]]],
+["Best family Saturday?",[["🏡","Stay home"],["🌳","Go outside"],["🎟️","Go somewhere fun"],["👥","See friends/family"]]],
+["One chore disappears forever. Pick it.",[["🧺","Laundry"],["🍽️","Dishes"],["🧹","Floors"],["🧸","Cleaning my room"]]],
+["Family dinner gets one upgrade.",[["🍕","Favorite food"],["🍨","Dessert"],["🎵","Music"],["😂","No arguing"]]]
+],
+chaos:[
+["A dinosaur shows up at school. First move?",[["🏃","Run"],["📸","Take a picture"],["🦖","Try to befriend it"],["🧑‍🏫","Find a grown-up"]]],
+["You wake up able to talk to animals. Who first?",[["🐕","Dog"],["🐈","Cat"],["🐦","Bird"],["🐿️","Squirrel"]]],
+["A giant marshmallow rolls toward your house.",[["🍴","Eat it"],["🏃","Run"],["📹","Film it"],["🛡️","Build a fort"]]],
+["Pick a silly sidekick.",[["🦆","Duck"],["🦝","Raccoon"],["🐐","Goat"],["🐙","Octopus"]]]
+],
+food:[
+["Best after-school snack?",[["🍪","Cookies"],["🍿","Popcorn"],["🍎","Fruit"],["🧀","Cheese"]]],
+["Only one pizza style survives.",[["🧀","Cheese"],["🥓","Pepperoni"],["🍍","Pineapple"],["🌶️","Something spicy"]]],
+["Best breakfast treat?",[["🥞","Pancakes"],["🧇","Waffles"],["🥣","Cereal"],["🥯","Bagel"]]],
+["Dessert choice?",[["🍦","Ice cream"],["🍪","Cookies"],["🧁","Cupcake"],["🍩","Donut"]]]
+],
+travel:[
+["Best place for a kid vacation?",[["🏖️","Beach"],["🎢","Theme park"],["🏔️","Mountains"],["🏊","Hotel with a pool"]]],
+["Road trip job?",[["🎵","Pick music"],["🍿","Manage snacks"],["🗺️","Watch the map"],["😴","Nap"]]],
+["Best hotel feature?",[["🏊","Pool"],["🍳","Breakfast"],["📺","Big TV"],["🛏️","Comfy bed"]]],
+["On vacation, what do you want most?",[["🎢","Do fun stuff"],["🍦","Eat treats"],["🏊","Swim"],["😴","Relax"]]]
+],
+nostalgia:[
+["Which old-school thing sounds coolest?",[["📼","VHS tapes"],["☎️","Landline phone"],["💿","CD player"],["📷","Disposable camera"]]],
+["Ask a grown-up about being a kid. What sounds best?",[["🚲","Riding bikes"],["🎮","Old games"],["📺","Cartoons"],["🍬","Old snacks"]]],
+["Which throwback toy would you try?",[["🪀","Yo-yo"],["🛼","Roller skates"],["🧩","Puzzle toy"],["🎲","Classic game"]]],
+["No tablets for a day. What do you do?",[["🌳","Go outside"],["🎨","Make art"],["📚","Read"],["🎲","Play a game"]]]
+],
+wouldyou:[
+["Would you rather have...",[["🪽","Wings"],["🐠","Gills"],["🦘","Super jumps"],["🦎","Wall climbing"]]],
+["Would you rather live in...",[["🏰","Castle"],["🚀","Spaceship"],["🌳","Treehouse"],["🏝️","Island fort"]]],
+["Would you rather be friends with...",[["🦖","Tiny dinosaur"],["🤖","Robot"],["🦄","Unicorn"],["🐉","Baby dragon"]]],
+["Would you rather get unlimited...",[["🍕","Pizza"],["🎮","Games"],["🎟️","Theme parks"],["🧸","Toys"]]]
+]
+},
+tween:{
+friends:[
+["Your group chat goes quiet. What revives it?",[["😂","A meme"],["📸","Random photo"],["❓","A question"],["📅","Make plans"]]],
+["Best hangout after a long week?",[["🎮","Gaming"],["🍔","Go eat"],["🎬","Movie"],["🏡","Just chill"]]],
+["A friend cancels last minute. Your reaction?",[["😌","No problem"],["😤","Annoyed"],["🏡","Glad to stay home"],["📱","Find another plan"]]],
+["What matters most in a close friend?",[["😂","Funny"],["🤝","Loyal"],["💬","Easy to talk to"],["🎉","Always up for stuff"]]]
+],
+family:[
+["Which family rule would you change first?",[["📱","Screen time"],["🛏️","Bedtime"],["🧹","Chores"],["📅","Schedules"]]],
+["Best unexpected free evening?",[["🎮","Gaming"],["📺","Watch something"],["👥","See friends"],["😴","Do nothing"]]],
+["Family trip: what matters most?",[["📶","Wi-Fi"],["🍽️","Food"],["🎟️","Things to do"],["😌","Downtime"]]],
+["Which household job is worst?",[["🍽️","Dishes"],["🧺","Laundry"],["🧹","Vacuuming"],["🚽","Bathroom"]]]
+],
+chaos:[
+["Your phone only works for one thing all day.",[["💬","Messages"],["🎵","Music"],["📷","Camera"],["🎮","Games"]]],
+["Aliens ask one teenager to explain Earth. Pick the topic.",[["🍕","Food"],["📱","Phones"],["🎵","Music"],["😂","Memes"]]],
+["You get a totally useless superpower.",[["🔋","Know battery percentages"],["🍕","Warm pizza"],["🧦","Find lost socks"],["🎵","Theme music"]]],
+["Your school turns into a video game for one day.",[["🏆","Complete quests"],["🗺️","Explore"],["👥","Build a team"],["😈","Cause chaos"]]]
+],
+food:[
+["Your forever fast-food side?",[["🍟","Fries"],["🧅","Onion rings"],["🧀","Cheese bites"],["🥗","Something fresh"]]],
+["Best late-night snack?",[["🍕","Pizza"],["🍜","Noodles"],["🍦","Ice cream"],["🍿","Popcorn"]]],
+["Pick one drink forever besides water.",[["🥤","Soda"],["🧋","Tea/boba"],["🍋","Lemonade"],["☕","Coffee"]]],
+["Which food debate are you strongest about?",[["🍍","Pineapple pizza"],["🥣","Cereal first"],["🌶️","Spice level"],["🍟","Ketchup rules"]]]
+],
+travel:[
+["Best trip with friends or family?",[["🏖️","Beach"],["🌆","Big city"],["🎢","Theme park"],["🏔️","Mountains"]]],
+["Airport mood?",[["⏰","Way early"],["😌","Comfortably early"],["🏃","Cutting it close"],["🍔","Mostly finding food"]]],
+["Road trip essential?",[["🎵","Playlist"],["🍿","Snacks"],["📱","Phone charger"],["😴","Pillow"]]],
+["Vacation schedule?",[["📋","Plan it"],["🗓️","A few plans"],["🌊","Mostly wing it"],["🎲","No plan"]]]
+],
+nostalgia:[
+["Which early-tech era feels most nostalgic?",[["🎮","Older consoles"],["📱","Early smartphones"],["💿","CDs/MP3 players"],["📺","Cable TV"]]],
+["Which childhood thing would you bring back?",[["🛝","Playgrounds"],["🎨","Simple crafts"],["🎮","Old games"],["📺","Old shows"]]],
+["Best elementary-school memory category?",[["🏃","Recess"],["🎨","Specials"],["👥","Friends"],["🎉","Class parties"]]],
+["Which throwback trend would you try again?",[["👟","Old fashion"],["🎵","Old music"],["🎮","Old games"],["📷","Old photo style"]]]
+],
+wouldyou:[
+["Would you rather lose for a week...",[["📱","Social apps"],["🎮","Games"],["🎵","Music"],["📺","Streaming"]]],
+["Would you rather instantly master...",[["🎸","Instrument"],["🏀","Sport"],["🎨","Art"],["💻","Coding"]]],
+["Would you rather always have...",[["🔋","100% battery"],["📶","Perfect Wi-Fi"],["💰","$20 cash"],["⏰","One extra hour"]]],
+["Would you rather spend a month...",[["🏖️","At the beach"],["🌆","In a city"],["🏔️","In the mountains"],["🚢","Traveling"]]]
+]
+},
+mixed:{
+friends:[
+["Best way to spend time with people you like?",[["🍽️","Share a meal"],["🎲","Play a game"],["🚶","Go somewhere"],["💬","Just talk"]]],
+["What makes someone fun to be around?",[["😂","Humor"],["🤝","Kindness"],["🎉","Energy"],["😌","Easygoing"]]],
+["A group has to pick one activity.",[["🗳️","Vote"],["🔁","Take turns"],["🎲","Random pick"],["👑","One person decides"]]],
+["What helps a friendship last?",[["💬","Talking"],["🤝","Showing up"],["😂","Laughing"],["❤️","Caring"]]]
+],
+family:[
+["Best family night?",[["🍕","Food"],["🎲","Games"],["🎬","Movie"],["🚗","Go somewhere"]]],
+["What helps a busy family day?",[["📋","A plan"],["🤝","Everyone helps"],["😂","Good humor"],["🍕","Easy food"]]],
+["Pick one house upgrade.",[["🛋️","More comfort"],["🌳","Better yard"],["🍳","Better kitchen"],["🎮","Fun room"]]],
+["Best family tradition ingredient?",[["🍽️","Food"],["👥","People"],["🎲","Activity"],["📸","Photos"]]]
+],
+chaos:[
+["A friendly robot arrives. What job do you give it?",[["🧹","Clean"],["🍳","Cook"],["🚗","Drive"],["🎉","Entertain"]]],
+["You get one ridiculous pet.",[["🦖","Tiny dinosaur"],["🦝","Raccoon"],["🐧","Penguin"],["🐒","Monkey"]]],
+["A mystery button appears. What do you do?",[["🔴","Press it"],["👀","Inspect it"],["📞","Ask someone"],["🚪","Walk away"]]],
+["Pick one impossible home feature.",[["🛝","Indoor slide"],["🚀","Rocket garage"],["🌊","Indoor pool"],["🌳","Treehouse room"]]]
+],
+food:[
+["Best comfort food category?",[["🍕","Pizza"],["🍝","Pasta"],["🍜","Soup/noodles"],["🍔","Burger"]]],
+["Snack table winner?",[["🍫","Sweet"],["🧂","Salty"],["🍓","Fresh"],["🧀","Cheesy"]]],
+["Best meal to eat out?",[["🥞","Breakfast"],["🥪","Lunch"],["🍽️","Dinner"],["🍨","Dessert"]]],
+["Only one dessert stays.",[["🍦","Ice cream"],["🍪","Cookies"],["🍰","Cake"],["🥧","Pie"]]]
+],
+travel:[
+["Best easy getaway?",[["🏖️","Beach"],["🏔️","Mountains"],["🌆","City"],["🌲","Cabin"]]],
+["Travel priority?",[["😴","Comfort"],["🍽️","Food"],["📸","Sights"],["🎟️","Activities"]]],
+["Best road-trip contribution?",[["🎵","Music"],["🍿","Snacks"],["🗺️","Navigation"],["😂","Entertainment"]]],
+["Hotel must-have?",[["🛏️","Good bed"],["🍳","Breakfast"],["🏊","Pool"],["📍","Location"]]]
+],
+nostalgia:[
+["Which childhood category is most fun to remember?",[["🎮","Games"],["📺","Shows"],["🍬","Snacks"],["🌳","Outside"]]],
+["Which old thing is coolest to explain to someone younger?",[["☎️","Landline"],["📼","VHS"],["💿","CD"],["🗺️","Paper map"]]],
+["What changed most from childhood?",[["📱","Technology"],["🎮","Entertainment"],["🏫","School"],["👥","How people connect"]]],
+["Pick a throwback activity.",[["🎲","Board game"],["🚲","Bike ride"],["📚","Book/comic"],["📺","Old movie"]]]
+],
+wouldyou:[
+["Would you rather get free...",[["🍽️","Meals"],["✈️","Travel"],["🎟️","Events"],["🏨","Hotels"]]],
+["Would you rather always have perfect...",[["🌤️","Weather"],["📶","Wi-Fi"],["😴","Sleep"],["⏰","Timing"]]],
+["Would you rather live near...",[["🏖️","Beach"],["🏔️","Mountains"],["🌆","City"],["🌲","Forest"]]],
+["Would you rather be amazing at...",[["🎵","Music"],["🏆","Sports"],["🍳","Cooking"],["🔧","Fixing things"]]]
+]
+}
+};
+Object.keys(AUDIENCE_QUESTION_SPECS).forEach(function(aud){
+  Object.keys(AUDIENCE_QUESTION_SPECS[aud]).forEach(function(pack){
+    AUDIENCE_QUESTION_SPECS[aud][pack].forEach(function(item,i){
+      QUESTIONS.push({id:"aud_"+aud+"_"+pack+"_"+String(i+1).padStart(2,"0"),q:item[0],a:item[1].map(function(x){return x.slice()}),tags:[pack,"aud_"+aud],aud:[aud]})
+    })
+  })
+});
 function auditQuestionBank(){
   var issues=[];
   QUESTIONS.forEach(function(q){
