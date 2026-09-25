@@ -1068,9 +1068,9 @@ function brainType(score){if(score===100)return["Brain Twins","A perfect match. 
 function completedPlayCount(){try{return Number(localStorage.getItem("same_brain_completed_plays")||0)}catch(_){return 0}}
 function incrementCompletedPlayCount(){var n=completedPlayCount()+1;try{localStorage.setItem("same_brain_completed_plays",String(n))}catch(_){}return n}
 function renderQuestionFeedback(){
-  var box=document.getElementById("question-feedback"),list=document.getElementById("question-feedback-list");if(!box||!list||!state.questionIds||!state.questionIds.length)return;
-  box.classList.remove("hidden");list.innerHTML="";
-  state.questionIds.forEach(function(id){var q=qById(id);if(!q)return;var b=document.createElement("button");b.className="button ghost wide";b.type="button";b.style.textAlign="left";b.textContent=q.q;b.addEventListener("click",function(){track("question_flagged",{questionId:id});box.innerHTML="<strong>Thanks — that question is flagged for review.</strong>"});list.appendChild(b)})
+  var box=document.getElementById("question-feedback"),list=document.getElementById("question-feedback-list"),good=document.getElementById("question-feedback-good");if(!box||!list||!state.questionIds||!state.questionIds.length)return;
+  box.classList.remove("hidden");list.innerHTML="";if(good)good.classList.remove("hidden");
+  state.questionIds.forEach(function(id){var q=qById(id);if(!q)return;var b=document.createElement("button");b.className="button ghost wide";b.type="button";b.style.textAlign="left";b.textContent=q.q;b.addEventListener("click",function(){track("question_flagged",{questionId:id});list.innerHTML='<div class="premium-note"><strong>Thanks — that question is flagged for review.</strong></div>';if(good)good.classList.add("hidden")});list.appendChild(b)})
 }
 function maybeShowPlusNudge(count){
   var box=document.getElementById("plus-nudge");if(!box)return;if(state.profile&&state.profile.plus){box.classList.add("hidden");return}
@@ -1291,7 +1291,7 @@ document.getElementById("speak-question").addEventListener("click",async functio
 if(document.getElementById("plus-ten-challenge"))document.getElementById("plus-ten-challenge").addEventListener("click",function(){if(!(state.profile&&state.profile.plus))return;state.count=10;startCreator("random")});
 if(document.getElementById("group-btn"))document.getElementById("group-btn").addEventListener("click",startGroupCreator);if(document.getElementById("demo-btn"))document.getElementById("demo-btn").addEventListener("click",startLocalDemo);
 document.getElementById("name-next").addEventListener("click",nameNext);
-document.getElementById("question-feedback-good").addEventListener("click",function(){var box=document.getElementById("question-feedback");if(box)box.innerHTML="<strong>Thanks! 👍</strong>"});
+document.getElementById("question-feedback-good").addEventListener("click",function(){var list=document.getElementById("question-feedback-list");if(list)list.innerHTML='<div class="premium-note"><strong>Thanks! 👍</strong></div>';this.classList.add("hidden")});
 document.getElementById("plus-nudge-link").addEventListener("click",function(){track("plus_upgrade_clicked")});document.getElementById("question-back").addEventListener("click",function(){if(!state.answers.length)return;state.answers.pop();renderQuestion()});
 document.getElementById("player-name").addEventListener("keydown",function(e){if(e.key==="Enter")nameNext()});
 document.getElementById("share-btn").addEventListener("click",function(){track("challenge_shared");shareText("Think you know me? Take my Same Brain challenge 🧠",state.challengeUrl)});
