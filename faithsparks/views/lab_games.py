@@ -2035,6 +2035,13 @@ SAME_BRAIN_EVENTS = {
     "together_created",
     "together_joined",
     "together_completed",
+    "together_opened",
+    "together_first_finished",
+    "question_seen",
+    "question_answered",
+    "question_abandoned",
+    "question_flagged",
+    "plus_trial_started",
 }
 
 
@@ -2048,6 +2055,15 @@ def same_brain_analytics():
     event = str(payload.get("event") or "").strip()
     pack = str(payload.get("pack") or "unknown").strip().lower()[:24]
     run_id = "".join(ch for ch in str(payload.get("runId") or "") if ch.isalnum() or ch in {"-", "_"})[:64]
+    audience = str(payload.get("audience") or "everyone").strip().lower()
+    if audience not in {"kids", "tween", "mixed", "everyone"}:
+        audience = "everyone"
+    question_id = re.sub(r"[^A-Za-z0-9_-]", "", str(payload.get("questionId") or ""))[:64].strip()
+    source_code = re.sub(r"[^A-Z0-9]", "", str(payload.get("sourceCode") or "").upper())[:12]
+    try:
+        elapsed_ms = max(0, min(120000, int(payload.get("elapsedMs") or 0)))
+    except (TypeError, ValueError):
+        elapsed_ms = 0
     if event not in SAME_BRAIN_EVENTS:
         return jsonify({"error": "unknown_event"}), 400
 
@@ -2056,7 +2072,8 @@ def same_brain_analytics():
     if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
         return jsonify({"error": "csrf"}), 400
 
-    dedupe_key = f"same_brain_metric:{run_id or 'legacy'}:{event}:{pack}"
+    detail_key = question_id or source_code or ""
+    dedupe_key = f"same_brain_metric:{run_id or 'legacy'}:{event}:{pack}:{detail_key}"
     if session.get(dedupe_key):
         return jsonify({"ok": True, "duplicate": True})
 
@@ -2067,6 +2084,7 @@ def same_brain_analytics():
                     "total": google_firestore.Increment(1),
                     "events": {event: google_firestore.Increment(1)},
                     "packs": {pack: google_firestore.Increment(1)},
+                    "audiences": {audience: google_firestore.Increment(1)},
                     "updatedAt": google_firestore.SERVER_TIMESTAMP,
                 },
                 merge=True,
@@ -2076,10 +2094,22 @@ def same_brain_analytics():
                     {
                         "events": {event: True},
                         "pack": pack,
+                        "audience": audience,
+                        "sourceCode": source_code,
                         "updatedAt": google_firestore.SERVER_TIMESTAMP,
                     },
                     merge=True,
                 )
+            if question_id and event in {"question_seen", "question_answered", "question_abandoned", "question_flagged"}:
+                update = {
+                    event: google_firestore.Increment(1),
+                    "audiences": {audience: google_firestore.Increment(1)},
+                    "updatedAt": google_firestore.SERVER_TIMESTAMP,
+                }
+                if elapsed_ms and event in {"question_answered", "question_abandoned"}:
+                    update["elapsedMsTotal"] = google_firestore.Increment(elapsed_ms)
+                    update["elapsedSamples"] = google_firestore.Increment(1)
+                db.collection("same_brain_question_stats_lab").document(question_id).set(update, merge=True)
     except Exception:
         # Analytics must never interrupt gameplay.
         pass
