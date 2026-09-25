@@ -273,6 +273,13 @@ _SAME_BRAIN_PUBLIC_EVENTS = {
     "together_created",
     "together_joined",
     "together_completed",
+    "together_opened",
+    "together_first_finished",
+    "question_seen",
+    "question_answered",
+    "question_abandoned",
+    "question_flagged",
+    "plus_trial_started",
 }
 
 
@@ -322,6 +329,9 @@ def _same_brain_public_challenge_payload(raw) -> dict | None:
     if audience not in {"kids", "tween", "mixed", "everyone"}:
         audience = "everyone"
     clean["u"] = audience
+    referral = re.sub(r"[^A-Z0-9]", "", str(raw.get("r") or "").upper())[:12]
+    if referral:
+        clean["r"] = referral
     daily_label = " ".join(str(raw.get("d") or "").split()).strip()[:40]
     if daily_label:
         clean["d"] = daily_label
@@ -1110,7 +1120,7 @@ def same_brain_public():
     response.headers["X-Content-Type-Options"] = "nosniff"
     # Challenge query strings contain nicknames/answers and should never land
     # in search results. The clean landing page may be indexed.
-    if request.args.get("c") or request.args.get("s") or request.args.get("g"):
+    if request.args.get("c") or request.args.get("s") or request.args.get("g") or request.args.get("t"):
         response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
     return response
 
@@ -1121,6 +1131,15 @@ def same_brain_public_analytics():
     event = str(payload.get("event") or "").strip()
     pack = str(payload.get("pack") or "unknown").strip().lower()[:24]
     run_id = re.sub(r"[^A-Za-z0-9_-]", "", str(payload.get("runId") or ""))[:64]
+    audience = str(payload.get("audience") or "everyone").strip().lower()
+    if audience not in {"kids", "tween", "mixed", "everyone"}:
+        audience = "everyone"
+    question_id = re.sub(r"[^A-Za-z0-9_-]", "", str(payload.get("questionId") or ""))[:64]
+    source_code = re.sub(r"[^A-Z0-9]", "", str(payload.get("sourceCode") or "").upper())[:12]
+    try:
+        elapsed_ms = max(0, min(120000, int(payload.get("elapsedMs") or 0)))
+    except (TypeError, ValueError):
+        elapsed_ms = 0
     if event not in _SAME_BRAIN_PUBLIC_EVENTS:
         return jsonify({"error": "unknown_event"}), 400
 
@@ -1140,7 +1159,8 @@ def same_brain_public_analytics():
     if not limit.allowed:
         return jsonify({"ok": True, "rate_limited": True})
 
-    dedupe_key = f"sb_public_metric:{run_id or 'legacy'}:{event}:{pack}"
+    detail_key = question_id or source_code or ""
+    dedupe_key = f"sb_public_metric:{run_id or 'legacy'}:{event}:{pack}:{detail_key}"
     if session.get(dedupe_key):
         return jsonify({"ok": True, "duplicate": True})
 
@@ -1151,6 +1171,7 @@ def same_brain_public_analytics():
                     "total": firestore.Increment(1),
                     "events": {event: firestore.Increment(1)},
                     "packs": {pack: firestore.Increment(1)},
+                    "audiences": {audience: firestore.Increment(1)},
                     "updatedAt": firestore.SERVER_TIMESTAMP,
                 },
                 merge=True,
@@ -1160,10 +1181,22 @@ def same_brain_public_analytics():
                     {
                         "events": {event: True},
                         "pack": pack,
+                        "audience": audience,
+                        "sourceCode": source_code,
                         "updatedAt": firestore.SERVER_TIMESTAMP,
                     },
                     merge=True,
                 )
+            if question_id and event in {"question_seen", "question_answered", "question_abandoned", "question_flagged"}:
+                update = {
+                    event: firestore.Increment(1),
+                    "audiences": {audience: firestore.Increment(1)},
+                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                }
+                if elapsed_ms and event in {"question_answered", "question_abandoned"}:
+                    update["elapsedMsTotal"] = firestore.Increment(elapsed_ms)
+                    update["elapsedSamples"] = firestore.Increment(1)
+                db.collection("same_brain_question_stats").document(question_id).set(update, merge=True)
     except Exception:
         # Analytics can never be allowed to break the game.
         pass
