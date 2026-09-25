@@ -2198,3 +2198,132 @@ def test_same_brain_set_expansion_uses_semantically_aligned_specs():
 
     # Known mismatch regression from the old combinatorial generator.
     assert 'Which smart home annoyance is worst? | Simple' not in html
+
+
+
+def test_same_brain_has_sticky_age_audiences_without_an_age_gate():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'data-audience="kids"',
+        'data-audience="tween"',
+        'data-audience="mixed"',
+        'data-audience="everyone"',
+        "Same Brain Jr.",
+        "same_brain_audience",
+        "function rememberedAudience()",
+        "function audiencePool(items,audience)",
+        "function renderAudience()",
+    ):
+        assert marker in html
+
+
+def test_same_brain_age_modes_use_dedicated_relatable_question_banks():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "var AUDIENCE_QUESTION_SPECS=",
+        'id:"aud_"+aud+"_"+pack+',
+        'aud:[aud]',
+        "A dinosaur shows up at school. First move?",
+        "Your group chat goes quiet. What revives it?",
+        "Best way to spend time with people you like?",
+    ):
+        assert marker in html
+
+
+def test_same_brain_daily_and_challenges_preserve_audience():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'dailyKey()+"|"+aud',
+        'u:state.audience||"everyone"',
+        'audience:challenge.u||state.audience||rememberedAudience()',
+        'u:prior.u||state.audience||"everyone"',
+        'same_brain_daily_date:"+a',
+        'same_brain_daily_date:"+(state.audience||"everyone")',
+    ):
+        assert marker in html
+
+    public_source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+    assert 'if audience not in {"kids", "tween", "mixed", "everyone"}' in public_source
+    assert 'clean["u"] = audience' in public_source
+
+
+def test_same_brain_youth_modes_hide_adult_packs_and_adult_themed_decks():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'class="pack adult-pack" data-pack="couples"' in html
+    assert 'class="pack adult-pack" data-pack="work"' in html
+    assert 'src==="work"||src==="couples"' in html
+    assert 'b.classList.toggle("hidden",a!=="everyone")' in html
+
+
+def test_same_brain_start_together_is_two_phone_share_before_play():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="together-btn"',
+        "🤝 Start together",
+        "function startTogether()",
+        "function loadTogether(code)",
+        "function submitTogether()",
+        "function pollTogetherResult()",
+        "function renderTogetherResult(data)",
+        'params.get("t")',
+        'mode:"together_player"',
+        "Waiting for your friend",
+    ):
+        assert marker in html
+
+
+def test_same_brain_start_together_backend_is_private_until_you_answer_and_capped_at_two():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        'SAME_BRAIN_TOGETHER_COLLECTION = "same_brain_together"',
+        "SAME_BRAIN_TOGETHER_TTL_DAYS = 2",
+        "def same_brain_public_together_create()",
+        "def same_brain_public_together_answer(code: str)",
+        "def same_brain_public_together_result(code: str)",
+        'if len(players) >= 2:',
+        'return "full", data',
+        'if not any(str(p.get("id") or "") == player_id',
+        '"ready": len(players) == 2',
+    ):
+        assert marker in source
+
+
+def test_same_brain_plus_adds_creation_power_but_never_blocks_recipients():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="plus-ten-challenge" class="action-card hidden"',
+        'customToggle.classList.toggle("hidden",!p.plus)',
+        'plusTen.classList.toggle("hidden",!p.plus)',
+        'state.count=10;startCreator("random")',
+        "Anyone you invite can play what you send.",
+        "receiving any challenge",
+        "Kids/Tween/Mixed Ages",
+        "Start Together",
+    ):
+        assert marker in html
+
+    # Existing challenge validation deliberately accepts received 10-question games.
+    assert "(ch.q.length===5||ch.q.length===10)" in html
