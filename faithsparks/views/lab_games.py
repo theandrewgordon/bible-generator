@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -2042,6 +2043,7 @@ SAME_BRAIN_EVENTS = {
     "question_abandoned",
     "question_flagged",
     "plus_trial_started",
+    "plus_upgrade_clicked",
 }
 
 
