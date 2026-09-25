@@ -2327,3 +2327,125 @@ def test_same_brain_plus_adds_creation_power_but_never_blocks_recipients():
 
     # Existing challenge validation deliberately accepts received 10-question games.
     assert "(ch.q.length===5||ch.q.length===10)" in html
+
+
+
+def test_same_brain_tracks_question_quality_without_collecting_answer_text():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="question-feedback"',
+        "Any question feel weird or unrelatable?",
+        'track("question_seen",{questionId:q.id})',
+        'track("question_answered",{questionId:q.id,elapsedMs:',
+        'track("question_abandoned",{questionId:state.currentQuestionId,elapsedMs:',
+        'track("question_flagged",{questionId:id})',
+    ):
+        assert marker in html
+
+    public_source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+    for marker in (
+        '"question_seen"',
+        '"question_answered"',
+        '"question_abandoned"',
+        '"question_flagged"',
+        'db.collection("same_brain_question_stats")',
+        '"elapsedMsTotal"',
+    ):
+        assert marker in public_source
+
+
+def test_same_brain_question_rotation_is_audience_specific_and_deeper():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'same_brain_recent_questions:"+audience' in html
+    assert 'audience==="everyone"?40:20' in html
+    assert 'recentQuestionIds(aud)' in html
+
+
+def test_same_brain_analytics_carries_audience_and_referral_chain():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'audience:state.audience||rememberedAudience()',
+        'sourceCode:state.shortCode||prior._shortCode||""',
+        'r:state.shortCode||prior._shortCode||""',
+        'track("challenge_opened",{sourceCode:challenge.r||""})',
+    ):
+        assert marker in html
+
+    public_source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+    assert 'clean["r"] = referral' in public_source
+    assert '"audiences": {audience: firestore.Increment(1)}' in public_source
+    assert 'if source_code:' in public_source
+
+
+def test_same_brain_together_tracks_full_funnel_and_recovers_after_revisit():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'track("together_created")',
+        'track("together_opened")',
+        'track("together_first_finished")',
+        'track("together_joined")',
+        'track("together_completed")',
+        'var prior=await apiJson("/same-brain/together/"+encodeURIComponent(data.code)+"/result?playerId="',
+        'if(prior.ready){renderTogetherResult(prior);return}',
+        'show("waiting");pollTogetherResult();return',
+    ):
+        assert marker in html
+
+
+def test_same_brain_plus_conversion_is_delayed_and_recipient_friendly():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="plus-nudge" class="inline-panel hidden"',
+        'count>=3&&count-last>=3',
+        'id="plus-nudge-link"',
+        'track("plus_upgrade_clicked")',
+        'completedPlayCount()>=3&&!trialUsed',
+        'track("plus_trial_started")',
+        "Friends can still play what you send for free.",
+    ):
+        assert marker in html
+
+
+def test_same_brain_metrics_show_audience_question_together_and_growth_health():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.lab_games", fromlist=["dummy"]
+    ))
+
+    for marker in (
+        '"togetherCompletion"',
+        "Start Together completion",
+        "audience_summary = {}",
+        '"questionHealth": top_question_flags',
+        '"referralRuns": referral_runs',
+        '"plusSignals":',
+        "<h2>Audience breakdown</h2>",
+        "<h2>Question health</h2>",
+        "<h2>Growth & Plus signals</h2>",
+    ):
+        assert marker in source
+
+
+def test_same_brain_together_links_are_noindex_too():
+    source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+    assert 'or request.args.get("t")' in source
