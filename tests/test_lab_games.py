@@ -2337,7 +2337,9 @@ def test_same_brain_tracks_question_quality_without_collecting_answer_text():
 
     for marker in (
         'id="question-feedback"',
-        "Any question feel weird or unrelatable?",
+        'id="question-feedback-open"',
+        'id="question-feedback-body"',
+        "Flag a weird question",
         'track("question_seen",{questionId:q.id})',
         'track("question_answered",{questionId:q.id,elapsedMs:',
         'track("question_abandoned",{questionId:state.currentQuestionId,elapsedMs:',
