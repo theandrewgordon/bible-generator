@@ -13,7 +13,9 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     ]
     labs = [product for product in PRODUCTS if product["area"] == "labs"]
     assert {product["maturity"] for product in labs} <= {"beta", "experiment", "sandbox"}
-    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio"}
+    assert {product["id"] for product in labs} == {
+        "weekflow", "coloring-studio", "games-lab", "same-brain"
+    }
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)
 
 
