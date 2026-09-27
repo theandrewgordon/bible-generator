@@ -451,7 +451,7 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
     # reducing per-frame pixel work on iPad.
     html = html.replace(
         "    cameraScale = 40;\n    canvasClearColor",
-        "    cameraScale = 40;\n    canvasPixelRatio = Math.min(devicePixelRatio || 1, .75);\n    canvasClearColor",
+        "    cameraScale = 40;\n    canvasPixelRatio = Math.min(devicePixelRatio || 1, .65);\n    canvasClearColor",
         1,
     )
 
@@ -658,32 +658,13 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
             ? (.045 + .12*amount)
             : (.09 + .20*amount);
 
-        // Water is a restrained blue sheen; soap is a denser green-white film.
-        const mainScale = cleanerId == 'water' ? .82 : .94;
-        drawRect(w.pos, cell.scale(mainScale), hsl(hue,sat,light,alpha));
-
-        // Soap gets staggered foam flecks. They track individual wet cells and
-        // disappear as the squeegee removes the layer, so wiping is visibly
-        // progressive rather than switching an entire pane at once.
-        if (cleanerId == 'soap' && amount > .18)
-        {
-            const gx = Math.round(w.pos.x / max(.001,cell.x));
-            const gy = Math.round(w.pos.y / max(.001,cell.y));
-
-            if (((gx + gy) & 1) == 0)
-                drawRect(
-                    w.pos.add(vec2(cell.x*.14,cell.y*.10)),
-                    cell.scale(.30),
-                    hsl(.42,.22,.97,.16 + .20*amount)
-                );
-
-            if (((gx*3 + gy*5) & 3) == 0)
-                drawRect(
-                    w.pos.add(vec2(-cell.x*.18,-cell.y*.16)),
-                    cell.scale(.16),
-                    hsl(.40,.16,1,.12 + .16*amount)
-                );
-        }
+        // SIMPLE MODE: exactly one cheap shape per wet cell.
+        // Soap is brighter/denser than water, but both avoid extra draw calls.
+        const mainScale = cleanerId == 'water' ? .76 : .90;
+        const cleanerAlpha = cleanerId == 'soap'
+            ? (.16 + .22*amount)
+            : alpha;
+        drawRect(w.pos, cell.scale(mainScale), hsl(hue,sat,light,cleanerAlpha));
     }
 
 """
@@ -815,20 +796,11 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
 
             if (tinyWindowTexture)
             {
-                // Real textured grime is the expensive part. Keep only a
-                // sparse stable sample; water/soap detail is restored with
-                // cheap localized rectangles above. 1-in-32 keeps heavy-dirt
-                // frames responsive while still retaining real texture cues.
-                const hx = Math.abs(Math.round(pos.x * 24));
-                const hy = Math.abs(Math.round(pos.y * 24));
-                const hash = hx * 3 + hy * 5;
-                const keepRealTexture = (hash & 31) === 0;   // ~1 in 32
-
-                if (!keepRealTexture)
-                {
-                    window._rowanRenderFastStats.skippedTile++;
-                    return;
-                }
+                // Level 3+ grime/cleaner visuals are rectangles now.
+                // Any tiny textured tile inside the glass is decorative only,
+                // so skip it completely instead of sampling it.
+                window._rowanRenderFastStats.skippedTile++;
+                return;
             }
         }
 
