@@ -330,6 +330,8 @@ def _same_brain_public_challenge_payload(raw) -> dict | None:
     if audience not in {"kids", "tween", "mixed", "everyone"}:
         audience = "everyone"
     clean["u"] = audience
+    if bool(raw.get("rm")):
+        clean["rm"] = True
     referral = re.sub(r"[^A-Z0-9]", "", str(raw.get("r") or "").upper())[:12]
     if referral:
         clean["r"] = referral
