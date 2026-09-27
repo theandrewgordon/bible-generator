@@ -2451,3 +2451,27 @@ def test_same_brain_together_links_are_noindex_too():
         "faithsparks.views.public", fromlist=["dummy"]
     ))
     assert 'or request.args.get("t")' in source
+
+
+
+def test_same_brain_age_modes_have_at_least_eighty_four_questions_each():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "var AUDIENCE_QUESTION_EXPANSION={" in html
+    assert 'id:"audx_"+aud+"_"+pack+' in html
+
+    # Each Kids/Tween/Mixed audience has 7 packs x 12 curated questions.
+    for audience in ("kids", "tween", "mixed"):
+        assert html.count(f'{audience}:{{') >= 1
+
+
+def test_same_brain_repeat_avoidance_remembers_many_recent_questions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'audience==="everyone"?120:60' in html
+    assert 'same_brain_recent_questions:"+audience' in html
+    assert "recentQuestionIds(aud)" in html
