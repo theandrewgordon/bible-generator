@@ -332,7 +332,9 @@ def test_shared_game_menu_uses_consistent_order():
         "Return to Game Library",
         "Sound Effects: ",
     )
-    positions = [js.index(label) for label in labels]
+    menu_start = js.index("menuButton('Resume / Continue'")
+    menu_js = js[menu_start:]
+    positions = [menu_js.index(label) for label in labels]
     assert positions == sorted(positions)
 
 
@@ -658,7 +660,10 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
 
     # Drink complexity ramps up rather than exposing the full recipe bank
     # immediately on Level 2.
-    assert "const recipeCount=min(RECIPES.length,5+max(0,level-2)*2)" in html
+    assert "const recipeCount=" in html
+    assert "level<=2?2" in html
+    assert "level==3?5" in html
+    assert "min(RECIPES.length,8+max(0,level-4)*2)" in html
     assert "RECIPES[randInt(recipeCount)]" in html
 
     # Audit: a level can never finish halfway through a newly-arrived party.
@@ -669,8 +674,8 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     # taps use the normal error sound.
     assert "message='Pick up a cup first.'" in html
     assert "message='Mixed! Pick up a cup.'" in html
-    assert "This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad)" in html
-    assert "This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad)" in html
+    assert "message='This drink uses the BLENDER.';messageTimer.set(1.5);playSfx(sndBad)" in html
+    assert "message='This drink uses MIX.';messageTimer.set(1.5);playSfx(sndBad)" in html
 
     # Audit: setting down a loaded scoop no longer silently throws it away.
     assert "Use the scoop you already have, or tap RESET." in html
@@ -800,10 +805,11 @@ def test_stables_has_fair_catchup_and_touch_farm_progression():
     # Catch-up remains bounded and only activates when the player is behind.
     assert "Gentle \"second wind\" catch-up" in html
     assert "const catchupBonus" in html
-    assert "clamp((gapBehind-2.5)*.0019, 0, .028)" in html
+    assert "clamp((gapBehind-5)*.0012, 0, .012)" in html
+    assert "clamp((gapBehind-2.5)*.00225, 0, .038)" in html
     assert "const rivalEase" in html
-    assert "tcPlayer.slowTimer.set(.65)" in html
-    assert "tcPlayerSpeed * .72" in html
+    assert "tcPlayer.slowTimer.set(.50)" in html
+    assert "tcPlayerSpeed * .82" in html
     assert "SECOND WIND — KEEP GALLOPING!" in html
 
     # The existing barn progression is now a discoverable Gordon Family Stables Farm.
