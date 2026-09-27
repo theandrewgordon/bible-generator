@@ -241,16 +241,6 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div id="daily-crowd" class="hidden"></div>
     <div id="share-card" class="share-card hidden"></div>
     <div id="compare" class="compare"></div>
-    <div id="question-feedback" class="inline-panel hidden">
-      <strong>Any question feel weird or unrelatable?</strong>
-      <div id="question-feedback-list" class="stack" style="margin-top:8px"></div>
-      <button id="question-feedback-good" class="button ghost wide" type="button" style="margin-top:8px">All good 👍</button>
-    </div>
-    <div id="plus-nudge" class="inline-panel hidden" style="text-align:left">
-      <strong>Want more ways to play?</strong>
-      <div class="premium-note">Plus adds 10-question challenges, custom questions, premium decks, and natural narrator voices. Friends can still play what you send for free.</div>
-      <a id="plus-nudge-link" class="button secondary wide" href="/plus?utm=same_brain_result" style="text-decoration:none;text-align:center">See Plus</a>
-    </div>
     <div class="stack">
       <button id="result-next" class="button primary wide">Challenge someone else</button>
       <div id="result-next-note" class="premium-note" style="text-align:center;margin-top:-6px">Send your answers to someone new.</div>
@@ -258,6 +248,19 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       <button id="result-share" class="button ghost wide">Share result card</button>
       <button id="result-facebook" class="button ghost wide">Share result on Facebook</button>
       <button id="replay-daily" class="button ghost wide hidden">Replay today’s Brain</button>
+    </div>
+    <div id="question-feedback" class="inline-panel hidden" style="margin-top:14px">
+      <button id="question-feedback-open" class="home-replay" type="button">Flag a weird question</button>
+      <div id="question-feedback-body" class="hidden">
+        <div class="premium-note" style="margin-top:8px">Which one felt weird or unrelatable?</div>
+        <div id="question-feedback-list" class="stack" style="margin-top:8px"></div>
+        <button id="question-feedback-good" class="button ghost wide" type="button" style="margin-top:8px">Never mind</button>
+      </div>
+    </div>
+    <div id="plus-nudge" class="inline-panel hidden" style="text-align:left;margin-top:12px">
+      <strong>Want more ways to play?</strong>
+      <div class="premium-note">Plus adds 10-question challenges, custom questions, premium decks, and natural narrator voices. Friends can still play what you send for free.</div>
+      <a id="plus-nudge-link" class="button secondary wide" href="/plus?utm=same_brain_result" style="text-decoration:none;text-align:center">See Plus</a>
     </div>
   </section>
 </main>
@@ -1068,9 +1071,9 @@ function brainType(score){if(score===100)return["Brain Twins","A perfect match. 
 function completedPlayCount(){try{return Number(localStorage.getItem("same_brain_completed_plays")||0)}catch(_){return 0}}
 function incrementCompletedPlayCount(){var n=completedPlayCount()+1;try{localStorage.setItem("same_brain_completed_plays",String(n))}catch(_){}return n}
 function renderQuestionFeedback(){
-  var box=document.getElementById("question-feedback"),list=document.getElementById("question-feedback-list"),good=document.getElementById("question-feedback-good");if(!box||!list||!state.questionIds||!state.questionIds.length)return;
-  box.classList.remove("hidden");list.innerHTML="";if(good)good.classList.remove("hidden");
-  state.questionIds.forEach(function(id){var q=qById(id);if(!q)return;var b=document.createElement("button");b.className="button ghost wide";b.type="button";b.style.textAlign="left";b.textContent=q.q;b.addEventListener("click",function(){track("question_flagged",{questionId:id});list.innerHTML='<div class="premium-note"><strong>Thanks — that question is flagged for review.</strong></div>';if(good)good.classList.add("hidden")});list.appendChild(b)})
+  var box=document.getElementById("question-feedback"),body=document.getElementById("question-feedback-body"),list=document.getElementById("question-feedback-list"),good=document.getElementById("question-feedback-good");if(!box||!body||!list||!state.questionIds||!state.questionIds.length)return;
+  box.classList.remove("hidden");body.classList.add("hidden");list.innerHTML="";if(good)good.classList.remove("hidden");
+  state.questionIds.forEach(function(id){var q=qById(id);if(!q)return;var b=document.createElement("button");b.className="button ghost wide";b.type="button";b.style.textAlign="left";b.textContent=q.q;b.addEventListener("click",function(){track("question_flagged",{questionId:id});list.innerHTML='<div class="premium-note"><strong>Thanks — flagged for review.</strong></div>';if(good)good.classList.add("hidden");setTimeout(function(){body.classList.add("hidden")},700)});list.appendChild(b)})
 }
 function maybeShowPlusNudge(count){
   var box=document.getElementById("plus-nudge");if(!box)return;if(state.profile&&state.profile.plus){box.classList.add("hidden");return}
@@ -1291,7 +1294,8 @@ document.getElementById("speak-question").addEventListener("click",async functio
 if(document.getElementById("plus-ten-challenge"))document.getElementById("plus-ten-challenge").addEventListener("click",function(){if(!(state.profile&&state.profile.plus))return;state.count=10;startCreator("random")});
 if(document.getElementById("group-btn"))document.getElementById("group-btn").addEventListener("click",startGroupCreator);if(document.getElementById("demo-btn"))document.getElementById("demo-btn").addEventListener("click",startLocalDemo);
 document.getElementById("name-next").addEventListener("click",nameNext);
-document.getElementById("question-feedback-good").addEventListener("click",function(){var list=document.getElementById("question-feedback-list");if(list)list.innerHTML='<div class="premium-note"><strong>Thanks! 👍</strong></div>';this.classList.add("hidden")});
+document.getElementById("question-feedback-open").addEventListener("click",function(){var body=document.getElementById("question-feedback-body");if(body)body.classList.toggle("hidden")});
+document.getElementById("question-feedback-good").addEventListener("click",function(){var body=document.getElementById("question-feedback-body");if(body)body.classList.add("hidden")});
 document.getElementById("plus-nudge-link").addEventListener("click",function(){track("plus_upgrade_clicked")});document.getElementById("question-back").addEventListener("click",function(){if(!state.answers.length)return;state.answers.pop();renderQuestion()});
 document.getElementById("player-name").addEventListener("keydown",function(e){if(e.key==="Enter")nameNext()});
 document.getElementById("share-btn").addEventListener("click",function(){track("challenge_shared");shareText("Think you know me? Take my Same Brain challenge 🧠",state.challengeUrl)});
