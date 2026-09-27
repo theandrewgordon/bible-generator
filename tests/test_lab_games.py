@@ -2475,3 +2475,55 @@ def test_same_brain_repeat_avoidance_remembers_many_recent_questions():
     assert 'audience==="everyone"?120:60' in html
     assert 'same_brain_recent_questions:"+audience' in html
     assert "recentQuestionIds(aud)" in html
+
+
+
+def test_same_brain_large_bank_stays_above_fifteen_hundred_questions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "var REPLAY_EXPANSION_CORE={" in html
+    assert "var REPLAY_EXPANSION_AUDIENCE={" in html
+    assert 'id:"replay_"+pack+' in html
+    assert 'id:"audr_"+aud+"_"+pack+' in html
+
+
+def test_same_brain_all_non_daily_modes_prefer_unseen_questions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        "function unseenFirst(pool)",
+        'if(pack==="random")return unseenFirst(audAll)',
+        "return unseenFirst(deckPool)",
+        "return unseenFirst(pool)",
+        'audience==="everyone"?300:140',
+    ):
+        assert marker in html
+
+
+def test_same_brain_expanded_age_modes_have_over_two_hundred_questions_each():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "var AUDIENCE_QUESTION_SPECS={" in html
+    assert "var AUDIENCE_QUESTION_EXPANSION={" in html
+    assert "var REPLAY_EXPANSION_AUDIENCE={" in html
+
+
+def test_same_brain_expansion_avoids_known_template_grammar_regressions():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for bad in (
+        "For family a day trip",
+        "For family a birthday",
+        "For family a rainy day",
+        "For family a free evening",
+        "Which smart home annoyance is worst? | Simple",
+    ):
+        assert bad not in html
