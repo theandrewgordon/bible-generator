@@ -715,14 +715,16 @@ def test_rowan_coalesces_pointer_work_for_later_level_responsiveness():
     assert "requestAnimationFrame(flushPendingDragWork)" in html
     assert "const count = 1; // one cleaning sample per animation frame" in html
     assert "pendingDragWorldPos" in html
-    assert "canvasPixelRatio = Math.min(devicePixelRatio || 1, .75)" in html
+    assert "canvasPixelRatio = Math.min(devicePixelRatio || 1, .65)" in html
 
-    # Cleaner visuals stay detailed through cheap rectangles while expensive
-    # grime textures are heavily sampled.
-    assert "render localized cleaner residue per cell again" in html
-    assert "Water is a restrained blue sheen" in html
-    assert "Soap gets staggered foam flecks" in html
-    assert "keepRealTexture = (hash & 31) === 0" in html
+    # Level 3+ intentionally uses a much cheaper visual model.
+    assert "Level 3+ SIMPLE MODE: one cheap rectangle per dirty cell." in html
+    assert "gridX = clamp(Math.round(windowSize.x * 1.15), 14, 24)" in html
+    assert "gridY = clamp(Math.round(windowSize.y * 1.15), 10, 16)" in html
+    assert "SIMPLE MODE: exactly one cheap shape per wet cell." in html
+    assert "Any tiny textured tile inside the glass is decorative only" in html
+    assert "keepRealTexture = (hash & 31) === 0" not in html
+    assert "Soap gets staggered foam flecks" not in html
     assert "Rectangles are cheap according to the profiler" in html
     assert "rowan-render-fast-path" in html
     assert "_rowanRenderFastStats" in html
