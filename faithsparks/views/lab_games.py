@@ -1821,6 +1821,10 @@ def _same_brain_validate_answers(question_ids: object, answers: object) -> tuple
     return qids, normalized
 
 
+def _same_brain_group_audience(value) -> str:
+    return value if value in ("kids", "tween", "mixed", "everyone") else "everyone"
+
+
 def _same_brain_group_result(data: dict) -> dict:
     players = []
     for raw in data.get("players") or []:
@@ -1833,6 +1837,7 @@ def _same_brain_group_result(data: dict) -> dict:
     return {
         "code": str(data.get("code") or ""),
         "pack": str(data.get("pack") or "random")[:24],
+        "audience": _same_brain_group_audience(data.get("audience")),
         "questionIds": list(data.get("questionIds") or [])[:10],
         "players": players[:SAME_BRAIN_GROUP_MAX_PLAYERS],
         "maxPlayers": SAME_BRAIN_GROUP_MAX_PLAYERS,
@@ -1845,6 +1850,7 @@ def _same_brain_group_invite(data: dict) -> dict:
     return {
         "code": str(data.get("code") or ""),
         "pack": str(data.get("pack") or "random")[:24],
+        "audience": _same_brain_group_audience(data.get("audience")),
         "questionIds": list(data.get("questionIds") or [])[:10],
         "hostName": host_name,
         "playerCount": min(len(players), SAME_BRAIN_GROUP_MAX_PLAYERS),
@@ -1901,6 +1907,7 @@ def same_brain_group_create():
     data = {
         "code": code,
         "pack": pack,
+        "audience": _same_brain_group_audience(payload.get("audience")),
         "questionIds": question_ids,
         "players": [{"name": name, "answers": answers, "joinedAt": now}],
         "createdAt": now,

@@ -8,6 +8,12 @@ def _client():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.secret_key = "lab-games-test"
     app.register_blueprint(bp)
+    from faithsparks.views.lab_games import _csrf_token_value
+    app.jinja_env.globals["csrf_token"] = _csrf_token_value
+    app.jinja_env.globals.update(site_content={}, theme={}, env=__import__("os").getenv)
+    app.add_url_rule("/manifest.webmanifest", "pwa_manifest", lambda: "")
+    app.add_url_rule("/service-worker.js", "service_worker", lambda: "")
+    app.add_url_rule("/login/google", "google.login", lambda: "")
     return app.test_client()
 
 
@@ -929,7 +935,7 @@ def test_same_brain_demo_has_portable_challenge_loop():
 
     assert "var QUESTIONS=[" in html
     assert html.count('{id:"') >= 20
-    assert 'slice(0,5)' in html
+    assert 'wanted=state.count||5' in html
     assert '?c=' in html
     assert 'TextEncoder' in html
     assert 'TextDecoder' in html
@@ -1014,7 +1020,7 @@ def test_same_brain_tracks_core_viral_funnel_events():
         'track("start")',
         'track("challenge_created")',
         'track("challenge_shared")',
-        'track("challenge_opened")',
+        'track("challenge_opened",{sourceCode:',
         'track("result_completed")',
         'track("result_shared")',
     ):
@@ -1162,7 +1168,7 @@ def test_same_brain_backend_exposes_plus_rewards_and_tts_contract():
         "def same_brain_points()",
         "def same_brain_unlock()",
         "def same_brain_tts()",
-        'model="gpt-4o-mini-tts"',
+        'model = "gpt-4o-mini-tts"',
         '"marin"',
         "has_active_plus",
         "SAME_BRAIN_POINT_EVENTS",
@@ -1205,7 +1211,7 @@ def test_same_brain_daily_identity_streak_and_creator_reward_loop():
         '+" Brain #"+dailyNumber()',
         'id="streak-line"',
         '"daily_complete"',
-        '"daily-"+dailyKey()',
+        '"daily-"+(payload.dk||dailyKey())',
         "dailyStreak",
         "dailyBest",
     ):
@@ -1221,8 +1227,8 @@ def test_same_brain_beat_my_match_chain_is_link_portable():
         'id="result-next"',
         "async function challengeNext()",
         'h:{s:state.score,a:prior.n,b:state.name}',
-        'track("beat_chain_shared")',
-        "Can you beat that?",
+        'track("beat_chain_shared",{sourceCode:',
+        "Can you beat that with me?",
         "Previous: ",
         "Who knows you better? Challenge them →",
     ):
@@ -1256,7 +1262,7 @@ def test_same_brain_tracks_return_and_chain_funnel_events():
     for marker in (
         'track("home_view")',
         'track("return_visit")',
-        'track("beat_chain_shared")',
+        'track("beat_chain_shared",{sourceCode:',
         'track("custom_created")',
         "same_brain_seen",
     ):
@@ -1336,12 +1342,12 @@ def test_labs_same_brain_one_to_one_shares_escape_to_public_route():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert 'function shareBase(){return location.origin+"/same-brain"}' in html
-    assert "async function makeShortChallengeUrl(payload)" in html
+    assert "async function makeShortChallengeUrl(payload,rememberCreator)" in html
     assert 'return shareBase()+"?s="+encodeURIComponent(data.code)' in html
     assert 'return shareBase()+"?c="+encode(payload)' in html
-    assert "state.challengeUrl=await makeShortChallengeUrl(payload)" in html
-    assert "var url=await makeShortChallengeUrl(payload)" in html
-    assert "challengeUrl=await makeShortChallengeUrl(c)" in html
+    assert "state.challengeUrl=await makeShortChallengeUrl(payload,true)" in html
+    assert "url=await makeShortChallengeUrl(payload,true)" in html
+    assert "challengeUrl=await makeShortChallengeUrl(c,false)" in html
 
 
 def test_public_same_brain_is_resilient_without_removed_account_ui():
@@ -1374,7 +1380,7 @@ def test_same_brain_short_link_contract_and_long_link_fallback():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     for marker in (
-        "async function makeShortChallengeUrl(payload)",
+        "async function makeShortChallengeUrl(payload,rememberCreator)",
         'apiJson("/same-brain/challenge"',
         'return shareBase()+"?s="+encodeURIComponent(data.code)',
         'return shareBase()+"?c="+encode(payload)',
@@ -1436,11 +1442,11 @@ def test_same_brain_fresh_random_avoids_recent_questions():
 
     for marker in (
         'same_brain_recent_questions',
-        "function recentQuestionIds()",
+        "function recentQuestionIds(audience)",
         "function rememberQuestions(ids)",
         'if(pack==="random")',
         'recent.indexOf(q.id)<0',
-        'merged.slice(0,15)',
+        'merged.slice(0,audience==="everyone"?300:140)',
     ):
         assert marker in html
 
@@ -1477,7 +1483,7 @@ def test_same_brain_avatar_shop_has_no_neon_rainbow_and_more_premium_choices():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert "Neon Frame" not in html
-    assert "🌈" not in html
+    assert "🌈" not in html[:html.index("var QUESTIONS=")]
     for marker in (
         "Wise Owl",
         "Clever Fox",
@@ -1521,7 +1527,7 @@ def test_same_brain_more_ways_delays_group_configuration_until_selected():
         'id="group-pack"',
         'id="demo-btn"',
         'id="custom-toggle"',
-        "4–8 people, answer whenever you want",
+        "3–8 people, answer whenever you want",
         "Pass the screen to a friend",
     ):
         assert marker in html
@@ -1744,7 +1750,8 @@ def test_public_same_brain_daily_stats_backend_uses_aggregate_counts_only():
         assert marker in source
 
     # Daily aggregate documents should not store player names or answer histories.
-    daily_section = source[source.index("def same_brain_public_daily_submit"):source.index("@bp.get('/same-brain')")]
+    from faithsparks.views.public import same_brain_public_daily_submit
+    daily_section = __import__("inspect").getsource(same_brain_public_daily_submit)
     assert '"name"' not in daily_section
 
 
@@ -1860,7 +1867,7 @@ def test_same_brain_metrics_uses_matched_run_cohorts_not_legacy_counter_division
     ))
 
     for marker in (
-        'db.collection("same_brain_public_runs")',
+        'public_runs = _run_docs("same_brain_public_runs")',
         "def _cohort_rate",
         'row["events"].get(den_event)',
         'row["events"].get(num_event)',
@@ -1933,7 +1940,9 @@ def test_same_brain_daily_streak_uses_client_daily_key_not_server_utc_day():
     source = __import__("inspect").getsource(__import__(
         "faithsparks.views.lab_games", fromlist=["dummy"]
     ))
-    html = _client().get("/labs/games/same-brain").get_data(as_text=True)
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert 'daily_key = str(payload.get("dateKey")' in source
     assert 'datetime.strptime(daily_key, "%Y-%m-%d")' in source
@@ -2367,7 +2376,7 @@ def test_same_brain_question_rotation_is_audience_specific_and_deeper():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert 'same_brain_recent_questions:"+audience' in html
-    assert 'audience==="everyone"?40:20' in html
+    assert 'audience==="everyone"?300:140' in html
     assert 'recentQuestionIds(aud)' in html
 
 
@@ -2472,7 +2481,7 @@ def test_same_brain_repeat_avoidance_remembers_many_recent_questions():
     _sign_in(client)
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
-    assert 'audience==="everyone"?120:60' in html
+    assert 'audience==="everyone"?300:140' in html
     assert 'same_brain_recent_questions:"+audience' in html
     assert "recentQuestionIds(aud)" in html
 
@@ -2527,3 +2536,50 @@ def test_same_brain_expansion_avoids_known_template_grammar_regressions():
         "Which smart home annoyance is worst? | Simple",
     ):
         assert bad not in html
+
+
+def test_same_brain_executable_question_and_replay_audit():
+    from pathlib import Path
+    import subprocess
+
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        ["node", "tests/same_brain_runtime.cjs"], cwd=root,
+        capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_same_brain_group_audience_survives_invite_and_results():
+    from faithsparks.views.lab_games import _same_brain_group_audience
+
+    for audience in ("kids", "tween", "mixed", "everyone"):
+        data = {"audience": audience, "questionIds": ["a", "b", "c", "d", "e"]}
+        assert _same_brain_group_invite(data)["audience"] == audience
+        assert _same_brain_group_result(data)["audience"] == audience
+    for value in (None, "adult", {}, [], 42):
+        assert _same_brain_group_audience(value) == "everyone"
+
+
+def test_same_brain_group_create_persists_audience(monkeypatch):
+    from types import SimpleNamespace
+    from faithsparks.views import lab_games
+
+    stored = {}
+    class GroupRef:
+        def get(self):
+            return SimpleNamespace(exists=False)
+        def set(self, data):
+            stored.update(data)
+
+    monkeypatch.setattr(lab_games, "_same_brain_group_ref", lambda code: GroupRef())
+    client = _client()
+    _sign_in(client)
+    with client.session_transaction() as session:
+        session["_csrf_token"] = "test-token"
+    response = client.post("/labs/games/same-brain/group", json={
+        "name": "Player", "questionIds": ["a", "b", "c", "d", "e"],
+        "answers": [0, 1, 2, 3, 0], "audience": "kids", "pack": "random",
+    }, headers={"X-CSRF-Token": "test-token"})
+    assert response.status_code == 201
+    assert response.json["audience"] == stored["audience"] == "kids"
