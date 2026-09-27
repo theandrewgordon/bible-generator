@@ -703,7 +703,7 @@ function initIllustratedAtlas(){
   g.fillStyle='#fff';for(const p of [[52,37],[64,31],[76,37]]){g.beginPath();g.arc(p[0],p[1],14,0,Math.PI*2);g.fill();}
   g.fillStyle='#d5304f';g.beginPath();g.arc(68,18,8,0,Math.PI*2);g.fill();g.restore();}
 
- // Original shopkeeper icon
+ // Gordon-family shopkeeper fallback icon
  {const [x,y]=cell(10);g.save();g.translate(x,y);
   g.fillStyle='#2e6b7e';rr(34,58,60,50,12,'#2e6b7e','#214450',4);
   g.fillStyle='#f0c79f';g.beginPath();g.arc(64,42,26,0,Math.PI*2);g.fill();
@@ -726,25 +726,73 @@ function initIllustratedAtlas(){
 }
 
 
-let morganPhotoImage;
-function initMorganPhoto(){
-  morganPhotoImage = new Image();
-  morganPhotoImage.src = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22160%22%20height%3D%22360%22%20viewBox%3D%220%200%20160%20360%22%3E%3Cg%20stroke%3D%22%23293441%22%20stroke-width%3D%224%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20fill%3D%22%23364963%22%20d%3D%22M48%20231h64l-4%20102H85l-5-70-5%2070H52z%22%2F%3E%3Cpath%20fill%3D%22%23293441%22%20d%3D%22M51%20327h25v20H43q-5-12%208-20m34%200h24q17%208%2010%2020H85z%22%2F%3E%3Cpath%20fill%3D%22%2385543c%22%20d%3D%22M43%20136L24%20225q-2%2017%2012%2016l21-76m60-29%2019%2089q2%2017-12%2016l-21-76%22%2F%3E%3Cpath%20fill%3D%22%237350a1%22%20d%3D%22M49%20119q31-15%2062%200l13%2054-17%204%205%2069H48l5-69-17-4z%22%2F%3E%3Cpath%20fill%3D%22%2385543c%22%20d%3D%22M69%2093h22v32H69z%22%2F%3E%3Cellipse%20fill%3D%22%23242b35%22%20cx%3D%2280%22%20cy%3D%2260%22%20rx%3D%2239%22%20ry%3D%2246%22%2F%3E%3Cellipse%20fill%3D%22%2385543c%22%20cx%3D%2280%22%20cy%3D%2268%22%20rx%3D%2233%22%20ry%3D%2238%22%2F%3E%3Cpath%20fill%3D%22%23242b35%22%20d%3D%22M47%2059q-6-49%2034-48%2045%203%2032%2047L95%2035Q77%2059%2047%2059z%22%2F%3E%3Cpath%20fill%3D%22none%22%20d%3D%22M64%2070h3m26%200h3M69%2087q11%209%2022%200%22%2F%3E%3Cpath%20fill%3D%22%23f7cc59%22%20stroke%3D%22none%22%20d%3D%22M67%20145h26v13H67z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+let shopFamilyImages=[];
+
+function shopFamilySvg({skin='#f2c7a5',hair='#6b442f',shirt='#7a5bb8',pants='#31445d',longHair=false,child=false,accent='#f6c453'}){
+  const h=child?320:360;
+  const headY=child?64:68;
+  const torsoY=child?116:119;
+  const legTop=child?218:231;
+  const faceRx=child?31:33;
+  const faceRy=child?36:38;
+  const hairBack=longHair
+    ? `<path fill="${hair}" d="M43 52q-5-46 37-45 43 1 37 48l-5 60-22-12-12-63-10 63-21 12z"/>`
+    : `<path fill="${hair}" d="M47 58q-5-45 34-47 42 2 32 45L96 36Q78 58 47 58z"/>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="160" height="${h}" viewBox="0 0 160 ${h}">
+    <g stroke="#293441" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+      <path fill="${pants}" d="M48 ${legTop}h64l-4 ${child?78:102}H85l-5-${child?54:70}-5 ${child?54:70}H52z"/>
+      <path fill="#293441" d="M51 ${child?291:327}h25v20H43q-5-12 8-20m34 0h24q17 8 10 20H85z"/>
+      <path fill="${skin}" d="M43 ${child?130:136}L24 ${child?210:225}q-2 17 12 16l21-${child?68:76}m60-${child?35:29} 19 ${child?74:89}q2 17-12 16l-21-${child?68:76}"/>
+      <path fill="${shirt}" d="M49 ${torsoY}q31-15 62 0l13 54-17 4 5 ${child?52:69}H48l5-${child?52:69}-17-4z"/>
+      <path fill="${skin}" d="M69 ${child?92:93}h22v32H69z"/>
+      ${hairBack}
+      <ellipse fill="${skin}" cx="80" cy="${headY}" rx="${faceRx}" ry="${faceRy}"/>
+      <path fill="${hair}" d="M47 ${child?54:59}q-6-${child?42:49} 34-${child?43:48} 45 3 32 ${child?42:47}L95 ${child?34:35}Q77 ${child?55:59} 47 ${child?54:59}z"/>
+      ${longHair?'<path fill="'+hair+'" d="M48 55q-8 28 0 54l14-13-3-36zm64 0q8 28 0 54L98 96l3-36z"/>':''}
+      <path fill="none" d="M64 ${child?68:70}h3m26 0h3M69 ${child?84:87}q11 9 22 0"/>
+      <path fill="${accent}" stroke="none" d="M67 ${child?140:145}h26v13H67z"/>
+    </g>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
 }
-function drawMorganPhoto(pos,height=3.95){
-  if(!morganPhotoImage || !morganPhotoImage.complete || !morganPhotoImage.naturalWidth) return;
-  const ctx=mainContext;
-  const p=worldToScreen(pos);
-  const sy=height*cameraScale;
-  const sx=sy*0.37518248;
+
+function initShopFamily(){
+  // A cohesive white family crew inspired by the Gordon-family setting:
+  // two parents and an older kid/teen with varied brown/blonde hair.
+  const defs=[
+    {skin:'#f3c9aa',hair:'#6a4632',shirt:'#2f6f83',pants:'#33475c',longHair:false,child:false,accent:'#f6c453'},
+    {skin:'#f4cfb2',hair:'#9a6b42',shirt:'#8b5fb1',pants:'#3f4b63',longHair:true, child:false,accent:'#f6c453'},
+    {skin:'#f5d4bb',hair:'#c49a63',shirt:'#cf6b49',pants:'#3b4a5e',longHair:true, child:true, accent:'#f6c453'}
+  ];
+  shopFamilyImages=defs.map(def=>{
+    const im=new Image();
+    im.decoding='async';
+    im.src=shopFamilySvg(def);
+    return im;
+  });
+}
+
+function drawShopFamilyMember(index,pos,height=3.9){
+  const im=shopFamilyImages[index%shopFamilyImages.length];
+  if(!im||!im.complete||!im.naturalWidth)return;
+  const ctx=mainContext,p=worldToScreen(pos),sy=height*cameraScale,sx=sy*(im.naturalWidth/im.naturalHeight);
   ctx.save();
   ctx.translate(p.x,p.y);
-  ctx.drawImage(morganPhotoImage,-sx/2,-sy/2,sx,sy);
+  ctx.drawImage(im,-sx/2,-sy/2,sx,sy);
   ctx.restore();
 }
 
+function drawShopFamilyCrew(){
+  // Keep the family clearly behind the counter and away from tappable stations.
+  const lead=(max(1,level)-1)%shopFamilyImages.length;
+  drawShopFamilyMember(lead,vec2(-7.78,2.40),3.95);
+  drawShopFamilyMember((lead+1)%shopFamilyImages.length,vec2(-6.55,2.53),3.45);
+  drawRect(vec2(-7.18,.82),vec2(2.65,.38),hsl(.09,.42,.30));
+  drawText('GORDON FAMILY',vec2(-7.18,.82),.13,WHITE,.02,BLACK);
+}
+
 function gameInit(){
- initMorganPhoto();
+ initShopFamily();
  icons=initDefaultAtlas();initIllustratedAtlas();canvasClearColor=hsl(.08,.18,.12);cameraPos=vec2(0,0);cameraScale=47;newOrder();
 }
 function gameUpdate(){
@@ -1412,7 +1460,7 @@ function gameRender(){
   drawRect(vec2(x,1.15),vec2(.12,.8),hsl(.55,.08,.35));
  }
  // Characters
- drawMorganPhoto(vec2(-7.7,2.42),3.95);
+ drawShopFamilyCrew();
  const guestBasePos=partyCustomerPos(partyIndex);
  const guestPos=guestBasePos.add(vec2(guestSlide,0));
  drawSoftShadow(guestPos.add(vec2(0,-1.0)),vec2(1.55,.42));
