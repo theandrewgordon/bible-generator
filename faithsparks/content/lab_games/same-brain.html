@@ -538,7 +538,7 @@ wouldyou:[
 {stem:"Would you rather get one year of free {{t}}?",topics:["travel","restaurants","concerts","groceries"],a:[["⭐","That one"],["🤔","Depends on the fine print"],["💸","Give me cash instead"],["🔁","I’d trade it for another"]]},
 {stem:"Would you rather always be {{t}}?",topics:["20 minutes early","10 minutes late","slightly overdressed","slightly underdressed"],a:[["✅","I can live with it"],["😅","Annoying"],["🚫","No chance"],["😂","That’s already me"]]},
 {stem:"Would you rather only use {{t}} for a week?",topics:["a flip phone","paper maps","cash","a desktop computer"],a:[["🧠","Easy"],["😬","Manageable"],["😭","Terrible"],["🎉","Actually sounds fun"]]},
-{stem:"Would you rather have {{t}} happen every Friday?",topics:["free lunch","a surprise adventure","no responsibilities","a mystery package"],a:[["😍","Absolutely"],["🤔","Maybe"],["😅","Could get old"],["🚫","No thanks"]]}
+{stem:"If {{t}} happened every Friday, how would you feel?",topics:["free lunch","a surprise adventure","no responsibilities","a mystery package"],a:[["😍","Absolutely"],["🤔","Maybe"],["😅","Could get old"],["🚫","No thanks"]]}
 ]
 };
 Object.keys(SET_EXPANSION_SPECS).forEach(function(pack){
@@ -1115,7 +1115,7 @@ wouldyou:[
 {stem:"Would you rather have a magical {{t}}?",topics:["backpack","bed","bike","lunchbox","treehouse"],a:[["🪽","It flies"],["🍕","It makes food"],["🫥","It turns invisible"],["🚀","It teleports"]]},
 {stem:"If you could {{t}}, would you take that power?",topics:["fly","talk to animals","breathe underwater","turn invisible","jump super high"],a:[["✅","Definitely"],["🤔","Maybe"],["😂","Only for fun"],["🚫","No thanks"]]},
 {stem:"Would you rather live in a {{t}}?",topics:["castle","spaceship","treehouse","giant boat","secret cave"],a:[["😍","Yes"],["🤔","For a while"],["🏡","I’d visit"],["🚫","No"]]},
-{stem:"Would you rather get unlimited {{t}}?",topics:["books","games","toys","theme-park visits","art supplies"],a:[["😍","Perfect"],["🤔","Maybe"],["🔁","I’d pick another"],["💰","Cash instead"]]}
+{stem:"If you could get unlimited {{t}}, would you take it?",topics:["books","games","toys","theme-park visits","art supplies"],a:[["😍","Perfect"],["🤔","Maybe"],["🔁","I’d pick another"],["💰","Cash instead"]]}
 ]
 },
 tween:{
@@ -1157,7 +1157,7 @@ nostalgia:[
 ],
 wouldyou:[
 {stem:"If you could make {{t}} flawless all year, would you choose it?",topics:["Wi-Fi","sleep","grades","weather","timing"],a:[["✅","Absolutely"],["🤔","Maybe"],["🔁","I’d pick another"],["💰","Cash instead"]]},
-{stem:"Would you rather instantly improve at {{t}}?",topics:["sports","music","art","coding","school"],a:[["😍","Yes"],["🤔","Maybe"],["🆕","Different skill"],["💰","Cash instead"]]},
+{stem:"If you could instantly improve at {{t}}, would you choose that?",topics:["sports","music","art","coding","school"],a:[["😍","Yes"],["🤔","Maybe"],["🆕","Different skill"],["💰","Cash instead"]]},
 {stem:"Would you rather always have extra {{t}}?",topics:["free time","sleep","money","battery","snacks"],a:[["😍","Perfect"],["🤔","Useful"],["🔁","I’d trade it"],["😂","Depends how much"]]},
 {stem:"Would you rather never worry about {{t}}?",topics:["homework","charging devices","being late","what to wear","what to eat"],a:[["✅","Yes"],["🤔","Maybe"],["😂","That’d be weird"],["🔁","I’d remove another problem"]]}
 ]
@@ -1203,7 +1203,7 @@ wouldyou:[
 {stem:"If {{t}} could be perfect forever, would you take it?",topics:["sleep","weather","Wi-Fi","timing","traffic"],a:[["✅","Yes"],["🤔","Maybe"],["🔁","I’d pick another"],["💰","Cash instead"]]},
 {stem:"If one {{t}} category cost you nothing for a year, would you take it?",topics:["meals","travel","tickets","hotels","groceries"],a:[["😍","Definitely"],["🤔","Maybe"],["💵","Cash instead"],["🔁","Different perk"]]},
 {stem:"If {{t}} became effortless overnight, would you choose that skill?",topics:["cooking","music","a language","sports","fixing things"],a:[["✅","Yes"],["🤔","Maybe"],["🆕","Different skill"],["💰","Cash instead"]]},
-{stem:"Would you rather never deal with {{t}}?",topics:["laundry","traffic","waiting","spam","choosing dinner"],a:[["😍","Absolutely"],["😅","Nice"],["🤔","Maybe"],["🔁","Different problem"]]}
+{stem:"If you never had to deal with {{t}} again, would you take that?",topics:["laundry","traffic","waiting","spam","choosing dinner"],a:[["😍","Absolutely"],["😅","Nice"],["🤔","Maybe"],["🔁","Different problem"]]}
 ]
 }
 };
@@ -1439,6 +1439,12 @@ async function loadTogether(code){
     if(prior.ready){renderTogetherResult(prior);return}
     document.getElementById("together-link").textContent=togetherUrl(data.code);var tline=document.getElementById("together-code-line");if(tline)tline.textContent="CODE: "+data.code;show("waiting");pollTogetherResult();return
   }catch(_){}
+  if(Number(data.playerCount||0)>=2){
+    document.getElementById("invite-heading").textContent="This Together room is full.";
+    document.getElementById("invite-copy").textContent="Two people are already playing this room. Ask them for a new code to start another match.";
+    document.getElementById("accept-btn").textContent="Room full";document.getElementById("accept-btn").disabled=true;show("invite");return
+  }
+  document.getElementById("accept-btn").disabled=false;
   document.getElementById("invite-heading").textContent="Start together";
   document.getElementById("invite-copy").textContent="You’ll both answer the same 5 on your own phones. Your answers stay hidden until both of you finish.";
   document.getElementById("accept-btn").textContent="Start my 5";show("invite")
@@ -1709,7 +1715,7 @@ async function shareResult(){
   await shareText(text,challengeUrl);
 }
 function shareFacebook(url){var target="https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(url);window.open(target,"samebrain_facebook","noopener,noreferrer,width=640,height=720")}
-async function shareText(text,url){if(navigator.share){try{await navigator.share({text:text,url:url});return}catch(e){}}try{await navigator.clipboard.writeText((text?text+" ":"")+url);alert("Copied to clipboard!")}catch(e){prompt("Copy this link:",url)}}
+async function shareText(text,url){if(navigator.share){try{await navigator.share({text:text,url:url});return}catch(e){if(e&&e.name==="AbortError")return}}try{await navigator.clipboard.writeText((text?text+" ":"")+url);alert("Copied to clipboard!")}catch(e){prompt("Copy this link:",url)}}
 var customFields=document.getElementById("custom-fields");if(customFields)for(var ci=0;ci<5;ci++){var row=document.createElement("div");row.className="challenge-box";row.innerHTML='<label style="margin-top:0">Question '+(ci+1)+'</label><input class="name-input custom-q" maxlength="140" placeholder="Coffee or tea?"><div style="height:8px"></div><input class="name-input custom-a" maxlength="60" placeholder="Option A"><div style="height:8px"></div><input class="name-input custom-b" maxlength="60" placeholder="Option B">';customFields.appendChild(row)}
 if(document.getElementById("custom-toggle"))document.getElementById("custom-toggle").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating custom challenges is included with Plus.");return}document.getElementById("custom-builder").classList.toggle("hidden")});
 if(document.getElementById("custom-start"))document.getElementById("custom-start").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating custom challenges is included with Plus.");return}var qs=Array.from(document.querySelectorAll(".custom-q")),as=Array.from(document.querySelectorAll(".custom-a")),bs=Array.from(document.querySelectorAll(".custom-b")),defs=[];for(var i=0;i<5;i++){var q=qs[i].value.trim(),a=as[i].value.trim(),b=bs[i].value.trim();if(!q||!a||!b){alert("Fill in all five questions and both choices.");return}defs.push({id:"custom_"+Date.now()+"_"+i,q:q,a:[["✨",a],["✨",b]],tags:["custom"]})}defs.forEach(function(q){QUESTIONS.push(q)});track("custom_created");state.count=5;var profile=state.profile;state={mode:"creator",name:"",questionIds:defs.map(function(q){return q.id}),answers:[],creator:null,challengeUrl:"",pack:"custom",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:5,profile:profile};document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value=rememberedName();show("name")});
