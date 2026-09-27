@@ -52,6 +52,14 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       <button id="start-btn" class="button primary wide">Play today’s 5</button>
       <button id="together-btn" class="button ghost wide" type="button">🤝 Start together</button>
     </div>
+    <div class="inline-panel" style="margin-top:12px;text-align:left">
+      <strong>Have a code?</strong>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:8px">
+        <input id="join-code" class="name-input" type="text" maxlength="7" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Enter 7-character code" aria-label="Same Brain code">
+        <button id="join-code-btn" class="button secondary" type="button" style="min-height:52px">Join</button>
+      </div>
+      <div id="join-code-status" class="premium-note">Challenge and Start Together codes work here. Group Brain codes work from Labs.</div>
+    </div>
     <p id="daily-label" class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p><div id="streak-line" class="tiny" style="margin-top:6px"></div>
     <button id="creator-results-home" class="button ghost wide hidden" type="button" style="margin-top:10px">🧠 New challenge results</button>
     <div id="creator-inbox" class="inline-panel hidden" style="margin-top:10px;text-align:left">
@@ -202,7 +210,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div class="kicker">Your challenge is ready</div>
     <h2 class="question">Send it to a friend.</h2>
     <p class="sub" style="margin-left:0;text-align:left">They’ll answer your same 5 questions. When they finish, you both get the match—and you can come back here to see every response.</p>
-    <div class="challenge-box"><div class="challenge-link" id="challenge-link"></div></div>
+    <div class="challenge-box"><div class="challenge-link" id="challenge-link"></div><div id="challenge-code-line" class="premium-note hidden" style="margin-top:8px;font-weight:900;letter-spacing:.12em"></div></div>
     <div class="stack">
       <button id="share-btn" class="button primary wide">Share challenge</button>
       <button id="facebook-share" class="button secondary wide">Share on Facebook</button>
@@ -228,7 +236,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div class="kicker" style="text-align:center">You’re done</div>
     <h2 class="result-title">Waiting for your friend…</h2>
     <p class="sub">Keep this page open. Your comparison will appear when the other person finishes.</p>
-    <div class="challenge-box"><div class="challenge-link" id="together-link"></div></div>
+    <div class="challenge-box"><div class="challenge-link" id="together-link"></div><div id="together-code-line" class="premium-note" style="margin-top:8px;font-weight:900;letter-spacing:.12em"></div></div>
     <button id="together-share-again" class="button primary wide" type="button">Share link again</button>
   </section>
 
@@ -244,6 +252,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div class="stack">
       <button id="result-next" class="button primary wide">Challenge someone else</button>
       <div id="result-next-note" class="premium-note" style="text-align:center;margin-top:-6px">Send your answers to someone new.</div>
+      <button id="rematch-btn" class="button secondary wide hidden" type="button">Rematch</button>
       <button id="new-round" class="button secondary wide">Play a fresh 5</button>
       <button id="result-share" class="button ghost wide">Share result card</button>
       <button id="result-facebook" class="button ghost wide">Share result on Facebook</button>
