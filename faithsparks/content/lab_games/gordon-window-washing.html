@@ -17117,8 +17117,20 @@ function buildDirt()
 
     // Bound the simulation grid so later/larger windows stay responsive on iPad.
     // Visual window size can keep growing without multiplying cleaning work forever.
-    gridX = clamp(Math.round(windowSize.x * 2), 12, 44);
-    gridY = clamp(Math.round(windowSize.y * 2), 10, 28);
+    // Keep the game intentionally simple on tablets. From Level 3 onward,
+    // use a coarse logical grid instead of hundreds/thousands of tiny cells.
+    // Cleaner matching still works exactly the same, but there is far less
+    // simulation and rendering work every frame.
+    if (!trialMode && level >= 3)
+    {
+        gridX = clamp(Math.round(windowSize.x * 1.15), 14, 24);
+        gridY = clamp(Math.round(windowSize.y * 1.15), 10, 16);
+    }
+    else
+    {
+        gridX = clamp(Math.round(windowSize.x * 1.55), 12, 30);
+        gridY = clamp(Math.round(windowSize.y * 1.55), 10, 20);
+    }
 
     if (trialMode)
     {
@@ -17157,7 +17169,9 @@ function buildDirt()
     const unlockedMess = clamp(1 + Math.floor((level-1)/2), 1, MESS_TYPES.length);
     // More mess appears over time, but cap it before the window becomes a dense
     // wall of cells (which was both visually muddy and expensive on touch devices).
-    const density = clamp(.48 + level*.025, .48, .78);
+    const density = level >= 3
+        ? clamp(.42 + level*.012, .42, .58)
+        : clamp(.46 + level*.018, .46, .56);
 
     for (let y=0; y<gridY; ++y)
     for (let x=0; x<gridX; ++x)
@@ -20025,6 +20039,26 @@ function gameRender()
     {
         const d = dirt[i];
         if (d.clean) continue;
+
+        // Level 3+ SIMPLE MODE: one cheap rectangle per dirty cell.
+        // No glow/ring/burst textures, no stacked decorative grime marks.
+        // Mess types remain visually distinct by color and still require
+        // their matching cleaner.
+        if (!trialMode && level >= 3)
+        {
+            let grimeColor = hsl(.08,.38,.28,.64);      // dust
+            if (d.mess.id == 'grease')
+                grimeColor = hsl(.12,.48,.32,.58);
+            else if (d.mess.id == 'bug')
+                grimeColor = hsl(.02,.62,.24,.72);
+            else if (d.mess.id == 'mineral')
+                grimeColor = hsl(.55,.08,.88,.72);
+            else if (d.mess.id != 'dust')
+                grimeColor = hsl(.94,.46,.68,.68);
+
+            drawRect(d.pos, cell.scale(.88), grimeColor);
+            continue;
+        }
 
         if (d.mess.id == 'dust')
         {
