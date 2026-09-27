@@ -2474,7 +2474,7 @@ def test_same_brain_repeat_avoidance_remembers_many_recent_questions():
     _sign_in(client)
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
-    assert 'audience==="everyone"?120:60' in html
+    assert 'audience==="everyone"?300:140' in html
     assert 'same_brain_recent_questions:"+audience' in html
     assert "recentQuestionIds(aud)" in html
 
@@ -2529,3 +2529,110 @@ def test_same_brain_expansion_avoids_known_template_grammar_regressions():
         "Which smart home annoyance is worst? | Simple",
     ):
         assert bad not in html
+
+
+
+def test_same_brain_rematch_creates_fresh_challenge_for_same_pair():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="rematch-btn"',
+        "function startRematch()",
+        'rematch.textContent="Rematch "+c.n+" ↻"',
+        'state.rematchSelfName=state.name',
+        'state.rematchTarget=c.n',
+        'if(state.rematchTarget)payload.rm=1',
+        'track("rematch_started")',
+        'state.questionIds=questionSet("random").map(function(q){return q.id})',
+    ):
+        assert marker in html
+
+    public_source = __import__("inspect").getsource(__import__(
+        "faithsparks.views.public", fromlist=["dummy"]
+    ))
+    assert 'clean["rm"] = True' in public_source
+    assert '"rematch_started"' in public_source
+
+
+def test_same_brain_has_one_fillable_code_box_for_challenge_together_and_group():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="join-code"',
+        'maxlength="7"',
+        'id="join-code-btn"',
+        "function cleanJoinCode(value)",
+        "async function joinByCode()",
+        '"/same-brain/challenge/"+encodeURIComponent(code)',
+        '"/same-brain/together/"+encodeURIComponent(code)',
+        '"/labs/games/same-brain/group/"+encodeURIComponent(code)',
+        'location.href="/labs/games/same-brain?g="+encodeURIComponent(code)',
+    ):
+        assert marker in html
+
+
+def test_same_brain_share_surfaces_show_human_friendly_codes():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'id="challenge-code-line"',
+        'id="together-code-line"',
+        '"CODE: "+state.creatorCode',
+        '"CODE: "+data.code',
+        '"CODE: "+state.togetherCode',
+    ):
+        assert marker in html
+
+
+def test_same_brain_question_audit_rejects_choice_prompts_with_reaction_answers():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert "choice prompt has reaction answers" in html
+    assert "would-you-rather has reaction answers" in html
+
+    for bad in (
+        'Which throwback {{t}} trend would you bring back?',
+        'Which old-school {{t}} would you actually use?',
+        'Which {{t}} problem would you permanently solve?',
+        'Would you rather be able to {{t}}?',
+        'Would you rather never worry about {{t}}?',
+    ):
+        assert bad not in html
+
+    for good in (
+        'Would you bring back an old {{t}} trend?',
+        'Would you actually use an old-school {{t}}?',
+        'If you could {{t}}, would you take that power?',
+        'If you could stop worrying about {{t}}, would you take that deal?',
+    ):
+        assert good in html
+
+
+def test_same_brain_start_together_blocks_new_third_device_after_room_is_full():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'if(Number(data.playerCount||0)>=2)',
+        'This Together room is full.',
+        'Two people are already playing this room.',
+        'document.getElementById("accept-btn").disabled=true',
+    ):
+        assert marker in html
+
+
+def test_same_brain_share_cancel_does_not_silently_copy():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'if(e&&e.name==="AbortError")return' in html
