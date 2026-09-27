@@ -2016,6 +2016,7 @@ SAME_BRAIN_EVENTS = {
     "question_flagged",
     "plus_trial_started",
     "plus_upgrade_clicked",
+    "rematch_started",
 }
 
 
