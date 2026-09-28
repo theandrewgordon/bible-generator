@@ -2474,7 +2474,7 @@ function guidedChoicePosition(index,count){
  return vec2((index%columns-(rowCount-1)/2)*4,-2.55-row*1.8);
 }
 function guidedToppingPosition(index){
- return vec2(5.0+(index-2)*1.65,-1.25);
+ return vec2(5.0+(index-2)*1.65,.87);
 }
 function guidedAddIngredient(name){
  if(guidedStep().kind!='ingredient'||tray.includes(name))return;
@@ -2655,7 +2655,7 @@ function drawGuidedCounter(){
  }
  // Keep every topping visible while the player chooses a flavor. Toppings are
  // draggable now and become active when the recipe reaches that step.
- guidedText('Toppings tray — drag onto the order',vec2(5,-.55),.28,ink,6.4);
+ guidedText('Toppings tray — drag onto the order',vec2(5,1.48),.28,ink,6.4);
  TOPPINGS.forEach((t,i)=>{
   const pos=guidedToppingPosition(i).add(vec2(0,-.22)),needed=order&&(order.toppings||[]).includes(t.name),added=addedToppings.includes(t.name);
   drawRect(pos,vec2(1.55,1.42),needed?hsl(.12,.22,.98):hsl(.12,.08,.86),0,false);
