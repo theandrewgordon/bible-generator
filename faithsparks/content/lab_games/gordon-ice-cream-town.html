@@ -2529,7 +2529,7 @@ function updateGuidedCounter(){
  if(guidedDragDrop())return;
  if(guidedStep().kind=='serve'&&mouseWasPressed(0)&&hit(vec2(.4,.7),vec2(4.0,2.4))){guidedDrag={kind:'serve'};return;}
  if(order.kind!='SCOOP'&&hit(vec2(-5,.5),vec2(4.1,2.6))){guidedPrimaryAction();return;}
- const choices=guidedChoices();
+ const choices=PANTRY.filter(item=>order.kind!='SCOOP'||isScoopFlavor(item)).sort((a,b)=>Number(isScoopFlavor(b))-Number(isScoopFlavor(a))).map(item=>({name:item.name,done:tray.includes(item.name),kind:'ingredient'}));
  for(let i=0;i<choices.length;i++){
   if(mouseWasPressed(0)&&hit(guidedChoicePosition(i,choices.length),vec2(3.4,1.5))){guidedDrag={kind:choices[i].kind,name:choices[i].name,origin:guidedChoicePosition(i,choices.length)};return;}
   if(!hit(guidedChoicePosition(i,choices.length),vec2(3.4,1.5)))continue;
@@ -2541,7 +2541,8 @@ function updateGuidedCounter(){
   return;
  }
  for(let i=0;i<TOPPINGS.length;i++){
-  if(mouseWasPressed(0)&&hit(guidedToppingPosition(i),vec2(1.55,1.28))){guidedDrag={kind:'topping',name:TOPPINGS[i].name,origin:guidedToppingPosition(i)};return;}
+  const trayPos=guidedToppingPosition(i).add(vec2(0,-.22));
+  if(mouseWasPressed(0)&&hit(trayPos,vec2(1.55,1.42))){guidedDrag={kind:'topping',name:TOPPINGS[i].name,origin:trayPos};return;}
  }
 }
 function guidedText(text,pos,size=.36,color=hsl(.07,.35,.19),width=17){
@@ -2634,10 +2635,10 @@ function drawGuidedCounter(){
    guidedText(actionable?step.label:blenderRunning?'Blending…':prepared?'Prepared':'Add ingredients',vec2(-5,-.43),.30,actionable?WHITE:ink,3.9);
   }
  }
- const choices=guidedChoices();
+ const choices=PANTRY.filter(item=>order.kind!='SCOOP'||isScoopFlavor(item)).sort((a,b)=>Number(isScoopFlavor(b))-Number(isScoopFlavor(a))).map(item=>({name:item.name,done:tray.includes(item.name),kind:'ingredient'}));
  const toppingStage=guidedStep().kind=='topping';
  if(choices.length){
-  guidedText(toppingStage?'Toppings':'Ice cream counter',vec2(0,-1.42),.34);
+  guidedText('Ice cream and ingredients',vec2(0,-1.42),.34);
   choices.forEach((choice,i)=>{
    const pos=guidedChoicePosition(i,choices.length);
    drawRect(pos,vec2(3.4,1.5),paper);
@@ -2654,19 +2655,19 @@ function drawGuidedCounter(){
  }
  // Keep every topping visible while the player chooses a flavor. Toppings are
  // draggable now and become active when the recipe reaches that step.
- guidedText('Toppings tray',vec2(5,-.45),.28,ink,5.5);
+ guidedText('Toppings tray — drag onto the order',vec2(5,-.55),.28,ink,6.4);
  TOPPINGS.forEach((t,i)=>{
-  const pos=guidedToppingPosition(i),needed=order&&(order.toppings||[]).includes(t.name),added=addedToppings.includes(t.name);
-  drawRect(pos,vec2(1.55,1.28),needed?hsl(.12,.22,.98):hsl(.12,.08,.86),0,false);
+  const pos=guidedToppingPosition(i).add(vec2(0,-.22)),needed=order&&(order.toppings||[]).includes(t.name),added=addedToppings.includes(t.name);
+  drawRect(pos,vec2(1.55,1.42),needed?hsl(.12,.22,.98):hsl(.12,.08,.86),0,false);
   if(t.name.includes('Sprinkles')){
-   for(let j=0;j<5;j++)drawLine(pos.add(vec2(-.35+j*.17,.12)),pos.add(vec2(-.28+j*.17,.28)),.04,t.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE,RED][j]);
+   for(let j=0;j<7;j++)drawLine(pos.add(vec2(-.42+j*.14,.12)),pos.add(vec2(-.35+j*.14,.36)),.065,t.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE,RED,YELLOW,BLUE][j]);
   }else if(t.name=='Whipped Cream'){
-   drawTile(pos.add(vec2(0,.2)),vec2(.56),icons.glow,WHITE);
-   drawTile(pos.add(vec2(0,.2)),vec2(.28),icons.circle,hsl(.12,.15,.96));
-  }else if(t.name=='Cone on Top')drawTile(pos.add(vec2(0,.2)),vec2(.48),icons.triangle,hsl(.09,.55,.68));
-  else drawTile(pos.add(vec2(0,.2)),vec2(.34),icons.circle,RED);
+   drawTile(pos.add(vec2(0,.2)),vec2(.62),icons.glow,WHITE);
+   drawTile(pos.add(vec2(0,.2)),vec2(.30),icons.circle,hsl(.12,.15,.96));
+  }else if(t.name=='Cone on Top')drawTile(pos.add(vec2(0,.2)),vec2(.52),icons.triangle,hsl(.09,.55,.68));
+  else drawTile(pos.add(vec2(0,.2)),vec2(.40),icons.circle,RED);
  const label=t.name=='Rainbow Sprinkles'?'Rainbow\nSprinkles':t.name=='Chocolate Sprinkles'?'Chocolate\nSprinkles':t.name;
-  guidedText(label,pos.add(vec2(0,-.34)),.16,ink,1.45);
+  guidedText(label,pos.add(vec2(0,-.42)),.16,ink,1.45);
   if(added)drawShopLabel('Added',pos.add(vec2(0,.47)),.8,.18);
  });
  if(guidedDrag){

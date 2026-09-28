@@ -628,6 +628,9 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "function drawGuidedTool(drag,pos)" in html
     assert "drawText('WHIP'" in html
     assert "Toppings tray" in html
+    assert "Ice cream and ingredients" in html
+    assert "Rainbow\\nSprinkles" in html
+    assert "vec2(1.55,1.42)" in html
 
     # Current audit: retries are genuinely fresh, exact timer state survives
     # resume, and early levels introduce recipes gradually.
