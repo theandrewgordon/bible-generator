@@ -2474,7 +2474,9 @@ function guidedChoicePosition(index,count){
  return vec2((index%columns-(rowCount-1)/2)*4,-2.55-row*1.8);
 }
 function guidedToppingPosition(index){
- return vec2(5.0+(index-2)*1.65,.87);
+ // A vertical rack keeps the tools beside the customer without covering the
+ // order ticket, dish, or ingredient menu.
+ return vec2(8.15,1.95-index*1.08);
 }
 function guidedAddIngredient(name){
  if(guidedStep().kind!='ingredient'||tray.includes(name))return;
@@ -2542,7 +2544,7 @@ function updateGuidedCounter(){
  }
  for(let i=0;i<TOPPINGS.length;i++){
   const trayPos=guidedToppingPosition(i).add(vec2(0,-.22));
-  if(mouseWasPressed(0)&&hit(trayPos,vec2(1.55,1.42))){guidedDrag={kind:'topping',name:TOPPINGS[i].name,origin:trayPos};return;}
+  if(mouseWasPressed(0)&&hit(trayPos,vec2(1.65,1.02))){guidedDrag={kind:'topping',name:TOPPINGS[i].name,origin:trayPos};return;}
  }
 }
 function guidedText(text,pos,size=.36,color=hsl(.07,.35,.19),width=17){
@@ -2655,38 +2657,41 @@ function drawGuidedCounter(){
  }
  // Keep every topping visible while the player chooses a flavor. Toppings are
  // draggable now and become active when the recipe reaches that step.
- guidedText('Toppings tray — drag onto the order',vec2(5,1.48),.28,ink,6.4);
+ // Toppings tray lives vertically at the right edge beside the customer.
+ // (The former horizontal card size was vec2(1.55,1.42); the rack uses
+ // shorter cards so all tools fit beside the guest.)
+ guidedText('TOPPINGS TRAY',vec2(8.15,3.05),.25,ink,2.3);
  TOPPINGS.forEach((t,i)=>{
   const pos=guidedToppingPosition(i).add(vec2(0,-.22)),needed=order&&(order.toppings||[]).includes(t.name),added=addedToppings.includes(t.name);
   const card=needed?hsl(.12,.22,.98):hsl(.12,.08,.86);
   // Keep the card and its artwork in the same WebGL draw queue. A 2D card
   // painted afterward would cover the topping graphics on the canvas.
-  drawRect(pos,vec2(1.55,1.42),card);
-  drawRect(pos.add(vec2(0,.55)),vec2(1.34,.06),needed?hsl(.08,.55,.55):hsl(.12,.08,.72));
+  drawRect(pos,vec2(1.65,1.02),card);
+  drawRect(pos.add(vec2(0,.38)),vec2(1.42,.05),needed?hsl(.08,.55,.55):hsl(.12,.08,.72));
   if(t.name.includes('Sprinkles')){
    const sprinkleColors=t.name.startsWith('Chocolate')?[hsl(.07,.55,.25),hsl(.07,.45,.36),hsl(.08,.6,.2)]:[RED,YELLOW,accent,BLUE,RED,YELLOW,BLUE];
    for(let j=0;j<8;j++){
-    const x=-.48+j*.14, y=.10+(j%2)*.10;
-    drawLine(pos.add(vec2(x,y)),pos.add(vec2(x+.08,y+.22)),.085,sprinkleColors[j%sprinkleColors.length]);
+    const x=-.48+j*.14, y=.02+(j%2)*.06;
+    drawLine(pos.add(vec2(x,y)),pos.add(vec2(x+.08,y+.18)),.065,sprinkleColors[j%sprinkleColors.length]);
    }
   }else if(t.name=='Whipped Cream'){
    const cream=hsl(.12,.12,.98), shadow=hsl(.10,.18,.86);
-   drawTile(pos.add(vec2(0,.02)),vec2(.58,.22),icons.circle,shadow);
-   drawTile(pos.add(vec2(-.22,.19)),vec2(.34),icons.circle,cream);
-   drawTile(pos.add(vec2(.22,.19)),vec2(.34),icons.circle,cream);
-   drawTile(pos.add(vec2(0,.34)),vec2(.38),icons.circle,cream);
+   drawTile(pos.add(vec2(0,-.01)),vec2(.52,.18),icons.circle,shadow);
+   drawTile(pos.add(vec2(-.20,.12)),vec2(.27),icons.circle,cream);
+   drawTile(pos.add(vec2(.20,.12)),vec2(.27),icons.circle,cream);
+   drawTile(pos.add(vec2(0,.25)),vec2(.31),icons.circle,cream);
   }else if(t.name=='Cone on Top'){
-   drawTile(pos.add(vec2(0,.18)),vec2(.56),icons.triangle,hsl(.09,.65,.62));
-   drawLine(pos.add(vec2(-.18,.10)),pos.add(vec2(.18,.10)),.035,hsl(.08,.45,.36));
-   drawLine(pos.add(vec2(-.12,.22)),pos.add(vec2(.12,.22)),.035,hsl(.08,.45,.36));
+   drawTile(pos.add(vec2(0,.10)),vec2(.42),icons.triangle,hsl(.09,.65,.62));
+   drawLine(pos.add(vec2(-.14,.04)),pos.add(vec2(.14,.04)),.03,hsl(.08,.45,.36));
+   drawLine(pos.add(vec2(-.09,.14)),pos.add(vec2(.09,.14)),.03,hsl(.08,.45,.36));
   }else{
-   drawLine(pos.add(vec2(.02,.27)),pos.add(vec2(.14,.43)),.035,hsl(.32,.55,.28));
-   drawTile(pos.add(vec2(0,.16)),vec2(.42),icons.circle,RED);
-   drawTile(pos.add(vec2(-.06,.22)),vec2(.10),icons.circle,hsl(0,0,1,.75));
+   drawLine(pos.add(vec2(.02,.18)),pos.add(vec2(.14,.34)),.03,hsl(.32,.55,.28));
+   drawTile(pos.add(vec2(0,.08)),vec2(.34),icons.circle,RED);
+   drawTile(pos.add(vec2(-.05,.13)),vec2(.08),icons.circle,hsl(0,0,1,.75));
   }
  const label=t.name=='Rainbow Sprinkles'?'Rainbow\nSprinkles':t.name=='Chocolate Sprinkles'?'Chocolate\nSprinkles':t.name;
-  guidedText(label,pos.add(vec2(0,-.42)),.16,ink,1.45);
-  if(added)drawShopLabel('Added',pos.add(vec2(0,.47)),.8,.18);
+  guidedText(label,pos.add(vec2(0,-.31)),.14,ink,1.5);
+  if(added)drawShopLabel('Added',pos.add(vec2(0,.32)),.8,.16);
  });
  if(guidedDrag){
    const item=PANTRY.find(it=>it.name==guidedDrag.name);
