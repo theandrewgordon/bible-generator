@@ -27,3 +27,70 @@ test('random topping pool includes cream, with cone-on-top restricted to bowls',
  assert.ok(c.randomToppings(5,'BOWL').includes('Cone on Top'));
  for(const container of ['CUP','CONE']){const tops=c.randomToppings(5,container);assert.ok(tops.includes('Whipped Cream'));assert.ok(!tops.includes('Cone on Top'));}
 });
+
+function guidedContext(kind='SCOOP',toppings=[]){
+ const c={order:{name:'Test order',kind,container:kind==='SCOOP'?'BOWL':'CUP',need:['Vanilla Ice Cream','Milk'].slice(0,kind==='SCOOP'?1:2),toppings},
+  tray:[],addedToppings:[],waitingForNext:false,guestPhase:'active',guestName:'Ada',needsReset:false,
+  holdingContainer:'',holdingCup:false,holdingScoop:false,holdingMilk:false,scoopLoaded:false,scoopFlavor:'',
+  prepared:false,containerFilled:false,blenderRunning:false,blenderTimer:{set(){}},
+  PANTRY:[{name:'Vanilla Ice Cream'},{name:'Milk'}],TOPPINGS:toppings.map(name=>({name})),
+  pantryLabel:name=>name.replace(' Ice Cream',''),isScoopFlavor:item=>item.name.includes('Ice Cream'),
+  playSfx(){},saveSession(){},sndScoop:0,sndPour:0,sndPrep:0,sndMix:0,servedCount:0,
+  addTopping(t){if(c.containerFilled)c.addedToppings.push(t.name);},serve(){c.servedCount++;c.waitingForNext=true;}};
+ vm.createContext(c);
+ for(const name of ['exactList','ingredientsComplete','syncGuidedAssembly','guidedStep','guidedChoices','guidedAddIngredient','guidedPrimaryAction'])vm.runInContext(fn(name),c);
+ c.syncGuidedAssembly();
+ return c;
+}
+test('guided bowl requires its explicit toppings before the Give action',()=>{
+ const c=guidedContext('SCOOP',['Whipped Cream','Rainbow Sprinkles']);
+ assert.equal(c.holdingContainer,'BOWL');
+ assert.equal(c.guidedStep().label,'Add Vanilla');
+ c.guidedPrimaryAction();
+ assert.equal(c.containerFilled,true);
+ assert.equal(c.guidedStep().label,'Add Whipped Cream');
+ assert.equal(c.servedCount,0);
+ c.guidedPrimaryAction();
+ assert.equal(c.guidedStep().label,'Add Rainbow Sprinkles');
+ c.guidedPrimaryAction();
+ assert.equal(c.guidedStep().label,'Give to Ada');
+ c.guidedPrimaryAction();
+ c.guidedPrimaryAction();
+ assert.equal(c.servedCount,1);
+ assert.equal(c.guidedChoices().length,0);
+});
+test('guided drinks must prepare, pour, and finish toppings before serving',()=>{
+ for(const kind of ['BLEND','MIX']){
+  const c=guidedContext(kind,['Chocolate Sprinkles']);
+  c.guidedPrimaryAction();c.guidedPrimaryAction();
+  assert.equal(c.guidedStep().kind,'prepare');
+  assert.equal(c.containerFilled,false);
+  c.guidedPrimaryAction();
+  if(kind==='BLEND'){
+   assert.equal(c.guidedStep().kind,'wait');
+   c.guidedPrimaryAction();assert.equal(c.containerFilled,false);
+   c.blenderRunning=false;c.prepared=true;
+  }
+  assert.equal(c.guidedStep().kind,'fill');
+  c.guidedPrimaryAction();
+  assert.equal(c.guidedStep().label,'Add Chocolate Sprinkles');
+  c.guidedPrimaryAction();c.guidedPrimaryAction();
+  assert.equal(c.servedCount,1);
+ }
+});
+test('old carried ingredients migrate once into the fixed assembly spot',()=>{
+ const c=guidedContext('BLEND');
+ c.holdingScoop=true;c.scoopLoaded=true;c.scoopFlavor='Vanilla Ice Cream';c.holdingMilk='Milk';
+ c.syncGuidedAssembly();c.syncGuidedAssembly();
+ assert.deepEqual(Array.from(c.tray),['Vanilla Ice Cream','Milk']);
+ assert.equal(c.holdingScoop,false);assert.equal(c.holdingMilk,false);
+ assert.equal(c.guidedStep().kind,'prepare');
+});
+test('guided ingredient choices reject duplicates and unrelated ingredients',()=>{
+ const c=guidedContext();
+ assert.deepEqual(Array.from(c.guidedChoices(),item=>item.name),['Vanilla Ice Cream']);
+ c.guidedAddIngredient('Milk');assert.equal(c.tray.length,0);
+ c.guidedAddIngredient('Vanilla Ice Cream');c.guidedAddIngredient('Vanilla Ice Cream');
+ assert.equal(c.tray.length,1);assert.equal(c.guidedStep().kind,'serve');
+ assert.equal(c.guidedChoices().length,0);
+});
