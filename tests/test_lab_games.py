@@ -624,6 +624,9 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "let guidedDrag=null" in html
     assert "function guidedDragDrop()" in html
     assert "guidedDrag={kind:choices[i].kind" in html
+    assert "if(drag.origin&&isOverlapping" not in html
+    assert "function drawGuidedTool(drag,pos)" in html
+    assert "drawText('WHIP'" in html
     assert "Toppings tray" in html
 
     # Current audit: retries are genuinely fresh, exact timer state survives
@@ -645,7 +648,9 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
 
     # Guided cards and the primary action have generous visible hit targets.
     assert "vec2(3.4,1.5)" in html
-    assert "hit(vec2(6,2.2),vec2(2.8,3.8))" in html
+    assert "guidedDrag={kind:'serve'}" in html
+    assert "if(drag.kind=='serve')" in html
+    assert "Drag the order to ${guestName}." in html
 
     # Audit: level transition feedback and mid-blend resume state are real,
     # not dead UI/state paths.
