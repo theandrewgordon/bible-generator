@@ -618,7 +618,7 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "if(!order.need.includes(item.name)){\n  roundMistakes++;" in html
     assert "if(!(order.toppings||[]).includes(t.name)){\n  roundMistakes++;" in html
     assert "if(order.container!=kind){\n  roundMistakes++;" in html
-    assert "step.kind=='serve'){serve();return;}" in html
+    assert "function guidedServeCustomer()" in html
 
     # Current audit: retries are genuinely fresh, exact timer state survives
     # resume, and early levels introduce recipes gradually.
@@ -638,8 +638,8 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "document.createElement('canvas')" in html
 
     # Guided cards and the primary action have generous visible hit targets.
-    assert "vec2(3.7,1.65)" in html
-    assert "hit(vec2(0,-5.7),vec2(10,1.05))" in html
+    assert "vec2(3.4,1.5)" in html
+    assert "hit(vec2(6,2.2),vec2(2.8,3.8))" in html
 
     # Audit: level transition feedback and mid-blend resume state are real,
     # not dead UI/state paths.

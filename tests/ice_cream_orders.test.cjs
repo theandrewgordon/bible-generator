@@ -33,12 +33,12 @@ function guidedContext(kind='SCOOP',toppings=[]){
   tray:[],addedToppings:[],waitingForNext:false,guestPhase:'active',guestName:'Ada',needsReset:false,
   holdingContainer:'',holdingCup:false,holdingScoop:false,holdingMilk:false,scoopLoaded:false,scoopFlavor:'',
   prepared:false,containerFilled:false,blenderRunning:false,blenderTimer:{set(){}},
-  PANTRY:[{name:'Vanilla Ice Cream'},{name:'Milk'}],TOPPINGS:toppings.map(name=>({name})),
+  PANTRY:[{name:'Vanilla Ice Cream'},{name:'Chocolate Ice Cream'},{name:'Milk'}],TOPPINGS:toppings.map(name=>({name})),
   pantryLabel:name=>name.replace(' Ice Cream',''),isScoopFlavor:item=>item.name.includes('Ice Cream'),
-  playSfx(){},saveSession(){},sndScoop:0,sndPour:0,sndPrep:0,sndMix:0,servedCount:0,
+  roundMistakes:0,shopNotice(){},playSfx(){},saveSession(){},sndBad:0,sndScoop:0,sndPour:0,sndPrep:0,sndMix:0,servedCount:0,
   addTopping(t){if(c.containerFilled)c.addedToppings.push(t.name);},serve(){c.servedCount++;c.waitingForNext=true;}};
  vm.createContext(c);
- for(const name of ['exactList','ingredientsComplete','syncGuidedAssembly','guidedStep','guidedChoices','guidedAddIngredient','guidedPrimaryAction'])vm.runInContext(fn(name),c);
+ for(const name of ['exactList','ingredientsComplete','syncGuidedAssembly','guidedStep','guidedChoices','guidedAddIngredient','guidedPrimaryAction','guidedServeCustomer'])vm.runInContext(fn(name),c);
  c.syncGuidedAssembly();
  return c;
 }
@@ -46,23 +46,23 @@ test('guided bowl requires its explicit toppings before the Give action',()=>{
  const c=guidedContext('SCOOP',['Whipped Cream','Rainbow Sprinkles']);
  assert.equal(c.holdingContainer,'BOWL');
  assert.equal(c.guidedStep().label,'Add Vanilla');
- c.guidedPrimaryAction();
+ c.guidedAddIngredient('Vanilla Ice Cream');
  assert.equal(c.containerFilled,true);
  assert.equal(c.guidedStep().label,'Add Whipped Cream');
  assert.equal(c.servedCount,0);
- c.guidedPrimaryAction();
+ c.addTopping({name:'Whipped Cream'});
  assert.equal(c.guidedStep().label,'Add Rainbow Sprinkles');
- c.guidedPrimaryAction();
+ c.addTopping({name:'Rainbow Sprinkles'});
  assert.equal(c.guidedStep().label,'Give to Ada');
- c.guidedPrimaryAction();
- c.guidedPrimaryAction();
+ c.guidedServeCustomer();
+ c.guidedServeCustomer();
  assert.equal(c.servedCount,1);
  assert.equal(c.guidedChoices().length,0);
 });
 test('guided drinks must prepare, pour, and finish toppings before serving',()=>{
  for(const kind of ['BLEND','MIX']){
   const c=guidedContext(kind,['Chocolate Sprinkles']);
-  c.guidedPrimaryAction();c.guidedPrimaryAction();
+  c.guidedAddIngredient('Vanilla Ice Cream');c.guidedAddIngredient('Milk');
   assert.equal(c.guidedStep().kind,'prepare');
   assert.equal(c.containerFilled,false);
   c.guidedPrimaryAction();
@@ -74,7 +74,7 @@ test('guided drinks must prepare, pour, and finish toppings before serving',()=>
   assert.equal(c.guidedStep().kind,'fill');
   c.guidedPrimaryAction();
   assert.equal(c.guidedStep().label,'Add Chocolate Sprinkles');
-  c.guidedPrimaryAction();c.guidedPrimaryAction();
+  c.addTopping({name:'Chocolate Sprinkles'});c.guidedServeCustomer();
   assert.equal(c.servedCount,1);
  }
 });
@@ -88,9 +88,20 @@ test('old carried ingredients migrate once into the fixed assembly spot',()=>{
 });
 test('guided ingredient choices reject duplicates and unrelated ingredients',()=>{
  const c=guidedContext();
- assert.deepEqual(Array.from(c.guidedChoices(),item=>item.name),['Vanilla Ice Cream']);
+ assert.deepEqual(Array.from(c.guidedChoices(),item=>item.name),['Vanilla Ice Cream','Chocolate Ice Cream']);
  c.guidedAddIngredient('Milk');assert.equal(c.tray.length,0);
  c.guidedAddIngredient('Vanilla Ice Cream');c.guidedAddIngredient('Vanilla Ice Cream');
  assert.equal(c.tray.length,1);assert.equal(c.guidedStep().kind,'serve');
  assert.equal(c.guidedChoices().length,0);
+});
+
+test('the machine action cannot choose ingredients or auto-serve',()=>{
+ const c=guidedContext();
+ c.guidedPrimaryAction();assert.equal(c.tray.length,0);
+ c.guidedServeCustomer();assert.equal(c.servedCount,0);
+ c.guidedAddIngredient('Chocolate Ice Cream');
+ assert.equal(c.roundMistakes,1);assert.equal(c.tray.length,0);
+ c.guidedAddIngredient('Vanilla Ice Cream');
+ c.guidedPrimaryAction();assert.equal(c.servedCount,0);
+ c.guidedServeCustomer();assert.equal(c.servedCount,1);
 });
