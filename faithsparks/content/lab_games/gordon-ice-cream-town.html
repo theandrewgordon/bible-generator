@@ -537,14 +537,6 @@ function drawBlender(pos)
     drawLine(pos.add(vec2(0,-.28)),pos.add(vec2(.28,-.08)),.07,hsl(.55,.08,.3));
 }
 
-function morganSpeak(text){ /* talking is off */ }
-function sayItem(item){
- morganSpeak(item.name);
-}
-function sayOrder(){
- if(!order)return;
- morganSpeak(`Order up! One ${order.name}, please. Need: ${order.need.join(', ')}.`);
-}
 function newOrder(arriving=false){
  order=RECIPES[randInt(min(RECIPES.length,5+level*2))];
  order.customer=CUSTOMERS[randInt(CUSTOMERS.length)];
@@ -721,7 +713,7 @@ function initIllustratedAtlas(){
   g.strokeStyle='#9d3c3c';g.lineWidth=3;g.beginPath();g.arc(64,49,10,.2,Math.PI-.2);g.stroke();g.restore();}
 
  const info=new TextureInfo(c);
- const names=['vanilla','chocolate','strawberry','raspberry','milk','chocSyrup','berrySyrup','soda','blender','cup','morgan','customer'];
+ const names=['vanilla','chocolate','strawberry','raspberry','milk','chocSyrup','berrySyrup','soda','blender','cup','staff','customer'];
  names.forEach((n,i)=>art[n]=new TileInfo(vec2((i%cols)*tile,Math.floor(i/cols)*tile),vec2(tile),info,0,1));
 }
 
@@ -791,128 +783,6 @@ function drawShopFamilyCrew(){
   drawText('GORDON FAMILY',vec2(-7.18,.82),.13,WHITE,.02,BLACK);
 }
 
-function gameInit(){
- initShopFamily();
- icons=initDefaultAtlas();initIllustratedAtlas();canvasClearColor=hsl(.08,.18,.12);cameraPos=vec2(0,0);cameraScale=47;newOrder();
-}
-function gameUpdate(){
- // Finish timed blending.
- if(blenderRunning&&blenderTimer.elapsed()){
-  blenderRunning=false;prepared=true;
-  message='Ready! Pick up a cup.';
-  messageTimer.set(2);playSfx(sndGood);
- }
- if(waitingForNext){
-  if(guestPhase=='thanks'&&guestTimer.elapsed()){
-   guestPhase='leaving';guestTimer.set(.9);message=`Bye, ${guestName}!`;messageTimer.set(.9);
-  }
-  else if(guestPhase=='leaving'){
-   guestSlideTarget=3.2;
-   guestSlide=lerp(guestSlide,guestSlideTarget,.12);
-   if(guestTimer.elapsed())newOrder(true);
-  }
-  else if(guestPhase=='arriving'){
-   guestSlideTarget=0;
-   guestSlide=lerp(guestSlide,guestSlideTarget,.1);
-   if(guestSlide<.05){
-    guestSlide=0;guestPhase='active';waitingForNext=false;
-    message=`${guestName}: I'd like a ${order.name}, please!`;messageTimer.set(2);
-   }
-  }
- }
- if(waitingForNext)return;
- if(!mouseWasPressed(0))return;
-
- // Scooper dock.
- if(hit(vec2(-6.5,-4.82),vec2(3.1,1.5))){
-  if(holdingScoop){
-   holdingScoop=false;scoopLoaded=false;scoopFlavor='';
-   message='Scooper set down.';
-  }else{
-   if(holdingMilk){message=`Put ${holdingMilk} in the machine first.`;messageTimer.set(2);playSfx(sndBad);return;}
-   holdingScoop=true;pickupBounce.set(.35);heldVisualReady=false;message='Scooper picked up!';
-  }
-  messageTimer.set(1.5);playSfx(sndPick);return;
- }
-
- // Cup dock.
- if(hit(vec2(6.5,-4.82),vec2(3.1,1.5))){
-  if(prepared){
-   holdingCup=!holdingCup;
-   if(!holdingCup)cupFilled=false;
-   if(holdingCup){pickupBounce.set(.35);heldVisualReady=false;} message=holdingCup?'Cup picked up!':'Cup set down.';
-   messageTimer.set(1.5);playSfx(sndPick);
-  }else{
-   message='Make the drink first.';messageTimer.set(1.5);playSfx(sndBad);
-  }
-  return;
- }
-
- // Clear button.
- if(hit(vec2(0,-5.18),vec2(1.9,.65))){
-  tray=[];scoopLoaded=false;scoopFlavor='';holdingScoop=false;holdingMilk=false;
-  holdingCup=false;cupFilled=false;blenderRunning=false;prepared=false;needsReset=false;
-  message='Fresh start!';messageTimer.set(1.2);return;
- }
-
- // Ingredients.
- for(const item of PANTRY){
-  if(hit(item.pos,vec2(2.0,1.7))){addIngredient(item);return;}
- }
-
- // Blender station.
- if(hit(vec2(-3.8,1.15),vec2(2.8,2.7))){
-  if(order.kind!='BLEND'){message='This drink uses MIX.';messageTimer.set(1.5);playSfx(sndBad);return;}
-  if(holdingMilk){
-   const poured=holdingMilk;holdingMilk=false;tray.push(poured);prepared=false;
-   message=`Added ${shortName(poured)}!`;messageTimer.set(1.2);markAdded(poured,vec2(-3.8,1.5));playSfx(sndPick);return;
-  }
-  if(scoopLoaded){
-   const added=scoopFlavor;tray.push(added);scoopLoaded=false;prepared=false;
-   message='Scoop added!';messageTimer.set(1.2);markAdded(added,vec2(-3.8,1.5));playSfx(sndPick);return;
-  }
-  if(prepared&&holdingCup){
-   cupFilled=true;message='Cup filled! Take it to the customer.';messageTimer.set(2);playSfx(sndPick);return;
-  }
-  if(missingIngredient()){
-   message=`Still need ${missingIngredient()}.`;messageTimer.set(1.8);playSfx(sndBad);return;
-  }
-  if(!prepared&&!blenderRunning){
-   blenderRunning=true;blenderTimer.set(1.4);message='Blending!';messageTimer.set(1.4);playSfx(sndPrep);return;
-  }
-  return;
- }
-
- // Mix station.
- if(hit(vec2(0,1.15),vec2(2.8,2.7))){
-  if(order.kind!='MIX'){message='This drink uses the BLENDER.';messageTimer.set(1.5);playSfx(sndBad);return;}
-  if(holdingMilk){
-   const poured=holdingMilk;holdingMilk=false;tray.push(poured);prepared=false;
-   message=`Added ${shortName(poured)}!`;messageTimer.set(1.2);markAdded(poured,vec2(0,1.5));playSfx(sndPick);return;
-  }
-  if(scoopLoaded){
-   const added=scoopFlavor;tray.push(added);scoopLoaded=false;prepared=false;
-   message='Scoop added!';messageTimer.set(1.2);markAdded(added,vec2(0,1.5));playSfx(sndPick);return;
-  }
-  if(prepared&&holdingCup){
-   cupFilled=true;message='Cup filled! Take it to the customer.';messageTimer.set(2);playSfx(sndPick);return;
-  }
-  if(missingIngredient()){
-   message=`Still need ${missingIngredient()}.`;messageTimer.set(1.8);playSfx(sndBad);return;
-  }
-  if(!prepared){
-   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.7);playSfx(sndPrep);return;
-  }
-  return;
- }
-
- // Customer is the only place that serves.
- if(hit(vec2(7.5,2.45),vec2(2.3,2.8))){
-  if(holdingCup&&cupFilled)serve();
-  else{message='Bring the finished cup here.';messageTimer.set(1.8);playSfx(sndBad);}
-  return;
- }
-}
 function gameUpdatePost(){}
 
 function panel(pos,size,fill,title=''){
@@ -1650,11 +1520,6 @@ function gameRender(){
   drawRect(vec2(0,-5.65),vec2(4.5,.5),hsl(.34,.45,.92));
   drawText(progressText,vec2(0,-5.65),.22,hsl(.34,.65,.25));
  }
-}
-
-function gameRenderPost(){
- drawTextScreen(`Score ${score}   •   Served ${served}`,vec2(mainCanvasSize.x/2,22),16,WHITE,2,BLACK);
- drawTextScreen('MAKE IT  →  CONTAINER  →  SERVE IT',vec2(mainCanvasSize.x/2,mainCanvasSize.y-14),13,WHITE,2,BLACK);
 }
 
 // ============================================================
@@ -2532,18 +2397,22 @@ function plainOrder(){
 function drinkOrder(){
  // Introduce only a couple recipes at a time. Level 2 is intentionally very small:
  // vanilla/chocolate shakes first, then sodas and mixed flavors in later levels.
- const recipeCount=
-  level<=2?2:
-  level==3?5:
-  level==4?8:
-  min(RECIPES.length,8+max(0,level-4)*2);
+ const recipeCount=min(RECIPES.length,5+max(0,level-2)*2);
  const base=RECIPES[randInt(recipeCount)];
  const tops=base.kind=='BLEND'?randomToppings(ruleForLevel().maxToppings,'CUP'):[];
  return {name:base.name,need:[...base.need],kind:base.kind,container:'CUP',toppings:tops};
 }
-function buildOrder(){
+function buildOrder(partyOffset=0){
  const r=ruleForLevel();
  if(r.scoopOnly)return plainOrder();
+
+ // First order teaches a newly unlocked container/topping before random orders.
+ if(levelServed===0&&partyOffset===0){
+  if(level===2)return {name:'Vanilla Cone',need:['Vanilla Ice Cream'],kind:'SCOOP',container:'CONE',toppings:[]};
+  if(level===3)return {name:'Vanilla Bowl',need:['Vanilla Ice Cream'],kind:'SCOOP',container:'BOWL',toppings:['Whipped Cream']};
+  if(level===4)return {name:'Chocolate Bowl',need:['Chocolate Ice Cream'],kind:'SCOOP',container:'BOWL',toppings:['Cone on Top']};
+ }
+
  // Later levels mix classic shakes/sodas and hand-dipped ice cream.
  return randInt(level>=3?3:2)==0?plainOrder():drinkOrder();
 }
@@ -2569,7 +2438,7 @@ function resetCurrentOrderState(){
 function startParty(arriving=false){
  const size=choosePartySize();
  party=chooseParty(size);
- partyOrders=party.map(()=>buildOrder());
+ partyOrders=party.map((_,i)=>buildOrder(i));
  partyServed=party.map(()=>false);
  partyIndex=0;
  const partyTime=ruleForLevel().time;
@@ -2602,7 +2471,7 @@ function advanceAfterServe(){
  }else startParty(true);
 }
 function gameInit(){
- initMorganPhoto();
+ initShopFamily();
  initCustomerPhotos();
  icons=initDefaultAtlas();
  initIllustratedAtlas();
@@ -2868,7 +2737,7 @@ function gameUpdate(){
 
  // Blender
  if(hit(vec2(-3.8,1.15),vec2(2.8,2.7))){
-  if(order.kind!='BLEND'){message='This order uses MIX instead of the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}
+  if(order.kind!='BLEND'){message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}
   if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPour);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
@@ -2892,7 +2761,7 @@ function gameUpdate(){
  }
  // Mixer
  if(hit(vec2(0,1.15),vec2(2.8,2.7))){
-  if(order.kind!='MIX'){message='This order uses the BLENDER instead of MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}
+  if(order.kind!='MIX'){message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}
   if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPour);return;}
   if(scoopLoaded){const x=scoopFlavor;scoopLoaded=false;scoopFlavor='';tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}
   if(!ingredientsComplete()){message=`Still need ${shortName(missingIngredientV18())}.`;messageTimer.set(1.4);return;}
