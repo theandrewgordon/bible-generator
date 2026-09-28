@@ -2543,7 +2543,10 @@ def test_same_brain_rematch_creates_fresh_challenge_for_same_pair():
         'rematch.textContent="Rematch "+c.n+" ↻"',
         'state.rematchSelfName=state.name',
         'state.rematchTarget=c.n',
-        'if(state.rematchTarget)payload.rm=1',
+        'if(state.rematchTarget){payload.rm=1;',
+        'rematchPreviousScore:Number.isFinite(previousScore)?previousScore:null',
+        'state.rematchMode=state.mode==="together_player"?"together":"async"',
+        'payload.h={s:state.rematchPreviousScore',
         'track("rematch_started")',
         'state.questionIds=questionSet("random").map(function(q){return q.id})',
     ):
@@ -2676,3 +2679,18 @@ def test_same_brain_direct_choice_semantics_survive_full_bank_growth():
         'For {{t}}, which nuisance would you erase?',
     ):
         assert strong in html
+
+
+
+def test_same_brain_saved_result_rematch_cannot_inherit_stale_together_room():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for marker in (
+        'var wasTogether=state.rematchMode==="together"||state.mode==="together_player"',
+        'state.mode="creator_result_detail";state.togetherCode=""',
+        'state.mode="creator_results";state.togetherCode=""',
+        'rematchMode:"async"',
+    ):
+        assert marker in html
