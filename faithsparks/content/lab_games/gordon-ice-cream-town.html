@@ -2615,8 +2615,9 @@ function drawGuidedCounter(){
    if(i==partyIndex||partyServed[i])continue;
    drawCustomerPhoto(party[i],vec2(-8+slot*1.15,1.55),2.15,.78);slot++;
   }
-  drawCustomerPhoto(guestName,vec2(6,2.2),3.3,1);
-  drawShopLabel(guestName,vec2(6,.48),2.5,.34);
+  // Leave a clear lane between the guest and the vertical topping rack.
+  drawCustomerPhoto(guestName,vec2(5.55,2.2),3.3,1);
+  drawShopLabel(guestName,vec2(5.55,.48),2.5,.34);
   // The Gordon family server stays on the left, behind the counter.
   drawShopFamilyMember(0,vec2(-8.05,1.35),3.25);
   drawShopLabel('SERVER',vec2(-8.05,-.38),2.1,.28);
