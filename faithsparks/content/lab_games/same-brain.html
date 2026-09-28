@@ -1232,7 +1232,7 @@ function auditQuestionBank(){
     if(/what role/i.test(q.q)&&labels.some(function(v){return /^(food|laughing|memories|no drama)$/.test(v)}))issues.push({id:q.id,reason:"role mismatch"});
     if(/\ba (airport|alien|old-school|unexpected)\b/i.test(q.q))issues.push({id:q.id,reason:"article grammar"});
     if(/free perk/i.test(q.q)&&labels.some(function(v){return !/^free /.test(v)}))issues.push({id:q.id,reason:"perk mismatch"});
-    var polarity=labels.filter(function(v){return /^(yes|yes please|yes easily|definitely|absolutely|maybe|no|no thanks|no way|leave it back then|for a day|only for the vibe|cash instead|give me cash instead|i’d rather not|i’d pick another)$/.test(v)}).length;
+    var polarity=labels.filter(function(v){return /^(yes|yes please|yes easily|definitely|absolutely|maybe|never|no|no thanks|no way|leave it back then|for a day|for a while|only for the vibe|only for fun|cash instead|give me cash instead|pay me instead|i’d rather not|i’d pick another|different skill|different perk|i could do it|painful but possible|only if i’m paid|only if i’m paid|i can live with it|annoying|no chance|that’s already me|that's already me|easy|manageable|terrible|actually sounds fun|depends how much)$/.test(v)}).length;
     if(/^which\b/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"choice prompt has reaction answers"});
     if(/^would you rather\b/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"would-you-rather has reaction answers"});
     if(/bring back.*trend/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"trend prompt has reaction answers"});
