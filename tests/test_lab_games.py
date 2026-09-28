@@ -619,6 +619,12 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "if(!(order.toppings||[]).includes(t.name)){\n  roundMistakes++;" in html
     assert "if(order.container!=kind){\n  roundMistakes++;" in html
     assert "function guidedServeCustomer()" in html
+    assert "function drawOrderPreview(request,pos,scale=.72)" in html
+    assert "drawShopFamilyMember(0,vec2(-8.05,1.35),3.25)" in html
+    assert "let guidedDrag=null" in html
+    assert "function guidedDragDrop()" in html
+    assert "guidedDrag={kind:choices[i].kind" in html
+    assert "Toppings tray" in html
 
     # Current audit: retries are genuinely fresh, exact timer state survives
     # resume, and early levels introduce recipes gradually.
