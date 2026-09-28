@@ -2607,11 +2607,26 @@ def test_same_brain_question_audit_rejects_choice_prompts_with_reaction_answers(
     ):
         assert bad not in html
 
-    for good in (
+    for bad in (
         'Would you bring back an old {{t}} trend?',
         'Would you actually use an old-school {{t}}?',
         'If you could {{t}}, would you take that power?',
         'If you could stop worrying about {{t}}, would you take that deal?',
+        'Would you rather lose {{t}} for a month?',
+        'Would you rather get one year of free {{t}}?',
+        'Would you rather always have extra {{t}}?',
+    ):
+        assert bad not in html
+
+    for good in (
+        'Which throwback photo trend would you bring back?',
+        'Polaroids',
+        'Disposable cameras',
+        'Printed photo albums',
+        'Photo booths',
+        'For {{t}}, which thing would you make perfect?',
+        'For {{t}}, which worry would you delete?',
+        'For {{t}}, which free-for-a-year perk would you choose?',
     ):
         assert good in html
 
@@ -2636,3 +2651,28 @@ def test_same_brain_share_cancel_does_not_silently_copy():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert 'if(e&&e.name==="AbortError")return' in html
+
+
+
+def test_same_brain_direct_choice_semantics_survive_full_bank_growth():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    for weak in (
+        'Would you rather lose {{t}} for a month?',
+        'Would you rather get one year of free {{t}}?',
+        'Would you bring back an old {{t}} trend?',
+        'If {{t}} became effortless overnight, would you choose that skill?',
+        'If one {{t}} category cost you nothing for a year, would you take it?',
+    ):
+        assert weak not in html
+
+    for strong in (
+        'Which throwback photo trend would you bring back?',
+        'You must give up one for a month. Which goes?',
+        'Pick one free-for-a-year perk.',
+        'For {{t}}, which skill would you instantly level up?',
+        'For {{t}}, which nuisance would you erase?',
+    ):
+        assert strong in html
