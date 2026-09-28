@@ -2482,6 +2482,7 @@ function guidedAddIngredient(name){
   roundMistakes++;shopNotice(`${pantryLabel(name)} isn't on this ticket. Try another.`);playSfx(sndBad);return;
  }
  tray.push(name);
+ shopNotice(`Scooped ${pantryLabel(name)}!`);
  playSfx(isScoopFlavor(PANTRY.find(item=>item.name==name))?sndScoop:sndPour);
  syncGuidedAssembly();saveSession();
 }
@@ -2639,24 +2640,32 @@ function drawGuidedCounter(){
  guidedText('Toppings tray',vec2(5,-.45),.28,ink,5.5);
  TOPPINGS.forEach((t,i)=>{
   const pos=guidedToppingPosition(i),needed=order&&(order.toppings||[]).includes(t.name),added=addedToppings.includes(t.name);
-  drawRect(pos,vec2(1.15,.95),needed?hsl(.12,.22,.98):hsl(.12,.08,.86),0,false);
+ drawRect(pos,vec2(1.32,1.1),needed?hsl(.12,.22,.98):hsl(.12,.08,.86),0,false);
   if(t.name.includes('Sprinkles')){
    for(let j=0;j<5;j++)drawLine(pos.add(vec2(-.35+j*.17,.12)),pos.add(vec2(-.28+j*.17,.28)),.04,t.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE,RED][j]);
   }else if(t.name=='Whipped Cream')drawTile(pos.add(vec2(0,.18)),vec2(.38),icons.glow,WHITE);
   else if(t.name=='Cone on Top')drawTile(pos.add(vec2(0,.18)),vec2(.32),icons.triangle,hsl(.09,.55,.68));
   else drawTile(pos.add(vec2(0,.18)),vec2(.25),icons.circle,RED);
-  guidedText(t.name.replace(' Sprinkles',''),pos.add(vec2(0,-.25)),.18,ink,1.1);
+ const label=t.name=='Rainbow Sprinkles'?'Rainbow\nSprinkles':t.name=='Chocolate Sprinkles'?'Chocolate\nSprinkles':t.name;
+ guidedText(label,pos.add(vec2(0,-.28)),.16,ink,1.25);
   if(added)drawShopLabel('Added',pos.add(vec2(0,.47)),.8,.18);
  });
  if(guidedDrag){
   const item=PANTRY.find(it=>it.name==guidedDrag.name);
-  if(item&&isScoopFlavor(item))drawOpenIceTub(mousePos.add(vec2(0,.15)),item.color,item.name=='Raspberry Ripple');
-  else guidedText(guidedDrag.name,mousePos.add(vec2(0,-.55)),.24,ink,2.5);
+  if(item&&isScoopFlavor(item)){
+   drawScooper(mousePos.add(vec2(0,-.12)),false,item.color);
+   guidedText(`Scoop ${pantryLabel(item.name)}`,mousePos.add(vec2(0,-.72)),.24,ink,2.5);
+  }else if(guidedDrag.kind=='topping'){
+   const top=TOPPINGS.find(t=>t.name==guidedDrag.name);
+   if(top&&top.name.includes('Sprinkles')){
+    for(let i=0;i<7;i++)drawLine(mousePos.add(vec2(-.3+(i%4)*.2,.1+Math.floor(i/4)*.14)),mousePos.add(vec2(-.25+(i%4)*.2,.18+Math.floor(i/4)*.14)),.04,top.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE][i%4]);
+   }else guidedText(guidedDrag.name,mousePos.add(vec2(0,-.55)),.24,ink,2.5);
+  }else guidedText(guidedDrag.name,mousePos.add(vec2(0,-.55)),.24,ink,2.5);
  }
  const step=guidedStep();
  const help=served===0||Date.now()<shopHintUntil;
  const feedback=Date.now()<shopFeedbackUntil?shopFeedback:'';
- const instruction=step.kind=='serve'?`Tap ${guestName} to serve.`:step.kind=='wait'?step.label:help?step.label:step.kind=='topping'?'Match the toppings on the ticket.':step.kind=='prepare'||step.kind=='fill'?'Tap the machine to prepare or pour your drink.':'Match the order ticket. Tap a flavor or ingredient.';
+ const instruction=step.kind=='serve'?`Tap ${guestName} to serve.`:step.kind=='wait'?step.label:help?step.kind=='ingredient'?`Drag ${pantryLabel(step.name)} onto the bowl.`:step.label:step.kind=='topping'?'Drag a topping onto the order.':step.kind=='prepare'||step.kind=='fill'?'Tap the machine to prepare or pour your drink.':'Match the order ticket. Tap a flavor or ingredient.';
  guidedText(feedback||instruction,vec2(0,-5.7),.36,accent,17);
  for(const [label,x] of [['Hint',-6],['Start over',6]]){
   drawRect(vec2(x,-6.5),vec2(3,.75),paper);
