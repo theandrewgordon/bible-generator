@@ -58,7 +58,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
         <input id="join-code" class="name-input" type="text" maxlength="7" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Enter 7-character code" aria-label="Same Brain code">
         <button id="join-code-btn" class="button secondary" type="button" style="min-height:52px">Join</button>
       </div>
-      <div id="join-code-status" class="premium-note">Challenge and Start Together codes work here. Group Brain codes work from Labs.</div>
+      <div id="join-code-status" class="premium-note">Enter any 7-character Same Brain code — Challenge, Start Together, or Group Brain.</div>
     </div>
     <p id="daily-label" class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p><div id="streak-line" class="tiny" style="margin-top:6px"></div>
     <button id="creator-results-home" class="button ghost wide hidden" type="button" style="margin-top:10px">🧠 New challenge results</button>
@@ -534,11 +534,11 @@ nostalgia:[
 {stem:"Which old technology around {{t}} do you miss most?",topics:["music","photos","movies","communication"],a:[["💿","Physical media"],["📷","Simple devices"],["☎️","Less constant access"],["🛠️","Things felt repairable"]]}
 ],
 wouldyou:[
-{stem:"Would you rather lose {{t}} for a month?",topics:["your phone","streaming","coffee","your car"],a:[["✅","I could do it"],["😬","Painful but possible"],["🚫","Absolutely not"],["💰","Only if I’m paid"]]},
-{stem:"Would you rather get one year of free {{t}}?",topics:["travel","restaurants","concerts","groceries"],a:[["⭐","That one"],["🤔","Depends on the fine print"],["💸","Give me cash instead"],["🔁","I’d trade it for another"]]},
-{stem:"Would you rather always be {{t}}?",topics:["20 minutes early","10 minutes late","slightly overdressed","slightly underdressed"],a:[["✅","I can live with it"],["😅","Annoying"],["🚫","No chance"],["😂","That’s already me"]]},
-{stem:"Would you rather only use {{t}} for a week?",topics:["a flip phone","paper maps","cash","a desktop computer"],a:[["🧠","Easy"],["😬","Manageable"],["😭","Terrible"],["🎉","Actually sounds fun"]]},
-{stem:"If {{t}} happened every Friday, how would you feel?",topics:["free lunch","a surprise adventure","no responsibilities","a mystery package"],a:[["😍","Absolutely"],["🤔","Maybe"],["😅","Could get old"],["🚫","No thanks"]]}
+{stem:"You must give up one for a month. Which goes?",topics:[""],a:[["📱","Your phone"],["📺","Streaming"],["☕","Coffee"],["🚗","Your car"]]},
+{stem:"Pick one free-for-a-year perk.",topics:[""],a:[["✈️","Travel"],["🍽️","Restaurants"],["🎟️","Concerts/events"],["🛒","Groceries"]]},
+{stem:"Which forever inconvenience would you tolerate?",topics:[""],a:[["⏰","20 minutes early"],["🏃","10 minutes late"],["👔","Slightly overdressed"],["🩳","Slightly underdressed"]]},
+{stem:"For one week, which old-school limitation would you choose?",topics:[""],a:[["☎️","Flip phone"],["🗺️","Paper maps"],["💵","Cash only"],["🖥️","Desktop only"]]},
+{stem:"Which every-Friday surprise would you pick?",topics:[""],a:[["🍽️","Free lunch"],["🚗","Surprise adventure"],["😌","No responsibilities"],["📦","Mystery package"]]}
 ]
 };
 Object.keys(SET_EXPANSION_SPECS).forEach(function(pack){
@@ -1058,11 +1058,11 @@ nostalgia:[
 {stem:"When you think back on childhood {{t}}, what stands out most?",topics:["breakfast","recess","bedtime","summer","holidays","car rides"],a:[["🍽️","Food"],["🎵","Sounds"],["👥","People"],["🎮","What I did"]]}
 ],
 wouldyou:[
-{stem:"If {{t}} could be perfect forever, would you take it?",topics:["sleep","weather","Wi-Fi","traffic","timing","memory"],a:[["✅","Yes, easily"],["🤔","Maybe"],["🔁","I’d trade it"],["💰","Give me cash instead"]]},
-{stem:"If {{t}} were completely free for the next year, what is your reaction?",topics:["restaurants","travel","groceries","concerts","hotels","streaming"],a:[["😍","Absolutely"],["🤔","Depends"],["💵","Cash instead"],["🔁","Swap the perk"]]},
-{stem:"If you could instantly master {{t}}, would you choose it?",topics:["cooking","a language","an instrument","a sport","coding","public speaking"],a:[["✅","That one"],["🤔","Maybe"],["🆕","I’d choose another skill"],["💰","Cash instead"]]},
-{stem:"If {{t}} disappeared from your life forever, would you take that deal?",topics:["laundry","traffic","spam","waiting","cleaning bathrooms","passwords"],a:[["😍","Yes please"],["😅","Nice but not huge"],["🤔","I’d pick another"],["💰","Pay me instead"]]},
-{stem:"If you could always know {{t}}, would you want that?",topics:["what to eat","when to leave","where things are","what to say","the fastest route","the right gift"],a:[["✅","Very useful"],["😂","Could be fun"],["🤔","Maybe"],["🚫","I’d rather not"]]}
+{stem:"During {{t}}, which thing would you make perfect?",topics:["a busy week","a vacation","a workweek","a long trip","summer","winter"],a:[["😴","Sleep"],["☀️","Weather"],["📶","Wi-Fi"],["⏰","Timing"]]},
+{stem:"For {{t}}, which free perk would you choose?",topics:["one month","one year","summer","the holidays","a busy season","a dream year"],a:[["🍽️","Restaurants"],["✈️","Travel"],["🛒","Groceries"],["🎟️","Events"]]},
+{stem:"For {{t}}, which skill would you instantly master?",topics:["a new hobby","travel","a side project","meeting people","a creative year","a fresh start"],a:[["🍳","Cooking"],["🌎","A language"],["🎸","An instrument"],["💻","Coding"]]},
+{stem:"Which problem would you delete from {{t}}?",topics:["daily life","weekdays","weekends","travel","home life","a busy month"],a:[["🧺","Laundry"],["🚗","Traffic"],["📱","Spam"],["⏳","Waiting"]]},
+{stem:"For {{t}}, which answer would you always want to know?",topics:["everyday life","travel","social plans","busy days","holidays","family logistics"],a:[["🍽️","What to eat"],["⏰","When to leave"],["🔑","Where things are"],["💬","What to say"]]}
 ]
 };
 Object.keys(REPLAY_EXPANSION_CORE).forEach(function(pack){
@@ -1152,8 +1152,12 @@ travel:[
 nostalgia:[
 {stem:"What makes a throwback {{t}} feel coolest?",topics:["game","phone","camera","music player","TV setup"],a:[["⭐","Classic design"],["😂","The weirdness"],["📦","Physical controls"],["🎵","Iconic vibe"]]},
 {stem:"Looking back at {{t}}, which part feels most nostalgic?",topics:["school","summer","holidays","weekends","birthdays"],a:[["👥","Friends"],["🎵","Music"],["🍬","Food"],["🎮","Entertainment"]]},
-{stem:"Would you actually use an old-school {{t}}?",topics:["camera","game console","CD player","phone","computer"],a:[["✅","For a day"],["🤔","Maybe"],["📸","Only for the vibe"],["🚫","No way"]]},
-{stem:"Would you bring back an old {{t}} trend?",topics:["fashion","music","gaming","photos","school"],a:[["😍","Definitely"],["😂","For fun"],["🤔","Maybe"],["🚫","Leave it back then"]]}
+{stem:"What sounds best about an old-school {{t}}?",topics:["camera","game console","CD player","phone","computer"],a:[["🎛️","Physical controls"],["🔕","Fewer notifications"],["🎯","One simple purpose"],["✨","Retro look"]]},
+{stem:"Which throwback fashion trend would you bring back?",topics:[""],a:[["👖","Baggy jeans"],["🧥","Denim jackets"],["🌈","Bright windbreakers"],["👟","High-top sneakers"]]},
+{stem:"Which throwback music habit would you bring back?",topics:[""],a:[["📼","Mixtapes"],["💿","CD collections"],["🏪","Record-store browsing"],["📻","Radio countdowns"]]},
+{stem:"Which throwback gaming thing would you bring back?",topics:[""],a:[["🕹️","Arcades"],["👥","Couch co-op"],["💾","Cartridges/discs"],["📖","Cheat-code books"]]},
+{stem:"Which throwback photo trend would you bring back?",topics:[""],a:[["📸","Polaroids"],["🎞️","Disposable cameras"],["📚","Printed photo albums"],["🎪","Photo booths"]]},
+{stem:"Which throwback school thing would you bring back?",topics:[""],a:[["📚","Book fairs"],["🏃","Field days"],["📝","Paper notes"],["🖍️","Colorful supplies"]]}
 ],
 wouldyou:[
 {stem:"If you could make {{t}} flawless all year, would you choose it?",topics:["Wi-Fi","sleep","grades","weather","timing"],a:[["✅","Absolutely"],["🤔","Maybe"],["🔁","I’d pick another"],["💰","Cash instead"]]},
@@ -1231,6 +1235,8 @@ function auditQuestionBank(){
     var polarity=labels.filter(function(v){return /^(yes|yes please|yes easily|definitely|absolutely|maybe|no|no thanks|no way|leave it back then|for a day|only for the vibe|cash instead|give me cash instead|i’d rather not|i’d pick another)$/.test(v)}).length;
     if(/^which\b/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"choice prompt has reaction answers"});
     if(/^would you rather\b/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"would-you-rather has reaction answers"});
+    if(/bring back.*trend/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"trend prompt has reaction answers"});
+    if(/old-school.*\?/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"throwback prompt has reaction answers"});
   });
   return issues
 }
