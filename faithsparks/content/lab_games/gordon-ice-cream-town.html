@@ -991,7 +991,7 @@ function shakeColor(){
  if(tray.includes('Chocolate Ice Cream')||tray.includes('Chocolate Syrup'))return hsl(.07,.5,.3);
  return hsl(.12,.32,.9);
 }
-function drawClassicShake(pos,filled=true,scale=1){
+function drawClassicShake(pos,filled=true,scale=1,garnish=true){
  const c=shakeColor();
  const w=.72*scale,h=1.15*scale;
  // footed soda-shop glass
@@ -1001,7 +1001,7 @@ function drawClassicShake(pos,filled=true,scale=1){
  drawLine(pos.add(vec2(-.35*scale,-.98*scale)),pos.add(vec2(.35*scale,-.98*scale)),.08*scale,hsl(.55,.08,.55));
  // straw
  drawLine(pos.add(vec2(.2*scale,.52*scale)),pos.add(vec2(.5*scale,1.05*scale)),.07*scale,hsl(.98,.7,.55));
- if(filled){
+ if(filled&&garnish){
   // whipped cream and cherry
   drawTile(pos.add(vec2(-.18*scale,.55*scale)),vec2(.48*scale),icons.glow,WHITE);
   drawTile(pos.add(vec2(.15*scale,.6*scale)),vec2(.5*scale),icons.glow,WHITE);
@@ -1931,9 +1931,9 @@ function drawIntroScreen(){
  drawText(`Welcome, ${currentProfile()?.name||'Player'}!`,vec2(0,3.85),.42,hsl(.07,.5,.22));
  drawRect(vec2(0,2.05),vec2(16,2.9),hsl(.12,.1,.97));
  drawText('MAKE THE ORDER',vec2(0,2.95),.42,hsl(.07,.48,.2));
- drawText('Follow the next step on the order card.',vec2(0,2.25),.38,BLACK);
- drawText('Tap ingredients to add them to your order.',vec2(0,1.65),.36,BLACK);
- drawText('Add any toppings, then tap Give to serve your customer.',vec2(0,1.05),.36,BLACK);
+ drawText('Read the ticket and choose the matching ingredients.',vec2(0,2.25),.38,BLACK);
+ drawText('Tap flavors to scoop them into your bowl or cone.',vec2(0,1.65),.36,BLACK);
+ drawText('Match the toppings, then tap your customer to serve.',vec2(0,1.05),.36,BLACK);
  if(hasResumeSession()){
   drawRect(vec2(0,.1),vec2(5.0,.9),hsl(.34,.5,.58));drawText('CONTINUE SAVED GAME',vec2(0,.1),.34,hsl(.07,.45,.2));
  }
@@ -2202,6 +2202,7 @@ function buildOrder(partyOffset=0){
 }
 
 function setActivePartyMember(){
+ shopFeedbackUntil=0;shopHintUntil=0;
  partyIndex=min(partyIndex,party.length-1);
  guestName=party[partyIndex];
  order=partyOrders[partyIndex];
@@ -2456,107 +2457,138 @@ function guidedStep(){
  if(topping)return {kind:'topping',name:topping,label:`Add ${topping}`};
  return {kind:'serve',label:`Give to ${guestName}`};
 }
+let shopHintUntil=0,shopFeedbackUntil=0,shopFeedback='';
+function shopNotice(text){
+ shopFeedback=text;shopFeedbackUntil=Date.now()+2400;
+}
 function guidedChoices(){
  const step=guidedStep();
- if(step.kind=='ingredient')return order.need.map(name=>({name,done:tray.includes(name),kind:'ingredient'}));
- if(step.kind=='topping')return (order.toppings||[]).map(name=>({name,done:addedToppings.includes(name),kind:'topping'}));
+ if(step.kind=='ingredient')return PANTRY.filter(item=>order.kind!='SCOOP'||isScoopFlavor(item)).sort((a,b)=>Number(isScoopFlavor(b))-Number(isScoopFlavor(a))).map(item=>({name:item.name,done:tray.includes(item.name),kind:'ingredient'}));
+ if(step.kind=='topping')return TOPPINGS.filter(t=>order.container=='BOWL'||t.name!='Cone on Top').map(t=>({name:t.name,done:addedToppings.includes(t.name),kind:'topping'}));
  return [];
 }
 function guidedChoicePosition(index,count){
- return vec2((index-(count-1)/2)*4,-3.95);
+ const columns=Math.min(4,count),row=Math.floor(index/columns);
+ const rowCount=Math.min(columns,count-row*columns);
+ return vec2((index%columns-(rowCount-1)/2)*4,-2.55-row*1.8);
 }
 function guidedAddIngredient(name){
- if(guidedStep().kind!='ingredient'||!order.need.includes(name)||tray.includes(name))return;
+ if(guidedStep().kind!='ingredient'||tray.includes(name))return;
+ if(!order.need.includes(name)){
+  roundMistakes++;shopNotice(`${pantryLabel(name)} isn't on this ticket. Try another.`);playSfx(sndBad);return;
+ }
  tray.push(name);
  playSfx(isScoopFlavor(PANTRY.find(item=>item.name==name))?sndScoop:sndPour);
- syncGuidedAssembly();
- saveSession();
+ syncGuidedAssembly();saveSession();
 }
 function guidedPrimaryAction(){
+ // Machine actions never select an ingredient or serve for the player.
  const step=guidedStep();
- if(step.kind=='ingredient'){guidedAddIngredient(step.name);return;}
- if(step.kind=='topping'){addTopping(TOPPINGS.find(t=>t.name==step.name));saveSession();return;}
  if(step.kind=='prepare'){
   if(order.kind=='BLEND'){blenderRunning=true;blenderTimer.set(1.35);playSfx(sndPrep);}
   else {prepared=true;playSfx(sndMix);}
  }else if(step.kind=='fill'){containerFilled=true;playSfx(sndPour);}
- else if(step.kind=='serve'){serve();return;}
- else if(step.kind=='reset'){resetCurrentOrderState();syncGuidedAssembly();}
+ else return;
  saveSession();
 }
+function guidedServeCustomer(){
+ if(waitingForNext)return;
+ if(guidedStep().kind!='serve'){shopNotice('Check the ticket — your order is not finished yet.');return;}
+ serve();
+}
 function updateGuidedCounter(){
+ if(hit(vec2(-6,-6.5),vec2(3,.75))){shopHintUntil=Date.now()+6000;return;}
+ if(hit(vec2(6,-6.5),vec2(3,.75))){resetCurrentOrderState();syncGuidedAssembly();saveSession();return;}
+ if(hit(vec2(6,2.2),vec2(2.8,3.8))){guidedServeCustomer();return;}
+ if(order.kind!='SCOOP'&&hit(vec2(-5,.5),vec2(4.1,2.6))){guidedPrimaryAction();return;}
  const choices=guidedChoices();
  for(let i=0;i<choices.length;i++){
-  if(!hit(guidedChoicePosition(i,choices.length),vec2(3.7,1.65)))continue;
-  const choice=choices[i];
-  if(choice.done)return;
+  if(!hit(guidedChoicePosition(i,choices.length),vec2(3.4,1.5)))continue;
+  const choice=choices[i];if(choice.done)return;
   if(choice.kind=='ingredient')guidedAddIngredient(choice.name);
-  else {addTopping(TOPPINGS.find(t=>t.name==choice.name));saveSession();}
+  else if(!(order.toppings||[]).includes(choice.name)){
+   roundMistakes++;shopNotice(`${choice.name} isn't on this ticket. Try another.`);playSfx(sndBad);
+  }else {addTopping(TOPPINGS.find(t=>t.name==choice.name));saveSession();}
   return;
  }
- if(hit(vec2(0,-5.7),vec2(10,1.05))){guidedPrimaryAction();return;}
- if(hit(vec2(7,-5.7),vec2(2.8,1.05))){resetCurrentOrderState();syncGuidedAssembly();saveSession();}
 }
 function guidedText(text,pos,size=.36,color=hsl(.07,.35,.19),width=17){
  drawText(text,pos,size,color,0,BLACK,'center',fontDefault,'',width*cameraScale);
 }
 function drawGuidedCounter(){
  const ink=hsl(.07,.35,.19),paper=hsl(.12,.22,.98),accent=hsl(.35,.35,.29);
- drawRectGradient(cameraPos,getCameraSize(),hsl(.12,.18,.95),hsl(.12,.22,.91));
- // A quiet shop awning preserves the setting without a second wall of labels.
- drawRect(vec2(0,6.75),vec2(18,.65),hsl(.08,.34,.34));
- guidedText('Gordon Ice Cream Town',vec2(0,6.75),.32,WHITE);
- guidedText(`Level ${level} · ${levelServed}/${ruleForLevel().goal} orders`,vec2(0,5.95),.34);
+ drawRectGradient(cameraPos,getCameraSize(),hsl(.12,.20,.95),hsl(.12,.25,.88));
+ // Quiet architecture, with clear foreground controls instead of wall labels.
+ drawRect(vec2(0,2.75),vec2(19,5.7),hsl(.12,.32,.87));
+ drawRect(vec2(0,.2),vec2(19,1.6),hsl(.52,.16,.76));
+ drawShopWindow(vec2(-7.15,4.15));drawShopWindow(vec2(7.15,4.15));
+ for(const x of [-7.15,7.15]){
+  drawRect(vec2(x,1.45),vec2(3.1,1.15),hsl(.78,.13,.66));
+  drawRect(vec2(x,.75),vec2(3.3,.35),hsl(.78,.16,.55));
+ }
+ drawRect(vec2(0,6.55),vec2(19,.85),hsl(.08,.34,.34));
+ guidedText('Gordon Ice Cream Town',vec2(0,6.55),.42,WHITE);
+ guidedText(`Level ${level} · ${levelServed}/${ruleForLevel().goal} orders`,vec2(0,5.73),.32);
  if(ruleForLevel().time&&partyDeadline&&!waitingForNext)
-  guidedText(`${max(0,ceil(partyDeadline-time))}s left`,vec2(7.2,5.95),.32,ink,2.7);
- // One card contains the request, explicit toppings, and the next action.
- drawRect(vec2(0,3.95),vec2(17.5,3.15),paper);
- guidedText(order?`${guestName} wants a ${order.name}`:'Welcome to the shop',vec2(0,5),.48,ink,16);
- guidedText(order?order.need.map(pantryLabel).join(' + '):'',vec2(0,4.32),.34);
- guidedText(order?((order.toppings||[]).length?'Toppings: '+order.toppings.join(' + '):'No toppings'):'',vec2(0,3.72),.34);
- const step=guidedStep();
- guidedText((step.kind=='wait'?'':'Next: ')+step.label,vec2(0,2.96),.43,accent,16);
- // The dish stays here for the whole recipe; nothing chases the pointer.
- drawRect(vec2(-2,-.05),vec2(11,4.05),hsl(.10,.22,.86));
- drawRect(vec2(-2,-1.7),vec2(11,.25),hsl(.08,.30,.44));
- guidedText('Your order',vec2(-2,1.45),.34);
+  guidedText(`${max(0,ceil(partyDeadline-time))}s left`,vec2(7.2,5.73),.32,ink,2.7);
+ // A compact order ticket stays beside the customer.
+ drawRect(vec2(-1,3.5),vec2(9.6,2.9),paper);
+ guidedText(order?`${guestName}'s order`:'Welcome!',vec2(-1,4.55),.33);
+ guidedText(order?order.name:'',vec2(-1,3.96),.43,ink,9);
+ guidedText(order?order.need.map(pantryLabel).join(' + '):'',vec2(-1,3.32),.32,ink,9);
+ const tops=order?.toppings||[];
+ guidedText(tops.length?'Toppings: '+tops.join(' + '):'No toppings',vec2(-1,2.65),.32,ink,9);
  if(order){
-  if(order.kind=='SCOOP'||containerFilled)
-   drawFinishedItemAt(vec2(-2,-.55),1.7,order.container,tray,addedToppings,order.kind);
-  else {
-   drawEmptyCup(vec2(-3.6,-.5),1.35,false);
-   // Only the machine for this recipe is introduced.
-   if(order.kind=='BLEND')drawProBlender(vec2(-.6,-.35));
-   else drawChromeFountain(vec2(-.6,-.35));
-   guidedText(blenderRunning?'Blending…':prepared?'Ready to pour':`${tray.length}/${order.need.length} ingredients`,vec2(-2,-1.35),.30);
+  let slot=0;
+  for(let i=0;i<party.length;i++){
+   if(i==partyIndex||partyServed[i])continue;
+   drawCustomerPhoto(party[i],vec2(-8+slot*1.15,1.55),2.15,.78);slot++;
   }
-  drawCustomerPhoto(guestName,vec2(6,.1),3.2,1);
-  drawShopLabel(guestName,vec2(6,-1.65),2.8,.36);
-  const remaining=partyServed.filter(done=>!done).length-1;
-  if(remaining>0)guidedText(`${remaining} waiting`,vec2(6,-2.25),.30);
+  drawCustomerPhoto(guestName,vec2(6,2.2),3.3,1);
+  drawShopLabel(guestName,vec2(6,.48),2.5,.34);
+ }
+ // One wooden worktop and a permanent dish; the customer is the serve target.
+ drawRect(vec2(0,-.35),vec2(18.5,1.35),hsl(.08,.27,.50));
+ drawRect(vec2(0,.34),vec2(19,.18),hsl(.10,.34,.65));
+ drawTile(vec2(.4,.35),vec2(3.4,.48),icons.circle,paper);
+ if(order){
+  if(order.kind!='SCOOP'&&!containerFilled)drawEmptyCup(vec2(.4,.7),1.4,false);
+  else drawFinishedItemAt(vec2(.4,.7),1.55,order.container,tray,addedToppings,order.kind);
+  if(order.kind!='SCOOP'){
+   if(order.kind=='BLEND')drawProBlender(vec2(-5,1.05));
+   else drawChromeFountain(vec2(-5,1.05));
+   const step=guidedStep();
+   const actionable=step.kind=='prepare'||step.kind=='fill';
+   drawRect(vec2(-5,-.43),vec2(4.1,.74),actionable?accent:paper,0,false);
+   guidedText(actionable?step.label:blenderRunning?'Blending…':prepared?'Prepared':'Add ingredients',vec2(-5,-.43),.30,actionable?WHITE:ink,3.9);
+  }
  }
  const choices=guidedChoices();
+ const toppingStage=guidedStep().kind=='topping';
  if(choices.length){
-  guidedText(step.kind=='topping'?'Choose a topping':'Choose an ingredient',vec2(0,-2.8),.32);
+  guidedText(toppingStage?'Toppings':'Ice cream counter',vec2(0,-1.42),.34);
   choices.forEach((choice,i)=>{
    const pos=guidedChoicePosition(i,choices.length);
-   drawRect(pos,vec2(3.7,1.65),choice.done?hsl(.35,.18,.9):paper);
-   const pic=ingredientArt(choice.name);
-   if(choice.kind=='ingredient'&&pic&&!choice.done)drawTile(pos.add(vec2(0,.27)),vec2(.85),pic,WHITE);
-   else if(choice.kind=='topping'&&!choice.done){
-    if(choice.name.includes('Sprinkles')){
-     for(let j=0;j<5;j++)drawLine(pos.add(vec2(-.4+j*.2,.2)),pos.add(vec2(-.32+j*.2,.36)),.045,choice.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE,RED][j]);
-    }else drawFinishedItemAt(pos.add(vec2(0,.05)),.6,'BOWL',[],[choice.name],'SCOOP');
-   }
-   guidedText(choice.kind=='ingredient'?pantryLabel(choice.name):choice.name,pos.add(vec2(0,-.42)),.32,ink,3.4);
-   if(choice.done)guidedText('Added',pos.add(vec2(0,.3)),.30,accent,3.4);
+   drawRect(pos,vec2(3.4,1.5),paper);
+   const item=PANTRY.find(item=>item.name==choice.name);
+   if(item&&isScoopFlavor(item))drawOpenIceTub(pos.add(vec2(0,.1)),item.color,item.name=='Raspberry Ripple');
+   else if(item){const pic=ingredientArt(choice.name);if(pic)drawTile(pos.add(vec2(0,.15)),vec2(.85),pic,WHITE);}
+   else if(choice.name.includes('Sprinkles')){
+    for(let j=0;j<6;j++)drawLine(pos.add(vec2(-.48+j*.18,.13)),pos.add(vec2(-.40+j*.18,.30)),.045,choice.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE,RED,YELLOW][j]);
+   }else drawFinishedItemAt(pos.add(vec2(0,-.05)),.65,'BOWL',[],[choice.name],'SCOOP');
+   drawRect(pos.add(vec2(0,-.49)),vec2(3.4,.46),paper,0,false);
+   guidedText(choice.kind=='ingredient'?pantryLabel(choice.name):choice.name,pos.add(vec2(0,-.49)),.31,ink,3.25);
+   if(choice.done)drawShopLabel('Added',pos.add(vec2(1,.48)),1.15,.25);
   });
- }else guidedText(step.kind=='serve'?'Everything is ready.':step.kind=='wait'?'Take your time. We’ll bring the next order to you.':'Use the button below to finish your drink.',vec2(0,-3.9),.34);
- drawRect(vec2(0,-5.7),vec2(10,1.05),step.kind=='wait'?hsl(.12,.12,.84):accent);
- guidedText(step.label,vec2(0,-5.7),.40,step.kind=='wait'?ink:WHITE,9.5);
- if(!waitingForNext){
-  drawRect(vec2(7,-5.7),vec2(2.8,1.05),paper);
-  guidedText('Start over',vec2(7,-5.7),.30,ink,2.5);
+ }
+ const step=guidedStep();
+ const help=served===0||Date.now()<shopHintUntil;
+ const feedback=Date.now()<shopFeedbackUntil?shopFeedback:'';
+ const instruction=step.kind=='serve'?`Tap ${guestName} to serve.`:step.kind=='wait'?step.label:help?step.label:step.kind=='topping'?'Match the toppings on the ticket.':step.kind=='prepare'||step.kind=='fill'?'Tap the machine to prepare or pour your drink.':'Match the order ticket. Tap a flavor or ingredient.';
+ guidedText(feedback||instruction,vec2(0,-5.7),.36,accent,17);
+ for(const [label,x] of [['Hint',-6],['Start over',6]]){
+  drawRect(vec2(x,-6.5),vec2(3,.75),paper);
+  guidedText(label,vec2(x,-6.5),.30);
  }
 }
 
@@ -2717,7 +2749,7 @@ function drawFinishedItemAt(pos,scale=1,container=holdingContainer,contents=tray
  else if(container=='CUP'){
   if(kind=='BLEND'){
    // A shake keeps its shake presentation.
-   drawClassicShake(pos,true,.82*scale);
+   drawClassicShake(pos,true,.82*scale,false);
   }else{
    // Soda/mixed drink stays a cup rather than becoming a shake.
    drawEmptyCup(pos,.92*scale,true);
