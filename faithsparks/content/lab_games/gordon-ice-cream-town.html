@@ -2474,7 +2474,7 @@ function guidedChoicePosition(index,count){
  return vec2((index%columns-(rowCount-1)/2)*4,-2.55-row*1.8);
 }
 function guidedToppingPosition(index){
- return vec2(5.0+(index-2)*1.35,-1.25);
+ return vec2(5.0+(index-2)*1.65,-1.25);
 }
 function guidedAddIngredient(name){
  if(guidedStep().kind!='ingredient'||tray.includes(name))return;
@@ -2504,11 +2504,11 @@ function guidedServeCustomer(){
 function guidedDragDrop(){
  if(!guidedDrag)return false;
  if(mouseIsDown(0))return true;
- if(!mouseIsDown(0) || (guidedDrag.startedAt&&Date.now()-guidedDrag.startedAt>80)){
+ if(!mouseIsDown(0)){
   const drag=guidedDrag;guidedDrag=null;
-  if(drag.origin&&isOverlapping(mousePos,vec2(.25),drag.origin,vec2(1.7,1.0))){
-   if(drag.kind=='ingredient')guidedAddIngredient(drag.name);
-   else if(drag.kind=='topping'&&((order.toppings||[]).includes(drag.name)))addTopping(TOPPINGS.find(t=>t.name==drag.name));
+  if(drag.kind=='serve'){
+   if(isOverlapping(mousePos,vec2(.7),vec2(6,2.2),vec2(2.8,3.8)))guidedServeCustomer();
+   else shopNotice('Carry the order to the customer.');
    return true;
   }
   if(isOverlapping(mousePos,vec2(.45),vec2(.4,.7),vec2(4.0,2.4))){
@@ -2526,12 +2526,12 @@ function guidedDragDrop(){
 function updateGuidedCounter(){
  if(hit(vec2(-6,-6.5),vec2(3,.75))){shopHintUntil=Date.now()+6000;return;}
  if(hit(vec2(6,-6.5),vec2(3,.75))){resetCurrentOrderState();syncGuidedAssembly();saveSession();return;}
- if(hit(vec2(6,2.2),vec2(2.8,3.8))){guidedServeCustomer();return;}
  if(guidedDragDrop())return;
+ if(guidedStep().kind=='serve'&&mouseWasPressed(0)&&hit(vec2(.4,.7),vec2(4.0,2.4))){guidedDrag={kind:'serve'};return;}
  if(order.kind!='SCOOP'&&hit(vec2(-5,.5),vec2(4.1,2.6))){guidedPrimaryAction();return;}
  const choices=guidedChoices();
  for(let i=0;i<choices.length;i++){
-  if(mouseWasPressed(0)&&hit(guidedChoicePosition(i,choices.length),vec2(3.4,1.5))){guidedDrag={kind:choices[i].kind,name:choices[i].name,origin:guidedChoicePosition(i,choices.length),startedAt:Date.now()};return;}
+  if(mouseWasPressed(0)&&hit(guidedChoicePosition(i,choices.length),vec2(3.4,1.5))){guidedDrag={kind:choices[i].kind,name:choices[i].name,origin:guidedChoicePosition(i,choices.length)};return;}
   if(!hit(guidedChoicePosition(i,choices.length),vec2(3.4,1.5)))continue;
   const choice=choices[i];if(choice.done)return;
   if(choice.kind=='ingredient')guidedAddIngredient(choice.name);
@@ -2541,7 +2541,7 @@ function updateGuidedCounter(){
   return;
  }
  for(let i=0;i<TOPPINGS.length;i++){
-  if(mouseWasPressed(0)&&hit(guidedToppingPosition(i),vec2(1.15,.95))){guidedDrag={kind:'topping',name:TOPPINGS[i].name,origin:guidedToppingPosition(i),startedAt:Date.now()};return;}
+  if(mouseWasPressed(0)&&hit(guidedToppingPosition(i),vec2(1.55,1.28))){guidedDrag={kind:'topping',name:TOPPINGS[i].name,origin:guidedToppingPosition(i)};return;}
  }
 }
 function guidedText(text,pos,size=.36,color=hsl(.07,.35,.19),width=17){
@@ -2564,6 +2564,23 @@ function drawOrderPreview(request,pos,scale=.72){
  if((request.toppings||[]).includes('Cherry'))drawTile(pos.add(vec2(.13*scale,.62*scale)),vec2(.12*scale),icons.circle,RED);
  if((request.toppings||[]).some(name=>name.includes('Sprinkles')))
   for(let i=0;i<6;i++)drawLine(pos.add(vec2((-.2+(i%3)*.2)*scale,(.32+Math.floor(i/3)*.12)*scale)),pos.add(vec2((-.16+(i%3)*.2)*scale,(.38+Math.floor(i/3)*.12)*scale)),.025*scale,i%2?YELLOW:RED);
+}
+function drawGuidedTool(drag,pos){
+ if(drag.kind=='ingredient'){
+  const item=PANTRY.find(it=>it.name==drag.name);
+  drawScoopTool(pos.add(vec2(0,.1)),false,item?item.color:WHITE);
+  return;
+ }
+ const top=TOPPINGS.find(t=>t.name==drag.name);
+ if(top&&top.name=='Whipped Cream'){
+  drawRect(pos,vec2(.42,.82),WHITE,0,false);
+  drawRect(pos.add(vec2(0,.42)),vec2(.52,.12),hsl(.55,.08,.55),0,false);
+  drawText('WHIP',pos.add(vec2(0,-.1)),.12,hsl(.55,.08,.35));
+ }else{
+  drawLine(pos.add(vec2(-.18,-.1)),pos.add(vec2(.18,.45)),.07,hsl(.55,.08,.35));
+  drawTile(pos.add(vec2(-.18,-.17)),vec2(.22),icons.circle,top&&top.name=='Cherry'?RED:hsl(.07,.5,.25));
+  drawText(top&&top.name.includes('Sprinkles')?'SPOON':'PICK',pos.add(vec2(0,-.34)),.12,hsl(.55,.08,.35));
+ }
 }
 function drawGuidedCounter(){
  const ink=hsl(.07,.35,.19),paper=hsl(.12,.22,.98),accent=hsl(.35,.35,.29);
@@ -2640,32 +2657,35 @@ function drawGuidedCounter(){
  guidedText('Toppings tray',vec2(5,-.45),.28,ink,5.5);
  TOPPINGS.forEach((t,i)=>{
   const pos=guidedToppingPosition(i),needed=order&&(order.toppings||[]).includes(t.name),added=addedToppings.includes(t.name);
- drawRect(pos,vec2(1.32,1.1),needed?hsl(.12,.22,.98):hsl(.12,.08,.86),0,false);
+  drawRect(pos,vec2(1.55,1.28),needed?hsl(.12,.22,.98):hsl(.12,.08,.86),0,false);
   if(t.name.includes('Sprinkles')){
    for(let j=0;j<5;j++)drawLine(pos.add(vec2(-.35+j*.17,.12)),pos.add(vec2(-.28+j*.17,.28)),.04,t.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE,RED][j]);
-  }else if(t.name=='Whipped Cream')drawTile(pos.add(vec2(0,.18)),vec2(.38),icons.glow,WHITE);
-  else if(t.name=='Cone on Top')drawTile(pos.add(vec2(0,.18)),vec2(.32),icons.triangle,hsl(.09,.55,.68));
-  else drawTile(pos.add(vec2(0,.18)),vec2(.25),icons.circle,RED);
+  }else if(t.name=='Whipped Cream'){
+   drawTile(pos.add(vec2(0,.2)),vec2(.56),icons.glow,WHITE);
+   drawTile(pos.add(vec2(0,.2)),vec2(.28),icons.circle,hsl(.12,.15,.96));
+  }else if(t.name=='Cone on Top')drawTile(pos.add(vec2(0,.2)),vec2(.48),icons.triangle,hsl(.09,.55,.68));
+  else drawTile(pos.add(vec2(0,.2)),vec2(.34),icons.circle,RED);
  const label=t.name=='Rainbow Sprinkles'?'Rainbow\nSprinkles':t.name=='Chocolate Sprinkles'?'Chocolate\nSprinkles':t.name;
- guidedText(label,pos.add(vec2(0,-.28)),.16,ink,1.25);
+  guidedText(label,pos.add(vec2(0,-.34)),.16,ink,1.45);
   if(added)drawShopLabel('Added',pos.add(vec2(0,.47)),.8,.18);
  });
  if(guidedDrag){
-  const item=PANTRY.find(it=>it.name==guidedDrag.name);
-  if(item&&isScoopFlavor(item)){
-   drawScooper(mousePos.add(vec2(0,-.12)),false,item.color);
+   const item=PANTRY.find(it=>it.name==guidedDrag.name);
+   if(guidedDrag.kind=='serve'){
+    drawFinishedItemAt(mousePos,1.3,order.container,tray,addedToppings,order.kind);
+    guidedText(`Give to ${guestName}`,mousePos.add(vec2(0,-1.05)),.24,ink,3);
+   }else if(item&&isScoopFlavor(item)){
+   drawGuidedTool(guidedDrag,mousePos.add(vec2(0,-.12)));
    guidedText(`Scoop ${pantryLabel(item.name)}`,mousePos.add(vec2(0,-.72)),.24,ink,2.5);
   }else if(guidedDrag.kind=='topping'){
-   const top=TOPPINGS.find(t=>t.name==guidedDrag.name);
-   if(top&&top.name.includes('Sprinkles')){
-    for(let i=0;i<7;i++)drawLine(mousePos.add(vec2(-.3+(i%4)*.2,.1+Math.floor(i/4)*.14)),mousePos.add(vec2(-.25+(i%4)*.2,.18+Math.floor(i/4)*.14)),.04,top.name.startsWith('Chocolate')?hsl(.07,.5,.25):[RED,YELLOW,accent,BLUE][i%4]);
-   }else guidedText(guidedDrag.name,mousePos.add(vec2(0,-.55)),.24,ink,2.5);
+   drawGuidedTool(guidedDrag,mousePos);
+   guidedText(guidedDrag.name,mousePos.add(vec2(0,-.55)),.24,ink,2.5);
   }else guidedText(guidedDrag.name,mousePos.add(vec2(0,-.55)),.24,ink,2.5);
  }
  const step=guidedStep();
  const help=served===0||Date.now()<shopHintUntil;
  const feedback=Date.now()<shopFeedbackUntil?shopFeedback:'';
- const instruction=step.kind=='serve'?`Tap ${guestName} to serve.`:step.kind=='wait'?step.label:help?step.kind=='ingredient'?`Drag ${pantryLabel(step.name)} onto the bowl.`:step.label:step.kind=='topping'?'Drag a topping onto the order.':step.kind=='prepare'||step.kind=='fill'?'Tap the machine to prepare or pour your drink.':'Match the order ticket. Tap a flavor or ingredient.';
+ const instruction=step.kind=='serve'?`Drag the order to ${guestName}.`:step.kind=='wait'?step.label:help?step.kind=='ingredient'?`Drag ${pantryLabel(step.name)} onto the bowl.`:step.label:step.kind=='topping'?'Drag a topping onto the order.':step.kind=='prepare'||step.kind=='fill'?'Tap the machine to prepare or pour your drink.':'Match the order ticket. Tap a flavor or ingredient.';
  guidedText(feedback||instruction,vec2(0,-5.7),.36,accent,17);
  for(const [label,x] of [['Hint',-6],['Start over',6]]){
   drawRect(vec2(x,-6.5),vec2(3,.75),paper);
