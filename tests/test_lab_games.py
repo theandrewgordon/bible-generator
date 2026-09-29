@@ -2376,7 +2376,7 @@ def test_same_brain_question_rotation_is_audience_specific_and_deeper():
     html = client.get("/labs/games/same-brain").get_data(as_text=True)
 
     assert 'same_brain_recent_questions:"+audience' in html
-    assert 'audience==="everyone"?40:20' in html
+    assert 'audience==="everyone"?300:140' in html
     assert 'recentQuestionIds(aud)' in html
 
 
@@ -2701,3 +2701,17 @@ def test_same_brain_saved_result_rematch_cannot_inherit_stale_together_room():
         'rematchMode:"async"',
     ):
         assert marker in html
+
+
+
+def test_same_brain_tween_school_reaction_template_fits_every_topic():
+    client = _client()
+    _sign_in(client)
+    html = client.get("/labs/games/same-brain").get_data(as_text=True)
+
+    assert 'Your school announces a ridiculous {{t}}. Your reaction?' in html
+    assert '["😍","Finally"]' in html
+    assert '["😂","I need to see this"]' in html
+    assert 'cafeteria option has join answer' in html
+    assert 'Your school adds a ridiculous {{t}}.' not in html
+    assert '["😍","I’m joining"]' not in html
