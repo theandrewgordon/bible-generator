@@ -1133,7 +1133,7 @@ family:[
 ],
 chaos:[
 {stem:"Your phone gets a bizarre {{t}} feature.",topics:["homework","snack","music","travel","school"],a:[["🤖","AI helper"],["🔮","Predictor"],["🫥","Invisible mode"],["😂","Chaos mode"]]},
-{stem:"Your school adds a ridiculous {{t}}.",topics:["class","club","sport","holiday","cafeteria option"],a:[["😍","I’m joining"],["😂","I need to see this"],["🤔","Maybe"],["🚫","No thanks"]]},
+{stem:"Your school announces a ridiculous {{t}}. Your reaction?",topics:["class","club","sport","holiday","cafeteria option"],a:[["😍","Finally"],["😂","I need to see this"],["🤔","Maybe"],["🚫","No thanks"]]},
 {stem:"A robot offers to handle {{t}} for you.",topics:["homework organization","laundry","packing","room cleaning","morning routine"],a:[["✅","Yes"],["🤔","Only some of it"],["👀","I’d supervise"],["🚫","I don’t trust it"]]},
 {stem:"You get a weird power for {{t}}.",topics:["school","sports","gaming","travel","chores"],a:[["⏸️","Pause time"],["🧠","Instant focus"],["⚡","Super speed"],["🫥","Disappear briefly"]]}
 ],
@@ -1237,6 +1237,8 @@ function auditQuestionBank(){
     if(/^would you rather\b/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"would-you-rather has reaction answers"});
     if(/bring back.*trend/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"trend prompt has reaction answers"});
     if(/old-school.*\?/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"throwback prompt has reaction answers"});
+    if(/^(which|pick|best)\b/i.test(q.q)&&polarity>=2)issues.push({id:q.id,reason:"direct choice has reaction answers"});
+    if(/cafeteria option/i.test(q.q)&&labels.some(function(v){return /joining/.test(v)}))issues.push({id:q.id,reason:"cafeteria option has join answer"});
   });
   return issues
 }
