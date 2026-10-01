@@ -1599,10 +1599,11 @@ def same_brain_points():
     daily_key = str(payload.get("dateKey") or "").strip()[:10]
     amount = SAME_BRAIN_POINT_EVENTS.get(event)
     email = _signed_in_email()
-    if not amount or not event_id or not email or not db:
+    client = db()
+    if not amount or not event_id or not email or not client:
         return jsonify({"error": "invalid"}), 400
-    ref = db.collection("users").document(email)
-    transaction = db.transaction()
+    ref = client.collection("users").document(email)
+    transaction = client.transaction()
 
     @cloud_firestore.transactional
     def award(txn):
@@ -1666,10 +1667,11 @@ def same_brain_unlock():
     item = str(payload.get("item") or "").strip()
     cost = SAME_BRAIN_COSMETICS.get(item)
     email = _signed_in_email()
-    if cost is None or not email or not db:
+    client = db()
+    if cost is None or not email or not client:
         return jsonify({"error": "invalid"}), 400
-    ref = db.collection("users").document(email)
-    transaction = db.transaction()
+    ref = client.collection("users").document(email)
+    transaction = client.transaction()
 
     @cloud_firestore.transactional
     def buy(txn):
@@ -1783,6 +1785,8 @@ def _same_brain_validate_answers(question_ids: object, answers: object) -> tuple
         return None
     normalized = []
     for raw in answers:
+        if type(raw) is not int:
+            return None
         try:
             value = int(raw)
         except (TypeError, ValueError):
@@ -1791,6 +1795,10 @@ def _same_brain_validate_answers(question_ids: object, answers: object) -> tuple
             return None
         normalized.append(value)
     return qids, normalized
+
+
+def _same_brain_group_audience(value) -> str:
+    return value if value in ("kids", "tween", "mixed", "everyone") else "everyone"
 
 
 def _same_brain_group_result(data: dict) -> dict:
@@ -1805,6 +1813,7 @@ def _same_brain_group_result(data: dict) -> dict:
     return {
         "code": str(data.get("code") or ""),
         "pack": str(data.get("pack") or "random")[:24],
+        "audience": _same_brain_group_audience(data.get("audience")),
         "questionIds": list(data.get("questionIds") or [])[:10],
         "players": players[:SAME_BRAIN_GROUP_MAX_PLAYERS],
         "maxPlayers": SAME_BRAIN_GROUP_MAX_PLAYERS,
@@ -1817,6 +1826,7 @@ def _same_brain_group_invite(data: dict) -> dict:
     return {
         "code": str(data.get("code") or ""),
         "pack": str(data.get("pack") or "random")[:24],
+        "audience": _same_brain_group_audience(data.get("audience")),
         "questionIds": list(data.get("questionIds") or [])[:10],
         "hostName": host_name,
         "playerCount": min(len(players), SAME_BRAIN_GROUP_MAX_PLAYERS),
@@ -1837,7 +1847,7 @@ def _same_brain_group_ref(code: str):
 
 @bp.post("/same-brain/group")
 def same_brain_group_create():
-    access_response = _require_access()
+    access_response = None if request.path.startswith("/same-brain/group") else _require_access()
     if access_response is not None:
         return access_response
 
@@ -1874,6 +1884,7 @@ def same_brain_group_create():
         "code": code,
         "pack": pack,
         "questionIds": question_ids,
+        "audience": _same_brain_group_audience(payload.get("audience")),
         "players": [{"name": name, "answers": answers, "joinedAt": now}],
         "createdAt": now,
         "updatedAt": now,
@@ -1881,7 +1892,7 @@ def same_brain_group_create():
         "resultKeyHash": hashlib.sha256(result_key.encode("utf-8")).hexdigest(),
     }
     try:
-        ref.set(data)
+        ref.create(data)
     except Exception:
         return jsonify({"error": "storage_unavailable"}), 503
     response = _same_brain_group_result(data)
@@ -1891,7 +1902,7 @@ def same_brain_group_create():
 
 @bp.get("/same-brain/group/<code>")
 def same_brain_group_get(code: str):
-    access_response = _require_access()
+    access_response = None if request.path.startswith("/same-brain/group") else _require_access()
     if access_response is not None:
         return access_response
     ref = _same_brain_group_ref(code)
@@ -1912,7 +1923,7 @@ def same_brain_group_get(code: str):
 
 @bp.get("/same-brain/group/<code>/results")
 def same_brain_group_results(code: str):
-    access_response = _require_access()
+    access_response = None if request.path.startswith("/same-brain/group") else _require_access()
     if access_response is not None:
         return access_response
     ref = _same_brain_group_ref(code)
@@ -1925,19 +1936,21 @@ def same_brain_group_results(code: str):
     if not snap.exists:
         return jsonify({"error": "not_found"}), 404
     data = snap.to_dict() or {}
+    expires = data.get("expiresAt")
+    if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+        return jsonify({"error": "expired"}), 410
     supplied = str(request.args.get("key") or "")
     expected = str(data.get("resultKeyHash") or "")
-    if not supplied or not expected or not hmac.compare_digest(
-        hashlib.sha256(supplied.encode("utf-8")).hexdigest(),
-        expected,
-    ):
+    supplied_hash = hashlib.sha256(supplied.encode("utf-8")).hexdigest()
+    participant = any(hmac.compare_digest(supplied_hash, str(p.get("resultKeyHash") or "")) for p in data.get("players", []))
+    if not supplied or not (participant or (expected and hmac.compare_digest(supplied_hash, expected))):
         return jsonify({"error": "forbidden"}), 403
     return jsonify(_same_brain_group_result(data))
 
 
 @bp.post("/same-brain/group/<code>/join")
 def same_brain_group_join(code: str):
-    access_response = _require_access()
+    access_response = None if request.path.startswith("/same-brain/group") else _require_access()
     if access_response is not None:
         return access_response
 
@@ -1952,6 +1965,8 @@ def same_brain_group_join(code: str):
     if not name or not validated:
         return jsonify({"error": "invalid"}), 400
     question_ids, answers = validated
+    player_key = str(payload.get("playerKey") or "")[:128]
+    key_hash = hashlib.sha256(player_key.encode("utf-8")).hexdigest() if len(player_key) >= 16 else ""
 
     ref = _same_brain_group_ref(code)
     if ref is None:
@@ -1967,15 +1982,20 @@ def same_brain_group_join(code: str):
         if not snap.exists:
             return ("not_found", None)
         data = snap.to_dict() or {}
+        expires = data.get("expiresAt")
+        if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+            return ("expired", None)
         if list(data.get("questionIds") or []) != question_ids:
             return ("invalid", None)
         players = list(data.get("players") or [])
+        if key_hash and any(p.get("resultKeyHash") == key_hash for p in players):
+            return ("ok", data)
         if len(players) >= SAME_BRAIN_GROUP_MAX_PLAYERS:
             return ("full", data)
         name_key = name.casefold()
         if any(_same_brain_clean_name(p.get("name")).casefold() == name_key for p in players if isinstance(p, dict)):
             return ("name_taken", data)
-        players.append({"name": name, "answers": answers, "joinedAt": datetime.now(timezone.utc)})
+        players.append({"name": name, "answers": answers, "resultKeyHash": key_hash, "joinedAt": datetime.now(timezone.utc)})
         data["players"] = players
         data["updatedAt"] = datetime.now(timezone.utc)
         txn.update(ref, {"players": players, "updatedAt": data["updatedAt"]})
@@ -1986,12 +2006,14 @@ def same_brain_group_join(code: str):
     except Exception:
         return jsonify({"error": "storage_unavailable"}), 503
     if status != "ok":
-        status_code = {"not_found": 404, "invalid": 400, "full": 409, "name_taken": 409}.get(status, 400)
+        status_code = {"expired": 410, "not_found": 404, "invalid": 400, "full": 409, "name_taken": 409}.get(status, 400)
         return jsonify({"error": status}), status_code
     return jsonify(_same_brain_group_result(data))
 
 
 SAME_BRAIN_EVENTS = {
+    "rematch_requested",
+    "challenge_accepted",
     "home_view",
     "return_visit",
     "start",
@@ -2053,8 +2075,9 @@ def same_brain_analytics():
         return jsonify({"ok": True, "duplicate": True})
 
     try:
-        if db:
-            db.collection("analytics").document("same_brain_funnel").set(
+        client = db()
+        if client:
+            client.collection("analytics").document("same_brain_funnel").set(
                 {
                     "total": google_firestore.Increment(1),
                     "events": {event: google_firestore.Increment(1)},
@@ -2073,7 +2096,7 @@ def same_brain_analytics():
                 }
                 if source_code:
                     run_update["sourceCode"] = source_code
-                db.collection("same_brain_lab_runs").document(run_id).set(run_update, merge=True)
+                client.collection("same_brain_lab_runs").document(run_id).set(run_update, merge=True)
             if question_id and event in {"question_seen", "question_answered", "question_abandoned", "question_flagged"}:
                 update = {
                     event: google_firestore.Increment(1),
@@ -2083,11 +2106,15 @@ def same_brain_analytics():
                 if elapsed_ms and event in {"question_answered", "question_abandoned"}:
                     update["elapsedMsTotal"] = google_firestore.Increment(elapsed_ms)
                     update["elapsedSamples"] = google_firestore.Increment(1)
-                db.collection("same_brain_question_stats_lab").document(question_id).set(update, merge=True)
+                client.collection("same_brain_question_stats_lab").document(question_id).set(update, merge=True)
     except Exception:
         # Analytics must never interrupt gameplay.
         pass
 
+    # Bound the signed session cookie during long replay sessions.
+    old_keys = [key for key in session if key.startswith("same_brain_metric:")]
+    for key in old_keys[:-63]:
+        session.pop(key, None)
     session[dedupe_key] = True
     return jsonify({"ok": True})
 
@@ -2098,22 +2125,24 @@ def same_brain_metrics():
     if access_response is not None:
         return access_response
 
+    client = db()
+
     def _doc_counts(doc_id: str) -> dict:
-        if not db:
+        if not client:
             return {}
         try:
-            snap = db.collection("analytics").document(doc_id).get()
+            snap = client.collection("analytics").document(doc_id).get()
             data = snap.to_dict() or {} if snap.exists else {}
             return data.get("events") if isinstance(data.get("events"), dict) else {}
         except Exception:
             return {}
 
     def _run_docs(collection_name: str, limit: int = 500) -> list[dict]:
-        if not db:
+        if not client:
             return []
         rows = []
         try:
-            for snap in db.collection(collection_name).limit(limit).stream():
+            for snap in client.collection(collection_name).limit(limit).stream():
                 data = snap.to_dict() or {}
                 events = data.get("events") if isinstance(data.get("events"), dict) else {}
                 rows.append({
@@ -2128,11 +2157,11 @@ def same_brain_metrics():
         return rows
 
     def _question_stats(limit: int = 300) -> list[dict]:
-        if not db:
+        if not client:
             return []
         rows = []
         try:
-            for snap in db.collection("same_brain_question_stats").limit(limit).stream():
+            for snap in client.collection("same_brain_question_stats").limit(limit).stream():
                 data = snap.to_dict() or {}
                 seen = max(0, int(data.get("question_seen") or 0))
                 answered = max(0, int(data.get("question_answered") or 0))
@@ -2304,7 +2333,19 @@ def same_brain_metrics():
     plus_trial_starts = _event_count(public_events, "plus_trial_started")
     plus_upgrade_clicks = _event_count(public_events, "plus_upgrade_clicked")
 
+    rates = {
+        "completionRate": _cohort_rate("start", "challenge_created"),
+        "challengeAcceptanceRate": _cohort_rate("challenge_opened", "challenge_accepted"),
+        "inviteCompletionRate": _cohort_rate("challenge_opened", "response_submitted"),
+        "chainRate": _cohort_rate("result_completed", "beat_chain_shared"),
+        "rematchRate": _cohort_rate("result_completed", "rematch_requested"),
+        "creatorPayoffRate": _cohort_rate("challenge_created", "creator_result_opened"),
+        "returnRate": _cohort_rate("home_view", "return_visit"),
+        "shareRate": _cohort_rate("challenge_created", "challenge_shared"),
+    }
     payload = {
+        "rates": rates,
+        "rateDefinitions": {"returnRate": "Returning page visits / page visits, same browser; not user retention", "completionRate": "Creator runs that created a challenge / creator starts", "sample": "At most 500 stored public runs"},
         "ok": True,
         "runBased": True,
         "trackedRuns": len(public_runs),

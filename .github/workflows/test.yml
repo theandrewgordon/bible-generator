@@ -17,4 +17,11 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: python -m compileall -q app.py build_pdf.py build_games.py faithsparks tests
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node tests/same_brain_runtime.cjs
+      - run: node tests/same_brain_narration.cjs
+      - run: node tests/same_brain_sharing.cjs
+      - run: node scripts/audit_same_brain.cjs
       - run: python -m pytest -q

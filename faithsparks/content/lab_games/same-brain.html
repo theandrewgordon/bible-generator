@@ -40,7 +40,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
 </head>
 <body>
 <main class="shell">
-  <div class="topbar"><div><div class="brand">Same Brain? 🧠</div><div class="labs">FAITH SPARKS LABS DEMO</div></div><a href="/labs/games" style="color:#6f4bd8;font-weight:800;text-decoration:none">← Games Lab</a></div>
+  <div class="topbar"><div><button id="home-button" type="button" class="brand ghost" style="border:0;padding:8px">Same Brain? 🧠 · Home</button><div class="labs">FAITH SPARKS LABS DEMO</div></div><a href="/labs/games" style="color:#6f4bd8;font-weight:800;text-decoration:none">← Games Lab</a></div>
 
   <section id="screen-home" class="card hero">
     <div class="brain">🧠</div>
@@ -58,7 +58,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
         <input id="join-code" class="name-input" type="text" maxlength="7" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Enter 7-character code" aria-label="Same Brain code">
         <button id="join-code-btn" class="button secondary" type="button" style="min-height:52px">Join</button>
       </div>
-      <div id="join-code-status" class="premium-note">Enter any 7-character Same Brain code — Challenge, Start Together, or Group Brain.</div>
+      <div id="join-code-status" class="premium-note" role="status" aria-live="polite">Enter any 7-character Same Brain code — Challenge, Start Together, or Group Brain.</div>
     </div>
     <p id="daily-label" class="tiny" style="margin-top:10px">Today’s mix changes each day. Your friend gets the exact same questions even if they play later.</p><div id="streak-line" class="tiny" style="margin-top:6px"></div>
     <button id="creator-results-home" class="button ghost wide hidden" type="button" style="margin-top:10px">🧠 New challenge results</button>
@@ -202,7 +202,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div class="qnum" id="qnum"></div>
     <div class="progress"><div id="progress-bar"></div></div>
     <div style="display:flex;align-items:flex-start;gap:10px"><h2 id="question-text" class="question" style="flex:1"></h2><button id="speak-question" class="button ghost" type="button" aria-label="Read question aloud" title="Read question aloud" style="min-width:54px;padding:10px">🔊</button></div>
-    <div id="choices" class="choices"></div>
+    <div id="choices" class="choices"></div><button id="retry-submit" class="button secondary wide hidden" type="button">Retry saving my answers</button>
     <button id="question-back" class="button ghost wide hidden" type="button" style="margin-top:12px">← Back</button>
   </section>
 
@@ -351,13 +351,13 @@ var QUESTIONS=[
 
 
 var QUESTION_EXPANSION_SPECS=[
-{tag:"food",prefix:"foodx",topics:["pizza","tacos","breakfast","dessert","snacks"],stems:["For {{t}}, which style sounds best?","If {{t}} is on the menu, what matters most?","How would you rather get your {{t}}?","Pick your ideal {{t}} flavor direction.","Which {{t}} rule sounds right?"],sets:[
+{tag:"food",prefix:"foodx",topics:["pizza","tacos","breakfast","dessert","snacks"],stems:["For {{t}}, which style sounds best?","When {{t}} is on the menu, what matters most?","How would you rather get your {{t}}?","Pick your ideal {{t}} flavor direction.","When choosing {{t}}, which approach sounds right?"],sets:[
 [["🔥","Hot and fresh"],["🧀","Extra cheesy"],["🌶️","A little spicy"],["✨","Simple and classic"]],
 [["💰","Best value"],["⭐","Best quality"],["📦","Big portion"],["⚡","Fastest option"]],
 [["🏠","Homemade"],["🍽️","Restaurant"],["🚗","Takeout"],["🎉","Whatever the group wants"]],
 [["🍫","Chocolate"],["🍓","Fruity"],["🍦","Creamy"],["🥧","Baked"]],
 [["⭐","Stick to the favorite"],["🆕","Try something new"],["👥","Share several things"],["🎲","Let someone else choose"]]]},
-{tag:"travel",prefix:"travelx",topics:["road trip","airport day","hotel stay","weekend trip","vacation"],stems:["For a {{t}}, what matters most?","Your {{t}} personality is closest to...","Best upgrade for a {{t}}?","During a {{t}}, you usually...","Which {{t}} tradeoff would you pick?"],sets:[
+{tag:"travel",prefix:"travelx",topics:["road trip","airport day","hotel stay","weekend trip","vacation"],stems:["For a {{t}}, what matters most?","Your {{t}} personality is closest to...","Best upgrade for a {{t}}?","During a {{t}}, you usually...","Which improvement would you choose for your {{t}}?"],sets:[
 [["📍","Location"],["💰","Price"],["🛏️","Comfort"],["✨","Experience"]],
 [["📋","Plan everything"],["🗓️","Plan the big stuff"],["🌊","Mostly wing it"],["🎲","Total spontaneity"]],
 [["🪟","Better view"],["🍳","Better food"],["🛏️","Better sleep"],["🚗","Easier transportation"]],
@@ -375,7 +375,7 @@ var QUESTION_EXPANSION_SPECS=[
 [["⏰","More time"],["👥","More help"],["🎵","Better mood"],["🍕","Better snacks"]],
 [["🎬","Pick the movie"],["🍿","Make snacks"],["🛋️","Get cozy"],["😴","Fall asleep"]],
 [["✅","Finished on time"],["✨","Looks great"],["💰","Stayed on budget"],["😌","No one argued"]]]},
-{tag:"chaos",prefix:"chaosx",topics:["zombie day","alien visit","giant duck attack","mystery island","ridiculous emergency"],stems:["During a {{t}}, what is your first move?","Pick your teammate for {{t}}.","Best tool for surviving a {{t}}?","You land on a {{t}}. What are you doing?","Your {{t}} strategy?"],sets:[
+{tag:"chaos",prefix:"chaosx",topics:["zombie day","alien visit","giant duck attack","mystery island","ridiculous emergency"],stems:["During a {{t}}, what is your first move?","Pick your teammate for an {{t}}.","Best tool for surviving a {{t}}?","You discover a {{t}} near home. What are you doing?","Your {{t}} strategy?"],sets:[
 [["🏃","Run"],["🧠","Make a plan"],["📹","Film it"],["😂","Accept the chaos"]],
 [["🐕","Loyal dog"],["🧑‍🍳","Resourceful cook"],["🔧","Handy neighbor"],["🦝","Suspicious raccoon"]],
 [["🔦","Flashlight"],["🛒","Shopping cart"],["📱","Phone"],["🧻","Somehow toilet paper"]],
@@ -405,7 +405,7 @@ var QUESTION_EXPANSION_SPECS=[
 [["🍕","Only pizza"],["🌮","Only tacos"],["🍝","Only pasta"],["🍔","Only burgers"]],
 [["✈️","Free travel"],["🍽️","Free meals"],["🎟️","Free events"],["🏨","Free hotel stays"]],
 [["⏰","Always early"],["🏃","Always rushed"],["📅","Always booked"],["🏡","Always home"]]]},
-{tag:"home",prefix:"homex",topics:["kitchen","living room","bedroom","backyard","garage"],stems:["If you upgraded your {{t}}, what comes first?","Ideal {{t}} vibe?","What matters most in a {{t}}?","Your {{t}} would definitely have...","Which {{t}} feature wins?"],sets:[
+{tag:"home",prefix:"homex",topics:["kitchen","living room","bedroom","backyard","garage"],stems:["If you upgraded your {{t}}, what comes first?","Ideal {{t}} vibe?","What matters most in a {{t}}?","Your {{t}} would definitely have...","Which quality matters most for your {{t}}?"],sets:[
 [["✨","Looks amazing"],["🧹","Easy to clean"],["🛋️","Comfort"],["📦","Storage"]],
 [["🌿","Cozy"],["🧼","Minimal"],["🎨","Colorful"],["🏨","Hotel-like"]],
 [["📦","Storage"],["💡","Lighting"],["🔌","Outlets"],["🪑","Comfort"]],
@@ -427,7 +427,7 @@ var QUESTION_EXPANSION_SPECS=[
 [["💾","Save it"],["🍽️","Enjoy it"],["🛒","Buy something useful"],["🎁","Spend on someone else"]],
 [["🏡","Home"],["✈️","Travel"],["📱","Tech"],["📈","Savings"]],
 [["✅","Pay a bill"],["🎟️","Make a memory"],["🛠️","Upgrade something"],["💰","Do nothing yet"]],
-[["🛍️","One nice thing"],["🍴","Several small treats"],["📈","Invest/save"],["👥","Share it"]],
+[["🛍️","One nice thing"],["🍴","Several small treats"],["📦","Save it for later"],["👥","Share it"]],
 [["😌","Reduce stress"],["✨","Increase fun"],["🔧","Fix a problem"],["📚","Learn something"]]]},
 {tag:"tech",prefix:"techx",topics:["new phone","smart home","laptop","streaming setup","car tech"],stems:["For a {{t}}, what matters most?","Your {{t}} priority?","Best {{t}} upgrade?","Which {{t}} annoyance is worst?","You would pay extra for this {{t}} feature:"],sets:[
 [["⚡","Speed"],["🔋","Battery"],["📸","Camera"],["💰","Price"]],
@@ -458,7 +458,7 @@ QUESTION_EXPANSION_SPECS.forEach(function(spec){
 var SET_EXPANSION_SPECS={
 friends:[
 {stem:"Your friend says “pick the plan.” What do you choose for {{t}}?",topics:["Friday night","a free Saturday","a birthday","a surprise day off"],a:[["🍽️","Go eat"],["🎮","Play something"],["🚗","Go somewhere"],["🏡","Stay in"]]},
-{stem:"In {{t}}, what are you most likely to contribute?",topics:["a group chat","a road trip","a party","game night"],a:[["😂","Jokes"],["📋","The plan"],["🍿","Snacks"],["🎵","The playlist"]]},
+{stem:"When friends get together for {{t}}, what do you contribute?",topics:["a group chat","a road trip","a party","game night"],a:[["😂","Jokes"],["📋","The plan"],["🍿","Snacks"],["🎵","The playlist"]]},
 {stem:"What makes {{t}} feel successful?",topics:["a hangout","a double date","a weekend trip","a reunion"],a:[["😂","Everyone laughed"],["💬","Great conversation"],["📸","Good memories"],["😌","Nobody stressed"]]},
 {stem:"Your friend is 20 minutes late to {{t}}. Your reaction?",topics:["dinner","the movies","a game","a coffee meetup"],a:[["📱","Text them"],["😌","No big deal"],["😤","Definitely annoyed"],["🍟","Start without them"]]},
 {stem:"For {{t}}, which person are you?",topics:["planning a trip","choosing dinner","organizing a party","picking a movie"],a:[["📋","I decide fast"],["🗳️","I take a vote"],["🤷","Anything is fine"],["😈","I complicate it"]]},
@@ -475,7 +475,7 @@ family:[
 {stem:"For {{t}}, what helps your family most?",topics:["a busy week","a holiday","a home project","a sick day"],a:[["📋","A plan"],["🍕","Easy food"],["🤝","Everyone helps"],["😂","A good attitude"]]},
 {stem:"You get one family luxury for {{t}}. Pick it.",topics:["every weekend","one month","summer","the holidays"],a:[["🧹","House cleaner"],["🍽️","Meal service"],["🚗","Driver"],["🎟️","Activity budget"]]},
 {stem:"Which family tradition would you keep for {{t}}?",topics:["birthdays","holidays","Sunday afternoons","summer"],a:[["🍽️","Special food"],["🎲","Games"],["📸","Photos"],["🚗","Go somewhere"]]},
-{stem:"When the house gets chaotic during {{t}}, you usually...",topics:["school mornings","company coming","holiday prep","packing for a trip"],a:[["📋","Make a list"],["⚡","Start doing things"],["📣","Delegate"],["😅","Embrace the chaos"]]},
+{stem:"When things get chaotic with {{t}}, you usually...",topics:["school mornings","company coming","holiday prep","packing for a trip"],a:[["📋","Make a list"],["⚡","Start doing things"],["📣","Delegate"],["😅","Embrace the chaos"]]},
 {stem:"Which shared-space rule matters most in {{t}}?",topics:["the kitchen","the living room","the bathroom","the car"],a:[["🧹","Clean up after yourself"],["📦","Put things back"],["🔉","Control the noise"],["🤝","Share fairly"]]},
 {stem:"Your family suddenly has a free {{t}}. What happens?",topics:["evening","Saturday","Sunday afternoon","school break day"],a:[["🏡","Stay home"],["🚗","Go explore"],["👥","See people"],["🛠️","Catch up on projects"]]},
 {stem:"What is hardest about family {{t}}?",topics:["photos","vacations","dinners out","game nights"],a:[["⏰","Getting everyone ready"],["💰","The cost"],["🗳️","Agreeing"],["😴","Keeping everyone happy"]]},
@@ -486,7 +486,7 @@ chaos:[
 {stem:"A {{t}} suddenly appears in your yard. First move?",topics:["tiny tornado","mystery portal","giant chicken","robot dog"],a:[["🚪","Go inside"],["📹","Start filming"],["🔍","Investigate"],["📞","Call someone"]]},
 {stem:"You must escape {{t}} using one ridiculous vehicle.",topics:["a zombie parade","a goose uprising","an alien invasion","a giant foam flood"],a:[["🛒","Shopping cart"],["🚜","Lawn mower"],["🛴","Scooter"],["🚤","Jet ski somehow"]]},
 {stem:"Pick your emergency snack for {{t}}.",topics:["a power outage","being snowed in","a mystery bunker","an accidental road trip"],a:[["🍫","Chocolate"],["🍿","Popcorn"],["🥨","Pretzels"],["🧀","Cheese"]]},
-{stem:"During {{t}}, which person do you want beside you?",topics:["a haunted hotel","a surprise survival show","a bizarre treasure hunt","a monster sighting"],a:[["🧠","The planner"],["💪","The strong one"],["😂","The funny one"],["🔧","The fixer"]]},
+{stem:"Facing {{t}}, which person do you want beside you?",topics:["a haunted hotel","a surprise survival show","a bizarre treasure hunt","a monster sighting"],a:[["🧠","The planner"],["💪","The strong one"],["😂","The funny one"],["🔧","The fixer"]]},
 {stem:"You open a door and find {{t}}. What do you do?",topics:["100 ducks","a room of balloons","a sleeping bear","a suspicious treasure chest"],a:[["🚪","Close it"],["📸","Take a picture"],["👀","Investigate"],["👥","Get witnesses"]]},
 {stem:"Which ridiculous inconvenience would you tolerate for {{t}}?",topics:["$1,000","a free vacation","free food for a year","a new car"],a:[["🧦","Wet socks all day"],["🎵","One song on repeat"],["🗣️","Only whispering"],["🪑","No chairs"]]},
 {stem:"A talking {{t}} gives you advice. Do you listen?",topics:["raccoon","pigeon","squirrel","goldfish"],a:[["✅","Absolutely"],["🤔","Maybe"],["🚫","Never"],["📹","Only after I film it"]]},
@@ -495,8 +495,8 @@ chaos:[
 ],
 food:[
 {stem:"You can perfect one {{t}} forever. Which style wins?",topics:["sandwich","burger","taco","pizza"],a:[["🔥","Hot and messy"],["✨","Simple classic"],["🌶️","Spicy"],["🧀","Extra loaded"]]},
-{stem:"At a {{t}} place, what matters most?",topics:["coffee","ice cream","breakfast","pizza"],a:[["⭐","Taste"],["💰","Price"],["📍","Convenience"],["✨","Atmosphere"]]},
-{stem:"You only keep one {{t}} topping.",topics:["pizza","ice cream","burger","baked potato"],a:[["🧀","Cheese"],["🥓","Something savory"],["🌶️","Something spicy"],["🥑","Something fresh"]]},
+{stem:"When buying {{t}}, what matters most?",topics:["coffee","ice cream","breakfast","pizza"],a:[["⭐","Taste"],["💰","Price"],["📍","Convenience"],["✨","Atmosphere"]]},
+{stem:"You only keep one {{t}} topping.",topics:["pizza","nachos","burger","baked potato"],a:[["🧀","Cheese"],["🥓","Something savory"],["🌶️","Something spicy"],["🥑","Something fresh"]]},
 {stem:"For {{t}}, which texture wins?",topics:["cookies","fries","pizza crust","brownies"],a:[["🥨","Crispy"],["🍞","Soft"],["✨","Chewy"],["🔥","Extra crunchy"]]},
 {stem:"You get free {{t}} for a year. Pick one.",topics:["breakfast","lunch","dinner","dessert"],a:[["🏡","Homemade"],["🍽️","Restaurant"],["🚗","Takeout"],["👨‍🍳","Private chef"]]},
 {stem:"Which {{t}} flavor direction do you choose?",topics:["popcorn","wings","chips","nuts"],a:[["🧂","Salty"],["🌶️","Spicy"],["🍯","Sweet"],["🧄","Savory"]]}
@@ -512,7 +512,7 @@ travel:[
 couples:[
 {stem:"For {{t}}, who should make the call?",topics:["date night","vacation plans","a big purchase","weekend plans"],a:[["🔁","Take turns"],["🗳️","Decide together"],["❤️","Let them choose"],["🎲","Randomize it"]]},
 {stem:"What matters most during {{t}} together?",topics:["a free evening","a trip","a project","a celebration"],a:[["💬","Connection"],["😂","Fun"],["😌","Low stress"],["✨","A good memory"]]},
-{stem:"Which difference is easiest to live with around {{t}}?",topics:["food","movies","sleep schedules","vacations"],a:[["🔁","We take turns"],["🤝","We compromise"],["🎯","One person usually wins"],["😂","We joke about it"]]},
+{stem:"When you disagree about {{t}}, how do you handle it?",topics:["food","movies","sleep schedules","vacations"],a:[["🔁","We take turns"],["🤝","We compromise"],["🎯","One person usually wins"],["😂","We joke about it"]]},
 {stem:"Your partner surprises you with {{t}}. Best version?",topics:["a gift","a date","a trip","a day off together"],a:[["✨","Thoughtful"],["🎉","Exciting"],["😌","Relaxing"],["💰","Practical"]]},
 {stem:"After {{t}}, what helps you reconnect?",topics:["a disagreement","a long workday","a stressful week","a busy weekend"],a:[["💬","Talk"],["🤗","Physical affection"],["😂","Laugh together"],["🍽️","Do something easy"]]},
 {stem:"For shared {{t}}, what is the best system?",topics:["money","chores","schedules","meal decisions"],a:[["📋","Clear rules"],["🔁","Take turns"],["🤝","Divide strengths"],["🌊","Stay flexible"]]},
@@ -531,7 +531,7 @@ nostalgia:[
 {stem:"Pick one old-school {{t}} to bring back.",topics:["toy","snack","TV show","store"],a:[["⭐","The favorite"],["🆕","The weird one"],["👥","The social one"],["😂","The one that seems silly now"]]},
 {stem:"What made {{t}} better back then?",topics:["road trips","movie nights","weekends","birthdays"],a:[["📵","Fewer phones"],["👥","More people together"],["✨","It felt special"],["😌","Less pressure"]]},
 {stem:"Which part of {{t}} would you relive for one day?",topics:["elementary school","high school","summer break","the mall era"],a:[["👥","Friends"],["🎵","Music"],["🍕","Food"],["🎮","Entertainment"]]},
-{stem:"Which old technology around {{t}} do you miss most?",topics:["music","photos","movies","communication"],a:[["💿","Physical media"],["📷","Simple devices"],["☎️","Less constant access"],["🛠️","Things felt repairable"]]}
+{stem:"What do you miss about older technology for {{t}}?",topics:["music","photos","movies","communication"],a:[["💿","Physical media"],["📷","Simple devices"],["☎️","Less constant access"],["🛠️","Things felt repairable"]]}
 ],
 wouldyou:[
 {stem:"You must give up one for a month. Which goes?",topics:[""],a:[["📱","Your phone"],["📺","Streaming"],["☕","Coffee"],["🚗","Your car"]]},
@@ -558,7 +558,7 @@ var SET_EXPANSION_ROUND2={
 friends:[
 {stem:"You and a friend disagree about {{t}}. What happens?",topics:["where to eat","what to watch","when to leave","what to do next"],a:[["🤝","Compromise"],["🔁","Take turns"],["🎲","Random choice"],["😂","Argue for fun"]]},
 {stem:"Which friend behavior during {{t}} do you appreciate most?",topics:["a trip","a hard week","a party","a project"],a:[["📋","Being organized"],["😂","Keeping it fun"],["🤝","Helping out"],["😌","Staying calm"]]},
-{stem:"What kind of message during {{t}} gets the fastest reply from you?",topics:["the workday","a weekend","vacation","late at night"],a:[["😂","Something funny"],["❓","A direct question"],["📸","A photo"],["📅","A plan"]]},
+{stem:"When it is {{t}}, what kind of message gets your fastest reply?",topics:["the middle of a workday","the weekend","vacation time","late at night"],a:[["😂","Something funny"],["❓","A direct question"],["📸","A photo"],["📅","A plan"]]},
 {stem:"You have one hour with a friend before {{t}}. What do you do?",topics:["a flight","an appointment","dinner","a movie"],a:[["☕","Grab a drink"],["🚶","Walk around"],["🍟","Get food"],["💬","Just talk"]]},
 {stem:"Which friend-group habit around {{t}} is most you?",topics:["birthdays","holidays","trips","weekends"],a:[["📸","Take pictures"],["🍽️","Plan food"],["🎁","Bring something"],["😌","Show up and enjoy"]]},
 {stem:"If your friend needs help with {{t}}, what do you offer first?",topics:["moving","a bad day","a deadline","a broken car"],a:[["🛠️","Practical help"],["💬","Advice"],["🤗","Support"],["🍕","Food"]]},
@@ -576,7 +576,7 @@ family:[
 {stem:"Which family expense around {{t}} feels most worth it?",topics:["vacation","birthdays","holidays","weekends"],a:[["🍽️","Food"],["🎟️","Experiences"],["🏨","Comfort"],["📸","Memories"]]},
 {stem:"What makes family {{t}} go smoothly?",topics:["dinner","travel","photos","events"],a:[["⏰","Good timing"],["📋","A clear plan"],["🤝","Cooperation"],["😂","Low expectations"]]},
 {stem:"Which thing do you want more of during family {{t}}?",topics:["weekends","holidays","vacations","school breaks"],a:[["😴","Rest"],["👥","Time together"],["🚗","Adventures"],["🏡","Time at home"]]},
-{stem:"Which family debate around {{t}} is most familiar?",topics:["food","TV","temperature","departure time"],a:[["🗳️","Everyone has an opinion"],["👑","One person always wins"],["🔁","It changes daily"],["😂","We joke about it"]]}
+{stem:"How does your family usually debate {{t}}?",topics:["food","TV","temperature","departure time"],a:[["🗳️","Everyone has an opinion"],["👑","One person always wins"],["🔁","It changes daily"],["😂","We joke about it"]]}
 ],
 food:[
 {stem:"Which {{t}} upgrade sounds best?",topics:["breakfast","lunch","dinner","dessert"],a:[["⭐","Better ingredients"],["👨‍🍳","Someone else cooks"],["🍽️","More variety"],["🧹","No cleanup"]]},
@@ -591,8 +591,8 @@ couples:[
 {stem:"Which thing makes {{t}} easier as a couple?",topics:["planning","budgeting","travel","home projects"],a:[["💬","Talk early"],["📋","Write it down"],["🤝","Divide roles"],["😌","Stay flexible"]]},
 {stem:"Your partner cares more about {{t}} than you do. What works best?",topics:["decorating","restaurants","vacations","gifts"],a:[["❤️","Let them lead"],["🤝","Compromise"],["🔁","Take turns"],["🎯","Set a limit"]]},
 {stem:"Which small thing during {{t}} feels most thoughtful?",topics:["a busy day","a trip","a sick day","a celebration"],a:[["☕","Bring a favorite thing"],["💬","Check in"],["🛠️","Handle a task"],["🤗","Make time together"]]},
-{stem:"For {{t}}, which difference between you matters least?",topics:["music","food","hobbies","sleep schedules"],a:[["😂","We can laugh about it"],["🔁","We take turns"],["🎧","We do our own thing"],["🤝","Easy compromise"]]},
-{stem:"Which couple routine around {{t}} would you keep?",topics:["mornings","weekends","meals","bedtime"],a:[["☕","A small ritual"],["💬","Time to talk"],["📵","Phones away"],["😌","No strict routine"]]},
+{stem:"When your tastes differ around {{t}}, how does it work out?",topics:["music","food","hobbies","sleep schedules"],a:[["😂","We can laugh about it"],["🔁","We take turns"],["🎧","We do our own thing"],["🤝","Easy compromise"]]},
+{stem:"What makes your time together around {{t}} better?",topics:["mornings","weekends","meals","bedtime"],a:[["☕","A small ritual"],["💬","Time to talk"],["📵","Phones away"],["😌","No strict routine"]]},
 {stem:"What is your best couple reset after {{t}}?",topics:["a stressful day","travel","company leaves","a disagreement"],a:[["🍽️","Eat something"],["🚶","Take a walk"],["📺","Watch something"],["💬","Talk it out"]]}
 ],
 work:[
@@ -611,7 +611,7 @@ nostalgia:[
 {stem:"Which childhood {{t}} do you remember most clearly?",topics:["snack","toy","TV ad","school supply"],a:[["⭐","The favorite"],["😂","The weird one"],["👥","The one everyone had"],["💭","The one I still think about"]]},
 {stem:"Which old-school part of {{t}} felt best?",topics:["summer","weekends","snow days","birthdays"],a:[["😴","No schedule"],["👥","Friends around"],["🎮","Entertainment"],["🍕","Special food"]]},
 {stem:"What do you miss about {{t}} before smartphones?",topics:["road trips","waiting rooms","restaurants","school"],a:[["💬","More talking"],["📚","More boredom"],["🎮","Simple entertainment"],["😌","Less pressure to respond"]]},
-{stem:"Which throwback sound from {{t}} is most nostalgic?",topics:["a computer","a school hallway","a video game","a phone"],a:[["🔊","Startup sound"],["🔔","Bell/ring"],["🎵","Theme music"],["📼","Mechanical noise"]]},
+{stem:"What type of sound would you save from {{t}}?",topics:["a computer","a school hallway","a video game","a phone"],a:[["🔊","Startup sound"],["🔔","Bell/ring"],["🎵","Theme music"],["📼","Mechanical noise"]]},
 {stem:"If you could revisit one version of {{t}}, which feeling matters?",topics:["your hometown","your school","the mall","your old bedroom"],a:[["👥","People"],["✨","Atmosphere"],["🎵","Music"],["😌","Being younger"]]}
 ]
 };
@@ -640,7 +640,7 @@ friends:[
 ["You and a friend find $10. What do you get?",[["🍦","Treats"],["🧸","A toy"],["🎮","Game stuff"],["💰","Save it"]]]
 ],
 family:[
-["Family movie night: who picks?",[["🔁","Take turns"],["🗳️","Vote"],["👑","One person picks"],["🎲","Random choice"]]],
+["Family movie night: where do you sit?",[["🛋️","On the sofa"],["🧸","In a beanbag"],["🛏️","On a blanket fort floor"],["🍿","Closest to the snacks"]]],
 ["Best family Saturday?",[["🏡","Stay home"],["🌳","Go outside"],["🎟️","Go somewhere fun"],["👥","See friends/family"]]],
 ["One chore disappears forever. Pick it.",[["🧺","Laundry"],["🍽️","Dishes"],["🧹","Floors"],["🧸","Cleaning my room"]]],
 ["Family dinner gets one upgrade.",[["🍕","Favorite food"],["🍨","Dessert"],["🎵","Music"],["😂","No arguing"]]]
@@ -908,8 +908,8 @@ nostalgia:[
 ["Which old toy/game would you try again?",[["🪀","Yo-yo"],["🛹","Skateboard"],["🎲","Classic board game"],["🧩","Puzzle toy"]]]
 ],
 wouldyou:[
-["Would you rather get perfect grades or...",[["🏆","Be amazing at a sport"],["🎸","Master music"],["🎨","Master art"],["💻","Master tech"]]],
-["Would you rather never lose...",[["🔋","Phone battery"],["📶","Wi-Fi"],["🎧","Headphones"],["🧦","Socks"]]],
+["Which talent would you most like to master?",[["🏆","Be amazing at a sport"],["🎸","Master music"],["🎨","Master art"],["💻","Master tech"]]],
+["Which would you like to always have when needed?",[["🔋","Phone battery"],["📶","Wi-Fi"],["🎧","Headphones"],["🧦","Socks"]]],
 ["Which everyday bonus would you choose?",[["😴","Hour of sleep"],["🎮","Hour of free time"],["👥","Hour with friends"],["💵","$10 each day"]]],
 ["Would you rather be known for being...",[["😂","Funny"],["🧠","Smart"],["🏆","Talented"],["🤝","Kind"]]],
 ["Would you rather live without...",[["📱","Social media"],["🎮","Games"],["🎵","Music"],["📺","Streaming"]]],
@@ -1011,7 +1011,7 @@ friends:[
 family:[
 {stem:"For your family’s {{t}}, what matters most?",topics:["breakfast","movie night","day trip","holiday prep","birthday","weekend"],a:[["👥","Time together"],["😂","Good mood"],["📋","Simple plan"],["😌","Low stress"]]},
 {stem:"Which family upgrade would help most with {{t}}?",topics:["mornings","mealtimes","laundry","schoolwork","bedtime","weekends"],a:[["📋","Better routine"],["🤝","More help"],["⏰","More time"],["🧹","Less clutter"]]},
-{stem:"During family {{t}}, what causes the most friction?",topics:["packing","getting out the door","cleaning up","choosing food","choosing a movie","sharing space"],a:[["⏰","Timing"],["🗳️","Different opinions"],["📦","Too much stuff"],["😴","Everyone is tired"]]},
+{stem:"When your family is {{t}}, what causes the most friction?",topics:["packing","getting out the door","cleaning up","choosing food","choosing a movie","sharing space"],a:[["⏰","Timing"],["🗳️","Different opinions"],["📦","Too much stuff"],["😴","Everyone is tired"]]},
 {stem:"You can simplify one part of family {{t}}. Pick it.",topics:["travel","birthdays","holidays","school mornings","errands","appointments"],a:[["🚗","Transportation"],["🍽️","Food"],["📅","Scheduling"],["🎒","Packing/prep"]]},
 {stem:"Which family memory from {{t}} would you most want to keep?",topics:["a vacation","a holiday","a birthday","a random Saturday","a family dinner","a day outside"],a:[["😂","Something funny"],["📸","A great photo"],["🍽️","A favorite meal"],["❤️","A meaningful moment"]]}
 ],
@@ -1026,7 +1026,7 @@ food:[
 {stem:"For {{t}}, what matters most?",topics:["pizza","burgers","tacos","sandwiches","pasta","breakfast"],a:[["⭐","Flavor"],["🔥","Temperature"],["🧀","Toppings"],["🍽️","Portion"]]},
 {stem:"How should your ideal {{t}} turn out?",topics:["cookies","brownies","fries","wings","nachos","toast"],a:[["🥨","Crispy"],["🍞","Soft"],["🔥","Extra cooked"],["✨","Right in the middle"]]},
 {stem:"If {{t}} is free forever, what matters most?",topics:["coffee","ice cream","pizza","breakfast","dessert","takeout"],a:[["⭐","Quality"],["📍","Convenience"],["🆕","Variety"],["⚡","Speed"]]},
-{stem:"Which {{t}} mistake ruins it fastest?",topics:["pizza","coffee","fries","steak","pasta","ice cream"],a:[["🥶","Wrong temperature"],["🧂","Bad seasoning"],["⏰","Sat too long"],["😐","Bland flavor"]]},
+{stem:"Which problem would spoil your enjoyment of {{t}} fastest?",topics:["pizza","coffee","fries","steak","pasta","ice cream"],a:[["🥶","Wrong temperature"],["🧪","Odd aftertaste"],["⏰","Not fresh"],["😐","Bland flavor"]]},
 {stem:"For a {{t}} spread, what do you reach for first?",topics:["party snack","breakfast","cookout","dessert","game-day food","holiday meal"],a:[["🧂","Savory"],["🍫","Sweet"],["🌶️","Spicy"],["🍓","Fresh"]]}
 ],
 travel:[
@@ -1040,8 +1040,8 @@ couples:[
 {stem:"For shared {{t}}, what matters most?",topics:["weekends","vacations","money","chores","meals","free time"],a:[["💬","Communication"],["🤝","Fairness"],["😌","Flexibility"],["❤️","Connection"]]},
 {stem:"Your partner has a different opinion about {{t}}. Best move?",topics:["food","travel","spending","decorating","movies","weekend plans"],a:[["🤝","Compromise"],["🔁","Take turns"],["❤️","Let them choose"],["💬","Talk it through"]]},
 {stem:"Which small thing improves {{t}} together?",topics:["mornings","evenings","travel days","busy weeks","date nights","weekends"],a:[["☕","A small ritual"],["📵","Phones away"],["💬","Check in"],["😂","Laugh together"]]},
-{stem:"For {{t}}, which couple style sounds most like you?",topics:["planning","shopping","travel","home projects","gift giving","hosting"],a:[["📋","One leads"],["🤝","Split it"],["🔁","Take turns"],["🌊","Figure it out as we go"]]},
-{stem:"After {{t}}, what sounds best together?",topics:["a long day","a disagreement","company leaves","a trip","a big project","a busy weekend"],a:[["🍽️","Eat"],["🚶","Take a walk"],["📺","Watch something"],["💬","Talk"]]}
+{stem:"For {{t}}, which couple style sounds most like you?",topics:["planning","shopping","travel","home projects","gift giving","hosting"],a:[["📋","One person leads"],["🤝","Split the tasks"],["🔁","Take turns"],["🌊","Figure it out as we go"]]},
+{stem:"After {{t}}, what sounds best together?",topics:["a long day","a disagreement","a visit from friends","a trip","a big project","a busy weekend"],a:[["🍽️","Eat"],["🚶","Take a walk"],["📺","Watch something"],["💬","Talk"]]}
 ],
 work:[
 {stem:"For {{t}}, what matters most?",topics:["a project","a meeting","a deadline","a handoff","a client call","a workday"],a:[["🎯","Clear goal"],["⏰","Enough time"],["🤝","Good people"],["📋","Good process"]]},
@@ -1079,11 +1079,11 @@ friends:[
 {stem:"With a friend, which {{t}} sounds best?",topics:["afternoon plan","rainy-day plan","weekend plan","after-school plan","birthday plan"],a:[["🎮","Play"],["🍿","Snack"],["🌳","Go outside"],["🎨","Make something"]]},
 {stem:"A friend needs help with {{t}}. What do you do?",topics:["homework","cleaning up","feeling sad","choosing a game","finding something"],a:[["🤝","Help"],["💬","Talk"],["😂","Cheer them up"],["🧑‍🏫","Get a grown-up"]]},
 {stem:"Best thing to share with a friend during {{t}}?",topics:["a movie","a road trip","a sleepover","a park day","a party"],a:[["🍿","Snacks"],["🎵","Music"],["🎲","Games"],["😂","Jokes"]]},
-{stem:"If you and a friend could learn {{t}} instantly, which direction wins?",topics:["a sport","music","art","magic tricks","building"],a:[["🏆","Be amazing"],["😂","Make it fun"],["👥","Do it together"],["🆕","Try something new"]]}
+{stem:"When learning {{t}} with a friend, what matters most?",topics:["a sport","music","art","magic tricks","model building"],a:[["🏆","Be amazing"],["😂","Make it fun"],["👥","Do it together"],["🆕","Try something new"]]}
 ],
 family:[
-{stem:"During a family {{t}}, what sounds best?",topics:["Saturday","movie night","dinner","rainy day","free evening"],a:[["🎲","Play"],["🎬","Watch something"],["🚗","Go somewhere"],["😌","Relax"]]},
-{stem:"Which family job during {{t}} would you pick?",topics:["dinner","packing","cleanup","a party","a trip"],a:[["🍽️","Food helper"],["📦","Packing helper"],["🧹","Cleanup helper"],["🎵","Fun helper"]]},
+{stem:"During a family {{t}}, what sounds best?",topics:["Saturday","night off","day at home","rainy day","free evening"],a:[["🎲","Play"],["🎬","Watch something"],["🚗","Go somewhere"],["😌","Relax"]]},
+{stem:"How would you help your family with {{t}}?",topics:["dinner","packing","cleanup","a party","a trip"],a:[["📋","Make a plan"],["🤝","Work together"],["🧹","Keep things tidy"],["🎵","Make it fun"]]},
 {stem:"Best family treat after {{t}}?",topics:["chores","schoolwork","a long drive","yard work","an appointment"],a:[["🍦","Ice cream"],["🎬","Movie"],["🎮","Game time"],["😴","Rest"]]},
 {stem:"Which family rule around {{t}} sounds fairest?",topics:["screens","bedtime","chores","dessert","choosing movies"],a:[["🔁","Take turns"],["🗳️","Vote"],["📋","Clear rule"],["😌","Be flexible"]]}
 ],
@@ -1091,13 +1091,13 @@ chaos:[
 {stem:"A {{t}} becomes your pet. What do you name it first?",topics:["tiny dragon","robot hamster","flying turtle","purple raccoon","mini dinosaur"],a:[["😂","Something silly"],["⭐","Something cool"],["🍕","A food name"],["👑","A fancy name"]]},
 {stem:"You find a magic {{t}}. What should it do?",topics:["pencil","backpack","shoe","blanket","spoon"],a:[["🪽","Help me fly"],["🍕","Make snacks"],["🫥","Turn invisible"],["🎵","Play music"]]},
 {stem:"A {{t}} starts talking. What do you ask?",topics:["dog","tree","fridge","toy","school bus"],a:[["❓","A serious question"],["😂","Tell a joke"],["🗺️","Where should we go?"],["🍪","Do you have snacks?"]]},
-{stem:"Your room turns into a {{t}} overnight. First move?",topics:["jungle","spaceship","castle","aquarium","candy shop"],a:[["👀","Explore"],["📸","Take pictures"],["👥","Show someone"],["🍿","Get comfortable"]]}
+{stem:"Your room becomes {{t}} overnight. First move?",topics:["a jungle","a spaceship","a castle","an aquarium","a candy shop"],a:[["👀","Explore"],["📸","Take pictures"],["👥","Show someone"],["🍿","Get comfortable"]]}
 ],
 food:[
 {stem:"Pick your favorite kind of {{t}}.",topics:["cookie","pizza","sandwich","ice cream","cereal"],a:[["⭐","Classic"],["🍫","Sweet"],["🧀","Loaded"],["🆕","Something unusual"]]},
 {stem:"For {{t}}, which part matters most?",topics:["breakfast","lunch","snack time","dessert","pizza night"],a:[["⭐","Taste"],["🍽️","What it is"],["👥","Who I’m with"],["🎉","It feels special"]]},
 {stem:"Best {{t}} for sharing?",topics:["snack","dessert","party food","movie food","road-trip food"],a:[["🍿","Crunchy"],["🍫","Sweet"],["🧀","Cheesy"],["🍓","Fresh"]]},
-{stem:"Which {{t}} upgrade wins?",topics:["pancakes","waffles","ice cream","popcorn","fries"],a:[["🍫","Chocolate"],["🍓","Fruit"],["🧀","Cheese/savory"],["✨","Keep it simple"]]}
+{stem:"How would you like your {{t}} served?",topics:["pancakes","waffles","ice cream","popcorn","fries"],a:[["✨","Plain and simple"],["🍽️","With toppings on the side"],["🎉","With lots of toppings"],["🆕","With a surprise topping"]]}
 ],
 travel:[
 {stem:"On a trip, what makes {{t}} better?",topics:["the car ride","the hotel","the morning","the afternoon","the evening"],a:[["🍿","Snacks"],["🎮","Entertainment"],["👥","Good company"],["😴","Comfort"]]},
@@ -1123,13 +1123,13 @@ friends:[
 {stem:"For a friend-group {{t}}, what matters most?",topics:["hangout","trip","game night","birthday","group chat"],a:[["😂","Fun"],["😌","Low drama"],["🤝","Everyone included"],["📅","Easy plan"]]},
 {stem:"A friend changes {{t}} at the last second. Reaction?",topics:["the plan","the restaurant","the movie","the game","the meetup time"],a:[["😌","Fine"],["😤","Annoyed"],["🤔","Depends why"],["🔁","Suggest another option"]]},
 {stem:"Which friend trait helps most during {{t}}?",topics:["a trip","a stressful week","a competition","a group project","a new situation"],a:[["😂","Funny"],["🤝","Reliable"],["😌","Calm"],["📋","Organized"]]},
-{stem:"For {{t}} with friends, what do you want most?",topics:["Friday night","summer day","after school","a birthday","a rainy weekend"],a:[["🎮","Something fun"],["🍔","Good food"],["💬","Time to talk"],["🚗","Go somewhere"]]}
+{stem:"For {{t}} with friends, what do you want most?",topics:["Friday night","a summer day","time after school","a birthday","a rainy weekend"],a:[["🎮","Something fun"],["🍔","Good food"],["💬","Time to talk"],["🚗","Go somewhere"]]}
 ],
 family:[
 {stem:"Which family rule about {{t}} feels fairest?",topics:["phones","chores","bedtime","going out","screen time"],a:[["📋","Clear limit"],["🔁","Earn flexibility"],["🤝","Discuss it"],["😌","Case by case"]]},
 {stem:"At a family {{t}}, what do you care about most?",topics:["vacation","dinner","weekend","holiday","outing"],a:[["📶","Good Wi-Fi"],["🍽️","Good food"],["🎉","Something fun"],["😌","Downtime"]]},
-{stem:"Which family responsibility around {{t}} would you rather handle?",topics:["dinner","travel","pets","cleaning","shopping"],a:[["📋","Plan it"],["🛠️","Do the task"],["📦","Put things away"],["😌","Help a little"]]},
-{stem:"When family {{t}} gets chaotic, what do you do?",topics:["mornings","packing","holidays","company","errands"],a:[["🎧","Tune it out"],["🤝","Help"],["📋","Get organized"],["😂","Laugh about it"]]}
+{stem:"How would you rather help with {{t}}?",topics:["dinner","travel","pets","cleaning","shopping"],a:[["📋","Plan it"],["🛠️","Do the task"],["📦","Put things away"],["😌","Help a little"]]},
+{stem:"When things get chaotic around family {{t}}, what do you do?",topics:["mornings","packing","holidays","company","errands"],a:[["🎧","Tune it out"],["🤝","Help"],["📋","Get organized"],["😂","Laugh about it"]]}
 ],
 chaos:[
 {stem:"Your phone gets a bizarre {{t}} feature.",topics:["homework","snack","music","travel","school"],a:[["🤖","AI helper"],["🔮","Predictor"],["🫥","Invisible mode"],["😂","Chaos mode"]]},
@@ -1140,14 +1140,14 @@ chaos:[
 food:[
 {stem:"For {{t}}, which style wins?",topics:["pizza","fries","wings","sandwiches","dessert"],a:[["⭐","Classic"],["🌶️","Spicy"],["🧀","Loaded"],["🆕","Something different"]]},
 {stem:"Best {{t}} with friends?",topics:["snack","takeout","breakfast","dessert","late-night food"],a:[["🍕","Shareable"],["🍟","Easy"],["🍫","Sweet"],["🌶️","Bold"]]},
-{stem:"Which {{t}} thing matters most?",topics:["coffee-shop order","fast food","pizza order","dessert stop","breakfast out"],a:[["⭐","Taste"],["💰","Price"],["⚡","Speed"],["📸","Looks good too"]]},
+{stem:"What matters most when you choose {{t}}?",topics:["a coffee-shop drink","fast food","a pizza order","a dessert stop","breakfast out"],a:[["⭐","Taste"],["💰","Price"],["⚡","Speed"],["📸","Looks good too"]]},
 {stem:"Which food choice for {{t}} sounds best?",topics:["a movie","a road trip","after school","game night","a sleepover"],a:[["🍿","Crunchy snack"],["🍕","Meal"],["🍫","Sweet"],["🥤","Drink"]]}
 ],
 travel:[
 {stem:"For a {{t}}, what do you care about most?",topics:["road trip","flight","hotel stay","beach trip","city trip"],a:[["📶","Wi-Fi"],["🍿","Snacks"],["🎵","Entertainment"],["😴","Comfort"]]},
 {stem:"Which part of {{t}} sounds best?",topics:["a vacation","a weekend trip","a theme-park day","a city day","a beach day"],a:[["🎟️","Activities"],["🍽️","Food"],["📸","Photos"],["😌","Downtime"]]},
 {stem:"For {{t}}, what would you pack first?",topics:["a flight","a road trip","a weekend away","camp","a beach day"],a:[["📱","Tech"],["👕","Clothes"],["🍿","Snacks"],["🎧","Entertainment"]]},
-{stem:"Best travel extra for {{t}}?",topics:["a hotel","a road trip","a flight","a resort","a cabin"],a:[["🏊","Pool"],["🍳","Breakfast"],["📶","Wi-Fi"],["🎮","Entertainment"]]}
+{stem:"Which extra would improve your experience of {{t}}?",topics:["a hotel stay","a road trip","a flight","a resort stay","a cabin getaway"],a:[["💺","A comfy seat"],["🍿","Favorite snacks"],["📶","Wi-Fi"],["🎮","Games to play"]]}
 ],
 nostalgia:[
 {stem:"What makes a throwback {{t}} feel coolest?",topics:["game","phone","camera","music player","TV setup"],a:[["⭐","Classic design"],["😂","The weirdness"],["📦","Physical controls"],["🎵","Iconic vibe"]]},
@@ -1176,7 +1176,7 @@ friends:[
 family:[
 {stem:"For family {{t}}, which thing helps most?",topics:["mornings","travel","dinner","holidays","weekends"],a:[["📋","Plan"],["🤝","Teamwork"],["⏰","Enough time"],["😂","Good humor"]]},
 {stem:"What makes family {{t}} worth it?",topics:["vacations","celebrations","meals out","game nights","day trips"],a:[["👥","Togetherness"],["📸","Memories"],["🍽️","Food"],["🎉","Fun"]]},
-{stem:"Which family task around {{t}} would you simplify?",topics:["meals","laundry","schedules","errands","packing"],a:[["🤖","Automate it"],["🤝","Share it"],["📋","Plan it"],["💰","Outsource it"]]},
+{stem:"How would you make family tasks around {{t}} easier?",topics:["meals","laundry","schedules","errands","packing"],a:[["🤖","Use a helpful gadget"],["🤝","Work together"],["📋","Make a plan"],["🎵","Make it a game"]]},
 {stem:"Best family reset after {{t}}?",topics:["a long day","travel","company","a busy weekend","a holiday"],a:[["🍽️","Easy food"],["📺","Watch something"],["😴","Rest"],["🧹","Quick cleanup"]]}
 ],
 chaos:[
@@ -1193,13 +1193,13 @@ food:[
 ],
 travel:[
 {stem:"For {{t}}, what is the top priority?",topics:["a hotel","a road trip","a flight","a beach trip","a city trip"],a:[["😌","Comfort"],["💰","Cost"],["🍽️","Food"],["📍","Location"]]},
-{stem:"Which part of {{t}} do you enjoy most?",topics:["travel day","hotel morning","vacation afternoon","road-trip evening","last day"],a:[["🍽️","Food"],["📸","Seeing things"],["😌","Relaxing"],["👥","Being together"]]},
+{stem:"What do you enjoy most about a {{t}}?",topics:["travel day","hotel morning","vacation afternoon","road-trip evening","last day"],a:[["🍽️","Food"],["📸","Seeing things"],["😌","Relaxing"],["👥","Being together"]]},
 {stem:"What would make {{t}} easier?",topics:["packing","flying","driving","hotel stays","day trips"],a:[["📋","Better plan"],["🧳","Less stuff"],["⏰","More time"],["💰","More budget"]]},
 {stem:"For {{t}}, which style fits the group?",topics:["sightseeing","meals","daily schedule","stops","activities"],a:[["📋","Planned"],["⚖️","Balanced"],["🌊","Flexible"],["🎲","Spontaneous"]]}
 ],
 nostalgia:[
-{stem:"Which old-school {{t}} feels most memorable?",topics:["music","TV","gaming","school","shopping"],a:[["🎵","Sounds"],["📦","Physical stuff"],["👥","People"],["😌","Slower pace"]]},
-{stem:"Which childhood {{t}} would you revisit for a day?",topics:["weekend","summer","birthday","school day","holiday"],a:[["👥","People"],["🍽️","Food"],["🎮","Activities"],["✨","The feeling"]]},
+{stem:"What feels most memorable about {{t}} from the past?",topics:["music","TV","gaming","school","shopping"],a:[["🎵","Sounds"],["📦","Physical stuff"],["👥","People"],["😌","Slower pace"]]},
+{stem:"What would you most like to revisit from a childhood {{t}}?",topics:["weekend","summer","birthday","school day","holiday"],a:[["👥","People"],["🍽️","Food"],["🎮","Activities"],["✨","The feeling"]]},
 {stem:"Why would you show a throwback {{t}} to younger kids?",topics:["phone","camera","game console","music player","movie setup"],a:[["😂","For laughs"],["📚","To explain it"],["🎮","To use it"],["📸","For the vibe"]]},
 {stem:"What changed most about {{t}}?",topics:["road trips","movie nights","school","shopping","music"],a:[["📱","Technology"],["⚡","Speed"],["👥","How people connect"],["💰","Cost"]]}
 ],
@@ -1221,6 +1221,10 @@ Object.keys(REPLAY_EXPANSION_AUDIENCE).forEach(function(aud){
   })
 });
 
+
+function answerPattern(q){return q.a.map(function(a){return a[1].toLowerCase()}).sort().join("|")}
+var RETIRED_QUESTION_IDS=[];
+(function(){var groups={};QUESTIONS.forEach(function(q){var key=(q.aud||["everyone"]).join(",")+"|"+answerPattern(q),words=new Set(q.q.toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(Boolean)),rows=groups[key]||[];var duplicate=rows.some(function(r){var common=Array.from(words).filter(function(w){return r.has(w)}).length;return common/Math.max(words.size,r.size)>=0.8});if(duplicate){q.retired=true;RETIRED_QUESTION_IDS.push(q.id)}else{rows.push(words);groups[key]=rows}})})();
 
 function auditQuestionBank(){
   var issues=[];
@@ -1282,36 +1286,37 @@ function hashText(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeA
 function seededFromPool(seed,pool,count){pool=uniqueQuestions((pool||[]).slice());var out=[],x=hashText(seed);while(out.length<count&&pool.length){x=(Math.imul(x,1664525)+1013904223)>>>0;var idx=x%pool.length;out.push(pool.splice(idx,1)[0])}return out}
 function seededFive(seed){return seededFromPool(seed,QUESTIONS,5)}
 function uniqueQuestions(items){var seen=new Set();return items.filter(function(q){if(!q||seen.has(q.id))return false;seen.add(q.id);return true})}
-function recentQuestionIds(audience){audience=audience||((state&&state.audience)||rememberedAudience());try{var ids=JSON.parse(localStorage.getItem("same_brain_recent_questions:"+audience)||"[]");if(!Array.isArray(ids)&&audience==="everyone")ids=JSON.parse(localStorage.getItem("same_brain_recent_questions")||"[]");return Array.isArray(ids)?ids.slice(0,audience==="everyone"?300:140):[]}catch(_){return []}}
+function recentQuestionIds(audience){audience=audience||((state&&state.audience)||rememberedAudience());try{var raw=localStorage.getItem("same_brain_recent_questions:"+audience);var ids=JSON.parse(raw||"null");if(!Array.isArray(ids)&&audience==="everyone")ids=JSON.parse(localStorage.getItem("same_brain_recent_questions")||"[]");return Array.isArray(ids)?ids.slice(0,audience==="everyone"?300:140):[]}catch(_){return []}}
 function rememberQuestions(ids){var audience=(state&&state.audience)||rememberedAudience();try{var recent=recentQuestionIds(audience),merged=[];(ids||[]).concat(recent).forEach(function(id){if(id&&merged.indexOf(id)<0)merged.push(id)});localStorage.setItem("same_brain_recent_questions:"+audience,JSON.stringify(merged.slice(0,audience==="everyone"?300:140)))}catch(_){}}
 function dailyCompleted(){var a=(state&&state.audience)||rememberedAudience();try{if(a!=="everyone")return localStorage.getItem("same_brain_daily_date:"+a)===dailyKey()}catch(_){}var p=state.profile||{};if(p.lastDailyDate===dailyKey())return true;try{return localStorage.getItem("same_brain_daily_date")===dailyKey()}catch(_){return false}}
 function rememberedAudience(){try{var a=localStorage.getItem("same_brain_audience")||"everyone";return ["kids","tween","mixed","everyone"].indexOf(a)>=0?a:"everyone"}catch(_){return "everyone"}}
-function audiencePool(items,audience){audience=audience||"everyone";if(audience==="everyone")return items.slice();return items.filter(function(q){return Array.isArray(q.aud)&&q.aud.indexOf(audience)>=0})}
+function audiencePool(items,audience){audience=audience||"everyone";if(audience==="everyone")return items.filter(function(q){return !q.retired&&!(q.tags||[]).includes("custom")});return items.filter(function(q){return !q.retired&&!(q.tags||[]).includes("custom")&&Array.isArray(q.aud)&&q.aud.indexOf(audience)>=0})}
 function renderAudience(){
   var a=state.audience||rememberedAudience(),notes={kids:"Same Brain Jr. · simple, kid-relatable questions.",tween:"Tween/Teen · school, friends, tech, food, hobbies, and fun choices.",mixed:"Mixed Ages · questions kids and adults can answer together.",everyone:"Everyone · full question bank."};
   document.querySelectorAll(".audience-btn").forEach(function(b){b.classList.toggle("active",b.dataset.audience===a)});
   document.querySelectorAll(".adult-pack").forEach(function(b){b.classList.toggle("hidden",a!=="everyone")});
+  var groupPack=document.getElementById("group-pack");if(groupPack){Array.from(groupPack.options).forEach(function(o){o.disabled=a!=="everyone"&&(o.value==="couples"||o.value==="work");o.hidden=o.disabled});if(groupPack.selectedOptions[0]&&groupPack.selectedOptions[0].disabled)groupPack.value="daily"}
   var n=document.getElementById("audience-note");if(n)n.textContent=notes[a]||notes.everyone
 }
-function questionSet(pack){var aud=state.audience||rememberedAudience(),audAll=audiencePool(QUESTIONS,aud),wanted=state.count||5,recent=recentQuestionIds(aud);if(aud!=="everyone"&&audAll.length<wanted)audAll=QUESTIONS.slice();
+function questionSet(pack){var aud=state.audience||rememberedAudience(),audAll=audiencePool(QUESTIONS,aud),wanted=state.count||5,recent=recentQuestionIds(aud);
   if(pack==="daily"){return seededFromPool(dailyKey()+"|"+aud,audAll,wanted)}
-  function unseenFirst(pool){pool=uniqueQuestions(pool||[]);var fresh=pool.filter(function(q){return recent.indexOf(q.id)<0});if(fresh.length<wanted)fresh=pool;return shuffled(fresh).slice(0,wanted)}
+  function unseenFirst(pool){pool=uniqueQuestions(pool||[]);var fresh=pool.filter(function(q){return recent.indexOf(q.id)<0});var recentPatterns=new Set(QUESTIONS.filter(function(q){return recent.indexOf(q.id)>=0}).map(answerPattern)),randomized=shuffled(fresh),candidates=randomized.filter(function(q){return !recentPatterns.has(answerPattern(q))}).concat(randomized.filter(function(q){return recentPatterns.has(answerPattern(q))})),patterns=new Set(),diverse=[],rest=[];candidates.forEach(function(q){var key=answerPattern(q);if(patterns.has(key))rest.push(q);else{patterns.add(key);diverse.push(q)}});var chosen=diverse.concat(rest).slice(0,wanted);if(chosen.length<wanted){var seen=pool.filter(function(q){return recent.indexOf(q.id)>=0}).sort(function(a,b){return recent.indexOf(b.id)-recent.indexOf(a.id)});chosen=chosen.concat(seen.slice(0,wanted-chosen.length))}return chosen}
   if(pack==="random")return unseenFirst(audAll);
   var deck=EXTRA_DECKS.find(function(d){return d.key===pack});
   if(deck){
     var deckIds=[],deckTags=[];deck.sources.forEach(function(src){deckIds=deckIds.concat(PACKS[src]||[]);deckTags=deckTags.concat(PACK_TAGS[src]||[src])});
     deckIds=Array.from(new Set(deckIds));deckTags=Array.from(new Set(deckTags));
     var deckPool=audiencePool(QUESTIONS.filter(function(q){return deckIds.indexOf(q.id)>=0||(q.tags||[]).some(function(t){return deckTags.indexOf(t)>=0})}),aud);
-    if(deckPool.length>=wanted)return unseenFirst(deckPool);
+    if(deckPool.length>=wanted*2)return unseenFirst(deckPool);
   }
   var ids=Array.from(new Set(PACKS[pack]||[])),tags=PACK_TAGS[pack]||[pack];
   var pool=(ids.length||tags.length)?audiencePool(QUESTIONS.filter(function(q){return ids.indexOf(q.id)>=0||(q.tags||[]).some(function(t){return tags.indexOf(t)>=0})}),aud):audAll;
-  if(pool.length<wanted)pool=audAll;
+  if(pool.length<wanted*2)pool=audAll;
   return unseenFirst(pool);
 }
 
 function dailyKey(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
-function dailyNumber(){return Math.floor((new Date(dailyKey()+"T00:00:00")-new Date("2026-01-01T00:00:00"))/86400000)+1}
+function dailyNumber(){return Math.floor((Date.parse(dailyKey()+"T00:00:00Z")-Date.parse("2026-01-01T00:00:00Z"))/86400000)+1}
 function dailyTitle(){var day=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()],a=(state&&state.audience)||rememberedAudience(),label={kids:"Kids",tween:"Tween/Teen",mixed:"Family"}[a]||"";return day+(label?" "+label:"")+" Brain #"+dailyNumber()}
 var state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:"random",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",creatorCode:"",creatorKey:"",shortCode:"",runId:"",togetherCode:"",togetherPlayerId:"",audience:rememberedAudience(),count:5,profile:{plus:false,bits:0,unlocks:[]}};
 var COSMETIC_META={
@@ -1320,15 +1325,20 @@ var COSMETIC_META={
  theme_sunset:{name:"Sunset Card",cost:120,type:"theme"},theme_arcade:{name:"Arcade Card",cost:140,type:"theme"}
 };
 function creatorChallenges(){try{var rows=JSON.parse(localStorage.getItem("same_brain_creator_challenges")||"[]");return Array.isArray(rows)?rows:[]}catch(_){return []}}
-function saveCreatorChallenge(code,key,payload){if(!code)return;try{var rows=creatorChallenges().filter(function(r){return r&&r.code!==code});rows.unshift({code:code,key:key,name:payload&&payload.n||"You",createdAt:Date.now(),seenCount:0});localStorage.setItem("same_brain_creator_challenges",JSON.stringify(rows.slice(0,20)))}catch(_){}}
+function saveCreatorChallenge(code,key,payload,runId){if(!code)return;try{var rows=creatorChallenges().filter(function(r){return r&&r.code!==code});rows.unshift({code:code,key:key,name:payload&&payload.n||"You",createdAt:Date.now(),runId:runId||state.runId,seenCount:0});localStorage.setItem("same_brain_creator_challenges",JSON.stringify(rows.slice(0,20)))}catch(_){}}
 function updateCreatorSeen(code,count){try{var rows=creatorChallenges();rows.forEach(function(r){if(r.code===code)r.seenCount=count});localStorage.setItem("same_brain_creator_challenges",JSON.stringify(rows))}catch(_){}}
 function localChoice(key,fallback){try{return localStorage.getItem(key)||fallback}catch(_){return fallback}}
 function saveChoice(key,value){try{localStorage.setItem(key,value)}catch(_){}}
 
 var screens=["home","name","question","share","invite","waiting","result"];
 function newRunId(){return (window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():"run_"+Date.now()+"_"+Math.random().toString(36).slice(2)}
-function track(event,extra){try{var cfg=window.__GAMES_SYNC_CONFIG__||{};if(!cfg.csrfToken)return;extra=extra||{};var body={event:event,pack:state.pack||"unknown",runId:state.runId||"",audience:state.audience||rememberedAudience()};if(extra.questionId)body.questionId=String(extra.questionId).slice(0,64);if(Number.isFinite(extra.elapsedMs))body.elapsedMs=Math.max(0,Math.min(120000,Math.round(extra.elapsedMs)));if(extra.sourceCode)body.sourceCode=String(extra.sourceCode).toUpperCase().slice(0,12);fetch(serviceBase()+"/analytics",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":cfg.csrfToken},body:JSON.stringify(body),keepalive:true,credentials:"same-origin"}).catch(function(){})}catch(_){}}
-function show(name){screens.forEach(function(s){document.getElementById("screen-"+s).classList.toggle("hidden",s!==name)});window.scrollTo({top:0,behavior:"smooth"})}
+function track(event,extra){try{var cfg=window.__GAMES_SYNC_CONFIG__||{};if(!cfg.csrfToken)return;extra=extra||{};var body={event:event,pack:extra.pack||state.pack||"unknown",runId:extra.runId||state.runId||"",audience:extra.audience||state.audience||rememberedAudience()};if(extra.questionId)body.questionId=String(extra.questionId).slice(0,64);if(Number.isFinite(extra.elapsedMs))body.elapsedMs=Math.max(0,Math.min(120000,Math.round(extra.elapsedMs)));if(extra.sourceCode)body.sourceCode=String(extra.sourceCode).toUpperCase().slice(0,12);fetch(serviceBase()+"/analytics",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":cfg.csrfToken},body:JSON.stringify(body),keepalive:true,credentials:"same-origin"}).catch(function(){})}catch(_){}}
+function show(name){state.screen=name;if(name!=="question"&&typeof stopNarration==="function")stopNarration();if(name!=="waiting"&&togetherPollTimer){clearTimeout(togetherPollTimer);togetherPollTimer=null}saveRun(name);screens.forEach(function(s){document.getElementById("screen-"+s).classList.toggle("hidden",s!==name)});window.scrollTo({top:0,behavior:"smooth"})}
+// Keep one recoverable run per tab; private room credentials remain on this device.
+function saveRun(screen){try{var snapshot=Object.assign({},state);delete snapshot.profile;delete snapshot.submitting;sessionStorage.setItem("same_brain_active",JSON.stringify({at:Date.now(),url:location.pathname+location.search,screen:screen||state.screen,state:snapshot,custom:customDefsFor(state.questionIds||[])}))}catch(_){}}
+function restoreRun(){try{var saved=JSON.parse(sessionStorage.getItem("same_brain_active")||"null");if(!saved||Date.now()-saved.at>86400000)return false;var r=saved.state,params=new URLSearchParams(location.search),code=params.get("t")||params.get("s")||params.get("g");if(params.get("c")&&saved.url!==location.pathname+location.search)return false;if(code&&code!==r.togetherCode&&code!==r.shortCode&&code!==r.groupCode)return false;hydrateCustomQuestions({x:saved.custom});if(!r.questionIds||!r.questionIds.length||!r.questionIds.every(qById)||!Array.isArray(r.answers)||r.answers.some(function(a,i){return !Number.isInteger(a)||a<0||a>=qById(r.questionIds[i]).a.length}))return false;var profile=state.profile;state=Object.assign(r,{profile:profile});if(saved.screen==="question"){if(state.answers.length===state.questionIds.length)finishQuestions();else renderQuestion();return true}if(saved.screen==="share"&&state.groupCode&&state.groupResultKey){loadGroupResults(state.groupCode,state.groupResultKey).catch(function(){show("home")});return true}if(saved.screen==="waiting"&&state.togetherCode){loadTogether(state.togetherCode);return true}if(saved.screen==="result"){if(state.mode==="creator_result_detail")return false;if(state.groupCode&&state.groupResultKey)loadGroupResults(state.groupCode,state.groupResultKey);else if(state.creator)renderResult();else return false;return true}if(saved.screen==="share"&&state.creatorCode){document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("challenge-code-line").textContent="CODE: "+state.creatorCode;document.getElementById("challenge-code-line").classList.remove("hidden");show("share");refreshCurrentCreatorResponses();return true}return false}catch(_){return false}}
+function retrySubmission(){var b=document.getElementById("retry-submit");if(b)b.classList.remove("hidden")}
+document.getElementById("home-button").addEventListener("click",function(){history.replaceState(null,"",location.pathname);state={mode:"creator",questionIds:[],answers:[],profile:state.profile,audience:state.audience,count:5,runId:newRunId()};show("home");renderProfile()});
 function cleanName(v){return String(v||"").replace(/\s+/g," ").trim().slice(0,20)}
 function rememberedName(){try{return cleanName(localStorage.getItem("same_brain_last_name")||"")}catch(_){return ""}}
 function rememberName(name){try{if(name)localStorage.setItem("same_brain_last_name",cleanName(name))}catch(_){}}
@@ -1365,7 +1375,7 @@ function renderProfile(){
 }
 async function awardBits(event,eventId,dateKey){
   if(isPublic()){
-    if(event==="daily_complete"){try{var today=dailyKey(),last=localStorage.getItem("same_brain_daily_date")||"",streak=Number(localStorage.getItem("same_brain_daily_streak")||0),best=Number(localStorage.getItem("same_brain_daily_best")||0),d=new Date(today+"T00:00:00"),y=new Date(d.getTime()-86400000).toISOString().slice(0,10);if(last!==today){streak=last===y?streak+1:1;best=Math.max(best,streak);localStorage.setItem("same_brain_daily_date",today);localStorage.setItem("same_brain_daily_streak",String(streak));localStorage.setItem("same_brain_daily_best",String(best))}state.profile.dailyStreak=streak;state.profile.dailyBest=best;state.profile.lastDailyDate=today;renderProfile()}catch(_){}}
+    if(event==="daily_complete"){try{var today=dailyKey(),last=localStorage.getItem("same_brain_daily_date")||"",streak=Number(localStorage.getItem("same_brain_daily_streak")||0),best=Number(localStorage.getItem("same_brain_daily_best")||0),d=new Date(today+"T00:00:00Z"),y=new Date(d.getTime()-86400000).toISOString().slice(0,10);if(last!==today){streak=last===y?streak+1:1;best=Math.max(best,streak);localStorage.setItem("same_brain_daily_date",today);localStorage.setItem("same_brain_daily_streak",String(streak));localStorage.setItem("same_brain_daily_best",String(best))}state.profile.dailyStreak=streak;state.profile.dailyBest=best;state.profile.lastDailyDate=today;renderProfile()}catch(_){}}
     return
   }
   try{var p=await apiJson(serviceBase()+"/points",{method:"POST",body:JSON.stringify({event:event,eventId:eventId,dateKey:dateKey||""})});state.profile.bits=p.bits;state.profile.dailyStreak=p.dailyStreak||state.profile.dailyStreak||0;state.profile.dailyBest=p.dailyBest||state.profile.dailyBest||0;state.profile.lastDailyDate=p.lastDailyDate||state.profile.lastDailyDate||"";renderProfile()}catch(_){}
@@ -1377,15 +1387,15 @@ function renderBitsProgress(){
 }
 function applyTheme(){var card=document.getElementById("share-card"),choice=localChoice("same_brain_theme_choice","classic");if(!card)return;card.classList.remove("theme-sunset","theme-arcade","theme-galaxy");if(choice==="theme_sunset"&&(state.profile.unlocks||[]).indexOf("theme_sunset")>=0)card.classList.add("theme-sunset");if(choice==="theme_arcade"&&(state.profile.unlocks||[]).indexOf("theme_arcade")>=0)card.classList.add("theme-arcade");if(choice==="plus_galaxy"&&state.profile.plus)card.classList.add("theme-galaxy")}
 function applyFrame(){var box=document.getElementById("avatar-preview");if(!box)return;var choice=localChoice("same_brain_frame_choice","none");box.classList.toggle("frame-stars",choice==="frame_stars"&&(state.profile.unlocks||[]).indexOf("frame_stars")>=0)}
-function applyAvatar(){var box=document.getElementById("avatar-preview"),saved="",selected=localChoice("same_brain_avatar_choice","brain");if(!box)return;try{saved=localStorage.getItem("same_brain_selfie_avatar")||""}catch(_){};if(selected==="selfie"&&saved){box.innerHTML='<img alt="Your local selfie avatar" src="'+saved+'">';return}var u=(state.profile&&state.profile.unlocks)||[],icons={avatar_owl:"🦉",avatar_fox:"🦊",avatar_robot:"🤖",avatar_alien:"👽",avatar_octopus:"🐙",avatar_astronaut:"🧑‍🚀"};if(icons[selected]&&u.indexOf(selected)>=0){box.textContent=icons[selected];return}if(state.profile&&state.profile.plus&&selected==="plus_crown"){box.textContent="👑";return}box.textContent="🧠"}
+function applyAvatar(){var box=document.getElementById("avatar-preview"),saved="",selected=localChoice("same_brain_avatar_choice","brain");if(!box)return;try{saved=localStorage.getItem("same_brain_selfie_avatar")||""}catch(_){};if(selected==="selfie"&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(saved)){box.innerHTML='<img alt="Your local selfie avatar" src="'+saved+'">';return}var u=(state.profile&&state.profile.unlocks)||[],icons={avatar_owl:"🦉",avatar_fox:"🦊",avatar_robot:"🤖",avatar_alien:"👽",avatar_octopus:"🐙",avatar_astronaut:"🧑‍🚀"};if(icons[selected]&&u.indexOf(selected)>=0){box.textContent=icons[selected];return}if(state.profile&&state.profile.plus&&selected==="plus_crown"){box.textContent="👑";return}box.textContent="🧠"}
 function renderCosmetics(){
   var unlocks=(state.profile&&state.profile.unlocks)||[],avatar=localChoice("same_brain_avatar_choice","brain"),frame=localChoice("same_brain_frame_choice","none"),theme=localChoice("same_brain_theme_choice","classic");
   document.querySelectorAll(".shop-item").forEach(function(btn){btn.classList.remove("owned","equipped");var status=btn.querySelector("small.status"),item=btn.dataset.buy;
     if(btn.dataset.equipAvatar==="brain"){btn.classList.add("owned");if(avatar==="brain")btn.classList.add("equipped");if(status)status.textContent=avatar==="brain"?"Equipped ✓":"Owned · Equip";return}
     if(btn.dataset.equipFrame==="none"){btn.classList.add("owned");if(frame==="none")btn.classList.add("equipped");if(status)status.textContent=frame==="none"?"Equipped ✓":"Owned · Equip";return}
     if(btn.dataset.equipTheme==="classic"){btn.classList.add("owned");if(theme==="classic")btn.classList.add("equipped");if(status)status.textContent=theme==="classic"?"Equipped ✓":"Owned · Equip";return}
-    if(btn.dataset.plusAvatar){if(state.profile.plus)btn.classList.add("owned");if(avatar===btn.dataset.plusAvatar)btn.classList.add("equipped");if(status)status.textContent=avatar===btn.dataset.plusAvatar?"Equipped ✓":(state.profile.plus?"Owned · Equip":"Plus exclusive");return}
-    if(btn.dataset.plusTheme){if(state.profile.plus)btn.classList.add("owned");if(theme===btn.dataset.plusTheme)btn.classList.add("equipped");if(status)status.textContent=theme===btn.dataset.plusTheme?"Equipped ✓":(state.profile.plus?"Owned · Equip":"Plus exclusive");return}
+    if(btn.dataset.plusAvatar){if(state.profile.plus)btn.classList.add("owned");if(state.profile.plus&&avatar===btn.dataset.plusAvatar)btn.classList.add("equipped");if(status)status.textContent=state.profile.plus&&avatar===btn.dataset.plusAvatar?"Equipped ✓":(state.profile.plus?"Owned · Equip":"Plus exclusive");return}
+    if(btn.dataset.plusTheme){if(state.profile.plus)btn.classList.add("owned");if(state.profile.plus&&theme===btn.dataset.plusTheme)btn.classList.add("equipped");if(status)status.textContent=state.profile.plus&&theme===btn.dataset.plusTheme?"Equipped ✓":(state.profile.plus?"Owned · Equip":"Plus exclusive");return}
     if(item){var owned=unlocks.indexOf(item)>=0,meta=COSMETIC_META[item];if(owned)btn.classList.add("owned");var equipped=(meta&&meta.type==="avatar"&&avatar===item)||(meta&&meta.type==="frame"&&frame===item)||(meta&&meta.type==="theme"&&theme===item);if(equipped)btn.classList.add("equipped");if(status)status.textContent=equipped?"Equipped ✓":owned?"Owned · Equip":((meta&&meta.cost)||"")+" Bits"}
   })
 }
@@ -1393,13 +1403,14 @@ function isPublic(){return !!window.__SAME_BRAIN_PUBLIC__}
 function serviceBase(){return isPublic()?"/same-brain":"/labs/games/same-brain"}
 function shareBase(){return location.origin+"/same-brain"}
 async function makeShortChallengeUrl(payload,rememberCreator){
+  var creatingRun=state;
   if(rememberCreator===undefined)rememberCreator=true;
   var lastError=null;
   for(var attempt=0;attempt<(rememberCreator?3:1);attempt++){
     try{
       var data=await apiJson("/same-brain/challenge",{method:"POST",body:JSON.stringify(payload)});
       if(data&&data.code){
-        if(rememberCreator){state.creatorCode=data.code;state.creatorKey=data.creatorKey||"";saveCreatorChallenge(data.code,data.creatorKey||"",payload)}
+        if(rememberCreator){creatingRun.creatorCode=data.code;creatingRun.creatorKey=data.creatorKey||"";saveCreatorChallenge(data.code,data.creatorKey||"",payload,creatingRun.runId)}
         return shareBase()+"?s="+encodeURIComponent(data.code)
       }
     }catch(e){lastError=e;if(rememberCreator)await new Promise(function(resolve){setTimeout(resolve,250*(attempt+1))})}
@@ -1417,7 +1428,7 @@ async function joinByCode(){
   if(status)status.textContent="Checking code…";
   try{await apiJson("/same-brain/challenge/"+encodeURIComponent(code),{method:"GET"});location.href=shareBase()+"?s="+encodeURIComponent(code);return}catch(e){if(e.code==="expired"){if(status)status.textContent="That challenge expired. Ask for a fresh code.";return}}
   try{await apiJson("/same-brain/together/"+encodeURIComponent(code),{method:"GET"});location.href=shareBase()+"?t="+encodeURIComponent(code);return}catch(e){if(e.code==="expired"){if(status)status.textContent="That Start Together room expired. Start a new one.";return}}
-  try{await apiJson("/labs/games/same-brain/group/"+encodeURIComponent(code),{method:"GET"});location.href="/labs/games/same-brain?g="+encodeURIComponent(code);return}catch(_){}
+  try{await apiJson("/same-brain/group/"+encodeURIComponent(code),{method:"GET"});location.href=shareBase()+"?g="+encodeURIComponent(code);return}catch(_){}
   if(status)status.textContent="I couldn’t find that code. Check the characters and try again."
 }
 
@@ -1432,7 +1443,7 @@ async function startTogether(){
     var data=await apiJson("/same-brain/together",{method:"POST",body:JSON.stringify({questionIds:qids,pack:"random",audience:audience})});
     var code=data.code,url=togetherUrl(code);
     state={mode:"together_player",name:"",questionIds:qids,answers:[],creator:null,challengeUrl:url,pack:data.pack||"random",runId:newRunId(),togetherCode:code,togetherPlayerId:togetherPlayerId(code),audience:data.audience||audience,count:5,profile:profile};
-    track("together_created");
+    history.replaceState(null,"",togetherUrl(code));saveRun("name");track("together_created");
     var tline=document.getElementById("together-code-line");if(tline)tline.textContent="CODE: "+code;
     await shareText("Start Same Brain with me 🧠 — we’ll answer the same 5 at the same time. Code: "+code,url);
     document.getElementById("name-heading").textContent="What should we call you?";
@@ -1441,7 +1452,7 @@ async function startTogether(){
 }
 async function loadTogether(code){
   var data=await apiJson("/same-brain/together/"+encodeURIComponent(code),{method:"GET"}),profile=state.profile||{plus:false,bits:0,unlocks:[]},pid=togetherPlayerId(data.code);
-  state={mode:"together_player",name:"",questionIds:data.questionIds||[],answers:[],creator:null,challengeUrl:togetherUrl(data.code),pack:data.pack||"random",runId:newRunId(),togetherCode:data.code,togetherPlayerId:pid,audience:data.audience||"everyone",count:5,profile:profile};track("together_opened");
+  state={mode:"together_player",name:"",questionIds:data.questionIds||[],answers:[],creator:null,challengeUrl:togetherUrl(data.code),pack:data.pack||"random",runId:state.togetherCode===data.code&&state.runId?state.runId:newRunId(),togetherCode:data.code,togetherPlayerId:pid,audience:data.audience||"everyone",count:5,profile:profile};track("together_opened");
   try{
     var prior=await apiJson("/same-brain/together/"+encodeURIComponent(data.code)+"/result?playerId="+encodeURIComponent(pid),{method:"GET"});
     if(prior.ready){renderTogetherResult(prior);return}
@@ -1466,14 +1477,16 @@ function renderTogetherResult(data){
   track("together_completed");renderResult()
 }
 async function pollTogetherResult(){
+  var pollingState=state;if(togetherPollTimer)clearTimeout(togetherPollTimer);
   if(!state.togetherCode||!state.togetherPlayerId)return;
-  try{var data=await apiJson("/same-brain/together/"+encodeURIComponent(state.togetherCode)+"/result?playerId="+encodeURIComponent(state.togetherPlayerId),{method:"GET"});if(data.ready){renderTogetherResult(data);return}}catch(_){}
+  try{var data=await apiJson("/same-brain/together/"+encodeURIComponent(state.togetherCode)+"/result?playerId="+encodeURIComponent(state.togetherPlayerId),{method:"GET"});if(state!==pollingState)return;if(data.ready){renderTogetherResult(data);return}}catch(e){if(state!==pollingState)return;if(e.code==="expired"||e.code==="not_found"){show("home");document.querySelector("#screen-home .sub").textContent="This room expired. Start a fresh game.";return}}
   togetherPollTimer=setTimeout(pollTogetherResult,2500)
 }
 async function submitTogether(){
+  var submittingRun=state;
   try{
     var data=await apiJson("/same-brain/together/"+encodeURIComponent(state.togetherCode)+"/answer",{method:"POST",body:JSON.stringify({name:state.name,playerId:state.togetherPlayerId,answers:state.answers})});
-    track("together_joined");
+    if(state!==submittingRun)return;track("together_joined");
     if(data.ready){renderTogetherResult(data);return}
     track("together_first_finished");document.getElementById("together-link").textContent=togetherUrl(state.togetherCode);var tline=document.getElementById("together-code-line");if(tline)tline.textContent="CODE: "+state.togetherCode;show("waiting");pollTogetherResult()
   }catch(e){alert(e.code==="full"?"That together game already has two players.":"Couldn’t submit your answers yet. Please try again.")}
@@ -1482,8 +1495,9 @@ function startGroupCreator(){var pack=(document.getElementById("group-pack")||{}
 async function loadGroup(code){
   var storedKey="";try{storedKey=localStorage.getItem("same_brain_group_result_key:"+String(code).toUpperCase())||""}catch(_){}
   if(storedKey){try{return await loadGroupResults(code,storedKey)}catch(_){}}
-  var data=await apiJson("/labs/games/same-brain/group/"+encodeURIComponent(code),{method:"GET"});
-  state={mode:"group_invite",name:"",questionIds:data.questionIds||[],answers:[],creator:null,challengeUrl:location.href,pack:data.pack||"group",score:0,brainType:"",groupCode:data.code,groupData:data,groupResultKey:"",count:(data.questionIds||[]).length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};
+  var data=await apiJson("/same-brain/group/"+encodeURIComponent(code),{method:"GET"});
+  state={mode:"group_invite",name:"",questionIds:data.questionIds||[],answers:[],creator:null,challengeUrl:location.href,pack:data.pack||"group",score:0,brainType:"",groupCode:data.code,groupData:data,groupResultKey:"",runId:newRunId(),audience:data.audience||"everyone",count:(data.questionIds||[]).length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};
+  track("challenge_opened");
   var host=data.hostName||"A friend";
   document.getElementById("invite-heading").textContent=host+" started a Group Brain.";
   document.getElementById("invite-copy").textContent=data.playerCount+" of "+data.maxPlayers+" people have answered. You can play now even if everyone else joins later.";
@@ -1492,13 +1506,16 @@ async function loadGroup(code){
   show("invite");
 }
 async function loadGroupResults(code,key){
-  var data=await apiJson("/labs/games/same-brain/group/"+encodeURIComponent(code)+"/results?key="+encodeURIComponent(key),{method:"GET"});
-  state.groupCode=data.code;state.groupData=data;state.groupResultKey=key;state.pack=data.pack||"group";state.challengeUrl=location.origin+location.pathname+"?g="+encodeURIComponent(data.code);
+  var loadingRun=state;
+  var data=await apiJson("/same-brain/group/"+encodeURIComponent(code)+"/results?key="+encodeURIComponent(key),{method:"GET"});
+  if(state!==loadingRun)return data;state.mode="group_result";state.questionIds=data.questionIds;state.groupCode=data.code;state.groupData=data;state.audience=data.audience||"everyone";state.groupResultKey=key;state.pack=data.pack||"group";state.challengeUrl=shareBase()+"?g="+encodeURIComponent(data.code);
+  var creatorRun=localChoice("same_brain_group_creator_run:"+data.code,"");if(creatorRun&&(data.players||[]).length>1)track("creator_result_opened",{runId:creatorRun});
   renderGroupResult(data);return data;
 }
 async function createGroup(){
-  var data=await apiJson("/labs/games/same-brain/group",{method:"POST",body:JSON.stringify({name:state.name,questionIds:state.questionIds,answers:state.answers,pack:state.pack})});
-  state.groupCode=data.code;state.groupData=data;state.groupResultKey=data.resultKey||"";state.challengeUrl=location.origin+location.pathname+"?g="+encodeURIComponent(data.code);try{if(state.groupResultKey)localStorage.setItem("same_brain_group_result_key:"+data.code,state.groupResultKey)}catch(_){}
+  var creatingRun=state;
+  var data=await apiJson("/same-brain/group",{method:"POST",body:JSON.stringify({name:state.name,questionIds:state.questionIds,answers:state.answers,pack:state.pack,audience:state.audience||"everyone"})});
+  if(state!==creatingRun)return;state.groupCode=data.code;state.groupData=data;state.groupResultKey=data.resultKey||"";state.challengeUrl=shareBase()+"?g="+encodeURIComponent(data.code);saveChoice("same_brain_group_creator_run:"+data.code,state.runId);try{if(state.groupResultKey)localStorage.setItem("same_brain_group_result_key:"+data.code,state.groupResultKey)}catch(_){}
   document.getElementById("challenge-link").textContent=state.challengeUrl;var codeLine=document.getElementById("challenge-code-line");if(codeLine){codeLine.textContent="CODE: "+data.code;codeLine.classList.remove("hidden")}
   document.querySelector("#screen-share .kicker").textContent="Group challenge created";
   document.querySelector("#screen-share .question").textContent="Now build your Group Brain.";
@@ -1508,8 +1525,10 @@ async function createGroup(){
   track("challenge_created");show("share");
 }
 async function joinGroup(){
-  var data=await apiJson("/labs/games/same-brain/group/"+encodeURIComponent(state.groupCode)+"/join",{method:"POST",body:JSON.stringify({name:state.name,questionIds:state.questionIds,answers:state.answers})});
-  state.groupData=data;renderGroupResult(data);
+  var joiningRun=state;
+  var playerKey=localChoice("same_brain_group_player:"+state.groupCode,"")||newRunId();saveChoice("same_brain_group_player:"+state.groupCode,playerKey);
+  var data=await apiJson("/same-brain/group/"+encodeURIComponent(state.groupCode)+"/join",{method:"POST",body:JSON.stringify({name:state.name,questionIds:state.questionIds,answers:state.answers,playerKey:playerKey})});
+  if(state!==joiningRun)return;track("response_submitted");state.groupResultKey=playerKey;saveChoice("same_brain_group_result_key:"+state.groupCode,playerKey);state.groupData=data;renderGroupResult(data);
 }
 function groupMath(data){
   var players=data.players||[],n=players.length,questions=[];
@@ -1524,6 +1543,7 @@ function groupMath(data){
   return {players:players,n:n,questions:questions,overall:overall,aligned:aligned};
 }
 function renderGroupResult(data){
+  document.getElementById("rematch-btn").classList.add("hidden");state.groupData=data;
   document.getElementById("result-next").classList.add("hidden");var g=groupMath(data),qRows="";
   g.questions.forEach(function(stat,i){
     var q=qById(data.questionIds[i]);if(!q)return;
@@ -1543,14 +1563,14 @@ function renderGroupResult(data){
   applyTheme();document.getElementById("share-card").classList.add("hidden");document.getElementById("share-card").innerHTML='<div style="font-weight:800;opacity:.85">GROUP BRAIN</div><div class="big">'+g.overall+'% CONSENSUS</div><div class="pill">'+g.n+' of '+data.maxPlayers+' answered</div>';
   var extra='<div class="group-summary"><div class="group-stat"><span>Players</span><strong>'+g.n+'/'+data.maxPlayers+'</strong></div><div class="group-stat"><span>Most aligned</span><strong>'+esc(topTies.map(function(x){return x.name}).join(" & ")||"—")+'</strong></div></div><div class="group-players">'+g.players.map(function(p){return '<span class="group-player">'+esc(p.name)+'</span>'}).join("")+'</div>';
   document.getElementById("compare").innerHTML=extra+qRows;
-  state.score=g.overall;state.brainType="Group Brain";track("result_completed");awardBits("group_complete","group-"+data.code+"-"+state.name);show("result");
+  state.score=g.overall;state.brainType="Group Brain";if(!state.completionRecorded){track("result_completed");state.completionRecorded=true;awardBits("group_complete","group-"+data.code+"-"+state.name)}show("result");
 }
-function startCreator(pack){pack=pack||"random";var count=state.count||5,profile=state.profile||{plus:false,bits:0,unlocks:[]},audience=state.audience||rememberedAudience();state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:pack,score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",runId:newRunId(),audience:audience,count:count,profile:profile};state.questionIds=questionSet(pack).map(function(q){return q.id});track("start");document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value=rememberedName();show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)}
+function startCreator(pack){history.replaceState(null,"",location.pathname);pack=pack||"random";var count=state.count||5,profile=state.profile||{plus:false,bits:0,unlocks:[]},audience=state.audience||rememberedAudience();state={mode:"creator",name:"",questionIds:[],answers:[],creator:null,challengeUrl:"",pack:pack,score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",runId:newRunId(),audience:audience,count:count,profile:profile};state.questionIds=questionSet(pack).map(function(q){return q.id});if(pack==="daily"){state.replayDailyKey=dailyKey();state.replayDailyLabel=dailyTitle()}track("start");document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value=rememberedName();show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)}
 function startLocalDemo(){state.count=5;startCreator("random");state.localDemo=true}
-function startResponder(challenge){state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",shortCode:challenge._shortCode||"",runId:newRunId(),audience:challenge.u||state.audience||rememberedAudience(),count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened",{sourceCode:challenge.r||""});document.getElementById("invite-heading").textContent=challenge.rm?(challenge.n+" wants a rematch."):"How well do you match "+challenge.n+"?";var invite=challenge.rm?("Fresh questions. "+challenge.n+" already answered these "+challenge.q.length+". See if you can beat your last match."):challenge.n+" already answered these "+challenge.q.length+". Pick yours, then see exactly where you match.";if(challenge.d)invite=challenge.d+" · "+invite;if(challenge.h&&Number.isFinite(Number(challenge.h.s)))invite+=" The last match was "+challenge.h.s+"%. Can you beat it?";document.getElementById("invite-copy").textContent=invite;document.getElementById("accept-btn").textContent=challenge.rm?"Play the rematch":"Answer the same "+challenge.q.length;show("invite")}
+function startResponder(challenge){document.getElementById("accept-btn").disabled=false;state={mode:"responder",name:"",questionIds:challenge.q,answers:[],creator:challenge,challengeUrl:location.href,pack:challenge.p||"shared",shortCode:challenge._shortCode||"",runId:newRunId(),audience:challenge.u||state.audience||rememberedAudience(),count:challenge.q.length,profile:state.profile||{plus:false,bits:0,unlocks:[]}};track("challenge_opened",{sourceCode:challenge.r||""});document.getElementById("invite-heading").textContent=challenge.rm?(challenge.n+" wants a rematch."):"How well do you match "+challenge.n+"?";var invite=challenge.rm?("Fresh questions. "+challenge.n+" already answered these "+challenge.q.length+". See if you can beat your last match."):challenge.n+" already answered these "+challenge.q.length+". Pick yours, then see exactly where you match.";if(challenge.d)invite=challenge.d+" · "+invite;if(challenge.h&&Number.isFinite(Number(challenge.h.s)))invite+=" The last match was "+challenge.h.s+"%. Can you beat it?";document.getElementById("invite-copy").textContent=invite;document.getElementById("accept-btn").textContent=challenge.rm?"Play the rematch":"Answer the same "+challenge.q.length;show("invite")}
 function questionSpeech(q){var letters=["A","B","C","D"];return q.q+" "+q.a.map(function(opt,i){return (letters[i]||String(i+1))+". "+opt[1]+"."}).join(" ")}
-function renderQuestion(){if(typeof stopNarration==="function")stopNarration();var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q){finishQuestions();return}state.questionStartedAt=Date.now();state.currentQuestionId=q.id;track("question_seen",{questionId:q.id});document.getElementById("qnum").textContent="QUESTION "+(idx+1)+" OF "+state.questionIds.length;document.getElementById("progress-bar").style.width=(((idx+1)/state.questionIds.length)*100)+"%";document.getElementById("question-text").textContent=q.q;var back=document.getElementById("question-back");if(back)back.classList.toggle("hidden",idx===0);var box=document.getElementById("choices"),letters=["A","B","C","D"];box.innerHTML="";q.a.forEach(function(opt,i){var b=document.createElement("button");b.className="choice";b.type="button";b.setAttribute("aria-label",(letters[i]||String(i+1))+", "+opt[1]);b.innerHTML='<span class="choice-letter">'+(letters[i]||String(i+1))+'</span><span class="emoji">'+opt[0]+'</span><span>'+opt[1]+"</span>";b.addEventListener("click",function(){if(b.disabled)return;b.disabled=true;b.classList.add("chosen");track("question_answered",{questionId:q.id,elapsedMs:Date.now()-(state.questionStartedAt||Date.now())});state.answers.push(i);setTimeout(function(){if(state.answers.length>=state.questionIds.length)finishQuestions();else renderQuestion()},420)});box.appendChild(b)});show("question")}
-async function finishQuestions(){if(typeof stopNarration==="function")stopNarration();if(state.mode==="together_player"){await submitTogether();return}if(state.mode==="group_creator"){try{await createGroup()}catch(e){alert("Could not create the group yet. Please try again.")}return}if(state.mode==="group_responder"){try{await joinGroup()}catch(e){alert(e.code==="full"?"That group already has 8 players.":e.code==="name_taken"?"That name is already in this group.":"Could not join the group yet.")}return}if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers,p:state.pack,u:state.audience||"everyone"};if(state.rematchTarget){payload.rm=1;if(Number.isFinite(state.rematchPreviousScore))payload.h={s:state.rematchPreviousScore,a:state.rematchSelfName||state.name,b:state.rematchTarget}};var custom=customDefsFor(state.questionIds);if(custom.length)payload.x=custom;if(state.pack==="daily"){payload.d=state.replayDailyLabel||dailyTitle();payload.dk=state.replayDailyKey||dailyKey();}rememberQuestions(state.questionIds);state.lastCreatedPayload=payload;try{state.challengeUrl=await makeShortChallengeUrl(payload,true)}catch(_){alert("We couldn’t create your shareable challenge yet. Your answers are safe—please try again.");return}document.getElementById("challenge-link").textContent=state.challengeUrl;var codeLine=document.getElementById("challenge-code-line");if(codeLine&&state.creatorCode){codeLine.textContent="CODE: "+state.creatorCode;codeLine.classList.remove("hidden")}if(state.rematchTarget){document.querySelector("#screen-share .kicker").textContent="Rematch ready";document.querySelector("#screen-share .question").textContent="Send the fresh 5 to "+state.rematchTarget+".";document.querySelector("#screen-share .sub").textContent="New questions, same matchup. They can use the link or the 7-character code."}else{document.querySelector("#screen-share .kicker").textContent="Your challenge is ready";document.querySelector("#screen-share .question").textContent="Send it to a friend."}document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.remove("hidden");document.getElementById("creator-responses").classList.remove("hidden");var currentDaily=state.pack==="daily"&&(!state.replayDailyLabel||state.replayDailyLabel===dailyTitle());if(currentDaily){try{localStorage.setItem("same_brain_daily_date:"+(state.audience||"everyone"),payload.dk||dailyKey())}catch(_){}}if(payload.dk)submitDailyStats(payload.dk,state.questionIds,state.answers);awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+(payload.dk||dailyKey()):"creator-"+encode(payload).slice(0,70),currentDaily?(payload.dk||dailyKey()):"");track("challenge_created");show("share");refreshCurrentCreatorResponses()}else renderResult()}
+function renderQuestion(){var retry=document.getElementById("retry-submit");if(retry)retry.classList.add("hidden");if(typeof stopNarration==="function")stopNarration();var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q){finishQuestions();return}state.questionStartedAt=Date.now();state.currentQuestionId=q.id;rememberQuestions([q.id]);track("question_seen",{questionId:q.id});document.getElementById("qnum").textContent="QUESTION "+(idx+1)+" OF "+state.questionIds.length;document.getElementById("progress-bar").style.width=(((idx+1)/state.questionIds.length)*100)+"%";document.getElementById("question-text").textContent=q.q;var back=document.getElementById("question-back");if(back)back.classList.toggle("hidden",idx===0);var box=document.getElementById("choices"),letters=["A","B","C","D"];box.innerHTML="";q.a.forEach(function(opt,i){var b=document.createElement("button");b.className="choice";b.type="button";b.setAttribute("aria-label",(letters[i]||String(i+1))+", "+opt[1]);b.innerHTML='<span class="choice-letter">'+(letters[i]||String(i+1))+'</span><span class="emoji">'+esc(opt[0])+'</span><span>'+esc(opt[1])+"</span>";b.addEventListener("click",function(){if(b.disabled)return;Array.from(box.children).forEach(function(choice){choice.disabled=true});b.classList.add("chosen");track("question_answered",{questionId:q.id,elapsedMs:Date.now()-(state.questionStartedAt||Date.now())});state.answers.push(i);saveRun("question");var answeringRun=state,answerCount=state.answers.length;setTimeout(function(){if(state!==answeringRun||state.answers.length!==answerCount)return;if(state.answers.length>=state.questionIds.length)finishQuestions();else renderQuestion()},420)});box.appendChild(b)});show("question")}
+async function finishQuestions(){if(state.submitting)return;var finishing=state;finishing.submitting=true;try{retrySubmission();if(typeof stopNarration==="function")stopNarration();if(state.mode==="together_player"){await submitTogether();return}if(state.mode==="group_creator"){try{await createGroup()}catch(e){alert("Could not create the group yet. Please try again.")}return}if(state.mode==="group_responder"){try{await joinGroup()}catch(e){if(e.code==="name_taken"){document.getElementById("name-heading").textContent="That name is taken. Pick another.";show("name")}else alert(e.code==="full"?"That group already has 8 players.":"Could not join the group yet.")}return}if(state.mode==="creator"){var payload={v:1,n:state.name,q:state.questionIds,a:state.answers,p:state.pack,u:state.audience||"everyone"};if(state.rematchTarget){payload.rm=1;if(Number.isFinite(state.rematchPreviousScore))payload.h={s:state.rematchPreviousScore,a:state.rematchSelfName||state.name,b:state.rematchTarget}};var custom=customDefsFor(state.questionIds);if(custom.length)payload.x=custom;if(state.pack==="daily"){payload.d=state.replayDailyLabel||dailyTitle();payload.dk=state.replayDailyKey||dailyKey();}rememberQuestions(state.questionIds);state.lastCreatedPayload=payload;try{var completedUrl=await makeShortChallengeUrl(payload,true);if(state!==finishing)return;state.challengeUrl=completedUrl}catch(_){alert("We couldn’t create your shareable challenge yet. Your answers are safe—please try again.");return}document.getElementById("challenge-link").textContent=state.challengeUrl;var codeLine=document.getElementById("challenge-code-line");if(codeLine&&state.creatorCode){codeLine.textContent="CODE: "+state.creatorCode;codeLine.classList.remove("hidden")}if(state.rematchTarget){document.querySelector("#screen-share .kicker").textContent="Rematch ready";document.querySelector("#screen-share .question").textContent="Send the fresh 5 to "+state.rematchTarget+".";document.querySelector("#screen-share .sub").textContent="New questions, same matchup. They can use the link or the 7-character code."}else{document.querySelector("#screen-share .kicker").textContent="Your challenge is ready";document.querySelector("#screen-share .question").textContent="Send it to a friend."}document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.remove("hidden");document.getElementById("creator-responses").classList.remove("hidden");var currentDaily=state.pack==="daily"&&(!state.replayDailyLabel||state.replayDailyLabel===dailyTitle());if(currentDaily){try{localStorage.setItem("same_brain_daily_date:"+(state.audience||"everyone"),payload.dk||dailyKey())}catch(_){}}if(payload.dk)submitDailyStats(payload.dk,state.questionIds,state.answers);awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+(payload.dk||dailyKey()):"creator-"+encode(payload).slice(0,70),currentDaily?(payload.dk||dailyKey()):"");track("challenge_created");show("share");refreshCurrentCreatorResponses()}else renderResult()}finally{finishing.submitting=false;saveRun()}}
 function brainType(score){if(score===100)return["Brain Twins","A perfect match. That is either beautiful or mildly concerning."];if(score>=80)return["Same Wavelength","You disagree just enough to remain interesting."];if(score>=60)return["Compatible Chaos","A solid amount of shared logic with a few delightful glitches."];if(score>=40)return["Parallel-ish Minds","You occasionally meet at the same conclusion by completely different roads."];if(score>=20)return["Friendly Opposites","Your group chat probably needs both of you."];return["Different Operating Systems","You may be proof that friendship does not require shared decision-making."]}
 
 function completedPlayCount(){try{return Number(localStorage.getItem("same_brain_completed_plays")||0)}catch(_){return 0}}
@@ -1565,11 +1585,12 @@ function maybeShowPlusNudge(count){
   var last=0;try{last=Number(localStorage.getItem("same_brain_plus_nudge_at")||0)}catch(_){}
   var show=count>=3&&count-last>=3;if(show){box.classList.remove("hidden");try{localStorage.setItem("same_brain_plus_nudge_at",String(count))}catch(_){}}else box.classList.add("hidden")
 }
-function startRematch(){
+async function startRematch(){
+  track("rematch_requested");
   var target=state.rematchTarget||"",self=state.rematchSelfName||rememberedName(),audience=state.audience||rememberedAudience(),profile=state.profile||{plus:false,bits:0,unlocks:[]},previousScore=Number(state.score);
   if(!target)return;
   var wasTogether=state.rematchMode==="together"||state.mode==="together_player";
-  if(wasTogether){state.audience=audience;startTogether();return}
+  if(wasTogether){state.audience=audience;state.count=5;try{var rematch=await apiJson("/same-brain/together/"+encodeURIComponent(state.togetherCode)+"/rematch",{method:"POST",body:JSON.stringify({playerId:state.togetherPlayerId,questionIds:questionSet("random").map(function(q){return q.id})})});history.replaceState(null,"",togetherUrl(rematch.code));await loadTogether(rematch.code);track("rematch_started");document.getElementById("accept-btn").click()}catch(_){alert("Could not start the rematch yet. Please try again.")}return}
   state={mode:"creator",name:self,questionIds:[],answers:[],creator:null,challengeUrl:"",pack:"random",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",runId:newRunId(),audience:audience,count:5,profile:profile,rematchTarget:target,rematchSelfName:self,rematchPreviousScore:Number.isFinite(previousScore)?previousScore:null,rematchMode:"async"};
   state.questionIds=questionSet("random").map(function(q){return q.id});
   track("start");track("rematch_started");
@@ -1593,7 +1614,7 @@ function renderResult(){
   document.getElementById("compare").innerHTML=rows.map(function(r){
     return '<div class="compare-row '+(r.same?"match":"diff")+'"><div class="compare-q">'+(r.same?"✅ ":"⚡ ")+esc(r.q.q)+'</div><div class="answers"><span>'+esc(c.n)+": "+esc(r.a)+"</span><span>"+esc(state.name)+": "+esc(r.b)+"</span></div></div>";
   }).join("");
-  rememberQuestions(state.questionIds);var completedCount=incrementCompletedPlayCount();renderQuestionFeedback();maybeShowPlusNudge(completedCount);submitFriendResponse();if(c.dk){submitDailyStats(c.dk,c.q,state.answers);renderDailyCrowd(c.dk,c.q,state.answers)}else{var crowd=document.getElementById("daily-crowd");if(crowd)crowd.classList.add("hidden")}track("result_completed");var currentDaily=state.pack==="daily"&&c.d===dailyTitle();if(currentDaily){try{localStorage.setItem("same_brain_daily_date:"+(state.audience||"everyone"),c.dk||dailyKey())}catch(_){}}awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+(c.dk||dailyKey()):"result-"+encode(c).slice(0,60)+"-"+state.name,currentDaily?(c.dk||dailyKey()):"");show("result");
+  rememberQuestions(state.questionIds);var completedCount=state.completionRecorded?completedPlayCount():incrementCompletedPlayCount();state.completionRecorded=true;renderQuestionFeedback();maybeShowPlusNudge(completedCount);submitFriendResponse();if(c.dk){submitDailyStats(c.dk,c.q,state.answers);renderDailyCrowd(c.dk,c.q,state.answers)}else{var crowd=document.getElementById("daily-crowd");if(crowd)crowd.classList.add("hidden")}track("result_completed");var currentDaily=state.pack==="daily"&&c.d===dailyTitle();if(currentDaily){try{localStorage.setItem("same_brain_daily_date:"+(state.audience||"everyone"),c.dk||dailyKey())}catch(_){}}awardBits(currentDaily?"daily_complete":"complete",currentDaily?"daily-"+(c.dk||dailyKey()):"result-"+encode(c).slice(0,60)+"-"+state.name,currentDaily?(c.dk||dailyKey()):"");show("result");
 }
 function nameNext(){var name=cleanName(document.getElementById("player-name").value);if(!name){document.getElementById("player-name").focus();return}state.name=name;rememberName(name);renderQuestion()}
 async function makeResultImage(){
@@ -1617,9 +1638,9 @@ async function makeResultImage(){
 function pendingResponses(){try{var rows=JSON.parse(localStorage.getItem("same_brain_pending_responses")||"[]");return Array.isArray(rows)?rows:[]}catch(_){return []}}
 function savePendingResponse(item){try{var rows=pendingResponses().filter(function(r){return !(r.code===item.code&&r.payload&&item.payload&&r.payload.responseId===item.payload.responseId)});rows.push(item);localStorage.setItem("same_brain_pending_responses",JSON.stringify(rows.slice(-20)))}catch(_){}}
 function removePendingResponse(code,responseId){try{var rows=pendingResponses().filter(function(r){return !(r.code===code&&r.payload&&r.payload.responseId===responseId)});localStorage.setItem("same_brain_pending_responses",JSON.stringify(rows))}catch(_){}}
-async function flushPendingResponses(){var rows=pendingResponses();for(var i=0;i<rows.length;i++){var item=rows[i];try{await apiJson("/same-brain/challenge/"+encodeURIComponent(item.code)+"/response",{method:"POST",body:JSON.stringify(item.payload)});removePendingResponse(item.code,item.payload.responseId);track("response_submitted")}catch(_){}}}
+async function flushPendingResponses(){var rows=pendingResponses();for(var i=0;i<rows.length;i++){var item=rows[i];try{await apiJson("/same-brain/challenge/"+encodeURIComponent(item.code)+"/response",{method:"POST",body:JSON.stringify(item.payload)});removePendingResponse(item.code,item.payload.responseId);track("response_submitted",item)}catch(_){}}}
 function dailyResponseId(date){var key="same_brain_daily_response_id:"+date;try{var id=localStorage.getItem(key)||"";if(!id){id=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():"d_"+Date.now()+"_"+Math.random().toString(36).slice(2);localStorage.setItem(key,id)}return id}catch(_){return "d_"+Date.now()+"_"+Math.random().toString(36).slice(2)}}
-async function submitDailyStats(date,qids,answers){if(!date||!Array.isArray(qids)||qids.length!==5||!Array.isArray(answers)||answers.length!==5)return;try{await apiJson("/same-brain/daily",{method:"POST",body:JSON.stringify({date:date,responseId:dailyResponseId(date),questionIds:qids,answers:answers})})}catch(_){}}
+async function submitDailyStats(date,qids,answers){if(!date||!Array.isArray(qids)||qids.length!==5||!Array.isArray(answers)||answers.length!==5)return;try{await apiJson("/same-brain/daily",{method:"POST",body:JSON.stringify({date:date,responseId:dailyResponseId(date+"_"+hashText(qids.join("|"))),questionIds:qids,answers:answers})})}catch(_){}}
 async function renderDailyCrowd(date,qids,answers){
   var box=document.getElementById("daily-crowd");if(!box){return}box.classList.add("hidden");box.innerHTML="";if(!date||!qids||qids.length!==5)return;
   try{
@@ -1639,15 +1660,15 @@ function resultShareText(){
 function responseIdFor(code){var key="same_brain_response_id:"+code;try{var id=localStorage.getItem(key)||"";if(!id){id=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():"r_"+Date.now()+"_"+Math.random().toString(36).slice(2);localStorage.setItem(key,id)}return id}catch(_){return "r_"+Date.now()+"_"+Math.random().toString(36).slice(2)}}
 async function submitFriendResponse(){
   if(!state.shortCode||!state.name||!state.answers.length)return;
-  var payload={responseId:responseIdFor(state.shortCode),name:state.name,answers:state.answers.slice()},item={code:state.shortCode,payload:payload};savePendingResponse(item);
-  try{await apiJson("/same-brain/challenge/"+encodeURIComponent(state.shortCode)+"/response",{method:"POST",body:JSON.stringify(payload)});removePendingResponse(state.shortCode,payload.responseId);track("response_submitted")}catch(_){}
+  var payload={responseId:responseIdFor(state.shortCode),name:state.name,answers:state.answers.slice()},item={code:state.shortCode,payload:payload,runId:state.runId,pack:state.pack,audience:state.audience};savePendingResponse(item);
+  try{await apiJson("/same-brain/challenge/"+encodeURIComponent(state.shortCode)+"/response",{method:"POST",body:JSON.stringify(payload)});removePendingResponse(item.code,payload.responseId);track("response_submitted",item)}catch(_){}
 }
 function responseComparison(challenge,response){
   var rows=[],matches=0;for(var i=0;i<challenge.q.length;i++){var q=qById(challenge.q[i]);if(!q)continue;var same=Number(challenge.a[i])===Number(response.answers[i]);if(same)matches++;rows.push({q:q,same:same,a:q.a[challenge.a[i]][1],b:q.a[response.answers[i]][1]})}
   return {score:Math.round(matches/challenge.q.length*100),rows:rows}
 }
 function renderCreatorResponseDetail(data,response){
-  track("creator_result_opened");hydrateCustomQuestions(data.challenge);var cmp=responseComparison(data.challenge,response),bt=brainType(cmp.score);state.creator=data.challenge;state.name=response.name;state.answers=response.answers.slice();state.score=cmp.score;state.brainType=bt[0];state.pack=data.challenge.p||"shared";
+  var original=creatorChallenges().find(function(r){return r.code===data.code});track("creator_result_opened",{runId:original&&original.runId});hydrateCustomQuestions(data.challenge);var cmp=responseComparison(data.challenge,response),bt=brainType(cmp.score);state.creator=data.challenge;state.name=response.name;state.answers=response.answers.slice();state.score=cmp.score;state.brainType=bt[0];state.pack=data.challenge.p||"shared";
   document.getElementById("score-ring").style.setProperty("--score",cmp.score);document.getElementById("score-text").textContent=cmp.score+"%";document.getElementById("result-title").textContent=data.challenge.n+" + "+response.name;document.getElementById("brain-type").textContent=bt[0]+" 🧠";document.getElementById("result-copy").textContent=bt[1]+" You matched on "+cmp.rows.filter(function(r){return r.same}).length+" of "+data.challenge.q.length+" questions.";
   applyTheme();document.getElementById("share-card").innerHTML='<div style="font-weight:800;opacity:.85">'+esc(data.challenge.n)+" + "+esc(response.name)+'</div><div class="big">'+cmp.score+'% SAME BRAIN</div><div class="pill">'+esc(bt[0])+'</div>';document.getElementById("compare").innerHTML=cmp.rows.map(function(r){return '<div class="compare-row"><div class="compare-q">'+(r.same?"✅ ":"⚡ ")+esc(r.q.q)+'</div><div class="answers"><span>'+esc(data.challenge.n)+": "+esc(r.a)+"</span><span>"+esc(response.name)+": "+esc(r.b)+"</span></div></div>"}).join("");
   if(data.challenge.dk)renderDailyCrowd(data.challenge.dk,data.challenge.q,response.answers);else{var crowd=document.getElementById("daily-crowd");if(crowd)crowd.classList.add("hidden")}document.getElementById("result-next").classList.add("hidden");document.getElementById("new-round").classList.remove("hidden");document.getElementById("replay-daily").classList.add("hidden");state.mode="creator_result_detail";state.togetherCode="";state.rematchSelfName=data.challenge.n;state.rematchTarget=response.name;state.rematchMode="async";state.audience=data.challenge.u||state.audience||rememberedAudience();var rematch=document.getElementById("rematch-btn");if(rematch){rematch.textContent="Rematch "+response.name+" ↻";rematch.classList.remove("hidden")}show("result")
@@ -1665,14 +1686,13 @@ async function refreshCurrentCreatorResponses(){if(state.creatorCode){try{await 
 async function accountCreatorChallenges(){
   try{var data=await apiJson("/same-brain/my-challenges",{method:"GET"});return Array.isArray(data.challenges)?data.challenges:[]}catch(_){return []}
 }
-function reshareCreatorChallenge(row){
+async function reshareCreatorChallenge(row){
   if(!row||!row.code)return;
   var label=row.dailyLabel||"my saved answers",url=shareBase()+"?s="+row.code;
-  track("challenge_shared");
-  shareText("I already answered "+label+" on Same Brain 🧠. See how well you match me.",url)
+  if(await shareText("I already answered "+label+" on Same Brain 🧠. See how well you match me.",url))track("challenge_shared",{runId:row.runId,pack:row.pack})
 }
 function openCreatorChallenge(row){
-  state.mode="creator_results";state.togetherCode="";state.creatorCode=row.code;state.creatorKey=row.key||"";state.challengeUrl=shareBase()+"?s="+row.code;document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("creator-responses").classList.remove("hidden");document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.add("hidden");document.querySelector("#screen-share .kicker").textContent="Challenge results";document.querySelector("#screen-share .question").textContent="Your friends answered.";document.querySelector("#screen-share .sub").textContent="Open any response to see your full side-by-side Same Brain result.";show("share");loadCreatorResults(row.code,row.key||"",true).catch(function(){})
+  state={mode:"creator_results",name:"",questionIds:[],answers:[],profile:state.profile,audience:state.audience,runId:row.runId||newRunId()};state.creatorCode=row.code;state.creatorKey=row.key||"";state.challengeUrl=shareBase()+"?s="+row.code;document.getElementById("challenge-link").textContent=state.challengeUrl;document.getElementById("creator-responses").classList.remove("hidden");document.getElementById("group-results-btn").classList.add("hidden");document.getElementById("play-second-btn").classList.add("hidden");document.querySelector("#screen-share .kicker").textContent="Challenge results";document.querySelector("#screen-share .question").textContent="Your friends answered.";document.querySelector("#screen-share .sub").textContent="Open any response to see your full side-by-side Same Brain result.";show("share");loadCreatorResults(row.code,row.key||"",true).catch(function(){})
 }
 function renderCreatorInbox(rows){
   var panel=document.getElementById("creator-inbox"),list=document.getElementById("creator-inbox-list");if(!panel||!list)return;panel.classList.remove("hidden");list.innerHTML="";
@@ -1701,35 +1721,35 @@ async function challengeNext(){
   var prior=state.creator,payload={v:1,n:state.name,q:prior.q.slice(),a:state.answers.slice(),p:prior.p||state.pack,u:prior.u||state.audience||"everyone",r:state.shortCode||prior._shortCode||"",h:{s:state.score,a:prior.n,b:state.name}};
   if(prior.d)payload.d=prior.d;if(prior.dk)payload.dk=prior.dk;if(prior.x)payload.x=prior.x;
   var url;try{url=await makeShortChallengeUrl(payload,true)}catch(_){alert("We couldn’t create the next challenge yet. Please try again.");return}
-  track("challenge_shared");track("beat_chain_shared",{sourceCode:state.shortCode||prior._shortCode||""});
-  await shareText("I matched "+prior.n+" "+state.score+"% on Same Brain 🧠. Can you beat that with me?",url);
+  var shared=await shareText("I matched "+prior.n+" "+state.score+"% on Same Brain 🧠. Can you beat that with me?",url);if(shared){track("challenge_shared");track("beat_chain_shared",{sourceCode:state.shortCode||prior._shortCode||""})}
 }
+function originalResultUrl(){var code=state.shortCode||(state.creator&&state.creator._shortCode)||(state.mode==="creator_result_detail"?state.creatorCode:"");return code?shareBase()+"?s="+encodeURIComponent(code):""}
 async function shareResult(){
   var challengeUrl,text;
   if(state.groupData&&state.groupCode){
-    challengeUrl=location.origin+location.pathname+"?g="+encodeURIComponent(state.groupCode);
+    challengeUrl=shareBase()+"?g="+encodeURIComponent(state.groupCode);
     text="Our Group Brain is at "+state.score+"% consensus 🧠 — add your answers.";
   }else{
-    var c=state.creator;challengeUrl=await makeShortChallengeUrl(c,false);
+    var c=state.creator;challengeUrl=originalResultUrl()||await makeShortChallengeUrl(c,false);
     text=resultShareText();
   }
   var blob=await makeResultImage();
   if(blob&&navigator.share&&window.File){
     try{
       var file=new File([blob],"same-brain-"+state.score+".png",{type:"image/png"});
-      if(!navigator.canShare||navigator.canShare({files:[file]})){await navigator.share({text:text,url:challengeUrl,files:[file]});return}
-    }catch(_){}
+      if(!navigator.canShare||navigator.canShare({files:[file]})){await navigator.share({text:text,url:challengeUrl,files:[file]});return true}
+    }catch(e){if(e&&e.name==="AbortError")return false}
   }
-  await shareText(text,challengeUrl);
+  return await shareText(text,challengeUrl);
 }
 function shareFacebook(url){var target="https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(url);window.open(target,"samebrain_facebook","noopener,noreferrer,width=640,height=720")}
-async function shareText(text,url){if(navigator.share){try{await navigator.share({text:text,url:url});return}catch(e){if(e&&e.name==="AbortError")return}}try{await navigator.clipboard.writeText((text?text+" ":"")+url);alert("Copied to clipboard!")}catch(e){prompt("Copy this link:",url)}}
+async function shareText(text,url){if(navigator.share){try{await navigator.share({text:text,url:url});return true}catch(e){if(e&&e.name==="AbortError")return false}}try{await navigator.clipboard.writeText((text?text+" ":"")+url);alert("Copied to clipboard!");return true}catch(e){return prompt("Copy this link:",url)!==null}}
 var customFields=document.getElementById("custom-fields");if(customFields)for(var ci=0;ci<5;ci++){var row=document.createElement("div");row.className="challenge-box";row.innerHTML='<label style="margin-top:0">Question '+(ci+1)+'</label><input class="name-input custom-q" maxlength="140" placeholder="Coffee or tea?"><div style="height:8px"></div><input class="name-input custom-a" maxlength="60" placeholder="Option A"><div style="height:8px"></div><input class="name-input custom-b" maxlength="60" placeholder="Option B">';customFields.appendChild(row)}
 if(document.getElementById("custom-toggle"))document.getElementById("custom-toggle").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating custom challenges is included with Plus.");return}document.getElementById("custom-builder").classList.toggle("hidden")});
-if(document.getElementById("custom-start"))document.getElementById("custom-start").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating custom challenges is included with Plus.");return}var qs=Array.from(document.querySelectorAll(".custom-q")),as=Array.from(document.querySelectorAll(".custom-a")),bs=Array.from(document.querySelectorAll(".custom-b")),defs=[];for(var i=0;i<5;i++){var q=qs[i].value.trim(),a=as[i].value.trim(),b=bs[i].value.trim();if(!q||!a||!b){alert("Fill in all five questions and both choices.");return}defs.push({id:"custom_"+Date.now()+"_"+i,q:q,a:[["✨",a],["✨",b]],tags:["custom"]})}defs.forEach(function(q){QUESTIONS.push(q)});track("custom_created");state.count=5;var profile=state.profile;state={mode:"creator",name:"",questionIds:defs.map(function(q){return q.id}),answers:[],creator:null,challengeUrl:"",pack:"custom",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",count:5,profile:profile};document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value=rememberedName();show("name")});
+if(document.getElementById("custom-start"))document.getElementById("custom-start").addEventListener("click",function(){if(!(state.profile&&state.profile.plus)){alert("Creating custom challenges is included with Plus.");return}var qs=Array.from(document.querySelectorAll(".custom-q")),as=Array.from(document.querySelectorAll(".custom-a")),bs=Array.from(document.querySelectorAll(".custom-b")),defs=[];for(var i=0;i<5;i++){var q=qs[i].value.trim(),a=as[i].value.trim(),b=bs[i].value.trim();if(!q||!a||!b){alert("Fill in all five questions and both choices.");return}defs.push({id:"custom_"+Date.now()+"_"+i,q:q,a:[["✨",a],["✨",b]],tags:["custom"]})}defs.forEach(function(q){QUESTIONS.push(q)});track("custom_created");state.count=5;var profile=state.profile;state={mode:"creator",name:"",questionIds:defs.map(function(q){return q.id}),answers:[],creator:null,challengeUrl:"",pack:"custom",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",runId:newRunId(),audience:state.audience||rememberedAudience(),count:5,profile:profile};track("start");document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value=rememberedName();show("name")});
 function renderDeckBrowser(filter){
   var grid=document.getElementById("deck-grid");if(!grid)return;filter=String(filter||"").trim().toLowerCase();var aud=state.audience||rememberedAudience();var list=EXTRA_DECKS.filter(function(d){if(aud!=="everyone"&&(d.sources||[]).some(function(src){return src==="work"||src==="couples"}))return false;return !filter||d.name.toLowerCase().indexOf(filter)>=0});grid.innerHTML="";
-  list.forEach(function(d){var idx=EXTRA_DECKS.indexOf(d),locked=idx>=10&&!(state.profile&&state.profile.plus),trialUsed=false;try{trialUsed=localStorage.getItem("same_brain_plus_deck_trial_used")==="1"}catch(_){}var trial=locked&&completedPlayCount()>=3&&!trialUsed,b=document.createElement("button");b.className="deck-item";b.type="button";b.innerHTML=esc(d.name)+"<small>"+(trial?"Try once":locked?"✨ Plus":"Play 5")+"</small>";b.addEventListener("click",function(){if(locked&&!trial){alert("That deck is included with Plus.");return}if(trial){try{localStorage.setItem("same_brain_plus_deck_trial_used","1")}catch(_){}track("plus_trial_started")}startCreator(d.key)});grid.appendChild(b)});
+  list.forEach(function(d){var idx=EXTRA_DECKS.indexOf(d),locked=idx>=10&&!(state.profile&&state.profile.plus),trialUsed=false;try{trialUsed=localStorage.getItem("same_brain_plus_deck_trial_used")==="1"}catch(_){}var trial=locked&&completedPlayCount()>=3&&!trialUsed,b=document.createElement("button");b.className="deck-item";b.type="button";b.innerHTML=esc(d.name)+"<small>"+(trial?"Use your one free deck trial":locked?"✨ Plus":"Play 5")+"</small>";b.addEventListener("click",function(){if(locked&&!trial){alert("That deck is included with Plus.");return}if(trial){try{localStorage.setItem("same_brain_plus_deck_trial_used","1")}catch(_){}track("plus_trial_started")}startCreator(d.key)});grid.appendChild(b)});
   if(!list.length)grid.innerHTML='<div class="premium-note">No decks match that search.</div>';
 }
 document.getElementById("browse-decks").addEventListener("click",function(){var panel=document.getElementById("deck-browser");panel.classList.toggle("hidden");if(!panel.classList.contains("hidden")){renderDeckBrowser(document.getElementById("deck-search").value);setTimeout(function(){document.getElementById("deck-search").focus()},50)}});
@@ -1755,9 +1775,11 @@ document.getElementById("together-btn").addEventListener("click",startTogether);
 document.getElementById("together-share-again").addEventListener("click",function(){if(state.togetherCode)shareText("Start Same Brain with me 🧠",togetherUrl(state.togetherCode))});
 document.querySelectorAll(".audience-btn").forEach(function(btn){btn.addEventListener("click",function(){state.audience=btn.dataset.audience||"everyone";try{localStorage.setItem("same_brain_audience",state.audience)}catch(_){}renderAudience();renderProfile()})});
 document.querySelectorAll("[data-pack]").forEach(function(btn){btn.addEventListener("click",function(){state.count=5;startCreator(btn.dataset.pack)})});
+var narrationGeneration=0;
 var activeNarrationAudio=null,activeNarrationUrl="",activeNarrationController=null,narrationPlaying=false;
 function narrationButtonState(playing){var b=document.getElementById("speak-question");if(!b)return;b.textContent=playing?"⏹️":"🔊";b.setAttribute("aria-label",playing?"Stop reading question":"Read question aloud");b.title=playing?"Stop reading question":"Read question aloud";narrationPlaying=playing}
 function stopNarration(){
+  narrationGeneration++;
   if(activeNarrationController){try{activeNarrationController.abort()}catch(_){}activeNarrationController=null}
   if(activeNarrationAudio){try{activeNarrationAudio.pause();activeNarrationAudio.currentTime=0}catch(_){}activeNarrationAudio=null}
   if(activeNarrationUrl){try{URL.revokeObjectURL(activeNarrationUrl)}catch(_){}activeNarrationUrl=""}
@@ -1767,7 +1789,7 @@ function stopNarration(){
 document.getElementById("speak-question").addEventListener("click",async function(){
   if(narrationPlaying||activeNarrationController){stopNarration();return}
   var idx=state.answers.length,q=qById(state.questionIds[idx]);if(!q)return;
-  stopNarration();narrationButtonState(true);
+  stopNarration();var generation=narrationGeneration;narrationButtonState(true);
   var voice=(document.getElementById("voice-select")||{}).value||"browser";if(voice!=="browser"&&!(state.profile&&state.profile.plus)){alert("Premium narrator voices are included with Plus.");voice="browser";document.getElementById("voice-select").value="browser"}
   if(state.profile&&state.profile.plus&&voice!=="browser"){
     try{
@@ -1777,34 +1799,39 @@ document.getElementById("speak-question").addEventListener("click",async functio
       if(controller!==activeNarrationController)return;
       activeNarrationController=null;
       if(r.ok){
-        var blob=await r.blob();if(narrationPlaying===false)return;
+        var blob=await r.blob();if(generation!==narrationGeneration||!narrationPlaying)return;
         activeNarrationUrl=URL.createObjectURL(blob);activeNarrationAudio=new Audio(activeNarrationUrl);
-        activeNarrationAudio.onended=stopNarration;activeNarrationAudio.onerror=stopNarration;
+        activeNarrationAudio.onended=function(){if(generation===narrationGeneration)stopNarration()};activeNarrationAudio.onerror=activeNarrationAudio.onended;
         await activeNarrationAudio.play();return
       }
     }catch(e){if(e&&e.name==="AbortError")return}
   }
+  if(generation!==narrationGeneration)return;
   if("speechSynthesis" in window){
     try{
-      var u=new SpeechSynthesisUtterance(questionSpeech(q));u.rate=.96;u.pitch=1;u.lang="en-US";u.onend=function(){narrationButtonState(false)};u.onerror=function(){narrationButtonState(false)};speechSynthesis.speak(u);return
+      var u=new SpeechSynthesisUtterance(questionSpeech(q));u.rate=.96;u.pitch=1;u.lang="en-US";u.onend=function(){if(generation===narrationGeneration)narrationButtonState(false)};u.onerror=u.onend;speechSynthesis.speak(u);return
     }catch(_){}
   }
   narrationButtonState(false)
 });
 if(document.getElementById("plus-ten-challenge"))document.getElementById("plus-ten-challenge").addEventListener("click",function(){if(!(state.profile&&state.profile.plus))return;state.count=10;startCreator("random")});
 if(document.getElementById("group-btn"))document.getElementById("group-btn").addEventListener("click",startGroupCreator);if(document.getElementById("demo-btn"))document.getElementById("demo-btn").addEventListener("click",startLocalDemo);
+document.getElementById("retry-submit").addEventListener("click",finishQuestions);
 document.getElementById("name-next").addEventListener("click",nameNext);
 document.getElementById("question-feedback-open").addEventListener("click",function(){var body=document.getElementById("question-feedback-body");if(body)body.classList.toggle("hidden")});
 document.getElementById("question-feedback-good").addEventListener("click",function(){var body=document.getElementById("question-feedback-body");if(body)body.classList.add("hidden")});
-document.getElementById("plus-nudge-link").addEventListener("click",function(){track("plus_upgrade_clicked")});document.getElementById("question-back").addEventListener("click",function(){if(!state.answers.length)return;state.answers.pop();renderQuestion()});
+document.getElementById("plus-nudge-link").addEventListener("click",function(){track("plus_upgrade_clicked")});document.getElementById("question-back").addEventListener("click",function(){if(!state.answers.length)return;state.answers.pop();saveRun("question");renderQuestion()});
 document.getElementById("player-name").addEventListener("keydown",function(e){if(e.key==="Enter")nameNext()});
-document.getElementById("share-btn").addEventListener("click",function(){track("challenge_shared");shareText(state.rematchTarget?("Rematch time, "+state.rematchTarget+" 🧠 Fresh 5 — can we beat our last score?"):("Think you know me? Take my Same Brain challenge 🧠"),state.challengeUrl)});
-document.getElementById("facebook-share").addEventListener("click",function(){if(state.challengeUrl)shareFacebook(state.challengeUrl)});document.getElementById("copy-btn").addEventListener("click",function(){shareText("",state.challengeUrl)});document.getElementById("refresh-responses").addEventListener("click",refreshCurrentCreatorResponses);document.getElementById("creator-inbox-close").addEventListener("click",function(){document.getElementById("creator-inbox").classList.add("hidden")});setInterval(function(){var shareScreen=document.getElementById("screen-share");if(shareScreen&&!shareScreen.classList.contains("hidden")&&state.creatorCode)refreshCurrentCreatorResponses()},12000);
+document.getElementById("share-btn").addEventListener("click",async function(){var shared=await shareText(state.rematchTarget?("Rematch time, "+state.rematchTarget+" 🧠 Fresh 5 — can we beat our last score?"):("Think you know me? Take my Same Brain challenge 🧠"),state.challengeUrl);if(shared)track("challenge_shared")});
+document.getElementById("facebook-share").addEventListener("click",function(){if(state.challengeUrl)shareFacebook(state.challengeUrl)});document.getElementById("copy-btn").addEventListener("click",async function(){try{await navigator.clipboard.writeText(state.challengeUrl);track("challenge_shared");alert("Link copied!")}catch(_){prompt("Copy this link:",state.challengeUrl)}});document.getElementById("refresh-responses").addEventListener("click",refreshCurrentCreatorResponses);document.getElementById("creator-inbox-close").addEventListener("click",function(){document.getElementById("creator-inbox").classList.add("hidden")});setInterval(function(){var shareScreen=document.getElementById("screen-share");if(shareScreen&&!shareScreen.classList.contains("hidden")&&state.creatorCode)refreshCurrentCreatorResponses()},12000);
 document.getElementById("play-second-btn").addEventListener("click",function(){var payload=null;if(state.lastCreatedPayload)payload=state.lastCreatedPayload;else payload=decode((state.challengeUrl.split("?c=")[1]||""));if(payload)startResponder(payload)});document.getElementById("group-results-btn").addEventListener("click",function(){if(state.groupCode&&state.groupResultKey)loadGroupResults(state.groupCode,state.groupResultKey).catch(function(){alert("Could not load group results yet.")})});
-document.getElementById("accept-btn").addEventListener("click",function(){if(state.mode==="group_invite")state.mode="group_responder";document.getElementById("name-heading").textContent="And what should we call you?";document.getElementById("player-name").value=rememberedName();show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)});
+document.getElementById("accept-btn").addEventListener("click",function(){track("challenge_accepted");if(state.mode==="group_invite")state.mode="group_responder";document.getElementById("name-heading").textContent="And what should we call you?";document.getElementById("player-name").value=rememberedName();show("name");setTimeout(function(){document.getElementById("player-name").focus()},120)});
 document.getElementById("home-replay-daily").addEventListener("click",function(){state.count=5;startCreator("daily")});document.getElementById("new-round").addEventListener("click",function(){state.count=5;startCreator("random")});
-document.getElementById("replay-daily").addEventListener("click",function(){var prior=state.creator;if(!prior||!prior.d)return;var profile=state.profile;state={mode:"creator",name:"",questionIds:prior.q.slice(),answers:[],creator:null,challengeUrl:"",pack:"daily",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",audience:prior.u||state.audience||rememberedAudience(),count:prior.q.length,profile:profile,replayDailyLabel:prior.d,replayDailyKey:prior.dk||""};document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value="";show("name")});document.getElementById("result-next").addEventListener("click",challengeNext);document.getElementById("result-share").addEventListener("click",function(){var card=document.getElementById("share-card");if(card)card.classList.remove("hidden");track("result_shared");shareResult()});document.getElementById("result-facebook").addEventListener("click",async function(){var url;if(state.groupData&&state.groupCode)url=location.origin+location.pathname+"?g="+encodeURIComponent(state.groupCode);else if(state.creator)url=await makeShortChallengeUrl(state.creator,false);else url=shareBase();track("result_shared");shareFacebook(url)});
-if(navigator.share){var fb1=document.getElementById("facebook-share"),fb2=document.getElementById("result-facebook");if(fb1)fb1.classList.add("hidden");if(fb2)fb2.classList.add("hidden")}if(isPublic()){var adv=document.querySelector(".advanced-play"),shop=document.querySelector(".shop");if(adv)adv.remove();if(shop)shop.remove();var labs=document.querySelector(".labs");if(labs)labs.remove();var back=document.querySelector('.topbar a[href="/labs/games"]');if(back)back.remove()}loadProfile();renderAudience();flushPendingResponses();window.addEventListener("online",flushPendingResponses);window.addEventListener("pagehide",function(){if(state&&state.currentQuestionId&&state.answers.length<state.questionIds.length)track("question_abandoned",{questionId:state.currentQuestionId,elapsedMs:Date.now()-(state.questionStartedAt||Date.now())})});scanCreatorResults();track("home_view");try{var seen=localStorage.getItem("same_brain_seen");if(seen)track("return_visit");else localStorage.setItem("same_brain_seen","1")}catch(_){}var params=new URLSearchParams(location.search),togetherCode=(params.get("t")||"").toUpperCase(),groupCode=params.get("g"),shortCode=(params.get("s")||"").toUpperCase(),param=params.get("c"),challenge=param&&decode(param);async function boot(){if(shortCode){try{var data=await apiJson("/same-brain/challenge/"+encodeURIComponent(shortCode),{method:"GET"});challenge=data.challenge;challenge._shortCode=shortCode}catch(e){show("home");var bad=document.querySelector("#screen-home .sub");if(bad)bad.textContent=e.code==="expired"?"That challenge expired after 30 days. Play today’s Brain and send a fresh one.":"That challenge link is invalid or unavailable. You can still play today’s five and send a fresh challenge.";return}}hydrateCustomQuestions(challenge);if(togetherCode){loadTogether(togetherCode).catch(function(){show("home")})}else if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else{show("home");if(isPublic()&&(param||shortCode)){var sub=document.querySelector("#screen-home .sub");if(sub)sub.textContent="That challenge link is invalid or incomplete. You can still play today’s five and send a fresh challenge."}}}boot()
+document.getElementById("replay-daily").addEventListener("click",function(){var prior=state.creator;if(!prior||!prior.d)return;var profile=state.profile;state={mode:"creator",name:"",questionIds:prior.q.slice(),answers:[],creator:null,challengeUrl:"",pack:"daily",score:0,brainType:"",groupCode:"",groupData:null,groupResultKey:"",audience:prior.u||state.audience||rememberedAudience(),count:prior.q.length,profile:profile,replayDailyLabel:prior.d,replayDailyKey:prior.dk||""};document.getElementById("name-heading").textContent="What should we call you?";document.getElementById("player-name").value="";show("name")});document.getElementById("result-next").addEventListener("click",challengeNext);document.getElementById("result-share").addEventListener("click",async function(){var card=document.getElementById("share-card");if(card)card.classList.remove("hidden");if(await shareResult())track("result_shared")});document.getElementById("result-facebook").addEventListener("click",async function(){var url;if(state.groupData&&state.groupCode)url=shareBase()+"?g="+encodeURIComponent(state.groupCode);else if(state.creator)url=originalResultUrl()||await makeShortChallengeUrl(state.creator,false);else url=shareBase();track("result_shared");shareFacebook(url)});
+if(navigator.share){var fb1=document.getElementById("facebook-share"),fb2=document.getElementById("result-facebook");if(fb1)fb1.classList.add("hidden");if(fb2)fb2.classList.add("hidden")}if(isPublic()){var adv=document.querySelector(".advanced-play"),shop=document.querySelector(".shop");if(shop)shop.remove();var labs=document.querySelector(".labs");if(labs)labs.remove();var back=document.querySelector('.topbar a[href="/labs/games"]');if(back)back.remove()}loadProfile();renderAudience();flushPendingResponses();window.addEventListener("online",flushPendingResponses);window.addEventListener("pagehide",function(){if(state&&state.currentQuestionId&&state.answers.length<state.questionIds.length)track("question_abandoned",{questionId:state.currentQuestionId,elapsedMs:Date.now()-(state.questionStartedAt||Date.now())})});scanCreatorResults();state.runId=state.runId||newRunId();track("home_view");try{var seen=localStorage.getItem("same_brain_seen");if(seen)track("return_visit");else localStorage.setItem("same_brain_seen","1")}catch(_){}var params=new URLSearchParams(location.search),togetherCode=(params.get("t")||"").toUpperCase(),groupCode=params.get("g"),shortCode=(params.get("s")||"").toUpperCase(),param=params.get("c"),challenge=param&&decode(param);setInterval(async function(){if(state.screen!=="result"||state.mode!=="together_player"||!state.togetherCode)return;var watching=state;try{var data=await apiJson("/same-brain/together/"+encodeURIComponent(state.togetherCode)+"/result?playerId="+encodeURIComponent(state.togetherPlayerId),{method:"GET"});if(state===watching&&data.rematchCode)document.getElementById("rematch-btn").textContent="Your friend started a rematch — join ↻"}catch(_){}},5000);
+setInterval(function(){if(state.screen==="result"&&state.groupCode&&state.groupResultKey)loadGroupResults(state.groupCode,state.groupResultKey).catch(function(){})},5000);
+window.addEventListener("pagehide",function(){saveRun();stopNarration()});
+async function boot(){if(restoreRun())return;if(shortCode){try{var data=await apiJson("/same-brain/challenge/"+encodeURIComponent(shortCode),{method:"GET"});challenge=data.challenge;challenge._shortCode=shortCode}catch(e){show("home");var bad=document.querySelector("#screen-home .sub");if(bad)bad.textContent=e.code==="expired"?"That challenge expired after 30 days. Play today’s Brain and send a fresh one.":"That challenge link is invalid or unavailable. You can still play today’s five and send a fresh challenge.";return}}hydrateCustomQuestions(challenge);if(togetherCode){loadTogether(togetherCode).catch(function(){show("home")})}else if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else{show("home");if(isPublic()&&(param||shortCode)){var sub=document.querySelector("#screen-home .sub");if(sub)sub.textContent="That challenge link is invalid or incomplete. You can still play today’s five and send a fresh challenge."}}}boot()
 })();
 </script>
 </body>

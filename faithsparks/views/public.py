@@ -257,6 +257,8 @@ SAME_BRAIN_TOGETHER_TTL_DAYS = 2
 SAME_BRAIN_SHORT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 _SAME_BRAIN_PUBLIC_EVENTS = {
+    "challenge_accepted",
+    "rematch_requested",
     "home_view",
     "return_visit",
     "start",
@@ -436,7 +438,7 @@ def same_brain_public_challenge_create():
     creator_key = secrets.token_urlsafe(18)
     creator_key_hash = hashlib.sha256(creator_key.encode("utf-8")).hexdigest()
     try:
-        ref.set({
+        ref.create({
             "payload": payload,
             "creatorKeyHash": creator_key_hash,
             "ownerId": _same_brain_owner_id(),
@@ -697,7 +699,29 @@ def _same_brain_together_result(data: dict) -> dict:
         matches = sum(1 for a, b in zip(players[0]["answers"], players[1]["answers"]) if a == b)
         result["score"] = round(matches / 5 * 100)
         result["players"] = players
+        if data.get("rematchCode"):
+            result["rematchCode"] = data["rematchCode"]
     return result
+
+
+@bp.route('/same-brain/group', methods=['POST'])
+@bp.route('/same-brain/group/<code>', methods=['GET'])
+@bp.route('/same-brain/group/<code>/<action>', methods=['GET', 'POST'])
+def same_brain_public_group(code=None, action=None):
+    from faithsparks.views import lab_games
+    if request.method == "POST":
+        limit = check_rate_limit("same_brain_public_group", get_client_ip(), limit=60, window_seconds=3600)
+        if not limit.allowed:
+            return jsonify({"error": "rate_limited"}), 429
+    if code is None and request.method == "POST":
+        return lab_games.same_brain_group_create()
+    if action is None and request.method == "GET":
+        return lab_games.same_brain_group_get(code)
+    if action == "join" and request.method == "POST":
+        return lab_games.same_brain_group_join(code)
+    if action == "results" and request.method == "GET":
+        return lab_games.same_brain_group_results(code)
+    return jsonify({"error": "not_found"}), 404
 
 
 @bp.post('/same-brain/together')
@@ -738,11 +762,13 @@ def same_brain_public_together_create():
                 break
         except Exception:
             return jsonify({"error": "storage_unavailable"}), 503
+    else:
+        return jsonify({"error": "try_again"}), 503
     if ref is None:
         return jsonify({"error": "storage_unavailable"}), 503
     now = datetime.now(timezone.utc)
     try:
-        ref.set({
+        ref.create({
             "code": code,
             "questionIds": clean_qids,
             "pack": pack,
@@ -807,7 +833,7 @@ def same_brain_public_together_answer(code: str):
         clean_answers = [int(v) for v in answers]
     except (TypeError, ValueError):
         return jsonify({"error": "invalid"}), 400
-    if any(v < 0 or v > 3 for v in clean_answers):
+    if any(type(v) is not int for v in answers) or any(v < 0 or v > 3 for v in clean_answers):
         return jsonify({"error": "invalid"}), 400
 
     ref = db.collection(SAME_BRAIN_TOGETHER_COLLECTION).document(code)
@@ -835,7 +861,8 @@ def same_brain_public_together_answer(code: str):
                 return "full", data
             players.append(stored)
         else:
-            players[existing] = stored
+            # Retried submissions are idempotent; revealed answers cannot be changed.
+            return "ok", data
         data["players"] = players
         data["updatedAt"] = datetime.now(timezone.utc)
         txn.update(ref, {"players": players, "updatedAt": data["updatedAt"]})
@@ -869,10 +896,57 @@ def same_brain_public_together_result(code: str):
     if not snap.exists:
         return jsonify({"error": "not_found"}), 404
     data = snap.to_dict() or {}
+    expires = data.get("expiresAt")
+    if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+        return jsonify({"error": "expired"}), 410
     players = list(data.get("players") or [])
     if not any(str(p.get("id") or "") == player_id for p in players if isinstance(p, dict)):
         return jsonify({"error": "forbidden"}), 403
     return jsonify(_same_brain_together_result(data))
+
+
+@bp.post('/same-brain/together/<code>/rematch')
+def same_brain_public_together_rematch(code):
+    code = _same_brain_together_code(code)
+    if not code or not db:
+        return jsonify({"error": "not_found"}), 404
+    token = request.headers.get("X-CSRF-Token") or ""
+    if not token or not hmac.compare_digest(token, _same_brain_public_csrf()):
+        return jsonify({"error": "csrf"}), 400
+    raw = request.get_json(silent=True) or {}
+    player_id = str(raw.get("playerId") or "")[:64]
+    qids = raw.get("questionIds")
+    if not isinstance(qids, list) or len(qids) != 5 or not all(isinstance(q, str) and 0 < len(q) <= 40 for q in qids) or len(set(qids)) != 5:
+        return jsonify({"error": "invalid"}), 400
+    ref = db.collection(SAME_BRAIN_TOGETHER_COLLECTION).document(code)
+    next_code = _same_brain_short_code()
+    next_ref = db.collection(SAME_BRAIN_TOGETHER_COLLECTION).document(next_code)
+    @firestore.transactional
+    def rematch(txn):
+        snap = ref.get(transaction=txn)
+        data = snap.to_dict() or {}
+        if not snap.exists:
+            return "not_found", None
+        expires = data.get("expiresAt")
+        if expires and getattr(expires, "tzinfo", None) and expires < datetime.now(timezone.utc):
+            return "expired", None
+        if not any(p.get("id") == player_id for p in data.get("players", [])):
+            return "forbidden", None
+        if len(data.get("players", [])) != 2:
+            return "not_ready", None
+        if data.get("rematchCode"):
+            return "ok", data["rematchCode"]
+        now = datetime.now(timezone.utc)
+        txn.create(next_ref, {"code": next_code, "questionIds": qids, "pack": "random", "audience": data.get("audience", "everyone"), "players": [], "createdAt": now, "updatedAt": now, "expiresAt": now + timedelta(days=SAME_BRAIN_TOGETHER_TTL_DAYS)})
+        txn.update(ref, {"rematchCode": next_code})
+        return "ok", next_code
+    try:
+        status, next_code = rematch(db.transaction())
+    except Exception:
+        return jsonify({"error": "try_again"}), 503
+    if status != "ok":
+        return jsonify({"error": status}), {"not_found":404,"expired":410,"forbidden":403,"not_ready":409}[status]
+    return jsonify({"ok": True, "code": next_code})
 
 
 @bp.post('/same-brain/daily')
@@ -972,7 +1046,7 @@ def same_brain_public_daily_get(date_key: str):
     return jsonify({
         "ok": True,
         "date": date_key,
-        "players": max(0, int(data.get("players") or 0)),
+        "players": min(sum(max(0, int(v or 0)) for v in list(questions.get(qid) or [0, 0, 0, 0])[:4]) for qid in qids),
         "questions": {qid: [max(0, int(v or 0)) for v in list(questions.get(qid) or [0, 0, 0, 0])[:4]] for qid in qids},
     })
 
@@ -1094,7 +1168,7 @@ def same_brain_public():
         html = html.replace("</head>", social_meta + "</head>", 1)
     bootstrap = (
         "<style>"
-        ".advanced-play,.shop{display:none!important}"
+        ".shop{display:none!important}"
         ".labs,.topbar a[href='/labs/games']{display:none!important}"
         "</style>"
         "<script>"
@@ -1204,6 +1278,10 @@ def same_brain_public_analytics():
         # Analytics can never be allowed to break the game.
         pass
 
+    # Bound the signed session cookie during long replay sessions.
+    old_keys = [key for key in session if key.startswith("sb_public_metric:")]
+    for key in old_keys[:-63]:
+        session.pop(key, None)
     session[dedupe_key] = True
     return jsonify({"ok": True})
 
