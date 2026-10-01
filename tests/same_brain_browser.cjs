@@ -32,6 +32,7 @@ async function play(page,name,failed=false){
    await b.goto(base+'/same-brain');await b.locator('#join-code').fill(code.toLowerCase());await b.locator('#join-code-btn').click();await b.locator('#screen-invite').waitFor({state:'visible'});
    await play(b,'Friend');await b.locator('#screen-result').waitFor({state:'visible'});assert.equal(await b.locator('#score-text').textContent(),'100%');
    await b.locator('#rematch-btn').click();await b.locator('#screen-question').waitFor({state:'visible'});assert.notEqual(await b.locator('#question-text').textContent(),first);
+   assert.equal(new URL(b.url()).search,'');await b.locator('#choices button').first().click();await b.waitForFunction(()=>document.querySelector('#qnum').textContent.includes('2 OF'));await b.reload();await b.waitForFunction(()=>document.querySelector('#qnum').textContent.includes('2 OF'));
    await play(b,'Friend');await b.locator('#screen-share').waitFor({state:'visible'});assert.match(await b.locator('#screen-share .question').textContent(),/Creator/);
    // Fresh independent rooms for a real two-context Together flow.
    await a.locator('#home-button').click();await a.locator('#together-btn').click();await a.locator('#screen-name').waitFor({state:'visible'});
