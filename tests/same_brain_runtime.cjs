@@ -86,3 +86,10 @@ c.state.profile.plus=false;c.applyAvatar();assert.equal(avatarBox.textContent,'�
 storage.set('same_brain_avatar_choice','avatar_rainbow');c.applyAvatar();assert.equal(avatarBox.textContent,'🧠');
 storage.set('same_brain_avatar_choice','selfie');storage.set('same_brain_selfie_avatar','javascript:alert(1)');c.applyAvatar();assert.equal(avatarBox.textContent,'🧠');
 console.log('PASS: saved avatar selection respects earned/Plus ownership; retired rainbow and invalid selfies fall back safely');
+// A fresh async rematch must drop the invitation query before saving progress.
+let replacedPath;
+c.history={replaceState:(_,__,path)=>{replacedPath=path}};c.location={pathname:'/same-brain'};
+c.track=()=>{};c.newRunId=()=> 'rematch_test';c.rememberName=()=>{};c.rememberedName=()=> 'Friend';c.renderQuestion=()=>{};
+c.state={rematchTarget:'Host',rematchSelfName:'Friend',rematchMode:'async',audience:'everyone',score:60,profile:{}};
+vm.runInContext(html.slice(html.indexOf('async function startRematch('),html.indexOf('function renderResult(')),c);
+c.startRematch().then(()=>{assert.equal(replacedPath,'/same-brain');assert.equal(c.state.mode,'creator');assert.equal(c.state.rematchTarget,'Host');console.log('PASS: async rematch clears stale invitation URL before saving the new run')}).catch(e=>{console.error(e);process.exitCode=1});
