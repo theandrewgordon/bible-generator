@@ -4275,6 +4275,14 @@ def _worship_section_header_repeat_count(line: str) -> int:
     return min(max(int(match.group(1)), 1), 12) if match else 1
 
 
+def _worship_inline_repeat(line: str) -> tuple[str, int]:
+    """Return a lyric line without its trailing performance-repeat cue."""
+    match = re.match(r"^(.*?)\s*\(\s*(\d+)\s*x\s*\)\s*$", str(line or "").strip(), flags=re.I)
+    if not match:
+        return str(line or "").strip(), 1
+    return match.group(1).rstrip(), min(max(int(match.group(2)), 1), 12)
+
+
 def _worship_repeat_instruction(line: str) -> tuple[str, int]:
     text = re.sub(r"^[\[(]\s*|\s*[\])]$", "", str(line or "").strip()).strip()
     match = re.match(
@@ -4480,8 +4488,27 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
     def flush_current():
         nonlocal current_label, current_lines, current_repeat_count
         if current_label and current_lines:
-            raw_sections.append((current_label, current_lines))
-            raw_sections.extend((current_label, None) for _ in range(current_repeat_count - 1))
+            inline_repeat_index = -1
+            inline_repeat_count = 1
+            repeated_lines = list(current_lines)
+            for index, raw_line in enumerate(current_lines):
+                cleaned_line, repeat_count = _worship_inline_repeat(raw_line)
+                if repeat_count > 1:
+                    inline_repeat_index = index
+                    inline_repeat_count = repeat_count
+                    repeated_lines = [*current_lines[:index], cleaned_line]
+                    break
+            if inline_repeat_index >= 0:
+                total_repeats = inline_repeat_count * current_repeat_count
+                raw_sections.append((current_label, repeated_lines))
+                raw_sections.extend((current_label, None) for _ in range(total_repeats - 1))
+                trailing_lines = current_lines[inline_repeat_index + 1:]
+                if trailing_lines:
+                    trailing_label = "tag" if _canonical_part_key(current_label) == "bridge" else current_label
+                    raw_sections.append((trailing_label, trailing_lines))
+            else:
+                raw_sections.append((current_label, current_lines))
+                raw_sections.extend((current_label, None) for _ in range(current_repeat_count - 1))
         current_label = ""
         current_lines = []
         current_repeat_count = 1
@@ -7889,8 +7916,8 @@ def _worship_chord_chart_subtitle(resource_title: str, source_key: str, shown_ke
     return subtitle
 
 
-def _worship_chord_chart_context(song_id: str, resource_id: str, requested_key: str = "") -> dict:
-    song = normalize_worship_song(get_worship_song(song_id) or {})
+def _worship_chord_chart_context_for_song(song: dict, resource_id: str, requested_key: str = "") -> dict:
+    song = normalize_worship_song(song)
     resource = _worship_resource_for_song(song, resource_id)
     if not resource or not resource.get("chart_text"):
         abort(404)
@@ -7932,6 +7959,14 @@ def _worship_chord_chart_context(song_id: str, resource_id: str, requested_key: 
         "display_key_in_meta": not title_has_key,
         "chart_subtitle": chart_subtitle,
     }
+
+
+def _worship_chord_chart_context(song_id: str, resource_id: str, requested_key: str = "") -> dict:
+    return _worship_chord_chart_context_for_song(
+        get_worship_song(song_id) or {},
+        resource_id,
+        requested_key,
+    )
 
 
 @app.route("/worship/song/<song_id>/resources/<resource_id>/chart", methods=["GET"])
@@ -8629,6 +8664,29 @@ def worship_import_review(token):
 
     return render_template("worship_import_review.html", song=song, token=token, payload=payload,
                            slides=_build_worship_mobile_slides([song]))
+
+
+@app.route("/worship/import/review/<token>/resources/<resource_id>/chart", methods=["GET"])
+@login_required
+@worship_editor_required
+def worship_import_resource_chart(token, resource_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,80}", str(token or "")):
+        abort(404)
+    try:
+        payload = _load_pending_worship_song(token)
+    except RuntimeError:
+        return Response("Chord-sheet preview temporarily unavailable", status=503)
+    if not payload:
+        abort(404)
+    context = _worship_chord_chart_context_for_song(
+        payload.get("song") or {},
+        resource_id,
+        request.args.get("key", ""),
+    )
+    context.update({"pdf_url": "", "preview_mode": True})
+    response = app.make_response(render_template("worship_chord_chart.html", **context))
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.route("/worship/preview-slides", methods=["POST"])

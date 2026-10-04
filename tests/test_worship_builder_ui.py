@@ -161,6 +161,8 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn('name="save_chord_sheet"', html)
         self.assertIn("Save a musician chord sheet with this song", html)
         self.assertIn("Musician resource ready", review)
+        self.assertIn("Preview chord sheet", review)
+        self.assertIn("worship_import_resource_chart", review)
 
     def test_music_guide_explains_resources_transposition_and_packets(self):
         with worship_app.app.test_request_context("/worship/getting-started/music-chord-charts"):

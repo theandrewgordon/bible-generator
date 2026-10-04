@@ -214,17 +214,35 @@ Ephesians 2:8-9
 
         self.assertEqual(parsed["title"], "This Is Amazing Grace")
         self.assertEqual(parsed["artist"], "Phil Wickham")
-        self.assertEqual(set(parsed["parts"]), {"verse1", "chorus", "verse2", "bridge"})
+        self.assertEqual(set(parsed["parts"]), {"verse1", "chorus", "verse2", "bridge", "tag"})
         self.assertEqual(
             parsed["arrangement"],
-            ["verse1", "chorus", "verse2", "chorus", "bridge", "chorus"],
+            ["verse1", "chorus", "verse2", "chorus", "bridge", "bridge", "bridge", "tag", "chorus"],
         )
         all_lines = [line for lines in parsed["parts"].values() for line in lines]
         self.assertIn("The King of Glory the King above all kings", all_lines)
         self.assertIn("Worthy is the Lamb who was slain", all_lines)
         self.assertIn("Worthy is the Lamb who was slain worthy worthy worthy", all_lines)
+        self.assertEqual(parsed["parts"]["bridge"], [
+            "Worthy is the Lamb who was slain",
+            "Worthy is the King who conquered the grave",
+        ])
+        self.assertEqual(parsed["parts"]["tag"], [
+            "Worthy is the Lamb who was slain worthy worthy worthy",
+        ])
         self.assertNotIn("Turn", all_lines)
+        self.assertFalse(any("(3X)" in line for line in all_lines))
         self.assertFalse(any("W orthy" in line or "ki ngs" in line or "sl ain" in line for line in all_lines))
+
+        with app.app.test_request_context("/worship/import/review/test"):
+            slides = app._build_worship_mobile_slides([parsed])
+        lyric_slides = [slide for slide in slides if slide.get("kind") == "lyric"]
+        labels = [slide.get("part_label") for slide in lyric_slides]
+        # Adjacent identical visual cues collapse to one slide while the
+        # arrangement retains all three musical passes.
+        self.assertEqual(labels.count("Bridge"), 1)
+        self.assertEqual(labels.count("Tag"), 1)
+        self.assertFalse(any("(3X)" in line for slide in lyric_slides for line in slide.get("lines", [])))
 
     def test_parse_route_can_attach_primary_chord_sheet_without_ai(self):
         pasted = """The Worship Initiative
