@@ -160,6 +160,72 @@ Grace
         self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus", "bridge", "chorus"])
         self.assertNotIn("Topics", " ".join(line for lines in parsed["parts"].values() for line in lines))
 
+    def test_worship_initiative_turn_and_layout_tabs_do_not_damage_slides(self):
+        pasted = """The Worship Initiative
+Dashboard
+Phil Wickham
+This Is Amazing Grace
+Full Mix
+This Is Amazing Grace
+Chart
+This Is Amazing Grace
+CCLI: 6333821
+99 BPM
+4/4
+Capo Tool
+Verse 1
+Gm F Eb
+The King of Glory  \t  the King above all ki\tngs
+Chorus
+Bb Eb
+This is amazing grace  \t  this is unfailing love
+Gm F
+Oh  \t Jesus I sing for all that You've done for me
+Turn
+Bb Eb
+Verse 2
+Gm F Eb
+The King of Glory  \t  the King of Glory
+Chorus
+Bb Eb
+This is amazing grace \t this is unfailing love
+Gm F
+Oh \t Jesus I sing for all that You've done for me
+Bridge
+Bb
+W\torthy is the Lamb who was slain
+Eb
+W\torthy is the King who conquered the grave (3X)
+Gm Bb Eb
+W\torthy is the Lamb who was sl\tain worthy w\torthy worthy
+Chorus
+Bb Eb
+This is amazing grace  \t this is unfailing love
+Gm F
+Oh  \t Jesus I sing for all that You've done for me
+Outro
+Bb Eb
+Scripture
+View All
+Ephesians 2:8-9
+"""
+
+        parsed = app._parse_labeled_worship_lyrics(pasted)
+
+        self.assertEqual(parsed["title"], "This Is Amazing Grace")
+        self.assertEqual(parsed["artist"], "Phil Wickham")
+        self.assertEqual(set(parsed["parts"]), {"verse1", "chorus", "verse2", "bridge"})
+        self.assertEqual(
+            parsed["arrangement"],
+            ["verse1", "chorus", "verse2", "chorus", "bridge", "chorus"],
+        )
+        all_lines = [line for lines in parsed["parts"].values() for line in lines]
+        self.assertIn("The King of Glory the King above all kings", all_lines)
+        self.assertIn("Worthy is the Lamb who was slain", all_lines)
+        self.assertIn("Worthy is the Lamb who was slain worthy worthy worthy", all_lines)
+        self.assertNotIn("Turn", all_lines)
+        self.assertFalse(any("W orthy" in line or "ki ngs" in line or "sl ain" in line for line in all_lines))
+
     def test_parse_route_can_attach_primary_chord_sheet_without_ai(self):
         pasted = """The Worship Initiative
 Sample Artist

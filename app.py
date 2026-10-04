@@ -4235,7 +4235,7 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
     text = re.sub(r"\s*\(\s*\d+\s*x\s*\)\s*$", "", text, flags=re.I).strip()
     unwrapped = re.sub(r"^[\[(]\s*|\s*[\])]$", "", text).strip()
     special = re.match(
-        r"^(last\s+bridge|final\s+chorus|alt(?:ernate)?\s+chorus|turnaround|interlude|instrumental|channel(?:\s*\d+)?|vamp)\s*(:?)$",
+        r"^(last\s+bridge|final\s+chorus|alt(?:ernate)?\s+chorus|turn|turnaround|interlude|instrumental|channel(?:\s*\d+)?|vamp)\s*(:?)$",
         unwrapped,
         flags=re.I,
     )
@@ -4665,7 +4665,7 @@ def _prepare_worship_validation_source(raw_text: str) -> str:
                 raw_line,
                 flags=re.I,
             )
-        lines.append(raw_line)
+        lines.append(re.sub(r"[ \t]+", " ", raw_line).strip())
     return "\n".join(lines).strip()
 
 

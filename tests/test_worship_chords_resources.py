@@ -162,6 +162,48 @@ Victory
         self.assertNotIn("Scripture", cleaned["chart"])
         self.assertNotIn("Topics", cleaned["chart"])
 
+    def test_worship_initiative_layout_tabs_do_not_split_lyric_words(self):
+        pasted = """The Worship Initiative
+Sample Artist
+Sample Grace
+CCLI: 6333821
+99 BPM
+4/4
+Capo Tool
+Verse 1
+Gm F Eb
+The King of Glory  \t  the King above all ki\tngs
+Chorus
+Gm F
+Oh  \t Jesus I sing for all that You've done for me
+Turn
+Bb Eb
+Bridge
+Bb
+W\torthy is the Lamb who was slain
+Eb
+W\torthy is the King who conquered the grave (3X)
+Gm Bb Eb
+W\torthy is the Lamb who was sl\tain worthy w\torthy worthy
+Outro
+Bb Eb
+Scripture
+View All
+Ephesians 2:8-9
+"""
+
+        cleaned = clean_pasted_chord_chart(pasted)
+
+        self.assertIn("the King above all kings", cleaned["chart"])
+        self.assertIn("Worthy is the Lamb who was slain", cleaned["chart"])
+        self.assertIn("slain worthy worthy worthy", cleaned["chart"])
+        self.assertNotIn("ki ngs", cleaned["chart"])
+        self.assertNotIn("W orthy", cleaned["chart"])
+        self.assertEqual(
+            [section["title"] for section in parse_chord_chart(cleaned["chart"])],
+            ["Verse 1", "Chorus", "Turn", "Bridge", "Outro"],
+        )
+
     def test_imported_chart_resource_keeps_clean_chart_and_metadata(self):
         pasted = """The Worship Initiative
 Sample Artist
