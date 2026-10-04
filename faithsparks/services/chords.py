@@ -36,7 +36,7 @@ _PLAIN_TOKEN_RE = re.compile(r"(?<!\S)([A-Ga-g](?:#|b)?[^\s|,;]*)(?!\S)")
 _DIRECTIVE_RE = re.compile(r"^\{\s*([^:}]+)\s*:\s*(.*?)\s*\}$")
 _SECTION_RE = re.compile(
     r"^(?:intro|verse|pre[- ]?chorus|chorus|refrain|bridge|interlude|instrumental|"
-    r"turnaround|tag|ending|outro|vamp|breakdown)(?:\s+\d+|\s+[a-z])?$",
+    r"turn|turnaround|tag|ending|outro|vamp|breakdown)(?:\s+\d+|\s+[a-z])?$",
     re.IGNORECASE,
 )
 _SECTION_DIRECTIVES = {"comment", "c", "section", "s", "start_of_verse", "start_of_chorus", "start_of_bridge"}
@@ -203,9 +203,23 @@ def _nearest_lyric_boundary(lyric: str, position: int) -> int:
     return min(candidates, key=lambda candidate: (abs(candidate - position), candidate)) if candidates else position
 
 
-def _merge_plain_chords_with_lyrics(chord_line: str, lyric_line: str) -> str:
+def _repair_inline_tab_word_splits(value: str) -> str:
+    """Undo layout tabs inserted through the middle of rendered lyric words."""
+    return re.sub(r"(?<=[A-Za-z])\t+(?=[a-z])", "", str(value or ""))
+
+
+def _merge_plain_chords_with_lyrics(
+    chord_line: str,
+    lyric_line: str,
+    *,
+    repair_inline_tabs: bool = False,
+) -> str:
     """Convert a visually aligned chord row plus lyric row into ChordPro."""
-    lyric = str(lyric_line or "").rstrip()
+    lyric = (
+        _repair_inline_tab_word_splits(lyric_line)
+        if repair_inline_tabs
+        else str(lyric_line or "")
+    ).rstrip()
     insertions: list[tuple[int, str]] = []
     for column, chord in _plain_chord_tokens(chord_line):
         insertions.append((_nearest_lyric_boundary(lyric, column), f"[{chord}]"))
@@ -311,12 +325,17 @@ def clean_pasted_chord_chart(chart: str) -> dict[str, object]:
         chord_tokens = _plain_chord_tokens(line)
         next_is_section = bool(_section_title(next_stripped.rstrip(":")))
         if chord_tokens and next_stripped and not _looks_like_chord_line(next_line) and not next_is_section:
-            output.append(_merge_plain_chords_with_lyrics(line, next_line))
+            output.append(_merge_plain_chords_with_lyrics(
+                line,
+                next_line,
+                repair_inline_tabs=worship_initiative_page,
+            ))
             index += 2
             continue
 
         section = _section_title(stripped.rstrip(":"))
-        output.append(section or re.sub(r"[ \t]+", " ", stripped))
+        repaired_line = _repair_inline_tab_word_splits(stripped) if worship_initiative_page else stripped
+        output.append(section or re.sub(r"[ \t]+", " ", repaired_line))
         index += 1
 
     while output and output[-1] == "":
