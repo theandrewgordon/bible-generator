@@ -6,6 +6,9 @@
   .wir-card{background:var(--box);border-radius:14px;padding:1.25rem;box-shadow:var(--card-shadow);margin-bottom:1rem}
   .wir-card h2{font-size:1rem;margin:0 0 .8rem}
   .wir-meta{display:flex;gap:.5rem;flex-wrap:wrap;color:var(--text-secondary);font-size:.86rem}
+  .wir-resource{display:flex;gap:.75rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:.75rem 0 0}
+  .wir-resource p{margin:0;flex:1 1 320px}
+  .wir-preview{display:inline-flex;align-items:center;padding:8px 12px;border:1px solid var(--primary);border-radius:8px;color:var(--primary);font-size:.82rem;font-weight:800;text-decoration:none}
   .wir-order{font-family:monospace;overflow-wrap:anywhere;line-height:1.7}
   .wir-part{border-top:1px solid #e2e8f0;padding:.8rem 0}
   .wir-part:first-child{border-top:0}
@@ -38,7 +41,10 @@
         {% if song.key %}<span>· Key {{ song.key }}</span>{% endif %}
       </div>
       {% if song.resources %}
-      <p class="small" style="margin:.75rem 0 0"><strong>Musician resource ready:</strong> {{ song.resources[0].title }}{% if song.resources[0].key %} · Key {{ song.resources[0].key }}{% endif %}{% if song.resources[0].bpm %} · {{ song.resources[0].bpm }} BPM{% endif %}. It will be saved with the song after confirmation.</p>
+      <div class="wir-resource">
+        <p class="small"><strong>Musician resource ready:</strong> {{ song.resources[0].title }}{% if song.resources[0].key %} · Key {{ song.resources[0].key }}{% endif %}{% if song.resources[0].bpm %} · {{ song.resources[0].bpm }} BPM{% endif %}. It will be saved with the song after confirmation.</p>
+        {% if song.resources[0].chart_text %}<a class="wir-preview" href="{{ url_for('worship_import_resource_chart', token=token, resource_id=song.resources[0].id) }}" target="_blank" rel="noopener">Preview chord sheet</a>{% endif %}
+      </div>
       {% endif %}
       <p><strong>Arrangement</strong></p>
       <div class="wir-order">{{ song.arrangement|join(' → ') }}</div>

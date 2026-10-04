@@ -384,6 +384,40 @@ Tag
 
 
 class WorshipResourceAndVideoTests(unittest.TestCase):
+    def test_pending_import_chart_preview_renders_without_saving(self):
+        token = "A" * 24
+        song = {
+            "id": "sample-grace",
+            "title": "Sample Grace",
+            "artist": "Sample Artist",
+            "key": "G",
+            "parts": {"verse1": ["Grace for every season"]},
+            "arrangement": ["verse1"],
+            "resources": [{
+                "id": "chart-1",
+                "kind": "chordpro",
+                "title": "Sample Grace chord chart",
+                "key": "G",
+                "chart_text": "Verse 1\n[G]Grace for every [C]season",
+            }],
+        }
+        handler = app.worship_import_resource_chart.__wrapped__.__wrapped__
+
+        with (
+            app.app.test_request_context(
+                f"/worship/import/review/{token}/resources/chart-1/chart"
+            ),
+            mock.patch.object(app, "_load_pending_worship_song", return_value={"song": song}),
+        ):
+            response = handler(token, "chart-1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store")
+        html = response.get_data(as_text=True)
+        self.assertIn("Preview—not saved", html)
+        self.assertIn("Grace for every", html)
+        self.assertNotIn("Download PDF", html)
+
     def test_licensing_report_counts_saved_lyric_source_links(self):
         song = {
             "id": "abide",
