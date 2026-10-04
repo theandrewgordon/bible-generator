@@ -133,6 +133,22 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
             self.template,
         )
 
+    def test_control_previews_match_slide_visuals(self):
+        self.assertIn("function previewVisual(slide)", self.template)
+        self.assertIn(
+            "video?slide.thumbnail_url:serviceImage?slide.image_url:slide.background_url",
+            self.template,
+        )
+        self.assertIn("'--preview-bg',cssUrl", self.template)
+        self.assertIn("'--preview-color',(slide&&slide.font_color)", self.template)
+        self.assertIn("'--preview-overlay',String(visual.overlay)", self.template)
+        self.assertIn("applySlideVisual(preview,slide)", self.template)
+        self.assertIn("applySlideVisual(previousPreview,prior)", self.template)
+        self.assertIn("applySlideVisual(nextPreview,upcoming)", self.template)
+        self.assertIn("is-contained-preview", self.template)
+        self.assertIn("is-split-preview", self.template)
+        self.assertIn("id=\"wr-slide-meta\"", self.template)
+
     def test_remote_supports_swipe_and_keyboard_clickers(self):
         self.assertIn("preview.addEventListener('pointerdown'", self.template)
         self.assertIn("Math.abs(dx)>=50", self.template)
