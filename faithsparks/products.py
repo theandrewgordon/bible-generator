@@ -73,7 +73,7 @@ PRODUCTS = (
     },
     {
         "id": "same-brain", "name": "Same Brain?", "area": "labs",
-        "maturity": "sandbox", "path": "/labs/games/same-brain", "accent": "purple",
+        "maturity": "sandbox", "path": "/same-brain", "accent": "purple",
         "description": "Answer five weird questions, challenge a friend, and see how often your brains make the same choice.",
     },
     {
