@@ -87,6 +87,8 @@
   .ws-modal input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}
   .ws-modal select{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text)}
   .ws-modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
+  .ws-preflight-list{margin:.75rem 0 0;padding-left:1.2rem;color:var(--text);font-size:.88rem;line-height:1.45}
+  .ws-preflight-list li+li{margin-top:.45rem}
   .ws-scripture-row{display:grid;grid-template-columns:1fr 92px;gap:.6rem}.ws-scripture-preview{display:grid;gap:.5rem;max-height:240px;overflow:auto;margin-top:.75rem}.ws-scripture-slide{padding:.75rem;border-radius:9px;background:#0f172a;color:#fff;text-align:center;white-space:pre-line;font-size:.86rem;line-height:1.35}.ws-scripture-status{min-height:1.2rem;margin-top:.6rem;font-size:.82rem;color:var(--text-secondary)}
   .ws-scripture-modes{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin:.75rem 0}.ws-scripture-mode{padding:.55rem;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font-weight:800;cursor:pointer}.ws-scripture-mode.is-active{background:var(--primary);border-color:var(--primary);color:#fff}.ws-scripture-panel[hidden]{display:none}.ws-modal textarea{width:100%;box-sizing:border-box;min-height:130px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font:inherit;resize:vertical}.ws-manual-rights{display:flex!important;gap:.5rem;align-items:flex-start;font-weight:500!important;line-height:1.35;margin-top:.65rem}.ws-manual-rights input{width:auto;margin-top:.15rem}
   .ws-page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:1rem}
@@ -462,6 +464,18 @@
   </div>
 </div>
 
+<div class="ws-modal-backdrop" id="live-preflight-modal" aria-hidden="true">
+  <div class="ws-modal" role="dialog" aria-modal="true" aria-labelledby="live-preflight-title" aria-describedby="live-preflight-description">
+    <h2 id="live-preflight-title">Quick service check</h2>
+    <p id="live-preflight-description">Review these items before opening the presenter.</p>
+    <ul class="ws-preflight-list" id="live-preflight-warnings"></ul>
+    <div class="ws-modal-actions">
+      <button type="button" class="ws-btn-ghost" id="live-preflight-cancel">Go back</button>
+      <button type="button" class="ws-btn-primary" id="live-preflight-confirm">Go live anyway</button>
+    </div>
+  </div>
+</div>
+
 {% if worship_church.role == 'owner' %}<div class="ws-modal-backdrop" id="reset-library-modal" aria-hidden="true">
   <form class="ws-modal" method="post" action="{{ url_for('worship_library_reset') }}" role="dialog" aria-modal="true" aria-labelledby="reset-library-title">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -542,6 +556,10 @@
   var saveNameInput = document.getElementById('save-set-name');
   var saveConfirmBtn = document.getElementById('save-set-confirm');
   var saveCancelBtn = document.getElementById('save-set-cancel');
+  var livePreflightModal = document.getElementById('live-preflight-modal');
+  var livePreflightWarnings = document.getElementById('live-preflight-warnings');
+  var livePreflightConfirm = document.getElementById('live-preflight-confirm');
+  var livePreflightCancel = document.getElementById('live-preflight-cancel');
   var resetModal = document.getElementById('reset-library-modal');
   var resetInput = document.getElementById('reset-library-confirmation');
   var resetCancelBtn = document.getElementById('reset-library-cancel');
@@ -917,7 +935,27 @@
     return notes;
   }
 
-  function startLiveWorship() {
+  function closeLivePreflight() {
+    if (!livePreflightModal) return;
+    livePreflightModal.classList.remove('is-open');
+    livePreflightModal.setAttribute('aria-hidden', 'true');
+    if (startLiveBtn) startLiveBtn.focus();
+  }
+
+  function openLivePreflight(warnings) {
+    if (!livePreflightModal || !livePreflightWarnings) return;
+    livePreflightWarnings.textContent = '';
+    (warnings.length ? warnings : ['Review the service before presenting.']).forEach(function (warning) {
+      var item = document.createElement('li');
+      item.textContent = warning;
+      livePreflightWarnings.appendChild(item);
+    });
+    livePreflightModal.classList.add('is-open');
+    livePreflightModal.setAttribute('aria-hidden', 'false');
+    setTimeout(function () { if (livePreflightConfirm) livePreflightConfirm.focus(); }, 0);
+  }
+
+  function startLiveWorship(confirmPreflight) {
     syncOrder();
     var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     if (!ids.length) return;
@@ -932,6 +970,7 @@
     ids.forEach(function (id) { fd.append('song_ids', id); });
     fd.append('notes_json', JSON.stringify(collectSetNotes(ids)));
     fd.append('live_name', currentSetlistName || 'Live Worship');
+    if (confirmPreflight) fd.append('confirm_preflight', '1');
     startLiveBtn.disabled = true;
     startLiveBtn.textContent = 'Starting…';
     function requestStart() {
@@ -940,14 +979,11 @@
         return response.json().then(function (data) {
           if (response.status === 409 && data.preflight_required) {
             var warnings = Array.isArray(data.warnings) ? data.warnings : [];
-            var message = 'Quick service check\n\n' + warnings.map(function (warning) { return '• ' + warning; }).join('\n') + '\n\nOpen the presenter anyway?';
-            if (!window.confirm(message)) {
-              var cancelled = new Error('Live Worship cancelled.');
-              cancelled.cancelled = true;
-              throw cancelled;
-            }
-            fd.set('confirm_preflight', '1');
-            return requestStart();
+            if (popup) popup.close();
+            openLivePreflight(warnings);
+            var preflight = new Error('Live Worship needs confirmation.');
+            preflight.preflight = true;
+            throw preflight;
           }
           if (!response.ok || !data.ok) throw new Error(data.error || 'Could not start Live Worship.');
           return data;
@@ -961,13 +997,27 @@
       })
       .catch(function (error) {
         if (popup) popup.close();
-        if (!error.cancelled) alert(error.message || 'Could not start Live Worship.');
+        if (!error.preflight) alert(error.message || 'Could not start Live Worship.');
       })
       .finally(function () {
         startLiveBtn.textContent = 'Go live';
         startLiveBtn.disabled = !ids.length;
       });
   }
+
+  if (livePreflightConfirm) livePreflightConfirm.addEventListener('click', function () {
+    closeLivePreflight();
+    startLiveWorship(true);
+  });
+  if (livePreflightCancel) livePreflightCancel.addEventListener('click', closeLivePreflight);
+  if (livePreflightModal) livePreflightModal.addEventListener('click', function (event) {
+    if (event.target === livePreflightModal) closeLivePreflight();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && livePreflightModal && livePreflightModal.classList.contains('is-open')) {
+      closeLivePreflight();
+    }
+  });
 
   function openMusicianPacket() {
     syncOrder();
@@ -1234,7 +1284,7 @@
   }
 
   document.getElementById('build-form').addEventListener('submit', syncOrder);
-  if (startLiveBtn) startLiveBtn.addEventListener('click', startLiveWorship);
+  if (startLiveBtn) startLiveBtn.addEventListener('click', function () { startLiveWorship(false); });
   if (musicianBtn) musicianBtn.addEventListener('click', openMusicianPacket);
   if (document.getElementById('lyric-sheet-form')) {
     document.getElementById('lyric-sheet-form').addEventListener('submit', syncOrder);

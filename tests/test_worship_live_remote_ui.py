@@ -138,15 +138,18 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn(".wr-nav-context{display:none}", self.template)
         self.assertNotIn("/worship/live/operator/", self.template)
 
-    def test_builder_only_retries_live_start_after_preflight_confirmation(self):
+    def test_builder_retries_live_start_from_explicit_preflight_dialog_action(self):
         builder = (
             Path(__file__).parents[1] / "templates" / "worship.html"
         ).read_text(encoding="utf-8")
 
         self.assertIn("data.preflight_required", builder)
         self.assertIn("Quick service check", builder)
-        self.assertIn("fd.set('confirm_preflight', '1')", builder)
-        self.assertIn("if (!error.cancelled)", builder)
+        self.assertIn("if (confirmPreflight) fd.append('confirm_preflight', '1')", builder)
+        self.assertIn("openLivePreflight(warnings)", builder)
+        self.assertIn("startLiveWorship(true)", builder)
+        self.assertIn("if (!error.preflight)", builder)
+        self.assertNotIn("window.confirm(message)", builder)
 
     def test_presenter_and_stage_use_fast_active_and_lighter_idle_polling(self):
         presenter = (
