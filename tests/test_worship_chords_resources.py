@@ -121,6 +121,82 @@ Other versions of this song
         sections = parse_chord_chart(cleaned["chart"])
         self.assertEqual([section["title"] for section in sections], ["Intro", "Verse 1", "Repeat Chorus", "Verse 2"])
 
+    def test_cleans_worship_initiative_page_and_stops_before_scripture_topics(self):
+        pasted = """The Worship Initiative
+Sample Artist
+Sample Grace
+Sample Grace
+Chart
+Sample Grace
+CCLI: 6333821
+99 BPM
+4/4
+Capo Tool
+Intro
+Bb Eb
+Verse 1
+Bb
+Opening lyric line
+Eb
+Second lyric line
+Chorus
+Bb Eb
+Shared chorus line
+Outro
+Bb Eb
+Scripture
+View All
+Ephesians 2:8-9
+Topics
+Grace
+Victory
+"""
+
+        cleaned = clean_pasted_chord_chart(pasted)
+
+        self.assertTrue(cleaned["changed"])
+        self.assertEqual(cleaned["metadata"]["ccli_song_number"], "6333821")
+        self.assertEqual(cleaned["metadata"]["bpm"], "99")
+        self.assertEqual(cleaned["metadata"]["time_signature"], "4/4")
+        self.assertIn("[Bb]Opening lyric line", cleaned["chart"])
+        self.assertNotIn("Scripture", cleaned["chart"])
+        self.assertNotIn("Topics", cleaned["chart"])
+
+    def test_imported_chart_resource_keeps_clean_chart_and_metadata(self):
+        pasted = """The Worship Initiative
+Sample Artist
+Sample Grace
+Sample Grace
+CCLI: 6333821
+99 BPM
+4/4
+Capo Tool
+Verse 1
+Bb
+Opening lyric line
+Chorus
+Eb
+Shared chorus line
+Scripture
+View All
+Ephesians 2:8-9
+"""
+        with app.app.test_request_context("/worship/add/parse"):
+            app.session["user_email"] = "leader@example.com"
+            resource, metadata = app._build_imported_worship_chart_resource(
+                {"title": "Sample Grace", "parts": {"verse1": ["Opening lyric line"]}, "arrangement": ["verse1"]},
+                pasted,
+                "https://www.theworshipinitiative.com/songs/sample-grace",
+            )
+
+        self.assertIsNotNone(resource)
+        self.assertEqual(resource["source_type"], "worship_initiative")
+        self.assertEqual(resource["bpm"], "99")
+        self.assertEqual(resource["time_signature"], "4/4")
+        self.assertEqual(metadata["ccli_song_number"], "6333821")
+        self.assertTrue(resource["sha256"])
+        self.assertNotIn("View All", resource["chart_text"])
+
     def test_cleaner_leaves_hand_authored_chordpro_unchanged(self):
         chart = "Verse 1\n[G]Amazing [C]grace"
         cleaned = clean_pasted_chord_chart(chart)

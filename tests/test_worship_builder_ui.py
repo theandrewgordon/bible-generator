@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from flask import render_template
 
@@ -152,6 +153,14 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertGreaterEqual(html.count('name="rights_confirmed"'), 3)
         self.assertIn("Faith Sparks does not grant lyric or chart rights", html)
         self.assertIn("permission from the photographer", html)
+
+    def test_ai_import_can_attach_the_pasted_chord_sheet(self):
+        html = (Path(worship_app.app.root_path) / "templates" / "worship_add.html").read_text(encoding="utf-8")
+        review = (Path(worship_app.app.root_path) / "templates" / "worship_import_review.html").read_text(encoding="utf-8")
+
+        self.assertIn('name="save_chord_sheet"', html)
+        self.assertIn("Save a musician chord sheet with this song", html)
+        self.assertIn("Musician resource ready", review)
 
     def test_music_guide_explains_resources_transposition_and_packets(self):
         with worship_app.app.test_request_context("/worship/getting-started/music-chord-charts"):

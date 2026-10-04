@@ -37,6 +37,9 @@
         {% if song.version %}<span>· {{ song.version }}</span>{% endif %}
         {% if song.key %}<span>· Key {{ song.key }}</span>{% endif %}
       </div>
+      {% if song.resources %}
+      <p class="small" style="margin:.75rem 0 0"><strong>Musician resource ready:</strong> {{ song.resources[0].title }}{% if song.resources[0].key %} · Key {{ song.resources[0].key }}{% endif %}{% if song.resources[0].bpm %} · {{ song.resources[0].bpm }} BPM{% endif %}. It will be saved with the song after confirmation.</p>
+      {% endif %}
       <p><strong>Arrangement</strong></p>
       <div class="wir-order">{{ song.arrangement|join(' → ') }}</div>
     </div>
