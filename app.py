@@ -2,9 +2,11 @@
 from flask import Flask, Response, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, g, after_this_request, has_request_context
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_dance.consumer import OAuth2ConsumerBlueprint
+from flask_dance.consumer.storage import BaseStorage
+from cryptography.fernet import Fernet, InvalidToken
 from datetime import datetime
 
-import os, json, re, traceback, hashlib, hmac, base64, csv
+import os, json, re, traceback, hashlib, hmac, base64, csv, secrets
 import logging
 import sys
 import uuid
@@ -429,11 +431,108 @@ os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 # Do NOT set OAUTHLIB_INSECURE_TRANSPORT to 1 in production
 
 # --- Google Auth ---
+_GOOGLE_SIGNIN_TOKEN_COLLECTION = "google_signin_tokens"
+_GOOGLE_SIGNIN_TOKEN_SESSION_KEY = "_google_signin_token_ref"
+_GOOGLE_SIGNIN_TOKEN_CACHE: dict[str, tuple[float, dict]] = {}
+_GOOGLE_SIGNIN_TOKEN_CACHE_TTL = 300
+
+
+def _google_signin_token_fernet() -> Fernet:
+    material = hashlib.sha256(f"faithsparks-google-signin:{app.secret_key}".encode("utf-8")).digest()
+    return Fernet(base64.urlsafe_b64encode(material))
+
+
+def _cache_google_signin_token(handle: str, token: dict) -> None:
+    if len(_GOOGLE_SIGNIN_TOKEN_CACHE) >= 1024:
+        oldest = sorted(_GOOGLE_SIGNIN_TOKEN_CACHE.items(), key=lambda item: item[1][0])[:256]
+        for stale_handle, _entry in oldest:
+            _GOOGLE_SIGNIN_TOKEN_CACHE.pop(stale_handle, None)
+    _GOOGLE_SIGNIN_TOKEN_CACHE[handle] = (time.time(), dict(token))
+
+
+class EncryptedFirestoreGoogleTokenStorage(BaseStorage):
+    """Keep ordinary Google sign-in grants out of Flask's cookie session."""
+
+    @staticmethod
+    def _legacy_key(blueprint) -> str:
+        return f"{getattr(blueprint, 'name', 'google')}_oauth_token"
+
+    def get(self, blueprint):
+        legacy_key = self._legacy_key(blueprint)
+        legacy = session.get(legacy_key)
+        if isinstance(legacy, dict) and legacy.get("access_token"):
+            if db:
+                try:
+                    self.set(blueprint, legacy)
+                except Exception:
+                    app.logger.warning("Could not migrate Google sign-in token out of cookie", exc_info=True)
+            return legacy
+
+        handle = str(session.get(_GOOGLE_SIGNIN_TOKEN_SESSION_KEY) or "").strip()
+        if not handle or not db:
+            return None
+        cached = _GOOGLE_SIGNIN_TOKEN_CACHE.get(handle)
+        if cached and time.time() - cached[0] <= _GOOGLE_SIGNIN_TOKEN_CACHE_TTL:
+            return dict(cached[1])
+        try:
+            snapshot = db.collection(_GOOGLE_SIGNIN_TOKEN_COLLECTION).document(handle).get()
+            if not snapshot.exists:
+                return None
+            encrypted = str((snapshot.to_dict() or {}).get("encryptedToken") or "")
+            if not encrypted:
+                return None
+            token = json.loads(_google_signin_token_fernet().decrypt(encrypted.encode("utf-8")))
+            if not isinstance(token, dict) or not token.get("access_token"):
+                return None
+            _cache_google_signin_token(handle, token)
+            return token
+        except (InvalidToken, json.JSONDecodeError, TypeError, ValueError):
+            app.logger.warning("Saved Google sign-in token could not be decoded")
+            return None
+        except Exception:
+            app.logger.warning("Saved Google sign-in token could not be loaded", exc_info=True)
+            return None
+
+    def set(self, blueprint, token):
+        if not isinstance(token, dict) or not token.get("access_token"):
+            raise ValueError("Google returned an invalid sign-in token")
+        legacy_key = self._legacy_key(blueprint)
+        if not db:
+            session[legacy_key] = token
+            return
+        handle = str(session.get(_GOOGLE_SIGNIN_TOKEN_SESSION_KEY) or "").strip() or secrets.token_urlsafe(24)
+        normalized = json.loads(json.dumps(token, default=str))
+        encrypted = _google_signin_token_fernet().encrypt(
+            json.dumps(normalized, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        )
+        db.collection(_GOOGLE_SIGNIN_TOKEN_COLLECTION).document(handle).set({
+            "encryptedToken": encrypted.decode("utf-8"),
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+            "expireAt": datetime.now(timezone.utc) + timedelta(days=90),
+        })
+        session[_GOOGLE_SIGNIN_TOKEN_SESSION_KEY] = handle
+        session.pop(legacy_key, None)
+        _cache_google_signin_token(handle, normalized)
+
+    def delete(self, blueprint):
+        handle = str(session.get(_GOOGLE_SIGNIN_TOKEN_SESSION_KEY) or "").strip()
+        if handle and db:
+            try:
+                db.collection(_GOOGLE_SIGNIN_TOKEN_COLLECTION).document(handle).delete()
+            except Exception:
+                app.logger.warning("Saved Google sign-in token could not be deleted", exc_info=True)
+        _GOOGLE_SIGNIN_TOKEN_CACHE.pop(handle, None)
+        session.pop(_GOOGLE_SIGNIN_TOKEN_SESSION_KEY, None)
+        session.pop(self._legacy_key(blueprint), None)
+
+
+google_signin_token_storage = EncryptedFirestoreGoogleTokenStorage()
 google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
     redirect_to="oauth_finish",                    # <— was "index"
-    scope=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"]
+    scope=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"],
+    storage=google_signin_token_storage,
 )
 app.register_blueprint(google_bp, url_prefix="/login")
 
@@ -627,7 +726,6 @@ def compact_oversized_cookie_session(response):
 # -----------------------------
 # CSRF (lightweight, no Flask-WTF)
 # -----------------------------
-import secrets
 from flask import abort
 
 CSRF_SESSION_KEY = "_csrf_token"
@@ -1491,7 +1589,7 @@ _WORSHIP_VIDEO_TYPE = "video"
 _WORSHIP_NON_SONG_TYPES = _WORSHIP_SERVICE_TYPES | {_WORSHIP_PRESENTATION_TYPE, _WORSHIP_VIDEO_TYPE}
 _WORSHIP_RESOURCE_KINDS = {"pdf", "chordpro", "link", "audio", "video", "other"}
 _WORSHIP_RESOURCE_SOURCES = {
-    "church_created", "public_domain", "songselect", "worship_together", "publisher", "other"
+    "church_created", "public_domain", "songselect", "worship_initiative", "worship_together", "publisher", "other"
 }
 _WORSHIP_KEY_CHOICES = (
     "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb",
@@ -1508,6 +1606,51 @@ def _safe_https_url(value: str) -> str:
     if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
         return ""
     return value
+
+
+def _build_imported_worship_chart_resource(song: dict, raw_chart: str, source_url: str = "") -> tuple[dict | None, dict]:
+    """Turn an opted-in primary import into a cleaned musician chart resource."""
+    cleanup = clean_pasted_chord_chart(raw_chart)
+    chart_text = str(cleanup.get("chart") or raw_chart or "").strip()[:80_000]
+    metadata = cleanup.get("metadata") if isinstance(cleanup.get("metadata"), dict) else {}
+    if not chart_text or not chart_has_chords(chart_text):
+        return None, metadata
+    safe_source_url = _safe_https_url(source_url)
+    hostname = (urlparse(safe_source_url).hostname or "").lower() if safe_source_url else ""
+    raw_lower = str(raw_chart or "").lower()
+    if "theworshipinitiative.com" in hostname or "the worship initiative" in raw_lower:
+        source_type = "worship_initiative"
+    elif "worshiptogether.com" in hostname or "worship together" in raw_lower:
+        source_type = "worship_together"
+    else:
+        source_type = "other"
+    digest = hashlib.sha256(chart_text.encode("utf-8")).hexdigest()
+    normalized_song = normalize_worship_song(song)
+    resource = {
+        "id": f"imported-chart-{digest[:16]}",
+        "kind": "chordpro",
+        "title": f"{normalized_song.get('title') or 'Imported'} chord chart",
+        "filename": "",
+        "storage_path": "",
+        "source_url": safe_source_url,
+        "source_type": source_type,
+        "license_note": "Imported with the song after church rights confirmation.",
+        "key": normalize_key(metadata.get("key") or normalized_song.get("key") or ""),
+        "capo": "",
+        "arrangement": "",
+        "mime_type": "text/plain; charset=utf-8",
+        "size": len(chart_text.encode("utf-8")),
+        "sha256": digest,
+        "chart_text": chart_text,
+        "bpm": str(metadata.get("bpm") or "")[:3],
+        "time_signature": str(metadata.get("time_signature") or "")[:12],
+        "writers": str(metadata.get("writers") or "")[:500],
+        "themes": str(metadata.get("themes") or "")[:500],
+        "scripture": str(metadata.get("scripture") or "")[:500],
+        "created_at": _worship_timestamp(),
+        "created_by": str(session.get("user_email") or ""),
+    }
+    return resource, metadata
 
 
 def _youtube_video_id(value: str) -> str:
@@ -3360,6 +3503,7 @@ except Exception:
 
 @app.route("/logout")
 def logout():
+    google_signin_token_storage.delete(google_bp)
     session.clear()
     if "public.index" in app.view_functions:
         return redirect(url_for("public.index"))
@@ -3922,6 +4066,27 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
     inferred_title = str(title_hint or "").strip()
     inferred_artist = str(artist_hint or "").strip()
     inferred_key = ""
+    worship_initiative_page = any(line.lower() == "the worship initiative" for line in lines)
+
+    if worship_initiative_page:
+        ccli_index = next(
+            (index for index, line in enumerate(lines) if re.match(r"^CCLI\s*:\s*\d+", line, flags=re.I)),
+            -1,
+        )
+        if ccli_index > 0:
+            title_index = next((index for index in range(ccli_index - 1, -1, -1) if lines[index]), -1)
+            if title_index >= 0 and not inferred_title:
+                inferred_title = lines[title_index]
+            if inferred_title and not inferred_artist:
+                first_title_index = next(
+                    (index for index in range(0, title_index) if lines[index] == inferred_title),
+                    -1,
+                )
+                if first_title_index > 0:
+                    inferred_artist = next(
+                        (lines[index] for index in range(first_title_index - 1, -1, -1) if lines[index]),
+                        "",
+                    )
 
     for idx, line in enumerate(lines):
         key_match = re.match(r"^original\s+key\s*:?\s*([A-G](?:#|b)?)?\s*$", line, flags=re.I)
@@ -3999,6 +4164,16 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
 
     while cleaned and cleaned[-1] == "":
         cleaned.pop()
+
+    chart_cleanup = clean_pasted_chord_chart(raw_text)
+    chart_text = str(chart_cleanup.get("chart") or "")
+    if chart_cleanup.get("changed") and chart_has_chords(chart_text):
+        cleaned_chart = _prepare_worship_validation_source(chart_text)
+        if cleaned_chart:
+            cleaned = cleaned_chart.splitlines()
+        chart_metadata = chart_cleanup.get("metadata")
+        if isinstance(chart_metadata, dict):
+            inferred_key = inferred_key or str(chart_metadata.get("key") or "")
 
     return {
         "title": inferred_title,
@@ -8110,6 +8285,7 @@ def worship_add_parse():
     key = request.form.get("key", "").strip()
     submitted_title, submitted_artist = title, artist
     submitted_version, submitted_key = version, key
+    save_chord_sheet = _boolish(request.form.get("save_chord_sheet"))
 
     if not _boolish(request.form.get("rights_confirmed")):
         flash("Confirm that your church has permission to store and use the imported lyrics or chart material.", "warning")
@@ -8363,6 +8539,23 @@ OTHER RULES:
     song["import_rights_confirmed_at"] = _worship_timestamp()
     song["import_rights_confirmed_by"] = str(session.get("user_email") or "")
     song["import_rights_confirmed_church"] = str(session.get("worship_church_id") or "")
+    if save_chord_sheet:
+        chart_resource, chart_metadata = _build_imported_worship_chart_resource(song, raw_lyrics, import_url)
+        if chart_resource is None and validation_text:
+            chart_resource, chart_metadata = _build_imported_worship_chart_resource(
+                song,
+                validation_text,
+                validation_url,
+            )
+        if chart_resource is None:
+            flash("No chord symbols were found, so no musician chord sheet was attached.", "warning")
+        else:
+            song["resources"] = [*song.get("resources", []), chart_resource]
+            song["ccli_song_number"] = (
+                song.get("ccli_song_number") or chart_metadata.get("ccli_song_number") or ""
+            )
+            if not song.get("key") and chart_resource.get("key"):
+                song["key"] = chart_resource["key"]
     if validation_text:
         song["validation"] = validate_worship_song_against_source(song, validation_text, validation_url)
 

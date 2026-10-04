@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import app
 
@@ -102,6 +103,131 @@ rds fall short
         self.assertEqual(cleaned["title"], "Gratitude")
         self.assertEqual(cleaned["artist"], "Benjamin William Hastings, Brandon Lake, Passion")
         self.assertEqual(cleaned["key"], "G")
+
+    def test_worship_initiative_chord_page_parses_complete_arrangement_locally(self):
+        pasted = """The Worship Initiative
+Dashboard
+Sample Artist
+Sample Grace
+Full Mix
+Sample Grace
+Chart
+Tutorials
+Sample Grace
+CCLI: 6333821
+99 BPM
+4/4
+Capo Tool
+Intro
+Bb Eb
+Verse 1
+Bb
+Opening lyric line
+Eb
+Second lyric line
+Chorus
+Bb
+Shared chorus line
+Verse 2
+Gm
+Another verse line
+Chorus
+Bb
+Shared chorus line
+Bridge
+Eb
+Contrasting bridge line
+Chorus
+Bb
+Shared chorus line
+Outro
+Bb Eb
+Scripture
+View All
+Ephesians 2:8-9
+Topics
+Grace
+"""
+
+        cleaned = app._clean_lyrics_site_paste(pasted)
+        parsed = app._parse_labeled_worship_lyrics(pasted)
+
+        self.assertEqual(cleaned["title"], "Sample Grace")
+        self.assertEqual(cleaned["artist"], "Sample Artist")
+        self.assertEqual(parsed["title"], "Sample Grace")
+        self.assertEqual(parsed["artist"], "Sample Artist")
+        self.assertEqual(set(parsed["parts"]), {"verse1", "chorus", "verse2", "bridge"})
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus", "bridge", "chorus"])
+        self.assertNotIn("Topics", " ".join(line for lines in parsed["parts"].values() for line in lines))
+
+    def test_parse_route_can_attach_primary_chord_sheet_without_ai(self):
+        pasted = """The Worship Initiative
+Sample Artist
+Sample Grace
+Sample Grace
+CCLI: 6333821
+99 BPM
+4/4
+Capo Tool
+Verse 1
+Bb
+Opening lyric line
+Chorus
+Eb
+Shared chorus line
+Verse 2
+Gm
+Another verse line
+Chorus
+Eb
+Shared chorus line
+Bridge
+F
+Contrasting bridge line
+Chorus
+Eb
+Shared chorus line
+Scripture
+View All
+Ephesians 2:8-9
+"""
+        captured = {}
+
+        def store(song, used_fallback, fallback_reason, primary_labeled=False):
+            captured["song"] = song
+            captured["used_fallback"] = used_fallback
+            captured["primary_labeled"] = primary_labeled
+            return "A" * 24
+
+        rate = type("_Rate", (), {"allowed": True, "retry_after": 0})()
+        handler = app.worship_add_parse.__wrapped__.__wrapped__
+        with app.app.test_request_context(
+            "/worship/add/parse",
+            method="POST",
+            data={
+                "raw_lyrics": pasted,
+                "rights_confirmed": "1",
+                "save_chord_sheet": "1",
+            },
+        ):
+            app.session["user_email"] = "leader@example.com"
+            with (
+                patch.dict(app.os.environ, {"ANTHROPIC_API_KEY": "test", "OPENAI_API_KEY": "test"}),
+                patch.object(app, "check_rate_limit", return_value=rate),
+                patch.object(app, "_store_pending_worship_song", side_effect=store),
+                patch.object(app, "_parse_worship_lyrics_claude") as claude,
+                patch.object(app, "_parse_worship_lyrics_openai") as openai,
+            ):
+                response = handler()
+
+        self.assertEqual(response.status_code, 302)
+        claude.assert_not_called()
+        openai.assert_not_called()
+        self.assertFalse(captured["used_fallback"])
+        self.assertTrue(captured["primary_labeled"])
+        self.assertEqual(captured["song"]["ccli_song_number"], "6333821")
+        self.assertEqual(captured["song"]["resources"][0]["source_type"], "worship_initiative")
+        self.assertNotIn("View All", captured["song"]["resources"][0]["chart_text"])
 
     def test_worship_together_metadata_allows_blank_before_download_link(self):
         pasted = """As The Deer

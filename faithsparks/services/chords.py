@@ -232,9 +232,16 @@ def clean_pasted_chord_chart(chart: str) -> dict[str, object]:
             if match and name not in metadata:
                 value = re.sub(r"\s+", " ", match.group(1)).strip()
                 metadata[name] = value.replace("-", "") if name == "ccli_song_number" else value
+        bpm_match = re.fullmatch(r"(\d{1,3})\s+BPM", stripped, flags=re.I)
+        if bpm_match and "bpm" not in metadata:
+            metadata["bpm"] = bpm_match.group(1)
+        time_match = re.fullmatch(r"(\d{1,2})\s*/\s*(\d{1,2})", stripped)
+        if time_match and "time_signature" not in metadata:
+            metadata["time_signature"] = f"{time_match.group(1)}/{time_match.group(2)}"
 
     original_key_indexes = [index for index, line in enumerate(lines) if _ORIGINAL_KEY_RE.match(line.strip())]
     chords_indexes = [index for index, line in enumerate(lines) if line.strip().lower() == "chords"]
+    worship_initiative_page = any(line.strip().lower() == "the worship initiative" for line in lines)
     start_index = -1
     if original_key_indexes:
         candidate = original_key_indexes[-1]
@@ -247,6 +254,20 @@ def clean_pasted_chord_chart(chart: str) -> dict[str, object]:
         candidate = chords_indexes[-1] + 1
         if any(_section_title(line.strip().rstrip(":")) for line in lines[candidate:candidate + 20]):
             start_index = candidate
+    elif worship_initiative_page:
+        capo_tool_index = next(
+            (index for index, line in enumerate(lines) if line.strip().lower() == "capo tool"),
+            -1,
+        )
+        if capo_tool_index >= 0:
+            start_index = next(
+                (
+                    index
+                    for index in range(capo_tool_index + 1, min(len(lines), capo_tool_index + 30))
+                    if _section_title(lines[index].strip().rstrip(":"))
+                ),
+                -1,
+            )
 
     # A normal hand-authored chart should pass through unchanged.
     if start_index < 0:
@@ -255,6 +276,11 @@ def clean_pasted_chord_chart(chart: str) -> dict[str, object]:
     end_index = len(lines)
     for index in range(start_index, len(lines)):
         stripped = lines[index].strip()
+        if worship_initiative_page and stripped.lower() == "scripture":
+            following = [line.strip().lower() for line in lines[index + 1:index + 4] if line.strip()]
+            if following and following[0] == "view all":
+                end_index = index
+                break
         if _PAGE_CHART_STOP_RE.match(stripped) or stripped.lower().startswith("copyright ©"):
             end_index = index
             break
