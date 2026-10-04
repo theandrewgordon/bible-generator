@@ -103,10 +103,35 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("atStart?'Start of set'", self.template)
         self.assertIn("atEnd?'End of set'", self.template)
 
-    def test_next_preview_is_a_direct_advance_control(self):
+    def test_adjacent_previews_are_direct_navigation_controls(self):
+        self.assertIn(
+            'id="wr-previous-preview" aria-label="Show previous slide"',
+            self.template,
+        )
         self.assertIn('id="wr-next-preview" aria-label="Show next slide"', self.template)
+        self.assertIn(
+            "bindFastPress(previousPreview,function(){send('previous');})",
+            self.template,
+        )
         self.assertIn("bindFastPress(nextPreview,function(){send('next');})", self.template)
-        self.assertIn("Next slide · tap to show", self.template)
+        self.assertIn("Previous · tap to show", self.template)
+        self.assertIn("Next · tap to show", self.template)
+
+    def test_adjacent_previews_are_small_side_by_side_and_verbatim(self):
+        self.assertIn(
+            ".wr-neighbors{display:grid;grid-template-columns:1fr 1fr",
+            self.template,
+        )
+        self.assertIn("function neighborLines(slide,fallback)", self.template)
+        self.assertIn("(slide.lines||[]).join('\\n')", self.template)
+        self.assertIn(
+            "previousLines.textContent=neighborLines(prior,'Start of set')",
+            self.template,
+        )
+        self.assertIn(
+            "nextLines.textContent=neighborLines(upcoming,'End of set')",
+            self.template,
+        )
 
     def test_remote_supports_swipe_and_keyboard_clickers(self):
         self.assertIn("preview.addEventListener('pointerdown'", self.template)
@@ -116,11 +141,17 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("event.key==='Home'", self.template)
         self.assertIn("event.key==='End'", self.template)
 
-    def test_quick_recovery_controls_are_not_hidden_in_details(self):
-        quick_controls = self.template.index('class="wr-smart"')
-        jump_details = self.template.index('class="wr-quick"')
-        self.assertLess(quick_controls, jump_details)
+    def test_secondary_controls_are_grouped_behind_one_advanced_disclosure(self):
+        primary_navigation = self.template.index('class="wr-nav"')
+        advanced_controls = self.template.index('class="wr-advanced"')
+        self.assertLess(primary_navigation, advanced_controls)
+        self.assertIn("<summary>Advanced controls</summary>", self.template)
+        self.assertIn('class="wr-tools"', self.template[advanced_controls:])
+        self.assertIn('class="wr-smart"', self.template[advanced_controls:])
         self.assertIn("Jump or repeat · section or slide", self.template)
+        self.assertIn("Stage tools", self.template)
+        self.assertIn("Emergency slide tools", self.template)
+        self.assertIn("End this session", self.template)
 
     def test_remote_shows_item_and_slide_context(self):
         self.assertIn("function itemContext(index)", self.template)
