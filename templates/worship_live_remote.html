@@ -9,13 +9,13 @@
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;min-height:100%;background:#07111f;color:#f8fafc;font-family:Arial,Helvetica,sans-serif}
     body{padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom)}
-    .wr-shell{width:min(620px,100%);margin:auto;min-height:100dvh;display:flex;flex-direction:column;gap:12px;padding:12px 0 calc(132px + env(safe-area-inset-bottom))}
+    .wr-shell{width:min(620px,100%);margin:auto;min-height:100dvh;display:flex;flex-direction:column;gap:10px;padding:12px 0 calc(120px + env(safe-area-inset-bottom))}
     .wr-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
     .wr-output,.wr-controls{display:flex;flex-direction:column;gap:12px;min-width:0}.wr-output{flex:1;min-height:0}
     .wr-title{margin:0;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .wr-status{display:flex;align-items:center;gap:6px;color:#cbd5e1;font-size:.78rem;white-space:nowrap}.wr-status::before{content:"";width:9px;height:9px;border-radius:50%;background:#22c55e}.wr-status.is-offline{color:#fecaca}.wr-status.is-offline::before{background:#ef4444}
     .wr-offline{border:2px solid #ef4444;border-radius:12px;background:#7f1d1d;color:#fff;padding:10px 13px;font-weight:850;text-align:center}.wr-offline[hidden]{display:none}
-    .wr-preview{flex:1;min-height:260px;border:1px solid #233146;border-radius:18px;background:#0f172a;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;position:relative;overflow:hidden}
+    .wr-preview{flex:1;min-height:230px;border:1px solid #233146;border-radius:18px;background:#0f172a;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;position:relative;overflow:hidden}
     .wr-preview.is-blank{background:#000}.wr-preview.is-blank>*{visibility:hidden}
     .wr-kind{position:absolute;left:14px;top:12px;color:#94a3b8;font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
     .wr-song{font-size:clamp(1.6rem,7vw,2.8rem);line-height:1.05;margin:0 0 .7rem;font-weight:850}
@@ -23,15 +23,17 @@
     .wr-note{margin:.9rem 0 0;color:#fcd34d;font-size:.94rem;line-height:1.3;font-weight:700}
     .wr-audience-state{position:absolute;right:14px;top:12px;color:#fcd34d;font-size:.72rem;font-weight:850;text-transform:uppercase}
     .wr-progress{text-align:center;color:#cbd5e1;font-size:.88rem;font-weight:700}
-    .wr-next-preview{width:100%;min-height:112px;border:1px solid #233146;border-radius:15px;background:#0b1322;color:inherit;padding:12px 14px;overflow:hidden;text-align:left;cursor:pointer;touch-action:manipulation}.wr-next-preview>span{display:block}.wr-next-preview:active{transform:scale(.992)}.wr-next-preview:disabled{cursor:default;opacity:.66}.wr-next-preview.is-end{display:flex;align-items:center;justify-content:center;color:#64748b}.wr-next-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}.wr-next-label{color:#2dd4bf;font-size:.68rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.wr-next-title{color:#94a3b8;font-size:.75rem;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr-next-lines{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;color:#e2e8f0;font-size:.95rem;line-height:1.28;font-weight:700;white-space:pre-line}
-    .wr-nav{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(calc(100% - 28px),620px);z-index:20;display:grid;grid-template-columns:1fr 1.6fr;gap:7px 10px;padding:7px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
+    .wr-neighbors{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .wr-neighbor{width:100%;min-width:0;min-height:104px;border:1px solid #334155;border-radius:14px;background:#0b1322;color:inherit;padding:10px 11px;text-align:left;cursor:pointer;touch-action:manipulation;overflow:hidden}.wr-neighbor>span{display:block}.wr-neighbor:active{transform:scale(.987)}.wr-neighbor:disabled{cursor:default;opacity:.52}.wr-neighbor.is-boundary{display:flex;align-items:center;justify-content:center;color:#64748b;text-align:center}.wr-neighbor-head{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}.wr-neighbor-label{font-size:.63rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase}.wr-previous-preview .wr-neighbor-label{color:#cbd5e1}.wr-next-preview .wr-neighbor-label{color:#2dd4bf}.wr-neighbor-title{color:#94a3b8;font-size:.7rem;font-weight:750;line-height:1.2;overflow-wrap:anywhere}.wr-neighbor-lines{color:#e2e8f0;font-size:.78rem;line-height:1.22;font-weight:700;white-space:pre-line;overflow-wrap:anywhere}
+    .wr-nav{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(calc(100% - 28px),620px);z-index:20;display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;padding:7px;border:1px solid rgba(71,85,105,.72);border-radius:20px;background:rgba(7,17,31,.92);box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(10px)}
     .wr-nav-context{grid-column:1/-1;min-height:1rem;padding:0 8px;color:#cbd5e1;font-size:.76rem;font-weight:800;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .wr-btn{min-height:82px;border:0;border-radius:16px;font-size:1.15rem;font-weight:850;cursor:pointer;touch-action:manipulation}.wr-prev{background:#334155;color:#fff}.wr-next{background:#0ea5a8;color:#fff;font-size:1.35rem}.wr-btn:active{transform:scale(.985)}
+    .wr-btn{min-height:76px;border:0;border-radius:16px;font-size:1.12rem;font-weight:850;cursor:pointer;touch-action:manipulation}.wr-prev{background:#334155;color:#fff}.wr-next{background:#0ea5a8;color:#fff;font-size:1.25rem}.wr-btn:active{transform:scale(.985)}
     .wr-sections{display:flex;gap:7px;overflow-x:auto;padding:2px 0 5px;scrollbar-width:none}.wr-sections::-webkit-scrollbar{display:none}.wr-section-btn{flex:0 0 auto;min-height:38px;border:1px solid #475569;border-radius:999px;background:#111c2e;color:#e2e8f0;padding:7px 12px;font-weight:800}.wr-section-btn.is-current{background:#0f766e;border-color:#2dd4bf;color:#fff}
     .wr-smart{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.wr-smart-btn{min-height:48px;border:1px solid #334155;border-radius:13px;background:#172235;color:#e2e8f0;font-size:.88rem;font-weight:800}.wr-smart-btn:disabled{opacity:.4}
     .wr-tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.wr-tool{min-height:54px;border:1px solid #475569;border-radius:13px;background:#111c2e;color:#fff;font-size:.9rem;font-weight:750}.wr-tool.is-active{background:#92400e;border-color:#f59e0b}.wr-tool.is-blank{background:#b91c1c;border-color:#ef4444}.wr-tool:disabled,.wr-btn:disabled,.wr-section-btn:disabled{opacity:.58}
     .wr-video-tools{display:none;grid-template-columns:repeat(5,1fr);gap:8px;padding:9px;border:1px solid #0f766e;border-radius:14px;background:#0b2c32}.wr-video-tools.is-visible{display:grid}.wr-video-btn{min-height:48px;border:1px solid #14b8a6;border-radius:10px;background:#0f766e;color:#fff;font-weight:850}.wr-video-btn:disabled{opacity:.5}
     .wr-jump{width:100%;border:1px solid #475569;border-radius:12px;background:#111c2e;color:#fff;padding:12px;font-size:1rem}
+    .wr-advanced{border:1px solid #334155;border-radius:14px;background:#0b1322;padding:0 12px}.wr-advanced>summary{cursor:pointer;padding:13px 0;font-weight:850;list-style:none}.wr-advanced>summary::-webkit-details-marker{display:none}.wr-advanced>summary::after{content:"Show";float:right;color:#2dd4bf;font-size:.75rem}.wr-advanced[open]>summary::after{content:"Hide"}.wr-advanced-body{display:grid;gap:10px;padding:0 0 13px}
     .wr-quick{border:1px solid #334155;border-radius:14px;background:#0b1322;padding:0 12px}.wr-quick summary{cursor:pointer;padding:13px 0;font-weight:850}.wr-quick-body{display:grid;gap:10px;padding:0 0 13px}
     .wr-stage-tools{border:1px solid #334155;border-radius:14px;background:#0b1322;padding:0 12px}.wr-stage-tools summary{cursor:pointer;padding:13px 0;font-weight:850}.wr-stage-body{display:grid;gap:9px;padding:0 0 13px}.wr-stage-row{display:flex;gap:8px;flex-wrap:wrap}.wr-stage-input{flex:1;min-width:180px;border:1px solid #475569;border-radius:10px;background:#111c2e;color:#fff;padding:10px;font-size:.95rem}.wr-stage-action,.wr-stage-link{border:1px solid #475569;border-radius:10px;background:#172235;color:#fff;padding:9px 12px;font-weight:750;text-decoration:none}.wr-stage-action:disabled{opacity:.5}.wr-stage-status{min-height:1.1rem;color:#94a3b8;font-size:.78rem}
     .wr-edit-input,.wr-edit-lines{width:100%;border:1px solid #475569;border-radius:10px;background:#111c2e;color:#fff;padding:10px;font:inherit}.wr-edit-lines{min-height:105px;resize:vertical;line-height:1.35}.wr-edit-grid{display:grid;grid-template-columns:1fr 90px;gap:8px}.wr-edit-help{margin:0;color:#94a3b8;font-size:.76rem;line-height:1.35}.wr-edit-status{min-height:1.1rem;color:#fcd34d;font-size:.8rem;font-weight:700}
@@ -41,8 +43,8 @@
       .wr-shell{width:min(1180px,100%);min-height:calc(100dvh - 36px);display:grid;grid-template-columns:minmax(0,1.3fr) minmax(360px,.8fr);grid-template-rows:auto minmax(0,1fr);gap:16px;padding:0}
       .wr-head{grid-column:1/-1}.wr-output{grid-column:1;grid-row:2}.wr-controls{grid-column:2;grid-row:2;align-self:start}
       .wr-preview{min-height:420px;height:min(58vh,620px)}.wr-song{font-size:clamp(2rem,3.5vw,3.4rem)}.wr-lines{font-size:clamp(1.7rem,2.8vw,2.8rem)}
-      .wr-next-preview{min-height:128px}.wr-nav{position:sticky;left:auto;bottom:auto;top:0;transform:none;width:100%;z-index:20}.wr-btn{min-height:68px}
-      .wr-quick summary,.wr-stage-tools summary{padding:11px 0}.wr-help{text-align:left}
+      .wr-neighbor{min-height:112px}.wr-neighbor-lines{font-size:.84rem}.wr-nav{position:sticky;left:auto;bottom:auto;top:0;transform:none;width:100%;z-index:20}.wr-btn{min-height:68px}
+      .wr-advanced>summary,.wr-quick summary,.wr-stage-tools summary{padding:11px 0}.wr-help{text-align:left}
     }
     @media(orientation:landscape) and (max-height:600px) and (max-width:899px){
       .wr-shell{padding-bottom:calc(82px + env(safe-area-inset-bottom))}.wr-preview{min-height:210px}
@@ -59,12 +61,16 @@
       <div><div class="wr-kind" id="wr-kind"></div><div class="wr-audience-state" id="wr-audience-state"></div><h2 class="wr-song" id="wr-song"></h2><div class="wr-lines" id="wr-lines"></div><p class="wr-note" id="wr-note"></p></div>
     </section>
     <div class="wr-progress" id="wr-progress">1 / {{ slides|length }}</div>
-    <button type="button" class="wr-next-preview" id="wr-next-preview" aria-label="Show next slide"><span><span class="wr-next-head"><span class="wr-next-label">Next slide · tap to show</span><span class="wr-next-title" id="wr-next-title"></span></span><span class="wr-next-lines" id="wr-next-lines"></span></span></button>
+    <div class="wr-neighbors" aria-label="Adjacent slides">
+      <button type="button" class="wr-neighbor wr-previous-preview" id="wr-previous-preview" aria-label="Show previous slide"><span><span class="wr-neighbor-head"><span class="wr-neighbor-label">Previous · tap to show</span><span class="wr-neighbor-title" id="wr-previous-title"></span></span><span class="wr-neighbor-lines" id="wr-previous-lines"></span></span></button>
+      <button type="button" class="wr-neighbor wr-next-preview" id="wr-next-preview" aria-label="Show next slide"><span><span class="wr-neighbor-head"><span class="wr-neighbor-label">Next · tap to show</span><span class="wr-neighbor-title" id="wr-next-title"></span></span><span class="wr-neighbor-lines" id="wr-next-lines"></span></span></button>
+    </div>
     </div>
     <div class="wr-controls" aria-label="Live worship controls">
     <div class="wr-nav"><div class="wr-nav-context" id="wr-nav-context"></div><button class="wr-btn wr-prev" id="wr-previous" data-action="previous">← Previous</button><button class="wr-btn wr-next" id="wr-next" data-action="next">Next →</button></div>
-    <div class="wr-tools"><button class="wr-tool" id="wr-clear" data-action="toggle_clear">Clear words</button><button class="wr-tool" id="wr-blank" data-action="toggle_blank">Black screen</button><button class="wr-tool" id="wr-awake">Keep awake</button></div>
     <div class="wr-video-tools" id="wr-video-tools" aria-label="Video controls"><button class="wr-video-btn" data-video-action="video_play">▶ Play</button><button class="wr-video-btn" data-video-action="video_pause">Pause</button><button class="wr-video-btn" data-video-action="video_restart">Restart</button><button class="wr-video-btn" data-video-action="video_mute">Mute</button><button class="wr-video-btn" data-video-action="video_unmute">Sound</button></div>
+    <details class="wr-advanced"><summary>Advanced controls</summary><div class="wr-advanced-body">
+    <div class="wr-tools"><button class="wr-tool" id="wr-clear" data-action="toggle_clear">Clear words</button><button class="wr-tool" id="wr-blank" data-action="toggle_blank">Black screen</button><button class="wr-tool" id="wr-awake">Keep awake</button></div>
     <div class="wr-smart" aria-label="Quick live controls"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button><button class="wr-smart-btn" id="wr-undo" disabled>↶ Undo jump</button></div>
     <details class="wr-quick"><summary>Jump or repeat · section or slide</summary><div class="wr-quick-body">
       <div class="wr-sections" id="wr-sections" aria-label="Song sections"></div>
@@ -87,7 +93,8 @@
       <div class="wr-edit-status" id="wr-edit-status" aria-live="polite"></div>
     </div></details>
     <button class="wr-end" id="wr-end">End this session</button>
-    <p class="wr-help">Tap the next preview, swipe the current slide, or use arrows, Page Up/Down, or Space. This remote expires automatically.</p>
+    </div></details>
+    <p class="wr-help">Tap the previous or next slide preview, swipe the live slide, or use arrows, Page Up/Down, or Space. This remote expires automatically.</p>
     </div>
   </main>
   <script>
@@ -100,7 +107,7 @@
     var stageMessage={{ live.stage_message|default('')|tojson }};
     var timerMode={{ live.stage_timer_mode|default('')|tojson }},timerStarted=Number({{ live.stage_timer_started_epoch|default(0)|tojson }})||0,timerDuration=Number({{ live.stage_timer_duration|default(0)|tojson }})||0,serverOffset=0;
     var revision={{ live.revision|int }},deckRevision=Number({{ live.deck_revision|default(0)|tojson }})||0;
-    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),offlineAlert=document.getElementById('wr-offline'),progress=document.getElementById('wr-progress'),nextPreview=document.getElementById('wr-next-preview'),nextTitle=document.getElementById('wr-next-title'),nextLines=document.getElementById('wr-next-lines'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),previousBtn=document.getElementById('wr-previous'),nextBtn=document.getElementById('wr-next'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status'),videoTools=document.getElementById('wr-video-tools'),editLines=document.getElementById('wr-edit-lines'),splitAfter=document.getElementById('wr-split-after'),editStatus=document.getElementById('wr-edit-status');
+    var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),offlineAlert=document.getElementById('wr-offline'),progress=document.getElementById('wr-progress'),previousPreview=document.getElementById('wr-previous-preview'),previousTitle=document.getElementById('wr-previous-title'),previousLines=document.getElementById('wr-previous-lines'),nextPreview=document.getElementById('wr-next-preview'),nextTitle=document.getElementById('wr-next-title'),nextLines=document.getElementById('wr-next-lines'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),previousBtn=document.getElementById('wr-previous'),nextBtn=document.getElementById('wr-next'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status'),videoTools=document.getElementById('wr-video-tools'),editLines=document.getElementById('wr-edit-lines'),splitAfter=document.getElementById('wr-split-after'),editStatus=document.getElementById('wr-edit-status');
     var wakeLock=null,pollTimer=null,sending=false,ended=false,offlineLocked=false,messageDirty=false,editDirty=false,pendingStageMessage='',jumpHistory=[],lastSectionTarget=-1,commandQueue=Promise.resolve(),pendingCommands=0,swipeStart=null,needsReconcile=false;
     var confirmed={current:current,blank:blank,clearWords:clearWords};
     function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
@@ -134,8 +141,9 @@
     }
     function updateNavigation(){
       var atStart=current<=0,atEnd=current>=slides.length-1;
-      previousBtn.disabled=ended||offlineLocked||atStart;nextBtn.disabled=ended||offlineLocked||atEnd;nextPreview.disabled=ended||offlineLocked||atEnd;
+      previousBtn.disabled=ended||offlineLocked||atStart;nextBtn.disabled=ended||offlineLocked||atEnd;previousPreview.disabled=ended||offlineLocked||atStart;nextPreview.disabled=ended||offlineLocked||atEnd;
       previousBtn.textContent=atStart?'Start of set':'← Previous';nextBtn.textContent=atEnd?'End of set':'Next →';
+      previousPreview.setAttribute('aria-label',atStart?'Start of set':'Show previous slide');
       nextPreview.setAttribute('aria-label',atEnd?'End of set':'Show next slide');
     }
     function sectionTargets(){
@@ -159,6 +167,8 @@
       document.getElementById('wr-split-slide').disabled=sending||ended||offlineLocked||!editable||source.length<2;
       splitAfter.disabled=sending||ended||offlineLocked||source.length<2;
     }
+    function neighborTitle(slide){return slide?((slide.title||'Slide')+(slide.part_label?' · '+slide.part_label:'')):'';}
+    function neighborLines(slide,fallback){return slide?((slide.lines||[]).join('\n')||slide.title||'Slide'):fallback;}
     function draw(index,isBlank,isClear){
       var previousIndex=current;current=Math.max(0,Math.min(slides.length-1,Number(index)||0));if(current!==previousIndex){editDirty=false;editStatus.textContent='';}blank=!!isBlank;clearWords=!!isClear;var slide=slides[current]||{};
       preview.classList.toggle('is-blank',blank);blankBtn.classList.toggle('is-blank',blank);blankBtn.textContent=blank?'Show screen':'Black screen';clearBtn.classList.toggle('is-active',clearWords);clearBtn.textContent=clearWords?'Show words':'Clear words';document.getElementById('wr-audience-state').textContent=blank?'Audience black':clearWords?'Words cleared':'';
@@ -169,7 +179,7 @@
       videoTools.classList.toggle('is-visible',slide.kind==='video');
       navContext.textContent=itemContext(current)+' · '+(slide.title||'Slide')+(slide.kind==='lyric'&&slide.part_label?' · '+slide.part_label:'');
       progress.textContent=(current+1)+' / '+slides.length+' · '+(slide.title||'');jump.value=String(current);
-      var upcoming=slides[current+1];nextPreview.classList.toggle('is-end',!upcoming);nextTitle.textContent=upcoming?((upcoming.title||'Slide')+(upcoming.part_label?' · '+upcoming.part_label:'')):'';nextLines.textContent=upcoming?((upcoming.lines||[]).join('\n')||upcoming.title||'Slide'):'End of set';
+      var prior=slides[current-1],upcoming=slides[current+1];previousPreview.classList.toggle('is-boundary',!prior);previousTitle.textContent=neighborTitle(prior);previousLines.textContent=neighborLines(prior,'Start of set');nextPreview.classList.toggle('is-boundary',!upcoming);nextTitle.textContent=neighborTitle(upcoming);nextLines.textContent=neighborLines(upcoming,'End of set');
       updateNavigation();updateSections();updateSmartButtons();updateStageStatus();syncEditForm();
     }
     function connected(ok){offlineLocked=!ok;statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?(pendingCommands?'Sending…':'Connected'):'Audience not responding';offlineAlert.hidden=ok;updateNavigation();updateSections();updateSmartButtons();syncEditForm();}
@@ -197,6 +207,7 @@
       button.addEventListener('click',function(){if(Date.now()<handledPointerUntil){handledPointerUntil=0;return;}if(!button.disabled)handler();});
     }
     document.querySelectorAll('[data-action]').forEach(function(btn){bindFastPress(btn,function(){send(btn.dataset.action);});});
+    bindFastPress(previousPreview,function(){send('previous');});
     bindFastPress(nextPreview,function(){send('next');});
     document.querySelectorAll('[data-video-action]').forEach(function(btn){btn.addEventListener('click',function(){send(btn.dataset.videoAction);});});
     document.querySelectorAll('[data-smart]').forEach(function(btn){btn.addEventListener('click',function(){var target=smartTarget(btn.dataset.smart);if(target>=0)jumpTo(target);});});
