@@ -112,7 +112,9 @@ def test_shared_games_assets_are_private():
     ):
         response = client.get(path)
         assert response.status_code == 200
-        assert response.headers["Cache-Control"] == "private, no-store"
+        # Private and revalidated each play (cheap 304), never stored by shared caches.
+        assert response.headers["Cache-Control"] == "private, no-cache"
+        assert response.headers.get("ETag")
         assert response.headers["X-Robots-Tag"] == "noindex, nofollow, noarchive, nosnippet"
 
 

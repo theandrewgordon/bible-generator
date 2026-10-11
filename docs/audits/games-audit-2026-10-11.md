@@ -9,6 +9,21 @@ How it was checked:
 
 **Result: 0 JavaScript errors across all five games.** The problems are cost, payload, fragility and device-local saves, not crashes.
 
+## Status — fixes applied 2026-10-11
+
+| # | Status |
+|---|---|
+| 1 Same Brain metrics | Fixed: admin-only (`ADMIN_EMAILS`), 10-minute cache (`?fresh=1` to bypass), newest-first sample |
+| 2 Runtime patch layer | Fixed: patches written into the game files; ~1,200 lines of request-time patching deleted |
+| 3 Payload/caching | Fixed: `/static/vendor/littlejs-1.18.19.min.js` (180 KB) for 3 games; Window Washing's modified engine extracted and minified (193 KB); vendor files cached immutably; `games-core.js`/`games-ui.css` revalidate (304) instead of re-downloading; `debugShowErrors()` removed so an error can never replace a game with a red debug screen |
+| 4 Progress only on device | Fixed for milestone stats: best score, highest level, stars, completions and XP sync per player through the roster (merged by max, throttled to one save per 15 s). Mail Run's and Family Stables' own internal saves still live on the device |
+| 5 Speed Die polling | Fixed: ETag/304 for unchanged rooms (verified: 34 of 59 polls were 304 in the two-device browser test); polling stops after 2 hidden minutes and resumes on return |
+| 6 Same Brain limits | Fixed: points 60/h, TTS 40/h, analytics 300/h per user (in-memory); funnel counters sharded ×10; public analytics limiter moved off Firestore |
+| 7 iPad name keyboard | Fixed: name box focused inside the tap |
+| 8 FGN/Bible Bee polling | Unchanged (fine at family scale) |
+| 9 Behavior tests | Added `scripts/games_smoke.py` (browser smoke test, all 5 games pass) and `tests/test_games_audit_fixes.py` |
+| 10 Tagify | Fixed: self-hosted `tagify-4.39.0` (the version the CDN was serving) |
+
 ---
 
 ## P1 — fix soon

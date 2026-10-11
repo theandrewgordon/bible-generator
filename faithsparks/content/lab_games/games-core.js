@@ -144,8 +144,9 @@ function mergeAccountRosterBootstrap(){
       local.name=name;
       local.avatar=raw.avatar||local.avatar||avatarIdFor(id||name);
       local.createdAt=Math.min(+local.createdAt||now(),+raw.createdAt||now());
+      mergeRemoteProgress(local,raw.games);
     }else if(state.players.length<MAX_PLAYERS){
-      state.players.push({
+      const added={
         id,name,
         avatar:raw.avatar||avatarIdFor(id||name),
         createdAt:+raw.createdAt||now(),
@@ -154,7 +155,9 @@ function mergeAccountRosterBootstrap(){
         activity:[],
         totals:{xp:0,gamesPlayed:0,completions:0},
         games:{}
-      });
+      };
+      mergeRemoteProgress(added,raw.games);
+      state.players.push(added);
     }
   }
 
@@ -165,7 +168,29 @@ function mergeAccountRosterBootstrap(){
     state.activePlayerId=String(remote.activePlayerId);
 }
 
+// Milestone stats that follow a player across devices. Live values such as
+// currentScore and timestamps stay local so normal play does not cause writes.
+const SYNCED_GAME_FIELDS=['sessions','completions','bestScore','highestLevel','bestStars','bestAccuracy','xp'];
+function progressSummary(p){
+  const out={};
+  for(const [gameId,g] of Object.entries(p&&p.games||{}).slice(0,12)){
+    if(!g||typeof g!=='object') continue;
+    const row={};
+    for(const key of SYNCED_GAME_FIELDS){const v=Math.max(0,Math.floor(+g[key]||0));if(v)row[key]=v;}
+    if(Object.keys(row).length) out[gameId]=row;
+  }
+  return out;
+}
+function mergeRemoteProgress(local,remoteGames){
+  if(!remoteGames||typeof remoteGames!=='object') return;
+  local.games=local.games&&typeof local.games==='object'?local.games:{};
+  for(const [gameId,row] of Object.entries(remoteGames)){
+    if(!row||typeof row!=='object') continue;
+    local.games[gameId]=mergeGameRecords(ensureGame(local,gameId),row);
+  }
+}
 let accountRosterSyncTimer=0;
+let lastRosterSyncAt=0;
 let lastRosterFingerprint='';
 function accountRosterPayload(){
   return {
@@ -174,7 +199,8 @@ function accountRosterPayload(){
       id:p.id,
       name:cleanPlayerName(p.name),
       avatar:p.avatar||avatarIdFor(p.id||p.name),
-      createdAt:+p.createdAt||0
+      createdAt:+p.createdAt||0,
+      games:progressSummary(p)
     })),
     activePlayerId:state.activePlayerId||'',
     settings:{
@@ -195,7 +221,9 @@ function queueAccountRosterSync(){
   if(!fingerprint || fingerprint===lastRosterFingerprint) return;
 
   clearTimeout(accountRosterSyncTimer);
+  const wait=Math.max(700,15000-(Date.now()-lastRosterSyncAt));
   accountRosterSyncTimer=setTimeout(async()=>{
+    lastRosterSyncAt=Date.now();
     try{
       const response=await fetch(config.url,{
         method:'PUT',
@@ -216,7 +244,7 @@ function queueAccountRosterSync(){
       }
       lastRosterFingerprint=rosterFingerprint(accountRosterPayload());
     }catch(_){}
-  },700);
+  },wait);
 }
 mergeAccountRosterBootstrap();
 normalizePlayers(); save();
@@ -525,8 +553,9 @@ function openNameDialog(opts){
   protectNativeControl(input); protectNativeControl(cancel); protectNativeControl(saveBtn);
   cancel.onclick=close; saveBtn.onclick=submit; input.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();submit();} if(e.key==='Escape'){e.preventDefault();close();} });
   actions.append(cancel,saveBtn); card.append(title,help,input,error,actions); overlay.append(card); document.body.appendChild(overlay);
-  const coarse = !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
-  if (!coarse) setTimeout(()=>{ input.focus(); input.select(); }, 0);
+  // Focus synchronously: iOS/iPadOS only raise the keyboard for focus that
+  // happens inside the tap that opened this dialog, never from a timer.
+  try { input.focus({preventScroll:true}); if (input.value) input.select(); } catch(_) {}
   return overlay;
 }
 function getGameStats(name, gameId){

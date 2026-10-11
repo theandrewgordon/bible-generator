@@ -49,13 +49,28 @@ function leaveOnline(){
   document.title='Speed Die';familyAttentionKey=null;clearTimeout(onlinePoll);onlineSession=null;onlineRoom=null;onlinePending=null;onlineConnected=false;onlineBusy=false;boardView=false;boardSelection=null;
   adoptStoredGame();homeView=true;syncMusic();render();
 }
-function scheduleOnline(){clearTimeout(onlinePoll);if(onlineSession)onlinePoll=setTimeout(refreshOnline,document.hidden?5000:1500);}
+let onlineRoomEtag='',onlineHiddenSince=0;
+// Poll quickly while visible, slowly in the background, and stop after two
+// hidden minutes; returning to the tab refreshes immediately.
+function scheduleOnline(){clearTimeout(onlinePoll);if(!onlineSession)return;if(document.hidden){onlineHiddenSince=onlineHiddenSince||Date.now();if(Date.now()-onlineHiddenSince>120000)return;}else onlineHiddenSince=0;onlinePoll=setTimeout(refreshOnline,document.hidden?5000:1500);}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&onlineSession){onlineHiddenSince=0;clearTimeout(onlinePoll);refreshOnline();}});
+async function pollRoom(code){
+  if(!onlineCSRF)await onlineConfig();
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+  try{
+    const r=await fetch('/speeddie/api/rooms/'+encodeURIComponent(code),{cache:'no-store',signal:controller.signal,headers:{'X-CSRF-Token':onlineCSRF,...(onlineSession?.token?{Authorization:'Bearer '+onlineSession.token}:{}),...(onlineRoomEtag&&onlineRoom?{'If-None-Match':onlineRoomEtag}:{})}});
+    if(r.status===304&&onlineRoom)return {room:onlineRoom};
+    let value;try{value=await r.json();}catch{throw Error('The game server did not respond. Reconnect and retry.');}
+    if(!r.ok){const error=Error(value.error||'Room request failed.');error.status=r.status;throw error;}
+    onlineRoomEtag=r.headers.get('ETag')||'';return value;
+  }finally{clearTimeout(timeout);}
+}
 async function refreshOnline(){
   if(!onlineSession)return;
   if(onlineBusy){scheduleOnline();return;}
   const sessionAtStart=onlineSession;
   try {
-    const result=await roomRequest(`/rooms/${onlineSession.code}`);
+    const result=await pollRoom(onlineSession.code);
     if(onlineSession!==sessionAtStart)return;
     if(!onlineConnected)reconnectWelcome=welcomeBack({lastEvent:onlineRoom?.state?.ledger?.[0]?onlineRoom.state.ledger[0].time+'|'+onlineRoom.state.ledger[0].message:null},result.room);
     const changed=!onlineConnected||result.room.revision>(onlineRoom?.revision||0);onlineConnected=true;

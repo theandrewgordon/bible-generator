@@ -114,11 +114,16 @@ def test_public_group_participant_recovery_capacity_and_age(game):
     assert host.get(root+'/results?key='+key).status_code == 410
     assert c.post(root+'/join',headers=h,json=body).status_code == 410
 
-def test_metrics_match_runs_and_labs_storage_is_callable(game):
+def test_metrics_match_runs_and_labs_storage_is_callable(game, monkeypatch):
     app, store = game; c, h = player(app)
+    monkeypatch.setenv('ADMIN_EMAILS', 'test@example.com')
+    lab_games._same_brain_metrics_cache.clear()
     for run, events in [('finished',['home_view','return_visit','start','challenge_created','challenge_shared','creator_result_opened']),('unfinished',['home_view','start']),('friend',['challenge_opened','challenge_accepted','result_completed','response_submitted','rematch_requested'])]:
         for event in events:
             assert c.post('/same-brain/analytics',headers=h,json={'event':event,'runId':run}).status_code == 200
+    with c.session_transaction() as sess: sess['user_email']='test@example.com'
+    with c.session_transaction() as sess: sess['user_email']='someone@example.com'
+    assert c.get('/labs/games/same-brain/metrics?format=json').status_code == 404
     with c.session_transaction() as sess: sess['user_email']='test@example.com'
     rates=c.get('/labs/games/same-brain/metrics?format=json').json['rates']
     assert rates['completionRate']['value'] == 50

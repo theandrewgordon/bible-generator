@@ -22,6 +22,7 @@ from faithsparks.services.lesson_pack import (
     create_lesson_pack,
 )
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.sharded_counters import shard_ref
 from faithsparks.services.firestore import db
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.util.request_utils import get_client_ip
@@ -1233,6 +1234,7 @@ def same_brain_public_analytics():
         get_client_ip(),
         limit=120,
         window_seconds=60 * 60,
+        local_only=True,  # a Firestore-backed limit would double this endpoint's writes
     )
     if not limit.allowed:
         return jsonify({"ok": True, "rate_limited": True})
@@ -1244,7 +1246,7 @@ def same_brain_public_analytics():
 
     try:
         if db:
-            db.collection("analytics").document("same_brain_public_funnel").set(
+            shard_ref(db, "same_brain_public_funnel").set(
                 {
                     "total": firestore.Increment(1),
                     "events": {event: firestore.Increment(1)},
