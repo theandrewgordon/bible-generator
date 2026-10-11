@@ -249,6 +249,7 @@ class WorshipLiveTests(unittest.TestCase):
             ):
                 g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
                 app.session["user_email"] = "leader@example.com"
+                app.session["worship_simple_mode"] = False
                 response, status = app.worship_live_start()
                 payload = response.get_json()
 
@@ -265,6 +266,7 @@ class WorshipLiveTests(unittest.TestCase):
             ):
                 g.flask_dance_google = type("_FakeGoogle", (), {"authorized": True})()
                 app.session["user_email"] = "leader@example.com"
+                app.session["worship_simple_mode"] = False
                 confirmed = app.worship_live_start()
 
             self.assertEqual(confirmed.status_code, 200)
@@ -608,7 +610,8 @@ class WorshipLiveTests(unittest.TestCase):
         self.assertIn("Next · tap to show", remote.get_data(as_text=True))
         self.assertIn('id="wr-next-preview"', remote.get_data(as_text=True))
         self.assertIn('id="wr-next-lines"', remote.get_data(as_text=True))
-        self.assertIn("Jump or repeat", remote.get_data(as_text=True))
+        self.assertIn("Jump to any slide", remote.get_data(as_text=True))
+        self.assertIn('class="wr-song-map"', remote.get_data(as_text=True))
         self.assertIn("Repeat chorus", remote.get_data(as_text=True))
         self.assertIn("Next:", remote.get_data(as_text=True))
         self.assertIn("Undo jump", remote.get_data(as_text=True))

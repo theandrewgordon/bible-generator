@@ -134,6 +134,9 @@
   .ws-set-card h2{font-size:1.15rem;margin:.1rem 0 .25rem}
   .ws-set-help{margin:0 0 .85rem;color:var(--text-secondary);font-size:.82rem}
   .ws-set-primary-actions{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1rem}
+  .ws-link-btn{background:none;border:0;padding:.35rem 0;color:var(--primary);font-weight:700;font-size:.85rem;cursor:pointer;text-decoration:underline;text-underline-offset:2px}.ws-link-btn:disabled{opacity:.45;cursor:default}
+  .ws-mode-toggle{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:.9rem;padding-top:.7rem;border-top:1px solid #e2e8f0;font-size:.82rem;color:var(--text-secondary)}
+  .ws-flow--simple{grid-template-columns:repeat(2,1fr)}
   .ws-set-primary-actions .ws-btn-primary,.ws-set-primary-actions .ws-btn-ghost{width:100%;min-height:42px;padding:9px 12px}
   .ws-set-options{margin-top:.75rem;border-top:1px solid #e2e8f0;padding-top:.7rem}
   .ws-set-options>summary{font-size:.84rem;text-align:center}
@@ -211,7 +214,7 @@
     <div class="ws-tour-footer"><div class="ws-tour-progress" id="worship-tour-progress" aria-label="Walkthrough progress"></div><button type="button" class="ws-btn-ghost" id="worship-tour-back">Back</button><button type="button" class="ws-btn-primary" id="worship-tour-next">Next</button></div>
   </section>
 </div>
-<ol class="ws-flow" aria-label="Worship planning steps"><li><b>1</b>Add and arrange</li><li><b>2</b>Review the slides</li><li><b>3</b>Go live or export</li></ol>
+{% if worship_simple_mode %}<ol class="ws-flow ws-flow--simple" aria-label="Worship planning steps"><li><b>1</b>Pick songs</li><li><b>2</b>Go live or download slides</li></ol>{% else %}<ol class="ws-flow" aria-label="Worship planning steps"><li><b>1</b>Add and arrange</li><li><b>2</b>Review the slides</li><li><b>3</b>Go live or export</li></ol>{% endif %}
 
 {% if not setlists %}<section class="ws-first-service" aria-labelledby="first-service-heading">
   <div>
@@ -312,7 +315,7 @@
         {% if song.type and song.type != 'song' %} <span class="muted small">[{{ song.type }}]</span>{% endif %}
         {% if song.type == 'presentation' %}{% set visible_slide_count = song.presentation_slides|rejectattr('hidden')|list|length %}{% set enabled_point_count = song.highlight_suggestions|selectattr('enabled')|list|length %} <span class="muted small">· {{ visible_slide_count }} slide{% if visible_slide_count != 1 %}s{% endif %}{% if enabled_point_count %} + {{ enabled_point_count }} key point{% if enabled_point_count != 1 %}s{% endif %}{% endif %}</span>{% endif %}
         {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
-        {% if song.type == 'presentation' or song.type in ['welcome', 'announcement', 'photo', 'video'] %}
+        {% if worship_simple_mode or song.type == 'presentation' or song.type in ['welcome', 'announcement', 'photo', 'video'] %}
         {% elif song.validation is mapping and song.validation.status == 'verified' %}
         {% elif song.validation is mapping and song.validation.status in ['needs_review', 'unable', 'stale'] %}
           <span class="ws-validation-badge is-problem" title="Open Edit to review validation findings">Review validation</span>
@@ -392,10 +395,15 @@
     <span id="set-summary-titles"></span>
   </div>
 
-  <div class="ws-set-primary-actions">
+  {% if worship_simple_mode %}<div class="ws-set-primary-actions">
+    <button type="button" class="ws-btn-primary" id="start-live-btn" disabled>Go live</button>
+    <button type="submit" form="build-form" formaction="{{ url_for('worship_build') }}" class="ws-btn-ghost" id="download-btn" disabled>Download slides</button>
+  </div>
+  <button type="submit" form="build-form" class="ws-link-btn" id="build-btn" disabled>Preview every slide first</button>
+  {% else %}<div class="ws-set-primary-actions">
     <button type="submit" form="build-form" class="ws-btn-primary" id="build-btn" disabled>Review slides</button>
     <button type="button" class="ws-btn-ghost" id="start-live-btn" disabled>Go live</button>
-  </div>
+  </div>{% endif %}
   <details class="ws-set-options"><summary>Save, share & export</summary>
   <div class="ws-set-secondary">
     <button type="button" class="ws-btn-ghost" id="save-setlist-btn" disabled{% if worship_church.role not in ['owner', 'editor', 'member'] %} style="display:none"{% endif %}>Save service</button>
@@ -415,6 +423,11 @@
       <span class="ws-share-fallback" data-mobile-qr-fallback>QR unavailable. Use Copy link.</span>
     </div>
   </div></details>
+  <form class="ws-mode-toggle" method="post" action="{{ url_for('worship_set_mode') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if worship_simple_mode %}<input type="hidden" name="mode" value="full"><span>Simple mode</span><button type="submit" class="ws-link-btn">Show review &amp; validation checks</button>
+    {% else %}<input type="hidden" name="mode" value="simple"><span>Full controls</span><button type="submit" class="ws-link-btn">Switch to simple mode</button>{% endif %}
+  </form>
 </div>
 
 <form id="lyric-sheet-form" action="/worship/export/lyric-sheet" method="post" data-download="1" style="display:none">
@@ -869,6 +882,8 @@
     }
     buildBtn.disabled = !hasItems;
     if (startLiveBtn) startLiveBtn.disabled = !hasItems;
+    var downloadBtn = document.getElementById('download-btn');
+    if (downloadBtn) downloadBtn.disabled = !hasItems;
     if (lyricBtn) lyricBtn.disabled = !hasItems;
     if (musicianBtn) musicianBtn.disabled = !hasItems;
     if (saveBtn) saveBtn.disabled = !hasItems || !CAN_EDIT;
