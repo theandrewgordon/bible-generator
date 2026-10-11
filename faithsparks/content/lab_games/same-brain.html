@@ -36,6 +36,20 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
 .bits-meter i{display:block;height:100%;background:linear-gradient(90deg,var(--purple),#ad76ee)}
 .home-replay{border:0;background:none;color:var(--purple);font-weight:850;cursor:pointer;padding:3px 0;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:520px){.topbar{padding:0 4px}.card{border-radius:22px;padding:22px 17px}.shell{padding:max(12px,env(safe-area-inset-top)) 10px max(30px,env(safe-area-inset-bottom))}.button{min-height:58px}.choice{min-height:64px;font-size:1rem}.question{margin-top:10px}.challenge-link{font-size:.82rem}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.couch-names{display:grid;gap:10px;margin:14px 0}
+.couch-cover{text-align:center;padding:26px 8px}
+.couch-cover .who{font-size:2rem;font-weight:900;margin:8px 0 4px}
+.couch-picks{display:grid;gap:8px;margin:14px 0}
+.couch-pick{display:flex;align-items:center;gap:10px;background:white;border:2px solid var(--line);border-radius:16px;padding:12px 14px;font-weight:800}
+.couch-pick.match{border-color:var(--purple);background:#f1ecff}
+.couch-pick .nm{min-width:5.5em}
+.couch-banner{text-align:center;font-weight:900;font-size:1.15rem;margin:6px 0 2px}
+.couch-dots{display:flex;justify-content:center;gap:6px;margin:6px 0 2px}
+.couch-dots span{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.couch-dots span.done{background:var(--purple)}
+.couch-pairs{display:grid;gap:8px;margin:14px 0}
+.couch-pair{display:flex;justify-content:space-between;align-items:center;background:white;border:2px solid var(--line);border-radius:16px;padding:12px 14px;font-weight:800}
+.couch-pair.best{border-color:var(--purple);background:#f1ecff}
 </style>
 </head>
 <body>
@@ -51,6 +65,7 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
     <div class="stack">
       <button id="start-btn" class="button primary wide">Play today’s 5</button>
       <button id="together-btn" class="button ghost wide" type="button">🤝 Start together</button>
+      <button id="couch-btn" class="button ghost wide" type="button">🛋️ Play on one phone · 2–4 players</button>
     </div>
     <div class="inline-panel" style="margin-top:12px;text-align:left">
       <strong>Have a code?</strong>
@@ -188,6 +203,8 @@ button,input{font:inherit}.shell{max-width:720px;margin:0 auto;padding:max(20px,
       </div>
     </details>
   </section>
+
+  <section id="screen-couch" class="card hidden" aria-live="polite"><div id="couch-body"></div></section>
 
   <section id="screen-name" class="card hidden">
     <div class="kicker">Before we start</div>
@@ -1833,6 +1850,129 @@ if(navigator.share){var fb1=document.getElementById("facebook-share"),fb2=docume
 setInterval(function(){if(state.screen==="result"&&state.groupCode&&state.groupResultKey)loadGroupResults(state.groupCode,state.groupResultKey).catch(function(){})},5000);
 window.addEventListener("pagehide",function(){saveRun();stopNarration()});
 async function boot(){if(restoreRun())return;if(shortCode){try{var data=await apiJson("/same-brain/challenge/"+encodeURIComponent(shortCode),{method:"GET"});challenge=data.challenge;challenge._shortCode=shortCode}catch(e){show("home");var bad=document.querySelector("#screen-home .sub");if(bad)bad.textContent=e.code==="expired"?"That challenge expired after 30 days. Play today’s Brain and send a fresh one.":"That challenge link is invalid or unavailable. You can still play today’s five and send a fresh challenge.";return}}hydrateCustomQuestions(challenge);if(togetherCode){loadTogether(togetherCode).catch(function(){show("home")})}else if(groupCode){loadGroup(groupCode.toUpperCase()).catch(function(){show("home")})}else if(validChallenge(challenge)){challenge.n=cleanName(challenge.n);challenge.a=challenge.a.map(Number);startResponder(challenge)}else{show("home");if(isPublic()&&(param||shortCode)){var sub=document.querySelector("#screen-home .sub");if(sub)sub.textContent="That challenge link is invalid or incomplete. You can still play today’s five and send a fresh challenge."}}}boot()
+;/* Couch Brain: 2–4 players share one phone and answer the SAME question, one
+   at a time behind a "look away" screen, then reveal who matched. Fully local:
+   no accounts, network calls or analytics. */
+(function(){
+  var MIN=2,MAX=4,ROUND=5,NAMES_KEY="same_brain_couch_names";
+  var couch=null;
+  var body=function(){return document.getElementById("couch-body")};
+  function savedNames(){try{var v=JSON.parse(localStorage.getItem(NAMES_KEY)||"[]");return Array.isArray(v)?v.slice(0,MAX):[]}catch(_){return []}}
+  function rememberNames(names){try{localStorage.setItem(NAMES_KEY,JSON.stringify(names))}catch(_){}}
+  function cleanName(v){return String(v||"").replace(/\s+/g," ").trim().slice(0,20)}
+  function showCouch(){
+    if(typeof stopNarration==="function")stopNarration();
+    screens.forEach(function(name){var el=document.getElementById("screen-"+name);if(el)el.classList.add("hidden")});
+    document.getElementById("screen-couch").classList.remove("hidden");
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function leave(){document.getElementById("screen-couch").classList.add("hidden");couch=null;show("home")}
+  function pickQuestions(){
+    var aud=rememberedAudience(),pool=audiencePool(QUESTIONS,aud),recent=recentQuestionIds(aud);
+    var fresh=pool.filter(function(q){return recent.indexOf(q.id)<0});
+    if(fresh.length<ROUND)fresh=pool.slice();
+    var picked=seededFromPool("couch|"+Date.now()+"|"+Math.random(),fresh,ROUND);
+    rememberQuestions(picked.map(function(q){return q.id}));
+    return picked;
+  }
+  function button(label,cls,fn){var b=document.createElement("button");b.type="button";b.className="button "+cls+" wide";b.textContent=label;b.addEventListener("click",fn);return b}
+  function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
+  function header(){
+    var wrap=document.createDocumentFragment();
+    wrap.appendChild(el("div","qnum","QUESTION "+(couch.q+1)+" OF "+couch.questions.length));
+    var bar=el("div","progress"),fill=document.createElement("div");fill.style.width=((couch.q+1)/couch.questions.length*100)+"%";bar.appendChild(fill);wrap.appendChild(bar);
+    var dots=el("div","couch-dots");couch.players.forEach(function(_,i){var d=document.createElement("span");if(i<couch.turn)d.className="done";dots.appendChild(d)});wrap.appendChild(dots);
+    return wrap;
+  }
+  function renderSetup(){
+    var b=body();b.textContent="";
+    b.appendChild(el("div","kicker","Couch Brain · one phone"));
+    b.appendChild(el("h2","question","Who’s playing?"));
+    b.appendChild(el("p","premium-note","2–4 players answer the same question, one at a time. Everyone else looks away until it’s their turn."));
+    var list=el("div","couch-names"),prev=savedNames();
+    for(var i=0;i<MAX;i++){var input=document.createElement("input");input.className="name-input";input.type="text";input.maxLength=20;input.autocomplete="off";input.placeholder=i<MIN?"Player "+(i+1):"Player "+(i+1)+" (optional)";input.value=prev[i]||"";input.setAttribute("aria-label","Player "+(i+1)+" name");list.appendChild(input)}
+    b.appendChild(list);
+    var note=el("div","premium-note");note.setAttribute("role","status");
+    b.appendChild(button("Start · 5 questions","primary",function(){
+      var names=Array.from(list.querySelectorAll("input")).map(function(x){return cleanName(x.value)}).filter(Boolean);
+      var seen={};names=names.filter(function(n){var k=n.toLowerCase();if(seen[k])return false;seen[k]=1;return true});
+      if(names.length<MIN){note.textContent="Add at least two different names.";return}
+      rememberNames(names);start(names);
+    }));
+    b.appendChild(note);
+    b.appendChild(button("← Back","ghost",leave));
+    showCouch();
+    var first=list.querySelector("input");if(first&&!first.value)try{first.focus({preventScroll:true})}catch(_){}
+  }
+  function start(names){
+    couch={players:names,questions:pickQuestions(),q:0,turn:0,answers:names.map(function(){return []})};
+    renderCover();
+  }
+  function renderCover(){
+    var b=body();b.textContent="";b.appendChild(header());
+    var cover=el("div","couch-cover");
+    cover.appendChild(el("div","brain","🙈"));
+    cover.appendChild(el("div","kicker","Pass the phone to"));
+    cover.appendChild(el("div","who",couch.players[couch.turn]));
+    cover.appendChild(el("p","premium-note","Everyone else, look away!"));
+    b.appendChild(cover);
+    b.appendChild(button("I’m "+couch.players[couch.turn]+" · show my question","primary",renderQuestionTurn));
+    showCouch();
+  }
+  function renderQuestionTurn(){
+    var q=couch.questions[couch.q],b=body();b.textContent="";b.appendChild(header());
+    b.appendChild(el("div","kicker",couch.players[couch.turn]+"’s answer"));
+    b.appendChild(el("h2","question",q.q));
+    var box=el("div","choices"),letters=["A","B","C","D"];
+    q.a.forEach(function(opt,i){
+      var c=document.createElement("button");c.type="button";c.className="choice";
+      c.innerHTML='<span class="choice-letter">'+(letters[i]||i+1)+'</span><span class="emoji">'+esc(opt[0])+'</span><span>'+esc(opt[1])+'</span>';
+      c.addEventListener("click",function(){
+        if(c.disabled)return;Array.from(box.children).forEach(function(x){x.disabled=true});c.classList.add("chosen");
+        couch.answers[couch.turn][couch.q]=i;couch.turn++;
+        setTimeout(function(){if(!couch)return;if(couch.turn<couch.players.length)renderCover();else renderReveal()},350);
+      });
+      box.appendChild(c);
+    });
+    b.appendChild(box);
+    showCouch();
+  }
+  function renderReveal(){
+    var q=couch.questions[couch.q],b=body();b.textContent="";
+    b.appendChild(el("div","qnum","QUESTION "+(couch.q+1)+" OF "+couch.questions.length+" · REVEAL"));
+    b.appendChild(el("h2","question",q.q));
+    var counts={};couch.players.forEach(function(_,p){var a=couch.answers[p][couch.q];counts[a]=(counts[a]||0)+1});
+    var top=Math.max.apply(null,Object.keys(counts).map(function(k){return counts[k]}));
+    var banner=top===couch.players.length?"🧠⚡ Everyone has the Same Brain!":top>=2?"🧠 Same Brain spotted!":"🌈 All different brains!";
+    b.appendChild(el("div","couch-banner",banner));
+    var picks=el("div","couch-picks");
+    couch.players.forEach(function(name,p){var a=couch.answers[p][couch.q],row=el("div","couch-pick"+(counts[a]>=2?" match":""));row.appendChild(el("span","nm",name));row.appendChild(el("span","emoji",q.a[a][0]));row.appendChild(el("span","",q.a[a][1]));picks.appendChild(row)});
+    b.appendChild(picks);
+    var last=couch.q>=couch.questions.length-1;
+    b.appendChild(button(last?"See who’s most in sync":"Next question","primary",function(){if(last){renderResults();return}couch.q++;couch.turn=0;renderCover()}));
+    showCouch();
+  }
+  function renderResults(){
+    var b=body();b.textContent="";var n=couch.questions.length,pairs=[];
+    for(var i=0;i<couch.players.length;i++)for(var j=i+1;j<couch.players.length;j++){var m=0;for(var k=0;k<n;k++)if(couch.answers[i][k]===couch.answers[j][k])m++;pairs.push({a:couch.players[i],b:couch.players[j],m:m})}
+    pairs.sort(function(x,y){return y.m-x.m});
+    var allSame=0;for(var k2=0;k2<n;k2++){var first=couch.answers[0][k2];if(couch.answers.every(function(r){return r[k2]===first}))allSame++}
+    b.appendChild(el("div","kicker","Brain scan complete"));
+    var best=pairs[0],ring=el("div","score-ring");ring.style.setProperty("--score",Math.round(best.m/n*100));ring.appendChild(el("strong","",Math.round(best.m/n*100)+"%"));b.appendChild(ring);
+    b.appendChild(el("h2","result-title",best.m>0?best.a+" & "+best.b+" share a brain!":"Totally independent thinkers!"));
+    if(couch.players.length>2)b.appendChild(el("p","result-copy","Everyone matched on "+allSame+" of "+n+" question"+(n===1?"":"s")+"."));
+    var list=el("div","couch-pairs");
+    pairs.forEach(function(p,idx){var row=el("div","couch-pair"+(idx===0&&p.m>0?" best":""));row.appendChild(el("span","",p.a+" & "+p.b));row.appendChild(el("span","",p.m+"/"+n));list.appendChild(row)});
+    b.appendChild(list);
+    var names=couch.players.slice();
+    b.appendChild(button("Play again · same players","primary",function(){start(names)}));
+    b.appendChild(button("Change players","secondary",renderSetup));
+    b.appendChild(button("Home","ghost",leave));
+    showCouch();
+  }
+  window.SameBrainCouch={open:renderSetup};
+  var launch=document.getElementById("couch-btn");if(launch)launch.addEventListener("click",renderSetup);
+})();
 })();
 </script>
 </body>
