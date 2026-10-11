@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% block title %}Deck History · Faith Sparks{% endblock %}
 
 {% block head_extra %}
 <style>
+  .wdh-shell{max-width:760px;margin:0 auto}
   .wdh-card{background:var(--box);border-radius:12px;padding:1rem 1.2rem;box-shadow:var(--card-shadow);margin-bottom:.8rem}
   .wdh-meta{font-size:.8rem;color:var(--text-secondary);margin-bottom:.6rem}.wdh-song{padding:.4rem 0;border-top:1px solid #e2e8f0}.wdh-song:first-of-type{border-top:0}
   .wdh-state{font-family:monospace;font-size:.75rem;color:var(--text-secondary)}
@@ -9,6 +11,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="wdh-shell">
 <h1>Deck History</h1>
 <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a></p>
 {% if history %}
@@ -23,4 +26,5 @@
   </div>
   {% endfor %}
 {% else %}<p>No decks have been generated yet.</p>{% endif %}
+</div>
 {% endblock %}

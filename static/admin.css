@@ -26,3 +26,24 @@
 /* Details summary polish */
 details summary { cursor:pointer; list-style:none; }
 details summary::-webkit-details-marker { display:none; }
+
+/* Admin on phones: never scroll sideways. */
+@media (max-width: 700px) {
+  fieldset { min-width: 0; }
+  form input:not([type="checkbox"]):not([type="radio"]),
+  form select,
+  form textarea { max-width: 100%; box-sizing: border-box; }
+  form .button, form button { white-space: normal; max-width: 100%; }
+  .collection-tile, .upload-row, .theme-card { min-width: 0; max-width: 100%; }
+  .upload-row { flex-wrap: wrap; }
+}
+@media (max-width: 700px) {
+  form label { min-width: 0; }
+  form label input[type="text"], form label input[type="url"], form label input[type="number"] { width: 100%; }
+  form div[style*="display: flex"], form div[style*="display:flex"] { flex-wrap: wrap; }
+}
+@media (max-width: 700px) {
+  form div[style*="grid-template-columns: 1fr 1fr"],
+  form div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+  form div > input:not([type="checkbox"]):not([type="radio"]) { min-width: 0; max-width: 100%; }
+}

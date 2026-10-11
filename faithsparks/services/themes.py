@@ -217,3 +217,60 @@ def get_theme_selection():
     vars = get_theme_vars(name) or THEMES['teal']
     return name, vars
 
+
+
+# --- Accessible color helpers -------------------------------------------------
+def _hex_rgb(value: str) -> tuple[int, int, int] | None:
+    text = str(value or "").strip().lstrip("#")
+    if len(text) == 3:
+        text = "".join(ch * 2 for ch in text)
+    if len(text) != 6:
+        return None
+    try:
+        return tuple(int(text[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+    except ValueError:
+        return None
+
+
+def _luminance(rgb: tuple[int, int, int]) -> float:
+    def channel(c: int) -> float:
+        c = c / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast_ratio(a: str, b: str) -> float:
+    ra, rb = _hex_rgb(a), _hex_rgb(b)
+    if not ra or not rb:
+        return 21.0
+    hi, lo = sorted((_luminance(ra), _luminance(rb)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def ink(color: str, *backgrounds: str, minimum: float = 4.5) -> str:
+    """Darken ``color`` just enough to reach WCAG AA against every background.
+
+    Admin-chosen theme colors stay recognisable; only too-light ones move.
+    """
+    rgb = _hex_rgb(color)
+    if not rgb:
+        return color
+    backgrounds = backgrounds or ("#ffffff",)
+    factor = 1.0
+    current = rgb
+    while factor > 0.2:
+        hex_value = "#{:02x}{:02x}{:02x}".format(*current)
+        if all(contrast_ratio(hex_value, bg) >= minimum for bg in backgrounds):
+            return hex_value
+        factor -= 0.02
+        current = tuple(max(0, int(round(c * factor))) for c in rgb)
+    return "#{:02x}{:02x}{:02x}".format(*current)
+
+
+def mix(a: str, b: str, amount: float) -> str:
+    """CSS ``color-mix(in srgb, a amount, b)`` for hex colors (``b`` on failure)."""
+    ra, rb = _hex_rgb(a), _hex_rgb(b)
+    if not ra or not rb:
+        return b
+    return "#{:02x}{:02x}{:02x}".format(*(round(x * amount + y * (1 - amount)) for x, y in zip(ra, rb)))

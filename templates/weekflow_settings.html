@@ -35,8 +35,9 @@
           <p id="settingsStatus" role="status" aria-live="polite"></p>
         </form>
         <details class="wfs-card wfs-restore"><summary>Backup and restore</summary><div><p>Download a copy before making a large change. Restore a backup only when you want to replace the complete current plan; WeekFlow validates the whole file first.</p><a class="wfs-download" href="{{ url_for('weekflow.backup') }}">Download current backup</a><label>Backup file<input id="backupFile" type="file" accept="application/json,.json" /></label><button class="wfs-primary" id="restoreBackup" type="button">Preview and restore backup</button><p id="restoreStatus" role="status" aria-live="polite"></p></div></details>
-        <div class="wfs-error" id="settingsError" hidden><p id="settingsErrorMessage"></p><button type="button" id="retrySettings">Try again</button></div>
       </main>
+      <!-- Outside #settingsApp so a load failure is visible instead of a blank page. -->
+      <div class="wfs-error wfs-load-error" id="settingsError" role="alert" hidden><h2 class="wf-error-title">We couldn’t open Settings.</h2><p id="settingsErrorMessage"></p><button type="button" id="retrySettings">Try again</button></div>
       <div class="wfs-loading" id="settingsLoading" role="status">Opening family settings…</div>
       <script>
         window.WEEKFLOW_SETTINGS_CONFIG = {

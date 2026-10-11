@@ -183,7 +183,7 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
 
   /* Buttons inside hero */
   .hero-rotator .button.primary {
-    background: #10b981;
+    background: #0c855d;
     border-color: #0d9466;
     color: #fff;
     font-weight: 700;
@@ -210,8 +210,9 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
 
   .hero-rotator .hero-stat {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 0.6rem;
+    gap: 0.2rem;
 
     padding: 0.55rem 0.8rem;
     border-radius: 12px;
@@ -219,7 +220,7 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
   }
 
   .hero-rotator .hero-stat-icon {
-    font-size: 0.85rem;
+    font-size: 0.72rem;
     line-height: 1.1;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -497,9 +498,23 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
       font-size: 1rem;
     }
 
+    /* Compact one-line chips so the task cards are reached sooner on phones. */
     .hero-rotator .hero-stat-row {
-      flex-direction: column;
-      align-items: stretch;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .hero-rotator .hero-stat {
+      padding: 0.4rem 0.7rem;
+      border-radius: 999px;
+    }
+    .hero-rotator .hero-stat-icon,
+    .hero-rotator .hero-stat-content span,
+    .hero-rotator .hero-clarifier {
+      display: none;
+    }
+    .hero-rotator .hero-stat strong {
+      font-size: 0.95rem;
     }
 
     .hero-rotator .daily-proverb {

@@ -53,3 +53,11 @@
 .fgn-grid,.fgn-prices,.fgn-faq>div{grid-template-columns:1fr}
 .fgn-join form{grid-template-columns:1fr}
 }
+/* Dark mode: the page text was navy on the dark site background. */
+.dark .fgn-page{--ink:#e6eef6;--blue:#7cc4ef}
+.dark .fgn-grid li,.dark .fgn-grid article,.dark .fgn-prices article,.dark .fgn-faq details{background:#121a28;border-color:#24324a;box-shadow:none}
+.dark .fgn-prices .featured{background:linear-gradient(145deg,#121a28,#132a40)}
+.dark .fgn-note,.dark .fgn-modes p,.dark .fgn-needs p,.dark .fgn-steps span{color:#b4c2cf}
+.dark .fgn-coming-soon{background:#3a3214;color:#f3e3a8}
+.dark .fgn-steps b{color:#0b1220}
+.dark .fgn-phone{background:#f8fafc;color:#17324d}

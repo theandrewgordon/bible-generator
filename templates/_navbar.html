@@ -55,6 +55,9 @@
             <a class="nav-sublink logout" href="/logout">Logout</a>
           </div>
         </details>
+      {% else %}
+        <a class="nav-link nav-signin mobile-only" href="{{ url_for('google.login', next=request.path) }}">Sign in</a>
+        <button class="theme-toggle nav-theme-mobile mobile-only" type="button" aria-pressed="false" aria-label="Toggle dark mode"><span aria-hidden="true">🌙</span> Theme</button>
       {% endif %}
     </nav>
 
@@ -108,7 +111,7 @@
           </div>
         </details>
       {% else %}
-        <a class="nav-link" href="{{ url_for('google.login', next=request.path) }}">Sign in</a>
+        <a class="nav-link nav-signin" href="{{ url_for('google.login', next=request.path) }}">Sign in</a>
       {% endif %}
     </div>
   </div>
