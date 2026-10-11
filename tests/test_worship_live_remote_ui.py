@@ -79,7 +79,7 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
     def test_remote_keeps_navigation_reachable_and_active_section_centered(self):
         self.assertIn("position:fixed", self.template)
         self.assertIn("bottom:max(8px,env(safe-area-inset-bottom))", self.template)
-        self.assertIn("activeButton.scrollIntoView", self.template)
+        self.assertIn("repeat(auto-fill,minmax(92px,1fr))", self.template)
         self.assertIn("Number(btn.dataset.duration)||300", self.template)
 
     def test_remote_queues_rapid_navigation_instead_of_dropping_taps(self):
@@ -159,12 +159,16 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
 
     def test_secondary_controls_are_grouped_behind_one_advanced_disclosure(self):
         primary_navigation = self.template.index('class="wr-nav"')
+        song_map = self.template.index('class="wr-song-map"')
         advanced_controls = self.template.index('class="wr-advanced"')
-        self.assertLess(primary_navigation, advanced_controls)
-        self.assertIn("<summary>Advanced controls</summary>", self.template)
+        self.assertLess(primary_navigation, song_map)
+        self.assertLess(song_map, advanced_controls)
+        self.assertIn("<summary>More controls</summary>", self.template)
         self.assertIn('class="wr-tools"', self.template[advanced_controls:])
-        self.assertIn('class="wr-smart"', self.template[advanced_controls:])
-        self.assertIn("Jump or repeat · section or slide", self.template)
+        # Section map and repeat-chorus live on the main screen (house-church flow).
+        self.assertIn('class="wr-smart"', self.template[song_map:advanced_controls])
+        self.assertIn('id="wr-sections"', self.template[song_map:advanced_controls])
+        self.assertIn("Jump to any slide", self.template)
         self.assertIn("Stage tools", self.template)
         self.assertIn("Emergency slide tools", self.template)
         self.assertIn("End this session", self.template)

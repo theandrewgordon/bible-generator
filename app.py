@@ -1140,6 +1140,12 @@ _WORSHIP_LIVE_TOKEN_SALT = "worship-live-v1"
 _WORSHIP_LIVE_VIEW_COOKIE = "fs_worship_live_view"
 _WORSHIP_LIVE_CONTROL_COOKIE = "fs_worship_live_control"
 _WORSHIP_LIVE_STAGE_COOKIE = "fs_worship_live_stage"
+_WORSHIP_LIVE_FOLLOW_COOKIE = "fs_worship_live_follow"
+_WORSHIP_LIVE_ROLES = frozenset({"view", "control", "stage", "follow"})
+# Follow-along phones share one state read per worker per second, so a room
+# full of phones costs about the same Firestore reads as a single screen.
+_WORSHIP_LIVE_FOLLOW_CACHE_SECONDS = 1.0
+_worship_live_state_cache: dict[tuple[str, str], tuple[float, dict]] = {}
 _WORSHIP_LIVE_ACTIVE_SESSION_KEY = "worship_live_active"
 _WORSHIP_DECK_REVIEW_SESSION_KEY = "worship_deck_reviewed"
 _WORSHIP_DECK_REVIEW_TTL = 7 * 24 * 60 * 60
@@ -1253,6 +1259,28 @@ def _current_worship_role() -> str:
 def _worship_can_edit(*, owner_only: bool = False) -> bool:
     role = _current_worship_role()
     return role == "owner" if owner_only else role in {"owner", "editor", "member"}
+
+
+_WORSHIP_SIMPLE_MODE_SESSION_KEY = "worship_simple_mode"
+
+
+def _worship_simple_mode() -> bool:
+    """Simple mode (default): pick songs and go live without review/validation gates."""
+    cached = session.get(_WORSHIP_SIMPLE_MODE_SESSION_KEY)
+    if isinstance(cached, bool):
+        return cached
+    enabled = True
+    email = session.get("user_email")
+    if db and email:
+        try:
+            snap = db.collection("users").document(email).get()
+            stored = (snap.to_dict() or {}).get("worshipSimpleMode") if snap.exists else None
+            if isinstance(stored, bool):
+                enabled = stored
+        except Exception as exc:
+            app.logger.warning("worship simple mode read failed: %s", exc)
+    session[_WORSHIP_SIMPLE_MODE_SESSION_KEY] = enabled
+    return enabled
 
 
 def worship_editor_required(func):
@@ -2484,7 +2512,7 @@ def _load_worship_musician_token(token: str) -> dict:
 
 
 def _make_worship_live_token(*, scope: str, session_id: str, role: str) -> str:
-    if role not in {"view", "control", "stage"}:
+    if role not in _WORSHIP_LIVE_ROLES:
         raise ValueError("Invalid live worship role")
     return URLSafeTimedSerializer(app.secret_key, salt=_WORSHIP_LIVE_TOKEN_SALT).dumps(
         {"v": 1, "scope": _slugify_worship_token(scope), "session_id": session_id, "role": role}
@@ -2503,7 +2531,7 @@ def _load_worship_live_token(token: str, *, required_role: str | None = None) ->
     if (
         not scope
         or not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id)
-        or role not in {"view", "control", "stage"}
+        or role not in _WORSHIP_LIVE_ROLES
         or (required_role and role != required_role)
     ):
         raise BadData("Invalid live worship link")
@@ -2544,9 +2572,17 @@ _WORSHIP_LIVE_STATE_FIELDS = (
 )
 
 
-def _get_worship_live_session(scope: str, session_id: str, *, include_slides: bool = True) -> dict | None:
+def _get_worship_live_session(
+    scope: str, session_id: str, *, include_slides: bool = True, cache_seconds: float = 0.0
+) -> dict | None:
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", str(session_id or "")):
         return None
+    cache_key = (scope, session_id)
+    if cache_seconds and not include_slides:
+        cached = _worship_live_state_cache.get(cache_key)
+        if cached and time.monotonic() - cached[0] < cache_seconds:
+            data = cached[1]
+            return dict(data) if float(data.get("expires_epoch") or 0) > time.time() else None
     data = None
     if db:
         ref = _worship_live_ref_for_scope(scope).document(session_id)
@@ -2557,11 +2593,21 @@ def _get_worship_live_session(scope: str, session_id: str, *, include_slides: bo
             stored = _worship_live_memory.get((scope, session_id))
             data = dict(stored) if stored else None
     if not data or float(data.get("expires_epoch") or 0) <= time.time():
+        _worship_live_state_cache.pop(cache_key, None)
         if not db:
             with _worship_live_lock:
                 _worship_live_memory.pop((scope, session_id), None)
         return None
+    if not include_slides:
+        _remember_worship_live_state(scope, session_id, data)
     return data
+
+
+def _remember_worship_live_state(scope: str, session_id: str, data: dict) -> None:
+    state = {key: value for key, value in data.items() if key not in {"slides", "notes"}}
+    if len(_worship_live_state_cache) > 500:
+        _worship_live_state_cache.clear()
+    _worship_live_state_cache[(scope, session_id)] = (time.monotonic(), state)
 
 
 def _active_worship_live_context() -> dict | None:
@@ -2599,6 +2645,7 @@ def _active_worship_live_context() -> dict | None:
 def _delete_worship_live_session(scope: str, session_id: str) -> None:
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", str(session_id or "")):
         raise LookupError("Invalid live worship session")
+    _worship_live_state_cache.pop((scope, session_id), None)
     if db:
         _worship_live_ref_for_scope(scope).document(session_id).delete()
         return
@@ -2826,7 +2873,9 @@ def _update_worship_live_session(
             txn.set(ref, fields, merge=True)
             return updated
 
-        return _update(transaction)
+        updated = _update(transaction)
+        _remember_worship_live_state(scope, session_id, updated)
+        return updated
     if not _is_local_storage_allowed():
         raise RuntimeError("Live Worship requires shared session storage.")
     with _worship_live_lock:
@@ -2838,6 +2887,7 @@ def _update_worship_live_session(
             lines=lines, title=title, version=version, split_after=split_after,
         )
         _worship_live_memory[(scope, session_id)] = updated
+        _remember_worship_live_state(scope, session_id, updated)
         return dict(updated)
 
 
@@ -3601,7 +3651,23 @@ def worship():
         active_worship_live=_active_worship_live_context(),
         worship_scripture_versions=_worship_scripture_version_options(),
         legal_acceptance_current=_has_current_legal_acceptance(),
+        worship_simple_mode=_worship_simple_mode(),
     )
+
+
+@app.route("/worship/mode", methods=["POST"])
+@login_required
+def worship_set_mode():
+    enabled = request.form.get("mode", "simple") != "full"
+    session[_WORSHIP_SIMPLE_MODE_SESSION_KEY] = enabled
+    email = session.get("user_email")
+    if db and email:
+        try:
+            db.collection("users").document(email).set({"worshipSimpleMode": enabled}, merge=True)
+        except Exception as exc:
+            app.logger.warning("worship simple mode save failed: %s", exc)
+    flash("Simple mode is on." if enabled else "Full controls are on: review and validation checks are back.", "success")
+    return redirect(url_for("worship"))
 
 
 @app.route("/worship/live/end-active", methods=["POST"])
@@ -6321,7 +6387,7 @@ def worship_live_start():
         slides,
         exact_deck_reviewed=_worship_deck_was_reviewed(deck_fingerprint),
     )
-    if preflight_warnings and request.form.get("confirm_preflight") != "1":
+    if preflight_warnings and request.form.get("confirm_preflight") != "1" and not _worship_simple_mode():
         return jsonify({
             "ok": False,
             "preflight_required": True,
@@ -6388,9 +6454,19 @@ def worship_live_start():
                 url_for("worship_live_stage", session_id=session_id, _external=True)
                 + f"#stage={stage_token}"
             ),
+            "follow_url": _worship_live_follow_url(scope, session_id),
             "expires_in": _WORSHIP_LIVE_TOKEN_TTL,
             "preflight_warnings": preflight_warnings,
         }
+    )
+
+
+def _worship_live_follow_url(scope: str, session_id: str) -> str:
+    """Share link for everyone's phones: view-only lyrics that follow the leader."""
+    return (
+        url_for("worship_live_follow", session_id=session_id, _external=True)
+        + "#follow="
+        + _make_worship_live_token(scope=scope, session_id=session_id, role="follow")
     )
 
 
@@ -6414,11 +6490,14 @@ def _worship_live_capability_from_cookie(
         cookie_names = (_WORSHIP_LIVE_VIEW_COOKIE,)
     elif required_role == "stage":
         cookie_names = (_WORSHIP_LIVE_STAGE_COOKIE,)
+    elif required_role == "follow":
+        cookie_names = (_WORSHIP_LIVE_FOLLOW_COOKIE,)
     else:
         cookie_names = (
             _WORSHIP_LIVE_CONTROL_COOKIE,
             _WORSHIP_LIVE_STAGE_COOKIE,
             _WORSHIP_LIVE_VIEW_COOKIE,
+            _WORSHIP_LIVE_FOLLOW_COOKIE,
         )
     for cookie_name in cookie_names:
         token = request.cookies.get(cookie_name, "")
@@ -6430,7 +6509,12 @@ def _worship_live_capability_from_cookie(
             continue
         if capability["session_id"] != session_id:
             continue
-        live = _get_worship_live_session(capability["scope"], session_id, include_slides=include_slides)
+        live = _get_worship_live_session(
+            capability["scope"],
+            session_id,
+            include_slides=include_slides,
+            cache_seconds=_WORSHIP_LIVE_FOLLOW_CACHE_SECONDS if capability["role"] == "follow" else 0.0,
+        )
         if live:
             return capability, live
     return None, None
@@ -6475,6 +6559,7 @@ def worship_live_exchange(session_id):
         ("view", _WORSHIP_LIVE_VIEW_COOKIE),
         ("control", _WORSHIP_LIVE_CONTROL_COOKIE),
         ("stage", _WORSHIP_LIVE_STAGE_COOKIE),
+        ("follow", _WORSHIP_LIVE_FOLLOW_COOKIE),
     ):
         token = str(payload.get(role) or "").strip()
         if not token:
@@ -6575,7 +6660,8 @@ def worship_live_presenter(session_id):
                 + _make_worship_live_token(
                     scope=capability["scope"], session_id=capability["session_id"], role="stage"
                 )
-            ),
+            ) if remote_url else "",
+            follow_url=_worship_live_follow_url(capability["scope"], capability["session_id"]),
         )
     )
     response.headers["Cache-Control"] = "private, no-store"
@@ -6613,6 +6699,7 @@ def worship_live_remote(session_id):
             live=live,
             session_id=session_id,
             stage_url=stage_url,
+            follow_url=_worship_live_follow_url(capability["scope"], capability["session_id"]),
         )
     )
     response.headers["Cache-Control"] = "private, no-store"
@@ -6642,6 +6729,39 @@ def worship_live_stage(session_id):
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
+
+
+@app.route("/worship/live/follow/<session_id>", methods=["GET"])
+def worship_live_follow(session_id):
+    """Phone lyrics that follow the leader's current slide (house-church friendly)."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        return Response("This follow-along link is invalid.", status=404)
+    capability, live = _worship_live_capability_from_cookie(session_id, "follow")
+    if not live:
+        return _worship_live_bootstrap(session_id, "follow-along screen")
+    slides = _slides_for_worship_live(live, capability, include_media=True)
+    if not slides or len(slides) != int(live.get("slide_count") or 0):
+        return Response("This worship set changed. Scan the new code on the main screen.", status=409)
+    # Audience phones get only what is on the main screen: never leader notes.
+    public_keys = ("kind", "title", "artist", "part_label", "lines", "image_url", "image_layout")
+    slides = [{key: slide.get(key) for key in public_keys if slide.get(key)} for slide in slides]
+    response = app.make_response(
+        render_template("worship_live_follow.html", slides=slides, live=live, session_id=session_id)
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.route("/worship/live/follow-qr/<session_id>.png", methods=["GET"])
+def worship_live_follow_qr(session_id):
+    # Any presenter screen (view) or remote (control) may show the audience code.
+    capability, live = _worship_live_capability_from_cookie(session_id, "control", include_slides=False)
+    if not live:
+        capability, live = _worship_live_capability_from_cookie(session_id, "view", include_slides=False)
+    if not live:
+        return Response("Invalid or expired follow-along link", status=410)
+    return _worship_live_qr_response(_worship_live_follow_url(capability["scope"], capability["session_id"]))
 
 
 @app.route("/worship/live/state/<session_id>", methods=["GET"])
@@ -6691,6 +6811,7 @@ def worship_live_control(session_id):
         response.delete_cookie(_WORSHIP_LIVE_VIEW_COOKIE, path="/worship/live")
         response.delete_cookie(_WORSHIP_LIVE_CONTROL_COOKIE, path="/worship/live")
         response.delete_cookie(_WORSHIP_LIVE_STAGE_COOKIE, path="/worship/live")
+        response.delete_cookie(_WORSHIP_LIVE_FOLLOW_COOKIE, path="/worship/live")
         active_pointer = session.get(_WORSHIP_LIVE_ACTIVE_SESSION_KEY)
         if isinstance(active_pointer, dict) and active_pointer.get("session_id") == capability["session_id"]:
             session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
@@ -6960,7 +7081,7 @@ def worship_build():
         validation = item.get("validation") if isinstance(item.get("validation"), dict) else {}
         if validation.get("status") in {"needs_review", "unable", "stale"}:
             validation_problems.append(str(item.get("title") or "Untitled Song"))
-    if validation_problems and request.form.get("allow_validation_issues") != "1":
+    if validation_problems and request.form.get("allow_validation_issues") != "1" and not _worship_simple_mode():
         flash(
             "Review validation findings before building slides for: " + ", ".join(validation_problems),
             "warning",
