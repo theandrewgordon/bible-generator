@@ -1,67 +1,132 @@
 {
   "dark-gradient.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": false,
-    "overlay_opacity": 0
+    "overlay_opacity": 0,
+    "file": "dark-gradient.jpg"
   },
   "dark-green-abstract.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": false,
-    "overlay_opacity": 0
+    "overlay_opacity": 0,
+    "file": "dark-green-abstract.jpg"
   },
   "deep-blue-abstract.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": false,
-    "overlay_opacity": 0
+    "overlay_opacity": 0,
+    "file": "deep-blue-abstract.jpg"
   },
   "desert-wilderness.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": true,
-    "overlay_opacity": 0.45
+    "overlay_opacity": 0.45,
+    "file": "desert-wilderness.jpg"
   },
   "forest-mist.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": true,
-    "overlay_opacity": 0.4
+    "overlay_opacity": 0.4,
+    "file": "forest-mist.jpg"
   },
   "mountain-silhouette.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": true,
-    "overlay_opacity": 0.4
+    "overlay_opacity": 0.4,
+    "file": "mountain-silhouette.jpg"
   },
   "ocean-waves.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": true,
-    "overlay_opacity": 0.45
+    "overlay_opacity": 0.45,
+    "file": "ocean-waves.jpg"
   },
   "parchment-texture.png": {
-    "font_color": [0, 0, 0],
+    "font_color": [
+      0,
+      0,
+      0
+    ],
     "overlay": false,
-    "overlay_opacity": 0
+    "overlay_opacity": 0,
+    "file": "parchment-texture.jpg"
   },
   "parchment-texture2.png": {
-    "font_color": [0, 0, 0],
+    "font_color": [
+      0,
+      0,
+      0
+    ],
     "overlay": false,
-    "overlay_opacity": 0
+    "overlay_opacity": 0,
+    "file": "parchment-texture2.jpg"
   },
   "soft-clouds.png": {
-    "font_color": [0, 0, 0],
+    "font_color": [
+      0,
+      0,
+      0
+    ],
     "overlay": true,
-    "overlay_opacity": 0.25
+    "overlay_opacity": 0.25,
+    "file": "soft-clouds.jpg"
   },
   "stars-night.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": false,
-    "overlay_opacity": 0
+    "overlay_opacity": 0,
+    "file": "stars-night.jpg"
   },
   "stone-texture.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": true,
-    "overlay_opacity": 0.35
+    "overlay_opacity": 0.35,
+    "file": "stone-texture.jpg"
   },
   "sunrise-glow.png": {
-    "font_color": [255, 255, 255],
+    "font_color": [
+      255,
+      255,
+      255
+    ],
     "overlay": true,
-    "overlay_opacity": 0.5
+    "overlay_opacity": 0.5,
+    "file": "sunrise-glow.jpg"
   }
 }

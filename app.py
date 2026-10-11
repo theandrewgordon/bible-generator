@@ -251,6 +251,10 @@ def _cleanup_output_dirs():
             pass
 # --- App Setup ---
 # --- Environment / config flags (MUST be defined before use) ---
+# Render sets RENDER=true on every service. A missing APP_ENV there must never
+# boot production in dev mode (dev secret key, insecure cookies, local fallbacks).
+if os.getenv("RENDER") and not os.getenv("APP_ENV"):
+    os.environ["APP_ENV"] = "production"
 APP_ENV = os.getenv("APP_ENV", "dev").lower()
 PRIMARY_DOMAIN = os.getenv("PRIMARY_DOMAIN", "faithsparksprintables.com")
 
@@ -316,6 +320,11 @@ if APP_ENV in {"prod", "production"}:
 
 # Always prefer https URLs when generating links
 app.config.update(PREFERRED_URL_SCHEME="https")
+
+# Hard cap on any request body (largest legit upload: 25 MB presentation).
+# Enforced by Werkzeug before CSRF or route code parses the form, including
+# chunked uploads that send no Content-Length.
+app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024
 
 # Only pin cookies to the apex domain in production
 if APP_ENV in {"prod", "production"}:
@@ -1121,7 +1130,7 @@ _DEFAULT_WORSHIP_SCOPE = "default"
 _worship_seeded = False
 # Per-scope cache: {scope_id: {"data": list[dict], "ts": float}}
 _worship_songs_cache: dict[str, dict] = {}
-_WORSHIP_CACHE_TTL = 60.0  # seconds
+_WORSHIP_CACHE_TTL = 10.0  # seconds; short because each gunicorn worker caches separately
 _WORSHIP_MOBILE_TOKEN_TTL = 24 * 60 * 60
 _WORSHIP_MOBILE_TOKEN_SALT = "worship-mobile-v1"
 _WORSHIP_MUSICIAN_TOKEN_TTL = 8 * 60 * 60
@@ -2525,12 +2534,23 @@ def _create_worship_live_session(data: dict) -> None:
         _worship_live_memory[(scope, session_id)] = dict(data)
 
 
-def _get_worship_live_session(scope: str, session_id: str) -> dict | None:
+# Everything a poll, remote tap, or link exchange needs. Excludes the large
+# ``slides``/``notes`` payload so polling every ~second stays a few hundred bytes.
+_WORSHIP_LIVE_STATE_FIELDS = (
+    "id", "scope", "name", "slide_count", "current_index", "blank", "clear_words",
+    "stage_message", "stage_timer_mode", "stage_timer_started_epoch", "stage_timer_duration",
+    "video_action", "video_revision", "deck_revision", "revision", "created_by",
+    "created_at", "updated_at", "expires_epoch",
+)
+
+
+def _get_worship_live_session(scope: str, session_id: str, *, include_slides: bool = True) -> dict | None:
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", str(session_id or "")):
         return None
     data = None
     if db:
-        snap = _worship_live_ref_for_scope(scope).document(session_id).get()
+        ref = _worship_live_ref_for_scope(scope).document(session_id)
+        snap = ref.get() if include_slides else ref.get(field_paths=_WORSHIP_LIVE_STATE_FIELDS)
         data = snap.to_dict() if snap.exists else None
     elif _is_local_storage_allowed():
         with _worship_live_lock:
@@ -2554,7 +2574,7 @@ def _active_worship_live_context() -> dict | None:
     if scope != _current_worship_scope() or not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
         session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
         return None
-    live = _get_worship_live_session(scope, session_id)
+    live = _get_worship_live_session(scope, session_id, include_slides=False)
     user_email = str(session.get("user_email") or "").strip().casefold()
     if not live or not user_email or str(live.get("created_by") or "").strip().casefold() != user_email:
         session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
@@ -2769,9 +2789,16 @@ def _update_worship_live_session(
         ref = _worship_live_ref_for_scope(scope).document(session_id)
         transaction = db.transaction()
 
+        deck_action = action in {"edit_slide", "split_slide", "insert_scripture"}
+
         @firestore.transactional
         def _update(txn):
-            snap = ref.get(transaction=txn)
+            # Navigation only needs the small state fields; deck edits need the slides.
+            snap = (
+                ref.get(transaction=txn)
+                if deck_action
+                else ref.get(field_paths=_WORSHIP_LIVE_STATE_FIELDS, transaction=txn)
+            )
             data = snap.to_dict() if snap.exists else None
             if not data or float(data.get("expires_epoch") or 0) <= time.time():
                 raise LookupError("Live worship session expired")
@@ -2916,7 +2943,26 @@ def _delete_worship_setlist(setlist_id: str) -> bool:
 
 
 def _touch_worship_songs_last_used(song_ids: list[str], date_label: str) -> None:
+    """Record last use with a one-field update instead of rewriting each song."""
+    firestore_client, _ = init_firebase()
+    scope = _current_worship_scope()
     for song_id in dict.fromkeys(song_ids):
+        if firestore_client is not None:
+            try:
+                _worship_songs_ref(firestore_client).document(song_id).update({"last_used": date_label})
+            except Exception:
+                # Legacy/unscoped song (or not yet copied into this scope): fall back to a full save.
+                song = get_worship_song(song_id)
+                if not song:
+                    continue
+                song["last_used"] = date_label
+                save_worship_song(song)
+                continue
+            cached = _worship_songs_cache.get(scope)
+            for song in (cached or {}).get("data", []):
+                if song.get("id") == song_id:
+                    song["last_used"] = date_label
+            continue
         song = get_worship_song(song_id)
         if not song:
             continue
@@ -2976,30 +3022,23 @@ _CONTINUATION_STARTS = (
 )
 
 
+_CONTINUATION_END_WORDS = frozenset({"and", "or", "but", "so", "cause", "because", "to", "of", "in", "with"})
+
+
 def _line_continues_to_next(line: str) -> bool:
     text = (line or "").strip().lower()
     if not text:
         return False
     if text.endswith((",", ";", ":", "-", "(", "...", "—")):
         return True
-    if text.endswith(("and", "or", "but", "so", "cause", "because", "to", "of", "in", "with")):
-        return True
-    return False
+    # Whole-word match: "Savior", "again", and "sin" do not end in a conjunction.
+    words = re.findall(r"[a-z']+", text)
+    return bool(words) and words[-1] in _CONTINUATION_END_WORDS
 
 
 def _line_starts_as_continuation(line: str) -> bool:
     text = (line or "").strip().lower()
     return any(text.startswith(prefix) for prefix in _CONTINUATION_STARTS)
-
-
-def _is_protected_phrase_pair(prev_line: str, next_line: str) -> bool:
-    prev = (prev_line or "").strip().lower()
-    nxt = (next_line or "").strip().lower()
-    protected_pairs = [
-        ("cause you've got a lion", "inside of those lungs"),
-        ("get up and", "praise the lord"),
-    ]
-    return any(prev.endswith(a) and nxt.startswith(b) for a, b in protected_pairs)
 
 
 def _is_phrase_boundary(line: str) -> bool:
@@ -3010,11 +3049,7 @@ def _is_phrase_boundary(line: str) -> bool:
 
 
 def _join_required(prev_line: str, next_line: str) -> bool:
-    return (
-        _is_protected_phrase_pair(prev_line, next_line)
-        or _line_continues_to_next(prev_line)
-        or _line_starts_as_continuation(next_line)
-    )
+    return _line_continues_to_next(prev_line) or _line_starts_as_continuation(next_line)
 
 
 def _is_strong_refrain_boundary(prev_line: str, next_line: str) -> bool:
@@ -3227,16 +3262,35 @@ def _resolve_bg(item_type: str, song_bg: str | None) -> tuple:
         filename = _valid_worship_background(filename)
         if not filename:
             continue
-        path = (_BG_DIR / filename).resolve()
+        entry = cfg.get(filename, {})
+        stored_name = str(entry.get("file") or filename)
+        path = (_BG_DIR / stored_name).resolve()
         if path.parent == _BG_DIR.resolve() and path.is_file():
             defaults = {"font_color": [255, 255, 255], "overlay": False, "overlay_opacity": 0}
-            return path, {**defaults, **cfg.get(filename, {})}
+            return path, {**defaults, **entry}
     return None, {"font_color": [255, 255, 255], "overlay": False, "overlay_opacity": 0}
+
+
+def _add_cover_picture(slide, img_path, left: float, top: float, width: float, height: float):
+    """Place an image filling the box like CSS ``object-fit: cover`` (crop, never stretch)."""
+    pic = slide.shapes.add_picture(str(img_path), Inches(left), Inches(top), Inches(width), Inches(height))
+    with Image.open(img_path) as image:
+        image_width, image_height = image.size
+    if image_width and image_height:
+        image_ratio = image_width / image_height
+        box_ratio = width / height
+        if image_ratio > box_ratio:
+            trim = (1 - box_ratio / image_ratio) / 2
+            pic.crop_left = pic.crop_right = trim
+        elif image_ratio < box_ratio:
+            trim = (1 - image_ratio / box_ratio) / 2
+            pic.crop_top = pic.crop_bottom = trim
+    return pic
 
 
 def _apply_image_background(slide, img_path) -> None:
     """Add image as full-slide background, behind all other shapes."""
-    pic = slide.shapes.add_picture(str(img_path), Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    pic = _add_cover_picture(slide, img_path, 0, 0, 13.333, 7.5)
     sp_tree = slide.shapes._spTree
     sp_tree.remove(pic._element)
     sp_tree.insert(2, pic._element)
@@ -3274,14 +3328,17 @@ def add_centered_textbox(slide, text: str, top: float, height: float, font_size:
     tf.clear()
     tf.word_wrap = True
     tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    run = p.add_run()
-    run.text = text
-    run.font.size = Pt(font_size)
-    run.font.bold = bold
-    run.font.name = "Arial"
-    run.font.color.rgb = font_color
+    # One paragraph per line: a raw newline inside <a:t> is not a valid
+    # PowerPoint line break and renders misaligned in LibreOffice/Google Slides.
+    for index, line in enumerate(str(text or "").split("\n")):
+        p = tf.paragraphs[0] if index == 0 else tf.add_paragraph()
+        p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = line
+        run.font.size = Pt(font_size)
+        run.font.bold = bold
+        run.font.name = "Arial"
+        run.font.color.rgb = font_color
     return box
 
 
@@ -3297,8 +3354,21 @@ def add_link_footer(slide, label: str = "faithsparksprintables.com", url: str = 
     run.font.size = Pt(9)
     run.font.name = "Arial"
     run.font.color.rgb = font_color or RGBColor(235, 235, 235)
-    run.hyperlink.address = url
+    # No hyperlink: PowerPoint/LibreOffice repaint links in the theme's dark
+    # blue, which made the footer unreadable on dark backgrounds.
     return box
+
+
+def _divider_title_font_size(title: str) -> int:
+    """Shrink long titles so they stay inside the title band (max two rows)."""
+    length = len(str(title or "").strip())
+    if length <= 22:
+        return 60
+    if length <= 34:
+        return 52
+    if length <= 48:
+        return 44
+    return 36
 
 
 def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, item_type: str = "song", song_bg: str = None):
@@ -3311,9 +3381,10 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
     font_color = RGBColor(*cfg["font_color"])
     overlay = cfg.get("overlay", False)
     overlay_opacity = cfg.get("overlay_opacity", 0.5)
-    add_centered_textbox(slide, title, top=2.2, height=1.65, font_size=60, bold=True,
+    title_size = _divider_title_font_size(title)
+    add_centered_textbox(slide, title, top=1.15, height=2.75, font_size=title_size, bold=True,
                           font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity,
-                          left=1.5, width=10.333)
+                          left=1.0, width=11.333)
     subtitle_parts = []
     if artist:
         subtitle_parts.append(artist)
@@ -3337,13 +3408,13 @@ def create_service_slide(prs: Presentation, item: dict, image_path: str | None =
     if image_path and layout == "full":
         _apply_image_background(slide, image_path)
         _add_overlay_rect(slide, 0, 0, 13.333, 7.5, 0.46)
-        add_centered_textbox(slide, title, 1.65, 1.45, 54, True)
+        add_centered_textbox(slide, title, 1.65, 1.45, min(54, _divider_title_font_size(title)), True)
         if lines:
             add_centered_textbox(slide, "\n".join(lines), 3.25, 2.1, 30, False)
     elif image_path and layout == "split":
         apply_dark_background(slide)
-        slide.shapes.add_picture(str(image_path), Inches(0), Inches(0), Inches(7.0), Inches(7.5))
-        add_centered_textbox(slide, title, 1.35, 1.55, 43, True, left=7.35, width=5.45)
+        _add_cover_picture(slide, image_path, 0, 0, 7.0, 7.5)
+        add_centered_textbox(slide, title, 1.35, 1.55, min(43, _divider_title_font_size(title) - 12), True, left=7.35, width=5.45)
         if lines:
             add_centered_textbox(slide, "\n".join(lines), 3.05, 2.5, 27, False, left=7.35, width=5.45)
     else:
@@ -3353,7 +3424,7 @@ def create_service_slide(prs: Presentation, item: dict, image_path: str | None =
         else:
             apply_dark_background(slide, _TYPE_BG.get(normalized.get("type"), _DEFAULT_BG))
         font_color = RGBColor(*cfg["font_color"])
-        add_centered_textbox(slide, title, 1.7, 1.5, 56, True, font_color=font_color)
+        add_centered_textbox(slide, title, 1.7, 1.5, min(56, _divider_title_font_size(title)), True, font_color=font_color)
         if lines:
             add_centered_textbox(slide, "\n".join(lines), 3.35, 2.2, 30, False, font_color=font_color)
     footer_color = font_color if not image_path else RGBColor(235, 235, 235)
@@ -3542,7 +3613,7 @@ def worship_live_end_active():
     session_id = str(pointer.get("session_id") or "") if isinstance(pointer, dict) else ""
     live = None
     if scope == _current_worship_scope() and re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
-        live = _get_worship_live_session(scope, session_id)
+        live = _get_worship_live_session(scope, session_id, include_slides=False)
     user_email = str(session.get("user_email") or "").strip().casefold()
     if not live or not user_email or str(live.get("created_by") or "").strip().casefold() != user_email:
         session.pop(_WORSHIP_LIVE_ACTIVE_SESSION_KEY, None)
@@ -6323,17 +6394,19 @@ def worship_live_start():
     )
 
 
-def _load_worship_live_request(token: str, required_role: str | None = None) -> tuple[dict, dict] | tuple[None, None]:
+def _load_worship_live_request(
+    token: str, required_role: str | None = None, *, include_slides: bool = True
+) -> tuple[dict, dict] | tuple[None, None]:
     try:
         capability = _load_worship_live_token(token, required_role=required_role)
     except BadData:
         return None, None
-    live = _get_worship_live_session(capability["scope"], capability["session_id"])
+    live = _get_worship_live_session(capability["scope"], capability["session_id"], include_slides=include_slides)
     return (capability, live) if live else (None, None)
 
 
 def _worship_live_capability_from_cookie(
-    session_id: str, required_role: str | None = None
+    session_id: str, required_role: str | None = None, *, include_slides: bool = True
 ) -> tuple[dict, dict] | tuple[None, None]:
     if required_role == "control":
         cookie_names = (_WORSHIP_LIVE_CONTROL_COOKIE,)
@@ -6357,7 +6430,7 @@ def _worship_live_capability_from_cookie(
             continue
         if capability["session_id"] != session_id:
             continue
-        live = _get_worship_live_session(capability["scope"], session_id)
+        live = _get_worship_live_session(capability["scope"], session_id, include_slides=include_slides)
         if live:
             return capability, live
     return None, None
@@ -6412,7 +6485,7 @@ def worship_live_exchange(session_id):
             return jsonify({"ok": False, "error": "This Live Worship link is invalid or expired."}), 410
         if capability["session_id"] != session_id or (scope and capability["scope"] != scope):
             return jsonify({"ok": False, "error": "This Live Worship link does not match the session."}), 400
-        if not _get_worship_live_session(capability["scope"], session_id):
+        if not _get_worship_live_session(capability["scope"], session_id, include_slides=False):
             return jsonify({"ok": False, "error": "This Live Worship session has ended."}), 410
         scope = capability["scope"]
         accepted[cookie_name] = token
@@ -6573,9 +6646,9 @@ def worship_live_stage(session_id):
 
 @app.route("/worship/live/state/<session_id>", methods=["GET"])
 def worship_live_state(session_id):
-    capability, live = _worship_live_capability_from_cookie(session_id)
+    capability, live = _worship_live_capability_from_cookie(session_id, include_slides=False)
     if not live and not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
-        capability, live = _load_worship_live_request(session_id)
+        capability, live = _load_worship_live_request(session_id, include_slides=False)
     if not live:
         return jsonify({"ok": False, "error": "expired"}), 410
     response = jsonify({
@@ -6593,13 +6666,14 @@ def worship_live_control(session_id):
     legacy_capability_url = not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id)
     if not legacy_capability_url and request.headers.get("X-Worship-Live") != "1":
         return jsonify({"ok": False, "error": "Invalid remote request."}), 400
-    capability, live = _worship_live_capability_from_cookie(session_id, "control")
+    capability, live = _worship_live_capability_from_cookie(session_id, "control", include_slides=False)
     if not live and legacy_capability_url:
-        capability, live = _load_worship_live_request(session_id, "control")
+        capability, live = _load_worship_live_request(session_id, "control", include_slides=False)
     if not live:
         return jsonify({"ok": False, "error": "expired"}), 410
     rate = check_rate_limit(
-        "worship:live-control", f"{capability['session_id']}:{get_client_ip()}", limit=2000, window_seconds=60 * 60
+        "worship:live-control", f"{capability['session_id']}:{get_client_ip()}", limit=2000, window_seconds=60 * 60,
+        local_only=True,
     )
     if not rate.allowed:
         return jsonify({"ok": False, "error": "Too many remote commands."}), 429
@@ -6893,106 +6967,126 @@ def worship_build():
         )
         return redirect(url_for("worship"))
 
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
+    media_temp_paths: list[str] = []
+    deck_path = ""
 
-    media_temp_paths = []
-    for item in selected_items:
-        normalized = normalize_worship_song(item)
-        item_type = normalized.get("type", "song")
-        song_bg = normalized.get("_effective_background") or normalized.get("background")
-        if item_type == _WORSHIP_PRESENTATION_TYPE:
-            for presentation_slide in _iter_worship_presentation_slides(normalized):
-                if presentation_slide.get("kind") == "highlight":
-                    create_content_slide(
-                        prs,
-                        [presentation_slide.get("text", "")],
-                        "scripture",
-                        song_bg,
-                        font_size=42,
-                        part_label="Key Point",
-                    )
-                    continue
-                media_tmp = NamedTemporaryFile(delete=False, suffix=".jpg")
-                media_tmp.close()
-                media_temp_paths.append(media_tmp.name)
-                if not _download_worship_asset(presentation_slide.get("image_path", ""), media_tmp.name):
-                    for path in media_temp_paths:
-                        try:
-                            os.unlink(path)
-                        except OSError:
-                            pass
-                    flash(f"An imported slide in {normalized.get('title', 'the presentation')} is unavailable.", "error")
-                    return redirect(url_for("worship"))
-                create_imported_presentation_slide(prs, media_tmp.name)
-            continue
-        if item_type == _WORSHIP_VIDEO_TYPE:
-            create_divider_slide(
-                prs, normalized.get("title", "Video"), "YouTube video · play from Live Worship",
-                "", item_type, song_bg,
-            )
-            continue
-        if item_type in _WORSHIP_SERVICE_TYPES:
-            local_image = None
-            if normalized.get("image_path"):
-                media_tmp = NamedTemporaryFile(delete=False, suffix=".jpg")
-                media_tmp.close()
-                media_temp_paths.append(media_tmp.name)
-                if _download_worship_image(normalized["image_path"], media_tmp.name):
-                    local_image = media_tmp.name
-                else:
-                    app.logger.warning("Could not download worship image for %s", normalized.get("id"))
-            create_service_slide(prs, normalized, local_image)
-            continue
-        artist_bits = [bit for bit in (normalized.get("artist", ""), normalized.get("version", "")) if bit]
-        create_divider_slide(prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg)
-        for part_name, slide in _iter_worship_lyric_chunks(normalized):
-            create_content_slide(
-                prs,
-                slide["lines"],
-                item_type,
-                song_bg,
-                font_size=slide.get("font_size", 48),
-                part_label=_worship_part_label(part_name),
-            )
+    def _remove_temp_files() -> None:
+        for path in [deck_path, *media_temp_paths]:
+            if not path:
+                continue
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
-    scripture_versions = [
-        normalize_worship_song(item).get("version", "")
-        for item in selected_items
-        if normalize_worship_song(item).get("type") == "scripture"
-    ]
-    if scripture_versions:
-        from faithsparks.pdf_notices import scripture_notice_texts
-        lines = ["SCRIPTURE ATTRIBUTION"]
-        notices = scripture_notice_texts(scripture_versions)
-        lines.extend(f"{code}: {notice}" for code, notice in notices)
-        known = {code for code, _ in notices}
-        for version in dict.fromkeys(str(value or "").strip().upper() for value in scripture_versions):
-            if version and version not in known:
-                lines.append(f"{version}: User-supplied text; verify permission and required attribution.")
-        create_content_slide(prs, lines, "scripture", None, font_size=20, part_label="Attribution")
+    def _new_media_temp() -> str:
+        media_tmp = NamedTemporaryFile(delete=False, suffix=".jpg")
+        media_tmp.close()
+        media_temp_paths.append(media_tmp.name)
+        return media_tmp.name
+
+    try:
+        prs = Presentation()
+        prs.slide_width = Inches(13.333)
+        prs.slide_height = Inches(7.5)
+        for item in selected_items:
+            normalized = normalize_worship_song(item)
+            item_type = normalized.get("type", "song")
+            song_bg = normalized.get("_effective_background") or normalized.get("background")
+            if item_type == _WORSHIP_PRESENTATION_TYPE:
+                for presentation_slide in _iter_worship_presentation_slides(normalized):
+                    if presentation_slide.get("kind") == "highlight":
+                        create_content_slide(
+                            prs,
+                            [presentation_slide.get("text", "")],
+                            "scripture",
+                            song_bg,
+                            font_size=42,
+                            part_label="Key Point",
+                        )
+                        continue
+                    media_path = _new_media_temp()
+                    if not _download_worship_asset(presentation_slide.get("image_path", ""), media_path):
+                        _remove_temp_files()
+                        flash(f"An imported slide in {normalized.get('title', 'the presentation')} is unavailable.", "error")
+                        return redirect(url_for("worship"))
+                    create_imported_presentation_slide(prs, media_path)
+                continue
+            if item_type == _WORSHIP_VIDEO_TYPE:
+                create_divider_slide(
+                    prs, normalized.get("title", "Video"), "YouTube video · play from Live Worship",
+                    "", item_type, song_bg,
+                )
+                continue
+            if item_type in _WORSHIP_SERVICE_TYPES:
+                local_image = None
+                if normalized.get("image_path"):
+                    media_path = _new_media_temp()
+                    if _download_worship_image(normalized["image_path"], media_path):
+                        local_image = media_path
+                    else:
+                        app.logger.warning("Could not download worship image for %s", normalized.get("id"))
+                create_service_slide(prs, normalized, local_image)
+                continue
+            artist_bits = [bit for bit in (normalized.get("artist", ""), normalized.get("version", "")) if bit]
+            create_divider_slide(prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg)
+            for part_name, slide in _iter_worship_lyric_chunks(normalized):
+                create_content_slide(
+                    prs,
+                    slide["lines"],
+                    item_type,
+                    song_bg,
+                    font_size=slide.get("font_size", 48),
+                    part_label=_worship_part_label(part_name),
+                )
+
+        scripture_versions = [
+            normalize_worship_song(item).get("version", "")
+            for item in selected_items
+            if normalize_worship_song(item).get("type") == "scripture"
+        ]
+        if scripture_versions:
+            from faithsparks.pdf_notices import scripture_notice_texts
+            notice_lines = []
+            notices = scripture_notice_texts(scripture_versions)
+            notice_lines.extend(f"{code}: {notice}" for code, notice in notices)
+            known = {code for code, _ in notices}
+            for version in dict.fromkeys(str(value or "").strip().upper() for value in scripture_versions):
+                if version and version not in known:
+                    notice_lines.append(f"{version}: User-supplied text; verify permission and required attribution.")
+            # Two notices per slide keeps long publisher notices inside the text box.
+            for start in range(0, len(notice_lines), 2):
+                create_content_slide(
+                    prs, ["SCRIPTURE ATTRIBUTION", *notice_lines[start:start + 2]],
+                    "scripture", None, font_size=18, part_label="Attribution",
+                )
+
+        deck_tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
+        deck_tmp.close()
+        deck_path = deck_tmp.name
+        prs.save(deck_path)
+    except Exception:
+        _remove_temp_files()
+        app.logger.exception("worship_build failed")
+        flash("The slides could not be built. Check imported presentations and photos, then try again.", "error")
+        return redirect(url_for("worship"))
 
     today = datetime.now(timezone.utc).date().isoformat()
     if _worship_can_edit():
-        _record_worship_deck_build(selected_items)
-        _touch_worship_songs_last_used([item.get("id", "") for item in selected_items if item.get("id")], today)
-
-    tmp = NamedTemporaryFile(delete=False, suffix=".pptx")
-    prs.save(tmp.name)
-    tmp.close()
+        try:
+            _record_worship_deck_build(selected_items)
+            _touch_worship_songs_last_used([item.get("id", "") for item in selected_items if item.get("id")], today)
+        except Exception as exc:
+            # Bookkeeping must never block a download on Sunday morning.
+            app.logger.warning("worship_build bookkeeping failed: %s", exc)
 
     @after_this_request
     def _cleanup(response):
-        for path in [tmp.name, *media_temp_paths]:
-            try:
-                os.unlink(path)
-            except Exception:
-                pass
+        _remove_temp_files()
         return response
 
     return send_file(
-        tmp.name,
+        deck_path,
         as_attachment=True,
         download_name=_worship_set_filename(selected_items, today),
         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -9971,6 +10065,14 @@ def handle_404(e):
         return render_template('404.html'), 404
     except Exception:
         return "Not found", 404
+
+@app.errorhandler(413)
+def handle_413(e):
+    message = "That upload is too large. Files must be 30 MB or smaller."
+    if request.is_json or request.accept_mimetypes.best == "application/json":
+        return jsonify({"ok": False, "error": message}), 413
+    return message, 413
+
 
 @app.errorhandler(500)
 def handle_500(e):

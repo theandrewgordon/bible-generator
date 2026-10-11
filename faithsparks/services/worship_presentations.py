@@ -20,6 +20,7 @@ MAX_PRESENTATION_BYTES = 25 * 1024 * 1024
 MAX_PRESENTATION_SLIDES = 100
 MAX_PRESENTATION_UNCOMPRESSED_BYTES = 250 * 1024 * 1024
 MAX_SERMON_NOTES_CHARS = 60_000
+# soffice + pdftoppm timeouts (90s each) stay under GUNICORN_TIMEOUT=240.
 
 
 class WorshipPresentationError(ValueError):
@@ -175,7 +176,7 @@ def render_presentation(source_path: str | Path, suffix: str, work_dir: str | Pa
             str(source_path),
         ]
         try:
-            result = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
+            result = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False)
         except subprocess.TimeoutExpired as exc:
             raise WorshipPresentationError("PowerPoint conversion timed out. Try exporting it as PDF.") from exc
         converted = work_dir / f"{source_path.stem}.pdf"
@@ -188,10 +189,16 @@ def render_presentation(source_path: str | Path, suffix: str, work_dir: str | Pa
     raster_prefix = work_dir / "rendered-slide"
     try:
         result = subprocess.run(
-            [pdftoppm, "-jpeg", "-r", "144", "-jpegopt", "quality=92", str(pdf_path), str(raster_prefix)],
+            [
+                pdftoppm, "-jpeg",
+                # Cap the long edge so an oversized page box cannot rasterize to gigapixels.
+                "-scale-to", "1920",
+                "-jpegopt", "quality=92",
+                str(pdf_path), str(raster_prefix),
+            ],
             capture_output=True,
             text=True,
-            timeout=150,
+            timeout=90,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
