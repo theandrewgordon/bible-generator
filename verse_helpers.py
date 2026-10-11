@@ -19,16 +19,33 @@ from faithsparks.util.request_utils import (
 # --- Load API Key ---
 load_dotenv("secret.env")
 CLIENT_TIMEOUT = httpx.Timeout(connect=5.0, read=25.0, write=25.0, pool=None)
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    organization=os.getenv("OPENAI_ORG_ID"),
-    timeout=CLIENT_TIMEOUT,
-)
+_client: OpenAI | None = None
 
 
 def get_openai_client() -> OpenAI:
-    """Expose the shared OpenAI client to other modules."""
-    return client
+    """Return the shared OpenAI client, created on first use.
+
+    Created lazily so a missing/rotated OPENAI_API_KEY only breaks AI features,
+    not the whole site at import time.
+    """
+    global _client
+    if _client is None:
+        _client = OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            organization=os.getenv("OPENAI_ORG_ID"),
+            timeout=CLIENT_TIMEOUT,
+        )
+    return _client
+
+
+class _LazyOpenAIClient:
+    """Module-level ``client`` stand-in that defers construction until used."""
+
+    def __getattr__(self, name):
+        return getattr(get_openai_client(), name)
+
+
+client = _LazyOpenAIClient()
 
 
 def strip_fences(text: str) -> str:

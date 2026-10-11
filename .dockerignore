@@ -21,3 +21,6 @@ raw_images
 tests
 requirements-dev.txt
 
+.venv-broken
+.claude
+docs

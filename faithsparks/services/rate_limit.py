@@ -26,14 +26,20 @@ def _safe_token(value: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_.:-]+", "-", str(value or "unknown"))[:180] or "unknown"
 
 
-def check_rate_limit(scope: str, key: str, *, limit: int, window_seconds: int) -> RateLimitResult:
-    """Fixed-window limiter. Firestore in production, process memory in local dev."""
+def check_rate_limit(
+    scope: str, key: str, *, limit: int, window_seconds: int, local_only: bool = False
+) -> RateLimitResult:
+    """Fixed-window limiter. Firestore in production, process memory in local dev.
+
+    ``local_only`` skips Firestore for latency-sensitive, already-authorized
+    callers (e.g. a Live Worship remote): a per-worker cap is enough there.
+    """
     now = int(time.time())
     window_start = now - (now % int(window_seconds))
     retry_after = max(1, window_start + int(window_seconds) - now)
     doc_id = f"{_safe_token(scope)}:{_safe_token(key)}:{window_start}"
 
-    if db:
+    if db and not local_only:
         try:
             ref = db.collection("rate_limits").document(doc_id)
             transaction = db.transaction()
@@ -71,6 +77,10 @@ def check_rate_limit(scope: str, key: str, *, limit: int, window_seconds: int) -
                 pass
 
     bucket_key = doc_id
+    if len(_MEMORY_BUCKETS) > 5_000:
+        now_float = time.time()
+        for stale_key in [k for k, (_, expires) in _MEMORY_BUCKETS.items() if expires <= now_float]:
+            _MEMORY_BUCKETS.pop(stale_key, None)
     count, expires_at = _MEMORY_BUCKETS.get(bucket_key, (0, window_start + window_seconds))
     if time.time() >= expires_at:
         count = 0

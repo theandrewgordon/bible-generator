@@ -367,15 +367,15 @@ function drawOpenIceTub""",
         html = replace_last(
             html,
             "  drawText('BRING CUP HERE',guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));",
-            "  drawText(\`BRING \${holdingContainer || 'ORDER'} HERE\`,guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));",
+            "  drawText(\\`BRING \\${holdingContainer || 'ORDER'} HERE\\`,guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));",
         )
 
         # The old star chip actually counted lifetime orders served, while
         # round stars are a separate 1-3 accuracy rating. Label it accurately.
         html = replace_last(
             html,
-            " drawText(\`⭐ \${stars}\`,vec2(7.8,5.05),.26,WHITE,.03,BLACK);",
-            " drawText(\`SERVED \${served}\`,vec2(7.8,5.05),.22,WHITE,.03,BLACK);",
+            " drawText(\\`⭐ \\${stars}\\`,vec2(7.8,5.05),.26,WHITE,.03,BLACK);",
+            " drawText(\\`SERVED \\${served}\\`,vec2(7.8,5.05),.22,WHITE,.03,BLACK);",
         )
 
         # Give the major kitchen actions distinct sounds. Scooping, toppings,
@@ -391,8 +391,8 @@ const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:
 
         html = replace_last(
             html,
-            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\`\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\`;messageTimer.set(1.2);playSfx(sndPick);",
-            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\`\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\`;messageTimer.set(1.2);playSfx(sndContainer);",
+            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\\`\\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\\`;messageTimer.set(1.2);playSfx(sndPick);",
+            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\\`\\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\\`;messageTimer.set(1.2);playSfx(sndContainer);",
         )
 
         html = replace_last(

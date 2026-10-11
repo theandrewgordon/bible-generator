@@ -23,3 +23,8 @@ uploads/
 !static/bundles/*.pdf
 !static/bundles/*.zip
 analytics.sqlite
+
+# Local runtime state
+flask_session/
+node_modules/
+.venv-broken/
