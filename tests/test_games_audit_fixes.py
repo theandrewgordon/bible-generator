@@ -121,3 +121,14 @@ def test_metrics_are_admin_only_and_cached():
     source = (ROOT / "faithsparks" / "views" / "lab_games.py").read_text(encoding="utf-8")
     assert "_SAME_BRAIN_METRICS_CACHE_SECONDS = 600" in source
     assert 'order_by("updatedAt", direction="DESCENDING")' in source
+
+
+def test_same_brain_couch_mode_is_local_and_inside_main_script():
+    html = (GAME_DIR / "same-brain.html").read_text(encoding="utf-8")
+    scripts = re.findall(r"<script[^>]*>(.*?)</script>", html, re.S)
+    assert len(scripts) == 1  # the couch module must share the main script's scope
+    module = scripts[0][scripts[0].index("/* Couch Brain"):]
+    assert 'id="couch-btn"' in html and 'id="screen-couch"' in html
+    for forbidden in ("fetch(", "track(", "XMLHttpRequest", "sendBeacon"):
+        assert forbidden not in module.split("window.SameBrainCouch")[0], forbidden
+    assert "var MIN=2,MAX=4,ROUND=5" in module
