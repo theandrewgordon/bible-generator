@@ -569,16 +569,14 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     _sign_in(client)
     html = client.get("/labs/games/gordon-ice-cream-town").get_data(as_text=True)
 
-    # The guided counter keeps preparation, pouring, toppings, and serving
-    # distinct, without the old scoop pickup/drop-off controls.
-    assert "function guidedStep()" in html
-    assert "function syncGuidedAssembly()" in html
-    assert "function updateGuidedCounter()" in html
-    assert "drawGuidedCounter();" in html
-    assert "label:'Pour into the cup'" in html
-    assert "kind:'topping',name:topping" in html
-    assert "label:`Give to ${guestName}`" in html
-    assert "Toppings: " in html
+    # Later shake orders can require toppings. Filling the cup must not
+    # prematurely serve/reject the drink before those toppings are added.
+    assert "Cup filled! Take it to the customer." in html
+    assert "Add the topping, then take it to the customer!" in html
+    assert "Ready! Take it to the customer." in html
+    assert "TAP BLENDER TO FILL THE CUP" in html
+    assert "Every finished order is handed to the correct person." in html
+    assert "if(order){" in html
 
     # In-progress orders and post-serve transitions survive background/reload.
     assert "roundMistakes,waitingForNext,guestPhase,guestSlide" in html
@@ -626,19 +624,7 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "if(!order.need.includes(item.name)){\n  roundMistakes++;" in html
     assert "if(!(order.toppings||[]).includes(t.name)){\n  roundMistakes++;" in html
     assert "if(order.container!=kind){\n  roundMistakes++;" in html
-    assert "function guidedServeCustomer()" in html
-    assert "function drawOrderPreview(request,pos,scale=.72)" in html
-    assert "drawShopFamilyMember(0,vec2(-8.05,1.35),3.25)" in html
-    assert "let guidedDrag=null" in html
-    assert "function guidedDragDrop()" in html
-    assert "guidedDrag={kind:choices[i].kind" in html
-    assert "if(drag.origin&&isOverlapping" not in html
-    assert "function drawGuidedTool(drag,pos)" in html
-    assert "drawText('WHIP'" in html
-    assert "Toppings tray" in html
-    assert "Ice cream and ingredients" in html
-    assert "Rainbow\\nSprinkles" in html
-    assert "vec2(1.55,1.42)" in html
+    assert "if(i!=partyIndex){\n     if(finishedOrderReady())roundMistakes++;" in html
 
     # Current audit: retries are genuinely fresh, exact timer state survives
     # resume, and early levels introduce recipes gradually.
@@ -657,11 +643,10 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "typeof OffscreenCanvas!='undefined'" in html
     assert "document.createElement('canvas')" in html
 
-    # Guided cards and the primary action have generous visible hit targets.
-    assert "vec2(3.4,1.5)" in html
-    assert "guidedDrag={kind:'serve'}" in html
-    assert "if(drag.kind=='serve')" in html
-    assert "Drag the order to ${guestName}." in html
+    # iPad lower-row container targets are enlarged slightly.
+    assert "selectedContainerPos.BOWL,vec2(1.35,1.2)" in html
+    assert "selectedContainerPos.CUP,vec2(1.35,1.2)" in html
+    assert "selectedContainerPos.CONE,vec2(1.35,1.2)" in html
 
     # Audit: level transition feedback and mid-blend resume state are real,
     # not dead UI/state paths.
@@ -675,19 +660,23 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
 
     # Drink complexity ramps up rather than exposing the full recipe bank
     # immediately on Level 2.
-    assert "const recipeCount=" in html
-    assert "min(RECIPES.length,5+max(0,level-2)*2)" in html
+    assert "const recipeCount=min(RECIPES.length,5+max(0,level-2)*2)" in html
     assert "RECIPES[randInt(recipeCount)]" in html
 
     # Audit: a level can never finish halfway through a newly-arrived party.
     assert "const remaining=max(1,r.goal-levelServed)" in html
     assert "return min(rolled,remaining)" in html
 
-    # Only the current recipe's preparation action is available. Old carried
-    # ingredients join the guided assembly once when a session resumes.
-    assert "order.kind=='BLEND'?'Blend the shake':'Mix the soda'" in html
-    assert "for(const name of [scoopLoaded?scoopFlavor:'',holdingMilk])" in html
-    assert "if(name&&order.need.includes(name)&&!tray.includes(name))tray.push(name);" in html
+    # Audit: machine taps always explain what is missing and wrong-machine
+    # taps use the normal error sound.
+    assert "message='Pick up a cup first.'" in html
+    assert "message='Mixed! Pick up a cup.'" in html
+    assert "This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad)" in html
+    assert "This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad)" in html
+
+    # Audit: setting down a loaded scoop no longer silently throws it away.
+    assert "Use the scoop you already have, or tap RESET." in html
+    assert "if(!holdingScoop){scoopLoaded=false;scoopFlavor='';}" not in html
 
     # The shared player summary no longer labels lifetime orders as rating stars.
     assert "orders served" in html
@@ -709,9 +698,12 @@ def test_icecream_end_audit_fixes_drink_toppings_resume_and_auto_advance():
     assert "partyDeadline += timeDelta" in html
     assert "freeze the clock during non-interactive guest transitions" in html
 
-    # Serving names the current recipient and the HUD shows only round progress.
-    assert "label:`Give to ${guestName}`" in html
-    assert "${levelServed}/${ruleForLevel().goal} orders" in html
+    # Scoop-order guidance names the actual container instead of always saying cup.
+    assert "BRING ${holdingContainer || 'ORDER'} HERE" in html
+    assert "BRING CUP HERE" not in html
+
+    # The HUD no longer labels lifetime served orders as rating stars.
+    assert "SERVED ${served}" in html
 
     # Major kitchen actions now have distinct sound cues.
     assert "const sndMix=new SoundGenerator" in html
