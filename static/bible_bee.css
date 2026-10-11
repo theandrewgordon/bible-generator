@@ -2,7 +2,7 @@
   --bee-cream: #fff9ed;
   --bee-paper: #fffefb;
   --bee-navy: #102d5c;
-  --bee-blue: #157ad1;
+  --bee-blue: #1370c0;
   --bee-blue-soft: #e9f4fd;
   --bee-gold: #f5bd32;
   --bee-gold-soft: #fff2c9;
@@ -1338,3 +1338,6 @@ select {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+/* Consistent way back to the main site from every standalone game page. */
+.bee-home-link{margin-left:auto;padding:8px 12px;border-radius:10px;color:#17324d;font-weight:750;font-size:.9rem;text-decoration:none;white-space:nowrap}
+.bee-home-link:hover{background:rgba(23,50,77,.08)}

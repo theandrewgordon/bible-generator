@@ -1,6 +1,6 @@
 :root {
   --ink: #19332d;
-  --muted: #64716d;
+  --muted: #626f6b;
   --forest: #315f53;
   --forest-dark: #244a40;
   --sage: #dce9e2;
@@ -10,7 +10,7 @@
   --gold: #d49a3a;
   --rose: #d45e86;
   --purple: #6657d9;
-  --teal: #168a80;
+  --teal: #137971;
   --danger: #a64c3f;
   --shadow: 0 18px 60px rgba(34, 61, 53, 0.1);
 }
@@ -109,7 +109,7 @@ button { color: inherit; }
 .wf-demo-chip { display: inline-flex; max-width: 100%; padding: 6px 8px; overflow: hidden; border-radius: 8px; color: #3f504b; background: #e7eeea; font-size: .7rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .wf-demo-chip.event { background: #f4ead3; }
 .wf-demo-chip.task { background: #e8e5f8; }
-.wf-demo-empty { color: #8a948f; font-size: .72rem; font-style: italic; }
+.wf-demo-empty { color: #6e7672; font-size: .72rem; font-style: italic; }
 .wf-demo-note strong { font-size: .88rem; }
 .wf-demo-note p { margin-top: 8px; }
 #demoLiveStatus { display: block; margin-top: 14px; color: var(--purple); font-size: .78rem; font-weight: 700; line-height: 1.4; }
@@ -493,3 +493,8 @@ h2 { margin: 6px 0 0; font-size: clamp(1.65rem, 3vw, 2.35rem); line-height: 1.08
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
+
+/* Lab landing nav: one back link, one settings link, one clear primary action. */
+.wf-lab-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
+.wf-lab-nav .wf-lab-nav-primary{margin-left:auto;padding:9px 14px;border-radius:999px;background:#19332d;color:#fff!important;text-decoration:none;font-weight:800}
+@media(max-width:640px){.wf-lab-nav .wf-lab-nav-primary{margin-left:0;width:100%;text-align:center}}

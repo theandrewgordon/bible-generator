@@ -18,7 +18,7 @@
     {% else %}
       {{ weekflow_area_nav('medical') }}
       <div class="wfm-loading" id="medicalLoading" role="status"><span></span><p>Opening family care reminders…</p></div>
-      <div class="wfm-message-card" id="medicalError" hidden><h1>We couldn’t open Medical.</h1><p id="medicalErrorMessage">Please try again.</p><button class="wfm-button wfm-primary" id="retryButton" type="button">Try again</button></div>
+      <div class="wfm-message-card" id="medicalError" hidden><h2 class="wf-error-title">We couldn’t open Medical.</h2><p id="medicalErrorMessage">Please try again.</p><button class="wfm-button wfm-primary" id="retryButton" type="button">Try again</button></div>
       <main class="wfm-shell" id="medicalApp" hidden>
         <header class="wfm-hero"><div><span class="wfm-eyebrow">WeekFlow Medical</span><h1>Remember the care.<br />Share the follow-through.</h1><p id="medicalGreeting">Keep appointments and practical follow-ups visible without building a medical chart.</p></div><div class="wfm-hero-actions" data-configured-only><button class="wfm-button wfm-primary" id="showItemForm" type="button">Add care reminder</button></div></header>
         <section class="wfm-setup" id="setupNotice" hidden><div><span class="wfm-eyebrow">Start with your family</span><h2>Name the people sharing the week.</h2><p>Medical uses the same adult-owned family record as the rest of WeekFlow.</p></div><a class="wfm-button wfm-primary" href="{{ url_for('weekflow.homeschool') }}">Set up our family</a></section>

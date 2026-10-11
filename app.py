@@ -438,6 +438,23 @@ def _md(text: str) -> str:
 
 app.jinja_env.filters["markdown"] = _md
 
+
+def _ink_filter(color, *backgrounds, minimum=4.5):
+    from faithsparks.services.themes import ink
+    return ink(str(color or ""), *[str(b) for b in backgrounds if b], minimum=minimum)
+
+
+app.jinja_env.filters["ink"] = _ink_filter
+app.jinja_env.globals["ink"] = _ink_filter
+
+
+def _mix_global(a, b, amount=0.18):
+    from faithsparks.services.themes import mix
+    return mix(str(a or ""), str(b or ""), float(amount))
+
+
+app.jinja_env.globals["mix"] = _mix_global
+
 # Recommended cookie settings (don't break localhost/dev)
 app.config["SESSION_COOKIE_SECURE"] = (APP_ENV in {"prod", "production"})
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"

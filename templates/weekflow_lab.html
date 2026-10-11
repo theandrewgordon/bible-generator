@@ -11,7 +11,7 @@
   </head>
   <body>
     <main class="wf-shell">
-      <nav class="wf-lab-nav"><a href="/labs">← Faith Sparks Labs</a><a href="{{ url_for('weekflow.today') }}">Open WeekFlow Today (Home)</a><a href="{{ url_for('weekflow.settings') }}">Family settings</a><a href="/">Faith Sparks home</a></nav>
+      <nav class="wf-lab-nav"><a href="/labs">← Labs</a><a href="{{ url_for('weekflow.settings') }}">Family settings</a><a class="wf-lab-nav-primary" href="{{ url_for('weekflow.today') }}">Open WeekFlow Today</a></nav>
       <header class="wf-hero">
         <div class="wf-kicker"><span>Faith Sparks Labs</span> Scheduler beta</div>
         <h1>Build the family day,<br />not three separate calendars.</h1>
@@ -39,7 +39,7 @@
             <button class="wf-text-button" id="demoResetButton" type="button">Reset</button>
           </div>
         </div>
-        <ol class="wf-demo-progress" id="demoProgress" aria-label="Walkthrough progress">
+        <ol class="wf-demo-progress" id="demoProgress" aria-label="Walkthrough progress" tabindex="0">
           <li data-demo-step="0"><span>1</span>Family</li>
           <li data-demo-step="1"><span>2</span>Commitments</li>
           <li data-demo-step="2"><span>3</span>Schoolwork</li>
@@ -77,7 +77,7 @@
         <div class="wf-sample-grid">
           <article><i style="--person:#6657d9"></i><strong>Avery</strong><span>Older · mostly independent</span></article>
           <article><i style="--person:#d45e86"></i><strong>Maya</strong><span>Mixed parent help + solo work</span></article>
-          <article><i style="--person:#168a80"></i><strong>Lucy</strong><span>Younger · substantial one-on-one</span></article>
+          <article><i style="--person:#137971"></i><strong>Lucy</strong><span>Younger · substantial one-on-one</span></article>
           <article><strong>Thursday</strong><span>CC / co-op day</span></article>
           <article><strong>Wednesday</strong><span>Fixed parent appointment</span></article>
           <article><strong>Baby nap</strong><span>Preferred teaching window</span></article>

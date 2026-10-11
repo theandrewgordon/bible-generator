@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Plan Worship · Faith Sparks{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -844,7 +845,7 @@
     });
     if (missing.length) {
       var banner = document.createElement('p');
-      banner.style.cssText = 'margin:.5rem 0 0;font-size:.82rem;color:#b45309;background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:6px 10px';
+      banner.style.cssText = 'margin:.5rem 0 0;font-size:.82rem;color:#b05109;background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:6px 10px';
       banner.textContent = missing.length + ' song' + (missing.length > 1 ? 's' : '') + ' from your saved draft could not be found and were skipped: ' + missing.join(', ');
       emptyState.parentNode.insertBefore(banner, emptyState.nextSibling);
     }

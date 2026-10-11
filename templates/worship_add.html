@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Add Song or Slide · Faith Sparks{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -61,7 +62,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="wa-row">
       <div class="wa-field">
-        <label class="wa-label">Slide type *</label>
+        <label class="wa-label" for="service-slide-type">Slide type *</label>
         <select class="wa-input" name="slide_type" id="service-slide-type">
           <option value="welcome">Welcome</option>
           <option value="announcement">Announcement</option>
@@ -69,23 +70,23 @@
         </select>
       </div>
       <div class="wa-field">
-        <label class="wa-label">Title *</label>
-        <input class="wa-input" name="title" required placeholder="Welcome to Grace Church">
+        <label class="wa-label" for="worship-add-title">Title *</label>
+        <input id="worship-add-title" class="wa-input" name="title" required placeholder="Welcome to Grace Church">
       </div>
     </div>
     <div class="wa-field">
-      <label class="wa-label">Supporting text</label>
-      <textarea class="wa-input" name="service_text" rows="3" placeholder="Join us after worship for lunch&#10;or&#10;The Smith family · Serving in Guatemala"></textarea>
+      <label class="wa-label" for="worship-add-service-text">Supporting text</label>
+      <textarea id="worship-add-service-text" class="wa-input" name="service_text" rows="3" placeholder="Join us after worship for lunch&#10;or&#10;The Smith family · Serving in Guatemala"></textarea>
     </div>
     <div class="wa-row" id="service-photo-fields">
       <div class="wa-field">
-        <label class="wa-label">Photo</label>
-        <input class="wa-input" type="file" name="image" accept="image/jpeg,image/png,image/webp">
+        <label class="wa-label" for="worship-add-image">Photo</label>
+        <input id="worship-add-image" class="wa-input" type="file" name="image" accept="image/jpeg,image/png,image/webp">
         <p class="wa-helper">JPG, PNG, or WebP, up to 10 MB. Only upload photos you have permission to display.</p>
       </div>
       <div class="wa-field">
-        <label class="wa-label">Photo layout</label>
-        <select class="wa-input" name="image_layout">
+        <label class="wa-label" for="worship-add-image-layout">Photo layout</label>
+        <select id="worship-add-image-layout" class="wa-input" name="image_layout">
           <option value="full">Full photo with text overlay</option>
           <option value="split">Photo beside text</option>
         </select>
@@ -104,8 +105,8 @@
   <p class="wa-helper">Adds a cueable video to the service order. Playback uses YouTube's privacy-enhanced embed and may still require one tap to start.</p>
   <form method="post" action="{{ url_for('worship_video_add') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="wa-row"><div class="wa-field"><label class="wa-label">Service title *</label><input class="wa-input" name="title" required placeholder="Mission trip video"></div><div class="wa-field"><label class="wa-label">YouTube link *</label><input class="wa-input" type="url" name="video_url" required placeholder="https://youtu.be/..."></div></div>
-    <div class="wa-row"><div class="wa-field"><label class="wa-label">Start at (seconds)</label><input class="wa-input" type="number" min="0" name="video_start" value="0"></div><div class="wa-field"><label class="wa-label">Stop at (seconds, optional)</label><input class="wa-input" type="number" min="0" name="video_end"></div></div>
+    <div class="wa-row"><div class="wa-field"><label class="wa-label" for="worship-add-title-2">Service title *</label><input id="worship-add-title-2" class="wa-input" name="title" required placeholder="Mission trip video"></div><div class="wa-field"><label class="wa-label" for="worship-add-video-url">YouTube link *</label><input id="worship-add-video-url" class="wa-input" type="url" name="video_url" required placeholder="https://youtu.be/..."></div></div>
+    <div class="wa-row"><div class="wa-field"><label class="wa-label" for="worship-add-video-start">Start at (seconds)</label><input id="worship-add-video-start" class="wa-input" type="number" min="0" name="video_start" value="0"></div><div class="wa-field"><label class="wa-label" for="worship-add-video-end">Stop at (seconds, optional)</label><input id="worship-add-video-end" class="wa-input" type="number" min="0" name="video_end"></div></div>
     <button class="wa-btn-primary" type="submit">Save Video Item</button>
   </form>
 </div>
@@ -139,26 +140,26 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
       <div class="wa-field">
-        <label class="wa-label">Title *</label>
-        <input type="text" name="title" required class="wa-input">
+        <label class="wa-label" for="worship-add-title-3">Title *</label>
+        <input id="worship-add-title-3" type="text" name="title" required class="wa-input">
       </div>
       <div class="wa-row">
         <div class="wa-field">
-          <label class="wa-label">Artist</label>
-          <input type="text" name="artist" class="wa-input">
+          <label class="wa-label" for="worship-add-artist">Artist</label>
+          <input id="worship-add-artist" type="text" name="artist" class="wa-input">
         </div>
         <div class="wa-field">
-          <label class="wa-label">Version</label>
-          <input type="text" name="version" class="wa-input" placeholder="Acoustic, bridge cut, kids">
+          <label class="wa-label" for="worship-add-version">Version</label>
+          <input id="worship-add-version" type="text" name="version" class="wa-input" placeholder="Acoustic, bridge cut, kids">
         </div>
         <div class="wa-field" style="flex:0 0 90px">
-          <label class="wa-label">Key</label>
-          <input type="text" name="key" class="wa-input wa-input-key">
+          <label class="wa-label" for="worship-add-key">Key</label>
+          <input id="worship-add-key" type="text" name="key" class="wa-input wa-input-key">
         </div>
       </div>
       <div class="wa-field">
-        <label class="wa-label">Background</label>
-        <select name="background" class="wa-input">
+        <label class="wa-label" for="worship-add-background">Background</label>
+        <select id="worship-add-background" name="background" class="wa-input">
           <option value="">Auto — avoid repeats</option>
           {% for bg in backgrounds %}
           <option value="{{ bg }}">{{ bg }}</option>
@@ -167,8 +168,8 @@
         <p class="wa-helper">Auto keeps one background for the whole song and chooses a different look for nearby songs in the set.</p>
       </div>
       <div class="wa-field">
-        <label class="wa-label">Type</label>
-        <select name="type" class="wa-input">
+        <label class="wa-label" for="worship-add-type">Type</label>
+        <select id="worship-add-type" name="type" class="wa-input">
           <option value="song">song</option>
           <option value="scripture">scripture</option>
           <option value="prayer">prayer</option>
@@ -178,12 +179,12 @@
       </div>
       <div class="wa-row">
         <div class="wa-field">
-          <label class="wa-label">CCLI song number</label>
-          <input type="text" name="ccli_song_number" inputmode="numeric" class="wa-input" placeholder="e.g. 7158417">
+          <label class="wa-label" for="worship-add-ccli-song-number">CCLI song number</label>
+          <input id="worship-add-ccli-song-number" type="text" name="ccli_song_number" inputmode="numeric" class="wa-input" placeholder="e.g. 7158417">
         </div>
         <div class="wa-field">
-          <label class="wa-label">Copyright / attribution</label>
-          <input type="text" name="copyright_notice" class="wa-input" placeholder="© year publisher / administrator">
+          <label class="wa-label" for="worship-add-copyright-notice">Copyright / attribution</label>
+          <input id="worship-add-copyright-notice" type="text" name="copyright_notice" class="wa-input" placeholder="© year publisher / administrator">
         </div>
       </div>
 
@@ -222,8 +223,8 @@
 
       <div class="wa-import-panel" data-import-panel="paste">
         <div class="wa-field">
-          <label class="wa-label">Paste lyrics or whole page *</label>
-          <textarea name="raw_lyrics" rows="18" required class="wa-input"
+          <label class="wa-label" for="worship-add-raw-lyrics">Paste lyrics or whole page *</label>
+          <textarea id="worship-add-raw-lyrics" name="raw_lyrics" rows="18" required class="wa-input"
             placeholder="Paste a Worship Together or The Worship Initiative song page. Plain lyrics also work, but may not include section order."></textarea>
         </div>
         <p class="wa-helper"><strong>Best sources:</strong> WorshipTogether.com or TheWorshipInitiative.com. Their Verse, Chorus, Bridge, and repeat labels produce a more reliable arrangement. Plain lyric sites such as AZLyrics are a fallback and should be validated against a labelled source.</p>
@@ -231,8 +232,8 @@
 
       <div class="wa-import-panel" data-import-panel="link" hidden>
         <div class="wa-field">
-          <label class="wa-label">Song page link *</label>
-          <input type="url" name="import_url" class="wa-input"
+          <label class="wa-label" for="worship-add-import-url">Song page link *</label>
+          <input id="worship-add-import-url" type="url" name="import_url" class="wa-input"
             placeholder="https://www.worshiptogether.com/songs/...">
         </div>
         <p class="wa-helper">Try Worship Together or The Worship Initiative first. Some sites block link imports; if that happens, copy the whole page and use Paste page.</p>
@@ -270,21 +271,21 @@
       </p>
 
       <div class="wa-field">
-        <label class="wa-label-muted">Title</label>
-        <input type="text" name="title" class="wa-input">
+        <label class="wa-label-muted" for="worship-parse-title">Title</label>
+        <input id="worship-parse-title" type="text" name="title" class="wa-input">
       </div>
       <div class="wa-row">
         <div class="wa-field">
-          <label class="wa-label-muted">Artist</label>
-          <input type="text" name="artist" class="wa-input">
+          <label class="wa-label-muted" for="worship-parse-artist">Artist</label>
+          <input id="worship-parse-artist" type="text" name="artist" class="wa-input">
         </div>
         <div class="wa-field">
-          <label class="wa-label-muted">Version</label>
-          <input type="text" name="version" class="wa-input" placeholder="Optional">
+          <label class="wa-label-muted" for="worship-parse-version">Version</label>
+          <input id="worship-parse-version" type="text" name="version" class="wa-input" placeholder="Optional">
         </div>
         <div class="wa-field" style="flex:0 0 90px">
-          <label class="wa-label-muted">Key</label>
-          <input type="text" name="key" class="wa-input wa-input-key">
+          <label class="wa-label-muted" for="worship-parse-key">Key</label>
+          <input id="worship-parse-key" type="text" name="key" class="wa-input wa-input-key">
         </div>
       </div>
 

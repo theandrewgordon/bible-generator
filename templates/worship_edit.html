@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Edit Song · Faith Sparks{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -64,24 +65,24 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
     <div class="wa-field">
-      <label class="wa-label">Title *</label>
-      <input type="text" name="title" required class="wa-input" value="{{ song.title }}">
+      <label class="wa-label" for="worship-edit-title">Title *</label>
+      <input id="worship-edit-title" type="text" name="title" required class="wa-input" value="{{ song.title }}">
     </div>
     {% if song.type in ['welcome', 'announcement', 'photo'] %}
     <div class="wa-field">
-      <label class="wa-label">Supporting text</label>
-      <textarea name="service_text" rows="5" class="wa-input">{{ song.service_lines|join('\n') }}</textarea>
+      <label class="wa-label" for="worship-edit-service-text">Supporting text</label>
+      <textarea id="worship-edit-service-text" name="service_text" rows="5" class="wa-input">{{ song.service_lines|join('\n') }}</textarea>
     </div>
     {% if song.type == 'photo' %}
     <div class="wa-row">
       <div class="wa-field">
-        <label class="wa-label">Replace photo</label>
-        <input type="file" name="image" class="wa-input" accept="image/jpeg,image/png,image/webp">
+        <label class="wa-label" for="worship-edit-image">Replace photo</label>
+        <input id="worship-edit-image" type="file" name="image" class="wa-input" accept="image/jpeg,image/png,image/webp">
         <p class="wa-helper">Leave blank to keep the current photo.</p>
       </div>
       <div class="wa-field">
-        <label class="wa-label">Photo layout</label>
-        <select name="image_layout" class="wa-input">
+        <label class="wa-label" for="worship-edit-image-layout">Photo layout</label>
+        <select id="worship-edit-image-layout" name="image_layout" class="wa-input">
           <option value="full"{% if song.image_layout == 'full' %} selected{% endif %}>Full photo with text overlay</option>
           <option value="split"{% if song.image_layout == 'split' %} selected{% endif %}>Photo beside text</option>
         </select>
@@ -92,21 +93,21 @@
     {% else %}
     <div class="wa-row">
       <div class="wa-field">
-        <label class="wa-label">Artist</label>
-        <input type="text" name="artist" class="wa-input" value="{{ song.artist }}">
+        <label class="wa-label" for="worship-edit-artist">Artist</label>
+        <input id="worship-edit-artist" type="text" name="artist" class="wa-input" value="{{ song.artist }}">
       </div>
       <div class="wa-field">
-        <label class="wa-label">Version</label>
-        <input type="text" name="version" class="wa-input" value="{{ song.version }}" placeholder="Acoustic, bridge cut, kids">
+        <label class="wa-label" for="worship-edit-version">Version</label>
+        <input id="worship-edit-version" type="text" name="version" class="wa-input" value="{{ song.version }}" placeholder="Acoustic, bridge cut, kids">
       </div>
       <div class="wa-field" style="flex:0 0 90px">
-        <label class="wa-label">Key</label>
-        <input type="text" name="key" class="wa-input" value="{{ song.key }}">
+        <label class="wa-label" for="worship-edit-key">Key</label>
+        <input id="worship-edit-key" type="text" name="key" class="wa-input" value="{{ song.key }}">
       </div>
     </div>
     <div class="wa-field">
-      <label class="wa-label">Background</label>
-      <select name="background" class="wa-input">
+      <label class="wa-label" for="worship-edit-background">Background</label>
+      <select id="worship-edit-background" name="background" class="wa-input">
         <option value="">Auto — avoid repeats</option>
         {% for bg in backgrounds %}
         <option value="{{ bg }}"{% if song.background == bg %} selected{% endif %}>{{ bg }}</option>
@@ -115,8 +116,8 @@
       <p class="wa-helper">Auto keeps this song visually consistent while avoiding nearby song backgrounds in each set.</p>
     </div>
     <div class="wa-field">
-      <label class="wa-label">Type</label>
-      <select name="type" class="wa-input">
+      <label class="wa-label" for="worship-edit-type">Type</label>
+      <select id="worship-edit-type" name="type" class="wa-input">
         <option value="song"{% if song.type == 'song' %} selected{% endif %}>song</option>
         <option value="scripture"{% if song.type == 'scripture' %} selected{% endif %}>scripture</option>
         <option value="prayer"{% if song.type == 'prayer' %} selected{% endif %}>prayer</option>
@@ -207,8 +208,8 @@
         {% endfor %}
       </div>
       <div class="wa-field">
-        <label class="wa-label">New version name</label>
-        <input class="wa-input" name="new_version" value="{{ version_proposal.suggested_version }}">
+        <label class="wa-label" for="worship-edit-new-version">New version name</label>
+        <input id="worship-edit-new-version" class="wa-input" name="new_version" value="{{ version_proposal.suggested_version }}">
       </div>
       <div class="wa-version-actions">
         <button type="submit">Create selected-verse copy</button>
@@ -245,13 +246,13 @@
   <form method="post" action="{{ url_for('worship_validate', song_id=song.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="wa-field">
-      <label class="wa-label">Paste chord sheet or labelled lyrics</label>
+      <label class="wa-label" for="validation-source">Paste chord sheet or labelled lyrics</label>
       <textarea id="validation-source" name="validation_text" rows="11" class="wa-input"
         placeholder="[Verse 1]&#10;...&#10;&#10;[Chorus]&#10;..."></textarea>
     </div>
     <div class="wa-field">
-      <label class="wa-label">Or public chord-sheet link</label>
-      <input type="url" name="validation_url" class="wa-input"
+      <label class="wa-label" for="worship-edit-validation-url">Or public chord-sheet link</label>
+      <input id="worship-edit-validation-url" type="url" name="validation_url" class="wa-input"
         value="{{ (song.sources.validation_url if song.sources is mapping else '') }}"
         placeholder="https://www.theworshipinitiative.com/songs/...">
     </div>

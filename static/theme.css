@@ -9,7 +9,7 @@
   --text-secondary: #60716c;
   --box: #f7f3e9;
 
-  --primary: #168a80;
+  --primary: #137971;
   --primary-dark: #0f6f68;
   --brand-ink: #19332d;
   --brand-gold: #d49a3a;
@@ -401,16 +401,16 @@ input[type="checkbox"] + label,
 .product-kicker { margin: 0; color: var(--primary); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: .78rem; }
 .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 0 0 2rem; }
 .product-card { --product-accent: var(--primary); display: flex; flex-direction: column; align-items: flex-start; min-height: 250px; padding: 1.25rem; border: 1px solid color-mix(in srgb, var(--product-accent) 28%, transparent); border-top: 5px solid var(--product-accent); border-radius: 18px; background: var(--box); box-shadow: var(--card-shadow); }
-.product-card--blue { --product-accent: #3182ce; }
-.product-card--gold { --product-accent: #b7791f; }
+.product-card--blue { --product-accent: #296dad; }
+.product-card--gold { --product-accent: #926119; }
 .product-card--purple { --product-accent: #6657d9; }
 .product-card--rose { --product-accent: #b84d73; }
 .product-card--forest { --product-accent: #315f53; }
 .product-card h2 { margin: .7rem 0 .4rem; font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif; }
 .product-card p { color: var(--text-secondary); flex: 1; }
-.status-badge { display: inline-flex; padding: .22rem .52rem; border-radius: 999px; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--product-accent); background: color-mix(in srgb, var(--product-accent) 12%, var(--background)); }
+.status-badge { display: inline-flex; padding: .22rem .52rem; border-radius: 999px; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--product-accent) 78%, #000); background: color-mix(in srgb, var(--product-accent) 12%, var(--background)); }
 .lab-notice { display: grid; grid-template-columns: repeat(2, 1fr); gap: .55rem 1rem; margin: 0 0 1.25rem; padding: 1rem; border: 1px dashed color-mix(in srgb, var(--primary) 35%, transparent); border-radius: 14px; color: var(--text-secondary); background: var(--box); font-size: .88rem; }
-.audience-hero--families { --primary: #168a80; }
+.audience-hero--families { --primary: #137971; }
 .audience-hero--churches { --primary: #6657d9; }
 .audience-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
 .audience-intro { max-width: 650px; margin: 2rem 0 1.25rem; }
@@ -1096,9 +1096,10 @@ body.dark,
   border-color: rgba(148, 163, 184, 0.5);
 }
 .dark .button.primary {
-  background: #22c55e;
-  color: #062a12;
-  border-color: #16a34a;
+  /* Same brand teal as light mode (was a stray neon green). */
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary-dark);
 }
 
 /* ---------- Mobile global tweaks ---------- */
@@ -1219,4 +1220,100 @@ body.dark,
   .plus-preview {
     justify-self: start;
   }
+}
+
+/* =========================================
+   GUI audit fixes (2026-10-11)
+   ========================================= */
+
+/* Header "Sign in" was unstyled: dark text on the dark header. */
+.auth-theme .nav-signin {
+  color: var(--header-fg);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 7px 14px;
+  border: 1px solid var(--header-border);
+  border-radius: 10px;
+}
+.auth-theme .nav-signin:hover { background: var(--header-hover-bg); }
+.auth-theme .nav-signin:focus-visible { outline: 2px solid var(--header-fg); outline-offset: 2px; }
+
+/* Theme toggle is an icon button, not a wide empty pill. */
+.auth-theme .theme-toggle {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  justify-self: center;
+}
+
+/* Phone-only menu items stay hidden on desktop (.nav-links a would show them). */
+.nav-links .mobile-only { display: none; }
+
+/* Hamburger: stack the three bars (they were laid out side by side). */
+.menu-toggle .bar { display: block; margin: 4px 0; }
+.menu-toggle { min-width: 44px; min-height: 44px; padding: 8px 12px; }
+
+@media (max-width: 880px) {
+  /* Logo left, menu button right, menu drops below. */
+  .logo-nav {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr auto;
+  }
+  .logo-nav > .logo { justify-self: start; }
+  .logo-nav > .menu-toggle { justify-self: end; }
+  .nav-links .nav-signin,
+  .nav-links .nav-theme-mobile {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    color: var(--header-fg);
+    background: transparent;
+    border: 1px solid var(--header-border);
+    font: inherit;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+}
+
+/* Links that have no component styling used the browser's default blue/purple. */
+a:not([class]) { color: var(--primary-dark); text-underline-offset: 2px; }
+a:not([class]):hover { color: var(--text); }
+.dark a:not([class]) { color: #7fd6d8; }
+.dark a:not([class]):hover { color: #b2ecee; }
+.main-header a:not([class]), .site-footer a:not([class]) { color: inherit; }
+
+/* Reading pages: one centred column instead of a left-hugging block. */
+.prose, .legal-page, #scripture-attribution, .copyright-page {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Footer: readable size and a tidy two-column list on phones. */
+.site-footer { font-size: .92rem; }
+@media (max-width: 640px) {
+  .footer-links {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .15rem .75rem;
+    margin: .75rem 0 0;
+    text-align: left;
+  }
+  .footer-links a { padding: .4rem 0; }
+  .footer-links a + a::before { content: none; }
+}
+
+/* One type system: serif headlines on storytelling/reading pages (matching the
+   product and audience pages); tools keep the sans-serif UI face. */
+.hero-rotator .hero-title,
+.prose h1, .prose h2,
+.legal-page h1, .legal-page h2,
+#scripture-attribution h1, #scripture-attribution h2,
+article > h1 {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  letter-spacing: -0.01em;
 }

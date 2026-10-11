@@ -136,3 +136,6 @@
 @media(pointer:coarse){
   .games-button,.games-hamburger,.games-avatar-button,.games-avatar-choice,.games-dashboard-setting,input,select,button{min-height:48px}
 }
+/* The cream player panel keeps its own light colours inside the site's dark mode. */
+.dark .games-dashboard,.dark .games-dashboard label,.dark .games-dashboard strong,.dark .games-dashboard span,.dark .games-dashboard p,.dark .games-dashboard h2,.dark .games-dashboard summary{color:#1d2528}
+.dark .games-dashboard .button.ghost{color:#1d2528;background:#fff;border:2px solid #9daeb4}

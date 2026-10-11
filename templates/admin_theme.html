@@ -15,8 +15,8 @@
   <button class="button ghost" type="button" id="previewBtn">Preview</button>
   <button class="button ghost" type="button" id="clearPreviewBtn">Clear Preview</button>
   <button class="button ghost" type="button" id="startLivePreviewBtn">Start Live Preview</button>
-  <label class="small muted">for</label>
-  <input type="number" id="livePreviewMinutes" value="15" min="1" max="120" style="width:80px;"/>
+  <label class="small muted" for="livePreviewMinutes">for</label>
+  <input type="number" id="livePreviewMinutes" aria-label="Live preview minutes" value="15" min="1" max="120" style="width:80px;"/>
   <label class="small muted">minutes</label>
   <button class="button ghost" type="button" id="stopLivePreviewBtn">Stop Live Preview</button>
   <span class="share"><label class="small">Share:</label> <input type="text" id="shareLink" readonly placeholder="Link appears after starting live preview"/></span>
@@ -44,11 +44,11 @@
     </div>
     <div class="small muted">Preview</div>
     <div style="border-radius:8px; overflow:hidden; border:1px solid #e5e7eb;">
-      <div style="background: {{ cfg.primary }}; color:white; padding:8px 10px;">Header</div>
+      <div style="background: {{ ink(cfg.primary, '#ffffff') if ink is defined else cfg.primary }}; color:white; padding:8px 10px;">Header</div>
       <div style="background: {{ cfg.box }}; padding:10px; color: {{ cfg.text }}">Card box</div>
     </div>
     {% if key not in ['teal','blue','christmas','thanksgiving'] %}
-      <div style="margin-top:8px; display:flex; gap:8px;">
+      <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">
         <a class="button ghost" href="{{ url_for('admin_theme_edit', slug=key) }}">Edit</a>
         <a class="button ghost" href="{{ url_for('admin_theme_new') }}?from={{ key }}">Clone</a>
         <form method="post" action="{{ url_for('admin_theme_clone_activate') }}" style="display:inline;">
@@ -66,13 +66,13 @@
       <form method="post" action="{{ url_for('admin_theme_logo') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="theme" value="{{ key }}"/>
-        <input type="file" name="file" accept="image/*"/>
+        <input type="file" name="file" accept="image/*" aria-label="Theme logo image"/>
         <button class="button">Upload Logo</button>
       </form>
       <form method="post" action="{{ url_for('admin_theme_favicon') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="theme" value="{{ key }}"/>
-        <input type="file" name="file" accept="image/x-icon,image/png,image/jpeg"/>
+        <input type="file" name="file" accept="image/x-icon,image/png,image/jpeg" aria-label="Theme favicon image"/>
         <button class="button ghost">Upload Favicon</button>
       </form>
     </div>
@@ -189,6 +189,7 @@ async function post(url, data){
 </form>
 
 {% set rules = (auto.rules if auto and auto.rules else []) %}
+<div style="overflow-x:auto; -webkit-overflow-scrolling:touch;" tabindex="0" role="region" aria-label="Automatic theme schedule">
 <table style="width:100%; border-collapse: collapse; margin-top:8px;">
   <thead>
     <tr>
@@ -271,5 +272,6 @@ async function post(url, data){
   {% endif %}
   </tbody>
 </table>
+</div>
 
 {% endblock %}
