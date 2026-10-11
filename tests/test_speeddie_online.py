@@ -222,3 +222,13 @@ def test_empty_setup_room_code_before_names_and_self_service_join(env):
     assert cmd(post,code,token,room,'roll').status_code==200
     late=post('/rooms/'+code+'/join',{'name':'Late device'}).json
     assert late['room']['me']['status']=='pending'
+
+def test_unchanged_room_polls_return_304(env):
+    _,client,post,code,host,_=env
+    first=get(client,code,host);etag=first.headers.get('ETag')
+    assert first.status_code==200 and etag
+    again=client.get('/speeddie/api/rooms/'+code,headers={'Authorization':'Bearer '+host,'If-None-Match':etag})
+    assert again.status_code==304 and not again.data
+    room=first.json['room'];assert cmd(post,code,host,room,'roll',id='etag-roll-01').status_code==200
+    changed=client.get('/speeddie/api/rooms/'+code,headers={'Authorization':'Bearer '+host,'If-None-Match':etag})
+    assert changed.status_code==200 and changed.json['room']['revision']==room['revision']+1

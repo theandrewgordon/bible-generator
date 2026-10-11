@@ -4,6 +4,7 @@ import json
 import os
 import re
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -15,6 +16,8 @@ from flask import Blueprint, Response, jsonify, make_response, render_template, 
 from faithsparks.services.firestore import db
 from faithsparks.services.users import get_user_doc, has_active_plus
 from faithsparks.services.storage import download_storage_bytes, upload_storage_bytes
+from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.sharded_counters import read_counts, shard_ref
 
 bp = Blueprint("lab_games", __name__, url_prefix="/labs/games")
 
@@ -134,1229 +137,6 @@ def _game_for_slug(slug: str) -> dict | None:
     return None
 
 
-def _apply_runtime_game_patches(html: str, game_id: str) -> str:
-    """Apply small hot-path fixes without rewriting multi-megabyte embedded builds."""
-    if game_id == "gordon-ice-cream-town":
-        # Scale timed parties by group size so later levels stay challenging
-        # without giving four customers the same deadline as one.
-        html = html.replace(
-            " if(ruleForLevel().time)partyDeadline=time+ruleForLevel().time;\n else partyDeadline=0;",
-            " const partyTime=ruleForLevel().time;\n if(partyTime)partyDeadline=time+partyTime+max(0,size-1)*18;\n else partyDeadline=0;",
-            1,
-        )
-
-        # Keep one moderate autosave cadence and one persistence pass per save.
-        autosave = "if(Date.now()-lastAutoSaveAt>1200){lastAutoSaveAt=Date.now();saveSession();}"
-        html = html.replace(
-            autosave,
-            "if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}",
-            1,
-        )
-        html = html.replace(autosave, "", 1)
-        html = html.replace(
-            """function saveSession(){
- const p=currentProgress();if(!p)return;
- saveActiveProfile();
- p.session=serializeSession();
- persistProgress();
-}""",
-            """function saveSession(){
- const p=currentProgress();if(!p)return;
- p.score=max(0,score||0);
- p.bestScore=max(p.bestScore||0,p.score);
- p.stars=max(0,stars||0);
- p.served=max(0,served||0);
- p.level=max(1,level||1);
- p.highestLevel=max(p.highestLevel||1,p.level);
- p.levelServed=max(0,levelServed||0);
- p.lastPlayed=Date.now();
- p.session=serializeSession();
- persistProgress();
-}""",
-            1,
-        )
-        html = html.replace(
-            "  saveActiveProfile();saveSession();showSavedToast();",
-            "  saveSession();showSavedToast();",
-            1,
-        )
-
-        # Saving while the shared menu is paused must preserve the remaining
-        # party timer rather than restoring with zero seconds.
-        html = html.replace(
-            "  timeLeft:partyDeadline?max(0,partyDeadline-time):0,",
-            "  timeLeft:partyDeadline?max(0,partyDeadline-time):max(0,pausedPartyTime||0),",
-            1,
-        )
-
-        # Clearly wrong recipe choices count against a perfect round.
-        html = html.replace(
-            " if(!order.need.includes(item.name)){\n  message=`${shortName(item.name)} isn't in this order.`;",
-            " if(!order.need.includes(item.name)){\n  roundMistakes++;\n  message=`${shortName(item.name)} isn't in this order.`;",
-            1,
-        )
-        html = html.replace(
-            " if(!(order.toppings||[]).includes(t.name)){\n  message=`No ${t.name} on this order.`;",
-            " if(!(order.toppings||[]).includes(t.name)){\n  roundMistakes++;\n  message=`No ${t.name} on this order.`;",
-            1,
-        )
-        html = html.replace(
-            " if(order.kind!='SCOOP'&&kind!='CUP'){\n  message='Shakes and sodas go in a cup.';",
-            " if(order.kind!='SCOOP'&&kind!='CUP'){\n  roundMistakes++;\n  message='Shakes and sodas go in a cup.';",
-            1,
-        )
-        html = html.replace(
-            " if(order.kind=='SCOOP' && kind=='CUP'){\n  message='Plain ice cream goes in a bowl or cone.';",
-            " if(order.kind=='SCOOP' && kind=='CUP'){\n  roundMistakes++;\n  message='Plain ice cream goes in a bowl or cone.';",
-            1,
-        )
-        html = html.replace(
-            " if(order.container!=kind){\n  message=`This order needs a ${order.container}.`;",
-            " if(order.container!=kind){\n  roundMistakes++;\n  message=`This order needs a ${order.container}.`;",
-            1,
-        )
-        html = html.replace(
-            "    if(i!=partyIndex){\n     playSfx(sndWrongPerson);",
-            "    if(i!=partyIndex){\n     roundMistakes++;\n     playSfx(sndWrongPerson);",
-            1,
-        )
-
-        # Slightly larger lower-row touch targets for iPad.
-        html = html.replace(
-            "if(hit(selectedContainerPos.BOWL,vec2(1.15,1.05)))",
-            "if(hit(selectedContainerPos.BOWL,vec2(1.35,1.2)))",
-            1,
-        )
-        html = html.replace(
-            "if(hit(selectedContainerPos.CUP,vec2(1.15,1.05)))",
-            "if(hit(selectedContainerPos.CUP,vec2(1.35,1.2)))",
-            1,
-        )
-        html = html.replace(
-            "if(hit(selectedContainerPos.CONE,vec2(1.15,1.05)))",
-            "if(hit(selectedContainerPos.CONE,vec2(1.35,1.2)))",
-            1,
-        )
-
-        # Unlock the drink recipe bank gradually. Level 2 starts with the
-        # simpler first five recipes; later levels introduce two more at a
-        # time until the full menu is available.
-        html = html.replace(
-            """function drinkOrder(){
- const base=RECIPES[randInt(RECIPES.length)];""",
-            """function drinkOrder(){
- const recipeCount=min(RECIPES.length,5+max(0,level-2)*2);
- const base=RECIPES[randInt(recipeCount)];""",
-            1,
-        )
-
-        # Never start a party larger than the number of orders remaining in
-        # the level. This prevents auto-advance from abandoning a waiting
-        # customer halfway through a group.
-        html = html.replace(
-            """function choosePartySize(){
- const r=ruleForLevel();
- return r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
-}""",
-            """function choosePartySize(){
- const r=ruleForLevel();
- const rolled=r.partyMin==r.partyMax?r.partyMin:r.partyMin+randInt(r.partyMax-r.partyMin+1);
- const remaining=max(1,r.goal-levelServed);
- return min(rolled,remaining);
-}""",
-            1,
-        )
-
-        # Machine taps should always explain what is missing and use the normal
-        # bad-action sound when the wrong station is chosen.
-        html = html.replace(
-            "  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);return;}",
-            "  if(order.kind!='BLEND'){roundMistakes++;message='This order does not use the blender.';messageTimer.set(1.4);playSfx(sndBad);return;}",
-            1,
-        )
-        html = html.replace(
-            """  if(prepared&&holdingContainer){
-   containerFilled=true;playSfx(sndPick);""",
-            """  if(prepared&&!holdingContainer){
-   message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
-  }
-  if(prepared&&holdingContainer){
-   containerFilled=true;playSfx(sndPick);""",
-            1,
-        )
-        html = html.replace(
-            "  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);return;}",
-            "  if(order.kind!='MIX'){roundMistakes++;message='This order does not use MIX.';messageTimer.set(1.4);playSfx(sndBad);return;}",
-            1,
-        )
-        html = html.replace(
-            """  if(!prepared){prepared=true;playSfx(sndPrep);return;}
-  if(prepared&&holdingContainer){""",
-            """  if(!prepared){
-   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.4);playSfx(sndPrep);return;
-  }
-  if(prepared&&!holdingContainer){
-   message='Pick up a cup first.';messageTimer.set(1.4);playSfx(sndBad);return;
-  }
-  if(prepared&&holdingContainer){""",
-            1,
-        )
-
-        # Setting down a loaded scoop used to silently discard it.
-        html = html.replace(
-            """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
-  holdingScoop=!holdingScoop;
-  if(!holdingScoop){scoopLoaded=false;scoopFlavor='';}
-  playSfx(sndPick);return;
- }""",
-            """ if(hit(vec2(-6.55,-4.77),vec2(2.8,1.25))){
-  if(holdingScoop&&scoopLoaded){
-   message='Use the scoop you already have, or tap RESET.';messageTimer.set(1.5);playSfx(sndBad);return;
-  }
-  holdingScoop=!holdingScoop;
-  playSfx(sndPick);return;
- }""",
-            1,
-        )
-
-        # Historical p.stars is an order counter, while Games receives the
-        # actual 1-3 star round rating. Do not mislabel the legacy counter.
-        html = html.replace(
-            "detail:`${max(0,p.completions||0)} completions · ★ ${max(0,p.stars||0)}`",
-            "detail:`${max(0,p.completions||0)} completions · ${max(0,p.served||0)} orders served`",
-            1,
-        )
-
-        # Remove the redundant autosave check at the bottom of gameUpdate.
-        html = html.replace(
-            """ }
- if(Date.now()-lastAutoSaveAt>4000){lastAutoSaveAt=Date.now();saveSession();}
-}
-
-function drawOpenIceTub""",
-            """ }
-}
-
-function drawOpenIceTub""",
-            1,
-        )
-
-        return html
-
-    if game_id == "gordon-ice-cream-town":
-        def replace_last(source: str, old: str, new: str) -> str:
-            index = source.rfind(old)
-            if index < 0:
-                return source
-            return source[:index] + new + source[index + len(old):]
-
-        # Do not spend a timed party's clock on animations the player cannot
-        # control (thank-you, walking away, or the next guest walking in).
-        html = replace_last(
-            html,
-            """ if(waitingForNext){
-  if(guestPhase=='thanks'&&guestTimer.elapsed()){""",
-            """ if(waitingForNext){
-  if(ruleForLevel().time && partyDeadline)
-   partyDeadline += timeDelta; // freeze the clock during non-interactive guest transitions
-  if(guestPhase=='thanks'&&guestTimer.elapsed()){""",
-        )
-
-        # Scoop orders can be bowls or cones, so don't tell a child to bring a
-        # "cup" to the customer when no cup exists.
-        html = replace_last(
-            html,
-            "  drawText('BRING CUP HERE',guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));",
-            "  drawText(\\`BRING \\${holdingContainer || 'ORDER'} HERE\\`,guestPos.add(vec2(0,1.78)),.2,hsl(.07,.52,.2));",
-        )
-
-        # The old star chip actually counted lifetime orders served, while
-        # round stars are a separate 1-3 accuracy rating. Label it accurately.
-        html = replace_last(
-            html,
-            " drawText(\\`⭐ \\${stars}\\`,vec2(7.8,5.05),.26,WHITE,.03,BLACK);",
-            " drawText(\\`SERVED \\${served}\\`,vec2(7.8,5.05),.22,WHITE,.03,BLACK);",
-        )
-
-        # Give the major kitchen actions distinct sounds. Scooping, toppings,
-        # plops, errors, and serving already have their own cues.
-        html = replace_last(
-            html,
-            "const sndPrep=new SoundGenerator({frequency:160,slide:1.4,release:.35,noise:.12});",
-            """const sndPrep=new SoundGenerator({frequency:160,slide:1.4,release:.35,noise:.12});
-const sndMix=new SoundGenerator({frequency:330,slide:.35,release:.22,noise:.05,volume:.58});
-const sndPour=new SoundGenerator({frequency:420,slide:-.15,release:.16,noise:.18,volume:.52});
-const sndContainer=new SoundGenerator({frequency:560,pitchJump:80,pitchJumpTime:.035,release:.10,volume:.48});""",
-        )
-
-        html = replace_last(
-            html,
-            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\\`\\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\\`;messageTimer.set(1.2);playSfx(sndPick);",
-            " holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=\\`\\${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!\\`;messageTimer.set(1.2);playSfx(sndContainer);",
-        )
-
-        html = replace_last(
-            html,
-            "   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.5);playSfx(sndPrep);return;",
-            "   prepared=true;message='Mixed! Pick up a cup.';messageTimer.set(1.5);playSfx(sndMix);return;",
-        )
-
-        # Replace both latest machine pour interactions without touching older
-        # embedded revisions earlier in this large self-contained file.
-        latest_game = html.rfind("function gameUpdate(){")
-        if latest_game >= 0:
-            head, tail = html[:latest_game], html[latest_game:]
-            tail = tail.replace(
-                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPick);return;}",
-                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(-3.8,1.5));playSfx(sndPour);return;}",
-                1,
-            )
-            tail = tail.replace(
-                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPick);return;}",
-                "if(holdingMilk){const x=holdingMilk;holdingMilk=false;tray.push(x);markAdded(x,vec2(0,1.5));playSfx(sndPour);return;}",
-                1,
-            )
-            html = head + tail
-
-        return html
-
-    if game_id != "gordon-window-washing":
-        return html
-
-    # Rowan already has a 1.5 second completion beat and nextLevel() timer.
-    # The results overlay added later interrupts that flow, so let the existing
-    # timer carry the player straight into the next window.
-    html = html.replace(
-        "    showResultsScreen();\n",
-        "    // Results are recorded above; gameplay auto-advances after the completion beat.\n",
-        1,
-    )
-
-    # Pointer input is already coalesced to one requestAnimationFrame. Tighten
-    # the amount of cleaning work in each frame so rapid iPad/mouse movement
-    # cannot build a long main-thread task on later levels.
-    html = html.replace(
-        "const step = activeTool.cleaner ? .38 : .32;",
-        "const step = activeTool.cleaner ? .52 : .46;",
-        1,
-    )
-    html = html.replace(
-        "const count = min(10, max(1, Math.ceil(dist / step)));",
-        "const count = 1; // one cleaning sample per animation frame; visual pointer still tracks every event",
-        1,
-    )
-
-    # Retina-sized backing canvases are unnecessarily expensive for this
-    # hand-drawn game. A modest cap keeps the art crisp while substantially
-    # reducing per-frame pixel work on iPad.
-    html = html.replace(
-        "    cameraScale = 40;\n    canvasClearColor",
-        "    cameraScale = 40;\n    canvasPixelRatio = Math.min(devicePixelRatio || 1, .65);\n    canvasClearColor",
-        1,
-    )
-
-    # Rowan audit fixes: make scoring/progress reflect the actual dirty
-    # cells, keep resume scoring honest, and track wrong-cleaner use explicitly.
-    html = html.replace(
-        "let lastLevelBonusText = '';",
-        "let lastLevelBonusText = '';\nlet levelInitialDirt = 1;\nlet levelWrongSprays = 0;",
-        1,
-    )
-    html = html.replace(
-        "    windowSize = windowSize.scale(.94);\n    buildDirt();\n    won = false;",
-        "    windowSize = windowSize.scale(.94);\n    buildDirt();\n    levelInitialDirt = max(1, dirtLeft);\n    won = false;",
-        1,
-    )
-    html = html.replace(
-        "    levelCorrectSprays = 0;\n    levelWipes = 0;",
-        "    levelCorrectSprays = 0;\n    levelWrongSprays = 0;\n    levelWipes = 0;",
-        1,
-    )
-    html = html.replace(
-        "    let hitCorrectMess = false;\n\n    forEachNearbyGlassCell(pos, 1.35, 1.15, i =>",
-        "    let hitCorrectMess = false;\n    let hitWrongMess = false;\n\n    forEachNearbyGlassCell(pos, 1.35, 1.15, i =>",
-        1,
-    )
-    html = html.replace(
-        """            w.layers[cleanerId] = 1;
-
-            const d = dirt[i];
-            if (!d.clean && d.mess.cleaner == cleanerId)
-            {
-                d.treated = true;
-                hitCorrectMess = true;
-            }""",
-        """            w.layers[cleanerId] = 1;
-            w.lastCleanerId = cleanerId;
-
-            const d = dirt[i];
-            if (!d.clean && d.mess.cleaner == cleanerId)
-            {
-                d.treated = true;
-                hitCorrectMess = true;
-            }
-            else if (!d.clean && d.mess.cleaner != cleanerId)
-            {
-                hitWrongMess = true;
-                window._rowanLastNeededCleaner = d.mess.cleaner;
-            }""",
-        1,
-    )
-    html = html.replace(
-        """    if (hitCorrectMess)
-        levelCorrectSprays++;
-}""",
-        """    if (hitCorrectMess)
-        levelCorrectSprays++;
-
-    if (hitWrongMess)
-        levelWrongSprays++;
-}""",
-        1,
-    )
-    html = html.replace(
-        "    const accuracy = levelSprays > 0 ? levelCorrectSprays / levelSprays : 1;",
-        "    const accuracy = levelSprays > 0\n        ? max(0, levelSprays - levelWrongSprays) / levelSprays\n        : 1;",
-        1,
-    )
-    html = html.replace(
-        "    const dirtyCells = max(1, dirt.filter(d => d.clean).length);",
-        "    const dirtyCells = max(1, levelInitialDirt);",
-        1,
-    )
-    html = html.replace(
-        "                perfect:levelSprays>0 && levelSprays===levelCorrectSprays",
-        "                perfect:levelSprays>0 && levelWrongSprays===0",
-        1,
-    )
-    html = html.replace(
-        "            perfect: levelSprays > 0 && levelSprays === levelCorrectSprays",
-        "            perfect: levelSprays > 0 && levelWrongSprays === 0",
-        1,
-    )
-
-    # Preserve score/effort/time across resume instead of resetting bonuses
-    # whenever the browser backgrounds or reloads.
-    html = html.replace(
-        """        wetness: wetness.map(w => ({
-            layers: w.layers ? {...w.layers} : {}
-        })),
-        savedAt: Date.now()""",
-        """        wetness: wetness.map(w => ({
-            layers: w.layers ? {...w.layers} : {},
-            lastCleanerId: w.lastCleanerId || ''
-        })),
-        levelInitialDirt,
-        levelSprays,
-        levelCorrectSprays,
-        levelWrongSprays,
-        levelWipes,
-        elapsedMs: max(0, performance.now() - levelStartTime),
-        savedAt: Date.now()""",
-        1,
-    )
-    html = html.replace(
-        """            wetness[i].layers = savedWet && savedWet.layers ? {...savedWet.layers} : {};
-        }
-    }
-
-    dirtLeft = dirt.filter(d => !d.clean).length;
-    return true;""",
-        """            wetness[i].layers = savedWet && savedWet.layers ? {...savedWet.layers} : {};
-            wetness[i].lastCleanerId = savedWet && savedWet.lastCleanerId
-                ? savedWet.lastCleanerId
-                : '';
-        }
-    }
-
-    dirtLeft = dirt.filter(d => !d.clean).length;
-    levelInitialDirt = max(dirtLeft, resume.levelInitialDirt || dirtLeft || 1);
-    levelSprays = max(0, resume.levelSprays || 0);
-    levelCorrectSprays = max(0, resume.levelCorrectSprays || 0);
-    levelWrongSprays = max(0, resume.levelWrongSprays || 0);
-    levelWipes = max(0, resume.levelWipes || 0);
-    levelStartTime = performance.now() - max(0, resume.elapsedMs || 0);
-    return true;""",
-        1,
-    )
-    html = html.replace(
-        "    const cleaned = 100 - Math.round(dirtLeft / (gridX*gridY) * 100);",
-        "    const cleaned = clamp(100 - Math.round(dirtLeft / max(1,levelInitialDirt) * 100), 0, 100);",
-        1,
-    )
-
-    # Level 3 unlocks a second cleaner. Keep all cleaner layers logically so
-    # wiping/accuracy rules remain unchanged, but render only the strongest
-    # visible layer for each glass cell. This bounds wet-layer draw calls to
-    # one per cell instead of multiplying them by every unlocked cleaner.
-    wet_start = html.find("    // Wet cleaner layers — multiple cleaners can overlap on one spot.")
-    wet_end = html.find(
-        "    // ================================================================\n    // SILL",
-        wet_start,
-    )
-    if wet_start >= 0 and wet_end > wet_start:
-        wet_render = """    // Wet cleaner layers — render localized cleaner residue per cell again.
-    // Profiling showed drawRect is cheap, so use detailed rectangles for water
-    // and soap while keeping expensive textured grime aggressively sampled.
-    for (const w of wetness)
-    {
-        if (!w.layers)
-            continue;
-
-        let cleanerId =
-            w.lastCleanerId && (w.layers[w.lastCleanerId] || 0) > .05
-                ? w.lastCleanerId
-                : '';
-        let amount = cleanerId ? w.layers[cleanerId] : 0;
-
-        if (!cleanerId)
-        {
-            for (const id in w.layers)
-            {
-                const layerAmount = w.layers[id];
-                if (layerAmount > amount)
-                {
-                    amount = layerAmount;
-                    cleanerId = id;
-                }
-            }
-        }
-
-        if (!cleanerId || amount <= .05)
-            continue;
-
-        let hue = .56;
-        let sat = .70;
-        let light = .74;
-
-        if (cleanerId == 'soap')
-        {
-            hue = .42;
-            sat = .72;
-            light = .76;
-        }
-        else if (cleanerId == 'degreaser')
-        {
-            hue = .12;
-            sat = .70;
-            light = .72;
-        }
-        else if (cleanerId == 'vinegar')
-        {
-            hue = .90;
-            sat = .55;
-            light = .80;
-        }
-        else if (cleanerId == 'rowan')
-        {
-            hue = .78;
-            sat = .60;
-            light = .74;
-        }
-
-        const alpha = cleanerId == 'water'
-            ? (.045 + .12*amount)
-            : (.09 + .20*amount);
-
-        // SIMPLE MODE: exactly one cheap shape per wet cell.
-        // Soap is brighter/denser than water, but both avoid extra draw calls.
-        const mainScale = cleanerId == 'water' ? .76 : .90;
-        const cleanerAlpha = cleanerId == 'soap'
-            ? (.16 + .22*amount)
-            : alpha;
-        drawRect(w.pos, cell.scale(mainScale), hsl(hue,sat,light,cleanerAlpha));
-    }
-
-"""
-        html = html[:wet_start] + wet_render + html[wet_end:]
-
-    # Level 3+ render fast path. Gameplay still tracks every glass cell, but
-    # visual rendering keeps only one cell out of each stable 2x2 block. This
-    # cuts the hottest tiny-primitive workload by about 75% without changing
-    # scoring, cleaner matching, or squeegee behavior.
-    render_fast_path = r"""
-<script id="rowan-render-fast-path">
-(() => {
-    const originalDrawRect = window.drawRect;
-    const originalDrawTile = window.drawTile;
-    if (typeof originalDrawRect !== "function" || typeof originalDrawTile !== "function")
-        return;
-
-    let bounds = null;
-    let boundsBuiltAt = 0;
-    window._rowanRenderFastStats = {skippedRect:0,skippedTile:0};
-
-    function rebuildBounds()
-    {
-        boundsBuiltAt = performance.now();
-
-        try
-        {
-            if (!Array.isArray(wetness) || !wetness.length || !cell)
-            {
-                bounds = null;
-                return;
-            }
-
-            let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
-            for (const w of wetness)
-            {
-                if (!w || !w.pos) continue;
-                minX=Math.min(minX,w.pos.x);
-                maxX=Math.max(maxX,w.pos.x);
-                minY=Math.min(minY,w.pos.y);
-                maxY=Math.max(maxY,w.pos.y);
-            }
-
-            bounds = minX < maxX
-                ? {minX,maxX,minY,maxY,cx:Math.max(.001,cell.x),cy:Math.max(.001,cell.y)}
-                : null;
-        }
-        catch (_) { bounds=null; }
-    }
-
-    function shouldSkip(pos,size)
-    {
-        let currentLevel=0;
-        try { currentLevel=Number(level||0); } catch (_) {}
-        if (currentLevel < 3 || !pos || !size)
-            return false;
-
-        if (!bounds || performance.now()-boundsBuiltAt > 500)
-            rebuildBounds();
-        if (!bounds)
-            return false;
-
-        const marginX=bounds.cx*.9;
-        const marginY=bounds.cy*.9;
-        if (pos.x < bounds.minX-marginX || pos.x > bounds.maxX+marginX ||
-            pos.y < bounds.minY-marginY || pos.y > bounds.maxY+marginY)
-            return false;
-
-        // Only tiny grid-sized primitives are culled. Tools, bottles, Rowan,
-        // window frame, siding, grass, and HUD remain untouched.
-        if (size.x > bounds.cx*1.65 || size.y > bounds.cy*1.65)
-            return false;
-
-        const gx=Math.round((pos.x-bounds.minX)/bounds.cx);
-        const gy=Math.round((pos.y-bounds.minY)/bounds.cy);
-
-        // Stable spatial sampling avoids flicker.
-        return ((gx & 1)!==0) || ((gy & 1)!==0);
-    }
-
-    let insideDrawRect = 0;
-
-    window.drawRect = function(pos,size,...rest)
-    {
-        // Rectangles are cheap according to the profiler and carry the useful
-        // cleaner/wetness feedback, so never cull them.
-        insideDrawRect++;
-        try
-        {
-            return originalDrawRect.call(this,pos,size,...rest);
-        }
-        finally
-        {
-            insideDrawRect--;
-        }
-    };
-
-    window.drawTile = function(pos,size,...rest)
-    {
-        // Calls that originate from drawRect are cheap shape rendering, not
-        // the expensive textured-detail path we are suppressing.
-        if (insideDrawRect > 0)
-            return originalDrawTile.call(this,pos,size,...rest);
-
-        let currentLevel=0;
-        try { currentLevel=Number(level||0); } catch (_) {}
-
-        if (currentLevel >= 3 && pos && size)
-        {
-            // Level 3+ quality fast path. Profiling proved thousands of tiny
-            // textured tiles are the dominant cost. Instead of hiding them,
-            // redraw them directly on the 2D canvas as cheap tinted marks.
-            // This preserves the grime/soap density without LittleJS texture
-            // overhead. Larger artwork still uses normal drawTile().
-            if (!bounds || performance.now()-boundsBuiltAt > 500)
-                rebuildBounds();
-
-            const inGlassBounds =
-                bounds &&
-                pos.x >= bounds.minX-bounds.cx &&
-                pos.x <= bounds.maxX+bounds.cx &&
-                pos.y >= bounds.minY-bounds.cy &&
-                pos.y <= bounds.maxY+bounds.cy;
-
-            const tinyWindowTexture =
-                inGlassBounds &&
-                size.x <= 1.05 &&
-                size.y <= 1.05;
-
-            if (tinyWindowTexture)
-            {
-                // Level 3+ grime/cleaner visuals are rectangles now.
-                // Any tiny textured tile inside the glass is decorative only,
-                // so skip it completely instead of sampling it.
-                window._rowanRenderFastStats.skippedTile++;
-                return;
-            }
-        }
-
-        if (shouldSkip(pos,size))
-        {
-            window._rowanRenderFastStats.skippedTile++;
-            return;
-        }
-
-        return originalDrawTile.call(this,pos,size,...rest);
-    };
-})();
-</script>
-"""
-    html = html.replace("</body>", render_fast_path + "</body>", 1)
-
-    # Temporary in-game profiler for the level-3 slowdown. It measures the
-    # expensive cleaning function separately from total frame rate.
-    profiler = r"""
-<script id="rowan-perf-profiler">
-(() => {
-    const perfEnabled = new URLSearchParams(location.search).get('rowanPerf') === '1';
-    if (!perfEnabled) return;
-
-    const state = {
-        frames:0,last:performance.now(),
-        cleanMs:0,cleanCalls:0,cleanMax:0,
-        drawRect:0,drawTile:0,drawLine:0,drawText:0,
-        rectMs:0,tileMs:0,lineMs:0,
-        rectSizes:Object.create(null),tileSizes:Object.create(null),
-        renderMs:0,renderCalls:0,renderMax:0,
-        updateMs:0,updateCalls:0,updateMax:0
-    };
-
-    const badge = document.createElement("div");
-    badge.id = "rowanPerfBadge";
-    badge.style.cssText =
-        "position:fixed;left:8px;bottom:8px;z-index:999999;pointer-events:none;" +
-        "padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.80);color:#bfffc7;" +
-        "font:11px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;display:none";
-    document.body.appendChild(badge);
-
-    function sizeKey(size)
-    {
-        try {
-            return (+size.x).toFixed(2)+"x"+(+size.y).toFixed(2);
-        } catch (_) { return "?"; }
-    }
-
-    function topSizes(map)
-    {
-        return Object.entries(map)
-            .sort((a,b)=>b[1]-a[1])
-            .slice(0,3)
-            .map(([k,v])=>k+":"+v)
-            .join(" ");
-    }
-
-    function wrapDraw(name,key,timeKey,sizeMapKey)
-    {
-        try
-        {
-            const original = window[name];
-            if (typeof original !== "function") return;
-            window[name] = function(...args)
-            {
-                const t=performance.now();
-                state[key]++;
-                if (sizeMapKey && args[1])
-                {
-                    const k=sizeKey(args[1]);
-                    state[sizeMapKey][k]=(state[sizeMapKey][k]||0)+1;
-                }
-                try { return original.apply(this,args); }
-                finally { state[timeKey]+=performance.now()-t; }
-            };
-        }
-        catch (_) {}
-    }
-
-    wrapDraw("drawRect","drawRect","rectMs","rectSizes");
-    wrapDraw("drawTile","drawTile","tileMs","tileSizes");
-    wrapDraw("drawLine","drawLine","lineMs",null);
-
-    function wrapCounter(name,key)
-    {
-        try
-        {
-            const original = window[name];
-            if (typeof original !== "function") return;
-            window[name] = function(...args)
-            {
-                state[key]++;
-                return original.apply(this,args);
-            };
-        }
-        catch (_) {}
-    }
-
-    wrapCounter("drawText","drawText");
-    wrapCounter("drawTextScreen","drawText");
-
-    try
-    {
-        if (typeof directMoveActiveTool === "function")
-        {
-            const originalDirectMoveActiveTool = directMoveActiveTool;
-            directMoveActiveTool = function(...args)
-            {
-                const t = performance.now();
-                try { return originalDirectMoveActiveTool.apply(this,args); }
-                finally
-                {
-                    const ms = performance.now()-t;
-                    state.cleanMs += ms;
-                    state.cleanCalls++;
-                    state.cleanMax = Math.max(state.cleanMax,ms);
-                }
-            };
-        }
-    }
-    catch (_) {}
-
-    function wrapTimed(name,totalKey,callsKey,maxKey)
-    {
-        try
-        {
-            const original = window[name];
-            if (typeof original !== "function") return;
-            window[name] = function(...args)
-            {
-                const t = performance.now();
-                try { return original.apply(this,args); }
-                finally
-                {
-                    const ms = performance.now()-t;
-                    state[totalKey] += ms;
-                    state[callsKey]++;
-                    state[maxKey] = Math.max(state[maxKey],ms);
-                }
-            };
-        }
-        catch (_) {}
-    }
-
-    wrapTimed("gameRender","renderMs","renderCalls","renderMax");
-    wrapTimed("gameRenderPost","renderMs","renderCalls","renderMax");
-    wrapTimed("gameUpdate","updateMs","updateCalls","updateMax");
-    wrapTimed("gameUpdatePost","updateMs","updateCalls","updateMax");
-
-    function tick(now)
-    {
-        state.frames++;
-        const elapsed = now-state.last;
-
-        if (elapsed >= 1000)
-        {
-            const fps = Math.round(state.frames*1000/elapsed);
-            const cleanAvg = state.cleanCalls ? state.cleanMs/state.cleanCalls : 0;
-            const renderAvg = state.renderCalls ? state.renderMs/state.renderCalls : 0;
-            const updateAvg = state.updateCalls ? state.updateMs/state.updateCalls : 0;
-
-            let currentLevel=0;
-            try { currentLevel=Number(level||0); } catch (_) {}
-
-            let canvasInfo="?";
-            try
-            {
-                canvasInfo =
-                    (mainCanvas?.width||0)+"x"+(mainCanvas?.height||0)+
-                    " css "+Math.round(mainCanvas?.clientWidth||0)+"x"+Math.round(mainCanvas?.clientHeight||0)+
-                    " dpr "+(window.devicePixelRatio||1).toFixed(1);
-            }
-            catch (_) {}
-
-            if (currentLevel >= 3)
-            {
-                badge.style.display="block";
-                badge.textContent =
-                    "PERF L"+currentLevel+" FPS "+fps+"\n"+
-                    "clean "+cleanAvg.toFixed(1)+" / "+state.cleanMax.toFixed(1)+"ms\n"+
-                    "rect "+state.drawRect+" calls "+state.rectMs.toFixed(0)+"ms\n"+
-                    "tile "+state.drawTile+" calls "+state.tileMs.toFixed(0)+"ms\n"+
-                    "line "+state.drawLine+" calls "+state.lineMs.toFixed(0)+"ms\n"+
-                    "Rsz "+topSizes(state.rectSizes)+"\n"+
-                    "Tsz "+topSizes(state.tileSizes)+"\n"+
-                    "detail skip T "+(window._rowanRenderFastStats?.skippedTile||0)+"\n"+
-                    "canvas "+canvasInfo;
-
-                console.info("[Rowan perf primitive]",{
-                    level:currentLevel,fps,
-                    cleanAvgMs:+cleanAvg.toFixed(2),
-                    drawRect:state.drawRect,rectMs:+state.rectMs.toFixed(1),rectTop:topSizes(state.rectSizes),
-                    drawTile:state.drawTile,tileMs:+state.tileMs.toFixed(1),tileTop:topSizes(state.tileSizes),
-                    drawLine:state.drawLine,lineMs:+state.lineMs.toFixed(1),
-                    skipped:window._rowanRenderFastStats||{},
-                    canvas:canvasInfo
-                });
-            }
-            else badge.style.display="none";
-
-            Object.assign(state,{
-                frames:0,last:now,
-                cleanMs:0,cleanCalls:0,cleanMax:0,
-                drawRect:0,drawTile:0,drawLine:0,drawText:0,
-                rectMs:0,tileMs:0,lineMs:0,
-                rectSizes:Object.create(null),tileSizes:Object.create(null),
-                renderMs:0,renderCalls:0,renderMax:0,
-                updateMs:0,updateCalls:0,updateMax:0
-            });
-        }
-
-        requestAnimationFrame(tick);
-    }
-
-    requestAnimationFrame(tick);
-})();
-</script>
-<script id="rowan-audio-polish">
-(() => {
-    let activeWashLoop = null;
-    let lastWrongFeedbackAt = 0;
-    let lastCleanerUsed = 'water';
-
-    const hint = document.createElement('div');
-    hint.id = 'rowanCleanerHint';
-    hint.style.cssText =
-        'position:fixed;left:50%;bottom:max(54px,env(safe-area-inset-bottom));' +
-        'transform:translateX(-50%);z-index:999998;pointer-events:none;' +
-        'padding:7px 12px;border-radius:999px;background:rgba(16,22,24,.82);' +
-        'border:1px solid rgba(255,255,255,.5);color:#fff;font:700 13px/1.2 system-ui,sans-serif;' +
-        'opacity:0;transition:opacity .16s ease;white-space:nowrap';
-    document.body.appendChild(hint);
-    let hintTimer = 0;
-
-    function showHint(text, kind='normal')
-    {
-        hint.textContent = text;
-        hint.style.color = kind === 'wrong' ? '#ffd38a' :
-                           kind === 'soap' ? '#dfffe2' :
-                           kind === 'water' ? '#dff5ff' : '#fff';
-        hint.style.opacity = '1';
-        clearTimeout(hintTimer);
-        hintTimer = setTimeout(() => hint.style.opacity='0', 1200);
-    }
-
-    function audioReady()
-    {
-        try { return soundEffectsEnabled !== false && ensureWindowWashAudio(); }
-        catch (_) { return null; }
-    }
-
-    function cleanerKind(fallback='water')
-    {
-        try
-        {
-            const value = activeTool?.cleaner;
-            if (typeof value === 'string' && value)
-                return value.toLowerCase();
-
-            const candidate = value?.id || value?.name || activeTool?.id || activeTool?.name || fallback;
-            return String(candidate || fallback).toLowerCase();
-        }
-        catch (_) { return String(fallback || 'water').toLowerCase(); }
-    }
-
-    function makeNoiseSource(ctx)
-    {
-        const src = ctx.createBufferSource();
-        src.buffer = wwNoiseBuffer;
-        return src;
-    }
-
-    function shortNoise(ctx, when, duration, gainValue, lowpassHz, highpassHz=0)
-    {
-        const src = makeNoiseSource(ctx);
-        const gain = ctx.createGain();
-        const low = ctx.createBiquadFilter();
-        low.type = 'lowpass';
-        low.frequency.setValueAtTime(lowpassHz, when);
-        let tail = low;
-
-        if (highpassHz > 0)
-        {
-            const high = ctx.createBiquadFilter();
-            high.type = 'highpass';
-            high.frequency.setValueAtTime(highpassHz, when);
-            low.connect(high);
-            tail = high;
-        }
-
-        gain.gain.setValueAtTime(.0001, when);
-        gain.gain.exponentialRampToValueAtTime(gainValue, when+.008);
-        gain.gain.exponentialRampToValueAtTime(.0001, when+duration);
-        src.connect(low);
-        tail.connect(gain);
-        gain.connect(ctx.destination);
-        src.start(when);
-        src.stop(when+duration+.03);
-    }
-
-    function pumpClick(ctx,t,frequency=.820,volume=.035)
-    {
-        const osc=ctx.createOscillator();
-        const gain=ctx.createGain();
-        osc.type='sine';
-        osc.frequency.setValueAtTime(frequency*1000,t);
-        osc.frequency.exponentialRampToValueAtTime(210,t+.045);
-        gain.gain.setValueAtTime(volume,t);
-        gain.gain.exponentialRampToValueAtTime(.0001,t+.055);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(t);
-        osc.stop(t+.06);
-    }
-
-    // Distinct cleaner bottles: water = crisp mist, soap = softer pump + froth.
-    playSpraySound = function(kind='water')
-    {
-        kind = cleanerKind(kind);
-        lastCleanerUsed = kind;
-        const ctx = audioReady();
-
-        if (kind.includes('soap'))
-            showHint('SOAP FOAM — spray grime, then squeegee', 'soap');
-        else if (kind.includes('water'))
-            showHint('WATER — light wet sheen, then squeegee', 'water');
-        else
-            showHint(kind.toUpperCase()+' — spray, then squeegee');
-
-        if (!ctx) return;
-
-        try
-        {
-            const t=ctx.currentTime;
-
-            if (kind.includes('soap'))
-            {
-                pumpClick(ctx,t,.52,.042);
-                shortNoise(ctx,t+.015,.13,.052,2900,260);
-                shortNoise(ctx,t+.095,.17,.038,2100,180);
-            }
-            else if (kind.includes('degreaser'))
-            {
-                pumpClick(ctx,t,.74,.035);
-                shortNoise(ctx,t+.012,.19,.058,4300,620);
-            }
-            else if (kind.includes('vinegar'))
-            {
-                pumpClick(ctx,t,.86,.032);
-                shortNoise(ctx,t+.012,.18,.054,5000,850);
-            }
-            else
-            {
-                pumpClick(ctx,t,.82,.034);
-                shortNoise(ctx,t+.012,.18,.058,5600,1050);
-            }
-        }
-        catch (_) {}
-    };
-
-    // Squeegee: continuous low rubber-on-glass hiss.
-    startWindowWashToolSound = function()
-    {
-        stopWindowWashToolSound();
-        const ctx = audioReady();
-        if (!ctx) return;
-
-        try
-        {
-            const src = makeNoiseSource(ctx);
-            const band = ctx.createBiquadFilter();
-            const gain = ctx.createGain();
-            band.type='bandpass';
-            band.frequency.value=980;
-            band.Q.value=.72;
-            gain.gain.value=.020;
-            src.loop=true;
-            src.connect(band);
-            band.connect(gain);
-            gain.connect(ctx.destination);
-            src.start();
-            activeWashLoop={src,gain,ctx};
-        }
-        catch (_) { activeWashLoop=null; }
-    };
-
-    stopWindowWashToolSound = function()
-    {
-        const loop=activeWashLoop;
-        activeWashLoop=null;
-        if (!loop) return;
-
-        try
-        {
-            const t=loop.ctx.currentTime;
-            loop.gain.gain.cancelScheduledValues(t);
-            loop.gain.gain.setValueAtTime(Math.max(.0001,loop.gain.gain.value||.02),t);
-            loop.gain.gain.exponentialRampToValueAtTime(.0001,t+.05);
-            loop.src.stop(t+.06);
-        }
-        catch (_) {}
-    };
-
-    playWindowWashWrongCleanerSound = function()
-    {
-        const now=performance.now();
-        if (now-lastWrongFeedbackAt < 900) return;
-        lastWrongFeedbackAt=now;
-
-        const neededId = String(window._rowanLastNeededCleaner || '').toLowerCase();
-        const needed = {
-            water:'WATER',
-            soap:'SOAP',
-            degreaser:'DISINFECTER',
-            vinegar:'VINEGAR',
-            rowan:"ROWAN'S SIGNATURE CLEANER"
-        }[neededId] || (lastCleanerUsed.includes('soap') ? 'WATER' : 'SOAP');
-        showHint('That cleaner is not lifting this grime — TRY '+needed+' HERE','wrong');
-
-        const ctx=audioReady();
-        if (!ctx) return;
-
-        try
-        {
-            const t=ctx.currentTime;
-            [190,145].forEach((frequency,index) => {
-                const osc=ctx.createOscillator();
-                const gain=ctx.createGain();
-                osc.type='triangle';
-                osc.frequency.setValueAtTime(frequency,t+index*.085);
-                gain.gain.setValueAtTime(.024,t+index*.085);
-                gain.gain.exponentialRampToValueAtTime(.0001,t+index*.085+.09);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start(t+index*.085);
-                osc.stop(t+index*.085+.10);
-            });
-        }
-        catch (_) {}
-    };
-
-    // Best-effort wrong-cleaner detection: if a squeegee stroke removes wetness
-    // but repeatedly fails to improve the game's clean percentage, prompt the
-    // other cleaner. It is intentionally gentle and throttled.
-    function readCleanProgress()
-    {
-        try
-        {
-            if (typeof dirtLeft !== 'undefined' && typeof levelInitialDirt !== 'undefined')
-                return clamp(100 - dirtLeft/max(1,levelInitialDirt)*100, 0, 100);
-        }
-        catch (_) {}
-        return NaN;
-    }
-
-    function wetTotal()
-    {
-        try
-        {
-            let total=0;
-            for (const w of wetness || [])
-                if (w?.layers)
-                    for (const id in w.layers)
-                        total += Number(w.layers[id] || 0);
-            return total;
-        }
-        catch (_) { return NaN; }
-    }
-
-    try
-    {
-        if (typeof directMoveActiveTool === 'function')
-        {
-            const originalDirectMoveForFeedback=directMoveActiveTool;
-            let stalledWipes=0;
-
-            directMoveActiveTool=function(...args)
-            {
-                let isCleaner=false;
-                try { isCleaner=!!activeTool?.cleaner; } catch (_) {}
-
-                const beforeClean=readCleanProgress();
-                const beforeWet=wetTotal();
-                const result=originalDirectMoveForFeedback.apply(this,args);
-
-                if (!isCleaner)
-                {
-                    const afterClean=readCleanProgress();
-                    const afterWet=wetTotal();
-
-                    if (
-                        Number.isFinite(beforeWet) && Number.isFinite(afterWet) &&
-                        afterWet < beforeWet-.02 &&
-                        Number.isFinite(beforeClean) && Number.isFinite(afterClean) &&
-                        afterClean <= beforeClean+.001
-                    )
-                    {
-                        stalledWipes++;
-                        if (stalledWipes >= 3)
-                        {
-                            stalledWipes=0;
-                            playWindowWashWrongCleanerSound();
-                        }
-                    }
-                    else if (
-                        Number.isFinite(beforeClean) && Number.isFinite(afterClean) &&
-                        afterClean > beforeClean+.001
-                    )
-                        stalledWipes=0;
-                }
-
-                return result;
-            };
-        }
-    }
-    catch (_) {}
-
-    // Finished window: short glassy sparkle.
-    playWindowWashSuccessSound = function()
-    {
-        const ctx=audioReady();
-        if (!ctx) return;
-
-        try
-        {
-            const t=ctx.currentTime;
-            const notes=[659.25,987.77,1318.51];
-
-            notes.forEach((frequency,index) =>
-            {
-                const osc=ctx.createOscillator();
-                const gain=ctx.createGain();
-                osc.type=index===2?'sine':'triangle';
-                osc.frequency.setValueAtTime(frequency,t+index*.085);
-                gain.gain.setValueAtTime(.0001,t+index*.085);
-                gain.gain.exponentialRampToValueAtTime(.032,t+index*.085+.01);
-                gain.gain.exponentialRampToValueAtTime(.0001,t+index*.085+.34);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start(t+index*.085);
-                osc.stop(t+index*.085+.36);
-            });
-
-            shortNoise(ctx,t+.20,.09,.012,7600,2600);
-        }
-        catch (_) {}
-    };
-})();
-</script>
-"""
-    html = html.replace("</body>", profiler + "</body>", 1)
-
-    return html
-
-
 def _csrf_token_value() -> str:
     token = str(session.get("_csrf_token") or "")
     if not token:
@@ -1372,6 +152,47 @@ def _default_games_roster() -> dict:
         "activePlayerId": "",
         "settings": {"sound": True, "music": True},
     }
+
+
+_SYNCED_GAME_FIELDS = ("sessions", "completions", "bestScore", "highestLevel", "bestStars", "bestAccuracy", "xp")
+_GAME_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
+
+
+def _safe_nonnegative_int(value) -> int:
+    try:
+        return max(0, min(int(value or 0), 10**15))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def _sanitize_game_progress(raw: object) -> dict:
+    """Milestone stats per game (numbers only; resume snapshots stay on device)."""
+    out: dict[str, dict[str, int]] = {}
+    if not isinstance(raw, dict):
+        return out
+    for game_id, row in list(raw.items())[:12]:
+        if not isinstance(game_id, str) or not _GAME_ID_RE.match(game_id) or not isinstance(row, dict):
+            continue
+        clean = {}
+        for key in _SYNCED_GAME_FIELDS:
+            try:
+                value = int(row.get(key) or 0)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if value > 0:
+                clean[key] = min(value, 10**12)
+        if clean:
+            out[game_id] = clean
+    return out
+
+
+def _merge_game_progress(existing: dict, incoming: dict) -> dict:
+    merged = {game_id: dict(row) for game_id, row in (existing or {}).items()}
+    for game_id, row in (incoming or {}).items():
+        target = merged.setdefault(game_id, {})
+        for key, value in row.items():
+            target[key] = max(int(target.get(key) or 0), int(value))
+    return dict(list(merged.items())[:12])
 
 
 def _sanitize_games_roster(payload: object) -> dict:
@@ -1397,7 +218,8 @@ def _sanitize_games_roster(payload: object) -> dict:
                 "id": player_id,
                 "name": name,
                 "avatar": str(raw.get("avatar") or "star").strip()[:32],
-                "createdAt": max(0, int(raw.get("createdAt") or 0)),
+                "createdAt": _safe_nonnegative_int(raw.get("createdAt")),
+                "games": _sanitize_game_progress(raw.get("games")),
             }
         )
 
@@ -1442,7 +264,9 @@ def _merge_games_rosters(existing: dict, incoming: dict) -> dict:
             match_id = name_to_id.get(player["name"].casefold(), match_id)
         if match_id in by_id:
             merged = dict(by_id[match_id])
+            progress = _merge_game_progress(merged.get("games"), player.get("games"))
             merged.update(player)
+            merged["games"] = progress
             merged["id"] = match_id
             by_id[match_id] = merged
         elif len(by_id) < 8:
@@ -1504,10 +328,9 @@ def asset(filename: str):
         return render_template("404.html"), 404
 
     mimetype = "text/javascript" if filename.endswith(".js") else "text/css"
-    response = send_file(asset_path, mimetype=mimetype)
-    response.headers["Cache-Control"] = "private, no-store"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
+    response = send_file(asset_path, mimetype=mimetype, conditional=True, etag=True)
+    # Revalidate every time (cheap 304) instead of re-downloading on each play.
+    response.headers["Cache-Control"] = "private, no-cache"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
     return response
@@ -1593,6 +416,8 @@ def same_brain_points():
     expected_token = _csrf_token_value()
     if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
         return jsonify({"error": "csrf"}), 400
+    if not _same_brain_user_limit("points", 60):
+        return jsonify({"error": "rate_limited"}), 429
     payload = request.get_json(silent=True) or {}
     event = str(payload.get("event") or "").strip()
     event_id = str(payload.get("eventId") or "").strip()[:96]
@@ -1712,6 +537,8 @@ def same_brain_tts():
     expected_token = _csrf_token_value()
     if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
         return jsonify({"error": "csrf"}), 400
+    if not _same_brain_user_limit("tts", 40):
+        return jsonify({"error": "rate_limited"}), 429
     payload = request.get_json(silent=True) or {}
     text = " ".join(str(payload.get("text") or "").split()).strip()[:500]
     voice = str(payload.get("voice") or "marin").strip().lower()
@@ -1764,6 +591,20 @@ def same_brain_tts():
 SAME_BRAIN_GROUP_COLLECTION = "same_brain_groups"
 SAME_BRAIN_GROUP_TTL_DAYS = 14
 SAME_BRAIN_GROUP_MAX_PLAYERS = 8
+
+
+def _recent_docs(collection, limit: int):
+    """Newest-first sample; falls back to an unordered read if ordering fails."""
+    try:
+        return list(collection.order_by("updatedAt", direction="DESCENDING").limit(limit).stream())
+    except Exception:
+        return list(collection.limit(limit).stream())
+
+
+def _same_brain_user_limit(scope: str, limit: int) -> bool:
+    """Per-user, per-worker hourly cap for cost-bearing Same Brain endpoints."""
+    key = _signed_in_email() or request.remote_addr or "unknown"
+    return check_rate_limit(f"same_brain_{scope}", key, limit=limit, window_seconds=3600, local_only=True).allowed
 
 
 def _same_brain_group_code() -> str:
@@ -2069,6 +910,9 @@ def same_brain_analytics():
     if not sent_token or not hmac.compare_digest(str(sent_token), str(expected_token)):
         return jsonify({"error": "csrf"}), 400
 
+    if not _same_brain_user_limit("analytics", 300):
+        return jsonify({"ok": True, "rate_limited": True})
+
     detail_key = question_id or source_code or ""
     dedupe_key = f"same_brain_metric:{run_id or 'legacy'}:{event}:{pack}:{detail_key}"
     if session.get(dedupe_key):
@@ -2077,7 +921,7 @@ def same_brain_analytics():
     try:
         client = db()
         if client:
-            client.collection("analytics").document("same_brain_funnel").set(
+            shard_ref(client, "same_brain_funnel").set(
                 {
                     "total": google_firestore.Increment(1),
                     "events": {event: google_firestore.Increment(1)},
@@ -2119,20 +963,42 @@ def same_brain_analytics():
     return jsonify({"ok": True})
 
 
+_SAME_BRAIN_METRICS_CACHE_SECONDS = 600
+_same_brain_metrics_cache: dict[str, tuple[float, bytes, str]] = {}
+
+
+def _is_games_admin(email: str | None) -> bool:
+    allowed = {item.strip().casefold() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()}
+    return bool(email and email in allowed)
+
+
 @bp.get("/same-brain/metrics")
 def same_brain_metrics():
+    """Admin-only dashboard. Expensive (~800 reads), so cached for 10 minutes."""
     access_response = _require_access()
     if access_response is not None:
         return access_response
+    if not _is_games_admin(_signed_in_email()):
+        return Response("Not found", status=404, mimetype="text/plain")
+    cache_key = "json" if request.args.get("format") == "json" else "html"
+    cached = _same_brain_metrics_cache.get(cache_key)
+    now = time.monotonic()
+    if cached and now - cached[0] < _SAME_BRAIN_METRICS_CACHE_SECONDS and request.args.get("fresh") != "1":
+        return Response(cached[1], mimetype=cached[2])
+    response = make_response(_same_brain_metrics_response())
+    if response.status_code == 200:
+        _same_brain_metrics_cache[cache_key] = (now, response.get_data(), response.mimetype)
+    return response
 
+
+def _same_brain_metrics_response():
     client = db()
 
     def _doc_counts(doc_id: str) -> dict:
         if not client:
             return {}
         try:
-            snap = client.collection("analytics").document(doc_id).get()
-            data = snap.to_dict() or {} if snap.exists else {}
+            data = read_counts(client, doc_id)
             return data.get("events") if isinstance(data.get("events"), dict) else {}
         except Exception:
             return {}
@@ -2142,7 +1008,7 @@ def same_brain_metrics():
             return []
         rows = []
         try:
-            for snap in client.collection(collection_name).limit(limit).stream():
+            for snap in _recent_docs(client.collection(collection_name), limit):
                 data = snap.to_dict() or {}
                 events = data.get("events") if isinstance(data.get("events"), dict) else {}
                 rows.append({
@@ -2161,7 +1027,7 @@ def same_brain_metrics():
             return []
         rows = []
         try:
-            for snap in client.collection("same_brain_question_stats").limit(limit).stream():
+            for snap in _recent_docs(client.collection("same_brain_question_stats"), limit):
                 data = snap.to_dict() or {}
                 seen = max(0, int(data.get("question_seen") or 0))
                 answered = max(0, int(data.get("question_answered") or 0))
@@ -2345,7 +1211,7 @@ def same_brain_metrics():
     }
     payload = {
         "rates": rates,
-        "rateDefinitions": {"returnRate": "Returning page visits / page visits, same browser; not user retention", "completionRate": "Creator runs that created a challenge / creator starts", "sample": "At most 500 stored public runs"},
+        "rateDefinitions": {"returnRate": "Returning page visits / page visits, same browser; not user retention", "completionRate": "Creator runs that created a challenge / creator starts", "sample": "The 500 most recently updated public runs"},
         "ok": True,
         "runBased": True,
         "trackedRuns": len(public_runs),
@@ -2495,7 +1361,6 @@ def play(slug: str):
 
     roster, sync_config = _games_bootstrap(_signed_in_email())
     html = game_path.read_text(encoding="utf-8")
-    html = _apply_runtime_game_patches(html, game["game_id"])
     bootstrap = (
         "<script>"
         "window.__GAMES_ACCOUNT_ROSTER__=" + json.dumps(roster).replace("<", "\\u003c") + ";"

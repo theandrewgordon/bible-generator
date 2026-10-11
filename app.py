@@ -338,6 +338,14 @@ enable_proxy_fix = os.getenv(
 if enable_proxy_fix:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
+@app.after_request
+def cache_versioned_vendor_assets(response):
+    """Vendor files carry their version in the filename, so they never change."""
+    if request.path.startswith("/static/vendor/") and response.status_code == 200 and re.search(r"-\d+\.\d+\.\d+", request.path):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 @app.route('/manifest.webmanifest')
 def pwa_manifest():
     """Serve the PWA manifest with minimal caching for quick updates."""

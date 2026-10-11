@@ -120,7 +120,10 @@ def create_blueprint(csrf_token=None):
         code_ok(code);auth=token();room=store().get(code);member(room,auth)
         if room.get('deadline') and time.time()>=room['deadline'] and not room.get('result') and not room.get('pausedAt') and not room['state'].get('winnerId') and safe_finish(room):
             room=store().change(code,lambda r: finish_due(live(r)))
-        return jsonify(room=public_room(room,auth))
+        response=jsonify(room=public_room(room,auth))
+        # Polls send If-None-Match; an unchanged room costs a tiny 304, not the full state.
+        response.add_etag()
+        return response.make_conditional(request)
     @bp.post('/rooms/<code>/members')
     def assign(code):
         code_ok(code);auth=token();data=body()

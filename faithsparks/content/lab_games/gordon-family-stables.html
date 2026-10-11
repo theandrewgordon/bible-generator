@@ -208,7 +208,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/littlejsengine@1.18.19/dist/littlejs.js?1.18.19"></script>
+<script src="/static/vendor/littlejs-1.18.19.min.js"></script>
 <script>
 'use strict';
 
@@ -217,7 +217,7 @@ debugWatermark = false; // Hide debug watermark in corner
 showEngineVersion = false; // Hide engine version console display
 paused = false; // Start unpaused
 tilesPixelated = false; // use HD textures
-debugShowErrors(); // Break on errors for quick debugging
+// debugShowErrors() removed: errors must never replace the game with a red debug screen.
 
 // engine settings, customize if necessary (engine globals - assign, do not redeclare)
 gravity = vec2(0, 0); // No gravity by default

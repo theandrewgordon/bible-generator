@@ -29,7 +29,7 @@ button,input{font:inherit}
 </script>
 <link rel="stylesheet" href="/labs/games/assets/games-ui.css">
 <script src="/labs/games/assets/games-core.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/littlejsengine@1.18.19/dist/littlejs.js?1.18.19"></script>
+<script src="/static/vendor/littlejs-1.18.19.min.js"></script>
 <script>
 'use strict';
 
@@ -38,7 +38,7 @@ debugWatermark = false; // Hide debug watermark in corner
 showEngineVersion = false; // Hide engine version console display
 paused = false; // Start unpaused
 tilesPixelated = false; // use HD textures
-debugShowErrors(); // Break on errors for quick debugging
+// debugShowErrors() removed: errors must never replace the game with a red debug screen.
 
 // engine settings, customize if necessary (engine globals - assign, do not redeclare)
 gravity = vec2(0, 0); // No gravity by default
@@ -1765,7 +1765,7 @@ function serializeSession(){
   blenderRunning,blendTimeLeft:blenderRunning?max(0,-blenderTimer.get()):0,
   needsReset,roundMistakes,waitingForNext,guestPhase,guestSlide,
   roundStartScore,roundStartStars,roundStartServed,roundStartLevel,roundResultId,
-  timeLeft:partyDeadline?max(0,partyDeadline-time):0,
+  timeLeft:partyDeadline?max(0,partyDeadline-time):max(0,pausedPartyTime||0),
   pausedPartyTime:max(0,pausedPartyTime||0),
   savedAt:Date.now()
  };
@@ -2623,9 +2623,11 @@ function selectContainer(kind){
   message='Shakes and sodas go in a cup.';messageTimer.set(1.4);playSfx(sndBad);return;
  }
  if(order.kind=='SCOOP' && kind=='CUP'){
+  roundMistakes++;
   message='Plain ice cream goes in a bowl or cone.';messageTimer.set(1.4);playSfx(sndBad);return;
  }
  if(order.container!=kind){
+  roundMistakes++;
   message=`This order needs a ${order.container}.`;messageTimer.set(1.4);playSfx(sndBad);return;
  }
  holdingContainer=kind;holdingCup=(kind=='CUP');pickupBounce.set(.3);heldVisualReady=false;message=`${kind.charAt(0)+kind.slice(1).toLowerCase()} picked up!`;messageTimer.set(1.2);playSfx(sndContainer);
