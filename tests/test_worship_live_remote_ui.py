@@ -217,8 +217,8 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
             Path(__file__).parents[1] / "templates" / "worship_live_stage.html"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("schedulePoll(Date.now()<activeUntil?180:800)", presenter)
-        self.assertIn("schedulePoll(Date.now()<activeUntil?250:900)", stage)
+        self.assertIn("schedulePoll(Date.now()<activeUntil?180:{{ live_idle_poll(800)", presenter)
+        self.assertIn("schedulePoll(Date.now()<activeUntil?250:{{ live_idle_poll(900)", stage)
         self.assertIn("activeUntil=Date.now()+1500", presenter)
         self.assertIn("activeUntil=Date.now()+1500", stage)
 

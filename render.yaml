@@ -7,10 +7,13 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      # One process (8 threads): Live Worship state is served from memory, so
+      # screens poll every 0.25s with no Firestore read. Keep this service on a
+      # single instance; with more processes, set WORSHIP_LIVE_HOT=0.
       - key: WEB_CONCURRENCY
-        value: 2
+        value: 1
       - key: GUNICORN_THREADS
-        value: 4
+        value: 8
       - key: GUNICORN_TIMEOUT
         value: 240
       - key: SLOW_REQUEST_LOG_MS

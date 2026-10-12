@@ -343,6 +343,10 @@ def cache_versioned_vendor_assets(response):
     """Vendor files carry their version in the filename, so they never change."""
     if request.path.startswith("/static/vendor/") and response.status_code == 200 and re.search(r"-\d+\.\d+\.\d+", request.path):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif request.path.startswith("/static/worship/backgrounds/") and response.status_code in (200, 304):
+        # Slide backgrounds rarely change: cache a week so song changes paint instantly
+        # instead of re-checking the server on church Wi-Fi.
+        response.headers["Cache-Control"] = "public, max-age=604800"
     return response
 
 
@@ -2593,6 +2597,8 @@ def _create_worship_live_session(data: dict) -> None:
     session_id = data["id"]
     if db:
         _worship_live_ref_for_scope(scope).document(session_id).set(data)
+        if _worship_live_hot():
+            _remember_worship_live_state(scope, session_id, data)
         return
     if not _is_local_storage_allowed():
         raise RuntimeError("Live Worship requires shared session storage.")
@@ -2610,12 +2616,39 @@ _WORSHIP_LIVE_STATE_FIELDS = (
 )
 
 
+def _worship_live_hot() -> bool:
+    """Serve Live Worship state from this process's memory.
+
+    Only safe when one process handles every request (WEB_CONCURRENCY=1): then
+    each remote tap updates memory here and is written through to Firestore,
+    so screens can poll fast without a Firestore read per poll. With several
+    processes another worker could hold a stale copy, so it stays off.
+    Override with WORSHIP_LIVE_HOT=1/0.
+    """
+    override = os.getenv("WORSHIP_LIVE_HOT", "").strip().lower()
+    if override in {"1", "true", "yes"}:
+        return True
+    if override in {"0", "false", "no"}:
+        return False
+    return bool(db) and os.getenv("WEB_CONCURRENCY", "").strip() == "1"
+
+
+def _worship_live_idle_poll_ms(default: int) -> int:
+    """Idle poll interval for presenter/stage: fast when polls are free (hot)."""
+    return 250 if _worship_live_hot() else int(default)
+
+
+app.jinja_env.globals["live_idle_poll"] = _worship_live_idle_poll_ms
+
+
 def _get_worship_live_session(
     scope: str, session_id: str, *, include_slides: bool = True, cache_seconds: float = 0.0
 ) -> dict | None:
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", str(session_id or "")):
         return None
     cache_key = (scope, session_id)
+    if not include_slides and _worship_live_hot():
+        cache_seconds = float("inf")  # memory is authoritative in a single process
     if cache_seconds and not include_slides:
         cached = _worship_live_state_cache.get(cache_key)
         if cached and time.monotonic() - cached[0] < cache_seconds:
@@ -2857,6 +2890,47 @@ def _next_worship_live_state(
     }
 
 
+def _worship_live_state_write(updated: dict) -> dict:
+    return {
+        "current_index": updated["current_index"],
+        "blank": updated["blank"],
+        "clear_words": updated["clear_words"],
+        "stage_message": updated["stage_message"],
+        "stage_timer_mode": updated["stage_timer_mode"],
+        "stage_timer_started_epoch": updated["stage_timer_started_epoch"],
+        "stage_timer_duration": updated["stage_timer_duration"],
+        "video_action": updated["video_action"],
+        "video_revision": updated["video_revision"],
+        "deck_revision": updated["deck_revision"],
+        "revision": updated["revision"],
+        "updated_at": firestore.SERVER_TIMESTAMP,
+    }
+
+
+def _update_worship_live_session_hot(
+    scope: str, session_id: str, ref, action: str, requested_index: int | None = None, *,
+    message: str | None = None, duration: int | None = None,
+) -> dict:
+    """Navigation in hot mode: next state from memory, one Firestore write.
+
+    The per-process lock serializes taps (what the transaction did), and the
+    write-through keeps Firestore current for restarts and the deck pages.
+    """
+    with _worship_live_lock:
+        cached = _worship_live_state_cache.get((scope, session_id))
+        data = dict(cached[1]) if cached else None
+        if data is None:
+            snap = ref.get(field_paths=_WORSHIP_LIVE_STATE_FIELDS)
+            data = snap.to_dict() if snap.exists else None
+        if not data or float(data.get("expires_epoch") or 0) <= time.time():
+            _worship_live_state_cache.pop((scope, session_id), None)
+            raise LookupError("Live worship session expired")
+        updated = _next_worship_live_state(data, action, requested_index, message=message, duration=duration)
+        ref.set(_worship_live_state_write(updated), merge=True)
+        _remember_worship_live_state(scope, session_id, updated)
+        return dict(updated)
+
+
 def _update_worship_live_session(
     scope: str,
     session_id: str,
@@ -2872,9 +2946,13 @@ def _update_worship_live_session(
 ) -> dict:
     if db:
         ref = _worship_live_ref_for_scope(scope).document(session_id)
-        transaction = db.transaction()
-
         deck_action = action in {"edit_slide", "split_slide", "insert_scripture"}
+        if _worship_live_hot() and not deck_action:
+            return _update_worship_live_session_hot(
+                scope, session_id, ref, action, requested_index,
+                message=message, duration=duration,
+            )
+        transaction = db.transaction()
 
         @firestore.transactional
         def _update(txn):
