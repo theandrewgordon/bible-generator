@@ -16,8 +16,8 @@
     <h2 style="margin-top:0">Song licensing details</h2>
     <form method="post" action="{{ url_for('worship_song_resource_metadata', song_id=song.id) }}" class="wr-grid">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="wr-field"><label>CCLI song number</label><input class="wr-input" name="ccli_song_number" inputmode="numeric" value="{{ song.ccli_song_number }}" placeholder="e.g. 7139337" {% if not can_edit %}disabled{% endif %}></div>
-      <div class="wr-field"><label>Copyright / attribution notice</label><input class="wr-input" name="copyright_notice" value="{{ song.copyright_notice }}" placeholder="© year publisher / administrator" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="wr-field"><label for="wr-res-ccli_song_number">CCLI song number</label><input id="wr-res-ccli_song_number" class="wr-input" name="ccli_song_number" inputmode="numeric" value="{{ song.ccli_song_number }}" placeholder="e.g. 7139337" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="wr-field"><label for="wr-res-copyright_notice">Copyright / attribution notice</label><input id="wr-res-copyright_notice" class="wr-input" name="copyright_notice" value="{{ song.copyright_notice }}" placeholder="© year publisher / administrator" {% if not can_edit %}disabled{% endif %}></div>
       {% if can_edit %}<div class="wr-wide"><button class="wr-btn" type="submit">Save metadata</button></div>{% endif %}
     </form>
   </section>
@@ -42,17 +42,17 @@
     <p class="wr-note"><strong>Provider-safe workflow:</strong> save the Worship Together/SongSelect/publisher link as the source, then upload a chart your church is licensed to keep or paste authorized ChordPro text. Faith Sparks does not scrape or republish provider libraries.</p>
     <form method="post" action="{{ url_for('worship_song_resource_add', song_id=song.id) }}" enctype="multipart/form-data" class="wr-grid" style="margin-top:1rem">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="wr-field"><label>Resource title</label><input class="wr-input" name="title" placeholder="Sunday band chart"></div>
-      <div class="wr-field"><label>Type</label><select class="wr-input" name="kind"><option value="pdf">PDF</option><option value="chordpro">ChordPro / text</option><option value="link">Source link</option><option value="other">Other</option></select></div>
-      <div class="wr-field"><label>Original key</label><select class="wr-input" name="key"><option value="">Unknown</option>{% for key in keys %}<option value="{{ key }}" {% if song.key == key %}selected{% endif %}>{{ key }}</option>{% endfor %}</select></div>
-      <div class="wr-field"><label>Capo / arrangement</label><div style="display:flex;gap:.5rem"><input class="wr-input" name="capo" placeholder="Capo 2"><input class="wr-input" name="arrangement" placeholder="Acoustic"></div></div>
-      <div class="wr-field"><label>Source</label><select class="wr-input" name="source_type">{% for source in source_types %}<option value="{{ source }}">{{ source|replace('_',' ')|title }}</option>{% endfor %}</select></div>
-      <div class="wr-field"><label>Source HTTPS link</label><input class="wr-input" type="url" name="source_url" placeholder="https://..."></div>
-      <div class="wr-field wr-wide"><label>Upload PDF or ChordPro/text</label><input class="wr-input" type="file" name="file" accept="application/pdf,.cho,.chordpro,.pro,.txt,text/plain"><small class="muted">Up to 20 MB.</small></div>
-      <div class="wr-field wr-wide"><label>Or paste ChordPro / chord text</label><textarea class="wr-input" name="chart_text" placeholder="{title: Amazing Grace}\n{key: G}\n[G]Amazing grace..."></textarea></div>
+      <div class="wr-field"><label for="wr-res-title">Resource title</label><input id="wr-res-title" class="wr-input" name="title" placeholder="Sunday band chart"></div>
+      <div class="wr-field"><label for="wr-res-kind">Type</label><select id="wr-res-kind" class="wr-input" name="kind"><option value="pdf">PDF</option><option value="chordpro">ChordPro / text</option><option value="link">Source link</option><option value="other">Other</option></select></div>
+      <div class="wr-field"><label for="wr-res-key">Original key</label><select id="wr-res-key" class="wr-input" name="key"><option value="">Unknown</option>{% for key in keys %}<option value="{{ key }}" {% if song.key == key %}selected{% endif %}>{{ key }}</option>{% endfor %}</select></div>
+      <div class="wr-field"><label for="wr-res-capo">Capo / arrangement</label><div style="display:flex;gap:.5rem"><input id="wr-res-capo" class="wr-input" name="capo" placeholder="Capo 2"><input class="wr-input" aria-label="Arrangement" name="arrangement" placeholder="Acoustic"></div></div>
+      <div class="wr-field"><label for="wr-res-source_type">Source</label><select id="wr-res-source_type" class="wr-input" name="source_type">{% for source in source_types %}<option value="{{ source }}">{{ source|replace('_',' ')|title }}</option>{% endfor %}</select></div>
+      <div class="wr-field"><label for="wr-res-source_url">Source HTTPS link</label><input id="wr-res-source_url" class="wr-input" type="url" name="source_url" placeholder="https://..."></div>
+      <div class="wr-field wr-wide"><label for="wr-res-file">Upload PDF or ChordPro/text</label><input id="wr-res-file" class="wr-input" type="file" name="file" accept="application/pdf,.cho,.chordpro,.pro,.txt,text/plain"><small class="muted">Up to 20 MB.</small></div>
+      <div class="wr-field wr-wide"><label for="wr-res-chart_text">Or paste ChordPro / chord text</label><textarea id="wr-res-chart_text" class="wr-input" name="chart_text" placeholder="{title: Amazing Grace}\n{key: G}\n[G]Amazing grace..."></textarea></div>
       <label class="wr-check wr-wide"><input type="checkbox" name="auto_clean_chart" value="1" checked><span><strong>Clean pasted webpage text automatically.</strong> Removes menus and footers, extracts chart details, and aligns separate chord rows with their lyrics.</span></label>
       <input type="hidden" name="auto_clean_chart" value="0">
-      <div class="wr-field wr-wide"><label>License note</label><input class="wr-input" name="license_note" placeholder="SongSelect download under church CCLI subscription; internal worship use"></div>
+      <div class="wr-field wr-wide"><label for="wr-res-license_note">License note</label><input id="wr-res-license_note" class="wr-input" name="license_note" placeholder="SongSelect download under church CCLI subscription; internal worship use"></div>
       <label class="wr-check wr-wide"><input type="checkbox" name="rights_confirmed" value="1"><span>I confirm this church has permission to store and use uploaded or pasted material. A source link alone does not require an upload confirmation.</span></label>
       <input type="hidden" name="ccli_song_number" value="{{ song.ccli_song_number }}"><input type="hidden" name="copyright_notice" value="{{ song.copyright_notice }}">
       <div class="wr-wide"><button class="wr-btn" type="submit">Save church resource</button></div>

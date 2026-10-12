@@ -1337,7 +1337,10 @@ def _has_current_legal_acceptance() -> bool:
         return True
     if not (db and session.get("user_email")):
         return False
+    if session.get("legal_terms_checked") == _LEGAL_TERMS_VERSION:
+        return False  # already looked this session; don't re-read on every page load
     try:
+        session["legal_terms_checked"] = _LEGAL_TERMS_VERSION
         snapshot = db.collection("users").document(session["user_email"]).get()
         data = snapshot.to_dict() if snapshot.exists else {}
         if data.get("legalTermsVersion") == _LEGAL_TERMS_VERSION:
@@ -1482,6 +1485,17 @@ def _worship_setlist_refs_for_read():
     return refs
 
 
+def _local_songs_dir() -> "Path":
+    """Dev-only song store (no Firestore). Starts as a copy of the tracked seed
+    files in songs/, so local edits never modify files under version control."""
+    folder = Path(app.root_path) / "instance" / "worship-songs"
+    if not folder.is_dir():
+        folder.mkdir(parents=True, exist_ok=True)
+        for seed in (Path(app.root_path) / "songs").glob("*.json"):
+            shutil.copyfile(seed, folder / seed.name)
+    return folder
+
+
 def _seed_worship_from_files() -> None:
     """One-time per-process seed: load /songs/*.json into Firestore if collection is empty."""
     global _worship_seeded
@@ -1564,7 +1578,7 @@ def list_worship_songs() -> list[dict]:
                 raise RuntimeError("Firestore query failed for list_worship_songs in production.") from exc
     if not _is_local_storage_allowed():
         raise RuntimeError("Firestore not available to list songs in production. Local fallback is disabled.")
-    songs_folder = Path(app.root_path) / "songs"
+    songs_folder = _local_songs_dir()
     songs = []
     if songs_folder.is_dir():
         for fp in sorted(songs_folder.glob("*.json")):
@@ -1602,7 +1616,7 @@ def get_worship_song(song_id: str) -> dict | None:
             song_id, os.getpid(), firebase_init_diagnostic(),
         )
         raise RuntimeError(f"Firestore not available to get song {song_id} in production. Local fallback is disabled.")
-    fp = Path(app.root_path) / "songs" / f"{song_id}.json"
+    fp = _local_songs_dir() / f"{song_id}.json"
     if fp.exists():
         try:
             with open(fp, "r", encoding="utf-8") as f:
@@ -1992,8 +2006,7 @@ def save_worship_song(song: dict) -> None:
             song_id, os.getpid(), firebase_init_diagnostic(),
         )
         raise RuntimeError(f"Firestore not available to save song {song_id} in production. Local fallback is disabled.")
-    songs_folder = Path(app.root_path) / "songs"
-    songs_folder.mkdir(exist_ok=True)
+    songs_folder = _local_songs_dir()
     with open(songs_folder / f"{song_id}.json", "w", encoding="utf-8") as f:
         json.dump(song, f, indent=2, ensure_ascii=False)
     _invalidate_worship_cache()
@@ -2176,7 +2189,7 @@ def delete_worship_song(song_id: str) -> bool:
         if not db:
             raise RuntimeError(f"Firestore not available to delete song {song_id} in production. Local fallback is disabled.")
     if _is_local_storage_allowed():
-        fp = Path(app.root_path) / "songs" / f"{song_id}.json"
+        fp = _local_songs_dir() / f"{song_id}.json"
         if fp.exists():
             try:
                 fp.unlink()
@@ -2211,7 +2224,7 @@ def _delete_all_worship_library_data() -> dict:
             app.logger.warning("_delete_all_worship_library_data Firestore error: %s", exc)
     if not db:
         for folder_name, key in (("songs", "songs"), ("setlists", "setlists")):
-            folder = Path(app.root_path) / folder_name
+            folder = _local_songs_dir() if folder_name == "songs" else Path(app.root_path) / folder_name
             if not folder.is_dir():
                 continue
             for fp in folder.glob("*.json"):
@@ -2452,7 +2465,7 @@ def _get_worship_song_for_scope(song_id: str, scope: str) -> dict | None:
             if not _is_local_storage_allowed():
                 raise RuntimeError("Worship song storage is temporarily unavailable.") from exc
     if _is_local_storage_allowed():
-        fp = Path(app.root_path) / "songs" / f"{song_id}.json"
+        fp = _local_songs_dir() / f"{song_id}.json"
         if fp.exists():
             try:
                 with open(fp, "r", encoding="utf-8") as f:
@@ -3418,15 +3431,16 @@ def add_centered_textbox(slide, text: str, top: float, height: float, font_size:
 
 
 def add_link_footer(slide, label: str = "faithsparksprintables.com", url: str = "https://faithsparksprintables.com",
-                    font_color: RGBColor | None = None):
-    box = slide.shapes.add_textbox(Inches(0.4), Inches(7.02), Inches(12.5), Inches(0.18))
+                    font_color: RGBColor | None = None, font_size: int = 9):
+    height = 0.18 if font_size <= 9 else 0.32
+    box = slide.shapes.add_textbox(Inches(0.4), Inches(7.2 - height), Inches(12.5), Inches(height))
     tf = box.text_frame
     tf.clear()
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
     run = p.add_run()
     run.text = label
-    run.font.size = Pt(9)
+    run.font.size = Pt(font_size)
     run.font.name = "Arial"
     run.font.color.rgb = font_color or RGBColor(235, 235, 235)
     # No hyperlink: PowerPoint/LibreOffice repaint links in the theme's dark
@@ -3446,7 +3460,10 @@ def _divider_title_font_size(title: str) -> int:
     return 36
 
 
-def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, item_type: str = "song", song_bg: str = None):
+def create_divider_slide(prs: Presentation, title: str, artist: str, key: str = "", item_type: str = "song",
+                         song_bg: str = None, credit: str = ""):
+    # ``key`` is accepted for callers but not projected: the key is for the band
+    # (stage view, musician packet), not the congregation.
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     img_path, cfg = _resolve_bg(item_type, song_bg)
     if img_path:
@@ -3460,16 +3477,14 @@ def create_divider_slide(prs: Presentation, title: str, artist: str, key: str, i
     add_centered_textbox(slide, title, top=1.15, height=2.75, font_size=title_size, bold=True,
                           font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity,
                           left=1.0, width=11.333)
-    subtitle_parts = []
     if artist:
-        subtitle_parts.append(artist)
-    if key:
-        subtitle_parts.append(f"Key: {key}")
-    if subtitle_parts:
-        add_centered_textbox(slide, " | ".join(subtitle_parts), top=4.05, height=0.85, font_size=26, bold=False,
+        add_centered_textbox(slide, artist, top=4.05, height=0.85, font_size=26, bold=False,
                               font_color=font_color, overlay=overlay, overlay_opacity=overlay_opacity,
                               left=1.5, width=10.333)
-    add_link_footer(slide, font_color=font_color)
+    if credit:
+        add_link_footer(slide, label=credit, font_color=font_color, font_size=12)
+    else:
+        add_link_footer(slide, font_color=font_color)
     return slide
 
 
@@ -3524,22 +3539,10 @@ def create_imported_presentation_slide(prs: Presentation, image_path: str):
 
 
 def _add_part_label(slide, label: str, font_color: RGBColor) -> None:
+    """Section name for the operator: PowerPoint/Keynote presenter notes, not the projected slide."""
     if not label:
         return
-    box = slide.shapes.add_textbox(Inches(0.42), Inches(0.34), Inches(4.0), Inches(0.3))
-    tf = box.text_frame
-    tf.clear()
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.LEFT
-    run = p.add_run()
-    run.text = label.upper()
-    run.font.size = Pt(12)
-    run.font.bold = True
-    run.font.name = "Arial"
-    if max(font_color) > 127:
-        run.font.color.rgb = RGBColor(185, 185, 185)
-    else:
-        run.font.color.rgb = RGBColor(45, 45, 45)
+    slide.notes_slide.notes_text_frame.text = label.upper()
 
 
 def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None, font_size: int = 48, part_label: str = ""):
@@ -3660,6 +3663,27 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 import json
 
 
+def _worship_library_for_js(songs: list[dict]) -> list[dict]:
+    """Only what the planner's JavaScript reads (search, sort, set list, counts).
+
+    Validation history, sources and import text stay server-side, which keeps
+    /worship small on church Wi-Fi as the library grows.
+    """
+    slim = []
+    for song in songs:
+        item = {key: song.get(key) for key in ("id", "title", "artist", "version", "key", "type", "last_used") if song.get(key)}
+        if song.get("parts"):
+            item["parts"] = song["parts"]
+        if song.get("service_lines"):
+            item["service_lines"] = song["service_lines"]
+        if song.get("presentation_slides"):
+            item["presentation_slides"] = [{"hidden": bool(s.get("hidden"))} for s in song["presentation_slides"] if isinstance(s, dict)]
+        if song.get("highlight_suggestions"):
+            item["highlight_suggestions"] = [{"enabled": bool(h.get("enabled"))} for h in song["highlight_suggestions"] if isinstance(h, dict)]
+        slim.append(item)
+    return slim
+
+
 @app.route('/worship', methods=['GET'])
 @login_required
 def worship():
@@ -3670,12 +3694,14 @@ def worship():
     return render_template(
         'worship.html',
         songs=songs,
+        library_songs_js=_worship_library_for_js(songs),
         setlists=setlists,
         worship_church=church_context["current"],
         worship_churches=church_context["churches"],
         active_worship_live=_active_worship_live_context(),
         worship_scripture_versions=_worship_scripture_version_options(),
         legal_acceptance_current=_has_current_legal_acceptance(),
+        worship_ccli_license=_worship_ccli_license(),
         worship_simple_mode=_worship_simple_mode(),
     )
 
@@ -3820,6 +3846,69 @@ def worship_church_create():
     except Exception as exc:
         app.logger.warning("worship_church_create error: %s", exc)
         flash("We couldn't create that church. Please try again.", "error")
+    return redirect(url_for("worship"))
+
+
+_worship_ccli_cache: dict[str, tuple[float, str]] = {}
+
+
+def _worship_ccli_license(scope: str | None = None) -> str:
+    """The church's CCLI license number (digits only), cached briefly per scope."""
+    scope = scope or _current_worship_scope()
+    cached = _worship_ccli_cache.get(scope)
+    if cached and time.time() - cached[0] < 60:
+        return cached[1]
+    value = ""
+    if db:
+        try:
+            snap = db.collection(_WORSHIP_CHURCH_COLLECTION).document(scope).get()
+            value = re.sub(r"[^0-9]", "", str(((snap.to_dict() or {}) if snap.exists else {}).get("ccli_license") or ""))[:16]
+        except Exception as exc:
+            app.logger.warning("ccli license lookup failed: %s", exc)
+    _worship_ccli_cache[scope] = (time.time(), value)
+    return value
+
+
+def _worship_credit_line(item: dict, license_number: str = "") -> str:
+    """Copyright credit for a song's title slide (CCLI display terms).
+
+    Empty unless the song carries a copyright notice or CCLI song number, so
+    nothing appears on Scripture, service slides or unlabeled items.
+    """
+    if (item.get("type") or "song") != "song":
+        return ""
+    notice = re.sub(r"\s+", " ", str(item.get("copyright_notice") or "")).strip()
+    song_number = re.sub(r"[^0-9]", "", str(item.get("ccli_song_number") or ""))
+    if "public domain" in notice.lower():
+        return "Public domain"
+    if not (notice or song_number):
+        return ""
+    bits = [notice] if notice else []
+    if song_number:
+        bits.append(f"CCLI Song #{song_number}")
+    if license_number:
+        bits.append(f"CCLI License #{license_number}")
+    return " · ".join(bits)[:220]
+
+
+@app.route("/worship/church/ccli", methods=["POST"])
+@login_required
+def worship_church_ccli():
+    if not _worship_can_edit(owner_only=True):
+        flash("Only the church owner can change the CCLI license number.", "warning")
+        return redirect(url_for("worship"))
+    if not db:
+        flash("Saving the CCLI license number needs Firestore.", "warning")
+        return redirect(url_for("worship"))
+    scope = _current_worship_scope()
+    value = re.sub(r"[^0-9]", "", request.form.get("ccli_license", ""))[:16]
+    try:
+        db.collection(_WORSHIP_CHURCH_COLLECTION).document(scope).set({"ccli_license": value}, merge=True)
+        _worship_ccli_cache.pop(scope, None)
+        flash("CCLI license number saved. It appears on each song's title slide." if value else "CCLI license number removed.", "success")
+    except Exception as exc:
+        app.logger.warning("worship_church_ccli error: %s", exc)
+        flash("We couldn't save the CCLI license number. Please try again.", "error")
     return redirect(url_for("worship"))
 
 
@@ -6037,7 +6126,11 @@ def _iter_worship_lyric_chunks(normalized: dict):
         part_lines = parts.get(part_name, [])
         if not isinstance(part_lines, list):
             continue
-        for chunk in chunk_lines(part_lines):
+        chunks = list(chunk_lines(part_lines))
+        # One size per section, so a reading or verse doesn't jump 40pt -> 48pt mid-way.
+        section_size = min((int(chunk.get("font_size", 48) or 48) for chunk in chunks), default=48)
+        for chunk in chunks:
+            chunk = {**chunk, "font_size": section_size}
             signature = (
                 _worship_part_label(part_name),
                 tuple(chunk.get("lines", [])),
@@ -6075,6 +6168,7 @@ def _worship_slide_is_crowded(lines: list[str], font_size: int = 48) -> bool:
 def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None = None, access_token: str = "") -> list[dict]:
     notes = notes if isinstance(notes, dict) else {}
     slides: list[dict] = []
+    ccli_license = _worship_ccli_license() if has_request_context() else ""
     for item in _with_effective_worship_backgrounds(selected_items):
         normalized = normalize_worship_song(item)
         song_id = normalized.get("id", "")
@@ -6161,6 +6255,7 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                 "id": song_id,
                 "title": song_title,
                 "artist": normalized.get("artist", ""),
+                "credit": _worship_credit_line(normalized, ccli_license),
                 "version": song_version,
                 "key": normalized.get("key", ""),
                 "type": item_type,
@@ -6768,7 +6863,7 @@ def worship_live_follow(session_id):
     if not slides or len(slides) != int(live.get("slide_count") or 0):
         return Response("This worship set changed. Scan the new code on the main screen.", status=409)
     # Audience phones get only what is on the main screen: never leader notes.
-    public_keys = ("kind", "title", "artist", "part_label", "lines", "image_url", "image_layout")
+    public_keys = ("kind", "title", "artist", "credit", "part_label", "lines", "image_url", "image_layout")
     slides = [{key: slide.get(key) for key in public_keys if slide.get(key)} for slide in slides]
     response = app.make_response(
         render_template("worship_live_follow.html", slides=slides, live=live, session_id=session_id)
@@ -7131,6 +7226,7 @@ def worship_build():
         media_temp_paths.append(media_tmp.name)
         return media_tmp.name
 
+    ccli_license = _worship_ccli_license()
     try:
         prs = Presentation()
         prs.slide_width = Inches(13.333)
@@ -7175,7 +7271,10 @@ def worship_build():
                 create_service_slide(prs, normalized, local_image)
                 continue
             artist_bits = [bit for bit in (normalized.get("artist", ""), normalized.get("version", "")) if bit]
-            create_divider_slide(prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg)
+            create_divider_slide(
+                prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg,
+                credit=_worship_credit_line(normalized, ccli_license),
+            )
             for part_name, slide in _iter_worship_lyric_chunks(normalized):
                 create_content_slide(
                     prs,
@@ -7252,6 +7351,7 @@ def worship_deck_review():
     slides = _build_worship_mobile_slides(selected_items)
     findings = []
     previous_item = None
+    simple_mode = _worship_simple_mode()
     for item in selected_items:
         normalized = normalize_worship_song(item)
         if (
@@ -7269,6 +7369,9 @@ def worship_deck_review():
             )
         previous_item = normalized
         if normalized.get("type") in _WORSHIP_NON_SONG_TYPES:
+            continue
+        if simple_mode:
+            # Simple mode hides the validation workflow everywhere else; don't nag here.
             continue
         validation = normalized.get("validation") if isinstance(normalized.get("validation"), dict) else {}
         review = normalized.get("review") if isinstance(normalized.get("review"), dict) else {}
@@ -9130,6 +9233,10 @@ def worship_edit(song_id):
             "parts": parts,
             "arrangement": arrangement,
         })
+        # Only overwrite credit fields when the form sends them (older forms don't).
+        for credit_field in ("ccli_song_number", "copyright_notice"):
+            if credit_field in request.form:
+                song[credit_field] = request.form.get(credit_field, "").strip()
 
         updated_structure = normalize_worship_song(song)
         if (

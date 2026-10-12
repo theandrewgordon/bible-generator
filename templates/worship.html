@@ -129,6 +129,7 @@
   .ws-item-menu>summary::-webkit-details-marker{display:none}
   .ws-item-menu>summary:hover{background:color-mix(in srgb,var(--primary) 8%,var(--background));color:var(--primary)}
   .ws-item-menu .ws-menu-panel{width:170px}
+  .ws-item-menu>summary:after{content:none}
   .ws-saved-sets{margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:.8rem}
   .ws-saved-sets>summary{display:flex;align-items:center;font-size:.86rem}
   .ws-saved-count{margin-left:.4rem;color:var(--text-secondary);font-weight:600}
@@ -181,6 +182,8 @@
     .ws-share-link{grid-column:1 / -1;min-width:0;width:100%;box-sizing:border-box}
     .ws-share-qr{justify-self:start;width:104px;height:104px}
   }
+  /* Touch screens: comfortable tap targets for reorder and item menus. */
+  @media (pointer:coarse){.set-reorder button{min-width:36px;min-height:36px}.ws-item-menu>summary{width:40px;height:40px}}
 </style>
 {% endblock %}
 
@@ -197,10 +200,10 @@
   </div>
 </div>
 
-{% if not legal_acceptance_current %}<aside class="ws-live-resume" aria-label="Terms acceptance required">
+{% if not legal_acceptance_current %}<aside class="ws-live-resume" aria-label="Terms notice">
   <form method="post" action="{{ url_for('legal_accept') }}" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;width:100%">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.path }}">
-    <label style="flex:1;min-width:260px"><input type="checkbox" name="accept_terms" value="1" required> I agree to the <a href="{{ url_for('public.terms') }}" target="_blank">Terms</a> and acknowledge the <a href="{{ url_for('public.privacy') }}" target="_blank">Privacy Policy</a>, including responsibility for content I upload or display.</label>
+    <label style="flex:1;min-width:260px"><input type="checkbox" name="accept_terms" value="1" required style="width:20px;height:20px;vertical-align:-4px"> I agree to the <a href="{{ url_for('public.terms') }}" target="_blank">Terms</a> and acknowledge the <a href="{{ url_for('public.privacy') }}" target="_blank">Privacy Policy</a>, including responsibility for content I upload or display.</label>
     <button type="submit" class="ws-btn-primary">Accept</button>
   </form>
 </aside>{% endif %}
@@ -242,7 +245,7 @@
 <details class="ws-church-card">
   <summary><div>
     <p class="ws-church-title">{{ worship_church.name }}</p>
-    <p class="ws-church-meta">Shared worship library</p>
+    <p class="ws-church-meta">Shared worship library{% if worship_ccli_license %} · CCLI License #{{ worship_ccli_license }}{% endif %}</p>
   </div></summary>
   <div class="ws-church-actions">
     {% if worship_church.invite_code and worship_church.role == 'owner' %}<p class="ws-church-meta" style="width:100%;margin:.2rem 0">Invite code <strong>{{ worship_church.invite_code }}</strong></p>{% endif %}
@@ -258,6 +261,11 @@
       <button type="submit" class="secondary">Switch</button>
     </form>
     {% endif %}
+    {% if worship_church.role == 'owner' %}<form method="post" action="{{ url_for('worship_church_ccli') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input name="ccli_license" inputmode="numeric" value="{{ worship_ccli_license }}" placeholder="CCLI license #" aria-label="Church CCLI license number">
+      <button type="submit" class="secondary">Save license</button>
+    </form>{% endif %}
     <form method="post" action="{{ url_for('worship_church_join') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input name="invite_code" placeholder="Church code" aria-label="Church invite code">
@@ -324,7 +332,7 @@
           <span class="ws-validation-badge" title="Open Edit to review validation warnings">Validation warning</span>
         {% endif %}
       </span>
-      <button type="button" class="ws-add" data-id="{{ song.id }}">Add</button>
+      <button type="button" class="ws-add" data-id="{{ song.id }}" data-title="{{ song.title }}" aria-label="Add {{ song.title }}">Add</button>
       {% if worship_church.role in ['owner', 'editor', 'member'] %}
       <details class="ws-menu ws-item-menu"><summary aria-label="More actions for {{ song.title }}">•••</summary><div class="ws-menu-panel">
       {% if song.type not in ['presentation', 'welcome', 'announcement', 'photo', 'video'] %}<a href="{{ url_for('worship_song_resources', song_id=song.id) }}">Music & chord charts</a>{% endif %}
@@ -445,7 +453,7 @@
   <form class="ws-modal" id="quick-scripture-form" role="dialog" aria-modal="true" aria-labelledby="quick-scripture-title">
     <h2 id="quick-scripture-title">Quick Scripture</h2>
     <p>Enter a passage, preview it, and add it directly to this week’s set.</p>
-    <div class="ws-scripture-modes" role="tablist" aria-label="Scripture entry method"><button class="ws-scripture-mode is-active" type="button" data-scripture-mode="sourced">Find passage</button><button class="ws-scripture-mode" type="button" data-scripture-mode="manual">Paste your own text</button></div>
+    <div class="ws-scripture-modes" role="group" aria-label="Scripture entry method"><button class="ws-scripture-mode is-active" type="button" data-scripture-mode="sourced" aria-pressed="true">Find passage</button><button class="ws-scripture-mode" type="button" data-scripture-mode="manual" aria-pressed="false">Paste your own text</button></div>
     <div class="ws-scripture-panel" data-scripture-panel="sourced"><div class="ws-scripture-row">
       <div><label for="quick-scripture-reference">Bible reference</label><input id="quick-scripture-reference" placeholder="John 3:16–17" autocomplete="off" required></div>
       <div><label for="quick-scripture-version">Version</label><select id="quick-scripture-version">{% for version in worship_scripture_versions %}<option value="{{ version.id }}">{{ version.label }}</option>{% endfor %}</select></div>
@@ -516,7 +524,7 @@
   </form>
 </div>{% endif %}
 
-<script>var LIBRARY_SONGS = {{ songs | tojson }};</script>
+<script>var LIBRARY_SONGS = {{ (library_songs_js if library_songs_js is defined else songs) | tojson }};</script>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -738,10 +746,13 @@
       if (event.target === quickScriptureModal) closeQuickScripture();
     });
     quickScriptureCancel.addEventListener('click', closeQuickScripture);
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && quickScriptureModal.classList.contains('is-open')) closeQuickScripture();
+    });
     quickScriptureModeButtons.forEach(function (button) {
       button.addEventListener('click', function () {
         quickScriptureMode = button.dataset.scriptureMode;
-        quickScriptureModeButtons.forEach(function (item) { item.classList.toggle('is-active', item === button); });
+        quickScriptureModeButtons.forEach(function (item) { item.classList.toggle('is-active', item === button); item.setAttribute('aria-pressed', item === button ? 'true' : 'false'); });
         quickScripturePanels.forEach(function (panel) { panel.hidden = panel.dataset.scripturePanel !== quickScriptureMode; });
         quickScriptureReference.required = quickScriptureMode === 'sourced';
         quickScriptureAdd.disabled = true;
@@ -903,6 +914,7 @@
     var btn = row.querySelector('.ws-add');
     if (btn) {
       btn.textContent = added ? 'Added' : 'Add';
+      btn.setAttribute('aria-label', (added ? 'Added: ' : 'Add ') + (btn.dataset.title || ''));
       btn.disabled = added;
     }
     row.classList.toggle('lib-row--in-set', added);

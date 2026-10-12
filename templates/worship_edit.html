@@ -105,6 +105,17 @@
         <input id="worship-edit-key" type="text" name="key" class="wa-input" value="{{ song.key }}">
       </div>
     </div>
+    <div class="wa-row">
+      <div class="wa-field" style="flex:0 0 160px">
+        <label class="wa-label" for="worship-edit-ccli-song-number">CCLI song #</label>
+        <input id="worship-edit-ccli-song-number" type="text" name="ccli_song_number" inputmode="numeric" class="wa-input" value="{{ song.ccli_song_number or '' }}" placeholder="e.g. 7158417">
+      </div>
+      <div class="wa-field">
+        <label class="wa-label" for="worship-edit-copyright-notice">Copyright line</label>
+        <input id="worship-edit-copyright-notice" type="text" name="copyright_notice" class="wa-input" value="{{ song.copyright_notice or '' }}" placeholder="Writers · © year Publisher (from SongSelect)">
+      </div>
+    </div>
+    <p class="wa-helper">Shown small on the song's title slide with your church's CCLI license #. Type “Public domain” for hymns.</p>
     <div class="wa-field">
       <label class="wa-label" for="worship-edit-background">Background</label>
       <select id="worship-edit-background" name="background" class="wa-input">

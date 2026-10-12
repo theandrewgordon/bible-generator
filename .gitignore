@@ -28,3 +28,4 @@ analytics.sqlite
 flask_session/
 node_modules/
 .venv-broken/
+instance/
