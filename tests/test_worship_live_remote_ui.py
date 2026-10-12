@@ -65,7 +65,14 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
     def test_stage_tools_are_disabled_while_a_command_is_in_flight(self):
         self.assertIn("function setSending(value)", self.template)
         self.assertIn(".wr-stage-action,#wr-end", self.template)
-        self.assertIn("stageMessageInput.disabled=sending||ended||offlineLocked", self.template)
+        self.assertIn("var off=sending||ended||offlineLocked", self.template)
+        self.assertIn("stageMessageInput.disabled=off", self.template)
+
+    def test_reconnect_reenables_tools_locked_while_offline(self):
+        # A Wi-Fi blip used to leave Black screen / Clear words / End disabled
+        # until reload: connected() must re-apply the lock state.
+        self.assertIn("function connected(ok){offlineLocked=!ok;lockControls();", self.template)
+        self.assertIn("function setSending(value){sending=!!value;lockControls();", self.template)
 
     def test_stale_poll_cannot_overwrite_a_newer_command(self):
         self.assertIn("nextRevision>=revision", self.template)

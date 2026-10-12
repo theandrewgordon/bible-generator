@@ -201,12 +201,13 @@
       var prior=slides[current-1],upcoming=slides[current+1];previousPreview.classList.toggle('is-boundary',!prior);previousTitle.textContent=neighborTitle(prior);previousLines.textContent=neighborLines(prior,'Start of set');applySlideVisual(previousPreview,prior);nextPreview.classList.toggle('is-boundary',!upcoming);nextTitle.textContent=neighborTitle(upcoming);nextLines.textContent=neighborLines(upcoming,'End of set');applySlideVisual(nextPreview,upcoming);
       updateNavigation();updateSections();updateSmartButtons();updateStageStatus();syncEditForm();
     }
-    function connected(ok){offlineLocked=!ok;statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?(pendingCommands?'Sending…':'Connected'):'Audience not responding';offlineAlert.hidden=ok;updateNavigation();updateSections();updateSmartButtons();syncEditForm();}
+    function connected(ok){offlineLocked=!ok;lockControls();statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?(pendingCommands?'Sending…':'Connected'):'Audience not responding';offlineAlert.hidden=ok;updateNavigation();updateSections();updateSmartButtons();syncEditForm();}
     function requestWakeLock(showFailure){
       if(wakeLock)return;if(!('wakeLock'in navigator)){if(showFailure)awakeBtn.textContent='Not supported';return;}
       navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;awakeBtn.textContent='Screen stays awake';lock.addEventListener('release',function(){wakeLock=null;awakeBtn.textContent='Keep screen awake';});}).catch(function(){wakeLock=null;if(showFailure)awakeBtn.textContent='Could not enable';});
     }
-    function setSending(value){sending=!!value;document.querySelectorAll('[data-action]:not(.wr-btn),[data-smart],[data-video-action],.wr-stage-action,#wr-end').forEach(function(btn){btn.disabled=sending||ended||offlineLocked;});jump.disabled=sending||ended||offlineLocked;stageMessageInput.disabled=sending||ended||offlineLocked;updateNavigation();syncEditForm();if(!statusEl.classList.contains('is-offline'))connected(true);}
+    function lockControls(){var off=sending||ended||offlineLocked;document.querySelectorAll('[data-action]:not(.wr-btn),[data-smart],[data-video-action],.wr-stage-action,#wr-end').forEach(function(btn){btn.disabled=off;});jump.disabled=off;stageMessageInput.disabled=off;}
+    function setSending(value){sending=!!value;lockControls();updateNavigation();syncEditForm();if(!statusEl.classList.contains('is-offline'))connected(true);}
     function send(action,index,extra){
       if(ended||offlineLocked)return Promise.resolve();requestWakeLock(false);editStatus.textContent='';
       if(action==='next')draw(current+1,blank,clearWords);else if(action==='previous')draw(current-1,blank,clearWords);else if(action==='toggle_blank')draw(current,!blank,clearWords);else if(action==='toggle_clear')draw(current,blank,!clearWords);else if(action==='index')draw(index,blank,clearWords);

@@ -23,10 +23,14 @@ class WorshipDeleteTests(unittest.TestCase):
                 app.app.root_path = original_root
                 app.db = original_db
 
-            exists = fp.exists()
+            local_copy = Path(tmp) / "instance" / "worship-songs" / "delete-song.json"
+            exists = local_copy.exists()
+            seed_untouched = fp.exists()
 
         self.assertTrue(deleted)
         self.assertFalse(exists)
+        # Dev storage is a copy; tracked seed files under songs/ are never modified.
+        self.assertTrue(seed_untouched)
 
     def test_delete_prunes_song_from_saved_setlists(self):
         original_root = app.app.root_path
@@ -99,11 +103,13 @@ class WorshipDeleteTests(unittest.TestCase):
                 app.app.root_path = original_root
                 app.db = original_db
 
-            remaining_songs = list(songs_dir.glob("*.json"))
+            remaining_songs = list((Path(tmp) / "instance" / "worship-songs").glob("*.json"))
+            seeds_untouched = len(list(songs_dir.glob("*.json")))
             remaining_setlists = list(setlists_dir.glob("*.json"))
 
         self.assertEqual(deleted, {"songs": 2, "setlists": 1})
         self.assertEqual(remaining_songs, [])
+        self.assertEqual(seeds_untouched, 2)
         self.assertEqual(remaining_setlists, [])
 
 
