@@ -116,36 +116,24 @@ def tokenize_traceable(text):
     return text.split()
 
 def wrap_text_lines(text, font, font_size, max_width):
+    """Wrap by measured width; avoid ending a line on a small connector word."""
     words = tokenize_traceable(text)
     lines: list[str] = []
     current_words: list[str] = []
-
-    def flush():
-        if current_words:
-            lines.append(" ".join(current_words))
-
     for word in words:
-        tentative = current_words + [word]
-        tentative_line = " ".join(tentative)
-        width = pdfmetrics.stringWidth(tentative_line, font, font_size)
-
-        if width > max_width and current_words:
+        tentative = " ".join(current_words + [word])
+        if pdfmetrics.stringWidth(tentative, font, font_size) > max_width and current_words:
             if current_words[-1].lower() in TRACE_CONNECTORS and len(current_words) > 1:
                 connector = current_words.pop()
-                flush()
+                lines.append(" ".join(current_words))
                 current_words = [connector, word]
             else:
-                flush()
+                lines.append(" ".join(current_words))
                 current_words = [word]
         else:
-            current_words = tentative
-
-        soft_line = " ".join(current_words)
-        if len(soft_line) > 60 and len(current_words) > 1:
-            tail = current_words.pop()
-            flush()
-            current_words = [tail]
-    flush()
+            current_words.append(word)
+    if current_words:
+        lines.append(" ".join(current_words))
     return [ln.strip() for ln in lines if ln.strip()]
 
 def draw_rounded_box(c, x, y, width, height):
@@ -165,12 +153,25 @@ def draw_paragraph_box(c, title, content, x, y, width, padding=10, style=None, e
     para.drawOn(c, x + padding, y - padding - para_height - 10)
     return y - box_height - 12
 
-def draw_tracing_box(c, title, text, x, y, width, use_cursive=False, font_size=None):
-    font = 'LearningCurve' if use_cursive else 'KGPrimaryDots'
+def trace_font(use_cursive=False):
+    return 'LearningCurve' if use_cursive else 'KGPrimaryDots'
+
+
+def trace_lines(text, width, use_cursive=False, font_size=None):
+    text = capitalize_first_letter(_pdf_safe_text(text))
+    return wrap_text_lines(text, trace_font(use_cursive), font_size or layout.TRACE_FONT_SIZE, width - 40)
+
+
+def trace_box_height(line_count, font_size):
+    return line_count * (font_size + layout.TRACE_LINE_SPACING) + 2 * 10 + 20
+
+
+def draw_tracing_box(c, title, text, x, y, width, use_cursive=False, font_size=None, lines=None):
+    font = trace_font(use_cursive)
     font_size = font_size or layout.TRACE_FONT_SIZE
     padding = 10
-    text = capitalize_first_letter(_pdf_safe_text(text))
-    lines = wrap_text_lines(text, font, font_size, width - 40)
+    if lines is None:
+        lines = trace_lines(text, width, use_cursive, font_size)
     box_height = len(lines) * (font_size + layout.TRACE_LINE_SPACING) + 2 * padding + 20
     c.setFillColor(TRACE_BG)
     c.roundRect(x, y - box_height, width, box_height, radius=8, fill=1)
@@ -218,16 +219,23 @@ def _load_image(path: str):
         return None
 
 
-TRACE_MAX_WORDS = 26
-MIN_COLORING_HEIGHT = 1.75 * inch
-# Tried in order until the page fits with a usable coloring box.
+# Worksheets trace the whole verse, word for word. Space is made by stepping
+# sizes down and giving up the coloring box first; anything still too long
+# (mostly multi-verse passages) continues the tracing on a second page.
+COLORING_FULL = 1.75 * inch
+COLORING_SMALL = 1.0 * inch
 FIT_STEPS = [
-    {"copy": 12, "trace": 30},
-    {"copy": 11, "trace": 28},
-    {"copy": 11, "trace": 26},
-    {"copy": 10, "trace": 24},
-    {"copy": 10, "trace": 22},
+    # copy text pt, trace pt, minimum coloring height (0 = no coloring box)
+    (12, 30, COLORING_FULL),
+    (12, 26, COLORING_FULL),
+    (11, 22, COLORING_FULL),
+    (11, 26, COLORING_SMALL),
+    (11, 22, COLORING_SMALL),
+    (10, 20, COLORING_SMALL),
+    (10, 22, 0),
+    (10, 20, 0),
 ]
+TWO_PAGE_TRACE_SIZE = 24
 NOTICE_FONT_SIZE = 6.5
 # Public-domain text needs no notice; the reference line already marks it (KJV).
 _NO_NOTICE_VERSIONS = {"KJV", "WEB", "ASV", "YLT", "DARBY", "BBE", "DIY", ""}
@@ -241,16 +249,8 @@ def _copy_style(size: int):
 
 
 def _trace_text(data) -> str:
-    """Tracing uses at most TRACE_MAX_WORDS exact words (custom text included)."""
-    full = (data.get("fullVerse") or "").strip()
-    trace = (data.get("traceableVerse") or full).strip()
-    if len(full.split()) <= TRACE_MAX_WORDS:
-        return full
-    if len(trace.split()) <= TRACE_MAX_WORDS:
-        return trace
-    from faithsparks.services.scripture import derive_traceable
-    # Too-long excerpt: take the first sentence (or first words) of the real text.
-    return derive_traceable(full, None, max_words=TRACE_MAX_WORDS)
+    """Always the full verse, verbatim."""
+    return (data.get("fullVerse") or data.get("traceableVerse") or "").strip()
 
 
 def _notice_lines(version: str, max_width: float) -> list[str]:
@@ -264,121 +264,95 @@ def _notice_lines(version: str, max_width: float) -> list[str]:
     return lines
 
 
-def _draw_body(c, data, *, margin, usable_width, y, use_cursive, copy_size, trace_size, lines_count):
-    """Draw everything above the coloring row; return the y where coloring starts."""
-    y = draw_paragraph_box(c, "Copy this verse:", data["fullVerse"], margin, y, usable_width,
-                           style=_copy_style(copy_size))
-    y = draw_tracing_box(c, "Trace the verse:", _trace_text(data), margin, y, usable_width,
-                         use_cursive=use_cursive, font_size=trace_size)
+def _draw_writing_and_reflection(c, data, *, margin, usable_width, y, lines_count):
     y -= 6
     y = draw_handwriting_box(c, "Write the verse yourself:", margin, y, usable_width, lines_count)
     return draw_paragraph_box(c, "Think about this:", data["reflectionQuestion"], margin, y, usable_width,
                               ensure_question=True)
 
 
+def _draw_body(c, data, *, margin, usable_width, y, use_cursive, copy_size, trace_size, lines_count):
+    """Copy, trace (full verse), write, reflect. Returns the y below them."""
+    y = draw_paragraph_box(c, "Copy this verse:", data["fullVerse"], margin, y, usable_width,
+                           style=_copy_style(copy_size))
+    y = draw_tracing_box(c, "Trace the verse:", _trace_text(data), margin, y, usable_width,
+                         use_cursive=use_cursive, font_size=trace_size)
+    return _draw_writing_and_reflection(c, data, margin=margin, usable_width=usable_width, y=y,
+                                        lines_count=lines_count)
+
+
 def _fit_layout(data, *, margin, usable_width, y_start, bottom, use_cursive):
-    """Largest sizes that leave room for coloring; drop writing lines only as a last resort."""
+    """First step where the whole page fits; None means use two pages."""
     from io import BytesIO
     requested = int(data.get("handwritingLines") or 3)
     attempts = [(step, requested) for step in FIT_STEPS]
-    attempts += [(FIT_STEPS[-1], n) for n in range(requested - 1, 1, -1)]
-    best = None
-    for step, lines_count in attempts:
+    if requested > 3:  # beginner: keep 5 lines unless the verse truly needs the room
+        attempts += [(FIT_STEPS[-1], 3)]
+    for (copy_size, trace_size, coloring_min), lines_count in attempts:
         probe = canvas.Canvas(BytesIO(), pagesize=letter)
         y_end = _draw_body(probe, data, margin=margin, usable_width=usable_width, y=y_start,
-                           use_cursive=use_cursive, copy_size=step["copy"], trace_size=step["trace"],
+                           use_cursive=use_cursive, copy_size=copy_size, trace_size=trace_size,
                            lines_count=lines_count)
-        best = (step, lines_count)
-        if y_end - bottom >= MIN_COLORING_HEIGHT:
-            return best
-    return best
+        if y_end - bottom >= coloring_min:
+            return {"copy": copy_size, "trace": trace_size, "coloring": coloring_min > 0, "lines": lines_count}
+    return None
 
 
-def generate_pdf(data, pdf_path, use_cursive=False):
-    """One-page worksheet. Sizes step down to fit long passages and the
-    beginner level; licensed-translation notices sit in the footer instead of
-    a second, mostly blank page."""
-    width, height = letter
-    margin = layout.DEFAULT_MARGIN_INCH * inch
-    usable_width = width - 2 * margin
-    y = height - margin - 10
-    c = canvas.Canvas(str(pdf_path), pagesize=letter)
-
-    # Load brand assets
-    logo_reader = _load_image("static/faith_sparks_logo_192.png")
-    qr_reader = _load_image("faithsparks_qr.png")
-    logo_size = 48
-    if logo_reader:
-        c.drawImage(logo_reader, margin, y - logo_size, width=logo_size, height=logo_size, preserveAspectRatio=True, mask='auto')
-    if qr_reader:
-        c.drawImage(qr_reader, width - margin - logo_size, y - logo_size, width=logo_size, height=logo_size)
-
-    # Title
-    worksheet_title = _pdf_safe_text(data.get("title") or data.get("verse") or "Bible Copywork Worksheet")
-    c.setTitle(worksheet_title)
-    c.setAuthor("Faith Sparks Printables")
-    c.setSubject(f"Bible copywork worksheet for {data.get('verse', '')}")
-    c.setCreator("Faith Sparks Printables")
-    keywords = [worksheet_title, data.get("verse", ""), data.get("version", "").upper(), "Bible", "Copywork"]
-    c.setKeywords(", ".join(filter(None, keywords)))
-    c.setFont("Helvetica-Bold", 18)
-    c.drawCentredString(width / 2, y - 12, "Bible Copywork Worksheet")
-    c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(width / 2, y - 30, worksheet_title)
-    y -= logo_size + 16
-
-    # Reference line
-    verse_display = _pdf_safe_text(f"{data['verse']} ({data['version'].upper()})")
-    font_size = layout.VERSE_FONT_MAX if len(verse_display) < 28 else layout.VERSE_FONT_MIN
-    c.setFont("Helvetica-Bold", font_size)
-    c.drawCentredString(width / 2, y, verse_display)
-    y -= 20
-
-    notice = _notice_lines(data.get("version", ""), usable_width)
-    notice_height = len(notice) * (NOTICE_FONT_SIZE + 1.5) + (6 if notice else 0)
-    bottom = margin + notice_height
-
-    step, lines_count = _fit_layout(data, margin=margin, usable_width=usable_width, y_start=y,
-                                    bottom=bottom, use_cursive=use_cursive)
-    y = _draw_body(c, data, margin=margin, usable_width=usable_width, y=y, use_cursive=use_cursive,
-                   copy_size=step["copy"], trace_size=step["trace"], lines_count=lines_count)
-
-    # Coloring section
+def _draw_coloring(c, data, *, margin, usable_width, y, bottom):
     available_height = y - bottom
-    box_h = max(0.9 * inch, min(available_height, 2.5 * inch))
+    if available_height < COLORING_SMALL:
+        return
+    box_h = min(available_height, 2.5 * inch)
     box_w = 4.5 * inch
     gap = 0.4 * inch
     label_w = min(usable_width - box_w - gap, layout.COLORING_PROMPT_WIDTH_MAX * inch)
     if label_w < layout.COLORING_PROMPT_WIDTH_MIN * inch:
         label_w = usable_width - box_w - gap
-    draw_paragraph_box(
-        c,
-        "Coloring Prompt:",
-        data["imageIdea"],
-        margin,
-        y,
-        label_w,
-        style=COLORING_STYLE,
-        ensure_question=True,
-    )
+    draw_paragraph_box(c, "Coloring Prompt:", data["imageIdea"], margin, y, label_w,
+                       style=COLORING_STYLE, ensure_question=True)
     c.setLineWidth(1.25)
     c.roundRect(margin + label_w + gap, y - box_h, box_w, box_h, radius=8)
 
-    # Licensed-translation notice (small print, inside the border)
+
+def _draw_header(c, data, *, width, margin, y, continued=False):
+    logo_size = 48
+    if not continued:
+        logo_reader = _load_image("static/faith_sparks_logo_192.png")
+        qr_reader = _load_image("faithsparks_qr.png")
+        if logo_reader:
+            c.drawImage(logo_reader, margin, y - logo_size, width=logo_size, height=logo_size,
+                        preserveAspectRatio=True, mask='auto')
+        if qr_reader:
+            c.drawImage(qr_reader, width - margin - logo_size, y - logo_size, width=logo_size, height=logo_size)
+    worksheet_title = _pdf_safe_text(data.get("title") or data.get("verse") or "Bible Copywork Worksheet")
+    c.setFillColor(black)
+    if continued:
+        c.setFont("Helvetica-Bold", 12)
+        c.drawCentredString(width / 2, y - 12, f"{worksheet_title} (continued)")
+        return y - 30
+    c.setFont("Helvetica-Bold", 18)
+    c.drawCentredString(width / 2, y - 12, "Bible Copywork Worksheet")
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(width / 2, y - 30, worksheet_title)
+    y -= logo_size + 16
+    verse_display = _pdf_safe_text(f"{data['verse']} ({data['version'].upper()})")
+    font_size = layout.VERSE_FONT_MAX if len(verse_display) < 28 else layout.VERSE_FONT_MIN
+    c.setFont("Helvetica-Bold", font_size)
+    c.drawCentredString(width / 2, y, verse_display)
+    return y - 20
+
+
+def _draw_footer(c, data, *, width, margin, notice):
     if notice:
         c.setFont("Helvetica", NOTICE_FONT_SIZE)
         c.setFillGray(0.35)
-        ny = margin + notice_height - NOTICE_FONT_SIZE - 2
+        ny = margin + len(notice) * (NOTICE_FONT_SIZE + 1.5) + 6 - NOTICE_FONT_SIZE - 2
         for line in notice:
             c.drawString(margin, ny, line)
             ny -= NOTICE_FONT_SIZE + 1.5
-        c.setFillColor(black)
-
-    # Border + Footer
     c.setStrokeGray(0.8)
     c.setLineWidth(0.5)
-    c.rect(0.5 * inch, 0.5 * inch, width - inch, height - inch)
-
+    c.rect(0.5 * inch, 0.5 * inch, width - inch, letter[1] - inch)
     verse_code = _pdf_safe_text(
         data["verse"].upper().replace(":", "_").replace(" ", "_") + f"_{data['version'].upper()}"
     )
@@ -388,6 +362,71 @@ def generate_pdf(data, pdf_path, use_cursive=False):
     c.setFont("Helvetica", 8)
     c.setFillGray(0.4)
     c.drawCentredString(width / 2, 0.23 * inch, f"© {COPYRIGHT_YEAR} Faith Sparks Printables · For personal use only")
+    c.setFillColor(black)
+
+
+def generate_pdf(data, pdf_path, use_cursive=False):
+    """Worksheet that traces the whole verse word for word.
+
+    One page whenever it fits (nearly every single verse); long passages
+    continue the tracing on a second page instead of being cut. Licensed-
+    translation notices sit in the footer.
+    """
+    width, height = letter
+    margin = layout.DEFAULT_MARGIN_INCH * inch
+    usable_width = width - 2 * margin
+    c = canvas.Canvas(str(pdf_path), pagesize=letter)
+    worksheet_title = _pdf_safe_text(data.get("title") or data.get("verse") or "Bible Copywork Worksheet")
+    c.setTitle(worksheet_title)
+    c.setAuthor("Faith Sparks Printables")
+    c.setSubject(f"Bible copywork worksheet for {data.get('verse', '')}")
+    c.setCreator("Faith Sparks Printables")
+    keywords = [worksheet_title, data.get("verse", ""), data.get("version", "").upper(), "Bible", "Copywork"]
+    c.setKeywords(", ".join(filter(None, keywords)))
+
+    notice = _notice_lines(data.get("version", ""), usable_width)
+    notice_height = len(notice) * (NOTICE_FONT_SIZE + 1.5) + (6 if notice else 0)
+    bottom = margin + notice_height
+
+    y = _draw_header(c, data, width=width, margin=margin, y=height - margin - 10)
+    fit = _fit_layout(data, margin=margin, usable_width=usable_width, y_start=y, bottom=bottom,
+                      use_cursive=use_cursive)
+    if fit:
+        y = _draw_body(c, data, margin=margin, usable_width=usable_width, y=y, use_cursive=use_cursive,
+                       copy_size=fit["copy"], trace_size=fit["trace"], lines_count=fit["lines"])
+        if fit["coloring"]:
+            _draw_coloring(c, data, margin=margin, usable_width=usable_width, y=y, bottom=bottom)
+        _draw_footer(c, data, width=width, margin=margin, notice=notice)
+    else:
+        # Too long for one page: copy + start of tracing here, the rest on page 2.
+        size = TWO_PAGE_TRACE_SIZE
+        y = draw_paragraph_box(c, "Copy this verse:", data["fullVerse"], margin, y, usable_width,
+                               style=_copy_style(10))
+        lines = trace_lines(_trace_text(data), usable_width, use_cursive, size)
+        per_line = size + layout.TRACE_LINE_SPACING
+        room = int(max(0, (y - bottom) - trace_box_height(0, size)) // per_line)
+        first, rest = lines[:room], lines[room:]
+        if first:
+            y = draw_tracing_box(c, "Trace the verse:", "", margin, y, usable_width, use_cursive=use_cursive,
+                                 font_size=size, lines=first)
+        _draw_footer(c, data, width=width, margin=margin, notice=notice)
+        c.showPage()
+        y = _draw_header(c, data, width=width, margin=margin, y=height - margin - 10, continued=True)
+        while rest:
+            room = int(max(1, (y - margin) - trace_box_height(0, size)) // per_line)
+            chunk, rest = rest[:room], rest[room:]
+            title = "Trace the verse:" if not first else "Trace the verse (continued):"
+            y = draw_tracing_box(c, title, "", margin, y, usable_width, use_cursive=use_cursive,
+                                 font_size=size, lines=chunk)
+            first = first or chunk
+            if rest:
+                _draw_footer(c, data, width=width, margin=margin, notice=[])
+                c.showPage()
+                y = _draw_header(c, data, width=width, margin=margin, y=height - margin - 10, continued=True)
+        y = _draw_writing_and_reflection(c, data, margin=margin, usable_width=usable_width, y=y,
+                                         lines_count=int(data.get("handwritingLines") or 3))
+        _draw_coloring(c, data, margin=margin, usable_width=usable_width, y=y, bottom=margin)
+        _draw_footer(c, data, width=width, margin=margin, notice=[])
     c.showPage()
     c.save()
     print(f"✅ Final worksheet saved to: {pdf_path}")

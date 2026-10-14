@@ -29,10 +29,10 @@ I re-ran the same two-family and translation simulations against the real app; b
 | 2 Shared bundle | Fixed: each bundle is a new temp file, deleted after sending |
 | 3 AI-written Scripture | Fixed, fail closed: only translations with a real source are accepted (NIV/MSG get a friendly "choose one of …"). No source answering means "try again", not AI text. Half-verse ("a"/"b") references are cut from the real verse. Cached worksheets are reused only if their text was verified. bible-api.com gets one retry on 429. |
 | 4 Safety check ignored | Fixed: custom text and title go through the free moderation endpoint and flagged text is blocked. The unused paid check was removed. |
-| 5 Two pages | Fixed: always one page. The ESV/NLT notice is small print in the footer; KJV/WEB/custom have none. |
-| 6 Long custom text | Fixed: tracing is at most 26 exact words, and custom text is capped at 600 characters (also in the form) |
+| 5 Two pages | Fixed: one page for virtually every verse (no blank attribution page). The ESV/NLT notice is small print in the footer; KJV/WEB/custom have none. |
+| 6 Long custom text | Fixed: custom text is capped at 600 characters (also in the form). **Update (same day):** at Andrew's request, tracing is always the *whole* verse, word for word, never trimmed. Space comes from stepping trace size 30→20 pt and shrinking, then dropping, the coloring box. Measured on one page: about 64 words at growing and 54 at beginner, which covers essentially every single verse (Esther 8:9, 70 words, fits). Longer passages continue the tracing on page 2. |
 | 7 Partial bundle | Fixed: if only one worksheet succeeds, it's sent |
-| 8 Beginner coloring sliver | Fixed: copy text, trace size, then writing lines step down until coloring has at least 1.75 in |
+| 8 Beginner coloring sliver | Fixed: the coloring box is full (1.75 in+), small (1 in+) or omitted; never a sliver. Writing lines are kept ahead of coloring. |
 | 9 Small copy text | Fixed: 12 pt when it fits (down to 10 pt for long passages) |
 | 10 NLT verse numbers | Fixed in code (verse-number spans are dropped before tags are stripped). **[verify]** once with your API.Bible key. |
 | 11 Delete | Fixed: shared verse files are kept; custom and coloring files are removed locally and from cloud storage |
