@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, session
 from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
@@ -79,6 +79,23 @@ def admin_users_set_plan(uid):
     )
     _log_admin_action("set_plan", uid, {"plan": plan})
     flash("Plan updated.", "success")
+    return redirect(url_for("admin_users"))
+
+
+def admin_users_delete(uid):
+    """Delete an account on a family's request (the privacy policy promises this)."""
+    from faithsparks.services.account_deletion import AccountDeletionError, delete_user_data
+
+    email = (uid or "").strip().lower()
+    if (request.form.get("confirm_email") or "").strip().lower() != email:
+        flash("Type the account's email to confirm deletion.", "warning")
+        return redirect(url_for("admin_users"))
+    try:
+        summary = delete_user_data(email, by=session.get("user_email") or "admin")
+    except AccountDeletionError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("admin_users"))
+    flash(f"Deleted {email}: {summary.get('worksheets', 0)} worksheets, {summary.get('lesson_packs', 0)} lesson packs.", "success")
     return redirect(url_for("admin_users"))
 
 

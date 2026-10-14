@@ -179,6 +179,7 @@ site_content.plus_banner_text %}
         <li>Occasional free collection giveaways</li>
       </ul>
       <div class="plan-note">{% if trial_unlocked %}$0 today • cancel anytime{% else %}Cancel anytime{% endif %}</div>
+      <p class="plan-renewal small muted">Monthly and yearly plans renew automatically at the price shown until you cancel.{% if trial_unlocked %} Your card is charged when the free trial ends unless you cancel first.{% endif %} Cancel anytime from Manage billing on this page. See the <a href="{{ url_for('public.terms') }}">Terms</a>.</p>
 
       {% set fam = prices.family %} {% if (fam.monthly or fam.single or
       fam.annual) %} {% if is_signed_in %}
@@ -294,6 +295,7 @@ site_content.plus_banner_text %}
         <li>Occasional free collection giveaways</li>
       </ul>
       <div class="plan-note">{% if trial_unlocked %}$0 today • cancel anytime{% else %}Cancel anytime{% endif %}</div>
+      <p class="plan-renewal small muted">Monthly and yearly plans renew automatically at the price shown until you cancel.{% if trial_unlocked %} Your card is charged when the free trial ends unless you cancel first.{% endif %} Cancel anytime from Manage billing on this page. See the <a href="{{ url_for('public.terms') }}">Terms</a>.</p>
 
       {% set cls = prices.classroom %} {% if (cls.monthly or cls.single or
       cls.annual) %} {% if is_signed_in %}

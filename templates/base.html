@@ -263,7 +263,7 @@
     ></script>
 
     {% set _meta_pixel_id = env('META_PIXEL_ID') %} {% set _meta_pixel_enabled =
-    _meta_pixel_id and not request.path.startswith('/admin') %} {% if
+    _meta_pixel_id and request.endpoint in META_PIXEL_ENDPOINTS %} {% if
     _meta_pixel_enabled %}
     <!-- Meta Pixel Code -->
     <script>
@@ -283,6 +283,8 @@
         s = b.getElementsByTagName(e)[0];
         s.parentNode.insertBefore(t, s);
       })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+      // No automatic button/page scraping: only the events we send explicitly.
+      fbq("set", "autoConfig", false, "{{ _meta_pixel_id }}");
       {% if fb_user_match %}
       fbq("init", "{{ _meta_pixel_id }}", { em: "{{ fb_user_match }}" });
       {% else %}

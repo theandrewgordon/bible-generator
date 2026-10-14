@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Delete account | Faith Sparks{% endblock %}
+{% block content %}
+  <h1 class="page-title">Delete your account</h1>
+  <p>This permanently deletes your Faith Sparks account and the data saved with it:</p>
+  <ul>
+    <li>your worksheet history, custom worksheets and lesson packs</li>
+    <li>WeekFlow plans, saved weeks and templates, and game player names and progress</li>
+    <li>your church memberships (a church you own passes to another member, or is deleted if you're the only one)</li>
+    <li>your Plus subscription, which is cancelled right away with no further charges</li>
+  </ul>
+  <p class="muted">Files you already downloaded stay on your devices. Payment records stay with Stripe as the law requires. This can't be undone.</p>
+  <form method="post" action="{{ url_for('account_delete') }}" class="account-delete-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="confirm_email">Type <strong>{{ email }}</strong> to confirm</label>
+    <input id="confirm_email" name="confirm_email" type="email" autocomplete="off" required>
+    <p><button type="submit" class="button danger">Delete my account</button>
+    <a class="button ghost" href="{{ url_for('prints') }}">Cancel</a></p>
+  </form>
+{% endblock %}

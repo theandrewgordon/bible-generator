@@ -28,6 +28,7 @@ from verse_helpers import (
     parse_and_clean_json,
     save_json_to_file,
     moderate_text_block,
+    VERIFIED_SOURCES,
     normalize_reference_title,
     normalize_verse_data,
     preserve_letter_suffix,
@@ -141,6 +142,27 @@ def _legacy_shared_custom(doc) -> bool:
     file on disk may now hold another family's text. Never serve those."""
     meta = doc.to_dict() or {}
     return bool(meta.get("custom")) and not _is_custom_filename(meta.get("filename") or "")
+
+
+def _verse_text_verified(meta: dict, filename: str) -> bool:
+    """True when a verse worksheet's PDF was built from verified Scripture.
+
+    Before 2026-10-14 a worksheet could carry AI-written words (ESV/NLT with no
+    key, or KJV/WEB during a bible-api outage). Its verse JSON sidecar records
+    the source; anything unverified is rebuilt before it is served again.
+    """
+    if meta.get("custom") or meta.get("type") == "coloring":
+        return True
+    slug = normalize_slug(meta.get("verse") or "")
+    version = meta.get("version") or ""
+    json_path = f"output/{slug}_{version}.json"
+    if not os.path.exists(json_path):
+        download_from_storage(f"worksheets/{os.path.basename(json_path)}", json_path)
+    try:
+        with open(json_path, "r", encoding="utf-8") as sidecar:
+            return (json.load(sidecar) or {}).get("verseSource") in VERIFIED_SOURCES
+    except Exception:
+        return False
 
 
 def _chunked(seq, size):
@@ -513,7 +535,7 @@ def generate():
                     try:
                         with open(json_path, "r", encoding="utf-8") as cache_file:
                             data = json.load(cache_file)
-                        if (data or {}).get("verseSource") != "authoritative":
+                        if (data or {}).get("verseSource") not in VERIFIED_SOURCES:
                             raise ValueError("cached worksheet predates verified Scripture text")
                         context["data"] = data
                         context["skip"] = True
@@ -627,6 +649,8 @@ def generate():
                         make_thumbnail(ctx["verse"], ctx["version"], thumb_base)
 
                 upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
+                if not ctx["is_custom"] and os.path.exists(ctx["json_path"]):
+                    upload_to_storage(ctx["json_path"], f"worksheets/{os.path.basename(ctx['json_path'])}")
                 ctx["pdf_path"] = pdf_path
                 _record_existing(pdf_path)
 
@@ -843,6 +867,8 @@ def download_file(filename):
     if _legacy_shared_custom(doc):
         flash("This older custom worksheet can't be downloaded safely. Please make it again from Generate.", "info")
         return redirect(url_for("generate"))
+    if file_path.exists() and filename.lower().endswith(".pdf") and not _verse_text_verified(doc.to_dict() or {}, filename):
+        return redirect(url_for("regenerate", filename=filename))
     if file_path.exists():
         try:
             base = os.path.splitext(filename)[0]
@@ -908,7 +934,7 @@ def regenerate(filename):
         return redirect(url_for("prints"))
     # Rebuilding is free, but it can call the verse API: cap it like generation.
     rate = check_rate_limit("worksheet_regenerate:user", session.get("user_email") or get_client_ip(),
-                            limit=12, window_seconds=60 * 60)
+                            limit=30, window_seconds=60 * 60)
     if not rate.allowed:
         flash("You've rebuilt several worksheets recently. Please wait a bit and try again.", "warning")
         return redirect(url_for("prints"))
@@ -960,7 +986,7 @@ def regenerate(filename):
                         data = json.load(cached)
                 except Exception:
                     data = None
-            if data and data.get("verseSource") != "authoritative":
+            if data and data.get("verseSource") not in VERIFIED_SOURCES:
                 data = None  # older AI-written text: fetch verified text instead
             if not data:
                 content = request_verse_data(verse, version.lower())
@@ -968,6 +994,8 @@ def regenerate(filename):
                     flash(f"We couldn't load {verse} ({version.upper()}) from a Bible source right now. Please try again later.", "error")
                     return redirect(url_for("prints"))
                 data = parse_and_clean_json(content)
+                save_json_to_file(data, json_path)
+                upload_to_storage(json_path, f"worksheets/{os.path.basename(json_path)}")
             data.update({
                 "version": version.upper(),
                 "cursive": use_cursive,
@@ -976,6 +1004,8 @@ def regenerate(filename):
             })
         generate_pdf(data, pdf_path, use_cursive=use_cursive)
         if os.path.exists(pdf_path):
+            if not is_custom:
+                upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
             try:
                 if db:
                     base = os.path.splitext(os.path.basename(pdf_path))[0]

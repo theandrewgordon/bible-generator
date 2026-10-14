@@ -476,6 +476,14 @@ def create_checkout_session():
         "cancel_url": url_for("plus_pricing", _external=True),
         "metadata": session_metadata,
         "subscription_data": subscription_data,
+        # Auto-renewal disclosure shown next to the Subscribe button.
+        "custom_text": {"submit": {"message": (
+            ("Your card is charged when the free trial ends unless you cancel first. " if trial_days else "")
+            + "Your plan renews automatically at this price until you cancel, which you can do anytime "
+            "on the Plus page under Manage billing. "
+            "By subscribing you agree to the Terms: "
+            + url_for("public.terms", _external=True)
+        )}},
     }
     if promo_id:
         create_kwargs["discounts"] = [{"promotion_code": promo_id}]

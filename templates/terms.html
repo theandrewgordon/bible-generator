@@ -3,17 +3,25 @@
 {% block content %}
 <article class="legal-page" style="max-width:820px;margin:2rem auto;line-height:1.65">
   <h1>Terms of Use</h1>
-  <p class="muted">Effective September 3, 2026</p>
-  <p>Faith Sparks provides tools for creating educational and worship materials. You remain responsible for the content you upload, paste, store, display, share, or export through the service.</p>
+  <p class="muted">Effective October 15, 2026</p>
+  <p>Faith Sparks provides tools for creating educational and worship materials. By using it you agree to these terms. You remain responsible for the content you upload, paste, store, display, share, or export through the service.</p>
+  <h2>Accounts</h2>
+  <p>Accounts are for adults 18 or older: parents, teachers, and church leaders. Children may play the family games on a device an adult has set up, but may not create accounts. Keep your Google account secure; you are responsible for activity on your Faith Sparks account. You can delete your account at any time from the account menu.</p>
+  <h2>Subscriptions and payments</h2>
+  <p>Monthly and yearly Plus plans renew automatically at the price shown at checkout until you cancel. If your plan starts with a free trial, your card is charged when the trial ends unless you cancel before then. You can cancel anytime from Manage billing on the Plus page; cancelling stops future renewals, and your plan stays active until the end of the period already paid. Payments are not refunded for partial periods, except where the law requires it or we decide to in a particular case. One-time purchases give lasting access to the purchased item. We may change prices for future periods with advance notice.</p>
   <h2>Your content and permissions</h2>
   <p>Only use lyrics, Scripture translations, photographs, videos, presentations, fonts, and other material when you have the rights or permission needed for your intended use. Faith Sparks does not grant a license to third-party content and does not verify that your church or organization has obtained one.</p>
   <h2>Acceptable use</h2>
   <p>Do not use the service to infringe copyright or privacy rights, distribute unlawful material, compromise another account, or interfere with the service. Shared church workspaces are visible to their members; only invite people you trust.</p>
   <h2>Service and exports</h2>
-  <p>Automated parsing, cleanup, validation, scheduling, and slide layout can make mistakes. Review wording, section order, attribution, schedules, and exports before relying on or distributing them. WeekFlow is a planning aid, not professional educational, medical, or childcare advice. The service is provided as available, without a promise that every feature or third-party source will remain available.</p>
+  <p>Automated parsing, cleanup, validation, scheduling, and slide layout can make mistakes. Review wording, section order, attribution, schedules, and exports before relying on or distributing them. Public-domain translations (such as KJV and WEB) come from a published source. When no licensed source is connected, ESV and NLT text is quoted by an AI and checked against public-domain translations before it is used; the check catches wrong or missing verses but cannot guarantee every word, so compare it with a printed Bible before distributing it widely. WeekFlow is a planning aid, not professional educational, medical, or childcare advice. The service is provided as available, without a promise that every feature or third-party source will remain available.</p>
   <h2>Removal and account action</h2>
   <p>We may remove content or restrict use when reasonably necessary to address legal, security, or abuse concerns. Copyright notices and takedown requests are handled under our <a href="{{ url_for('public.copyright_policy') }}">Copyright &amp; Takedown Policy</a>.</p>
+  <h2>Disclaimers and limits of liability</h2>
+  <p>The service is provided "as is" without warranties of any kind, to the extent the law allows. Faith Sparks is not liable for indirect, incidental, or consequential damages, or for lost data or profits. Our total liability for any claim about the service is limited to the amount you paid us in the 12 months before the claim, or $50 if you paid nothing.</p>
+  <h2>Changes and governing law</h2>
+  <p>We may update these terms; the effective date above shows when they last changed, and we will notify subscribers of material changes by email or on the site before they take effect. These terms are governed by the laws of {% if legal_state %}the State of {{ legal_state }}{% else %}the U.S. state where Faith Sparks is operated{% endif %}, United States, without regard to conflict-of-law rules.</p>
   <h2>Contact</h2>
-  <p>Questions may be sent through the Support link in the footer. These terms are general product terms and are not legal advice.</p>
+  <p>Questions may be sent to <a href="mailto:{{ support_email }}">{{ support_email }}</a>. These terms are general product terms and are not legal advice.</p>
 </article>
 {% endblock %}

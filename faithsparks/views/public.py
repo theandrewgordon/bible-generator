@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import os
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -180,7 +181,7 @@ def copyright_policy():
 
 @bp.route('/terms')
 def terms():
-    return render_template('terms.html')
+    return render_template('terms.html', legal_state=os.getenv('LEGAL_STATE', '').strip())
 
 
 @bp.route('/privacy')
