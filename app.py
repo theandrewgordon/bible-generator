@@ -668,6 +668,12 @@ def load_user_info():
                 if resp.ok:
                     raw_google_info = resp.json()
                     google_info = raw_google_info if isinstance(raw_google_info, dict) else {}
+                    if google_info.get("verified_email") is False:
+                        # Access (and admin) is granted by email: never trust an unverified one.
+                        google_signin_token_storage.delete(google_bp)
+                        session.clear()
+                        flash("Please verify your Google account's email address, then sign in again.", "warning")
+                        return redirect(url_for("public.index") if "public.index" in app.view_functions else "/")
                     session["user_info"] = {
                         key: google_info.get(key)
                         for key in ("email", "name", "picture")
@@ -861,6 +867,20 @@ def track_visit():
 
 
 @app.after_request
+def add_security_headers(resp):
+    """Every page: no framing by other sites (clickjacking), no MIME sniffing,
+    and HTTPS-only in production."""
+    resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    csp = resp.headers.get("Content-Security-Policy", "")
+    if "frame-ancestors" not in csp:
+        resp.headers["Content-Security-Policy"] = (csp + "; " if csp else "") + "frame-ancestors 'self'"
+    if APP_ENV in {"prod", "production"}:
+        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return resp
+
+
+@app.after_request
 def add_correlation_headers(resp):
     req_id = getattr(g, "req_id", None)
     if req_id:
@@ -938,7 +958,8 @@ def admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not google.authorized:
-            return redirect(url_for("google.login"))
+            next_url = request.full_path.rstrip("?") if request.query_string else request.path
+            return redirect(url_for("google.login", next=next_url))
         email = session.get('user_email')
         if not is_admin_email(email):
             return "Forbidden", 403
@@ -3727,8 +3748,11 @@ try:
 except Exception:
     app.logger.exception("Games Lab routes could not be registered")
 
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
+    if request.method != "POST":
+        # A GET link (or an <img> on another site) must not sign people out.
+        return redirect(url_for("public.index") if "public.index" in app.view_functions else url_for("browse"))
     google_signin_token_storage.delete(google_bp)
     session.clear()
     if "public.index" in app.view_functions:
@@ -3779,6 +3803,7 @@ def worship():
         worship_scripture_versions=_worship_scripture_version_options(),
         legal_acceptance_current=_has_current_legal_acceptance(),
         worship_ccli_license=_worship_ccli_license(),
+        worship_church_members=_worship_church_members(),
         worship_simple_mode=_worship_simple_mode(),
     )
 
@@ -3989,6 +4014,65 @@ def worship_church_ccli():
     return redirect(url_for("worship"))
 
 
+def _worship_church_members() -> list[dict]:
+    """Members of the current church library (owner view only)."""
+    scope = _current_worship_scope()
+    if not db or scope == _DEFAULT_WORSHIP_SCOPE or not _worship_can_edit(owner_only=True):
+        return []
+    try:
+        docs = db.collection(_WORSHIP_CHURCH_COLLECTION).document(scope).collection("members").stream()
+        members = [
+            {"email": doc.id, "role": str((doc.to_dict() or {}).get("role") or "member")}
+            for doc in docs
+        ]
+    except Exception as exc:
+        app.logger.warning("worship members lookup failed: %s", exc)
+        return []
+    return sorted(members, key=lambda m: (m["role"] != "owner", m["email"]))
+
+
+@app.route("/worship/church/invite/rotate", methods=["POST"])
+@login_required
+@worship_owner_required
+def worship_church_invite_rotate():
+    scope = _current_worship_scope()
+    if not db or scope == _DEFAULT_WORSHIP_SCOPE:
+        flash("Only church libraries have invite codes.", "warning")
+        return redirect(url_for("worship"))
+    try:
+        ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(scope)
+        name = (ref.get().to_dict() or {}).get("name") or scope
+        code = _make_worship_invite_code(name)
+        ref.set({"invite_code": code, "updated_at": firestore.SERVER_TIMESTAMP}, merge=True)
+        flash(f"New invite code: {code}. The old code no longer works; people already in stay in.", "success")
+    except Exception as exc:
+        app.logger.warning("worship invite rotate failed: %s", exc)
+        flash("We couldn't change the invite code. Please try again.", "error")
+    return redirect(url_for("worship"))
+
+
+@app.route("/worship/church/member/remove", methods=["POST"])
+@login_required
+@worship_owner_required
+def worship_church_member_remove():
+    scope = _current_worship_scope()
+    email = str(request.form.get("email") or "").strip().lower()
+    if not db or scope == _DEFAULT_WORSHIP_SCOPE or not email:
+        return redirect(url_for("worship"))
+    if email == str(session.get("user_email") or "").strip().lower():
+        flash("You can't remove yourself. Delete the church instead if it's no longer needed.", "warning")
+        return redirect(url_for("worship"))
+    try:
+        ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(scope).collection("members").document(email)
+        if ref.get().exists:
+            ref.delete()
+            flash(f"Removed {email} from this church library.", "success")
+    except Exception as exc:
+        app.logger.warning("worship member remove failed: %s", exc)
+        flash("We couldn't remove that member. Please try again.", "error")
+    return redirect(url_for("worship"))
+
+
 @app.route("/worship/church/join", methods=["POST"])
 @login_required
 def worship_church_join():
@@ -4020,10 +4104,13 @@ def worship_church_join():
             flash("That church code was not found.", "error")
             return redirect(url_for("worship"))
         church = church_doc.to_dict() or {}
-        church_doc.reference.collection("members").document(session["user_email"]).set(
-            {"email": session["user_email"], "role": "member", "joined_at": firestore.SERVER_TIMESTAMP},
-            merge=True,
-        )
+        member_ref = church_doc.reference.collection("members").document(session["user_email"])
+        if not member_ref.get().exists:
+            # Only new people join as members; an owner re-entering the code stays owner.
+            member_ref.set(
+                {"email": session["user_email"], "role": "member", "joined_at": firestore.SERVER_TIMESTAMP},
+                merge=True,
+            )
         _set_current_worship_church(church_doc.id)
         _invalidate_worship_cache()
         flash(f"Joined {church.get('name') or church_doc.id}.", "success")

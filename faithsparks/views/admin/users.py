@@ -54,6 +54,21 @@ def admin_users():
     return render_template("admin_users.html", users=users, q=q, plan_label=plan_label)
 
 
+def _log_admin_action(action: str, target: str, details: dict) -> None:
+    """Who changed whose account, and when (gifts already log the same way)."""
+    from flask import session as _session
+    try:
+        db.collection("admin_log").add({
+            "action": action,
+            "target": target,
+            "details": details,
+            "by": _session.get("user_email"),
+            "at": firestore.SERVER_TIMESTAMP,
+        })
+    except Exception:
+        pass
+
+
 def admin_users_set_plan(uid):
     if not db:
         return "Firestore not configured", 500
@@ -62,6 +77,7 @@ def admin_users_set_plan(uid):
         {"plan": plan, "isPro": plan != "free", "updatedAt": firestore.SERVER_TIMESTAMP},
         merge=True,
     )
+    _log_admin_action("set_plan", uid, {"plan": plan})
     flash("Plan updated.", "success")
     return redirect(url_for("admin_users"))
 
@@ -81,5 +97,6 @@ def admin_users_reset_usage(uid):
         lifetime = int((existing.get("lifetime") or 0))
         new_usage = {"lifetime": lifetime, "months": {mk: 0}}
     ref.set({"usage": new_usage, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
+    _log_admin_action("reset_usage", uid, {"plan": plan})
     flash(f"Usage reset for {uid} ({plan_label(plan)})", "success")
     return redirect(url_for("admin_users"))

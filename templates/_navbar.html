@@ -52,7 +52,10 @@
             {% if is_admin %}
               <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
             {% endif %}
-            <a class="nav-sublink logout" href="/logout">Logout</a>
+            <form method="post" action="/logout" class="nav-logout-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="nav-sublink logout">Logout</button>
+            </form>
           </div>
         </details>
       {% else %}
@@ -107,7 +110,10 @@
             {% if is_admin %}
               <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
             {% endif %}
-            <a class="nav-sublink logout" href="/logout">Logout</a>
+            <form method="post" action="/logout" class="nav-logout-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="nav-sublink logout">Logout</button>
+            </form>
           </div>
         </details>
       {% else %}

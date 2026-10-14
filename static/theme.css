@@ -1317,3 +1317,32 @@ article > h1 {
   font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
   letter-spacing: -0.01em;
 }
+
+/* Account menu sits on a light panel: use body text colors, not header ones.
+   (Default version and Theme were white-on-light.) */
+.auth-theme .profile-panel .version-toggle,
+.auth-theme .profile-panel .theme-toggle { color: var(--text); }
+.auth-theme .profile-panel .version-toggle select {
+  color: var(--text);
+  background: var(--background);
+  border-color: rgba(15, 23, 42, 0.18);
+}
+.auth-theme .profile-panel .theme-toggle {
+  width: 100%;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border-color: rgba(15, 23, 42, 0.14);
+}
+.auth-theme .profile-panel .theme-toggle:hover { background: rgba(0, 0, 0, 0.04); }
+/* Logout is a POST form now; keep it looking like the other menu items. */
+.nav-logout-form { margin: 0; }
+.nav-logout-form .nav-sublink {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
