@@ -40,6 +40,16 @@ I re-ran the same two-family and translation simulations against the real app; b
 | P3 | Removed `test_chatgpt.py` and `generate_all_worksheets.py` |
 | Also | `send_file` now uses absolute paths, so a single worksheet downloads correctly even when the working directory isn't the app folder (found by the new tests) |
 
+**Update (same day, Andrew's call): ESV and NLT are back without API keys, with a check.**
+- **How it works:** gpt-4o quotes the verse, and the quote is cross-checked against WEB and KJV for the same reference. It must share at least 45% of their meaningful words and be 60–170% of WEB's length.
+- **Calibration:** on known verses, correct ESV/NLT scored 0.50–1.00 and wrong verses 0.00–0.20.
+- **On failure:** the worksheet asks for another version; nothing is printed.
+- **Caching:** checked quotes are cached in `scripture_checked`, so each verse costs one call ever.
+- **Limit:** this catches wrong, missing, extra or invented verses, but not a single swapped word.
+- **Priority:** a licensed key, when added, takes over automatically.
+- **Scope:** used by Copywork, lesson packs, games and Bible Bee. Live Worship stays licensed-only.
+- **Off switch:** `SCRIPTURE_AI_CHECKED=0`.
+
 **Note:** worksheets whose text came from the AI before today stay in storage, but are rebuilt from a real source the next time anyone generates that verse.
 
 ---

@@ -169,8 +169,10 @@ _lesson_pack_build_locks_guard = threading.Lock()
 
 
 def available_lesson_pack_versions() -> set[str]:
-    """Return translations with an authoritative provider configured."""
-    return available_translation_ids()
+    """Translations lesson packs can print (licensed, public domain or checked AI)."""
+    from faithsparks.services.scripture import copywork_translation_ids
+
+    return copywork_translation_ids()
 
 
 def selectable_lesson_pack_versions() -> set[str]:

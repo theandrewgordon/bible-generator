@@ -80,7 +80,7 @@ from faithsparks.services.worship_presentations import (
     suggest_sermon_highlights,
 )
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
-from faithsparks.services.scripture import TRANSLATIONS as SCRIPTURE_TRANSLATIONS, translation_options as scripture_translation_options, available_translation_ids
+from faithsparks.services.scripture import TRANSLATIONS as SCRIPTURE_TRANSLATIONS, translation_options as scripture_translation_options, available_translation_ids, copywork_translation_ids
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
 from faithsparks.services.users import get_user_doc
 from faithsparks.services.themes import THEMES, get_theme_vars, list_all_themes, get_theme_selection
@@ -10027,8 +10027,8 @@ def inject_helpers():
             'static_v': STATIC_VERSION,
             'product_navigation': PRIMARY_NAVIGATION,
             'faith_sparks_mission': MISSION,
-            'scripture_versions': scripture_translation_options(),
-            'scripture_available_versions': available_translation_ids(),
+            'scripture_versions': scripture_translation_options(include_checked=True),
+            'scripture_available_versions': copywork_translation_ids(),
 
         }
     except Exception:
@@ -10049,8 +10049,8 @@ def inject_helpers():
             'static_v': STATIC_VERSION,
             'product_navigation': PRIMARY_NAVIGATION,
             'faith_sparks_mission': MISSION,
-            'scripture_versions': scripture_translation_options(),
-            'scripture_available_versions': available_translation_ids(),
+            'scripture_versions': scripture_translation_options(include_checked=True),
+            'scripture_available_versions': copywork_translation_ids(),
         }
 
 # --- Plus / Checkout ---

@@ -311,7 +311,10 @@ def test_only_configured_authoritative_versions_are_offered(monkeypatch):
     monkeypatch.delenv("ESV_API_KEY", raising=False)
     monkeypatch.delenv("API_BIBLE_KEY", raising=False)
     monkeypatch.delenv("API_BIBLE_IDS", raising=False)
+    monkeypatch.setenv("SCRIPTURE_AI_CHECKED", "0")
     assert lesson_pack.available_lesson_pack_versions() == {"kjv", "web"}
+    monkeypatch.delenv("SCRIPTURE_AI_CHECKED")
+    assert lesson_pack.available_lesson_pack_versions() == {"kjv", "web", "esv", "nlt"}
 
     monkeypatch.setenv("ESV_API_KEY", "configured")
     monkeypatch.setenv("API_BIBLE_KEY", "configured")

@@ -90,9 +90,23 @@ def available_translation_ids() -> set[str]:
     return available
 
 
-def translation_options(*, include_unavailable: bool = True) -> list[dict]:
-    """Return picker-ready metadata for the canonical translation catalog."""
+def copywork_translation_ids() -> set[str]:
+    """Translations printable on worksheets, games and lesson packs.
+
+    Adds ESV/NLT through the AI-quote-plus-cross-check path when no licensed
+    key is set (see scripture_checked). Worship display stays authoritative-only.
+    """
+    from faithsparks.services import scripture_checked
+
     available = available_translation_ids()
+    if scripture_checked.enabled():
+        available |= set(scripture_checked.CHECKED_VERSIONS)
+    return available
+
+
+def translation_options(*, include_unavailable: bool = True, include_checked: bool = False) -> list[dict]:
+    """Return picker-ready metadata for the canonical translation catalog."""
+    available = copywork_translation_ids() if include_checked else available_translation_ids()
     options = []
     for version, metadata in TRANSLATIONS.items():
         if not include_unavailable and version not in available:
