@@ -101,9 +101,10 @@
             <fieldset class="custom-game-tools">
               <legend>Want a fresh custom theme?</legend>
               <label>
-                <span>Optional custom topic</span>
-                <input name="one_off_theme" maxlength="120" placeholder="Easter morning, friendship, patience">
+                <span>Optional custom topic{% if not is_plus %} <small>(Plus)</small>{% endif %}</span>
+                <input name="one_off_theme" maxlength="120" placeholder="Easter morning, friendship, patience"{% if not is_plus %} disabled{% endif %}>
               </label>
+              {% if not is_plus %}<p class="muted"><a href="{{ url_for('plus_pricing') }}">FaithSparks Plus</a> builds a fresh game from any topic.</p>{% endif %}
             </fieldset>
             <fieldset class="deck-library">
               <legend>Pick a ready-made theme</legend>

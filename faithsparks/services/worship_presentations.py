@@ -267,10 +267,14 @@ def suggest_sermon_highlights(notes: str, api_key: str = "", model: str = "gpt-4
     fallback = deterministic_highlights(notes)
     if not notes or not api_key or api_key.startswith("test-") or os.getenv("WORSHIP_NOTES_AI_ENABLED", "1") == "0":
         return fallback
+    from faithsparks.services.ai_budget import ai_budget_ok
+
+    if not ai_budget_ok("sermon_highlights", 1):
+        return fallback
     try:
         from openai import OpenAI
 
-        client = OpenAI(api_key=api_key)
+        client = OpenAI(api_key=api_key, max_retries=1)
         response = client.chat.completions.create(
             model=model,
             temperature=0.1,

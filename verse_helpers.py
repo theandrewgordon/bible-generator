@@ -9,6 +9,7 @@ from openai import OpenAI
 from firebase_admin import firestore as fb_firestore
 
 from faithsparks.services.firestore import db
+from faithsparks.services.ai_budget import ai_budget_ok
 
 from faithsparks.util.request_utils import (
     extract_json_candidate,
@@ -34,6 +35,7 @@ def get_openai_client() -> OpenAI:
             api_key=os.getenv("OPENAI_API_KEY"),
             organization=os.getenv("OPENAI_ORG_ID"),
             timeout=CLIENT_TIMEOUT,
+            max_retries=1,
         )
     return _client
 
@@ -193,14 +195,20 @@ def _store_cached_verse_data(verse_ref: str, version: str, data: dict) -> None:
 WORKSHEET_MODEL = os.getenv("OPENAI_WORKSHEET_MODEL", "gpt-4o-mini")
 
 
+WORKSHEET_MAX_TOKENS = 1200
+
+
 def call_openai(prompt):
     """Call OpenAI API with a given prompt."""
+    if not ai_budget_ok("worksheet_text", 1):
+        return None
     try:
         try:
             response = client.chat.completions.create(
                 model=WORKSHEET_MODEL,
                 messages=prompt,
                 temperature=0.1,
+                max_tokens=WORKSHEET_MAX_TOKENS,
                 response_format={"type": "json_object"},
             )
         except Exception:
@@ -208,6 +216,7 @@ def call_openai(prompt):
                 model=WORKSHEET_MODEL,
                 messages=prompt,
                 temperature=0.1,
+                max_tokens=WORKSHEET_MAX_TOKENS,
             )
         return response.choices[0].message.content
     except Exception as e:

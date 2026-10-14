@@ -732,6 +732,10 @@ def create_coloring_sheet(
 
     if cache_key:
         logger.info("Illustrate cache miss key=%s -> generating fresh assets", cache_key)
+    from faithsparks.services.ai_budget import BUSY_MESSAGE, UNITS, ai_budget_ok
+
+    if not ai_budget_ok("coloring_image", UNITS["image"] + UNITS["mini"]):
+        raise IllustrationError(BUSY_MESSAGE, 503)
     source_blob = _compose_source_blocks(verses, custom_text)
     summary_start = time.perf_counter()
     summary = _summarize_context(source_blob, age_bracket)

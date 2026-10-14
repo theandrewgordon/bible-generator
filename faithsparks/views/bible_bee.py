@@ -27,6 +27,7 @@ from faithsparks.services.controller_capability import (
     set_controller_invite,
 )
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.users import get_user_doc, has_active_plus
 from faithsparks.services.bible_bee_content import (
     DECKS,
     DIFFICULTIES,
@@ -926,6 +927,7 @@ def _render_home(setup_error: str | None = None, status: int = 200):
         difficulties=DIFFICULTIES,
         active_rooms=_active_rooms_for_host(email),
         is_host_signed_in=bool(email),
+        is_plus=bool(email and has_active_plus(get_user_doc(email))),
         setup_error=setup_error,
         noindex=True,
     )
@@ -949,6 +951,12 @@ def create_room():
     deck = DECKS.get(deck_id) or DECKS["family-favorites"]
     custom_game = request.form.get("game_source") == "custom"
     one_off_theme = " ".join((request.form.get("one_off_theme") or "").split())[:120]
+    if custom_game:
+        if not has_active_plus(get_user_doc(email)):
+            return _render_home("Custom topics are part of FaithSparks Plus. Pick a ready-made theme, or upgrade to Plus.", status=403)
+        ip_rate = check_rate_limit("bible-bee-custom:ip", get_client_ip(), limit=20, window_seconds=60 * 60)
+        if not ip_rate.allowed:
+            return "Too many custom games from this network. Please try again later.", 429
     control_mode = (request.form.get("control_mode") or "hosted").strip()
     if control_mode not in CONTROL_MODES:
         control_mode = "hosted"

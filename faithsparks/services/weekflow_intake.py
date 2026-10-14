@@ -14,6 +14,8 @@ import re
 from functools import lru_cache
 from io import BytesIO
 
+from faithsparks.services.ai_budget import BUSY_MESSAGE, UNITS, ai_budget_ok
+
 
 class WeekFlowIntakeError(ValueError):
     """A friendly intake error safe to show in the WeekFlow interface."""
@@ -302,6 +304,8 @@ def interpret_weekflow_intake(
     text = " ".join((text or "").split())[:6000]
     if not text and not image_data_url:
         raise WeekFlowIntakeError("Type, record, or photograph something to add.")
+    if not ai_budget_ok("weekflow_intake", UNITS["mini"] * (3 if image_data_url else 1)):
+        raise WeekFlowIntakeError(BUSY_MESSAGE)
     content: list[dict[str, object]] = [{"type": "input_text", "text": text or "Extract the scheduling details from this image."}]
     if image_data_url:
         content.append({"type": "input_image", "image_url": image_data_url, "detail": "high"})
@@ -336,6 +340,8 @@ def transcribe_weekflow_audio(data: bytes, filename: str, content_type: str) -> 
     }
     if content_type not in supported:
         raise WeekFlowIntakeError("Use a WebM, M4A, MP3, WAV, MP4, or OGG voice note.")
+    if not ai_budget_ok("weekflow_transcribe", UNITS["transcribe"]):
+        raise WeekFlowIntakeError(BUSY_MESSAGE)
     audio = BytesIO(data)
     audio.name = filename or "weekflow-voice.webm"
     try:

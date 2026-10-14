@@ -2,10 +2,29 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 import os
 import re
 from copy import deepcopy
+
+from faithsparks.services.ai_budget import BUSY_MESSAGE, UNITS, ai_budget_ok
+from faithsparks.services.firestore import db
+
+log = logging.getLogger(__name__)
+MAX_OUTPUT_TOKENS = 2500
+PLAN_CACHE = "bible_bee_plan_cache"
+
+
+def _openai_model() -> str:
+    return os.getenv("BIBLE_BEE_OPENAI_MODEL", "gpt-4o-mini")
+
+
+def _units(provider: str) -> int:
+    if provider == "openai" and "mini" in _openai_model():
+        return UNITS["mini"]
+    return UNITS["gpt4o"]
 
 
 PROVIDERS = {
@@ -60,14 +79,18 @@ def _ask_openai(system: str, prompt: str) -> dict:
         timeout=_timeout_seconds(),
         max_retries=0,
     )
+    model = _openai_model()
+    kwargs = {}
+    if model.startswith(("gpt-5", "o")):  # reasoning models only
+        kwargs = {"reasoning": {"effort": "low"}, "text": {"verbosity": "low"}}
     response = client.responses.create(
-        model=os.getenv("BIBLE_BEE_OPENAI_MODEL", "gpt-5.5"),
-        reasoning={"effort": "low"},
-        text={"verbosity": "low"},
+        model=model,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
         input=[
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
+        **kwargs,
     )
     return _json_from_text(response.output_text)
 
@@ -82,7 +105,7 @@ def _ask_claude(system: str, prompt: str) -> dict:
     )
     response = client.messages.create(
         model=os.getenv("BIBLE_BEE_CLAUDE_MODEL", "claude-sonnet-4-6"),
-        max_tokens=2500,
+        max_tokens=MAX_OUTPUT_TOKENS,
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -96,6 +119,8 @@ def _ask(provider: str, system: str, prompt: str) -> dict:
         raise BibleBeeAIError("The custom game service is not configured correctly.")
     if not os.getenv(config["key"]):
         raise BibleBeeAIError("The custom game service is not configured on this server yet.")
+    if not ai_budget_ok("bible_bee", _units(provider)):
+        raise BibleBeeAIError(BUSY_MESSAGE)
     try:
         return _ask_openai(system, prompt) if provider == "openai" else _ask_claude(system, prompt)
     except BibleBeeAIError:
@@ -111,7 +136,9 @@ def _ask_available(system: str, prompt: str, preferred: str | None = None) -> tu
     for provider in providers:
         try:
             return _ask(provider, system, prompt), provider
-        except BibleBeeAIError:
+        except BibleBeeAIError as exc:
+            if str(exc) == BUSY_MESSAGE:
+                raise
             continue
     raise BibleBeeAIError("The custom game could not be prepared right now. Please try again.")
 
@@ -120,6 +147,10 @@ def create_one_off_plan(theme: str, age_group: str, round_count: int) -> dict:
     theme = " ".join((theme or "").split())[:120]
     if len(theme) < 3:
         raise BibleBeeAIError("Describe a theme for the one-off game.")
+    cache_key = _plan_cache_key(theme, age_group, round_count)
+    cached = _cached_plan(cache_key)
+    if cached:
+        return cached
     system = (
         "You plan warm, doctrinally responsible Christian family Scripture-memory games. "
         "Return JSON only. Never quote, paraphrase, or invent Bible text. Select established "
@@ -150,12 +181,42 @@ def create_one_off_plan(theme: str, age_group: str, round_count: int) -> dict:
     required_references = max(4, min(round_count, 10))
     if len(references) < required_references:
         raise BibleBeeAIError("The AI did not return enough usable Bible references. Please try again.")
-    return {
+    result = {
         "title": " ".join(str(plan.get("title") or theme).split())[:60],
         "description": " ".join(str(plan.get("description") or "").split())[:180],
         "references": references[:required_references],
-        "_provider": provider,
     }
+    _store_plan(cache_key, result)
+    return {**result, "_provider": provider}
+
+
+def _plan_cache_key(theme: str, age_group: str, round_count: int) -> str:
+    raw = f"{theme.casefold()}|{age_group}|{round_count}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
+def _cached_plan(key: str) -> dict | None:
+    if not db:
+        return None
+    try:
+        snap = db.collection(PLAN_CACHE).document(key).get()
+        data = snap.to_dict() if snap.exists else None
+    except Exception:
+        log.warning("bible_bee plan cache read failed", exc_info=True)
+        return None
+    if data and isinstance(data.get("references"), list) and data["references"]:
+        return {"title": data.get("title", ""), "description": data.get("description", ""),
+                "references": list(data["references"]), "_provider": None}
+    return None
+
+
+def _store_plan(key: str, plan: dict) -> None:
+    if not db:
+        return
+    try:
+        db.collection(PLAN_CACHE).document(key).set(plan)
+    except Exception:
+        log.warning("bible_bee plan cache write failed", exc_info=True)
 
 
 def validate_questions(
