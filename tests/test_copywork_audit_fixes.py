@@ -143,22 +143,33 @@ class WorksheetPageTests(CopyworkTestCase):
         build_pdf.generate_pdf(base, path)
         return PdfReader(path)
 
-    def test_long_passage_at_beginner_level_is_one_page_with_footer_notice(self):
-        pdf = self.build()
-        self.assertEqual(len(pdf.pages), 1)
+    def test_verse_is_traced_word_for_word_never_trimmed(self):
+        phil = ("This letter is from Paul and Timothy, slaves of Christ Jesus. I am writing to all of God's holy "
+                "people in Philippi who belong to Christ Jesus, including the church elders and deacons.")
+        self.assertEqual(build_pdf._trace_text({"fullVerse": phil, "traceableVerse": "This letter is from Paul"}), phil)
+        for lines in (3, 5):  # growing and beginner
+            pdf = self.build(version="nlt", fullVerse=phil, traceableVerse=phil, handwritingLines=lines)
+            self.assertEqual(len(pdf.pages), 1, lines)
+
+    def test_long_single_verse_still_fits_one_page(self):
+        esther = ("Then were the king's scribes called at that time in the third month, that is, the month Sivan, on "
+                  "the three and twentieth day thereof; and it was written according to all that Mordecai commanded "
+                  "unto the Jews, and to the lieutenants, and the deputies and rulers of the provinces which are from "
+                  "India unto Ethiopia, an hundred twenty and seven provinces.")
+        self.assertEqual(len(self.build(version="kjv", fullVerse=esther, handwritingLines=3).pages), 1)
+
+    def test_passage_too_long_for_a_page_continues_instead_of_cutting(self):
+        passage = self.PS23 + " You prepare a table before me in the presence of my enemies; you anoint my head with oil."
+        pdf = self.build(fullVerse=passage, traceableVerse=passage, handwritingLines=5)
+        self.assertEqual(len(pdf.pages), 2)
+        self.assertIn("continued", pdf.pages[1].extract_text())
         self.assertIn("Crossway", pdf.pages[0].extract_text())
 
     def test_public_domain_and_custom_need_no_notice(self):
         for version in ("kjv", "DIY"):
-            pdf = self.build(version=version)
+            pdf = self.build(version=version, fullVerse="Jesus wept.", traceableVerse="Jesus wept.", handwritingLines=3)
             self.assertEqual(len(pdf.pages), 1)
             self.assertNotIn("Scripture quotations", pdf.pages[0].extract_text())
-
-    def test_long_custom_text_traces_an_excerpt(self):
-        long_text = " ".join(["Be kind and tenderhearted, forgiving one another."] * 12)
-        self.assertLessEqual(len(build_pdf._trace_text({"fullVerse": long_text, "traceableVerse": long_text}).split()),
-                             build_pdf.TRACE_MAX_WORDS)
-        self.assertEqual(len(self.build(version="DIY", fullVerse=long_text, traceableVerse=long_text).pages), 1)
 
 
 class GenerateFlowTests(CopyworkTestCase):
