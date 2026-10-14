@@ -49,6 +49,11 @@ class Doc:
     def collection(self, name):
         return Coll(self.store, f"{self.path}/{self.id}/{name}")
 
+    def collections(self):
+        prefix = f"{self.path}/{self.id}/"
+        names = {key[len(prefix):] for key in self.store if key.startswith(prefix) and "/" not in key[len(prefix):]}
+        return [Coll(self.store, prefix + name) for name in sorted(names)]
+
 
 class Query:
     def __init__(self, coll, filters, limit=None):
@@ -77,6 +82,9 @@ class Coll:
 
     def where(self, filter=None):
         return Query(self, [filter])
+
+    def stream(self):
+        return Query(self, []).stream()
 
     def add(self, data):
         self.document(f"auto{len(self.store.get(self.path, {}))}").set(data)

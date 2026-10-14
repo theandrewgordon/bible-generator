@@ -117,6 +117,14 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="button accent" type="submit">♻️ Reset Usage</button>
             </form>
+            <details class="small">
+              <summary>Delete account…</summary>
+              <form method="post" action="{{ url_for('admin_users_delete', uid=u.get('id') or u.get('uid') or email) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input name="confirm_email" type="email" placeholder="Type {{ email }}" aria-label="Type the email to confirm" required>
+                <button class="button danger" type="submit">Delete all data</button>
+              </form>
+            </details>
           </td>
         </tr>
       {% endfor %}

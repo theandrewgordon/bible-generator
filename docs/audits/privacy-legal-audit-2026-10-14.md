@@ -22,6 +22,22 @@ The real gaps:
 - **There is no way to delete an account,** though the policy promises it.
 - **The privacy policy doesn't match a few things the app now does,** such as Google Calendar access, AI processing of family names, and the Medical tab.
 
+## Status — fixes applied 2026-10-14
+
+`tests/test_privacy_fixes.py` adds 6 tests. The full suite passes.
+
+| # | Status |
+|---|---|
+| 1 Meta Pixel | Fixed: it loads only on an allowlist (`META_PIXEL_ENDPOINTS`): home, about, start here, prepare, browse, Plus, purchase success, verse of the week and worship getting-started. It never loads on games, Labs, WeekFlow, worship tools or account pages. `autoConfig` is off, so there's no automatic button or page scraping. |
+| 2 Account deletion | Fixed: `services/account_deletion.py`. Stripe goes first: the Stripe customer is deleted, which cancels the subscription; if that fails, **nothing** is deleted. Then it removes worksheets (private files too), lesson packs, Same Brain links, referrals, and `users/<email>` with every subcollection (WeekFlow, purchases, game roster). Churches: a church with another owner is just left; otherwise the next member becomes owner, or a church with no other members is deleted. Gifts and admin-log rows keep a hash instead of the email, and the deletion itself is logged. Includes **Delete account** in the account menu (type your email to confirm) and **Delete account…** on the admin Users page. |
+| 3 Old ESV/NLT PDFs | Fixed, and broader: any verse worksheet whose saved verse data isn't verified (licensed, public-domain or AI-checked) is **rebuilt** before download instead of served. That covers old KJV/WEB files from bible-api outages too. Rebuilds save the verified data to storage, so it happens once per file. The rebuild limit is now 30/hr. |
+| 4 Google Calendar | Policy fixed: a Google user data section with the Limited Use statement. **Your part:** OAuth verification at WeekFlow launch. |
+| 5 Privacy policy | Rewritten: named providers (Google, Render, Stripe, OpenAI/Anthropic, Twilio/SendGrid, Meta), what goes to the AI, children and nicknames, the pixel only on marketing pages, the Medical tab, retention, and self-serve deletion. The Medical tab now shows "short labels, no diagnoses". |
+| 6 Subscriptions | Fixed: a renewal line under each Plus plan, and a renewal and trial notice with a Terms link on Stripe Checkout (`custom_text`). Used instead of `consent_collection`, which fails unless a Terms URL is set in the Stripe dashboard. |
+| 7 Terms | Rewritten: 18+ accounts, subscriptions and refunds, disclaimers and a liability cap, changes, governing law from **`LEGAL_STATE`** (set it in Render), and a note on how ESV/NLT text is checked. |
+| 8 TTL | **Your part** (checklist below). The new privacy policy says rooms are deleted within a day, which is only true once the TTL policies exist. |
+| P3 | Unchanged: DMCA agent (your part), logs, EU, CCPA, Shared Library |
+
 ---
 
 ## P1

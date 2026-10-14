@@ -459,6 +459,15 @@ def _mix_global(a, b, amount=0.18):
 
 app.jinja_env.globals["mix"] = _mix_global
 
+# The Meta Pixel loads only on these marketing and checkout pages: never where
+# children play (games, Labs), and never on WeekFlow, worship or account pages.
+META_PIXEL_ENDPOINTS = frozenset({
+    "public.index", "public.about", "public.start_here", "public.prepare",
+    "browse", "browse_detail", "plus_pricing", "plus_success", "buy_success",
+    "family_game_night_success", "verse_of_the_week", "worship_getting_started",
+})
+app.jinja_env.globals["META_PIXEL_ENDPOINTS"] = META_PIXEL_ENDPOINTS
+
 # Recommended cookie settings (don't break localhost/dev)
 app.config["SESSION_COOKIE_SECURE"] = (APP_ENV in {"prod", "production"})
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -3759,6 +3768,71 @@ def logout():
     if "public.index" in app.view_functions:
         return redirect(url_for("public.index"))
     return redirect(url_for("browse"))
+
+
+def _delete_user_worship_memberships(email: str) -> int:
+    """Account deletion step: leave every church; hand over or delete owned ones."""
+    if not db:
+        return 0
+    user_doc = db.collection("users").document(email).get()
+    church_ids = list(dict.fromkeys((user_doc.to_dict() or {}).get("worshipChurchIds") or [])) if user_doc.exists else []
+    try:
+        for member_doc in db.collection_group("members").where(filter=firestore.FieldFilter("email", "==", email)).stream():
+            parent = member_doc.reference.parent.parent
+            if parent and parent.id not in church_ids:
+                church_ids.append(parent.id)
+    except Exception:
+        pass  # worshipChurchIds is the primary list
+    handled = 0
+    for church_id in church_ids:
+        scope = _slugify_worship_token(church_id)
+        church_ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(scope)
+        me = church_ref.collection("members").document(email)
+        snap = me.get()
+        if not snap.exists:
+            continue
+        handled += 1
+        if (snap.to_dict() or {}).get("role") == "owner" and scope != _DEFAULT_WORSHIP_SCOPE:
+            others = [d for d in church_ref.collection("members").stream() if d.id != email]
+            if not any((d.to_dict() or {}).get("role") == "owner" for d in others):
+                if others:
+                    heir = sorted(others, key=lambda d: d.id)[0]
+                    heir.reference.set({"role": "owner"}, merge=True)
+                else:
+                    _delete_worship_church_workspace(scope)
+                    continue
+        me.delete()
+    return handled
+
+
+from faithsparks.services.account_deletion import (  # noqa: E402
+    AccountDeletionError,
+    delete_user_data,
+    register_step as register_account_deletion_step,
+)
+
+register_account_deletion_step("worship_churches", _delete_user_worship_memberships)
+
+
+@app.route("/account/delete", methods=["GET", "POST"])
+@login_required
+def account_delete():
+    email = str(session.get("user_email") or "").strip().lower()
+    if request.method == "POST":
+        if (request.form.get("confirm_email") or "").strip().lower() != email:
+            flash("Type your email address exactly to confirm.", "warning")
+            return redirect(url_for("account_delete"))
+        try:
+            delete_user_data(email, by=email)
+        except AccountDeletionError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("account_delete"))
+        google_signin_token_storage.delete(google_bp)
+        session.clear()
+        flash("Your account and its data have been deleted.", "success")
+        return redirect(url_for("public.index") if "public.index" in app.view_functions else url_for("browse"))
+    return render_template("account_delete.html", email=email, noindex=True)
+
 
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -10509,4 +10583,11 @@ def api_usage():
 @admin_required
 def admin_users_reset_usage(uid):
     from faithsparks.views.admin.users import admin_users_reset_usage as _impl
+    return _impl(uid)
+
+
+@app.route("/admin/users/<uid>/delete", methods=["POST"])
+@admin_required
+def admin_users_delete(uid):
+    from faithsparks.views.admin.users import admin_users_delete as _impl
     return _impl(uid)
