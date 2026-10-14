@@ -565,8 +565,12 @@ def same_brain_tts():
             response.headers["X-TTS-Cache"] = "HIT"
             return response
 
+    from faithsparks.services.ai_budget import ai_budget_ok
+
+    if not ai_budget_ok("same_brain_tts", 1):
+        return jsonify({"error": "tts_unavailable"}), 503
     try:
-        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], max_retries=1)
         speech = client.audio.speech.create(
             model=model,
             voice=voice,

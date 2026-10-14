@@ -20,7 +20,7 @@ class WorshipParseProviderTests(unittest.TestCase):
                 )
 
         class FakeAnthropic:
-            def __init__(self, api_key):
+            def __init__(self, api_key, **kwargs):
                 self.messages = FakeMessages()
 
         fake_module = types.SimpleNamespace(Anthropic=FakeAnthropic)

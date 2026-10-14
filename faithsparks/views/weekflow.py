@@ -126,6 +126,19 @@ def _has_beta_access(email: str | None) -> bool:
     return not allowlist or bool(email and email in allowlist)
 
 
+def _has_ai_intake_access(email: str | None) -> bool:
+    """Paid AI intake fails closed in production: beta list or admins only."""
+    if not email:
+        return False
+    allowlist = _beta_allowlist()
+    if email in allowlist:
+        return True
+    admins = {item.strip().casefold() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()}
+    if email.casefold() in admins:
+        return True
+    return not allowlist and os.getenv("APP_ENV", "dev").lower() not in {"prod", "production"}
+
+
 def _weekflow_limits(email: str | None) -> dict[str, int | str | bool]:
     plus = bool(email and has_active_plus(get_user_doc(email)))
     return {
@@ -1494,12 +1507,17 @@ def interpret_intake():
         return _sign_in_required()
     if not _has_beta_access(email):
         return _beta_access_required()
+    if not _has_ai_intake_access(email):
+        return jsonify({"error": "AI intake isn't open yet. You can still add items by hand."}), 403
     limit = check_rate_limit(
         "weekflow-ai-intake",
         email,
         limit=20,
         window_seconds=60 * 60,
     )
+    ip_limit = check_rate_limit("weekflow-ai-intake:ip", get_client_ip(), limit=40, window_seconds=60 * 60)
+    if not ip_limit.allowed:
+        limit = ip_limit
     if not limit.allowed:
         response = jsonify({"error": "AI intake limit reached. Try again later."})
         response.status_code = 429

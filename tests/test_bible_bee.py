@@ -1777,6 +1777,8 @@ def test_fill_blank_falls_back_to_complete_logical_choice_set(monkeypatch):
 def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch):
     from faithsparks.views import bible_bee
 
+    monkeypatch.setattr(bible_bee, "has_active_plus", lambda user: True)
+
     monkeypatch.setattr(
         bible_bee,
         "create_one_off_plan",
@@ -1826,7 +1828,10 @@ def test_ai_one_off_game_uses_authoritative_text_and_records_review(monkeypatch)
     )
 
 
-def test_custom_game_requires_a_theme():
+def test_custom_game_requires_a_theme(monkeypatch):
+    from faithsparks.views import bible_bee
+
+    monkeypatch.setattr(bible_bee, "has_active_plus", lambda user: True)
     host = app.test_client()
     _prime(host, "one-off-error@example.com")
     response = _post(
@@ -1845,6 +1850,8 @@ def test_custom_game_requires_a_theme():
 
 def test_custom_game_still_opens_if_optional_review_is_unavailable(monkeypatch):
     from faithsparks.views import bible_bee
+
+    monkeypatch.setattr(bible_bee, "has_active_plus", lambda user: True)
 
     monkeypatch.setattr(
         bible_bee,

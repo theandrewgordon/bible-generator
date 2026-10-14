@@ -47,6 +47,7 @@ except Exception:
     markdown2 = None
 
 # Extracted services/utilities
+from faithsparks.services.ai_budget import UNITS, ai_budget_ok
 from faithsparks.services.firestore import (
     db,
     firebase_init_diagnostic,
@@ -8750,11 +8751,14 @@ def worship_add():
                             backgrounds=list(_load_bg_config().keys()))
 
 
+WORSHIP_PARSE_MAX_CHARS = 15_000  # what the AI sees; a real song is well under this
+
+
 def _parse_worship_lyrics_claude(prompt: str, api_key: str) -> dict:
     """Parse lyrics with Claude. Returns a parsed dict or raises."""
     import anthropic
     model = os.environ.get("WORSHIP_PARSE_MODEL", "claude-sonnet-4-6")
-    client = anthropic.Anthropic(api_key=api_key)
+    client = anthropic.Anthropic(api_key=api_key, max_retries=1)
     msg = client.messages.create(
         model=model,
         max_tokens=4096,
@@ -8775,7 +8779,7 @@ def _parse_worship_lyrics_claude(prompt: str, api_key: str) -> dict:
 def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
     """Parse lyrics with OpenAI gpt-4o, with a gpt-4o-mini repair pass. Returns a parsed dict or raises."""
     from openai import OpenAI
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, max_retries=1)
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
@@ -8793,6 +8797,8 @@ def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
     try:
         return json.loads(raw_json)
     except json.JSONDecodeError:
+        if not ai_budget_ok("worship_import", UNITS["mini"]):
+            raise
         repair_prompt = (
             "Repair this malformed response into valid JSON only.\n\n"
             "Return the same worship song schema with id, title, artist, version, "
@@ -8805,6 +8811,7 @@ def _parse_worship_lyrics_openai(prompt: str, api_key: str) -> dict:
             messages=[{"role": "user", "content": repair_prompt}],
             temperature=0,
             response_format={"type": "json_object"},
+            max_tokens=4000,
         )
         return json.loads(_clean_ai_json_response(repaired.choices[0].message.content))
 
@@ -8838,8 +8845,8 @@ def worship_add_parse():
         ), 400
 
     user_key = str(session.get("user_email") or get_client_ip())
-    user_rate = check_rate_limit("worship_import:user", user_key, limit=30, window_seconds=3600)
-    ip_rate = check_rate_limit("worship_import:ip", get_client_ip(), limit=60, window_seconds=3600)
+    user_rate = check_rate_limit("worship_import:user", user_key, limit=10, window_seconds=3600)
+    ip_rate = check_rate_limit("worship_import:ip", get_client_ip(), limit=30, window_seconds=3600)
     if not user_rate.allowed or not ip_rate.allowed:
         retry_after = max(user_rate.retry_after, ip_rate.retry_after)
         flash("Too many song imports were requested. Please wait a little and try again.", "warning")
@@ -8902,6 +8909,9 @@ def worship_add_parse():
     key = key or cleaned_paste.get("key", "")
     app.logger.info("worship_add_parse: cleaned lyrics (%d chars, %d lines)",
                     len(parse_lyrics), parse_lyrics.count("\n"))
+    if len(parse_lyrics) > WORSHIP_PARSE_MAX_CHARS:
+        flash("Those lyrics are longer than one song. Please paste a single song.", "warning")
+        return redirect(url_for("worship_add"))
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
@@ -8987,14 +8997,14 @@ OTHER RULES:
 
     # Unlabelled sources still use Claude first, then OpenAI, then the local
     # heuristic parser.
-    if parsed is None and anthropic_key:
+    if parsed is None and anthropic_key and ai_budget_ok("worship_import", UNITS["gpt4o"]):
         try:
             parsed = _parse_worship_lyrics_claude(prompt, anthropic_key)
         except Exception as e:
             app.logger.warning("worship_add_parse: Claude parse failed (%s), trying next provider: %s",
                                type(e).__name__, e, exc_info=True)
 
-    if parsed is None and openai_key:
+    if parsed is None and openai_key and ai_budget_ok("worship_import", UNITS["gpt4o"]):
         try:
             parsed = _parse_worship_lyrics_openai(prompt, openai_key)
         except Exception as e:

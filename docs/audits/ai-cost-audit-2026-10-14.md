@@ -13,6 +13,19 @@ The risks are concentrated:
 - **Two free features are expensive per call:** worship song import and lesson-pack images.
 - **Nothing caps total spend.** Every limit is per account, and a Google account is free to make. A scripted abuser with 20 accounts gets 20× every limit, and nothing in the app notices.
 
+## Status — fixes applied 2026-10-14
+
+`tests/test_ai_cost_fixes.py` adds 7 tests. The 5 that touch changed code fail on the old code; the other 2 test the new budget module. The full suite passes.
+
+| # | Status |
+|---|---|
+| 1 Bible Bee | Fixed: default model `gpt-4o-mini` (the `BIBLE_BEE_OPENAI_MODEL` env still overrides; reasoning options are sent only to reasoning models). `max_output_tokens` 2,500. Custom topics are **Plus-only**, with the box marked (Plus) and a link for free users; ready-made decks stay free. Custom games also have a 20/hr per-IP limit. Plans are cached by theme + age + rounds in `bible_bee_plan_cache`, so a repeat theme costs only the question review. |
+| 2 Spend ceiling | Fixed in the app: `services/ai_budget.py`. Every paid call reserves units first: mini 1, transcription 3, gpt-4o or Sonnet 10, image 40. The daily total is kept in Firestore `ai_budget/<UTC date>`, with a per-feature breakdown. Past `AI_DAILY_BUDGET` (default **3,000 units**, roughly $3–12 a day) AI calls are refused with "AI features are resting for today". Cached worksheets, decks and the local song parser keep working. `AI_DISABLED=1` is the kill switch. Hitting the budget logs one error a day to the Render logs; the app has no email sender, so no alert email. **Your part:** the dashboard budgets. |
+| 3 Song import | Fixed: the text sent to the AI is capped at **15,000** chars ("longer than one song"); a raw page paste can still be 60k because it's cleaned locally first. Limits are now 10/hr per user and 30/hr per IP. One client retry; the repair call has a 4,000-token cap and is budgeted. **Correction:** validation text never goes to the AI (it's checked locally), so it stays at 60k. **Model kept at gpt-4o / Sonnet on purpose.** The prompt's dedup and section rules are subtle, a worse parse costs an editor's time, and real volume is a few songs a week. The caps, limits and budget bound the cost. |
+| 4 Lesson-pack images | **Your call:** still free, but now budgeted (40 units each), so they can't run away |
+| 5 WeekFlow | Fixed, narrower than proposed: only **AI intake** fails closed in production. It's open to the beta list and admins; when the list is empty, admins only. The rest of WeekFlow is unchanged, so nobody loses their planner. Added a 40/hr per-IP limit, and intake and transcription are budgeted. |
+| 6 Shared client | Fixed: `max_tokens` 1,200 on `call_openai` and `max_retries=1` on the shared client. Sermon highlights, Same Brain TTS and song import also use one retry and are budgeted. |
+
 ## Inventory
 
 | Feature | Model | Who | Limit | Input cap | Output cap | Cache | Rough worst case per account per day |
@@ -21,7 +34,7 @@ The risks are concentrated:
 | Match games, theme labels, crossword clues | gpt-4o-mini | signed in | 12/hr user, 30/hr IP | short | none | partial | cents |
 | Custom text and illustration moderation | omni-moderation | signed in | follows the feature | 600 chars | n/a | n/a | free |
 | **Bible Bee custom game** | **gpt-5.5** (Claude Sonnet fallback) | **any signed-in user, no Plus** | 8/hr user, **no IP limit** | 120-char theme plus deck | **none on OpenAI** (2,500 on Claude) | **none** | **384 frontier calls; the largest unknown** |
-| **Worship song import** | **gpt-4o** (or Claude Sonnet), plus a repair call | church editor (**anyone can create a church**) | 30/hr user, 60/hr IP | **60,000 chars × 2** (lyrics plus validation) | 4,000 | none | ~720 calls × ~$0.05–0.10 ≈ **$35–70** |
+| **Worship song import** | **gpt-4o** (or Claude Sonnet), plus a repair call | church editor (**anyone can create a church**) | 30/hr user, 60/hr IP | **60,000 chars** of lyrics | 4,000 | none | ~720 calls × ~$0.05–0.10 ≈ **$35–70** |
 | **Lesson-pack coloring image** | gpt-image-1, plus gpt-4.1-mini prompt | signed in, **free** | 6/hr user, 18/hr IP, 20 s cooldown | verse | 1 image | per verse+age | ~144 images ≈ **$6–25** |
 | Sermon highlights | gpt-4o-mini | church editor | follows the worship editor | `MAX_SERMON_NOTES_CHARS` | 700 | none | cents |
 | WeekFlow intake (text, photo, voice) | gpt-4o-mini, gpt-4o-mini-transcribe | signed in; beta list **if set** | 20/hr user, no IP limit | 6,000 chars, 8 MB photo, 12 MB audio | 2,500 | none | ~$1–3 (mostly audio) |
@@ -68,7 +81,7 @@ Every limit is per account or per IP. Nothing counts AI calls across the whole a
 ## P2
 
 3. **Worship song import is the priciest call per click [verified in code].**
-   - gpt-4o with up to 60,000 characters of lyrics **plus** 60,000 of validation text (~30k tokens in), up to 4,000 out, sometimes followed by a repair call.
+   - gpt-4o with up to 60,000 characters of lyrics (~15k tokens in), up to 4,000 out, sometimes followed by a repair call.
    - Anyone can create a church and become its editor, so the route is open to any signed-in user.
    - A real song page is under 10,000 characters.
 
