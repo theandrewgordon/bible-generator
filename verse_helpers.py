@@ -258,7 +258,30 @@ def _apply_authoritative_text(normalized: dict, verse_ref: str, version: str) ->
         normalized["fullVerse"] = authoritative
         normalized["traceableVerse"] = derive_traceable(authoritative, normalized.get("traceableVerse"))
         normalized["verseSource"] = "authoritative"
+        return normalized
+    # No licensed key: ESV/NLT may use an AI quote cross-checked against WEB/KJV.
+    try:
+        from faithsparks.services.scripture_checked import fetch_checked_text
+
+        checked = fetch_checked_text(base_ref, version)
+        if checked and part:
+            checked = verse_part(checked, part, normalized.get("fullVerse"))
+    except Exception:
+        checked = None
+    if checked:
+        normalized["fullVerse"] = checked
+        normalized["traceableVerse"] = derive_traceable(checked, normalized.get("traceableVerse"))
+        normalized["verseSource"] = "ai_checked"
     return normalized
+
+
+VERIFIED_SOURCES = {"authoritative", "ai_checked"}
+
+
+def _checked_path_enabled() -> bool:
+    from faithsparks.services.scripture_checked import enabled
+
+    return enabled()
 
 
 # === Request Verse Data ===
@@ -271,13 +294,16 @@ def request_verse_data(verse_ref, version="esv"):
     cached = _load_cached_verse_data(verse_ref, version)
     if cached:
         normalized = normalize_verse_data(cached, verse_ref, version)
-        # Lazily upgrade older cache entries that predate authoritative sourcing.
+        # Lazily upgrade older entries (and checked ones once a licensed key exists).
         if normalized.get("verseSource") != "authoritative":
+            before = normalized.get("verseSource")
             normalized = _apply_authoritative_text(normalized, verse_ref, version)
-            if normalized.get("verseSource") == "authoritative":
+            if normalized.get("verseSource") in VERIFIED_SOURCES and normalized.get("verseSource") != before:
                 _store_cached_verse_data(verse_ref, version, normalized)
-        # Fail closed: never print AI-written words as Scripture.
-        if normalized.get("verseSource") != "authoritative":
+        # Fail closed: never print unchecked AI-written words as Scripture.
+        if normalized.get("verseSource") not in VERIFIED_SOURCES:
+            return None
+        if normalized.get("verseSource") == "ai_checked" and not _checked_path_enabled():
             return None
         return json.dumps(normalized, ensure_ascii=False)
 
@@ -294,7 +320,7 @@ def request_verse_data(verse_ref, version="esv"):
             # Keep the AI extras (title, question, coloring idea) so a retry
             # doesn't pay again; the cached entry is upgraded once a source answers.
             _store_cached_verse_data(verse_ref, version, normalized)
-            if normalized.get("verseSource") != "authoritative":
+            if normalized.get("verseSource") not in VERIFIED_SOURCES:
                 return None  # fail closed: no verified Scripture text
             return json.dumps(normalized, ensure_ascii=False)
 

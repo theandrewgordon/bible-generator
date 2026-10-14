@@ -46,7 +46,8 @@ from faithsparks.services.usage import (
 )
 from faithsparks.services.collections import get_collection_meta
 from faithsparks.services.rate_limit import check_rate_limit
-from faithsparks.services.scripture import available_translation_ids
+# Worksheets accept ESV/NLT through the checked-AI path when no key is set.
+from faithsparks.services.scripture import copywork_translation_ids as available_translation_ids
 from faithsparks.util.slug import normalize_slug
 from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.util.proverb import get_proverb_of_day
