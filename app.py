@@ -102,39 +102,38 @@ from faithsparks.services.weekflow_calendar import (
 from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.views.worksheets import MAX_WORKSHEETS_PER_REQUEST
 
-# Map passwords to pack metadata
-PACKS = {
-    # ESV – Print
-    "sparks-esv-print": {
-        "id": "esv_print",
-        "name": "ESV Print Handwriting (30 Worksheets)",
-        "filename": "30_Pack_ESV.pdf",
-    },
-    # ESV – Cursive
-    "sparks-esv-cursive": {
-        "id": "esv_cursive",
-        "name": "ESV Cursive Handwriting (30 Worksheets)",
-        "filename": "30_Pack_ESV_Cursive.pdf",
-    },
-    # KJV – Print
-    "sparks-kjv-print": {
-        "id": "kjv_print",
-        "name": "KJV Print Handwriting (30 Worksheets)",
-        "filename": "30_Pack_KJV.pdf",
-    },
-    # KJV – Cursive
-    "sparks-kjv-cursive": {
-        "id": "kjv_cursive",
-        "name": "KJV Cursive Handwriting (30 Worksheets)",
-        "filename": "30_Pack_KJV_Cursive.pdf",
-    },
-    # Mega bundle (all 4)
-    "sparks-mega-bundle": {
-        "id": "mega_bundle",
-        "name": "Mega Bundle – All 4 Packs (120 Worksheets)",
-        "filename": "30_Pack_MegaPack.zip",
-    },
+# Pre-made worksheet packs sold elsewhere and unlocked with a product password.
+# The files live in private_bundles/ (never under static/, which is public) and
+# are served only by download_file_pack after an unlock or a recorded purchase.
+# Passwords: PACK_PASSWORDS="esv_print=pass1,mega_bundle=pass2,..." overrides
+# the original password for that pack (the originals are in public history).
+PACK_CATALOG = {
+    "esv_print": {"name": "ESV Print Handwriting (30 Worksheets)", "filename": "30_Pack_ESV.pdf",
+                  "default_password": "sparks-esv-print"},
+    "esv_cursive": {"name": "ESV Cursive Handwriting (30 Worksheets)", "filename": "30_Pack_ESV_Cursive.pdf",
+                    "default_password": "sparks-esv-cursive"},
+    "kjv_print": {"name": "KJV Print Handwriting (30 Worksheets)", "filename": "30_Pack_KJV.pdf",
+                  "default_password": "sparks-kjv-print"},
+    "kjv_cursive": {"name": "KJV Cursive Handwriting (30 Worksheets)", "filename": "30_Pack_KJV_Cursive.pdf",
+                    "default_password": "sparks-kjv-cursive"},
+    "mega_bundle": {"name": "Mega Bundle – All 4 Packs (120 Worksheets)", "filename": "30_Pack_MegaPack.zip",
+                    "default_password": "sparks-mega-bundle"},
 }
+PACK_BUNDLES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "private_bundles")
+
+
+def _pack_passwords() -> dict[str, str]:
+    """Current password -> pack id (env overrides replace the original password)."""
+    overrides = {}
+    for item in os.getenv("PACK_PASSWORDS", "").split(","):
+        pack_id, _, password = item.partition("=")
+        if pack_id.strip() in PACK_CATALOG and password.strip():
+            overrides[pack_id.strip()] = password.strip().lower()
+    return {
+        overrides.get(pack_id, meta["default_password"]): pack_id
+        for pack_id, meta in PACK_CATALOG.items()
+    }
+
 
 _CONFIG_CACHE: dict[str, dict] = {}
 _CONFIG_TTL_SECS = 60
@@ -291,6 +290,9 @@ STATIC_VERSION = _compute_static_version()
 _USER_FLAGS_TTL = 120.0  # seconds
 
 # --- App Setup ---
+from faithsparks.services.error_reporting import init_error_reporting  # noqa: E402
+
+init_error_reporting(APP_ENV)
 app = Flask(__name__)
 
 # Fail fast in production if secret or required cloud storage config is missing
@@ -994,16 +996,19 @@ def get_pack_by_password(raw_password: str):
     """Normalize and resolve a pack from a user-entered password."""
     if not raw_password:
         return None
-    key = raw_password.strip().lower()
-    return PACKS.get(key)
+    entered = raw_password.strip().lower()
+    for password, pack_id in _pack_passwords().items():
+        if hmac.compare_digest(entered.encode(), password.encode()):
+            return get_pack_by_id(pack_id)
+    return None
 
 
 def get_pack_by_id(pack_id: str):
     """Return pack metadata by its id."""
-    for data in PACKS.values():
-        if data.get("id") == pack_id:
-            return data
-    return None
+    meta = PACK_CATALOG.get(pack_id or "")
+    if not meta:
+        return None
+    return {"id": pack_id, "name": meta["name"], "filename": meta["filename"]}
 
 
 def _user_has_pack(user_email: str | None, pack_id: str) -> bool:
@@ -1077,7 +1082,7 @@ def download_file_pack(pack_id):
         flash("We couldn’t find that product.")
         return redirect(url_for("downloads"))
 
-    bundles_dir = os.path.join(app.root_path, "static", "bundles")
+    bundles_dir = PACK_BUNDLES_DIR
     filename = pack["filename"]
     file_path = os.path.join(bundles_dir, filename)
 

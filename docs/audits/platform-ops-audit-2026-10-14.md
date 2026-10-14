@@ -25,6 +25,23 @@ There are three real problems:
 - **The paid packs can be downloaded for free.**
 - No backups **[verify]**.
 
+## Status — fixes applied 2026-10-14
+
+`tests/test_platform_fixes.py` adds 5 tests, each covering something that didn't exist before this change. A test that pinned the old command-line flags was updated. The full suite passes. Gunicorn boots with the new config: 1,500 requests, worst 0.05 s.
+
+| # | Status |
+|---|---|
+| 1 Worker recycling | Fixed: `--max-requests` is gone. Gunicorn reads `gunicorn.conf.py` (one worker, gthread, 16 threads, 240 s timeout); the Dockerfile only points to it. |
+| 2 Paid packs | Fixed: the files moved from `static/bundles/` to `private_bundles/`, served only after an unlock or a recorded purchase; `/static/bundles/…` is now 404. Passwords are compared in constant time. `PACK_PASSWORDS` (`esv_print=…,mega_bundle=…`) replaces a pack's original password when set. Rotating is **your call**. |
+| 3 Backups | **Your part:** the commands below |
+| 4 Public repo | **Your part:** make it private |
+| 5 Error alerts | Fixed: `services/error_reporting.py` uses Sentry (`sentry-sdk[flask]==2.66.1`, no known vulnerabilities). It's on only when `SENTRY_DSN` is set, and sends no emails, IPs, cookies, headers, query strings or request bodies, with no tracing. **Your part:** create the DSN. |
+| 6 Health check | Fixed: `healthCheckPath: /health` (it doesn't touch Firestore, so a Firestore blip won't fail deploys). **Your part:** auto-deploy after CI. |
+| 7 PowerPoint memory | Fixed: one conversion at a time (`PRESENTATION_CONVERSIONS`, default 1). The next waits up to 2 minutes, then gets a friendly "try again in a minute". |
+| 8 Threads | Fixed: 16 |
+| 9 Coloring timeout | Fixed: 60 s default |
+| P3 | Fixed: a friendly `500.html`. Removed `app.json`, `Procfile`, the stray `flask_session/` file and the unused `flask-session` package. `render.yaml` lists `SENTRY_DSN`, `PACK_PASSWORDS` and `LEGAL_STATE`. Not changed: non-root container, collection-group index. |
+
 ---
 
 ## P1

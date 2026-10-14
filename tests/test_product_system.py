@@ -94,12 +94,11 @@ def test_start_here_routes_by_audience_before_task():
 
 def test_production_server_keeps_live_capacity_available():
     dockerfile = (ROOT / "Dockerfile").read_text()
-    procfile = (ROOT / "Procfile").read_text()
+    conf = (ROOT / "gunicorn.conf.py").read_text()
     dockerignore = (ROOT / ".dockerignore").read_text().splitlines()
-    for command in (dockerfile, procfile):
-        assert "--worker-class gthread" in command
-        assert "--workers ${WEB_CONCURRENCY:-2}" in command
-        assert "--threads ${GUNICORN_THREADS:-4}" in command
+    assert '"-c", "gunicorn.conf.py"' in dockerfile
+    assert 'worker_class = "gthread"' in conf
+    assert 'os.getenv("GUNICORN_THREADS", "16")' in conf
     assert ".git" in dockerignore
     assert "raw_images" in dockerignore
     assert "node_modules" in dockerignore

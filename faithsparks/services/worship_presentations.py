@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 from urllib.parse import quote
 from zipfile import BadZipFile, ZipFile
@@ -144,8 +145,23 @@ def _validate_pdf(path: Path) -> int:
     return count
 
 
+# LibreOffice + pdftoppm use a few hundred MB each. Run one conversion at a
+# time so two imports on a Sunday morning can't exhaust the instance's memory.
+_CONVERSION_SLOTS = threading.BoundedSemaphore(max(1, int(os.getenv("PRESENTATION_CONVERSIONS", "1"))))
+CONVERSION_WAIT_SECONDS = 120
+
+
 def render_presentation(source_path: str | Path, suffix: str, work_dir: str | Path) -> list[Path]:
     """Convert a PPTX/PDF to normalized JPEG slide images in ``work_dir``."""
+    if not _CONVERSION_SLOTS.acquire(timeout=CONVERSION_WAIT_SECONDS):
+        raise WorshipPresentationError("Another presentation is being converted. Please try again in a minute.")
+    try:
+        return _render_presentation(source_path, suffix, work_dir)
+    finally:
+        _CONVERSION_SLOTS.release()
+
+
+def _render_presentation(source_path: str | Path, suffix: str, work_dir: str | Path) -> list[Path]:
     source_path = Path(source_path)
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
