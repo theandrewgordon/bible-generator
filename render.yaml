@@ -4,6 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     branch: main
+    healthCheckPath: /health
     envVars:
       - key: APP_ENV
         value: production
@@ -13,7 +14,7 @@ services:
       - key: WEB_CONCURRENCY
         value: 1
       - key: GUNICORN_THREADS
-        value: 8
+        value: 16
       - key: GUNICORN_TIMEOUT
         value: 240
       - key: SLOW_REQUEST_LOG_MS
@@ -41,4 +42,13 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
       - key: STRIPE_PRICE_FAMILY_GAME_NIGHT
+        sync: false
+      # Optional: error alerts (sentry.io). Unset = off.
+      - key: SENTRY_DSN
+        sync: false
+      # Optional: new product passwords, e.g. esv_print=newpass,mega_bundle=newpass2
+      - key: PACK_PASSWORDS
+        sync: false
+      # Terms of Use governing-law state, e.g. Virginia
+      - key: LEGAL_STATE
         sync: false

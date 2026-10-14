@@ -1,0 +1,13 @@
+{% extends "base.html" %} {% block title %}Something went wrong | Faith Sparks{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex" />{% endblock %}
+{% block content %}
+<section class="empty">
+  <div class="empty-emoji">Oops</div>
+  <h1 class="page-title">Something went wrong</h1>
+  <p class="muted">That's on us, not you. Please try again in a moment.</p>
+  <div class="actions" style="justify-content: center; margin-top: 0.5rem">
+    <a class="button" href="{{ request.path }}">Try again</a>
+    <a class="button ghost" href="{{ url_for('public.index') }}">Home</a>
+  </div>
+</section>
+{% endblock %}
