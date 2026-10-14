@@ -371,6 +371,7 @@ def generate():
             items_to_generate = items_to_generate[:MAX_WORKSHEETS_PER_REQUEST]
 
         success_count = 0
+        free_success_count = 0  # free-library verses that were generated (not billed)
         free_skip_count = 0
         free_slugs = _get_free_slugs()
         last_pdf = None
@@ -589,6 +590,8 @@ def generate():
                     )
 
                 success_count += 1
+                if not ctx["is_custom"] and normalize_slug(ctx["verse"]) in free_slugs:
+                    free_success_count += 1
 
         if db and from_collection:
             try:
@@ -609,8 +612,10 @@ def generate():
         except Exception:
             pass
         try:
-            if not free_skip_count and not is_daily_proverb:
-                _update_usage(user_email, success_count)
+            # Bill every generated worksheet except free-library ones. (Previously one
+            # free verse in a batch made the whole batch free.)
+            if not is_daily_proverb:
+                _update_usage(user_email, max(0, success_count - free_success_count))
         except Exception:
             pass
         delivered_count = len(bundle_files)
@@ -831,6 +836,12 @@ def regenerate(filename):
     if not doc:
         flash(f"Original data not found for {filename}", "error")
         return redirect(url_for("prints"))
+    # Rebuilding is free, but it can call the verse API: cap it like generation.
+    rate = check_rate_limit("worksheet_regenerate:user", session.get("user_email") or get_client_ip(),
+                            limit=12, window_seconds=60 * 60)
+    if not rate.allowed:
+        flash("You've rebuilt several worksheets recently. Please wait a bit and try again.", "warning")
+        return redirect(url_for("prints"))
     meta = doc.to_dict()
     if meta.get("type") == "coloring":
         flash("Coloring sheets cannot be regenerated yet. Check the coloring library on the Generate page.", "info")
@@ -861,11 +872,23 @@ def regenerate(filename):
                 "disclaimer": "This content was submitted by the user and not verified as Scripture.",
             }
         else:
-            content = request_verse_data(verse, version.lower())
-            if not content:
-                flash("Verse fetch failed during regeneration.", "error")
-                return redirect(url_for("prints"))
-            data = parse_and_clean_json(content)
+            # Reuse the stored verse data when we have it; only call the API if it's gone.
+            data = None
+            json_path = f"output/{slug}_{version}.json"
+            if not os.path.exists(json_path):
+                download_from_storage(f"worksheets/{os.path.basename(json_path)}", json_path)
+            if os.path.exists(json_path):
+                try:
+                    with open(json_path, "r", encoding="utf-8") as cached:
+                        data = json.load(cached)
+                except Exception:
+                    data = None
+            if not data:
+                content = request_verse_data(verse, version.lower())
+                if not content:
+                    flash("Verse fetch failed during regeneration.", "error")
+                    return redirect(url_for("prints"))
+                data = parse_and_clean_json(content)
             data.update({
                 "version": version.upper(),
                 "cursive": use_cursive,

@@ -21,7 +21,11 @@ from faithsparks.services.stripe_svc import (
     STRIPE_WEBHOOK_SECRET,
     resolve_price_id,
 )
-from faithsparks.services.users import has_active_plus, has_family_game_night_access
+from faithsparks.services.users import (
+    SUBSCRIPTION_ACCESS_STATUSES,
+    has_active_plus,
+    has_family_game_night_access,
+)
 
 def _find_promotion_code_id(code_str: Optional[str]) -> Optional[str]:
     if not code_str or not stripe:
@@ -65,6 +69,9 @@ def _price_kind_map() -> dict[str, Tuple[str, str]]:
     _add(STRIPE_PRICE_FAMILY_ANNUAL, "family", "year")
     _add(STRIPE_PRICE_CLASSROOM_MONTHLY, "classroom", "month")
     _add(STRIPE_PRICE_CLASSROOM_ANNUAL, "classroom", "year")
+    # Legacy single prices (still offered when monthly/annual aren't configured).
+    _add(STRIPE_PRICE_FAMILY, "family", "single")
+    _add(STRIPE_PRICE_CLASSROOM, "classroom", "single")
 
     return mapping
 
@@ -233,10 +240,20 @@ def _grant_referral_reward(referrer_email: str) -> bool:
         return False
 
     try:
-        if subscription_id:
-            stripe.Subscription.modify(subscription_id, coupon=coupon_id)
-        elif customer_id:
-            stripe.Customer.modify(customer_id, coupon=coupon_id)
+        if not subscription_id:
+            # Only subscriptions can carry the free month; nothing to discount otherwise.
+            raise ValueError("referrer has no subscription")
+        # Add the free month *alongside* existing discounts (e.g. 25% for life):
+        # setting ``coupon=`` would replace them.
+        live = _stripe_dict(stripe.Subscription.retrieve(subscription_id))
+        existing = []
+        for item in live.get("discounts") or []:
+            discount_id = item.get("id") if isinstance(item, dict) else item
+            if discount_id:
+                existing.append({"discount": discount_id})
+        if not existing and (live.get("discount") or {}).get("id"):
+            existing.append({"discount": live["discount"]["id"]})
+        stripe.Subscription.modify(subscription_id, discounts=existing + [{"coupon": coupon_id}])
     except Exception:
         traceback.print_exc()
         if coupon_created:
@@ -246,6 +263,40 @@ def _grant_referral_reward(referrer_email: str) -> bool:
                 pass
         return False
     return True
+
+
+def _sellable_price(price_id: str) -> bool:
+    """Only the Plus prices configured for this site can be bought as Plus."""
+    return bool(price_id) and _classify_price(price_id) is not None
+
+
+def _has_paid_subscription(data: dict) -> bool:
+    return bool(data.get("subscriptionId")) and str(data.get("subscriptionStatus") or "active").lower() in ACCESS_STATUSES
+
+
+_PRICE_META_CACHE: dict[str, tuple[float, Optional[dict]]] = {}
+_PRICE_META_TTL = 3600.0
+
+
+def _cached_price_meta(pid: Optional[str]) -> Optional[dict]:
+    """Price amounts for /plus, cached an hour (was 4 Stripe calls per page view)."""
+    import time
+    if not pid or not stripe:
+        return None
+    hit = _PRICE_META_CACHE.get(pid)
+    if hit and time.monotonic() - hit[0] < _PRICE_META_TTL:
+        return hit[1]
+    try:
+        p = _stripe_dict(stripe.Price.retrieve(pid))
+        meta = {
+            "amount": (p.get("unit_amount") or 0) / 100.0,
+            "currency": (p.get("currency") or "usd").upper(),
+            "recurring": (p.get("recurring") or {}).get("interval"),
+        }
+    except Exception:
+        return None  # don't cache failures
+    _PRICE_META_CACHE[pid] = (time.monotonic(), meta)
+    return meta
 
 
 def plus_pricing():
@@ -288,19 +339,7 @@ def plus_pricing():
     }
     meta = {"family": {}, "classroom": {}}
 
-    def _price_meta(pid: Optional[str]):
-        if not pid or not stripe:
-            return None
-        try:
-            p = stripe.Price.retrieve(pid)
-            p = _stripe_dict(p)
-            return {
-                "amount": (p.get("unit_amount") or 0) / 100.0,
-                "currency": (p.get("currency") or "usd").upper(),
-                "recurring": (p.get("recurring") or {}).get("interval"),
-            }
-        except Exception:
-            return None
+    _price_meta = _cached_price_meta
 
     try:
         fam_m = _price_meta(prices["family"].get("monthly"))
@@ -329,8 +368,16 @@ def plus_pricing():
     trial_kind = _trial_kind(trial_code)
     trial_unlocked = bool(trial_kind)
     trial_error = bool(trial_code) and not trial_unlocked
+    member = {}
+    if db and session.get("user_email"):
+        try:
+            snap = db.collection("users").document(session["user_email"]).get()
+            member = (snap.to_dict() or {}) if snap.exists else {}
+        except Exception:
+            member = {}
     return render_template(
         "plus.html",
+        has_subscription=_has_paid_subscription(member),
         prices=prices,
         meta=meta,
         promo_hint="SAVE25FOREVER",
@@ -355,8 +402,26 @@ def create_checkout_session():
     if not id_or_price:
         return "Missing price", 400
     price_id = resolve_price_id(id_or_price)
+    if not _sellable_price(price_id):
+        current_app.logger.warning("checkout refused for unknown price %s", price_id)
+        flash("That plan isn't available. Please choose one of the plans below.", "warning")
+        return redirect(url_for("plus_pricing"))
     user_email = session.get("user_email")
+    member = {}
+    if db and user_email:
+        try:
+            snap = db.collection("users").document(user_email).get()
+            member = (snap.to_dict() or {}) if snap.exists else {}
+        except Exception:
+            member = {}
+    if _has_paid_subscription(member):
+        # A second checkout would create a second subscription (charged twice).
+        flash("You already have Plus. Switch plans or update billing here.", "info")
+        return redirect(url_for("billing_portal"))
     trial_info = _trial_days_for(trial_token, price_id)
+    if trial_info and (member.get("trialStartedAt") or member.get("subscriptionId") or member.get("stripeCustomerId")):
+        flash("Free trials are for first-time members, so this plan starts today.", "info")
+        trial_info = None
     trial_days = trial_kind = None
     if trial_info:
         trial_days, trial_kind = trial_info
@@ -470,6 +535,16 @@ def plus_success():
             plan_title = plan_title or _plan_display_label(plan_key, interval_key)
 
             value_amount = round(((amount_total or 0) / 100.0), 2)
+            # Grant access now (verified with Stripe) instead of waiting for the webhook.
+            checkout_email = ((checkout.get("customer_details") or {}).get("email")
+                              or checkout.get("customer_email") or "").strip().lower()
+            signed_in = (session.get("user_email") or "").strip().lower()
+            if db and checkout.get("subscription") and checkout_email and checkout_email == signed_in:
+                try:
+                    live_sub = stripe.Subscription.retrieve(checkout["subscription"], expand=["items.data.price"])
+                    _sync_subscription(live_sub, email=signed_in)
+                except Exception:
+                    current_app.logger.exception("plus_success sync failed; the webhook will retry")
             trial_days_raw = metadata.get("trial_days")
             try:
                 trial_days = int(trial_days_raw)
@@ -546,276 +621,289 @@ def billing_portal():
         return redirect(url_for("plus_pricing"))
 
 
+# Subscription statuses that keep Plus on. ``past_due`` is Stripe's retry
+# window (card expired, bank hiccup); access ends at unpaid/canceled/paused.
+ACCESS_STATUSES = SUBSCRIPTION_ACCESS_STATUSES
+
+
+def _gift_active(data: dict) -> bool:
+    if not data.get("gifted"):
+        return False
+    expires = data.get("giftExpiresAt")
+    if not expires:
+        return True
+    try:
+        return datetime.now(timezone.utc) <= expires
+    except Exception:
+        return False
+
+
+def _period_end(sub: dict) -> Optional[datetime]:
+    """current_period_end lives on the subscription (old API) or its items (2025-03+)."""
+    raw = sub.get("current_period_end")
+    if not raw:
+        items = ((sub.get("items") or {}).get("data") or [])
+        raw = items[0].get("current_period_end") if items else None
+    try:
+        return datetime.fromtimestamp(int(raw), tz=timezone.utc) if raw else None
+    except Exception:
+        return None
+
+
+def _invoice_subscription_id(invoice: dict) -> Optional[str]:
+    """invoice.subscription moved to invoice.parent.subscription_details in 2025-03+."""
+    sub = invoice.get("subscription")
+    if isinstance(sub, dict):
+        sub = sub.get("id")
+    if not sub:
+        details = ((invoice.get("parent") or {}).get("subscription_details") or {})
+        sub = details.get("subscription")
+        if isinstance(sub, dict):
+            sub = sub.get("id")
+    return sub or None
+
+
+def _sub_price_id(sub: dict) -> Optional[str]:
+    items = ((sub.get("items") or {}).get("data") or [])
+    price = (items[0].get("price") or {}) if items else {}
+    return price.get("id") if isinstance(price, dict) else price or None
+
+
+def _plan_for_price(price_id: Optional[str]) -> str:
+    kind = _classify_price(price_id or "")
+    return kind[0] if kind else "plus"
+
+
+def _find_user_for_subscription(sub: dict, email: Optional[str] = None):
+    """users/{email} reference for this subscription: explicit email, then ids."""
+    if email:
+        return db.collection("users").document(email.strip().lower())
+    for field, value in (("subscriptionId", sub.get("id")), ("stripeCustomerId", sub.get("customer"))):
+        if not value:
+            continue
+        doc = next(
+            db.collection("users").where(filter=firestore.FieldFilter(field, "==", value)).limit(1).stream(),
+            None,
+        )
+        if doc:
+            return doc.reference
+    return None
+
+
+def _sync_subscription(sub: dict, *, email: Optional[str] = None, extra: Optional[dict] = None) -> bool:
+    """Write Plus state from the subscription's *current* Stripe status.
+
+    Used for checkout completion, updates and deletions alike, so replayed or
+    out-of-order events can't contradict Stripe. Raises on storage errors so the
+    webhook answers 500 and Stripe retries.
+    """
+    sub = _stripe_dict(sub) or {}
+    ref = _find_user_for_subscription(sub, email)
+    if ref is None:
+        current_app.logger.warning("stripe: no user for subscription %s", sub.get("id"))
+        return False
+    snap = ref.get()
+    data = (snap.to_dict() or {}) if snap.exists else {}
+    sub_id = sub.get("id")
+    status = str(sub.get("status") or "").lower()
+    current_sub = data.get("subscriptionId")
+    if current_sub and current_sub != sub_id and status not in ACCESS_STATUSES:
+        # An older/other subscription ended: never touch the one they still pay for.
+        return True
+    price_id = _sub_price_id(sub)
+    plan = _plan_for_price(price_id)
+    update: dict = {
+        "subscriptionStatus": status,
+        "stripeCustomerId": sub.get("customer") or data.get("stripeCustomerId"),
+        "updatedAt": firestore.SERVER_TIMESTAMP,
+    }
+    renew_at = _period_end(sub)
+    if renew_at:
+        update["renewAt"] = renew_at
+    if status in ACCESS_STATUSES:
+        update.update({"isPro": True, "plan": plan, "paidPlan": plan, "subscriptionId": sub_id})
+        if price_id:
+            update["priceId"] = price_id
+        if status == "trialing" and not data.get("trialStartedAt"):
+            update["trialStartedAt"] = firestore.SERVER_TIMESTAMP
+    else:
+        update["paidPlan"] = firestore.DELETE_FIELD
+        if status == "canceled":
+            update["subscriptionId"] = None
+        if not _gift_active(data):
+            update.update({"isPro": False, "plan": "free"})
+    for key, value in (extra or {}).items():
+        if value:
+            update[key] = value
+    ref.set(update, merge=True)
+    return True
+
+
+def _event_seen(event_id: Optional[str]) -> bool:
+    if not event_id or not db:
+        return False
+    try:
+        return db.collection("stripe_events").document(event_id).get().exists
+    except Exception:
+        return False
+
+
+def _mark_event(event_id: Optional[str], event_type: Optional[str]) -> None:
+    if not event_id or not db:
+        return
+    try:
+        db.collection("stripe_events").document(event_id).set(
+            {"type": event_type, "at": firestore.SERVER_TIMESTAMP}
+        )
+    except Exception:
+        current_app.logger.warning("stripe: could not record event %s", event_id)
+
+
+def _share_details(subscription_meta: dict, checkout_meta: dict) -> dict:
+    def _pick(*vals):
+        for val in vals:
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        return None
+
+    keys = {
+        "utm": "utm", "invite_code": "inviteCode", "promo_code": "promoCode",
+        "preferred_plan": "preferredPlan", "preferred_interval": "preferredInterval",
+        "source": "source", "referrer": "referredBy",
+    }
+    return {target: _pick(subscription_meta.get(key), checkout_meta.get(key)) for key, target in keys.items()}
+
+
+def _fulfill_one_time(obj: dict, email: str, checkout_meta: dict) -> None:
+    entitlement_id = checkout_meta.get("entitlement_id")
+    pack_slug = checkout_meta.get("pack_slug")
+    payment_status = obj.get("payment_status")
+    if payment_status not in {"paid", "no_payment_required"}:
+        return
+    if entitlement_id in ALLOWED_ONE_TIME_ENTITLEMENTS:
+        grant = entitlement_id
+        price_id = checkout_meta.get("price_id")
+    elif pack_slug:
+        pack_doc = db.collection("collections").document(pack_slug).get()
+        if not pack_doc.exists:
+            return
+        expected = str((pack_doc.to_dict() or {}).get("priceId") or os.getenv("STRIPE_DEFAULT_PACK_PRICE", "")).strip()
+        price_id = str(checkout_meta.get("price_id") or "").strip()
+        if expected and price_id and expected != price_id:
+            return
+        grant = pack_slug
+        price_id = price_id or expected
+    else:
+        return
+    db.collection("users").document(email).set(
+        {
+            "purchases": {grant: True},
+            "purchaseDetails": {
+                grant: {
+                    "checkoutSessionId": obj.get("id"),
+                    "stripeCustomerId": obj.get("customer"),
+                    "priceId": price_id,
+                    "paymentStatus": payment_status,
+                    "purchasedAt": firestore.SERVER_TIMESTAMP,
+                }
+            },
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+        },
+        merge=True,
+    )
+    if grant == FAMILY_GAME_NIGHT_ENTITLEMENT:
+        _increment_metric("family_game_night_checkout_fulfilled", grant)
+
+
+def _record_trial_start(session_id: Optional[str], utm_source: Optional[str]) -> None:
+    try:
+        if session_id:
+            ref = db.collection("analytics").document("trial_starts").collection("sessions").document(session_id)
+            if ref.get().exists:
+                return
+            ref.set({"sessionId": session_id, "utm": (utm_source or "unknown").strip().lower() or "unknown",
+                     "createdAt": firestore.SERVER_TIMESTAMP})
+        _increment_metric("trial_starts", utm_source)
+    except Exception:
+        traceback.print_exc()
+
+
+def _handle_invoice_paid(invoice: dict) -> None:
+    subscription_id = _invoice_subscription_id(invoice)
+    if (not subscription_id or invoice.get("billing_reason") != "subscription_cycle"
+            or (invoice.get("amount_paid") or 0) <= 0):
+        return
+    user_doc = next(
+        db.collection("users").where(filter=firestore.FieldFilter("subscriptionId", "==", subscription_id)).limit(1).stream(),
+        None,
+    )
+    if not user_doc:
+        return
+    data = user_doc.to_dict() or {}
+    if not data.get("firstConversionAt"):
+        user_doc.reference.set(
+            {"firstConversionAt": firestore.SERVER_TIMESTAMP, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True
+        )
+        _increment_metric("trial_conversions", (data.get("utm") or data.get("source") or "").strip())
+    try:
+        referrer_email = (data.get("referredBy") or "").strip().lower()
+        invite_code = (data.get("inviteCode") or "").strip().lower()
+        redeemer_email = (user_doc.id or "").strip().lower()
+        if referrer_email and invite_code == REFERRAL_INVITE_CODE and redeemer_email:
+            _record_referral_completion(referrer_email, redeemer_email)
+    except Exception:
+        traceback.print_exc()
+
+
 def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET or not stripe:
-        return ("", 200)
-    payload = request.data
-    sig_header = request.headers.get("Stripe-Signature")
+        # Answer 500 so the Stripe dashboard shows failures instead of silently dropping purchases.
+        current_app.logger.error("stripe webhook received but STRIPE_WEBHOOK_SECRET/Stripe SDK is not configured")
+        return ("Webhook not configured", 500)
+    if not db:
+        current_app.logger.error("stripe webhook received but Firestore is not configured")
+        return ("Storage unavailable", 500)
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        event = stripe.Webhook.construct_event(request.data, request.headers.get("Stripe-Signature"), STRIPE_WEBHOOK_SECRET)
         event = _stripe_dict(event)
     except Exception as e:
         return (f"Webhook error: {e}", 400)
 
+    event_id = event.get("id")
     et = event.get("type")
-    obj = event.get("data", {}).get("object", {})
+    obj = _stripe_dict(event.get("data", {}).get("object", {})) or {}
+    if _event_seen(event_id):
+        return ("", 200)
     try:
         if et == "checkout.session.completed":
             checkout_meta = obj.get("metadata") or {}
-            email = (obj.get("customer_details") or {}).get("email") or obj.get("customer_email") or checkout_meta.get("email")
+            email = ((obj.get("customer_details") or {}).get("email") or obj.get("customer_email")
+                     or checkout_meta.get("email") or "").strip().lower()
             subscription_id = obj.get("subscription")
-            customer_id = obj.get("customer")
-            price_id = checkout_meta.get("plan_price_id")
-            pack_slug = checkout_meta.get("pack_slug")
-            entitlement_id = checkout_meta.get("entitlement_id")
-            sub = None
-            try:
-                if subscription_id and STRIPE_SECRET_KEY:
-                    sub = stripe.Subscription.retrieve(
-                        subscription_id,
-                        expand=["items.data.price", "discount.promotion_code"],
-                    )
-                    sub = _stripe_dict(sub)
-                    if sub and sub.get("items") and sub["items"]["data"]:
-                        price_id = sub["items"]["data"][0]["price"]["id"]
-            except Exception:
-                sub = None
-            subscription_meta = (sub.get("metadata") or {}) if sub else {}
-
-            def _pick(*vals):
-                for val in vals:
-                    if isinstance(val, str):
-                        stripped = val.strip()
-                        if stripped:
-                            return stripped
-                return None
-
-            share_details = {
-                "invite_code": _pick(subscription_meta.get("invite_code"), checkout_meta.get("invite_code")),
-                "promo_code": _pick(subscription_meta.get("promo_code"), checkout_meta.get("promo_code")),
-                "preferred_plan": _pick(subscription_meta.get("preferred_plan"), checkout_meta.get("preferred_plan")),
-                "preferred_interval": _pick(subscription_meta.get("preferred_interval"), checkout_meta.get("preferred_interval")),
-                "utm": _pick(subscription_meta.get("utm"), checkout_meta.get("utm")),
-                "source": _pick(subscription_meta.get("source"), checkout_meta.get("source")),
-                "referrer": _pick(subscription_meta.get("referrer"), checkout_meta.get("referrer")),
-            }
-
-            renew_at = None
-            period_end = sub.get("current_period_end") if sub else None
-            if period_end:
-                try:
-                    renew_at = datetime.fromtimestamp(int(period_end), tz=timezone.utc)
-                except Exception:
-                    renew_at = None
-            if db and email:
-                if subscription_id:
-                    plan = (
-                        "family"
-                        if price_id == STRIPE_PRICE_FAMILY
-                        else "classroom"
-                        if price_id == STRIPE_PRICE_CLASSROOM
-                        else "plus"
-                    )
-                    update_data = {
-                        "isPro": True,
-                        "plan": plan,
-                        "stripeCustomerId": customer_id,
-                        "subscriptionId": subscription_id,
-                        "priceId": price_id,
-                        "updatedAt": firestore.SERVER_TIMESTAMP,
-                        "trialStartedAt": firestore.SERVER_TIMESTAMP,
-                    }
-                    disc = (sub or {}).get("discount") or {}
-                    promo_code_obj = disc.get("promotion_code") or {}
-                    coupon_obj = disc.get("coupon") or {}
-                    if coupon_obj.get("id"):
-                        update_data["couponId"] = coupon_obj["id"]
-                    if promo_code_obj.get("id"):
-                        update_data["promotionCodeId"] = promo_code_obj["id"]
-                        update_data["hasLifetimeDiscount"] = True
-                    if renew_at:
-                        update_data["renewAt"] = renew_at
-                    field_map = {
-                        "utm": "utm",
-                        "invite_code": "inviteCode",
-                        "promo_code": "promoCode",
-                        "preferred_plan": "preferredPlan",
-                        "preferred_interval": "preferredInterval",
-                        "source": "source",
-                        "referrer": "referredBy",
-                    }
-                    for share_key, target_field in field_map.items():
-                        val = share_details.get(share_key)
-                        if val:
-                            update_data[target_field] = val
-                    db.collection("users").document(email).set(update_data, merge=True)
-                    session_id = obj.get("id")
-                    utm_source = share_details.get("utm") or share_details.get("source")
-                    if session_id and db:
-                        sessions_ref = db.collection("analytics").document("trial_starts").collection("sessions").document(session_id)
-                        try:
-                            if not sessions_ref.get().exists:
-                                sessions_ref.set(
-                                    {
-                                        "sessionId": session_id,
-                                        "utm": (utm_source or "unknown").strip().lower() or "unknown",
-                                        "createdAt": firestore.SERVER_TIMESTAMP,
-                                    }
-                                )
-                                _increment_metric("trial_starts", utm_source)
-                        except Exception:
-                            traceback.print_exc()
-                            _increment_metric("trial_starts", utm_source)
-                    else:
-                        _increment_metric("trial_starts", utm_source)
-                elif entitlement_id in ALLOWED_ONE_TIME_ENTITLEMENTS:
-                    payment_status = obj.get("payment_status")
-                    if payment_status in {"paid", "no_payment_required"}:
-                        db.collection("users").document(email).set(
-                            {
-                                "purchases": {entitlement_id: True},
-                                "purchaseDetails": {
-                                    entitlement_id: {
-                                        "checkoutSessionId": obj.get("id"),
-                                        "stripeCustomerId": customer_id,
-                                        "priceId": checkout_meta.get("price_id"),
-                                        "paymentStatus": payment_status,
-                                        "purchasedAt": firestore.SERVER_TIMESTAMP,
-                                    }
-                                },
-                                "updatedAt": firestore.SERVER_TIMESTAMP,
-                            },
-                            merge=True,
-                        )
-                        _increment_metric("family_game_night_checkout_fulfilled", entitlement_id)
-                elif pack_slug:
-                    try:
-                        payment_status = obj.get("payment_status")
-                        pack_doc = db.collection("collections").document(pack_slug).get()
-                        pack_data = pack_doc.to_dict() if pack_doc.exists else {}
-                        expected_price_id = str(
-                            (pack_data or {}).get("priceId")
-                            or os.getenv("STRIPE_DEFAULT_PACK_PRICE", "")
-                        ).strip()
-                        checkout_price_id = str(checkout_meta.get("price_id") or "").strip()
-                        price_matches = not (
-                            expected_price_id and checkout_price_id and expected_price_id != checkout_price_id
-                        )
-                        if (
-                            payment_status in {"paid", "no_payment_required"}
-                            and pack_doc.exists
-                            and price_matches
-                        ):
-                            db.collection("users").document(email).set(
-                                {
-                                    "purchases": {pack_slug: True},
-                                    "purchaseDetails": {
-                                        pack_slug: {
-                                            "checkoutSessionId": obj.get("id"),
-                                            "stripeCustomerId": customer_id,
-                                            "priceId": checkout_price_id or expected_price_id,
-                                            "paymentStatus": payment_status,
-                                            "purchasedAt": firestore.SERVER_TIMESTAMP,
-                                        }
-                                    },
-                                    "updatedAt": firestore.SERVER_TIMESTAMP,
-                                },
-                                merge=True,
-                            )
-                    except Exception:
-                        current_app.logger.exception("Bundle purchase fulfillment failed")
-                        return ("", 500)
-        elif et == "customer.subscription.updated":
-            sub = obj
-            customer_id = sub.get("customer")
-            renew_at = None
-            period_end = sub.get("current_period_end")
-            if period_end:
-                try:
-                    renew_at = datetime.fromtimestamp(int(period_end), tz=timezone.utc)
-                except Exception:
-                    renew_at = None
-            price_id = None
-            try:
-                items = (sub.get("items") or {}).get("data") or []
-                if items:
-                    price_id = (items[0].get("price") or {}).get("id")
-            except Exception:
-                price_id = None
-            if db and customer_id:
-                try:
-                    q = db.collection("users").where(filter=firestore.FieldFilter("stripeCustomerId", "==", customer_id)).limit(1).stream()
-                    udoc = next(q, None)
-                    if udoc:
-                        update_data = {"updatedAt": firestore.SERVER_TIMESTAMP}
-                        if renew_at:
-                            update_data["renewAt"] = renew_at
-                        if price_id:
-                            update_data["priceId"] = price_id
-                        if update_data:
-                            udoc.reference.set(update_data, merge=True)
-                except Exception:
-                    pass
-        elif et == "customer.subscription.deleted":
-            sub = obj
-            customer_id = sub.get("customer")
-            if db and customer_id:
-                try:
-                    q = db.collection("users").where(filter=firestore.FieldFilter("stripeCustomerId", "==", customer_id)).limit(1).stream()
-                    udoc = next(q, None)
-                    if udoc:
-                        udoc.reference.set(
-                            {
-                                "plan": "free",
-                                "isPro": False,
-                                "subscriptionId": None,
-                                "priceId": firestore.DELETE_FIELD,
-                                "renewAt": firestore.DELETE_FIELD,
-                                "updatedAt": firestore.SERVER_TIMESTAMP,
-                            },
-                            merge=True,
-                        )
-                except Exception:
-                    pass
+            if subscription_id and email:
+                # Always read the live subscription: a replayed old event must not re-grant Plus.
+                sub = _stripe_dict(stripe.Subscription.retrieve(
+                    subscription_id, expand=["items.data.price", "discount.promotion_code"]
+                ))
+                extra = _share_details(sub.get("metadata") or {}, checkout_meta)
+                disc = sub.get("discount") or {}
+                if (disc.get("coupon") or {}).get("id"):
+                    extra["couponId"] = disc["coupon"]["id"]
+                if (disc.get("promotion_code") or {}).get("id"):
+                    extra["promotionCodeId"] = disc["promotion_code"]["id"]
+                    extra["hasLifetimeDiscount"] = True
+                _sync_subscription(sub, email=email, extra=extra)
+                _record_trial_start(obj.get("id"), extra.get("utm") or extra.get("source"))
+            elif email:
+                _fulfill_one_time(obj, email, checkout_meta)
+        elif et in {"customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"}:
+            _sync_subscription(obj)
         elif et == "invoice.payment_succeeded":
-            invoice = obj
-            subscription_id = invoice.get("subscription")
-            billing_reason = invoice.get("billing_reason")
-            amount_paid = invoice.get("amount_paid") or 0
-            if not db or not subscription_id or billing_reason != "subscription_cycle" or amount_paid <= 0:
-                return ("", 200)
-            try:
-                q = db.collection("users").where(filter=firestore.FieldFilter("subscriptionId", "==", subscription_id)).limit(1).stream()
-                user_doc = next(q, None)
-            except Exception:
-                traceback.print_exc()
-                user_doc = None
-            if user_doc:
-                data = user_doc.to_dict() or {}
-                if not data.get("firstConversionAt"):
-                    utm_val = (data.get("utm") or data.get("source") or "").strip()
-                    try:
-                        user_doc.reference.set(
-                            {
-                                "firstConversionAt": firestore.SERVER_TIMESTAMP,
-                                "updatedAt": firestore.SERVER_TIMESTAMP,
-                            },
-                            merge=True,
-                        )
-                    except Exception:
-                        traceback.print_exc()
-                    _increment_metric("trial_conversions", utm_val)
-
-                try:
-                    referrer_email = (data.get("referredBy") or "").strip().lower()
-                    invite_code = (data.get("inviteCode") or "").strip().lower()
-                    redeemer_email = (user_doc.id or "").strip().lower()
-                    if referrer_email and invite_code == REFERRAL_INVITE_CODE and redeemer_email:
-                        _record_referral_completion(referrer_email, redeemer_email)
-                except Exception:
-                    traceback.print_exc()
+            _handle_invoice_paid(obj)
     except Exception:
-        traceback.print_exc()
+        current_app.logger.exception("stripe webhook %s (%s) failed; asking Stripe to retry", et, event_id)
+        return ("Fulfillment failed", 500)
+    _mark_event(event_id, et)
     return ("", 200)
 
 

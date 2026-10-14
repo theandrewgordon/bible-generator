@@ -132,6 +132,13 @@ site_content.plus_banner_text %}
     {% endif %}
   </form>
 
+  {% if has_subscription %}
+  <div class="member-banner" role="status">
+    <strong>You're a Plus member.</strong>
+    Switch between monthly and annual, update your card, or cancel in billing. Buying again would start a second subscription.
+    <a class="button primary" href="{{ url_for('billing_portal') }}">Manage billing</a>
+  </div>
+  {% endif %}
   <div class="plan-grid">
     {# --------------------- FREE --------------------- #}
     <article class="plan-card free">
@@ -171,7 +178,7 @@ site_content.plus_banner_text %}
         <li>Subscriber-only packs included</li>
         <li>Occasional free collection giveaways</li>
       </ul>
-      <div class="plan-note">$0 today • cancel anytime</div>
+      <div class="plan-note">{% if trial_unlocked %}$0 today • cancel anytime{% else %}Cancel anytime{% endif %}</div>
 
       {% set fam = prices.family %} {% if (fam.monthly or fam.single or
       fam.annual) %} {% if is_signed_in %}
@@ -286,7 +293,7 @@ site_content.plus_banner_text %}
         <li>Subscriber-only packs included</li>
         <li>Occasional free collection giveaways</li>
       </ul>
-      <div class="plan-note">$0 today • cancel anytime</div>
+      <div class="plan-note">{% if trial_unlocked %}$0 today • cancel anytime{% else %}Cancel anytime{% endif %}</div>
 
       {% set cls = prices.classroom %} {% if (cls.monthly or cls.single or
       cls.annual) %} {% if is_signed_in %}
@@ -647,6 +654,8 @@ site_content.plus_banner_text %}
   .dark .helper-note {
     color: #94a3b8;
   }
+  .member-banner{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin:0 0 1rem;padding:.9rem 1rem;border:1px solid color-mix(in srgb,var(--primary) 35%,transparent);border-radius:12px;background:color-mix(in srgb,var(--primary) 8%,var(--box))}
+  .member-banner .button{margin-left:auto}
   .plan-note {
     margin: 0.4rem 0 0;
     font-weight: 600;

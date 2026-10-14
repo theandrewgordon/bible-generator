@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from flask import render_template, request, redirect, url_for, session, flash, current_app, g
 from firebase_admin import firestore
 from faithsparks.services.firestore import db
+from faithsparks.services.users import gift_end_update
 
 
 def admin_gift():
@@ -15,8 +16,11 @@ def admin_gift():
                 flash('Email is required', 'error')
                 return redirect(url_for('admin_gift'))
             try:
-                db.collection('users').document(email).set({ 'plan': 'free', 'isPro': False, 'gifted': False, 'giftExpiresAt': None, 'updatedAt': firestore.SERVER_TIMESTAMP }, merge=True)
-                flash('Gift revoked', 'success')
+                ref = db.collection('users').document(email)
+                snap = ref.get()
+                update = gift_end_update((snap.to_dict() or {}) if snap.exists else {})
+                ref.set({**update, 'updatedAt': firestore.SERVER_TIMESTAMP}, merge=True)
+                flash('Gift revoked (paid subscription kept)' if update.get('isPro') else 'Gift revoked', 'success')
             except Exception as e:
                 current_app.logger.exception("[%s] admin gift revoke failed: %s", getattr(g, "req_id", ""), e)
                 flash('Revoke failed. Please try again.', 'error')

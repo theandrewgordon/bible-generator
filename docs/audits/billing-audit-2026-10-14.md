@@ -17,6 +17,35 @@ Items marked **[verified]** were reproduced; **[verify]** depends on Stripe dash
 
 **The big picture:** signature checks, CSRF, sign-in on checkout and bundle purchase verification are solid. The weak spot is the webhook. It trusts the first event it sees, swallows its own failures, and never reads the subscription's real status. That one handler causes most of the P1 findings. Only 3 test files touch Stripe, and none test the webhook.
 
+## Status — fixes applied 2026-10-14
+
+I re-ran the same simulation against the real app, and all 8 scenarios now behave correctly. `tests/test_billing_audit_fixes.py` adds 19 tests, all failing on the old code. The full suite has 1,017 passing.
+
+| # | Status |
+|---|---|
+| 1 Silent drop | Fixed: a failed fulfillment answers 500, so Stripe retries. Each event ID is processed once. |
+| 2 Second subscription | Fixed: members see **Manage billing** on `/plus`, and the server sends a second checkout to the billing portal. Cancelling an *old* subscription never touches the current one. |
+| 3 Classroom quota | Fixed: the plan comes from the price map. Members who subscribed earlier (stored as "plus") are recognized from their saved price, so no migration is needed. |
+| 4 Failed payments | Fixed: access follows Stripe's status. `active`, `trialing` and `past_due` (the retry window) keep Plus; `unpaid`, `paused` and `canceled` remove it. A gift still active is kept. |
+| 5 Replayed events | Fixed: every subscription event writes the subscription's live status, so an old replay can't re-grant Plus. |
+| 6 Free-verse batch | Fixed: every generated worksheet is billed except free-library ones |
+| 7 `/regenerate` | Fixed: 12 per hour per user, and it reuses the stored verse data instead of calling the API |
+| 8 Any price | Fixed: only the configured Plus prices can be bought |
+| 9 Trial reuse | Fixed: one trial per account |
+| 10 Gift end | Fixed: an expiring or revoked gift returns a paying member to their paid plan |
+| 11 Referral | Fixed: the free month is added *alongside* existing discounts (`discounts=[…]`); it applies only to subscriptions |
+| 12 API drift | Fixed: renewal date and invoice subscription are read from both old and new locations |
+| 13 Missing secret | Fixed: answers 500 and logs an error |
+| 14 `/plus` speed | Fixed: price lookups cached for an hour |
+| 15 Lesson packs | **Your call:** unchanged (6 per hour, not on credits) |
+| 16 Game re-download | Fixed: one credit per game |
+| 17 Usage race | Fixed: atomic `Increment` |
+| 18 Plus check | Fixed: games and bundles now use `has_active_plus` |
+| P3 | Removed `resolve_price_id_local` and `/admin/reset_credits`. The success page now grants Plus right away after verifying with Stripe. `/buy/pack` stays a sign-in-only GET, because the sign-in redirect depends on it. |
+| Also | `/plus` showed "$0 today" to everyone, but only invite trials are free. It now says "Cancel anytime" unless a trial applies. |
+
+The dashboard checklist below still applies.
+
 ---
 
 ## P1 — customers pay and don't get Plus, or keep Plus without paying

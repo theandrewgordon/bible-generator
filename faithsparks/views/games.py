@@ -15,6 +15,7 @@ from faithsparks.services.collections import get_collections, get_collection_met
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.services.usage import _get_user_plan, _get_usage, _quota_for_plan, _update_usage
+from faithsparks.services.users import has_active_plus
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.scripture import TRANSLATIONS as SCRIPTURE_TRANSLATIONS
 from faithsparks.util.request_utils import get_client_ip
@@ -423,7 +424,7 @@ def games():
             u = db.collection("users").document(user_email).get()
             if u.exists:
                 ud = u.to_dict() or {}
-                is_member = ud.get("isPro") or (ud.get("plan") in ("family", "classroom", "plus", "plus_family", "plus_classroom"))
+                is_member = has_active_plus(ud)
                 purchases = ud.get("purchases") or {}
         except Exception:
             purchases = {}
@@ -507,7 +508,7 @@ def games_detail(slug):
             u = db.collection("users").document(email).get()
             if u.exists:
                 ud = u.to_dict() or {}
-                is_member = ud.get("isPro") or (ud.get("plan") in ("family", "classroom", "plus", "plus_family", "plus_classroom"))
+                is_member = has_active_plus(ud)
                 if meta.get("isSubscriberOnly") and not (is_member or (ud.get("purchases") or {}).get(slug)):
                     needs_member = True
                 else:
@@ -803,16 +804,28 @@ def dl_game(slug):
 
     allowed = not bool(meta.get("isSubscriberOnly"))
     email = session.get("user_email")
+    downloaded_before = False
     if db and email:
         try:
             u = db.collection("users").document(email).get()
             if u.exists:
                 ud = u.to_dict() or {}
-                if ud.get("isPro") or (ud.get("plan") in ("family", "classroom", "plus", "plus_family", "plus_classroom")):
+                if has_active_plus(ud):
                     allowed = True
                 purchases = ud.get("purchases") or {}
                 if purchases.get(slug):
                     allowed = True
+                downloaded_before = bool((ud.get("gameDownloads") or {}).get(slug))
+        except Exception:
+            pass
+
+    def _charge_download():
+        # One credit per game: re-downloading the same game is free.
+        if downloaded_before:
+            return
+        _update_usage(email, 1)
+        try:
+            db.collection("users").document(email).set({"gameDownloads": {slug: True}}, merge=True)
         except Exception:
             pass
 
@@ -823,7 +836,9 @@ def dl_game(slug):
     plan = _get_user_plan(email)
     m_limit, l_limit = _quota_for_plan(plan)
     used_life, used_m = _get_usage(email)
-    if (m_limit is not None and used_m >= m_limit) or (l_limit is not None and used_life >= l_limit):
+    if not downloaded_before and (
+        (m_limit is not None and used_m >= m_limit) or (l_limit is not None and used_life >= l_limit)
+    ):
         flash("You’ve used all your credits for this month.", "warning")
         return redirect(url_for("games_detail", slug=slug))
 
@@ -837,19 +852,19 @@ def dl_game(slug):
     try:
         gcs_signed = signed_url_for_path(f"games/{slug}.zip", minutes=120)
         if gcs_signed:
-            _update_usage(email, 1)
+            _charge_download()
             return redirect(gcs_signed)
     except Exception:
         pass
 
     url = meta.get("zipUrl")
     if url:
-        _update_usage(email, 1)
+        _charge_download()
         return redirect(url)
 
     path = os.path.join("output", "games", f"{slug}.zip")
     if os.path.exists(path):
-        _update_usage(email, 1)
+        _charge_download()
         return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
 
     # Build a fresh PDF if no ZIP exists yet
@@ -924,7 +939,7 @@ def dl_game(slug):
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
             )
-        _update_usage(email, 1)
+        _charge_download()
         return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
     except Exception:
         return "Game not available", 404

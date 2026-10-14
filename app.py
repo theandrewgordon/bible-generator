@@ -9829,11 +9829,10 @@ def inject_helpers():
                 try:
                     exp = user_doc.get('giftExpiresAt')
                     if exp and hasattr(exp, 'timestamp') and datetime.now(timezone.utc) > exp:
-                        db.collection('users').document(email).set(
-                            {'plan': 'free', 'isPro': False, 'giftExpiresAt': None}, merge=True)
-                        user_doc['plan'] = 'free'
-                        user_doc['isPro'] = False
-                        user_doc['giftExpiresAt'] = None
+                        from faithsparks.services.users import gift_end_update
+                        update = gift_end_update(user_doc)
+                        db.collection('users').document(email).set(update, merge=True)
+                        user_doc.update(update)
                 except Exception:
                     pass
                 is_pro = bool(user_doc.get('isPro'))
@@ -9971,38 +9970,6 @@ def _is_safe_next(target: str) -> bool:
     test_url = urlparse(urljoin(request.host_url, target))
     return (test_url.scheme in ("http", "https") and host_url.netloc == test_url.netloc)
 
-
-def resolve_price_id_local(id_or_product: str) -> str:
-    """Accepts a price_... or prod_... and returns a valid price id.
-    If a product id is given, tries product.default_price else the first active recurring price.
-    """
-    if not stripe:
-        raise RuntimeError('Stripe SDK not available')
-    pid = (id_or_product or '').strip()
-    if not pid:
-        raise ValueError('Missing price id')
-    if pid.startswith('price_'):
-        return pid
-    if pid.startswith('prod_'):
-        # Try default_price first
-        try:
-            prod = stripe.Product.retrieve(pid, expand=['default_price'])
-            dp = prod.get('default_price')
-            if isinstance(dp, dict) and dp.get('id'):
-                return dp['id']
-            # fallback: list active recurring prices
-            prices = stripe.Price.list(product=pid, active=True, limit=10)
-            if prices and prices.data:
-                # prefer recurring, else first
-                recurring = [p for p in prices.data if p.get('recurring')]
-                target = (recurring[0] if recurring else prices.data[0])
-                return target.id
-        except Exception:
-            pass
-        # As a final fallback, let it error out
-        return pid
-    # Unknown format; let Stripe validate
-    return pid
 
 @app.route('/create_checkout_session', methods=['POST'])
 @login_required
@@ -10338,39 +10305,6 @@ def dl_game(slug):
 def games_words():
     from faithsparks.views.games import games_words as _impl
     return _impl()
-
-@app.post("/admin/reset_credits/<uid>")
-@admin_required
-def admin_reset_credits(uid):
-    # Fetch user document
-    ref = db.collection("users").document(uid)
-    snap = ref.get()
-    user = snap.to_dict() if snap.exists else {}
-
-    # Determine plan
-    plan = user.get("plan", "free")  # "free", "plus_family", "plus_classroom"
-
-    if plan == "free":
-        credits = {
-            "lifetime": 10,   # reset lifetime to full
-            "monthly": 1,     # 1 per month
-        }
-    elif plan == "plus_family":
-        credits = {
-            "monthly": 15,
-        }
-    elif plan == "plus_classroom":
-        credits = {
-            "monthly": 100,
-        }
-    else:
-        credits = {}  # fallback if unknown plan
-
-    # Store credits back
-    ref.set({"credits": credits}, merge=True)
-
-    flash(f"Credits reset for {uid} ({plan})", "success")
-    return redirect(url_for("admin_users"))
 
 @app.route("/regenerate/<filename>")
 @login_required

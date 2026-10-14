@@ -1,10 +1,15 @@
 from datetime import datetime, timezone
 from .firestore import db
-from .users import get_user_doc, invalidate_user_doc
+from .users import get_user_doc, gift_end_update, invalidate_user_doc
 
 
 def _month_key() -> str:
     return datetime.now(timezone.utc).strftime('%Y-%m')
+
+
+def _classroom_price_ids() -> set[str]:
+    from .stripe_svc import STRIPE_PRICE_CLASSROOM, STRIPE_PRICE_CLASSROOM_ANNUAL, STRIPE_PRICE_CLASSROOM_MONTHLY
+    return {p for p in (STRIPE_PRICE_CLASSROOM, STRIPE_PRICE_CLASSROOM_MONTHLY, STRIPE_PRICE_CLASSROOM_ANNUAL) if p}
 
 
 def _get_user_plan(email: str) -> str:
@@ -17,14 +22,16 @@ def _get_user_plan(email: str) -> str:
             try:
                 if exp and hasattr(exp, 'timestamp'):
                     if datetime.now(timezone.utc) > exp:
-                        db.collection('users').document(email).set({ 'plan': 'free', 'isPro': False, 'giftExpiresAt': None }, merge=True)
+                        update = gift_end_update(d)
+                        db.collection('users').document(email).set(update, merge=True)
                         # Mutate the cached doc in place so it stays consistent.
-                        d['plan'] = 'free'
-                        d['isPro'] = False
-                        d['giftExpiresAt'] = None
+                        d.update(update)
             except Exception:
                 pass
             plan = d.get('plan')
+            if plan == 'plus' and d.get('isPro') and d.get('priceId') in _classroom_price_ids():
+                # Subscribed before 2026-10-14, when every plan was stored as "plus".
+                return 'classroom'
             if plan:
                 return plan
             if d.get('isPro'):
@@ -70,15 +77,12 @@ def _update_usage(email: str, add: int) -> None:
     if not db or not email or add <= 0:
         return
     try:
-        # Fresh read (not cached) so concurrent/multiple increments are correct.
-        u = db.collection('users').document(email).get()
-        existing = u.to_dict() if u.exists else {}
-        usage = existing.get('usage') or {}
-        lifetime = int(usage.get('lifetime') or 0) + add
-        months = usage.get('months') or {}
+        # Atomic server-side increments: parallel generations can't lose counts.
+        from firebase_admin import firestore as _fs
         mk = _month_key()
-        monthly = int(months.get(mk) or 0) + add
-        db.collection('users').document(email).set({'usage': {'lifetime': lifetime, 'months': {mk: monthly}}}, merge=True)
+        db.collection('users').document(email).set(
+            {'usage': {'lifetime': _fs.Increment(add), 'months': {mk: _fs.Increment(add)}}}, merge=True
+        )
         # Drop the cached doc so any later read in this request sees the new usage.
         invalidate_user_doc(email)
     except Exception:
