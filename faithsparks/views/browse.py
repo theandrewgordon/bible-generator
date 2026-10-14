@@ -11,14 +11,13 @@ from flask_dance.contrib.google import google
 from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
-from faithsparks.services.users import get_user_doc
+from faithsparks.services.users import get_user_doc, has_active_plus
 from faithsparks.services.collections import get_collections, get_collection_meta
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 
 
 bp = Blueprint("browse_views", __name__)
-MEMBER_PLANS = {"family", "classroom", "plus", "plus_family", "plus_classroom"}
 PRICE_CACHE_SECONDS = 10 * 60
 _price_cache: dict[str, tuple[float, dict | None]] = {}
 _price_cache_lock = threading.Lock()
@@ -85,7 +84,7 @@ def _bundle_access(meta: dict, user_doc: dict | None = None) -> dict:
     user_doc = user_doc if isinstance(user_doc, dict) else {}
     slug = str(meta.get("slug") or "")
     is_free = bool(meta.get("isFree"))
-    is_member = bool(user_doc.get("isPro") or user_doc.get("plan") in MEMBER_PLANS)
+    is_member = has_active_plus(user_doc)
     purchased = bool((user_doc.get("purchases") or {}).get(slug))
     entitled = bool(is_free or is_member or purchased)
     price_id = _effective_price_id(meta)

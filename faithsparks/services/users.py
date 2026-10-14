@@ -25,6 +25,28 @@ def has_active_plus(user_data: dict | None) -> bool:
     return str(data.get("plan") or "").strip().lower() in PLUS_PLAN_NAMES
 
 
+# Stripe subscription statuses that keep Plus on (past_due = Stripe's retry window).
+SUBSCRIPTION_ACCESS_STATUSES = {"active", "trialing", "past_due"}
+
+
+def gift_end_update(user_data: dict | None) -> dict:
+    """Fields to write when a gift expires or is revoked.
+
+    A member who also pays keeps Plus on their paid plan; everyone else
+    returns to free. (Previously gift end downgraded paying customers too.)
+    """
+    data = user_data or {}
+    paying = bool(data.get("subscriptionId")) and str(
+        data.get("subscriptionStatus") or "active"
+    ).lower() in SUBSCRIPTION_ACCESS_STATUSES
+    update = {"gifted": False, "giftExpiresAt": None}
+    if paying:
+        update.update({"plan": data.get("paidPlan") or "family", "isPro": True})
+    else:
+        update.update({"plan": "free", "isPro": False})
+    return update
+
+
 def has_family_game_night_access(user_data: dict | None) -> bool:
     data = user_data or {}
     owns_standalone = bool((data.get("purchases") or {}).get("family_game_night"))
