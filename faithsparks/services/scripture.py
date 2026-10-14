@@ -145,9 +145,18 @@ def _http_get_json(url: str, headers: dict | None = None) -> dict:
 
 
 def _fetch_bible_api(reference: str, version: str) -> str | None:
+    """bible-api.com is free and rate-limited: retry once after a short pause on 429."""
+    import time
+    from urllib.error import HTTPError
     url = f"https://bible-api.com/{quote(reference)}?translation={quote(version)}"
-    data = _http_get_json(url)
-    return data.get("text")
+    for attempt in range(2):
+        try:
+            return _http_get_json(url).get("text")
+        except HTTPError as exc:
+            if exc.code != 429 or attempt:
+                raise
+            time.sleep(2)
+    return None
 
 
 def _fetch_esv(reference: str) -> str | None:
@@ -179,7 +188,11 @@ def _fetch_api_bible(reference: str, bible_id: str) -> str | None:
     if not passages:
         return None
     content = passages[0].get("content") or ""
-    return re.sub(r"<[^>]+>", " ", content)  # strip any HTML tags
+    # Verse numbers come as <span data-number="16" class="v">16</span>; drop them
+    # first, or stripping tags leaves "16 For God so loved..." in the text.
+    content = re.sub(r'<span[^>]*class="[^"]*\bv\b[^"]*"[^>]*>.*?</span>', " ", content, flags=re.S)
+    content = re.sub(r"<sup[^>]*>.*?</sup>", " ", content, flags=re.S)
+    return re.sub(r"<[^>]+>", " ", content)  # strip remaining HTML tags
 
 
 def fetch_verse_text(reference: str, version: str) -> str | None:
@@ -244,3 +257,37 @@ def derive_traceable(authoritative: str, llm_excerpt: str | None, max_words: int
     if sentence and len(sentence.group(1).split()) <= max_words:
         return sentence.group(1).strip()
     return " ".join(words[:max_words]).rstrip(",;:")
+
+
+_SUFFIX_RE = re.compile(r"^(?P<base>.*?:\s*\d+)\s*(?P<part>[ab])\s*$", re.I)
+
+
+def split_letter_suffix(reference: str) -> tuple[str, str | None]:
+    """'Romans 8:28a' -> ('Romans 8:28', 'a'); other references -> (reference, None)."""
+    match = _SUFFIX_RE.match(_clean(reference))
+    if not match:
+        return _clean(reference), None
+    return match.group("base").strip(), match.group("part").lower()
+
+
+def verse_part(full: str, part: str, hint: str | None = None) -> str:
+    """Exact words for the 'a' or 'b' half of a verse.
+
+    Use the AI's suggested half only when it is a verbatim run of the real verse
+    (returned with the real punctuation); otherwise split at the clause break
+    nearest the middle. Never returns words that aren't in ``full``.
+    """
+    words = _clean(full).split()
+    if not words:
+        return ""
+    norm_words = [_norm(w) for w in words]
+    hint_words = [_norm(w) for w in _clean(hint).split() if _norm(w)]
+    if hint_words:
+        n = len(hint_words)
+        for start in range(0, len(words) - n + 1):
+            if norm_words[start:start + n] == hint_words:
+                return " ".join(words[start:start + n])
+    breaks = [i + 1 for i, w in enumerate(words[:-1]) if w.endswith((";", ":", ".", ",", "?", "!"))]
+    cut = min(breaks, key=lambda i: abs(i - len(words) / 2)) if breaks else max(1, len(words) // 2)
+    return " ".join(words[:cut] if part == "a" else words[cut:])
+
