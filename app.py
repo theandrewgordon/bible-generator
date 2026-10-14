@@ -34,7 +34,6 @@ from verse_helpers import (
     request_verse_data,
     parse_and_clean_json,
     save_json_to_file,
-    ai_validate_custom_text,
     normalize_reference_title,
     normalize_verse_data,
     preserve_letter_suffix,

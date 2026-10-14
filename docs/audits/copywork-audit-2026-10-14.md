@@ -19,6 +19,29 @@ Items marked **[verified]** were reproduced; **[verify]** needs your API keys.
 - **The scripture safety net is fail-open**: when no licensed source answers, the AI writes the verse.
 - **Every worksheet prints on two pages.**
 
+## Status — fixes applied 2026-10-14
+
+I re-ran the same two-family and translation simulations against the real app; both now behave correctly. `tests/test_copywork_audit_fixes.py` adds 12 tests, all failing on the old code. The full suite passes.
+
+| # | Status |
+|---|---|
+| 1 Shared custom files | Fixed: custom worksheets get a private name (`custom-<family hash>-<random>`) and rebuild into it. Custom worksheets made before today point at shared names, so they are **not served**; people are asked to make them again. |
+| 2 Shared bundle | Fixed: each bundle is a new temp file, deleted after sending |
+| 3 AI-written Scripture | Fixed, fail closed: only translations with a real source are accepted (NIV/MSG get a friendly "choose one of …"). No source answering means "try again", not AI text. Half-verse ("a"/"b") references are cut from the real verse. Cached worksheets are reused only if their text was verified. bible-api.com gets one retry on 429. |
+| 4 Safety check ignored | Fixed: custom text and title go through the free moderation endpoint and flagged text is blocked. The unused paid check was removed. |
+| 5 Two pages | Fixed: always one page. The ESV/NLT notice is small print in the footer; KJV/WEB/custom have none. |
+| 6 Long custom text | Fixed: tracing is at most 26 exact words, and custom text is capped at 600 characters (also in the form) |
+| 7 Partial bundle | Fixed: if only one worksheet succeeds, it's sent |
+| 8 Beginner coloring sliver | Fixed: copy text, trace size, then writing lines step down until coloring has at least 1.75 in |
+| 9 Small copy text | Fixed: 12 pt when it fits (down to 10 pt for long passages) |
+| 10 NLT verse numbers | Fixed in code (verse-number spans are dropped before tags are stripped). **[verify]** once with your API.Bible key. |
+| 11 Delete | Fixed: shared verse files are kept; custom and coloring files are removed locally and from cloud storage |
+| 12 Lesson-pack images | **Your call:** unchanged, same decision as billing #15 |
+| P3 | Removed `test_chatgpt.py` and `generate_all_worksheets.py` |
+| Also | `send_file` now uses absolute paths, so a single worksheet downloads correctly even when the working directory isn't the app folder (found by the new tests) |
+
+**Note:** worksheets whose text came from the AI before today stay in storage, but are rebuilt from a real source the next time anyone generates that verse.
+
 ---
 
 ## P0 — one family can receive another family's content

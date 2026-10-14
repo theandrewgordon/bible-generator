@@ -42,6 +42,28 @@ from verse_helpers import normalize_verse_data, request_verse_data
 
 
 class VerseHelperTests(unittest.TestCase):
+    def setUp(self):
+        # A licensed/public-domain source answers; the AI only supplies extras.
+        source = patch("faithsparks.services.scripture.fetch_verse_text", return_value="For God so loved the world.")
+        source.start()
+        self.addCleanup(source.stop)
+        cache = patch("verse_helpers._load_cached_verse_data", return_value=None)
+        cache.start()
+        self.addCleanup(cache.stop)
+
+    def test_no_bible_source_means_no_worksheet(self):
+        response = json.dumps({"verse": "john 3:16", "fullVerse": "AI-written words", "version": "niv"})
+        with patch("faithsparks.services.scripture.fetch_verse_text", return_value=None), \
+                patch("verse_helpers.call_openai", return_value=response):
+            self.assertIsNone(request_verse_data("john 3:16", "niv"))
+
+    def test_half_verse_uses_real_words(self):
+        full = "And we know that for those who love God all things work together for good, for those who are called according to his purpose."
+        response = json.dumps({"verse": "Romans 8:28a", "fullVerse": "We know God works all things for good", "version": "esv"})
+        with patch("faithsparks.services.scripture.fetch_verse_text", return_value=full), \
+                patch("verse_helpers.call_openai", return_value=response):
+            payload = json.loads(request_verse_data("Romans 8:28a", "esv"))
+        self.assertEqual(payload["fullVerse"], "And we know that for those who love God all things work together for good,")
     def test_normalize_verse_data_fills_title_and_defaults(self):
         data = normalize_verse_data(
             {"verse": "john 3:16", "fullVerse": "For God so loved the world."},

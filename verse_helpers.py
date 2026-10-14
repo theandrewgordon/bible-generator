@@ -235,8 +235,14 @@ def _apply_authoritative_text(normalized: dict, verse_ref: str, version: str) ->
     trustworthy source exists (accuracy + translation licensing). The AI's
     reflection/coloring/title are kept; only the verse wording is corrected."""
     try:
-        from faithsparks.services.scripture import fetch_verse_text, derive_traceable
-        authoritative = fetch_verse_text(verse_ref, version)
+        from faithsparks.services.scripture import (
+            derive_traceable, fetch_verse_text, split_letter_suffix, verse_part,
+        )
+        base_ref, part = split_letter_suffix(verse_ref)
+        authoritative = fetch_verse_text(base_ref, version)
+        if authoritative and part:
+            # Half-verse references: cut the half from the real verse text.
+            authoritative = verse_part(authoritative, part, normalized.get("fullVerse"))
     except Exception:
         authoritative = None
     if authoritative:
@@ -261,6 +267,9 @@ def request_verse_data(verse_ref, version="esv"):
             normalized = _apply_authoritative_text(normalized, verse_ref, version)
             if normalized.get("verseSource") == "authoritative":
                 _store_cached_verse_data(verse_ref, version, normalized)
+        # Fail closed: never print AI-written words as Scripture.
+        if normalized.get("verseSource") != "authoritative":
+            return None
         return json.dumps(normalized, ensure_ascii=False)
 
     prompt = build_prompt(verse_ref, version)
@@ -273,7 +282,11 @@ def request_verse_data(verse_ref, version="esv"):
         if data:
             normalized = normalize_verse_data(data, verse_ref, version)
             normalized = _apply_authoritative_text(normalized, verse_ref, version)
+            # Keep the AI extras (title, question, coloring idea) so a retry
+            # doesn't pay again; the cached entry is upgraded once a source answers.
             _store_cached_verse_data(verse_ref, version, normalized)
+            if normalized.get("verseSource") != "authoritative":
+                return None  # fail closed: no verified Scripture text
             return json.dumps(normalized, ensure_ascii=False)
 
     return None
@@ -388,31 +401,7 @@ def save_json_to_file(data, path):
     except Exception as e:
         print(f"⚠️ Could not save JSON to {path}: {e}")
 
-# === Custom Text Filtering ===
-def ai_validate_custom_text(text):
-    """Use GPT to check if custom content is safe and scripture-like."""
-    prompt = [
-        {"role": "system", "content": "You review religious education content for safety and accuracy."},
-        {"role": "user", "content": f"""
-Analyze the following custom text for appropriateness in a Christian children's worksheet.
-
-1. Flag if it includes profanity, crude, or lewd content.
-2. Evaluate if it resembles a Bible verse (even if paraphrased from a modern version).
-3. Return JSON with:
-  - "safe": true/false
-  - "isScriptureLike": true/false
-  - "reason": short explanation
-
-Text: {text}
-"""}
-    ]
-    result = call_openai(prompt)
-    try:
-        analysis = json.loads(strip_fences(result))
-        return analysis.get("safe", False) and analysis.get("isScriptureLike", False)
-    except Exception as e:
-        print(f"⚠️ Custom validation failed: {e}")
-        return False
+# Custom text is checked with moderate_text_block() (free moderation endpoint).
 
 
 def parse_reference_list(raw: str) -> List[str]:

@@ -19,6 +19,7 @@ from flask import (
     g,
     jsonify,
     abort,
+    after_this_request,
 )
 from firebase_admin import firestore
 
@@ -26,7 +27,7 @@ from verse_helpers import (
     request_verse_data,
     parse_and_clean_json,
     save_json_to_file,
-    ai_validate_custom_text,
+    moderate_text_block,
     normalize_reference_title,
     normalize_verse_data,
     preserve_letter_suffix,
@@ -45,6 +46,7 @@ from faithsparks.services.usage import (
 )
 from faithsparks.services.collections import get_collection_meta
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.scripture import available_translation_ids
 from faithsparks.util.slug import normalize_slug
 from faithsparks.util.request_utils import get_client_ip, get_request_payload, log_request_summary
 from faithsparks.util.proverb import get_proverb_of_day
@@ -53,7 +55,7 @@ from faithsparks.util.proverb import get_proverb_of_day
 MAX_WORKSHEETS_PER_REQUEST = 30
 OPENAI_BATCH_SIZE = 10
 MAX_VERSE_INPUT_LEN = 1200
-MAX_CUSTOM_TEXT_LEN = 2500
+MAX_CUSTOM_TEXT_LEN = 600  # what fits on one worksheet page
 MAX_CUSTOM_TITLE_LEN = 120
 MAX_CUSTOM_PROMPT_LEN = 300
 ANONYMOUS_SAMPLE_LIMIT = 1
@@ -93,10 +95,22 @@ def _worksheet_doc_for_user(filename: str):
 
 
 def _delete_owned_worksheet_file(filename: str, meta: dict | None = None) -> None:
+    """Remove a worksheet's files when nobody else uses them.
+
+    Verse worksheets are shared by every family who made the same verse, so
+    deleting one person's history entry must not delete the file. Custom
+    worksheets and coloring pages belong to one family: remove them here and
+    in cloud storage.
+    """
+    from faithsparks.services.storage import delete_storage_path
+    meta = meta or {}
+    private = _is_custom_filename(filename) or meta.get("type") == "coloring"
+    if not private:
+        return
     file_path = _safe_local_path("output", filename, {".pdf"})
     if file_path and file_path.exists():
         file_path.unlink()
-    meta = meta or {}
+    delete_storage_path(f"worksheets/{os.path.basename(filename)}")
     if meta.get("type") == "coloring":
         png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
         png_path = _safe_local_path("worksheets", png_name, {".png"})
@@ -106,6 +120,26 @@ def _delete_owned_worksheet_file(filename: str, meta: dict | None = None) -> Non
     thumb_path = _safe_local_path(os.path.join("output", "thumbs"), thumb_name, {".png"})
     if thumb_path and thumb_path.exists():
         thumb_path.unlink()
+    delete_storage_path(f"thumbs/{thumb_name}")
+
+
+def _custom_slug(owner_email: str | None) -> str:
+    """custom-<owner hash>-<random>: private to one family, unique per worksheet."""
+    import hashlib
+    import uuid
+    owner = hashlib.sha256((owner_email or "anonymous").strip().lower().encode("utf-8")).hexdigest()[:10]
+    return f"custom-{owner}-{uuid.uuid4().hex[:10]}"
+
+
+def _is_custom_filename(filename: str) -> bool:
+    return os.path.basename(filename or "").startswith("custom-")
+
+
+def _legacy_shared_custom(doc) -> bool:
+    """Custom worksheets made before 2026-10-14 used shared file names, so the
+    file on disk may now hold another family's text. Never serve those."""
+    meta = doc.to_dict() or {}
+    return bool(meta.get("custom")) and not _is_custom_filename(meta.get("filename") or "")
 
 
 def _chunked(seq, size):
@@ -144,37 +178,28 @@ def make_thumbnail(verse_ref: str, version: str, base_name: str):
         return None
 
 
-def update_zip_bundle(pdf_paths=None):
+def update_zip_bundle(pdf_paths) -> str | None:
+    """Zip these PDFs into a new per-request file (caller deletes it after sending).
+
+    Every request used to write the same output/worksheets_bundle.zip, so two
+    families generating at once could download each other's bundle.
+    """
+    import tempfile
     from zipfile import ZipFile
 
-    bundle_path = "output/worksheets_bundle.zip"
-
-    if pdf_paths is None:
-        pdf_paths = [
-            os.path.join("output", f)
-            for f in os.listdir("output")
-            if f.endswith(".pdf")
-        ]
-
     files = []
-    for path in pdf_paths:
-        if not path:
-            continue
-        abs_path = path if os.path.isabs(path) else os.path.abspath(path)
-        if os.path.exists(abs_path) and abs_path not in files:
+    for path in pdf_paths or []:
+        abs_path = os.path.abspath(path) if path else None
+        if abs_path and os.path.exists(abs_path) and abs_path not in files:
             files.append(abs_path)
-
     if len(files) < 2:
-        try:
-            if os.path.exists(bundle_path):
-                os.remove(bundle_path)
-        except Exception:
-            pass
-        return
-
+        return None
+    handle, bundle_path = tempfile.mkstemp(prefix="worksheets_", suffix=".zip")
+    os.close(handle)
     with ZipFile(bundle_path, "w") as zf:
         for file_path in files:
             zf.write(file_path, os.path.basename(file_path))
+    return bundle_path
 
 
 def generate():
@@ -294,6 +319,18 @@ def generate():
             flash("Please enter a verse or custom text to generate.", "warning")
             return redirect(url_for("generate"))
 
+        # Only translations we can load from a licensed or public-domain source.
+        # (Anything else used to be written from the AI's memory.)
+        allowed_versions = available_translation_ids()
+        unsupported = sorted({item["version"] for item in verse_items if item["version"].lower() not in allowed_versions})
+        if unsupported:
+            offered = ", ".join(v.upper() for v in sorted(allowed_versions))
+            msg = f"{', '.join(unsupported)} isn't available here. Choose one of: {offered}."
+            if request.is_json:
+                return jsonify(error=msg), 400
+            flash(msg, "warning")
+            return redirect(url_for("generate"))
+
         client_ip = get_client_ip()
         rate_identity = user_email or f"anonymous:{client_ip}"
         user_limit = check_rate_limit("worksheet_generate:user", rate_identity, limit=24, window_seconds=60 * 60)
@@ -307,10 +344,23 @@ def generate():
 
         custom_item = None
         if custom_text:
-            ai_validate_custom_text(custom_text)
+            moderation = moderate_text_block(f"{custom_title}\n{custom_text}")
+            if moderation.get("flagged"):
+                checked = not (moderation.get("categories") or {}).get("error")
+                msg = (
+                    "That text can't go on a children's worksheet. Please edit it and try again."
+                    if checked else
+                    "We couldn't check that text just now. Please try again in a moment."
+                )
+                if request.is_json:
+                    return jsonify(error=msg), 400
+                flash(msg, "warning")
+                return redirect(url_for("generate"))
             title = custom_title or "Custom Text (User Submitted)"
             custom_item = {
-                "slug": normalize_slug(title),
+                # Unique per family and per worksheet: custom text is private, so it
+                # must never share a file name with anyone else's worksheet.
+                "slug": _custom_slug(user_email),
                 "verse": title,
                 "version": "DIY",
                 "is_custom": True,
@@ -416,7 +466,7 @@ def generate():
                 contexts.append(context)
 
                 existing_path = None
-                if db and user_email:
+                if db and user_email and not is_custom:
                     try:
                         existing_stream = (
                             db.collection("worksheets")
@@ -462,10 +512,12 @@ def generate():
                     try:
                         with open(json_path, "r", encoding="utf-8") as cache_file:
                             data = json.load(cache_file)
-                            context["data"] = data
-                            context["skip"] = True
-                            _record_existing(pdf_path)
-                            continue
+                        if (data or {}).get("verseSource") != "authoritative":
+                            raise ValueError("cached worksheet predates verified Scripture text")
+                        context["data"] = data
+                        context["skip"] = True
+                        _record_existing(pdf_path)
+                        continue
                     except Exception:
                         pass
 
@@ -500,9 +552,12 @@ def generate():
                         except Exception as exc:
                             ctx["error"] = str(exc)
                             continue
-                        data = parse_and_clean_json(content)
+                        data = parse_and_clean_json(content) if content else None
                         if not data:
-                            ctx["error"] = f"Could not fetch verse for {ctx['verse']} ({ctx['version']})."
+                            ctx["error"] = (
+                                f"We couldn't load {ctx['verse']} ({ctx['version']}) from a Bible source right now. "
+                                "Please check the reference or try again in a few minutes."
+                            )
                             continue
                         ctx["data"] = normalize_verse_data(data, ctx["verse"], ctx["version"])
 
@@ -599,7 +654,7 @@ def generate():
             except Exception:
                 pass
 
-        update_zip_bundle(bundle_files)
+        bundle_path = update_zip_bundle(bundle_files) if len(bundle_files) >= 2 else None
         try:
             current_app.logger.info(
                 "worksheets.generate summary requested=%s success=%s skipped=%s free_skips=%s collection=%s",
@@ -626,16 +681,27 @@ def generate():
             )
         session["clear_storage"] = True
 
-        if len(items_to_generate) == 1 and last_pdf and os.path.exists(last_pdf):
-            flash("Worksheet generated successfully!", "success")
-            return send_file(last_pdf, as_attachment=True, download_name=os.path.basename(last_pdf), conditional=True)
-        elif len(items_to_generate) > 1:
-            zip_path = "output/worksheets_bundle.zip"
-            if os.path.exists(zip_path):
-                flash("Bundle generated successfully!", "success")
-                return send_file(zip_path, as_attachment=True, download_name=os.path.basename(zip_path), conditional=True)
+        if bundle_path:
+            @after_this_request
+            def _remove_bundle(response):
+                try:
+                    os.remove(bundle_path)
+                except OSError:
+                    pass
+                return response
 
-        return "No worksheets were generated successfully", 500
+            flash("Bundle generated successfully!", "success")
+            return send_file(bundle_path, as_attachment=True, download_name="worksheets_bundle.zip")
+        if len(bundle_files) == 1 and os.path.exists(bundle_files[0]):
+            # One worksheet (or only one of several succeeded): send it, don't error.
+            flash("Worksheet generated successfully!", "success")
+            return send_file(os.path.abspath(bundle_files[0]), as_attachment=True,
+                             download_name=os.path.basename(bundle_files[0]), conditional=True)
+
+        if request.is_json:
+            return jsonify(error="No worksheets could be generated. Please try again."), 500
+        flash("No worksheets could be generated. Please try again.", "error")
+        return redirect(url_for("generate"))
 
     except Exception as e:
         current_app.logger.exception("[%s] worksheet generation failed: %s", getattr(g, "req_id", ""), e)
@@ -773,6 +839,9 @@ def download_file(filename):
     if not doc:
         flash("⚠️ File missing and original data not found.", "error")
         return redirect(url_for("prints"))
+    if _legacy_shared_custom(doc):
+        flash("This older custom worksheet can't be downloaded safely. Please make it again from Generate.", "info")
+        return redirect(url_for("generate"))
     if file_path.exists():
         try:
             base = os.path.splitext(filename)[0]
@@ -793,7 +862,7 @@ def thumb(filename):
     base = os.path.splitext(os.path.basename(filename))[0]
     pdf_name = base + ".pdf"
     doc = _worksheet_doc_for_user(pdf_name)
-    if not doc:
+    if not doc or _legacy_shared_custom(doc):
         return ("", 404)
     if path.exists():
         remote_url = signed_url_for_path(f"thumbs/{filename}")
@@ -858,6 +927,13 @@ def regenerate(filename):
     slug = normalize_slug(verse)
     level_suffix = "" if learner_level == "growing" else f"_{learner_level}"
     pdf_path = f"output/{slug}_{version}{'_cursive' if use_cursive else ''}{level_suffix}.pdf"
+    if is_custom:
+        # Custom worksheets rebuild into their own private file, never a shared name.
+        own = _safe_local_path("output", meta.get("filename") or filename, {".pdf"})
+        if not own or not _is_custom_filename(own.name):
+            flash("Please make this custom worksheet again from the Generate page.", "info")
+            return redirect(url_for("generate"))
+        pdf_path = str(own)
     try:
         if is_custom:
             data = {
@@ -883,10 +959,12 @@ def regenerate(filename):
                         data = json.load(cached)
                 except Exception:
                     data = None
+            if data and data.get("verseSource") != "authoritative":
+                data = None  # older AI-written text: fetch verified text instead
             if not data:
                 content = request_verse_data(verse, version.lower())
                 if not content:
-                    flash("Verse fetch failed during regeneration.", "error")
+                    flash(f"We couldn't load {verse} ({version.upper()}) from a Bible source right now. Please try again later.", "error")
                     return redirect(url_for("prints"))
                 data = parse_and_clean_json(content)
             data.update({
