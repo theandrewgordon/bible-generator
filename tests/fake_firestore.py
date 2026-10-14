@@ -43,6 +43,9 @@ class Doc:
         coll = self.store.setdefault(self.path, {})
         coll[self.id] = _apply(coll.get(self.id) or {}, data, merge)
 
+    def delete(self):
+        self.store.setdefault(self.path, {}).pop(self.id, None)
+
     def collection(self, name):
         return Coll(self.store, f"{self.path}/{self.id}/{name}")
 

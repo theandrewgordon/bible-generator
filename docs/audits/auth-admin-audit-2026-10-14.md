@@ -19,6 +19,24 @@
 
 The findings are one real bug (church owners can demote themselves) and some missing hardening.
 
+## Status — fixes applied 2026-10-14
+
+`tests/test_auth_audit_fixes.py` adds 9 tests; 8 fail on the old code, and the ninth is a regression guard. The full suite has 1,041 passing.
+
+| # | Status |
+|---|---|
+| 1 Owner demotion | Fixed: joining keeps an existing role; only new people join as members |
+| 2 Clickjacking | Fixed: every response sends `X-Frame-Options: SAMEORIGIN`, `Content-Security-Policy: frame-ancestors 'self'` and `X-Content-Type-Options: nosniff` |
+| 3 Unverified email | Fixed: a Google account whose email isn't verified is refused at sign-in |
+| 4 Invite management | Fixed: owners get **New invite code** (the old code stops working; members stay) and a **Members** list with Remove (owners can't remove themselves). View-only invites not added. |
+| 5 Shared Library | **Your call:** unchanged |
+| 6 Admin log | Fixed: `set_plan` and `reset_usage` write `admin_log` entries (action, target, details, by, at) |
+| 7 WeekFlow demo names | Deferred to the WeekFlow chunk |
+| P3 logout | Fixed: Logout is a POST button (CSRF-checked); a GET to `/logout` signs no one out |
+| P3 HSTS | Fixed: `Strict-Transport-Security: max-age=31536000` in production |
+| P3 admin `next` | Fixed: signing in from an admin page returns you there |
+| Also | The account menu showed **Default version** and **Theme** in white on the light panel; both now use the normal text colors |
+
 ---
 
 ## P1

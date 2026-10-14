@@ -248,7 +248,24 @@
     <p class="ws-church-meta">Shared worship library{% if worship_ccli_license %} · CCLI License #{{ worship_ccli_license }}{% endif %}</p>
   </div></summary>
   <div class="ws-church-actions">
-    {% if worship_church.invite_code and worship_church.role == 'owner' %}<p class="ws-church-meta" style="width:100%;margin:.2rem 0">Invite code <strong>{{ worship_church.invite_code }}</strong></p>{% endif %}
+    {% if worship_church.invite_code and worship_church.role == 'owner' %}<p class="ws-church-meta" style="width:100%;margin:.2rem 0">Invite code <strong>{{ worship_church.invite_code }}</strong></p>
+    <form method="post" action="{{ url_for('worship_church_invite_rotate') }}" onsubmit="return confirm('Make a new invite code? The current code will stop working.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="secondary">New invite code</button>
+    </form>{% endif %}
+    {% if worship_church_members %}<div class="ws-church-members" style="width:100%">
+      <p class="ws-church-meta" style="margin:.4rem 0 .2rem"><strong>Members</strong></p>
+      <ul style="list-style:none;padding:0;margin:0">
+        {% for member in worship_church_members %}<li style="display:flex;align-items:center;gap:.5rem;justify-content:space-between;padding:.2rem 0">
+          <span class="ws-church-meta">{{ member.email }}{% if member.role != 'member' %} · {{ member.role }}{% endif %}</span>
+          {% if member.role != 'owner' %}<form method="post" action="{{ url_for('worship_church_member_remove') }}" onsubmit="return confirm('Remove {{ member.email }} from this church library?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="email" value="{{ member.email }}">
+            <button type="submit" class="secondary" aria-label="Remove {{ member.email }}">Remove</button>
+          </form>{% endif %}
+        </li>{% endfor %}
+      </ul>
+    </div>{% endif %}
     {% if worship_churches %}
     <form class="switch-form" method="post" action="{{ url_for('worship_church_switch') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
