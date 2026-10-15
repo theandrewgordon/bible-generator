@@ -33,7 +33,7 @@ def _payload():
                 "kind": "prep",
                 "due_date": "2026-09-14",
                 "time_of_day": "morning",
-                "assigned_person_id": "diana",
+                "assigned_person_id": "student-2",
                 "meal_id": "taco-night",
                 "status": "open",
                 "created_at": timestamp,
@@ -59,7 +59,7 @@ def test_meals_and_handoffs_are_normalized_against_the_shared_family():
 
     assert state["meals"][0]["title"] == "Tacos and fruit"
     assert state["meals"][0]["lead_person_id"] == "parent"
-    assert state["handoffs"][0]["assigned_person_id"] == "diana"
+    assert state["handoffs"][0]["assigned_person_id"] == "student-2"
     assert state["handoffs"][0]["meal_id"] == "taco-night"
 
 

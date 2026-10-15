@@ -170,9 +170,33 @@ class EncryptedFirestoreCalendarTokenStorage(BaseStorage):
             disconnect_google_calendar(email)
 
 
+GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke"
+
+
+def _revoke_at_google(email: str) -> bool:
+    """Best effort: withdraw the grant at Google so it leaves the user's
+    Google account too. Local deletion happens regardless of the result."""
+    try:
+        snapshot = _token_ref(email).get()
+        encrypted = (snapshot.to_dict() or {}).get("encryptedToken") if snapshot.exists else None
+        if not encrypted:
+            return False
+        token = json.loads(_fernet().decrypt(encrypted.encode()))
+        value = token.get("refresh_token") or token.get("access_token")
+        if not value:
+            return False
+        import httpx
+
+        response = httpx.post(GOOGLE_REVOKE_URL, data={"token": value}, timeout=5.0)
+        return response.status_code in (200, 400)  # 400 = already revoked/expired
+    except Exception:
+        return False
+
+
 def disconnect_google_calendar(email: str) -> None:
     if not db:
         raise WeekFlowCalendarUnavailable("Calendar token storage is unavailable")
+    _revoke_at_google(email)
     try:
         _token_ref(email).delete()
         _settings_ref(email).delete()

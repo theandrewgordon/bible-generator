@@ -35,7 +35,7 @@ def _payload():
                 "kind": "packing",
                 "due_date": "2026-09-17",
                 "time_of_day": "evening",
-                "assigned_person_id": "diana",
+                "assigned_person_id": "student-2",
                 "plan_id": "grandma",
                 "status": "open",
                 "created_at": timestamp,
@@ -58,7 +58,7 @@ def test_default_travel_state_is_empty_and_normalized():
 def test_travel_plan_and_handoff_use_shared_family_people():
     state = normalize_travel_state(_payload(), family=default_beta_state()["family"])
     assert state["plans"][0]["lead_person_id"] == "parent"
-    assert state["handoffs"][0]["assigned_person_id"] == "diana"
+    assert state["handoffs"][0]["assigned_person_id"] == "student-2"
     assert state["handoffs"][0]["plan_id"] == "grandma"
 
 

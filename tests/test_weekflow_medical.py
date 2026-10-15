@@ -14,7 +14,7 @@ def _payload():
     timestamp = "2026-09-15T12:00:00+00:00"
     return {
         "revision": 1,
-        "items": [{"id": "dentist", "title": "Dentist appointment", "kind": "appointment", "for_person_id": "diana", "assigned_person_id": "parent", "date": "2026-09-18", "time": "10:30", "provider": "Family dentist", "location": "Main Street office", "note": "Bring completed form", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+        "items": [{"id": "dentist", "title": "Dentist appointment", "kind": "appointment", "for_person_id": "student-2", "assigned_person_id": "parent", "date": "2026-09-18", "time": "10:30", "provider": "Family dentist", "location": "Main Street office", "note": "Bring completed form", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
     }
 
 
@@ -26,7 +26,7 @@ def test_default_medical_state_is_empty_and_normalized():
 
 def test_care_item_is_normalized_against_shared_family_people():
     state = normalize_medical_state(_payload(), family=default_beta_state()["family"])
-    assert state["items"][0]["for_person_id"] == "diana"
+    assert state["items"][0]["for_person_id"] == "student-2"
     assert state["items"][0]["assigned_person_id"] == "parent"
     assert state["items"][0]["time"] == "10:30"
 

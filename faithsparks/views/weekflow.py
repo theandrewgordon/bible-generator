@@ -121,22 +121,35 @@ def _beta_allowlist() -> set[str]:
     }
 
 
+def _int_env(name: str, default: int) -> int:
+    try:
+        return max(0, int(os.getenv(name, str(default))))
+    except ValueError:
+        return default
+
+
+def _is_production() -> bool:
+    return os.getenv("APP_ENV", "dev").lower() in {"prod", "production"}
+
+
+def _is_admin(email: str | None) -> bool:
+    admins = {item.strip().casefold() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()}
+    return bool(email and email.casefold() in admins)
+
+
 def _has_beta_access(email: str | None) -> bool:
-    allowlist = _beta_allowlist()
-    return not allowlist or bool(email and email in allowlist)
-
-
-def _has_ai_intake_access(email: str | None) -> bool:
-    """Paid AI intake fails closed in production: beta list or admins only."""
+    """Beta list members and admins. An empty list is open only outside production."""
     if not email:
         return False
     allowlist = _beta_allowlist()
-    if email in allowlist:
+    if email.casefold() in allowlist or _is_admin(email):
         return True
-    admins = {item.strip().casefold() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()}
-    if email.casefold() in admins:
-        return True
-    return not allowlist and os.getenv("APP_ENV", "dev").lower() not in {"prod", "production"}
+    return not allowlist and not _is_production()
+
+
+def _has_ai_intake_access(email: str | None) -> bool:
+    """Paid AI intake: same rule as beta access (kept separate for clarity)."""
+    return _has_beta_access(email)
 
 
 def _weekflow_limits(email: str | None) -> dict[str, int | str | bool]:
@@ -1104,12 +1117,24 @@ def logistics_support_send():
     limit = check_rate_limit(
         "weekflow-support-send", email, limit=12, window_seconds=60 * 60
     )
-    if not limit.allowed:
+    ip_limit = check_rate_limit(
+        "weekflow-support-send:ip", get_client_ip(), limit=20, window_seconds=60 * 60
+    )
+    if not limit.allowed or not ip_limit.allowed:
         return jsonify({"error": "Too many support requests. Try again later."}), 429
+    payload = request.get_json(silent=True)
+    if isinstance(payload, dict) and payload.get("channel") == "sms":
+        # App-wide ceiling on texts per day, whoever sends them.
+        daily = check_rate_limit(
+            "weekflow-sms:daily", "all",
+            limit=_int_env("WEEKFLOW_SMS_DAILY_CAP", 50), window_seconds=24 * 60 * 60,
+        )
+        if not daily.allowed:
+            return jsonify({"error": "Text reminders are paused for today. Try email instead."}), 429
     try:
         result = create_and_send_support_request(
             email,
-            request.get_json(silent=True),
+            payload,
             secret_key=_support_signing_key(),
             response_url_builder=lambda token: url_for(
                 "weekflow.logistics_support_response",
@@ -1730,6 +1755,15 @@ def restore_backup():
     backup_payload = body.get("backup")
     if not isinstance(backup_payload, dict) or not isinstance(backup_payload.get("state"), dict):
         return jsonify({"error": "This is not a valid WeekFlow backup."}), 400
+    # A restore must respect the same plan limits as normal saves.
+    if error := _limit_error(email, backup_payload["state"]):
+        return jsonify({"error": error}), 403
+    limits = _weekflow_limits(email)
+    for key in ("templates", "weeks"):
+        items = backup_payload.get(key)
+        cap = int(limits["templates" if key == "templates" else "saved_weeks"])
+        if isinstance(items, list) and len(items) > cap:
+            return jsonify({"error": f"Your {limits['tier']} plan keeps up to {cap} {key}. Remove some from the backup first."}), 403
     try:
         restored = restore_weekflow_backup(email, backup_payload)
     except (TypeError, ValueError) as exc:

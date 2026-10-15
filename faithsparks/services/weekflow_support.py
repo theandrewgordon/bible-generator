@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import secrets
 from collections.abc import Callable
@@ -122,6 +123,13 @@ def _clean_text(value: object, field: str, maximum: int) -> str:
     return cleaned
 
 
+def sms_country_codes() -> list[str]:
+    """Calling codes helpers may be texted at. Default +1 (US/Canada) only:
+    international texts are the classic way an SMS bill gets run up."""
+    codes = [c.strip().lstrip("+") for c in os.getenv("WEEKFLOW_SMS_COUNTRIES", "1").split(",")]
+    return [c for c in codes if c.isdigit()] or ["1"]
+
+
 def _destination(channel: str, value: object) -> str:
     destination = _clean_text(value, "destination", 254)
     if channel == "email":
@@ -131,6 +139,10 @@ def _destination(channel: str, value: object) -> str:
     if channel == "sms":
         if not re.fullmatch(r"\+[1-9]\d{7,14}", destination):
             raise ValueError("destination must use E.164 phone format")
+        if not any(destination.startswith("+" + code) for code in sms_country_codes()):
+            raise ValueError("Text messages can only go to US and Canada numbers right now.")
+        if destination.startswith("+1") and not re.fullmatch(r"\+1[2-9]\d{9}", destination):
+            raise ValueError("Enter a 10-digit US or Canada number.")
         return destination
     raise ValueError("channel must be email or sms")
 
