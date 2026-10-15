@@ -1,10 +1,8 @@
 {% extends "base.html" %} {% block title %}Printable Bible Games | Faith Sparks
-Printables{% endblock %} {% block head_extra %}
-<link rel="canonical" href="{{ url_for('games', _external=True) }}" />
-<meta
-  name="description"
-  content="Printable Bible games for homeschool, family nights, and co-ops. Easy to download, ready to print."
-/>
+Printables{% endblock %}
+{% set description = "Printable Bible games for homeschool, family nights, and co-ops. Easy to download, ready to print." %}
+{% set canonical = url_for('games', _external=True) %}
+{% block head_extra %}
 {% endblock %} {% block content %}
 <h1 class="page-title">Bible Games</h1>
 <p class="muted">Choose a live game for the whole room or print something for the table.</p>

@@ -1155,7 +1155,10 @@ def same_brain_public():
         safe_name = str(preview_name).replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;") if preview_name else ""
         preview_title = (safe_name + " challenged you — Same Brain?") if safe_name else "Same Brain? — Play Today’s 5"
         image_url = request.url_root.rstrip("/") + "/same-brain/og.png"
+        canonical_url = request.url_root.rstrip("/") + "/same-brain"
         social_meta = (
+            '<meta name="description" content="Same Brain? A quick family game: answer 5 questions and see how often your brains match. Free, no sign-in needed.">'
+            '<link rel="canonical" href="' + canonical_url + '">'
             '<meta property="og:title" content="' + preview_title + '">'
             '<meta property="og:description" content="Answer 5 quick questions and see how often your brains match.">'
             '<meta property="og:type" content="website">'

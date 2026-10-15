@@ -349,6 +349,15 @@ def cache_versioned_vendor_assets(response):
         # Slide backgrounds rarely change: cache a week so song changes paint instantly
         # instead of re-checking the server on church Wi-Fi.
         response.headers["Cache-Control"] = "public, max-age=604800"
+    elif request.path.startswith("/static/") and response.status_code in (200, 304):
+        if request.args.get("v") == STATIC_VERSION:
+            # ?v={{ static_v }} changes on every deploy (git commit), so these bytes
+            # never change. Hand-numbered ?v=7 URLs keep revalidating (safer).
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif request.path.startswith("/static/bible_bee_avatars/"):
+            response.headers["Cache-Control"] = "public, max-age=2592000"  # renamed when changed
+        elif request.path.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico", ".mp4")):
+            response.headers["Cache-Control"] = "public, max-age=86400"
     return response
 
 
@@ -362,9 +371,20 @@ def pwa_manifest():
 
 @app.route('/service-worker.js')
 def service_worker():
-    """Serve the service worker from the app root for full-scope control."""
-    response = send_from_directory('static', 'service-worker.js')
+    """Serve the service worker from the app root, with its cache tied to this deploy."""
+    with open(os.path.join(app.root_path, 'static', 'service-worker.js'), encoding='utf-8') as fh:
+        body = fh.read().replace('__STATIC_VERSION__', STATIC_VERSION)
+    response = Response(body, mimetype='text/javascript')
     response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+
+@app.route('/offline')
+def offline_page():
+    """Standalone page the service worker shows when a page can't load at all.
+    No user data on it, so a cached copy is safe on shared devices."""
+    response = app.make_response(render_template('offline.html'))
+    response.headers['Cache-Control'] = 'public, max-age=86400'
     return response
 
 
@@ -393,11 +413,17 @@ def robots_txt():
 @app.route('/sitemap.xml')
 def sitemap_xml():
     """Small, explicit sitemap; private workspaces and Labs stay out."""
-    paths = (
+    # Only pages a signed-out visitor (and a crawler) can actually open.
+    paths = [
         "/", "/about", "/start-here", "/families", "/churches", "/prepare", "/lesson-pack",
-        "/generate", "/browse", "/play", "/games", "/family-game-night", "/same-brain",
+        "/generate", "/browse", "/play", "/family-game-night", "/same-brain",
         "/verse-of-the-week", "/plus", "/terms", "/privacy", "/copyright",
-    )
+    ]
+    try:  # public collection pages (the same list /browse shows visitors)
+        paths += [f"/browse/{c['slug']}" for c in get_collections(show_all=False)
+                  if c.get("slug") and (c.get("kind") or "bundle") != "game"]  # games redirect
+    except Exception:
+        app.logger.warning("sitemap: collections unavailable", exc_info=True)
     origin = request.url_root.rstrip("/")
     urls = "".join(f"<url><loc>{origin}{path}</loc></url>" for path in paths)
     return Response(

@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -141,6 +142,10 @@ def fetch_copywork_text(reference: str, version: str, *, authoritative_fetch=Non
 
 # In-process cache: (reference_lower, version) -> str | None
 _cache: dict[tuple[str, str], str | None] = {}
+# A failed lookup is retried after this long (a short outage shouldn't make
+# every page view wait for the source's timeout).
+MISS_RETRY_SECONDS = 120
+_recent_misses: dict[tuple[str, str], float] = {}
 
 
 def _clean(text) -> str:
@@ -219,6 +224,8 @@ def fetch_verse_text(reference: str, version: str) -> str | None:
     cache_key = (reference.lower(), version)
     if cache_key in _cache:
         return _cache[cache_key]
+    if time.monotonic() < _recent_misses.get(cache_key, 0):
+        return None  # failed moments ago: don't make the next visitor wait again
 
     text = None
     try:
@@ -244,6 +251,8 @@ def fetch_verse_text(reference: str, version: str) -> str | None:
     # for the rest of its lifetime. Cache only verified Scripture text.
     if text:
         _cache[cache_key] = text
+    else:
+        _recent_misses[cache_key] = time.monotonic() + MISS_RETRY_SECONDS
     return text
 
 
