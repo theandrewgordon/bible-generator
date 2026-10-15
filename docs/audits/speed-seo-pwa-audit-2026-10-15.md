@@ -17,7 +17,25 @@ This workspace and your Mac's linked environment can't reach the live site, so t
 - a sitemap entry that leads to a sign-in page;
 - generic or duplicated descriptions.
 
-### Measured (phone size, local)
+## Status — fixes applied 2026-10-15
+
+`tests/test_speed_fixes.py` adds 6 tests. The full suite passes (1,087). Re-measured in the browser after the fixes.
+
+| # | Status |
+|---|---|
+| 1 Avatar sheet | Fixed: `avatar-sprite-600.jpg` is **83 KB** (was a 2.4 MB PNG). Same 3×3 layout, 200 px per avatar, cached 30 days. The old PNG is deleted. |
+| 2 `/generate` hidden | Fixed: no longer `noindex`, and one description, set the same way as other pages |
+| 3 `/generate` jump | Fixed: page CSS and the Tagify stylesheet moved into `<head>`. Layout shift **0.24 → 0.000** (phone) and **0.34 → 0.003** (desktop). |
+| 4 Re-checked static files | Fixed: `?v=` equal to the deploy version → `max-age=31536000, immutable`. Hand-numbered `?v=7` files still revalidate, so a forgotten bump can't strand an old file. Unversioned images: 1 day. |
+| 5 Sitemap | Fixed: `/games` removed. The `/browse/<slug>` collection pages added (game-type collections skipped, since they redirect). All 23 URLs open for a signed-out visitor (tested). Worship guides are **your call**. |
+| 6 Descriptions | Fixed: one description and one canonical on every sitemap page (tested). Unique descriptions for Family Game Night, Plus, Verse of the Week, Start Here, Terms, Privacy and Copyright. `/same-brain` has a description and canonical. Home, Browse, the collection pages and Games no longer print duplicates. Home's social image is its own hero again. |
+| 7 Service worker | Fixed: the cache name comes from the deploy version, so old copies clear on each deploy. Only CSS, JS and image files outside tutorials, stock images and worship media are cached, up to 60 entries. It still never caches pages. |
+| P3 offline page | Fixed: a standalone `/offline` page with no user data on it, shown when a page can't load at all (verified with the browser offline) |
+| P3 Verse of the Week | Fixed: a failed verse lookup isn't retried for 2 minutes, so an outage doesn't make every visitor wait for the timeout |
+| P3 logo | Fixed: structured data points at the 512 px logo instead of the 900 KB one |
+| P3 stock images, collection pictures, archive idea | Unchanged (**[verify]** whether `CopyworkStock` is used; content work) |
+
+### Measured before the fixes (phone size, local)
 | Page | Requests | KB | LCP | Layout shift |
 |---|---|---|---|---|
 | `/` | 4 | 240 | 260 ms | 0 |

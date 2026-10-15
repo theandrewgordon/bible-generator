@@ -348,7 +348,7 @@ button, input, select { font: inherit; }
 .avatar-choice small { max-width: 72px; overflow: hidden; color: var(--bee-muted); font-size: .62rem; font-weight: 800; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .preset-avatar {
   overflow: hidden;
-  background-image: url("/static/bible_bee_avatars/avatar-sprite.png");
+  background-image: url("/static/bible_bee_avatars/avatar-sprite-600.jpg");
   background-repeat: no-repeat;
   background-size: 300% 300% !important;
   border-radius: 50%;

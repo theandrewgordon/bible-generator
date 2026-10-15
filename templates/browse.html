@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Bible Copywork Bundles | Faith Sparks{% endblock %}
+{% set description = "Browse curated Bible copywork collections for family worship, homeschool, co-ops, and church. Preview every bundle before you use or download it." %}
+{% set canonical = url_for('browse', _external=True) %}
 {% block head_extra %}
-<link rel="canonical" href="{{ url_for('browse', _external=True) }}" />
-<meta name="description" content="Browse curated Bible copywork collections for family worship, homeschool, co-ops, and church. Preview every bundle before you use or download it." />
 <script type="application/ld+json">
 {{ {
   "@context": "https://schema.org",

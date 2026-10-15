@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ c.title }} | Bible Copywork Bundles{% endblock %}
+{% set description = (c.description ~ ' ' if c.description else '') ~ (c.verses|length) ~ ' curated Bible verses for copywork, Scripture memory, family worship, and class use.' %}
+{% set canonical = url_for('browse_detail', slug=c.slug, _external=True) %}
 {% block head_extra %}
-<link rel="canonical" href="{{ url_for('browse_detail', slug=c.slug, _external=True) }}" />
-<meta name="description" content="{{ (c.description ~ ' ' if c.description else '') ~ (c.verses|length) ~ ' curated Bible verses for copywork, Scripture memory, family worship, and class use.' }}" />
 <script type="application/ld+json">
 {{ {
   "@context": "https://schema.org",
