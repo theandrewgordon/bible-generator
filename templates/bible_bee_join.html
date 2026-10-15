@@ -41,15 +41,6 @@
           </fieldset>
           {% if team_mode %}
             <p class="join-helper-note">Team rooms use preset pictures so big games stay quick.</p>
-          {% else %}
-            <div class="selfie-picker">
-              <div id="selfie-preview" class="selfie-preview" aria-hidden="true">☺</div>
-              <div>
-                <label class="bee-button secondary selfie-button" for="player-selfie">Add a selfie</label>
-                <input id="player-selfie" type="file" accept="image/*" capture="user">
-                <p>Optional. It stays with this temporary game room.</p>
-              </div>
-            </div>
           {% endif %}
           <button class="bee-button primary large" type="submit">Join the game</button>
         </form>

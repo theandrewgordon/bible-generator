@@ -590,26 +590,20 @@ def test_bible_bee_team_room_uses_preset_avatars_instead_of_uploaded_selfies():
     assert b"Team rooms use preset pictures" in join_page.data
     assert b"Add a selfie" not in join_page.data
 
-    response = _post(
-        player,
-        f"/family-bible-bee/join/{code}",
-        data={"player_name": "Ada", "avatar_data": JPEG_STUB, "csrf_token": CSRF},
-    )
-
-    assert response.status_code == 400
-    assert b"Team rooms use preset avatars" in response.data
+    # A photo sent anyway is dropped, not stored, and the join still works.
     assert _post(
         player,
         f"/family-bible-bee/join/{code}",
-        data={"player_name": "Ada", "avatar_preset": "esther", "csrf_token": CSRF},
+        data={"player_name": "Ada", "avatar_data": JPEG_STUB, "avatar_preset": "esther", "csrf_token": CSRF},
     ).status_code == 302
     updated = _post(
         player,
         f"/api/family-bible-bee/rooms/{code}/profile",
         json={"player_name": "Ada", "avatar_data": JPEG_STUB},
     )
-    assert updated.status_code == 409
-    assert "Team rooms use preset avatars" in updated.get_json()["error"]
+    assert updated.status_code == 200
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert not next(p for p in state["players"] if p["name"] == "Ada").get("avatar")
 
 
 def test_individual_room_still_rejects_ninth_player():
@@ -931,12 +925,8 @@ def test_countdown_setting_avatar_and_away_player_flow():
     assert _post(host, f"/api/family-bible-bee/rooms/{code}/start", json={}).status_code == 200
     state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
     assert state["reveal_seconds"] == 5
-    avatar_url = next(player for player in state["players"] if player["name"] == "Active")["avatar"]
-    assert avatar_url.startswith(f"/family-bible-bee/room/{code}/avatar/")
-    avatar_response = host.get(avatar_url)
-    assert avatar_response.status_code == 200
-    assert avatar_response.mimetype == "image/jpeg"
-    assert avatar_response.data.startswith(b"\xff\xd8\xff")
+    # Photo avatars were removed: the uploaded photo was dropped.
+    assert not next(player for player in state["players"] if player["name"] == "Active").get("avatar")
 
     correct = bible_bee._get_room(code)["questions"][0]["correct"]
     assert _post(active, f"/api/family-bible-bee/rooms/{code}/answer", json={"choice": correct}).status_code == 200
@@ -962,7 +952,7 @@ def test_countdown_setting_avatar_and_away_player_flow():
     assert bible_bee._get_room(code)["round_results"][-1]["missed"] == 1
 
 
-def test_invalid_avatar_is_rejected():
+def test_uploaded_avatar_data_is_never_stored():
     host = app.test_client()
     player = app.test_client()
     _prime(host, "avatar@example.com")
@@ -978,7 +968,9 @@ def test_invalid_avatar_is_rejected():
             "csrf_token": CSRF,
         },
     )
-    assert response.status_code == 400
+    assert response.status_code == 302
+    state = host.get(f"/api/family-bible-bee/rooms/{code}").get_json()
+    assert not state["players"][0].get("avatar")
 
 
 def test_duplicate_names_are_rejected_case_insensitively():

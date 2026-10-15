@@ -190,10 +190,6 @@ function profileEditor(state, player) {
         <small>${escapeHTML(label)}</small>
       </label>`).join("")}
     </fieldset>
-    <div class="selfie-picker compact">
-      <label class="bee-button secondary selfie-button" for="profile-selfie">Replace with selfie</label>
-      <input id="profile-selfie" type="file" accept="image/*" capture="user">
-    </div>
     <div class="profile-edit-actions">
       <button class="bee-button primary" type="submit">Save profile</button>
       <button id="cancel-profile-edit" class="bee-button secondary" type="button">Cancel</button>
