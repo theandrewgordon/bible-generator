@@ -23,7 +23,7 @@ def _state():
             {
                 "id": "feed-dog",
                 "title": "Feed the dog",
-                "assigned_person_id": "diana",
+                "assigned_person_id": "student-2",
                 "days": ["mon", "wed", "fri"],
                 "time_of_day": "morning",
                 "category": "pets",
@@ -35,7 +35,7 @@ def _state():
             {
                 "id": "bins",
                 "title": "Take bins out",
-                "assigned_person_id": "tessa",
+                "assigned_person_id": "student-1",
                 "days": ["mon"],
                 "time_of_day": "evening",
                 "category": "outside",

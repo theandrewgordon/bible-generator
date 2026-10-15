@@ -24,6 +24,20 @@ The problems:
 - **Helper requests can text any phone number in the world.**
 - **The demo uses your children's names.**
 
+## Status — fixes applied 2026-10-14
+
+`tests/test_weekflow_fixes.py` adds 7 tests. The full suite passes (1,076).
+
+| # | Status |
+|---|---|
+| 1 Beta open when empty | Fixed: access means the beta list or `ADMIN_EMAILS`. An empty list is open only outside production. AI intake uses the same rule. |
+| 2 Texts worldwide | Fixed: texts go to **+1 only** (`WEEKFLOW_SMS_COUNTRIES`, default `1`), and +1 numbers must be a real 10-digit format. Added 20 sends/hr per IP and **50 texts a day app-wide** (`WEEKFLOW_SMS_DAILY_CAP`); after that the page suggests email. **Your part:** Twilio geo permissions, if Twilio is set up. |
+| 3 Kids' names | Fixed: demo IDs are `student-1/2/3`, the first-student special case is generic, and "CC / co-op day" is now "Co-op day". Saved plans are unchanged. The Labs games names are in chunk 7. |
+| 4 Helper records | Fixed: account deletion removes the user's `weekflow_support_requests`. **Your part:** TTL on `weekflow_support_requests.expiresAt`. |
+| 5 Calendar revoke | Fixed: disconnect and account deletion revoke the grant at Google (best effort, 5 s), then delete the encrypted token. |
+| P3 restore limits | Fixed: restore runs the same student and adult limits, plus the template and saved-week caps. |
+| P3 status endpoint | Unchanged (harmless) |
+
 ---
 
 ## P1

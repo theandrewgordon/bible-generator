@@ -85,7 +85,7 @@ def test_every_phase_is_contiguous_in_bounds_and_respects_parent_blackouts():
 def test_phased_assignment_releases_parent_during_independent_work():
     result = generate_demo_schedule()
     entries = _all_entries(result)
-    writing = next(entry for entry in entries if entry["task_id"] == "tessa-writing")
+    writing = next(entry for entry in entries if entry["task_id"] == "student-1-writing")
 
     assert [phase["resource"] for phase in writing["phases"]] == [
         PARENT,
@@ -109,7 +109,7 @@ def test_group_lesson_uses_one_parent_block_for_all_students():
         entry for entry in _all_entries(result) if entry["task_id"] == "science"
     )
 
-    assert science["student_ids"] == ["tessa", "diana", "elsie"]
+    assert science["student_ids"] == ["student-1", "student-2", "student-3"]
     assert science["parent_minutes"] == 50
     assert len(science["phases"]) == 1
 
@@ -162,11 +162,11 @@ def test_default_baseline_uses_three_days_without_front_loading():
 
 
 def test_unavailable_minutes_cannot_count_as_productive_concurrency():
-    task = next(task for task in TASKS if task.id == "diana-math")
+    task = next(task for task in TASKS if task.id == "student-2-math")
     day = DAYS[0]
     blank = {student_id: [False] * day.duration for student_id in scheduler.STUDENTS}
     actual_work = {student_id: bits.copy() for student_id, bits in blank.items()}
-    actual_work["tessa"][: task.total_minutes] = [True] * task.total_minutes
+    actual_work["student-1"][: task.total_minutes] = [True] * task.total_minutes
     adult_load = {PARENT: 0}
     student_load = {student_id: 0 for student_id in scheduler.STUDENTS}
 
@@ -246,7 +246,7 @@ def test_repeated_subject_work_spreads_across_available_days():
             "id": f"math-{number}",
             "title": "Math lesson",
             "subject": "Math",
-            "student_ids": ["diana"],
+            "student_ids": ["student-2"],
             "phases": [
                 {"label": "Practice", "minutes": 30, "resource": STUDENT}
             ],
@@ -285,7 +285,7 @@ def test_impossible_assignment_is_reported_instead_of_silently_dropped(monkeypat
         "impossible",
         "Impossible Assignment",
         "Stress test",
-        ("tessa",),
+        ("student-1",),
         (
             Phase("Oversized work part one", 211, STUDENT),
             Phase("Oversized work part two", 210, STUDENT),
@@ -320,10 +320,10 @@ def test_default_week_models_thursday_coop_and_extended_teen_time():
     assert result["scenario"] == default_scenario()
     assert thursday["events"][0]["id"] == "coop"
     assert thursday["availability"]["parent_minutes"] == 0
-    assert thursday["availability"]["students"]["tessa"] == 45
-    assert thursday["availability"]["students"]["diana"] == 0
+    assert thursday["availability"]["students"]["student-1"] == 45
+    assert thursday["availability"]["students"]["student-2"] == 0
     assert all(
-        entry["student_ids"] == ["tessa"]
+        entry["student_ids"] == ["student-1"]
         and entry["parent_minutes"] == 0
         and entry["start_minute"] >= 15 * 60 + 15
         for entry in thursday["entries"]
@@ -385,7 +385,7 @@ def test_event_credit_satisfies_subject_work_on_non_monday_coop():
         "science",
         "history",
     }
-    assert all("CC / co-op day" in item["detail"] for item in result["completed"])
+    assert all("Co-op day" in item["detail"] for item in result["completed"])
 
 
 def test_coop_subject_credit_satisfies_assignments_without_rescheduling_them():
@@ -409,15 +409,15 @@ def test_work_completed_ahead_is_removed_and_takes_precedence_over_coop_credit()
     result = generate_demo_schedule(
         scenario={
             "coop_credit_subjects": ["Science"],
-            "completed_task_ids": ["science", "tessa-algebra", "tessa-latin"],
+            "completed_task_ids": ["science", "student-1-algebra", "student-1-latin"],
         }
     )
 
     completed = {item["task_id"]: item for item in result["completed"]}
     assert result["completed_count"] == 3
     assert completed["science"]["kind"] == "ahead"
-    assert completed["tessa-algebra"]["kind"] == "ahead"
-    assert not {"science", "tessa-algebra", "tessa-latin"} & {
+    assert completed["student-1-algebra"]["kind"] == "ahead"
+    assert not {"science", "student-1-algebra", "student-1-latin"} & {
         entry["task_id"] for entry in _all_entries(result)
     }
 
@@ -442,7 +442,7 @@ def test_user_created_assignment_is_validated_and_scheduled():
             "id": "custom-nature-journal",
             "title": "Nature Journal",
             "subject": "Science",
-            "student_ids": ["diana"],
+            "student_ids": ["student-2"],
             "phases": [
                 {"label": "Set up together", "minutes": 5, "resource": PARENT},
                 {"label": "Draw independently", "minutes": 20, "resource": STUDENT},
@@ -534,17 +534,17 @@ def test_user_can_remove_sample_assignments_without_leaving_ghost_completions():
 
 def test_per_person_daily_availability_changes_capacity_and_placement():
     scenario = default_scenario()
-    scenario["availability_end"]["diana"]["tue"] = 0
+    scenario["availability_end"]["student-2"]["tue"] = 0
     scenario["availability_end"]["parent"]["wed"] = 14 * 60
-    scenario["availability_end"]["tessa"]["fri"] = 16 * 60
+    scenario["availability_end"]["student-1"]["fri"] = 16 * 60
 
     result = generate_demo_schedule(scenario=scenario)
 
-    assert result["scenario"]["availability_end"]["diana"]["tue"] == 0
+    assert result["scenario"]["availability_end"]["student-2"]["tue"] == 0
     assert result["scenario"]["availability_end"]["parent"]["wed"] == 14 * 60
-    assert result["days"][1]["availability"]["students"]["diana"] == 0
+    assert result["days"][1]["availability"]["students"]["student-2"] == 0
     assert result["days"][2]["availability"]["parent_minutes"] == 240
-    assert result["days"][4]["availability"]["students"]["tessa"] == 420
+    assert result["days"][4]["availability"]["students"]["student-1"] == 420
 
 
 def test_deadline_policy_distinguishes_hard_work_from_flexible_work():
@@ -582,7 +582,7 @@ def test_combined_life_events_are_layered_without_conflicts():
             "friday_off",
         ],
         "coop_credit_subjects": ["Science", "History"],
-        "completed_task_ids": ["tessa-algebra"],
+        "completed_task_ids": ["student-1-algebra"],
     }
     result = generate_demo_schedule(scenario=scenario)
     entries = _all_entries(result)
@@ -635,8 +635,8 @@ def test_scenario_validation_rejects_unknown_values():
         {
             "availability_end": {
                 **default_scenario()["availability_end"],
-                "tessa": {
-                    **default_scenario()["availability_end"]["tessa"],
+                "student-1": {
+                    **default_scenario()["availability_end"]["student-1"],
                     "mon": 17 * 60,
                 },
             }

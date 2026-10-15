@@ -61,9 +61,9 @@ class Day:
 
 
 STUDENTS = {
-    "tessa": {"name": "Avery", "color": "#6657d9"},
-    "diana": {"name": "Maya", "color": "#d45e86"},
-    "elsie": {"name": "Lucy", "color": "#168a80"},
+    "student-1": {"name": "Avery", "color": "#6657d9"},
+    "student-2": {"name": "Maya", "color": "#d45e86"},
+    "student-3": {"name": "Lucy", "color": "#168a80"},
 }
 
 ADULTS = {
@@ -138,7 +138,7 @@ MAX_WEEK_TASKS = 100
 EVENT_PRESETS = (
     {
         "id": "coop",
-        "title": "CC / co-op day",
+        "title": "Co-op day",
         "detail": "Includes travel and transition time.",
         "day_id": "thu",
         "start_minute": 8 * 60 + 30,
@@ -411,12 +411,12 @@ def default_scenario() -> dict[str, object]:
 
     availability_end = {
         PARENT: {day.id: MORNING_END for day in DAYS},
-        "tessa": {
+        "student-1": {
             day.id: EXTENDED_END if day.id in DEFAULT_EXTENDED_DAYS else MORNING_END
             for day in DAYS
         },
-        "diana": {day.id: MORNING_END for day in DAYS},
-        "elsie": {day.id: MORNING_END for day in DAYS},
+        "student-2": {day.id: MORNING_END for day in DAYS},
+        "student-3": {day.id: MORNING_END for day in DAYS},
     }
     return {
         "schema_version": 2,
@@ -467,9 +467,8 @@ def normalize_scenario(
     adult_ids = set(adult_id_list)
     student_ids = set(student_id_list)
     first_adult_id = household["adults"][0]["id"]
-    extended_student_id = (
-        "tessa" if "tessa" in student_ids else household["students"][0]["id"]
-    )
+    # Extended days default to the first (usually oldest) student.
+    extended_student_id = household["students"][0]["id"]
 
     for field in ("coop_monday", "allow_next_week"):
         if not isinstance(normalized.get(field), bool):
@@ -748,7 +747,7 @@ TASKS = (
         "science",
         "Plant Cells Lab",
         "Science",
-        ("tessa", "diana", "elsie"),
+        ("student-1", "student-2", "student-3"),
         (Phase("Group instruction", 50, PARENT),),
         priority=4,
         preferred_start=(11 * 60, 12 * 60 + 30),
@@ -757,15 +756,15 @@ TASKS = (
         "history",
         "Revolution Timeline",
         "History",
-        ("tessa", "diana", "elsie"),
+        ("student-1", "student-2", "student-3"),
         (Phase("Family lesson", 45, PARENT),),
         priority=3,
     ),
     Task(
-        "tessa-writing",
+        "student-1-writing",
         "Argument Paragraph",
         "Writing",
-        ("tessa",),
+        ("student-1",),
         (
             Phase("Plan with Parent", 20, PARENT),
             Phase("Draft independently", 30, STUDENT),
@@ -774,10 +773,10 @@ TASKS = (
         priority=4,
     ),
     Task(
-        "diana-math",
+        "student-2-math",
         "Fractions Practice",
         "Math",
-        ("diana",),
+        ("student-2",),
         (
             Phase("Kickoff with Parent", 10, PARENT),
             Phase("Practice independently", 22, STUDENT),
@@ -786,10 +785,10 @@ TASKS = (
         priority=5,
     ),
     Task(
-        "diana-reading",
+        "student-2-reading",
         "Read and Narrate",
         "Reading",
-        ("diana",),
+        ("student-2",),
         (
             Phase("Read aloud with Parent", 30, PARENT),
             Phase("Finish independently", 15, STUDENT),
@@ -797,10 +796,10 @@ TASKS = (
         priority=3,
     ),
     Task(
-        "diana-spelling",
+        "student-2-spelling",
         "Spelling Pattern",
         "Spelling",
-        ("diana",),
+        ("student-2",),
         (
             Phase("Teach pattern", 25, PARENT),
             Phase("Independent check", 5, STUDENT),
@@ -808,74 +807,74 @@ TASKS = (
         priority=2,
     ),
     Task(
-        "diana-grammar",
+        "student-2-grammar",
         "Diagram Sentences",
         "Grammar",
-        ("diana",),
+        ("student-2",),
         (Phase("Direct instruction", 35, PARENT),),
         priority=4,
     ),
     Task(
-        "elsie-reading",
+        "student-3-reading",
         "Beginning Reader",
         "Reading",
-        ("elsie",),
+        ("student-3",),
         (Phase("One-on-one reading", 45, PARENT),),
         priority=5,
     ),
     Task(
-        "elsie-math",
+        "student-3-math",
         "Number Bonds",
         "Math",
-        ("elsie",),
+        ("student-3",),
         (Phase("One-on-one math", 40, PARENT),),
         priority=4,
     ),
     Task(
-        "elsie-phonics",
+        "student-3-phonics",
         "Short Vowels",
         "Phonics",
-        ("elsie",),
+        ("student-3",),
         (Phase("Guided phonics", 40, PARENT),),
         priority=4,
     ),
     Task(
-        "elsie-picture-books",
+        "student-3-picture-books",
         "Picture Book Read-Aloud",
         "Literature",
-        ("elsie",),
+        ("student-3",),
         (Phase("Read aloud together", 30, PARENT),),
         priority=2,
     ),
     Task(
-        "tessa-latin",
+        "student-1-latin",
         "Latin Vocabulary",
         "Latin",
-        ("tessa",),
+        ("student-1",),
         (Phase("Independent practice", 35, STUDENT),),
         priority=3,
     ),
     Task(
-        "tessa-research",
+        "student-1-research",
         "Research Notes",
         "Research",
-        ("tessa",),
+        ("student-1",),
         (Phase("Independent research", 30, STUDENT),),
         priority=2,
     ),
     Task(
-        "tessa-algebra",
+        "student-1-algebra",
         "Algebra Practice",
         "Math",
-        ("tessa",),
+        ("student-1",),
         (Phase("Independent practice", 25, STUDENT),),
         priority=3,
     ),
     Task(
-        "elsie-handwriting",
+        "student-3-handwriting",
         "Letter Practice",
         "Handwriting",
-        ("elsie",),
+        ("student-3",),
         (Phase("Independent practice", 15, STUDENT),),
         priority=2,
     ),

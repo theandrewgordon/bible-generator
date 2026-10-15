@@ -123,6 +123,18 @@ def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
             doc.reference.delete()
             summary["same_brain_links"] += 1
 
+    summary["helper_requests"] = 0
+    for doc in _where("weekflow_support_requests", "ownerEmail", email):
+        doc.reference.delete()
+        summary["helper_requests"] += 1
+
+    try:
+        from faithsparks.services.weekflow_calendar import _revoke_at_google
+
+        summary["calendar_revoked"] = int(_revoke_at_google(email))
+    except Exception:
+        summary["calendar_revoked"] = 0
+
     db.collection("referrals").document(email).delete()
     for doc in _where("weekflow_feedback", "contactEmail", email):
         doc.reference.set({"contactEmail": None, "contactRequested": False}, merge=True)

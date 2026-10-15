@@ -47,7 +47,7 @@ def test_lab_page_renders_demo_configuration():
     assert "Shared resource timeline" in html
     assert "Tuesday Morning Fell Apart" in html
     assert "Avery" in html and "Maya" in html and "Lucy" in html
-    assert "Thursday" in html and "CC / co-op day" in html
+    assert "Thursday" in html and "Co-op day" in html
     assert 'aria-expanded="false"' in html
     assert 'aria-controls="explanations"' in html
     assert "Saved weeks" not in html
@@ -637,7 +637,7 @@ def test_household_dashboard_and_state_are_adult_owned_and_shared(monkeypatch):
             {
                 "id": "feed-dog",
                 "title": "Feed the dog",
-                "assigned_person_id": "diana",
+                "assigned_person_id": "student-2",
                 "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
                 "time_of_day": "morning",
                 "category": "pets",
@@ -759,7 +759,7 @@ def test_meals_dashboard_and_state_share_one_adult_owned_plan(monkeypatch):
     meals_state = {
         "revision": 3,
         "meals": [{"id": "tacos", "date": "2026-09-15", "slot": "dinner", "title": "Tacos", "lead_person_id": "parent", "note": None, "created_at": timestamp, "updated_at": timestamp}],
-        "handoffs": [{"id": "thaw", "title": "Thaw chicken", "kind": "prep", "due_date": "2026-09-14", "time_of_day": "morning", "assigned_person_id": "diana", "meal_id": "tacos", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+        "handoffs": [{"id": "thaw", "title": "Thaw chicken", "kind": "prep", "due_date": "2026-09-14", "time_of_day": "morning", "assigned_person_id": "student-2", "meal_id": "tacos", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
         "updated_at": timestamp,
     }
     captured = {}
@@ -819,7 +819,7 @@ def test_travel_dashboard_and_state_share_one_adult_owned_plan(monkeypatch):
     travel_state = {
         "revision": 3,
         "plans": [{"id": "visit", "kind": "trip", "title": "Visit Grandma", "start_date": "2026-09-18", "end_date": "2026-09-20", "location": None, "lead_person_id": "parent", "note": None, "created_at": timestamp, "updated_at": timestamp}],
-        "handoffs": [{"id": "pack", "title": "Pack school books", "kind": "packing", "due_date": "2026-09-17", "time_of_day": "evening", "assigned_person_id": "diana", "plan_id": "visit", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+        "handoffs": [{"id": "pack", "title": "Pack school books", "kind": "packing", "due_date": "2026-09-17", "time_of_day": "evening", "assigned_person_id": "student-2", "plan_id": "visit", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
         "updated_at": timestamp,
     }
     captured = {}
@@ -880,7 +880,7 @@ def test_medical_dashboard_and_state_share_one_adult_owned_plan(monkeypatch):
     timestamp = "2026-09-15T12:00:00+00:00"
     medical_state = {
         "revision": 3,
-        "items": [{"id": "dentist", "title": "Dentist appointment", "kind": "appointment", "for_person_id": "diana", "assigned_person_id": "parent", "date": "2026-09-18", "time": "10:30", "provider": "Family dentist", "location": None, "note": "Bring completed form", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+        "items": [{"id": "dentist", "title": "Dentist appointment", "kind": "appointment", "for_person_id": "student-2", "assigned_person_id": "parent", "date": "2026-09-18", "time": "10:30", "provider": "Family dentist", "location": None, "note": "Bring completed form", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
         "updated_at": timestamp,
     }
     captured = {}
@@ -1402,7 +1402,7 @@ def test_schedule_endpoint_applies_weekly_scenario_controls():
                 "coop_credit_subjects": ["Science", "History"],
                 "extended_days": ["mon", "tue", "wed", "thu"],
                 "disruptions": ["grandma_wednesday"],
-                "completed_task_ids": ["tessa-algebra"],
+                "completed_task_ids": ["student-1-algebra"],
                 "allow_next_week": True,
             },
         },
