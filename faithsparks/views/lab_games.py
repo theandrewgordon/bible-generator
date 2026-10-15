@@ -103,8 +103,14 @@ def _beta_allowlist() -> set[str]:
 
 
 def _has_beta_access(email: str | None) -> bool:
+    """Beta list or admins. An empty list is open only outside production."""
+    if not email:
+        return False
     allowlist = _beta_allowlist()
-    return not allowlist or bool(email and email in allowlist)
+    admins = {item.strip().casefold() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()}
+    if email.casefold() in allowlist or email.casefold() in admins:
+        return True
+    return not allowlist and os.getenv("APP_ENV", "dev").lower() not in {"prod", "production"}
 
 
 def _access_denied():

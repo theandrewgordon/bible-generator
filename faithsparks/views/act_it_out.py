@@ -39,6 +39,7 @@ from faithsparks.services.game_content import (
 )
 from faithsparks.services.game_content_health import load_precomputed_health
 from faithsparks.services.rate_limit import check_rate_limit
+from faithsparks.services.name_filter import is_unsafe_name
 from faithsparks.services.stripe_svc import STRIPE_PRICE_FAMILY_GAME_NIGHT, STRIPE_SECRET_KEY, stripe
 from faithsparks.services.users import get_user_doc, has_active_plus, has_family_game_night_access
 from faithsparks.util.request_utils import get_client_ip
@@ -1043,7 +1044,11 @@ def _public_room(room: dict, code: str) -> dict:
 def _require_room(code: str) -> dict:
     room = _get_room(code)
     if not room:
-        abort(404)
+        # Throttle wrong-code guesses per network so live rooms can't be found
+        # by scanning. Real codes are never limited; a finished game costs each
+        # device one miss (pages stop polling on 404).
+        misses = check_rate_limit("room-code-miss", get_client_ip(), limit=120, window_seconds=10 * 60, local_only=True)
+        abort(404 if misses.allowed else 429)
     return room
 
 
@@ -1628,7 +1633,7 @@ def rename_family_teams(code: str):
     names = {}
     for team in ("gold", "blue"):
         name = " ".join(str(payload.get(team) or "").strip().split())
-        if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
+        if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES or is_unsafe_name(name):
             return jsonify({"error": "Use simple family-friendly team names up to 18 characters."}), 400
         names[team] = name
     if names["gold"].casefold() == names["blue"].casefold():
@@ -1738,14 +1743,8 @@ def undo_family_score_adjustment(code: str):
 @bp.get("/group-games/act-it-out/room/<code>/avatar/<player_id>")
 @bp.get("/group-games/draw-it/room/<code>/avatar/<player_id>")
 def player_avatar(code: str, player_id: str):
-    room = _require_room(code.upper())
-    avatar = room.get("players", {}).get(player_id, {}).get("avatar", "")
-    if not avatar or not _valid_avatar_data(avatar):
-        abort(404)
-    image_bytes = base64.b64decode(avatar.split(",", 1)[1], validate=True)
-    response = send_file(io.BytesIO(image_bytes), mimetype="image/jpeg")
-    response.headers["Cache-Control"] = "private, max-age=300"
-    return response
+    """Photo avatars were removed (children's photos); old links just 404."""
+    abort(404)
 
 
 def _render_join_page(code: str, error: str | None = None):
@@ -1781,12 +1780,14 @@ def join_room(code: str):
         if not rate.allowed:
             return _render_join_page(code, "Too many join attempts. Please wait a few minutes."), 429
         name = " ".join((request.form.get("player_name") or "").strip().split())
-        if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
+        if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES or is_unsafe_name(name):
             return _render_join_page(code, "Choose a simple family-friendly name using letters or numbers."), 400
         if room.get("phase") != "lobby":
             return _render_join_page(code, "This game has already started."), 409
         player_id = existing_id or secrets.token_urlsafe(8)
-        avatar = (request.form.get("avatar_data") or "").strip()
+        # Photo avatars were removed: children's photos are personal data and
+        # church games include other families' kids. Any photo sent is dropped.
+        avatar = ""
         avatar_preset = (request.form.get("avatar_preset") or "").strip()
         if avatar_preset not in PRESET_AVATARS:
             avatar_preset = ""
@@ -1863,14 +1864,12 @@ def update_player_profile(code: str):
     name = " ".join(str(payload.get("player_name") or "").strip().split())
     avatar = payload.get("avatar_data")
     avatar_preset = str(payload.get("avatar_preset") or "").strip()
-    if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES:
+    if not SAFE_NAME_RE.fullmatch(name) or name.lower() in BLOCKED_NAMES or is_unsafe_name(name):
         return jsonify({"error": "Choose a simple family-friendly name using letters or numbers."}), 400
     if avatar_preset not in PRESET_AVATARS:
         avatar_preset = ""
     if avatar is not None:
-        avatar = str(avatar).strip()
-        if not _valid_avatar_data(avatar):
-            return jsonify({"error": "That picture could not be prepared. Try another selfie or use a preset."}), 400
+        avatar = ""  # photo avatars removed; clear any older photo
 
     def update(current):
         if current.get("phase") != "lobby":

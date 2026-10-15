@@ -1612,7 +1612,7 @@ def test_act_it_out_stale_rooms_are_removed_from_recent_list():
     assert host.get(f"/api/group-games/act-it-out/rooms/{code}").status_code == 404
 
 
-def test_act_it_out_join_supports_preset_and_uploaded_avatars():
+def test_act_it_out_join_keeps_presets_and_drops_uploaded_photos():
     host = app.test_client()
     preset_player = app.test_client()
     upload_player = app.test_client()
@@ -1637,11 +1637,10 @@ def test_act_it_out_join_supports_preset_and_uploaded_avatars():
     state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
     players = {player["name"]: player for player in state["players"]}
     assert players["Ada"]["avatar_preset"] == "empty-tomb"
-    assert players["Ben"]["avatar"].startswith(f"/group-games/act-it-out/room/{code}/avatar/")
-    avatar_response = host.get(players["Ben"]["avatar"])
-    assert avatar_response.status_code == 200
-    assert avatar_response.mimetype == "image/jpeg"
-    assert avatar_response.data.startswith(b"\xff\xd8\xff")
+    # Photo avatars were removed (children's photos): the upload is dropped.
+    assert not players["Ben"].get("avatar")
+    ben_id = players["Ben"]["id"]
+    assert host.get(f"/group-games/act-it-out/room/{code}/avatar/{ben_id}").status_code == 404
 
 
 def test_team_room_uses_preset_avatars_instead_of_uploaded_selfies():
@@ -1654,26 +1653,20 @@ def test_team_room_uses_preset_avatars_instead_of_uploaded_selfies():
     assert b"Team rooms use preset pictures" in join_page.data
     assert b"Add a selfie" not in join_page.data
 
-    response = _post(
-        player,
-        f"/group-games/act-it-out/join/{code}",
-        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_data": JPEG_STUB},
-    )
-
-    assert response.status_code == 400
-    assert b"Team rooms use preset avatars" in response.data
+    # A photo sent anyway is dropped, not stored, and the join still works.
     assert _post(
         player,
         f"/group-games/act-it-out/join/{code}",
-        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_preset": "esther"},
+        data={"csrf_token": CSRF, "player_name": "Ada", "avatar_data": JPEG_STUB, "avatar_preset": "esther"},
     ).status_code == 302
     updated = _post(
         player,
         f"/api/group-games/act-it-out/rooms/{code}/profile",
         json={"player_name": "Ada", "avatar_data": JPEG_STUB},
     )
-    assert updated.status_code == 409
-    assert "Team rooms use preset avatars" in updated.get_json()["error"]
+    assert updated.status_code == 200
+    state = host.get(f"/api/group-games/act-it-out/rooms/{code}").get_json()
+    assert not next(p for p in state["players"] if p["name"] == "Ada").get("avatar")
 
 
 def test_player_can_edit_act_it_out_profile_before_start():

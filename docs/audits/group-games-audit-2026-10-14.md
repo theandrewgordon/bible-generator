@@ -27,6 +27,18 @@ The Labs arcade games and Speed Die were covered on 2026-10-11 (`games-audit-202
 
 The real problem is **children's selfies**. The rest is naming and polish.
 
+## Status — fixes applied 2026-10-15
+
+`tests/test_games_fixes.py` adds 5 tests. Five old tests that asserted the selfie feature were updated to the new behavior. The full suite passes (1,081). I checked the join page in a phone-size browser: picture avatars only.
+
+| # | Status |
+|---|---|
+| 1 Children's selfies | Fixed: the camera option is gone from the join pages and profile editors (Bible Bee, Act It Out, Draw It). Any photo the server receives is dropped and never stored (older phones keep working, since nothing is rejected), and the old photo links return 404. The built-in picture avatars are unchanged. |
+| 2 Labs open when empty | Fixed: `LAB_GAMES_BETA_EMAILS` or admins in production; open only in local dev |
+| 3 Rude names | Fixed: `services/name_filter.py`, a local word list with letter-swap and stretched-letter handling, used on join and profile edits in both games. No false positives on common names in the tests ("Cassie", "Dickens", "Hannah", "Assisi"…). |
+| 4 Family names in Labs | **Your call:** unchanged |
+| P3 code guessing | Fixed: wrong room codes are limited to 120 per network per 10 minutes, then 429. Real codes are never limited, and a finished game costs each device one miss. |
+
 ---
 
 ## P1
