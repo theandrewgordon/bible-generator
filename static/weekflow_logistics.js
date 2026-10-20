@@ -716,11 +716,11 @@
     if (!accountStatus.signed_in || !window.confirm("Delete this family day from cloud storage? The copy on this device will stay.")) return;
     deleteCloudButton.disabled = true;
     try {
-      await responseJson(config.logisticsStateUrl, {
+      const deleted = await responseJson(config.logisticsStateUrl, {
         method: "DELETE",
         headers: { "X-CSRF-Token": config.csrfToken },
       });
-      customRevision = 0;
+      customRevision = deleted.revision;
       customCloudState.textContent = "Cloud copy deleted. This device still has your day.";
     } catch (error) {
       customCloudState.textContent = error.message;

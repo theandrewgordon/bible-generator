@@ -18,6 +18,7 @@ from itsdangerous import BadData, URLSafeTimedSerializer
 
 from faithsparks.services.firestore import db
 from faithsparks.services.weekflow_integrations import (
+    WeekFlowDeliveryUncertain,
     NotificationProvider,
     notification_provider,
 )
@@ -71,7 +72,8 @@ class FirestoreSupportRequestRepository:
         def claim(txn):
             snapshot = document.get(transaction=txn)
             existing = snapshot.to_dict() or {}
-            if snapshot.exists and existing.get("expiresAt", payload["expiresAt"]) > payload["createdAt"]:
+            if (snapshot.exists and existing.get("notificationStatus") != "failed"
+                    and existing.get("expiresAt", payload["expiresAt"]) > payload["createdAt"]):
                 return False
             txn.set(document, payload)
             return True
@@ -121,7 +123,8 @@ class MemorySupportRequestRepository:
     def create_once(self, request_id: str, payload: dict[str, object]) -> bool:
         with self._lock:
             existing = self.requests.get(request_id)
-            if existing and existing["expiresAt"] > payload["createdAt"]:
+            if (existing and existing.get("notificationStatus") != "failed"
+                    and existing["expiresAt"] > payload["createdAt"]):
                 return False
             self.requests[request_id] = dict(payload)
             return True
@@ -293,9 +296,9 @@ def create_and_send_support_request(
             subject=f"WeekFlow {request_kind} request",
             body=message,
         )
-    except Exception:
+    except Exception as exc:
         try:
-            store.update(request_id, {"notificationStatus": "failed"})
+            store.update(request_id, {"notificationStatus": "unknown" if isinstance(exc, WeekFlowDeliveryUncertain) else "failed"})
         except Exception:
             log.exception("Could not record support notification failure")
         raise

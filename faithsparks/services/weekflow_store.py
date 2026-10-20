@@ -299,7 +299,10 @@ def load_beta_state(email: str) -> dict[str, object]:
         return default_beta_state()
     stored = snapshot.to_dict() or {}
     try:
-        return normalize_beta_state(stored.get("state") or {})
+        state = normalize_beta_state(stored.get("state") or {})
+        if stored.get("reset"):
+            state["reset"] = True
+        return state
     except (TypeError, ValueError) as exc:
         raise WeekFlowStorageUnavailable("The saved WeekFlow plan could not be read") from exc
 
@@ -318,7 +321,8 @@ def load_logistics_state(email: str) -> dict[str, object]:
     stored = snapshot.to_dict() or {}
     try:
         revision = int(stored.get("revision") or 0)
-        scenario = normalize_logistics_scenario(stored.get("scenario"))
+        scenario = (normalize_logistics_scenario(stored["scenario"])
+                    if stored.get("scenario") is not None else None)
         updated_at = stored.get("updatedAtClient")
         if revision < 1 or not isinstance(updated_at, str):
             raise ValueError("saved logistics metadata is invalid")
@@ -696,11 +700,24 @@ def save_logistics_state(email: str, payload: object) -> dict[str, object]:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
 
 
-def delete_logistics_state(email: str) -> None:
+def delete_logistics_state(email: str) -> int:
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    ref = _logistics_state_ref(email)
+
+    @firestore.transactional
+    def clear(txn):
+        stored = ref.get(transaction=txn).to_dict() or {}
+        revision = int(stored.get("revision") or 0) + 1
+        txn.set(ref, {
+            "kind": "logistics-state", "revision": revision, "scenario": None,
+            "updatedAtClient": datetime.now(UTC).isoformat(),
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+        })
+        return revision
+
     try:
-        _logistics_state_ref(email).delete()
+        return clear(db.transaction())
     except Exception as exc:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
 
@@ -804,11 +821,42 @@ def save_beta_state(email: str, payload: object) -> dict[str, object]:
 
 
 def delete_beta_state(email: str) -> None:
+    """Erase family data atomically while retaining monotonically increasing revisions."""
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
+    collection = _weekflow_collection(email)
+
+    @firestore.transactional
+    def reset(txn):
+        snapshots = list(collection.stream(transaction=txn))
+        stored = {snapshot.id: snapshot.to_dict() or {} for snapshot in snapshots}
+        defaults = {
+            "state": default_beta_state(),
+            "today-state": default_today_state(),
+            "household-state": default_household_state(),
+            "meals-state": default_meals_state(),
+            "medical-state": default_medical_state(),
+            "travel-state": default_travel_state(),
+        }
+        saved_at = datetime.now(UTC).isoformat()
+        for snapshot in snapshots:
+            if snapshot.id not in defaults and snapshot.id != "logistics-state":
+                txn.delete(snapshot.reference)
+        for document_id, state in defaults.items():
+            revision = int(stored.get(document_id, {}).get("revision") or 0) + 1
+            txn.set(collection.document(document_id), {
+                "kind": document_id, "revision": revision, "reset": True,
+                "state": {**state, "revision": revision, "updated_at": saved_at},
+                "updatedAt": firestore.SERVER_TIMESTAMP,
+            })
+        revision = int(stored.get("logistics-state", {}).get("revision") or 0) + 1
+        txn.set(collection.document("logistics-state"), {
+            "kind": "logistics-state", "revision": revision, "scenario": None,
+            "updatedAtClient": saved_at, "updatedAt": firestore.SERVER_TIMESTAMP,
+        })
+
     try:
-        for snapshot in _weekflow_collection(email).stream():
-            snapshot.reference.delete()
+        reset(db.transaction())
     except Exception as exc:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
 
@@ -1186,21 +1234,12 @@ def restore_weekflow_backup(email: str, payload: object) -> dict[str, object]:
                     },
                 )
             logistics_ref = collection.document("logistics-state")
-            if logistics_scenario is None:
-                txn.delete(logistics_ref)
-            else:
-                logistics_revision = next_revision("logistics-state")
-                txn.set(
-                    logistics_ref,
-                    {
-                        "kind": "logistics-state",
-                        "schemaVersion": LOGISTICS_STATE_SCHEMA_VERSION,
-                        "revision": logistics_revision,
-                        "scenario": logistics_scenario,
-                        "updatedAtClient": saved_at,
-                        "updatedAt": firestore.SERVER_TIMESTAMP,
-                    },
-                )
+            logistics_revision = next_revision("logistics-state")
+            txn.set(logistics_ref, {
+                "kind": "logistics-state", "schemaVersion": LOGISTICS_STATE_SCHEMA_VERSION,
+                "revision": logistics_revision, "scenario": logistics_scenario,
+                "updatedAtClient": saved_at, "updatedAt": firestore.SERVER_TIMESTAMP,
+            })
             for week in weeks:
                 week_start = week["scenario"]["week_start"]
                 txn.set(

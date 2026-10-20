@@ -384,6 +384,10 @@ def _normalize_google_event(
 ) -> dict[str, object] | None:
     if not isinstance(item, dict) or item.get("status") == "cancelled":
         return None
+    if any(isinstance(attendee, dict) and attendee.get("self")
+           and attendee.get("responseStatus") == "declined"
+           for attendee in (item.get("attendees") or [])):
+        return None
     provider_event_id = item.get("id")
     start = _event_time(item.get("start"))
     end = _event_time(item.get("end"))
@@ -428,14 +432,15 @@ def _fetch_detail_events(
 ) -> list[dict[str, object]]:
     events: list[dict[str, object]] = []
     page_token = None
-    while len(events) < MAX_EVENTS_PER_CALENDAR:
+    scanned = 0
+    while scanned < MAX_EVENTS_PER_CALENDAR:
         params: dict[str, object] = {
             "timeMin": time_min,
             "timeMax": time_max,
             "singleEvents": "true",
             "showDeleted": "false",
             "orderBy": "startTime",
-            "maxResults": min(100, MAX_EVENTS_PER_CALENDAR - len(events)),
+            "maxResults": min(100, MAX_EVENTS_PER_CALENDAR - scanned),
         }
         if page_token:
             params["pageToken"] = page_token
@@ -448,7 +453,9 @@ def _fetch_detail_events(
             params=params,
         )
         payload = _provider_json(response, message)
-        for item in payload.get("items", []):
+        items = payload.get("items", [])
+        scanned += len(items)
+        for item in items:
             normalized = _normalize_google_event(
                 item,
                 calendar_id=str(calendar["id"]),
@@ -463,6 +470,11 @@ def _fetch_detail_events(
         page_token = next_token if isinstance(next_token, str) and next_token else None
         if not page_token:
             break
+        if scanned >= MAX_EVENTS_PER_CALENDAR:
+            raise WeekFlowCalendarProviderError(
+                f"{calendar['name']} has too many events to preview completely. "
+                "Choose availability-only mode or fewer calendars."
+            )
     return events
 
 

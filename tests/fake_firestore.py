@@ -117,6 +117,9 @@ class FakeTransaction:
     def set(self, ref, data, merge=False):
         ref.set(data, merge=merge)
 
+    def delete(self, ref):
+        ref.delete()
+
 
 def _transaction(self):
     return FakeTransaction(self)

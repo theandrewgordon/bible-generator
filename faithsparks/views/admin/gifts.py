@@ -36,6 +36,7 @@ def admin_gift():
             'plan': plan,
             'isPro': plan in ('family','classroom','plus','plus_family','plus_classroom'),
             'gifted': True,
+            'giftExpiresAt': None,
             'updatedAt': firestore.SERVER_TIMESTAMP,
         }
         if expires:
@@ -44,7 +45,8 @@ def admin_gift():
                 dt = datetime(y,m,d,23,59,59,tzinfo=timezone.utc)
                 data['giftExpiresAt'] = dt
             except Exception:
-                flash('Could not parse expiration date; ignoring.', 'warning')
+                flash('Could not parse expiration date. Gift was not changed.', 'error')
+                return redirect(url_for('admin_gift'))
         try:
             db.collection('users').document(email).set(data, merge=True)
             try:

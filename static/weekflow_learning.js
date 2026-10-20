@@ -1295,7 +1295,7 @@
       selectedDay = initialDay(learning.today);
       selectedKid = students()[0]?.id;
       byId("learningLoading").hidden = true;
-      if (learning.revision === 0) {
+      if (learning.revision === 0 || learning.reset) {
         byId("familyOnboarding").hidden = false;
         byId("learningApp").hidden = true;
       } else {

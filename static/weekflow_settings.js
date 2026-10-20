@@ -117,7 +117,7 @@
     loading.hidden = false; app.hidden = true; onboarding.hidden = true; errorBox.hidden = true;
     try {
       state = await jsonRequest(config.stateUrl);
-      if (state.revision === 0) {
+      if (state.revision === 0 || state.reset) {
         loading.hidden = true;
         onboarding.append(restoreCard);
         onboarding.hidden = false;

@@ -19,6 +19,10 @@ class WeekFlowProviderError(RuntimeError):
     """Raised when a configured provider rejects or cannot complete a request."""
 
 
+class WeekFlowDeliveryUncertain(WeekFlowProviderError):
+    """A provider may have accepted a notification; automatic resend is unsafe."""
+
+
 @dataclass(frozen=True)
 class RouteEstimate:
     duration_minutes: int
@@ -219,12 +223,15 @@ class TwilioSmsProvider:
             )
             response.raise_for_status()
             payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            error = WeekFlowProviderError if 400 <= exc.response.status_code < 500 else WeekFlowDeliveryUncertain
+            raise error("The SMS request could not be sent.") from exc
         except (httpx.HTTPError, ValueError) as exc:
-            raise WeekFlowProviderError("The SMS request could not be sent.") from exc
+            raise WeekFlowDeliveryUncertain("The SMS delivery could not be confirmed.") from exc
         message_id = payload.get("sid") if isinstance(payload, dict) else None
         status = payload.get("status", "queued") if isinstance(payload, dict) else None
         if not isinstance(message_id, str) or not message_id:
-            raise WeekFlowProviderError("The SMS provider returned no message ID.")
+            raise WeekFlowDeliveryUncertain("The SMS provider returned no message ID.")
         return NotificationResult("twilio", message_id, str(status or "queued"))
 
 
@@ -259,11 +266,14 @@ class SendGridEmailProvider:
                 timeout=8.0,
             )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            error = WeekFlowProviderError if 400 <= exc.response.status_code < 500 else WeekFlowDeliveryUncertain
+            raise error("The email request could not be sent.") from exc
         except httpx.HTTPError as exc:
-            raise WeekFlowProviderError("The email request could not be sent.") from exc
+            raise WeekFlowDeliveryUncertain("The email delivery could not be confirmed.") from exc
         message_id = response.headers.get("X-Message-Id", "")
         if not message_id:
-            raise WeekFlowProviderError("The email provider returned no message ID.")
+            raise WeekFlowDeliveryUncertain("The email provider returned no message ID.")
         return NotificationResult("sendgrid", message_id, "sent")
 
 
