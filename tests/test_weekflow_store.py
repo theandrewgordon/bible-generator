@@ -356,14 +356,14 @@ def test_cloud_repository_round_trip_history_templates_backup_and_delete(monkeyp
     assert backup["logistics"]["scenario"] is None
 
     delete_beta_state("parent@example.com")
-    assert database.documents == {}
+    assert set(database.documents) == {"state", "today-state", "household-state", "meals-state", "medical-state", "travel-state", "logistics-state"}
     restored = restore_weekflow_backup("parent@example.com", backup)
-    assert restored == {"restored": True, "revision": 1, "weeks": 1, "templates": 1}
+    assert restored == {"restored": True, "revision": 3, "weeks": 1, "templates": 1}
     assert load_beta_state("parent@example.com")["family"]["name"] == "Our homeschool"
     assert list_saved_weeks("parent@example.com")[0]["week_start"] == "2026-08-31"
     assert list_week_templates("parent@example.com")[0]["name"] == "Normal week"
     delete_beta_state("parent@example.com")
-    assert database.documents == {}
+    assert set(database.documents) == {"state", "today-state", "household-state", "meals-state", "medical-state", "travel-state", "logistics-state"}
 
 
 def test_backup_restore_validates_everything_before_changing_cloud_data(monkeypatch):

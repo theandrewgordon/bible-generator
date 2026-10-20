@@ -269,7 +269,7 @@ def _household_dashboard_payload(
             "name": beta_state["family"]["name"],
             "timezone": beta_state["family"]["timezone"],
             "people": family_people(beta_state["family"]),
-            "configured": beta_state["revision"] > 0,
+            "configured": beta_state["revision"] > 0 and not beta_state.get("reset"),
         },
         "today": family_today.isoformat(),
         "week_start": week_start.isoformat(),
@@ -375,7 +375,7 @@ def _meals_dashboard_payload(
             "name": beta_state["family"]["name"],
             "timezone": beta_state["family"]["timezone"],
             "people": family_people(beta_state["family"]),
-            "configured": beta_state["revision"] > 0,
+            "configured": beta_state["revision"] > 0 and not beta_state.get("reset"),
         },
         "today": family_today.isoformat(),
         "week_start": week_start.isoformat(),
@@ -467,7 +467,7 @@ def _medical_dashboard_payload(
             "name": beta_state["family"]["name"],
             "timezone": beta_state["family"]["timezone"],
             "people": family_people(beta_state["family"]),
-            "configured": beta_state["revision"] > 0,
+            "configured": beta_state["revision"] > 0 and not beta_state.get("reset"),
         },
         "today": family_today.isoformat(),
     }
@@ -572,7 +572,7 @@ def _travel_dashboard_payload(
             "name": beta_state["family"]["name"],
             "timezone": beta_state["family"]["timezone"],
             "people": family_people(beta_state["family"]),
-            "configured": beta_state["revision"] > 0,
+            "configured": beta_state["revision"] > 0 and not beta_state.get("reset"),
         },
         "today": family_today.isoformat(),
     }
@@ -727,7 +727,7 @@ def schedule_dashboard_state():
                 "timezone": beta_state["family"]["timezone"],
                 "primary_adult_id": beta_state["family"].get("primary_adult_id"),
                 "people": family_people(beta_state["family"]),
-                "configured": beta_state["revision"] > 0,
+                "configured": beta_state["revision"] > 0 and not beta_state.get("reset"),
             },
             "today": family_today.isoformat(),
             "learning": {
@@ -840,7 +840,7 @@ def today_state():
                 "timezone": beta_state["family"]["timezone"],
                 "primary_adult_id": beta_state["family"].get("primary_adult_id"),
                 "people": family_people(beta_state["family"]),
-                "configured": beta_state["revision"] > 0,
+                "configured": beta_state["revision"] > 0 and not beta_state.get("reset"),
             },
             "today": family_today.isoformat(),
             "attention": today_attention_counts(saved, today=family_today),
@@ -1068,10 +1068,10 @@ def logistics_state_delete():
     if not _has_beta_access(email):
         return _beta_access_required()
     try:
-        delete_logistics_state(email)
+        revision = delete_logistics_state(email)
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
-    return jsonify({"deleted": True})
+    return jsonify({"deleted": True, "revision": revision})
 
 
 @bp.post("/logistics/routes/refresh")
