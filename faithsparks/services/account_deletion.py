@@ -87,6 +87,18 @@ def _cancel_stripe(user: dict, email: str = "") -> bool:
 
 
 def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
+    try:
+        return _delete_user_data(email, by=by)
+    except AccountDeletionError:
+        raise
+    except Exception as exc:
+        log.exception("Account cleanup interrupted")
+        raise AccountDeletionError(
+            "Account cleanup is incomplete. Please retry deletion."
+        ) from exc
+
+
+def _delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
     """Remove one account's data. Raises AccountDeletionError and stops early if Stripe fails."""
     email = (email or "").strip().lower()
     if not db or not email:
@@ -105,9 +117,11 @@ def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
     for name, step in _STEPS:
         try:
             summary[name] = int(step(email) or 0)
-        except Exception:
+        except Exception as exc:
             log.warning("account deletion step %s failed", name, exc_info=True)
-            summary[name] = -1
+            raise AccountDeletionError(
+                "Account cleanup is incomplete. Your account was kept so you can retry deletion."
+            ) from exc
 
     from faithsparks.views.worksheets import _delete_owned_worksheet_file
 
@@ -116,8 +130,11 @@ def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
         meta = doc.to_dict() or {}
         try:
             _delete_owned_worksheet_file(meta.get("filename") or "", meta)
-        except Exception:
+        except Exception as exc:
             log.warning("account deletion: file cleanup failed", exc_info=True)
+            raise AccountDeletionError(
+                "File cleanup is incomplete. Your account and remaining records were kept so you can retry."
+            ) from exc
         doc.reference.delete()
         count += 1
     summary["worksheets"] = count

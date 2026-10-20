@@ -56,6 +56,7 @@ class CopyworkTestCase(unittest.TestCase):
             mock.patch.object(ws, "available_translation_ids", return_value={"kjv", "web"}),
             mock.patch.object(ws, "moderate_text_block", return_value={"flagged": False}),
             mock.patch.object(ws, "upload_to_storage", return_value=None),
+            mock.patch.object(ws, "upload_to_storage_checked", return_value=True),
             mock.patch.object(ws, "download_from_storage", return_value=False),
             mock.patch.object(app, "google", SimpleNamespace(authorized=True)),
         ):
@@ -110,7 +111,7 @@ class PrivacyTests(CopyworkTestCase):
             ws._delete_owned_worksheet_file("custom-abc-123_DIY.pdf", {"custom": True})
         self.assertTrue(os.path.exists(os.path.join("output", "john_316_KJV.pdf")))
         self.assertFalse(os.path.exists(os.path.join("output", "custom-abc-123_DIY.pdf")))
-        storage_delete.assert_any_call("worksheets/custom-abc-123_DIY.pdf")
+        storage_delete.assert_any_call("worksheets/custom-abc-123_DIY.pdf", strict=True)
 
 
 class ScriptureTests(CopyworkTestCase):
@@ -207,3 +208,33 @@ class CreditReservationTests(CopyworkTestCase):
     def test_successful_pdf_consumes_one_credit(self):
         self.generate("credits@x.com", verse="John 3:16", version="kjv")
         self.assertEqual(self.db.user("credits@x.com")["usage"]["lifetime"], 1)
+
+
+class SecondReviewTests(CopyworkTestCase):
+    def test_failed_pdf_upload_is_not_saved_or_charged_and_can_retry(self):
+        # JSON upload succeeds, PDF upload fails.
+        with mock.patch.object(ws, "upload_to_storage_checked", side_effect=lambda path, key: key.endswith(".json")):
+            response = self.generate("a@x.com", verse="John 3:16", version="kjv")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.files_for("a@x.com"), [])
+        self.assertEqual(self.db.user("a@x.com")["usage"]["lifetime"], 0)
+        # Cached local files must still be uploaded before a later download succeeds.
+        with mock.patch.object(ws, "upload_to_storage_checked", return_value=False):
+            self.assertEqual(self.generate("a@x.com", verse="John 3:16", version="kjv").status_code, 302)
+        self.assertEqual(self.generate("a@x.com", verse="John 3:16", version="kjv").status_code, 200)
+        self.assertEqual(len(self.files_for("a@x.com")), 1)
+
+    def test_free_worksheet_still_available_at_quota_limit(self):
+        self.db.collection("users").document("a@x.com").set({"plan": "free", "usage": {"lifetime": 10}})
+        with mock.patch.object(ws, "_get_free_slugs", return_value={ws.normalize_slug("John 3:16")}):
+            response = self.generate("a@x.com", verse="John 3:16", version="kjv")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.db.user("a@x.com")["usage"]["lifetime"], 10)
+
+    def test_mixed_batch_at_quota_limit_keeps_only_free_worksheet(self):
+        self.db.collection("users").document("a@x.com").set({"plan": "free", "usage": {"lifetime": 10}})
+        with mock.patch.object(ws, "_get_free_slugs", return_value={ws.normalize_slug("John 3:16")}):
+            response = self.generate("a@x.com", verse="John 3:17, John 3:16", version="kjv")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.files_for("a@x.com")), 1)
+        self.assertEqual(self.db.user("a@x.com")["usage"]["lifetime"], 10)

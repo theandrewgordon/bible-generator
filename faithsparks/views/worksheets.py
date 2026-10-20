@@ -37,7 +37,7 @@ from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
 
 from faithsparks.services.firestore import db
-from faithsparks.services.storage import download_from_storage, upload_to_storage, signed_url_for_path
+from faithsparks.services.storage import download_from_storage, upload_to_storage, upload_to_storage_checked, signed_url_for_path
 from faithsparks.services.usage import (
     _get_user_plan,
     _quota_for_plan,
@@ -113,17 +113,23 @@ def _delete_owned_worksheet_file(filename: str, meta: dict | None = None) -> Non
     file_path = _safe_local_path("output", filename, {".pdf"})
     if file_path and file_path.exists():
         file_path.unlink()
-    delete_storage_path(f"worksheets/{os.path.basename(filename)}")
+    delete_storage_path(f"worksheets/{os.path.basename(filename)}", strict=True)
     if meta.get("type") == "coloring":
         png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
         png_path = _safe_local_path("worksheets", png_name, {".png"})
+        delete_storage_path(f"worksheets/{os.path.basename(png_name)}", strict=True)
         if png_path and png_path.exists():
             png_path.unlink()
+        coloring_thumb = os.path.splitext(os.path.basename(filename))[0] + "_coloring.png"
+        delete_storage_path(f"thumbs/{coloring_thumb}", strict=True)
+        coloring_thumb_path = _safe_local_path(os.path.join("output", "thumbs"), coloring_thumb, {".png"})
+        if coloring_thumb_path and coloring_thumb_path.exists():
+            coloring_thumb_path.unlink()
     thumb_name = os.path.splitext(os.path.basename(filename))[0] + ".png"
     thumb_path = _safe_local_path(os.path.join("output", "thumbs"), thumb_name, {".png"})
     if thumb_path and thumb_path.exists():
         thumb_path.unlink()
-    delete_storage_path(f"thumbs/{thumb_name}")
+    delete_storage_path(f"thumbs/{thumb_name}", strict=True)
 
 
 def _custom_slug(owner_email: str | None) -> str:
@@ -417,27 +423,7 @@ def generate():
                 verse_items = verse_items[:1]
                 flash("The no-account sample creates one worksheet. Sign in to make a bundle.", "info")
 
-        generated_target = len(verse_items) + (1 if custom_item else 0)
         user_plan = _get_user_plan(user_email)
-        monthly_limit, lifetime_limit = _quota_for_plan(user_plan)
-        used_lifetime, used_monthly = _get_usage(user_email)
-
-        def _remaining(limit, used):
-            return 10**9 if limit is None else max(0, int(limit) - int(used))
-
-        if not is_daily_proverb:
-            allowed = min(_remaining(monthly_limit, used_monthly), _remaining(lifetime_limit, used_lifetime))
-            if allowed <= 0:
-                flash("You've reached your monthly limit. Consider Plus for more.", "warning")
-                return redirect(url_for("browse"))
-
-            if generated_target > allowed:
-                flash(f"Your plan allows {allowed} more this month; generating the first {allowed}.", "warning")
-                kept = min(len(verse_items), allowed)
-                verse_items = verse_items[:kept]
-                if custom_item and allowed <= len(verse_items):
-                    custom_item = None
-
         items_to_generate = verse_items + ([custom_item] if custom_item else [])
 
         total_requested = len(items_to_generate)
@@ -464,6 +450,8 @@ def generate():
                     selected.append(item)
                     if not is_free:
                         remaining -= 1
+            if len(selected) < len(items_to_generate):
+                flash("Your remaining credits cover only part of this batch. Free worksheets are still included.", "info")
             items_to_generate = selected
             if not items_to_generate:
                 flash("You've reached your monthly limit.", "warning")
@@ -474,9 +462,16 @@ def generate():
         def _record_existing(path: str | None):
             nonlocal last_pdf
             if path and os.path.exists(path):
+                if db and user_email and not upload_to_storage_checked(
+                    path, f"worksheets/{os.path.basename(path)}"
+                ):
+                    flash("We couldn't save your worksheet safely. Please try again. No credit was used.", "error")
+                    return False
                 if path not in bundle_files:
                     bundle_files.append(path)
                 last_pdf = path
+                return True
+            return False
 
         for chunk in _chunked(items_to_generate, OPENAI_BATCH_SIZE):
             contexts = []
@@ -558,9 +553,9 @@ def generate():
                             data = json.load(cache_file)
                         if (data or {}).get("verseSource") not in VERIFIED_SOURCES:
                             raise ValueError("cached worksheet predates verified Scripture text")
+                        # Reuse verified data, then persist the file and owner record
+                        # through the normal save path (also repairs failed uploads).
                         context["data"] = data
-                        context["skip"] = True
-                        _record_existing(pdf_path)
                         continue
                     except Exception:
                         pass
@@ -669,11 +664,18 @@ def generate():
                     if not os.path.exists(thumb_path):
                         make_thumbnail(ctx["verse"], ctx["version"], thumb_base)
 
-                upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
                 if not ctx["is_custom"] and os.path.exists(ctx["json_path"]):
-                    upload_to_storage(ctx["json_path"], f"worksheets/{os.path.basename(ctx['json_path'])}")
+                    if db and user_email:
+                        if not upload_to_storage_checked(ctx["json_path"], f"worksheets/{os.path.basename(ctx['json_path'])}"):
+                            flash("We couldn't save your worksheet safely. Please try again. No credit was used.", "error")
+                            continue
+                    else:
+                        upload_to_storage(ctx["json_path"], f"worksheets/{os.path.basename(ctx['json_path'])}")
+                if not (db and user_email):
+                    upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
                 ctx["pdf_path"] = pdf_path
-                _record_existing(pdf_path)
+                if not _record_existing(pdf_path):
+                    continue
 
                 if db and user_email:
                     db.collection("worksheets").add(
@@ -766,8 +768,8 @@ def delete_worksheet(filename):
             flash("Worksheet not found.", "error")
             return redirect(url_for("prints"))
         meta = doc.to_dict() or {}
-        doc.reference.delete()
         _delete_owned_worksheet_file(filename, meta)
+        doc.reference.delete()
         flash("Worksheet deleted successfully.", "success")
     except Exception as e:
         current_app.logger.exception("[%s] worksheet delete failed: %s", getattr(g, "req_id", ""), e)
@@ -785,8 +787,8 @@ def delete_bulk():
             if not doc:
                 continue
             meta = doc.to_dict() or {}
-            doc.reference.delete()
             _delete_owned_worksheet_file(filename, meta)
+            doc.reference.delete()
         flash("Selected worksheets deleted.", "success")
     except Exception as e:
         current_app.logger.exception("[%s] bulk worksheet delete failed: %s", getattr(g, "req_id", ""), e)
@@ -1016,7 +1018,8 @@ def regenerate(filename):
                     return redirect(url_for("prints"))
                 data = parse_and_clean_json(content)
                 save_json_to_file(data, json_path)
-                upload_to_storage(json_path, f"worksheets/{os.path.basename(json_path)}")
+                if not upload_to_storage_checked(json_path, f"worksheets/{os.path.basename(json_path)}"):
+                    raise RuntimeError("Could not persist rebuilt worksheet data")
             data.update({
                 "version": version.upper(),
                 "cursive": use_cursive,
@@ -1025,8 +1028,8 @@ def regenerate(filename):
             })
         generate_pdf(data, pdf_path, use_cursive=use_cursive)
         if os.path.exists(pdf_path):
-            if not is_custom:
-                upload_to_storage(pdf_path, f"worksheets/{os.path.basename(pdf_path)}")
+            if not upload_to_storage_checked(pdf_path, f"worksheets/{os.path.basename(pdf_path)}"):
+                raise RuntimeError("Could not persist rebuilt worksheet")
             try:
                 if db:
                     base = os.path.splitext(os.path.basename(pdf_path))[0]

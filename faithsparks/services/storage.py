@@ -116,20 +116,24 @@ def delete_storage_prefix(prefix: str) -> int:
     return deleted
 
 
-def delete_storage_path(dst_path: str) -> bool:
+def delete_storage_path(dst_path: str, *, strict: bool = False) -> bool:
     """Delete one exact private-storage object."""
     bucket = _get_bucket()
     dst_path = str(dst_path or "").strip().lstrip("/")
     if not bucket or not dst_path or ".." in dst_path or dst_path.endswith("/"):
+        if strict:
+            raise RuntimeError("Private storage is unavailable or the object path is invalid")
         return False
     try:
         blob = bucket.blob(dst_path)
         if not blob.exists():
-            return False
+            return False  # Already absent is a successful, retryable deletion.
         blob.delete()
         return True
     except Exception:
         logger.exception("Storage object delete failed for %s", dst_path)
+        if strict:
+            raise
         return False
 
 
