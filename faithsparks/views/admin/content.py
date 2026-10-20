@@ -58,6 +58,7 @@ def admin_content():
             try:
                 payload = {
                     'home_positioning_version': 2,
+                    'announcement_audience': 'everyone' if request.form.get('announcement_audience') == 'everyone' else 'non_members',
                     'announcement_enabled': request.form.get('announcement_enabled') == 'on',
                     'announcement_text': (request.form.get('announcement_text') or '').strip(),
                     'home_title': (request.form.get('home_title') or '').strip(),
@@ -90,6 +91,7 @@ def admin_content():
         else:
             payload = {
                 'home_positioning_version': 2,
+                'announcement_audience': 'everyone' if request.form.get('announcement_audience') == 'everyone' else 'non_members',
                 'announcement_enabled': request.form.get('announcement_enabled') == 'on',
                 'announcement_text': (request.form.get('announcement_text') or '').strip(),
                 'home_title': (request.form.get('home_title') or '').strip(),

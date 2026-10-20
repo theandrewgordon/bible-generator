@@ -1,6 +1,7 @@
 """Tiny in-memory Firestore for billing tests (documents, merge, sentinels, where)."""
 
 from datetime import datetime, timezone
+import threading
 
 from firebase_admin import firestore
 
@@ -92,6 +93,7 @@ class Coll:
 
 class FakeFirestore:
     def __init__(self):
+        self._transaction_lock = threading.RLock()
         self.store: dict = {}
         self.fail_collections: set[str] = set()
 
@@ -102,3 +104,18 @@ class FakeFirestore:
 
     def user(self, email):
         return self.store.get("users", {}).get(email) or {}
+
+
+class FakeTransaction:
+    def __init__(self, db):
+        self.lock = db._transaction_lock
+
+    def set(self, ref, data, merge=False):
+        ref.set(data, merge=merge)
+
+
+def _transaction(self):
+    return FakeTransaction(self)
+
+
+FakeFirestore.transaction = _transaction

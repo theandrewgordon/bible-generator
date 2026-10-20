@@ -500,7 +500,7 @@
     <a href="#maincontent" class="skip-link">Skip to content</a>
     {% set path = request.path or '' %} {% include "_navbar.html" %} {% if
     site_content and site_content.announcement_enabled and
-    site_content.announcement_text and (path == '/' or
+    site_content.announcement_text and (not is_pro or site_content.announcement_audience == 'everyone') and (path == '/' or
     path.startswith('/browse') or path.startswith('/plus')) %}
     <div class="site-banner strong">{{ site_content.announcement_text }}</div>
     {% endif %} {# Per-page banners #} {% if site_content %} {% if

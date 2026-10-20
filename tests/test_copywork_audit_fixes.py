@@ -194,3 +194,16 @@ class GenerateFlowTests(CopyworkTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CreditReservationTests(CopyworkTestCase):
+    def test_failed_pdf_returns_reserved_credit(self):
+        with mock.patch.object(ws, "generate_pdf", side_effect=RuntimeError("build failed")):
+            self.generate("credits@x.com", verse="John 3:16", version="kjv")
+        data = self.db.user("credits@x.com")
+        self.assertEqual(data["usage"]["lifetime"], 0)
+        self.assertEqual(data["usage"]["months"][usage._month_key()], 0)
+
+    def test_successful_pdf_consumes_one_credit(self):
+        self.generate("credits@x.com", verse="John 3:16", version="kjv")
+        self.assertEqual(self.db.user("credits@x.com")["usage"]["lifetime"], 1)

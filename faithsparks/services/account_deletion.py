@@ -61,19 +61,29 @@ def _delete_tree(ref) -> None:
     ref.delete()
 
 
-def _cancel_stripe(user: dict) -> bool:
+def _cancel_stripe(user: dict, email: str = "") -> bool:
     customer_id = str(user.get("stripeCustomerId") or "").strip()
-    if not customer_id or not os.getenv("STRIPE_SECRET_KEY"):
+    if not os.getenv("STRIPE_SECRET_KEY"):
+        if customer_id or user.get("subscriptionId"):
+            raise AccountDeletionError("Billing is unavailable; subscription cancellation cannot be verified.")
         return False
     import stripe
 
     stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-    try:
-        stripe.Customer.delete(customer_id)  # also cancels its subscriptions
-    except stripe.error.InvalidRequestError as exc:
-        if "No such customer" not in str(exc):
-            raise
-    return True
+    customers = {customer_id} if customer_id else set()
+    if email:
+        customers.update(c["id"] for c in stripe.Customer.list(email=email, limit=100).auto_paging_iter())
+    if user.get("subscriptionId"):
+        subscription = stripe.Subscription.retrieve(user["subscriptionId"])
+        if subscription.get("customer"):
+            customers.add(subscription["customer"])
+    for cid in sorted(customers):
+        try:
+            stripe.Customer.delete(cid)
+        except stripe.error.InvalidRequestError as exc:
+            if getattr(exc, "code", None) != "resource_missing":
+                raise
+    return bool(customers)
 
 
 def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
@@ -87,7 +97,7 @@ def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
     summary: dict[str, int] = {}
 
     try:
-        summary["stripe"] = int(_cancel_stripe(user))
+        summary["stripe"] = int(_cancel_stripe(user, email))
     except Exception as exc:
         log.error("account deletion: Stripe cancel failed for %s", email_hash(email)[:12], exc_info=True)
         raise AccountDeletionError("We couldn't cancel the subscription, so nothing was deleted. Please try again.") from exc

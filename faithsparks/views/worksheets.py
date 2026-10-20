@@ -42,7 +42,8 @@ from faithsparks.services.usage import (
     _get_user_plan,
     _quota_for_plan,
     _get_usage,
-    _update_usage,
+    _reserve_usage,
+    _refund_usage,
     _get_free_slugs,
 )
 from faithsparks.services.collections import get_collection_meta
@@ -226,6 +227,10 @@ def update_zip_bundle(pdf_paths) -> str | None:
 
 
 def generate():
+    reserved = 0
+    reservation_month = None
+    success_count = free_success_count = 0
+    user_email = None
     try:
         if request.method == "GET":
             log_request_summary("worksheets.generate:get")
@@ -447,6 +452,22 @@ def generate():
         free_success_count = 0  # free-library verses that were generated (not billed)
         free_skip_count = 0
         free_slugs = _get_free_slugs()
+        if user_email and not is_daily_proverb:
+            billable = [item for item in items_to_generate
+                        if item.get("is_custom") or normalize_slug(item["verse"]) not in free_slugs]
+            reserved, reservation_month = _reserve_usage(user_email, len(billable), user_plan)
+            remaining = reserved
+            selected = []
+            for item in items_to_generate:
+                is_free = not item.get("is_custom") and normalize_slug(item["verse"]) in free_slugs
+                if is_free or remaining > 0:
+                    selected.append(item)
+                    if not is_free:
+                        remaining -= 1
+            items_to_generate = selected
+            if not items_to_generate:
+                flash("You've reached your monthly limit.", "warning")
+                return redirect(url_for("browse"))
         last_pdf = None
         bundle_files: list[str] = []
 
@@ -691,13 +712,6 @@ def generate():
             )
         except Exception:
             pass
-        try:
-            # Bill every generated worksheet except free-library ones. (Previously one
-            # free verse in a batch made the whole batch free.)
-            if not is_daily_proverb:
-                _update_usage(user_email, max(0, success_count - free_success_count))
-        except Exception:
-            pass
         delivered_count = len(bundle_files)
         if anonymous_mode and delivered_count and not is_daily_proverb:
             session["anonymous_worksheet_count"] = min(
@@ -734,6 +748,13 @@ def generate():
             return jsonify(error="We couldn't generate that worksheet yet. Please try again."), 500
         flash("We couldn't generate that worksheet yet. Please try again.", "error")
         return redirect(url_for("generate"))
+    finally:
+        if reserved and reservation_month:
+            unused = max(0, reserved - max(0, success_count - free_success_count))
+            try:
+                _refund_usage(user_email, unused, reservation_month)
+            except Exception:
+                current_app.logger.exception("Could not refund unused worksheet reservation")
 
 
 def delete_worksheet(filename):
