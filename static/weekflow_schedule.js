@@ -89,6 +89,25 @@
     return `${parts.year}-${parts.month}-${parts.day}`;
   }
 
+  function calendarOnDate(event, date) {
+    const startDate = calendarDate(event);
+    if (!startDate || startDate > date) return false;
+    if (event.all_day) return date < String(event.end).slice(0, 10);
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+    if (Number.isNaN(end.getTime()) || end <= start) return false;
+    // Google event ends are exclusive, including midnight on the next day.
+    const lastDate = calendarDate({ start: new Date(end.getTime() - 1).toISOString() });
+    return date <= lastDate;
+  }
+
+  function calendarWindow(event, date) {
+    const start = calendarDate(event) < date ? 0 : calendarMinute(event.start);
+    const endDate = calendarDate({ start: event.end });
+    const end = endDate > date ? 1440 : calendarMinute(event.end);
+    return { start, end };
+  }
+
   function selectedDay() {
     return days.find((day) => day.date === selectedDate) || days[0];
   }
@@ -212,11 +231,11 @@
         kind: "medical",
       };
     });
-    const calendar = calendarEvents.filter((event) => calendarDate(event) === selectedDate).map((event) => ({
+    const calendar = calendarEvents.filter((event) => calendarOnDate(event, selectedDate)).map((event) => ({
       id: `calendar-${event.source_calendar_id}-${event.provider_event_id}`,
       title: event.title,
       time: timeFromCalendar(event.start, event.all_day),
-      sort: event.all_day ? -1 : calendarMinute(event.start),
+      sort: event.all_day ? -1 : calendarWindow(event, selectedDate).start,
       detail: [event.source_calendar_name, event.location].filter(Boolean).join(" · "),
       source: "Google Calendar · preview",
       kind: "calendar",
@@ -293,13 +312,14 @@
   }
 
   function calendarOverlapWarnings() {
-    const timedCalendar = calendarEvents.filter((event) => !event.all_day && calendarDate(event) === selectedDate);
+    const timedCalendar = calendarEvents.filter((event) => !event.all_day && calendarOnDate(event, selectedDate));
     const logistics = logisticsForSelectedDay();
     const warnings = timedCalendar.flatMap((calendar) => {
       const start = new Date(calendar.start);
       const end = new Date(calendar.end);
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
-      const overlap = logistics.find((item) => calendarMinute(start) < item.responsibility_end && calendarMinute(end) > item.responsibility_start);
+      const window = calendarWindow(calendar, selectedDate);
+      const overlap = logistics.find((item) => window.start < item.responsibility_end && window.end > item.responsibility_start);
       return overlap ? [{
         title: `Confirm the handoff around ${overlap.title}`,
         body: `${calendar.title} overlaps its true responsibility window. Check that the right adult is still free.`,

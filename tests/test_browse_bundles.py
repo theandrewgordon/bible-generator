@@ -173,10 +173,10 @@ def test_browse_listing_does_not_fetch_each_stripe_price(monkeypatch):
 
 def test_bundle_checkout_records_the_exact_price_in_metadata(monkeypatch):
     checkout_create = mock.Mock(return_value=SimpleNamespace(url="https://checkout.example/wisdom"))
-    database = FakeDatabase({
-        ("collections", "wisdom"): _bundle_meta(),
-        ("users", "buyer@example.com"): {"purchases": {}},
-    })
+    from fake_firestore import FakeFirestore
+    database = FakeFirestore()
+    database.collection("collections").document("wisdom").set(_bundle_meta())
+    database.collection("users").document("buyer@example.com").set({"purchases": {}})
     monkeypatch.setattr(
         billing,
         "stripe",

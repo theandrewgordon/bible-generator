@@ -148,6 +148,7 @@
 
     <script>
       window.WEEKFLOW_LOGISTICS_CONFIG = {
+        timezone: {{ family_timezone|tojson }},
         planUrl: {{ url_for('weekflow.logistics_plan')|tojson }},
         integrationStatusUrl: {{ url_for('weekflow.logistics_integration_status')|tojson }},
         routeRefreshUrl: {{ url_for('weekflow.logistics_route_refresh')|tojson }},
@@ -162,6 +163,6 @@
         carpoolScenario: {{ carpool_scenario|tojson }}
       };
     </script>
-    <script src="{{ url_for('static', filename='weekflow_logistics.js') }}?v=17" defer></script>
+    <script src="{{ url_for('static', filename='weekflow_logistics.js') }}?v=18" defer></script>
   </body>
 </html>

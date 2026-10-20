@@ -788,6 +788,33 @@ def games_words():
     return jsonify({"words": words}), 200
 
 
+def _charge_game_download(email: str, slug: str, plan: str) -> None:
+    if not db or not email:
+        raise RuntimeError("Account storage unavailable")
+    ref = db.collection("users").document(email)
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    monthly_limit, lifetime_limit = _quota_for_plan(plan)
+
+    @firestore.transactional
+    def charge(txn):
+        data = ref.get(transaction=txn).to_dict() or {}
+        if (data.get("gameDownloads") or {}).get(slug):
+            return
+        usage = data.get("usage") or {}
+        lifetime = int(usage.get("lifetime") or 0)
+        monthly = int((usage.get("months") or {}).get(month) or 0)
+        if ((monthly_limit is not None and monthly >= monthly_limit)
+                or (lifetime_limit is not None and lifetime >= lifetime_limit)):
+            raise ValueError("Game credit limit reached")
+        txn.set(ref, {"gameDownloads": {slug: True}, "usage": {
+            "lifetime": firestore.Increment(1), "months": {month: firestore.Increment(1)},
+        }}, merge=True)
+
+    charge(db.transaction())
+    from faithsparks.services.users import invalidate_user_doc
+    invalidate_user_doc(email)
+
+
 def dl_game(slug):
     if not db:
         return "Firestore not configured", 500
@@ -819,15 +846,17 @@ def dl_game(slug):
         except Exception:
             pass
 
-    def _charge_download():
-        # One credit per game: re-downloading the same game is free.
-        if downloaded_before:
-            return
-        _update_usage(email, 1)
+    def _deliver(response):
+        # Mark the download and debit its first credit in the same transaction.
         try:
-            db.collection("users").document(email).set({"gameDownloads": {slug: True}}, merge=True)
+            _charge_game_download(email, slug, _get_user_plan(email))
+        except ValueError:
+            flash("You’ve used all your credits for this month.", "warning")
+            return redirect(url_for("games_detail", slug=slug))
         except Exception:
-            pass
+            current_app.logger.exception("Could not safely charge game download")
+            return "Game downloads are temporarily unavailable. Please try again.", 503
+        return response
 
     if meta.get("isSubscriberOnly") and not allowed:
         flash("This game is included with Membership.", "info")
@@ -852,20 +881,17 @@ def dl_game(slug):
     try:
         gcs_signed = signed_url_for_path(f"games/{slug}.zip", minutes=120)
         if gcs_signed:
-            _charge_download()
-            return redirect(gcs_signed)
+            return _deliver(redirect(gcs_signed))
     except Exception:
         pass
 
     url = meta.get("zipUrl")
     if url:
-        _charge_download()
-        return redirect(url)
+        return _deliver(redirect(url))
 
     path = os.path.join("output", "games", f"{slug}.zip")
     if os.path.exists(path):
-        _charge_download()
-        return send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True)
+        return _deliver(send_file(path, as_attachment=True, download_name=os.path.basename(path), conditional=True))
 
     # Build a fresh PDF if no ZIP exists yet
     pdf_dir = os.path.join("output", "games")
@@ -939,8 +965,7 @@ def dl_game(slug):
                 subtitle=subtitle,
                 difficulty_note=difficulty_note,
             )
-        _charge_download()
-        return send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True)
+        return _deliver(send_file(pdf_path, as_attachment=True, download_name=os.path.basename(pdf_path), conditional=True))
     except Exception:
         return "Game not available", 404
 
@@ -983,6 +1008,8 @@ def _build_match_game_items(
             content = request_verse_data(ref, version)
             data = parse_and_clean_json(content)
             full_verse = (data.get("fullVerse") or "").strip()
+            if not full_verse:
+                raise ValueError("Verse text is unavailable. Please try again.")
             if use_meaning:
                 meaning = ""
                 try:
@@ -994,14 +1021,16 @@ def _build_match_game_items(
                     meaning = (meaning_data.get("meaning") or "").strip()
                 except Exception:
                     meaning = ""
-                text = meaning or "Meaning unavailable."
+                if not meaning:
+                    raise ValueError("Verse meaning is unavailable. Please try again.")
+                text = meaning
             else:
                 if difficulty == "simple":
                     text = (data.get("traceableVerse") or full_verse or text).strip()
                 else:
                     text = full_verse or text
-        except Exception:
-            pass
+        except Exception as exc:
+            raise ValueError("Could not load the game Scripture. Please try again.") from exc
         verses.append(MatchItem(text=text, version=version))
 
     rng = random.Random(meta.get("slug") or "")
@@ -1049,6 +1078,8 @@ def _build_match_game_from_inputs(
             content = request_verse_data(ref, version)
             data = parse_and_clean_json(content)
             full_verse = (data.get("fullVerse") or "").strip()
+            if not full_verse:
+                raise ValueError("Verse text is unavailable. Please try again.")
             if use_meaning:
                 meaning = ""
                 try:
@@ -1060,14 +1091,16 @@ def _build_match_game_from_inputs(
                     meaning = (meaning_data.get("meaning") or "").strip()
                 except Exception:
                     meaning = ""
-                text = meaning or "Meaning unavailable."
+                if not meaning:
+                    raise ValueError("Verse meaning is unavailable. Please try again.")
+                text = meaning
             else:
                 if difficulty == "simple":
                     text = (data.get("traceableVerse") or full_verse or text).strip()
                 else:
                     text = full_verse or text
-        except Exception:
-            pass
+        except Exception as exc:
+            raise ValueError("Could not load the game Scripture. Please try again.") from exc
         verses.append(MatchItem(text=text, version=version))
 
     order = list(range(len(verses)))

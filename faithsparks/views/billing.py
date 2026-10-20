@@ -1110,6 +1110,31 @@ def family_game_night_success():
     return redirect(url_for("act_it_out.family_game_night"))
 
 
+def _pack_checkout_parameters(email: str, slug: str, price_id: str) -> dict:
+    """Keep one Stripe idempotency key and immutable request per payable window."""
+    ref = db.collection("users").document(email).collection("pack_checkouts").document(slug)
+
+    @firestore.transactional
+    def claim(txn):
+        previous = ref.get(transaction=txn).to_dict() or {}
+        if previous.get("expires_at", 0) > time.time():
+            return previous
+        parameters = {
+            "idempotency_key": "pack-" + uuid.uuid4().hex,
+            "expires_at": int(time.time()) + 23 * 60 * 60,
+            "mode": "payment",
+            "customer_email": email,
+            "line_items": [{"price": price_id, "quantity": 1}],
+            "success_url": url_for("buy_success", slug=slug, _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
+            "cancel_url": url_for("browse_detail", slug=slug, _external=True),
+            "metadata": {"email": email, "pack_slug": slug, "price_id": price_id},
+        }
+        txn.set(ref, parameters)
+        return parameters
+
+    return claim(db.transaction())
+
+
 def buy_pack(slug):
     if not stripe or not STRIPE_SECRET_KEY:
         return "Stripe not configured", 500
@@ -1135,14 +1160,9 @@ def buy_pack(slug):
         flash("This pack is not available for one-time purchase.", "warning")
         return redirect(url_for("browse_detail", slug=slug))
     try:
-        chk = stripe.checkout.Session.create(
-            mode="payment",
-            customer_email=email,
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url=url_for("buy_success", slug=slug, _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=url_for("browse_detail", slug=slug, _external=True),
-            metadata={"email": email, "pack_slug": slug, "price_id": price_id},
-        )
+        if not email:
+            return redirect(url_for("google.login", next=request.url))
+        chk = stripe.checkout.Session.create(**_pack_checkout_parameters(email, slug, price_id))
         return redirect(chk.url, code=303)
     except Exception as e:
         current_app.logger.exception("[%s] Stripe pack checkout failed: %s", getattr(g, "req_id", ""), e)
