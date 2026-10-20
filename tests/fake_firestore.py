@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 import threading
+import uuid
 
 from firebase_admin import firestore
 
@@ -78,14 +79,17 @@ class Coll:
     def __init__(self, store, path):
         self.store, self.path = store, path
 
-    def document(self, doc_id):
-        return Doc(self.store, self.path, doc_id)
+    def document(self, doc_id=None):
+        return Doc(self.store, self.path, doc_id or uuid.uuid4().hex)
 
     def where(self, filter=None):
         return Query(self, [filter])
 
     def stream(self):
         return Query(self, []).stream()
+
+    def limit(self, n):
+        return Query(self, [], n)
 
     def add(self, data):
         self.document(f"auto{len(self.store.get(self.path, {}))}").set(data)

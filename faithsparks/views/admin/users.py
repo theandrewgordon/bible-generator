@@ -28,7 +28,12 @@ def admin_users():
     if not db:
         return "Firestore not configured", 500
     q = (request.args.get("q") or "").strip().lower()
-    docs = db.collection("users").limit(200).stream()
+    collection = db.collection("users")
+    if q:
+        exact = collection.document(q).get() if "@" in q and "/" not in q and len(q) <= 320 else None
+        docs = [exact] if exact is not None and exact.exists else collection.stream()
+    else:
+        docs = collection.limit(200).stream()
     users = []
     for d in docs:
         u = d.to_dict() or {}
@@ -50,6 +55,8 @@ def admin_users():
         if q and q not in ((u.get("email", "") or d.id).lower()):
             continue
         users.append(u)
+        if len(users) >= 200:
+            break
     users.sort(key=lambda u: (u.get("email") or u["id"]).lower())
     return render_template("admin_users.html", users=users, q=q, plan_label=plan_label)
 
