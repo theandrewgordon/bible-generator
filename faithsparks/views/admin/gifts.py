@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from flask import render_template, request, redirect, url_for, session, flash, current_app, g
 from firebase_admin import firestore
 from faithsparks.services.firestore import db
-from faithsparks.services.users import gift_end_update
+from faithsparks.services.users import gift_end_update, strongest_plan, SUBSCRIPTION_ACCESS_STATUSES
 
 
 def admin_gift():
@@ -17,9 +17,13 @@ def admin_gift():
                 return redirect(url_for('admin_gift'))
             try:
                 ref = db.collection('users').document(email)
-                snap = ref.get()
-                update = gift_end_update((snap.to_dict() or {}) if snap.exists else {})
-                ref.set({**update, 'updatedAt': firestore.SERVER_TIMESTAMP}, merge=True)
+                @firestore.transactional
+                def revoke(txn):
+                    snap = ref.get(transaction=txn)
+                    update = gift_end_update((snap.to_dict() or {}) if snap.exists else {})
+                    txn.set(ref, {**update, 'updatedAt': firestore.SERVER_TIMESTAMP}, merge=True)
+                    return update
+                update = revoke(db.transaction())
                 flash('Gift revoked (paid subscription kept)' if update.get('isPro') else 'Gift revoked', 'success')
             except Exception as e:
                 current_app.logger.exception("[%s] admin gift revoke failed: %s", getattr(g, "req_id", ""), e)
@@ -36,6 +40,7 @@ def admin_gift():
             'plan': plan,
             'isPro': plan in ('family','classroom','plus','plus_family','plus_classroom'),
             'gifted': True,
+            'giftPlan': plan,
             'giftExpiresAt': None,
             'updatedAt': firestore.SERVER_TIMESTAMP,
         }
@@ -48,7 +53,18 @@ def admin_gift():
                 flash('Could not parse expiration date. Gift was not changed.', 'error')
                 return redirect(url_for('admin_gift'))
         try:
-            db.collection('users').document(email).set(data, merge=True)
+            ref = db.collection('users').document(email)
+
+            @firestore.transactional
+            def grant(txn):
+                existing = ref.get(transaction=txn).to_dict() or {}
+                paying = (existing.get("subscriptionId") and
+                          existing.get("subscriptionStatus", "active") in SUBSCRIPTION_ACCESS_STATUSES)
+                paid_plan = (existing.get("paidPlan") or existing.get("plan")) if paying else "free"
+                effective = strongest_plan(plan, paid_plan)
+                txn.set(ref, {**data, "plan": effective, "isPro": effective != "free"}, merge=True)
+
+            grant(db.transaction())
             try:
                 admin_email = session.get('user_email')
                 entry = { 'email': email, 'plan': plan, 'expiresAt': data.get('giftExpiresAt'), 'by': admin_email, 'at': firestore.SERVER_TIMESTAMP }

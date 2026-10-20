@@ -2,6 +2,7 @@ import os
 import re
 import json
 import threading
+import uuid
 import traceback
 from zipfile import ZipFile
 from datetime import datetime, timezone
@@ -20,7 +21,7 @@ from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
 from faithsparks.services.collections import get_collections, get_collection_meta, load_collections
-from faithsparks.services.storage import upload_to_storage
+from faithsparks.services.storage import upload_to_storage, upload_to_storage_checked
 from faithsparks.services.stripe_svc import stripe, STRIPE_SECRET_KEY
 from faithsparks.util.slug import normalize_slug
 from faithsparks.views.worksheets import extract_version_from_text
@@ -338,7 +339,10 @@ def admin_prewarm_pack(slug):
     ref = db.collection("collections").document(slug)
     ref.set({"prewarm": {"status": "running", "startedAt": firestore.SERVER_TIMESTAMP}}, merge=True)
 
+    download_url = url_for("serve_pack", filename=f"{slug}.zip", _external=True)
+
     def _job():
+        staged_zip = None
         try:
             meta = get_collection_meta(slug)
             if not meta:
@@ -388,26 +392,25 @@ def admin_prewarm_pack(slug):
                         ref.set({"prewarm": {"status": "running", "total": len(verses), "done": done}}, merge=True)
                     except Exception:
                         pass
-            if not generated_files:
-                ref.set({"prewarm": {"status": "error", "error": "No files generated", "finishedAt": firestore.SERVER_TIMESTAMP}}, merge=True)
-                return
+            if not verses or len(generated_files) != len(verses):
+                raise RuntimeError(f"Bundle incomplete: generated {len(generated_files)} of {len(verses)} worksheets. Previous download kept.")
             zip_name = f"{slug}.zip"
+            os.makedirs(os.path.join("output", "packs"), exist_ok=True)
             zip_path = os.path.join("output", "packs", zip_name)
+            staged_zip = os.path.join("output", "packs", f".{slug}-{uuid.uuid4().hex}.zip")
             try:
-                with ZipFile(zip_path, "w") as z:
+                with ZipFile(staged_zip, "w") as z:
                     for p in generated_files:
                         z.write(p, os.path.basename(p))
             except Exception as e:
                 traceback.print_exc()
                 ref.set({"prewarm": {"status": "error", "error": str(e), "finishedAt": firestore.SERVER_TIMESTAMP}}, merge=True)
                 return
-            # Build URL (prefer GCS via upload_to_storage; fallback to local serve)
-            url = upload_to_storage(zip_path, f"packs/{zip_name}")
-            if not url:
-                try:
-                    url = url_for("serve_pack", filename=zip_name, _external=True)
-                except Exception:
-                    url = None
+            if not upload_to_storage_checked(staged_zip, f"packs/{zip_name}"):
+                raise RuntimeError("Bundle upload failed. Previous download kept.")
+            os.replace(staged_zip, zip_path)
+            staged_zip = None
+            url = download_url
             ref.set(
                 {
                     "zipUrl": url,
@@ -426,6 +429,13 @@ def admin_prewarm_pack(slug):
                 {"prewarm": {"status": "error", "error": str(e), "finishedAt": firestore.SERVER_TIMESTAMP}},
                 merge=True,
             )
+
+        finally:
+            if staged_zip:
+                try:
+                    os.unlink(staged_zip)
+                except FileNotFoundError:
+                    pass
 
     threading.Thread(target=_job, daemon=True).start()
     flash("Prewarm started. You can refresh this page to see progress.", "success")

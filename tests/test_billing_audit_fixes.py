@@ -68,7 +68,7 @@ class BillingTestCase(unittest.TestCase):
         transaction_patch = mock.patch.object(billing.firestore, "transactional", lambda fn: fn)
         transaction_patch.start()
         self.addCleanup(transaction_patch.stop)
-        self.db.transaction = lambda: SimpleNamespace(set=lambda ref, data: ref.set(data, merge=True))
+        self.db.transaction = lambda: SimpleNamespace(set=lambda ref, data, merge=True: ref.set(data, merge=merge))
         self.client = app.app.test_client()
 
     def tearDown(self):

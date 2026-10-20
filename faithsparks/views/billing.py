@@ -1,3 +1,4 @@
+from faithsparks.services.users import strongest_plan
 import os
 import hashlib
 import time
@@ -822,41 +823,48 @@ def _sync_subscription(sub: dict, *, email: Optional[str] = None, extra: Optiona
     if ref is None:
         current_app.logger.warning("stripe: no user for subscription %s", sub.get("id"))
         return False
-    snap = ref.get()
-    data = (snap.to_dict() or {}) if snap.exists else {}
-    sub_id = sub.get("id")
-    status = str(sub.get("status") or "").lower()
-    current_sub = data.get("subscriptionId")
-    if current_sub and current_sub != sub_id and status not in ACCESS_STATUSES:
-        # An older/other subscription ended: never touch the one they still pay for.
+
+    @firestore.transactional
+    def sync(txn):
+        snap = ref.get(transaction=txn)
+        data = (snap.to_dict() or {}) if snap.exists else {}
+        sub_id = sub.get("id")
+        status = str(sub.get("status") or "").lower()
+        current_sub = data.get("subscriptionId")
+        if current_sub and current_sub != sub_id and status not in ACCESS_STATUSES:
+            # An older/other subscription ended: never touch the one they still pay for.
+            return True
+        price_id = _sub_price_id(sub)
+        plan = _plan_for_price(price_id)
+        update: dict = {
+            "subscriptionStatus": status,
+            "stripeCustomerId": sub.get("customer") or data.get("stripeCustomerId"),
+            "updatedAt": firestore.SERVER_TIMESTAMP,
+        }
+        renew_at = _period_end(sub)
+        if renew_at:
+            update["renewAt"] = renew_at
+        gift_plan = (data.get("giftPlan") or data.get("plan")) if _gift_active(data) else "free"
+        if _gift_active(data):
+            update["giftPlan"] = gift_plan
+        if status in ACCESS_STATUSES:
+            update.update({"isPro": True, "plan": strongest_plan(plan, gift_plan), "paidPlan": plan, "subscriptionId": sub_id})
+            if price_id:
+                update["priceId"] = price_id
+            if status == "trialing" and not data.get("trialStartedAt"):
+                update["trialStartedAt"] = firestore.SERVER_TIMESTAMP
+        else:
+            update["paidPlan"] = firestore.DELETE_FIELD
+            if status == "canceled":
+                update["subscriptionId"] = None
+            update.update({"isPro": gift_plan != "free", "plan": gift_plan})
+        for key, value in (extra or {}).items():
+            if value:
+                update[key] = value
+        txn.set(ref, update, merge=True)
         return True
-    price_id = _sub_price_id(sub)
-    plan = _plan_for_price(price_id)
-    update: dict = {
-        "subscriptionStatus": status,
-        "stripeCustomerId": sub.get("customer") or data.get("stripeCustomerId"),
-        "updatedAt": firestore.SERVER_TIMESTAMP,
-    }
-    renew_at = _period_end(sub)
-    if renew_at:
-        update["renewAt"] = renew_at
-    if status in ACCESS_STATUSES:
-        update.update({"isPro": True, "plan": plan, "paidPlan": plan, "subscriptionId": sub_id})
-        if price_id:
-            update["priceId"] = price_id
-        if status == "trialing" and not data.get("trialStartedAt"):
-            update["trialStartedAt"] = firestore.SERVER_TIMESTAMP
-    else:
-        update["paidPlan"] = firestore.DELETE_FIELD
-        if status == "canceled":
-            update["subscriptionId"] = None
-        if not _gift_active(data):
-            update.update({"isPro": False, "plan": "free"})
-    for key, value in (extra or {}).items():
-        if value:
-            update[key] = value
-    ref.set(update, merge=True)
-    return True
+
+    return sync(db.transaction())
 
 
 def _event_seen(event_id: Optional[str]) -> bool:

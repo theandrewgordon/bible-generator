@@ -357,6 +357,15 @@ def load_today_state(email: str, *, family: object) -> dict[str, object]:
         ) from exc
 
 
+def _check_family_snapshot(txn, email: str, family: object) -> None:
+    """Include family identity in source transactions, including concurrent removals."""
+    snapshot = _state_ref(email).get(transaction=txn)
+    if snapshot.exists:
+        current_family = (snapshot.to_dict() or {}).get("state", {}).get("family")
+        if current_family is not None and current_family != family:
+            raise WeekFlowRevisionConflict("Family members changed in another browser. Reload before saving.")
+
+
 def save_today_state(
     email: str, payload: object, *, family: object
 ) -> dict[str, object]:
@@ -370,6 +379,7 @@ def save_today_state(
 
     @firestore.transactional
     def save(txn):
+        _check_family_snapshot(txn, email, family)
         snapshot = ref.get(transaction=txn)
         stored = snapshot.to_dict() or {} if snapshot.exists else {}
         current_revision = int(stored.get("revision") or 0)
@@ -439,6 +449,7 @@ def save_household_state(
 
     @firestore.transactional
     def save(txn):
+        _check_family_snapshot(txn, email, family)
         snapshot = ref.get(transaction=txn)
         stored = snapshot.to_dict() or {} if snapshot.exists else {}
         current_revision = int(stored.get("revision") or 0)
@@ -500,6 +511,7 @@ def save_meals_state(
 
     @firestore.transactional
     def save(txn):
+        _check_family_snapshot(txn, email, family)
         snapshot = ref.get(transaction=txn)
         stored = snapshot.to_dict() or {} if snapshot.exists else {}
         current_revision = int(stored.get("revision") or 0)
@@ -579,6 +591,7 @@ def save_medical_state(
 
     @firestore.transactional
     def save(txn):
+        _check_family_snapshot(txn, email, family)
         snapshot = ref.get(transaction=txn)
         stored = snapshot.to_dict() or {} if snapshot.exists else {}
         current_revision = int(stored.get("revision") or 0)
@@ -620,6 +633,7 @@ def save_travel_state(
 
     @firestore.transactional
     def save(txn):
+        _check_family_snapshot(txn, email, family)
         snapshot = ref.get(transaction=txn)
         stored = snapshot.to_dict() or {} if snapshot.exists else {}
         current_revision = int(stored.get("revision") or 0)
