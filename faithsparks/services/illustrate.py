@@ -18,7 +18,7 @@ from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from build_pdf import build_coloring_pdf
 from faithsparks.services.firestore import db, firestore
-from faithsparks.services.storage import upload_to_storage, upload_to_storage_checked
+from faithsparks.services.storage import upload_to_storage, upload_to_storage_checked, download_from_storage
 from faithsparks.util.slug import normalize_slug
 from verse_helpers import (
     fetch_passage_text,
@@ -526,13 +526,17 @@ def _build_cache_key(
     include_reference: bool,
     symbols_only: bool,
     historical_props: bool,
+    user_email: str = "",
+    title_override: str = "",
 ) -> str | None:
     if not references and not custom_text:
         return None
 
     base_version = (PRIMARY_VERSION or "primary").lower()
     parts = [
-        "ILLUSTRATE",
+        "ILLUSTRATE-v2",
+        hashlib.sha256(user_email.strip().lower().encode()).hexdigest(),
+        hashlib.sha256(title_override.strip().encode()).hexdigest(),
         base_version,
         f"age={age_bracket or '6-8'}",
         f"ref={'1' if include_reference else '0'}",
@@ -559,8 +563,16 @@ def _fetch_cached_sheet(cache_key: str) -> Dict | None:
     if snapshot and getattr(snapshot, "exists", False):
         data = snapshot.to_dict() or {}
         data.pop("cached_at", None)
-        if data.get("pdf_filename") and data.get("png_filename"):
-            return data
+        for key, folder, suffix in (("pdf_filename", "output", ".pdf"), ("png_filename", "worksheets", ".png")):
+            filename = data.get(key)
+            if not isinstance(filename, str) or Path(filename).name != filename or Path(filename).suffix.lower() != suffix:
+                return None
+            path = Path(folder) / filename
+            if not path.is_file():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if not download_from_storage(f"worksheets/{filename}", str(path)) or not path.is_file():
+                    return None
+        return data
     return None
 
 
@@ -707,6 +719,8 @@ def create_coloring_sheet(
         include_reference=include_reference,
         symbols_only=symbols_only,
         historical_props=historical_props,
+        user_email=user_email,
+        title_override=title_override,
     )
     logger.info(
         "Illustrate request params user=%s refs=%s custom=%s age=%s include_ref=%s symbols=%s props=%s cache=%s",
@@ -935,8 +949,8 @@ def create_coloring_sheet(
         }
         try:
             db.collection("worksheets").add(record)
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError("We couldn't save your coloring page to your library. Please try again.") from exc
 
     result = {
         "title": base_title,

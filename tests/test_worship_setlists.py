@@ -9,6 +9,8 @@ import app
 class WorshipSetlistTests(unittest.TestCase):
     def setUp(self):
         self.original_root = app.app.root_path
+        # Resolve templates before redirecting only the test's data folders.
+        self.original_loader = app.app.jinja_loader
         self.original_db = app.db
         self.tmp = tempfile.TemporaryDirectory()
         app.app.root_path = self.tmp.name
