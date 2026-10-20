@@ -351,8 +351,13 @@ def generate():
             return redirect(url_for("generate"))
         tag_list = [v.strip() for v in re.split(r"[,;\n]+", verse_input) if v.strip()]
         verse_items = []
+        seen_verses = set()
         for v in tag_list:
             version, verse = extract_version_from_text(v, selected_version)
+            key = (normalize_slug(verse), version.upper())
+            if key in seen_verses:
+                continue
+            seen_verses.add(key)
             verse_items.append({
                 "slug": normalize_slug(verse),
                 "verse": verse,
@@ -545,7 +550,7 @@ def generate():
                 if existing_path:
                     if not os.path.exists(existing_path):
                         download_from_storage(f"worksheets/{os.path.basename(existing_path)}", existing_path)
-                    if os.path.exists(existing_path):
+                    if os.path.exists(existing_path) and _verse_text_verified(existing_meta, filename):
                         context["skip"] = True
                         _record_existing(existing_path)
                         continue

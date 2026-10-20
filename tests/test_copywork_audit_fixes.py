@@ -238,3 +238,33 @@ class SecondReviewTests(CopyworkTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.files_for("a@x.com")), 1)
         self.assertEqual(self.db.user("a@x.com")["usage"]["lifetime"], 10)
+
+
+class FourthReviewTests(CopyworkTestCase):
+    def test_generate_rebuilds_owned_unverified_legacy_pdf(self):
+        legacy = b"%PDF-1.4 unverified old scripture"
+        open("output/john_316_KJV.pdf", "wb").write(legacy)
+        json.dump({"verseSource": "unverified", "fullVerse": "Wrong text"}, open("output/john_316_KJV.json", "w"))
+        self.db.collection("worksheets").document("legacy").set({
+            "email": "a@x.com", "verse": "John 3:16", "version": "KJV",
+            "filename": "john_316_KJV.pdf", "cursive": False,
+        })
+        response = self.generate("a@x.com", verse="John 3:16", version="kjv")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotEqual(response.data, legacy)
+        self.assertEqual(len(self.ai_calls), 1)
+
+    def test_duplicate_verses_are_built_and_charged_once(self):
+        response = self.generate("a@x.com", verse="John 3:16, john 3:16", version="kjv")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "application/pdf")
+        self.assertEqual(self.db.user("a@x.com")["usage"]["lifetime"], 1)
+        self.assertEqual(len(self.files_for("a@x.com")), 1)
+        self.assertEqual(len(self.ai_calls), 1)
+
+    def test_same_reference_in_distinct_translations_is_not_deduplicated(self):
+        with mock.patch.object(ws, "available_translation_ids", return_value={"kjv", "web"}):
+            response = self.generate("a@x.com", verse="John 3:16 KJV, John 3:16 WEB", version="kjv")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.files_for("a@x.com")), 2)
+        self.assertEqual(self.db.user("a@x.com")["usage"]["lifetime"], 2)
