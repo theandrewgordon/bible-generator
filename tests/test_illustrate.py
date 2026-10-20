@@ -43,6 +43,7 @@ sys.modules.setdefault("faithsparks.services.firestore", firestore_stub)
 
 storage_stub = types.ModuleType("faithsparks.services.storage")
 storage_stub.upload_to_storage = _noop
+storage_stub.upload_to_storage_checked = lambda *_args, **_kwargs: True
 sys.modules.setdefault("faithsparks.services.storage", storage_stub)
 
 dotenv_stub = types.ModuleType("dotenv")

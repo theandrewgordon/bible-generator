@@ -83,3 +83,85 @@ def test_announcement_audience(is_pro, audience, visible):
             "announcement_audience": audience,
         })
     assert ("PROMO_REGRESSION" in html) is visible
+
+
+@pytest.mark.parametrize("paying,expected", [(False, False), (True, True)])
+def test_expired_gift_does_not_override_paid_membership(paying, expected):
+    from datetime import datetime, timedelta, timezone
+    from faithsparks.services import users
+    user = {"isPro": True, "plan": "family", "gifted": True,
+            "giftExpiresAt": datetime.now(timezone.utc) - timedelta(days=1)}
+    if paying:
+        user.update(subscriptionId="sub_paid", subscriptionStatus="active", paidPlan="classroom")
+    assert users.has_active_plus(user) is expected
+
+
+def test_expired_gift_user_document_is_effective_on_api_requests(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from faithsparks.services import users
+    db = FakeFirestore()
+    monkeypatch.setattr(users, "db", db)
+    db.collection("users").document("gift@x.com").set({
+        "isPro": True, "gifted": True, "plan": "family",
+        "giftExpiresAt": datetime.now(timezone.utc) - timedelta(days=1),
+    })
+    with app.app.test_request_context("/api"):
+        user = users.get_user_doc("gift@x.com")
+        assert user["isPro"] is False
+        assert user["plan"] == "free"
+
+
+def test_failed_deletion_step_retains_account_for_retry(monkeypatch):
+    db = FakeFirestore()
+    monkeypatch.setattr(account_deletion, "db", db)
+    monkeypatch.setattr(account_deletion, "_cancel_stripe", lambda *a: False)
+    step = mock.Mock(side_effect=RuntimeError("storage down"))
+    monkeypatch.setattr(account_deletion, "_STEPS", [("workspace", step)])
+    db.collection("users").document("a@x.com").set({"plan": "free"})
+    with pytest.raises(account_deletion.AccountDeletionError, match="retry"):
+        account_deletion.delete_user_data("a@x.com")
+    assert db.collection("users").document("a@x.com").get().exists
+    step.side_effect = None
+    step.return_value = 1
+    result = account_deletion.delete_user_data("a@x.com")
+    assert result["account"] == 1
+    assert not db.collection("users").document("a@x.com").get().exists
+
+
+def test_failed_file_cleanup_retains_owner_record(monkeypatch):
+    db = FakeFirestore()
+    monkeypatch.setattr(account_deletion, "db", db)
+    monkeypatch.setattr(account_deletion, "_cancel_stripe", lambda *a: False)
+    monkeypatch.setattr(account_deletion, "_STEPS", [])
+    monkeypatch.setattr(worksheets, "_delete_owned_worksheet_file", mock.Mock(side_effect=RuntimeError("storage down")))
+    db.collection("users").document("a@x.com").set({"plan": "free"})
+    db.collection("worksheets").document("owned").set({"email": "a@x.com", "filename": "private.pdf"})
+    with pytest.raises(account_deletion.AccountDeletionError, match="retry"):
+        account_deletion.delete_user_data("a@x.com")
+    assert db.collection("users").document("a@x.com").get().exists
+    assert db.collection("worksheets").document("owned").get().exists
+    monkeypatch.setattr(worksheets, "_delete_owned_worksheet_file", mock.Mock())
+    assert account_deletion.delete_user_data("a@x.com")["account"] == 1
+    assert not db.collection("worksheets").document("owned").get().exists
+
+
+def test_coloring_deletion_removes_original_and_both_thumbnail_names():
+    from faithsparks.services import storage
+    with mock.patch.object(storage, "delete_storage_path") as delete:
+        worksheets._delete_owned_worksheet_file("color.pdf", {"type": "coloring", "imageFilename": "color.png"})
+    delete.assert_any_call("worksheets/color.pdf", strict=True)
+    delete.assert_any_call("worksheets/color.png", strict=True)
+    delete.assert_any_call("thumbs/color_coloring.png", strict=True)
+    delete.assert_any_call("thumbs/color.png", strict=True)
+
+
+def test_strict_storage_delete_distinguishes_failure_and_absence(monkeypatch):
+    from faithsparks.services import storage
+    bucket = mock.Mock()
+    blob = bucket.blob.return_value
+    monkeypatch.setattr(storage, "_get_bucket", lambda: bucket)
+    blob.exists.return_value = False
+    assert storage.delete_storage_path("worksheets/absent.pdf", strict=True) is False
+    blob.exists.side_effect = RuntimeError("Storage down")
+    with pytest.raises(RuntimeError, match="Storage down"):
+        storage.delete_storage_path("worksheets/owned.pdf", strict=True)

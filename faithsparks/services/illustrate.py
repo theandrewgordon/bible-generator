@@ -18,7 +18,7 @@ from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from build_pdf import build_coloring_pdf
 from faithsparks.services.firestore import db, firestore
-from faithsparks.services.storage import upload_to_storage
+from faithsparks.services.storage import upload_to_storage, upload_to_storage_checked
 from faithsparks.util.slug import normalize_slug
 from verse_helpers import (
     fetch_passage_text,
@@ -903,8 +903,13 @@ def create_coloring_sheet(
     )
     logger.info("Illustrate files rendered slug=%s pdf=%s png=%s", slug, pdf_filename, png_filename)
 
-    upload_to_storage(str(pdf_path), f"worksheets/{pdf_filename}")
-    upload_to_storage(str(png_path), f"worksheets/{png_filename}")
+    if db:
+        if not (upload_to_storage_checked(str(pdf_path), f"worksheets/{pdf_filename}")
+                and upload_to_storage_checked(str(png_path), f"worksheets/{png_filename}")):
+            raise RuntimeError("We couldn't save your coloring sheet safely. Please try again.")
+    else:
+        upload_to_storage(str(pdf_path), f"worksheets/{pdf_filename}")
+        upload_to_storage(str(png_path), f"worksheets/{png_filename}")
     if thumb_path.exists():
         upload_to_storage(str(thumb_path), f"thumbs/{thumb_path.name}")
 

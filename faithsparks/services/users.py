@@ -8,6 +8,8 @@ request-scoped `g` so the document is fetched at most once per request.
 Write paths (usage updates, plan changes) live in `usage.py`/billing and do
 their own fresh reads, so they are unaffected by this read cache.
 """
+from datetime import datetime, timezone
+
 from flask import g, has_request_context
 
 from .firestore import db
@@ -17,7 +19,7 @@ PLUS_PLAN_NAMES = {"family", "classroom", "plus", "plus_family", "plus_classroom
 
 def has_active_plus(user_data: dict | None) -> bool:
     """Return whether a user document represents an active Plus membership."""
-    data = user_data or {}
+    data = _effective_membership(user_data or {})
     # Current billing writes isPro on activation and clears it on cancellation.
     # Only fall back to plan for older documents that predate that field.
     if "isPro" in data:
@@ -47,6 +49,22 @@ def gift_end_update(user_data: dict | None) -> dict:
     return update
 
 
+def _effective_membership(data: dict) -> dict:
+    """Enforce gift expiry for API calls as well as rendered pages."""
+    expires = data.get("giftExpiresAt")
+    if not expires:
+        return data
+    try:
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        expired = datetime.now(timezone.utc) >= expires
+    except (AttributeError, TypeError, ValueError):
+        expired = True
+    if expired:
+        return {**data, **gift_end_update(data)}
+    return data
+
+
 def has_family_game_night_access(user_data: dict | None) -> bool:
     data = user_data or {}
     owns_standalone = bool((data.get("purchases") or {}).get("family_game_night"))
@@ -72,6 +90,7 @@ def get_user_doc(email: str | None, *, force: bool = False) -> dict:
         data = (snap.to_dict() or {}) if snap.exists else {}
     except Exception:
         data = {}
+    data = _effective_membership(data)
     if cache is not None:
         cache[email] = data
     return data

@@ -27,6 +27,7 @@ class Base(unittest.TestCase):
             mock.patch.object(app, "db", self.db),
             mock.patch.object(deletion, "db", self.db),
             mock.patch.object(ws, "db", self.db),
+            mock.patch.object(ws, "upload_to_storage_checked", return_value=True),
             mock.patch.object(app, "google", SimpleNamespace(authorized=True)),
         ):
             patch.start()
