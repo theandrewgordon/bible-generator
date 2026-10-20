@@ -1702,7 +1702,7 @@ def templates():
         body = request.get_json(silent=True)
         if error := _limit_error(email, body):
             return jsonify({"error": error}), 403
-        return jsonify(save_week_template(email, body)), 201
+        return jsonify(save_week_template(email, body, limit=int(_weekflow_limits(email)["templates"]))), 201
     except (TypeError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
     except WeekFlowStorageUnavailable as exc:

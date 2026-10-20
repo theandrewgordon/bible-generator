@@ -457,14 +457,47 @@ def generate():
         free_success_count = 0  # free-library verses that were generated (not billed)
         free_skip_count = 0
         free_slugs = _get_free_slugs()
+        for item in items_to_generate:
+            existing_path = None
+            verse, version = item["verse"], item["version"]
+            is_custom = item["is_custom"]
+            if db and user_email and not is_custom:
+                try:
+                    existing_stream = (
+                        db.collection("worksheets")
+                        .where(filter=firestore.FieldFilter("email", "==", user_email))
+                        .where(filter=firestore.FieldFilter("verse", "==", verse))
+                        .where(filter=firestore.FieldFilter("version", "==", version))
+                        .where(filter=firestore.FieldFilter("cursive", "==", use_cursive))
+                        .stream()
+                    )
+                    doc = next((doc for doc in existing_stream
+                                if ((doc.to_dict() or {}).get("learnerLevel") or "growing") == learner_level), None)
+                    if doc:
+                        existing_meta = doc.to_dict() or {}
+                        stored_level = existing_meta.get("learnerLevel") or "growing"
+                        filename = existing_meta.get("filename") if stored_level == learner_level else None
+                        if filename:
+                            existing_path = os.path.join("output", filename)
+                            try:
+                                flash("Already generated — using your existing PDF.", "info")
+                            except Exception:
+                                pass
+                except Exception:
+                    existing_path = None
+            if existing_path:
+                if not os.path.exists(existing_path):
+                    download_from_storage(f"worksheets/{os.path.basename(existing_path)}", existing_path)
+                if os.path.exists(existing_path) and _verse_text_verified(existing_meta, filename):
+                    item["existing_path"] = existing_path
         if user_email and not is_daily_proverb:
             billable = [item for item in items_to_generate
-                        if item.get("is_custom") or normalize_slug(item["verse"]) not in free_slugs]
+                        if not item.get("existing_path") and (item.get("is_custom") or normalize_slug(item["verse"]) not in free_slugs)]
             reserved, reservation_month = _reserve_usage(user_email, len(billable), user_plan, reservation_id=reservation_id)
             remaining = reserved
             selected = []
             for item in items_to_generate:
-                is_free = not item.get("is_custom") and normalize_slug(item["verse"]) in free_slugs
+                is_free = bool(item.get("existing_path")) or (not item.get("is_custom") and normalize_slug(item["verse"]) in free_slugs)
                 if is_free or remaining > 0:
                     selected.append(item)
                     if not is_free:
@@ -523,39 +556,10 @@ def generate():
 
                 contexts.append(context)
 
-                existing_path = None
-                if db and user_email and not is_custom:
-                    try:
-                        existing_stream = (
-                            db.collection("worksheets")
-                            .where(filter=firestore.FieldFilter("email", "==", user_email))
-                            .where(filter=firestore.FieldFilter("verse", "==", verse))
-                            .where(filter=firestore.FieldFilter("version", "==", version))
-                            .where(filter=firestore.FieldFilter("cursive", "==", use_cursive))
-                            .limit(1)
-                            .stream()
-                        )
-                        doc = next(existing_stream, None)
-                        if doc:
-                            existing_meta = doc.to_dict() or {}
-                            stored_level = existing_meta.get("learnerLevel") or "growing"
-                            filename = existing_meta.get("filename") if stored_level == learner_level else None
-                            if filename:
-                                existing_path = os.path.join("output", filename)
-                                try:
-                                    flash("Already generated — using your existing PDF.", "info")
-                                except Exception:
-                                    pass
-                    except Exception:
-                        existing_path = None
-
-                if existing_path:
-                    if not os.path.exists(existing_path):
-                        download_from_storage(f"worksheets/{os.path.basename(existing_path)}", existing_path)
-                    if os.path.exists(existing_path) and _verse_text_verified(existing_meta, filename):
-                        context["skip"] = True
-                        _record_existing(existing_path)
-                        continue
+                if item.get("existing_path"):
+                    context["skip"] = True
+                    _record_existing(item["existing_path"])
+                    continue
 
                 if not is_custom and normalize_slug(verse) in free_slugs:
                     free_skip_count += 1

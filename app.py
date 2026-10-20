@@ -2224,10 +2224,10 @@ def _delete_pending_worship_song(token: str) -> None:
 
 def delete_worship_song(song_id: str) -> bool:
     """Delete a song from Firestore and local file if present. Returns True if anything was deleted."""
-    try:
-        existing_item = get_worship_song(song_id)
-    except RuntimeError:
-        existing_item = None
+    existing_item = get_worship_song(song_id)
+    if existing_item:
+        _delete_worship_presentation_assets(existing_item)
+        _delete_worship_resource_assets(existing_item)
     deleted = False
     if db:
         try:
@@ -2262,9 +2262,6 @@ def delete_worship_song(song_id: str) -> bool:
             except Exception:
                 pass
     if deleted:
-        if existing_item:
-            _delete_worship_presentation_assets(existing_item)
-            _delete_worship_resource_assets(existing_item)
         _invalidate_worship_cache()
     return deleted
 
@@ -2287,6 +2284,7 @@ def _delete_all_worship_library_data() -> dict:
                     deleted["setlists"] += 1
         except Exception as exc:
             app.logger.warning("_delete_all_worship_library_data Firestore error: %s", exc)
+            raise RuntimeError("Library cleanup failed. Please retry.") from exc
     if not db:
         for folder_name, key in (("songs", "songs"), ("setlists", "setlists")):
             folder = _local_songs_dir() if folder_name == "songs" else Path(app.root_path) / folder_name
@@ -2318,6 +2316,7 @@ def _delete_worship_church_workspace(scope: str) -> dict:
     if not church_doc.exists:
         raise ValueError("That church workspace no longer exists.")
     counts = {"songs": 0, "setlists": 0, "media": 0, "live_sessions": 0, "members": 0, "storage_files": 0}
+    counts["storage_files"] = delete_storage_prefix(f"worship-media/{scope}", strict=True)
     scope_ref = db.collection(_WORSHIP_SCOPE_COLLECTION).document(scope)
     for collection_name, count_key in (
         (_WORSHIP_COLLECTION, "songs"),
@@ -2328,8 +2327,8 @@ def _delete_worship_church_workspace(scope: str) -> dict:
         for doc in scope_ref.collection(collection_name).stream():
             if collection_name == _WORSHIP_COLLECTION:
                 data = doc.to_dict() or {}
-                _delete_worship_presentation_assets(data)
-                _delete_worship_resource_assets(data)
+                _delete_worship_presentation_assets(data, scope=scope)
+                _delete_worship_resource_assets(data, scope=scope)
             doc.reference.delete()
             counts[count_key] += 1
     for member_doc in church_ref.collection("members").stream():
@@ -2345,7 +2344,6 @@ def _delete_worship_church_workspace(scope: str) -> dict:
             user_ref.set(update, merge=True)
         member_doc.reference.delete()
         counts["members"] += 1
-    counts["storage_files"] = delete_storage_prefix(f"worship-media/{scope}")
     scope_ref.delete()
     church_ref.delete()
     _invalidate_worship_cache(scope)
@@ -4401,9 +4399,9 @@ def _local_worship_resource_path(asset_path: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def _delete_worship_resource_asset(song_id: str, resource: dict) -> None:
+def _delete_worship_resource_asset(song_id: str, resource: dict, *, scope: str | None = None) -> None:
     path = str(resource.get("storage_path") or "")
-    if not _valid_worship_resource_storage_path(song_id, resource):
+    if not _valid_worship_resource_storage_path(song_id, resource, scope=scope):
         return
     if path.startswith("local:"):
         local_path = _local_worship_resource_path(path)
@@ -4413,16 +4411,16 @@ def _delete_worship_resource_asset(song_id: str, resource: dict) -> None:
                 parent = local_path.parent
                 if parent.is_dir() and not any(parent.iterdir()):
                     parent.rmdir()
-            except OSError:
+            except FileNotFoundError:
                 pass
     else:
-        delete_storage_path(path)
+        delete_storage_path(path, strict=True)
 
 
-def _valid_worship_resource_storage_path(song_id: str, resource: dict) -> bool:
+def _valid_worship_resource_storage_path(song_id: str, resource: dict, *, scope: str | None = None) -> bool:
     """Bind one stored resource path to the active church, song, and resource id."""
     path = str(resource.get("storage_path") or "").strip()
-    scope = _slugify_worship_token(_current_worship_scope()) or _DEFAULT_WORSHIP_SCOPE
+    scope = _slugify_worship_token(scope or _current_worship_scope()) or _DEFAULT_WORSHIP_SCOPE
     song_token = _slugify_worship_token(song_id)
     resource_id = _slugify_worship_token(resource.get("id") or "")
     if not path or not song_token or not resource_id or ".." in path:
@@ -4432,10 +4430,10 @@ def _valid_worship_resource_storage_path(song_id: str, resource: dict) -> bool:
     return comparable.startswith(expected_prefix) and len(comparable) > len(expected_prefix)
 
 
-def _delete_worship_resource_assets(item: dict) -> None:
+def _delete_worship_resource_assets(item: dict, *, scope: str | None = None) -> None:
     normalized = normalize_worship_song(item)
     for resource in normalized.get("resources", []):
-        _delete_worship_resource_asset(normalized.get("id", ""), resource)
+        _delete_worship_resource_asset(normalized.get("id", ""), resource, scope=scope)
 
 
 def _download_worship_asset(asset_path: str, local_path: str) -> bool:
@@ -4474,17 +4472,19 @@ def _presentation_slide_count(item: dict, *, include_highlights: bool = True) ->
     return sum(1 for slide in slides if slide.get("kind") == "presentation")
 
 
-def _delete_worship_presentation_assets(item: dict) -> None:
+def _delete_worship_presentation_assets(item: dict, *, scope: str | None = None) -> None:
     normalized = normalize_worship_song(item)
     if normalized.get("type") != _WORSHIP_PRESENTATION_TYPE:
         return
     prefix = str(normalized.get("presentation_storage_prefix") or "").strip().strip("/")
-    expected = f"worship-presentations/{_slugify_worship_token(_current_worship_scope())}/{_slugify_worship_token(normalized.get('id'))}"
+    scope = scope or _current_worship_scope()
+    expected = f"worship-presentations/{_slugify_worship_token(scope)}/{_slugify_worship_token(normalized.get('id'))}"
     if prefix != expected:
         return
-    delete_storage_prefix(prefix)
+    if not _is_local_storage_allowed():
+        delete_storage_prefix(prefix, strict=True)
     if _is_local_storage_allowed():
-        local_dir = (_LOCAL_WORSHIP_PRESENTATIONS_ROOT / _current_worship_scope() / normalized["id"]).resolve()
+        local_dir = (_LOCAL_WORSHIP_PRESENTATIONS_ROOT / scope / normalized["id"]).resolve()
         try:
             local_dir.relative_to(_LOCAL_WORSHIP_PRESENTATIONS_ROOT.resolve())
         except ValueError:
