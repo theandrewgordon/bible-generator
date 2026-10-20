@@ -912,8 +912,14 @@ def save_today():
 
 @bp.get("/logistics")
 def logistics():
+    email = _signed_in_email()
+    try:
+        family_timezone = load_beta_state(email)["family"]["timezone"] if email else "America/New_York"
+    except WeekFlowStorageUnavailable as exc:
+        return str(exc), 503
     return render_template(
         "weekflow_logistics.html",
+        family_timezone=family_timezone,
         scenario=default_logistics_scenario(),
         family_four_scenario=family_four_school_sports_scenario(),
         carpool_scenario=family_four_carpool_scenario(),

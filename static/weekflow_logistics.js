@@ -883,11 +883,12 @@
     }
   }
 
-  function formatCalendarTime(value, allDay = false) {
+  function formatCalendarTime(value, allDay = false, timezone = config.timezone) {
     if (allDay) return value;
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     return new Intl.DateTimeFormat(undefined, {
+      timeZone: timezone,
       weekday: "short",
       month: "short",
       day: "numeric",
@@ -905,7 +906,7 @@
       <h3>${payload.event_count} ${payload.event_count === 1 ? "commitment" : "commitments"} found</h3>
       <p>${privacy} Nothing from this preview was saved.</p>
       <div class="wfl-calendar-events">${payload.events.length ? payload.events.map((event) => `
-        <article class="wfl-calendar-event"><time>${escapeHtml(formatCalendarTime(event.start, event.all_day))}</time><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(event.source_calendar_name)}${event.location ? ` · ${escapeHtml(event.location)}` : ""} · read-only</span></div></article>`).join("") : "<p>No events appear in the selected week.</p>"}</div>`;
+        <article class="wfl-calendar-event"><time>${escapeHtml(formatCalendarTime(event.start, event.all_day, payload.timezone || config.timezone))}</time><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(event.source_calendar_name)}${event.location ? ` · ${escapeHtml(event.location)}` : ""} · read-only</span></div></article>`).join("") : "<p>No events appear in the selected week.</p>"}</div>`;
   }
 
   async function previewCalendars(event) {
@@ -923,7 +924,7 @@
       const payload = await responseJson(config.calendarPreviewUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": config.csrfToken },
-        body: JSON.stringify({ calendar_ids: calendarIds, detail_mode: detailMode, week_start: calendarWeek.value, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York" }),
+        body: JSON.stringify({ calendar_ids: calendarIds, detail_mode: detailMode, week_start: calendarWeek.value, timezone: config.timezone || "America/New_York" }),
       });
       calendarPreferences = { calendar_ids: calendarIds, detail_mode: detailMode };
       renderCalendarPreview(payload);
