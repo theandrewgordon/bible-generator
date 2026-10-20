@@ -712,8 +712,8 @@ LESSON_PACK_OUTPUT_DIR = Path("output") / "lesson_packs"
 
 
 def _lesson_pack_user_doc_id(user_email: str, slug: str) -> str:
-    email_part = re.sub(r"[^a-z0-9]+", "-", (user_email or "anonymous").strip().lower()).strip("-") or "anonymous"
-    return f"{email_part}-{slug}"[:1400]
+    identity = (user_email or "anonymous").strip().lower() + "\0" + slug
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
 def _record_user_lesson_pack(user_email: str, result: dict, *, mark_created: bool = False) -> None:
@@ -752,9 +752,20 @@ def _record_user_lesson_pack(user_email: str, result: dict, *, mark_created: boo
     if mark_created:
         payload["created_at"] = firestore.SERVER_TIMESTAMP
     try:
-        db.collection("lesson_packs").document(_lesson_pack_user_doc_id(email, slug)).set(payload, merge=True)
-    except Exception:
-        pass
+        collection = db.collection("lesson_packs")
+        # Keep existing records readable without overwriting a different owner
+        # whose email collapsed to the same legacy key.
+        legacy_email = re.sub(r"[^a-z0-9]+", "-", email).strip("-") or "anonymous"
+        legacy_ref = collection.document(f"{legacy_email}-{slug}"[:1400])
+        legacy = legacy_ref.get()
+        legacy_data = legacy.to_dict() or {}
+        if legacy.exists and legacy_data.get("email") == email and legacy_data.get("slug") == slug:
+            ref = legacy_ref
+        else:
+            ref = collection.document(_lesson_pack_user_doc_id(email, slug))
+        ref.set(payload, merge=True)
+    except Exception as exc:
+        raise RuntimeError("The lesson pack ownership could not be saved reliably. Please try again.") from exc
 
 
 def _lesson_pack_cache_key(

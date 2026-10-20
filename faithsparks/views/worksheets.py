@@ -2,6 +2,7 @@ import json
 import os
 import re
 import traceback
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,6 +44,7 @@ from faithsparks.services.usage import (
     _quota_for_plan,
     _get_usage,
     _reserve_usage,
+    _save_worksheet,
     _refund_usage,
     _get_free_slugs,
 )
@@ -114,6 +116,15 @@ def _delete_owned_worksheet_file(filename: str, meta: dict | None = None) -> Non
     if file_path and file_path.exists():
         file_path.unlink()
     delete_storage_path(f"worksheets/{os.path.basename(filename)}", strict=True)
+    if _is_custom_filename(filename):
+        stem = os.path.splitext(os.path.basename(filename))[0]
+        # PDFs carry handwriting/learner suffixes; their source JSON does not.
+        source_stem = stem.split("_DIY", 1)[0] + "_DIY" if "_DIY" in stem else stem
+        json_name = source_stem + ".json"
+        json_path = _safe_local_path("output", json_name, {".json"})
+        delete_storage_path(f"worksheets/{json_name}", strict=True)
+        if json_path and json_path.exists():
+            json_path.unlink()
     if meta.get("type") == "coloring":
         png_name = meta.get("imageFilename") or os.path.splitext(filename)[0] + ".png"
         png_path = _safe_local_path("worksheets", png_name, {".png"})
@@ -235,6 +246,7 @@ def update_zip_bundle(pdf_paths) -> str | None:
 def generate():
     reserved = 0
     reservation_month = None
+    reservation_id = uuid.uuid4().hex
     success_count = free_success_count = 0
     user_email = None
     try:
@@ -441,7 +453,7 @@ def generate():
         if user_email and not is_daily_proverb:
             billable = [item for item in items_to_generate
                         if item.get("is_custom") or normalize_slug(item["verse"]) not in free_slugs]
-            reserved, reservation_month = _reserve_usage(user_email, len(billable), user_plan)
+            reserved, reservation_month = _reserve_usage(user_email, len(billable), user_plan, reservation_id=reservation_id)
             remaining = reserved
             selected = []
             for item in items_to_generate:
@@ -678,7 +690,7 @@ def generate():
                     continue
 
                 if db and user_email:
-                    db.collection("worksheets").add(
+                    _save_worksheet(user_email, reservation_id,
                         {
                             "email": user_email,
                             "verse": (data.get("verse") if not ctx["is_custom"] else ctx["verse"]),
@@ -688,6 +700,9 @@ def generate():
                             "cursive": use_cursive,
                             "learnerLevel": learner_level,
                             "custom": ctx["is_custom"],
+                            "usageReservationId": reservation_id,
+                            "usageCharge": bool(not is_daily_proverb and (
+                                ctx["is_custom"] or normalize_slug(ctx["verse"]) not in free_slugs)),
                             **({"text": ctx["text"], "imageIdea": custom_prompt} if ctx["is_custom"] else {}),
                         }
                     )
@@ -754,7 +769,7 @@ def generate():
         if reserved and reservation_month:
             unused = max(0, reserved - max(0, success_count - free_success_count))
             try:
-                _refund_usage(user_email, unused, reservation_month)
+                _refund_usage(user_email, unused, reservation_month, reservation_id=reservation_id)
             except Exception:
                 current_app.logger.exception("Could not refund unused worksheet reservation")
 

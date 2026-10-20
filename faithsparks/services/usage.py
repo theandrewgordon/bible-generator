@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from .firestore import db
 from .users import get_user_doc, gift_end_update, invalidate_user_doc
 
@@ -45,6 +45,7 @@ def _get_usage(email: str) -> tuple[int, int]:
     if not db or not email:
         return (0, 0)
     try:
+        _recover_usage(email)
         d = get_user_doc(email)  # request-scoped cached read
         if d:
             usage = d.get('usage') or {}
@@ -115,13 +116,15 @@ def _get_free_slugs() -> set[str]:
 
 
 
-def _reserve_usage(email: str, requested: int, plan: str) -> tuple[int, str]:
+def _reserve_usage(email: str, requested: int, plan: str, *, reservation_id: str | None = None) -> tuple[int, str]:
     """Atomically charge up to the remaining allowance before generation starts."""
     if not db or not email:
         raise RuntimeError("Account storage unavailable")
     from firebase_admin import firestore
+    _recover_usage(email)
     month = _month_key()
     ref = db.collection("users").document(email)
+    journal = ref.collection("usage_reservations").document(reservation_id) if reservation_id else None
     monthly_limit, lifetime_limit = _quota_for_plan(plan)
 
     @firestore.transactional
@@ -139,6 +142,11 @@ def _reserve_usage(email: str, requested: int, plan: str) -> tuple[int, str]:
                 "lifetime": firestore.Increment(allowed),
                 "months": {month: firestore.Increment(allowed)},
             }}, merge=True)
+            if journal is not None:
+                txn.set(journal, {
+                    "reserved": allowed, "month": month, "status": "pending", "consumed": 0,
+                    "expiresAt": datetime.now(timezone.utc) + timedelta(minutes=15),
+                })
         return allowed
 
     allowed = reserve(db.transaction())
@@ -146,8 +154,11 @@ def _reserve_usage(email: str, requested: int, plan: str) -> tuple[int, str]:
     return allowed, month
 
 
-def _refund_usage(email: str, unused: int, month: str) -> None:
-    """Return unsuccessful reservations to the original billing month."""
+def _refund_usage(email: str, unused: int, month: str, *, reservation_id: str | None = None) -> None:
+    """Return unused credits; a journal makes settlement retryable and idempotent."""
+    if reservation_id:
+        _settle_usage(email, reservation_id)
+        return
     if unused > 0:
         from firebase_admin import firestore
         db.collection("users").document(email).set({"usage": {
@@ -155,3 +166,68 @@ def _refund_usage(email: str, unused: int, month: str) -> None:
             "months": {month: firestore.Increment(-unused)},
         }}, merge=True)
         invalidate_user_doc(email)
+
+
+def _settle_usage(email: str, reservation_id: str) -> None:
+    from firebase_admin import firestore
+    user = db.collection("users").document(email)
+    journal = user.collection("usage_reservations").document(reservation_id)
+
+    @firestore.transactional
+    def settle(txn):
+        record = journal.get(transaction=txn).to_dict() or {}
+        if record.get("status") != "pending":
+            return
+        data = user.get(transaction=txn).to_dict() or {}
+        usage = data.get("usage") or {}
+        month = record["month"]
+        delivered = int(record.get("consumed") or 0)
+        unused = max(0, int(record["reserved"]) - delivered)
+        if unused:
+            # Admin resets may have happened while a request was in flight.
+            txn.set(user, {"usage": {
+                "lifetime": max(0, int(usage.get("lifetime") or 0) - unused),
+                "months": {month: max(0, int((usage.get("months") or {}).get(month) or 0) - unused)},
+            }}, merge=True)
+        txn.set(journal, {"status": "settled", "consumed": delivered,
+                          "settledAt": firestore.SERVER_TIMESTAMP}, merge=True)
+
+    settle(db.transaction())
+    invalidate_user_doc(email)
+
+
+def _recover_usage(email: str) -> None:
+    """Reconcile interrupted requests on the next usage read or generation."""
+    if not db or not email:
+        return
+    from firebase_admin import firestore
+    now = datetime.now(timezone.utc)
+    pending = db.collection("users").document(email).collection("usage_reservations").where(
+        filter=firestore.FieldFilter("status", "==", "pending")
+    ).stream()
+    for doc in pending:
+        record = doc.to_dict() or {}
+        expires = record.get("expiresAt")
+        if expires and expires <= now:
+            _settle_usage(email, doc.id)
+
+
+def _save_worksheet(email: str, reservation_id: str, metadata: dict) -> None:
+    """Save ownership and consume its reserved credit in the same transaction."""
+    from firebase_admin import firestore
+    worksheet = db.collection("worksheets").document()
+    journal = db.collection("users").document(email).collection("usage_reservations").document(reservation_id)
+
+    @firestore.transactional
+    def save(txn):
+        record = journal.get(transaction=txn).to_dict() or {}
+        if metadata.get("usageCharge"):
+            if record.get("status") != "pending":
+                raise RuntimeError("Worksheet reservation is no longer active")
+            consumed = int(record.get("consumed") or 0)
+            if consumed >= int(record["reserved"]):
+                raise RuntimeError("Worksheet reservation is exhausted")
+            txn.set(journal, {"consumed": consumed + 1}, merge=True)
+        txn.set(worksheet, metadata)
+
+    save(db.transaction())
