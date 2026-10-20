@@ -73,14 +73,8 @@ def _first_public_ip(header_value: str) -> Optional[str]:
 
 
 def get_client_ip() -> str:
-    ip = request.headers.get("CF-Connecting-IP")
-    if ip:
-        return ip
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        candidate = _first_public_ip(forwarded)
-        if candidate:
-            return candidate
+    # ProxyFix resolves the configured trusted proxy hops before Flask runs.
+    # Raw forwarding headers are caller controlled and must not override it.
     return request.remote_addr or "0.0.0.0"
 
 

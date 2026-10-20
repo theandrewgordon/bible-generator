@@ -2350,6 +2350,40 @@ def _delete_worship_church_workspace(scope: str) -> dict:
     return counts
 
 
+def _replace_song_in_worship_setlists(old_id: str, new_id: str) -> None:
+    """Retain each setlist's order and notes when a duplicate is consolidated."""
+    def replace(data):
+        songs = data.get("songs") or []
+        if old_id not in songs:
+            return None
+        notes = dict(data.get("notes") or {})
+        old_note = notes.pop(old_id, "")
+        if old_note:
+            notes[new_id] = "\n".join(dict.fromkeys(filter(None, [notes.get(new_id, ""), old_note])))
+        return {**data, "songs": [new_id if sid == old_id else sid for sid in songs], "notes": notes}
+
+    if db:
+        @firestore.transactional
+        def update(txn):
+            snapshots = [doc for ref in _worship_setlist_refs_for_read()
+                         for doc in ref.stream(transaction=txn)]
+            for doc in snapshots:
+                updated = replace(doc.to_dict() or {})
+                if updated is not None:
+                    txn.set(doc.reference, updated)
+        update(db.transaction())
+    if _is_local_storage_allowed():
+        for path in (Path(app.root_path) / "setlists").glob("*.json"):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not _worship_setlist_visible_in_scope(data):
+                continue
+            updated = replace(data)
+            if updated is not None:
+                temporary = path.with_suffix(".tmp")
+                temporary.write_text(json.dumps(updated, indent=2), encoding="utf-8")
+                os.replace(temporary, path)
+
+
 def _remove_song_from_worship_setlists(song_id: str) -> int:
     """Remove a deleted song id from saved setlists. Empty setlists are deleted."""
     changed = 0
@@ -3999,6 +4033,7 @@ def worship_cleanup_duplicates():
 
         for dupe in group[1:]:
             if dupe["id"] != best["id"]:
+                _replace_song_in_worship_setlists(dupe["id"], best["id"])
                 delete_worship_song(dupe["id"])
                 deleted_ids.append(dupe["id"])
 
@@ -4013,6 +4048,34 @@ def worship_cleanup_duplicates():
     return redirect(url_for("worship"))
 
 
+def _create_worship_church(name: str, email: str) -> tuple[str, str]:
+    """Reserve a workspace and its first owner in one transaction."""
+    base_id = _slugify_worship_token(name) or f"church-{secrets.token_hex(8)}"
+    invite_code = _make_worship_invite_code(name)
+
+    @firestore.transactional
+    def create(txn):
+        church_id = base_id
+        suffix = 2
+        while True:
+            ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(church_id)
+            if not ref.get(transaction=txn).exists:
+                break
+            church_id = f"{base_id}-{suffix}"
+            suffix += 1
+        txn.set(ref, {
+            "id": church_id, "name": name, "invite_code": invite_code,
+            "created_by": email, "created_at": firestore.SERVER_TIMESTAMP,
+            "updated_at": firestore.SERVER_TIMESTAMP,
+        })
+        txn.set(ref.collection("members").document(email), {
+            "email": email, "role": "owner", "joined_at": firestore.SERVER_TIMESTAMP,
+        })
+        return church_id, invite_code
+
+    return create(db.transaction())
+
+
 @app.route("/worship/church/create", methods=["POST"])
 @login_required
 def worship_church_create():
@@ -4023,29 +4086,8 @@ def worship_church_create():
     if not name:
         flash("Church name is required.", "warning")
         return redirect(url_for("worship"))
-    church_id = _slugify_worship_token(name) or f"church-{secrets.token_hex(3)}"
-    base_id = church_id
-    suffix = 2
     try:
-        while db.collection(_WORSHIP_CHURCH_COLLECTION).document(church_id).get().exists:
-            church_id = f"{base_id}-{suffix}"
-            suffix += 1
-        invite_code = _make_worship_invite_code(name)
-        church_ref = db.collection(_WORSHIP_CHURCH_COLLECTION).document(church_id)
-        church_ref.set(
-            {
-                "id": church_id,
-                "name": name,
-                "invite_code": invite_code,
-                "created_by": session.get("user_email"),
-                "created_at": firestore.SERVER_TIMESTAMP,
-                "updated_at": firestore.SERVER_TIMESTAMP,
-            }
-        )
-        church_ref.collection("members").document(session["user_email"]).set(
-            {"email": session["user_email"], "role": "owner", "joined_at": firestore.SERVER_TIMESTAMP},
-            merge=True,
-        )
+        church_id, invite_code = _create_worship_church(name, session["user_email"])
         _set_current_worship_church(church_id)
         _invalidate_worship_cache()
         flash(f"Created {name}. Invite code: {invite_code}", "success")
