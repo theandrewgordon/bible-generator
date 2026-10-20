@@ -8688,6 +8688,15 @@ def worship_licensing():
     return render_template("worship_licensing.html", rows=_worship_licensing_rows())
 
 
+def _spreadsheet_safe_cell(value):
+    """Prevent imported metadata from becoming a spreadsheet formula."""
+    if isinstance(value, str):
+        stripped = value.lstrip()
+        if stripped.startswith(("=", "+", "-", "@", "\ufeff")) or value.startswith(("\t", "\r", "\n")):
+            return "'" + value
+    return value
+
+
 @app.route("/worship/licensing.csv", methods=["GET"])
 @login_required
 def worship_licensing_csv():
@@ -8696,7 +8705,7 @@ def worship_licensing_csv():
     writer = csv.DictWriter(output, fieldnames=fields)
     writer.writeheader()
     for row in _worship_licensing_rows():
-        writer.writerow({field: row.get(field, "") for field in fields})
+        writer.writerow({field: _spreadsheet_safe_cell(row.get(field, "")) for field in fields})
     return Response(
         output.getvalue(), mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=worship-licensing.csv", "Cache-Control": "private, no-store"},

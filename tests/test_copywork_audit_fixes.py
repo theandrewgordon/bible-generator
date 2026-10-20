@@ -268,3 +268,50 @@ class FourthReviewTests(CopyworkTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.files_for("a@x.com")), 2)
         self.assertEqual(self.db.user("a@x.com")["usage"]["lifetime"], 2)
+
+
+class FifthReviewTests(CopyworkTestCase):
+    def test_delete_during_upload_is_blocked_then_retry_removes_all_files(self):
+        from pathlib import Path
+        from faithsparks.services import account_deletion as deletion
+        cloud = {}
+        blocked = []
+
+        def upload(path, key):
+            with self.assertRaises(deletion.AccountDeletionError) as error:
+                deletion.delete_user_data("a@x.com")
+            self.assertIn("still being prepared", str(error.exception))
+            blocked.append(True)
+            cloud[key] = Path(path).read_bytes()
+            return True
+
+        def remove(key, **kwargs):
+            cloud.pop(key, None)
+            return True
+
+        with mock.patch.object(deletion, "db", self.db), mock.patch.object(
+            deletion, "_STEPS", []
+        ), mock.patch.object(deletion, "_cancel_stripe", return_value=False), mock.patch(
+            "faithsparks.services.weekflow_calendar._revoke_at_google", return_value=False
+        ), mock.patch.object(ws, "upload_to_storage_checked", side_effect=upload), mock.patch(
+            "faithsparks.services.storage.delete_storage_path", side_effect=remove
+        ):
+            response = self.generate("a@x.com", custom_text="Private family address")
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(blocked)
+            self.assertTrue(self.db.user("a@x.com"))
+            self.assertEqual(deletion.delete_user_data("a@x.com")["account"], 1)
+        self.assertEqual(cloud, {})
+        self.assertFalse(list(Path("output").glob("custom-*")))
+        self.assertFalse(self.db.collection("users").document("a@x.com").get().exists)
+
+    def test_generation_cannot_start_during_deletion(self):
+        from faithsparks.services.account_operations import begin_operation, end_operation
+        token = begin_operation(self.db, "a@x.com", "deletion")
+        try:
+            response = self.generate("a@x.com", verse="John 3:16", version="kjv")
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(self.ai_calls, [])
+            self.assertEqual(self.files_for("a@x.com"), [])
+        finally:
+            end_operation(self.db, "a@x.com", token)

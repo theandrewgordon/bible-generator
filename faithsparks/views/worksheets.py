@@ -38,6 +38,7 @@ from build_pdf import generate_pdf
 from PIL import Image, ImageDraw, ImageFont
 
 from faithsparks.services.firestore import db
+from faithsparks.services.account_operations import generation_guard
 from faithsparks.services.storage import download_from_storage, upload_to_storage, upload_to_storage_checked, signed_url_for_path
 from faithsparks.services.usage import (
     _get_user_plan,
@@ -243,6 +244,7 @@ def update_zip_bundle(pdf_paths) -> str | None:
     return bundle_path
 
 
+@generation_guard(lambda: db)
 def generate():
     reserved = 0
     reservation_month = None
@@ -964,6 +966,7 @@ def thumb(filename):
     return ("", 404)
 
 
+@generation_guard(lambda: db, methods=("GET", "POST"))
 def regenerate(filename):
     if not db:
         return "Firestore not configured", 500

@@ -1679,6 +1679,10 @@ def rollover():
         return jsonify({"error": str(exc), "conflict": True}), 409
     except WeekFlowStorageUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
+    try:
+        prune_week_history(email, keep=int(_weekflow_limits(email)["saved_weeks"]))
+    except WeekFlowStorageUnavailable as exc:
+        current_app.logger.warning("WeekFlow rollover retention pruning failed: %s", exc)
     return jsonify(saved)
 
 

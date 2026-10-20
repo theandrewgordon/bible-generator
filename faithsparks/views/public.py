@@ -25,6 +25,7 @@ from faithsparks.services.lesson_pack import (
 from faithsparks.services.rate_limit import check_rate_limit
 from faithsparks.services.sharded_counters import shard_ref
 from faithsparks.services.firestore import db
+from faithsparks.services.account_operations import generation_guard
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.util.request_utils import get_client_ip
 from faithsparks.products import MATURITY, products_for, products_for_audience
@@ -1293,6 +1294,7 @@ def same_brain_public_analytics():
 
 
 @bp.route('/lesson-pack', methods=['GET', 'POST'])
+@generation_guard(lambda: db)
 def lesson_pack():
     if request.method == 'GET':
         available_versions = available_lesson_pack_versions()
