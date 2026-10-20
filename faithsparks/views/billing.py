@@ -446,10 +446,12 @@ def _subscription_checkout_target(email, member, price_id):
     subscriptions = {}
     for customer in sorted(customers):
         for sub in stripe.Subscription.list(customer=customer, status="all", limit=100).auto_paging_iter():
+            member["_hasSubscriptionHistory"] = True
             if sub.get("status") not in {"canceled", "incomplete_expired"}:
                 subscriptions[sub["id"]] = sub
     if member.get("subscriptionId") and member["subscriptionId"] not in subscriptions:
         sub = stripe.Subscription.retrieve(member["subscriptionId"])
+        member["_hasSubscriptionHistory"] = True
         if sub.get("status") not in {"canceled", "incomplete_expired"}:
             subscriptions[sub["id"]] = sub
             customers.add(sub["customer"])
@@ -529,7 +531,7 @@ def _create_checkout_session(user_email):
     if response is not None:
         return response
     trial_info = _trial_days_for(trial_token, price_id)
-    if trial_info and (member.get("trialStartedAt") or member.get("subscriptionId") or member.get("stripeCustomerId")):
+    if trial_info and (member.get("trialStartedAt") or member.get("subscriptionId") or member.get("_hasSubscriptionHistory")):
         flash("Free trials are for first-time members, so this plan starts today.", "info")
         trial_info = None
     trial_days = trial_kind = None

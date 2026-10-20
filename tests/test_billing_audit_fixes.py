@@ -310,6 +310,20 @@ class CheckoutTests(BillingTestCase):
         billing.stripe.checkout.Session.expire.assert_called_once_with("cs_old")
         self.assertEqual(self.created, [])
 
+    def test_abandoned_checkout_does_not_disqualify_first_trial(self):
+        with mock.patch.object(billing, "PLUS_MONTH_TRIAL_CODES", {"try30"}):
+            self.checkout("new@x.com", "price_fam_m")
+            self.open_checkouts.clear()  # Original checkout expired without payment.
+            self.checkout("new@x.com", "price_fam_m", trial_token="try30")
+            self.assertEqual(self.created[-1]["subscription_data"]["trial_period_days"], 30)
+
+    def test_historical_paid_subscription_disqualifies_trial(self):
+        self.customers.append({"id": "cus_old"})
+        self.subs["sub_old"] = _sub("sub_old", "cus_old", "price_fam_m", "canceled")
+        with mock.patch.object(billing, "PLUS_MONTH_TRIAL_CODES", {"try30"}):
+            self.checkout("old@x.com", "price_fam_m", trial_token="try30")
+            self.assertNotIn("trial_period_days", self.created[-1]["subscription_data"])
+
     def test_trial_only_for_first_time_members(self):
         with mock.patch.object(billing, "PLUS_MONTH_TRIAL_CODES", {"try30"}):
             self.checkout("new@x.com", "price_fam_m", trial_token="try30")
