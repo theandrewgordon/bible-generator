@@ -31,6 +31,13 @@ def has_active_plus(user_data: dict | None) -> bool:
 SUBSCRIPTION_ACCESS_STATUSES = {"active", "trialing", "past_due"}
 
 
+def strongest_plan(*plans: str) -> str:
+    normalized = [str(plan or "").lower() for plan in plans]
+    if any(plan in {"classroom", "plus_classroom", "school"} for plan in normalized):
+        return "classroom"
+    return "family" if any(plan in PLUS_PLAN_NAMES for plan in normalized) else "free"
+
+
 def gift_end_update(user_data: dict | None) -> dict:
     """Fields to write when a gift expires or is revoked.
 
@@ -41,7 +48,7 @@ def gift_end_update(user_data: dict | None) -> dict:
     paying = bool(data.get("subscriptionId")) and str(
         data.get("subscriptionStatus") or "active"
     ).lower() in SUBSCRIPTION_ACCESS_STATUSES
-    update = {"gifted": False, "giftExpiresAt": None}
+    update = {"gifted": False, "giftExpiresAt": None, "giftPlan": None}
     if paying:
         update.update({"plan": data.get("paidPlan") or "family", "isPro": True})
     else:
